@@ -264,10 +264,6 @@ func testNoNewline(text string, lines []string, t *testing.T) {
 	}
 }
 
-var noNewlineLines = []string{
-	"abcdefghijklmn\nopqrstuvwxyz",
-}
-
 // Test that the line splitter handles a final line without a newline.
 func TestScanLineNoNewline(t *testing.T) {
 	const text = "abcdefghijklmn\nopqrstuvwxyz"

@@ -184,8 +184,6 @@ const nonStrictInput = `
 <tag>&0a;</tag>
 `
 
-var nonStringEntity = map[string]string{"": "oops!", "0a": "oops!"}
-
 var nonStrictTokens = []Token{
 	CharData("\n"),
 	StartElement{Name{"", "tag"}, []Attr{}},
@@ -650,10 +648,6 @@ func TestDisallowedCharacters(t *testing.T) {
 			t.Fatalf("input %d synerr.Msg wrong: want %q, got %q", i, tt.err, synerr.Msg)
 		}
 	}
-}
-
-type procInstEncodingTest struct {
-	expect, got string
 }
 
 var procInstTests = []struct {

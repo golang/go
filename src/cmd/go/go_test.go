@@ -421,18 +421,6 @@ func (tg *testgoData) doGrepCount(match string, b *bytes.Buffer) int {
 	return c
 }
 
-// grepCountStdout returns the number of times a regexp is seen in
-// standard output.
-func (tg *testgoData) grepCountStdout(match string) int {
-	return tg.doGrepCount(match, &tg.stdout)
-}
-
-// grepCountStderr returns the number of times a regexp is seen in
-// standard error.
-func (tg *testgoData) grepCountStderr(match string) int {
-	return tg.doGrepCount(match, &tg.stderr)
-}
-
 // grepCountBoth returns the number of times a regexp is seen in both
 // standard output and standard error.
 func (tg *testgoData) grepCountBoth(match string) int {

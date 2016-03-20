@@ -152,13 +152,6 @@ func (dss *dualStackServer) buildup(handler func(*dualStackServer, Listener)) er
 	return nil
 }
 
-func (dss *dualStackServer) putConn(c Conn) error {
-	dss.cmu.Lock()
-	dss.cs = append(dss.cs, c)
-	dss.cmu.Unlock()
-	return nil
-}
-
 func (dss *dualStackServer) teardownNetwork(network string) error {
 	dss.lnmu.Lock()
 	for i := range dss.lns {

@@ -402,21 +402,6 @@ func allowed(pkg string) map[string]bool {
 	return m
 }
 
-var bools = []bool{false, true}
-var geese = []string{"android", "darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
-var goarches = []string{"386", "amd64", "arm"}
-
-type osPkg struct {
-	goos, pkg string
-}
-
-// allowedErrors are the operating systems and packages known to contain errors
-// (currently just "no Go source files")
-var allowedErrors = map[osPkg]bool{
-	osPkg{"windows", "log/syslog"}: true,
-	osPkg{"plan9", "log/syslog"}:   true,
-}
-
 // listStdPkgs returns the same list of packages as "go list std".
 func listStdPkgs(goroot string) ([]string, error) {
 	// Based on cmd/go's matchPackages function.

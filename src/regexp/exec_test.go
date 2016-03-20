@@ -675,8 +675,6 @@ const (
 	easy1  = "A[AB]B[BC]C[CD]D[DE]E[EF]F[FG]G[GH]H[HI]I[IJ]J$"
 	medium = "[XYZ]ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
 	hard   = "[ -~]*ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
-	parens = "([ -~])*(A)(B)(C)(D)(E)(F)(G)(H)(I)(J)(K)(L)(M)" +
-		"(N)(O)(P)(Q)(R)(S)(T)(U)(V)(W)(X)(Y)(Z)$"
 )
 
 func BenchmarkMatchEasy0_32(b *testing.B)   { benchmark(b, easy0, 32<<0) }

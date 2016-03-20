@@ -44,15 +44,11 @@ type pair struct {
 	s string
 }
 
-func isDigit(c uint8) bool { return '0' <= c && c <= '9' }
-
 func assert(t *testing.T, s, want string) {
 	if s != want {
 		t.Errorf("have %#q want %#q", s, want)
 	}
 }
-
-func typestring(i interface{}) string { return TypeOf(i).String() }
 
 var typeTests = []pair{
 	{struct{ x int }{}, "int"},
