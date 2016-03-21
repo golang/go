@@ -116,11 +116,11 @@ func (a *Mpflt) Cmp(b *Mpflt) int {
 	return a.Val.Cmp(&b.Val)
 }
 
-func (b *Mpflt) CmpFloat64(c float64) int {
-	var a Mpflt
-
-	a.SetFloat64(c)
-	return b.Cmp(&a)
+func (a *Mpflt) CmpFloat64(c float64) int {
+	if c == 0 {
+		return a.Val.Sign() // common case shortcut
+	}
+	return a.Val.Cmp(big.NewFloat(c))
 }
 
 func (a *Mpflt) Float64() float64 {

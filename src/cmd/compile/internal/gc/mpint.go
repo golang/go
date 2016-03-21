@@ -262,8 +262,11 @@ func (a *Mpint) Cmp(b *Mpint) int {
 	return a.Val.Cmp(&b.Val)
 }
 
-func (b *Mpint) CmpInt64(c int64) int {
-	return b.Val.Cmp(big.NewInt(c))
+func (a *Mpint) CmpInt64(c int64) int {
+	if c == 0 {
+		return a.Val.Sign() // common case shortcut
+	}
+	return a.Val.Cmp(big.NewInt(c))
 }
 
 func (a *Mpint) Neg() {
