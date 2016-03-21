@@ -21,7 +21,7 @@
 
 // Simplify nil checks.
 // These are inserted by for _, e := range a {}
-(NilCheck (Phi x (Add64 (Const64 [c]) y)) mem) && c > 0 && v.Args[0] == y -> (NilCheck x mem)
+(NilCheck z:(Phi x (Add64 (Const64 [c]) y)) mem) && c > 0 && z == y -> (NilCheck x mem)
 
 // constant folding
 (Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
@@ -456,7 +456,7 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(ArrayIndex <t> [0] (Load ptr mem)) -> @v.Args[0].Block (Load <t> ptr mem)
+(ArrayIndex <t> [0] x:(Load ptr mem)) -> @x.Block (Load <t> ptr mem)
 (PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
 (PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
 
@@ -493,8 +493,8 @@
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 
-(StructSelect [i] (Load <t> ptr mem)) && !config.fe.CanSSA(t) ->
-  @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
+(StructSelect [i] x:(Load <t> ptr mem)) && !config.fe.CanSSA(t) ->
+  @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 (Store _ (StructMake0) mem) -> mem
 (Store dst (StructMake1 <t> f0) mem) ->
