@@ -10,10 +10,6 @@ import (
 )
 
 const (
-	// %b of an int64, plus a sign.
-	// Hex can add 0x and we handle it specially.
-	nByte = 65
-
 	ldigits = "0123456789abcdefx"
 	udigits = "0123456789ABCDEFX"
 )
@@ -43,12 +39,16 @@ type fmtFlags struct {
 // A fmt is the raw formatter used by Printf etc.
 // It prints into a buffer that must be set up separately.
 type fmt struct {
-	intbuf [nByte]byte
-	buf    *buffer
-	// width, precision
-	wid  int
-	prec int
+	buf *buffer
+
 	fmtFlags
+
+	wid  int // width
+	prec int // precision
+
+	// intbuf is large enought to store %b of an int64 with a sign and
+	// avoids padding at the end of the struct on 32 bit architectures.
+	intbuf [68]byte
 }
 
 func (f *fmt) clearflags() {
@@ -136,14 +136,14 @@ func (f *fmt) fmt_unicode(u uint64) {
 	buf := f.intbuf[0:]
 
 	// With default precision set the maximum needed buf length is 18
-	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF")
-	// which fits into the already allocated intbuf with a capacity of 65 bytes.
+	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF") which fits
+	// into the already allocated intbuf with a capacity of 68 bytes.
 	prec := 4
 	if f.precPresent && f.prec > 4 {
 		prec = f.prec
 		// Compute space needed for "U+" , number, " '", character, "'".
 		width := 2 + prec + 2 + utf8.UTFMax + 1
-		if width > cap(buf) {
+		if width > len(buf) {
 			buf = make([]byte, width)
 		}
 	}
@@ -205,17 +205,13 @@ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 		u = -u
 	}
 
-	var buf []byte = f.intbuf[0:]
-	if f.widPresent || f.precPresent || f.plus || f.space {
-		width := f.wid + f.prec // Only one will be set, both are positive; this provides the maximum.
-		if base == 16 && f.sharp {
-			// Also adds "0x".
-			width += 2
-		}
-		if negative || f.plus || f.space {
-			width++
-		}
-		if width > nByte {
+	buf := f.intbuf[0:]
+	// The already allocated f.intbuf with a capacity of 68 bytes
+	// is large enough for integer formatting when no precision or width is set.
+	if f.widPresent || f.precPresent {
+		// Account 3 extra bytes for possible addition of a sign and "0x".
+		width := 3 + f.wid + f.prec // wid and prec are always positive.
+		if width > len(buf) {
 			// We're going to need a bigger boat.
 			buf = make([]byte, width)
 		}
