@@ -335,6 +335,7 @@ var fmtTests = []struct {
 	{"%b", -6, "-110"},
 	{"%b", ^uint32(0), "11111111111111111111111111111111"},
 	{"%b", ^uint64(0), "1111111111111111111111111111111111111111111111111111111111111111"},
+	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
 	{"%o", 01234, "1234"},
 	{"%#o", 01234, "01234"},
 	{"%o", ^uint32(0), "37777777777"},
@@ -359,6 +360,15 @@ var fmtTests = []struct {
 	{"%-#20.8X", 0x1234abc, "0X01234ABC          "},
 	{"%-#20.8o", 01234, "00001234            "},
 
+	// Test correct f.intbuf overflow checks.
+	{"%068d", 1, zeroFill("", 68, "1")},
+	{"%068d", -1, zeroFill("-", 67, "1")},
+	{"%#.68x", 42, zeroFill("0x", 68, "2a")},
+	{"%.68d", -42, zeroFill("-", 68, "42")},
+	{"%+.68d", 42, zeroFill("+", 68, "42")},
+	{"% .68d", 42, zeroFill(" ", 68, "42")},
+	{"% +.68d", 42, zeroFill("+", 68, "42")},
+
 	// unicode format
 	{"%U", 0, "U+0000"},
 	{"%U", -1, "U+FFFFFFFFFFFFFFFF"},
@@ -375,8 +385,8 @@ var fmtTests = []struct {
 	{"%#-14.6U", '⌘', "U+002318 '⌘'  "},
 	{"%#014.6U", '⌘', "  U+002318 '⌘'"},
 	{"%#-014.6U", '⌘', "U+002318 '⌘'  "},
-	{"%.80U", uint(42), zeroFill("U+", 80, "2A")},
-	{"%#.80U", '日', zeroFill("U+", 80, "65E5") + " '日'"},
+	{"%.68U", uint(42), zeroFill("U+", 68, "2A")},
+	{"%#.68U", '日', zeroFill("U+", 68, "65E5") + " '日'"},
 
 	// floats
 	{"%+.3e", 0.0, "+0.000e+00"},
@@ -406,6 +416,9 @@ var fmtTests = []struct {
 	// Precision has no effect for binary float format.
 	{"%.4b", float32(1.0), "8388608p-23"},
 	{"%.4b", -1.0, "-4503599627370496p-52"},
+	// Test correct f.intbuf boundary checks.
+	{"%.68f", 1.0, zeroFill("1.", 68, "")},
+	{"%.68f", -1.0, zeroFill("-1.", 68, "")},
 	// float infinites and NaNs
 	{"%f", posInf, "+Inf"},
 	{"%.1f", negInf, "-Inf"},
@@ -795,22 +808,6 @@ var fmtTests = []struct {
 	// This test is just to check that it shows the two NaNs at all.
 	{"%v", map[float64]int{NaN: 1, NaN: 2}, "map[NaN:<nil> NaN:<nil>]"},
 
-	// Used to crash because nByte didn't allow for a sign.
-	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
-
-	// Used to panic.
-	{"%0100d", 1, zeroFill("", 100, "1")},
-	{"%0100d", -1, zeroFill("-", 99, "1")},
-	{"%0.100f", 1.0, zeroFill("1.", 100, "")},
-	{"%0.100f", -1.0, zeroFill("-1.", 100, "")},
-
-	// Used to panic: integer function didn't look at f.prec, f.unicode, f.width or sign.
-	{"%#.65x", 42, zeroFill("0x", 65, "2a")},
-	{"%.65d", -42, zeroFill("-", 65, "42")},
-	{"%+.65d", 42, zeroFill("+", 65, "42")},
-	{"% .65d", 42, zeroFill(" ", 65, "42")},
-	{"% +.65d", 42, zeroFill("+", 65, "42")},
-
 	// Comparison of padding rules with C printf.
 	/*
 		C program:
@@ -882,10 +879,6 @@ var fmtTests = []struct {
 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
 
-	{"%20f", -1.0, "           -1.000000"},
-	// Make sure we can handle very large widths.
-	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
-
 	// Use spaces instead of zero if padding to the right.
 	{"%0-5s", "abc", "abc  "},
 	{"%-05.1f", 1.0, "1.0  "},
@@ -907,27 +900,6 @@ var fmtTests = []struct {
 
 	// Incomplete format specification caused crash.
 	{"%.", 3, "%!.(int=3)"},
-
-	// Used to panic with out-of-bounds for very large numeric representations.
-	// nByte is set to handle one bit per uint64 in %b format, with a negative number.
-	// See issue 6777.
-	{"%#064x", 1, zeroFill("0x", 64, "1")},
-	{"%#064x", -1, zeroFill("-0x", 63, "1")},
-	{"%#064b", 1, zeroFill("", 64, "1")},
-	{"%#064b", -1, zeroFill("-", 63, "1")},
-	{"%#064o", 1, zeroFill("", 64, "1")},
-	{"%#064o", -1, zeroFill("-", 63, "1")},
-	{"%#064d", 1, zeroFill("", 64, "1")},
-	{"%#064d", -1, zeroFill("-", 63, "1")},
-	// Test that we handle the crossover above the size of uint64
-	{"%#072x", 1, zeroFill("0x", 72, "1")},
-	{"%#072x", -1, zeroFill("-0x", 71, "1")},
-	{"%#072b", 1, zeroFill("", 72, "1")},
-	{"%#072b", -1, zeroFill("-", 71, "1")},
-	{"%#072o", 1, zeroFill("", 72, "1")},
-	{"%#072o", -1, zeroFill("-", 71, "1")},
-	{"%#072d", 1, zeroFill("", 72, "1")},
-	{"%#072d", -1, zeroFill("-", 71, "1")},
 
 	// Padding for complex numbers. Has been bad, then fixed, then bad again.
 	{"%+10.2f", +104.66 + 440.51i, "(   +104.66   +440.51i)"},
