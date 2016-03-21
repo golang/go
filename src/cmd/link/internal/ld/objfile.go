@@ -255,14 +255,6 @@ overwrite:
 		}
 	}
 
-	if len(s.P) > 0 && dup != nil && len(dup.P) > 0 && strings.HasPrefix(s.Name, "gclocals·") {
-		// content-addressed garbage collection liveness bitmap symbol.
-		// double check for hash collisions.
-		if !bytes.Equal(s.P, dup.P) {
-			log.Fatalf("dupok hash collision for %s in %s and %s", s.Name, s.File, pn)
-		}
-	}
-
 	if s.Type == obj.STEXT {
 		s.Args = rdint32(f)
 		s.Locals = rdint32(f)
