@@ -174,7 +174,10 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position, isPk
 	// Only function bodies in those packages need type-checking.
 	var users map[string]bool
 	if isPkgLevel {
-		users = rev[defpkg]  // direct importers
+		users = rev[defpkg] // direct importers
+		if users == nil {
+			users = make(map[string]bool)
+		}
 		users[defpkg] = true // plus the defining package itself
 	} else {
 		users = rev.Search(defpkg) // transitive importers
