@@ -332,15 +332,17 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 	testSync(t, level, input, name)
 }
 
-func testToFromWithLimit(t *testing.T, input []byte, name string, limit [10]int) {
+func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int) {
 	for i := 0; i < 10; i++ {
 		testToFromWithLevelAndLimit(t, i, input, name, limit[i])
 	}
+	// Test HuffmanCompression
+	testToFromWithLevelAndLimit(t, -2, input, name, limit[10])
 }
 
 func TestDeflateInflate(t *testing.T) {
 	for i, h := range deflateInflateTests {
-		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [10]int{})
+		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [11]int{})
 	}
 }
 
@@ -356,19 +358,19 @@ func TestReverseBits(t *testing.T) {
 type deflateInflateStringTest struct {
 	filename string
 	label    string
-	limit    [10]int
+	limit    [11]int
 }
 
 var deflateInflateStringTests = []deflateInflateStringTest{
 	{
 		"../testdata/e.txt",
 		"2.718281828...",
-		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790},
+		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790, 43683},
 	},
 	{
 		"../testdata/Mark.Twain-Tom.Sawyer.txt",
 		"Mark.Twain-Tom.Sawyer",
-		[...]int{407330, 187598, 180361, 172974, 169160, 163476, 160936, 160506, 160295, 160295},
+		[...]int{407330, 187598, 180361, 172974, 169160, 163476, 160936, 160506, 160295, 160295, 233460},
 	},
 }
 
