@@ -419,8 +419,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 			} else {
 				a2 = &q.From
 			}
-			obj.Nocache(q)
-			obj.Nocache(p)
+			nocache(q)
+			nocache(p)
 
 			// insert q after p
 			q.Link = p.Link
@@ -496,8 +496,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
 				} else {
 					a2 = &q.From
 				}
-				obj.Nocache(q)
-				obj.Nocache(p)
+				nocache(q)
+				nocache(p)
 
 				// insert q after p
 				q.Link = p.Link
@@ -2828,4 +2828,13 @@ func chipfloat5(ctxt *obj.Link, e float64) int {
 
 	//print("match %.8lux %.8lux %d\n", l, h, n);
 	return n
+}
+
+func nocache(p *obj.Prog) {
+	p.Optab = 0
+	p.From.Class = 0
+	if p.From3 != nil {
+		p.From3.Class = 0
+	}
+	p.To.Class = 0
 }
