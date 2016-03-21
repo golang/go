@@ -478,7 +478,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 		case obj.ARET:
-			obj.Nocache(p)
+			nocache(p)
 			if cursym.Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = AB
