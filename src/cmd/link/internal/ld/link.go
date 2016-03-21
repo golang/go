@@ -166,7 +166,6 @@ type Link struct {
 	Goarm     int32
 	Headtype  int
 	Arch      *LinkArch
-	Debugasm  int32
 	Debugvlog int32
 	Bso       *obj.Biobuf
 	Windows   int32
