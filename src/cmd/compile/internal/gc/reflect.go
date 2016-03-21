@@ -53,8 +53,8 @@ const (
 	MAXVALSIZE = 128
 )
 
-func structfieldSize() int       { return 5 * Widthptr } // Sizeof(runtime.structfield{})
-func imethodSize() int           { return 3 * Widthptr } // Sizeof(runtime.imethod{})
+func structfieldSize() int       { return 3 * Widthptr } // Sizeof(runtime.structfield{})
+func imethodSize() int           { return 2 * Widthptr } // Sizeof(runtime.imethod{})
 func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
@@ -441,8 +441,12 @@ func dimportpath(p *Pkg) {
 }
 
 func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
+	return dgopkgpathLSym(Linksym(s), ot, pkg)
+}
+
+func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 	if pkg == nil {
-		return dgostringptr(s, ot, "")
+		return duintxxLSym(s, ot, 0, Widthptr)
 	}
 
 	if pkg == localpkg && myimportpath == "" {
@@ -451,39 +455,117 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
 		// go.importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := Pkglookup("importpath.\"\".", mkpkg("go"))
-		return dsymptr(s, ot, ns, 0)
+		ns := obj.Linklookup(Ctxt, `go.importpath."".`, 0)
+		return dsymptrLSym(s, ot, ns, 0)
 	}
 
 	dimportpath(pkg)
-	return dsymptr(s, ot, pkg.Pathsym, 0)
+	return dsymptrLSym(s, ot, Linksym(pkg.Pathsym), 0)
+}
+
+// isExportedField reports whether a struct field is exported.
+func isExportedField(ft *Field) bool {
+	if ft.Sym != nil && ft.Embedded == 0 {
+		return exportname(ft.Sym.Name)
+	} else {
+		if ft.Type.Sym != nil &&
+			(ft.Type.Sym.Pkg == builtinpkg || !exportname(ft.Type.Sym.Name)) {
+			return false
+		} else {
+			return true
+		}
+	}
+}
+
+// dnameField dumps a reflect.name for a struct field.
+func dnameField(s *Sym, ot int, ft *Field) int {
+	var name, tag string
+	if ft.Sym != nil && ft.Embedded == 0 {
+		name = ft.Sym.Name
+	}
+	if ft.Note != nil {
+		tag = *ft.Note
+	}
+	return dname(s, ot, name, tag, nil, isExportedField(ft))
+}
+
+var dnameCount int
+
+// dname dumps a reflect.name for a struct field or method.
+func dname(s *Sym, ot int, name, tag string, pkg *Pkg, exported bool) int {
+	if len(name) > 1<<16-1 {
+		Fatalf("name too long: %s", name)
+	}
+	if len(tag) > 1<<16-1 {
+		Fatalf("tag too long: %s", tag)
+	}
+
+	// Encode name and tag. See reflect/type.go for details.
+	var bits byte
+	l := 1 + 2 + len(name)
+	if exported {
+		bits |= 1 << 0
+	}
+	if len(tag) > 0 {
+		l += 2 + len(tag)
+		bits |= 1 << 1
+	}
+	if pkg != nil {
+		bits |= 1 << 2
+	}
+	b := make([]byte, l)
+	b[0] = bits
+	b[1] = uint8(len(name) >> 8)
+	b[2] = uint8(len(name))
+	copy(b[3:], name)
+	if len(tag) > 0 {
+		tb := b[3+len(name):]
+		tb[0] = uint8(len(tag) >> 8)
+		tb[1] = uint8(len(tag))
+		copy(tb[2:], tag)
+	}
+
+	// Very few names require a pkgPath *string (only those
+	// defined in a different package than their type). So if
+	// there is no pkgPath, we treat the name contents as string
+	// data that duplicates across packages.
+	var bsym *obj.LSym
+	if pkg == nil {
+		_, bsym = stringsym(string(b))
+	} else {
+		bsymname := fmt.Sprintf(`go.string."".methodname.%d`, dnameCount)
+		dnameCount++
+		bsym = obj.Linklookup(Ctxt, bsymname, 0)
+		bsym.P = b
+		boff := len(b)
+		boff = int(Rnd(int64(boff), int64(Widthptr)))
+		boff = dgopkgpathLSym(bsym, boff, pkg)
+		ggloblLSym(bsym, int32(boff), obj.RODATA|obj.LOCAL)
+	}
+
+	ot = dsymptrLSym(Linksym(s), ot, bsym, 0)
+
+	return ot
 }
 
 // dextratype dumps the fields of a runtime.uncommontype.
 // dataAdd is the offset in bytes after the header where the
 // backing array of the []method field is written (by dextratypeData).
-func dextratype(sym *Sym, off int, t *Type, dataAdd int) int {
+func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 	m := methods(t)
 	if t.Sym == nil && len(m) == 0 {
-		return off
+		return ot
 	}
-	noff := int(Rnd(int64(off), int64(Widthptr)))
-	if noff != off {
-		panic("dextratype rounding does something. :-(")
+	noff := int(Rnd(int64(ot), int64(Widthptr)))
+	if noff != ot {
+		Fatalf("unexpected alignment in dextratype for %s", t)
 	}
-	off = noff
 
 	for _, a := range m {
 		dtypesym(a.type_)
 	}
 
-	ot := off
-	s := sym
-	if t.Sym != nil && t != Types[t.Etype] && t != errortype {
-		ot = dgopkgpath(s, ot, t.Sym.Pkg)
-	} else {
-		ot = dgostringptr(s, ot, "")
-	}
+	ot = dgopkgpath(s, ot, typePkg(t))
 
 	// slice header
 	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+dataAdd)
@@ -495,15 +577,28 @@ func dextratype(sym *Sym, off int, t *Type, dataAdd int) int {
 	return ot
 }
 
+func typePkg(t *Type) *Pkg {
+	tsym := t.Sym
+	if tsym == nil && t.Type != nil {
+		tsym = t.Type.Sym
+	}
+	if tsym != nil && t != Types[t.Etype] && t != errortype {
+		return tsym.Pkg
+	}
+	return nil
+}
+
 // dextratypeData dumps the backing array for the []method field of
 // runtime.uncommontype.
 func dextratypeData(s *Sym, ot int, t *Type) int {
 	for _, a := range methods(t) {
-		// method
 		// ../../../../runtime/type.go:/method
-		ot = dgostringptr(s, ot, a.name)
-
-		ot = dgopkgpath(s, ot, a.pkg)
+		exported := exportname(a.name)
+		var pkg *Pkg
+		if !exported && a.pkg != typePkg(t) {
+			pkg = a.pkg
+		}
+		ot = dname(s, ot, a.name, "", pkg, exported)
 		ot = dmethodptr(s, ot, dtypesym(a.mtype))
 		ot = dmethodptr(s, ot, a.isym)
 		ot = dmethodptr(s, ot, a.tsym)
@@ -1076,6 +1171,12 @@ ok:
 		// ../../../../runtime/type.go:/interfaceType
 		ot = dcommontype(s, ot, t)
 
+		var tpkg *Pkg
+		if t.Sym != nil && t != Types[t.Etype] && t != errortype {
+			tpkg = t.Sym.Pkg
+		}
+		ot = dgopkgpath(s, ot, tpkg)
+
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
@@ -1084,8 +1185,12 @@ ok:
 
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
-			ot = dgostringptr(s, ot, a.name)
-			ot = dgopkgpath(s, ot, a.pkg)
+			exported := exportname(a.name)
+			var pkg *Pkg
+			if !exported && a.pkg != tpkg {
+				pkg = a.pkg
+			}
+			ot = dname(s, ot, a.name, "", pkg, exported)
 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
 		}
 
@@ -1148,6 +1253,11 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
+		var pkg *Pkg
+		if t.Sym != nil {
+			pkg = t.Sym.Pkg
+		}
+		ot = dgopkgpath(s, ot, pkg)
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
@@ -1155,28 +1265,11 @@ ok:
 		dataAdd := n * structfieldSize()
 		ot = dextratype(s, ot, t, dataAdd)
 
-		for _, t1 := range t.Fields().Slice() {
+		for _, f := range t.Fields().Slice() {
 			// ../../../../runtime/type.go:/structField
-			if t1.Sym != nil && t1.Embedded == 0 {
-				ot = dgostringptr(s, ot, t1.Sym.Name)
-				if exportname(t1.Sym.Name) {
-					ot = dgostringptr(s, ot, "")
-				} else {
-					ot = dgopkgpath(s, ot, t1.Sym.Pkg)
-				}
-			} else {
-				ot = dgostringptr(s, ot, "")
-				if t1.Type.Sym != nil &&
-					(t1.Type.Sym.Pkg == builtinpkg || !exportname(t1.Type.Sym.Name)) {
-					ot = dgopkgpath(s, ot, localpkg)
-				} else {
-					ot = dgostringptr(s, ot, "")
-				}
-			}
-
-			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
-			ot = dgostrlitptr(s, ot, t1.Note)
-			ot = duintptr(s, ot, uint64(t1.Width)) // field offset
+			ot = dnameField(s, ot, f)
+			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
+			ot = duintptr(s, ot, uint64(f.Width)) // field offset
 		}
 	}
 
