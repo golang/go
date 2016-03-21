@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -571,7 +572,7 @@ func isDriveLetter(b byte) bool {
 // is this path a local name?  begins with ./ or ../ or /
 func islocalname(name string) bool {
 	return strings.HasPrefix(name, "/") ||
-		Ctxt.Windows != 0 && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||
+		runtime.GOOS == "windows" && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||
 		strings.HasPrefix(name, "./") || name == "." ||
 		strings.HasPrefix(name, "../") || name == ".."
 }
@@ -893,7 +894,7 @@ func mkpackage(pkgname string) {
 		if i := strings.LastIndex(p, "/"); i >= 0 {
 			p = p[i+1:]
 		}
-		if Ctxt.Windows != 0 {
+		if runtime.GOOS == "windows" {
 			if i := strings.LastIndex(p, `\`); i >= 0 {
 				p = p[i+1:]
 			}
