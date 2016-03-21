@@ -562,8 +562,8 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2DOTTYPE:
 		res, resok := s.dottype(n.Rlist.First(), true)
-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno)
-		s.assign(n.List.Second(), resok, false, false, n.Lineno)
+		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno, 0)
+		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0)
 		return
 
 	case ODCL:
@@ -584,7 +584,7 @@ func (s *state) stmt(n *Node) {
 			prealloc[n.Left] = palloc
 		}
 		r := s.expr(palloc)
-		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno)
+		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno, 0)
 
 	case OLABEL:
 		sym := n.Left.Sym
@@ -698,7 +698,44 @@ func (s *state) stmt(n *Node) {
 			needwb = true
 		}
 
-		s.assign(n.Left, r, needwb, deref, n.Lineno)
+		var skip skipMask
+		if rhs != nil && (rhs.Op == OSLICE || rhs.Op == OSLICE3 || rhs.Op == OSLICESTR) && samesafeexpr(rhs.Left, n.Left) {
+			// We're assigning a slicing operation back to its source.
+			// Don't write back fields we aren't changing. See issue #14855.
+			i := rhs.Right.Left
+			var j, k *Node
+			if rhs.Op == OSLICE3 {
+				j = rhs.Right.Right.Left
+				k = rhs.Right.Right.Right
+			} else {
+				j = rhs.Right.Right
+			}
+			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Val().U.(*Mpint).Int64() == 0) {
+				// [0:...] is the same as [:...]
+				i = nil
+			}
+			// TODO: detect defaults for len/cap also.
+			// Currently doesn't really work because (*p)[:len(*p)] appears here as:
+			//    tmp = len(*p)
+			//    (*p)[:tmp]
+			//if j != nil && (j.Op == OLEN && samesafeexpr(j.Left, n.Left)) {
+			//      j = nil
+			//}
+			//if k != nil && (k.Op == OCAP && samesafeexpr(k.Left, n.Left)) {
+			//      k = nil
+			//}
+			if i == nil {
+				skip |= skipPtr
+				if j == nil {
+					skip |= skipLen
+				}
+				if k == nil {
+					skip |= skipCap
+				}
+			}
+		}
+
+		s.assign(n.Left, r, needwb, deref, n.Lineno, skip)
 
 	case OIF:
 		bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -2091,7 +2128,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
 			if store[i] {
 				if haspointers(et) {
-					s.insertWBstore(et, addr, arg, n.Lineno)
+					s.insertWBstore(et, addr, arg, n.Lineno, 0)
 				} else {
 					s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
 				}
@@ -2159,12 +2196,21 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 	b.AddEdgeTo(no)
 }
 
+type skipMask uint8
+
+const (
+	skipPtr skipMask = 1 << iota
+	skipLen
+	skipCap
+)
+
 // assign does left = right.
 // Right has already been evaluated to ssa, left has not.
 // If deref is true, then we do left = *right instead (and right has already been nil-checked).
 // If deref is true and right == nil, just do left = 0.
 // Include a write barrier if wb is true.
-func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32) {
+// skip indicates assignments (at the top level) that can be avoided.
+func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32, skip skipMask) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
@@ -2205,7 +2251,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 			}
 
 			// Recursively assign the new value we've made to the base of the dot op.
-			s.assign(left.Left, new, false, false, line)
+			s.assign(left.Left, new, false, false, line, 0)
 			// TODO: do we need to update named values here?
 			return
 		}
@@ -2234,7 +2280,20 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 	}
 	// Treat as a store.
 	if wb {
-		s.insertWBstore(t, addr, right, line)
+		if skip&skipPtr != 0 {
+			// Special case: if we don't write back the pointers, don't bother
+			// doing the write barrier check.
+			s.storeTypeScalars(t, addr, right, skip)
+			return
+		}
+		s.insertWBstore(t, addr, right, line, skip)
+		return
+	}
+	if skip != 0 {
+		if skip&skipPtr == 0 {
+			s.storeTypePtrs(t, addr, right)
+		}
+		s.storeTypeScalars(t, addr, right, skip)
 		return
 	}
 	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
@@ -2830,7 +2889,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 
 // insertWBstore inserts the assignment *left = right including a write barrier.
 // t is the type being assigned.
-func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip skipMask) {
 	// store scalar fields
 	// if writeBarrier.enabled {
 	//   writebarrierptr for pointer fields
@@ -2844,7 +2903,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	if s.WBLineno == 0 {
 		s.WBLineno = left.Line
 	}
-	s.storeTypeScalars(t, left, right)
+	s.storeTypeScalars(t, left, right, skip)
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
@@ -2881,23 +2940,30 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 }
 
 // do *left = right for all scalar (non-pointer) parts of t.
-func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
+func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask) {
 	switch {
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
 	case t.IsPtr() || t.IsMap() || t.IsChan():
 		// no scalar fields.
 	case t.IsString():
+		if skip&skipLen != 0 {
+			return
+		}
 		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
 		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
 	case t.IsSlice():
-		len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
-		cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
-		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
-		capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
+		if skip&skipLen == 0 {
+			len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
+			lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
+			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
+		}
+		if skip&skipCap == 0 {
+			cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
+			capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
+			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
+		}
 	case t.IsInterface():
 		// itab field doesn't need a write barrier (even though it is a pointer).
 		itab := s.newValue1(ssa.OpITab, Ptrto(Types[TUINT8]), right)
@@ -2908,7 +2974,7 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
 			ft := t.FieldType(i)
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
 			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
-			s.storeTypeScalars(ft.(*Type), addr, val)
+			s.storeTypeScalars(ft.(*Type), addr, val, 0)
 		}
 	default:
 		s.Fatalf("bad write barrier type %s", t)

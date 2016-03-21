@@ -2144,13 +2144,6 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
-	// No write barrier for writing a sliced slice back to its
-	// original location.
-	if (r.Op == OSLICE || r.Op == OSLICE3 || r.Op == OSLICESTR) &&
-		samesafeexpr(r.Left, l) {
-		return false
-	}
-
 	// Otherwise, be conservative and use write barrier.
 	return true
 }
