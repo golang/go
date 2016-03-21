@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-var mpzero Mpint
-
 // The constant is known to runtime.
 const (
 	tmpstringbufsize = 32
@@ -1229,7 +1227,7 @@ opswitch:
 		}
 
 		if Isconst(n.Right, CTINT) {
-			if n.Right.Val().U.(*Mpint).Cmp(&mpzero) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
 				Yyerror("index out of bounds")
 			}
 		}
