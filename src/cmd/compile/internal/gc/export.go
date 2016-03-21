@@ -511,7 +511,7 @@ func importimport(s *Sym, path string) {
 
 func importconst(s *Sym, t *Type, n *Node) {
 	importsym(s, OLITERAL)
-	Convlit(&n, t)
+	convlit(&n, t)
 
 	if s.Def != nil { // TODO: check if already the same.
 		return

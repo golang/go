@@ -3707,7 +3707,7 @@ func typecheckdef(n *Node) *Node {
 				goto ret
 			}
 
-			Convlit(&e, t)
+			convlit(&e, t)
 		}
 
 		n.SetVal(e.Val())

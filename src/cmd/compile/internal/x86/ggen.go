@@ -666,8 +666,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 
 	case gc.OMINUS,
 		gc.OCOM:
-		nr = gc.Nodintconst(-1)
-		gc.Convlit(&nr, n.Type)
+		nr = gc.NegOne(n.Type)
 		a = foptoas(gc.OMUL, nl.Type, 0)
 		goto sbop
 
