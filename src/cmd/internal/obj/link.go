@@ -618,7 +618,6 @@ type Link struct {
 	Flag_optimize bool
 	Bso           *Biobuf
 	Pathname      string
-	Windows       int32
 	Goroot        string
 	Goroot_final  string
 	Hash          map[SymVer]*LSym
