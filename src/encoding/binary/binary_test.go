@@ -339,6 +339,33 @@ func TestReadTruncated(t *testing.T) {
 	}
 }
 
+func testUint64SmallSliceLengthPanics() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	b := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	LittleEndian.Uint64(b[:4])
+	return false
+}
+
+func testPutUint64SmallSliceLengthPanics() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	b := [8]byte{}
+	LittleEndian.PutUint64(b[:4], 0x0102030405060708)
+	return false
+}
+
+func TestEarlyBoundsChecks(t *testing.T) {
+	if testUint64SmallSliceLengthPanics() != true {
+		t.Errorf("binary.LittleEndian.Uint64 expected to panic for small slices, but didn't")
+	}
+	if testPutUint64SmallSliceLengthPanics() != true {
+		t.Errorf("binary.LittleEndian.PutUint64 expected to panic for small slices, but didn't")
+	}
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
