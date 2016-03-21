@@ -618,12 +618,12 @@
 // Make sure we don't combine these ops if the load has another use.
 // This prevents a single load from being split into multiple loads
 // which then might return different values.  See test/atomicload.go.
-(MOVBQSX (MOVBload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
-(MOVBQZX (MOVBload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
-(MOVWQSX (MOVWload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
-(MOVWQZX (MOVWload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
-(MOVLQSX (MOVLload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
-(MOVLQZX (MOVLload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
+(MOVBQSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
+(MOVWQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
+(MOVLQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+(MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
 
 // replace load from same location as preceding store with copy
 (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
@@ -1197,21 +1197,21 @@
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.
-(ORW                (MOVBQZXload [i]   {s} p mem)
-    (SHLWconst [8]  (MOVBQZXload [i+1] {s} p mem))) -> @v.Args[0].Block (MOVWload [i] {s} p mem)
+(ORW              x:(MOVBQZXload [i]   {s} p mem)
+    (SHLWconst [8]  (MOVBQZXload [i+1] {s} p mem))) -> @x.Block (MOVWload [i] {s} p mem)
 
 (ORL (ORL (ORL
-                    (MOVBQZXload [i]   {s} p mem)
+                  x:(MOVBQZXload [i]   {s} p mem)
     (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))
     (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))
-    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> @v.Args[0].Args[0].Args[0].Block (MOVLload [i] {s} p mem)
+    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> @x.Block (MOVLload [i] {s} p mem)
 
 (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
-                    (MOVBQZXload [i]   {s} p mem)
+                  x:(MOVBQZXload [i]   {s} p mem)
     (SHLQconst [8]  (MOVBQZXload [i+1] {s} p mem)))
     (SHLQconst [16] (MOVBQZXload [i+2] {s} p mem)))
     (SHLQconst [24] (MOVBQZXload [i+3] {s} p mem)))
     (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))
     (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))
     (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))
-    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> @v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Block (MOVQload [i] {s} p mem)
+    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> @x.Block (MOVQload [i] {s} p mem)
