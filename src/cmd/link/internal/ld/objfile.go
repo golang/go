@@ -175,6 +175,8 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 	}
 }
 
+var dupSym = &LSym{Name: ".dup"}
+
 func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
 	if obj.Bgetc(f) != 0xfe {
 		log.Fatalf("readsym out of sync")
@@ -209,7 +211,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
 		}
 		if len(s.P) > 0 {
 			dup = s
-			s = linknewsym(ctxt, ".dup", -1)
+			s = dupSym
 		}
 	}
 
@@ -232,17 +234,15 @@ overwrite:
 		s.Size = int64(size)
 	}
 	s.Attr.Set(AttrLocal, local)
-	if typ != nil { // if bss sym defined multiple times, take type from any one def
+	if typ != nil {
 		s.Gotype = typ
 	}
-	if dup != nil && typ != nil {
+	if dup != nil && typ != nil { // if bss sym defined multiple times, take type from any one def
 		dup.Gotype = typ
 	}
 	s.P = data
-	s.P = s.P[:len(data)]
 	if nreloc > 0 {
 		s.R = make([]Reloc, nreloc)
-		s.R = s.R[:nreloc]
 		var r *Reloc
 		for i := 0; i < nreloc; i++ {
 			r = &s.R[i]
