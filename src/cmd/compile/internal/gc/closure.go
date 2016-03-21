@@ -529,7 +529,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	var fld *Node
 	var n *Node
 	for _, t := range t0.Params().Fields().Slice() {
-		n = newname(LookupN("a%d", i))
+		n = newname(LookupN("a", i))
 		i++
 		n.Class = PPARAM
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
