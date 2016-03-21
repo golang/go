@@ -167,7 +167,7 @@ func (t *LineTable) go12Init() {
 	// Check header: 4-byte magic, two zeros, pc quantum, pointer size.
 	t.go12 = -1 // not Go 1.2 until proven otherwise
 	if len(t.Data) < 16 || t.Data[4] != 0 || t.Data[5] != 0 ||
-		(t.Data[6] != 1 && t.Data[6] != 4) || // pc quantum
+		(t.Data[6] != 1 && t.Data[6] != 2 && t.Data[6] != 4) || // pc quantum
 		(t.Data[7] != 4 && t.Data[7] != 8) { // pointer size
 		return
 	}
