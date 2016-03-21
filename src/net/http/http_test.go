@@ -10,9 +10,7 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os/exec"
-	"path/filepath"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
@@ -67,16 +65,10 @@ func TestCleanHost(t *testing.T) {
 // This catches accidental dependencies between the HTTP transport and
 // server code.
 func TestCmdGoNoHTTPServer(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	var exeSuffix string
-	if runtime.GOOS == "windows" {
-		exeSuffix = ".exe"
-	}
-
-	goBin := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
-	out, err := exec.Command("go", "tool", "nm", goBin).Output()
+	goBin := testenv.GoToolPath(t)
+	out, err := exec.Command("go", "tool", "nm", goBin).CombinedOutput()
 	if err != nil {
-		t.Fatalf("go tool nm: %v", err)
+		t.Fatalf("go tool nm: %v: %s", err, out)
 	}
 	wantSym := map[string]bool{
 		// Verify these exist: (sanity checking this test)
