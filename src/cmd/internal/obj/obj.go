@@ -273,18 +273,15 @@ func (h *LineHist) AbsFileLine(lineno int) (file string, line int) {
 // This is a simplified copy of linklinefmt above.
 // It doesn't allow printing the full stack, and it returns the file name and line number separately.
 // TODO: Unify with linklinefmt somehow.
-func linkgetline(ctxt *Link, lineno int32, f **LSym, l *int32) {
+func linkgetline(ctxt *Link, lineno int32) (f *LSym, l int32) {
 	stk := ctxt.LineHist.At(int(lineno))
 	if stk == nil || stk.AbsFile == "" {
-		*f = Linklookup(ctxt, "??", HistVersion)
-		*l = 0
-		return
+		return Linklookup(ctxt, "??", HistVersion), 0
 	}
 	if stk.Sym == nil {
 		stk.Sym = Linklookup(ctxt, stk.AbsFile, HistVersion)
 	}
-	*f = stk.Sym
-	*l = int32(stk.fileLineAt(int(lineno)))
+	return stk.Sym, int32(stk.fileLineAt(int(lineno)))
 }
 
 func Linkprfile(ctxt *Link, line int) {
