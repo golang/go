@@ -143,9 +143,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
 		return oldval
 	}
-	var l int32
-	var f *LSym
-	linkgetline(ctxt, p.Lineno, &f, &l)
+	f, l := linkgetline(ctxt, p.Lineno)
 	if f == nil {
 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
 		return oldval
