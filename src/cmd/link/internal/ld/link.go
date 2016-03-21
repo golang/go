@@ -178,7 +178,6 @@ type Link struct {
 	HashVersion map[symVer]*LSym
 
 	Allsym     []*LSym
-	Nsymbol    int32
 	Tlsg       *LSym
 	Libdir     []string
 	Library    []*Library
