@@ -88,9 +88,16 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	return fv
 }
 
+// NegOne returns a Node of type t with value -1.
+func NegOne(t *Type) *Node {
+	n := Nodintconst(-1)
+	convlit(&n, t)
+	return n
+}
+
 // convert n, if literal, to type t.
 // implicit conversion.
-func Convlit(np **Node, t *Type) {
+func convlit(np **Node, t *Type) {
 	convlit1(np, t, false)
 }
 
@@ -124,8 +131,8 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		}
 
 		if n.Type.Etype == TIDEAL {
-			Convlit(&n.Left, t)
-			Convlit(&n.Right, t)
+			convlit(&n.Left, t)
+			convlit(&n.Right, t)
 			n.Type = t
 		}
 
@@ -166,13 +173,13 @@ func convlit1(np **Node, t *Type, explicit bool) {
 			case TCOMPLEX128:
 				n.Type = t
 
-				Convlit(&n.Left, Types[TFLOAT64])
-				Convlit(&n.Right, Types[TFLOAT64])
+				convlit(&n.Left, Types[TFLOAT64])
+				convlit(&n.Right, Types[TFLOAT64])
 
 			case TCOMPLEX64:
 				n.Type = t
-				Convlit(&n.Left, Types[TFLOAT32])
-				Convlit(&n.Right, Types[TFLOAT32])
+				convlit(&n.Left, Types[TFLOAT32])
+				convlit(&n.Right, Types[TFLOAT32])
 			}
 		}
 
@@ -1256,7 +1263,7 @@ func defaultlit(np **Node, t *Type) {
 	switch ctype {
 	default:
 		if t != nil {
-			Convlit(np, t)
+			convlit(np, t)
 			return
 		}
 
@@ -1273,7 +1280,7 @@ func defaultlit(np **Node, t *Type) {
 
 		if n.Val().Ctype() == CTSTR {
 			t1 := Types[TSTRING]
-			Convlit(np, t1)
+			convlit(np, t1)
 			break
 		}
 
@@ -1287,7 +1294,7 @@ func defaultlit(np **Node, t *Type) {
 		if t != nil && t.Etype == TBOOL {
 			t1 = t
 		}
-		Convlit(np, t1)
+		convlit(np, t1)
 
 	case CTINT:
 		t1 = Types[TINT]
@@ -1332,7 +1339,7 @@ num:
 	if n.Val().Ctype() != CTxxx {
 		overflow(n.Val(), t1)
 	}
-	Convlit(np, t1)
+	convlit(np, t1)
 	lineno = lno
 	return
 }
@@ -1348,12 +1355,12 @@ func defaultlit2(lp **Node, rp **Node, force bool) {
 		return
 	}
 	if !isideal(l.Type) {
-		Convlit(rp, l.Type)
+		convlit(rp, l.Type)
 		return
 	}
 
 	if !isideal(r.Type) {
-		Convlit(lp, r.Type)
+		convlit(lp, r.Type)
 		return
 	}
 
@@ -1362,32 +1369,32 @@ func defaultlit2(lp **Node, rp **Node, force bool) {
 	}
 
 	if l.Type.Etype == TBOOL {
-		Convlit(lp, Types[TBOOL])
-		Convlit(rp, Types[TBOOL])
+		convlit(lp, Types[TBOOL])
+		convlit(rp, Types[TBOOL])
 	}
 
 	lkind := idealkind(l)
 	rkind := idealkind(r)
 	if lkind == CTCPLX || rkind == CTCPLX {
-		Convlit(lp, Types[TCOMPLEX128])
-		Convlit(rp, Types[TCOMPLEX128])
+		convlit(lp, Types[TCOMPLEX128])
+		convlit(rp, Types[TCOMPLEX128])
 		return
 	}
 
 	if lkind == CTFLT || rkind == CTFLT {
-		Convlit(lp, Types[TFLOAT64])
-		Convlit(rp, Types[TFLOAT64])
+		convlit(lp, Types[TFLOAT64])
+		convlit(rp, Types[TFLOAT64])
 		return
 	}
 
 	if lkind == CTRUNE || rkind == CTRUNE {
-		Convlit(lp, runetype)
-		Convlit(rp, runetype)
+		convlit(lp, runetype)
+		convlit(rp, runetype)
 		return
 	}
 
-	Convlit(lp, Types[TINT])
-	Convlit(rp, Types[TINT])
+	convlit(lp, Types[TINT])
+	convlit(rp, Types[TINT])
 }
 
 // strlit returns the value of a literal string Node as a string.

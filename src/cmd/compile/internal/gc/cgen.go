@@ -391,7 +391,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	case OMINUS:
 		if Isfloat[nl.Type.Etype] {
 			nr = Nodintconst(-1)
-			Convlit(&nr, n.Type)
+			convlit(&nr, n.Type)
 			a = Thearch.Optoas(OMUL, nl.Type)
 			goto sbop
 		}
@@ -1784,7 +1784,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	Genlist(n.Ninit)
 
 	if n.Type == nil {
-		Convlit(&n, Types[TBOOL])
+		convlit(&n, Types[TBOOL])
 		if n.Type == nil {
 			return
 		}
