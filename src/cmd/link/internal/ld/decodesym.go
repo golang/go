@@ -47,7 +47,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
 }
 
 func commonsize() int      { return 6*Thearch.Ptrsize + 8 }                 // runtime._type
-func structfieldSize() int { return 5 * Thearch.Ptrsize }                   // runtime.structfield
+func structfieldSize() int { return 3 * Thearch.Ptrsize }                   // runtime.structfield
 func uncommonSize() int    { return 2*Thearch.Ptrsize + 2*Thearch.Intsize } // runtime.uncommontype
 
 // Type.commonType.kind
@@ -203,11 +203,11 @@ func decodetype_funcouttype(s *LSym, i int) *LSym {
 
 // Type.StructType.fields.Slice::length
 func decodetype_structfieldcount(s *LSym) int {
-	return int(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
+	return int(decode_inuxi(s.P[commonsize()+2*Thearch.Ptrsize:], Thearch.Intsize))
 }
 
 func decodetype_structfieldarrayoff(s *LSym, i int) int {
-	off := commonsize() + Thearch.Ptrsize + 2*Thearch.Intsize
+	off := commonsize() + 2*Thearch.Ptrsize + 2*Thearch.Intsize
 	if decodetype_hasUncommon(s) {
 		off += uncommonSize()
 	}
@@ -228,24 +228,37 @@ func decodetype_stringptr(s *LSym, off int) string {
 	return string(r.Sym.P[r.Add : r.Add+strlen])
 }
 
+// decodetype_name decodes the name from a reflect.name.
+func decodetype_name(s *LSym, off int) string {
+	r := decode_reloc(s, int32(off))
+	if r == nil {
+		return ""
+	}
+
+	data := r.Sym.P
+	namelen := int(uint16(data[1]<<8) | uint16(data[2]))
+	return string(data[3 : 3+namelen])
+
+}
+
 func decodetype_structfieldname(s *LSym, i int) string {
 	off := decodetype_structfieldarrayoff(s, i)
-	return decodetype_stringptr(s, off)
+	return decodetype_name(s, off)
 }
 
 func decodetype_structfieldtype(s *LSym, i int) *LSym {
 	off := decodetype_structfieldarrayoff(s, i)
-	return decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
+	return decode_reloc_sym(s, int32(off+Thearch.Ptrsize))
 }
 
 func decodetype_structfieldoffs(s *LSym, i int) int64 {
 	off := decodetype_structfieldarrayoff(s, i)
-	return int64(decode_inuxi(s.P[off+4*Thearch.Ptrsize:], Thearch.Intsize))
+	return int64(decode_inuxi(s.P[off+2*Thearch.Ptrsize:], Thearch.Intsize))
 }
 
 // InterfaceType.methods.length
 func decodetype_ifacemethodcount(s *LSym) int64 {
-	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
+	return int64(decode_inuxi(s.P[commonsize()+2*Thearch.Ptrsize:], Thearch.Intsize))
 }
 
 // methodsig is a fully qualified typed method signature, like
@@ -266,16 +279,16 @@ const (
 )
 
 // decode_methodsig decodes an array of method signature information.
-// Each element of the array is size bytes. The first word is a *string
-// for the name, the third word is a *rtype for the funcType.
+// Each element of the array is size bytes. The first word is a
+// reflect.name for the name, the second word is a *rtype for the funcType.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
 func decode_methodsig(s *LSym, off, size, count int) []methodsig {
 	var buf bytes.Buffer
 	var methods []methodsig
 	for i := 0; i < count; i++ {
-		buf.WriteString(decodetype_stringptr(s, off))
-		mtypSym := decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
+		buf.WriteString(decodetype_name(s, off))
+		mtypSym := decode_reloc_sym(s, int32(off+Thearch.Ptrsize))
 
 		buf.WriteRune('(')
 		inCount := decodetype_funcincount(mtypSym)
@@ -306,7 +319,7 @@ func decodetype_ifacemethods(s *LSym) []methodsig {
 	if decodetype_kind(s)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
 	}
-	r := decode_reloc(s, int32(commonsize()))
+	r := decode_reloc(s, int32(commonsize()+Thearch.Ptrsize))
 	if r == nil {
 		return nil
 	}
@@ -315,7 +328,7 @@ func decodetype_ifacemethods(s *LSym) []methodsig {
 	}
 	off := int(r.Add) // array of reflect.imethod values
 	numMethods := int(decodetype_ifacemethodcount(s))
-	sizeofIMethod := 3 * Thearch.Ptrsize
+	sizeofIMethod := 2 * Thearch.Ptrsize
 	return decode_methodsig(s, off, sizeofIMethod, numMethods)
 }
 
@@ -326,7 +339,7 @@ func decodetype_methods(s *LSym) []methodsig {
 	off := commonsize() // reflect.rtype
 	switch decodetype_kind(s) & kindMask {
 	case kindStruct: // reflect.structType
-		off += Thearch.Ptrsize + 2*Thearch.Intsize
+		off += 2*Thearch.Ptrsize + 2*Thearch.Intsize
 	case kindPtr: // reflect.ptrType
 		off += Thearch.Ptrsize
 	case kindFunc: // reflect.funcType
@@ -351,6 +364,6 @@ func decodetype_methods(s *LSym) []methodsig {
 		panic(fmt.Sprintf("method slice pointer in %s leads to a different symbol %s", s, r.Sym))
 	}
 	off = int(r.Add)                    // array of reflect.method values
-	sizeofMethod := 5 * Thearch.Ptrsize // sizeof reflect.method in program
+	sizeofMethod := 4 * Thearch.Ptrsize // sizeof reflect.method in program
 	return decode_methodsig(s, off, sizeofMethod, numMethods)
 }

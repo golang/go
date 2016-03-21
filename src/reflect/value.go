@@ -554,7 +554,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		if m.pkgPath != nil {
+		if !m.name.isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		iface := (*nonEmptyInterface)(v.ptr)
@@ -571,7 +571,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &ut.methods[i]
-		if m.pkgPath != nil {
+		if !m.name.isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		fn = unsafe.Pointer(&m.ifn)
@@ -750,8 +750,8 @@ func (v Value) Field(i int) Value {
 	// Inherit permission bits from v, but clear flagEmbedRO.
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
-	if field.pkgPath != nil {
-		if field.name == nil {
+	if !field.name.isExported() {
+		if field.name.name() == "" {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
