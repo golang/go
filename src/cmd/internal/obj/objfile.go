@@ -21,7 +21,13 @@
 //	- empty string (marks end of sequence)
 //	- sequence of symbol references used by the defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- integer (length of following data)
+//	- sequence of integer lengths:
+//		- total data length
+//		- total number of relocations
+//		- total number of pcdata
+//		- total number of automatics
+//		- total number of funcdata
+//		- total number of files
 //	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
@@ -303,6 +309,54 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	}
 }
 
+type sectionLengths struct {
+	data     int
+	reloc    int
+	pcdata   int
+	autom    int
+	funcdata int
+	file     int
+}
+
+func (l *sectionLengths) add(s *LSym) {
+	l.data += len(s.P)
+	l.reloc += len(s.R)
+
+	if s.Type != STEXT {
+		return
+	}
+
+	pc := s.Pcln
+
+	data := 0
+	data += len(pc.Pcsp.P)
+	data += len(pc.Pcfile.P)
+	data += len(pc.Pcline.P)
+	for i := 0; i < len(pc.Pcdata); i++ {
+		data += len(pc.Pcdata[i].P)
+	}
+
+	l.data += data
+	l.pcdata += len(pc.Pcdata)
+
+	autom := 0
+	for a := s.Autom; a != nil; a = a.Link {
+		autom++
+	}
+	l.autom += autom
+	l.funcdata += len(pc.Funcdataoff)
+	l.file += len(pc.File)
+}
+
+func wrlengths(b *Biobuf, sl sectionLengths) {
+	wrint(b, int64(sl.data))
+	wrint(b, int64(sl.reloc))
+	wrint(b, int64(sl.pcdata))
+	wrint(b, int64(sl.autom))
+	wrint(b, int64(sl.funcdata))
+	wrint(b, int64(sl.file))
+}
+
 func Writeobjfile(ctxt *Link, b *Biobuf) {
 	// Emit header.
 	Bputc(b, 0)
@@ -317,28 +371,22 @@ func Writeobjfile(ctxt *Link, b *Biobuf) {
 	}
 	wrstring(b, "")
 
-	var dataLength int64
+	var lengths sectionLengths
+
 	// Emit symbol references.
 	for _, s := range ctxt.Text {
 		writerefs(ctxt, b, s)
-		dataLength += int64(len(s.P))
-
-		pc := s.Pcln
-		dataLength += int64(len(pc.Pcsp.P))
-		dataLength += int64(len(pc.Pcfile.P))
-		dataLength += int64(len(pc.Pcline.P))
-		for i := 0; i < len(pc.Pcdata); i++ {
-			dataLength += int64(len(pc.Pcdata[i].P))
-		}
+		lengths.add(s)
 	}
 	for _, s := range ctxt.Data {
 		writerefs(ctxt, b, s)
-		dataLength += int64(len(s.P))
+		lengths.add(s)
 	}
 	Bputc(b, 0xff)
 
+	wrlengths(b, lengths)
+
 	// Write data block
-	wrint(b, dataLength)
 	for _, s := range ctxt.Text {
 		b.w.Write(s.P)
 		pc := s.Pcln

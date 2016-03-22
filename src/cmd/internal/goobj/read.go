@@ -614,6 +614,12 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 
 	dataLength := r.readInt()
+	r.readInt() // n relocations - ignore
+	r.readInt() // n pcdata - ignore
+	r.readInt() // n autom - ignore
+	r.readInt() // n funcdata - ignore
+	r.readInt() // n files - ignore
+
 	r.dataOffset = r.offset
 	r.skip(int64(dataLength))
 

@@ -21,9 +21,15 @@ package ld
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
-//	- sequence of sybol references used by the defined symbols
+//	- sequence of symbol references used by the defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- integer (length of following data)
+//	- sequence of integer lengths:
+//		- total data length
+//		- total number of relocations
+//		- total number of pcdata
+//		- total number of automatics
+//		- total number of funcdata
+//		- total number of files
 //	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
@@ -149,9 +155,9 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		readref(ctxt, f, pkg, pn)
 	}
 
-	dataLength := rdint64(f)
-	data := make([]byte, dataLength)
-	obj.Bread(f, data)
+	sl := rdslices(f)
+
+	obj.Bread(f, sl.data)
 
 	for {
 		c, err := f.Peek(1)
@@ -161,7 +167,7 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		if c[0] == 0xff {
 			break
 		}
-		readsym(ctxt, f, &data, pkg, pn)
+		readsym(ctxt, f, sl, pkg, pn)
 	}
 
 	buf = [8]uint8{}
@@ -177,9 +183,38 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 
 var dupSym = &LSym{Name: ".dup"}
 
-func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
+type slices struct {
+	data        []byte
+	reloc       []Reloc
+	pcdata      []Pcdata
+	autom       []Auto
+	funcdata    []*LSym
+	funcdataoff []int64
+	file        []*LSym
+}
+
+func rdslices(f *obj.Biobuf) *slices {
+	sl := &slices{}
+
+	n := rdint(f)
+	sl.data = make([]byte, n)
+	n = rdint(f)
+	sl.reloc = make([]Reloc, n)
+	n = rdint(f)
+	sl.pcdata = make([]Pcdata, n)
+	n = rdint(f)
+	sl.autom = make([]Auto, n)
+	n = rdint(f)
+	sl.funcdata = make([]*LSym, n)
+	sl.funcdataoff = make([]int64, n)
+	n = rdint(f)
+	sl.file = make([]*LSym, n)
+	return sl
+}
+
+func readsym(ctxt *Link, f *obj.Biobuf, sl *slices, pkg string, pn string) {
 	if obj.Bgetc(f) != 0xfe {
-		log.Fatalf("readsym out of sync")
+		log.Fatalln("readsym out of sync")
 	}
 	t := rdint(f)
 	s := rdsym(ctxt, f, pkg)
@@ -188,8 +223,9 @@ func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
 	local := flags&2 != 0
 	size := rdint(f)
 	typ := rdsym(ctxt, f, pkg)
-	data := rddata(f, buf)
+	data := rddata(f, &sl.data)
 	nreloc := rdint(f)
+	isdup := false
 
 	var dup *LSym
 	if s.Type != 0 && s.Type != obj.SXREF {
@@ -212,6 +248,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
 		if len(s.P) > 0 {
 			dup = s
 			s = dupSym
+			isdup = true
 		}
 	}
 
@@ -237,12 +274,16 @@ overwrite:
 	if typ != nil {
 		s.Gotype = typ
 	}
-	if dup != nil && typ != nil { // if bss sym defined multiple times, take type from any one def
+	if isdup && typ != nil { // if bss sym defined multiple times, take type from any one def
 		dup.Gotype = typ
 	}
 	s.P = data
 	if nreloc > 0 {
-		s.R = make([]Reloc, nreloc)
+		s.R = sl.reloc[:nreloc:nreloc]
+		if !isdup {
+			sl.reloc = sl.reloc[nreloc:]
+		}
+
 		var r *Reloc
 		for i := 0; i < nreloc; i++ {
 			r = &s.R[i]
@@ -265,7 +306,11 @@ overwrite:
 			s.Attr |= AttrReflectMethod
 		}
 		n := rdint(f)
-		s.Autom = make([]Auto, n)
+		s.Autom = sl.autom[:n:n]
+		if !isdup {
+			sl.autom = sl.autom[n:]
+		}
+
 		for i := 0; i < n; i++ {
 			s.Autom[i] = Auto{
 				Asym:    rdsym(ctxt, f, pkg),
@@ -277,17 +322,24 @@ overwrite:
 
 		s.Pcln = new(Pcln)
 		pc := s.Pcln
-		pc.Pcsp.P = rddata(f, buf)
-		pc.Pcfile.P = rddata(f, buf)
-		pc.Pcline.P = rddata(f, buf)
+		pc.Pcsp.P = rddata(f, &sl.data)
+		pc.Pcfile.P = rddata(f, &sl.data)
+		pc.Pcline.P = rddata(f, &sl.data)
 		n = rdint(f)
-		pc.Pcdata = make([]Pcdata, n)
+		pc.Pcdata = sl.pcdata[:n:n]
+		if !isdup {
+			sl.pcdata = sl.pcdata[n:]
+		}
 		for i := 0; i < n; i++ {
-			pc.Pcdata[i].P = rddata(f, buf)
+			pc.Pcdata[i].P = rddata(f, &sl.data)
 		}
 		n = rdint(f)
-		pc.Funcdata = make([]*LSym, n)
-		pc.Funcdataoff = make([]int64, n)
+		pc.Funcdata = sl.funcdata[:n:n]
+		pc.Funcdataoff = sl.funcdataoff[:n:n]
+		if !isdup {
+			sl.funcdata = sl.funcdata[n:]
+			sl.funcdataoff = sl.funcdataoff[n:]
+		}
 		for i := 0; i < n; i++ {
 			pc.Funcdata[i] = rdsym(ctxt, f, pkg)
 		}
@@ -295,12 +347,15 @@ overwrite:
 			pc.Funcdataoff[i] = rdint64(f)
 		}
 		n = rdint(f)
-		pc.File = make([]*LSym, n)
+		pc.File = sl.file[:n:n]
+		if !isdup {
+			sl.file = sl.file[n:]
+		}
 		for i := 0; i < n; i++ {
 			pc.File[i] = rdsym(ctxt, f, pkg)
 		}
 
-		if dup == nil {
+		if !isdup {
 			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
