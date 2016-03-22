@@ -5,6 +5,7 @@ package ssa
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm"
 	"cmd/internal/obj/x86"
 )
 
@@ -25,6 +26,17 @@ const (
 	BlockAMD64NEF
 	BlockAMD64ORD
 	BlockAMD64NAN
+
+	BlockARMEQ
+	BlockARMNE
+	BlockARMLT
+	BlockARMLE
+	BlockARMGT
+	BlockARMGE
+	BlockARMULT
+	BlockARMULE
+	BlockARMUGT
+	BlockARMUGE
 
 	BlockPlain
 	BlockIf
@@ -55,6 +67,17 @@ var blockString = [...]string{
 	BlockAMD64NEF: "NEF",
 	BlockAMD64ORD: "ORD",
 	BlockAMD64NAN: "NAN",
+
+	BlockARMEQ:  "EQ",
+	BlockARMNE:  "NE",
+	BlockARMLT:  "LT",
+	BlockARMLE:  "LE",
+	BlockARMGT:  "GT",
+	BlockARMGE:  "GE",
+	BlockARMULT: "ULT",
+	BlockARMULE: "ULE",
+	BlockARMUGT: "UGT",
+	BlockARMUGE: "UGE",
 
 	BlockPlain:  "Plain",
 	BlockIf:     "If",
@@ -308,6 +331,15 @@ const (
 	OpAMD64FlagLT_UGT
 	OpAMD64FlagGT_UGT
 	OpAMD64FlagGT_ULT
+
+	OpARMADD
+	OpARMADDconst
+	OpARMMOVWconst
+	OpARMCMP
+	OpARMMOVWload
+	OpARMMOVWstore
+	OpARMCALLstatic
+	OpARMLessThan
 
 	OpAdd8
 	OpAdd16
@@ -3916,6 +3948,106 @@ var opcodeTable = [...]opInfo{
 	},
 
 	{
+		name:        "ADD",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 31}, // R0 R1 R2 R3 SP
+				{1, 31}, // R0 R1 R2 R3 SP
+			},
+			outputs: []regMask{
+				31, // R0 R1 R2 R3 SP
+			},
+		},
+	},
+	{
+		name:    "ADDconst",
+		auxType: auxSymOff,
+		argLen:  1,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 31}, // R0 R1 R2 R3 SP
+			},
+			outputs: []regMask{
+				31, // R0 R1 R2 R3 SP
+			},
+		},
+	},
+	{
+		name:              "MOVWconst",
+		auxType:           auxInt32,
+		argLen:            0,
+		rematerializeable: true,
+		asm:               arm.AMOVW,
+		reg: regInfo{
+			outputs: []regMask{
+				31, // R0 R1 R2 R3 SP
+			},
+		},
+	},
+	{
+		name:   "CMP",
+		argLen: 2,
+		asm:    arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 31}, // R0 R1 R2 R3 SP
+				{1, 31}, // R0 R1 R2 R3 SP
+			},
+			outputs: []regMask{
+				32, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "MOVWload",
+		argLen: 2,
+		asm:    arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 31}, // R0 R1 R2 R3 SP
+			},
+			outputs: []regMask{
+				31, // R0 R1 R2 R3 SP
+			},
+		},
+	},
+	{
+		name:   "MOVWstore",
+		argLen: 3,
+		asm:    arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 31}, // R0 R1 R2 R3 SP
+				{1, 31}, // R0 R1 R2 R3 SP
+			},
+		},
+	},
+	{
+		name:    "CALLstatic",
+		auxType: auxSymOff,
+		argLen:  1,
+		reg: regInfo{
+			clobbers: 15, // R0 R1 R2 R3
+		},
+	},
+	{
+		name:   "LessThan",
+		argLen: 2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 32}, // FLAGS
+			},
+			outputs: []regMask{
+				31, // R0 R1 R2 R3 SP
+			},
+		},
+	},
+
+	{
 		name:        "Add8",
 		argLen:      2,
 		commutative: true,
@@ -5343,3 +5475,49 @@ var opcodeTable = [...]opInfo{
 
 func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
 func (o Op) String() string { return opcodeTable[o].name }
+
+var registersAMD64 = [...]Register{
+	{0, "AX"},
+	{1, "CX"},
+	{2, "DX"},
+	{3, "BX"},
+	{4, "SP"},
+	{5, "BP"},
+	{6, "SI"},
+	{7, "DI"},
+	{8, "R8"},
+	{9, "R9"},
+	{10, "R10"},
+	{11, "R11"},
+	{12, "R12"},
+	{13, "R13"},
+	{14, "R14"},
+	{15, "R15"},
+	{16, "X0"},
+	{17, "X1"},
+	{18, "X2"},
+	{19, "X3"},
+	{20, "X4"},
+	{21, "X5"},
+	{22, "X6"},
+	{23, "X7"},
+	{24, "X8"},
+	{25, "X9"},
+	{26, "X10"},
+	{27, "X11"},
+	{28, "X12"},
+	{29, "X13"},
+	{30, "X14"},
+	{31, "X15"},
+	{32, "SB"},
+	{33, "FLAGS"},
+}
+var registersARM = [...]Register{
+	{0, "R0"},
+	{1, "R1"},
+	{2, "R2"},
+	{3, "R3"},
+	{4, "SP"},
+	{5, "FLAGS"},
+	{6, "SB"},
+}

@@ -10,8 +10,9 @@ var decBlocks = []blockData{}
 
 func init() {
 	archs = append(archs, arch{
-		name:   "dec",
-		ops:    decOps,
-		blocks: decBlocks,
+		name:    "dec",
+		ops:     decOps,
+		blocks:  decBlocks,
+		generic: true,
 	})
 }
