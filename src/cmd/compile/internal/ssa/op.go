@@ -55,6 +55,8 @@ const (
 	auxSym                  // aux is a symbol
 	auxSymOff               // aux is a symbol, auxInt is an offset
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+
+	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
 )
 
 // A ValAndOff is used by the several opcodes. It holds

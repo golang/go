@@ -18,6 +18,7 @@ type Config struct {
 	PtrSize      int64                      // 4 or 8
 	lowerBlock   func(*Block) bool          // lowering function
 	lowerValue   func(*Value, *Config) bool // lowering function
+	registers    []Register                 // machine registers
 	fe           Frontend                   // callbacks into compiler frontend
 	HTML         *HTMLWriter                // html writer, for debugging
 	ctxt         *obj.Link                  // Generic arch information
@@ -112,11 +113,18 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.PtrSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.registers = registersAMD64[:]
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+	case "arm":
+		c.IntSize = 4
+		c.PtrSize = 4
+		c.lowerBlock = rewriteBlockARM
+		c.lowerValue = rewriteValueARM
+		c.registers = registersARM[:]
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}

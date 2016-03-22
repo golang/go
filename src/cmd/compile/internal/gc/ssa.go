@@ -30,8 +30,14 @@ func initssa() *ssa.Config {
 }
 
 func shouldssa(fn *Node) bool {
-	if Thearch.Thestring != "amd64" {
-		return false
+	switch Thearch.Thestring {
+	default:
+		// Only available for testing.
+		if os.Getenv("SSATEST") == "" {
+			return false
+		}
+		// Generally available.
+	case "amd64":
 	}
 	if !ssaEnabled {
 		return false

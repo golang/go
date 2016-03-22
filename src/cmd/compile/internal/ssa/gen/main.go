@@ -26,6 +26,7 @@ type arch struct {
 	ops      []opData
 	blocks   []blockData
 	regnames []string
+	generic  bool
 }
 
 type opData struct {
@@ -204,6 +205,18 @@ func genOp() {
 
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
+
+	// generate registers
+	for _, a := range archs {
+		if a.generic {
+			continue
+		}
+		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+		for i, r := range a.regnames {
+			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
+		}
+		fmt.Fprintln(w, "}")
+	}
 
 	// gofmt result
 	b := w.Bytes()
