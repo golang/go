@@ -74,7 +74,7 @@ func GoToolPath(t *testing.T) string {
 	}
 	goBin, err := exec.LookPath("go" + exeSuffix)
 	if err != nil {
-		t.Fatal("cannot find go tool: %v", err)
+		t.Fatalf("cannot find go tool: %v", err)
 	}
 	return goBin
 }
