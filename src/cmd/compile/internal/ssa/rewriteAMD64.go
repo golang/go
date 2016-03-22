@@ -10668,6 +10668,118 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
 		v0.AddArg(mem)
 		return true
 	}
+	// match: (ORL (ORL (ORL                   x:(MOVBloadidx1 [i]   {s} p idx mem)     (SHLLconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))     (SHLLconst [16] (MOVBloadidx1 [i+2] {s} p idx mem)))     (SHLLconst [24] (MOVBloadidx1 [i+3] {s} p idx mem)))
+	// cond:
+	// result: @x.Block (MOVLload [i] {s} (ADDQ <p.Type> p idx) mem)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ORL {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAMD64ORL {
+			break
+		}
+		x := v_0_0.Args[0]
+		if x.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		i := x.AuxInt
+		s := x.Aux
+		p := x.Args[0]
+		idx := x.Args[1]
+		mem := x.Args[2]
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpAMD64SHLLconst {
+			break
+		}
+		if v_0_0_1.AuxInt != 8 {
+			break
+		}
+		v_0_0_1_0 := v_0_0_1.Args[0]
+		if v_0_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_0_1_0.AuxInt != i+1 {
+			break
+		}
+		if v_0_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_0_1_0.Args[2] {
+			break
+		}
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpAMD64SHLLconst {
+			break
+		}
+		if v_0_1.AuxInt != 16 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_1_0.AuxInt != i+2 {
+			break
+		}
+		if v_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_1_0.Args[2] {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64SHLLconst {
+			break
+		}
+		if v_1.AuxInt != 24 {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_1_0.AuxInt != i+3 {
+			break
+		}
+		if v_1_0.Aux != s {
+			break
+		}
+		if p != v_1_0.Args[0] {
+			break
+		}
+		if idx != v_1_0.Args[1] {
+			break
+		}
+		if mem != v_1_0.Args[2] {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVLload, config.fe.TypeUInt32())
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = i
+		v0.Aux = s
+		v1 := b.NewValue0(v.Line, OpAMD64ADDQ, p.Type)
+		v1.AddArg(p)
+		v1.AddArg(idx)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORLconst(v *Value, config *Config) bool {
@@ -10974,6 +11086,238 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
 		v0.AddArg(mem)
 		return true
 	}
+	// match: (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ                   x:(MOVBloadidx1 [i]   {s} p idx mem)     (SHLQconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))     (SHLQconst [16] (MOVBloadidx1 [i+2] {s} p idx mem)))     (SHLQconst [24] (MOVBloadidx1 [i+3] {s} p idx mem)))     (SHLQconst [32] (MOVBloadidx1 [i+4] {s} p idx mem)))     (SHLQconst [40] (MOVBloadidx1 [i+5] {s} p idx mem)))     (SHLQconst [48] (MOVBloadidx1 [i+6] {s} p idx mem)))     (SHLQconst [56] (MOVBloadidx1 [i+7] {s} p idx mem)))
+	// cond:
+	// result: @x.Block (MOVQload [i] {s} (ADDQ <p.Type> p idx) mem)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ORQ {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAMD64ORQ {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAMD64ORQ {
+			break
+		}
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpAMD64ORQ {
+			break
+		}
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpAMD64ORQ {
+			break
+		}
+		v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+		if v_0_0_0_0_0_0.Op != OpAMD64ORQ {
+			break
+		}
+		x := v_0_0_0_0_0_0.Args[0]
+		if x.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		i := x.AuxInt
+		s := x.Aux
+		p := x.Args[0]
+		idx := x.Args[1]
+		mem := x.Args[2]
+		v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+		if v_0_0_0_0_0_0_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0_0_0_0_0_0_1.AuxInt != 8 {
+			break
+		}
+		v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+		if v_0_0_0_0_0_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_0_0_0_0_0_1_0.AuxInt != i+1 {
+			break
+		}
+		if v_0_0_0_0_0_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_0_0_0_0_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_0_0_0_0_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_0_0_0_0_0_1_0.Args[2] {
+			break
+		}
+		v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+		if v_0_0_0_0_0_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0_0_0_0_0_1.AuxInt != 16 {
+			break
+		}
+		v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+		if v_0_0_0_0_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_0_0_0_0_1_0.AuxInt != i+2 {
+			break
+		}
+		if v_0_0_0_0_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_0_0_0_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_0_0_0_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_0_0_0_0_1_0.Args[2] {
+			break
+		}
+		v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+		if v_0_0_0_0_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0_0_0_0_1.AuxInt != 24 {
+			break
+		}
+		v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+		if v_0_0_0_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_0_0_0_1_0.AuxInt != i+3 {
+			break
+		}
+		if v_0_0_0_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_0_0_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_0_0_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_0_0_0_1_0.Args[2] {
+			break
+		}
+		v_0_0_0_1 := v_0_0_0.Args[1]
+		if v_0_0_0_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0_0_0_1.AuxInt != 32 {
+			break
+		}
+		v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+		if v_0_0_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_0_0_1_0.AuxInt != i+4 {
+			break
+		}
+		if v_0_0_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_0_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_0_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_0_0_1_0.Args[2] {
+			break
+		}
+		v_0_0_1 := v_0_0.Args[1]
+		if v_0_0_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0_0_1.AuxInt != 40 {
+			break
+		}
+		v_0_0_1_0 := v_0_0_1.Args[0]
+		if v_0_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_0_1_0.AuxInt != i+5 {
+			break
+		}
+		if v_0_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_0_1_0.Args[2] {
+			break
+		}
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_0_1.AuxInt != 48 {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_0_1_0.AuxInt != i+6 {
+			break
+		}
+		if v_0_1_0.Aux != s {
+			break
+		}
+		if p != v_0_1_0.Args[0] {
+			break
+		}
+		if idx != v_0_1_0.Args[1] {
+			break
+		}
+		if mem != v_0_1_0.Args[2] {
+			break
+		}
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64SHLQconst {
+			break
+		}
+		if v_1.AuxInt != 56 {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_1_0.AuxInt != i+7 {
+			break
+		}
+		if v_1_0.Aux != s {
+			break
+		}
+		if p != v_1_0.Args[0] {
+			break
+		}
+		if idx != v_1_0.Args[1] {
+			break
+		}
+		if mem != v_1_0.Args[2] {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVQload, config.fe.TypeUInt64())
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = i
+		v0.Aux = s
+		v1 := b.NewValue0(v.Line, OpAMD64ADDQ, p.Type)
+		v1.AddArg(p)
+		v1.AddArg(idx)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORQconst(v *Value, config *Config) bool {
@@ -11107,6 +11451,58 @@ func rewriteValueAMD64_OpAMD64ORW(v *Value, config *Config) bool {
 		v0.AuxInt = i
 		v0.Aux = s
 		v0.AddArg(p)
+		v0.AddArg(mem)
+		return true
+	}
+	// match: (ORW              x:(MOVBloadidx1 [i]   {s} p idx mem)     (SHLWconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))
+	// cond:
+	// result: @x.Block (MOVWload [i] {s} (ADDQ <p.Type> p idx) mem)
+	for {
+		x := v.Args[0]
+		if x.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		i := x.AuxInt
+		s := x.Aux
+		p := x.Args[0]
+		idx := x.Args[1]
+		mem := x.Args[2]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64SHLWconst {
+			break
+		}
+		if v_1.AuxInt != 8 {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64MOVBloadidx1 {
+			break
+		}
+		if v_1_0.AuxInt != i+1 {
+			break
+		}
+		if v_1_0.Aux != s {
+			break
+		}
+		if p != v_1_0.Args[0] {
+			break
+		}
+		if idx != v_1_0.Args[1] {
+			break
+		}
+		if mem != v_1_0.Args[2] {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVWload, config.fe.TypeUInt16())
+		v.reset(OpCopy)
+		v.AddArg(v0)
+		v0.AuxInt = i
+		v0.Aux = s
+		v1 := b.NewValue0(v.Line, OpAMD64ADDQ, p.Type)
+		v1.AddArg(p)
+		v1.AddArg(idx)
+		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
