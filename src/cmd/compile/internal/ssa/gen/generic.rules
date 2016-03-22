@@ -596,6 +596,7 @@
 (SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
 (SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
 (SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)
+(SliceCap (SliceMake _ _ (SliceLen x))) -> (SliceLen x)
 
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake

@@ -2727,13 +2727,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	// cond: (1 << 8) <= int32(c)
 	// result: (ConstBool [1])
 	for {
-		if v.Args[0].Op != OpZeroExt8to32 {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to32 {
 			break
 		}
-		if v.Args[1].Op != OpConst32 {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v.Args[1].AuxInt
+		c := v_1.AuxInt
 		if !((1 << 8) <= int32(c)) {
 			break
 		}
@@ -2745,13 +2747,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	// cond: (1 << 8) <= c
 	// result: (ConstBool [1])
 	for {
-		if v.Args[0].Op != OpZeroExt8to64 {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to64 {
 			break
 		}
-		if v.Args[1].Op != OpConst64 {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v.Args[1].AuxInt
+		c := v_1.AuxInt
 		if !((1 << 8) <= c) {
 			break
 		}
@@ -2763,13 +2767,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	// cond: (1 << 16) <= int32(c)
 	// result: (ConstBool [1])
 	for {
-		if v.Args[0].Op != OpZeroExt16to32 {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to32 {
 			break
 		}
-		if v.Args[1].Op != OpConst32 {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst32 {
 			break
 		}
-		c := v.Args[1].AuxInt
+		c := v_1.AuxInt
 		if !((1 << 16) <= int32(c)) {
 			break
 		}
@@ -2781,13 +2787,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	// cond: (1 << 16) <= c
 	// result: (ConstBool [1])
 	for {
-		if v.Args[0].Op != OpZeroExt16to64 {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to64 {
 			break
 		}
-		if v.Args[1].Op != OpConst64 {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
 			break
 		}
-		c := v.Args[1].AuxInt
+		c := v_1.AuxInt
 		if !((1 << 16) <= c) {
 			break
 		}
@@ -7702,6 +7710,23 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
 		}
 		x := v_0_2.Args[0]
 		v.reset(OpSliceCap)
+		v.AddArg(x)
+		return true
+	}
+	// match: (SliceCap (SliceMake _ _ (SliceLen x)))
+	// cond:
+	// result: (SliceLen x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSliceMake {
+			break
+		}
+		v_0_2 := v_0.Args[2]
+		if v_0_2.Op != OpSliceLen {
+			break
+		}
+		x := v_0_2.Args[0]
+		v.reset(OpSliceLen)
 		v.AddArg(x)
 		return true
 	}
