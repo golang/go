@@ -11,6 +11,9 @@ import (
 	"math"
 	"os"
 	"unsafe" // just for test case printing unsafe.Pointer
+
+	// For testing printf-like functions from external package.
+	"github.com/foobar/externalprintf"
 )
 
 func UnsafePointerPrintfTest() {
@@ -215,6 +218,19 @@ func PrintfTests() {
 
 	Errorf(1, "%d", 3)    // OK
 	Errorf(1, "%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: string"
+
+	// Multiple string arguments before variadic args
+	errorf("WARNING", "foobar")            // OK
+	errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
+	errorf("ERROR", "%d")                  // ERROR "format reads arg 1, have only 0 args"
+
+	// Printf from external package
+	externalprintf.Printf("%d", 42) // OK
+	externalprintf.Printf("foobar") // OK
+	level := 123
+	externalprintf.Logf(level, "%d", 42)                        // OK
+	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
+	externalprintf.Logf(level, "%d")                            // ERROR "format reads arg 1, have only 0 args"
 }
 
 // A function we use as a function value; it has no other purpose.
@@ -239,6 +255,12 @@ func printf(format string, args ...interface{}) {
 // Errorf is used by the test for a case in which the first parameter
 // is not a format string.
 func Errorf(i int, format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
+// errorf is used by the test for a case in which the function accepts multiple
+// string parameters before variadic arguments
+func errorf(level, format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
