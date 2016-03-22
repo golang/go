@@ -8,42 +8,42 @@ import "strings"
 
 // copied from ../../amd64/reg.go
 var regNamesAMD64 = []string{
-	".AX",
-	".CX",
-	".DX",
-	".BX",
-	".SP",
-	".BP",
-	".SI",
-	".DI",
-	".R8",
-	".R9",
-	".R10",
-	".R11",
-	".R12",
-	".R13",
-	".R14",
-	".R15",
-	".X0",
-	".X1",
-	".X2",
-	".X3",
-	".X4",
-	".X5",
-	".X6",
-	".X7",
-	".X8",
-	".X9",
-	".X10",
-	".X11",
-	".X12",
-	".X13",
-	".X14",
-	".X15",
+	"AX",
+	"CX",
+	"DX",
+	"BX",
+	"SP",
+	"BP",
+	"SI",
+	"DI",
+	"R8",
+	"R9",
+	"R10",
+	"R11",
+	"R12",
+	"R13",
+	"R14",
+	"R15",
+	"X0",
+	"X1",
+	"X2",
+	"X3",
+	"X4",
+	"X5",
+	"X6",
+	"X7",
+	"X8",
+	"X9",
+	"X10",
+	"X11",
+	"X12",
+	"X13",
+	"X14",
+	"X15",
 
 	// pseudo-registers
-	".SB",
-	".FLAGS",
+	"SB",
+	"FLAGS",
 }
 
 func init() {
@@ -53,10 +53,7 @@ func init() {
 	}
 	num := map[string]int{}
 	for i, name := range regNamesAMD64 {
-		if name[0] != '.' {
-			panic("register name " + name + " does not start with '.'")
-		}
-		num[name[1:]] = i
+		num[name] = i
 	}
 	buildReg := func(s string) regMask {
 		m := regMask(0)
