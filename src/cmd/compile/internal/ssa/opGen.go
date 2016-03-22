@@ -261,13 +261,10 @@ const (
 	OpAMD64LEAQ8
 	OpAMD64MOVBload
 	OpAMD64MOVBQSXload
-	OpAMD64MOVBQZXload
 	OpAMD64MOVWload
 	OpAMD64MOVWQSXload
-	OpAMD64MOVWQZXload
 	OpAMD64MOVLload
 	OpAMD64MOVLQSXload
-	OpAMD64MOVLQZXload
 	OpAMD64MOVQload
 	OpAMD64MOVBstore
 	OpAMD64MOVWstore
@@ -3394,20 +3391,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVBQZXload",
-		auxType: auxSymOff,
-		argLen:  2,
-		asm:     x86.AMOVBLZX,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
 		name:    "MOVWload",
 		auxType: auxSymOff,
 		argLen:  2,
@@ -3436,20 +3419,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVWQZXload",
-		auxType: auxSymOff,
-		argLen:  2,
-		asm:     x86.AMOVWLZX,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
 		name:    "MOVLload",
 		auxType: auxSymOff,
 		argLen:  2,
@@ -3468,20 +3437,6 @@ var opcodeTable = [...]opInfo{
 		auxType: auxSymOff,
 		argLen:  2,
 		asm:     x86.AMOVLQSX,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
-			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:    "MOVLQZXload",
-		auxType: auxSymOff,
-		argLen:  2,
-		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB

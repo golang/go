@@ -367,15 +367,12 @@ func init() {
 		// Note: LEAQ{1,2,4,8} must not have OpSB as either argument.
 
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
-		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff"},             // ditto, extend to int64
-		{name: "MOVBQZXload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff"},             // ditto, extend to uint64
-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff"},             // ditto, extend to int64
-		{name: "MOVWQZXload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff"},             // ditto, extend to uint64
-		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"},    // load 4 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff"},             // ditto, extend to int64
-		{name: "MOVLQZXload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff"},                // ditto, extend to uint64
+		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff"},             // ditto, sign extend to int64
+		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff"},             // ditto, sign extend to int64
+		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff"},             // ditto, sign extend to int64
 		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"},    // load 8 bytes from arg0+auxint+aux. arg1=mem
 		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
