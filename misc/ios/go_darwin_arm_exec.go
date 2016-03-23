@@ -160,10 +160,18 @@ func run(bin string, args []string) (err error) {
 	}
 	defer os.Chdir(oldwd)
 
+	// Setting up lldb is flaky. The test binary itself runs when
+	// started is set to true. Everything before that is considered
+	// part of the setup and is retried.
+	started := false
 	defer func() {
 		if r := recover(); r != nil {
 			if w, ok := r.(waitPanic); ok {
 				err = w.err
+				if !started {
+					fmt.Printf("lldb setup error: %v\n", err)
+					err = errRetry
+				}
 				return
 			}
 			panic(r)
@@ -209,6 +217,8 @@ func run(bin string, args []string) (err error) {
 	}
 
 	s.do(`breakpoint set -n getwd`) // in runtime/cgo/gcc_darwin_arm.go
+
+	started = true
 
 	s.doCmd("run", "stop reason = breakpoint", 20*time.Second)
 
@@ -261,6 +271,10 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 		exited: make(chan error),
 	}
 
+	iosdPath, err := exec.LookPath("ios-deploy")
+	if err != nil {
+		return nil, err
+	}
 	s.cmd = exec.Command(
 		// lldb tries to be clever with terminals.
 		// So we wrap it in script(1) and be clever
@@ -269,7 +283,7 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 		"-q", "-t", "0",
 		"/dev/null",
 
-		"ios-deploy",
+		iosdPath,
 		"--debug",
 		"-u",
 		"-r",
@@ -313,9 +327,8 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
 		i2 := s.out.LastIndex([]byte(" connect"))
 		return i0 > 0 && i1 > 0 && i2 > 0
 	}
-	if err := s.wait("lldb start", cond, 5*time.Second); err != nil {
-		fmt.Printf("lldb start error: %v\n", err)
-		return nil, errRetry
+	if err := s.wait("lldb start", cond, 10*time.Second); err != nil {
+		panic(waitPanic{err})
 	}
 	return s, nil
 }
@@ -335,7 +348,7 @@ func (s *lldbSession) doCmd(cmd string, waitFor string, extraTimeout time.Durati
 }
 
 func (s *lldbSession) wait(reason string, cond func(out *buf) bool, extraTimeout time.Duration) error {
-	doTimeout := 1*time.Second + extraTimeout
+	doTimeout := 2*time.Second + extraTimeout
 	doTimedout := time.After(doTimeout)
 	for {
 		select {
