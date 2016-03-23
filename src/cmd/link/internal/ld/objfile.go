@@ -282,14 +282,12 @@ overwrite:
 		pc.Pcline.P = rddata(f, buf)
 		n = rdint(f)
 		pc.Pcdata = make([]Pcdata, n)
-		pc.Npcdata = n
 		for i := 0; i < n; i++ {
 			pc.Pcdata[i].P = rddata(f, buf)
 		}
 		n = rdint(f)
 		pc.Funcdata = make([]*LSym, n)
 		pc.Funcdataoff = make([]int64, n)
-		pc.Nfuncdata = n
 		for i := 0; i < n; i++ {
 			pc.Funcdata[i] = rdsym(ctxt, f, pkg)
 		}
@@ -298,7 +296,6 @@ overwrite:
 		}
 		n = rdint(f)
 		pc.File = make([]*LSym, n)
-		pc.Nfile = n
 		for i := 0; i < n; i++ {
 			pc.File[i] = rdsym(ctxt, f, pkg)
 		}
