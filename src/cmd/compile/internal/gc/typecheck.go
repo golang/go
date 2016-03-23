@@ -2801,9 +2801,8 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	case CTSTR:
 		h = 0
 		s := n.Val().U.(string)
-		for i := len(n.Val().U.(string)); i > 0; i-- {
-			h = h*PRIME1 + uint32(s[0])
-			s = s[1:]
+		for i := 0; i < len(s); i++ {
+			h = h*PRIME1 + uint32(s[i])
 		}
 	}
 

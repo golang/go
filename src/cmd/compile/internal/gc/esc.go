@@ -455,15 +455,15 @@ func escAnalyze(all []*Node, recursive bool) {
 	e.nodeEscState(&e.theSink).Escloopdepth = -1
 	e.recursive = recursive
 
-	for i := len(all) - 1; i >= 0; i-- {
-		if n := all[i]; n.Op == ODCLFUNC {
+	for _, n := range all {
+		if n.Op == ODCLFUNC {
 			n.Esc = EscFuncPlanned
 		}
 	}
 
 	// flow-analyze functions
-	for i := len(all) - 1; i >= 0; i-- {
-		if n := all[i]; n.Op == ODCLFUNC {
+	for _, n := range all {
+		if n.Op == ODCLFUNC {
 			escfunc(e, n)
 		}
 	}
@@ -477,8 +477,8 @@ func escAnalyze(all []*Node, recursive bool) {
 	}
 
 	// for all top level functions, tag the typenodes corresponding to the param nodes
-	for i := len(all) - 1; i >= 0; i-- {
-		if n := all[i]; n.Op == ODCLFUNC {
+	for _, n := range all {
+		if n.Op == ODCLFUNC {
 			esctag(e, n)
 		}
 	}
