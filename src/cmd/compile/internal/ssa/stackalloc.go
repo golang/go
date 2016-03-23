@@ -155,7 +155,7 @@ func (s *stackAllocState) stackalloc() {
 		slots = make([]int, n)
 		s.slots = slots
 	}
-	for i := f.NumValues() - 1; i >= 0; i-- {
+	for i := range slots {
 		slots[i] = -1
 	}
 

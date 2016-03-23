@@ -163,11 +163,10 @@ func postDominators(f *Func) []*Block {
 
 	// find the exit blocks
 	var exits []*Block
-	for i := len(f.Blocks) - 1; i >= 0; i-- {
-		switch f.Blocks[i].Kind {
+	for _, b := range f.Blocks {
+		switch b.Kind {
 		case BlockExit, BlockRet, BlockRetJmp, BlockCall, BlockCheck:
-			exits = append(exits, f.Blocks[i])
-			break
+			exits = append(exits, b)
 		}
 	}
 
