@@ -65,12 +65,10 @@ func instrument(fn *Node) {
 		// nodpc is the PC of the caller as extracted by
 		// getcallerpc. We use -widthptr(FP) for x86.
 		// BUG: this will not work on arm.
-		nodpc := Nod(OXXX, nil, nil)
-
-		*nodpc = *nodfp
+		nodpc := *nodfp
 		nodpc.Type = Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
-		nd := mkcall("racefuncenter", nil, nil, nodpc)
+		nd := mkcall("racefuncenter", nil, nil, &nodpc)
 		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
 		nd = mkcall("racefuncexit", nil, nil)
 		fn.Func.Exit.Append(nd)

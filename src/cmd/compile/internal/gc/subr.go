@@ -516,12 +516,10 @@ func treecopy(n *Node, lineno int32) *Node {
 		return nil
 	}
 
-	var m *Node
 	switch n.Op {
 	default:
-		m = Nod(OXXX, nil, nil)
-		*m = *n
-		m.Orig = m
+		m := *n
+		m.Orig = &m
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
 		m.List.Set(listtreecopy(n.List.Slice(), lineno))
@@ -532,6 +530,7 @@ func treecopy(n *Node, lineno int32) *Node {
 			Dump("treecopy", n)
 			Fatalf("treecopy Name")
 		}
+		return &m
 
 	case ONONAME:
 		if n.Sym == Lookup("iota") {
@@ -539,23 +538,20 @@ func treecopy(n *Node, lineno int32) *Node {
 			// but make a copy of the Node* just in case,
 			// so that all the copies of this const definition
 			// don't have the same iota value.
-			m = Nod(OXXX, nil, nil)
-			*m = *n
+			m := *n
 			if lineno != 0 {
 				m.Lineno = lineno
 			}
 			m.Name = new(Name)
 			*m.Name = *n.Name
 			m.Name.Iota = iota_
-			break
+			return &m
 		}
-		fallthrough
+		return n
 
 	case ONAME, OLITERAL, OTYPE:
-		m = n
+		return n
 	}
-
-	return m
 }
 
 // isnil reports whether n represents the universal untyped zero value "nil".
@@ -1085,8 +1081,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 // The result of substArgTypes MUST be assigned back to old, e.g.
 // 	n.Left = substArgTypes(n.Left, t1, t2)
 func substArgTypes(old *Node, types ...*Type) *Node {
-	n := Nod(OXXX, nil, nil)
-	*n = *old // make shallow copy
+	n := *old // make shallow copy
 
 	for _, t := range types {
 		dowidth(t)
@@ -1095,7 +1090,7 @@ func substArgTypes(old *Node, types ...*Type) *Node {
 	if len(types) > 0 {
 		Fatalf("substArgTypes: too many argument types")
 	}
-	return n
+	return &n
 }
 
 // substAny walks t, replacing instances of "any" with successive

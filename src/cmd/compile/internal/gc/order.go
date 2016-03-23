@@ -107,12 +107,10 @@ func ordercheapexpr(n *Node, order *Order) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := Nod(OXXX, nil, nil)
-		*a = *n
-		a.Orig = a
+		a := *n
+		a.Orig = &a
 		a.Left = l
-		a = typecheck(a, Erv)
-		return a
+		return typecheck(&a, Erv)
 	}
 
 	return ordercopyexpr(n, n.Type, order, 0)
@@ -135,24 +133,20 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := Nod(OXXX, nil, nil)
-		*a = *n
-		a.Orig = a
+		a := *n
+		a.Orig = &a
 		a.Left = l
-		a = typecheck(a, Erv)
-		return a
+		return typecheck(&a, Erv)
 
 	case ODOTPTR, OIND:
 		l := ordercheapexpr(n.Left, order)
 		if l == n.Left {
 			return n
 		}
-		a := Nod(OXXX, nil, nil)
-		*a = *n
-		a.Orig = a
+		a := *n
+		a.Orig = &a
 		a.Left = l
-		a = typecheck(a, Erv)
-		return a
+		return typecheck(&a, Erv)
 
 	case OINDEX, OINDEXMAP:
 		var l *Node
@@ -165,17 +159,15 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a := Nod(OXXX, nil, nil)
-		*a = *n
-		a.Orig = a
+		a := *n
+		a.Orig = &a
 		a.Left = l
 		a.Right = r
-		a = typecheck(a, Erv)
-		return a
+		return typecheck(&a, Erv)
+	default:
+		Fatalf("ordersafeexpr %v", Oconv(n.Op, 0))
+		return nil // not reached
 	}
-
-	Fatalf("ordersafeexpr %v", Oconv(n.Op, 0))
-	return nil // not reached
 }
 
 // Istemp reports whether n is a temporary variable.
