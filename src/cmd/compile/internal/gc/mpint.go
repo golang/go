@@ -68,7 +68,7 @@ func (a *Mpint) SetFloat(b *Mpflt) int {
 	return -1
 }
 
-func (a *Mpint) Add(b *Mpint, quiet int) {
+func (a *Mpint) Add(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
 			Yyerror("ovf in mpaddfixfix")
@@ -79,7 +79,7 @@ func (a *Mpint) Add(b *Mpint, quiet int) {
 
 	a.Val.Add(&a.Val, &b.Val)
 
-	if a.checkOverflow(0) && quiet == 0 {
+	if a.checkOverflow(0) {
 		Yyerror("constant addition overflow")
 	}
 }
@@ -198,20 +198,6 @@ func (a *Mpint) Xor(b *Mpint) {
 	a.Val.Xor(&a.Val, &b.Val)
 }
 
-// shift left by s (or right by -s)
-func (a *Mpint) shift(s int) {
-	switch {
-	case s > 0:
-		if a.checkOverflow(s) {
-			Yyerror("constant shift overflow")
-			return
-		}
-		a.Val.Lsh(&a.Val, uint(s))
-	case s < 0:
-		a.Val.Rsh(&a.Val, uint(-s))
-	}
-}
-
 func (a *Mpint) Lsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
@@ -232,7 +218,11 @@ func (a *Mpint) Lsh(b *Mpint) {
 		return
 	}
 
-	a.shift(int(s))
+	if a.checkOverflow(int(s)) {
+		Yyerror("constant shift overflow")
+		return
+	}
+	a.Val.Lsh(&a.Val, uint(s))
 }
 
 func (a *Mpint) Rsh(b *Mpint) {
@@ -255,7 +245,7 @@ func (a *Mpint) Rsh(b *Mpint) {
 		return
 	}
 
-	a.shift(int(-s))
+	a.Val.Rsh(&a.Val, uint(s))
 }
 
 func (a *Mpint) Cmp(b *Mpint) int {
