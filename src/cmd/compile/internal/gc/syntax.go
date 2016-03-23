@@ -376,7 +376,7 @@ type Nodes struct{ slice *[]*Node }
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in
 // the Nodes.
-func (n *Nodes) Slice() []*Node {
+func (n Nodes) Slice() []*Node {
 	if n.slice == nil {
 		return nil
 	}
@@ -384,7 +384,7 @@ func (n *Nodes) Slice() []*Node {
 }
 
 // Len returns the number of entries in Nodes.
-func (n *Nodes) Len() int {
+func (n Nodes) Len() int {
 	if n.slice == nil {
 		return 0
 	}
@@ -393,19 +393,19 @@ func (n *Nodes) Len() int {
 
 // Index returns the i'th element of Nodes.
 // It panics if n does not have at least i+1 elements.
-func (n *Nodes) Index(i int) *Node {
+func (n Nodes) Index(i int) *Node {
 	return (*n.slice)[i]
 }
 
 // First returns the first element of Nodes (same as n.Index(0)).
 // It panics if n has no elements.
-func (n *Nodes) First() *Node {
+func (n Nodes) First() *Node {
 	return (*n.slice)[0]
 }
 
 // Second returns the second element of Nodes (same as n.Index(1)).
 // It panics if n has fewer than two elements.
-func (n *Nodes) Second() *Node {
+func (n Nodes) Second() *Node {
 	return (*n.slice)[1]
 }
 
@@ -432,13 +432,13 @@ func (n *Nodes) MoveNodes(n2 *Nodes) {
 
 // SetIndex sets the i'th element of Nodes to node.
 // It panics if n does not have at least i+1 elements.
-func (n *Nodes) SetIndex(i int, node *Node) {
+func (n Nodes) SetIndex(i int, node *Node) {
 	(*n.slice)[i] = node
 }
 
 // Addr returns the address of the i'th element of Nodes.
 // It panics if n does not have at least i+1 elements.
-func (n *Nodes) Addr(i int) **Node {
+func (n Nodes) Addr(i int) **Node {
 	return &(*n.slice)[i]
 }
 
