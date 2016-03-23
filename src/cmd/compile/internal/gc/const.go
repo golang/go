@@ -833,7 +833,7 @@ func evconst(n *Node) {
 
 	case OADD_ | CTINT_,
 		OADD_ | CTRUNE_:
-		v.U.(*Mpint).Add(rv.U.(*Mpint), 0)
+		v.U.(*Mpint).Add(rv.U.(*Mpint))
 
 	case OSUB_ | CTINT_,
 		OSUB_ | CTRUNE_:

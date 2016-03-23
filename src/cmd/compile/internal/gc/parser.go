@@ -3318,7 +3318,7 @@ func (p *parser) hidden_constant() *Node {
 
 		if s2.Val().Ctype() == CTRUNE && s4.Val().Ctype() == CTINT {
 			ss := s2
-			s2.Val().U.(*Mpint).Add(s4.Val().U.(*Mpint), 0)
+			s2.Val().U.(*Mpint).Add(s4.Val().U.(*Mpint))
 			return ss
 		}
 		s4.Val().U.(*Mpcplx).Real = s4.Val().U.(*Mpcplx).Imag
