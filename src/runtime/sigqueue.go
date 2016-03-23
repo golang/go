@@ -30,7 +30,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"unsafe"
+	_ "unsafe" // for go:linkname
 )
 
 var sig struct {
@@ -175,20 +175,4 @@ func signal_ignore(s uint32) {
 // Checked by signal handlers.
 func signal_ignored(s uint32) bool {
 	return sig.ignored[s/32]&(1<<(s&31)) != 0
-}
-
-// This runs on a foreign stack, without an m or a g. No stack split.
-//go:nosplit
-//go:norace
-//go:nowritebarrierrec
-func badsignal(sig uintptr) {
-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
-}
-
-func badsignalgo(sig uintptr) {
-	if !sigsend(uint32(sig)) {
-		// A foreign thread received the signal sig, and the
-		// Go code does not want to handle it.
-		raisebadsignal(int32(sig))
-	}
 }

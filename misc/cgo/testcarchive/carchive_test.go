@@ -5,6 +5,7 @@
 package carchive_test
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"unicode"
 )
@@ -218,6 +220,127 @@ func TestEarlySignalHandler(t *testing.T) {
 	if out, err := exec.Command(bin[0], bin[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
+	}
+}
+
+func TestSignalForwarding(t *testing.T) {
+	switch runtime.GOOS {
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
+		}
+	case "windows":
+		t.Skip("skipping signal test on Windows")
+	}
+
+	defer func() {
+		os.Remove("libgo2.a")
+		os.Remove("libgo2.h")
+		os.Remove("testp")
+		os.RemoveAll("pkg")
+	}()
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "libgo2")
+	cmd.Env = gopathEnv
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(bin[0], append(bin[1:], "1")...)
+
+	out, err := cmd.CombinedOutput()
+
+	if err == nil {
+		t.Logf("%s", out)
+		t.Error("test program succeeded unexpectedly")
+	} else if ee, ok := err.(*exec.ExitError); !ok {
+		t.Logf("%s", out)
+		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
+	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+		t.Logf("%s", out)
+		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
+	} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
+		t.Logf("%s", out)
+		t.Errorf("got %v; expected SIGSEGV", ee)
+	}
+}
+
+func TestSignalForwardingExternal(t *testing.T) {
+	switch runtime.GOOS {
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
+		}
+	case "windows":
+		t.Skip("skipping signal test on Windows")
+	}
+
+	defer func() {
+		os.Remove("libgo2.a")
+		os.Remove("libgo2.h")
+		os.Remove("testp")
+		os.RemoveAll("pkg")
+	}()
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "libgo2")
+	cmd.Env = gopathEnv
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main5.c", "libgo2.a")
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command(bin[0], append(bin[1:], "2")...)
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stderr.Close()
+
+	r := bufio.NewReader(stderr)
+
+	err = cmd.Start()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for trigger to ensure that the process is started.
+	ok, err := r.ReadString('\n')
+
+	// Verify trigger.
+	if err != nil || ok != "OK\n" {
+		t.Fatalf("Did not receive OK signal")
+	}
+
+	// Trigger an interrupt external to the process.
+	cmd.Process.Signal(syscall.SIGSEGV)
+
+	err = cmd.Wait()
+
+	if err == nil {
+		t.Error("test program succeeded unexpectedly")
+	} else if ee, ok := err.(*exec.ExitError); !ok {
+		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
+	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
+	} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
+		t.Errorf("got %v; expected SIGSEGV", ee)
 	}
 }
 
