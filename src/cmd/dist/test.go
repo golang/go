@@ -445,7 +445,7 @@ func (t *tester) registerTests() {
 		if fortran == "" {
 			fortran, _ = exec.LookPath("gfortran")
 		}
-		if fortran != "" {
+		if fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
 			t.tests = append(t.tests, distTest{
 				name:    "cgo_fortran",
 				heading: "../misc/cgo/fortran",
