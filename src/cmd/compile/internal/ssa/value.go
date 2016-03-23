@@ -218,6 +218,11 @@ func (v *Value) Unimplementedf(msg string, args ...interface{}) {
 	v.Block.Func.Config.Unimplementedf(v.Line, msg, args...)
 }
 
+// isGenericIntConst returns whether v is a generic integer constant.
+func (v *Value) isGenericIntConst() bool {
+	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
+}
+
 // ExternSymbol is an aux value that encodes a variable's
 // constant offset from the static base pointer.
 type ExternSymbol struct {
