@@ -522,9 +522,8 @@ func importconst(s *Sym, t *Type, n *Node) {
 	}
 
 	if n.Sym != nil {
-		n1 := Nod(OXXX, nil, nil)
-		*n1 = *n
-		n = n1
+		n1 := *n
+		n = &n1
 	}
 
 	n.Orig = newname(s)

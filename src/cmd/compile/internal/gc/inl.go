@@ -249,8 +249,7 @@ func inlcopy(n *Node) *Node {
 		return n
 	}
 
-	m := Nod(OXXX, nil, nil)
-	*m = *n
+	m := *n
 	if m.Func != nil {
 		m.Func.Inl.Set(nil)
 	}
@@ -261,7 +260,7 @@ func inlcopy(n *Node) *Node {
 	m.Ninit.Set(inlcopylist(n.Ninit.Slice()))
 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
 
-	return m
+	return &m
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -968,24 +967,24 @@ func (subst *inlsubst) node(n *Node) *Node {
 		m.Left = newname(Lookup(p))
 
 		return m
+	default:
+		m := Nod(OXXX, nil, nil)
+		*m = *n
+		m.Ninit.Set(nil)
+
+		if n.Op == OCLOSURE {
+			Fatalf("cannot inline function containing closure: %v", Nconv(n, FmtSign))
+		}
+
+		m.Left = subst.node(n.Left)
+		m.Right = subst.node(n.Right)
+		m.List.Set(subst.list(n.List))
+		m.Rlist.Set(subst.list(n.Rlist))
+		m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
+		m.Nbody.Set(subst.list(n.Nbody))
+
+		return m
 	}
-
-	m := Nod(OXXX, nil, nil)
-	*m = *n
-	m.Ninit.Set(nil)
-
-	if n.Op == OCLOSURE {
-		Fatalf("cannot inline function containing closure: %v", Nconv(n, FmtSign))
-	}
-
-	m.Left = subst.node(n.Left)
-	m.Right = subst.node(n.Right)
-	m.List.Set(subst.list(n.List))
-	m.Rlist.Set(subst.list(n.Rlist))
-	m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
-	m.Nbody.Set(subst.list(n.Nbody))
-
-	return m
 }
 
 // Plaster over linenumbers

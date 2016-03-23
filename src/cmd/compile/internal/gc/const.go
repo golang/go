@@ -117,9 +117,8 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
 	}
 
 	if n.Op == OLITERAL {
-		nn := Nod(OXXX, nil, nil)
-		*nn = *n
-		n = nn
+		nn := *n
+		n = &nn
 	}
 
 	switch n.Op {
@@ -559,11 +558,10 @@ func evconst(n *Node) {
 					i2++
 				}
 
-				nl := Nod(OXXX, nil, nil)
-				*nl = *s[i1]
-				nl.Orig = nl
+				nl := *s[i1]
+				nl.Orig = &nl
 				nl.SetVal(Val{strings.Join(strs, "")})
-				s[i1] = nl
+				s[i1] = &nl
 				s = append(s[:i1+1], s[i2:]...)
 			}
 		}
@@ -1250,9 +1248,8 @@ func defaultlit(n *Node, t *Type) *Node {
 	}
 
 	if n.Op == OLITERAL {
-		nn := Nod(OXXX, nil, nil)
-		*nn = *n
-		n = nn
+		nn := *n
+		n = &nn
 	}
 
 	lno := setlineno(n)

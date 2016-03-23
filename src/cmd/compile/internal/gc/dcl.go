@@ -605,7 +605,6 @@ func funcargs(nt *Node) {
 	// declare the out arguments.
 	gen := nt.List.Len()
 	var i int = 0
-	var nn *Node
 	for _, n = range nt.Rlist.Slice() {
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs out %v", Oconv(n.Op, 0))
@@ -629,13 +628,11 @@ func funcargs(nt *Node) {
 			// So the two cases must be distinguished.
 			// We do not record a pointer to the original node (n->orig).
 			// Having multiple names causes too much confusion in later passes.
-			nn = Nod(OXXX, nil, nil)
-
-			*nn = *n.Left
-			nn.Orig = nn
+			nn := *n.Left
+			nn.Orig = &nn
 			nn.Sym = LookupN("~b", gen)
 			gen++
-			n.Left = nn
+			n.Left = &nn
 		}
 
 		n.Left.Name.Param.Ntype = n.Right
