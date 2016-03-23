@@ -143,8 +143,7 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
 		// target is invalid type for a constant?  leave alone.
 	case OLITERAL:
 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
-			n = defaultlit(n, nil)
-			return n
+			return defaultlit(n, nil)
 		}
 
 	case OLSH, ORSH:
@@ -204,9 +203,7 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
 			n.Type = t
 			return n
 		}
-
-		n = defaultlit(n, nil)
-		return n
+		return defaultlit(n, nil)
 	}
 
 	switch ct {
@@ -1264,8 +1261,7 @@ func defaultlit(n *Node, t *Type) *Node {
 	switch ctype {
 	default:
 		if t != nil {
-			n = convlit(n, t)
-			return n
+			return convlit(n, t)
 		}
 
 		if n.Val().Ctype() == CTNIL {

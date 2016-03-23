@@ -225,8 +225,7 @@ func reexportdep(n *Node) {
 }
 
 func dumpexportconst(s *Sym) {
-	n := s.Def
-	n = typecheck(n, Erv)
+	n := typecheck(s.Def, Erv)
 	if n == nil || n.Op != OLITERAL {
 		Fatalf("dumpexportconst: oconst nil: %v", s)
 	}

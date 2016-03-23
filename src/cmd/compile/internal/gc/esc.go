@@ -902,12 +902,11 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		// Link addresses of captured variables to closure.
 	case OCLOSURE:
-		var a *Node
 		for _, v := range n.Func.Cvars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
-			a = v.Name.Param.Closure
+			a := v.Name.Param.Closure
 			if !v.Name.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
