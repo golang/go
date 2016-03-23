@@ -19,10 +19,6 @@
 // succ* fields must be variables
 // For now, the generated successors must be a permutation of the matched successors.
 
-// Simplify nil checks.
-// These are inserted by for _, e := range a {}
-(NilCheck z:(Phi x (Add64 (Const64 [c]) y)) mem) && c > 0 && z == y -> (NilCheck x mem)
-
 // constant folding
 (Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
 (Trunc32to8 (Const32 [c])) -> (Const8 [int64(int8(c))])

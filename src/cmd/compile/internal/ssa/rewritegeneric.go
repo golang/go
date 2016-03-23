@@ -220,8 +220,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpNeqPtr(v, config)
 	case OpNeqSlice:
 		return rewriteValuegeneric_OpNeqSlice(v, config)
-	case OpNilCheck:
-		return rewriteValuegeneric_OpNilCheck(v, config)
 	case OpOffPtr:
 		return rewriteValuegeneric_OpOffPtr(v, config)
 	case OpOr16:
@@ -5600,42 +5598,6 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Line, OpSlicePtr, config.fe.TypeBytePtr())
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (NilCheck z:(Phi x (Add64 (Const64 [c]) y)) mem)
-	// cond: c > 0 && z == y
-	// result: (NilCheck x mem)
-	for {
-		z := v.Args[0]
-		if z.Op != OpPhi {
-			break
-		}
-		x := z.Args[0]
-		z_1 := z.Args[1]
-		if z_1.Op != OpAdd64 {
-			break
-		}
-		z_1_0 := z_1.Args[0]
-		if z_1_0.Op != OpConst64 {
-			break
-		}
-		c := z_1_0.AuxInt
-		y := z_1.Args[1]
-		if len(z.Args) != 2 {
-			break
-		}
-		mem := v.Args[1]
-		if !(c > 0 && z == y) {
-			break
-		}
-		v.reset(OpNilCheck)
-		v.AddArg(x)
-		v.AddArg(mem)
 		return true
 	}
 	return false
