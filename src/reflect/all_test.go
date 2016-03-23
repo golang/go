@@ -2367,6 +2367,32 @@ func TestNestedMethods(t *testing.T) {
 	}
 }
 
+type unexp struct{}
+
+func (*unexp) f() (int32, int8) { return 7, 7 }
+func (*unexp) g() (int64, int8) { return 8, 8 }
+
+func TestUnexportedMethods(t *testing.T) {
+	_ = (interface {
+		f() (int32, int8)
+	})(new(unexp))
+
+	typ := TypeOf(new(unexp))
+
+	if typ.Method(0).Type == nil {
+		t.Error("missing type for satisfied method 'f'")
+	}
+	if !typ.Method(0).Func.IsValid() {
+		t.Error("missing func for satisfied method 'f'")
+	}
+	if typ.Method(1).Type != nil {
+		t.Error("found type for unsatisfied method 'g'")
+	}
+	if typ.Method(1).Func.IsValid() {
+		t.Error("found func for unsatisfied method 'g'")
+	}
+}
+
 type InnerInt struct {
 	X int
 }
