@@ -344,7 +344,7 @@ func (d *deadcodepass) flood() {
 		}
 
 		if s.Pcln != nil {
-			for i := 0; i < s.Pcln.Nfuncdata; i++ {
+			for i := range s.Pcln.Funcdata {
 				d.mark(s.Pcln.Funcdata[i], s)
 			}
 		}

@@ -280,8 +280,8 @@ func pclntab() {
 		// fixed size of struct, checked below
 		off = funcstart
 
-		end = funcstart + int32(Thearch.Ptrsize) + 3*4 + 5*4 + int32(pcln.Npcdata)*4 + int32(pcln.Nfuncdata)*int32(Thearch.Ptrsize)
-		if pcln.Nfuncdata > 0 && (end&int32(Thearch.Ptrsize-1) != 0) {
+		end = funcstart + int32(Thearch.Ptrsize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(Thearch.Ptrsize)
+		if len(pcln.Funcdata) > 0 && (end&int32(Thearch.Ptrsize-1) != 0) {
 			end += 4
 		}
 		Symgrow(Ctxt, ftab, int64(end))
@@ -321,19 +321,19 @@ func pclntab() {
 
 		off = addpctab(ftab, off, &pcln.Pcfile)
 		off = addpctab(ftab, off, &pcln.Pcline)
-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(pcln.Npcdata)))
-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(pcln.Nfuncdata)))
-		for i = 0; i < int32(pcln.Npcdata); i++ {
+		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Pcdata))))
+		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Funcdata))))
+		for i = 0; i < int32(len(pcln.Pcdata)); i++ {
 			off = addpctab(ftab, off, &pcln.Pcdata[i])
 		}
 
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
-		if pcln.Nfuncdata > 0 {
+		if len(pcln.Funcdata) > 0 {
 			if off&int32(Thearch.Ptrsize-1) != 0 {
 				off += 4
 			}
-			for i = 0; i < int32(pcln.Nfuncdata); i++ {
+			for i = 0; i < int32(len(pcln.Funcdata)); i++ {
 				if pcln.Funcdata[i] == nil {
 					setuintxx(Ctxt, ftab, int64(off)+int64(Thearch.Ptrsize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(Thearch.Ptrsize))
 				} else {
@@ -344,11 +344,11 @@ func pclntab() {
 				}
 			}
 
-			off += int32(pcln.Nfuncdata) * int32(Thearch.Ptrsize)
+			off += int32(len(pcln.Funcdata)) * int32(Thearch.Ptrsize)
 		}
 
 		if off != end {
-			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln.Npcdata, pcln.Nfuncdata, Thearch.Ptrsize)
+			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), Thearch.Ptrsize)
 			errorexit()
 		}
 
