@@ -189,8 +189,9 @@ func roundUp(n int) int {
 	}
 }
 
-// probe runs benchFunc to examine if it has any subbenchmarks.
-func (b *B) probe() {
+// run1 runs the first iteration of benchFunc. It returns whether more
+// iterations of this benchmarks should be run.
+func (b *B) run1() bool {
 	if ctx := b.context; ctx != nil {
 		// Extend maxLen, if needed.
 		if n := len(b.name) + ctx.extLen + 1; n > ctx.maxLen {
@@ -204,17 +205,14 @@ func (b *B) probe() {
 			b.signal <- true
 		}()
 
-		benchmarkLock.Lock()
-		defer benchmarkLock.Unlock()
-
-		b.N = 0
-		b.benchFunc(b)
+		b.runN(1)
 	}()
 	<-b.signal
+	return !b.hasSub
 }
 
 // run executes the benchmark in a separate goroutine, including all of its
-// subbenchmarks.
+// subbenchmarks. b must not have subbenchmarks.
 func (b *B) run() BenchmarkResult {
 	if b.context != nil {
 		// Running go test --test.bench
@@ -235,20 +233,17 @@ func (b *B) doBench() BenchmarkResult {
 // launch launches the benchmark function. It gradually increases the number
 // of benchmark iterations until the benchmark runs for the requested benchtime.
 // launch is run by the doBench function as a separate goroutine.
+// run1 must have been called on b.
 func (b *B) launch() {
-	// Run the benchmark for a single iteration in case it's expensive.
-	n := 1
-
 	// Signal that we're done whether we return normally
 	// or by FailNow's runtime.Goexit.
 	defer func() {
 		b.signal <- true
 	}()
 
-	b.runN(n)
 	// Run the benchmark for at least the specified amount of time.
 	d := b.benchTime
-	for !b.failed && b.duration < d && n < 1e9 {
+	for n := 1; !b.failed && b.duration < d && n < 1e9; {
 		last := n
 		// Predict required iterations.
 		if b.nsPerOp() == 0 {
@@ -392,18 +387,22 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
 
 // processBench runs bench b for the configured CPU counts and prints the results.
 func (ctx *benchContext) processBench(b *B) {
-	for _, procs := range cpuList {
+	for i, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
 		benchName := benchmarkName(b.name, procs)
-		b := &B{
-			common: common{
-				signal: make(chan bool),
-				name:   benchName,
-			},
-			benchFunc: b.benchFunc,
-			benchTime: b.benchTime,
-		}
 		fmt.Printf("%-*s\t", ctx.maxLen, benchName)
+		// Recompute the running time for all but the first iteration.
+		if i > 0 {
+			b = &B{
+				common: common{
+					signal: make(chan bool),
+					name:   benchName,
+				},
+				benchFunc: b.benchFunc,
+				benchTime: b.benchTime,
+			}
+			b.run1()
+		}
 		r := b.doBench()
 		if b.failed {
 			// The output could be very long here, but probably isn't.
@@ -433,7 +432,7 @@ func (ctx *benchContext) processBench(b *B) {
 // whether there were any failures.
 //
 // A subbenchmark is like any other benchmark. A benchmark that calls Run at
-// least once will not be measured itself.
+// least once will not be measured itself and will be called once with N=1.
 func (b *B) Run(name string, f func(b *B)) bool {
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
@@ -459,9 +458,10 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		benchTime: b.benchTime,
 		context:   b.context,
 	}
-	if sub.probe(); !sub.hasSub {
-		b.add(sub.run())
+	if sub.run1() {
+		sub.run()
 	}
+	b.add(sub.result)
 	return !sub.failed
 }
 
