@@ -591,20 +591,22 @@ func (t *rtype) Method(i int) (m Method) {
 		m.PkgPath = *p.pkgPath
 		fl |= flagStickyRO
 	}
-	ft := (*funcType)(unsafe.Pointer(p.mtyp))
-	in := make([]Type, 0, 1+len(ft.in()))
-	in = append(in, t)
-	for _, arg := range ft.in() {
-		in = append(in, arg)
+	if p.mtyp != nil {
+		ft := (*funcType)(unsafe.Pointer(p.mtyp))
+		in := make([]Type, 0, 1+len(ft.in()))
+		in = append(in, t)
+		for _, arg := range ft.in() {
+			in = append(in, arg)
+		}
+		out := make([]Type, 0, len(ft.out()))
+		for _, ret := range ft.out() {
+			out = append(out, ret)
+		}
+		mt := FuncOf(in, out, p.mtyp.IsVariadic())
+		m.Type = mt
+		fn := unsafe.Pointer(&p.tfn)
+		m.Func = Value{mt.(*rtype), fn, fl}
 	}
-	out := make([]Type, 0, len(ft.out()))
-	for _, ret := range ft.out() {
-		out = append(out, ret)
-	}
-	mt := FuncOf(in, out, p.mtyp.IsVariadic())
-	m.Type = mt
-	fn := unsafe.Pointer(&p.tfn)
-	m.Func = Value{mt.(*rtype), fn, fl}
 	m.Index = i
 	return m
 }

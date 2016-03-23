@@ -86,17 +86,6 @@ func deadcode(ctxt *Link) {
 		for _, m := range d.markableMethods {
 			if (reflectSeen && m.isExported()) || d.ifaceMethod[m.m] {
 				d.markMethod(m)
-			} else if reflectSeen {
-				// This ensures the Type and Func fields of
-				// reflect.Method are filled as they were in
-				// Go 1.
-				//
-				// An argument could be made for changing this
-				// and setting those fields to nil. Doing so
-				// would reduce the binary size of typical
-				// programs like cmd/go by ~2%.
-				d.mark(m.mtyp(), m.src)
-				rem = append(rem, m)
 			} else {
 				rem = append(rem, m)
 			}
