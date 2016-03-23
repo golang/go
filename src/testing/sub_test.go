@@ -403,7 +403,7 @@ func TestBRun(t *T) {
 			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
 			benchTime: time.Microsecond,
 		}
-		root.run()
+		root.runN(1)
 		if ok != !tc.failed {
 			t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, !tc.failed)
 		}
