@@ -292,8 +292,7 @@ func inlconv2stmt(n *Node) {
 // 	n.Left = inlconv2expr(n.Left)
 func inlconv2expr(n *Node) *Node {
 	r := n.Rlist.First()
-	r = addinit(r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
-	return r
+	return addinit(r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
 }
 
 // Turn the rlist (with the return values) of the OINLCALL in
@@ -509,8 +508,7 @@ func tinlvar(t *Field) *Node {
 		return t.Nname.Name.Inlvar
 	}
 
-	nblank = typecheck(nblank, Erv|Easgn)
-	return nblank
+	return typecheck(nblank, Erv|Easgn)
 }
 
 var inlgen int

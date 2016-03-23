@@ -457,9 +457,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 		delete(prealloc, func_)
 	}
 
-	clos = walkexpr(clos, init)
-
-	return clos
+	return walkexpr(clos, init)
 }
 
 func typecheckpartialcall(fn *Node, sym *Sym) {
@@ -662,7 +660,5 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		delete(prealloc, n)
 	}
 
-	clos = walkexpr(clos, init)
-
-	return clos
+	return walkexpr(clos, init)
 }
