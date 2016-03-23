@@ -11,6 +11,10 @@ type sigctxt struct {
 	ctxt unsafe.Pointer
 }
 
+func makesigctxt(info *siginfo, ctxt unsafe.Pointer) *sigctxt {
+	return &sigctxt{info, ctxt}
+}
+
 func (c *sigctxt) regs() *mcontext {
 	return (*mcontext)(unsafe.Pointer(&(*ucontext)(c.ctxt).uc_mcontext))
 }

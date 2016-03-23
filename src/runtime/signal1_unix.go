@@ -6,7 +6,10 @@
 
 package runtime
 
-import "runtime/internal/sys"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
 	_SIG_DFL uintptr = 0
@@ -197,7 +200,7 @@ func dieFromSignal(sig int32) {
 // raisebadsignal is called when a signal is received on a non-Go
 // thread, and the Go program does not want to handle it (that is, the
 // program has not called os/signal.Notify for the signal).
-func raisebadsignal(sig int32) {
+func raisebadsignal(sig int32, c *sigctxt) {
 	if sig == _SIGPROF {
 		// Ignore profiling signals that arrive on non-Go threads.
 		return
@@ -220,6 +223,18 @@ func raisebadsignal(sig int32) {
 	// again.
 	unblocksig(sig)
 	setsig(sig, handler, false)
+
+	// If we're linked into a non-Go program we want to try to
+	// avoid modifying the original context in which the signal
+	// was raised. If the handler is the default, we know it
+	// is non-recoverable, so we don't have to worry about
+	// re-installing sighandler. At this point we can just
+	// return and the signal will be re-raised and caught by
+	// the default handler with the correct context.
+	if (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
+		return
+	}
+
 	raise(sig)
 
 	// If the signal didn't cause the program to exit, restore the
@@ -306,4 +321,20 @@ func noSignalStack(sig uint32) {
 func sigNotOnStack(sig uint32) {
 	println("signal", sig, "received but handler not on signal stack")
 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
+}
+
+// This runs on a foreign stack, without an m or a g. No stack split.
+//go:nosplit
+//go:norace
+//go:nowritebarrierrec
+func badsignal(sig uintptr, c *sigctxt) {
+	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c))
+}
+
+func badsignalgo(sig uintptr, c *sigctxt) {
+	if !sigsend(uint32(sig)) {
+		// A foreign thread received the signal sig, and the
+		// Go code does not want to handle it.
+		raisebadsignal(int32(sig), c)
+	}
 }

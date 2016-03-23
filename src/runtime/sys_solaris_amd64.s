@@ -173,7 +173,12 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	MOVQ	g(BX), R10
 	CMPQ	R10, $0
 	JNE	allgood
+	MOVQ	SI, 0(SP)
+	MOVQ	DX, 8(SP)
+	CALL	runtime·makesigctxt(SB)
+	MOVQ	16(SP), AX
 	MOVQ	DI, 0(SP)
+	MOVQ	AX, 8(SP)
 	MOVQ	$runtime·badsignal(SB), AX
 	CALL	AX
 	JMP	exit
