@@ -3509,10 +3509,10 @@ func walkdiv(n *Node, init *Nodes) *Node {
 
 			// n1 = nl * magic >> w (HMUL)
 		case TUINT8, TUINT16, TUINT32:
-			nc := Nod(OXXX, nil, nil)
+			var nc Node
 
-			Nodconst(nc, nl.Type, int64(m.Um))
-			n1 := Nod(OHMUL, nl, nc)
+			Nodconst(&nc, nl.Type, int64(m.Um))
+			n1 := Nod(OHMUL, nl, &nc)
 			n1 = typecheck(n1, Erv)
 			if m.Ua != 0 {
 				// Select a Go type with (at least) twice the width.
@@ -3539,24 +3539,24 @@ func walkdiv(n *Node, init *Nodes) *Node {
 				n2 := Nod(OADD, conv(n1, twide), conv(nl, twide))
 
 				// shift by m.s
-				nc := Nod(OXXX, nil, nil)
+				var nc Node
 
-				Nodconst(nc, Types[TUINT], int64(m.S))
-				n = conv(Nod(ORSH, n2, nc), nl.Type)
+				Nodconst(&nc, Types[TUINT], int64(m.S))
+				n = conv(Nod(ORSH, n2, &nc), nl.Type)
 			} else {
 				// n = n1 >> m.s
-				nc := Nod(OXXX, nil, nil)
+				var nc Node
 
-				Nodconst(nc, Types[TUINT], int64(m.S))
-				n = Nod(ORSH, n1, nc)
+				Nodconst(&nc, Types[TUINT], int64(m.S))
+				n = Nod(ORSH, n1, &nc)
 			}
 
 			// n1 = nl * magic >> w
 		case TINT8, TINT16, TINT32:
-			nc := Nod(OXXX, nil, nil)
+			var nc Node
 
-			Nodconst(nc, nl.Type, m.Sm)
-			n1 := Nod(OHMUL, nl, nc)
+			Nodconst(&nc, nl.Type, m.Sm)
+			n1 := Nod(OHMUL, nl, &nc)
 			n1 = typecheck(n1, Erv)
 			if m.Sm < 0 {
 				// add the numerator.
@@ -3564,16 +3564,16 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			}
 
 			// shift by m.s
-			nc = Nod(OXXX, nil, nil)
+			var ns Node
 
-			Nodconst(nc, Types[TUINT], int64(m.S))
-			n2 := conv(Nod(ORSH, n1, nc), nl.Type)
+			Nodconst(&ns, Types[TUINT], int64(m.S))
+			n2 := conv(Nod(ORSH, n1, &ns), nl.Type)
 
 			// add 1 iff n1 is negative.
-			nc = Nod(OXXX, nil, nil)
+			var nneg Node
 
-			Nodconst(nc, Types[TUINT], int64(w)-1)
-			n3 := Nod(ORSH, nl, nc) // n4 = -1 iff n1 is negative.
+			Nodconst(&nneg, Types[TUINT], int64(w)-1)
+			n3 := Nod(ORSH, nl, &nneg) // n4 = -1 iff n1 is negative.
 			n = Nod(OSUB, n2, n3)
 
 			// apply sign.
@@ -3606,10 +3606,10 @@ func walkdiv(n *Node, init *Nodes) *Node {
 				// signed modulo 2^pow is like ANDing
 				// with the last pow bits, but if nl < 0,
 				// nl & (2^pow-1) is (nl+1)%2^pow - 1.
-				nc := Nod(OXXX, nil, nil)
+				var nc Node
 
-				Nodconst(nc, Types[Simtype[TUINT]], int64(w)-1)
-				n1 := Nod(ORSH, nl, nc) // n1 = -1 iff nl < 0.
+				Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-1)
+				n1 := Nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
 				if pow == 1 {
 					n1 = typecheck(n1, Erv)
 					n1 = cheapexpr(n1, init)
@@ -3617,21 +3617,21 @@ func walkdiv(n *Node, init *Nodes) *Node {
 					// n = (nl+ε)&1 -ε where ε=1 iff nl<0.
 					n2 := Nod(OSUB, nl, n1)
 
-					nc := Nod(OXXX, nil, nil)
-					Nodconst(nc, nl.Type, 1)
-					n3 := Nod(OAND, n2, nc)
+					var nc Node
+					Nodconst(&nc, nl.Type, 1)
+					n3 := Nod(OAND, n2, &nc)
 					n = Nod(OADD, n3, n1)
 				} else {
 					// n = (nl+ε)&(nr-1) - ε where ε=2^pow-1 iff nl<0.
-					nc := Nod(OXXX, nil, nil)
+					var nc Node
 
-					Nodconst(nc, nl.Type, (1<<uint(pow))-1)
-					n2 := Nod(OAND, n1, nc) // n2 = 2^pow-1 iff nl<0.
+					Nodconst(&nc, nl.Type, (1<<uint(pow))-1)
+					n2 := Nod(OAND, n1, &nc) // n2 = 2^pow-1 iff nl<0.
 					n2 = typecheck(n2, Erv)
 					n2 = cheapexpr(n2, init)
 
 					n3 := Nod(OADD, nl, n2)
-					n4 := Nod(OAND, n3, nc)
+					n4 := Nod(OAND, n3, &nc)
 					n = Nod(OSUB, n4, n2)
 				}
 
@@ -3640,28 +3640,28 @@ func walkdiv(n *Node, init *Nodes) *Node {
 				// arithmetic right shift does not give the correct rounding.
 				// if nl >= 0, nl >> n == nl / nr
 				// if nl < 0, we want to add 2^n-1 first.
-				nc := Nod(OXXX, nil, nil)
+				var nc Node
 
-				Nodconst(nc, Types[Simtype[TUINT]], int64(w)-1)
-				n1 := Nod(ORSH, nl, nc) // n1 = -1 iff nl < 0.
+				Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-1)
+				n1 := Nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
 				if pow == 1 {
 					// nl+1 is nl-(-1)
 					n.Left = Nod(OSUB, nl, n1)
 				} else {
 					// Do a logical right right on -1 to keep pow bits.
-					nc := Nod(OXXX, nil, nil)
+					var nc Node
 
-					Nodconst(nc, Types[Simtype[TUINT]], int64(w)-int64(pow))
-					n2 := Nod(ORSH, conv(n1, tounsigned(nl.Type)), nc)
+					Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-int64(pow))
+					n2 := Nod(ORSH, conv(n1, tounsigned(nl.Type)), &nc)
 					n.Left = Nod(OADD, nl, conv(n2, nl.Type))
 				}
 
 				// n = (nl + 2^pow-1) >> pow
 				n.Op = ORSH
 
-				nc = Nod(OXXX, nil, nil)
-				Nodconst(nc, Types[Simtype[TUINT]], int64(pow))
-				n.Right = nc
+				var n2 Node
+				Nodconst(&n2, Types[Simtype[TUINT]], int64(pow))
+				n.Right = &n2
 				n.Typecheck = 0
 			}
 
@@ -3671,21 +3671,21 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			break
 		}
 
-		nc := Nod(OXXX, nil, nil)
+		var nc Node
 		if n.Op == OMOD {
 			// n = nl & (nr-1)
 			n.Op = OAND
 
-			Nodconst(nc, nl.Type, nr.Val().U.(*Mpint).Int64()-1)
+			Nodconst(&nc, nl.Type, nr.Val().U.(*Mpint).Int64()-1)
 		} else {
 			// n = nl >> pow
 			n.Op = ORSH
 
-			Nodconst(nc, Types[Simtype[TUINT]], int64(pow))
+			Nodconst(&nc, Types[Simtype[TUINT]], int64(pow))
 		}
 
 		n.Typecheck = 0
-		n.Right = nc
+		n.Right = &nc
 	}
 
 	goto ret

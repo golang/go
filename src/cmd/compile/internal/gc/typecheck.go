@@ -1405,10 +1405,10 @@ OpSwitch:
 		switch t.Etype {
 		case TSTRING:
 			if Isconst(l, CTSTR) {
-				r := Nod(OXXX, nil, nil)
-				Nodconst(r, Types[TINT], int64(len(l.Val().U.(string))))
+				var r Node
+				Nodconst(&r, Types[TINT], int64(len(l.Val().U.(string))))
 				r.Orig = n
-				n = r
+				n = &r
 			}
 
 		case TARRAY:
@@ -1418,10 +1418,10 @@ OpSwitch:
 			if callrecv(l) { // has call or receive
 				break
 			}
-			r := Nod(OXXX, nil, nil)
-			Nodconst(r, Types[TINT], t.Bound)
+			var r Node
+			Nodconst(&r, Types[TINT], t.Bound)
 			r.Orig = n
-			n = r
+			n = &r
 		}
 
 		n.Type = Types[TINT]
