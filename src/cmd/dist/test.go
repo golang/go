@@ -497,7 +497,7 @@ func (t *tester) registerTests() {
 			})
 		}
 		if t.supportedBuildmode("c-archive") {
-			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
+			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "go", "test", "carchive_test.go")
 		}
 		if t.supportedBuildmode("c-shared") {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
