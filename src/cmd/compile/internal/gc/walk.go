@@ -3130,7 +3130,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 			r = Nod(OOROR, Nod(ONOT, ok, nil), Nod(ONE, x, r))
 		}
 		init.Append(expr)
-		n = finishcompare(n, n, r, init)
+		n = finishcompare(n, r, init)
 		return n
 	}
 
@@ -3201,7 +3201,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		if expr == nil {
 			expr = Nodbool(n.Op == OEQ)
 		}
-		n = finishcompare(n, n, expr, init)
+		n = finishcompare(n, expr, init)
 		return n
 	}
 
@@ -3209,13 +3209,13 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		// Zero- or single-element array, of any type.
 		switch t.Bound {
 		case 0:
-			n = finishcompare(n, n, Nodbool(n.Op == OEQ), init)
+			n = finishcompare(n, Nodbool(n.Op == OEQ), init)
 			return n
 		case 1:
 			l0 := Nod(OINDEX, l, Nodintconst(0))
 			r0 := Nod(OINDEX, r, Nodintconst(0))
 			a := Nod(n.Op, l0, r0)
-			n = finishcompare(n, n, a, init)
+			n = finishcompare(n, a, init)
 			return n
 		}
 	}
@@ -3242,7 +3242,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		if expr == nil {
 			expr = Nodbool(n.Op == OEQ)
 		}
-		n = finishcompare(n, n, expr, init)
+		n = finishcompare(n, expr, init)
 		return n
 	}
 
@@ -3260,15 +3260,15 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		r = Nod(ONOT, r, nil)
 	}
 
-	n = finishcompare(n, n, r, init)
+	n = finishcompare(n, r, init)
 	return n
 }
 
-// The result of finishcompare MUST be assigned back to nn, e.g.
+// The result of finishcompare MUST be assigned back to n, e.g.
 // 	n.Left = finishcompare(n.Left, x, r, init)
-func finishcompare(nn *Node, n, r *Node, init *Nodes) *Node {
+func finishcompare(n, r *Node, init *Nodes) *Node {
 	// Use nn here to avoid passing r to typecheck.
-	nn = r
+	nn := r
 	nn = typecheck(nn, Erv)
 	nn = walkexpr(nn, init)
 	r = nn
