@@ -528,6 +528,21 @@
 (SARB x (MOVWconst [c])) -> (SARBconst [c&31] x)
 (SARB x (MOVBconst [c])) -> (SARBconst [c&31] x)
 
+(SARB x (ANDBconst [31] y)) -> (SARB x y)
+(SARW x (ANDWconst [31] y)) -> (SARW x y)
+(SARL x (ANDLconst [31] y)) -> (SARL x y)
+(SARQ x (ANDQconst [63] y)) -> (SARQ x y)
+
+(SHLB x (ANDBconst [31] y)) -> (SHLB x y)
+(SHLW x (ANDWconst [31] y)) -> (SHLW x y)
+(SHLL x (ANDLconst [31] y)) -> (SHLL x y)
+(SHLQ x (ANDQconst [63] y)) -> (SHLQ x y)
+
+(SHRB x (ANDBconst [31] y)) -> (SHRB x y)
+(SHRW x (ANDWconst [31] y)) -> (SHRW x y)
+(SHRL x (ANDLconst [31] y)) -> (SHRL x y)
+(SHRQ x (ANDQconst [63] y)) -> (SHRQ x y)
+
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
 // for the small shifts. I don't think we'll ever generate a weird shift (e.g.

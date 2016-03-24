@@ -11781,6 +11781,24 @@ func rewriteValueAMD64_OpAMD64SARB(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SARB x (ANDBconst [31] y))
+	// cond:
+	// result: (SARB x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDBconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SARB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SARBconst(v *Value, config *Config) bool {
@@ -11863,6 +11881,24 @@ func rewriteValueAMD64_OpAMD64SARL(v *Value, config *Config) bool {
 		v.reset(OpAMD64SARLconst)
 		v.AuxInt = c & 31
 		v.AddArg(x)
+		return true
+	}
+	// match: (SARL x (ANDLconst [31] y))
+	// cond:
+	// result: (SARL x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDLconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SARL)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -11949,6 +11985,24 @@ func rewriteValueAMD64_OpAMD64SARQ(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SARQ x (ANDQconst [63] y))
+	// cond:
+	// result: (SARQ x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDQconst {
+			break
+		}
+		if v_1.AuxInt != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SARQ)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SARQconst(v *Value, config *Config) bool {
@@ -12031,6 +12085,24 @@ func rewriteValueAMD64_OpAMD64SARW(v *Value, config *Config) bool {
 		v.reset(OpAMD64SARWconst)
 		v.AuxInt = c & 31
 		v.AddArg(x)
+		return true
+	}
+	// match: (SARW x (ANDWconst [31] y))
+	// cond:
+	// result: (SARW x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDWconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SARW)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -13027,6 +13099,24 @@ func rewriteValueAMD64_OpAMD64SHLB(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SHLB x (ANDBconst [31] y))
+	// cond:
+	// result: (SHLB x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDBconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHLB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHLL(v *Value, config *Config) bool {
@@ -13090,6 +13180,24 @@ func rewriteValueAMD64_OpAMD64SHLL(v *Value, config *Config) bool {
 		v.reset(OpAMD64SHLLconst)
 		v.AuxInt = c & 31
 		v.AddArg(x)
+		return true
+	}
+	// match: (SHLL x (ANDLconst [31] y))
+	// cond:
+	// result: (SHLL x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDLconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHLL)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -13157,6 +13265,24 @@ func rewriteValueAMD64_OpAMD64SHLQ(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SHLQ x (ANDQconst [63] y))
+	// cond:
+	// result: (SHLQ x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDQconst {
+			break
+		}
+		if v_1.AuxInt != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHLQ)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHLW(v *Value, config *Config) bool {
@@ -13220,6 +13346,24 @@ func rewriteValueAMD64_OpAMD64SHLW(v *Value, config *Config) bool {
 		v.reset(OpAMD64SHLWconst)
 		v.AuxInt = c & 31
 		v.AddArg(x)
+		return true
+	}
+	// match: (SHLW x (ANDWconst [31] y))
+	// cond:
+	// result: (SHLW x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDWconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHLW)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -13287,6 +13431,24 @@ func rewriteValueAMD64_OpAMD64SHRB(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SHRB x (ANDBconst [31] y))
+	// cond:
+	// result: (SHRB x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDBconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHRB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHRL(v *Value, config *Config) bool {
@@ -13350,6 +13512,24 @@ func rewriteValueAMD64_OpAMD64SHRL(v *Value, config *Config) bool {
 		v.reset(OpAMD64SHRLconst)
 		v.AuxInt = c & 31
 		v.AddArg(x)
+		return true
+	}
+	// match: (SHRL x (ANDLconst [31] y))
+	// cond:
+	// result: (SHRL x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDLconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHRL)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
@@ -13417,6 +13597,24 @@ func rewriteValueAMD64_OpAMD64SHRQ(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SHRQ x (ANDQconst [63] y))
+	// cond:
+	// result: (SHRQ x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDQconst {
+			break
+		}
+		if v_1.AuxInt != 63 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHRQ)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHRW(v *Value, config *Config) bool {
@@ -13480,6 +13678,24 @@ func rewriteValueAMD64_OpAMD64SHRW(v *Value, config *Config) bool {
 		v.reset(OpAMD64SHRWconst)
 		v.AuxInt = c & 31
 		v.AddArg(x)
+		return true
+	}
+	// match: (SHRW x (ANDWconst [31] y))
+	// cond:
+	// result: (SHRW x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64ANDWconst {
+			break
+		}
+		if v_1.AuxInt != 31 {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpAMD64SHRW)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
 	return false
