@@ -2346,8 +2346,10 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 
 	// The archive file should have been created by the compiler.
 	// Since it used to not work that way, verify.
-	if _, err := os.Stat(absAfile); err != nil {
-		fatalf("os.Stat of archive file failed: %v", err)
+	if !buildN {
+		if _, err := os.Stat(absAfile); err != nil {
+			fatalf("os.Stat of archive file failed: %v", err)
+		}
 	}
 
 	if buildN || buildX {
