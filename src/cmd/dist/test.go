@@ -496,10 +496,8 @@ func (t *tester) registerTests() {
 				},
 			})
 		}
-		if t.supportedBuildmode("c-archive") && t.goos != "android" && !t.iOS() {
-			// TODO(elias.naur): reenable on android and iOS
-			// golang.org/issue/8345
-			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "go", "test", "carchive_test.go")
+		if t.supportedBuildmode("c-archive") {
+			t.registerHostTest("testcarchive", "misc/cgo/testcarchive", "carchive_test.go")
 		}
 		if t.supportedBuildmode("c-shared") {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
@@ -691,6 +689,27 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		log.Fatal("internal error: unknown buildmode %s", mode)
 		return false
 	}
+}
+
+func (t *tester) registerHostTest(name, dirBanner, pkg string) {
+	t.tests = append(t.tests, distTest{
+		name:    name,
+		heading: dirBanner,
+		fn: func(dt *distTest) error {
+			return t.runHostTest(dirBanner, pkg)
+		},
+	})
+}
+
+func (t *tester) runHostTest(dirBanner, pkg string) error {
+	env := mergeEnvLists([]string{"GOARCH=" + t.gohostarch, "GOOS=" + t.gohostos}, os.Environ())
+	defer os.Remove(filepath.Join(t.goroot, dirBanner, "test.test"))
+	cmd := t.dirCmd(dirBanner, "go", "test", t.tags(), "-c", "-o", "test.test", pkg)
+	cmd.Env = env
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return t.dirCmd(dirBanner, "./test.test").Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {

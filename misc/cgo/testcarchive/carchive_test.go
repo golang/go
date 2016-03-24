@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -21,7 +20,7 @@ import (
 // Program to run.
 var bin []string
 
-// C compiler wiht args (from $(go env CC) $(go env GOGCCFLAGS)).
+// C compiler with args (from $(go env CC) $(go env GOGCCFLAGS)).
 var cc []string
 
 // An environment with GOPATH=$(pwd).
@@ -30,27 +29,21 @@ var gopathEnv []string
 // ".exe" on Windows.
 var exeSuffix string
 
+var GOOS, GOARCH string
+
 func init() {
 	bin = []string{"./testp"}
-	execScript := "go_" + runtime.GOOS + "_" + runtime.GOARCH + "_exec"
+	GOOS = goEnv("GOOS")
+	GOARCH = goEnv("GOARCH")
+	execScript := "go_" + GOOS + "_" + GOARCH + "_exec"
 	if executor, err := exec.LookPath(execScript); err == nil {
 		bin = []string{executor, "./testp"}
 	}
 
-	out, err := exec.Command("go", "env", "CC").Output()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "go env CC failed:\n%s", err)
-		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
-		os.Exit(2)
-	}
-	cc = []string{strings.TrimSpace(string(out))}
+	ccOut := goEnv("CC")
+	cc = []string{string(ccOut)}
 
-	out, err = exec.Command("go", "env", "GOGCCFLAGS").Output()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "go env GOGCCFLAGS failed:\n%s", err)
-		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
-		os.Exit(2)
-	}
+	out := goEnv("GOGCCFLAGS")
 	quote := '\000'
 	start := 0
 	lastSpace := true
@@ -83,14 +76,14 @@ func init() {
 		cc = append(cc, s[start:])
 	}
 
-	if runtime.GOOS == "darwin" {
+	if GOOS == "darwin" {
 		cc = append(cc, "-Wl,-no_pie")
 
 		// For Darwin/ARM.
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
-	cc = append(cc, "-I", filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH))
+	cc = append(cc, "-I", filepath.Join("pkg", GOOS+"_"+GOARCH))
 
 	// Build an environment with GOPATH=$(pwd)
 	env := os.Environ()
@@ -108,9 +101,19 @@ func init() {
 	n = append(n, "GOPATH="+dir)
 	gopathEnv = n
 
-	if runtime.GOOS == "windows" {
+	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
+}
+
+func goEnv(key string) string {
+	out, err := exec.Command("go", "env", key).Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s", key, err)
+		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
+		os.Exit(2)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func TestInstall(t *testing.T) {
@@ -128,7 +131,7 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c", filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH, "libgo.a"))
+	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c", filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a"))
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -187,11 +190,11 @@ func TestInstall(t *testing.T) {
 }
 
 func TestEarlySignalHandler(t *testing.T) {
-	switch runtime.GOOS {
+	switch GOOS {
 	case "darwin":
-		switch runtime.GOARCH {
+		switch GOARCH {
 		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
+			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
 		}
 	case "windows":
 		t.Skip("skipping signal test on Windows")
@@ -345,7 +348,7 @@ func TestSignalForwardingExternal(t *testing.T) {
 }
 
 func TestOsSignal(t *testing.T) {
-	switch runtime.GOOS {
+	switch GOOS {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
@@ -377,7 +380,7 @@ func TestOsSignal(t *testing.T) {
 }
 
 func TestSigaltstack(t *testing.T) {
-	switch runtime.GOOS {
+	switch GOOS {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
@@ -417,7 +420,7 @@ echo "testar" > PWD/testar.ran
 `
 
 func TestExtar(t *testing.T) {
-	switch runtime.GOOS {
+	switch GOOS {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
