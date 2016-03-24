@@ -2240,7 +2240,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (CMPBconst (ANDBconst _ [m]) [n])
-	// cond: int8(m)+1==int8(n) && isPowerOfTwo(int64(int8(n)))
+	// cond: 0 <= int8(m) && int8(m) < int8(n)
 	// result: (FlagLT_ULT)
 	for {
 		v_0 := v.Args[0]
@@ -2249,7 +2249,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value, config *Config) bool {
 		}
 		m := v_0.AuxInt
 		n := v.AuxInt
-		if !(int8(m)+1 == int8(n) && isPowerOfTwo(int64(int8(n)))) {
+		if !(0 <= int8(m) && int8(m) < int8(n)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -2414,7 +2414,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (CMPLconst (ANDLconst _ [m]) [n])
-	// cond: int32(m)+1==int32(n) && isPowerOfTwo(int64(int32(n)))
+	// cond: 0 <= int32(m) && int32(m) < int32(n)
 	// result: (FlagLT_ULT)
 	for {
 		v_0 := v.Args[0]
@@ -2423,7 +2423,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value, config *Config) bool {
 		}
 		m := v_0.AuxInt
 		n := v.AuxInt
-		if !(int32(m)+1 == int32(n) && isPowerOfTwo(int64(int32(n)))) {
+		if !(0 <= int32(m) && int32(m) < int32(n)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -2594,7 +2594,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (CMPQconst (ANDQconst _ [m]) [n])
-	// cond: m+1==n && isPowerOfTwo(n)
+	// cond: 0 <= m && m < n
 	// result: (FlagLT_ULT)
 	for {
 		v_0 := v.Args[0]
@@ -2603,7 +2603,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value, config *Config) bool {
 		}
 		m := v_0.AuxInt
 		n := v.AuxInt
-		if !(m+1 == n && isPowerOfTwo(n)) {
+		if !(0 <= m && m < n) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)
@@ -2768,7 +2768,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (CMPWconst (ANDWconst _ [m]) [n])
-	// cond: int16(m)+1==int16(n) && isPowerOfTwo(int64(int16(n)))
+	// cond: 0 <= int16(m) && int16(m) < int16(n)
 	// result: (FlagLT_ULT)
 	for {
 		v_0 := v.Args[0]
@@ -2777,7 +2777,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value, config *Config) bool {
 		}
 		m := v_0.AuxInt
 		n := v.AuxInt
-		if !(int16(m)+1 == int16(n) && isPowerOfTwo(int64(int16(n)))) {
+		if !(0 <= int16(m) && int16(m) < int16(n)) {
 			break
 		}
 		v.reset(OpAMD64FlagLT_ULT)

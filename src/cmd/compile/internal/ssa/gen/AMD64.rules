@@ -942,10 +942,10 @@
 (CMPBconst (MOVBconst [x]) [y]) && int8(x)>int8(y) && uint8(x)>uint8(y) -> (FlagGT_UGT)
 
 // Other known comparisons.
-(CMPQconst (ANDQconst _ [m]) [n]) && m+1==n && isPowerOfTwo(n) -> (FlagLT_ULT)
-(CMPLconst (ANDLconst _ [m]) [n]) && int32(m)+1==int32(n) && isPowerOfTwo(int64(int32(n))) -> (FlagLT_ULT)
-(CMPWconst (ANDWconst _ [m]) [n]) && int16(m)+1==int16(n) && isPowerOfTwo(int64(int16(n))) -> (FlagLT_ULT)
-(CMPBconst (ANDBconst _ [m]) [n]) && int8(m)+1==int8(n) && isPowerOfTwo(int64(int8(n))) -> (FlagLT_ULT)
+(CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
+(CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
+(CMPWconst (ANDWconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
+(CMPBconst (ANDBconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < int8(n) -> (FlagLT_ULT)
 // TODO: DIVxU also.
 
 // Absorb flag constants into SBB ops.
