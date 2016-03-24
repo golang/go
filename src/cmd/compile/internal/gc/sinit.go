@@ -568,16 +568,14 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 		index := r.Left
 		value := r.Right
 
-		var a *Node
-
 		switch value.Op {
 		case OARRAYLIT:
 			if value.Type.Bound < 0 {
 				if pass == 1 && ctxt != 0 {
-					a = NodSym(ODOT, var_, index.Sym)
+					a := NodSym(ODOT, var_, index.Sym)
 					slicelit(ctxt, value, a, init)
 				} else if pass == 2 && ctxt == 0 {
-					a = NodSym(ODOT, var_, index.Sym)
+					a := NodSym(ODOT, var_, index.Sym)
 					slicelit(ctxt, value, a, init)
 				} else if pass == 3 {
 					break
@@ -585,12 +583,12 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 				continue
 			}
 
-			a = NodSym(ODOT, var_, index.Sym)
+			a := NodSym(ODOT, var_, index.Sym)
 			arraylit(ctxt, pass, value, a, init)
 			continue
 
 		case OSTRUCTLIT:
-			a = NodSym(ODOT, var_, index.Sym)
+			a := NodSym(ODOT, var_, index.Sym)
 			structlit(ctxt, pass, value, a, init)
 			continue
 		}
@@ -605,7 +603,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		// build list of var.field = expr
 		setlineno(value)
-		a = NodSym(ODOT, var_, index.Sym)
+		a := NodSym(ODOT, var_, index.Sym)
 
 		a = Nod(OAS, a, value)
 		a = typecheck(a, Etop)
@@ -632,16 +630,14 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 		index := r.Left
 		value := r.Right
 
-		var a *Node
-
 		switch value.Op {
 		case OARRAYLIT:
 			if value.Type.Bound < 0 {
 				if pass == 1 && ctxt != 0 {
-					a = Nod(OINDEX, var_, index)
+					a := Nod(OINDEX, var_, index)
 					slicelit(ctxt, value, a, init)
 				} else if pass == 2 && ctxt == 0 {
-					a = Nod(OINDEX, var_, index)
+					a := Nod(OINDEX, var_, index)
 					slicelit(ctxt, value, a, init)
 				} else if pass == 3 {
 					break
@@ -649,12 +645,12 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 				continue
 			}
 
-			a = Nod(OINDEX, var_, index)
+			a := Nod(OINDEX, var_, index)
 			arraylit(ctxt, pass, value, a, init)
 			continue
 
 		case OSTRUCTLIT:
-			a = Nod(OINDEX, var_, index)
+			a := Nod(OINDEX, var_, index)
 			structlit(ctxt, pass, value, a, init)
 			continue
 		}
@@ -669,7 +665,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		// build list of var[index] = value
 		setlineno(value)
-		a = Nod(OINDEX, var_, index)
+		a := Nod(OINDEX, var_, index)
 
 		a = Nod(OAS, a, value)
 		a = typecheck(a, Etop)

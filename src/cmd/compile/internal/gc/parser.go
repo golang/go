@@ -3133,9 +3133,7 @@ func (p *parser) hidden_funarg() *Node {
 		s3 := p.hidden_type()
 		s4 := p.oliteral()
 
-		var t *Type
-
-		t = typ(TARRAY)
+		t := typ(TARRAY)
 		t.Bound = -1
 		t.Type = s3
 
@@ -3159,19 +3157,16 @@ func (p *parser) hidden_structdcl() *Node {
 	s2 := p.hidden_type()
 	s3 := p.oliteral()
 
-	var s *Sym
-	var pkg *Pkg
-
 	var ss *Node
 	if s1 != nil && s1.Name != "?" {
 		ss = Nod(ODCLFIELD, newname(s1), typenod(s2))
 		ss.SetVal(s3)
 	} else {
-		s = s2.Sym
+		s := s2.Sym
 		if s == nil && Isptr[s2.Etype] {
 			s = s2.Type.Sym
 		}
-		pkg = importpkg
+		pkg := importpkg
 		if s1 != nil {
 			pkg = s1.Pkg
 		}

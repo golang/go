@@ -178,8 +178,7 @@ func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl
 func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
 
 func (c *Config) logDebugHashMatch(evname, name string) {
-	var file *os.File
-	file = c.logfiles[evname]
+	file := c.logfiles[evname]
 	if file == nil {
 		file = os.Stdout
 		tmpfile := os.Getenv("GSHS_LOGFILE")
