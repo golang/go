@@ -196,6 +196,7 @@ func run(bin string, args []string) (err error) {
 	s.do(`process handle SIGHUP  --stop false --pass true --notify false`)
 	s.do(`process handle SIGPIPE --stop false --pass true --notify false`)
 	s.do(`process handle SIGUSR1 --stop false --pass true --notify false`)
+	s.do(`process handle SIGCONT --stop false --pass true --notify false`)
 	s.do(`process handle SIGSEGV --stop false --pass true --notify false`) // does not work
 	s.do(`process handle SIGBUS  --stop false --pass true --notify false`) // does not work
 
