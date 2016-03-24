@@ -36,6 +36,7 @@ var imageTests = []imageTest{
 	{"testdata/video-001.221212.png", "testdata/video-001.221212.jpeg", 8 << 8},
 	{"testdata/video-001.cmyk.png", "testdata/video-001.cmyk.jpeg", 8 << 8},
 	{"testdata/video-001.rgb.png", "testdata/video-001.rgb.jpeg", 8 << 8},
+	{"testdata/video-001.progressive.truncated.png", "testdata/video-001.progressive.truncated.jpeg", 8 << 8},
 	// Grayscale images.
 	{"testdata/video-005.gray.png", "testdata/video-005.gray.jpeg", 8 << 8},
 	{"testdata/video-005.gray.png", "testdata/video-005.gray.png", 0},
