@@ -116,6 +116,22 @@ func goEnv(key string) string {
 	return strings.TrimSpace(string(out))
 }
 
+func compilemain(t *testing.T, libgo string) {
+	ccArgs := append(cc, "-o", "testp"+exeSuffix)
+	if GOOS == "windows" {
+		ccArgs = append(ccArgs, "main_windows.c")
+	} else {
+		ccArgs = append(ccArgs, "main_unix.c")
+	}
+	ccArgs = append(ccArgs, "main.c", libgo)
+	t.Log(ccArgs)
+
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+}
+
 func TestInstall(t *testing.T) {
 	defer func() {
 		os.Remove("libgo.a")
@@ -131,11 +147,7 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c", filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a"))
-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
+	compilemain(t, filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a"))
 
 	binArgs := append(bin, "arg1", "arg2")
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
@@ -156,11 +168,7 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ccArgs = append(cc, "-o", "testp"+exeSuffix, "main.c", "libgo.a")
-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
+	compilemain(t, "libgo.a")
 
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
@@ -178,10 +186,7 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
-		t.Logf("%s", out)
-		t.Fatal(err)
-	}
+	compilemain(t, "libgo.a")
 
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
 		t.Logf("%s", out)
