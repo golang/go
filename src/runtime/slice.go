@@ -62,23 +62,20 @@ func growslice(t *slicetype, old slice, cap int) slice {
 	}
 
 	newcap := old.cap
-	if newcap+newcap < cap {
+	doublecap := newcap + newcap
+	if cap > doublecap {
 		newcap = cap
 	} else {
-		for {
-			if old.len < 1024 {
-				newcap += newcap
-			} else {
+		if old.len < 1024 {
+			newcap = doublecap
+		} else {
+			for newcap < cap {
 				newcap += newcap / 4
 			}
-			if newcap >= cap {
-				break
-			}
 		}
-	}
-
-	if uintptr(newcap) >= maxcap {
-		panic(errorString("growslice: cap out of range"))
+		if uintptr(newcap) > maxcap {
+			panic(errorString("growslice: cap out of range"))
+		}
 	}
 
 	lenmem := uintptr(old.len) * et.size
