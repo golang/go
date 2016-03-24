@@ -168,6 +168,10 @@ func nonSpace(b []byte) bool {
 type Encoder struct {
 	w   io.Writer
 	err error
+
+	indentBuf    *bytes.Buffer
+	indentPrefix string
+	indentValue  string
 }
 
 // NewEncoder returns a new encoder that writes to w.
@@ -198,11 +202,27 @@ func (enc *Encoder) Encode(v interface{}) error {
 	// digits coming.
 	e.WriteByte('\n')
 
-	if _, err = enc.w.Write(e.Bytes()); err != nil {
+	b := e.Bytes()
+	if enc.indentBuf != nil {
+		enc.indentBuf.Reset()
+		err = Indent(enc.indentBuf, b, enc.indentPrefix, enc.indentValue)
+		if err != nil {
+			return err
+		}
+		b = enc.indentBuf.Bytes()
+	}
+	if _, err = enc.w.Write(b); err != nil {
 		enc.err = err
 	}
 	encodeStatePool.Put(e)
 	return err
+}
+
+// Indent sets the encoder to format each encoded object with Indent.
+func (enc *Encoder) Indent(prefix, indent string) {
+	enc.indentBuf = new(bytes.Buffer)
+	enc.indentPrefix = prefix
+	enc.indentValue = indent
 }
 
 // RawMessage is a raw encoded JSON object.
