@@ -496,7 +496,9 @@ func (t *tester) registerTests() {
 				},
 			})
 		}
-		if t.supportedBuildmode("c-archive") {
+		if t.supportedBuildmode("c-archive") && t.goos != "android" && !t.iOS() {
+			// TODO(elias.naur): reenable on android and iOS
+			// golang.org/issue/8345
 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "go", "test", "carchive_test.go")
 		}
 		if t.supportedBuildmode("c-shared") {
