@@ -65,8 +65,7 @@ and test commands:
 	-p n
 		the number of programs, such as build commands or
 		test binaries, that can be run in parallel.
-		The default is the number of CPUs available, except
-		on darwin/arm which defaults to 1.
+		The default is the number of CPUs available.
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
@@ -145,17 +144,6 @@ func init() {
 
 	addBuildFlags(cmdBuild)
 	addBuildFlags(cmdInstall)
-
-	if buildContext.GOOS == "darwin" {
-		switch buildContext.GOARCH {
-		case "arm", "arm64":
-			// darwin/arm cannot run multiple tests simultaneously.
-			// Parallelism is limited in go_darwin_arm_exec, but
-			// also needs to be limited here so go test std does not
-			// timeout tests that waiting to run.
-			buildP = 1
-		}
-	}
 }
 
 // Flags set by multiple commands.
