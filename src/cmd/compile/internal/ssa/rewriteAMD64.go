@@ -9392,6 +9392,21 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MULQconst [7] x)
+	// cond:
+	// result: (LEAQ8 (NEGQ <v.Type> x) x)
+	for {
+		if v.AuxInt != 7 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v0 := b.NewValue0(v.Line, OpAMD64NEGQ, v.Type)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MULQconst [9] x)
 	// cond:
 	// result: (LEAQ8 x x)
@@ -9405,17 +9420,113 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (MULQconst [24] x)
+	// match: (MULQconst [11] x)
 	// cond:
-	// result: (SHLQconst [3] (LEAQ2 <v.Type> x x))
+	// result: (LEAQ2 x (LEAQ4 <v.Type> x x))
 	for {
-		if v.AuxInt != 24 {
+		if v.AuxInt != 11 {
 			break
 		}
 		x := v.Args[0]
-		v.reset(OpAMD64SHLQconst)
-		v.AuxInt = 3
+		v.reset(OpAMD64LEAQ2)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [13] x)
+	// cond:
+	// result: (LEAQ4 x (LEAQ2 <v.Type> x x))
+	for {
+		if v.AuxInt != 13 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ4)
+		v.AddArg(x)
 		v0 := b.NewValue0(v.Line, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [21] x)
+	// cond:
+	// result: (LEAQ4 x (LEAQ4 <v.Type> x x))
+	for {
+		if v.AuxInt != 21 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ4)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [25] x)
+	// cond:
+	// result: (LEAQ8 x (LEAQ2 <v.Type> x x))
+	for {
+		if v.AuxInt != 25 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [37] x)
+	// cond:
+	// result: (LEAQ4 x (LEAQ8 <v.Type> x x))
+	for {
+		if v.AuxInt != 37 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ4)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [41] x)
+	// cond:
+	// result: (LEAQ8 x (LEAQ4 <v.Type> x x))
+	for {
+		if v.AuxInt != 41 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [73] x)
+	// cond:
+	// result: (LEAQ8 x (LEAQ8 <v.Type> x x))
+	for {
+		if v.AuxInt != 73 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ8, v.Type)
 		v0.AddArg(x)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -9433,6 +9544,142 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
 		v.reset(OpAMD64SHLQconst)
 		v.AuxInt = log2(c)
 		v.AddArg(x)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: isPowerOfTwo(c+1) && c >= 15
+	// result: (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(isPowerOfTwo(c+1) && c >= 15) {
+			break
+		}
+		v.reset(OpAMD64SUBQ)
+		v0 := b.NewValue0(v.Line, OpAMD64SHLQconst, v.Type)
+		v0.AuxInt = log2(c + 1)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: isPowerOfTwo(c-1) && c >= 17
+	// result: (LEAQ1 (SHLQconst <v.Type> [log2(c-1)] x) x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(isPowerOfTwo(c-1) && c >= 17) {
+			break
+		}
+		v.reset(OpAMD64LEAQ1)
+		v0 := b.NewValue0(v.Line, OpAMD64SHLQconst, v.Type)
+		v0.AuxInt = log2(c - 1)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: isPowerOfTwo(c-2) && c >= 34
+	// result: (LEAQ2 (SHLQconst <v.Type> [log2(c-2)] x) x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(isPowerOfTwo(c-2) && c >= 34) {
+			break
+		}
+		v.reset(OpAMD64LEAQ2)
+		v0 := b.NewValue0(v.Line, OpAMD64SHLQconst, v.Type)
+		v0.AuxInt = log2(c - 2)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: isPowerOfTwo(c-4) && c >= 68
+	// result: (LEAQ4 (SHLQconst <v.Type> [log2(c-4)] x) x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(isPowerOfTwo(c-4) && c >= 68) {
+			break
+		}
+		v.reset(OpAMD64LEAQ4)
+		v0 := b.NewValue0(v.Line, OpAMD64SHLQconst, v.Type)
+		v0.AuxInt = log2(c - 4)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: isPowerOfTwo(c-8) && c >= 136
+	// result: (LEAQ8 (SHLQconst <v.Type> [log2(c-8)] x) x)
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(isPowerOfTwo(c-8) && c >= 136) {
+			break
+		}
+		v.reset(OpAMD64LEAQ8)
+		v0 := b.NewValue0(v.Line, OpAMD64SHLQconst, v.Type)
+		v0.AuxInt = log2(c - 8)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: c%3 == 0 && isPowerOfTwo(c/3)
+	// result: (SHLQconst [log2(c/3)] (LEAQ2 <v.Type> x x))
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(c%3 == 0 && isPowerOfTwo(c/3)) {
+			break
+		}
+		v.reset(OpAMD64SHLQconst)
+		v.AuxInt = log2(c / 3)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: c%5 == 0 && isPowerOfTwo(c/5)
+	// result: (SHLQconst [log2(c/5)] (LEAQ4 <v.Type> x x))
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(c%5 == 0 && isPowerOfTwo(c/5)) {
+			break
+		}
+		v.reset(OpAMD64SHLQconst)
+		v.AuxInt = log2(c / 5)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ4, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (MULQconst [c] x)
+	// cond: c%9 == 0 && isPowerOfTwo(c/9)
+	// result: (SHLQconst [log2(c/9)] (LEAQ8 <v.Type> x x))
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(c%9 == 0 && isPowerOfTwo(c/9)) {
+			break
+		}
+		v.reset(OpAMD64SHLQconst)
+		v.AuxInt = log2(c / 9)
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ8, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (MULQconst [c] (MOVQconst [d]))
