@@ -679,9 +679,8 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				a := v.Args[idx]
 				m := s.values[a.ID].regs &^ phiUsed
-				var r register
 				if m != 0 {
-					r = pickReg(m)
+					r := pickReg(m)
 					s.freeReg(r)
 					phiUsed |= regMask(1) << r
 					phiRegs = append(phiRegs, r)

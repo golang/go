@@ -599,7 +599,6 @@ var keywords = map[string]int32{
 }
 
 func (l *lexer) number(c rune) {
-	var str string
 	cp := &lexbuf
 	cp.Reset()
 
@@ -643,6 +642,7 @@ func (l *lexer) number(c rune) {
 	}
 
 	// unless we have a hex number, parse fractional part or exponent, if any
+	var str string
 	if !isInt {
 		isInt = true // assume int unless proven otherwise
 

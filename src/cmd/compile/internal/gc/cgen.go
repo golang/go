@@ -110,22 +110,21 @@ func cgen_wb(n, res *Node, wb bool) {
 			return
 		}
 
-		var f int
 		if res.Ullman < UINF {
 			if Complexop(n, res) {
 				Complexgen(n, res)
 				return
 			}
 
-			f = 1 // gen thru register
+			f := true // gen thru register
 			switch n.Op {
 			case OLITERAL:
 				if Smallintconst(n) {
-					f = 0
+					f = false
 				}
 
 			case OREGISTER:
-				f = 0
+				f = false
 			}
 
 			if !Iscomplex[n.Type.Etype] && Ctxt.Arch.Regsize == 8 && !wb {
@@ -133,7 +132,7 @@ func cgen_wb(n, res *Node, wb bool) {
 				var addr obj.Addr
 				if Thearch.Sudoaddable(a, res, &addr) {
 					var p1 *obj.Prog
-					if f != 0 {
+					if f {
 						var n2 Node
 						Regalloc(&n2, res.Type, nil)
 						Cgen(n, &n2)
