@@ -7,6 +7,7 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/elf"
 	"fmt"
 	"os"
@@ -103,4 +104,8 @@ func (f *elfFile) goarch() string {
 		return "s390x"
 	}
 	return ""
+}
+
+func (f *elfFile) dwarf() (*dwarf.Data, error) {
+	return f.elf.DWARF()
 }
