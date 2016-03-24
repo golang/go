@@ -8,6 +8,8 @@ package objfile
 
 import (
 	"cmd/internal/goobj"
+	"debug/dwarf"
+	"errors"
 	"fmt"
 	"os"
 )
@@ -90,4 +92,8 @@ func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
 // and we don't need it yet for any users of internal/objfile.
 func (f *goobjFile) goarch() string {
 	return "GOARCH unimplemented for debug/goobj files"
+}
+
+func (f *goobjFile) dwarf() (*dwarf.Data, error) {
+	return nil, errors.New("no DWARF data in go object file")
 }

@@ -7,6 +7,7 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/pe"
 	"fmt"
 	"os"
@@ -198,4 +199,8 @@ func (f *peFile) goarch() string {
 		return "amd64"
 	}
 	return ""
+}
+
+func (f *peFile) dwarf() (*dwarf.Data, error) {
+	return f.pe.DWARF()
 }
