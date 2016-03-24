@@ -9,7 +9,7 @@ const N = 20
 
 func BenchmarkGrowSliceBytes(b *testing.B) {
 	b.StopTimer()
-	var x = make([]byte, 8)
+	var x = make([]byte, 9)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		_ = append([]byte(nil), x...)
@@ -18,10 +18,30 @@ func BenchmarkGrowSliceBytes(b *testing.B) {
 
 func BenchmarkGrowSliceInts(b *testing.B) {
 	b.StopTimer()
-	var x = make([]int, 8)
+	var x = make([]int, 9)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		_ = append([]int(nil), x...)
+	}
+}
+
+func BenchmarkGrowSlicePtr(b *testing.B) {
+	b.StopTimer()
+	var x = make([]*byte, 9)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		_ = append([]*byte(nil), x...)
+	}
+}
+
+type struct24 struct{ a, b, c int64 }
+
+func BenchmarkGrowSliceStruct24Bytes(b *testing.B) {
+	b.StopTimer()
+	var x = make([]struct24, 9)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		_ = append([]struct24(nil), x...)
 	}
 }
 
