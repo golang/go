@@ -583,14 +583,35 @@
 (CMPB (MOVBconst [c]) x) -> (InvertFlags (CMPBconst x [c]))
 
 // strength reduction
+// Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
+//    1 - addq, shlq, leaq, negq
+//    3 - imulq
+// This limits the rewrites to two instructions.
+// TODO: 27, 81
 (MULQconst [-1] x) -> (NEGQ x)
 (MULQconst [0] _) -> (MOVQconst [0])
 (MULQconst [1] x) -> x
 (MULQconst [3] x) -> (LEAQ2 x x)
 (MULQconst [5] x) -> (LEAQ4 x x)
+(MULQconst [7] x) -> (LEAQ8 (NEGQ <v.Type> x) x)
 (MULQconst [9] x) -> (LEAQ8 x x)
-(MULQconst [24] x) -> (SHLQconst [3] (LEAQ2 <v.Type> x x)) // Useful for [][]T accesses
+(MULQconst [11] x) -> (LEAQ2 x (LEAQ4 <v.Type> x x))
+(MULQconst [13] x) -> (LEAQ4 x (LEAQ2 <v.Type> x x))
+(MULQconst [21] x) -> (LEAQ4 x (LEAQ4 <v.Type> x x))
+(MULQconst [25] x) -> (LEAQ8 x (LEAQ2 <v.Type> x x))
+(MULQconst [37] x) -> (LEAQ4 x (LEAQ8 <v.Type> x x))
+(MULQconst [41] x) -> (LEAQ8 x (LEAQ4 <v.Type> x x))
+(MULQconst [73] x) -> (LEAQ8 x (LEAQ8 <v.Type> x x))
+
 (MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
+(MULQconst [c] x) && isPowerOfTwo(c+1) && c >= 15 -> (SUBQ (SHLQconst <v.Type> [log2(c+1)] x) x)
+(MULQconst [c] x) && isPowerOfTwo(c-1) && c >= 17 -> (LEAQ1 (SHLQconst <v.Type> [log2(c-1)] x) x)
+(MULQconst [c] x) && isPowerOfTwo(c-2) && c >= 34 -> (LEAQ2 (SHLQconst <v.Type> [log2(c-2)] x) x)
+(MULQconst [c] x) && isPowerOfTwo(c-4) && c >= 68 -> (LEAQ4 (SHLQconst <v.Type> [log2(c-4)] x) x)
+(MULQconst [c] x) && isPowerOfTwo(c-8) && c >= 136 -> (LEAQ8 (SHLQconst <v.Type> [log2(c-8)] x) x)
+(MULQconst [c] x) && c%3 == 0 && isPowerOfTwo(c/3)-> (SHLQconst [log2(c/3)] (LEAQ2 <v.Type> x x))
+(MULQconst [c] x) && c%5 == 0 && isPowerOfTwo(c/5)-> (SHLQconst [log2(c/5)] (LEAQ4 <v.Type> x x))
+(MULQconst [c] x) && c%9 == 0 && isPowerOfTwo(c/9)-> (SHLQconst [log2(c/9)] (LEAQ8 <v.Type> x x))
 
 // combine add/shift into LEAQ
 (ADDQ x (SHLQconst [3] y)) -> (LEAQ8 x y)
