@@ -34,6 +34,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -76,6 +77,20 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// This wrapper uses complicated machinery to run iOS binaries. It
+	// works, but only when running one binary at a time.
+	// Use a file lock to make sure only one wrapper is running at a time.
+	//
+	// The lock file is never deleted, to avoid concurrent locks on distinct
+	// files with the same path.
+	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec.lock")
+	lock, err := os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		log.Fatal(err)
+	}
 	// Approximately 1 in a 100 binaries fail to start. If it happens,
 	// try again. These failures happen for several reasons beyond
 	// our control, but all of them are safe to retry as they happen
