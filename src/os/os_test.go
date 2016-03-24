@@ -1584,8 +1584,9 @@ func TestStatDirModeExec(t *testing.T) {
 }
 
 func TestStatStdin(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skipf("skipping test on plan9")
+	switch runtime.GOOS {
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/sh", runtime.GOOS)
 	}
 
 	testenv.MustHaveExec(t)
