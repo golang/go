@@ -4,12 +4,13 @@ package windows
 
 import "unsafe"
 import "syscall"
+import "internal/syscall/windows/sysdll"
 
 var _ unsafe.Pointer
 
 var (
-	modiphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
-	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+	modiphlpapi = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
+	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
 
 	procGetAdaptersAddresses = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")

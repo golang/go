@@ -4,12 +4,13 @@ package registry
 
 import "unsafe"
 import "syscall"
+import "internal/syscall/windows/sysdll"
 
 var _ unsafe.Pointer
 
 var (
-	modadvapi32 = syscall.NewLazyDLL("advapi32.dll")
-	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
+	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
 
 	procRegCreateKeyExW           = modadvapi32.NewProc("RegCreateKeyExW")
 	procRegDeleteKeyW             = modadvapi32.NewProc("RegDeleteKeyW")

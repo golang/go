@@ -7,3 +7,7 @@
 package runtime
 
 var TestingWER = &testingWER
+
+func LoadLibraryExStatus() (useEx, haveEx, haveFlags bool) {
+	return useLoadLibraryEx, _LoadLibraryExW != nil, _AddDllDirectory != nil
+}
