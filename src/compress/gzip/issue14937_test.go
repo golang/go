@@ -23,6 +23,9 @@ func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
 		return nil
 	})
 	if err != nil {
+		if os.IsNotExist(err) {
+			t.Skipf("skipping: GOROOT directory not found: %s", runtime.GOROOT())
+		}
 		t.Fatal("error collecting list of .gz files in GOROOT: ", err)
 	}
 	if len(files) == 0 {
