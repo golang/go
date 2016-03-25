@@ -1,6 +1,7 @@
 package gzip
 
 import (
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,9 +10,12 @@ import (
 	"time"
 )
 
-// Per golang.org/issue/14939, check that every .gz file
+// Per golang.org/issue/14937, check that every .gz file
 // in the tree has a zero mtime.
 func TestGZIPFilesHaveZeroMTimes(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
 	var files []string
 	err := filepath.Walk(runtime.GOROOT(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
