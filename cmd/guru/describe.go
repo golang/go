@@ -25,7 +25,7 @@ import (
 // including:
 // - its syntactic category
 // - the definition of its referent (for identifiers) [now redundant]
-// - its type and method set (for an expression or type expression)
+// - its type, fields, and methods (for an expression or type expression)
 //
 func describe(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
@@ -479,7 +479,7 @@ type describeField struct {
 
 func printMethods(printf printfFunc, node ast.Node, methods []*types.Selection) {
 	if len(methods) > 0 {
-		printf(node, "Method set:")
+		printf(node, "Methods:")
 	}
 	for _, meth := range methods {
 		// Print the method type relative to the package

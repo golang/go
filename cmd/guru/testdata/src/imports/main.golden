@@ -33,7 +33,7 @@ defined here
 -------- @describe ref-type --------
 reference to type lib.Type (size 8, align 8)
 defined as int
-Method set:
+Methods:
 	method (Type) Method(x *int) *int
 
 -------- @describe ref-method --------
