@@ -50,6 +50,11 @@ var (
 	teamID string
 )
 
+// lock is a file lock to serialize iOS runs. It is global to avoid the
+// garbage collector finalizing it, closing the file and releasing the
+// lock prematurely.
+var lock *os.File
+
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("go_darwin_arm_exec: ")
@@ -84,7 +89,7 @@ func main() {
 	// The lock file is never deleted, to avoid concurrent locks on distinct
 	// files with the same path.
 	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec.lock")
-	lock, err := os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
+	lock, err = os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
