@@ -5065,3 +5065,16 @@ func TestNames(t *testing.T) {
 		}
 	}
 }
+
+type embed struct {
+	EmbedWithUnexpMeth
+}
+
+func TestNameBytesAreAligned(t *testing.T) {
+	typ := TypeOf(embed{})
+	b := FirstMethodNameBytes(typ)
+	v := uintptr(unsafe.Pointer(b))
+	if v%unsafe.Alignof((*byte)(nil)) != 0 {
+		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
+	}
+}
