@@ -70,3 +70,27 @@ func CachedBucketOf(m Type) Type {
 	tt := (*mapType)(unsafe.Pointer(t))
 	return tt.bucket
 }
+
+type EmbedWithUnexpMeth struct{}
+
+func (EmbedWithUnexpMeth) f() {}
+
+type pinUnexpMeth interface {
+	f()
+}
+
+var pinUnexpMethI = pinUnexpMeth(EmbedWithUnexpMeth{})
+
+func FirstMethodNameBytes(t Type) *byte {
+	_ = pinUnexpMethI
+
+	ut := t.uncommon()
+	if ut == nil {
+		panic("type has no methods")
+	}
+	m := ut.methods[0]
+	if *m.name.data(0)&(1<<2) == 0 {
+		panic("method name does not have pkgPath *string")
+	}
+	return m.name.bytes
+}
