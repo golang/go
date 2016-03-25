@@ -2372,12 +2372,14 @@ type unexp struct{}
 func (*unexp) f() (int32, int8) { return 7, 7 }
 func (*unexp) g() (int64, int8) { return 8, 8 }
 
-func TestUnexportedMethods(t *testing.T) {
-	_ = (interface {
-		f() (int32, int8)
-	})(new(unexp))
+type unexpI interface {
+	f() (int32, int8)
+}
 
-	typ := TypeOf(new(unexp))
+var unexpi unexpI = new(unexp)
+
+func TestUnexportedMethods(t *testing.T) {
+	typ := TypeOf(unexpi)
 
 	if typ.Method(0).Type == nil {
 		t.Error("missing type for satisfied method 'f'")
