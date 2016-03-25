@@ -35,6 +35,9 @@ func sigblock() {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
+	if atomic.Load(&exiting) != 0 {
+		exits(&emptystatus[0])
+	}
 	// Mask all SSE floating-point exceptions
 	// when running on the 64-bit kernel.
 	setfpmasks()
@@ -148,15 +151,20 @@ func itoa(buf []byte, val uint64) []byte {
 }
 
 var goexits = []byte("go: exit ")
+var emptystatus = []byte("\x00")
+var exiting uint32
 
 func goexitsall(status *byte) {
 	var buf [_ERRMAX]byte
+	if !atomic.Cas(&exiting, 0, 1) {
+		return
+	}
 	getg().m.locks++
 	n := copy(buf[:], goexits)
 	n = copy(buf[n:], gostringnocopy(status))
 	pid := getpid()
 	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
-		if mp.procid != pid {
+		if mp.procid != 0 && mp.procid != pid {
 			postnote(mp.procid, buf[:])
 		}
 	}
@@ -189,7 +197,7 @@ func postnote(pid uint64, msg []byte) int {
 func exit(e int) {
 	var status []byte
 	if e == 0 {
-		status = []byte("\x00")
+		status = emptystatus
 	} else {
 		// build error string
 		var tmp [32]byte
