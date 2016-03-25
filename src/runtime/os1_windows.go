@@ -93,8 +93,11 @@ var (
 
 	// Following syscalls are only available on some Windows PCs.
 	// We will load syscalls, if available, before using them.
+	_AddDllDirectory,
 	_AddVectoredContinueHandler,
-	_GetQueuedCompletionStatusEx stdFunction
+	_GetQueuedCompletionStatusEx,
+	_LoadLibraryExW,
+	_ stdFunction
 )
 
 type sigset struct{}
@@ -117,14 +120,21 @@ func loadOptionalSyscalls() {
 		return stdFunction(unsafe.Pointer(f))
 	}
 	if l != 0 {
+		_AddDllDirectory = findfunc("AddDllDirectory")
 		_AddVectoredContinueHandler = findfunc("AddVectoredContinueHandler")
 		_GetQueuedCompletionStatusEx = findfunc("GetQueuedCompletionStatusEx")
+		_LoadLibraryExW = findfunc("LoadLibraryExW")
 	}
 }
 
 //go:nosplit
 func getLoadLibrary() uintptr {
 	return uintptr(unsafe.Pointer(_LoadLibraryW))
+}
+
+//go:nosplit
+func getLoadLibraryEx() uintptr {
+	return uintptr(unsafe.Pointer(_LoadLibraryExW))
 }
 
 //go:nosplit
@@ -161,12 +171,30 @@ const (
 // in sys_windows_386.s and sys_windows_amd64.s
 func externalthreadhandler()
 
+// When loading DLLs, we prefer to use LoadLibraryEx with
+// LOAD_LIBRARY_SEARCH_* flags, if available. LoadLibraryEx is not
+// available on old Windows, though, and the LOAD_LIBRARY_SEARCH_*
+// flags are not available on some versions of Windows without a
+// security patch.
+//
+// https://msdn.microsoft.com/en-us/library/ms684179(v=vs.85).aspx says:
+// "Windows 7, Windows Server 2008 R2, Windows Vista, and Windows
+// Server 2008: The LOAD_LIBRARY_SEARCH_* flags are available on
+// systems that have KB2533623 installed. To determine whether the
+// flags are available, use GetProcAddress to get the address of the
+// AddDllDirectory, RemoveDllDirectory, or SetDefaultDllDirectories
+// function. If GetProcAddress succeeds, the LOAD_LIBRARY_SEARCH_*
+// flags can be used with LoadLibraryEx."
+var useLoadLibraryEx bool
+
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 
 	setBadSignalMsg()
 
 	loadOptionalSyscalls()
+
+	useLoadLibraryEx = (_LoadLibraryExW != nil && _AddDllDirectory != nil)
 
 	disableWER()
 
