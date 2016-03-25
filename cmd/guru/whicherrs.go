@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -141,6 +142,9 @@ func whicherrs(q *Query) error {
 
 	ptares := ptrAnalysis(ptaConfig)
 	valueptr := ptares.Queries[value]
+	if valueptr == (pointer.Pointer{}) {
+		return fmt.Errorf("pointer analysis did not find expression (dead code?)")
+	}
 	for g, v := range globals {
 		ptr, ok := ptares.Queries[v]
 		if !ok {

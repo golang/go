@@ -21,6 +21,11 @@ func genErr(i int) error {
 	}
 }
 
+func unreachable() {
+	err := errVar // @whicherrs func-dead "err"
+	_ = err
+}
+
 func main() {
 	err := genErr(0) // @whicherrs localerrs "err"
 	_ = err

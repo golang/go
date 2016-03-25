@@ -1,3 +1,6 @@
+-------- @whicherrs func-dead --------
+
+Error: pointer analysis did not find expression (dead code?)
 -------- @whicherrs localerrs --------
 this error may point to these globals:
 	errVar
