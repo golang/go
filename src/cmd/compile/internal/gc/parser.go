@@ -636,7 +636,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			r := Nod(ORANGE, nil, p.expr())
 			r.List.Set(lhs)
 			r.Colas = true
-			colasdefn(r.List, r)
+			colasdefn(lhs, r)
 			return r
 		}
 

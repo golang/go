@@ -210,7 +210,7 @@ func genhash(sym *Sym, t *Type) {
 		ni.Type = Types[TINT]
 		n.List.Set1(ni)
 		n.Colas = true
-		colasdefn(n.List, n)
+		colasdefn(n.List.Slice(), n)
 		ni = n.List.First()
 
 		// h = hashel(&p[i], h)
@@ -390,7 +390,7 @@ func geneq(sym *Sym, t *Type) {
 		ni.Type = Types[TINT]
 		nrange.List.Set1(ni)
 		nrange.Colas = true
-		colasdefn(nrange.List, nrange)
+		colasdefn(nrange.List.Slice(), nrange)
 		ni = nrange.List.First()
 
 		// if p[i] != q[i] { return false }
