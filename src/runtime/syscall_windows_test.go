@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/syscall/windows/sysdll"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -770,4 +772,95 @@ func TestNumCPU(t *testing.T) {
 	if newmask != mask {
 		t.Fatalf("SetProcessAffinityMask didn't set newmask of 0x%x. Current mask is 0x%x.", newmask, mask)
 	}
+}
+
+// See Issue 14959
+func TestDLLPreloadMitigation(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	dir0, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(dir0)
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+uintptr_t cfunc() {
+   SetLastError(123);
+}
+`
+	tmpdir, err := ioutil.TempDir("", "TestDLLPreloadMitigation")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcname := "nojack.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "nojack.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", name, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, name)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	dll.MustFindProc("cfunc")
+	dll.Release()
+
+	// Get into the directory with the DLL we'll load by base name
+	// ("nojack.dll") Think of this as the user double-clicking an
+	// installer from their Downloads directory where a browser
+	// silently downloaded some malicious DLLs.
+	os.Chdir(tmpdir)
+
+	// First before we can load a DLL from the current directory,
+	// loading it only as "nojack.dll", without an absolute path.
+	delete(sysdll.IsSystemDLL, name) // in case test was run repeatedly
+	dll, err = syscall.LoadDLL(name)
+	if err != nil {
+		t.Fatalf("failed to load %s by base name before sysdll registration: %v", name, err)
+	}
+	dll.Release()
+
+	// And now verify that if we register it as a system32-only
+	// DLL, the implicit loading from the current directory no
+	// longer works.
+	sysdll.IsSystemDLL[name] = true
+	dll, err = syscall.LoadDLL(name)
+	if err == nil {
+		dll.Release()
+		if wantLoadLibraryEx() {
+			t.Fatalf("Bad: insecure load of DLL by base name %q before sysdll registration: %v", name, err)
+		}
+		t.Skip("insecure load of DLL, but expected")
+	}
+}
+
+// wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
+func wantLoadLibraryEx() bool {
+	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
+}
+
+func TestLoadLibraryEx(t *testing.T) {
+	use, have, flags := runtime.LoadLibraryExStatus()
+	if use {
+		return // success.
+	}
+	if wantLoadLibraryEx() {
+		t.Fatalf("Expected LoadLibraryEx+flags to be available. (LoadLibraryEx=%v; flags=%v)",
+			have, flags)
+	}
+	t.Skipf("LoadLibraryEx not usable, but not expected. (LoadLibraryEx=%v; flags=%v)",
+		have, flags)
 }
