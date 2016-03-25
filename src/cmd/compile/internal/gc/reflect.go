@@ -533,7 +533,11 @@ func dname(s *Sym, ot int, name, tag string, pkg *Pkg, exported bool) int {
 	if pkg == nil {
 		_, bsym = stringsym(string(b))
 	} else {
-		bsymname := fmt.Sprintf(`go.string."".methodname.%d`, dnameCount)
+		// Write out data as "type.." to signal two things to the
+		// linker, first that when dynamically linking, the symbol
+		// should be moved to a relro section, and second that the
+		// contents should not be decoded as a type.
+		bsymname := fmt.Sprintf(`type..methodname."".%d`, dnameCount)
 		dnameCount++
 		bsym = obj.Linklookup(Ctxt, bsymname, 0)
 		bsym.P = b
