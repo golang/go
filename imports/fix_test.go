@@ -909,6 +909,11 @@ func TestFindImportVendor(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "golang.org/x/net/http2/hpack"
+	// Pre-1.7, we temporarily had this package under "internal" - adjust want accordingly.
+	_, err = os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor", want))
+	if err != nil {
+		want = filepath.Join("internal", want)
+	}
 	if got != want || rename {
 		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want %q, false`, got, rename, want)
 	}
