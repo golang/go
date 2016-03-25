@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/select.h>
 
 #include "libgo2.h"
 
@@ -16,7 +19,7 @@ int main(int argc, char** argv) {
 	int test;
 
 	if (argc < 2) {
-		printf("Missing argument");
+		printf("Missing argument\n");
 		return 1;
 	}
 
@@ -28,7 +31,7 @@ int main(int argc, char** argv) {
 		printf("calling RunGoroutines\n");
 	}
 
-	RunGoroutines();
+	Noop();
 
 	switch (test) {
 		case 1: {
@@ -41,6 +44,8 @@ int main(int argc, char** argv) {
 		}
 
 		case 2: {
+			struct timeval tv;
+
 			if (verbose) {
 				printf("attempting external signal test\n");
 			}
@@ -48,8 +53,18 @@ int main(int argc, char** argv) {
 			fprintf(stderr, "OK\n");
 			fflush(stderr);
 
-			// The program should be interrupted before this sleep finishes.
-			sleep(60);
+			// The program should be interrupted before
+			// this sleep finishes. We use select rather
+			// than sleep because in older versions of
+			// glibc the sleep function does some signal
+			// fiddling to handle SIGCHLD.  If this
+			// program is fiddling signals just when the
+			// test program sends the signal, the signal
+			// may be delivered to a Go thread which will
+			// break this test.
+			tv.tv_sec = 60;
+			tv.tv_usec = 0;
+			select(0, NULL, NULL, NULL, &tv);
 
 			break;
 		}
