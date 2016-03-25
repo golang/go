@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 	"unicode"
 )
 
@@ -312,44 +313,65 @@ func TestSignalForwardingExternal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd = exec.Command(bin[0], append(bin[1:], "2")...)
+	// We want to send the process a signal and see if it dies.
+	// Normally the signal goes to the C thread, the Go signal
+	// handler picks it up, sees that it is running in a C thread,
+	// and the program dies. Unfortunately, occasionally the
+	// signal is delivered to a Go thread, which winds up
+	// discarding it because it was sent by another program and
+	// there is no Go handler for it. To avoid this, run the
+	// program several times in the hopes that it will eventually
+	// fail.
+	const tries = 20
+	for i := 0; i < tries; i++ {
+		cmd = exec.Command(bin[0], append(bin[1:], "2")...)
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		t.Fatal(err)
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stderr.Close()
+
+		r := bufio.NewReader(stderr)
+
+		err = cmd.Start()
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Wait for trigger to ensure that the process is started.
+		ok, err := r.ReadString('\n')
+
+		// Verify trigger.
+		if err != nil || ok != "OK\n" {
+			t.Fatalf("Did not receive OK signal")
+		}
+
+		// Give the program a chance to enter the sleep function.
+		time.Sleep(time.Millisecond)
+
+		cmd.Process.Signal(syscall.SIGSEGV)
+
+		err = cmd.Wait()
+
+		if err == nil {
+			continue
+		}
+
+		if ee, ok := err.(*exec.ExitError); !ok {
+			t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
+		} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+			t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
+		} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
+			t.Errorf("got %v; expected SIGSEGV", ee)
+		} else {
+			// We got the error we expected.
+			return
+		}
 	}
-	defer stderr.Close()
 
-	r := bufio.NewReader(stderr)
-
-	err = cmd.Start()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Wait for trigger to ensure that the process is started.
-	ok, err := r.ReadString('\n')
-
-	// Verify trigger.
-	if err != nil || ok != "OK\n" {
-		t.Fatalf("Did not receive OK signal")
-	}
-
-	// Trigger an interrupt external to the process.
-	cmd.Process.Signal(syscall.SIGSEGV)
-
-	err = cmd.Wait()
-
-	if err == nil {
-		t.Error("test program succeeded unexpectedly")
-	} else if ee, ok := err.(*exec.ExitError); !ok {
-		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
-	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
-		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
-	} else if !ws.Signaled() || ws.Signal() != syscall.SIGSEGV {
-		t.Errorf("got %v; expected SIGSEGV", ee)
-	}
+	t.Errorf("program succeeded unexpectedly %d times", tries)
 }
 
 func TestOsSignal(t *testing.T) {
