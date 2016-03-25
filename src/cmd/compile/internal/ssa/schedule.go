@@ -16,8 +16,8 @@ const (
 )
 
 type ValHeap struct {
-	a    []*Value
-	less func(a, b *Value) bool
+	a     []*Value
+	score []int8
 }
 
 func (h ValHeap) Len() int      { return len(h.a) }
@@ -36,7 +36,24 @@ func (h *ValHeap) Pop() interface{} {
 	h.a = old[0 : n-1]
 	return x
 }
-func (h ValHeap) Less(i, j int) bool { return h.less(h.a[i], h.a[j]) }
+func (h ValHeap) Less(i, j int) bool {
+	x := h.a[i]
+	y := h.a[j]
+	sx := h.score[x.ID]
+	sy := h.score[y.ID]
+	if c := sx - sy; c != 0 {
+		return c > 0 // higher score comes later.
+	}
+	if x.Line != y.Line { // Favor in-order line stepping
+		return x.Line > y.Line
+	}
+	if x.Op != OpPhi {
+		if c := len(x.Args) - len(y.Args); c != 0 {
+			return c < 0 // smaller args comes later
+		}
+	}
+	return x.ID > y.ID
+}
 
 // Schedule the Values in each Block. After this phase returns, the
 // order of b.Values matters and is the order in which those values
@@ -47,6 +64,9 @@ func schedule(f *Func) {
 	// For each value, the number of times it is used in the block
 	// by values that have not been scheduled yet.
 	uses := make([]int32, f.NumValues())
+
+	// reusable priority queue
+	priq := new(ValHeap)
 
 	// "priority" for a value
 	score := make([]int8, f.NumValues())
@@ -156,25 +176,8 @@ func schedule(f *Func) {
 
 		// To put things into a priority queue
 		// The values that should come last are least.
-		priq := &ValHeap{
-			a: make([]*Value, 0, 8), // TODO allocate once and reuse.
-			less: func(x, y *Value) bool {
-				sx := score[x.ID]
-				sy := score[y.ID]
-				if c := sx - sy; c != 0 {
-					return c > 0 // higher score comes later.
-				}
-				if x.Line != y.Line { // Favor in-order line stepping
-					return x.Line > y.Line
-				}
-				if x.Op != OpPhi {
-					if c := len(x.Args) - len(y.Args); c != 0 {
-						return c < 0 // smaller args comes later
-					}
-				}
-				return x.ID > y.ID
-			},
-		}
+		priq.score = score
+		priq.a = priq.a[:0]
 
 		// Initialize priority queue with schedulable values.
 		for _, v := range b.Values {
