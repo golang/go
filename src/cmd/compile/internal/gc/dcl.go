@@ -432,18 +432,15 @@ func colasname(n *Node) bool {
 	return false
 }
 
-func colasdefn(left Nodes, defn *Node) {
-	for _, n1 := range left.Slice() {
-		if n1.Sym != nil {
-			n1.Sym.Flags |= SymUniq
+func colasdefn(left []*Node, defn *Node) {
+	for _, n := range left {
+		if n.Sym != nil {
+			n.Sym.Flags |= SymUniq
 		}
 	}
 
-	nnew := 0
-	nerr := 0
-	var n *Node
-	for i2, n2 := range left.Slice() {
-		n = n2
+	var nnew, nerr int
+	for i, n := range left {
 		if isblank(n) {
 			continue
 		}
@@ -470,7 +467,7 @@ func colasdefn(left Nodes, defn *Node) {
 		declare(n, dclcontext)
 		n.Name.Defn = defn
 		defn.Ninit.Append(Nod(ODCL, n, nil))
-		left.SetIndex(i2, n)
+		left[i] = n
 	}
 
 	if nnew == 0 && nerr == 0 {
@@ -478,24 +475,21 @@ func colasdefn(left Nodes, defn *Node) {
 	}
 }
 
-func colas(left []*Node, right []*Node, lno int32) *Node {
-	as := Nod(OAS2, nil, nil)
-	as.List.Set(left)
-	as.Rlist.Set(right)
-	as.Colas = true
-	as.Lineno = lno
-	colasdefn(as.List, as)
-
-	// make the tree prettier; not necessary
-	if as.List.Len() == 1 && as.Rlist.Len() == 1 {
-		as.Left = as.List.First()
-		as.Right = as.Rlist.First()
-		as.List.Set(nil)
-		as.Rlist.Set(nil)
-		as.Op = OAS
+func colas(left, right []*Node, lno int32) *Node {
+	n := Nod(OAS, nil, nil) // assume common case
+	n.Colas = true
+	n.Lineno = lno     // set before calling colasdefn for correct error line
+	colasdefn(left, n) // modifies left, call before using left[0] in common case
+	if len(left) == 1 && len(right) == 1 {
+		// common case
+		n.Left = left[0]
+		n.Right = right[0]
+	} else {
+		n.Op = OAS2
+		n.List.Set(left)
+		n.Rlist.Set(right)
 	}
-
-	return as
+	return n
 }
 
 // declare the arguments in an
