@@ -227,11 +227,11 @@ func TestEarlySignalHandler(t *testing.T) {
 }
 
 func TestSignalForwarding(t *testing.T) {
-	switch runtime.GOOS {
+	switch GOOS {
 	case "darwin":
-		switch runtime.GOARCH {
+		switch GOARCH {
 		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
+			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
 		}
 	case "windows":
 		t.Skip("skipping signal test on Windows")
@@ -277,11 +277,11 @@ func TestSignalForwarding(t *testing.T) {
 }
 
 func TestSignalForwardingExternal(t *testing.T) {
-	switch runtime.GOOS {
+	switch GOOS {
 	case "darwin":
-		switch runtime.GOARCH {
+		switch GOARCH {
 		case "arm", "arm64":
-			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", runtime.GOOS, runtime.GOARCH)
+			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)
 		}
 	case "windows":
 		t.Skip("skipping signal test on Windows")

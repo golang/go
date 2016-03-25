@@ -696,6 +696,7 @@ func (t *tester) registerHostTest(name, dirBanner, pkg string) {
 		name:    name,
 		heading: dirBanner,
 		fn: func(dt *distTest) error {
+			t.runPending(dt)
 			return t.runHostTest(dirBanner, pkg)
 		},
 	})
