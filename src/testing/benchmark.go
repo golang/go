@@ -396,7 +396,7 @@ func (ctx *benchContext) processBench(b *B) {
 			b = &B{
 				common: common{
 					signal: make(chan bool),
-					name:   benchName,
+					name:   b.name,
 				},
 				benchFunc: b.benchFunc,
 				benchTime: b.benchTime,
