@@ -166,7 +166,7 @@ func equalType(x, y types.Type) error {
 			xm := x.Method(i)
 			ym := y.Method(i)
 			if xm.Name() != ym.Name() {
-				return fmt.Errorf("mismatched %th method: %s vs %s", i, xm, ym)
+				return fmt.Errorf("mismatched %dth method: %s vs %s", i, xm, ym)
 			}
 			if err := equalType(xm.Type(), ym.Type()); err != nil {
 				return fmt.Errorf("mismatched %s method: %s", xm.Name(), err)
@@ -175,7 +175,7 @@ func equalType(x, y types.Type) error {
 	case *types.Array:
 		y := y.(*types.Array)
 		if x.Len() != y.Len() {
-			return fmt.Errorf("unequal array lengths: %d vs %d", x, y)
+			return fmt.Errorf("unequal array lengths: %d vs %d", x.Len(), y.Len())
 		}
 		if err := equalType(x.Elem(), y.Elem()); err != nil {
 			return fmt.Errorf("array elements: %s", err)
@@ -188,7 +188,7 @@ func equalType(x, y types.Type) error {
 	case *types.Chan:
 		y := y.(*types.Chan)
 		if x.Dir() != y.Dir() {
-			return fmt.Errorf("unequal channel directions: %s vs %s", x.Dir(), y.Dir())
+			return fmt.Errorf("unequal channel directions: %d vs %d", x.Dir(), y.Dir())
 		}
 		if err := equalType(x.Elem(), y.Elem()); err != nil {
 			return fmt.Errorf("channel elements: %s", err)
@@ -263,7 +263,7 @@ func equalType(x, y types.Type) error {
 	case *types.Tuple:
 		y := y.(*types.Tuple)
 		if x.Len() != y.Len() {
-			return fmt.Errorf("unequal tuple lengths: %d vs %d", x, y)
+			return fmt.Errorf("unequal tuple lengths: %d vs %d", x.Len(), y.Len())
 		}
 		for i := 0; i < x.Len(); i++ {
 			if err := equalType(x.At(i).Type(), y.At(i).Type()); err != nil {

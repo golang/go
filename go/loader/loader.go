@@ -899,7 +899,7 @@ func (imp *importer) importAll(fromPath, fromDir string, imports map[string]bool
 				// (Also it would complicate the
 				// invariants of importPath completion.)
 				if trace {
-					fmt.Fprintln(os.Stderr, "import cycle: %q", cycle)
+					fmt.Fprintf(os.Stderr, "import cycle: %q\n", cycle)
 				}
 				continue
 			}

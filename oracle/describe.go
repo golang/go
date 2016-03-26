@@ -442,7 +442,7 @@ func describeType(qpos *queryPos, path []ast.Node) (*describeTypeResult, error) 
 	// Show sizes for structs and named types (it's fairly obvious for others).
 	switch t.(type) {
 	case *types.Named, *types.Struct:
-		szs := types.StdSizes{8, 8} // assume amd64
+		szs := types.StdSizes{WordSize: 8, MaxAlign: 8} // assume amd64
 		description = fmt.Sprintf("%s (size %d, align %d)", description,
 			szs.Sizeof(t), szs.Alignof(t))
 	}

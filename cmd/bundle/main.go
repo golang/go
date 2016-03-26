@@ -151,7 +151,7 @@ func main() {
 		wd, _ := os.Getwd()
 		pkg, err := build.ImportDir(wd, 0)
 		if err != nil {
-			log.Fatal("cannot find package in current directory: %v", err)
+			log.Fatalf("cannot find package in current directory: %v", err)
 		}
 		*dstPath = pkg.ImportPath
 		if *pkgName == "" {

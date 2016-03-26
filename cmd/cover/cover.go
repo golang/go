@@ -374,7 +374,7 @@ func trimComments(file *ast.File, fset *token.FileSet) []*ast.CommentGroup {
 			}
 		}
 		if list != nil {
-			comments = append(comments, &ast.CommentGroup{list})
+			comments = append(comments, &ast.CommentGroup{List: list})
 		}
 	}
 	return comments
