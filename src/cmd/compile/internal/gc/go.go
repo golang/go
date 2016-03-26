@@ -12,7 +12,6 @@ import (
 
 const (
 	UINF            = 100
-	PRIME1          = 3
 	BADWIDTH        = -1000000000
 	MaxStackVarSize = 10 * 1024 * 1024
 )
