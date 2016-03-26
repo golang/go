@@ -6,7 +6,7 @@
 // in: "On the linearization of graphs and writing symbol files",
 // by R. Griesemer, Technical Report 156, ETH Zürich, 1991.
 
-// package importer implements an exporter and importer for Go export data.
+// Package importer implements an exporter and importer for Go export data.
 package importer // import "golang.org/x/tools/go/importer"
 
 import (
