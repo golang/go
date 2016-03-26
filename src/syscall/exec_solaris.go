@@ -178,6 +178,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 	for i = 0; i < len(fd); i++ {
 		if fd[i] >= 0 && fd[i] < int(i) {
+			if nextfd == pipe { // don't stomp on pipe
+				nextfd++
+			}
 			_, err1 = fcntl1(uintptr(fd[i]), F_DUP2FD, uintptr(nextfd))
 			if err1 != 0 {
 				goto childerror
@@ -185,9 +188,6 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 			fcntl1(uintptr(nextfd), F_SETFD, FD_CLOEXEC)
 			fd[i] = nextfd
 			nextfd++
-			if nextfd == pipe { // don't stomp on pipe
-				nextfd++
-			}
 		}
 	}
 
