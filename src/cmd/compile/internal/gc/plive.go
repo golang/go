@@ -1014,13 +1014,12 @@ func unlinkedprog(as obj.As) *obj.Prog {
 // Construct a new PCDATA instruction associated with and for the purposes of
 // covering an existing instruction.
 func newpcdataprog(prog *obj.Prog, index int32) *obj.Prog {
-	var from, to Node
-	Nodconst(&from, Types[TINT32], obj.PCDATA_StackMapIndex)
-	Nodconst(&to, Types[TINT32], int64(index))
 	pcdata := unlinkedprog(obj.APCDATA)
 	pcdata.Lineno = prog.Lineno
-	Naddr(&pcdata.From, &from)
-	Naddr(&pcdata.To, &to)
+	pcdata.From.Type = obj.TYPE_CONST
+	pcdata.From.Offset = obj.PCDATA_StackMapIndex
+	pcdata.To.Type = obj.TYPE_CONST
+	pcdata.To.Offset = int64(index)
 	return pcdata
 }
 
