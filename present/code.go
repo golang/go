@@ -89,6 +89,11 @@ func parseCode(ctx *Context, sourceFile string, sourceLine int, cmd string) (Ele
 	if err != nil {
 		return nil, fmt.Errorf("%s:%d: %v", sourceFile, sourceLine, err)
 	}
+	if lo > hi {
+		// The search in addrToByteRange can wrap around so we might
+		// end up with the range ending before its starting point
+		hi, lo = lo, hi
+	}
 
 	// Acme pattern matches can stop mid-line,
 	// so run to end of line in both directions if not at line start/end.
