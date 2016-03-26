@@ -705,28 +705,31 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
-		// n->right is the expression being ranged over.
-	// order it, and then make a copy if we need one.
-	// We almost always do, to ensure that we don't
-	// see any value changes made during the loop.
-	// Usually the copy is cheap (e.g., array pointer, chan, slice, string are all tiny).
-	// The exception is ranging over an array value (not a slice, not a pointer to array),
-	// which must make a copy to avoid seeing updates made during
-	// the range body. Ranging over an array value is uncommon though.
 	case ORANGE:
-		t := marktemp(order)
+		// n.Right is the expression being ranged over.
+		// order it, and then make a copy if we need one.
+		// We almost always do, to ensure that we don't
+		// see any value changes made during the loop.
+		// Usually the copy is cheap (e.g., array pointer,
+		// chan, slice, string are all tiny).
+		// The exception is ranging over an array value
+		// (not a slice, not a pointer to array),
+		// which must make a copy to avoid seeing updates made during
+		// the range body. Ranging over an array value is uncommon though.
 
+		// Mark []byte(str) range expression to reuse string backing storage.
+		// It is safe because the storage cannot be mutated.
+		if n.Right.Op == OSTRARRAYBYTE {
+			n.Right.Op = OSTRARRAYBYTETMP
+		}
+
+		t := marktemp(order)
 		n.Right = orderexpr(n.Right, order, nil)
 		switch n.Type.Etype {
 		default:
 			Fatalf("orderstmt range %v", n.Type)
 
-			// Mark []byte(str) range expression to reuse string backing storage.
-		// It is safe because the storage cannot be mutated.
 		case TARRAY:
-			if n.Right.Op == OSTRARRAYBYTE {
-				n.Right.Op = OSTRARRAYBYTETMP
-			}
 			if n.List.Len() < 2 || isblank(n.List.Second()) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
@@ -734,10 +737,9 @@ func orderstmt(n *Node, order *Order) {
 			}
 			fallthrough
 
-			// chan, string, slice, array ranges use value multiple times.
-		// make copy.
-		// fall through
 		case TCHAN, TSTRING:
+			// chan, string, slice, array ranges use value multiple times.
+			// make copy.
 			r := n.Right
 
 			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
@@ -748,12 +750,11 @@ func orderstmt(n *Node, order *Order) {
 
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
-			// copy the map value in case it is a map literal.
-		// TODO(rsc): Make tmp = literal expressions reuse tmp.
-		// For maps tmp is just one word so it hardly matters.
 		case TMAP:
+			// copy the map value in case it is a map literal.
+			// TODO(rsc): Make tmp = literal expressions reuse tmp.
+			// For maps tmp is just one word so it hardly matters.
 			r := n.Right
-
 			n.Right = ordercopyexpr(r, r.Type, order, 0)
 
 			// n->alloc is the temp for the iterator.
