@@ -2782,27 +2782,26 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 		return // we don't check variables
 	}
 
+	const PRIME1 = 3
+
 	var h uint32
-	switch n.Val().Ctype() {
+	switch v := n.Val().U.(type) {
 	default: // unknown, bool, nil
 		h = 23
 
-	case CTINT, CTRUNE:
-		h = uint32(n.Val().U.(*Mpint).Int64())
+	case *Mpint:
+		h = uint32(v.Int64())
 
-	case CTFLT:
-		d := n.Val().U.(*Mpflt).Float64()
-		x := math.Float64bits(d)
+	case *Mpflt:
+		x := math.Float64bits(v.Float64())
 		for i := 0; i < 8; i++ {
 			h = h*PRIME1 + uint32(x&0xFF)
 			x >>= 8
 		}
 
-	case CTSTR:
-		h = 0
-		s := n.Val().U.(string)
-		for i := 0; i < len(s); i++ {
-			h = h*PRIME1 + uint32(s[i])
+	case string:
+		for i := 0; i < len(v); i++ {
+			h = h*PRIME1 + uint32(v[i])
 		}
 	}
 
@@ -2810,25 +2809,19 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	for _, a := range hash[h] {
 		cmp.Op = OEQ
 		cmp.Left = n
-		b := false
 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
-			if Eqtype(a.Left.Type, n.Type) {
-				cmp.Right = a.Left
-				evconst(&cmp)
-				if cmp.Op == OLITERAL {
-					// Sometimes evconst fails. See issue 12536.
-					b = cmp.Val().U.(bool)
-				}
-			}
-		} else if Eqtype(a.Type, n.Type) {
-			cmp.Right = a
-			evconst(&cmp)
-			if cmp.Op == OLITERAL {
-				b = cmp.Val().U.(bool)
-			}
+			a = a.Left
 		}
-
-		if b {
+		if !Eqtype(a.Type, n.Type) {
+			continue
+		}
+		cmp.Right = a
+		evconst(&cmp)
+		if cmp.Op != OLITERAL {
+			// Sometimes evconst fails. See issue 12536.
+			continue
+		}
+		if cmp.Val().U.(bool) {
 			Yyerror("duplicate key %v in map literal", n)
 			return
 		}
