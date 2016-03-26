@@ -3504,12 +3504,11 @@ func copytype(n *Node, t *Type) {
 	if t.Etype == TFORW {
 		// This type isn't computed yet; when it is, update n.
 		t.Copyto = append(t.Copyto, n)
-
 		return
 	}
 
-	maplineno := int(n.Type.Maplineno)
-	embedlineno := int(n.Type.Embedlineno)
+	maplineno := n.Type.Maplineno
+	embedlineno := n.Type.Embedlineno
 	l := n.Type.Copyto
 
 	// TODO(mdempsky): Fix Type rekinding.
@@ -3537,7 +3536,7 @@ func copytype(n *Node, t *Type) {
 	lno := lineno
 
 	if embedlineno != 0 {
-		lineno = int32(embedlineno)
+		lineno = embedlineno
 		if Isptr[t.Etype] {
 			Yyerror("embedded type cannot be a pointer")
 		}
@@ -3547,7 +3546,7 @@ func copytype(n *Node, t *Type) {
 
 	// Queue check for map until all the types are done settling.
 	if maplineno != 0 {
-		t.Maplineno = int32(maplineno)
+		t.Maplineno = maplineno
 		mapqueue = append(mapqueue, n)
 	}
 }
