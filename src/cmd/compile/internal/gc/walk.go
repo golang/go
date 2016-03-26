@@ -774,9 +774,9 @@ opswitch:
 		}
 
 		if n.Left != nil && n.Right != nil {
-			r := convas(Nod(OAS, n.Left, n.Right), init)
-			r.Dodata = n.Dodata
-			n = r
+			dd := n.Dodata
+			n = convas(n, init)
+			n.Dodata = dd
 			n = applywritebarrier(n)
 		}
 
