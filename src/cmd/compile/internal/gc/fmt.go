@@ -394,6 +394,7 @@ s%^	........*\]%&~%g
 s%~	%%g
 */
 var etnames = []string{
+	Txxx:        "Txxx",
 	TINT:        "INT",
 	TUINT:       "UINT",
 	TINT8:       "INT8",
@@ -422,6 +423,13 @@ var etnames = []string{
 	TSTRING:     "STRING",
 	TUNSAFEPTR:  "TUNSAFEPTR",
 	TANY:        "ANY",
+	TIDEAL:      "TIDEAL",
+	TNIL:        "TNIL",
+	TBLANK:      "TBLANK",
+	TFUNCARGS:   "TFUNCARGS",
+	TCHANARGS:   "TCHANARGS",
+	TINTERMETH:  "TINTERMETH",
+	TDDDFIELD:   "TDDDFIELD",
 }
 
 // Fmt "%E": etype
@@ -430,6 +438,10 @@ func Econv(et EType) string {
 		return etnames[et]
 	}
 	return fmt.Sprintf("E-%d", et)
+}
+
+func (e EType) String() string {
+	return Econv(e)
 }
 
 // Fmt "%S": syms
