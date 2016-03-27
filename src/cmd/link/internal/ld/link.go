@@ -171,11 +171,8 @@ type Link struct {
 	Windows   int32
 	Goroot    string
 
-	// Map for fast access of symbols based on name.
-	HashName map[string]*LSym
-	// Fallback map based also on version, for symbols
-	// with more than one version (see func _lookup).
-	HashVersion map[symVer]*LSym
+	// Symbol lookup based on name and indexed by version.
+	Hash []map[string]*LSym
 
 	Allsym     []*LSym
 	Tlsg       *LSym
@@ -210,6 +207,11 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	default:
 		return int64(ctxt.Arch.Ptrsize)
 	}
+}
+
+func (l *Link) IncVersion() {
+	l.Version++
+	l.Hash = append(l.Hash, make(map[string]*LSym))
 }
 
 type LinkArch struct {
