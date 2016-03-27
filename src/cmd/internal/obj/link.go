@@ -457,6 +457,9 @@ const (
 	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
 	// by loading the address into a register with two instructions (lui, ori).
 	R_ADDRMIPS
+	// R_ADDROFF resolves to an offset from the beginning of the section holding
+	// the data being relocated to the referenced symbol.
+	R_ADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM

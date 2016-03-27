@@ -329,6 +329,8 @@ func symtab() {
 	xdefine("runtime.eitablink", obj.SRODATA, 0)
 	xdefine("runtime.rodata", obj.SRODATA, 0)
 	xdefine("runtime.erodata", obj.SRODATA, 0)
+	xdefine("runtime.types", obj.SRODATA, 0)
+	xdefine("runtime.etypes", obj.SRODATA, 0)
 	xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
 	xdefine("runtime.enoptrdata", obj.SNOPTRDATA, 0)
 	xdefine("runtime.data", obj.SDATA, 0)
@@ -537,6 +539,8 @@ func symtab() {
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.end", 0))
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcdata", 0))
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcbss", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.types", 0))
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etypes", 0))
 	// The typelinks slice
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
 	adduint(Ctxt, moduledata, uint64(ntypelinks))

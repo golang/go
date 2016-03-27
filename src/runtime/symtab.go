@@ -127,8 +127,9 @@ type moduledata struct {
 	bss, ebss             uintptr
 	noptrbss, enoptrbss   uintptr
 	end, gcdata, gcbss    uintptr
+	types, etypes         uintptr
 
-	typelinks []*_type
+	typelinks []int32 // offsets from types
 	itablinks []*itab
 
 	modulename   string

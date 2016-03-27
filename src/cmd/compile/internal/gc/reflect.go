@@ -879,7 +879,7 @@ func tracksym(t *Type, f *Field) *Sym {
 	return Pkglookup(Tconv(t, FmtLeft)+"."+f.Sym.Name, trackpkg)
 }
 
-func typelinksym(t *Type) *Sym {
+func typelinkLSym(t *Type) *obj.LSym {
 	// %-uT is what the generated Type's string field says.
 	// It uses (ambiguous) package names instead of import paths.
 	// %-T is the complete, unambiguous type name.
@@ -889,13 +889,8 @@ func typelinksym(t *Type) *Sym {
 	// ensure the types appear sorted by their string field. The
 	// names are a little long but they are discarded by the linker
 	// and do not end up in the symbol table of the final binary.
-	p := Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
-
-	s := Pkglookup(p, typelinkpkg)
-
-	//print("typelinksym: %s -> %+S\n", p, s);
-
-	return s
+	name := "go.typelink." + Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
+	return obj.Linklookup(Ctxt, name, 0)
 }
 
 func typesymprefix(prefix string, t *Type) *Sym {
@@ -1298,9 +1293,9 @@ ok:
 	if t.Sym == nil {
 		switch t.Etype {
 		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
-			slink := typelinksym(t)
-			dsymptr(slink, 0, s, 0)
-			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
+			slink := typelinkLSym(t)
+			dsymptrOffLSym(slink, 0, Linksym(s), 0)
+			ggloblLSym(slink, 4, int16(dupok|obj.RODATA))
 		}
 	}
 

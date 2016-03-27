@@ -46,9 +46,11 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 
 func TypeLinks() []string {
 	var r []string
-	for _, m := range typelinks() {
-		for _, t := range m {
-			r = append(r, t.string)
+	sections, offset := typelinks()
+	for i, offs := range offset {
+		rodata := sections[i]
+		for _, off := range offs {
+			r = append(r, rtypeOff(rodata, off).string)
 		}
 	}
 	return r
