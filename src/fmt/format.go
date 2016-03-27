@@ -220,12 +220,10 @@ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 
 	// two ways to ask for extra leading zero digits: %.3d or %03d.
 	// apparently the first cancels the second.
-	oldZero := f.zero // f.zero is used in f.pad but modified below; restored at end of function.
 	prec := 0
 	if f.precPresent {
 		prec = f.prec
-		f.zero = false
-	} else if f.zero && f.widPresent && !f.minus && f.wid > 0 {
+	} else if f.zero && f.widPresent {
 		prec = f.wid
 		if negative || f.plus || f.space {
 			prec-- // leave room for sign
@@ -302,8 +300,14 @@ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 		buf[i] = ' '
 	}
 
+	// Left padding with zeros has already been handled like precision earlier
+	// or was overruled by an explicitly set precision.
+	if f.zero {
+		f.buf.Write(buf[i:])
+		return
+	}
+
 	f.pad(buf[i:])
-	f.zero = oldZero
 }
 
 // truncate truncates the string to the specified precision, if present.
@@ -480,13 +484,12 @@ func (f *fmt) fmt_float(v float64, size int, verb rune, prec int) {
 	}
 	// We want a sign if asked for and if the sign is not positive.
 	if f.plus || num[0] != '+' {
-		// If we're zero padding we want the sign before the leading zeros.
+		// If we're zero padding to the left we want the sign before the leading zeros.
 		// Achieve this by writing the sign out and then padding the unsigned number.
 		if f.zero && f.widPresent && f.wid > len(num) {
 			f.buf.WriteByte(num[0])
-			f.wid--
-			f.pad(num[1:])
-			f.wid++
+			f.writePadding(f.wid - len(num))
+			f.buf.Write(num[1:])
 			return
 		}
 		f.pad(num)
