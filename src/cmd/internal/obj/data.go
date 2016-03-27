@@ -111,14 +111,33 @@ func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
 // rsym and roff specify the relocation for the address.
 func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
 	if siz != ctxt.Arch.PtrSize {
-		ctxt.Diag("WriteAddr: bad address size: %d", siz)
+		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
 	}
 	s.prepwrite(ctxt, off, siz)
 	r := Addrel(s)
 	r.Off = int32(off)
+	if int64(r.Off) != off {
+		ctxt.Diag("WriteAddr: off overflow %d in %s", off, s.Name)
+	}
 	r.Siz = uint8(siz)
 	r.Sym = rsym
 	r.Type = R_ADDR
+	r.Add = roff
+}
+
+// WriteOff writes a 4 byte offset to rsym+roff into s at offset off.
+// After linking the 4 bytes stored at s+off will be
+// rsym+roff-(start of section that s is in).
+func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
+	s.prepwrite(ctxt, off, 4)
+	r := Addrel(s)
+	r.Off = int32(off)
+	if int64(r.Off) != off {
+		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
+	}
+	r.Siz = 4
+	r.Sym = rsym
+	r.Type = R_ADDROFF
 	r.Add = roff
 }
 

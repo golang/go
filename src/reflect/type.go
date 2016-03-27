@@ -1558,30 +1558,48 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 }
 
 // typelinks is implemented in package runtime.
-// It returns a slice of all the 'typelink' information in the binary,
-// which is to say a slice of known types, sorted by string.
+// It returns a slice of the sections in each module,
+// and a slice of *rtype offsets in each module.
+//
+// The types in each module are sorted by string. That is, the first
+// two linked types of the first module are:
+//
+//	d0 := sections[0]
+//	t1 := (*rtype)(add(d0, offset[0][0]))
+//	t2 := (*rtype)(add(d0, offset[0][1]))
+//
+// and
+//
+//	t1.string < t2.string
+//
 // Note that strings are not unique identifiers for types:
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
 // pointers, channels, maps, slices, and arrays.
-func typelinks() [][]*rtype
+func typelinks() (sections []unsafe.Pointer, offset [][]int32)
+
+func rtypeOff(section unsafe.Pointer, off int32) *rtype {
+	return (*rtype)(add(section, uintptr(off)))
+}
 
 // typesByString returns the subslice of typelinks() whose elements have
 // the given string representation.
 // It may be empty (no known types with that string) or may have
 // multiple elements (multiple types with that string).
 func typesByString(s string) []*rtype {
-	typs := typelinks()
+	sections, offset := typelinks()
 	var ret []*rtype
 
-	for _, typ := range typs {
+	for offsI, offs := range offset {
+		section := sections[offsI]
+
 		// We are looking for the first index i where the string becomes >= s.
 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
-		i, j := 0, len(typ)
+		i, j := 0, len(offs)
 		for i < j {
 			h := i + (j-i)/2 // avoid overflow when computing h
 			// i ≤ h < j
-			if !(typ[h].string >= s) {
+			if !(rtypeOff(section, offs[h]).string >= s) {
 				i = h + 1 // preserves f(i-1) == false
 			} else {
 				j = h // preserves f(j) == true
@@ -1592,17 +1610,12 @@ func typesByString(s string) []*rtype {
 		// Having found the first, linear scan forward to find the last.
 		// We could do a second binary search, but the caller is going
 		// to do a linear scan anyway.
-		j = i
-		for j < len(typ) && typ[j].string == s {
-			j++
-		}
-
-		if j > i {
-			if ret == nil {
-				ret = typ[i:j:j]
-			} else {
-				ret = append(ret, typ[i:j]...)
+		for j := i; j < len(offs); j++ {
+			typ := rtypeOff(section, offs[j])
+			if typ.string != s {
+				break
 			}
+			ret = append(ret, typ)
 		}
 	}
 	return ret

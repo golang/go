@@ -126,10 +126,6 @@ func Main() {
 	itabpkg.Name = "go.itab"
 	itabpkg.Prefix = "go.itab" // not go%2eitab
 
-	typelinkpkg = mkpkg("go.typelink")
-	typelinkpkg.Name = "go.typelink"
-	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
-
 	itablinkpkg = mkpkg("go.itablink")
 	itablinkpkg.Name = "go.itablink"
 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink

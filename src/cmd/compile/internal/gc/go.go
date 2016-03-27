@@ -171,8 +171,6 @@ var msanpkg *Pkg // package runtime/msan
 
 var typepkg *Pkg // fake package for runtime type info (headers)
 
-var typelinkpkg *Pkg // fake package for runtime type info (data)
-
 var unsafepkg *Pkg // package unsafe
 
 var trackpkg *Pkg // fake package for field tracking

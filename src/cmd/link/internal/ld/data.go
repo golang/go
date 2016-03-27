@@ -525,6 +525,9 @@ func relocsym(s *LSym) {
 			}
 			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
 
+		case obj.R_ADDROFF:
+			o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
+
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != Ctxt.Cursym.Sect || r.Type == obj.R_GOTPCREL) {
@@ -1599,6 +1602,10 @@ func dodata() {
 	sect.Vaddr = 0
 	Linklookup(Ctxt, "runtime.rodata", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.erodata", 0).Sect = sect
+	if !UseRelro() {
+		Linklookup(Ctxt, "runtime.types", 0).Sect = sect
+		Linklookup(Ctxt, "runtime.etypes", 0).Sect = sect
+	}
 	for ; s != nil && s.Type < obj.STYPERELRO; s = s.Next {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
@@ -1631,6 +1638,8 @@ func dodata() {
 		sect.Align = maxalign(s, obj.STYPELINK-1)
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = 0
+		Linklookup(Ctxt, "runtime.types", 0).Sect = sect
+		Linklookup(Ctxt, "runtime.etypes", 0).Sect = sect
 		for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
 			datsize = aligndatsize(datsize, s)
 			if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
@@ -1970,10 +1979,12 @@ func address() {
 	} else {
 		rodata = text.Next
 	}
+	var relrodata *Section
 	typelink := rodata.Next
 	if UseRelro() {
 		// There is another section (.data.rel.ro) when building a shared
 		// object on elf systems.
+		relrodata = typelink
 		typelink = typelink.Next
 	}
 	itablink := typelink.Next
@@ -2007,6 +2018,11 @@ func address() {
 		s.Value = int64(sectSym.Sect.Vaddr + 16)
 	}
 
+	types := relrodata
+	if types == nil {
+		types = rodata
+	}
+
 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
 	if HEADTYPE == obj.Hwindows {
@@ -2014,6 +2030,8 @@ func address() {
 	}
 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
+	xdefine("runtime.types", obj.SRODATA, int64(types.Vaddr))
+	xdefine("runtime.etypes", obj.SRODATA, int64(types.Vaddr+types.Length))
 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
 	xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
 	xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
