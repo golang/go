@@ -284,7 +284,7 @@ func (p *importer) typ() *Type {
 		t.Type = p.typ()
 
 	case dddTag:
-		t = p.newtyp(T_old_DARRAY)
+		t = p.newtyp(TDDDFIELD)
 		t.Bound = -1
 		t.Type = p.typ()
 
@@ -447,8 +447,8 @@ func (p *importer) param(named bool) *Node {
 	typ := p.typ()
 
 	isddd := false
-	if typ.Etype == T_old_DARRAY {
-		// T_old_DARRAY indicates ... type
+	if typ.Etype == TDDDFIELD {
+		// TDDDFIELD indicates ... type
 		// TODO(mdempsky): Fix Type rekinding.
 		typ.Etype = TARRAY
 		isddd = true

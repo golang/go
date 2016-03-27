@@ -512,8 +512,8 @@ func (p *exporter) typ(t *Type) {
 		}
 		p.typ(t.Type)
 
-	case T_old_DARRAY:
-		// see p.param use of T_old_DARRAY
+	case TDDDFIELD:
+		// see p.param use of TDDDFIELD
 		p.tag(dddTag)
 		p.typ(t.Type)
 
@@ -664,9 +664,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	t := q.Type
 	if q.Isddd {
 		// create a fake type to encode ... just for the p.typ call
-		// (T_old_DARRAY is not used anywhere else in the compiler,
-		// we use it here to communicate between p.param and p.typ.)
-		t = &Type{Etype: T_old_DARRAY, Type: t.Type}
+		t = &Type{Etype: TDDDFIELD, Type: t.Type}
 	}
 	p.typ(t)
 	if n > 0 {
