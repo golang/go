@@ -116,7 +116,7 @@ const (
 
 func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 	start := obj.Boffset(f)
-	ctxt.Version++
+	ctxt.IncVersion()
 	var buf [8]uint8
 	obj.Bread(f, buf[:])
 	if string(buf[:]) != startmagic {

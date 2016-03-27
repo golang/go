@@ -133,7 +133,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 	}
 
 	var sect *PeSect
-	Ctxt.Version++
+	Ctxt.IncVersion()
 	base := int32(obj.Boffset(f))
 
 	peobj := new(PeObj)
