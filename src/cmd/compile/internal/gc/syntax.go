@@ -415,7 +415,11 @@ func (n *Nodes) Set(s []*Node) {
 	if len(s) == 0 {
 		n.slice = nil
 	} else {
-		n.slice = &s
+		// Copy s and take address of t rather than s to avoid
+		// allocation in the case where len(s) == 0 (which is
+		// over 3x more common, dynamically, for make.bash).
+		t := s
+		n.slice = &t
 	}
 }
 
