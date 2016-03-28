@@ -70,6 +70,8 @@ const (
 	NTYPE
 )
 
+const dddBound = -100 // arrays declared as [...]T start life with Bound=dddBound
+
 // Types stores pointers to predeclared named types.
 //
 // It also stores pointers to several special types:
@@ -371,6 +373,13 @@ func (t *Type) FieldSlice() []*Field {
 // SetFields sets struct/interface type t's fields/methods to fields.
 func (t *Type) SetFields(fields []*Field) {
 	t.Fields().Set(fields)
+}
+
+func (t *Type) isDDDArray() bool {
+	if t.Etype != TARRAY {
+		return false
+	}
+	return t.Bound == dddBound
 }
 
 func (t *Type) Size() int64 {

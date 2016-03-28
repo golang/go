@@ -256,7 +256,7 @@ func dowidth(t *Type) {
 			w = int64(sizeof_Array)
 			checkwidth(t.Type)
 			t.Align = uint8(Widthptr)
-		} else if t.Bound == -100 {
+		} else if t.isDDDArray() {
 			if !t.Broke {
 				Yyerror("use of [...] array outside of array literal")
 				t.Broke = true

@@ -336,7 +336,7 @@ OpSwitch:
 		if l == nil {
 			t.Bound = -1 // slice
 		} else if l.Op == ODDD {
-			t.Bound = -100 // to be filled in
+			t.Bound = dddBound // to be filled in
 			if top&Ecomplit == 0 && n.Diag == 0 {
 				t.Broke = true
 				n.Diag = 1
@@ -385,7 +385,7 @@ OpSwitch:
 		n.Type = t
 		n.Left = nil
 		n.Right = nil
-		if t.Bound != -100 {
+		if !t.isDDDArray() {
 			checkwidth(t)
 		}
 
@@ -1267,7 +1267,7 @@ OpSwitch:
 		n.Left = defaultlit(n.Left, nil)
 		l = n.Left
 		if l.Op == OTYPE {
-			if n.Isddd || l.Type.Bound == -100 {
+			if n.Isddd || l.Type.isDDDArray() {
 				if !l.Type.Broke {
 					Yyerror("invalid use of ... in type conversion to %v", l.Type)
 				}
@@ -2991,7 +2991,7 @@ func typecheckcomplit(n *Node) *Node {
 			l.Right = assignconv(r, t.Type, "array or slice literal")
 		}
 
-		if t.Bound == -100 {
+		if t.isDDDArray() {
 			t.Bound = length
 		}
 		if t.Bound < 0 {

@@ -897,7 +897,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	if src.Etype == TNIL {
 		switch dst.Etype {
 		case TARRAY:
-			if dst.Bound != -100 { // not slice
+			if !dst.IsSlice() {
 				break
 			}
 			fallthrough

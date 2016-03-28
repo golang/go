@@ -589,7 +589,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		if t.Bound >= 0 {
 			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
 		}
-		if t.Bound == -100 {
+		if t.isDDDArray() {
 			return "[...]" + t.Type.String()
 		}
 		return "[]" + t.Type.String()
