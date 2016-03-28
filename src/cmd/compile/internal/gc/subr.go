@@ -1147,38 +1147,22 @@ func substAny(t *Type, types *[]*Type) *Type {
 		}
 
 	case TSTRUCT:
-		// nfs only has to be big enough for the builtin functions.
-		var nfs [8]*Field
 		fields := t.FieldSlice()
-		changed := false
+		var nfs []*Field
 		for i, f := range fields {
 			nft := substAny(f.Type, types)
-			if nft != f.Type {
-				nfs[i] = f.Copy()
-				nfs[i].Type = nft
-				changed = true
+			if nft == f.Type {
+				continue
 			}
+			if nfs == nil {
+				nfs = append([]*Field(nil), fields...)
+			}
+			nfs[i] = f.Copy()
+			nfs[i].Type = nft
 		}
-
-		if changed {
-			// Above we've initialized nfs with copied fields
-			// whenever the field type changed. However, because
-			// we keep fields in a linked list, we can only safely
-			// share the unmodified tail of the list. We need to
-			// copy the rest.
-			tail := true
-			for i := len(fields) - 1; i >= 0; i-- {
-				if nfs[i] != nil {
-					tail = false
-				} else if tail {
-					nfs[i] = fields[i]
-				} else {
-					nfs[i] = fields[i].Copy()
-				}
-			}
-
+		if nfs != nil {
 			t = t.Copy()
-			t.SetFields(nfs[:len(fields)])
+			t.SetFields(nfs)
 		}
 	}
 
