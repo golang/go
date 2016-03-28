@@ -288,10 +288,10 @@ type typeAlg struct {
 
 // Method on non-interface type
 type method struct {
-	name name           // name of method
-	mtyp *rtype         // method type (without receiver)
-	ifn  unsafe.Pointer // fn used in interface call (one-word receiver)
-	tfn  unsafe.Pointer // fn used for normal method call
+	name name    // name of method
+	mtyp typeOff // method type (without receiver)
+	ifn  textOff // fn used in interface call (one-word receiver)
+	tfn  textOff // fn used for normal method call
 }
 
 // uncommonType is present only for types with names or methods
@@ -299,8 +299,9 @@ type method struct {
 // Using a pointer to this struct reduces the overall size required
 // to describe an unnamed type with no methods.
 type uncommonType struct {
-	pkgPath *string  // import path; nil for built-in types like int, string
-	methods []method // methods associated with type
+	pkgPath *string // import path; nil for built-in types like int, string
+	mcount  uint16  // number of methods
+	moff    uint16  // offset from this uncommontype to [mcount]method
 }
 
 // ChanDir represents a channel type's direction.
@@ -589,11 +590,57 @@ var kindNames = []string{
 	UnsafePointer: "unsafe.Pointer",
 }
 
+func (t *uncommonType) methods() []method {
+	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff)))[:t.mcount:t.mcount]
+}
+
 func (t *uncommonType) PkgPath() string {
 	if t == nil || t.pkgPath == nil {
 		return ""
 	}
 	return *t.pkgPath
+}
+
+// resolveTypeOff resolves an *rtype offset from a base type.
+// The (*rtype).typeOff method is a convenience wrapper for this function.
+// Implemented in the runtime package.
+func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+
+// resolveTextOff resolves an function pointer offset from a base type.
+// The (*rtype).textOff method is a convenience wrapper for this function.
+// Implemented in the runtime package.
+func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+
+// addReflectOff adds a pointer to the reflection lookup map in the runtime.
+// It returns a new ID that can be used as a typeOff or textOff, and will
+// be resolved correctly. Implemented in the runtime package.
+func addReflectOff(ptr unsafe.Pointer) int32
+
+// resolveReflectType adds a *rtype to the reflection lookup map in the runtime.
+// It returns a new typeOff that can be used to refer to the pointer.
+func resolveReflectType(t *rtype) typeOff {
+	return typeOff(addReflectOff(unsafe.Pointer(t)))
+}
+
+// resolveReflectText adds a function pointer to the reflection lookup map in
+// the runtime. It returns a new textOff that can be used to refer to the
+// pointer.
+func resolveReflectText(ptr unsafe.Pointer) textOff {
+	return textOff(addReflectOff(ptr))
+}
+
+type typeOff int32 // offset to an *rtype
+type textOff int32 // offset from top of text section
+
+func (t *rtype) typeOff(off typeOff) *rtype {
+	if off == 0 {
+		return nil
+	}
+	return (*rtype)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
+}
+
+func (t *rtype) textOff(off textOff) unsafe.Pointer {
+	return resolveTextOff(unsafe.Pointer(t), int32(off))
 }
 
 func (t *rtype) uncommon() *uncommonType {
@@ -602,7 +649,7 @@ func (t *rtype) uncommon() *uncommonType {
 	}
 	switch t.Kind() {
 	case Struct:
-		return &(*structTypeWithMethods)(unsafe.Pointer(t)).u
+		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
 	case Ptr:
 		type u struct {
 			ptrType
@@ -688,7 +735,7 @@ func (t *rtype) NumMethod() int {
 	if ut == nil {
 		return 0
 	}
-	return len(ut.methods)
+	return int(ut.mcount)
 }
 
 func (t *rtype) Method(i int) (m Method) {
@@ -698,10 +745,10 @@ func (t *rtype) Method(i int) (m Method) {
 	}
 	ut := t.uncommon()
 
-	if ut == nil || i < 0 || i >= len(ut.methods) {
+	if ut == nil || i < 0 || i >= int(ut.mcount) {
 		panic("reflect: Method index out of range")
 	}
-	p := &ut.methods[i]
+	p := ut.methods()[i]
 	m.Name = p.name.name()
 	fl := flag(Func)
 	if !p.name.isExported() {
@@ -712,8 +759,9 @@ func (t *rtype) Method(i int) (m Method) {
 		m.PkgPath = *pkgPath
 		fl |= flagStickyRO
 	}
-	if p.mtyp != nil {
-		ft := (*funcType)(unsafe.Pointer(p.mtyp))
+	if p.mtyp != 0 {
+		mtyp := t.typeOff(p.mtyp)
+		ft := (*funcType)(unsafe.Pointer(mtyp))
 		in := make([]Type, 0, 1+len(ft.in()))
 		in = append(in, t)
 		for _, arg := range ft.in() {
@@ -723,9 +771,10 @@ func (t *rtype) Method(i int) (m Method) {
 		for _, ret := range ft.out() {
 			out = append(out, ret)
 		}
-		mt := FuncOf(in, out, p.mtyp.IsVariadic())
+		mt := FuncOf(in, out, ft.IsVariadic())
 		m.Type = mt
-		fn := unsafe.Pointer(&p.tfn)
+		tfn := t.textOff(p.tfn)
+		fn := unsafe.Pointer(&tfn)
 		m.Func = Value{mt.(*rtype), fn, fl}
 	}
 	m.Index = i
@@ -741,8 +790,9 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	if ut == nil {
 		return Method{}, false
 	}
-	for i := range ut.methods {
-		p := &ut.methods[i]
+	utmethods := ut.methods()
+	for i := 0; i < int(ut.mcount); i++ {
+		p := utmethods[i]
 		if p.name.name() == name {
 			return t.Method(i), true
 		}
@@ -1430,10 +1480,11 @@ func implements(T, V *rtype) bool {
 		return false
 	}
 	i := 0
-	for j := 0; j < len(v.methods); j++ {
+	vmethods := v.methods()
+	for j := 0; j < int(v.mcount); j++ {
 		tm := &t.methods[i]
-		vm := &v.methods[j]
-		if vm.name.name() == tm.name.name() && vm.mtyp == tm.typ {
+		vm := vmethods[j]
+		if vm.name.name() == tm.name.name() && V.typeOff(vm.mtyp) == tm.typ {
 			if i++; i >= len(t.methods) {
 				return true
 			}
@@ -2161,21 +2212,55 @@ func SliceOf(t Type) Type {
 	return cachePut(ckey, &slice.rtype)
 }
 
-// structTypeWithMethods is a structType created at runtime with StructOf.
-// It is needed to pin the []method slice from its associated uncommonType struct.
-// Keep in sync with the memory layout of structType.
-type structTypeWithMethods struct {
+// The structLookupCache caches StructOf lookups.
+// StructOf does not share the common lookupCache since we need to pin
+// the memory associated with *structTypeFixedN.
+var structLookupCache struct {
+	sync.RWMutex
+	m map[uint32][]interface {
+		common() *rtype
+	} // keyed by hash calculated in StructOf
+}
+
+type structTypeUncommon struct {
 	structType
 	u uncommonType
 }
 
-// The structLookupCache caches StructOf lookups.
-// StructOf does not share the common lookupCache since we need to pin
-// the *structType and its associated *uncommonType (especially the
-// []method slice field of that uncommonType.)
-var structLookupCache struct {
-	sync.RWMutex
-	m map[uint32][]*structTypeWithMethods // keyed by hash calculated in StructOf
+// A *rtype representing a struct is followed directly in memory by an
+// array of method objects representing the methods attached to the
+// struct. To get the same layout for a run time generated type, we
+// need an array directly following the uncommonType memory. The types
+// structTypeFixed4, ...structTypeFixedN are used to do this.
+//
+// A similar strategy is used for funcTypeFixed4, ...funcTypeFixedN.
+
+// TODO(crawshaw): as these structTypeFixedN and funcTypeFixedN structs
+// have no methods, they could be defined at runtime using the StructOf
+// function.
+
+type structTypeFixed4 struct {
+	structType
+	u uncommonType
+	m [4]method
+}
+
+type structTypeFixed8 struct {
+	structType
+	u uncommonType
+	m [8]method
+}
+
+type structTypeFixed16 struct {
+	structType
+	u uncommonType
+	m [16]method
+}
+
+type structTypeFixed32 struct {
+	structType
+	u uncommonType
+	m [32]method
 }
 
 // StructOf returns the struct type containing fields.
@@ -2192,7 +2277,7 @@ func StructOf(fields []StructField) Type {
 		typalign   uint8
 		comparable = true
 		hashable   = true
-		typ        = new(structTypeWithMethods)
+		methods    []method
 
 		fs   = make([]structField, len(fields))
 		repr = make([]byte, 0, 64)
@@ -2269,7 +2354,6 @@ func StructOf(fields []StructField) Type {
 							}
 							return recv.Field(ifield).Method(imethod).Call(args)
 						})
-
 					} else {
 						tfn = MakeFunc(m.typ, func(in []Value) []Value {
 							var args []Value
@@ -2287,47 +2371,59 @@ func StructOf(fields []StructField) Type {
 							}
 							return recv.Field(ifield).Method(imethod).Call(args)
 						})
-
 					}
 
-					typ.u.methods = append(
-						typ.u.methods,
-						method{
-							name: m.name,
-							mtyp: m.typ,
-							ifn:  unsafe.Pointer(&ifn),
-							tfn:  unsafe.Pointer(&tfn),
-						},
-					)
+					methods = append(methods, method{
+						name: m.name,
+						mtyp: resolveReflectType(m.typ),
+						ifn:  resolveReflectText(unsafe.Pointer(&ifn)),
+						tfn:  resolveReflectText(unsafe.Pointer(&tfn)),
+					})
 				}
 			case Ptr:
 				ptr := (*ptrType)(unsafe.Pointer(ft))
 				if unt := ptr.uncommon(); unt != nil {
-					for _, m := range unt.methods {
+					for _, m := range unt.methods() {
 						if m.name.pkgPath() != nil {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
-						typ.u.methods = append(typ.u.methods, m)
+						methods = append(methods, method{
+							name: m.name,
+							mtyp: resolveReflectType(ptr.typeOff(m.mtyp)),
+							ifn:  resolveReflectText(ptr.textOff(m.ifn)),
+							tfn:  resolveReflectText(ptr.textOff(m.tfn)),
+						})
 					}
 				}
 				if unt := ptr.elem.uncommon(); unt != nil {
-					for _, m := range unt.methods {
+					for _, m := range unt.methods() {
 						if m.name.pkgPath() != nil {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
-						typ.u.methods = append(typ.u.methods, m)
+						methods = append(methods, method{
+							name: m.name,
+							mtyp: resolveReflectType(ptr.elem.typeOff(m.mtyp)),
+							ifn:  resolveReflectText(ptr.elem.textOff(m.ifn)),
+							tfn:  resolveReflectText(ptr.elem.textOff(m.tfn)),
+						})
 					}
 				}
 			default:
 				if unt := ft.uncommon(); unt != nil {
-					for _, m := range unt.methods {
+					for _, m := range unt.methods() {
 						if m.name.pkgPath() != nil {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
-						typ.u.methods = append(typ.u.methods, m)
+						methods = append(methods, method{
+							name: m.name,
+							mtyp: resolveReflectType(ft.typeOff(m.mtyp)),
+							ifn:  resolveReflectText(ft.textOff(m.ifn)),
+							tfn:  resolveReflectText(ft.textOff(m.tfn)),
+						})
+
 					}
 				}
 			}
@@ -2359,6 +2455,49 @@ func StructOf(fields []StructField) Type {
 
 		fs[i] = f
 	}
+
+	var typ *structType
+	var ut *uncommonType
+	var typPin interface {
+		common() *rtype
+	} // structTypeFixedN
+
+	switch {
+	case len(methods) == 0:
+		t := new(structTypeUncommon)
+		typ = &t.structType
+		ut = &t.u
+		typPin = t
+	case len(methods) <= 4:
+		t := new(structTypeFixed4)
+		typ = &t.structType
+		ut = &t.u
+		copy(t.m[:], methods)
+		typPin = t
+	case len(methods) <= 8:
+		t := new(structTypeFixed8)
+		typ = &t.structType
+		ut = &t.u
+		copy(t.m[:], methods)
+		typPin = t
+	case len(methods) <= 16:
+		t := new(structTypeFixed16)
+		typ = &t.structType
+		ut = &t.u
+		copy(t.m[:], methods)
+		typPin = t
+	case len(methods) <= 32:
+		t := new(structTypeFixed32)
+		typ = &t.structType
+		ut = &t.u
+		copy(t.m[:], methods)
+		typPin = t
+	default:
+		panic("reflect.StructOf: too many methods")
+	}
+	ut.mcount = uint16(len(methods))
+	ut.moff = uint16(unsafe.Sizeof(uncommonType{}))
+
 	if len(fs) > 0 {
 		repr = append(repr, ' ')
 	}
@@ -2372,15 +2511,16 @@ func StructOf(fields []StructField) Type {
 	// Make the struct type.
 	var istruct interface{} = struct{}{}
 	prototype := *(**structType)(unsafe.Pointer(&istruct))
-	typ.structType = *prototype
-	typ.structType.fields = fs
+	*typ = *prototype
+	typ.fields = fs
 
 	// Look in cache
 	structLookupCache.RLock()
-	for _, t := range structLookupCache.m[hash] {
-		if haveIdenticalUnderlyingType(&typ.rtype, &t.rtype) {
+	for _, st := range structLookupCache.m[hash] {
+		t := st.common()
+		if haveIdenticalUnderlyingType(&typ.rtype, t) {
 			structLookupCache.RUnlock()
-			return &t.rtype
+			return t
 		}
 	}
 	structLookupCache.RUnlock()
@@ -2389,11 +2529,14 @@ func StructOf(fields []StructField) Type {
 	structLookupCache.Lock()
 	defer structLookupCache.Unlock()
 	if structLookupCache.m == nil {
-		structLookupCache.m = make(map[uint32][]*structTypeWithMethods)
+		structLookupCache.m = make(map[uint32][]interface {
+			common() *rtype
+		})
 	}
-	for _, t := range structLookupCache.m[hash] {
-		if haveIdenticalUnderlyingType(&typ.rtype, &t.rtype) {
-			return &t.rtype
+	for _, st := range structLookupCache.m[hash] {
+		t := st.common()
+		if haveIdenticalUnderlyingType(&typ.rtype, t) {
+			return t
 		}
 	}
 
@@ -2403,9 +2546,8 @@ func StructOf(fields []StructField) Type {
 			// even if 't' wasn't a structType with methods, we should be ok
 			// as the 'u uncommonType' field won't be accessed except when
 			// tflag&tflagUncommon is set.
-			tt := (*structTypeWithMethods)(unsafe.Pointer(t))
-			structLookupCache.m[hash] = append(structLookupCache.m[hash], tt)
-			return &tt.rtype
+			structLookupCache.m[hash] = append(structLookupCache.m[hash], t)
+			return t
 		}
 	}
 
@@ -2414,7 +2556,7 @@ func StructOf(fields []StructField) Type {
 	typ.size = size
 	typ.align = typalign
 	typ.fieldAlign = typalign
-	if len(typ.u.methods) > 0 {
+	if len(methods) > 0 {
 		typ.tflag |= tflagUncommon
 	}
 	if !hasPtr {
@@ -2514,7 +2656,7 @@ func StructOf(fields []StructField) Type {
 		typ.kind &^= kindDirectIface
 	}
 
-	structLookupCache.m[hash] = append(structLookupCache.m[hash], typ)
+	structLookupCache.m[hash] = append(structLookupCache.m[hash], typPin)
 	return &typ.rtype
 }
 
@@ -2533,6 +2675,7 @@ func runtimeStructField(field StructField) structField {
 		}
 	}
 
+	_ = resolveReflectType(field.Type.common())
 	return structField{
 		name:   newName(field.Name, string(field.Tag), field.PkgPath, exported),
 		typ:    field.Type.common(),

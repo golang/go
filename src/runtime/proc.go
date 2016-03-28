@@ -435,9 +435,10 @@ func schedinit() {
 	tracebackinit()
 	moduledataverify()
 	stackinit()
-	itabsinit()
 	mallocinit()
 	mcommoninit(_g_.m)
+	typelinksinit()
+	itabsinit()
 
 	msigsave(_g_.m)
 	initSigmask = _g_.m.sigmask

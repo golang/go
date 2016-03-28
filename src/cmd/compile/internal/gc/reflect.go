@@ -75,7 +75,7 @@ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 2*Widthptr + 2*Widthint
+	return 2 * Widthptr
 }
 
 func makefield(name string, t *Type) *Field {
@@ -580,13 +580,23 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 
 	ot = dgopkgpath(s, ot, typePkg(t))
 
-	// slice header
-	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+dataAdd)
+	dataAdd += Widthptr + 2 + 2
+	if Widthptr == 8 {
+		dataAdd += 4
+	}
+	mcount := len(m)
+	if mcount != int(uint16(mcount)) {
+		Fatalf("too many methods on %s: %d", t, mcount)
+	}
+	if dataAdd != int(uint16(dataAdd)) {
+		Fatalf("methods are too far away on %s: %d", t, dataAdd)
+	}
 
-	n := len(m)
-	ot = duintxx(s, ot, uint64(n), Widthint)
-	ot = duintxx(s, ot, uint64(n), Widthint)
-
+	ot = duint16(s, ot, uint16(mcount))
+	ot = duint16(s, ot, uint16(dataAdd))
+	if Widthptr == 8 {
+		ot = duint32(s, ot, 0) // align for following pointers
+	}
 	return ot
 }
 
@@ -609,6 +619,7 @@ func typePkg(t *Type) *Pkg {
 // dextratypeData dumps the backing array for the []method field of
 // runtime.uncommontype.
 func dextratypeData(s *Sym, ot int, t *Type) int {
+	lsym := Linksym(s)
 	for _, a := range methods(t) {
 		// ../../../../runtime/type.go:/method
 		exported := exportname(a.name)
@@ -617,21 +628,24 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
 			pkg = a.pkg
 		}
 		ot = dname(s, ot, a.name, "", pkg, exported)
-		ot = dmethodptr(s, ot, dtypesym(a.mtype))
-		ot = dmethodptr(s, ot, a.isym)
-		ot = dmethodptr(s, ot, a.tsym)
+		ot = dmethodptrOffLSym(lsym, ot, Linksym(dtypesym(a.mtype)))
+		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.isym))
+		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.tsym))
+		if Widthptr == 8 {
+			ot = duintxxLSym(lsym, ot, 0, 4) // pad to reflect.method size
+		}
 	}
 	return ot
 }
 
-func dmethodptr(s *Sym, off int, x *Sym) int {
-	duintptr(s, off, 0)
-	r := obj.Addrel(Linksym(s))
-	r.Off = int32(off)
-	r.Siz = uint8(Widthptr)
-	r.Sym = Linksym(x)
-	r.Type = obj.R_METHOD
-	return off + Widthptr
+func dmethodptrOffLSym(s *obj.LSym, ot int, x *obj.LSym) int {
+	duintxxLSym(s, ot, 0, 4)
+	r := obj.Addrel(s)
+	r.Off = int32(ot)
+	r.Siz = 4
+	r.Sym = x
+	r.Type = obj.R_METHODOFF
+	return ot + 4
 }
 
 var kinds = []int{
@@ -1286,17 +1300,28 @@ ok:
 	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
 
 	// generate typelink.foo pointing at s = type.foo.
+	//
 	// The linker will leave a table of all the typelinks for
-	// types in the binary, so reflect can find them.
-	// We only need the link for unnamed composites that
-	// we want be able to find.
-	if t.Sym == nil {
+	// types in the binary, so the runtime can find them.
+	//
+	// When buildmode=shared, all types are in typelinks so the
+	// runtime can deduplicate type pointers.
+	keep := Ctxt.Flag_dynlink
+	if !keep && t.Sym == nil {
+		// For an unnamed type, we only need the link if the type can
+		// be created at run time by reflect.PtrTo and similar
+		// functions. If the type exists in the program, those
+		// functions must return the existing type structure rather
+		// than creating a new one.
 		switch t.Etype {
 		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
-			slink := typelinkLSym(t)
-			dsymptrOffLSym(slink, 0, Linksym(s), 0)
-			ggloblLSym(slink, 4, int16(dupok|obj.RODATA))
+			keep = true
 		}
+	}
+	if keep {
+		slink := typelinkLSym(t)
+		dsymptrOffLSym(slink, 0, Linksym(s), 0)
+		ggloblLSym(slink, 4, int16(dupok|obj.RODATA))
 	}
 
 	return s

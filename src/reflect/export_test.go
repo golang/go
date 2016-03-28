@@ -90,7 +90,7 @@ func FirstMethodNameBytes(t Type) *byte {
 	if ut == nil {
 		panic("type has no methods")
 	}
-	m := ut.methods[0]
+	m := ut.methods()[0]
 	if *m.name.data(0)&(1<<2) == 0 {
 		panic("method name does not have pkgPath *string")
 	}

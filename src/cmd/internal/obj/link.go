@@ -457,8 +457,8 @@ const (
 	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
 	// by loading the address into a register with two instructions (lui, ori).
 	R_ADDRMIPS
-	// R_ADDROFF resolves to an offset from the beginning of the section holding
-	// the data being relocated to the referenced symbol.
+	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
+	// holding the data being relocated to the referenced symbol.
 	R_ADDROFF
 	R_SIZE
 	R_CALL
@@ -492,11 +492,12 @@ const (
 	// should be linked into the final binary, even if there are no other
 	// direct references. (This is used for types reachable by reflection.)
 	R_USETYPE
-	// R_METHOD resolves to an *rtype for a method.
-	// It is used when linking from the uncommonType of another *rtype, and
-	// may be set to zero by the linker if it determines the method text is
-	// unreachable by the linked program.
-	R_METHOD
+	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
+	// holding the data being relocated to the referenced symbol.
+	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
+	// *rtype, and may be set to zero by the linker if it determines the method
+	// text is unreachable by the linked program.
+	R_METHODOFF
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address

@@ -19,7 +19,7 @@ import (
 //
 // This flood fill is wrapped in logic for pruning unused methods.
 // All methods are mentioned by relocations on their receiver's *rtype.
-// These relocations are specially defined as R_METHOD by the compiler
+// These relocations are specially defined as R_METHODOFF by the compiler
 // so we can detect and manipulated them here.
 //
 // There are three ways a method of a reachable type can be invoked:
@@ -100,7 +100,7 @@ func deadcode(ctxt *Link) {
 		d.flood()
 	}
 
-	// Remove all remaining unreached R_METHOD relocations.
+	// Remove all remaining unreached R_METHODOFF relocations.
 	for _, m := range d.markableMethods {
 		for _, r := range m.r {
 			d.cleanupReloc(r)
@@ -167,7 +167,7 @@ var markextra = []string{
 type methodref struct {
 	m   methodsig
 	src *LSym     // receiver type symbol
-	r   [3]*Reloc // R_METHOD relocations to fields of runtime.method
+	r   [3]*Reloc // R_METHODOFF relocations to fields of runtime.method
 }
 
 func (m methodref) ifn() *LSym { return m.r[1].Sym }
@@ -190,7 +190,7 @@ type deadcodepass struct {
 
 func (d *deadcodepass) cleanupReloc(r *Reloc) {
 	if r.Sym.Attr.Reachable() {
-		r.Type = obj.R_ADDR
+		r.Type = obj.R_ADDROFF
 	} else {
 		if Debug['v'] > 1 {
 			fmt.Fprintf(d.ctxt.Bso, "removing method %s\n", r.Sym.Name)
@@ -217,7 +217,7 @@ func (d *deadcodepass) mark(s, parent *LSym) {
 func (d *deadcodepass) markMethod(m methodref) {
 	for _, r := range m.r {
 		d.mark(r.Sym, m.src)
-		r.Type = obj.R_ADDR
+		r.Type = obj.R_ADDROFF
 	}
 }
 
@@ -291,14 +291,14 @@ func (d *deadcodepass) flood() {
 			}
 		}
 
-		mpos := 0 // 0-3, the R_METHOD relocs of runtime.uncommontype
+		mpos := 0 // 0-3, the R_METHODOFF relocs of runtime.uncommontype
 		var methods []methodref
 		for i := 0; i < len(s.R); i++ {
 			r := &s.R[i]
 			if r.Sym == nil {
 				continue
 			}
-			if r.Type != obj.R_METHOD {
+			if r.Type != obj.R_METHODOFF {
 				d.mark(r.Sym, s)
 				continue
 			}
