@@ -309,12 +309,12 @@ type LSym struct {
 	Name      string
 	Type      int16
 	Version   int16
-	Dupok     uint8
-	Cfunc     uint8
-	Nosplit   uint8
-	Leaf      uint8
-	Seenglobl uint8
-	Onlist    uint8
+	Dupok     bool
+	Cfunc     bool
+	Nosplit   bool
+	Leaf      bool
+	Seenglobl bool
+	Onlist    bool
 
 	// ReflectMethod means the function may call reflect.Type.Method or
 	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
