@@ -240,8 +240,6 @@ type Pcln struct {
 	Funcdata    []*LSym
 	Funcdataoff []int64
 	File        []*LSym
-	Lastfile    *LSym
-	Lastindex   int
 }
 
 type Pcdata struct {
