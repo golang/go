@@ -236,16 +236,6 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
 			stk.pop()
 			return
 		}
-
-		// Warn that code.google.com is shutting down. We
-		// issue the warning here because this is where we
-		// have the import stack.
-		if strings.HasPrefix(p.ImportPath, "code.google.com") {
-			fmt.Fprintf(os.Stderr, "warning: code.google.com is shutting down; import path %v will stop working\n", p.ImportPath)
-			if len(*stk) > 1 {
-				fmt.Fprintf(os.Stderr, "warning: package %v\n", strings.Join(*stk, "\n\timports "))
-			}
-		}
 		stk.pop()
 
 		args := []string{arg}
