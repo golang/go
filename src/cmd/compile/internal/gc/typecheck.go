@@ -448,6 +448,9 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
+		n.Left = nil
+		n.List.Set(nil)
+		n.Rlist.Set(nil)
 
 	// type or expr
 	case OIND:

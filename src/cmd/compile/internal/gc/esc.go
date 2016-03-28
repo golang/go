@@ -1474,48 +1474,51 @@ func esccall(e *EscState, n *Node, up *Node) {
 		if fn.Name.Defn.Esc == EscFuncUnknown || nE.Escretval.Len() != 0 {
 			Fatalf("graph inconsistency")
 		}
-		// set up out list on this call node
-		for _, n2 := range fn.Name.Param.Ntype.Rlist.Slice() {
-			nE.Escretval.Append(n2.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
-		}
 
-		// Receiver.
-		if n.Op != OCALLFUNC {
-			escassignNilWhy(e, fn.Name.Param.Ntype.Left.Left, n.Left.Left, "call receiver")
-		}
-
-		var src *Node
 		lls := ll.Slice()
-		lrs := fn.Name.Param.Ntype.List.Slice()
-		i := 0
-		for ; i < len(lls) && i < len(lrs); i++ {
-			src = lls[i]
-			if lrs[i].Isddd && !n.Isddd {
-				// Introduce ODDDARG node to represent ... allocation.
-				src = Nod(ODDDARG, nil, nil)
-				src.Type = typ(TARRAY)
-				src.Type.Type = lrs[i].Type.Type
-				src.Type.Bound = int64(len(lls) - i)
-				src.Type = Ptrto(src.Type) // make pointer so it will be tracked
-				src.Lineno = n.Lineno
-				e.track(src)
-				n.Right = src
-			}
+		sawRcvr := false
+		var src *Node
+	DclLoop:
+		for _, n2 := range fn.Name.Defn.Func.Dcl {
+			switch n2.Class {
+			case PPARAM:
+				if n.Op != OCALLFUNC && !sawRcvr {
+					escassignNilWhy(e, n2, n.Left.Left, "call receiver")
+					sawRcvr = true
+					continue DclLoop
+				}
+				if len(lls) == 0 {
+					continue DclLoop
+				}
+				src = lls[0]
+				if n2.Isddd && !n.Isddd {
+					// Introduce ODDDARG node to represent ... allocation.
+					src = Nod(ODDDARG, nil, nil)
+					src.Type = typ(TARRAY)
+					src.Type.Type = n2.Type.Type
+					src.Type.Bound = int64(len(lls))
+					src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+					src.Lineno = n.Lineno
+					e.track(src)
+					n.Right = src
+				}
+				escassignNilWhy(e, n2, src, "arg to recursive call")
+				if src != lls[0] {
+					break DclLoop
+				}
+				lls = lls[1:]
 
-			if lrs[i].Left != nil {
-				escassignNilWhy(e, lrs[i].Left, src, "arg to recursive call")
-			}
-			if src != lls[i] {
-				break
+			case PPARAMOUT:
+				nE.Escretval.Append(n2)
 			}
 		}
 
 		// "..." arguments are untracked
-		for ; i < len(lls); i++ {
+		for _, n2 := range lls {
 			if Debug['m'] > 3 {
-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(lls[i], FmtShort))
+				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
 			}
-			escassignSinkNilWhy(e, src, lls[i], "... arg to recursive call")
+			escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
 		}
 
 		return
