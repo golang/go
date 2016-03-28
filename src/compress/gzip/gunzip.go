@@ -282,4 +282,6 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 }
 
 // Close closes the Reader. It does not close the underlying io.Reader.
+// In order for the GZIP checksum to be verified, the reader must be
+// fully consumed until the io.EOF.
 func (z *Reader) Close() error { return z.decompressor.Close() }
