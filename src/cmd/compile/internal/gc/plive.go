@@ -18,6 +18,7 @@ package gc
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
+	"crypto/md5"
 	"fmt"
 	"sort"
 	"strings"
@@ -1689,7 +1690,17 @@ func onebitwritesymbol(arr []Bvec, sym *Sym) {
 	}
 
 	duint32(sym, 0, uint32(i)) // number of bitmaps
-	ggloblsym(sym, int32(off), obj.RODATA)
+	ls := Linksym(sym)
+	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
+	ls.Dupok = true
+	sv := obj.SymVer{ls.Name, 0}
+	ls2, ok := Ctxt.Hash[sv]
+	if ok {
+		sym.Lsym = ls2
+	} else {
+		Ctxt.Hash[sv] = ls
+		ggloblsym(sym, int32(off), obj.RODATA)
+	}
 }
 
 func printprog(p *obj.Prog) {

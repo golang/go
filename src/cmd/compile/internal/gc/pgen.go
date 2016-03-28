@@ -8,7 +8,6 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"crypto/md5"
 	"fmt"
 	"sort"
 	"strings"
@@ -128,15 +127,6 @@ func removevardef(firstp *obj.Prog) {
 			}
 		}
 	}
-}
-
-func gcsymdup(s *Sym) {
-	ls := Linksym(s)
-	if len(ls.R) > 0 {
-		Fatalf("cannot rosymdup %s with relocations", ls.Name)
-	}
-	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
-	ls.Dupok = true
 }
 
 func emitptrargsmap() {
@@ -558,9 +548,6 @@ func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 	// Emit garbage collection symbols.
 	liveness(Curfn, ptxt, gcargs, gclocals)
-
-	gcsymdup(gcargs)
-	gcsymdup(gclocals)
 
 	Thearch.Defframe(ptxt)
 
