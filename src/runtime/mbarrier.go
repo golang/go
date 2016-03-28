@@ -159,31 +159,6 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	writebarrierptr_nostore1(dst, src)
 }
 
-//go:nosplit
-func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
-	writebarrierptr(&dst[0], src[0])
-	dst[1] = src[1]
-}
-
-//go:nosplit
-func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
-	writebarrierptr(&dst[0], src[0])
-	dst[1] = src[1]
-	dst[2] = src[2]
-}
-
-//go:nosplit
-func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
-	writebarrierptr(&dst[0], src[0])
-	writebarrierptr(&dst[1], src[1])
-}
-
-//go:generate go run wbfat_gen.go -- wbfat.go
-//
-// The above line generates multiword write barriers for
-// all the combinations of ptr+scalar up to four words.
-// The implementations are written to wbfat.go.
-
 // typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {

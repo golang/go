@@ -86,34 +86,6 @@ const runtimeimport = "" +
 	"func @\"\".closechan (@\"\".hchan·1 any)\n" +
 	"var @\"\".writeBarrier struct { @\"\".enabled bool; @\"\".needed bool; @\"\".cgo bool }\n" +
 	"func @\"\".writebarrierptr (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
-	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
-	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
-	"func @\"\".writebarrieriface (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
-	"func @\"\".writebarrierfat01 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat10 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat11 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1000 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
 	"func @\"\".typedmemmove (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n" +
 	"func @\"\".typedslicecopy (@\"\".typ·2 *byte, @\"\".dst·3 any, @\"\".src·4 any) (? int)\n" +
 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n" +
