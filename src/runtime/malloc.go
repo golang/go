@@ -793,7 +793,7 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 		flags |= flagNoScan
 	}
 	if int(n) < 0 || (typ.size > 0 && n > _MaxMem/typ.size) {
-		panic("runtime: allocation size out of range")
+		panic(plainError("runtime: allocation size out of range"))
 	}
 	return mallocgc(typ.size*n, typ, flags)
 }

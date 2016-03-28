@@ -194,7 +194,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	}
 
 	if hint < 0 || int64(int32(hint)) != hint {
-		panic("makemap: size out of range")
+		panic(plainError("makemap: size out of range"))
 		// TODO: make hint an int, then none of this nonsense
 	}
 
@@ -428,7 +428,7 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 
 func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 	if h == nil {
-		panic("assignment to entry in nil map")
+		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))

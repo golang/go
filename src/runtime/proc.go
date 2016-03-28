@@ -381,7 +381,7 @@ func badmcall2(fn func(*g)) {
 }
 
 func badreflectcall() {
-	panic("runtime: arg size to reflect.call more than 1GB")
+	panic(plainError("arg size to reflect.call more than 1GB"))
 }
 
 func lockedOSThread() bool {
