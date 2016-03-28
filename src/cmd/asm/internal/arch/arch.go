@@ -10,7 +10,6 @@ import (
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
-	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"fmt"
 	"strings"
@@ -74,10 +73,6 @@ func Set(GOARCH string) *Arch {
 	case "ppc64le":
 		a := archPPC64()
 		a.LinkArch = &ppc64.Linkppc64le
-		return a
-	case "s390x":
-		a := archS390x()
-		a.LinkArch = &s390x.Links390x
 		return a
 	}
 	return nil
@@ -419,58 +414,5 @@ func archMips64() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: mipsRegisterNumber,
 		IsJump:         jumpMIPS64,
-	}
-}
-
-func archS390x() *Arch {
-	register := make(map[string]int16)
-	// Create maps for easy lookup of instruction names etc.
-	// Note that there is no list of names as there is for x86.
-	for i := s390x.REG_R0; i <= s390x.REG_R15; i++ {
-		register[obj.Rconv(i)] = int16(i)
-	}
-	for i := s390x.REG_F0; i <= s390x.REG_F15; i++ {
-		register[obj.Rconv(i)] = int16(i)
-	}
-	for i := s390x.REG_V0; i <= s390x.REG_V31; i++ {
-		register[obj.Rconv(i)] = int16(i)
-	}
-	for i := s390x.REG_AR0; i <= s390x.REG_AR15; i++ {
-		register[obj.Rconv(i)] = int16(i)
-	}
-	register["LR"] = s390x.REG_LR
-	// Pseudo-registers.
-	register["SB"] = RSB
-	register["FP"] = RFP
-	register["PC"] = RPC
-	// Avoid unintentionally clobbering g using R13.
-	delete(register, "R13")
-	register["g"] = s390x.REG_R13
-	registerPrefix := map[string]bool{
-		"AR": true,
-		"F":  true,
-		"R":  true,
-	}
-
-	instructions := make(map[string]obj.As)
-	for i, s := range obj.Anames {
-		instructions[s] = obj.As(i)
-	}
-	for i, s := range s390x.Anames {
-		if obj.As(i) >= obj.A_ARCHSPECIFIC {
-			instructions[s] = obj.As(i) + obj.ABaseS390X
-		}
-	}
-	// Annoying aliases.
-	instructions["BR"] = s390x.ABR
-	instructions["BL"] = s390x.ABL
-
-	return &Arch{
-		LinkArch:       &s390x.Links390x,
-		Instructions:   instructions,
-		Register:       register,
-		RegisterPrefix: registerPrefix,
-		RegisterNumber: s390xRegisterNumber,
-		IsJump:         jumpS390x,
 	}
 }
