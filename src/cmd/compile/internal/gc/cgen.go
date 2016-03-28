@@ -1681,7 +1681,7 @@ func Igen(n *Node, a *Node, res *Node) {
 		a.Op = OINDREG
 		a.Reg = int16(Thearch.REGSP)
 		a.Addable = true
-		a.Xoffset = fp.Width + Ctxt.FixedFrameSize()
+		a.Xoffset = fp.Offset + Ctxt.FixedFrameSize()
 		a.Type = n.Type
 		return
 
@@ -2226,7 +2226,7 @@ func stkof(n *Node) int64 {
 
 		f := t.Results().Field(0)
 		if f != nil {
-			return f.Width + Ctxt.FixedFrameSize()
+			return f.Offset + Ctxt.FixedFrameSize()
 		}
 	}
 
@@ -2565,7 +2565,7 @@ func cgen_callret(n *Node, res *Node) {
 	nod.Reg = int16(Thearch.REGSP)
 	nod.Addable = true
 
-	nod.Xoffset = fp.Width + Ctxt.FixedFrameSize()
+	nod.Xoffset = fp.Offset + Ctxt.FixedFrameSize()
 	nod.Type = fp.Type
 	Cgen_as(res, &nod)
 }
@@ -2588,7 +2588,7 @@ func cgen_aret(n *Node, res *Node) {
 	nod1.Op = OINDREG
 	nod1.Reg = int16(Thearch.REGSP)
 	nod1.Addable = true
-	nod1.Xoffset = fp.Width + Ctxt.FixedFrameSize()
+	nod1.Xoffset = fp.Offset + Ctxt.FixedFrameSize()
 	nod1.Type = fp.Type
 
 	if res.Op != OREGISTER {

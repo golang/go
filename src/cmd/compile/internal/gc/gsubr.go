@@ -551,10 +551,10 @@ func nodarg(t interface{}, fp int) *Node {
 		if first == nil {
 			Fatalf("nodarg: bad struct")
 		}
-		if first.Width == BADWIDTH {
+		if first.Offset == BADWIDTH {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
-		n.Xoffset = first.Width
+		n.Xoffset = first.Offset
 		n.Addable = true
 	case *Field:
 		if fp == 1 || fp == -1 {
@@ -568,10 +568,10 @@ func nodarg(t interface{}, fp int) *Node {
 		n = Nod(ONAME, nil, nil)
 		n.Type = t.Type
 		n.Sym = t.Sym
-		if t.Width == BADWIDTH {
+		if t.Offset == BADWIDTH {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
-		n.Xoffset = t.Width
+		n.Xoffset = t.Offset
 		n.Addable = true
 		n.Orig = t.Nname
 	default:

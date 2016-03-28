@@ -939,7 +939,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 	case TSTRUCT:
 		var o int64
 		for _, t1 := range t.Fields().Slice() {
-			fieldoffset := t1.Width
+			fieldoffset := t1.Offset
 			*xoffset += fieldoffset - o
 			onebitwalktype1(t1.Type, xoffset, bv)
 			o = fieldoffset + t1.Type.Width

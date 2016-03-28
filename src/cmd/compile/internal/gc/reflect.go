@@ -144,7 +144,7 @@ func mapbucket(t *Type) *Type {
 
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end. See comment above.
-	if ovf.Width != bucket.Width-int64(Widthptr) {
+	if ovf.Offset != bucket.Width-int64(Widthptr) {
 		Yyerror("bad math in mapbucket for %v", t)
 	}
 
@@ -754,7 +754,7 @@ func typeptrdata(t *Type) int64 {
 				lastPtrField = t1
 			}
 		}
-		return lastPtrField.Width + typeptrdata(lastPtrField.Type)
+		return lastPtrField.Offset + typeptrdata(lastPtrField.Type)
 
 	default:
 		Fatalf("typeptrdata: unexpected type, %v", t)
@@ -1273,7 +1273,7 @@ ok:
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(s, ot, f)
 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
-			ot = duintptr(s, ot, uint64(f.Width)) // field offset
+			ot = duintptr(s, ot, uint64(f.Offset))
 		}
 	}
 
@@ -1619,7 +1619,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			p.emit(t1.Type, offset+t1.Width)
+			p.emit(t1.Type, offset+t1.Offset)
 		}
 	}
 }

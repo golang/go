@@ -1235,7 +1235,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		}
 
 		for _, field := range t.Fields().Slice() {
-			if !visitComponents(field.Type, startOffset+field.Width, f) {
+			if !visitComponents(field.Type, startOffset+field.Offset, f) {
 				return false
 			}
 		}
