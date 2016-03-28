@@ -2439,22 +2439,6 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 	tg.run("get", "-d", "-insecure", repo)
 }
 
-func TestIssue10193(t *testing.T) {
-	t.Skip("depends on code.google.com")
-	testenv.MustHaveExternalNetwork(t)
-	if _, err := exec.LookPath("hg"); err != nil {
-		t.Skip("skipping because hg binary not found")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.runFail("get", "code.google.com/p/rsc/pdf")
-	tg.grepStderr("is shutting down", "missed warning about code.google.com")
-}
-
 func TestGoRunDirs(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

@@ -18,20 +18,6 @@ func TestRepoRootForImportPath(t *testing.T) {
 		path string
 		want *repoRoot
 	}{
-		/*{
-			"code.google.com/p/go",
-			&repoRoot{
-				vcs:  vcsHg,
-				repo: "https://code.google.com/p/go",
-			},
-		},
-		{
-		        "code.google.com/r/go",
-		        &repoRoot{
-		                vcs:  vcsHg,
-		                repo: "https://code.google.com/r/go",
-		        },
-		},*/
 		{
 			"github.com/golang/groupcache",
 			&repoRoot{
