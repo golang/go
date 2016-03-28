@@ -594,7 +594,7 @@ retc:
 sclose:
 	// send on closed channel
 	selunlock(scases, lockorder)
-	panic("send on closed channel")
+	panic(plainError("send on closed channel"))
 }
 
 func (c *hchan) sortkey() uintptr {

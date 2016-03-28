@@ -64,7 +64,7 @@ func makechan(t *chantype, size int64) *hchan {
 		throw("makechan: bad alignment")
 	}
 	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
-		panic("makechan: size out of range")
+		panic(plainError("makechan: size out of range"))
 	}
 
 	var c *hchan
@@ -171,7 +171,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 
 	if c.closed != 0 {
 		unlock(&c.lock)
-		panic("send on closed channel")
+		panic(plainError("send on closed channel"))
 	}
 
 	if sg := c.recvq.dequeue(); sg != nil {
@@ -231,7 +231,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 		if c.closed == 0 {
 			throw("chansend: spurious wakeup")
 		}
-		panic("send on closed channel")
+		panic(plainError("send on closed channel"))
 	}
 	gp.param = nil
 	if mysg.releasetime > 0 {
@@ -302,13 +302,13 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
 
 func closechan(c *hchan) {
 	if c == nil {
-		panic("close of nil channel")
+		panic(plainError("close of nil channel"))
 	}
 
 	lock(&c.lock)
 	if c.closed != 0 {
 		unlock(&c.lock)
-		panic("close of closed channel")
+		panic(plainError("close of closed channel"))
 	}
 
 	if raceenabled {
