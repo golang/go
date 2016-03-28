@@ -2493,7 +2493,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		rcvr = s.newValue1(ssa.OpIData, Types[TUINTPTR], i)
 	}
 	dowidth(fn.Type)
-	stksize := fn.Type.Argwid // includes receiver
+	stksize := fn.Type.ArgWidth() // includes receiver
 
 	// Run all argument assignments. The arg slots have already
 	// been offset by the appropriate amount (+2*widthptr for go/defer,

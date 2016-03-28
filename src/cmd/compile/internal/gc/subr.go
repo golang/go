@@ -1517,7 +1517,7 @@ func cheapexpr(n *Node, init *Nodes) *Node {
 
 func Setmaxarg(t *Type, extra int32) {
 	dowidth(t)
-	w := t.Argwid
+	w := t.ArgWidth()
 	if w >= Thearch.MAXWIDTH {
 		Fatalf("bad argwid %v", t)
 	}

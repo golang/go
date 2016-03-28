@@ -144,7 +144,7 @@ func emitptrargsmap() {
 	}
 	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
 
-	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
+	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
 	if Curfn.Type.Results().NumFields() > 0 {
