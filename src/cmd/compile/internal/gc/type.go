@@ -382,6 +382,13 @@ func (t *Type) isDDDArray() bool {
 	return t.Bound == dddBound
 }
 
+// ArgWidth returns the total aligned argument size for a function.
+// It includes the receiver, parameters, and results.
+func (t *Type) ArgWidth() int64 {
+	t.wantEtype(TFUNC)
+	return t.Argwid
+}
+
 func (t *Type) Size() int64 {
 	dowidth(t)
 	return t.Width

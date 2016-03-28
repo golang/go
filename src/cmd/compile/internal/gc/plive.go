@@ -959,7 +959,7 @@ func localswords() int32 {
 
 // Returns the number of words of in and out arguments.
 func argswords() int32 {
-	return int32(Curfn.Type.Argwid / int64(Widthptr))
+	return int32(Curfn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The
