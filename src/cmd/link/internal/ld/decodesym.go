@@ -47,9 +47,9 @@ func decode_inuxi(p []byte, sz int) uint64 {
 	}
 }
 
-func commonsize() int      { return 6*SysArch.PtrSize + 8 }                 // runtime._type
-func structfieldSize() int { return 3 * SysArch.PtrSize }                   // runtime.structfield
-func uncommonSize() int    { return 2*SysArch.PtrSize + 2*SysArch.IntSize } // runtime.uncommontype
+func commonsize() int      { return 6*SysArch.PtrSize + 8 } // runtime._type
+func structfieldSize() int { return 3 * SysArch.PtrSize }   // runtime.structfield
+func uncommonSize() int    { return 2 * SysArch.PtrSize }   // runtime.uncommontype
 
 // Type.commonType.kind
 func decodetype_kind(s *LSym) uint8 {
@@ -341,12 +341,14 @@ func decodetype_methods(s *LSym) []methodsig {
 		// just Sizeof(rtype)
 	}
 
-	numMethods := int(decode_inuxi(s.P[off+2*SysArch.PtrSize:], SysArch.IntSize))
-	r := decode_reloc(s, int32(off+SysArch.PtrSize))
-	if r.Sym != s {
-		panic(fmt.Sprintf("method slice pointer in %s leads to a different symbol %s", s, r.Sym))
+	mcount := int(decode_inuxi(s.P[off+SysArch.PtrSize:], 2))
+	moff := int(decode_inuxi(s.P[off+SysArch.PtrSize+2:], 2))
+	off += moff          // offset to array of reflect.method values
+	var sizeofMethod int // sizeof reflect.method in program
+	if SysArch.PtrSize == 4 {
+		sizeofMethod = 4 * SysArch.PtrSize
+	} else {
+		sizeofMethod = 3 * SysArch.PtrSize
 	}
-	off = int(r.Add)                    // array of reflect.method values
-	sizeofMethod := 4 * SysArch.PtrSize // sizeof reflect.method in program
-	return decode_methodsig(s, off, sizeofMethod, numMethods)
+	return decode_methodsig(s, off, sizeofMethod, mcount)
 }

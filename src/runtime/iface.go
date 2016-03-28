@@ -93,7 +93,8 @@ func additab(m *itab, locked, canfail bool) {
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
 	ni := len(inter.mhdr)
-	nt := len(x.mhdr)
+	nt := int(x.mcount)
+	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
@@ -104,15 +105,16 @@ func additab(m *itab, locked, canfail bool) {
 			ipkg = inter.pkgpath
 		}
 		for ; j < nt; j++ {
-			t := &x.mhdr[j]
-			if t.mtyp == itype && t.name.name() == iname {
+			t := &xmhdr[j]
+			if typ.typeOff(t.mtyp) == itype && t.name.name() == iname {
 				pkgPath := t.name.pkgPath()
 				if pkgPath == nil {
 					pkgPath = x.pkgpath
 				}
 				if t.name.isExported() || pkgPath == ipkg {
 					if m != nil {
-						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
+						ifn := typ.textOff(t.ifn)
+						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
 					}
 					goto nextimethod
 				}

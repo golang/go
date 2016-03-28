@@ -486,3 +486,36 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	}
 	return sections, ret
 }
+
+// reflect_resolveTypeOff resolves an *rtype offset from a base type.
+//go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
+func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+}
+
+// reflect_resolveTextOff resolves an function pointer offset from a base type.
+//go:linkname reflect_resolveTextOff reflect.resolveTextOff
+func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return (*_type)(rtype).textOff(textOff(off))
+
+}
+
+// reflect_addReflectOff adds a pointer to the reflection offset lookup map.
+//go:linkname reflect_addReflectOff reflect.addReflectOff
+func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+	lock(&reflectOffs.lock)
+	if reflectOffs.m == nil {
+		reflectOffs.m = make(map[int32]unsafe.Pointer)
+		reflectOffs.minv = make(map[unsafe.Pointer]int32)
+		reflectOffs.next = -1
+	}
+	id, found := reflectOffs.minv[ptr]
+	if !found {
+		id = reflectOffs.next
+		reflectOffs.next-- // use negative offsets as IDs to aid debugging
+		reflectOffs.m[id] = ptr
+		reflectOffs.minv[ptr] = id
+	}
+	unlock(&reflectOffs.lock)
+	return id
+}

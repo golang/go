@@ -131,6 +131,92 @@ func (t *_type) name() string {
 	return t._string[i+1:]
 }
 
+// reflectOffs holds type offsets defined at run time by the reflect package.
+//
+// When a type is defined at run time, its *rtype data lives on the heap.
+// There are a wide range of possible addresses the heap may use, that
+// may not be representable as a 32-bit offset. Moreover the GC may
+// one day start moving heap memory, in which case there is no stable
+// offset that can be defined.
+//
+// To provide stable offsets, we add pin *rtype objects in a global map
+// and treat the offset as an identifier. We use negative offsets that
+// do not overlap with any compile-time module offsets.
+//
+// Entries are created by reflect.addReflectOff.
+var reflectOffs struct {
+	lock mutex
+	next int32
+	m    map[int32]unsafe.Pointer
+	minv map[unsafe.Pointer]int32
+}
+
+func (t *_type) typeOff(off typeOff) *_type {
+	if off == 0 {
+		return nil
+	}
+	base := uintptr(unsafe.Pointer(t))
+	var md *moduledata
+	for next := &firstmoduledata; next != nil; next = next.next {
+		if base >= next.types && base < next.etypes {
+			md = next
+			break
+		}
+	}
+	if md == nil {
+		lock(&reflectOffs.lock)
+		res := reflectOffs.m[int32(off)]
+		unlock(&reflectOffs.lock)
+		if res == nil {
+			println("runtime: typeOff", hex(off), "base", hex(base), "not in ranges:")
+			for next := &firstmoduledata; next != nil; next = next.next {
+				println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
+			}
+			throw("runtime: type offset base pointer out of range")
+		}
+		return (*_type)(res)
+	}
+	if t := md.typemap[off]; t != nil {
+		return t
+	}
+	res := md.types + uintptr(off)
+	if res > md.etypes {
+		println("runtime: typeOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
+		throw("runtime: type offset out of range")
+	}
+	return (*_type)(unsafe.Pointer(res))
+}
+
+func (t *_type) textOff(off textOff) unsafe.Pointer {
+	base := uintptr(unsafe.Pointer(t))
+	var md *moduledata
+	for next := &firstmoduledata; next != nil; next = next.next {
+		if base >= next.types && base < next.etypes {
+			md = next
+			break
+		}
+	}
+	if md == nil {
+		lock(&reflectOffs.lock)
+		res := reflectOffs.m[int32(off)]
+		unlock(&reflectOffs.lock)
+		if res == nil {
+			println("runtime: textOff", hex(off), "base", hex(base), "not in ranges:")
+			for next := &firstmoduledata; next != nil; next = next.next {
+				println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
+			}
+			throw("runtime: text offset base pointer out of range")
+		}
+		return res
+	}
+	res := md.text + uintptr(off)
+	if res > md.etext {
+		println("runtime: textOff", hex(off), "out of range", hex(md.text), "-", hex(md.etext))
+		throw("runtime: text offset out of range")
+	}
+	return unsafe.Pointer(res)
+}
+
 func (t *functype) in() []*_type {
 	// See funcType in reflect/type.go for details on data layout.
 	uadd := uintptr(unsafe.Sizeof(functype{}))
@@ -154,16 +240,20 @@ func (t *functype) dotdotdot() bool {
 	return t.outCount&(1<<15) != 0
 }
 
+type typeOff int32
+type textOff int32
+
 type method struct {
 	name name
-	mtyp *_type
-	ifn  unsafe.Pointer
-	tfn  unsafe.Pointer
+	mtyp typeOff
+	ifn  textOff
+	tfn  textOff
 }
 
 type uncommontype struct {
 	pkgpath *string
-	mhdr    []method
+	mcount  uint16 // number of methods
+	moff    uint16 // offset from this uncommontype to [mcount]method
 }
 
 type imethod struct {
@@ -270,6 +360,18 @@ func (n *name) name() (s string) {
 	return s
 }
 
+func (n *name) tag() (s string) {
+	tl := n.tagLen()
+	if tl == 0 {
+		return ""
+	}
+	nl := n.nameLen()
+	hdr := (*stringStruct)(unsafe.Pointer(&s))
+	hdr.str = unsafe.Pointer(n.data(3 + nl + 2))
+	hdr.len = tl
+	return s
+}
+
 func (n *name) pkgPath() *string {
 	if *n.data(0)&(1<<2) == 0 {
 		return nil
@@ -280,4 +382,201 @@ func (n *name) pkgPath() *string {
 	}
 	off = int(round(uintptr(off), sys.PtrSize))
 	return *(**string)(unsafe.Pointer(n.data(off)))
+}
+
+// typelinksinit scans the types from extra modules and builds the
+// moduledata typemap used to de-duplicate type pointers.
+func typelinksinit() {
+	if firstmoduledata.next == nil {
+		return
+	}
+	typehash := make(map[uint32][]*_type)
+
+	modules := []*moduledata{}
+	for md := &firstmoduledata; md != nil; md = md.next {
+		modules = append(modules, md)
+	}
+	prev, modules := modules[len(modules)-1], modules[:len(modules)-1]
+	for len(modules) > 0 {
+		// Collect types from the previous module into typehash.
+	collect:
+		for _, tl := range prev.typelinks {
+			var t *_type
+			if prev.typemap == nil {
+				t = (*_type)(unsafe.Pointer(prev.types + uintptr(tl)))
+			} else {
+				t = prev.typemap[typeOff(tl)]
+			}
+			// Add to typehash if not seen before.
+			tlist := typehash[t.hash]
+			for _, tcur := range tlist {
+				if tcur == t {
+					continue collect
+				}
+			}
+			typehash[t.hash] = append(tlist, t)
+		}
+
+		// If any of this module's typelinks match a type from a
+		// prior module, prefer that prior type by adding the offset
+		// to this module's typemap.
+		md := modules[len(modules)-1]
+		md.typemap = make(map[typeOff]*_type, len(md.typelinks))
+		for _, tl := range md.typelinks {
+			t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+			for _, candidate := range typehash[t.hash] {
+				if typesEqual(t, candidate) {
+					t = candidate
+					break
+				}
+			}
+			md.typemap[typeOff(tl)] = t
+		}
+
+		prev, modules = md, modules[:len(modules)-1]
+	}
+}
+
+// typesEqual reports whether two types are equal.
+//
+// Everywhere in the runtime and reflect packages, it is assumed that
+// there is exactly one *_type per Go type, so that pointer equality
+// can be used to test if types are equal. There is one place that
+// breaks this assumption: buildmode=shared. In this case a type can
+// appear as two different pieces of memory. This is hidden from the
+// runtime and reflect package by the per-module typemap built in
+// typelinksinit. It uses typesEqual to map types from later modules
+// back into earlier ones.
+//
+// Only typelinksinit needs this function.
+func typesEqual(t, v *_type) bool {
+	if t == v {
+		return true
+	}
+	kind := t.kind & kindMask
+	if kind != v.kind&kindMask {
+		return false
+	}
+	if t._string != v._string {
+		return false
+	}
+	ut := t.uncommon()
+	uv := v.uncommon()
+	if ut != nil || uv != nil {
+		if ut == nil || uv == nil {
+			return false
+		}
+		if !pkgPathEqual(ut.pkgpath, uv.pkgpath) {
+			return false
+		}
+	}
+	if kindBool <= kind && kind <= kindComplex128 {
+		return true
+	}
+	switch kind {
+	case kindString, kindUnsafePointer:
+		return true
+	case kindArray:
+		at := (*arraytype)(unsafe.Pointer(t))
+		av := (*arraytype)(unsafe.Pointer(v))
+		return typesEqual(at.elem, av.elem) && at.len == av.len
+	case kindChan:
+		ct := (*chantype)(unsafe.Pointer(t))
+		cv := (*chantype)(unsafe.Pointer(v))
+		return ct.dir == cv.dir && typesEqual(ct.elem, cv.elem)
+	case kindFunc:
+		ft := (*functype)(unsafe.Pointer(t))
+		fv := (*functype)(unsafe.Pointer(v))
+		if ft.outCount != fv.outCount || ft.inCount != fv.inCount {
+			return false
+		}
+		tin, vin := ft.in(), fv.in()
+		for i := 0; i < len(tin); i++ {
+			if !typesEqual(tin[i], vin[i]) {
+				return false
+			}
+		}
+		tout, vout := ft.out(), fv.out()
+		for i := 0; i < len(tout); i++ {
+			if !typesEqual(tout[i], vout[i]) {
+				return false
+			}
+		}
+		return true
+	case kindInterface:
+		it := (*interfacetype)(unsafe.Pointer(t))
+		iv := (*interfacetype)(unsafe.Pointer(v))
+		if !pkgPathEqual(it.pkgpath, iv.pkgpath) {
+			return false
+		}
+		if len(it.mhdr) != len(iv.mhdr) {
+			return false
+		}
+		for i := range it.mhdr {
+			tm := &it.mhdr[i]
+			vm := &iv.mhdr[i]
+			if tm.name.name() != vm.name.name() {
+				return false
+			}
+			if !pkgPathEqual(tm.name.pkgPath(), vm.name.pkgPath()) {
+				return false
+			}
+			if !typesEqual(tm._type, vm._type) {
+				return false
+			}
+		}
+		return true
+	case kindMap:
+		mt := (*maptype)(unsafe.Pointer(t))
+		mv := (*maptype)(unsafe.Pointer(v))
+		return typesEqual(mt.key, mv.key) && typesEqual(mt.elem, mv.elem)
+	case kindPtr:
+		pt := (*ptrtype)(unsafe.Pointer(t))
+		pv := (*ptrtype)(unsafe.Pointer(v))
+		return typesEqual(pt.elem, pv.elem)
+	case kindSlice:
+		st := (*slicetype)(unsafe.Pointer(t))
+		sv := (*slicetype)(unsafe.Pointer(v))
+		return typesEqual(st.elem, sv.elem)
+	case kindStruct:
+		st := (*structtype)(unsafe.Pointer(t))
+		sv := (*structtype)(unsafe.Pointer(v))
+		if len(st.fields) != len(sv.fields) {
+			return false
+		}
+		for i := range st.fields {
+			tf := &st.fields[i]
+			vf := &sv.fields[i]
+			if tf.name.name() != vf.name.name() {
+				return false
+			}
+			if !pkgPathEqual(tf.name.pkgPath(), vf.name.pkgPath()) {
+				return false
+			}
+			if !typesEqual(tf.typ, vf.typ) {
+				return false
+			}
+			if tf.name.tag() != vf.name.tag() {
+				return false
+			}
+			if tf.offset != vf.offset {
+				return false
+			}
+		}
+		return true
+	default:
+		println("runtime: impossible type kind", kind)
+		throw("runtime: impossible type kind")
+		return false
+	}
+}
+
+func pkgPathEqual(p, q *string) bool {
+	if p == q {
+		return true
+	}
+	if p == nil || q == nil {
+		return false
+	}
+	return *p == *q
 }
