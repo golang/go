@@ -3762,12 +3762,6 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 		// Don't track autotmp_ variables.
 		return
 	}
-	if n.Class == PAUTO && (v.Type.IsString() || v.Type.IsSlice() || v.Type.IsInterface()) {
-		// TODO: can't handle auto compound objects with pointers yet.
-		// The live variable analysis barfs because we don't put VARDEF
-		// pseudos in the right place when we spill to these nodes.
-		return
-	}
 	if n.Class == PPARAMOUT {
 		// Don't track named output values.  This prevents return values
 		// from being assigned too early. See #14591 and #14762. TODO: allow this.
@@ -4172,6 +4166,96 @@ func (*ssaExport) StringData(s string) interface{} {
 func (e *ssaExport) Auto(t ssa.Type) ssa.GCNode {
 	n := temp(t.(*Type))   // Note: adds new auto to Curfn.Func.Dcl list
 	e.mustImplement = true // This modifies the input to SSA, so we want to make sure we succeed from here!
+	return n
+}
+
+func (e *ssaExport) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+	n := name.N.(*Node)
+	ptrType := Ptrto(Types[TUINT8])
+	lenType := Types[TINT]
+	if n.Class == PAUTO && !n.Addrtaken {
+		// Split this string up into two separate variables.
+		p := e.namedAuto(n.Sym.Name+".ptr", ptrType)
+		l := e.namedAuto(n.Sym.Name+".len", lenType)
+		return ssa.LocalSlot{p, ptrType, 0}, ssa.LocalSlot{l, lenType, 0}
+	}
+	// Return the two parts of the larger variable.
+	return ssa.LocalSlot{n, ptrType, name.Off}, ssa.LocalSlot{n, lenType, name.Off + int64(Widthptr)}
+}
+
+func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+	n := name.N.(*Node)
+	t := Ptrto(Types[TUINT8])
+	if n.Class == PAUTO && !n.Addrtaken {
+		// Split this interface up into two separate variables.
+		f := ".itab"
+		if isnilinter(n.Type) {
+			f = ".type"
+		}
+		c := e.namedAuto(n.Sym.Name+f, t)
+		d := e.namedAuto(n.Sym.Name+".data", t)
+		return ssa.LocalSlot{c, t, 0}, ssa.LocalSlot{d, t, 0}
+	}
+	// Return the two parts of the larger variable.
+	return ssa.LocalSlot{n, t, name.Off}, ssa.LocalSlot{n, t, name.Off + int64(Widthptr)}
+}
+
+func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
+	n := name.N.(*Node)
+	ptrType := Ptrto(n.Type.Type)
+	lenType := Types[TINT]
+	if n.Class == PAUTO && !n.Addrtaken {
+		// Split this slice up into three separate variables.
+		p := e.namedAuto(n.Sym.Name+".ptr", ptrType)
+		l := e.namedAuto(n.Sym.Name+".len", lenType)
+		c := e.namedAuto(n.Sym.Name+".cap", lenType)
+		return ssa.LocalSlot{p, ptrType, 0}, ssa.LocalSlot{l, lenType, 0}, ssa.LocalSlot{c, lenType, 0}
+	}
+	// Return the three parts of the larger variable.
+	return ssa.LocalSlot{n, ptrType, name.Off},
+		ssa.LocalSlot{n, lenType, name.Off + int64(Widthptr)},
+		ssa.LocalSlot{n, lenType, name.Off + int64(2*Widthptr)}
+}
+
+func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+	n := name.N.(*Node)
+	s := name.Type.Size() / 2
+	var t *Type
+	if s == 8 {
+		t = Types[TFLOAT64]
+	} else {
+		t = Types[TFLOAT32]
+	}
+	if n.Class == PAUTO && !n.Addrtaken {
+		// Split this complex up into two separate variables.
+		c := e.namedAuto(n.Sym.Name+".real", t)
+		d := e.namedAuto(n.Sym.Name+".imag", t)
+		return ssa.LocalSlot{c, t, 0}, ssa.LocalSlot{d, t, 0}
+	}
+	// Return the two parts of the larger variable.
+	return ssa.LocalSlot{n, t, name.Off}, ssa.LocalSlot{n, t, name.Off + s}
+}
+
+// namedAuto returns a new AUTO variable with the given name and type.
+func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
+	t := typ.(*Type)
+	s := Lookup(name)
+	n := Nod(ONAME, nil, nil)
+	s.Def = n
+	s.Def.Used = true
+	n.Sym = s
+	n.Type = t
+	n.Class = PAUTO
+	n.Addable = true
+	n.Ullman = 1
+	n.Esc = EscNever
+	n.Xoffset = 0
+	n.Name.Curfn = Curfn
+	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+
+	dowidth(t)
+	e.mustImplement = true
+
 	return n
 }
 
