@@ -31,8 +31,7 @@ func decomposeBuiltIn(f *Func) {
 			} else {
 				elemType = f.Config.fe.TypeFloat32()
 			}
-			rName := LocalSlot{name.N, elemType, name.Off}
-			iName := LocalSlot{name.N, elemType, name.Off + elemType.Size()}
+			rName, iName := f.Config.fe.SplitComplex(name)
 			f.Names = append(f.Names, rName, iName)
 			for _, v := range f.NamedValues[name] {
 				r := v.Block.NewValue1(v.Line, OpComplexReal, elemType, v)
@@ -43,8 +42,7 @@ func decomposeBuiltIn(f *Func) {
 		case t.IsString():
 			ptrType := f.Config.fe.TypeBytePtr()
 			lenType := f.Config.fe.TypeInt()
-			ptrName := LocalSlot{name.N, ptrType, name.Off}
-			lenName := LocalSlot{name.N, lenType, name.Off + f.Config.PtrSize}
+			ptrName, lenName := f.Config.fe.SplitString(name)
 			f.Names = append(f.Names, ptrName, lenName)
 			for _, v := range f.NamedValues[name] {
 				ptr := v.Block.NewValue1(v.Line, OpStringPtr, ptrType, v)
@@ -55,9 +53,7 @@ func decomposeBuiltIn(f *Func) {
 		case t.IsSlice():
 			ptrType := f.Config.fe.TypeBytePtr()
 			lenType := f.Config.fe.TypeInt()
-			ptrName := LocalSlot{name.N, ptrType, name.Off}
-			lenName := LocalSlot{name.N, lenType, name.Off + f.Config.PtrSize}
-			capName := LocalSlot{name.N, lenType, name.Off + 2*f.Config.PtrSize}
+			ptrName, lenName, capName := f.Config.fe.SplitSlice(name)
 			f.Names = append(f.Names, ptrName, lenName, capName)
 			for _, v := range f.NamedValues[name] {
 				ptr := v.Block.NewValue1(v.Line, OpSlicePtr, ptrType, v)
@@ -69,8 +65,7 @@ func decomposeBuiltIn(f *Func) {
 			}
 		case t.IsInterface():
 			ptrType := f.Config.fe.TypeBytePtr()
-			typeName := LocalSlot{name.N, ptrType, name.Off}
-			dataName := LocalSlot{name.N, ptrType, name.Off + f.Config.PtrSize}
+			typeName, dataName := f.Config.fe.SplitInterface(name)
 			f.Names = append(f.Names, typeName, dataName)
 			for _, v := range f.NamedValues[name] {
 				typ := v.Block.NewValue1(v.Line, OpITab, ptrType, v)

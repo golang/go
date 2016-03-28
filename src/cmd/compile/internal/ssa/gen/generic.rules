@@ -444,14 +444,12 @@
 (EqSlice x y)  -> (EqPtr  (SlicePtr x) (SlicePtr y))
 (NeqSlice x y) -> (NeqPtr (SlicePtr x) (SlicePtr y))
 
-
 // Load of store of same address, with compatibly typed value and same size
 (Load <t1> p1 (Store [w] p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size() -> x
 
 // Collapse OffPtr
 (OffPtr (OffPtr p [b]) [a]) -> (OffPtr p [a+b])
 (OffPtr p [0]) && v.Type.Compare(p.Type) == CMPeq -> p
-
 
 // indexing operations
 // Note: bounds check has already been done
@@ -523,40 +521,14 @@
         f1
         (Store [t.FieldType(0).Size()] dst f0 mem))))
 
-// complex ops
-(ComplexReal (ComplexMake real _  )) -> real
-(ComplexImag (ComplexMake _ imag )) -> imag
-
-(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
-  (ComplexMake
-    (Load <config.fe.TypeFloat32()> ptr mem)
-    (Load <config.fe.TypeFloat32()>
-      (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)
-      mem)
-    )
-(Store [8] dst (ComplexMake real imag) mem) ->
-  (Store [4]
-    (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
-    imag
-    (Store [4] dst real mem))
-
-(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
-  (ComplexMake
-    (Load <config.fe.TypeFloat64()> ptr mem)
-    (Load <config.fe.TypeFloat64()>
-      (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)
-      mem)
-    )
-(Store [16] dst (ComplexMake real imag) mem) ->
-  (Store [8]
-    (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
-    imag
-    (Store [8] dst real mem))
+// un-SSAable values use mem->mem copies
+(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
+(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen
 // happens in a later pass, dec, so that these operations are available
-// to otherpasses for optimizations.
+// to other passes for optimizations.
 (StringPtr (StringMake (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
@@ -573,81 +545,32 @@
     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
       (SB))
     (Const64 <config.fe.TypeInt()> [int64(len(s.(string)))]))
-(Load <t> ptr mem) && t.IsString() ->
-  (StringMake
-    (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeInt()>
-      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
-      mem))
-(Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
-  (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
-    len
-    (Store [config.PtrSize] dst ptr mem))
 
 // slice ops
-// Decomposing SliceMake, and lowering of SlicePtr, SliceLen, and SliceCap
-// happens in a later pass, dec, so that these operations are available
-// to other passes for optimizations.
-(SlicePtr (SliceMake (Const64 <t> [c]) _ _)) -> (Const64 <t> [c])
+// Only a few slice rules are provided here.  See dec.rules for
+// a more comprehensive set.
 (SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
 (SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
 (SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)
 (SliceCap (SliceMake _ _ (SliceLen x))) -> (SliceLen x)
-
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
-    (ConstNil <config.fe.TypeBytePtr()>)
+    (ConstNil <v.Type.ElemType().PtrTo()>)
     (Const32 <config.fe.TypeInt()> [0])
     (Const32 <config.fe.TypeInt()> [0]))
 (ConstSlice) && config.PtrSize == 8 ->
   (SliceMake
-    (ConstNil <config.fe.TypeBytePtr()>)
+    (ConstNil <v.Type.ElemType().PtrTo()>)
     (Const64 <config.fe.TypeInt()> [0])
     (Const64 <config.fe.TypeInt()> [0]))
 
-(Load <t> ptr mem) && t.IsSlice() ->
-  (SliceMake
-    (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeInt()>
-      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
-      mem)
-    (Load <config.fe.TypeInt()>
-      (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)
-      mem))
-(Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
-  (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)
-    cap
-    (Store [config.PtrSize]
-      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
-      len
-      (Store [config.PtrSize] dst ptr mem)))
-
 // interface ops
-(ITab (IMake itab _)) -> itab
-(IData (IMake _ data)) -> data
 (ConstInterface) ->
   (IMake
     (ConstNil <config.fe.TypeBytePtr()>)
     (ConstNil <config.fe.TypeBytePtr()>))
-(Load <t> ptr mem) && t.IsInterface() ->
-  (IMake
-    (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeBytePtr()>
-      (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)
-      mem))
-(Store [2*config.PtrSize] dst (IMake itab data) mem) ->
-  (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
-    data
-    (Store [config.PtrSize] dst itab mem))
-
-// un-SSAable values use mem->mem copies
-(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
-(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
 
 (Check (NilCheck (GetG _) _) next) -> (Plain nil next)
 
@@ -668,7 +591,7 @@
 
 (Arg {n} [off]) && v.Type.IsSlice() ->
   (SliceMake
-    (Arg <config.fe.TypeBytePtr()> {n} [off])
+    (Arg <v.Type.ElemType().PtrTo()> {n} [off])
     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize])
     (Arg <config.fe.TypeInt()> {n} [off+2*config.PtrSize]))
 
