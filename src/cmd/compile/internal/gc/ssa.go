@@ -4005,8 +4005,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 	// Generate gc bitmaps.
 	liveness(Curfn, ptxt, gcargs, gclocals)
-	gcsymdup(gcargs)
-	gcsymdup(gclocals)
 
 	// Add frame prologue. Zero ambiguously live variables.
 	Thearch.Defframe(ptxt)
