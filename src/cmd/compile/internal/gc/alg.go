@@ -566,8 +566,8 @@ func memrun(t *Type, fields []*Field, start int) (size int64, next int) {
 			break
 		}
 	}
-	end := fields[next-1].Width + fields[next-1].Type.Width
-	return end - fields[start].Width, next
+	end := fields[next-1].Offset + fields[next-1].Type.Width
+	return end - fields[start].Offset, next
 }
 
 // ispaddedfield reports whether the i'th field of struct type t is followed
@@ -579,7 +579,7 @@ func ispaddedfield(t *Type, fields []*Field, i int) bool {
 	}
 	end := t.Width
 	if i+1 < len(fields) {
-		end = fields[i+1].Width
+		end = fields[i+1].Offset
 	}
-	return fields[i].Width+fields[i].Type.Width != end
+	return fields[i].Offset+fields[i].Type.Width != end
 }

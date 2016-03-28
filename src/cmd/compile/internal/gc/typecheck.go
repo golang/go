@@ -2407,7 +2407,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 		}
 
 		n.Sym = methodsym(n.Sym, t, 0)
-		n.Xoffset = f1.Width
+		n.Xoffset = f1.Offset
 		n.Type = f1.Type
 		n.Op = ODOTINTER
 		return true
@@ -2433,7 +2433,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	}
 
 	n.Sym = methodsym(n.Sym, t, 0)
-	n.Xoffset = f2.Width
+	n.Xoffset = f2.Offset
 	n.Type = f2.Type
 	n.Op = ODOTMETH
 	return true
@@ -2482,10 +2482,10 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		if f2 != nil {
 			Yyerror("%v is both field and method", n.Sym)
 		}
-		if f1.Width == BADWIDTH {
+		if f1.Offset == BADWIDTH {
 			Fatalf("lookdot badwidth %v %p", f1, f1)
 		}
-		n.Xoffset = f1.Width
+		n.Xoffset = f1.Offset
 		n.Type = f1.Type
 		if obj.Fieldtrack_enabled > 0 {
 			dotField[typeSym{t.Orig, s}] = f1
@@ -2552,7 +2552,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		}
 
 		n.Sym = methodsym(n.Sym, n.Left.Type, 0)
-		n.Xoffset = f2.Width
+		n.Xoffset = f2.Offset
 		n.Type = f2.Type
 
 		//		print("lookdot found [%p] %T\n", f2->type, f2->type);
@@ -3060,7 +3060,7 @@ func typecheckcomplit(n *Node) *Node {
 				n1 = assignconv(n1, f.Type, "field value")
 				n1 = Nod(OKEY, newname(f.Sym), n1)
 				n1.Left.Type = structkey
-				n1.Left.Xoffset = f.Width
+				n1.Left.Xoffset = f.Offset
 				n1.Left.Typecheck = 1
 				ls[i1] = n1
 				f = it.Next()
@@ -3110,7 +3110,7 @@ func typecheckcomplit(n *Node) *Node {
 
 				l.Left = newname(s)
 				l.Left.Type = structkey
-				l.Left.Xoffset = f.Width
+				l.Left.Xoffset = f.Offset
 				l.Left.Typecheck = 1
 				s = f.Sym
 				fielddup(newname(s), hash)

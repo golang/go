@@ -18,7 +18,7 @@ func Rnd(o int64, r int64) int64 {
 func offmod(t *Type) {
 	o := int32(0)
 	for _, f := range t.Fields().Slice() {
-		f.Width = int64(o)
+		f.Offset = int64(o)
 		o += int32(Widthptr)
 		if int64(o) >= Thearch.MAXWIDTH {
 			Yyerror("interface too large")
@@ -53,7 +53,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		if f.Type.Align > 0 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
-		f.Width = o // really offset for TFIELD
+		f.Offset = o
 		if f.Nname != nil {
 			// this same stackparam logic is in addrescapes
 			// in typecheck.go.  usually addrescapes runs after
@@ -388,7 +388,7 @@ func Argsize(t *Type) int {
 
 	for _, p := range recvsParamsResults {
 		for _, f := range p(t).Fields().Slice() {
-			if x := f.Width + f.Type.Width; x > w {
+			if x := f.Offset + f.Type.Width; x > w {
 				w = x
 			}
 		}

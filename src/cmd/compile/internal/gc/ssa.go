@@ -2565,7 +2565,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		return nil
 	}
 	fp := res.Field(0)
-	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
+	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Offset, s.sp)
 }
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
@@ -4127,7 +4127,7 @@ func fieldIdx(n *Node) int {
 			i++
 			continue
 		}
-		if t1.Width != n.Xoffset {
+		if t1.Offset != n.Xoffset {
 			panic("field offset doesn't match")
 		}
 		return i
