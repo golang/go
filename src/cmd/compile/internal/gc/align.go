@@ -388,7 +388,7 @@ func Argsize(t *Type) int {
 
 	for _, p := range recvsParamsResults {
 		for _, f := range p(t).Fields().Slice() {
-			if x := f.Offset + f.Type.Width; x > w {
+			if x := f.End(); x > w {
 				w = x
 			}
 		}

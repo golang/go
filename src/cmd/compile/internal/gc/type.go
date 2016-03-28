@@ -175,6 +175,11 @@ type Field struct {
 	Note *string // literal string annotation
 }
 
+// End returns the offset of the first byte immediately after this field.
+func (f *Field) End() int64 {
+	return f.Offset + f.Type.Width
+}
+
 // Fields is a pointer to a slice of *Field.
 // This saves space in Types that do not have fields or methods
 // compared to a simple slice of *Field.

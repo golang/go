@@ -146,7 +146,7 @@ func algtype1(t *Type, bad **Type) int {
 
 			// Blank fields, padded fields, fields with non-memory
 			// equality need special compare.
-			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, fields, i) {
+			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, i) {
 				ret = -1
 			}
 		}
@@ -253,7 +253,7 @@ func genhash(sym *Sym, t *Type) {
 			}
 
 			// Otherwise, hash a maximal length run of raw memory.
-			size, next := memrun(t, fields, i)
+			size, next := memrun(t, i)
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
@@ -442,7 +442,7 @@ func geneq(sym *Sym, t *Type) {
 			}
 
 			// Find maximal length run of memory-only fields.
-			size, next := memrun(t, fields, i)
+			size, next := memrun(t, i)
 
 			// TODO(rsc): All the calls to newname are wrong for
 			// cross-package unexported fields.
@@ -546,40 +546,36 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 
 // memrun finds runs of struct fields for which memory-only algs are appropriate.
 // t is the parent struct type, and start is the field index at which to start the run.
-// The caller is responsible for providing t.FieldSlice() as fields.
 // size is the length in bytes of the memory included in the run.
 // next is the index just after the end of the memory run.
-// TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
-func memrun(t *Type, fields []*Field, start int) (size int64, next int) {
+func memrun(t *Type, start int) (size int64, next int) {
 	next = start
 	for {
 		next++
-		if next == len(fields) {
+		if next == t.NumFields() {
 			break
 		}
 		// Stop run after a padded field.
-		if ispaddedfield(t, fields, next-1) {
+		if ispaddedfield(t, next-1) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if isblanksym(fields[next].Sym) || algtype1(fields[next].Type, nil) != AMEM {
+		if f := t.Field(next); isblanksym(f.Sym) || algtype1(f.Type, nil) != AMEM {
 			break
 		}
 	}
-	end := fields[next-1].Offset + fields[next-1].Type.Width
-	return end - fields[start].Offset, next
+	return t.Field(next-1).End() - t.Field(start).Offset, next
 }
 
 // ispaddedfield reports whether the i'th field of struct type t is followed
-// by padding. The caller is responsible for providing t.FieldSlice() as fields.
-// TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
-func ispaddedfield(t *Type, fields []*Field, i int) bool {
+// by padding.
+func ispaddedfield(t *Type, i int) bool {
 	if t.Etype != TSTRUCT {
 		Fatalf("ispaddedfield called non-struct %v", t)
 	}
 	end := t.Width
-	if i+1 < len(fields) {
-		end = fields[i+1].Offset
+	if i+1 < t.NumFields() {
+		end = t.Field(i + 1).Offset
 	}
-	return fields[i].Offset+fields[i].Type.Width != end
+	return t.Field(i).End() != end
 }
