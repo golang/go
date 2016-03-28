@@ -421,18 +421,6 @@ func (tg *testgoData) doGrepCount(match string, b *bytes.Buffer) int {
 	return c
 }
 
-// grepCountStdout returns the number of times a regexp is seen in
-// standard output.
-func (tg *testgoData) grepCountStdout(match string) int {
-	return tg.doGrepCount(match, &tg.stdout)
-}
-
-// grepCountStderr returns the number of times a regexp is seen in
-// standard error.
-func (tg *testgoData) grepCountStderr(match string) int {
-	return tg.doGrepCount(match, &tg.stderr)
-}
-
 // grepCountBoth returns the number of times a regexp is seen in both
 // standard output and standard error.
 func (tg *testgoData) grepCountBoth(match string) int {
@@ -1870,7 +1858,9 @@ func TestShadowingLogic(t *testing.T) {
 	}
 	// The output will have makeImportValid applies, but we only
 	// bother to deal with characters we might reasonably see.
-	pwdForwardSlash = strings.Replace(pwdForwardSlash, ":", "_", -1)
+	for _, r := range " :" {
+		pwdForwardSlash = strings.Replace(pwdForwardSlash, string(r), "_", -1)
+	}
 	want := "(_" + pwdForwardSlash + "/testdata/shadow/root1/src/math) (" + filepath.Join(runtime.GOROOT(), "src", "math") + ")"
 	if strings.TrimSpace(tg.getStdout()) != want {
 		t.Error("shadowed math is not shadowed; looking for", want)
@@ -1990,6 +1980,27 @@ func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
 		}
 	}
 	checkCoverage(tg, data)
+}
+
+func TestBuildDryRunWithCgo(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("foo.go", `package main
+
+/*
+#include <limits.h>
+*/
+import "C"
+
+func main() {
+        println(C.INT_MAX)
+}`)
+	tg.run("build", "-n", tg.path("foo.go"))
+	tg.grepStderrNot(`os.Stat .* no such file or directory`, "unexpected stat of archive file")
 }
 
 func TestCoverageWithCgo(t *testing.T) {
@@ -2426,22 +2437,6 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 	const repo = "wh3rd.net/repo"
 	tg.runFail("get", "-d", repo)
 	tg.run("get", "-d", "-insecure", repo)
-}
-
-func TestIssue10193(t *testing.T) {
-	t.Skip("depends on code.google.com")
-	testenv.MustHaveExternalNetwork(t)
-	if _, err := exec.LookPath("hg"); err != nil {
-		t.Skip("skipping because hg binary not found")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.runFail("get", "code.google.com/p/rsc/pdf")
-	tg.grepStderr("is shutting down", "missed warning about code.google.com")
 }
 
 func TestGoRunDirs(t *testing.T) {

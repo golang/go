@@ -216,20 +216,20 @@ func runfinq() {
 	}
 }
 
-// SetFinalizer sets the finalizer associated with x to f.
-// When the garbage collector finds an unreachable block
+// SetFinalizer sets the finalizer associated with obj to the provided
+// finalizer function. When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs
-// f(x) in a separate goroutine. This makes x reachable again, but
-// now without an associated finalizer. Assuming that SetFinalizer
+// finalizer(obj) in a separate goroutine. This makes obj reachable again,
+// but now without an associated finalizer. Assuming that SetFinalizer
 // is not called again, the next time the garbage collector sees
-// that x is unreachable, it will free x.
+// that obj is unreachable, it will free obj.
 //
-// SetFinalizer(x, nil) clears any finalizer associated with x.
+// SetFinalizer(obj, nil) clears any finalizer associated with obj.
 //
-// The argument x must be a pointer to an object allocated by
+// The argument obj must be a pointer to an object allocated by
 // calling new or by taking the address of a composite literal.
-// The argument f must be a function that takes a single argument
-// to which x's type can be assigned, and can have arbitrary ignored return
+// The argument finalizer must be a function that takes a single argument
+// to which obj's type can be assigned, and can have arbitrary ignored return
 // values. If either of these is not true, SetFinalizer aborts the
 // program.
 //
@@ -241,8 +241,8 @@ func runfinq() {
 // is not guaranteed to run, because there is no ordering that
 // respects the dependencies.
 //
-// The finalizer for x is scheduled to run at some arbitrary time after
-// x becomes unreachable.
+// The finalizer for obj is scheduled to run at some arbitrary time after
+// obj becomes unreachable.
 // There is no guarantee that finalizers will run before a program exits,
 // so typically they are useful only for releasing non-memory resources
 // associated with an object during a long-running program.
@@ -252,7 +252,7 @@ func runfinq() {
 // to depend on a finalizer to flush an in-memory I/O buffer such as a
 // bufio.Writer, because the buffer would not be flushed at program exit.
 //
-// It is not guaranteed that a finalizer will run if the size of *x is
+// It is not guaranteed that a finalizer will run if the size of *obj is
 // zero bytes.
 //
 // It is not guaranteed that a finalizer will run for objects allocated

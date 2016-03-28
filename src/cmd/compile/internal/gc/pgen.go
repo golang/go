@@ -15,12 +15,12 @@ import (
 
 // "Portable" code generation.
 
-var makefuncdatasym_nsym int32
+var makefuncdatasym_nsym int
 
-func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
+func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
 	var nod Node
 
-	sym := Lookupf(namefmt, makefuncdatasym_nsym)
+	sym := LookupN(nameprefix, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
@@ -90,7 +90,7 @@ func gvardefx(n *Node, as obj.As) {
 		Fatalf("gvardef nil")
 	}
 	if n.Op != ONAME {
-		Yyerror("gvardef %v; %v", Oconv(n.Op, obj.FmtSharp), n)
+		Yyerror("gvardef %v; %v", Oconv(n.Op, FmtSharp), n)
 		return
 	}
 
@@ -108,11 +108,11 @@ func Gvardef(n *Node) {
 	gvardefx(n, obj.AVARDEF)
 }
 
-func gvarkill(n *Node) {
+func Gvarkill(n *Node) {
 	gvardefx(n, obj.AVARKILL)
 }
 
-func gvarlive(n *Node) {
+func Gvarlive(n *Node) {
 	gvardefx(n, obj.AVARLIVE)
 }
 
@@ -135,7 +135,7 @@ func gcsymdup(s *Sym) {
 		Fatalf("cannot rosymdup %s with relocations", ls.Name)
 	}
 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
-	ls.Dupok = 1
+	ls.Dupok = true
 }
 
 func emitptrargsmap() {
@@ -147,18 +147,18 @@ func emitptrargsmap() {
 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
-	if Curfn.Type.Outtuple > 0 {
+	if Curfn.Type.Results().NumFields() > 0 {
 		nbitmap = 2
 	}
 	off := duint32(sym, 0, uint32(nbitmap))
 	off = duint32(sym, off, uint32(bv.n))
 	var xoffset int64
-	if Curfn.Type.Thistuple > 0 {
+	if Curfn.Type.Recv() != nil {
 		xoffset = 0
-		onebitwalktype1(Curfn.Type.Recv(), &xoffset, bv)
+		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
 	}
 
-	if Curfn.Type.Intuple > 0 {
+	if Curfn.Type.Params().NumFields() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
 	}
@@ -166,7 +166,7 @@ func emitptrargsmap() {
 	for j := 0; int32(j) < bv.n; j += 32 {
 		off = duint32(sym, off, bv.b[j/32])
 	}
-	if Curfn.Type.Outtuple > 0 {
+	if Curfn.Type.Results().NumFields() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
 		for j := 0; int32(j) < bv.n; j += 32 {
@@ -377,10 +377,10 @@ func compile(fn *Node) {
 
 	if Curfn.Type.Outnamed {
 		// add clearing of the output parameters
-		for t, it := IterFields(Curfn.Type.Results()); t != nil; t = it.Next() {
+		for _, t := range Curfn.Type.Results().Fields().Slice() {
 			if t.Nname != nil {
 				n := Nod(OAS, t.Nname, nil)
-				typecheck(&n, Etop)
+				n = typecheck(n, Etop)
 				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
 			}
 		}
@@ -438,8 +438,11 @@ func compile(fn *Node) {
 	if fn.Func.Pragma&Nosplit != 0 {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
+	if fn.Func.ReflectMethod {
+		ptxt.From3.Offset |= obj.REFLECTMETHOD
+	}
 	if fn.Func.Pragma&Systemstack != 0 {
-		ptxt.From.Sym.Cfunc = 1
+		ptxt.From.Sym.Cfunc = true
 	}
 
 	// Clumsy but important.
@@ -453,11 +456,18 @@ func compile(fn *Node) {
 
 	ginit()
 
-	gcargs := makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
-	gclocals := makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
+	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
+	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 
-	for _, t := range Curfn.Func.Fieldtrack {
-		gtrack(tracksym(t))
+	if obj.Fieldtrack_enabled != 0 && len(Curfn.Func.FieldTrack) > 0 {
+		trackSyms := make([]*Sym, 0, len(Curfn.Func.FieldTrack))
+		for sym := range Curfn.Func.FieldTrack {
+			trackSyms = append(trackSyms, sym)
+		}
+		sort.Sort(symByName(trackSyms))
+		for _, sym := range trackSyms {
+			gtrack(sym)
+		}
 	}
 
 	for _, n := range fn.Func.Dcl {
@@ -493,7 +503,7 @@ func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		lineno = Curfn.Func.Endlineno
 	}
 
-	if Curfn.Type.Outtuple != 0 {
+	if Curfn.Type.Results().NumFields() != 0 {
 		Ginscall(throwreturn, 0)
 	}
 

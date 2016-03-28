@@ -119,22 +119,6 @@ func TestCmpstackvar(t *testing.T) {
 	}
 }
 
-func slice2nodelist(s []*Node) *NodeList {
-	var nl *NodeList
-	for _, n := range s {
-		nl = list(nl, n)
-	}
-	return nl
-}
-
-func nodelist2slice(nl *NodeList) []*Node {
-	var s []*Node
-	for l := nl; l != nil; l = l.Next {
-		s = append(s, l.N)
-	}
-	return s
-}
-
 func TestStackvarSort(t *testing.T) {
 	inp := []*Node{
 		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},

@@ -1270,7 +1270,7 @@ func TestSliceOfCustomByte(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(a, b) {
-		t.Fatal("expected %v == %v", a, b)
+		t.Fatalf("expected %v == %v", a, b)
 	}
 }
 

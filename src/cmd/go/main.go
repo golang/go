@@ -214,7 +214,7 @@ var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
 {{end}}{{.Long | trim}}
 `
 
-var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reserved.
+var documentationTemplate = `// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -403,8 +403,6 @@ func errorf(format string, args ...interface{}) {
 	setExitStatus(1)
 }
 
-var logf = log.Printf
-
 func exitIfErrors() {
 	if exitStatus != 0 {
 		exit()
@@ -426,19 +424,6 @@ func run(cmdargs ...interface{}) {
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)
 	}
-}
-
-func runOut(dir string, cmdargs ...interface{}) []byte {
-	cmdline := stringList(cmdargs...)
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		os.Stderr.Write(out)
-		errorf("%v", err)
-		out = nil
-	}
-	return out
 }
 
 // envForDir returns a copy of the environment

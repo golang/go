@@ -820,7 +820,18 @@ type maxBytesReader struct {
 func (l *maxBytesReader) tooLarge() (n int, err error) {
 	if !l.stopped {
 		l.stopped = true
-		if res, ok := l.w.(*response); ok {
+
+		// The server code and client code both use
+		// maxBytesReader. This "requestTooLarge" check is
+		// only used by the server code. To prevent binaries
+		// which only using the HTTP Client code (such as
+		// cmd/go) from also linking in the HTTP server, don't
+		// use a static type assertion to the server
+		// "*response" type. Check this interface instead:
+		type requestTooLarger interface {
+			requestTooLarge()
+		}
+		if res, ok := l.w.(requestTooLarger); ok {
 			res.requestTooLarge()
 		}
 	}
@@ -997,9 +1008,16 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if err != nil {
 		return err
 	}
+
+	if r.PostForm == nil {
+		r.PostForm = make(url.Values)
+	}
 	for k, v := range f.Value {
 		r.Form[k] = append(r.Form[k], v...)
+		// r.PostForm should also be populated. See Issue 9305.
+		r.PostForm[k] = append(r.PostForm[k], v...)
 	}
+
 	r.MultipartForm = f
 
 	return nil

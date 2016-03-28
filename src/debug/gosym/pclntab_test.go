@@ -111,8 +111,6 @@ func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
 	return f, tab
 }
 
-var goarch = os.Getenv("O")
-
 func TestLineFromAline(t *testing.T) {
 	skipIfNotELF(t)
 

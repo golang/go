@@ -30,7 +30,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if canfail {
 			return nil
 		}
-		panic(&TypeAssertionError{"", typ._string, inter.typ._string, *inter.mhdr[0].name})
+		panic(&TypeAssertionError{"", typ._string, inter.typ._string, inter.mhdr[0].name.name()})
 	}
 
 	// compiler has provided some good hash codes for us.
@@ -84,19 +84,25 @@ search:
 	j := 0
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
-		iname := i.name
-		ipkgpath := i.pkgpath
+		iname := i.name.name()
 		itype := i._type
+		ipkg := i.name.pkgPath()
+		if ipkg == nil {
+			ipkg = inter.pkgpath
+		}
 		for ; j < nt; j++ {
 			t := &x.mhdr[j]
-			if t.name == nil {
-				throw("itab t.name is nil")
-			}
-			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
-				if m != nil {
-					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
+			if t.mtyp == itype && t.name.name() == iname {
+				pkgPath := t.name.pkgPath()
+				if pkgPath == nil {
+					pkgPath = x.pkgpath
 				}
-				goto nextimethod
+				if t.name.isExported() || pkgPath == ipkg {
+					if m != nil {
+						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
+					}
+					goto nextimethod
+				}
 			}
 		}
 		// didn't find method
@@ -104,7 +110,7 @@ search:
 			if locked != 0 {
 				unlock(&ifaceLock)
 			}
-			panic(&TypeAssertionError{"", typ._string, inter.typ._string, *iname})
+			panic(&TypeAssertionError{"", typ._string, inter.typ._string, iname})
 		}
 		m.bad = 1
 		break

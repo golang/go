@@ -15,6 +15,84 @@ const (
 )
 
 //go:noinline
+func lshNop1(x uint64) uint64 {
+	// two outer shifts should be removed
+	return (((x << 5) >> 2) << 2)
+}
+
+//go:noinline
+func lshNop2(x uint64) uint64 {
+	return (((x << 5) >> 2) << 3)
+}
+
+//go:noinline
+func lshNop3(x uint64) uint64 {
+	return (((x << 5) >> 2) << 6)
+}
+
+//go:noinline
+func lshNotNop(x uint64) uint64 {
+	// outer shift can't be removed
+	return (((x << 5) >> 2) << 1)
+}
+
+//go:noinline
+func rshNop1(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 2)
+}
+
+//go:noinline
+func rshNop2(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 3)
+}
+
+//go:noinline
+func rshNop3(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 6)
+}
+
+//go:noinline
+func rshNotNop(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 1)
+}
+
+func testShiftRemoval() {
+	allSet := ^uint64(0)
+	if want, got := uint64(0x7ffffffffffffff), rshNop1(allSet); want != got {
+		println("testShiftRemoval rshNop1 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0x3ffffffffffffff), rshNop2(allSet); want != got {
+		println("testShiftRemoval rshNop2 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0x7fffffffffffff), rshNop3(allSet); want != got {
+		println("testShiftRemoval rshNop3 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xffffffffffffffe), rshNotNop(allSet); want != got {
+		println("testShiftRemoval rshNotNop failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xffffffffffffffe0), lshNop1(allSet); want != got {
+		println("testShiftRemoval lshNop1 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xffffffffffffffc0), lshNop2(allSet); want != got {
+		println("testShiftRemoval lshNop2 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xfffffffffffffe00), lshNop3(allSet); want != got {
+		println("testShiftRemoval lshNop3 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0x7ffffffffffffff0), lshNotNop(allSet); want != got {
+		println("testShiftRemoval lshNotNop failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
+//go:noinline
 func parseLE64(b []byte) uint64 {
 	// skip the first two bytes, and parse the remaining 8 as a uint64
 	return uint64(b[2]) | uint64(b[3])<<8 | uint64(b[4])<<16 | uint64(b[5])<<24 |
@@ -35,15 +113,42 @@ func parseLE16(b []byte) uint16 {
 func testLoadCombine() {
 	testData := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	if want, got := uint64(0x0908070605040302), parseLE64(testData); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
+		println("testLoadCombine failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := uint32(0x05040302), parseLE32(testData); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
+		println("testLoadCombine failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := uint16(0x0302), parseLE16(testData); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
+		println("testLoadCombine failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
+var loadSymData = [...]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+
+func testLoadSymCombine() {
+	w2 := uint16(0x0201)
+	g2 := uint16(loadSymData[0]) | uint16(loadSymData[1])<<8
+	if g2 != w2 {
+		println("testLoadSymCombine failed, wanted", w2, "got", g2)
+		failed = true
+	}
+	w4 := uint32(0x04030201)
+	g4 := uint32(loadSymData[0]) | uint32(loadSymData[1])<<8 |
+		uint32(loadSymData[2])<<16 | uint32(loadSymData[3])<<24
+	if g4 != w4 {
+		println("testLoadSymCombine failed, wanted", w4, "got", g4)
+		failed = true
+	}
+	w8 := uint64(0x0807060504030201)
+	g8 := uint64(loadSymData[0]) | uint64(loadSymData[1])<<8 |
+		uint64(loadSymData[2])<<16 | uint64(loadSymData[3])<<24 |
+		uint64(loadSymData[4])<<32 | uint64(loadSymData[5])<<40 |
+		uint64(loadSymData[6])<<48 | uint64(loadSymData[7])<<56
+	if g8 != w8 {
+		println("testLoadSymCombine failed, wanted", w8, "got", g8)
 		failed = true
 	}
 }
@@ -404,9 +509,9 @@ func sub1_ssa() uint64 {
 	v1 := uint64(3) // uint64
 	return v1*v1 - (v1&v1)&v1
 }
+
+//go:noinline
 func sub2_ssa() uint8 {
-	switch {
-	}
 	v1 := uint8(0)
 	v3 := v1 + v1 + v1 ^ v1 | 3 + v1 ^ v1 | v1 ^ v1
 	v1-- // dev.ssa doesn't see this one
@@ -466,6 +571,8 @@ func main() {
 	testArithRshConst()
 	testLargeConst()
 	testLoadCombine()
+	testLoadSymCombine()
+	testShiftRemoval()
 
 	if failed {
 		panic("failed")

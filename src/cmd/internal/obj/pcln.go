@@ -120,7 +120,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if ctxt.Debugpcln != 0 {
 			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(int64(func_.Text.Pc)+func_.Size))
 		}
-		addvarint(ctxt, dst, uint32((func_.Value+func_.Size-pc)/int64(ctxt.Arch.Minlc)))
+		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.Minlc)))
 		addvarint(ctxt, dst, 0) // terminator
 	}
 
@@ -143,9 +143,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.As == AUSEFIELD || p.Lineno == 0 || phase == 1 {
 		return oldval
 	}
-	var l int32
-	var f *LSym
-	linkgetline(ctxt, p.Lineno, &f, &l)
+	f, l := linkgetline(ctxt, p.Lineno)
 	if f == nil {
 		//	print("getline failed for %s %v\n", ctxt->cursym->name, p);
 		return oldval
@@ -277,62 +275,4 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			}
 		}
 	}
-}
-
-// iteration over encoded pcdata tables.
-
-func getvarint(pp *[]byte) uint32 {
-	v := uint32(0)
-	p := *pp
-	for shift := 0; ; shift += 7 {
-		v |= uint32(p[0]&0x7F) << uint(shift)
-		tmp7 := p
-		p = p[1:]
-		if tmp7[0]&0x80 == 0 {
-			break
-		}
-	}
-
-	*pp = p
-	return v
-}
-
-func pciternext(it *Pciter) {
-	it.pc = it.nextpc
-	if it.done != 0 {
-		return
-	}
-	if -cap(it.p) >= -cap(it.d.P[len(it.d.P):]) {
-		it.done = 1
-		return
-	}
-
-	// value delta
-	v := getvarint(&it.p)
-
-	if v == 0 && it.start == 0 {
-		it.done = 1
-		return
-	}
-
-	it.start = 0
-	dv := int32(v>>1) ^ (int32(v<<31) >> 31)
-	it.value += dv
-
-	// pc delta
-	v = getvarint(&it.p)
-
-	it.nextpc = it.pc + v*it.pcscale
-}
-
-func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
-	it.d = *d
-	it.p = it.d.P
-	it.pc = 0
-	it.nextpc = 0
-	it.value = -1
-	it.start = 1
-	it.done = 0
-	it.pcscale = uint32(ctxt.Arch.Minlc)
-	pciternext(it)
 }

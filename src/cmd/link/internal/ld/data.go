@@ -37,6 +37,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -216,24 +217,6 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
  * sort of LSym* structures.
  * Used for the data block.
  */
-func datcmp(s1 *LSym, s2 *LSym) int {
-	if s1.Type != s2.Type {
-		return int(s1.Type) - int(s2.Type)
-	}
-
-	// For ppc64, we want to interleave the .got and .toc sections
-	// from input files. Both are type SELFGOT, so in that case
-	// fall through to the name comparison (conveniently, .got
-	// sorts before .toc).
-	if s1.Type != obj.SELFGOT && s1.Size != s2.Size {
-		if s1.Size < s2.Size {
-			return -1
-		}
-		return +1
-	}
-
-	return stringsCompare(s1.Name, s2.Name)
-}
 
 func listnextp(s *LSym) **LSym {
 	return &s.Next
@@ -1127,6 +1110,36 @@ func (p *GCProg) AddSym(s *LSym) {
 	p.w.Append(prog[4:], nptr)
 }
 
+type dataSortKey struct {
+	// keep sort keys inline to improve cache behaviour while sorting
+	Type int16
+	Size int64
+	Name string
+
+	Lsym *LSym
+}
+
+type dataSlice []dataSortKey
+
+func (d dataSlice) Len() int      { return len(d) }
+func (d dataSlice) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+func (d dataSlice) Less(i, j int) bool {
+	s1, s2 := &d[i], &d[j]
+	if s1.Type != s2.Type {
+		return s1.Type < s2.Type
+	}
+
+	// For ppc64, we want to interleave the .got and .toc sections
+	// from input files. Both are type SELFGOT, so in that case
+	// fall through to the name comparison (conveniently, .got
+	// sorts before .toc).
+	if s1.Type != obj.SELFGOT && s1.Size != s2.Size {
+		return s1.Size < s2.Size
+	}
+
+	return s1.Name < s2.Name
+}
+
 func growdatsize(datsizep *int64, s *LSym) {
 	datsize := *datsizep
 	const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
@@ -1139,6 +1152,39 @@ func growdatsize(datsizep *int64, s *LSym) {
 		Diag("%s: too much data (over %d bytes)", s.Name, cutoff)
 	}
 	*datsizep = datsize + s.Size
+}
+
+func list2Slice(head *LSym) dataSlice {
+	n := 0
+	for s := datap; s != nil; s = s.Next {
+		n++
+	}
+	slice := make(dataSlice, n)
+	i := 0
+	for s := datap; s != nil; s = s.Next {
+		k := &slice[i]
+		k.Type = s.Type
+		k.Size = s.Size
+		k.Name = s.Name
+		k.Lsym = s
+
+		i++
+	}
+	return slice
+}
+
+func slice2List(d dataSlice) *LSym {
+	for i := 0; i < len(d)-1; i++ {
+		d[i].Lsym.Next = d[i+1].Lsym
+	}
+	d[len(d)-1].Lsym.Next = nil
+	return d[0].Lsym
+}
+
+func dataSort(head *LSym) *LSym {
+	d := list2Slice(head)
+	sort.Sort(d)
+	return slice2List(d)
 }
 
 func dodata() {
@@ -1231,7 +1277,7 @@ func dodata() {
 
 	}
 
-	datap = listsort(datap, datcmp, listnextp)
+	datap = dataSort(datap)
 
 	if Iself {
 		// Make .rela and .rela.plt contiguous, the ELF ABI requires this

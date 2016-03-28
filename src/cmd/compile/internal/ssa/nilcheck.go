@@ -91,17 +91,17 @@ func nilcheckelim(f *Func) {
 
 					// Logging in the style of the former compiler -- and omit line 1,
 					// which is usually in generated code.
-					if f.Config.Debug_checknil() && int(node.block.Control.Line) > 1 {
-						f.Config.Warnl(int(node.block.Control.Line), "removed nil check")
+					if f.Config.Debug_checknil() && node.block.Control.Line > 1 {
+						f.Config.Warnl(node.block.Control.Line, "removed nil check")
 					}
 
 					switch node.block.Kind {
 					case BlockIf:
 						node.block.Kind = BlockFirst
-						node.block.Control = nil
+						node.block.SetControl(nil)
 					case BlockCheck:
 						node.block.Kind = BlockPlain
-						node.block.Control = nil
+						node.block.SetControl(nil)
 					default:
 						f.Fatalf("bad block kind in nilcheck %s", node.block.Kind)
 					}

@@ -8,19 +8,14 @@ import (
 	"bytes"
 	"fmt"
 	"html"
-	"math"
 	"os"
 	"strings"
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
-	"cmd/internal/obj/x86"
 )
 
 var ssaEnabled = true
-
-// Smallest possible faulting page at address zero.
-const minZeroPage = 4096
 
 var ssaConfig *ssa.Config
 var ssaExp ssaExport
@@ -35,8 +30,14 @@ func initssa() *ssa.Config {
 }
 
 func shouldssa(fn *Node) bool {
-	if Thearch.Thestring != "amd64" {
-		return false
+	switch Thearch.Thestring {
+	default:
+		// Only available for testing.
+		if os.Getenv("SSATEST") == "" {
+			return false
+		}
+		// Generally available.
+	case "amd64":
 	}
 	if !ssaEnabled {
 		return false
@@ -101,6 +102,14 @@ func buildssa(fn *Node) *ssa.Func {
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		s.cgoUnsafeArgs = true
 	}
+	if fn.Func.Pragma&Nowritebarrier != 0 {
+		s.noWB = true
+	}
+	defer func() {
+		if s.WBLineno != 0 {
+			fn.Func.WBLineno = s.WBLineno
+		}
+	}()
 	// TODO(khr): build config just once at the start of the compiler binary
 
 	ssaExp.log = printssa
@@ -177,12 +186,9 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// fallthrough to exit
 	if s.curBlock != nil {
-		s.stmts(s.exitCode)
-		m := s.mem()
-		b := s.endBlock()
-		b.Line = fn.Func.Endlineno
-		b.Kind = ssa.BlockRet
-		b.Control = m
+		s.pushLine(fn.Func.Endlineno)
+		s.exit()
+		s.popLine()
 	}
 
 	// Check that we used all labels
@@ -279,6 +285,8 @@ type state struct {
 	returns []*Node
 
 	cgoUnsafeArgs bool
+	noWB          bool
+	WBLineno      int32 // line number of first write barrier. 0=no write barriers
 }
 
 type funcLine struct {
@@ -320,8 +328,8 @@ func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peek
 func (s *state) Unimplementedf(msg string, args ...interface{}) {
 	s.config.Unimplementedf(s.peekLine(), msg, args...)
 }
-func (s *state) Warnl(line int, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
-func (s *state) Debug_checknil() bool                            { return s.config.Debug_checknil() }
+func (s *state) Warnl(line int32, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
+func (s *state) Debug_checknil() bool                              { return s.config.Debug_checknil() }
 
 var (
 	// dummy node for the memory variable
@@ -333,6 +341,7 @@ var (
 	typVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
 	idataVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
 	okVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
+	deltaVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "delta"}}
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -548,7 +557,7 @@ func (s *state) stmt(n *Node) {
 			m := s.mem()
 			b := s.endBlock()
 			b.Kind = ssa.BlockExit
-			b.Control = m
+			b.SetControl(m)
 			// TODO: never rewrite OPANIC to OCALLFUNC in the
 			// first place. Need to wait until all backends
 			// go through SSA.
@@ -560,8 +569,8 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2DOTTYPE:
 		res, resok := s.dottype(n.Rlist.First(), true)
-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno)
-		s.assign(n.List.Second(), resok, false, false, n.Lineno)
+		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno, 0)
+		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0)
 		return
 
 	case ODCL:
@@ -582,7 +591,7 @@ func (s *state) stmt(n *Node) {
 			prealloc[n.Left] = palloc
 		}
 		r := s.expr(palloc)
-		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno)
+		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno, 0)
 
 	case OLABEL:
 		sym := n.Left.Sym
@@ -696,7 +705,44 @@ func (s *state) stmt(n *Node) {
 			needwb = true
 		}
 
-		s.assign(n.Left, r, needwb, deref, n.Lineno)
+		var skip skipMask
+		if rhs != nil && (rhs.Op == OSLICE || rhs.Op == OSLICE3 || rhs.Op == OSLICESTR) && samesafeexpr(rhs.Left, n.Left) {
+			// We're assigning a slicing operation back to its source.
+			// Don't write back fields we aren't changing. See issue #14855.
+			i := rhs.Right.Left
+			var j, k *Node
+			if rhs.Op == OSLICE3 {
+				j = rhs.Right.Right.Left
+				k = rhs.Right.Right.Right
+			} else {
+				j = rhs.Right.Right
+			}
+			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Val().U.(*Mpint).Int64() == 0) {
+				// [0:...] is the same as [:...]
+				i = nil
+			}
+			// TODO: detect defaults for len/cap also.
+			// Currently doesn't really work because (*p)[:len(*p)] appears here as:
+			//    tmp = len(*p)
+			//    (*p)[:tmp]
+			//if j != nil && (j.Op == OLEN && samesafeexpr(j.Left, n.Left)) {
+			//      j = nil
+			//}
+			//if k != nil && (k.Op == OCAP && samesafeexpr(k.Left, n.Left)) {
+			//      k = nil
+			//}
+			if i == nil {
+				skip |= skipPtr
+				if j == nil {
+					skip |= skipLen
+				}
+				if k == nil {
+					skip |= skipCap
+				}
+			}
+		}
+
+		s.assign(n.Left, r, needwb, deref, n.Lineno, skip)
 
 	case OIF:
 		bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -904,6 +950,10 @@ func (s *state) stmt(n *Node) {
 // It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
+	if hasdefer {
+		s.rtcall(Deferreturn, true, nil)
+	}
+
 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
 	// variables back to the stack.
 	s.stmts(s.exitCode)
@@ -924,7 +974,7 @@ func (s *state) exit() *ssa.Block {
 	m := s.mem()
 	b := s.endBlock()
 	b.Kind = ssa.BlockRet
-	b.Control = m
+	b.SetControl(m)
 	return b
 }
 
@@ -1373,7 +1423,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLITERAL:
 		switch n.Val().Ctype() {
 		case CTINT:
-			i := Mpgetfix(n.Val().U.(*Mpint))
+			i := n.Val().U.(*Mpint).Int64()
 			switch n.Type.Size() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))
@@ -1415,9 +1465,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			f := n.Val().U.(*Mpflt)
 			switch n.Type.Size() {
 			case 4:
-				return s.constFloat32(n.Type, mpgetflt32(f))
+				return s.constFloat32(n.Type, f.Float32())
 			case 8:
-				return s.constFloat64(n.Type, mpgetflt(f))
+				return s.constFloat64(n.Type, f.Float64())
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil
@@ -1431,15 +1481,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 				{
 					pt := Types[TFLOAT32]
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat32(pt, mpgetflt32(r)),
-						s.constFloat32(pt, mpgetflt32(i)))
+						s.constFloat32(pt, r.Float32()),
+						s.constFloat32(pt, i.Float32()))
 				}
 			case 16:
 				{
 					pt := Types[TFLOAT64]
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat64(pt, mpgetflt(r)),
-						s.constFloat64(pt, mpgetflt(i)))
+						s.constFloat64(pt, r.Float64()),
+						s.constFloat64(pt, i.Float64()))
 				}
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
@@ -1799,7 +1849,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
-		b.Control = el
+		b.SetControl(el)
 		// In theory, we should set b.Likely here based on context.
 		// However, gc only gives us likeliness hints
 		// in a single place, for plain OIF statements,
@@ -1869,7 +1919,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		t := n.Left.Type
 		if canSSAType(t) {
 			v := s.expr(n.Left)
-			return s.newValue1I(ssa.OpStructSelect, n.Type, fieldIdx(n), v)
+			return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
 		}
 		p := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
@@ -1952,7 +2002,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		for !data.Type.IsPtr() {
 			switch {
 			case data.Type.IsArray():
-				data = s.newValue1I(ssa.OpArrayIndex, data.Type.Elem(), 0, data)
+				data = s.newValue1I(ssa.OpArrayIndex, data.Type.ElemType(), 0, data)
 			case data.Type.IsStruct():
 				for i := data.Type.NumFields() - 1; i >= 0; i-- {
 					f := data.Type.FieldType(i)
@@ -1960,7 +2010,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 						// eface type could also be struct{p *byte; q [0]int}
 						continue
 					}
-					data = s.newValue1I(ssa.OpStructSelect, f, i, data)
+					data = s.newValue1I(ssa.OpStructSelect, f, int64(i), data)
 					break
 				}
 			default:
@@ -2002,7 +2052,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		p, l, c := s.slice(n.Left.Type, v, i, j, k)
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
-	case OCALLFUNC, OCALLINTER, OCALLMETH:
+	case OCALLFUNC:
+		if isIntrinsicCall1(n) {
+			return s.intrinsicCall1(n)
+		}
+		fallthrough
+
+	case OCALLINTER, OCALLMETH:
 		a := s.call(n, callNormal)
 		return s.newValue2(ssa.OpLoad, n.Type, a, s.mem())
 
@@ -2043,7 +2099,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Likely = ssa.BranchUnlikely
-		b.Control = cmp
+		b.SetControl(cmp)
 		b.AddEdgeTo(grow)
 		b.AddEdgeTo(assign)
 
@@ -2066,14 +2122,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// Evaluate args
 		args := make([]*ssa.Value, 0, nargs)
 		store := make([]bool, 0, nargs)
-		it := nodeSeqIterate(n.List)
-		it.Next()
-		for ; !it.Done(); it.Next() {
-			if canSSAType(it.N().Type) {
-				args = append(args, s.expr(it.N()))
+		for _, n := range n.List.Slice()[1:] {
+			if canSSAType(n.Type) {
+				args = append(args, s.expr(n))
 				store = append(store, true)
 			} else {
-				args = append(args, s.addr(it.N(), false))
+				args = append(args, s.addr(n, false))
 				store = append(store, false)
 			}
 		}
@@ -2087,7 +2141,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
 			if store[i] {
 				if haspointers(et) {
-					s.insertWBstore(et, addr, arg, n.Lineno)
+					s.insertWBstore(et, addr, arg, n.Lineno, 0)
 				} else {
 					s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
 				}
@@ -2149,18 +2203,27 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 	c := s.expr(cond)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = c
+	b.SetControl(c)
 	b.Likely = ssa.BranchPrediction(likely) // gc and ssa both use -1/0/+1 for likeliness
 	b.AddEdgeTo(yes)
 	b.AddEdgeTo(no)
 }
+
+type skipMask uint8
+
+const (
+	skipPtr skipMask = 1 << iota
+	skipLen
+	skipCap
+)
 
 // assign does left = right.
 // Right has already been evaluated to ssa, left has not.
 // If deref is true, then we do left = *right instead (and right has already been nil-checked).
 // If deref is true and right == nil, just do left = 0.
 // Include a write barrier if wb is true.
-func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32) {
+// skip indicates assignments (at the top level) that can be avoided.
+func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32, skip skipMask) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
@@ -2192,16 +2255,16 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 			new := s.newValue0(ssa.StructMakeOp(t.NumFields()), t)
 
 			// Add fields as args.
-			for i := int64(0); i < nf; i++ {
+			for i := 0; i < nf; i++ {
 				if i == idx {
 					new.AddArg(right)
 				} else {
-					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), i, old))
+					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), int64(i), old))
 				}
 			}
 
 			// Recursively assign the new value we've made to the base of the dot op.
-			s.assign(left.Left, new, false, false, line)
+			s.assign(left.Left, new, false, false, line, 0)
 			// TODO: do we need to update named values here?
 			return
 		}
@@ -2230,7 +2293,20 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 	}
 	// Treat as a store.
 	if wb {
-		s.insertWBstore(t, addr, right, line)
+		if skip&skipPtr != 0 {
+			// Special case: if we don't write back the pointers, don't bother
+			// doing the write barrier check.
+			s.storeTypeScalars(t, addr, right, skip)
+			return
+		}
+		s.insertWBstore(t, addr, right, line, skip)
+		return
+	}
+	if skip != 0 {
+		if skip&skipPtr == 0 {
+			s.storeTypePtrs(t, addr, right)
+		}
+		s.storeTypeScalars(t, addr, right, skip)
 		return
 	}
 	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
@@ -2286,7 +2362,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	case t.IsStruct():
 		n := t.NumFields()
 		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			v.AddArg(s.zeroVal(t.FieldType(i).(*Type)))
 		}
 		return v
@@ -2302,6 +2378,75 @@ const (
 	callDefer
 	callGo
 )
+
+// isSSAIntrinsic1 returns true if n is a call to a recognized 1-arg intrinsic
+// that can be handled by the SSA backend.
+// SSA uses this, but so does the front end to see if should not
+// inline a function because it is a candidate for intrinsic
+// substitution.
+func isSSAIntrinsic1(s *Sym) bool {
+	// The test below is not quite accurate -- in the event that
+	// a function is disabled on a per-function basis, for example
+	// because of hash-keyed binary failure search, SSA might be
+	// disabled for that function but it would not be noted here,
+	// and thus an inlining would not occur (in practice, inlining
+	// so far has only been noticed for Bswap32 and the 16-bit count
+	// leading/trailing instructions, but heuristics might change
+	// in the future or on different architectures).
+	if !ssaEnabled || ssa.IntrinsicsDisable || Thearch.Thechar != '6' {
+		return false
+	}
+	if s != nil && s.Pkg != nil && s.Pkg.Path == "runtime/internal/sys" {
+		switch s.Name {
+		case
+			"Ctz64", "Ctz32", "Ctz16",
+			"Bswap64", "Bswap32":
+			return true
+		}
+	}
+	return false
+}
+
+func isIntrinsicCall1(n *Node) bool {
+	if n == nil || n.Left == nil {
+		return false
+	}
+	return isSSAIntrinsic1(n.Left.Sym)
+}
+
+// intrinsicFirstArg extracts arg from n.List and eval
+func (s *state) intrinsicFirstArg(n *Node) *ssa.Value {
+	x := n.List.First()
+	if x.Op == OAS {
+		x = x.Right
+	}
+	return s.expr(x)
+}
+
+// intrinsicCall1 converts a call to a recognized 1-arg intrinsic
+// into the intrinsic
+func (s *state) intrinsicCall1(n *Node) *ssa.Value {
+	var result *ssa.Value
+	switch n.Left.Sym.Name {
+	case "Ctz64":
+		result = s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
+	case "Ctz32":
+		result = s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+	case "Ctz16":
+		result = s.newValue1(ssa.OpCtz16, Types[TUINT16], s.intrinsicFirstArg(n))
+	case "Bswap64":
+		result = s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
+	case "Bswap32":
+		result = s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
+	}
+	if result == nil {
+		Fatalf("Unknown special call: %v", n.Left.Sym)
+	}
+	if ssa.IntrinsicsDebug > 0 {
+		Warnl(n.Lineno, "intrinsic substitution for %v with %s", n.Left.Sym.Name, result.LongString())
+	}
+	return result
+}
 
 // Calls the function n using the specified call type.
 // Returns the address of the return value (or nil if none).
@@ -2322,16 +2467,14 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		if fn.Op != ODOTMETH {
 			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
 		}
-		if fn.Right.Op != ONAME {
-			Fatalf("OCALLMETH: n.Left.Right not a ONAME: %v", fn.Right)
-		}
 		if k == callNormal {
-			sym = fn.Right.Sym
+			sym = fn.Sym
 			break
 		}
-		n2 := *fn.Right
+		n2 := newname(fn.Sym)
 		n2.Class = PFUNC
-		closure = s.expr(&n2)
+		n2.Lineno = fn.Lineno
+		closure = s.expr(n2)
 		// Note: receiver is already assigned in n.List, so we don't
 		// want to set it here.
 	case OCALLINTER:
@@ -2402,16 +2545,26 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	s.vars[&memVar] = call
 	b := s.endBlock()
 	b.Kind = ssa.BlockCall
-	b.Control = call
+	b.SetControl(call)
 	b.AddEdgeTo(bNext)
+	if k == callDefer {
+		// Add recover edge to exit code.
+		b.Kind = ssa.BlockDefer
+		r := s.f.NewBlock(ssa.BlockPlain)
+		s.startBlock(r)
+		s.exit()
+		b.AddEdgeTo(r)
+		b.Likely = ssa.BranchLikely
+	}
 
 	// Start exit block, find address of result.
 	s.startBlock(bNext)
-	fp, _ := IterFields(n.Left.Type.Results())
-	if fp == nil || k != callNormal {
+	res := n.Left.Type.Results()
+	if res.NumFields() == 0 || k != callNormal {
 		// call has no return value. Continue with the next statement.
 		return nil
 	}
+	fp := res.Field(0)
 	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
 }
 
@@ -2479,15 +2632,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case PAUTO:
-			// We need to regenerate the address of autos
-			// at every use. This prevents LEA instructions
-			// from occurring before the corresponding VarDef
-			// op and confusing the liveness analysis into thinking
-			// the variable is live at function entry.
-			// TODO: I'm not sure if this really works or we're just
-			// getting lucky. We might need a real dependency edge
-			// between vardef and addr ops.
-			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
@@ -2633,10 +2778,10 @@ func canSSAType(t *Type) bool {
 		// introduced by the compiler for variadic functions.
 		return false
 	case TSTRUCT:
-		if countfield(t) > ssa.MaxStruct {
+		if t.NumFields() > ssa.MaxStruct {
 			return false
 		}
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for _, t1 := range t.Fields().Slice() {
 			if !canSSAType(t1.Type) {
 				return false
 			}
@@ -2658,7 +2803,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
 	b := s.endBlock()
 	b.Kind = ssa.BlockCheck
-	b.Control = chk
+	b.SetControl(chk)
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
 	s.startBlock(bNext)
@@ -2696,7 +2841,7 @@ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	line := s.peekLine()
@@ -2744,7 +2889,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	b := s.endBlock()
 	if !returns {
 		b.Kind = ssa.BlockExit
-		b.Control = call
+		b.SetControl(call)
 		call.AuxInt = off
 		if len(results) > 0 {
 			Fatalf("panic call can't have results")
@@ -2752,7 +2897,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 		return nil
 	}
 	b.Kind = ssa.BlockCall
-	b.Control = call
+	b.SetControl(call)
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
 	s.startBlock(bNext)
@@ -2784,6 +2929,13 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	// } else {
 	//   *left = *right
 	// }
+
+	if s.noWB {
+		s.Fatalf("write barrier prohibited")
+	}
+	if s.WBLineno == 0 {
+		s.WBLineno = left.Line
+	}
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
@@ -2797,7 +2949,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
-	b.Control = flag
+	b.SetControl(flag)
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
@@ -2819,7 +2971,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 
 // insertWBstore inserts the assignment *left = right including a write barrier.
 // t is the type being assigned.
-func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip skipMask) {
 	// store scalar fields
 	// if writeBarrier.enabled {
 	//   writebarrierptr for pointer fields
@@ -2827,7 +2979,13 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	//   store pointer fields
 	// }
 
-	s.storeTypeScalars(t, left, right)
+	if s.noWB {
+		s.Fatalf("write barrier prohibited")
+	}
+	if s.WBLineno == 0 {
+		s.WBLineno = left.Line
+	}
+	s.storeTypeScalars(t, left, right, skip)
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
@@ -2842,7 +3000,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
-	b.Control = flag
+	b.SetControl(flag)
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
@@ -2864,34 +3022,41 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 }
 
 // do *left = right for all scalar (non-pointer) parts of t.
-func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
+func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask) {
 	switch {
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
 	case t.IsPtr() || t.IsMap() || t.IsChan():
 		// no scalar fields.
 	case t.IsString():
+		if skip&skipLen != 0 {
+			return
+		}
 		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
 		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
 	case t.IsSlice():
-		len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
-		cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
-		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
-		capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
+		if skip&skipLen == 0 {
+			len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
+			lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
+			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
+		}
+		if skip&skipCap == 0 {
+			cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
+			capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
+			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
+		}
 	case t.IsInterface():
 		// itab field doesn't need a write barrier (even though it is a pointer).
 		itab := s.newValue1(ssa.OpITab, Ptrto(Types[TUINT8]), right)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
-			s.storeTypeScalars(ft.(*Type), addr, val)
+			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
+			s.storeTypeScalars(ft.(*Type), addr, val, 0)
 		}
 	default:
 		s.Fatalf("bad write barrier type %s", t)
@@ -2916,13 +3081,13 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			if !haspointers(ft.(*Type)) {
 				continue
 			}
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrs(ft.(*Type), addr, val)
 		}
 	default:
@@ -2947,13 +3112,13 @@ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
 	case t.IsStruct():
 		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			if !haspointers(ft.(*Type)) {
 				continue
 			}
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrsWB(ft.(*Type), addr, val)
 		}
 	default:
@@ -3021,15 +3186,16 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	// Generate the following code assuming that indexes are in bounds.
 	// The conditional is to make sure that we don't generate a slice
 	// that points to the next object in memory.
-	// rlen = (Sub64 j i)
-	// rcap = (Sub64 k i)
-	// p = ptr
-	// if rcap != 0 {
-	//    p = (AddPtr ptr (Mul64 low (Const64 size)))
+	// rlen = j-i
+	// rcap = k-i
+	// delta = i*elemsize
+	// if rcap == 0 {
+	//    delta = 0
 	// }
-	// result = (SliceMake p size)
+	// rptr = p+delta
+	// result = (SliceMake rptr rlen rcap)
 	subOp := s.ssaOp(OSUB, Types[TINT])
-	neqOp := s.ssaOp(ONE, Types[TINT])
+	eqOp := s.ssaOp(OEQ, Types[TINT])
 	mulOp := s.ssaOp(OMUL, Types[TINT])
 	rlen := s.newValue2(subOp, Types[TINT], j, i)
 	var rcap *ssa.Value
@@ -3045,36 +3211,38 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 		rcap = s.newValue2(subOp, Types[TINT], k, i)
 	}
 
-	s.vars[&ptrVar] = ptr
+	// delta = # of elements to offset pointer by.
+	s.vars[&deltaVar] = i
 
-	// Generate code to test the resulting slice length.
-	cmp := s.newValue2(neqOp, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
+	// Generate code to set delta=0 if the resulting capacity is zero.
+	if !((i.Op == ssa.OpConst64 && i.AuxInt == 0) ||
+		(i.Op == ssa.OpConst32 && int32(i.AuxInt) == 0)) {
+		cmp := s.newValue2(eqOp, Types[TBOOL], rcap, zero)
 
-	b := s.endBlock()
-	b.Kind = ssa.BlockIf
-	b.Likely = ssa.BranchLikely
-	b.Control = cmp
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.Likely = ssa.BranchUnlikely
+		b.SetControl(cmp)
 
-	// Generate code for non-zero length slice case.
-	nz := s.f.NewBlock(ssa.BlockPlain)
-	b.AddEdgeTo(nz)
-	s.startBlock(nz)
-	var inc *ssa.Value
-	if elemtype.Width == 1 {
-		inc = i
-	} else {
-		inc = s.newValue2(mulOp, Types[TINT], i, s.constInt(Types[TINT], elemtype.Width))
+		// Generate block which zeros the delta variable.
+		nz := s.f.NewBlock(ssa.BlockPlain)
+		b.AddEdgeTo(nz)
+		s.startBlock(nz)
+		s.vars[&deltaVar] = zero
+		s.endBlock()
+
+		// All done.
+		merge := s.f.NewBlock(ssa.BlockPlain)
+		b.AddEdgeTo(merge)
+		nz.AddEdgeTo(merge)
+		s.startBlock(merge)
+
+		// TODO: use conditional moves somehow?
 	}
-	s.vars[&ptrVar] = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, inc)
-	s.endBlock()
 
-	// All done.
-	merge := s.f.NewBlock(ssa.BlockPlain)
-	b.AddEdgeTo(merge)
-	nz.AddEdgeTo(merge)
-	s.startBlock(merge)
-	rptr := s.variable(&ptrVar, ptrtype)
-	delete(s.vars, &ptrVar)
+	// Compute rptr = ptr + delta * elemsize
+	rptr := s.newValue2(ssa.OpAddPtr, ptrtype, ptr, s.newValue2(mulOp, Types[TINT], s.variable(&deltaVar, Types[TINT]), s.constInt(Types[TINT], elemtype.Width)))
+	delete(s.vars, &deltaVar)
 	return rptr, rlen, rcap
 }
 
@@ -3154,7 +3322,7 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	cmp := s.newValue2(cvttab.geq, Types[TBOOL], x, s.zeroVal(ft))
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -3202,7 +3370,7 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
 	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, nilValue)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchUnlikely
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -3273,7 +3441,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	cmp := s.newValue2(cvttab.ltf, Types[TBOOL], x, twoToThe63)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -3322,7 +3490,7 @@ func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
 	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.constNil(byteptr))
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = isnonnil
+	b.SetControl(isnonnil)
 	b.Likely = ssa.BranchLikely
 
 	bLoad := s.f.NewBlock(ssa.BlockPlain)
@@ -3364,7 +3532,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cond
+	b.SetControl(cond)
 	b.Likely = ssa.BranchLikely
 
 	byteptr := Ptrto(Types[TUINT8])
@@ -3600,6 +3768,11 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 		// pseudos in the right place when we spill to these nodes.
 		return
 	}
+	if n.Class == PPARAMOUT {
+		// Don't track named output values.  This prevents return values
+		// from being assigned too early. See #14591 and #14762. TODO: allow this.
+		return
+	}
 	if n.Class == PAUTO && n.Xoffset != 0 {
 		s.Fatalf("AUTO var with offset %s %d", n, n.Xoffset)
 	}
@@ -3611,31 +3784,36 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 	s.f.NamedValues[loc] = append(values, v)
 }
 
-// an unresolved branch
-type branch struct {
-	p *obj.Prog  // branch instruction
-	b *ssa.Block // target
+// Branch is an unresolved branch.
+type Branch struct {
+	P *obj.Prog  // branch instruction
+	B *ssa.Block // target
 }
 
-type genState struct {
-	// branches remembers all the branch instructions we've seen
+// SSAGenState contains state needed during Prog generation.
+type SSAGenState struct {
+	// Branches remembers all the branch instructions we've seen
 	// and where they would like to go.
-	branches []branch
+	Branches []Branch
 
 	// bstart remembers where each block starts (indexed by block ID)
 	bstart []*obj.Prog
+}
 
-	// deferBranches remembers all the defer branches we've seen.
-	deferBranches []*obj.Prog
+// Pc returns the current Prog.
+func (s *SSAGenState) Pc() *obj.Prog {
+	return Pc
+}
 
-	// deferTarget remembers the (last) deferreturn call site.
-	deferTarget *obj.Prog
+// SetLineno sets the current source line number.
+func (s *SSAGenState) SetLineno(l int32) {
+	lineno = l
 }
 
 // genssa appends entries to ptxt for each instruction in f.
 // gcargs and gclocals are filled in with pointer maps for the frame.
 func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
-	var s genState
+	var s SSAGenState
 
 	e := f.Config.Frontend().(*ssaExport)
 	// We're about to emit a bunch of Progs.
@@ -3648,7 +3826,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 	var valueProgs map[*obj.Prog]*ssa.Value
 	var blockProgs map[*obj.Prog]*ssa.Block
-	const logProgs = true
+	var logProgs = e.log
 	if logProgs {
 		valueProgs = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
@@ -3660,10 +3838,10 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = Pc
 		// Emit values in block
-		s.markMoves(b)
+		Thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
 			x := Pc
-			s.genValue(v)
+			Thearch.SSAGenValue(&s, v)
 			if logProgs {
 				for ; x != Pc; x = x.Link {
 					valueProgs[x] = v
@@ -3680,7 +3858,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			next = f.Blocks[i+1]
 		}
 		x := Pc
-		s.genBlock(b, next)
+		Thearch.SSAGenBlock(&s, b, next)
 		if logProgs {
 			for ; x != Pc; x = x.Link {
 				blockProgs[x] = b
@@ -3689,17 +3867,8 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	}
 
 	// Resolve branches
-	for _, br := range s.branches {
-		br.p.To.Val = s.bstart[br.b.ID]
-	}
-	if s.deferBranches != nil && s.deferTarget == nil {
-		// This can happen when the function has a defer but
-		// no return (because it has an infinite loop).
-		s.deferReturn()
-		Prog(obj.ARET)
-	}
-	for _, p := range s.deferBranches {
-		p.To.Val = s.deferTarget
+	for _, br := range s.Branches {
+		br.P.To.Val = s.bstart[br.B.ID]
 	}
 
 	if logProgs {
@@ -3769,978 +3938,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	f.Config.HTML.Close()
 }
 
-// opregreg emits instructions for
-//     dest := dest(To) op src(From)
-// and also returns the created obj.Prog so it
-// may be further adjusted (offset, scale, etc).
-func opregreg(op obj.As, dest, src int16) *obj.Prog {
-	p := Prog(op)
-	p.From.Type = obj.TYPE_REG
-	p.To.Type = obj.TYPE_REG
-	p.To.Reg = dest
-	p.From.Reg = src
-	return p
-}
-
-func (s *genState) genValue(v *ssa.Value) {
-	lineno = v.Line
-	switch v.Op {
-	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL, ssa.OpAMD64ADDW:
-		r := regnum(v)
-		r1 := regnum(v.Args[0])
-		r2 := regnum(v.Args[1])
-		switch {
-		case r == r1:
-			p := Prog(v.Op.Asm())
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = r2
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		case r == r2:
-			p := Prog(v.Op.Asm())
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = r1
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		default:
-			var asm obj.As
-			switch v.Op {
-			case ssa.OpAMD64ADDQ:
-				asm = x86.ALEAQ
-			case ssa.OpAMD64ADDL:
-				asm = x86.ALEAL
-			case ssa.OpAMD64ADDW:
-				asm = x86.ALEAL
-			}
-			p := Prog(asm)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = r1
-			p.From.Scale = 1
-			p.From.Index = r2
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-	// 2-address opcode arithmetic, symmetric
-	case ssa.OpAMD64ADDB, ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD,
-		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
-		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
-		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB,
-		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64PXOR:
-		r := regnum(v)
-		x := regnum(v.Args[0])
-		y := regnum(v.Args[1])
-		if x != r && y != r {
-			opregreg(moveByType(v.Type), r, x)
-			x = r
-		}
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		if x == r {
-			p.From.Reg = y
-		} else {
-			p.From.Reg = x
-		}
-	// 2-address opcode arithmetic, not symmetric
-	case ssa.OpAMD64SUBQ, ssa.OpAMD64SUBL, ssa.OpAMD64SUBW, ssa.OpAMD64SUBB:
-		r := regnum(v)
-		x := regnum(v.Args[0])
-		y := regnum(v.Args[1])
-		var neg bool
-		if y == r {
-			// compute -(y-x) instead
-			x, y = y, x
-			neg = true
-		}
-		if x != r {
-			opregreg(moveByType(v.Type), r, x)
-		}
-		opregreg(v.Op.Asm(), r, y)
-
-		if neg {
-			if v.Op == ssa.OpAMD64SUBQ {
-				p := Prog(x86.ANEGQ)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-			} else { // Avoids partial registers write
-				p := Prog(x86.ANEGL)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-			}
-		}
-	case ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD:
-		r := regnum(v)
-		x := regnum(v.Args[0])
-		y := regnum(v.Args[1])
-		if y == r && x != r {
-			// r/y := x op r/y, need to preserve x and rewrite to
-			// r/y := r/y op x15
-			x15 := int16(x86.REG_X15)
-			// register move y to x15
-			// register move x to y
-			// rename y with x15
-			opregreg(moveByType(v.Type), x15, y)
-			opregreg(moveByType(v.Type), r, x)
-			y = x15
-		} else if x != r {
-			opregreg(moveByType(v.Type), r, x)
-		}
-		opregreg(v.Op.Asm(), r, y)
-
-	case ssa.OpAMD64DIVQ, ssa.OpAMD64DIVL, ssa.OpAMD64DIVW,
-		ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU,
-		ssa.OpAMD64MODQ, ssa.OpAMD64MODL, ssa.OpAMD64MODW,
-		ssa.OpAMD64MODQU, ssa.OpAMD64MODLU, ssa.OpAMD64MODWU:
-
-		// Arg[0] is already in AX as it's the only register we allow
-		// and AX is the only output
-		x := regnum(v.Args[1])
-
-		// CPU faults upon signed overflow, which occurs when most
-		// negative int is divided by -1.
-		var j *obj.Prog
-		if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
-			v.Op == ssa.OpAMD64DIVW || v.Op == ssa.OpAMD64MODQ ||
-			v.Op == ssa.OpAMD64MODL || v.Op == ssa.OpAMD64MODW {
-
-			var c *obj.Prog
-			switch v.Op {
-			case ssa.OpAMD64DIVQ, ssa.OpAMD64MODQ:
-				c = Prog(x86.ACMPQ)
-				j = Prog(x86.AJEQ)
-				// go ahead and sign extend to save doing it later
-				Prog(x86.ACQO)
-
-			case ssa.OpAMD64DIVL, ssa.OpAMD64MODL:
-				c = Prog(x86.ACMPL)
-				j = Prog(x86.AJEQ)
-				Prog(x86.ACDQ)
-
-			case ssa.OpAMD64DIVW, ssa.OpAMD64MODW:
-				c = Prog(x86.ACMPW)
-				j = Prog(x86.AJEQ)
-				Prog(x86.ACWD)
-			}
-			c.From.Type = obj.TYPE_REG
-			c.From.Reg = x
-			c.To.Type = obj.TYPE_CONST
-			c.To.Offset = -1
-
-			j.To.Type = obj.TYPE_BRANCH
-
-		}
-
-		// for unsigned ints, we sign extend by setting DX = 0
-		// signed ints were sign extended above
-		if v.Op == ssa.OpAMD64DIVQU || v.Op == ssa.OpAMD64MODQU ||
-			v.Op == ssa.OpAMD64DIVLU || v.Op == ssa.OpAMD64MODLU ||
-			v.Op == ssa.OpAMD64DIVWU || v.Op == ssa.OpAMD64MODWU {
-			c := Prog(x86.AXORQ)
-			c.From.Type = obj.TYPE_REG
-			c.From.Reg = x86.REG_DX
-			c.To.Type = obj.TYPE_REG
-			c.To.Reg = x86.REG_DX
-		}
-
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x
-
-		// signed division, rest of the check for -1 case
-		if j != nil {
-			j2 := Prog(obj.AJMP)
-			j2.To.Type = obj.TYPE_BRANCH
-
-			var n *obj.Prog
-			if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
-				v.Op == ssa.OpAMD64DIVW {
-				// n * -1 = -n
-				n = Prog(x86.ANEGQ)
-				n.To.Type = obj.TYPE_REG
-				n.To.Reg = x86.REG_AX
-			} else {
-				// n % -1 == 0
-				n = Prog(x86.AXORQ)
-				n.From.Type = obj.TYPE_REG
-				n.From.Reg = x86.REG_DX
-				n.To.Type = obj.TYPE_REG
-				n.To.Reg = x86.REG_DX
-			}
-
-			j.To.Val = n
-			j2.To.Val = Pc
-		}
-
-	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
-		ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
-		// the frontend rewrites constant division by 8/16/32 bit integers into
-		// HMUL by a constant
-		// SSA rewrites generate the 64 bit versions
-
-		// Arg[0] is already in AX as it's the only register we allow
-		// and DX is the only output we care about (the high bits)
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[1])
-
-		// IMULB puts the high portion in AH instead of DL,
-		// so move it to DL for consistency
-		if v.Type.Size() == 1 {
-			m := Prog(x86.AMOVB)
-			m.From.Type = obj.TYPE_REG
-			m.From.Reg = x86.REG_AH
-			m.To.Type = obj.TYPE_REG
-			m.To.Reg = x86.REG_DX
-		}
-
-	case ssa.OpAMD64AVGQU:
-		// compute (x+y)/2 unsigned.
-		// Do a 64-bit add, the overflow goes into the carry.
-		// Shift right once and pull the carry back into the 63rd bit.
-		r := regnum(v)
-		x := regnum(v.Args[0])
-		y := regnum(v.Args[1])
-		if x != r && y != r {
-			opregreg(moveByType(v.Type), r, x)
-			x = r
-		}
-		p := Prog(x86.AADDQ)
-		p.From.Type = obj.TYPE_REG
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		if x == r {
-			p.From.Reg = y
-		} else {
-			p.From.Reg = x
-		}
-		p = Prog(x86.ARCRQ)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 1
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-
-	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
-		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
-		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			if r == x86.REG_CX {
-				v.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
-			}
-			p := Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[1]) // should be CX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst:
-		r := regnum(v)
-		a := regnum(v.Args[0])
-		if r == a {
-			if v.AuxInt2Int64() == 1 {
-				var asm obj.As
-				switch v.Op {
-				// Software optimization manual recommends add $1,reg.
-				// But inc/dec is 1 byte smaller. ICC always uses inc
-				// Clang/GCC choose depending on flags, but prefer add.
-				// Experiments show that inc/dec is both a little faster
-				// and make a binary a little smaller.
-				case ssa.OpAMD64ADDQconst:
-					asm = x86.AINCQ
-				case ssa.OpAMD64ADDLconst:
-					asm = x86.AINCL
-				case ssa.OpAMD64ADDWconst:
-					asm = x86.AINCL
-				}
-				p := Prog(asm)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-				return
-			} else if v.AuxInt2Int64() == -1 {
-				var asm obj.As
-				switch v.Op {
-				case ssa.OpAMD64ADDQconst:
-					asm = x86.ADECQ
-				case ssa.OpAMD64ADDLconst:
-					asm = x86.ADECL
-				case ssa.OpAMD64ADDWconst:
-					asm = x86.ADECL
-				}
-				p := Prog(asm)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-				return
-			} else {
-				p := Prog(v.Op.Asm())
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = v.AuxInt2Int64()
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-				return
-			}
-		}
-		var asm obj.As
-		switch v.Op {
-		case ssa.OpAMD64ADDQconst:
-			asm = x86.ALEAQ
-		case ssa.OpAMD64ADDLconst:
-			asm = x86.ALEAL
-		case ssa.OpAMD64ADDWconst:
-			asm = x86.ALEAL
-		}
-		p := Prog(asm)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = a
-		p.From.Offset = v.AuxInt2Int64()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
-		r := regnum(v)
-		x := regnum(v.Args[0])
-		if r != x {
-			p := Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
-		// instead of using the MOVQ above.
-		//p.From3 = new(obj.Addr)
-		//p.From3.Type = obj.TYPE_REG
-		//p.From3.Reg = regnum(v.Args[0])
-	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		// We have 3-op add (lea), so transforming a = b - const into
-		// a = b + (- const), saves us 1 instruction. We can't fit
-		// - (-1 << 31) into  4 bytes offset in lea.
-		// We handle 2-address just fine below.
-		if v.AuxInt2Int64() == -1<<31 || x == r {
-			if x != r {
-				// This code compensates for the fact that the register allocator
-				// doesn't understand 2-address instructions yet. TODO: fix that.
-				p := Prog(moveByType(v.Type))
-				p.From.Type = obj.TYPE_REG
-				p.From.Reg = x
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-			}
-			p := Prog(v.Op.Asm())
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt2Int64()
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else if x == r && v.AuxInt2Int64() == -1 {
-			var asm obj.As
-			// x = x - (-1) is the same as x++
-			// See OpAMD64ADDQconst comments about inc vs add $1,reg
-			switch v.Op {
-			case ssa.OpAMD64SUBQconst:
-				asm = x86.AINCQ
-			case ssa.OpAMD64SUBLconst:
-				asm = x86.AINCL
-			case ssa.OpAMD64SUBWconst:
-				asm = x86.AINCL
-			}
-			p := Prog(asm)
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else if x == r && v.AuxInt2Int64() == 1 {
-			var asm obj.As
-			switch v.Op {
-			case ssa.OpAMD64SUBQconst:
-				asm = x86.ADECQ
-			case ssa.OpAMD64SUBLconst:
-				asm = x86.ADECL
-			case ssa.OpAMD64SUBWconst:
-				asm = x86.ADECL
-			}
-			p := Prog(asm)
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else {
-			var asm obj.As
-			switch v.Op {
-			case ssa.OpAMD64SUBQconst:
-				asm = x86.ALEAQ
-			case ssa.OpAMD64SUBLconst:
-				asm = x86.ALEAL
-			case ssa.OpAMD64SUBWconst:
-				asm = x86.ALEAL
-			}
-			p := Prog(asm)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = x
-			p.From.Offset = -v.AuxInt2Int64()
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-
-	case ssa.OpAMD64ADDBconst,
-		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
-		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst, ssa.OpAMD64ORWconst, ssa.OpAMD64ORBconst,
-		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst, ssa.OpAMD64XORWconst, ssa.OpAMD64XORBconst,
-		ssa.OpAMD64SUBBconst, ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst,
-		ssa.OpAMD64SHLBconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst,
-		ssa.OpAMD64SHRBconst, ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst,
-		ssa.OpAMD64SARBconst, ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst,
-		ssa.OpAMD64ROLBconst:
-		// This code compensates for the fact that the register allocator
-		// doesn't understand 2-address instructions yet. TODO: fix that.
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			p := Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64SBBQcarrymask, ssa.OpAMD64SBBLcarrymask:
-		r := regnum(v)
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
-		p := Prog(x86.ALEAQ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		switch v.Op {
-		case ssa.OpAMD64LEAQ1:
-			p.From.Scale = 1
-		case ssa.OpAMD64LEAQ2:
-			p.From.Scale = 2
-		case ssa.OpAMD64LEAQ4:
-			p.From.Scale = 4
-		case ssa.OpAMD64LEAQ8:
-			p.From.Scale = 8
-		}
-		p.From.Index = regnum(v.Args[1])
-		addAux(&p.From, v)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64LEAQ:
-		p := Prog(x86.ALEAQ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		addAux(&p.From, v)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB,
-		ssa.OpAMD64TESTQ, ssa.OpAMD64TESTL, ssa.OpAMD64TESTW, ssa.OpAMD64TESTB:
-		opregreg(v.Op.Asm(), regnum(v.Args[1]), regnum(v.Args[0]))
-	case ssa.OpAMD64UCOMISS, ssa.OpAMD64UCOMISD:
-		// Go assembler has swapped operands for UCOMISx relative to CMP,
-		// must account for that right here.
-		opregreg(v.Op.Asm(), regnum(v.Args[0]), regnum(v.Args[1]))
-	case ssa.OpAMD64CMPQconst, ssa.OpAMD64CMPLconst, ssa.OpAMD64CMPWconst, ssa.OpAMD64CMPBconst:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = v.AuxInt2Int64()
-	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[0])
-	case ssa.OpAMD64MOVBconst, ssa.OpAMD64MOVWconst, ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
-		x := regnum(v)
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x
-		// If flags are live at this instruction, suppress the
-		// MOV $0,AX -> XOR AX,AX optimization.
-		if v.Aux != nil {
-			p.Mark |= x86.PRESERVEFLAGS
-		}
-	case ssa.OpAMD64MOVSSconst, ssa.OpAMD64MOVSDconst:
-		x := regnum(v)
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_FCONST
-		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x
-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVWQZXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVLQZXload, ssa.OpAMD64MOVOload:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		addAux(&p.From, v)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVQloadidx8, ssa.OpAMD64MOVSDloadidx8:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		addAux(&p.From, v)
-		p.From.Scale = 8
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		addAux(&p.From, v)
-		p.From.Scale = 4
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVWloadidx2:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		addAux(&p.From, v)
-		p.From.Scale = 2
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVBloadidx1:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		addAux(&p.From, v)
-		p.From.Scale = 1
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore, ssa.OpAMD64MOVOstore:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		addAux(&p.To, v)
-	case ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[2])
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		p.To.Scale = 8
-		p.To.Index = regnum(v.Args[1])
-		addAux(&p.To, v)
-	case ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[2])
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		p.To.Scale = 4
-		p.To.Index = regnum(v.Args[1])
-		addAux(&p.To, v)
-	case ssa.OpAMD64MOVWstoreidx2:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[2])
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		p.To.Scale = 2
-		p.To.Index = regnum(v.Args[1])
-		addAux(&p.To, v)
-	case ssa.OpAMD64MOVBstoreidx1:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[2])
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		p.To.Scale = 1
-		p.To.Index = regnum(v.Args[1])
-		addAux(&p.To, v)
-	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		sc := v.AuxValAndOff()
-		i := sc.Val()
-		switch v.Op {
-		case ssa.OpAMD64MOVBstoreconst:
-			i = int64(int8(i))
-		case ssa.OpAMD64MOVWstoreconst:
-			i = int64(int16(i))
-		case ssa.OpAMD64MOVLstoreconst:
-			i = int64(int32(i))
-		case ssa.OpAMD64MOVQstoreconst:
-		}
-		p.From.Offset = i
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		addAux2(&p.To, v, sc.Off())
-	case ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		sc := v.AuxValAndOff()
-		switch v.Op {
-		case ssa.OpAMD64MOVBstoreconstidx1:
-			p.From.Offset = int64(int8(sc.Val()))
-			p.To.Scale = 1
-		case ssa.OpAMD64MOVWstoreconstidx2:
-			p.From.Offset = int64(int16(sc.Val()))
-			p.To.Scale = 2
-		case ssa.OpAMD64MOVLstoreconstidx4:
-			p.From.Offset = int64(int32(sc.Val()))
-			p.To.Scale = 4
-		case ssa.OpAMD64MOVQstoreconstidx8:
-			p.From.Offset = sc.Val()
-			p.To.Scale = 8
-		}
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		p.To.Index = regnum(v.Args[1])
-		addAux2(&p.To, v, sc.Off())
-	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
-		ssa.OpAMD64CVTSL2SS, ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSQ2SD,
-		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
-		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
-		opregreg(v.Op.Asm(), regnum(v), regnum(v.Args[0]))
-	case ssa.OpAMD64DUFFZERO:
-		p := Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = Linksym(Pkglookup("duffzero", Runtimepkg))
-		p.To.Offset = v.AuxInt
-	case ssa.OpAMD64MOVOconst:
-		if v.AuxInt != 0 {
-			v.Unimplementedf("MOVOconst can only do constant=0")
-		}
-		r := regnum(v)
-		opregreg(x86.AXORPS, r, r)
-	case ssa.OpAMD64DUFFCOPY:
-		p := Prog(obj.ADUFFCOPY)
-		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = Linksym(Pkglookup("duffcopy", Runtimepkg))
-		p.To.Offset = v.AuxInt
-
-	case ssa.OpCopy, ssa.OpAMD64MOVQconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
-		if v.Type.IsMemory() {
-			return
-		}
-		x := regnum(v.Args[0])
-		y := regnum(v)
-		if x != y {
-			opregreg(moveByType(v.Type), y, x)
-		}
-	case ssa.OpLoadReg:
-		if v.Type.IsFlags() {
-			v.Unimplementedf("load flags not implemented: %v", v.LongString())
-			return
-		}
-		p := Prog(loadByType(v.Type))
-		n, off := autoVar(v.Args[0])
-		p.From.Type = obj.TYPE_MEM
-		p.From.Node = n
-		p.From.Sym = Linksym(n.Sym)
-		p.From.Offset = off
-		if n.Class == PPARAM || n.Class == PPARAMOUT {
-			p.From.Name = obj.NAME_PARAM
-			p.From.Offset += n.Xoffset
-		} else {
-			p.From.Name = obj.NAME_AUTO
-		}
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-
-	case ssa.OpStoreReg:
-		if v.Type.IsFlags() {
-			v.Unimplementedf("store flags not implemented: %v", v.LongString())
-			return
-		}
-		p := Prog(storeByType(v.Type))
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		n, off := autoVar(v)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Node = n
-		p.To.Sym = Linksym(n.Sym)
-		p.To.Offset = off
-		if n.Class == PPARAM || n.Class == PPARAMOUT {
-			p.To.Name = obj.NAME_PARAM
-			p.To.Offset += n.Xoffset
-		} else {
-			p.To.Name = obj.NAME_AUTO
-		}
-	case ssa.OpPhi:
-		// just check to make sure regalloc and stackalloc did it right
-		if v.Type.IsMemory() {
-			return
-		}
-		f := v.Block.Func
-		loc := f.RegAlloc[v.ID]
-		for _, a := range v.Args {
-			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
-				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
-			}
-		}
-	case ssa.OpInitMem:
-		// memory arg needs no code
-	case ssa.OpArg:
-		// input args need no code
-	case ssa.OpAMD64LoweredGetClosurePtr:
-		// Output is hardwired to DX only,
-		// and DX contains the closure pointer on
-		// closure entry, and this "instruction"
-		// is scheduled to the very beginning
-		// of the entry block.
-	case ssa.OpAMD64LoweredGetG:
-		r := regnum(v)
-		// See the comments in cmd/internal/obj/x86/obj6.go
-		// near CanUse1InsnTLS for a detailed explanation of these instructions.
-		if x86.CanUse1InsnTLS(Ctxt) {
-			// MOVQ (TLS), r
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = x86.REG_TLS
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else {
-			// MOVQ TLS, r
-			// MOVQ (r)(TLS*1), r
-			p := Prog(x86.AMOVQ)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x86.REG_TLS
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			q := Prog(x86.AMOVQ)
-			q.From.Type = obj.TYPE_MEM
-			q.From.Reg = r
-			q.From.Index = x86.REG_TLS
-			q.From.Scale = 1
-			q.To.Type = obj.TYPE_REG
-			q.To.Reg = r
-		}
-	case ssa.OpAMD64CALLstatic:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = Linksym(v.Aux.(*Sym))
-		if Maxarg < v.AuxInt {
-			Maxarg = v.AuxInt
-		}
-	case ssa.OpAMD64CALLclosure:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[0])
-		if Maxarg < v.AuxInt {
-			Maxarg = v.AuxInt
-		}
-	case ssa.OpAMD64CALLdefer:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = Linksym(Deferproc.Sym)
-		if Maxarg < v.AuxInt {
-			Maxarg = v.AuxInt
-		}
-		// defer returns in rax:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p = Prog(x86.ATESTL)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x86.REG_AX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
-		p = Prog(x86.AJNE)
-		p.To.Type = obj.TYPE_BRANCH
-		s.deferBranches = append(s.deferBranches, p)
-	case ssa.OpAMD64CALLgo:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = Linksym(Newproc.Sym)
-		if Maxarg < v.AuxInt {
-			Maxarg = v.AuxInt
-		}
-	case ssa.OpAMD64CALLinter:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[0])
-		if Maxarg < v.AuxInt {
-			Maxarg = v.AuxInt
-		}
-	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
-		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
-		x := regnum(v.Args[0])
-		r := regnum(v)
-		if x != r {
-			p := Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-		p := Prog(v.Op.Asm())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpAMD64SQRTSD:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpSP, ssa.OpSB:
-		// nothing to do
-	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
-		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
-		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
-		ssa.OpAMD64SETGF, ssa.OpAMD64SETGEF,
-		ssa.OpAMD64SETB, ssa.OpAMD64SETBE,
-		ssa.OpAMD64SETORD, ssa.OpAMD64SETNAN,
-		ssa.OpAMD64SETA, ssa.OpAMD64SETAE:
-		p := Prog(v.Op.Asm())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-
-	case ssa.OpAMD64SETNEF:
-		p := Prog(v.Op.Asm())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-		q := Prog(x86.ASETPS)
-		q.To.Type = obj.TYPE_REG
-		q.To.Reg = x86.REG_AX
-		// ORL avoids partial register write and is smaller than ORQ, used by old compiler
-		opregreg(x86.AORL, regnum(v), x86.REG_AX)
-
-	case ssa.OpAMD64SETEQF:
-		p := Prog(v.Op.Asm())
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-		q := Prog(x86.ASETPC)
-		q.To.Type = obj.TYPE_REG
-		q.To.Reg = x86.REG_AX
-		// ANDL avoids partial register write and is smaller than ANDQ, used by old compiler
-		opregreg(x86.AANDL, regnum(v), x86.REG_AX)
-
-	case ssa.OpAMD64InvertFlags:
-		v.Fatalf("InvertFlags should never make it to codegen %v", v)
-	case ssa.OpAMD64FlagEQ, ssa.OpAMD64FlagLT_ULT, ssa.OpAMD64FlagLT_UGT, ssa.OpAMD64FlagGT_ULT, ssa.OpAMD64FlagGT_UGT:
-		v.Fatalf("Flag* ops should never make it to codegen %v", v)
-	case ssa.OpAMD64REPSTOSQ:
-		Prog(x86.AREP)
-		Prog(x86.ASTOSQ)
-	case ssa.OpAMD64REPMOVSQ:
-		Prog(x86.AREP)
-		Prog(x86.AMOVSQ)
-	case ssa.OpVarDef:
-		Gvardef(v.Aux.(*Node))
-	case ssa.OpVarKill:
-		gvarkill(v.Aux.(*Node))
-	case ssa.OpVarLive:
-		gvarlive(v.Aux.(*Node))
-	case ssa.OpAMD64LoweredNilCheck:
-		// Optimization - if the subsequent block has a load or store
-		// at the same address, we don't need to issue this instruction.
-		mem := v.Args[1]
-		for _, w := range v.Block.Succs[0].Values {
-			if w.Op == ssa.OpPhi {
-				if w.Type.IsMemory() {
-					mem = w
-				}
-				continue
-			}
-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
-				// w doesn't use a store - can't be a memory op.
-				continue
-			}
-			if w.Args[len(w.Args)-1] != mem {
-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
-			}
-			switch w.Op {
-			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
-				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore,
-				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload, ssa.OpAMD64MOVWQSXload,
-				ssa.OpAMD64MOVWQZXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVLQZXload,
-				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
-				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore:
-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
-					if Debug_checknil != 0 && int(v.Line) > 1 {
-						Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
-				off := ssa.ValAndOff(v.AuxInt).Off()
-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
-					if Debug_checknil != 0 && int(v.Line) > 1 {
-						Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			}
-			if w.Type.IsMemory() {
-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
-					// these ops are OK
-					mem = w
-					continue
-				}
-				// We can't delay the nil check past the next store.
-				break
-			}
-		}
-		// Issue a load which will fault if the input is nil.
-		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
-		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
-		// but it doesn't have false dependency on AX.
-		// Or maybe allocate an output register and use MOVL (reg),reg2 ?
-		// That trades clobbering flags for clobbering a register.
-		p := Prog(x86.ATESTB)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x86.REG_AX
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = regnum(v.Args[0])
-		addAux(&p.To, v)
-		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
-			Warnl(v.Line, "generated nil check")
-		}
-	default:
-		v.Unimplementedf("genValue not implemented: %s", v.LongString())
-	}
-}
-
-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
-func (s *genState) markMoves(b *ssa.Block) {
-	flive := b.FlagsLiveAtEnd
-	if b.Control != nil && b.Control.Type.IsFlags() {
-		flive = true
-	}
-	for i := len(b.Values) - 1; i >= 0; i-- {
-		v := b.Values[i]
-		if flive && (v.Op == ssa.OpAMD64MOVBconst || v.Op == ssa.OpAMD64MOVWconst || v.Op == ssa.OpAMD64MOVLconst || v.Op == ssa.OpAMD64MOVQconst) {
-			// The "mark" is any non-nil Aux value.
-			v.Aux = v
-		}
-		if v.Type.IsFlags() {
-			flive = false
-		}
-		for _, a := range v.Args {
-			if a.Type.IsFlags() {
-				flive = true
-			}
-		}
-	}
-}
-
 // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
 func movZero(as obj.As, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
 	p := Prog(as)
@@ -4755,42 +3952,16 @@ func movZero(as obj.As, width int64, nbytes int64, offset int64, regnum int16) (
 	return nleft, offset
 }
 
-var blockJump = [...]struct {
-	asm, invasm obj.As
-}{
-	ssa.BlockAMD64EQ:  {x86.AJEQ, x86.AJNE},
-	ssa.BlockAMD64NE:  {x86.AJNE, x86.AJEQ},
-	ssa.BlockAMD64LT:  {x86.AJLT, x86.AJGE},
-	ssa.BlockAMD64GE:  {x86.AJGE, x86.AJLT},
-	ssa.BlockAMD64LE:  {x86.AJLE, x86.AJGT},
-	ssa.BlockAMD64GT:  {x86.AJGT, x86.AJLE},
-	ssa.BlockAMD64ULT: {x86.AJCS, x86.AJCC},
-	ssa.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
-	ssa.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
-	ssa.BlockAMD64ULE: {x86.AJLS, x86.AJHI},
-	ssa.BlockAMD64ORD: {x86.AJPC, x86.AJPS},
-	ssa.BlockAMD64NAN: {x86.AJPS, x86.AJPC},
+type FloatingEQNEJump struct {
+	Jump  obj.As
+	Index int
 }
 
-type floatingEQNEJump struct {
-	jump  obj.As
-	index int
-}
-
-var eqfJumps = [2][2]floatingEQNEJump{
-	{{x86.AJNE, 1}, {x86.AJPS, 1}}, // next == b.Succs[0]
-	{{x86.AJNE, 1}, {x86.AJPC, 0}}, // next == b.Succs[1]
-}
-var nefJumps = [2][2]floatingEQNEJump{
-	{{x86.AJNE, 0}, {x86.AJPC, 1}}, // next == b.Succs[0]
-	{{x86.AJNE, 0}, {x86.AJPS, 0}}, // next == b.Succs[1]
-}
-
-func oneFPJump(b *ssa.Block, jumps *floatingEQNEJump, likely ssa.BranchPrediction, branches []branch) []branch {
-	p := Prog(jumps.jump)
+func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPrediction, branches []Branch) []Branch {
+	p := Prog(jumps.Jump)
 	p.To.Type = obj.TYPE_BRANCH
-	to := jumps.index
-	branches = append(branches, branch{p, b.Succs[to]})
+	to := jumps.Index
+	branches = append(branches, Branch{p, b.Succs[to]})
 	if to == 1 {
 		likely = -likely
 	}
@@ -4809,122 +3980,31 @@ func oneFPJump(b *ssa.Block, jumps *floatingEQNEJump, likely ssa.BranchPredictio
 	return branches
 }
 
-func genFPJump(s *genState, b, next *ssa.Block, jumps *[2][2]floatingEQNEJump) {
+func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
 	likely := b.Likely
 	switch next {
 	case b.Succs[0]:
-		s.branches = oneFPJump(b, &jumps[0][0], likely, s.branches)
-		s.branches = oneFPJump(b, &jumps[0][1], likely, s.branches)
+		s.Branches = oneFPJump(b, &jumps[0][0], likely, s.Branches)
+		s.Branches = oneFPJump(b, &jumps[0][1], likely, s.Branches)
 	case b.Succs[1]:
-		s.branches = oneFPJump(b, &jumps[1][0], likely, s.branches)
-		s.branches = oneFPJump(b, &jumps[1][1], likely, s.branches)
+		s.Branches = oneFPJump(b, &jumps[1][0], likely, s.Branches)
+		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
 	default:
-		s.branches = oneFPJump(b, &jumps[1][0], likely, s.branches)
-		s.branches = oneFPJump(b, &jumps[1][1], likely, s.branches)
+		s.Branches = oneFPJump(b, &jumps[1][0], likely, s.Branches)
+		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
 		q := Prog(obj.AJMP)
 		q.To.Type = obj.TYPE_BRANCH
-		s.branches = append(s.branches, branch{q, b.Succs[1]})
+		s.Branches = append(s.Branches, Branch{q, b.Succs[1]})
 	}
 }
 
-func (s *genState) genBlock(b, next *ssa.Block) {
-	lineno = b.Line
-
-	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
-		if b.Succs[0] != next {
-			p := Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.branches = append(s.branches, branch{p, b.Succs[0]})
-		}
-	case ssa.BlockExit:
-		Prog(obj.AUNDEF) // tell plive.go that we never reach here
-	case ssa.BlockRet:
-		if hasdefer {
-			s.deferReturn()
-		}
-		Prog(obj.ARET)
-	case ssa.BlockRetJmp:
-		p := Prog(obj.AJMP)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = Linksym(b.Aux.(*Sym))
-
-	case ssa.BlockAMD64EQF:
-		genFPJump(s, b, next, &eqfJumps)
-
-	case ssa.BlockAMD64NEF:
-		genFPJump(s, b, next, &nefJumps)
-
-	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
-		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
-		ssa.BlockAMD64LE, ssa.BlockAMD64GT,
-		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
-		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
-		jmp := blockJump[b.Kind]
-		likely := b.Likely
-		var p *obj.Prog
-		switch next {
-		case b.Succs[0]:
-			p = Prog(jmp.invasm)
-			likely *= -1
-			p.To.Type = obj.TYPE_BRANCH
-			s.branches = append(s.branches, branch{p, b.Succs[1]})
-		case b.Succs[1]:
-			p = Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.branches = append(s.branches, branch{p, b.Succs[0]})
-		default:
-			p = Prog(jmp.asm)
-			p.To.Type = obj.TYPE_BRANCH
-			s.branches = append(s.branches, branch{p, b.Succs[0]})
-			q := Prog(obj.AJMP)
-			q.To.Type = obj.TYPE_BRANCH
-			s.branches = append(s.branches, branch{q, b.Succs[1]})
-		}
-
-		// liblink reorders the instruction stream as it sees fit.
-		// Pass along what we know so liblink can make use of it.
-		// TODO: Once we've fully switched to SSA,
-		// make liblink leave our output alone.
-		switch likely {
-		case ssa.BranchUnlikely:
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 0
-		case ssa.BranchLikely:
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 1
-		}
-
-	default:
-		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
-	}
+// AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
+func AddAux(a *obj.Addr, v *ssa.Value) {
+	AddAux2(a, v, v.AuxInt)
 }
-
-func (s *genState) deferReturn() {
-	// Deferred calls will appear to be returning to
-	// the CALL deferreturn(SB) that we are about to emit.
-	// However, the stack trace code will show the line
-	// of the instruction byte before the return PC.
-	// To avoid that being an unrelated instruction,
-	// insert an actual hardware NOP that will have the right line number.
-	// This is different from obj.ANOP, which is a virtual no-op
-	// that doesn't make it into the instruction stream.
-	s.deferTarget = Pc
-	Thearch.Ginsnop()
-	p := Prog(obj.ACALL)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = Linksym(Deferreturn.Sym)
-}
-
-// addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
-func addAux(a *obj.Addr, v *ssa.Value) {
-	addAux2(a, v, v.AuxInt)
-}
-func addAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	if a.Type != obj.TYPE_MEM {
-		v.Fatalf("bad addAux addr %s", a)
+		v.Fatalf("bad AddAux addr %s", a)
 	}
 	// add integer offset
 	a.Offset += offset
@@ -4937,7 +4017,14 @@ func addAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	switch sym := v.Aux.(type) {
 	case *ssa.ExternSymbol:
 		a.Name = obj.NAME_EXTERN
-		a.Sym = Linksym(sym.Sym.(*Sym))
+		switch s := sym.Sym.(type) {
+		case *Sym:
+			a.Sym = Linksym(s)
+		case *obj.LSym:
+			a.Sym = s
+		default:
+			v.Fatalf("ExternSymbol.Sym is %T", s)
+		}
 	case *ssa.ArgSymbol:
 		n := sym.Node.(*Node)
 		a.Name = obj.NAME_PARAM
@@ -5003,127 +4090,22 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 	return s.newValue1(op, Types[TINT], v)
 }
 
-// ssaRegToReg maps ssa register numbers to obj register numbers.
-var ssaRegToReg = [...]int16{
-	x86.REG_AX,
-	x86.REG_CX,
-	x86.REG_DX,
-	x86.REG_BX,
-	x86.REG_SP,
-	x86.REG_BP,
-	x86.REG_SI,
-	x86.REG_DI,
-	x86.REG_R8,
-	x86.REG_R9,
-	x86.REG_R10,
-	x86.REG_R11,
-	x86.REG_R12,
-	x86.REG_R13,
-	x86.REG_R14,
-	x86.REG_R15,
-	x86.REG_X0,
-	x86.REG_X1,
-	x86.REG_X2,
-	x86.REG_X3,
-	x86.REG_X4,
-	x86.REG_X5,
-	x86.REG_X6,
-	x86.REG_X7,
-	x86.REG_X8,
-	x86.REG_X9,
-	x86.REG_X10,
-	x86.REG_X11,
-	x86.REG_X12,
-	x86.REG_X13,
-	x86.REG_X14,
-	x86.REG_X15,
-	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
-	// TODO: arch-dependent
-}
-
-// loadByType returns the load instruction of the given type.
-func loadByType(t ssa.Type) obj.As {
-	// Avoid partial register write
-	if !t.IsFloat() && t.Size() <= 2 {
-		if t.Size() == 1 {
-			return x86.AMOVBLZX
-		} else {
-			return x86.AMOVWLZX
-		}
-	}
-	// Otherwise, there's no difference between load and store opcodes.
-	return storeByType(t)
-}
-
-// storeByType returns the store instruction of the given type.
-func storeByType(t ssa.Type) obj.As {
-	width := t.Size()
-	if t.IsFloat() {
-		switch width {
-		case 4:
-			return x86.AMOVSS
-		case 8:
-			return x86.AMOVSD
-		}
-	} else {
-		switch width {
-		case 1:
-			return x86.AMOVB
-		case 2:
-			return x86.AMOVW
-		case 4:
-			return x86.AMOVL
-		case 8:
-			return x86.AMOVQ
-		}
-	}
-	panic("bad store type")
-}
-
-// moveByType returns the reg->reg move instruction of the given type.
-func moveByType(t ssa.Type) obj.As {
-	if t.IsFloat() {
-		// Moving the whole sse2 register is faster
-		// than moving just the correct low portion of it.
-		// There is no xmm->xmm move with 1 byte opcode,
-		// so use movups, which has 2 byte opcode.
-		return x86.AMOVUPS
-	} else {
-		switch t.Size() {
-		case 1:
-			// Avoids partial register write
-			return x86.AMOVL
-		case 2:
-			return x86.AMOVL
-		case 4:
-			return x86.AMOVL
-		case 8:
-			return x86.AMOVQ
-		case 16:
-			return x86.AMOVUPS // int128s are in SSE registers
-		default:
-			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
-		}
-	}
-	panic("bad register type")
-}
-
-// regnum returns the register (in cmd/internal/obj numbering) to
+// SSARegNum returns the register (in cmd/internal/obj numbering) to
 // which v has been allocated. Panics if v is not assigned to a
 // register.
 // TODO: Make this panic again once it stops happening routinely.
-func regnum(v *ssa.Value) int16 {
+func SSARegNum(v *ssa.Value) int16 {
 	reg := v.Block.Func.RegAlloc[v.ID]
 	if reg == nil {
 		v.Unimplementedf("nil regnum for value: %s\n%s\n", v.LongString(), v.Block.Func)
 		return 0
 	}
-	return ssaRegToReg[reg.(*ssa.Register).Num]
+	return Thearch.SSARegToReg[reg.(*ssa.Register).Num]
 }
 
-// autoVar returns a *Node and int64 representing the auto variable and offset within it
+// AutoVar returns a *Node and int64 representing the auto variable and offset within it
 // where v should be spilled.
-func autoVar(v *ssa.Value) (*Node, int64) {
+func AutoVar(v *ssa.Value) (*Node, int64) {
 	loc := v.Block.Func.RegAlloc[v.ID].(ssa.LocalSlot)
 	if v.Type.Size() > loc.Type.Size() {
 		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
@@ -5132,19 +4114,16 @@ func autoVar(v *ssa.Value) (*Node, int64) {
 }
 
 // fieldIdx finds the index of the field referred to by the ODOT node n.
-func fieldIdx(n *Node) int64 {
+func fieldIdx(n *Node) int {
 	t := n.Left.Type
-	f := n.Right
+	f := n.Sym
 	if t.Etype != TSTRUCT {
 		panic("ODOT's LHS is not a struct")
 	}
 
-	var i int64
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
-		if t1.Etype != TFIELD {
-			panic("non-TFIELD in TSTRUCT")
-		}
-		if t1.Sym != f.Sym {
+	var i int
+	for _, t1 := range t.Fields().Slice() {
+		if t1.Sym != f {
 			i++
 			continue
 		}
@@ -5242,8 +4221,8 @@ func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{}) 
 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
-func (e *ssaExport) Warnl(line int, fmt_ string, args ...interface{}) {
-	Warnl(int32(line), fmt_, args...)
+func (e *ssaExport) Warnl(line int32, fmt_ string, args ...interface{}) {
+	Warnl(line, fmt_, args...)
 }
 
 func (e *ssaExport) Debug_checknil() bool {

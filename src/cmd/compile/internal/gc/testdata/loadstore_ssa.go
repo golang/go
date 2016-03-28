@@ -18,9 +18,9 @@ func testLoadStoreOrder() {
 		failed = true
 	}
 }
+
+//go:noinline
 func testLoadStoreOrder_ssa(z *uint32, prec uint) int {
-	switch {
-	}
 	old := *z         // load
 	*z = uint32(prec) // store
 	if *z < old {     // load
@@ -38,9 +38,9 @@ func testStoreSize() {
 		failed = true
 	}
 }
+
+//go:noinline
 func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
-	switch {
-	}
 	// Test to make sure that (Store ptr (Trunc32to16 val) mem)
 	// does not end up as a 32-bit store. It must stay a 16 bit store
 	// even when Trunc32to16 is rewritten to be a nop.
@@ -57,9 +57,8 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
 
 var failed = false
 
+//go:noinline
 func testExtStore_ssa(p *byte, b bool) int {
-	switch {
-	}
 	x := *p
 	*p = 7
 	if b {
@@ -81,9 +80,8 @@ var b int
 
 // testDeadStorePanic_ssa ensures that we don't optimize away stores
 // that could be read by after recover().  Modeled after fixedbugs/issue1304.
+//go:noinline
 func testDeadStorePanic_ssa(a int) (r int) {
-	switch {
-	}
 	defer func() {
 		recover()
 		r = a

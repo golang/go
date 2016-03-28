@@ -111,8 +111,10 @@ func bootstrapBuildTools() {
 	os.Setenv("GOARCH", "")
 	os.Setenv("GOHOSTARCH", "")
 
-	// Run Go 1.4 to build binaries.
-	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-v", "bootstrap/...")
+	// Run Go 1.4 to build binaries. Use -gcflags=-l to disable inlining to
+	// workaround bugs in Go 1.4's compiler. See discussion thread:
+	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
+	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-v", "bootstrap/...")
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {

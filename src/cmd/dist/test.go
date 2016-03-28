@@ -445,7 +445,7 @@ func (t *tester) registerTests() {
 		if fortran == "" {
 			fortran, _ = exec.LookPath("gfortran")
 		}
-		if fortran != "" {
+		if fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
 			t.tests = append(t.tests, distTest{
 				name:    "cgo_fortran",
 				heading: "../misc/cgo/fortran",
@@ -497,7 +497,7 @@ func (t *tester) registerTests() {
 			})
 		}
 		if t.supportedBuildmode("c-archive") {
-			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
+			t.registerHostTest("testcarchive", "misc/cgo/testcarchive", "carchive_test.go")
 		}
 		if t.supportedBuildmode("c-shared") {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
@@ -681,7 +681,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		return false
 	case "shared":
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le":
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
 			return true
 		}
 		return false
@@ -689,6 +689,28 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		log.Fatal("internal error: unknown buildmode %s", mode)
 		return false
 	}
+}
+
+func (t *tester) registerHostTest(name, dirBanner, pkg string) {
+	t.tests = append(t.tests, distTest{
+		name:    name,
+		heading: dirBanner,
+		fn: func(dt *distTest) error {
+			t.runPending(dt)
+			return t.runHostTest(dirBanner, pkg)
+		},
+	})
+}
+
+func (t *tester) runHostTest(dirBanner, pkg string) error {
+	env := mergeEnvLists([]string{"GOARCH=" + t.gohostarch, "GOOS=" + t.gohostos}, os.Environ())
+	defer os.Remove(filepath.Join(t.goroot, dirBanner, "test.test"))
+	cmd := t.dirCmd(dirBanner, "go", "test", t.tags(), "-c", "-o", "test.test", pkg)
+	cmd.Env = env
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return t.dirCmd(dirBanner, "./test.test").Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
@@ -725,7 +747,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	case "android-arm",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm",
+		"linux-386", "linux-amd64", "linux-arm", "linux-s390x",
 		"netbsd-386", "netbsd-amd64":
 
 		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=external")

@@ -19,10 +19,6 @@
 // succ* fields must be variables
 // For now, the generated successors must be a permutation of the matched successors.
 
-// Simplify nil checks.
-// These are inserted by for _, e := range a {}
-(NilCheck (Phi x (Add64 (Const64 [c]) y)) mem) && c > 0 && v.Args[0] == y -> (NilCheck x mem)
-
 // constant folding
 (Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
 (Trunc32to8 (Const32 [c])) -> (Const8 [int64(int8(c))])
@@ -30,26 +26,41 @@
 (Trunc64to8 (Const64 [c])) -> (Const8 [int64(int8(c))])
 (Trunc64to16 (Const64 [c])) -> (Const16 [int64(int16(c))])
 (Trunc64to32 (Const64 [c])) -> (Const32 [int64(int32(c))])
+(Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
+(Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
 
-(Neg8 (Const8 [c])) -> (Const8 [-c])
-(Neg16 (Const16 [c])) -> (Const16 [-c])
-(Neg32 (Const32 [c])) -> (Const32 [-c])
-(Neg64 (Const64 [c])) -> (Const64 [-c])
+// const negation is currently handled by frontend
+//(Neg8 (Const8 [c])) -> (Const8 [-c])
+//(Neg16 (Const16 [c])) -> (Const16 [-c])
+//(Neg32 (Const32 [c])) -> (Const32 [-c])
+//(Neg64 (Const64 [c])) -> (Const64 [-c])
+//(Neg32F (Const32F [c])) -> (Const32F [f2i(-i2f(c))])
+//(Neg64F (Const64F [c])) -> (Const64F [f2i(-i2f(c))])
 
 (Add8 (Const8 [c]) (Const8 [d])) -> (Const8 [c+d])
 (Add16 (Const16 [c]) (Const16 [d])) -> (Const16 [c+d])
 (Add32 (Const32 [c]) (Const32 [d])) -> (Const32 [c+d])
 (Add64 (Const64 [c]) (Const64 [d])) -> (Const64 [c+d])
+(Add32F (Const32F [c]) (Const32F [d])) -> 
+        (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
+(Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
+(AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
 
 (Sub8 (Const8 [c]) (Const8 [d])) -> (Const8 [c-d])
 (Sub16 (Const16 [c]) (Const16 [d])) -> (Const16 [c-d])
 (Sub32 (Const32 [c]) (Const32 [d])) -> (Const32 [c-d])
 (Sub64 (Const64 [c]) (Const64 [d])) -> (Const64 [c-d])
+(Sub32F (Const32F [c]) (Const32F [d])) -> 
+        (Const32F [f2i(float64(i2f32(c) - i2f32(d)))])
+(Sub64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) - i2f(d))])
 
 (Mul8 (Const8 [c]) (Const8 [d])) -> (Const8 [c*d])
 (Mul16 (Const16 [c]) (Const16 [d])) -> (Const16 [c*d])
 (Mul32 (Const32 [c]) (Const32 [d])) -> (Const32 [c*d])
 (Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
+(Mul32F (Const32F [c]) (Const32F [d])) -> 
+        (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
+(Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
 
 (Lsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c << uint64(d)])
 (Rsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c >> uint64(d)])
@@ -77,14 +88,37 @@
 (Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
 (Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
 
+// ((x >> c1) << c2) >> c3 
+(Rsh64Ux64 (Lsh64x64 (Rsh64Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh64Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+(Rsh32Ux32 (Lsh32x32 (Rsh32Ux32 x (Const32 [c1])) (Const32 [c2])) (Const32 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh32Ux32 x (Const32 <config.fe.TypeUInt32()> [c1-c2+c3]))
+(Rsh16Ux16 (Lsh16x16 (Rsh16Ux16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh16Ux16 x (Const16 <config.fe.TypeUInt16()> [c1-c2+c3]))
+(Rsh8Ux8 (Lsh8x8 (Rsh8Ux8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh8Ux8 x (Const8 <config.fe.TypeUInt8()> [c1-c2+c3]))
+
+// ((x << c1) >> c2) << c3
+(Lsh64x64 (Rsh64Ux64 (Lsh64x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh64x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
+(Lsh32x32 (Rsh32Ux32 (Lsh32x32 x (Const32 [c1])) (Const32 [c2])) (Const32 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh32x32 x (Const32 <config.fe.TypeUInt32()> [c1-c2+c3]))
+(Lsh16x16 (Rsh16Ux16 (Lsh16x16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh16x16 x (Const16 <config.fe.TypeUInt16()> [c1-c2+c3]))
+(Lsh8x8 (Rsh8Ux8 (Lsh8x8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh8x8 x (Const8 <config.fe.TypeUInt8()> [c1-c2+c3]))
+
+// Fold IsInBounds when the range of the index cannot exceed the limt.
+(IsInBounds (ZeroExt8to32 _) (Const32 [c])) && (1 << 8) <= int32(c) -> (ConstBool [1])
+(IsInBounds (ZeroExt8to64 _) (Const64 [c])) && (1 << 8) <= c -> (ConstBool [1])
+(IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= int32(c) -> (ConstBool [1])
+(IsInBounds (ZeroExt16to64 _) (Const64 [c])) && (1 << 16) <= c -> (ConstBool [1])
+
+(IsInBounds x x) -> (ConstBool [0])
 (IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && inBounds32(c, d) -> (ConstBool [1])
 (IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && inBounds64(c, d) -> (ConstBool [1])
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
+(IsSliceInBounds x x) -> (ConstBool [1])
 (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && sliceInBounds32(c, d) -> (ConstBool [1])
 (IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && sliceInBounds64(c, d) -> (ConstBool [1])
+(IsSliceInBounds (Const32 [0]) _) -> (ConstBool [1])
+(IsSliceInBounds (Const64 [0]) _) -> (ConstBool [1])
 (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
 (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
+(IsSliceInBounds (SliceLen x) (SliceCap x)) -> (ConstBool [1])
 
 (Eq64 x x) -> (ConstBool [1])
 (Eq32 x x) -> (ConstBool [1])
@@ -125,6 +159,7 @@
 (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
 (Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
 
+// AddPtr is not canonicalized because nilcheck ptr checks the first argument to be non-nil.
 (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
 (Add32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [c]) x)
 (Add16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [c]) x)
@@ -412,13 +447,14 @@
 
 // Collapse OffPtr
 (OffPtr (OffPtr p [b]) [a]) -> (OffPtr p [a+b])
+(OffPtr p [0]) && v.Type.Compare(p.Type) == CMPeq -> p
 
 
 // indexing operations
 // Note: bounds check has already been done
-(ArrayIndex <t> [0] (Load ptr mem)) -> @v.Args[0].Block (Load <t> ptr mem)
-(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
-(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
+(ArrayIndex <t> [0] x:(Load ptr mem)) -> @x.Block (Load <t> ptr mem)
+(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
 
 // struct operations
 (StructSelect (StructMake1 x)) -> x
@@ -453,8 +489,8 @@
     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)
     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 
-(StructSelect [i] (Load <t> ptr mem)) && !config.fe.CanSSA(t) ->
-  @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(i)] ptr) mem)
+(StructSelect [i] x:(Load <t> ptr mem)) && !config.fe.CanSSA(t) ->
+  @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 (Store _ (StructMake0) mem) -> mem
 (Store dst (StructMake1 <t> f0) mem) ->
@@ -515,6 +551,9 @@
     (Store [8] dst real mem))
 
 // string ops
+// Decomposing StringMake and lowering of StringPtr and StringLen
+// happens in a later pass, dec, so that these operations are available
+// to otherpasses for optimizations.
 (StringPtr (StringMake (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
@@ -544,9 +583,17 @@
     (Store [config.PtrSize] dst ptr mem))
 
 // slice ops
+// Decomposing SliceMake, and lowering of SlicePtr, SliceLen, and SliceCap
+// happens in a later pass, dec, so that these operations are available
+// to other passes for optimizations.
 (SlicePtr (SliceMake (Const64 <t> [c]) _ _)) -> (Const64 <t> [c])
 (SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
+(SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
+(SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
+(SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)
+(SliceCap (SliceMake _ _ (SliceLen x))) -> (SliceLen x)
+
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
     (ConstNil <config.fe.TypeBytePtr()>)

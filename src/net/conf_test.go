@@ -32,7 +32,6 @@ func TestConfHostLookupOrder(t *testing.T) {
 	tests := []struct {
 		name      string
 		c         *conf
-		goos      string
 		hostTests []nssHostTest
 	}{
 		{

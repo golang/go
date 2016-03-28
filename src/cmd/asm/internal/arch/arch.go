@@ -44,14 +44,6 @@ func nilRegisterNumber(name string, n int16) (int16, bool) {
 	return 0, false
 }
 
-var Pseudos = map[string]obj.As{
-	"DATA":     obj.ADATA,
-	"FUNCDATA": obj.AFUNCDATA,
-	"GLOBL":    obj.AGLOBL,
-	"PCDATA":   obj.APCDATA,
-	"TEXT":     obj.ATEXT,
-}
-
 // Set configures the architecture specified by GOARCH and returns its representation.
 // It returns nil if GOARCH is not recognized.
 func Set(GOARCH string) *Arch {

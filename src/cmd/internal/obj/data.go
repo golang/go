@@ -36,10 +36,11 @@ import (
 	"math"
 )
 
-func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
+// Grow increases the length of s.P to lsiz.
+func (s *LSym) Grow(lsiz int64) {
 	siz := int(lsiz)
 	if int64(siz) != lsiz {
-		log.Fatalf("Symgrow size %d too long", lsiz)
+		log.Fatalf("LSym.Grow size %d too long", lsiz)
 	}
 	if len(s.P) >= siz {
 		return
@@ -52,65 +53,82 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 	s.P = s.P[:siz]
 }
 
-func savedata(ctxt *Link, s *LSym, p *Prog, file string) {
-	off := int32(p.From.Offset)
-	siz := int32(p.From3.Offset)
-	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
-		log.Fatalf("%s: mangled input file", file)
+// GrowCap increases the capacity of s.P to c.
+func (s *LSym) GrowCap(c int64) {
+	if int64(cap(s.P)) >= c {
+		return
 	}
-	if ctxt.Enforce_data_order != 0 && off < int32(len(s.P)) {
-		ctxt.Diag("data out of order (already have %d)\n%v", len(s.P), p)
+	if s.P == nil {
+		s.P = make([]byte, 0, c)
+		return
+	}
+	b := make([]byte, len(s.P), c)
+	copy(b, s.P)
+	s.P = b
+}
+
+// prepwrite prepares to write data of size siz into s at offset off.
+func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+	if off < 0 || siz < 0 || off >= 1<<30 {
+		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
 	}
 	if s.Type == SBSS || s.Type == STLSBSS {
 		ctxt.Diag("cannot supply data for BSS var")
 	}
-	Symgrow(ctxt, s, int64(off+siz))
+	s.Grow(off + int64(siz))
+}
 
-	switch p.To.Type {
+// WriteFloat32 writes f into s at offset off.
+func (s *LSym) WriteFloat32(ctxt *Link, off int64, f float32) {
+	s.prepwrite(ctxt, off, 4)
+	ctxt.Arch.ByteOrder.PutUint32(s.P[off:], math.Float32bits(f))
+}
+
+// WriteFloat64 writes f into s at offset off.
+func (s *LSym) WriteFloat64(ctxt *Link, off int64, f float64) {
+	s.prepwrite(ctxt, off, 8)
+	ctxt.Arch.ByteOrder.PutUint64(s.P[off:], math.Float64bits(f))
+}
+
+// WriteInt writes an integer i of size siz into s at offset off.
+func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
+	s.prepwrite(ctxt, off, siz)
+	switch siz {
 	default:
-		ctxt.Diag("bad data: %v", p)
-
-	case TYPE_FCONST:
-		switch siz {
-		default:
-			ctxt.Diag("unexpected %d-byte floating point constant", siz)
-
-		case 4:
-			flt := math.Float32bits(float32(p.To.Val.(float64)))
-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], flt)
-
-		case 8:
-			flt := math.Float64bits(p.To.Val.(float64))
-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], flt)
-		}
-
-	case TYPE_SCONST:
-		copy(s.P[off:off+siz], p.To.Val.(string))
-
-	case TYPE_CONST, TYPE_ADDR:
-		if p.To.Sym != nil || p.To.Type == TYPE_ADDR {
-			r := Addrel(s)
-			r.Off = off
-			r.Siz = uint8(siz)
-			r.Sym = p.To.Sym
-			r.Type = R_ADDR
-			r.Add = p.To.Offset
-			break
-		}
-		o := p.To.Offset
-		switch siz {
-		default:
-			ctxt.Diag("unexpected %d-byte integer constant", siz)
-		case 1:
-			s.P[off] = byte(o)
-		case 2:
-			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(o))
-		case 4:
-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(o))
-		case 8:
-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
-		}
+		ctxt.Diag("WriteInt: bad integer size: %d", siz)
+	case 1:
+		s.P[off] = byte(i)
+	case 2:
+		ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i))
+	case 4:
+		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(i))
+	case 8:
+		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(i))
 	}
+}
+
+// WriteAddr writes an address of size siz into s at offset off.
+// rsym and roff specify the relocation for the address.
+func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
+	if siz != ctxt.Arch.Ptrsize {
+		ctxt.Diag("WriteAddr: bad address size: %d", siz)
+	}
+	s.prepwrite(ctxt, off, siz)
+	r := Addrel(s)
+	r.Off = int32(off)
+	r.Siz = uint8(siz)
+	r.Sym = rsym
+	r.Type = R_ADDR
+	r.Add = roff
+}
+
+// WriteString writes a string of size siz into s at offset off.
+func (s *LSym) WriteString(ctxt *Link, off int64, siz int, str string) {
+	if siz < len(str) {
+		ctxt.Diag("WriteString: bad string size: %d < %d", siz, len(str))
+	}
+	s.prepwrite(ctxt, off, siz)
+	copy(s.P[off:off+int64(siz)], str)
 }
 
 func Addrel(s *LSym) *Reloc {
@@ -124,7 +142,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	}
 	if s.Size < off+wid {
 		s.Size = off + wid
-		Symgrow(ctxt, s, s.Size)
+		s.Grow(s.Size)
 	}
 
 	switch wid {

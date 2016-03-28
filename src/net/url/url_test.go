@@ -611,7 +611,7 @@ func BenchmarkString(b *testing.B) {
 			g = u.String()
 		}
 		b.StopTimer()
-		if w := tt.roundtrip; g != w {
+		if w := tt.roundtrip; b.N > 0 && g != w {
 			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
 		}
 	}

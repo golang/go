@@ -4,7 +4,7 @@
 
 package ld
 
-// Writing and reading of Go object files.
+// Reading of Go object files.
 //
 // Originally, Go object files were Plan 9 object files, but no longer.
 // Now they are more like standard object files, in that each symbol is defined
@@ -21,6 +21,10 @@ package ld
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
+//	- sequence of sybol references used by the defined symbols
+//	- byte 0xff (marks end of sequence)
+//	- integer (length of following data)
+//	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
 //	- magic footer: "\xff\xffgo13ld"
@@ -32,18 +36,21 @@ package ld
 // followed by that many bytes.
 //
 // A symbol reference is a string name followed by a version.
-// An empty name corresponds to a nil LSym* pointer.
+//
+// A symbol points to other symbols using an index into the symbol
+// reference sequence. Index 0 corresponds to a nil LSym* pointer.
+// In the symbol layout described below "symref index" stands for this
+// index.
 //
 // Each symbol is laid out as the following fields (taken from LSym*):
 //
 //	- byte 0xfe (sanity check for synchronization)
 //	- type [int]
-//	- name [string]
-//	- version [int]
+//	- name & version [symref index]
 //	- flags [int]
 //		1 dupok
 //	- size [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //	- p [data block]
 //	- nr [int]
 //	- r [nr relocations, sorted by off]
@@ -54,8 +61,9 @@ package ld
 //	- locals [int]
 //	- nosplit [int]
 //	- flags [int]
-//		1 leaf
-//		2 C function
+//		1<<0 leaf
+//		1<<1 C function
+//		1<<2 function may call reflect.Type.Method
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]
@@ -66,16 +74,14 @@ package ld
 //	- siz [int]
 //	- type [int]
 //	- add [int]
-//	- xadd [int]
-//	- sym [symbol reference]
-//	- xsym [symbol reference]
+//	- sym [symref index]
 //
 // Each local has the encoding:
 //
-//	- asym [symbol reference]
+//	- asym [symref index]
 //	- offset [int]
 //	- type [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //
 // The pcln table has the encoding:
 //
@@ -85,25 +91,19 @@ package ld
 //	- npcdata [int]
 //	- pcdata [npcdata data blocks]
 //	- nfuncdata [int]
-//	- funcdata [nfuncdata symbol references]
+//	- funcdata [nfuncdata symref index]
 //	- funcdatasym [nfuncdata ints]
 //	- nfile [int]
-//	- file [nfile symbol references]
+//	- file [nfile symref index]
 //
 // The file layout and meaning of type integers are architecture-independent.
 //
 // TODO(rsc): The file format is good for a first pass but needs work.
 //	- There are SymID in the object file that should really just be strings.
-//	- The actual symbol memory images are interlaced with the symbol
-//	  metadata. They should be separated, to reduce the I/O required to
-//	  load just the metadata.
-//	- The symbol references should be shortened, either with a symbol
-//	  table or by using a simple backward index to an earlier mentioned symbol.
 
 import (
 	"bytes"
 	"cmd/internal/obj"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -116,7 +116,7 @@ const (
 
 func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 	start := obj.Boffset(f)
-	ctxt.Version++
+	ctxt.IncVersion()
 	var buf [8]uint8
 	obj.Bread(f, buf[:])
 	if string(buf[:]) != startmagic {
@@ -136,6 +136,23 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		addlib(ctxt, pkg, pn, lib)
 	}
 
+	ctxt.CurRefs = []*LSym{nil} // zeroth ref is nil
+	for {
+		c, err := f.Peek(1)
+		if err != nil {
+			log.Fatalf("%s: peeking: %v", pn, err)
+		}
+		if c[0] == 0xff {
+			obj.Bgetc(f)
+			break
+		}
+		readref(ctxt, f, pkg, pn)
+	}
+
+	dataLength := rdint64(f)
+	data := make([]byte, dataLength)
+	obj.Bread(f, data)
+
 	for {
 		c, err := f.Peek(1)
 		if err != nil {
@@ -144,7 +161,7 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		if c[0] == 0xff {
 			break
 		}
-		readsym(ctxt, f, pkg, pn)
+		readsym(ctxt, f, &data, pkg, pn)
 	}
 
 	buf = [8]uint8{}
@@ -158,30 +175,22 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 	}
 }
 
-var readsym_ndup int
+var dupSym = &LSym{Name: ".dup"}
 
-func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
 	if obj.Bgetc(f) != 0xfe {
 		log.Fatalf("readsym out of sync")
 	}
 	t := rdint(f)
-	name := rdsymName(f, pkg)
-	v := rdint(f)
-	if v != 0 && v != 1 {
-		log.Fatalf("invalid symbol version %d", v)
-	}
+	s := rdsym(ctxt, f, pkg)
 	flags := rdint(f)
 	dupok := flags&1 != 0
 	local := flags&2 != 0
 	size := rdint(f)
 	typ := rdsym(ctxt, f, pkg)
-	data := rddata(f)
+	data := rddata(f, buf)
 	nreloc := rdint(f)
 
-	if v != 0 {
-		v = ctxt.Version
-	}
-	s := Linklookup(ctxt, name, v)
 	var dup *LSym
 	if s.Type != 0 && s.Type != obj.SXREF {
 		if (t == obj.SDATA || t == obj.SBSS || t == obj.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
@@ -202,8 +211,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 		}
 		if len(s.P) > 0 {
 			dup = s
-			s = linknewsym(ctxt, ".dup", readsym_ndup)
-			readsym_ndup++ // scratch
+			s = dupSym
 		}
 	}
 
@@ -216,7 +224,7 @@ overwrite:
 		log.Fatalf("bad sxref")
 	}
 	if t == 0 {
-		log.Fatalf("missing type for %s in %s", name, pn)
+		log.Fatalf("missing type for %s in %s", s.Name, pn)
 	}
 	if t == obj.SBSS && (s.Type == obj.SRODATA || s.Type == obj.SNOPTRBSS) {
 		t = int(s.Type)
@@ -226,17 +234,15 @@ overwrite:
 		s.Size = int64(size)
 	}
 	s.Attr.Set(AttrLocal, local)
-	if typ != nil { // if bss sym defined multiple times, take type from any one def
+	if typ != nil {
 		s.Gotype = typ
 	}
-	if dup != nil && typ != nil {
+	if dup != nil && typ != nil { // if bss sym defined multiple times, take type from any one def
 		dup.Gotype = typ
 	}
 	s.P = data
-	s.P = s.P[:len(data)]
 	if nreloc > 0 {
 		s.R = make([]Reloc, nreloc)
-		s.R = s.R[:nreloc]
 		var r *Reloc
 		for i := 0; i < nreloc; i++ {
 			r = &s.R[i]
@@ -244,17 +250,7 @@ overwrite:
 			r.Siz = rduint8(f)
 			r.Type = rdint32(f)
 			r.Add = rdint64(f)
-			rdint64(f) // Xadd, ignored
 			r.Sym = rdsym(ctxt, f, pkg)
-			rdsym(ctxt, f, pkg) // Xsym, ignored
-		}
-	}
-
-	if len(s.P) > 0 && dup != nil && len(dup.P) > 0 && strings.HasPrefix(s.Name, "gclocals·") {
-		// content-addressed garbage collection liveness bitmap symbol.
-		// double check for hash collisions.
-		if !bytes.Equal(s.P, dup.P) {
-			log.Fatalf("dupok hash collision for %s in %s and %s", s.Name, s.File, pn)
 		}
 	}
 
@@ -264,7 +260,10 @@ overwrite:
 		if rduint8(f) != 0 {
 			s.Attr |= AttrNoSplit
 		}
-		rdint(f) // v&1 is Leaf, currently unused
+		flags := rdint(f)
+		if flags&(1<<2) != 0 {
+			s.Attr |= AttrReflectMethod
+		}
 		n := rdint(f)
 		s.Autom = make([]Auto, n)
 		for i := 0; i < n; i++ {
@@ -278,19 +277,17 @@ overwrite:
 
 		s.Pcln = new(Pcln)
 		pc := s.Pcln
-		pc.Pcsp.P = rddata(f)
-		pc.Pcfile.P = rddata(f)
-		pc.Pcline.P = rddata(f)
+		pc.Pcsp.P = rddata(f, buf)
+		pc.Pcfile.P = rddata(f, buf)
+		pc.Pcline.P = rddata(f, buf)
 		n = rdint(f)
 		pc.Pcdata = make([]Pcdata, n)
-		pc.Npcdata = n
 		for i := 0; i < n; i++ {
-			pc.Pcdata[i].P = rddata(f)
+			pc.Pcdata[i].P = rddata(f, buf)
 		}
 		n = rdint(f)
 		pc.Funcdata = make([]*LSym, n)
 		pc.Funcdataoff = make([]int64, n)
-		pc.Nfuncdata = n
 		for i := 0; i < n; i++ {
 			pc.Funcdata[i] = rdsym(ctxt, f, pkg)
 		}
@@ -299,7 +296,6 @@ overwrite:
 		}
 		n = rdint(f)
 		pc.File = make([]*LSym, n)
-		pc.Nfile = n
 		for i := 0; i < n; i++ {
 			pc.File[i] = rdsym(ctxt, f, pkg)
 		}
@@ -317,68 +313,63 @@ overwrite:
 			ctxt.Etextp = s
 		}
 	}
+}
 
-	if ctxt.Debugasm != 0 {
-		fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
-		if s.Version != 0 {
-			fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
-		}
-		if s.Type != 0 {
-			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
-		}
-		if s.Attr.DuplicateOK() {
-			fmt.Fprintf(ctxt.Bso, "dupok ")
-		}
-		if s.Attr.NoSplit() {
-			fmt.Fprintf(ctxt.Bso, "nosplit ")
-		}
-		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
-		if s.Type == obj.STEXT {
-			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
-		}
-		fmt.Fprintf(ctxt.Bso, "\n")
-		var c int
-		var j int
-		for i := 0; i < len(s.P); {
-			fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
-			for j = i; j < i+16 && j < len(s.P); j++ {
-				fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
-			}
-			for ; j < i+16; j++ {
-				fmt.Fprintf(ctxt.Bso, "   ")
-			}
-			fmt.Fprintf(ctxt.Bso, "  ")
-			for j = i; j < i+16 && j < len(s.P); j++ {
-				c = int(s.P[j])
-				if ' ' <= c && c <= 0x7e {
-					fmt.Fprintf(ctxt.Bso, "%c", c)
-				} else {
-					fmt.Fprintf(ctxt.Bso, ".")
-				}
-			}
+func readref(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+	if obj.Bgetc(f) != 0xfe {
+		log.Fatalf("readsym out of sync")
+	}
+	name := rdsymName(f, pkg)
+	v := rdint(f)
+	if v != 0 && v != 1 {
+		log.Fatalf("invalid symbol version %d", v)
+	}
+	if v == 1 {
+		v = ctxt.Version
+	}
+	s := Linklookup(ctxt, name, v)
+	ctxt.CurRefs = append(ctxt.CurRefs, s)
 
-			fmt.Fprintf(ctxt.Bso, "\n")
-			i += 16
+	if s == nil || v != 0 {
+		return
+	}
+	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
+		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
+		if err != nil {
+			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
 		}
-
-		var r *Reloc
-		for i := 0; i < len(s.R); i++ {
-			r = &s.R[i]
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, r.Sym.Name, int64(r.Add))
+		s.Type = obj.SRODATA
+		s.Attr |= AttrLocal
+		switch s.Name[:5] {
+		case "$f32.":
+			if uint64(uint32(x)) != x {
+				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+			}
+			Adduint32(ctxt, s, uint32(x))
+		case "$f64.", "$i64.":
+			Adduint64(ctxt, s, x)
+		default:
+			log.Panicf("unrecognized $-symbol: %s", s.Name)
 		}
+		s.Attr.Set(AttrReachable, false)
+	}
+	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+		s.Attr |= AttrLocal
 	}
 }
 
 func rdint64(f *obj.Biobuf) int64 {
-	var c int
-
+	r := f.Reader()
 	uv := uint64(0)
-	for shift := 0; ; shift += 7 {
+	for shift := uint(0); ; shift += 7 {
 		if shift >= 64 {
 			log.Fatalf("corrupt input")
 		}
-		c = obj.Bgetc(f)
-		uv |= uint64(c&0x7F) << uint(shift)
+		c, err := r.ReadByte()
+		if err != nil {
+			log.Fatalln("error reading input: ", err)
+		}
+		uv |= uint64(c&0x7F) << shift
 		if c&0x80 == 0 {
 			break
 		}
@@ -432,23 +423,10 @@ func rdstring(f *obj.Biobuf) string {
 	return string(rdBuf[:n])
 }
 
-const rddataBufMax = 1 << 14
-
-var rddataBuf = make([]byte, rddataBufMax)
-
-func rddata(f *obj.Biobuf) []byte {
-	var p []byte
+func rddata(f *obj.Biobuf, buf *[]byte) []byte {
 	n := rdint(f)
-	if n > rddataBufMax {
-		p = make([]byte, n)
-	} else {
-		if len(rddataBuf) < n {
-			rddataBuf = make([]byte, rddataBufMax)
-		}
-		p = rddataBuf[:n:n]
-		rddataBuf = rddataBuf[n:]
-	}
-	obj.Bread(f, p)
+	p := (*buf)[:n:n]
+	*buf = (*buf)[n:]
 	return p
 }
 
@@ -485,35 +463,6 @@ func rdsymName(f *obj.Biobuf, pkg string) string {
 }
 
 func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
-	name := rdsymName(f, pkg)
-	if name == "" {
-		return nil
-	}
-	v := rdint(f)
-	if v != 0 {
-		v = ctxt.Version
-	}
-	s := Linklookup(ctxt, name, v)
-
-	if v == 0 && s.Name[0] == '$' && s.Type == 0 {
-		if strings.HasPrefix(s.Name, "$f32.") {
-			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
-			i32 := int32(x)
-			s.Type = obj.SRODATA
-			s.Attr |= AttrLocal
-			Adduint32(ctxt, s, uint32(i32))
-			s.Attr.Set(AttrReachable, false)
-		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
-			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
-			i64 := int64(x)
-			s.Type = obj.SRODATA
-			s.Attr |= AttrLocal
-			Adduint64(ctxt, s, uint64(i64))
-			s.Attr.Set(AttrReachable, false)
-		}
-	}
-	if v == 0 && strings.HasPrefix(s.Name, "runtime.gcbits.") {
-		s.Attr |= AttrLocal
-	}
-	return s
+	i := rdint(f)
+	return ctxt.CurRefs[i]
 }

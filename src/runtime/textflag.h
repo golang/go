@@ -5,6 +5,8 @@
 // This file defines flags attached to various functions
 // and data objects. The compilers, assemblers, and linker must
 // all agree on these values.
+//
+// Keep in sync with src/cmd/internal/obj/textflag.go.
 
 // Don't profile the marked routine. This flag is deprecated.
 #define NOPROF	1
@@ -28,3 +30,5 @@
 // Only valid on functions that declare a frame size of 0.
 // TODO(mwhudson): only implemented for ppc64x at present.
 #define NOFRAME 512
+// Function can call reflect.Type.Method or reflect.Type.MethodByName.
+#define REFLECTMETHOD = 1024

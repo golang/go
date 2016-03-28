@@ -105,6 +105,7 @@ const (
 	AttrHidden
 	AttrOnList
 	AttrLocal
+	AttrReflectMethod
 )
 
 func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
@@ -118,6 +119,7 @@ func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
 func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
 func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
 func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
+func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
 
 func (a Attribute) CgoExport() bool {
 	return a.CgoExportDynamic() || a.CgoExportStatic()
@@ -159,19 +161,20 @@ type Shlib struct {
 }
 
 type Link struct {
-	Thechar    int32
-	Thestring  string
-	Goarm      int32
-	Headtype   int
-	Arch       *LinkArch
-	Debugasm   int32
-	Debugvlog  int32
-	Bso        *obj.Biobuf
-	Windows    int32
-	Goroot     string
-	Hash       map[symVer]*LSym
+	Thechar   int32
+	Thestring string
+	Goarm     int32
+	Headtype  int
+	Arch      *LinkArch
+	Debugvlog int32
+	Bso       *obj.Biobuf
+	Windows   int32
+	Goroot    string
+
+	// Symbol lookup based on name and indexed by version.
+	Hash []map[string]*LSym
+
 	Allsym     []*LSym
-	Nsymbol    int32
 	Tlsg       *LSym
 	Libdir     []string
 	Library    []*Library
@@ -186,6 +189,7 @@ type Link struct {
 	Filesyms   *LSym
 	Moduledata *LSym
 	LSymBatch  []LSym
+	CurRefs    []*LSym // List of symbol references for the file being read.
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -203,6 +207,11 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	default:
 		return int64(ctxt.Arch.Ptrsize)
 	}
+}
+
+func (l *Link) IncVersion() {
+	l.Version++
+	l.Hash = append(l.Hash, make(map[string]*LSym))
 }
 
 type LinkArch struct {
@@ -228,13 +237,9 @@ type Pcln struct {
 	Pcfile      Pcdata
 	Pcline      Pcdata
 	Pcdata      []Pcdata
-	Npcdata     int
 	Funcdata    []*LSym
 	Funcdataoff []int64
-	Nfuncdata   int
 	File        []*LSym
-	Nfile       int
-	Mfile       int
 	Lastfile    *LSym
 	Lastindex   int
 }

@@ -28,10 +28,11 @@ func rewriteValuedec_OpSliceCap(v *Value, config *Config) bool {
 	// cond:
 	// result: cap
 	for {
-		if v.Args[0].Op != OpSliceMake {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSliceMake {
 			break
 		}
-		cap := v.Args[0].Args[2]
+		cap := v_0.Args[2]
 		v.reset(OpCopy)
 		v.Type = cap.Type
 		v.AddArg(cap)
@@ -46,10 +47,11 @@ func rewriteValuedec_OpSliceLen(v *Value, config *Config) bool {
 	// cond:
 	// result: len
 	for {
-		if v.Args[0].Op != OpSliceMake {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSliceMake {
 			break
 		}
-		len := v.Args[0].Args[1]
+		len := v_0.Args[1]
 		v.reset(OpCopy)
 		v.Type = len.Type
 		v.AddArg(len)
@@ -64,10 +66,11 @@ func rewriteValuedec_OpSlicePtr(v *Value, config *Config) bool {
 	// cond:
 	// result: ptr
 	for {
-		if v.Args[0].Op != OpSliceMake {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSliceMake {
 			break
 		}
-		ptr := v.Args[0].Args[0]
+		ptr := v_0.Args[0]
 		v.reset(OpCopy)
 		v.Type = ptr.Type
 		v.AddArg(ptr)
@@ -82,10 +85,11 @@ func rewriteValuedec_OpStringLen(v *Value, config *Config) bool {
 	// cond:
 	// result: len
 	for {
-		if v.Args[0].Op != OpStringMake {
+		v_0 := v.Args[0]
+		if v_0.Op != OpStringMake {
 			break
 		}
-		len := v.Args[0].Args[1]
+		len := v_0.Args[1]
 		v.reset(OpCopy)
 		v.Type = len.Type
 		v.AddArg(len)
@@ -100,10 +104,11 @@ func rewriteValuedec_OpStringPtr(v *Value, config *Config) bool {
 	// cond:
 	// result: ptr
 	for {
-		if v.Args[0].Op != OpStringMake {
+		v_0 := v.Args[0]
+		if v_0.Op != OpStringMake {
 			break
 		}
-		ptr := v.Args[0].Args[0]
+		ptr := v_0.Args[0]
 		v.reset(OpCopy)
 		v.Type = ptr.Type
 		v.AddArg(ptr)

@@ -26,7 +26,6 @@ const (
 	badIndexString    = "(BADINDEX)"
 	panicString       = "(PANIC="
 	extraString       = "%!(EXTRA "
-	bytesString       = "[]byte"
 	badWidthString    = "%!(BADWIDTH)"
 	badPrecString     = "%!(BADPREC)"
 	noVerbString      = "%!(NOVERB)"
@@ -103,7 +102,6 @@ func (bp *buffer) WriteRune(r rune) {
 }
 
 type pp struct {
-	n         int
 	panicking bool
 	erroring  bool // printing an error condition
 	buf       buffer
@@ -116,7 +114,6 @@ type pp struct {
 	reordered bool
 	// goodArgNum records whether the most recent reordering directive was valid.
 	goodArgNum bool
-	runeBuf    [utf8.UTFMax]byte
 	fmt        fmt
 }
 
@@ -154,9 +151,9 @@ func (p *pp) Flag(b int) bool {
 	case '-':
 		return p.fmt.minus
 	case '+':
-		return p.fmt.plus
+		return p.fmt.plus || p.fmt.plusV
 	case '#':
-		return p.fmt.sharp
+		return p.fmt.sharp || p.fmt.sharpV
 	case ' ':
 		return p.fmt.space
 	case '0':
@@ -212,7 +209,7 @@ func Errorf(format string, a ...interface{}) error {
 // It returns the number of bytes written and any write error encountered.
 func Fprint(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
-	p.doPrint(a, false, false)
+	p.doPrint(a)
 	n, err = w.Write(p.buf)
 	p.free()
 	return
@@ -229,7 +226,7 @@ func Print(a ...interface{}) (n int, err error) {
 // Spaces are added between operands when neither is a string.
 func Sprint(a ...interface{}) string {
 	p := newPrinter()
-	p.doPrint(a, false, false)
+	p.doPrint(a)
 	s := string(p.buf)
 	p.free()
 	return s
@@ -244,7 +241,7 @@ func Sprint(a ...interface{}) string {
 // It returns the number of bytes written and any write error encountered.
 func Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
-	p.doPrint(a, true, true)
+	p.doPrintln(a)
 	n, err = w.Write(p.buf)
 	p.free()
 	return
@@ -261,7 +258,7 @@ func Println(a ...interface{}) (n int, err error) {
 // Spaces are always added between operands and a newline is appended.
 func Sprintln(a ...interface{}) string {
 	p := newPrinter()
-	p.doPrint(a, true, true)
+	p.doPrintln(a)
 	s := string(p.buf)
 	p.free()
 	return s
@@ -319,7 +316,7 @@ func (p *pp) badVerb(verb rune) {
 	case p.arg != nil:
 		p.buf.WriteString(reflect.TypeOf(p.arg).String())
 		p.buf.WriteByte('=')
-		p.printArg(p.arg, 'v', 0)
+		p.printArg(p.arg, 'v')
 	case p.value.IsValid():
 		p.buf.WriteString(p.value.Type().String())
 		p.buf.WriteByte('=')
@@ -340,102 +337,44 @@ func (p *pp) fmtBool(v bool, verb rune) {
 	}
 }
 
-// fmtC formats a rune for the 'c' format.
-func (p *pp) fmtC(c int64) {
-	r := rune(c) // Check for overflow.
-	if int64(r) != c {
-		r = utf8.RuneError
-	}
-	w := utf8.EncodeRune(p.runeBuf[0:utf8.UTFMax], r)
-	p.fmt.pad(p.runeBuf[0:w])
-}
-
-func (p *pp) fmtInt64(v int64, verb rune) {
-	switch verb {
-	case 'b':
-		p.fmt.integer(v, 2, signed, ldigits)
-	case 'c':
-		p.fmtC(v)
-	case 'd', 'v':
-		p.fmt.integer(v, 10, signed, ldigits)
-	case 'o':
-		p.fmt.integer(v, 8, signed, ldigits)
-	case 'q':
-		if 0 <= v && v <= utf8.MaxRune {
-			p.fmt.fmt_qc(v)
-		} else {
-			p.badVerb(verb)
-		}
-	case 'x':
-		p.fmt.integer(v, 16, signed, ldigits)
-	case 'U':
-		p.fmtUnicode(v)
-	case 'X':
-		p.fmt.integer(v, 16, signed, udigits)
-	default:
-		p.badVerb(verb)
-	}
-}
-
 // fmt0x64 formats a uint64 in hexadecimal and prefixes it with 0x or
 // not, as requested, by temporarily setting the sharp flag.
 func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
-	p.fmt.integer(int64(v), 16, unsigned, ldigits)
+	p.fmt.fmt_integer(v, 16, unsigned, ldigits)
 	p.fmt.sharp = sharp
 }
 
-// fmtUnicode formats a uint64 in U+1234 form by
-// temporarily turning on the unicode flag and tweaking the precision.
-func (p *pp) fmtUnicode(v int64) {
-	precPresent := p.fmt.precPresent
-	sharp := p.fmt.sharp
-	p.fmt.sharp = false
-	prec := p.fmt.prec
-	if !precPresent {
-		// If prec is already set, leave it alone; otherwise 4 is minimum.
-		p.fmt.prec = 4
-		p.fmt.precPresent = true
-	}
-	p.fmt.unicode = true // turn on U+
-	p.fmt.uniQuote = sharp
-	p.fmt.integer(int64(v), 16, unsigned, udigits)
-	p.fmt.unicode = false
-	p.fmt.uniQuote = false
-	p.fmt.prec = prec
-	p.fmt.precPresent = precPresent
-	p.fmt.sharp = sharp
-}
-
-func (p *pp) fmtUint64(v uint64, verb rune) {
+// fmtInteger formats a signed or unsigned integer.
+func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 	switch verb {
-	case 'b':
-		p.fmt.integer(int64(v), 2, unsigned, ldigits)
-	case 'c':
-		p.fmtC(int64(v))
-	case 'd':
-		p.fmt.integer(int64(v), 10, unsigned, ldigits)
 	case 'v':
-		if p.fmt.sharpV {
+		if p.fmt.sharpV && !isSigned {
 			p.fmt0x64(v, true)
 		} else {
-			p.fmt.integer(int64(v), 10, unsigned, ldigits)
+			p.fmt.fmt_integer(v, 10, isSigned, ldigits)
 		}
+	case 'd':
+		p.fmt.fmt_integer(v, 10, isSigned, ldigits)
+	case 'b':
+		p.fmt.fmt_integer(v, 2, isSigned, ldigits)
 	case 'o':
-		p.fmt.integer(int64(v), 8, unsigned, ldigits)
+		p.fmt.fmt_integer(v, 8, isSigned, ldigits)
+	case 'x':
+		p.fmt.fmt_integer(v, 16, isSigned, ldigits)
+	case 'X':
+		p.fmt.fmt_integer(v, 16, isSigned, udigits)
+	case 'c':
+		p.fmt.fmt_c(v)
 	case 'q':
-		if 0 <= v && v <= utf8.MaxRune {
-			p.fmt.fmt_qc(int64(v))
+		if v <= utf8.MaxRune {
+			p.fmt.fmt_qc(v)
 		} else {
 			p.badVerb(verb)
 		}
-	case 'x':
-		p.fmt.integer(int64(v), 16, unsigned, ldigits)
-	case 'X':
-		p.fmt.integer(int64(v), 16, unsigned, udigits)
 	case 'U':
-		p.fmtUnicode(int64(v))
+		p.fmt.fmt_unicode(v)
 	default:
 		p.badVerb(verb)
 	}
@@ -523,7 +462,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
-				p.fmt.integer(int64(c), 10, unsigned, ldigits)
+				p.fmt.fmt_integer(uint64(c), 10, unsigned, ldigits)
 			}
 			p.buf.WriteByte(']')
 		}
@@ -536,23 +475,11 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 	case 'q':
 		p.fmt.fmt_q(string(v))
 	default:
-		p.badVerb(verb)
+		p.printValue(reflect.ValueOf(v), verb, 0)
 	}
 }
 
 func (p *pp) fmtPointer(value reflect.Value, verb rune) {
-	use0x64 := true
-	switch verb {
-	case 'p', 'v':
-		// ok
-	case 'b', 'd', 'o', 'x', 'X':
-		use0x64 = false
-		// ok
-	default:
-		p.badVerb(verb)
-		return
-	}
-
 	var u uintptr
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
@@ -562,31 +489,33 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 		return
 	}
 
-	if p.fmt.sharpV {
-		p.buf.WriteByte('(')
-		p.buf.WriteString(value.Type().String())
-		p.buf.WriteString(")(")
-		if u == 0 {
-			p.buf.WriteString(nilString)
+	switch verb {
+	case 'v':
+		if p.fmt.sharpV {
+			p.buf.WriteByte('(')
+			p.buf.WriteString(value.Type().String())
+			p.buf.WriteString(")(")
+			if u == 0 {
+				p.buf.WriteString(nilString)
+			} else {
+				p.fmt0x64(uint64(u), true)
+			}
+			p.buf.WriteByte(')')
 		} else {
-			p.fmt0x64(uint64(u), true)
+			if u == 0 {
+				p.fmt.padString(nilAngleString)
+			} else {
+				p.fmt0x64(uint64(u), !p.fmt.sharp)
+			}
 		}
-		p.buf.WriteByte(')')
-	} else if verb == 'v' && u == 0 {
-		p.buf.WriteString(nilAngleString)
-	} else {
-		if use0x64 {
-			p.fmt0x64(uint64(u), !p.fmt.sharp)
-		} else {
-			p.fmtUint64(uint64(u), verb)
-		}
+	case 'p':
+		p.fmt0x64(uint64(u), !p.fmt.sharp)
+	case 'b', 'o', 'd', 'x', 'X':
+		p.fmtInteger(uint64(u), unsigned, verb)
+	default:
+		p.badVerb(verb)
 	}
 }
-
-var (
-	intBits     = reflect.TypeOf(0).Bits()
-	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
-)
 
 func (p *pp) catchPanic(arg interface{}, verb rune) {
 	if err := recover(); err != nil {
@@ -608,48 +537,19 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
 		p.panicking = true
-		p.printArg(err, 'v', 0)
+		p.printArg(err, 'v')
 		p.panicking = false
 		p.buf.WriteByte(')')
 	}
 }
 
-// clearSpecialFlags pushes %#v back into the regular flags and returns their old state.
-func (p *pp) clearSpecialFlags() (plusV, sharpV bool) {
-	plusV = p.fmt.plusV
-	if plusV {
-		p.fmt.plus = true
-		p.fmt.plusV = false
-	}
-	sharpV = p.fmt.sharpV
-	if sharpV {
-		p.fmt.sharp = true
-		p.fmt.sharpV = false
-	}
-	return
-}
-
-// restoreSpecialFlags, whose argument should be a call to clearSpecialFlags,
-// restores the setting of the plusV and sharpV flags.
-func (p *pp) restoreSpecialFlags(plusV, sharpV bool) {
-	if plusV {
-		p.fmt.plus = false
-		p.fmt.plusV = true
-	}
-	if sharpV {
-		p.fmt.sharp = false
-		p.fmt.sharpV = true
-	}
-}
-
-func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
+func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.erroring {
 		return
 	}
 	// Is it a Formatter?
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
-		defer p.restoreSpecialFlags(p.clearSpecialFlags())
 		defer p.catchPanic(p.arg, verb)
 		formatter.Format(p, verb)
 		return
@@ -678,13 +578,13 @@ func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 			case error:
 				handled = true
 				defer p.catchPanic(p.arg, verb)
-				p.printArg(v.Error(), verb, depth)
+				p.fmtString(v.Error(), verb)
 				return
 
 			case Stringer:
 				handled = true
 				defer p.catchPanic(p.arg, verb)
-				p.printArg(v.String(), verb, depth)
+				p.fmtString(v.String(), verb)
 				return
 			}
 		}
@@ -692,7 +592,7 @@ func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 	return false
 }
 
-func (p *pp) printArg(arg interface{}, verb rune, depth int) {
+func (p *pp) printArg(arg interface{}, verb rune) {
 	p.arg = arg
 	p.value = reflect.Value{}
 
@@ -710,10 +610,10 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	// %T (the value's type) and %p (its address) are special; we always do them first.
 	switch verb {
 	case 'T':
-		p.printArg(reflect.TypeOf(arg).String(), 's', 0)
+		p.fmt.fmt_s(reflect.TypeOf(arg).String())
 		return
 	case 'p':
-		p.fmtPointer(reflect.ValueOf(arg), verb)
+		p.fmtPointer(reflect.ValueOf(arg), 'p')
 		return
 	}
 
@@ -730,99 +630,76 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	case complex128:
 		p.fmtComplex(f, 128, verb)
 	case int:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int8:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int16:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int32:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int64:
-		p.fmtInt64(f, verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case uint:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint8:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint16:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint32:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint64:
-		p.fmtUint64(f, verb)
+		p.fmtInteger(f, unsigned, verb)
 	case uintptr:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
-		p.fmtBytes(f, verb, bytesString)
+		p.fmtBytes(f, verb, "[]byte")
 	case reflect.Value:
-		p.printReflectValue(f, verb, depth)
-		return
+		p.printValue(f, verb, 0)
 	default:
 		// If the type is not simple, it might have methods.
-		if p.handleMethods(verb, depth) {
-			return
+		if !p.handleMethods(verb) {
+			// Need to use reflection, since the type had no
+			// interface methods that could be used for formatting.
+			p.printValue(reflect.ValueOf(f), verb, 0)
 		}
-		// Need to use reflection
-		p.printReflectValue(reflect.ValueOf(arg), verb, depth)
-		return
 	}
-	p.arg = nil
-}
-
-// printValue is like printArg but starts with a reflect value, not an interface{} value.
-func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
-	if !value.IsValid() {
-		switch verb {
-		case 'T', 'v':
-			p.buf.WriteString(nilAngleString)
-		default:
-			p.badVerb(verb)
-		}
-		return
-	}
-
-	// Special processing considerations.
-	// %T (the value's type) and %p (its address) are special; we always do them first.
-	switch verb {
-	case 'T':
-		p.printArg(value.Type().String(), 's', 0)
-		return
-	case 'p':
-		p.fmtPointer(value, verb)
-		return
-	}
-
-	// Handle values with special methods.
-	// Call always, even when arg == nil, because handleMethods clears p.fmt.plus for us.
-	p.arg = nil // Make sure it's cleared, for safety.
-	if value.CanInterface() {
-		p.arg = value.Interface()
-	}
-	if p.handleMethods(verb, depth) {
-		return
-	}
-
-	p.printReflectValue(value, verb, depth)
 }
 
 var byteType = reflect.TypeOf(byte(0))
 
-// printReflectValue is the fallback for both printArg and printValue.
-// It uses reflect to print the value.
-func (p *pp) printReflectValue(value reflect.Value, verb rune, depth int) {
-	oldValue := p.value
+// printValue is similar to printArg but starts with a reflect value, not an interface{} value.
+// It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
+func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+	// Handle values with special methods if not already handled by printArg (depth == 0).
+	if depth > 0 && value.IsValid() && value.CanInterface() {
+		p.arg = value.Interface()
+		if p.handleMethods(verb) {
+			return
+		}
+	}
+	p.arg = nil
 	p.value = value
-BigSwitch:
-	switch f := value; f.Kind() {
+
+	switch f := value; value.Kind() {
 	case reflect.Invalid:
-		p.buf.WriteString(invReflectString)
+		if depth == 0 {
+			p.buf.WriteString(invReflectString)
+		} else {
+			switch verb {
+			case 'v':
+				p.buf.WriteString(nilAngleString)
+			default:
+				p.badVerb(verb)
+			}
+		}
 	case reflect.Bool:
 		p.fmtBool(f.Bool(), verb)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		p.fmtInt64(f.Int(), verb)
+		p.fmtInteger(uint64(f.Int()), signed, verb)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		p.fmtUint64(f.Uint(), verb)
+		p.fmtInteger(f.Uint(), unsigned, verb)
 	case reflect.Float32:
 		p.fmtFloat(f.Float(), 32, verb)
 	case reflect.Float64:
@@ -838,7 +715,7 @@ BigSwitch:
 			p.buf.WriteString(f.Type().String())
 			if f.IsNil() {
 				p.buf.WriteString(nilParenString)
-				break
+				return
 			}
 			p.buf.WriteByte('{')
 		} else {
@@ -864,12 +741,10 @@ BigSwitch:
 		}
 	case reflect.Struct:
 		if p.fmt.sharpV {
-			p.buf.WriteString(value.Type().String())
+			p.buf.WriteString(f.Type().String())
 		}
 		p.buf.WriteByte('{')
-		v := f
-		t := v.Type()
-		for i := 0; i < v.NumField(); i++ {
+		for i := 0; i < f.NumField(); i++ {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -878,12 +753,12 @@ BigSwitch:
 				}
 			}
 			if p.fmt.plusV || p.fmt.sharpV {
-				if f := t.Field(i); f.Name != "" {
-					p.buf.WriteString(f.Name)
+				if name := f.Type().Field(i).Name; name != "" {
+					p.buf.WriteString(name)
 					p.buf.WriteByte(':')
 				}
 			}
-			p.printValue(getField(v, i), verb, depth+1)
+			p.printValue(getField(f, i), verb, depth+1)
 		}
 		p.buf.WriteByte('}')
 	case reflect.Interface:
@@ -899,81 +774,71 @@ BigSwitch:
 			p.printValue(value, verb, depth+1)
 		}
 	case reflect.Array, reflect.Slice:
-		// Byte slices are special:
-		// - Handle []byte (== []uint8) with fmtBytes.
-		// - Handle []T, where T is a named byte type, with fmtBytes only
-		//   for the s, q, an x verbs. For other verbs, T might be a
-		//   Stringer, so we use printValue to print each element.
-		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 && (typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x') {
-			var bytes []byte
-			if f.Kind() == reflect.Slice {
-				bytes = f.Bytes()
-			} else if f.CanAddr() {
-				bytes = f.Slice(0, f.Len()).Bytes()
-			} else {
-				// We have an array, but we cannot Slice() a non-addressable array,
-				// so we build a slice by hand. This is a rare case but it would be nice
-				// if reflection could help a little more.
-				bytes = make([]byte, f.Len())
-				for i := range bytes {
-					bytes[i] = byte(f.Index(i).Uint())
+		switch verb {
+		case 's', 'q', 'x', 'X':
+			// Handle byte and uint8 slices and arrays special for the above verbs.
+			t := f.Type()
+			if t.Elem().Kind() == reflect.Uint8 {
+				var bytes []byte
+				if f.Kind() == reflect.Slice {
+					bytes = f.Bytes()
+				} else if f.CanAddr() {
+					bytes = f.Slice(0, f.Len()).Bytes()
+				} else {
+					// We have an array, but we cannot Slice() a non-addressable array,
+					// so we build a slice by hand. This is a rare case but it would be nice
+					// if reflection could help a little more.
+					bytes = make([]byte, f.Len())
+					for i := range bytes {
+						bytes[i] = byte(f.Index(i).Uint())
+					}
 				}
+				p.fmtBytes(bytes, verb, t.String())
+				return
 			}
-			p.fmtBytes(bytes, verb, typ.String())
-			break
 		}
 		if p.fmt.sharpV {
-			p.buf.WriteString(value.Type().String())
+			p.buf.WriteString(f.Type().String())
 			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString(nilParenString)
-				break
+				return
+			} else {
+				p.buf.WriteByte('{')
+				for i := 0; i < f.Len(); i++ {
+					if i > 0 {
+						p.buf.WriteString(commaSpaceString)
+					}
+					p.printValue(f.Index(i), verb, depth+1)
+				}
+				p.buf.WriteByte('}')
 			}
-			p.buf.WriteByte('{')
 		} else {
 			p.buf.WriteByte('[')
-		}
-		for i := 0; i < f.Len(); i++ {
-			if i > 0 {
-				if p.fmt.sharpV {
-					p.buf.WriteString(commaSpaceString)
-				} else {
+			for i := 0; i < f.Len(); i++ {
+				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
+				p.printValue(f.Index(i), verb, depth+1)
 			}
-			p.printValue(f.Index(i), verb, depth+1)
-		}
-		if p.fmt.sharpV {
-			p.buf.WriteByte('}')
-		} else {
 			p.buf.WriteByte(']')
 		}
 	case reflect.Ptr:
-		v := f.Pointer()
 		// pointer to array or slice or struct?  ok at top level
 		// but not embedded (avoid loops)
-		if v != 0 && depth == 0 {
+		if depth == 0 && f.Pointer() != 0 {
 			switch a := f.Elem(); a.Kind() {
-			case reflect.Array, reflect.Slice:
+			case reflect.Array, reflect.Slice, reflect.Struct, reflect.Map:
 				p.buf.WriteByte('&')
 				p.printValue(a, verb, depth+1)
-				break BigSwitch
-			case reflect.Struct:
-				p.buf.WriteByte('&')
-				p.printValue(a, verb, depth+1)
-				break BigSwitch
-			case reflect.Map:
-				p.buf.WriteByte('&')
-				p.printValue(a, verb, depth+1)
-				break BigSwitch
+				return
 			}
 		}
 		fallthrough
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		p.fmtPointer(value, verb)
+		p.fmtPointer(f, verb)
 	default:
 		p.unknownType(f)
 	}
-	p.value = oldValue
 }
 
 // intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
@@ -1050,11 +915,24 @@ func (p *pp) argNumber(argNum int, format string, i int, numArgs int) (newArgNum
 	return argNum, i + wid, ok
 }
 
+func (p *pp) badArgNum(verb rune) {
+	p.buf.WriteString(percentBangString)
+	p.buf.WriteRune(verb)
+	p.buf.WriteString(badIndexString)
+}
+
+func (p *pp) missingArg(verb rune) {
+	p.buf.WriteString(percentBangString)
+	p.buf.WriteRune(verb)
+	p.buf.WriteString(missingString)
+}
+
 func (p *pp) doPrintf(format string, a []interface{}) {
 	end := len(format)
 	argNum := 0         // we process one argument per non-trivial format
 	afterIndex := false // previous item in format was an index like [3].
 	p.reordered = false
+formatLoop:
 	for i := 0; i < end; {
 		p.goodArgNum = true
 		lasti := i
@@ -1074,21 +952,40 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 
 		// Do we have flags?
 		p.fmt.clearflags()
-	F:
+	simpleFormat:
 		for ; i < end; i++ {
-			switch format[i] {
+			c := format[i]
+			switch c {
 			case '#':
 				p.fmt.sharp = true
 			case '0':
-				p.fmt.zero = true
+				p.fmt.zero = !p.fmt.minus // Only allow zero padding to the left.
 			case '+':
 				p.fmt.plus = true
 			case '-':
 				p.fmt.minus = true
+				p.fmt.zero = false // Do not pad with zeros to the right.
 			case ' ':
 				p.fmt.space = true
 			default:
-				break F
+				// Fast path for common case of ascii lower case simple verbs
+				// without precision or width or argument indices.
+				if 'a' <= c && c <= 'z' && argNum < len(a) {
+					if c == 'v' {
+						// Go syntax
+						p.fmt.sharpV = p.fmt.sharp
+						p.fmt.sharp = false
+						// Struct-field syntax
+						p.fmt.plusV = p.fmt.plus
+						p.fmt.plus = false
+					}
+					p.printArg(a[argNum], rune(c))
+					argNum++
+					i++
+					continue formatLoop
+				}
+				// Format is more complex than simple flags and a verb or is malformed.
+				break simpleFormat
 			}
 		}
 
@@ -1109,6 +1006,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			if p.fmt.wid < 0 {
 				p.fmt.wid = -p.fmt.wid
 				p.fmt.minus = true
+				p.fmt.zero = false // Do not pad with zeros to the right.
 			}
 			afterIndex = false
 		} else {
@@ -1152,84 +1050,76 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 
 		if i >= end {
 			p.buf.WriteString(noVerbString)
-			continue
+			break
 		}
-		c, w := utf8.DecodeRuneInString(format[i:])
+
+		verb, w := utf8.DecodeRuneInString(format[i:])
 		i += w
-		// percent is special - absorbs no operand
-		if c == '%' {
-			p.buf.WriteByte('%') // We ignore width and prec.
-			continue
-		}
-		if !p.goodArgNum {
-			p.buf.WriteString(percentBangString)
-			p.buf.WriteRune(c)
-			p.buf.WriteString(badIndexString)
-			continue
-		} else if argNum >= len(a) { // out of operands
-			p.buf.WriteString(percentBangString)
-			p.buf.WriteRune(c)
-			p.buf.WriteString(missingString)
-			continue
-		}
-		arg := a[argNum]
-		argNum++
 
-		if c == 'v' {
-			if p.fmt.sharp {
-				// Go syntax. Set the flag in the fmt and clear the sharp flag.
-				p.fmt.sharp = false
-				p.fmt.sharpV = true
-			}
-			if p.fmt.plus {
-				// Struct-field syntax. Set the flag in the fmt and clear the plus flag.
-				p.fmt.plus = false
-				p.fmt.plusV = true
-			}
+		switch {
+		case verb == '%': // Percent does not absorb operands and ignores f.wid and f.prec.
+			p.buf.WriteByte('%')
+		case !p.goodArgNum:
+			p.badArgNum(verb)
+		case argNum >= len(a): // No argument left over to print for the current verb.
+			p.missingArg(verb)
+		case verb == 'v':
+			// Go syntax
+			p.fmt.sharpV = p.fmt.sharp
+			p.fmt.sharp = false
+			// Struct-field syntax
+			p.fmt.plusV = p.fmt.plus
+			p.fmt.plus = false
+			fallthrough
+		default:
+			p.printArg(a[argNum], verb)
+			argNum++
 		}
-
-		// Use space padding instead of zero padding to the right.
-		if p.fmt.minus {
-			p.fmt.zero = false
-		}
-
-		p.printArg(arg, c, 0)
 	}
 
 	// Check for extra arguments unless the call accessed the arguments
 	// out of order, in which case it's too expensive to detect if they've all
 	// been used and arguably OK if they're not.
 	if !p.reordered && argNum < len(a) {
+		p.fmt.clearflags()
 		p.buf.WriteString(extraString)
-		for ; argNum < len(a); argNum++ {
-			arg := a[argNum]
-			if arg != nil {
+		for i, arg := range a[argNum:] {
+			if i > 0 {
+				p.buf.WriteString(commaSpaceString)
+			}
+			if arg == nil {
+				p.buf.WriteString(nilAngleString)
+			} else {
 				p.buf.WriteString(reflect.TypeOf(arg).String())
 				p.buf.WriteByte('=')
-			}
-			p.printArg(arg, 'v', 0)
-			if argNum+1 < len(a) {
-				p.buf.WriteString(commaSpaceString)
+				p.printArg(arg, 'v')
 			}
 		}
 		p.buf.WriteByte(')')
 	}
 }
 
-func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
+func (p *pp) doPrint(a []interface{}) {
 	prevString := false
 	for argNum, arg := range a {
-		p.fmt.clearflags()
 		isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
-		// Add a space between two non-string arguments or if
-		// explicitly asked for by addspace.
-		if argNum > 0 && (addspace || (!isString && !prevString)) {
+		// Add a space between two non-string arguments.
+		if argNum > 0 && !isString && !prevString {
 			p.buf.WriteByte(' ')
 		}
-		p.printArg(arg, 'v', 0)
+		p.printArg(arg, 'v')
 		prevString = isString
 	}
-	if addnewline {
-		p.buf.WriteByte('\n')
+}
+
+// doPrintln is like doPrint but always adds a space between arguments
+// and a newline after the last argument.
+func (p *pp) doPrintln(a []interface{}) {
+	for argNum, arg := range a {
+		if argNum > 0 {
+			p.buf.WriteByte(' ')
+		}
+		p.printArg(arg, 'v')
 	}
+	p.buf.WriteByte('\n')
 }

@@ -533,6 +533,7 @@ func fixGo(name string) string {
 
 var isBuiltin = map[string]bool{
 	"_Cfunc_CString":   true,
+	"_Cfunc_CBytes":    true,
 	"_Cfunc_GoString":  true,
 	"_Cfunc_GoStringN": true,
 	"_Cfunc_GoBytes":   true,
@@ -1324,6 +1325,7 @@ _GoString_ GoString(char *p);
 _GoString_ GoStringN(char *p, int l);
 _GoBytes_ GoBytes(void *p, int n);
 char *CString(_GoString_);
+void *CBytes(_GoBytes_);
 void *_CMalloc(size_t);
 `
 
@@ -1389,6 +1391,15 @@ func _Cfunc_CString(s string) *_Ctype_char {
 }
 `
 
+const cBytesDef = `
+func _Cfunc_CBytes(b []byte) unsafe.Pointer {
+	p := _cgo_runtime_cmalloc(uintptr(len(b)))
+	pp := (*[1<<30]byte)(p)
+	copy(pp[:], b)
+	return p
+}
+`
+
 const cMallocDef = `
 func _Cfunc__CMalloc(n _Ctype_size_t) unsafe.Pointer {
 	return _cgo_runtime_cmalloc(uintptr(n))
@@ -1400,6 +1411,7 @@ var builtinDefs = map[string]string{
 	"GoStringN": goStringNDef,
 	"GoBytes":   goBytesDef,
 	"CString":   cStringDef,
+	"CBytes":    cBytesDef,
 	"_CMalloc":  cMallocDef,
 }
 
@@ -1434,6 +1446,12 @@ const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
 	char *p = malloc(s.__length+1);
 	memmove(p, s.__data, s.__length);
 	p[s.__length] = 0;
+	return p;
+}
+
+void *_cgoPREFIX_Cfunc_CBytes(struct __go_open_array b) {
+	char *p = malloc(b.__count);
+	memmove(p, b.__data, b.__count);
 	return p;
 }
 

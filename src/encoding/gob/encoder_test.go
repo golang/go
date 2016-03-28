@@ -603,10 +603,6 @@ type Bug1Elem struct {
 
 type Bug1StructMap map[string]Bug1Elem
 
-func bug1EncDec(in Bug1StructMap, out *Bug1StructMap) error {
-	return nil
-}
-
 func TestMapBug1(t *testing.T) {
 	in := make(Bug1StructMap)
 	in["val1"] = Bug1Elem{"elem1", 1}

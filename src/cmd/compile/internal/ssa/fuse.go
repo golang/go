@@ -96,7 +96,7 @@ func fuseBlockIf(b *Block) bool {
 		ss.removePred(s1)
 	}
 	b.Kind = BlockPlain
-	b.Control = nil
+	b.SetControl(nil)
 	b.Succs = append(b.Succs[:0], ss)
 
 	// Trash the empty blocks s0 & s1.

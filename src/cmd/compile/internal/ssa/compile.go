@@ -7,6 +7,7 @@ package ssa
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ func Compile(f *Func) {
 	}
 	const logMemStats = false
 	for _, p := range passes {
-		if !f.Config.optimize && !p.required {
+		if !f.Config.optimize && !p.required || p.disabled {
 			continue
 		}
 		f.pass = &p
@@ -117,14 +118,29 @@ type pass struct {
 }
 
 // Run consistency checker between each phase
-var checkEnabled = true
+var checkEnabled = false
+
+// Debug output
+var IntrinsicsDebug int
+var IntrinsicsDisable bool
 
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
-// the error if it was not. A version of the phase name with "_"
-// replaced by " " is also checked for a match.
-// See gc/lex.go for dissection of the option string. Example use:
-// GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash ...
+// the error if it was not.
+// A version of the phase name with "_" replaced by " " is also checked for a match.
+// If the phase name begins a '~' then the rest of the underscores-replaced-with-blanks
+// version is used as a regular expression to match the phase name(s).
+//
+// Special cases that have turned out to be useful:
+//  ssa/check/on enables checking after each phase
+//  ssa/all/time enables time reporting for all phases
+//
+// See gc/lex.go for dissection of the option string.
+// Example uses:
+//
+// GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash
+//
+// BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
 //
 func PhaseOption(phase, flag string, val int) string {
 	if phase == "check" && flag == "on" {
@@ -135,9 +151,46 @@ func PhaseOption(phase, flag string, val int) string {
 		checkEnabled = val == 0
 		return ""
 	}
+
+	alltime := false
+	if phase == "all" {
+		if flag == "time" {
+			alltime = val != 0
+		} else {
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+		}
+	}
+
+	if phase == "intrinsics" {
+		switch flag {
+		case "on":
+			IntrinsicsDisable = val == 0
+		case "off":
+			IntrinsicsDisable = val != 0
+		case "debug":
+			IntrinsicsDebug = val
+		default:
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+		}
+		return ""
+	}
+
 	underphase := strings.Replace(phase, "_", " ", -1)
+	var re *regexp.Regexp
+	if phase[0] == '~' {
+		r, ok := regexp.Compile(underphase[1:])
+		if ok != nil {
+			return fmt.Sprintf("Error %s in regexp for phase %s, flag %s", ok.Error(), phase, flag)
+		}
+		re = r
+	}
+	matchedOne := false
 	for i, p := range passes {
-		if p.name == phase || p.name == underphase {
+		if phase == "all" {
+			p.time = alltime
+			passes[i] = p
+			matchedOne = true
+		} else if p.name == phase || p.name == underphase || re != nil && re.MatchString(p.name) {
 			switch flag {
 			case "on":
 				p.disabled = val == 0
@@ -160,8 +213,11 @@ func PhaseOption(phase, flag string, val int) string {
 				return fmt.Sprintf("Cannot disable required SSA phase %s using -d=ssa/%s debug option", phase, phase)
 			}
 			passes[i] = p
-			return ""
+			matchedOne = true
 		}
+	}
+	if matchedOne {
+		return ""
 	}
 	return fmt.Sprintf("Did not find a phase matching %s in -d=ssa/... debug option", phase)
 }
@@ -174,7 +230,6 @@ var passes = [...]pass{
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose user", fn: decomposeUser, required: true},
-	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "opt", fn: opt, required: true},           // TODO: split required rules and optimizing rules
 	{name: "zero arg cse", fn: zcse, required: true}, // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode},             // remove any blocks orphaned during opt
@@ -182,8 +237,9 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "dec", fn: dec, required: true},
-	{name: "late opt", fn: opt}, // TODO: split required rules and optimizing rules
+	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "generic deadcode", fn: deadcode},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
@@ -234,7 +290,7 @@ var passOrder = [...]constraint{
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
 	// don't run optimization pass until we've decomposed builtin objects
-	{"decompose builtin", "opt"},
+	{"decompose builtin", "late opt"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges

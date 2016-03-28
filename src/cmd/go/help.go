@@ -149,14 +149,6 @@ A few common code hosting sites have special syntax:
 		import "github.com/user/project"
 		import "github.com/user/project/sub/directory"
 
-	Google Code Project Hosting (Git, Mercurial, Subversion)
-
-		import "code.google.com/p/project"
-		import "code.google.com/p/project/sub/directory"
-
-		import "code.google.com/p/project.subrepository"
-		import "code.google.com/p/project.subrepository/sub/directory"
-
 	Launchpad (Bazaar)
 
 		import "launchpad.net/project"

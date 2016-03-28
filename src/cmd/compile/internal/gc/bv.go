@@ -63,16 +63,16 @@ func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
 	}
 }
 
-func bvcmp(bv1 Bvec, bv2 Bvec) int {
+func bveq(bv1 Bvec, bv2 Bvec) bool {
 	if bv1.n != bv2.n {
 		Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
 	}
 	for i, x := range bv1.b {
 		if x != bv2.b[i] {
-			return 1
+			return false
 		}
 	}
-	return 0
+	return true
 }
 
 func bvcopy(dst Bvec, src Bvec) {
@@ -105,7 +105,7 @@ func bvget(bv Bvec, i int32) int {
 
 // bvnext returns the smallest index >= i for which bvget(bv, i) == 1.
 // If there is no such index, bvnext returns -1.
-func bvnext(bv Bvec, i int32) int {
+func bvnext(bv Bvec, i int32) int32 {
 	if i >= bv.n {
 		return -1
 	}
@@ -131,7 +131,7 @@ func bvnext(bv Bvec, i int32) int {
 		i++
 	}
 
-	return int(i)
+	return i
 }
 
 func bvisempty(bv Bvec) bool {

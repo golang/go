@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Tests of internal functions with no better homes.
+// Tests of internal functions and things with no better homes.
 
 package http
 
 import (
+	"bytes"
+	"internal/testenv"
+	"os/exec"
 	"reflect"
 	"testing"
 )
@@ -53,6 +56,38 @@ func TestCleanHost(t *testing.T) {
 		got := cleanHost(tt.in)
 		if tt.want != got {
 			t.Errorf("cleanHost(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+// Test that cmd/go doesn't link in the HTTP server.
+//
+// This catches accidental dependencies between the HTTP transport and
+// server code.
+func TestCmdGoNoHTTPServer(t *testing.T) {
+	goBin := testenv.GoToolPath(t)
+	out, err := exec.Command("go", "tool", "nm", goBin).CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool nm: %v: %s", err, out)
+	}
+	wantSym := map[string]bool{
+		// Verify these exist: (sanity checking this test)
+		"net/http.(*Client).Get":          true,
+		"net/http.(*Transport).RoundTrip": true,
+
+		// Verify these don't exist:
+		"net/http.http2Server":           false,
+		"net/http.(*Server).Serve":       false,
+		"net/http.(*ServeMux).ServeHTTP": false,
+		"net/http.DefaultServeMux":       false,
+	}
+	for sym, want := range wantSym {
+		got := bytes.Contains(out, []byte(sym))
+		if !want && got {
+			t.Errorf("cmd/go unexpectedly links in HTTP server code; found symbol %q in cmd/go", sym)
+		}
+		if want && !got {
+			t.Errorf("expected to find symbol %q in cmd/go; not found", sym)
 		}
 	}
 }

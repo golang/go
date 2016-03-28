@@ -158,6 +158,68 @@ func TestMultipartReader(t *testing.T) {
 	}
 }
 
+// Issue 9305: ParseMultipartForm should populate PostForm too
+func TestParseMultipartFormPopulatesPostForm(t *testing.T) {
+	postData :=
+		`--xxx
+Content-Disposition: form-data; name="field1"
+
+value1
+--xxx
+Content-Disposition: form-data; name="field2"
+
+value2
+--xxx
+Content-Disposition: form-data; name="file"; filename="file"
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: binary
+
+binary data
+--xxx--
+`
+	req := &Request{
+		Method: "POST",
+		Header: Header{"Content-Type": {`multipart/form-data; boundary=xxx`}},
+		Body:   ioutil.NopCloser(strings.NewReader(postData)),
+	}
+
+	initialFormItems := map[string]string{
+		"language": "Go",
+		"name":     "gopher",
+		"skill":    "go-ing",
+		"field2":   "initial-value2",
+	}
+
+	req.Form = make(url.Values)
+	for k, v := range initialFormItems {
+		req.Form.Add(k, v)
+	}
+
+	err := req.ParseMultipartForm(10000)
+	if err != nil {
+		t.Fatalf("unexpected multipart error %v", err)
+	}
+
+	wantForm := url.Values{
+		"language": []string{"Go"},
+		"name":     []string{"gopher"},
+		"skill":    []string{"go-ing"},
+		"field1":   []string{"value1"},
+		"field2":   []string{"initial-value2", "value2"},
+	}
+	if !reflect.DeepEqual(req.Form, wantForm) {
+		t.Fatalf("req.Form = %v, want %v", req.Form, wantForm)
+	}
+
+	wantPostForm := url.Values{
+		"field1": []string{"value1"},
+		"field2": []string{"value2"},
+	}
+	if !reflect.DeepEqual(req.PostForm, wantPostForm) {
+		t.Fatalf("req.PostForm = %v, want %v", req.PostForm, wantPostForm)
+	}
+}
+
 func TestParseMultipartForm(t *testing.T) {
 	req := &Request{
 		Method: "POST",

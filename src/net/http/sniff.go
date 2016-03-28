@@ -91,11 +91,40 @@ var sniffSignatures = []sniffSig{
 		ct:   "image/webp",
 	},
 	&exactSig{[]byte("\x00\x00\x01\x00"), "image/vnd.microsoft.icon"},
-	&exactSig{[]byte("\x4F\x67\x67\x53\x00"), "application/ogg"},
 	&maskedSig{
 		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
 		pat:  []byte("RIFF\x00\x00\x00\x00WAVE"),
 		ct:   "audio/wave",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+		pat:  []byte("FORM\x00\x00\x00\x00AIFF"),
+		ct:   "audio/aiff",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF"),
+		pat:  []byte(".snd"),
+		ct:   "audio/basic",
+	},
+	&maskedSig{
+		mask: []byte("OggS\x00"),
+		pat:  []byte("\x4F\x67\x67\x53\x00"),
+		ct:   "application/ogg",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"),
+		pat:  []byte("MThd\x00\x00\x00\x06"),
+		ct:   "audio/midi",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF"),
+		pat:  []byte("ID3"),
+		ct:   "audio/mpeg",
+	},
+	&maskedSig{
+		mask: []byte("\xFF\xFF\xFF\xFF\x00\x00\x00\x00\xFF\xFF\xFF\xFF"),
+		pat:  []byte("RIFF\x00\x00\x00\x00AVI "),
+		ct:   "video/avi",
 	},
 	&exactSig{[]byte("\x1A\x45\xDF\xA3"), "video/webm"},
 	&exactSig{[]byte("\x52\x61\x72\x20\x1A\x07\x00"), "application/x-rar-compressed"},
@@ -126,8 +155,14 @@ type maskedSig struct {
 }
 
 func (m *maskedSig) match(data []byte, firstNonWS int) string {
+	// pattern matching algorithm section 6
+	// https://mimesniff.spec.whatwg.org/#pattern-matching-algorithm
+
 	if m.skipWS {
 		data = data[firstNonWS:]
+	}
+	if len(m.pat) != len(m.mask) {
+		return ""
 	}
 	if len(data) < len(m.mask) {
 		return ""

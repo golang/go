@@ -8,8 +8,8 @@
 package gc
 
 import (
+	"bufio"
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 )
@@ -20,7 +20,7 @@ import (
 // changes to bimport.go and bexport.go.
 
 // Import populates importpkg from the serialized package data.
-func Import(in *obj.Biobuf) {
+func Import(in *bufio.Reader) {
 	p := importer{in: in}
 	p.buf = p.bufarray[:]
 
@@ -77,16 +77,18 @@ func Import(in *obj.Biobuf) {
 	for i := p.int(); i > 0; i-- {
 		// parser.go:hidden_fndcl
 		sym := p.localname()
-		typ := p.typ()
+		params := p.paramList()
+		result := p.paramList()
 		inl := p.int()
 
+		sig := functype(nil, params, result)
 		importsym(sym, ONAME)
-		if sym.Def != nil && sym.Def.Op == ONAME && !Eqtype(typ, sym.Def.Type) {
-			Fatalf("importer: inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, typ)
+		if sym.Def != nil && sym.Def.Op == ONAME && !Eqtype(sig, sym.Def.Type) {
+			Fatalf("importer: inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, sig)
 		}
 
 		n := newfuncname(sym)
-		n.Type = typ
+		n.Type = sig
 		declare(n, PFUNC)
 		funchdr(n)
 
@@ -94,7 +96,7 @@ func Import(in *obj.Biobuf) {
 		n.Func.Inl.Set(nil)
 		if inl >= 0 {
 			if inl != len(p.inlined) {
-				panic("inlined body list inconsistent")
+				panic(fmt.Sprintf("inlined body list inconsistent: %d != %d", inl, len(p.inlined)))
 			}
 			p.inlined = append(p.inlined, n.Func)
 		}
@@ -113,7 +115,7 @@ func Import(in *obj.Biobuf) {
 	// read inlined functions bodies
 	n := p.int()
 	for i := 0; i < n; i++ {
-		body := p.nodeList()
+		body := p.block()
 		const hookup = false // TODO(gri) enable and remove this condition
 		if hookup {
 			p.inlined[i].Inl.Set(body)
@@ -137,7 +139,7 @@ func idealType(typ *Type) *Type {
 }
 
 type importer struct {
-	in       *obj.Biobuf
+	in       *bufio.Reader
 	buf      []byte   // for reading strings
 	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
 	pkgList  []*Pkg
@@ -195,7 +197,6 @@ func (p *importer) localname() *Sym {
 	if name == "" {
 		Fatalf("importer: unexpected anonymous name")
 	}
-	structpkg = importpkg // parser.go:hidden_pkg_importsym
 	return importpkg.Lookup(name)
 }
 
@@ -252,13 +253,7 @@ func (p *importer) typ() *Type {
 			n := methodname1(newname(sym), recv[0].Right)
 			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
-			// addmethod uses the global variable structpkg to verify consistency
-			{
-				saved := structpkg
-				structpkg = tsym.Pkg
-				addmethod(sym, n.Type, false, false)
-				structpkg = saved
-			}
+			addmethod(sym, n.Type, tsym.Pkg, false, false)
 			funchdr(n)
 
 			// (comment from parser.go)
@@ -272,7 +267,7 @@ func (p *importer) typ() *Type {
 			n.Func.Inl.Set(nil)
 			if inl >= 0 {
 				if inl != len(p.inlined) {
-					panic("inlined body list inconsistent")
+					panic(fmt.Sprintf("inlined body list inconsistent: %d != %d", inl, len(p.inlined)))
 				}
 				p.inlined = append(p.inlined, n.Func)
 			}
@@ -289,7 +284,7 @@ func (p *importer) typ() *Type {
 		t.Type = p.typ()
 
 	case dddTag:
-		t = p.newtyp(T_old_DARRAY)
+		t = p.newtyp(TDDDFIELD)
 		t.Bound = -1
 		t.Type = p.typ()
 
@@ -452,8 +447,9 @@ func (p *importer) param(named bool) *Node {
 	typ := p.typ()
 
 	isddd := false
-	if typ.Etype == T_old_DARRAY {
-		// T_old_DARRAY indicates ... type
+	if typ.Etype == TDDDFIELD {
+		// TDDDFIELD indicates ... type
+		// TODO(mdempsky): Fix Type rekinding.
 		typ.Etype = TARRAY
 		isddd = true
 	}
@@ -488,7 +484,7 @@ func (p *importer) value(typ *Type) (x Val) {
 
 	case int64Tag:
 		u := new(Mpint)
-		Mpmovecfix(u, p.int64())
+		u.SetInt64(p.int64())
 		u.Rune = typ == idealrune
 		x.U = u
 
@@ -498,7 +494,7 @@ func (p *importer) value(typ *Type) (x Val) {
 		if typ == idealint || Isint[typ.Etype] {
 			// uncommon case: large int encoded as float
 			u := new(Mpint)
-			mpmovefltfix(u, f)
+			u.SetFloat(f)
 			x.U = u
 			break
 		}
@@ -512,6 +508,9 @@ func (p *importer) value(typ *Type) (x Val) {
 
 	case stringTag:
 		x.U = p.string()
+
+	case unknownTag:
+		Fatalf("importer: unknown constant (importing package with errors)")
 
 	case nilTag:
 		x.U = new(NilVal)
@@ -531,7 +530,7 @@ func (p *importer) value(typ *Type) (x Val) {
 func (p *importer) float(x *Mpflt) {
 	sign := p.int()
 	if sign == 0 {
-		Mpmovecflt(x, 0)
+		x.SetFloat64(0)
 		return
 	}
 
@@ -547,6 +546,15 @@ func (p *importer) float(x *Mpflt) {
 
 // ----------------------------------------------------------------------------
 // Inlined function bodies
+
+func (p *importer) block() []*Node {
+	markdcl()
+	// TODO(gri) populate "scope" with function parameters so they can be found
+	//           inside the function body
+	list := p.nodeList()
+	popdcl()
+	return list
+}
 
 // parser.go:stmt_list
 func (p *importer) nodeList() []*Node {
@@ -631,11 +639,11 @@ func (p *importer) node() *Node {
 		// if p.bool() {
 		// 	n.Left = p.node()
 		// } else {
-		// 	setNodeSeq(&n.List, p.nodeList())
+		// 	n.List.Set(p.nodeList())
 		// }
 		x := Nod(OCALL, p.typ().Nod, nil)
 		if p.bool() {
-			x.List.Set([]*Node{p.node()})
+			x.List.Set1(p.node())
 		} else {
 			x.List.Set(p.nodeList())
 		}
@@ -650,7 +658,7 @@ func (p *importer) node() *Node {
 			obj.Used = true
 			return oldname(s)
 		}
-		return Nod(OXDOT, obj, newname(sel))
+		return NodSym(OXDOT, obj, sel)
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left = p.node()
@@ -743,7 +751,7 @@ func (p *importer) node() *Node {
 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
 		n.Left, _ = p.nodesOrNil()
 
-	case OEMPTY:
+	case OEMPTY, ODCLCONST:
 		// nothing to do
 
 	case OLABEL:
@@ -854,16 +862,16 @@ func (p *importer) ReadByte() (byte, error) {
 // byte is the bottleneck interface for reading from p.in.
 // It unescapes '|' 'S' to '$' and '|' '|' to '|'.
 func (p *importer) byte() byte {
-	c := obj.Bgetc(p.in)
+	c, err := p.in.ReadByte()
 	p.read++
-	if c < 0 {
-		Fatalf("importer: read error")
+	if err != nil {
+		Fatalf("importer: read error: %v", err)
 	}
 	if c == '|' {
-		c = obj.Bgetc(p.in)
+		c, err = p.in.ReadByte()
 		p.read++
-		if c < 0 {
-			Fatalf("importer: read error")
+		if err != nil {
+			Fatalf("importer: read error: %v", err)
 		}
 		switch c {
 		case 'S':
@@ -874,5 +882,5 @@ func (p *importer) byte() byte {
 			Fatalf("importer: unexpected escape sequence in export data")
 		}
 	}
-	return byte(c)
+	return c
 }

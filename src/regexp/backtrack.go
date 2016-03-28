@@ -36,7 +36,6 @@ type bitState struct {
 
 	end     int
 	cap     []int
-	input   input
 	jobs    []job
 	visited []uint32
 }

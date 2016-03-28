@@ -9,6 +9,9 @@ import (
 	"testing"
 )
 
+// The higher-precision values in vc26 were used to derive the
+// input arguments vc (see also comment below). For reference
+// only (do not delete).
 var vc26 = []complex128{
 	(4.97901192488367350108546816 + 7.73887247457810456552351752i),
 	(7.73887247457810456552351752 - 0.27688005719200159404635997i),
@@ -21,6 +24,7 @@ var vc26 = []complex128{
 	(1.82530809168085506044576505 - 8.68592476857560136238589621i),
 	(-8.68592476857560136238589621 + 4.97901192488367350108546816i),
 }
+
 var vc = []complex128{
 	(4.9790119248836735e+00 + 7.7388724745781045e+00i),
 	(7.7388724745781045e+00 - 2.7688005719200159e-01i),
@@ -448,8 +452,7 @@ func tolerance(a, b, e float64) bool {
 	}
 	return d < e
 }
-func soclose(a, b, e float64) bool { return tolerance(a, b, e) }
-func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
+func veryclose(a, b float64) bool { return tolerance(a, b, 4e-16) }
 func alike(a, b float64) bool {
 	switch {
 	case a != a && b != b: // math.IsNaN(a) && math.IsNaN(b):

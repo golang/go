@@ -429,7 +429,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 	var rp *Reloc
 	var name string
 
-	Ctxt.Version++
+	Ctxt.IncVersion()
 	base := obj.Boffset(f)
 	if obj.Bread(f, hdr[:]) != len(hdr) {
 		goto bad

@@ -144,11 +144,10 @@ func markroot(gcw *gcWork, i uint32) {
 			gp.waitsince = work.tstart
 		}
 
-		// Shrink a stack if not much of it is being used but not in the scan phase.
-		if gcphase == _GCmarktermination {
-			// Shrink during STW GCmarktermination phase thus avoiding
-			// complications introduced by shrinking during
-			// non-STW phases.
+		if gcphase == _GCmarktermination && status == _Gdead {
+			// Free gp's stack if necessary. Only do this
+			// during mark termination because otherwise
+			// _Gdead may be transient.
 			shrinkstack(gp)
 		}
 
@@ -235,11 +234,11 @@ func markrootSpans(gcw *gcWork, shard int) {
 
 	// We process objects with finalizers only during the first
 	// markroot pass. In concurrent GC, this happens during
-	// concurrent scan and we depend on addfinalizer to ensure the
+	// concurrent mark and we depend on addfinalizer to ensure the
 	// above invariants for objects that get finalizers after
-	// concurrent scan. In STW GC, this will happen during mark
+	// concurrent mark. In STW GC, this will happen during mark
 	// termination.
-	if work.finalizersDone {
+	if work.markrootDone {
 		return
 	}
 
@@ -599,6 +598,13 @@ func scanstack(gp *g) {
 		throw("can't scan gchelper stack")
 	}
 
+	// Shrink the stack if not much of it is being used. During
+	// concurrent GC, we can do this during concurrent mark.
+	if !work.markrootDone {
+		shrinkstack(gp)
+	}
+
+	// Prepare for stack barrier insertion/removal.
 	var sp, barrierOffset, nextBarrier uintptr
 	if gp.syscallsp != 0 {
 		sp = gp.syscallsp
@@ -647,6 +653,7 @@ func scanstack(gp *g) {
 		throw("scanstack in wrong phase")
 	}
 
+	// Scan the stack.
 	var cache pcvalueCache
 	gcw := &getg().m.p.ptr().gcw
 	n := 0

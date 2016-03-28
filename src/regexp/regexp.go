@@ -75,12 +75,18 @@ import (
 	"unicode/utf8"
 )
 
-var debug = false
-
 // Regexp is the representation of a compiled regular expression.
 // A Regexp is safe for concurrent use by multiple goroutines.
 type Regexp struct {
 	// read-only after Compile
+	regexpRO
+
+	// cache of machines for running regexp
+	mu      sync.Mutex
+	machine []*machine
+}
+
+type regexpRO struct {
 	expr           string         // as passed to Compile
 	prog           *syntax.Prog   // compiled program
 	onepass        *onePassProg   // onepass program or nil
@@ -93,10 +99,6 @@ type Regexp struct {
 	numSubexp      int
 	subexpNames    []string
 	longest        bool
-
-	// cache of machines for running regexp
-	mu      sync.Mutex
-	machine []*machine
 }
 
 // String returns the source text used to compile the regular expression.
@@ -109,10 +111,11 @@ func (re *Regexp) String() string {
 // When using a Regexp in multiple goroutines, giving each goroutine
 // its own copy helps to avoid lock contention.
 func (re *Regexp) Copy() *Regexp {
-	r := *re
-	r.mu = sync.Mutex{}
-	r.machine = nil
-	return &r
+	// It is not safe to copy Regexp by value
+	// since it contains a sync.Mutex.
+	return &Regexp{
+		regexpRO: re.regexpRO,
+	}
 }
 
 // Compile parses a regular expression and returns, if successful,
@@ -174,13 +177,15 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 		return nil, err
 	}
 	regexp := &Regexp{
-		expr:        expr,
-		prog:        prog,
-		onepass:     compileOnePass(prog),
-		numSubexp:   maxCap,
-		subexpNames: capNames,
-		cond:        prog.StartCond(),
-		longest:     longest,
+		regexpRO: regexpRO{
+			expr:        expr,
+			prog:        prog,
+			onepass:     compileOnePass(prog),
+			numSubexp:   maxCap,
+			subexpNames: capNames,
+			cond:        prog.StartCond(),
+			longest:     longest,
+		},
 	}
 	if regexp.onepass == notOnePass {
 		regexp.prefix, regexp.prefixComplete = prog.Prefix()

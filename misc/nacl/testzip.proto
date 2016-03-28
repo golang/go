@@ -56,6 +56,8 @@ go	src=..
 				testdata
 					+
 			flate
+				testdata
+					+
 			gzip
 				testdata
 					+

@@ -192,9 +192,9 @@ func decomposeUser(f *Func) {
 		case t.IsStruct():
 			n := t.NumFields()
 			for _, v := range f.NamedValues[name] {
-				for i := int64(0); i < n; i++ {
+				for i := 0; i < n; i++ {
 					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
-					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
+					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), v)
 					f.NamedValues[fname] = append(f.NamedValues[fname], x)
 				}
 			}
@@ -219,12 +219,12 @@ func decomposeStructPhi(v *Value) {
 	t := v.Type
 	n := t.NumFields()
 	var fields [MaxStruct]*Value
-	for i := int64(0); i < n; i++ {
+	for i := 0; i < n; i++ {
 		fields[i] = v.Block.NewValue0(v.Line, OpPhi, t.FieldType(i))
 	}
 	for _, a := range v.Args {
-		for i := int64(0); i < n; i++ {
-			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, a))
+		for i := 0; i < n; i++ {
+			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
 	v.reset(StructMakeOp(n))
@@ -244,7 +244,7 @@ const MaxStruct = 4
 
 // StructMakeOp returns the opcode to construct a struct with the
 // given number of fields.
-func StructMakeOp(nf int64) Op {
+func StructMakeOp(nf int) Op {
 	switch nf {
 	case 0:
 		return OpStructMake0

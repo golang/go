@@ -234,6 +234,51 @@ func TestDecodeCorrupt(t *testing.T) {
 	}
 }
 
+func TestEncodedLen(t *testing.T) {
+	for _, tt := range []struct {
+		enc  *Encoding
+		n    int
+		want int
+	}{
+		{RawStdEncoding, 0, 0},
+		{RawStdEncoding, 1, 2},
+		{RawStdEncoding, 2, 3},
+		{RawStdEncoding, 3, 4},
+		{RawStdEncoding, 7, 10},
+		{StdEncoding, 0, 0},
+		{StdEncoding, 1, 4},
+		{StdEncoding, 2, 4},
+		{StdEncoding, 3, 4},
+		{StdEncoding, 4, 8},
+		{StdEncoding, 7, 12},
+	} {
+		if got := tt.enc.EncodedLen(tt.n); got != tt.want {
+			t.Errorf("EncodedLen(%d): got %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestDecodedLen(t *testing.T) {
+	for _, tt := range []struct {
+		enc  *Encoding
+		n    int
+		want int
+	}{
+		{RawStdEncoding, 0, 0},
+		{RawStdEncoding, 2, 1},
+		{RawStdEncoding, 3, 2},
+		{RawStdEncoding, 4, 3},
+		{RawStdEncoding, 10, 7},
+		{StdEncoding, 0, 0},
+		{StdEncoding, 4, 3},
+		{StdEncoding, 8, 6},
+	} {
+		if got := tt.enc.DecodedLen(tt.n); got != tt.want {
+			t.Errorf("DecodedLen(%d): got %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
 func TestBig(t *testing.T) {
 	n := 3*1000 + 1
 	raw := make([]byte, n)

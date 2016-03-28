@@ -58,11 +58,14 @@ var headers = []struct {
 
 func linknew(arch *LinkArch) *Link {
 	ctxt := &Link{
-		Hash:    make(map[symVer]*LSym, 100000), // preallocate about 2mb for hash
-		Allsym:  make([]*LSym, 0, 100000),
-		Arch:    arch,
-		Version: obj.HistVersion,
-		Goroot:  obj.Getgoroot(),
+		Hash: []map[string]*LSym{
+			// preallocate about 2mb for hash of
+			// non static symbols
+			make(map[string]*LSym, 100000),
+		},
+		Allsym: make([]*LSym, 0, 100000),
+		Arch:   arch,
+		Goroot: obj.Getgoroot(),
 	}
 
 	p := obj.Getgoarch()
@@ -157,7 +160,7 @@ func linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-func linknewsym(ctxt *Link, symb string, v int) *LSym {
+func linknewsym(ctxt *Link, name string, v int) *LSym {
 	batch := ctxt.LSymBatch
 	if len(batch) == 0 {
 		batch = make([]LSym, 1000)
@@ -168,41 +171,28 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 	s.Dynid = -1
 	s.Plt = -1
 	s.Got = -1
-	s.Name = symb
+	s.Name = name
 	s.Version = int16(v)
-	ctxt.Nsymbol++
-
 	ctxt.Allsym = append(ctxt.Allsym, s)
-	return s
-}
 
-type symVer struct {
-	sym string
-	ver int
-}
-
-func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
-	s := ctxt.Hash[symVer{symb, v}]
-	if s != nil {
-		return s
-	}
-	if creat == 0 {
-		return nil
-	}
-
-	s = linknewsym(ctxt, symb, v)
-	s.Extname = s.Name
-	ctxt.Hash[symVer{symb, v}] = s
 	return s
 }
 
 func Linklookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 1)
+	m := ctxt.Hash[v]
+	s := m[name]
+	if s != nil {
+		return s
+	}
+	s = linknewsym(ctxt, name, v)
+	s.Extname = s.Name
+	m[name] = s
+	return s
 }
 
 // read-only lookup
 func Linkrlookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 0)
+	return ctxt.Hash[v][name]
 }
 
 func Headstr(v int) string {

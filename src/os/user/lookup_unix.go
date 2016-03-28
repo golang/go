@@ -183,7 +183,7 @@ func lookupUnixGid(gid int) (*Group, error) {
 		return nil, fmt.Errorf("user: lookup groupid %d: %v", gid, err)
 	}
 	if result == nil {
-		return nil, UnknownGroupIdError(gid)
+		return nil, UnknownGroupIdError(strconv.Itoa(gid))
 	}
 	return buildGroup(&grp), nil
 }

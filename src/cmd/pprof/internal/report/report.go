@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -246,14 +245,6 @@ func valueOrDot(value int64, rpt *Report) string {
 		return "."
 	}
 	return rpt.formatValue(value)
-}
-
-// canAccessFile determines if the filename can be opened for reading.
-func canAccessFile(path string) bool {
-	if fi, err := os.Stat(path); err == nil {
-		return fi.Mode().Perm()&0400 != 0
-	}
-	return false
 }
 
 // printTags collects all tags referenced in the profile and prints
@@ -762,14 +753,6 @@ type node struct {
 
 	// tags provide additional information about subsets of a sample.
 	tags tagMap
-}
-
-func (ts tags) string() string {
-	var ret string
-	for _, s := range ts {
-		ret = ret + fmt.Sprintf("%s %s %d %d\n", s.name, s.unit, s.value, s.weight)
-	}
-	return ret
 }
 
 type nodeInfo struct {
@@ -1696,23 +1679,4 @@ type Report struct {
 	options     *Options
 	sampleValue func(*profile.Sample) int64
 	formatValue func(int64) string
-}
-
-func (rpt *Report) formatTags(s *profile.Sample) (string, bool) {
-	var labels []string
-	for key, vals := range s.Label {
-		for _, v := range vals {
-			labels = append(labels, key+":"+v)
-		}
-	}
-	for key, nvals := range s.NumLabel {
-		for _, v := range nvals {
-			labels = append(labels, scaledValueLabel(v, key, "auto"))
-		}
-	}
-	if len(labels) == 0 {
-		return "", false
-	}
-	sort.Strings(labels)
-	return strings.Join(labels, `\n`), true
 }

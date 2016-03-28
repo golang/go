@@ -459,7 +459,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 func (enc *Encoding) DecodedLen(n int) int {
 	if enc.padChar == NoPadding {
 		// Unpadded data may end with partial block of 2-3 characters.
-		return (n*6 + 7) / 8
+		return n * 6 / 8
 	}
 	// Padded base64 should always be a multiple of 4 characters in length.
 	return n / 4 * 3

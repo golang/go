@@ -131,7 +131,6 @@ var maxbg = 4 /* maximum number of jobs to run at once */
 
 var (
 	bgwork = make(chan func(), 1e5)
-	bgdone = make(chan struct{}, 1e5)
 
 	bghelpers sync.WaitGroup
 
@@ -452,6 +451,8 @@ func main() {
 			} else {
 				gohostarch = "mips64le"
 			}
+		case strings.Contains(out, "s390x"):
+			gohostarch = "s390x"
 		case gohostos == "darwin":
 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
 				gohostarch = "arm"

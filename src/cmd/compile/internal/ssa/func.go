@@ -106,7 +106,7 @@ func (f *Func) logStat(key string, args ...interface{}) {
 	for _, a := range args {
 		value += fmt.Sprintf("\t%v", a)
 	}
-	f.Config.Warnl(int(f.Entry.Line), "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
+	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
 }
 
 // freeValue frees a value. It must no longer be referenced.
@@ -114,8 +114,24 @@ func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
+	if v.Uses != 0 {
+		f.Fatalf("value %s still has %d uses", v, v.Uses)
+	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
+
+	// Zero argument values might be cached, so remove them there.
+	nArgs := opcodeTable[v.Op].argLen
+	if nArgs == 0 {
+		vv := f.constants[v.AuxInt]
+		for i, cv := range vv {
+			if v == cv {
+				vv[i] = vv[len(vv)-1]
+				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
+				break
+			}
+		}
+	}
 	*v = Value{}
 	v.ID = id
 	v.argstorage[0] = f.freeValues
@@ -204,6 +220,7 @@ func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
 	v.AuxInt = 0
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -213,6 +230,7 @@ func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value) 
 	v.AuxInt = auxint
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -223,6 +241,7 @@ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Valu
 	v.Aux = aux
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -233,6 +252,7 @@ func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interfa
 	v.Aux = aux
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -243,6 +263,8 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
 	v.Args = v.argstorage[:2]
 	v.argstorage[0] = arg0
 	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
 	return v
 }
 
@@ -253,6 +275,8 @@ func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *
 	v.Args = v.argstorage[:2]
 	v.argstorage[0] = arg0
 	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
 	return v
 }
 
@@ -261,6 +285,9 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
 	v := b.Func.newValue(op, t, b, line)
 	v.AuxInt = 0
 	v.Args = []*Value{arg0, arg1, arg2}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
 	return v
 }
 
@@ -269,6 +296,9 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, 
 	v := b.Func.newValue(op, t, b, line)
 	v.AuxInt = auxint
 	v.Args = []*Value{arg0, arg1, arg2}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
 	return v
 }
 
@@ -280,6 +310,9 @@ func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value 
 	vv := f.constants[c]
 	for _, v := range vv {
 		if v.Op == op && v.Type.Equal(t) {
+			if setAux && v.AuxInt != c {
+				panic(fmt.Sprintf("cached const %s should have AuxInt of %d", v.LongString(), c))
+			}
 			return v
 		}
 	}
@@ -325,7 +358,7 @@ func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
 	return f.constVal(line, OpConst64, t, c, true)
 }
 func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
-	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(c)), true)
+	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
 func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
 	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)), true)

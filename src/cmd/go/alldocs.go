@@ -86,8 +86,7 @@ and test commands:
 	-p n
 		the number of programs, such as build commands or
 		test binaries, that can be run in parallel.
-		The default is the number of CPUs available, except
-		on darwin/arm which defaults to 1.
+		The default is the number of CPUs available.
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
@@ -577,6 +576,7 @@ syntax of package template.  The default output is equivalent to -f
         CXXFiles       []string // .cc, .cxx and .cpp source files
         MFiles         []string // .m source files
         HFiles         []string // .h, .hh, .hpp and .hxx source files
+        FFiles         []string // .f, .F, .for and .f90 Fortran source files
         SFiles         []string // .s source files
         SwigFiles      []string // .swig files
         SwigCXXFiles   []string // .swigcxx files
@@ -586,6 +586,7 @@ syntax of package template.  The default output is equivalent to -f
         CgoCFLAGS    []string // cgo: flags for C compiler
         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
+        CgoFFLAGS    []string // cgo: flags for Fortran compiler
         CgoLDFLAGS   []string // cgo: flags for linker
         CgoPkgConfig []string // cgo: pkg-config names
 
@@ -1143,14 +1144,6 @@ A few common code hosting sites have special syntax:
 		import "github.com/user/project"
 		import "github.com/user/project/sub/directory"
 
-	Google Code Project Hosting (Git, Mercurial, Subversion)
-
-		import "code.google.com/p/project"
-		import "code.google.com/p/project/sub/directory"
-
-		import "code.google.com/p/project.subrepository"
-		import "code.google.com/p/project.subrepository/sub/directory"
-
 	Launchpad (Bazaar)
 
 		import "launchpad.net/project"
@@ -1563,6 +1556,7 @@ Here is another example where the ordering of the output is ignored:
 		for _, value := range Perm(4) {
 			fmt.Println(value)
 		}
+
 		// Unordered output: 4
 		// 2
 		// 1

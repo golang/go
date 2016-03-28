@@ -125,6 +125,16 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
 			}
+		case BlockDefer:
+			if len(b.Succs) != 2 {
+				f.Fatalf("defer block %s len(Succs)==%d, want 2", b, len(b.Succs))
+			}
+			if b.Control == nil {
+				f.Fatalf("defer block %s has no control value", b)
+			}
+			if !b.Control.Type.IsMemory() {
+				f.Fatalf("defer block %s has non-memory control value %s", b, b.Control.LongString())
+			}
 		case BlockCheck:
 			if len(b.Succs) != 1 {
 				f.Fatalf("check block %s len(Succs)==%d, want 1", b, len(b.Succs))
@@ -161,8 +171,13 @@ func checkFunc(f *Func) {
 			canHaveAuxInt := false
 			switch opcodeTable[v.Op].auxType {
 			case auxNone:
-			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat:
+			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat64:
 				canHaveAuxInt = true
+			case auxFloat32:
+				canHaveAuxInt = true
+				if !isExactFloat32(v) {
+					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
+				}
 			case auxString, auxSym:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff:
@@ -279,6 +294,26 @@ func checkFunc(f *Func) {
 			}
 		}
 	}
+
+	// Check use counts
+	uses := make([]int32, f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for _, a := range v.Args {
+				uses[a.ID]++
+			}
+		}
+		if b.Control != nil {
+			uses[b.Control.ID]++
+		}
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Uses != uses[v.ID] {
+				f.Fatalf("%s has %d uses, but has Uses=%d", v, uses[v.ID], v.Uses)
+			}
+		}
+	}
 }
 
 // domCheck reports whether x dominates y (including x==y).
@@ -288,4 +323,9 @@ func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
 		return true
 	}
 	return sdom.isAncestorEq(x, y)
+}
+
+// isExactFloat32 reoprts whether v has an AuxInt that can be exactly represented as a float32.
+func isExactFloat32(v *Value) bool {
+	return v.AuxFloat() == float64(float32(v.AuxFloat()))
 }

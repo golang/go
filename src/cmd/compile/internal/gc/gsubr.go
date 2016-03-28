@@ -37,11 +37,11 @@ import (
 	"strings"
 )
 
-var ddumped int
-
-var dfirst *obj.Prog
-
-var dpc *obj.Prog
+var (
+	ddumped bool
+	dfirst  *obj.Prog
+	dpc     *obj.Prog
+)
 
 // Is this node a memory operand?
 func Ismem(n *Node) bool {
@@ -100,8 +100,8 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
-	if as == obj.ADATA || as == obj.AGLOBL {
-		if ddumped != 0 {
+	if as == obj.AGLOBL {
+		if ddumped {
 			Fatalf("already dumped data")
 		}
 		if dpc == nil {
@@ -119,10 +119,8 @@ func Prog(as obj.As) *obj.Prog {
 		p.Link = Pc
 	}
 
-	if lineno == 0 {
-		if Debug['K'] != 0 {
-			Warn("prog: line 0")
-		}
+	if lineno == 0 && Debug['K'] != 0 {
+		Warn("prog: line 0")
 	}
 
 	p.As = as
@@ -163,7 +161,7 @@ func Clearp(p *obj.Prog) {
 }
 
 func dumpdata() {
-	ddumped = 1
+	ddumped = true
 	if dfirst == nil {
 		return
 	}
@@ -236,10 +234,14 @@ func ggloblnod(nam *Node) {
 }
 
 func ggloblsym(s *Sym, width int32, flags int16) {
+	ggloblLSym(Linksym(s), width, flags)
+}
+
+func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	p := Thearch.Gins(obj.AGLOBL, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
-	p.From.Sym = Linksym(s)
+	p.From.Sym = s
 	if flags&obj.LOCAL != 0 {
 		p.From.Sym.Local = true
 		flags &= ^obj.LOCAL
@@ -383,14 +385,8 @@ func Naddr(a *obj.Addr, n *Node) {
 		if s == nil {
 			s = Lookup(".noname")
 		}
-		if n.Name.Method {
-			if n.Type != nil {
-				if n.Type.Sym != nil {
-					if n.Type.Sym.Pkg != nil {
-						s = Pkglookup(s.Name, n.Type.Sym.Pkg)
-					}
-				}
-			}
+		if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
+			s = Pkglookup(s.Name, n.Type.Sym.Pkg)
 		}
 
 		a.Type = obj.TYPE_MEM
@@ -420,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		// A special case to make write barriers more efficient.
 		// Taking the address of the first field of a named struct
 		// is the same as taking the address of the struct.
-		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Type.Sym != n.Right.Sym {
+		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Field(0).Sym != n.Sym {
 			Debug['h'] = 1
 			Dump("naddr", n)
 			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
@@ -433,16 +429,16 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		switch n.Val().Ctype() {
 		default:
-			Fatalf("naddr: const %v", Tconv(n.Type, obj.FmtLong))
+			Fatalf("naddr: const %v", Tconv(n.Type, FmtLong))
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
-			a.Val = mpgetflt(n.Val().U.(*Mpflt))
+			a.Val = n.Val().U.(*Mpflt).Float64()
 
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = Mpgetfix(n.Val().U.(*Mpint))
+			a.Offset = n.Val().U.(*Mpint).Int64()
 
 		case CTSTR:
 			datagostring(n.Val().U.(string), a)
@@ -517,7 +513,6 @@ func Naddr(a *obj.Addr, n *Node) {
 			a.Width = int64(Widthint)
 		}
 	}
-	return
 }
 
 func newplist() *obj.Plist {
@@ -540,15 +535,19 @@ func newplist() *obj.Plist {
 // incorrectly) passed a 1; the behavior is exactly
 // the same as it is for 1, except that PARAMOUT is
 // generated instead of PARAM.
-func nodarg(t *Type, fp int) *Node {
+func nodarg(t interface{}, fp int) *Node {
 	var n *Node
 
-	// entire argument struct, not just one arg
-	if t.Etype == TSTRUCT && t.Funarg {
+	switch t := t.(type) {
+	case *Type:
+		// entire argument struct, not just one arg
+		if t.Etype != TSTRUCT || !t.Funarg {
+			Fatalf("nodarg: bad type %v", t)
+		}
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t
-		first, _ := IterFields(t)
+		first := t.Field(0)
 		if first == nil {
 			Fatalf("nodarg: bad struct")
 		}
@@ -557,36 +556,31 @@ func nodarg(t *Type, fp int) *Node {
 		}
 		n.Xoffset = first.Width
 		n.Addable = true
-		goto fp
-	}
-
-	if t.Etype != TFIELD {
-		Fatalf("nodarg: not field %v", t)
-	}
-
-	if fp == 1 || fp == -1 {
-		for _, n := range Curfn.Func.Dcl {
-			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
-				return n
+	case *Field:
+		if fp == 1 || fp == -1 {
+			for _, n := range Curfn.Func.Dcl {
+				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
+					return n
+				}
 			}
 		}
-	}
 
-	n = Nod(ONAME, nil, nil)
-	n.Type = t.Type
-	n.Sym = t.Sym
-
-	if t.Width == BADWIDTH {
-		Fatalf("nodarg: offset not computed for %v", t)
+		n = Nod(ONAME, nil, nil)
+		n.Type = t.Type
+		n.Sym = t.Sym
+		if t.Width == BADWIDTH {
+			Fatalf("nodarg: offset not computed for %v", t)
+		}
+		n.Xoffset = t.Width
+		n.Addable = true
+		n.Orig = t.Nname
+	default:
+		panic("unreachable")
 	}
-	n.Xoffset = t.Width
-	n.Addable = true
-	n.Orig = t.Nname
 
 	// Rewrite argument named _ to __,
 	// or else the assignment to _ will be
 	// discarded during code generation.
-fp:
 	if isblank(n) {
 		n.Sym = Lookup("__")
 	}

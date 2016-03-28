@@ -31,6 +31,7 @@ var (
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
+	gogcflags        string // For running built compiler
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -59,6 +60,7 @@ var okgoarch = []string{
 	"mips64le",
 	"ppc64",
 	"ppc64le",
+	"s390x",
 }
 
 // The known operating systems.
@@ -165,6 +167,8 @@ func xinit() {
 		}
 		goextlinkenabled = b
 	}
+
+	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 
 	b = os.Getenv("CC")
 	if b == "" {
@@ -687,6 +691,9 @@ func install(dir string) {
 		archive = b
 	}
 	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+	if gogcflags != "" {
+		compile = append(compile, strings.Fields(gogcflags)...)
+	}
 	if dir == "runtime" {
 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
@@ -1091,6 +1098,7 @@ var cgoEnabled = map[string]bool{
 	"linux/ppc64le":   true,
 	"linux/mips64":    false,
 	"linux/mips64le":  false,
+	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,

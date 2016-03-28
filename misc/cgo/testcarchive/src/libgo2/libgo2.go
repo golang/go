@@ -41,5 +41,10 @@ func TestSEGV() {
 	os.Exit(1)
 }
 
+// Noop ensures that the Go runtime is initialized.
+//export Noop
+func Noop() {
+}
+
 func main() {
 }

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/asm/internal/arch"
 	"cmd/asm/internal/lex"
 )
 
@@ -58,11 +57,9 @@ func TestErroneous(t *testing.T) {
 		parser.errorCount = 0
 		parser.lineNum++
 		parser.histLineNum++
-		op, ok := arch.Pseudos[test.pseudo]
-		if !ok {
+		if !parser.pseudo(test.pseudo, tokenize(test.operands)) {
 			t.Fatalf("Wrong pseudo-instruction: %s", test.pseudo)
 		}
-		parser.pseudo(op, test.pseudo, tokenize(test.operands))
 		errorLine := buf.String()
 		if test.expected != errorLine {
 			t.Errorf("Unexpected error %q; expected %q", errorLine, test.expected)

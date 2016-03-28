@@ -11,7 +11,6 @@ import (
 )
 
 const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
-const cannotSet = "cannot set value obtained from unexported struct field"
 
 // Value is the reflection interface to a Go value.
 //
@@ -554,7 +553,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		if m.pkgPath != nil {
+		if !m.name.isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		iface := (*nonEmptyInterface)(v.ptr)
@@ -571,7 +570,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &ut.methods[i]
-		if m.pkgPath != nil {
+		if !m.name.isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		fn = unsafe.Pointer(&m.ifn)
@@ -750,8 +749,8 @@ func (v Value) Field(i int) Value {
 	// Inherit permission bits from v, but clear flagEmbedRO.
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
-	if field.pkgPath != nil {
-		if field.name == nil {
+	if !field.name.isExported() {
+		if field.name.name() == "" {
 			fl |= flagEmbedRO
 		} else {
 			fl |= flagStickyRO
@@ -1876,7 +1875,7 @@ func Copy(dst, src Value) int {
 // A runtimeSelect is a single case passed to rselect.
 // This must match ../runtime/select.go:/runtimeSelect
 type runtimeSelect struct {
-	dir uintptr        // 0, SendDir, or RecvDir
+	dir SelectDir      // SelectSend, SelectRecv or SelectDefault
 	typ *rtype         // channel type
 	ch  unsafe.Pointer // channel
 	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
@@ -1939,7 +1938,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	haveDefault := false
 	for i, c := range cases {
 		rc := &runcases[i]
-		rc.dir = uintptr(c.Dir)
+		rc.dir = c.Dir
 		switch c.Dir {
 		default:
 			panic("reflect.Select: invalid Dir")
@@ -2002,7 +2001,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	}
 
 	chosen, recvOK = rselect(runcases)
-	if runcases[chosen].dir == uintptr(SelectRecv) {
+	if runcases[chosen].dir == SelectRecv {
 		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
 		t := tt.elem
 		p := runcases[chosen].val

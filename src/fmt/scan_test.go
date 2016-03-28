@@ -78,12 +78,6 @@ var (
 	renamedComplex128Val renamedComplex128
 )
 
-type FloatTest struct {
-	text string
-	in   float64
-	out  float64
-}
-
 // Xs accepts any non-empty run of the verb character
 type Xs string
 

@@ -47,32 +47,6 @@ type BinOpTest struct {
 	i int
 }
 
-var equalTests = []struct {
-	a, b []byte
-	i    int
-}{
-	{[]byte(""), []byte(""), 0},
-	{[]byte("a"), []byte(""), 1},
-	{[]byte(""), []byte("a"), -1},
-	{[]byte("abc"), []byte("abc"), 0},
-	{[]byte("ab"), []byte("abc"), -1},
-	{[]byte("abc"), []byte("ab"), 1},
-	{[]byte("x"), []byte("ab"), 1},
-	{[]byte("ab"), []byte("x"), -1},
-	{[]byte("x"), []byte("a"), 1},
-	{[]byte("b"), []byte("x"), -1},
-	// test runtime·memeq's chunked implementation
-	{[]byte("abcdefgh"), []byte("abcdefgh"), 0},
-	{[]byte("abcdefghi"), []byte("abcdefghi"), 0},
-	{[]byte("abcdefghi"), []byte("abcdefghj"), -1},
-	// nil tests
-	{nil, nil, 0},
-	{[]byte(""), nil, 0},
-	{nil, []byte(""), 0},
-	{[]byte("a"), nil, 1},
-	{nil, []byte("a"), -1},
-}
-
 func TestEqual(t *testing.T) {
 	for _, tt := range compareTests {
 		eql := Equal(tt.a, tt.b)

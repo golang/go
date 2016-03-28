@@ -639,7 +639,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	// A special case to make write barriers more efficient.
 	// Comparing the first field of a named struct can be done directly.
 	base := n1
-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Type.Sym == n1.Right.Sym {
+	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Sym {
 		base = n1.Left
 	}
 
@@ -1603,7 +1603,7 @@ hardmem:
 
 	// should not happen
 fatal:
-	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
 
 	return
 }

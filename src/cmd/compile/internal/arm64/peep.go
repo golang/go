@@ -234,7 +234,7 @@ func subprop(r0 *gc.Flow) bool {
 		if p.Info.Flags&(gc.RightRead|gc.RightWrite) == gc.RightWrite {
 			if p.To.Type == v1.Type {
 				if p.To.Reg == v1.Reg {
-					copysub(&p.To, v1, v2, 1)
+					copysub(&p.To, v1, v2, true)
 					if gc.Debug['P'] != 0 {
 						fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
 						if p.From.Type == v2.Type {
@@ -245,9 +245,9 @@ func subprop(r0 *gc.Flow) bool {
 
 					for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
 						p = r.Prog
-						copysub(&p.From, v1, v2, 1)
-						copysub1(p, v1, v2, 1)
-						copysub(&p.To, v1, v2, 1)
+						copysub(&p.From, v1, v2, true)
+						copysub1(p, v1, v2, true)
+						copysub(&p.To, v1, v2, true)
 						if gc.Debug['P'] != 0 {
 							fmt.Printf("%v\n", r.Prog)
 						}
@@ -265,7 +265,7 @@ func subprop(r0 *gc.Flow) bool {
 		if copyau(&p.From, v2) || copyau1(p, v2) || copyau(&p.To, v2) {
 			break
 		}
-		if copysub(&p.From, v1, v2, 0) != 0 || copysub1(p, v1, v2, 0) != 0 || copysub(&p.To, v1, v2, 0) != 0 {
+		if copysub(&p.From, v1, v2, false) || copysub1(p, v1, v2, false) || copysub(&p.To, v1, v2, false) {
 			break
 		}
 	}
@@ -300,12 +300,12 @@ func copyprop(r0 *gc.Flow) bool {
 	if gc.Debug['P'] != 0 {
 		fmt.Printf("trying to eliminate %v->%v move from:\n%v\n", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r0.Prog)
 	}
-	return copy1(v1, v2, r0.S1, 0)
+	return copy1(v1, v2, r0.S1, false)
 }
 
 // copy1 replaces uses of v2 with v1 starting at r and returns 1 if
 // all uses were rewritten.
-func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
+func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f bool) bool {
 	if uint32(r.Active) == gactive {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("act set; return 1\n")
@@ -315,27 +315,24 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 
 	r.Active = int32(gactive)
 	if gc.Debug['P'] != 0 {
-		fmt.Printf("copy1 replace %v with %v f=%d\n", gc.Ctxt.Dconv(v2), gc.Ctxt.Dconv(v1), f)
+		fmt.Printf("copy1 replace %v with %v f=%v\n", gc.Ctxt.Dconv(v2), gc.Ctxt.Dconv(v1), f)
 	}
-	var t int
-	var p *obj.Prog
 	for ; r != nil; r = r.S1 {
-		p = r.Prog
+		p := r.Prog
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("%v", p)
 		}
-		if f == 0 && gc.Uniqp(r) == nil {
+		if !f && gc.Uniqp(r) == nil {
 			// Multiple predecessors; conservatively
 			// assume v1 was set on other path
-			f = 1
+			f = true
 
 			if gc.Debug['P'] != 0 {
-				fmt.Printf("; merge; f=%d", f)
+				fmt.Printf("; merge; f=%v", f)
 			}
 		}
 
-		t = copyu(p, v2, nil)
-		switch t {
+		switch t := copyu(p, v2, nil); t {
 		case 2: /* rar, can't split */
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("; %v rar; return 0\n", gc.Ctxt.Dconv(v2))
@@ -350,14 +347,14 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 
 		case 1, /* used, substitute */
 			4: /* use and set */
-			if f != 0 {
+			if f {
 				if gc.Debug['P'] == 0 {
 					return false
 				}
 				if t == 4 {
-					fmt.Printf("; %v used+set and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+					fmt.Printf("; %v used+set and f=%v; return 0\n", gc.Ctxt.Dconv(v2), f)
 				} else {
-					fmt.Printf("; %v used and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+					fmt.Printf("; %v used and f=%v; return 0\n", gc.Ctxt.Dconv(v2), f)
 				}
 				return false
 			}
@@ -380,12 +377,12 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 			}
 		}
 
-		if f == 0 {
-			t = copyu(p, v1, nil)
-			if f == 0 && (t == 2 || t == 3 || t == 4) {
-				f = 1
+		if !f {
+			t := copyu(p, v1, nil)
+			if t == 2 || t == 3 || t == 4 {
+				f = true
 				if gc.Debug['P'] != 0 {
-					fmt.Printf("; %v set and !f; f=%d", gc.Ctxt.Dconv(v1), f)
+					fmt.Printf("; %v set and !f; f=%v", gc.Ctxt.Dconv(v1), f)
 				}
 			}
 		}
@@ -399,7 +396,6 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 			}
 		}
 	}
-
 	return true
 }
 
@@ -464,13 +460,13 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		arm64.AFMOVD:
 		if p.Scond == 0 {
 			if s != nil {
-				if copysub(&p.From, v, s, 1) != 0 {
+				if copysub(&p.From, v, s, true) {
 					return 1
 				}
 
 				// Update only indirect uses of v in p->to
 				if !copyas(&p.To, v) {
-					if copysub(&p.To, v, s, 1) != 0 {
+					if copysub(&p.To, v, s, true) {
 						return 1
 					}
 				}
@@ -508,7 +504,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 			}
 
 			if s != nil {
-				if copysub(&p.To, v, s, 1) != 0 {
+				if copysub(&p.To, v, s, true) {
 					return 1
 				}
 				return 0
@@ -522,7 +518,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 				return 2
 			}
 			if s != nil {
-				if copysub(&p.From, v, s, 1) != 0 {
+				if copysub(&p.From, v, s, true) {
 					return 1
 				}
 				return 0
@@ -561,16 +557,16 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		arm64.AFDIVD,
 		arm64.AFDIVS:
 		if s != nil {
-			if copysub(&p.From, v, s, 1) != 0 {
+			if copysub(&p.From, v, s, true) {
 				return 1
 			}
-			if copysub1(p, v, s, 1) != 0 {
+			if copysub1(p, v, s, true) {
 				return 1
 			}
 
 			// Update only indirect uses of v in p->to
 			if !copyas(&p.To, v) {
-				if copysub(&p.To, v, s, 1) != 0 {
+				if copysub(&p.To, v, s, true) {
 					return 1
 				}
 			}
@@ -622,10 +618,13 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		arm64.AFCMPD,
 		arm64.AFCMPS:
 		if s != nil {
-			if copysub(&p.From, v, s, 1) != 0 {
+			if copysub(&p.From, v, s, true) {
 				return 1
 			}
-			return copysub1(p, v, s, 1)
+			if copysub1(p, v, s, true) {
+				return 1
+			}
+			return 0
 		}
 
 		if copyau(&p.From, v) {
@@ -638,7 +637,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	case arm64.AB: /* read p->to */
 		if s != nil {
-			if copysub(&p.To, v, s, 1) != 0 {
+			if copysub(&p.To, v, s, true) {
 				return 1
 			}
 			return 0
@@ -664,7 +663,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 
 		if s != nil {
-			if copysub(&p.To, v, s, 1) != 0 {
+			if copysub(&p.To, v, s, true) {
 				return 1
 			}
 			return 0
@@ -715,23 +714,16 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	}
 }
 
-// copyas returns 1 if a and v address the same register.
+// copyas returns true if a and v address the same register.
 //
 // If a is the from operand, this means this operation reads the
 // register in v. If a is the to operand, this means this operation
 // writes the register in v.
 func copyas(a *obj.Addr, v *obj.Addr) bool {
-	if regtyp(v) {
-		if a.Type == v.Type {
-			if a.Reg == v.Reg {
-				return true
-			}
-		}
-	}
-	return false
+	return regtyp(v) && a.Type == v.Type && a.Reg == v.Reg
 }
 
-// copyau returns 1 if a either directly or indirectly addresses the
+// copyau returns true if a either directly or indirectly addresses the
 // same register as v.
 //
 // If a is the from operand, this means this operation reads the
@@ -752,37 +744,30 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
 	return false
 }
 
-// copyau1 returns 1 if p->reg references the same register as v and v
+// copyau1 returns true if p->reg references the same register as v and v
 // is a direct reference.
 func copyau1(p *obj.Prog, v *obj.Addr) bool {
-	if regtyp(v) && v.Reg != 0 {
-		if p.Reg == v.Reg {
-			return true
-		}
+	return regtyp(v) && v.Reg != 0 && p.Reg == v.Reg
+}
+
+// copysub replaces v with s in a if f==true or indicates it if could if f==false.
+// Returns true on failure to substitute (it always succeeds on arm64).
+// TODO(dfc) remove unused return value, remove calls with f=false as they do nothing.
+func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f bool) bool {
+	if f && copyau(a, v) {
+		a.Reg = s.Reg
 	}
 	return false
 }
 
-// copysub replaces v with s in a if f!=0 or indicates it if could if f==0.
-// Returns 1 on failure to substitute (it always succeeds on arm64).
-func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
-	if f != 0 {
-		if copyau(a, v) {
-			a.Reg = s.Reg
-		}
+// copysub1 replaces v with s in p1->reg if f==true or indicates if it could if f==false.
+// Returns true on failure to substitute (it always succeeds on arm64).
+// TODO(dfc) remove unused return value, remove calls with f=false as they do nothing.
+func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f bool) bool {
+	if f && copyau1(p1, v) {
+		p1.Reg = s.Reg
 	}
-	return 0
-}
-
-// copysub1 replaces v with s in p1->reg if f!=0 or indicates if it could if f==0.
-// Returns 1 on failure to substitute (it always succeeds on arm64).
-func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f int) int {
-	if f != 0 {
-		if copyau1(p1, v) {
-			p1.Reg = s.Reg
-		}
-	}
-	return 0
+	return false
 }
 
 func sameaddr(a *obj.Addr, v *obj.Addr) bool {

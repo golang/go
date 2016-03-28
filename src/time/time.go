@@ -225,9 +225,6 @@ const (
 	// Assumed by the unixToInternal computation below.
 	internalYear = 1
 
-	// The year of the zero Unix time.
-	unixYear = 1970
-
 	// Offsets to convert between internal and absolute or Unix times.
 	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
 	internalToAbsolute       = -absoluteToInternal

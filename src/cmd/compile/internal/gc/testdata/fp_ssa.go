@@ -13,9 +13,8 @@ import "fmt"
 // manysub_ssa is designed to tickle bugs that depend on register
 // pressure or unfriendly operand ordering in registers (and at
 // least once it succeeded in this).
+//go:noinline
 func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc, cd, da, db, dc, dd float64) {
-	switch {
-	}
 	aa = a + 11.0 - a
 	ab = a - b
 	ac = a - c
@@ -37,9 +36,8 @@ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc
 
 // fpspill_ssa attempts to trigger a bug where phis with floating point values
 // were stored in non-fp registers causing an error in doasm.
+//go:noinline
 func fpspill_ssa(a int) float64 {
-	switch {
-	}
 
 	ret := -1.0
 	switch a {
@@ -81,69 +79,59 @@ func fpspill_ssa(a int) float64 {
 	return ret
 }
 
+//go:noinline
 func add64_ssa(a, b float64) float64 {
-	switch {
-	}
 	return a + b
 }
 
+//go:noinline
 func mul64_ssa(a, b float64) float64 {
-	switch {
-	}
 	return a * b
 }
 
+//go:noinline
 func sub64_ssa(a, b float64) float64 {
-	switch {
-	}
 	return a - b
 }
 
+//go:noinline
 func div64_ssa(a, b float64) float64 {
-	switch {
-	}
 	return a / b
 }
 
+//go:noinline
 func neg64_ssa(a, b float64) float64 {
-	switch {
-	}
 	return -a + -1*b
 }
 
+//go:noinline
 func add32_ssa(a, b float32) float32 {
-	switch {
-	}
 	return a + b
 }
 
+//go:noinline
 func mul32_ssa(a, b float32) float32 {
-	switch {
-	}
 	return a * b
 }
 
+//go:noinline
 func sub32_ssa(a, b float32) float32 {
-	switch {
-	}
 	return a - b
 }
+
+//go:noinline
 func div32_ssa(a, b float32) float32 {
-	switch {
-	}
 	return a / b
 }
 
+//go:noinline
 func neg32_ssa(a, b float32) float32 {
-	switch {
-	}
 	return -a + -1*b
 }
 
+//go:noinline
 func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
 	e int32, f uint32, g int64, h uint64, i float32) (aa, bb, cc, dd, ee, ff, gg, hh, ii float64) {
-	switch {
-	}
 	aa = float64(a)
 	bb = float64(b)
 	cc = float64(c)
@@ -156,10 +144,9 @@ func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
 	return
 }
 
+//go:noinline
 func conv2Float32_ssa(a int8, b uint8, c int16, d uint16,
 	e int32, f uint32, g int64, h uint64, i float64) (aa, bb, cc, dd, ee, ff, gg, hh, ii float32) {
-	switch {
-	}
 	aa = float32(a)
 	bb = float32(b)
 	cc = float32(c)
@@ -264,11 +251,8 @@ const (
 	dd = 0x1
 )
 
+//go:noinline
 func compares64_ssa(a, b, c, d float64) (lt, le, eq, ne, ge, gt uint64) {
-
-	switch {
-	}
-
 	if a < a {
 		lt += aa
 	}
@@ -584,11 +568,8 @@ func compares64_ssa(a, b, c, d float64) (lt, le, eq, ne, ge, gt uint64) {
 	return
 }
 
+//go:noinline
 func compares32_ssa(a, b, c, d float32) (lt, le, eq, ne, ge, gt uint64) {
-
-	switch {
-	}
-
 	if a < a {
 		lt += aa
 	}
@@ -904,259 +885,239 @@ func compares32_ssa(a, b, c, d float32) (lt, le, eq, ne, ge, gt uint64) {
 	return
 }
 
+//go:noinline
 func le64_ssa(x, y float64) bool {
-	switch {
-	}
 	return x <= y
 }
+
+//go:noinline
 func ge64_ssa(x, y float64) bool {
-	switch {
-	}
 	return x >= y
 }
+
+//go:noinline
 func lt64_ssa(x, y float64) bool {
-	switch {
-	}
 	return x < y
 }
+
+//go:noinline
 func gt64_ssa(x, y float64) bool {
-	switch {
-	}
 	return x > y
 }
+
+//go:noinline
 func eq64_ssa(x, y float64) bool {
-	switch {
-	}
 	return x == y
 }
+
+//go:noinline
 func ne64_ssa(x, y float64) bool {
-	switch {
-	}
 	return x != y
 }
 
+//go:noinline
 func eqbr64_ssa(x, y float64) float64 {
-	switch {
-	}
 	if x == y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func nebr64_ssa(x, y float64) float64 {
-	switch {
-	}
 	if x != y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func gebr64_ssa(x, y float64) float64 {
-	switch {
-	}
 	if x >= y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func lebr64_ssa(x, y float64) float64 {
-	switch {
-	}
 	if x <= y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func ltbr64_ssa(x, y float64) float64 {
-	switch {
-	}
 	if x < y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func gtbr64_ssa(x, y float64) float64 {
-	switch {
-	}
 	if x > y {
 		return 17
 	}
 	return 42
 }
 
+//go:noinline
 func le32_ssa(x, y float32) bool {
-	switch {
-	}
 	return x <= y
 }
+
+//go:noinline
 func ge32_ssa(x, y float32) bool {
-	switch {
-	}
 	return x >= y
 }
+
+//go:noinline
 func lt32_ssa(x, y float32) bool {
-	switch {
-	}
 	return x < y
 }
+
+//go:noinline
 func gt32_ssa(x, y float32) bool {
-	switch {
-	}
 	return x > y
 }
+
+//go:noinline
 func eq32_ssa(x, y float32) bool {
-	switch {
-	}
 	return x == y
 }
+
+//go:noinline
 func ne32_ssa(x, y float32) bool {
-	switch {
-	}
 	return x != y
 }
 
+//go:noinline
 func eqbr32_ssa(x, y float32) float32 {
-	switch {
-	}
 	if x == y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func nebr32_ssa(x, y float32) float32 {
-	switch {
-	}
 	if x != y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func gebr32_ssa(x, y float32) float32 {
-	switch {
-	}
 	if x >= y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func lebr32_ssa(x, y float32) float32 {
-	switch {
-	}
 	if x <= y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func ltbr32_ssa(x, y float32) float32 {
-	switch {
-	}
 	if x < y {
 		return 17
 	}
 	return 42
 }
+
+//go:noinline
 func gtbr32_ssa(x, y float32) float32 {
-	switch {
-	}
 	if x > y {
 		return 17
 	}
 	return 42
 }
 
+//go:noinline
 func F32toU8_ssa(x float32) uint8 {
-	switch {
-	}
 	return uint8(x)
 }
 
+//go:noinline
 func F32toI8_ssa(x float32) int8 {
-	switch {
-	}
 	return int8(x)
 }
 
+//go:noinline
 func F32toU16_ssa(x float32) uint16 {
-	switch {
-	}
 	return uint16(x)
 }
 
+//go:noinline
 func F32toI16_ssa(x float32) int16 {
-	switch {
-	}
 	return int16(x)
 }
 
+//go:noinline
 func F32toU32_ssa(x float32) uint32 {
-	switch {
-	}
 	return uint32(x)
 }
 
+//go:noinline
 func F32toI32_ssa(x float32) int32 {
-	switch {
-	}
 	return int32(x)
 }
 
+//go:noinline
 func F32toU64_ssa(x float32) uint64 {
-	switch {
-	}
 	return uint64(x)
 }
 
+//go:noinline
 func F32toI64_ssa(x float32) int64 {
-	switch {
-	}
 	return int64(x)
 }
 
+//go:noinline
 func F64toU8_ssa(x float64) uint8 {
-	switch {
-	}
 	return uint8(x)
 }
 
+//go:noinline
 func F64toI8_ssa(x float64) int8 {
-	switch {
-	}
 	return int8(x)
 }
 
+//go:noinline
 func F64toU16_ssa(x float64) uint16 {
-	switch {
-	}
 	return uint16(x)
 }
 
+//go:noinline
 func F64toI16_ssa(x float64) int16 {
-	switch {
-	}
 	return int16(x)
 }
 
+//go:noinline
 func F64toU32_ssa(x float64) uint32 {
-	switch {
-	}
 	return uint32(x)
 }
 
+//go:noinline
 func F64toI32_ssa(x float64) int32 {
-	switch {
-	}
 	return int32(x)
 }
 
+//go:noinline
 func F64toU64_ssa(x float64) uint64 {
-	switch {
-	}
 	return uint64(x)
 }
 
+//go:noinline
 func F64toI64_ssa(x float64) int64 {
-	switch {
-	}
 	return int64(x)
 }
 

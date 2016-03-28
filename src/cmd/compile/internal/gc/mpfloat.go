@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
 	"fmt"
 	"math"
 )
@@ -38,7 +37,7 @@ func newMpflt() *Mpflt {
 	return &a
 }
 
-func Mpmovefixflt(a *Mpflt, b *Mpint) {
+func (a *Mpflt) SetInt(b *Mpint) {
 	if b.Ovf {
 		// sign doesn't really matter but copy anyway
 		a.Val.SetInf(b.Val.Sign() < 0)
@@ -47,11 +46,11 @@ func Mpmovefixflt(a *Mpflt, b *Mpint) {
 	a.Val.SetInt(&b.Val)
 }
 
-func mpmovefltflt(a *Mpflt, b *Mpflt) {
+func (a *Mpflt) Set(b *Mpflt) {
 	a.Val.Set(&b.Val)
 }
 
-func mpaddfltflt(a *Mpflt, b *Mpflt) {
+func (a *Mpflt) Add(b *Mpflt) {
 	if Mpdebug {
 		fmt.Printf("\n%v + %v", a, b)
 	}
@@ -63,14 +62,14 @@ func mpaddfltflt(a *Mpflt, b *Mpflt) {
 	}
 }
 
-func mpaddcflt(a *Mpflt, c float64) {
+func (a *Mpflt) AddFloat64(c float64) {
 	var b Mpflt
 
-	Mpmovecflt(&b, c)
-	mpaddfltflt(a, &b)
+	b.SetFloat64(c)
+	a.Add(&b)
 }
 
-func mpsubfltflt(a *Mpflt, b *Mpflt) {
+func (a *Mpflt) Sub(b *Mpflt) {
 	if Mpdebug {
 		fmt.Printf("\n%v - %v", a, b)
 	}
@@ -82,7 +81,7 @@ func mpsubfltflt(a *Mpflt, b *Mpflt) {
 	}
 }
 
-func mpmulfltflt(a *Mpflt, b *Mpflt) {
+func (a *Mpflt) Mul(b *Mpflt) {
 	if Mpdebug {
 		fmt.Printf("%v\n * %v\n", a, b)
 	}
@@ -94,14 +93,14 @@ func mpmulfltflt(a *Mpflt, b *Mpflt) {
 	}
 }
 
-func mpmulcflt(a *Mpflt, c float64) {
+func (a *Mpflt) MulFloat64(c float64) {
 	var b Mpflt
 
-	Mpmovecflt(&b, c)
-	mpmulfltflt(a, &b)
+	b.SetFloat64(c)
+	a.Mul(&b)
 }
 
-func mpdivfltflt(a *Mpflt, b *Mpflt) {
+func (a *Mpflt) Quo(b *Mpflt) {
 	if Mpdebug {
 		fmt.Printf("%v\n / %v\n", a, b)
 	}
@@ -113,18 +112,18 @@ func mpdivfltflt(a *Mpflt, b *Mpflt) {
 	}
 }
 
-func mpcmpfltflt(a *Mpflt, b *Mpflt) int {
+func (a *Mpflt) Cmp(b *Mpflt) int {
 	return a.Val.Cmp(&b.Val)
 }
 
-func mpcmpfltc(b *Mpflt, c float64) int {
-	var a Mpflt
-
-	Mpmovecflt(&a, c)
-	return mpcmpfltflt(b, &a)
+func (a *Mpflt) CmpFloat64(c float64) int {
+	if c == 0 {
+		return a.Val.Sign() // common case shortcut
+	}
+	return a.Val.Cmp(big.NewFloat(c))
 }
 
-func mpgetflt(a *Mpflt) float64 {
+func (a *Mpflt) Float64() float64 {
 	x, _ := a.Val.Float64()
 
 	// check for overflow
@@ -135,7 +134,7 @@ func mpgetflt(a *Mpflt) float64 {
 	return x + 0 // avoid -0 (should not be needed, but be conservative)
 }
 
-func mpgetflt32(a *Mpflt) float64 {
+func (a *Mpflt) Float32() float64 {
 	x32, _ := a.Val.Float32()
 	x := float64(x32)
 
@@ -147,7 +146,7 @@ func mpgetflt32(a *Mpflt) float64 {
 	return x + 0 // avoid -0 (should not be needed, but be conservative)
 }
 
-func Mpmovecflt(a *Mpflt, c float64) {
+func (a *Mpflt) SetFloat64(c float64) {
 	if Mpdebug {
 		fmt.Printf("\nconst %g", c)
 	}
@@ -163,7 +162,7 @@ func Mpmovecflt(a *Mpflt, c float64) {
 	}
 }
 
-func mpnegflt(a *Mpflt) {
+func (a *Mpflt) Neg() {
 	// avoid -0
 	if a.Val.Sign() != 0 {
 		a.Val.Neg(&a.Val)
@@ -174,7 +173,7 @@ func mpnegflt(a *Mpflt) {
 // floating point input
 // required syntax is [+-]d*[.]d*[e[+-]d*] or [+-]0xH*[e[+-]d*]
 //
-func mpatoflt(a *Mpflt, as string) {
+func (a *Mpflt) SetString(as string) {
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
 	}
@@ -209,8 +208,8 @@ func (f *Mpflt) String() string {
 	return Fconv(f, 0)
 }
 
-func Fconv(fvp *Mpflt, flag int) string {
-	if flag&obj.FmtSharp == 0 {
+func Fconv(fvp *Mpflt, flag FmtFlag) string {
+	if flag&FmtSharp == 0 {
 		return fvp.Val.Text('b', 0)
 	}
 
@@ -222,7 +221,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 	if f.Sign() < 0 {
 		sign = "-"
 		f = new(big.Float).Abs(f)
-	} else if flag&obj.FmtSign != 0 {
+	} else if flag&FmtSign != 0 {
 		sign = "+"
 	}
 
