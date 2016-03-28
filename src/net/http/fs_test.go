@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -38,8 +37,6 @@ const (
 type wantRange struct {
 	start, end int64 // range [start,end)
 }
-
-var itoa = strconv.Itoa
 
 var ServeFileRangeTests = []struct {
 	r      string
@@ -505,6 +502,24 @@ func TestServeFileFromCWD(t *testing.T) {
 	r.Body.Close()
 	if r.StatusCode != 200 {
 		t.Fatalf("expected 200 OK, got %s", r.Status)
+	}
+}
+
+// Issue 13996
+func TestServeDirWithoutTrailingSlash(t *testing.T) {
+	e := "/testdata/"
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ServeFile(w, r, ".")
+	}))
+	defer ts.Close()
+	r, err := Get(ts.URL + "/testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Body.Close()
+	if g := r.Request.URL.Path; g != e {
+		t.Errorf("got %s, want %s", g, e)
 	}
 }
 

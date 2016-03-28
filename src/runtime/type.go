@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // tflag is documented in ../reflect/type.go.
 type tflag uint8
@@ -152,12 +155,10 @@ func (t *functype) dotdotdot() bool {
 }
 
 type method struct {
-	name    *string
-	pkgpath *string
-	mtyp    *_type
-	typ     *_type
-	ifn     unsafe.Pointer
-	tfn     unsafe.Pointer
+	name name
+	mtyp *_type
+	ifn  unsafe.Pointer
+	tfn  unsafe.Pointer
 }
 
 type uncommontype struct {
@@ -166,14 +167,14 @@ type uncommontype struct {
 }
 
 type imethod struct {
-	name    *string
-	pkgpath *string
-	_type   *_type
+	name  name
+	_type *_type
 }
 
 type interfacetype struct {
-	typ  _type
-	mhdr []imethod
+	typ     _type
+	pkgpath *string
+	mhdr    []imethod
 }
 
 type maptype struct {
@@ -221,14 +222,62 @@ type ptrtype struct {
 }
 
 type structfield struct {
-	name    *string
-	pkgpath *string
-	typ     *_type
-	tag     *string
-	offset  uintptr
+	name   name
+	typ    *_type
+	offset uintptr
 }
 
 type structtype struct {
-	typ    _type
-	fields []structfield
+	typ     _type
+	pkgPath *string
+	fields  []structfield
+}
+
+// name is an encoded type name with optional extra data.
+// See reflect/type.go for details.
+type name struct {
+	bytes *byte
+}
+
+func (n *name) data(off int) *byte {
+	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
+}
+
+func (n *name) isExported() bool {
+	return (*n.bytes)&(1<<0) != 0
+}
+
+func (n *name) nameLen() int {
+	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
+}
+
+func (n *name) tagLen() int {
+	if *n.data(0)&(1<<1) == 0 {
+		return 0
+	}
+	off := 3 + n.nameLen()
+	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
+}
+
+func (n *name) name() (s string) {
+	nl := n.nameLen()
+	if nl == 0 {
+		return ""
+	}
+	hdr := (*stringStruct)(unsafe.Pointer(&s))
+	hdr.str = unsafe.Pointer(n.data(3))
+	hdr.len = nl
+	return s
+}
+
+func (n *name) pkgPath() *string {
+	if *n.data(0)&(1<<2) == 0 {
+		return nil
+	}
+	off := 3 + n.nameLen()
+	if tl := n.tagLen(); tl > 0 {
+		off += 2 + tl
+	}
+	off = int(round(uintptr(off), sys.PtrSize))
+	return *(**string)(unsafe.Pointer(n.data(off)))
 }

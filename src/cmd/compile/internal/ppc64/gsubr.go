@@ -175,7 +175,7 @@ func bignodes() {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
 	}
 
 	ft := int(gc.Simsimtype(f.Type))
@@ -261,7 +261,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
 
 		/*
 		 * integer copy and truncate
@@ -706,6 +706,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 		OCMP_   = uint32(gc.OCMP) << 16
 		OAS_    = uint32(gc.OAS) << 16
 		OHMUL_  = uint32(gc.OHMUL) << 16
+		OSQRT_  = uint32(gc.OSQRT) << 16
 	)
 
 	a := obj.AXXX
@@ -1028,6 +1029,9 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 
 	case ODIV_ | gc.TFLOAT64:
 		a = ppc64.AFDIV
+
+	case OSQRT_ | gc.TFLOAT64:
+		a = ppc64.AFSQRT
 	}
 
 	return a

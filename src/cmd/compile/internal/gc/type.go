@@ -45,13 +45,11 @@ const (
 
 	TFUNC
 	TARRAY
-	T_old_DARRAY // Doesn't seem to be used in existing code. Used now for Isddd export (see bexport.go). TODO(gri) rename.
 	TSTRUCT
 	TCHAN
 	TMAP
 	TINTER
 	TFORW
-	TFIELD
 	TANY
 	TSTRING
 	TUNSAFEPTR
@@ -61,10 +59,13 @@ const (
 	TNIL
 	TBLANK
 
-	// pseudo-type for frame layout
+	// pseudo-types for frame layout
 	TFUNCARGS
 	TCHANARGS
 	TINTERMETH
+
+	// pseudo-types for import/export
+	TDDDFIELD // wrapper: contained type is a ... field
 
 	NTYPE
 )
@@ -103,48 +104,39 @@ var (
 // A Type represents a Go type.
 type Type struct {
 	Etype       EType
-	Nointerface bool
 	Noalg       bool
 	Chan        uint8
 	Trecur      uint8 // to detect loops
 	Printed     bool
-	Embedded    uint8 // TFIELD embedded type
-	Funarg      bool  // on TSTRUCT and TFIELD
-	Copyany     bool
+	Funarg      bool // on TSTRUCT and TFIELD
 	Local       bool // created in this file
 	Deferwidth  bool
 	Broke       bool // broken type definition.
-	Isddd       bool // TFIELD is ... argument
 	Align       uint8
 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+	Outnamed    bool  // on TFUNC
 
-	Nod    *Node // canonical OTYPE node
-	Orig   *Type // original type (type literal or predefined type)
-	Lineno int32
+	Nod  *Node // canonical OTYPE node
+	Orig *Type // original type (type literal or predefined type)
 
-	// TFUNC
-	Thistuple int
-	Outtuple  int
-	Intuple   int
-	Outnamed  bool
-
-	Method  *Type
-	Xmethod *Type
+	methods    Fields
+	allMethods Fields
 
 	Sym    *Sym
 	Vargen int32 // unique name for OTYPE/ONAME
+	Lineno int32
 
 	Nname  *Node
 	Argwid int64
 
 	// most nodes
-	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
-	Width int64 // offset in TFIELD, width in all others
+	Type  *Type // element type for TARRAY, TCHAN, TMAP, TPTRxx
+	Width int64
 
-	// TFIELD
-	Down  *Type   // next struct field, also key type in TMAP
-	Outer *Type   // outer struct
-	Note  *string // literal string annotation
+	// TSTRUCT
+	fields Fields
+
+	Down *Type // key type in TMAP; next struct in Funarg TSTRUCT
 
 	// TARRAY
 	Bound int64 // negative is slice
@@ -160,38 +152,131 @@ type Type struct {
 
 	// for TFORW, where to copy the eventual value to
 	Copyto []*Node
+}
 
-	Lastfn *Node // for usefield
+// A Field represents a field in a struct or a method in an interface or
+// associated with a named type.
+type Field struct {
+	Nointerface bool
+	Embedded    uint8 // embedded field
+	Funarg      bool
+	Broke       bool // broken field definition
+	Isddd       bool // field is ... argument
+
+	Sym   *Sym
+	Nname *Node
+
+	Type  *Type   // field type
+	Width int64   // TODO(mdempsky): Rename to offset.
+	Note  *string // literal string annotation
+}
+
+// Fields is a pointer to a slice of *Field.
+// This saves space in Types that do not have fields or methods
+// compared to a simple slice of *Field.
+type Fields struct {
+	s *[]*Field
+}
+
+// Len returns the number of entries in f.
+func (f *Fields) Len() int {
+	if f.s == nil {
+		return 0
+	}
+	return len(*f.s)
+}
+
+// Slice returns the entries in f as a slice.
+// Changes to the slice entries will be reflected in f.
+func (f *Fields) Slice() []*Field {
+	if f.s == nil {
+		return nil
+	}
+	return *f.s
+}
+
+// Set sets f to a slice.
+// This takes ownership of the slice.
+func (f *Fields) Set(s []*Field) {
+	if len(s) != 0 {
+		f.s = &s
+	} else {
+		f.s = nil
+	}
+}
+
+// Append appends entries to f.
+func (f *Fields) Append(s ...*Field) {
+	if f.s == nil {
+		f.s = new([]*Field)
+	}
+	*f.s = append(*f.s, s...)
+}
+
+// typ returns a new Type of the specified kind.
+func typ(et EType) *Type {
+	t := &Type{
+		Etype:  et,
+		Width:  BADWIDTH,
+		Lineno: lineno,
+	}
+	t.Orig = t
+	return t
+}
+
+func newField() *Field {
+	return &Field{
+		Width: BADWIDTH,
+	}
+}
+
+// Copy returns a shallow copy of the Type.
+func (t *Type) Copy() *Type {
+	if t == nil {
+		return nil
+	}
+	nt := *t
+	// TODO(mdempsky): Find out why this is necessary and explain.
+	if t.Orig == t {
+		nt.Orig = &nt
+	}
+	return &nt
+}
+
+func (f *Field) Copy() *Field {
+	nf := *f
+	return &nf
 }
 
 // Iter provides an abstraction for iterating across struct fields and
 // interface methods.
 type Iter struct {
-	x *Type
+	s []*Field
 }
 
 // IterFields returns the first field or method in struct or interface type t
 // and an Iter value to continue iterating across the rest.
-func IterFields(t *Type) (*Type, Iter) {
-	if t.Etype != TSTRUCT && t.Etype != TINTER {
-		Fatalf("IterFields: type %v does not have fields", t)
-	}
-	i := Iter{x: t.Type}
+func IterFields(t *Type) (*Field, Iter) {
+	return t.Fields().Iter()
+}
+
+// Iter returns the first field in fs and an Iter value to continue iterating
+// across its successor fields.
+// Deprecated: New code should use Slice instead.
+func (fs *Fields) Iter() (*Field, Iter) {
+	i := Iter{s: fs.Slice()}
 	f := i.Next()
 	return f, i
 }
 
 // Next returns the next field or method, if any.
-func (i *Iter) Next() *Type {
-	if i.x == nil {
+func (i *Iter) Next() *Field {
+	if len(i.s) == 0 {
 		return nil
 	}
-	t := i.x
-	if t.Etype != TFIELD {
-		Fatalf("Iter.Next: type %v is not a field", t)
-	}
-	i.x = t.Down
-	return t
+	f := i.s[0]
+	i.s = i.s[1:]
+	return f
 }
 
 func (t *Type) wantEtype(et EType) {
@@ -200,7 +285,7 @@ func (t *Type) wantEtype(et EType) {
 	}
 }
 
-func (t *Type) RecvP() **Type {
+func (t *Type) RecvsP() **Type {
 	t.wantEtype(TFUNC)
 	return &t.Type
 }
@@ -215,15 +300,68 @@ func (t *Type) ResultsP() **Type {
 	return &t.Type.Down
 }
 
-func (t *Type) Recv() *Type    { return *t.RecvP() }
+func (t *Type) Recvs() *Type   { return *t.RecvsP() }
 func (t *Type) Params() *Type  { return *t.ParamsP() }
 func (t *Type) Results() *Type { return *t.ResultsP() }
 
-// recvParamsResults stores the accessor functions for a function Type's
+// Recv returns the receiver of function type t, if any.
+func (t *Type) Recv() *Field {
+	s := t.Recvs()
+	if s.NumFields() == 0 {
+		return nil
+	}
+	return s.Field(0)
+}
+
+// recvsParamsResults stores the accessor functions for a function Type's
 // receiver, parameters, and result parameters, in that order.
 // It can be used to iterate over all of a function's parameter lists.
-var recvParamsResults = [3]func(*Type) *Type{
-	(*Type).Recv, (*Type).Params, (*Type).Results,
+var recvsParamsResults = [3]func(*Type) *Type{
+	(*Type).Recvs, (*Type).Params, (*Type).Results,
+}
+
+// paramsResults is like recvsParamsResults, but omits receiver parameters.
+var paramsResults = [2]func(*Type) *Type{
+	(*Type).Params, (*Type).Results,
+}
+
+// Key returns the key type of map type t.
+func (t *Type) Key() *Type {
+	t.wantEtype(TMAP)
+	return t.Down
+}
+
+func (t *Type) Methods() *Fields {
+	// TODO(mdempsky): Validate t?
+	return &t.methods
+}
+
+func (t *Type) AllMethods() *Fields {
+	// TODO(mdempsky): Validate t?
+	return &t.allMethods
+}
+
+func (t *Type) Fields() *Fields {
+	if t.Etype != TSTRUCT && t.Etype != TINTER {
+		Fatalf("Fields: type %v does not have fields", t)
+	}
+	return &t.fields
+}
+
+// Field returns the i'th field/method of struct/interface type t.
+func (t *Type) Field(i int) *Field {
+	return t.Fields().Slice()[i]
+}
+
+// FieldSlice returns a slice of containing all fields/methods of
+// struct/interface type t.
+func (t *Type) FieldSlice() []*Field {
+	return t.Fields().Slice()
+}
+
+// SetFields sets struct/interface type t's fields/methods to fields.
+func (t *Type) SetFields(fields []*Field) {
+	t.Fields().Set(fields)
 }
 
 func (t *Type) Size() int64 {
@@ -242,10 +380,7 @@ func (t *Type) SimpleString() string {
 
 func (t *Type) Equal(u ssa.Type) bool {
 	x, ok := u.(*Type)
-	if !ok {
-		return false
-	}
-	return Eqtype(t, x)
+	return ok && Eqtype(t, x)
 }
 
 // Compare compares types for purposes of the SSA back
@@ -343,20 +478,16 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		}
 	}
 
-	csym := t.Sym.cmpsym(x.Sym)
-	if csym != ssa.CMPeq {
-		return csym
+	if c := t.Sym.cmpsym(x.Sym); c != ssa.CMPeq {
+		return c
 	}
 
 	if x.Sym != nil {
 		// Syms non-nil, if vargens match then equal.
-		if t.Vargen == x.Vargen {
-			return ssa.CMPeq
+		if t.Vargen != x.Vargen {
+			return cmpForNe(t.Vargen < x.Vargen)
 		}
-		if t.Vargen < x.Vargen {
-			return ssa.CMPlt
-		}
-		return ssa.CMPgt
+		return ssa.CMPeq
 	}
 	// both syms nil, look at structure below.
 
@@ -367,12 +498,14 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 	}
 
 	switch t.Etype {
-	case TMAP, TFIELD:
-		// No special cases for these two, they are handled
-		// by the general code after the switch.
+	case TMAP:
+		if c := t.Down.cmp(x.Down); c != ssa.CMPeq {
+			return c
+		}
 
 	case TPTR32, TPTR64:
-		return t.Type.cmp(x.Type)
+		// No special cases for these two, they are handled
+		// by the general code after the switch.
 
 	case TSTRUCT:
 		if t.Map == nil {
@@ -423,7 +556,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		return ssa.CMPeq
 
 	case TFUNC:
-		for _, f := range recvParamsResults {
+		for _, f := range recvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
 			ta, ia := IterFields(f(t))
 			tb, ib := IterFields(f(x))
@@ -456,10 +589,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		panic(e)
 	}
 
-	c := t.Down.cmp(x.Down)
-	if c != ssa.CMPeq {
-		return c
-	}
+	// Common element type comparison for TARRAY, TCHAN, TMAP, TPTR32, and TPTR64.
 	return t.Type.cmp(x.Type)
 }
 
@@ -524,41 +654,25 @@ func (t *Type) IsInterface() bool {
 	return t.Etype == TINTER
 }
 
-func (t *Type) Elem() ssa.Type {
-	return t.Type
+func (t *Type) ElemType() ssa.Type {
+	switch t.Etype {
+	case TARRAY, TPTR32, TPTR64:
+		return t.Type
+	}
+	panic(fmt.Sprintf("ElemType on invalid type %v", t))
 }
 func (t *Type) PtrTo() ssa.Type {
 	return Ptrto(t)
 }
 
-func (t *Type) NumFields() int64 {
-	return int64(countfield(t))
+func (t *Type) NumFields() int {
+	return t.Fields().Len()
 }
-func (t *Type) FieldType(i int64) ssa.Type {
-	// TODO: store fields in a slice so we can
-	// look them up by index in constant time.
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
-		if t1.Etype != TFIELD {
-			panic("non-TFIELD in a TSTRUCT")
-		}
-		if i == 0 {
-			return t1.Type
-		}
-		i--
-	}
-	panic("not enough fields")
+func (t *Type) FieldType(i int) ssa.Type {
+	return t.Field(i).Type
 }
-func (t *Type) FieldOff(i int64) int64 {
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
-		if t1.Etype != TFIELD {
-			panic("non-TFIELD in a TSTRUCT")
-		}
-		if i == 0 {
-			return t1.Width
-		}
-		i--
-	}
-	panic("not enough fields")
+func (t *Type) FieldOff(i int) int64 {
+	return t.Field(i).Width
 }
 
 func (t *Type) NumElem() int64 {

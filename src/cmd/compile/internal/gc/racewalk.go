@@ -65,12 +65,10 @@ func instrument(fn *Node) {
 		// nodpc is the PC of the caller as extracted by
 		// getcallerpc. We use -widthptr(FP) for x86.
 		// BUG: this will not work on arm.
-		nodpc := Nod(OXXX, nil, nil)
-
-		*nodpc = *nodfp
+		nodpc := *nodfp
 		nodpc.Type = Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
-		nd := mkcall("racefuncenter", nil, nil, nodpc)
+		nd := mkcall("racefuncenter", nil, nil, &nodpc)
 		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
 		nd = mkcall("racefuncexit", nil, nil)
 		fn.Func.Exit.Append(nd)
@@ -87,11 +85,12 @@ func instrument(fn *Node) {
 }
 
 func instrumentlist(l Nodes, init *Nodes) {
-	for i := range l.Slice() {
+	s := l.Slice()
+	for i := range s {
 		var instr Nodes
-		instrumentnode(&l.Slice()[i], &instr, 0, 0)
+		instrumentnode(&s[i], &instr, 0, 0)
 		if init == nil {
-			l.Slice()[i].Ninit.AppendNodes(&instr)
+			s[i].Ninit.AppendNodes(&instr)
 		} else {
 			init.AppendNodes(&instr)
 		}
@@ -146,25 +145,26 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OBLOCK:
 		var out []*Node
-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-			switch it.N().Op {
+		ls := n.List.Slice()
+		for i := 0; i < len(ls); i++ {
+			switch ls[i].Op {
 			case OCALLFUNC, OCALLMETH, OCALLINTER:
-				instrumentnode(it.P(), &it.N().Ninit, 0, 0)
-				out = append(out, it.N())
+				instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
+				out = append(out, ls[i])
 				// Scan past OAS nodes copying results off stack.
 				// Those must not be instrumented, because the
 				// instrumentation calls will smash the results.
 				// The assignments are to temporaries, so they cannot
 				// be involved in races and need not be instrumented.
-				for it.Len() > 1 && nodeSeqSecond(it.Seq()).Op == OAS && iscallret(nodeSeqSecond(it.Seq()).Right) {
-					it.Next()
-					out = append(out, it.N())
+				for i+1 < len(ls) && ls[i+1].Op == OAS && iscallret(ls[i+1].Right) {
+					i++
+					out = append(out, ls[i])
 				}
 			default:
 				var outn Nodes
 				outn.Set(out)
-				instrumentnode(it.P(), &outn, 0, 0)
-				out = append(outn.Slice(), it.N())
+				instrumentnode(&ls[i], &outn, 0, 0)
+				out = append(outn.Slice(), ls[i])
 			}
 		}
 		n.List.Set(out)
@@ -226,7 +226,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			n1 := Nod(OCONVNOP, n.Left, nil)
 			n1.Type = Ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)
-			typecheck(&n1, Erv)
+			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
 		}
 
@@ -579,12 +579,12 @@ func detachexpr(n *Node, init *Nodes) *Node {
 	addr := Nod(OADDR, n, nil)
 	l := temp(Ptrto(n.Type))
 	as := Nod(OAS, l, addr)
-	typecheck(&as, Etop)
-	walkexpr(&as, init)
+	as = typecheck(as, Etop)
+	as = walkexpr(as, init)
 	init.Append(as)
 	ind := Nod(OIND, l, nil)
-	typecheck(&ind, Erv)
-	walkexpr(&ind, init)
+	ind = typecheck(ind, Erv)
+	ind = walkexpr(ind, init)
 	return ind
 }
 

@@ -18,6 +18,7 @@ type Config struct {
 	PtrSize      int64                      // 4 or 8
 	lowerBlock   func(*Block) bool          // lowering function
 	lowerValue   func(*Value, *Config) bool // lowering function
+	registers    []Register                 // machine registers
 	fe           Frontend                   // callbacks into compiler frontend
 	HTML         *HTMLWriter                // html writer, for debugging
 	ctxt         *obj.Link                  // Generic arch information
@@ -34,6 +35,10 @@ type Config struct {
 	// Storage for low-numbered values and blocks.
 	values [2000]Value
 	blocks [200]Block
+
+	// Reusable stackAllocState.
+	// See stackalloc.go's {new,put}StackAllocState.
+	stackAllocState *stackAllocState
 
 	domblockstore []ID         // scratch space for computing dominators
 	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
@@ -75,7 +80,7 @@ type Logger interface {
 	Unimplementedf(line int32, msg string, args ...interface{})
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
-	Warnl(line int, fmt_ string, args ...interface{})
+	Warnl(line int32, fmt_ string, args ...interface{})
 
 	// Fowards the Debug_checknil flag from gc
 	Debug_checknil() bool
@@ -112,11 +117,18 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.PtrSize = 8
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
+		c.registers = registersAMD64[:]
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+	case "arm":
+		c.IntSize = 4
+		c.PtrSize = 4
+		c.lowerBlock = rewriteBlockARM
+		c.lowerValue = rewriteValueARM
+		c.registers = registersARM[:]
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}
@@ -162,12 +174,11 @@ func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fata
 func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
 	c.fe.Unimplementedf(line, msg, args...)
 }
-func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
-func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
+func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
 
 func (c *Config) logDebugHashMatch(evname, name string) {
-	var file *os.File
-	file = c.logfiles[evname]
+	file := c.logfiles[evname]
 	if file == nil {
 		file = os.Stdout
 		tmpfile := os.Getenv("GSHS_LOGFILE")

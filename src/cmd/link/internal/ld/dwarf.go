@@ -1367,7 +1367,7 @@ func finddebugruntimepath(s *LSym) {
 		return
 	}
 
-	for i := 0; i < s.Pcln.Nfile; i++ {
+	for i := range s.Pcln.File {
 		f := s.Pcln.File[i]
 		if i := strings.Index(f.Name, "runtime/runtime.go"); i >= 0 {
 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"

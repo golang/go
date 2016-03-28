@@ -16,7 +16,7 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	 *  first arg.
 	 * TODO(minux): use LDP/STP here if it matters.
 	 */
-	SUB	$128, RSP
+	SUB	$(8*24), RSP
 	MOVD	R1, (8*1)(RSP)
 	MOVD	R2, (8*2)(RSP)
 	MOVD	R19, (8*3)(RSP)
@@ -31,6 +31,14 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	MOVD	g, (8*12)(RSP)
 	MOVD	R29, (8*13)(RSP)
 	MOVD	R30, (8*14)(RSP)
+	FMOVD	F8, (8*15)(RSP)
+	FMOVD	F9, (8*16)(RSP)
+	FMOVD	F10, (8*17)(RSP)
+	FMOVD	F11, (8*18)(RSP)
+	FMOVD	F12, (8*19)(RSP)
+	FMOVD	F13, (8*20)(RSP)
+	FMOVD	F14, (8*21)(RSP)
+	FMOVD	F15, (8*22)(RSP)
 
 	MOVD	R0, R19
 
@@ -53,5 +61,13 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	MOVD	(8*12)(RSP), g
 	MOVD	(8*13)(RSP), R29
 	MOVD	(8*14)(RSP), R30
-	ADD	$128, RSP
+	FMOVD	(8*15)(RSP), F8
+	FMOVD	(8*16)(RSP), F9
+	FMOVD	(8*17)(RSP), F10
+	FMOVD	(8*18)(RSP), F11
+	FMOVD	(8*19)(RSP), F12
+	FMOVD	(8*20)(RSP), F13
+	FMOVD	(8*21)(RSP), F14
+	FMOVD	(8*22)(RSP), F15
+	ADD	$(8*24), RSP
 	RET

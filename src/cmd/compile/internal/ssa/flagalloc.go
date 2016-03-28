@@ -58,6 +58,10 @@ func flagalloc(f *Func) {
 		if v != nil && v.Type.IsFlags() && end[b.ID] != v {
 			end[b.ID] = nil
 		}
+		if b.Kind == BlockDefer {
+			// Defer blocks internally use/clobber the flags value.
+			end[b.ID] = nil
+		}
 	}
 
 	// Add flag recomputations where they are needed.
@@ -109,7 +113,7 @@ func flagalloc(f *Func) {
 		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
 			// Recalculate control value.
 			c := v.copyInto(b)
-			b.Control = c
+			b.SetControl(c)
 			flag = v
 		}
 		if v := end[b.ID]; v != nil && v != flag {

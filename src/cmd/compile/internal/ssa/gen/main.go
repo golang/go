@@ -14,15 +14,19 @@ import (
 	"go/format"
 	"io/ioutil"
 	"log"
+	"path"
 	"regexp"
 	"sort"
 )
 
 type arch struct {
 	name     string
+	pkg      string // obj package to import for this arch.
+	genfile  string // source file containing opcode code generation.
 	ops      []opData
 	blocks   []blockData
 	regnames []string
+	generic  bool
 }
 
 type opData struct {
@@ -34,6 +38,7 @@ type opData struct {
 	rematerializeable bool
 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
 	commutative       bool  // this operation is commutative (e.g. addition)
+	resultInArg0      bool  // prefer v and v.Args[0] to be allocated to the same register
 }
 
 type blockData struct {
@@ -80,7 +85,11 @@ func genOp() {
 
 	fmt.Fprintln(w, "import (")
 	fmt.Fprintln(w, "\"cmd/internal/obj\"")
-	fmt.Fprintln(w, "\"cmd/internal/obj/x86\"")
+	for _, a := range archs {
+		if a.pkg != "" {
+			fmt.Fprintf(w, "%q\n", a.pkg)
+		}
+	}
 	fmt.Fprintln(w, ")")
 
 	// generate Block* declarations
@@ -122,6 +131,8 @@ func genOp() {
 	fmt.Fprintln(w, " { name: \"OpInvalid\" },")
 	for _, a := range archs {
 		fmt.Fprintln(w)
+
+		pkg := path.Base(a.pkg)
 		for _, v := range a.ops {
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
@@ -141,6 +152,9 @@ func genOp() {
 			if v.commutative {
 				fmt.Fprintln(w, "commutative: true,")
 			}
+			if v.resultInArg0 {
+				fmt.Fprintln(w, "resultInArg0: true,")
+			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")
 				fmt.Fprintln(w, "},") // close op
@@ -148,7 +162,7 @@ func genOp() {
 				continue
 			}
 			if v.asm != "" {
-				fmt.Fprintf(w, "asm: x86.A%s,\n", v.asm)
+				fmt.Fprintf(w, "asm: %s.A%s,\n", pkg, v.asm)
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
 
@@ -192,6 +206,18 @@ func genOp() {
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")
 
+	// generate registers
+	for _, a := range archs {
+		if a.generic {
+			continue
+		}
+		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+		for i, r := range a.regnames {
+			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
+		}
+		fmt.Fprintln(w, "}")
+	}
+
 	// gofmt result
 	b := w.Bytes()
 	var err error
@@ -206,24 +232,26 @@ func genOp() {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
-	// Check that ../gc/ssa.go handles all the arch-specific opcodes.
+	// Check that the arch genfile handles all the arch-specific opcodes.
 	// This is very much a hack, but it is better than nothing.
-	ssa, err := ioutil.ReadFile("../../gc/ssa.go")
-	if err != nil {
-		log.Fatalf("can't read ../../gc/ssa.go: %v", err)
-	}
 	for _, a := range archs {
-		if a.name == "generic" {
+		if a.genfile == "" {
 			continue
 		}
+
+		src, err := ioutil.ReadFile(a.genfile)
+		if err != nil {
+			log.Fatalf("can't read %s: %v", a.genfile, err)
+		}
+
 		for _, v := range a.ops {
 			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
-			match, err := regexp.Match(pattern, ssa)
+			match, err := regexp.Match(pattern, src)
 			if err != nil {
 				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
 			}
 			if !match {
-				log.Fatalf("Op%s%s has no code generation in ../../gc/ssa.go", a.name, v.name)
+				log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
 			}
 		}
 	}

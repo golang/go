@@ -10,9 +10,8 @@ type T1 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero1_ssa(x *[1]byte) {
-	switch {
-	}
 	*x = [1]byte{}
 }
 func testZero1() {
@@ -31,9 +30,8 @@ type T2 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero2_ssa(x *[2]byte) {
-	switch {
-	}
 	*x = [2]byte{}
 }
 func testZero2() {
@@ -52,9 +50,8 @@ type T3 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero3_ssa(x *[3]byte) {
-	switch {
-	}
 	*x = [3]byte{}
 }
 func testZero3() {
@@ -73,9 +70,8 @@ type T4 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero4_ssa(x *[4]byte) {
-	switch {
-	}
 	*x = [4]byte{}
 }
 func testZero4() {
@@ -94,9 +90,8 @@ type T5 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero5_ssa(x *[5]byte) {
-	switch {
-	}
 	*x = [5]byte{}
 }
 func testZero5() {
@@ -115,9 +110,8 @@ type T6 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero6_ssa(x *[6]byte) {
-	switch {
-	}
 	*x = [6]byte{}
 }
 func testZero6() {
@@ -136,9 +130,8 @@ type T7 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero7_ssa(x *[7]byte) {
-	switch {
-	}
 	*x = [7]byte{}
 }
 func testZero7() {
@@ -157,9 +150,8 @@ type T8 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero8_ssa(x *[8]byte) {
-	switch {
-	}
 	*x = [8]byte{}
 }
 func testZero8() {
@@ -178,9 +170,8 @@ type T9 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero9_ssa(x *[9]byte) {
-	switch {
-	}
 	*x = [9]byte{}
 }
 func testZero9() {
@@ -199,9 +190,8 @@ type T10 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero10_ssa(x *[10]byte) {
-	switch {
-	}
 	*x = [10]byte{}
 }
 func testZero10() {
@@ -220,9 +210,8 @@ type T15 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero15_ssa(x *[15]byte) {
-	switch {
-	}
 	*x = [15]byte{}
 }
 func testZero15() {
@@ -241,9 +230,8 @@ type T16 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero16_ssa(x *[16]byte) {
-	switch {
-	}
 	*x = [16]byte{}
 }
 func testZero16() {
@@ -262,9 +250,8 @@ type T17 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero17_ssa(x *[17]byte) {
-	switch {
-	}
 	*x = [17]byte{}
 }
 func testZero17() {
@@ -283,9 +270,8 @@ type T23 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero23_ssa(x *[23]byte) {
-	switch {
-	}
 	*x = [23]byte{}
 }
 func testZero23() {
@@ -304,9 +290,8 @@ type T24 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero24_ssa(x *[24]byte) {
-	switch {
-	}
 	*x = [24]byte{}
 }
 func testZero24() {
@@ -325,9 +310,8 @@ type T25 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero25_ssa(x *[25]byte) {
-	switch {
-	}
 	*x = [25]byte{}
 }
 func testZero25() {
@@ -346,9 +330,8 @@ type T31 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero31_ssa(x *[31]byte) {
-	switch {
-	}
 	*x = [31]byte{}
 }
 func testZero31() {
@@ -367,9 +350,8 @@ type T32 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero32_ssa(x *[32]byte) {
-	switch {
-	}
 	*x = [32]byte{}
 }
 func testZero32() {
@@ -388,9 +370,8 @@ type T33 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero33_ssa(x *[33]byte) {
-	switch {
-	}
 	*x = [33]byte{}
 }
 func testZero33() {
@@ -409,9 +390,8 @@ type T63 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero63_ssa(x *[63]byte) {
-	switch {
-	}
 	*x = [63]byte{}
 }
 func testZero63() {
@@ -430,9 +410,8 @@ type T64 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero64_ssa(x *[64]byte) {
-	switch {
-	}
 	*x = [64]byte{}
 }
 func testZero64() {
@@ -451,9 +430,8 @@ type T65 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero65_ssa(x *[65]byte) {
-	switch {
-	}
 	*x = [65]byte{}
 }
 func testZero65() {
@@ -472,9 +450,8 @@ type T1023 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero1023_ssa(x *[1023]byte) {
-	switch {
-	}
 	*x = [1023]byte{}
 }
 func testZero1023() {
@@ -493,9 +470,8 @@ type T1024 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero1024_ssa(x *[1024]byte) {
-	switch {
-	}
 	*x = [1024]byte{}
 }
 func testZero1024() {
@@ -514,9 +490,8 @@ type T1025 struct {
 	post [8]byte
 }
 
+//go:noinline
 func zero1025_ssa(x *[1025]byte) {
-	switch {
-	}
 	*x = [1025]byte{}
 }
 func testZero1025() {

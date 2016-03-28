@@ -534,7 +534,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 			if cursym.Text.Mark&LEAF != 0 {
-				cursym.Leaf = 1
+				cursym.Leaf = true
 				break
 			}
 
@@ -828,7 +828,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
 	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
-	if ctxt.Cursym.Cfunc != 0 {
+	if ctxt.Cursym.Cfunc {
 		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
@@ -943,7 +943,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	}
 
 	var morestacksym *obj.LSym
-	if ctxt.Cursym.Cfunc != 0 {
+	if ctxt.Cursym.Cfunc {
 		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
 		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)

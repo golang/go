@@ -4,13 +4,7 @@
 
 package gc
 
-import "cmd/internal/obj"
-
-// look for
-//	unsafe.Sizeof
-//	unsafe.Offsetof
-//	unsafe.Alignof
-// rewrite with a constant
+// unsafenmagic rewrites calls to package unsafe's functions into constants.
 func unsafenmagic(nn *Node) *Node {
 	fn := nn.Left
 	args := nn.List
@@ -34,19 +28,22 @@ func unsafenmagic(nn *Node) *Node {
 	r := args.First()
 
 	var v int64
-	if s.Name == "Sizeof" {
-		typecheck(&r, Erv)
-		defaultlit(&r, nil)
+	switch s.Name {
+	case "Alignof", "Sizeof":
+		r = typecheck(r, Erv)
+		r = defaultlit(r, nil)
 		tr := r.Type
 		if tr == nil {
 			goto bad
 		}
 		dowidth(tr)
-		v = tr.Width
-		goto yes
-	}
+		if s.Name == "Alignof" {
+			v = int64(tr.Align)
+		} else {
+			v = tr.Width
+		}
 
-	if s.Name == "Offsetof" {
+	case "Offsetof":
 		// must be a selector.
 		if r.Op != OXDOT {
 			goto bad
@@ -55,89 +52,58 @@ func unsafenmagic(nn *Node) *Node {
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		typecheck(&r.Left, Erv)
-
+		r.Left = typecheck(r.Left, Erv)
 		base := r.Left
-		typecheck(&r, Erv)
+
+		r = typecheck(r, Erv)
 		switch r.Op {
 		case ODOT, ODOTPTR:
 			break
-
 		case OCALLPART:
 			Yyerror("invalid expression %v: argument is a method value", nn)
-			v = 0
 			goto ret
-
 		default:
 			goto bad
 		}
 
-		v = 0
-
-		// add offsets for inserted dots.
-		var r1 *Node
-		for r1 = r; r1.Left != base; r1 = r1.Left {
+		// Sum offsets for dots until we reach base.
+		for r1 := r; r1 != base; r1 = r1.Left {
 			switch r1.Op {
+			case ODOTPTR:
+				// For Offsetof(s.f), s may itself be a pointer,
+				// but accessing f must not otherwise involve
+				// indirection via embedded pointer types.
+				if r1.Left != base {
+					Yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
+					goto ret
+				}
+				fallthrough
 			case ODOT:
 				v += r1.Xoffset
-
-			case ODOTPTR:
-				Yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
-				goto ret
-
 			default:
 				Dump("unsafenmagic", r)
-				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, obj.FmtSharp))
+				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, FmtSharp))
 				goto bad
 			}
 		}
 
-		v += r1.Xoffset
-		goto yes
+	default:
+		return nil
 	}
 
-	if s.Name == "Alignof" {
-		typecheck(&r, Erv)
-		defaultlit(&r, nil)
-		tr := r.Type
-		if tr == nil {
-			goto bad
-		}
-
-		// make struct { byte; T; }
-		t := typ(TSTRUCT)
-
-		t.Type = typ(TFIELD)
-		t.Type.Type = Types[TUINT8]
-		t.Type.Down = typ(TFIELD)
-		t.Type.Down.Type = tr
-
-		// compute struct widths
-		dowidth(t)
-
-		// the offset of T is its required alignment
-		v = t.Type.Down.Width
-
-		goto yes
-	}
-
-	return nil
-
-bad:
-	Yyerror("invalid expression %v", nn)
-	v = 0
-	goto ret
-
-yes:
 	if args.Len() > 1 {
 		Yyerror("extra arguments for %v", s)
 	}
+	goto ret
 
-	// any side effects disappear; ignore init
+bad:
+	Yyerror("invalid expression %v", nn)
+
 ret:
+	// any side effects disappear; ignore init
 	var val Val
 	val.U = new(Mpint)
-	Mpmovecfix(val.U.(*Mpint), v)
+	val.U.(*Mpint).SetInt64(v)
 	n := Nod(OLITERAL, nil, nil)
 	n.Orig = nn
 	n.SetVal(val)

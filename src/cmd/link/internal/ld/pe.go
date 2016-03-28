@@ -375,18 +375,6 @@ var dexport [1024]*LSym
 
 var nexport int
 
-type COFFSym struct {
-	sym       *LSym
-	strtbloff int
-	sect      int
-	value     int64
-	typ       uint16
-}
-
-var coffsym []COFFSym
-
-var ncoffsym int
-
 func addpesection(name string, sectsize int, filesize int) *IMAGE_SECTION_HEADER {
 	if pensect == 16 {
 		Diag("too many sections")
@@ -922,59 +910,73 @@ func newPEDWARFSection(name string, size int64) *IMAGE_SECTION_HEADER {
 	return h
 }
 
-func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, gotype *LSym) {
-	if s == nil {
-		return
-	}
+// writePESymTableRecords writes all COFF symbol table records.
+// It returns number of records written.
+func writePESymTableRecords() int {
+	var symcnt int
 
-	if s.Sect == nil && type_ != 'U' {
-		return
-	}
+	put := func(s *LSym, name string, type_ int, addr int64, size int64, ver int, gotype *LSym) {
+		if s == nil {
+			return
+		}
+		if s.Sect == nil && type_ != 'U' {
+			return
+		}
+		switch type_ {
+		default:
+			return
+		case 'D', 'B', 'T', 'U':
+		}
 
-	switch type_ {
-	default:
-		return
-
-	case 'D', 'B', 'T', 'U':
-		break
-	}
-
-	if coffsym != nil {
 		// only windows/386 requires underscore prefix on external symbols
 		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Attr.CgoExport()) && s.Name == s.Extname {
 			s.Name = "_" + s.Name
 		}
-		cs := &coffsym[ncoffsym]
-		cs.sym = s
-		if len(s.Name) > 8 {
-			cs.strtbloff = strtbladd(s.Name)
-		}
+
+		var typ uint16
+		var sect int
+		var value int64
 		// Note: although address of runtime.edata (type SDATA) is at the start of .bss section
 		// it still belongs to the .data section, not the .bss section.
 		if uint64(s.Value) >= Segdata.Vaddr+Segdata.Filelen && s.Type != obj.SDATA && Linkmode == LinkExternal {
-			cs.value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
-			cs.sect = bsssect
+			value = int64(uint64(s.Value) - Segdata.Vaddr - Segdata.Filelen)
+			sect = bsssect
 		} else if uint64(s.Value) >= Segdata.Vaddr {
-			cs.value = int64(uint64(s.Value) - Segdata.Vaddr)
-			cs.sect = datasect
+			value = int64(uint64(s.Value) - Segdata.Vaddr)
+			sect = datasect
 		} else if uint64(s.Value) >= Segtext.Vaddr {
-			cs.value = int64(uint64(s.Value) - Segtext.Vaddr)
-			cs.sect = textsect
+			value = int64(uint64(s.Value) - Segtext.Vaddr)
+			sect = textsect
 		} else if type_ == 'U' {
-			cs.value = 0
-			cs.typ = IMAGE_SYM_DTYPE_FUNCTION
+			typ = IMAGE_SYM_DTYPE_FUNCTION
 		} else {
-			cs.value = 0
-			cs.sect = 0
 			Diag("addpesym %#x", addr)
 		}
+
+		// write COFF symbol table record
+		if len(s.Name) > 8 {
+			Lputl(0)
+			Lputl(uint32(strtbladd(s.Name)))
+		} else {
+			strnput(s.Name, 8)
+		}
+		Lputl(uint32(value))
+		Wputl(uint16(sect))
+		if typ != 0 {
+			Wputl(typ)
+		} else if Linkmode == LinkExternal {
+			Wputl(0)
+		} else {
+			Wputl(0x0308) // "array of structs"
+		}
+		Cput(2) // storage class: external
+		Cput(0) // no aux entries
+
+		s.Dynid = int32(symcnt)
+
+		symcnt++
 	}
 
-	s.Dynid = int32(ncoffsym)
-	ncoffsym++
-}
-
-func pegenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	if Linkmode == LinkExternal {
 		for d := dr; d != nil; d = d.next {
 			for m := d.ms; m != nil; m = m.next {
@@ -983,57 +985,36 @@ func pegenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			}
 		}
 	}
+
 	genasmsym(put)
+
+	return symcnt
 }
 
 func addpesymtable() {
-	if Debug['s'] == 0 || Linkmode == LinkExternal {
-		ncoffsym = 0
-		pegenasmsym(addpesym)
-		coffsym = make([]COFFSym, ncoffsym)
-		ncoffsym = 0
-		pegenasmsym(addpesym)
-	}
-	size := len(strtbl) + 4 + 18*ncoffsym
+	symtabStartPos := Cpos()
 
+	// write COFF symbol table
+	var symcnt int
+	if Debug['s'] == 0 || Linkmode == LinkExternal {
+		symcnt = writePESymTableRecords()
+	}
+
+	// update COFF file header and section table
+	size := len(strtbl) + 4 + 18*symcnt
 	var h *IMAGE_SECTION_HEADER
 	if Linkmode != LinkExternal {
 		// We do not really need .symtab for go.o, and if we have one, ld
 		// will also include it in the exe, and that will confuse windows.
 		h = addpesection(".symtab", size, size)
 		h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_DISCARDABLE
-		chksectoff(h, Cpos())
+		chksectoff(h, symtabStartPos)
 	}
-	fh.PointerToSymbolTable = uint32(Cpos())
-	fh.NumberOfSymbols = uint32(ncoffsym)
+	fh.PointerToSymbolTable = uint32(symtabStartPos)
+	fh.NumberOfSymbols = uint32(symcnt)
 
-	// put COFF symbol table
-	var s *COFFSym
-	for i := 0; i < ncoffsym; i++ {
-		s = &coffsym[i]
-		if s.strtbloff == 0 {
-			strnput(s.sym.Name, 8)
-		} else {
-			Lputl(0)
-			Lputl(uint32(s.strtbloff))
-		}
-
-		Lputl(uint32(s.value))
-		Wputl(uint16(s.sect))
-		if s.typ != 0 {
-			Wputl(s.typ)
-		} else if Linkmode == LinkExternal {
-			Wputl(0)
-		} else {
-			Wputl(0x0308) // "array of structs"
-		}
-		Cput(2) // storage class: external
-		Cput(0) // no aux entries
-	}
-
-	// put COFF string table
+	// write COFF string table
 	Lputl(uint32(len(strtbl)) + 4)
-
 	for i := 0; i < len(strtbl); i++ {
 		Cput(uint8(strtbl[i]))
 	}

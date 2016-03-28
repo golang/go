@@ -377,6 +377,10 @@ func bytesEqual(x, y []byte) bool {
 	return true
 }
 
+func (ip IP) matchAddrFamily(x IP) bool {
+	return ip.To4() != nil && x.To4() != nil || ip.To16() != nil && ip.To4() == nil && x.To16() != nil && x.To4() == nil
+}
+
 // If mask is a sequence of 1 bits followed by 0 bits,
 // return the number of 1 bits.
 func simpleMaskLength(mask IPMask) int {

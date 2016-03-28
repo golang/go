@@ -300,7 +300,6 @@ func TestShellSafety(t *testing.T) {
 }
 
 func TestImportVendor(t *testing.T) {
-	t.Skip("skipping; hpack has moved to internal for now; golang.org/issue/14047")
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""

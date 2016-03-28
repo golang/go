@@ -238,9 +238,14 @@ const (
 func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
 	c, err := dialTCP(net, laddr, raddr, deadline, cancel)
 	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
+		// Wait for the deadline, or indefinitely if none exists.
+		var wait <-chan time.Time
+		if !deadline.IsZero() {
+			wait = time.After(deadline.Sub(time.Now()))
+		}
 		select {
 		case <-cancel:
-		case <-time.After(deadline.Sub(time.Now())):
+		case <-wait:
 		}
 	}
 	return c, err
@@ -641,41 +646,118 @@ func TestDialerPartialDeadline(t *testing.T) {
 	}
 }
 
+type dialerLocalAddrTest struct {
+	network, raddr string
+	laddr          Addr
+	error
+}
+
+var dialerLocalAddrTests = []dialerLocalAddrTest{
+	{"tcp4", "127.0.0.1", nil, nil},
+	{"tcp4", "127.0.0.1", &TCPAddr{}, nil},
+	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, &AddrError{Err: "some error"}},
+	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, nil},
+	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, nil},
+	{"tcp4", "127.0.0.1", &TCPAddr{IP: IPv6loopback}, errNoSuitableAddress},
+	{"tcp4", "127.0.0.1", &UDPAddr{}, &AddrError{Err: "some error"}},
+	{"tcp4", "127.0.0.1", &UnixAddr{}, &AddrError{Err: "some error"}},
+
+	{"tcp6", "::1", nil, nil},
+	{"tcp6", "::1", &TCPAddr{}, nil},
+	{"tcp6", "::1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+	{"tcp6", "::1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+	{"tcp6", "::1", &TCPAddr{IP: ParseIP("::")}, nil},
+	{"tcp6", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, errNoSuitableAddress},
+	{"tcp6", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, errNoSuitableAddress},
+	{"tcp6", "::1", &TCPAddr{IP: IPv6loopback}, nil},
+	{"tcp6", "::1", &UDPAddr{}, &AddrError{Err: "some error"}},
+	{"tcp6", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
+
+	{"tcp", "127.0.0.1", nil, nil},
+	{"tcp", "127.0.0.1", &TCPAddr{}, nil},
+	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, nil},
+	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, nil},
+	{"tcp", "127.0.0.1", &TCPAddr{IP: IPv6loopback}, errNoSuitableAddress},
+	{"tcp", "127.0.0.1", &UDPAddr{}, &AddrError{Err: "some error"}},
+	{"tcp", "127.0.0.1", &UnixAddr{}, &AddrError{Err: "some error"}},
+
+	{"tcp", "::1", nil, nil},
+	{"tcp", "::1", &TCPAddr{}, nil},
+	{"tcp", "::1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+	{"tcp", "::1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+	{"tcp", "::1", &TCPAddr{IP: ParseIP("::")}, nil},
+	{"tcp", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, errNoSuitableAddress},
+	{"tcp", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, errNoSuitableAddress},
+	{"tcp", "::1", &TCPAddr{IP: IPv6loopback}, nil},
+	{"tcp", "::1", &UDPAddr{}, &AddrError{Err: "some error"}},
+	{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
+}
+
 func TestDialerLocalAddr(t *testing.T) {
-	ch := make(chan error, 1)
-	handler := func(ls *localServer, ln Listener) {
-		c, err := ln.Accept()
-		if err != nil {
-			ch <- err
-			return
-		}
-		defer c.Close()
-		ch <- nil
-	}
-	ls, err := newLocalServer("tcp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ls.teardown()
-	if err := ls.buildup(handler); err != nil {
-		t.Fatal(err)
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	laddr, err := ResolveTCPAddr(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
+	if supportsIPv4map {
+		dialerLocalAddrTests = append(dialerLocalAddrTests, dialerLocalAddrTest{
+			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, nil,
+		})
+	} else {
+		dialerLocalAddrTests = append(dialerLocalAddrTests, dialerLocalAddrTest{
+			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, &AddrError{Err: "some error"},
+		})
 	}
-	laddr.Port = 0
-	d := &Dialer{LocalAddr: laddr}
-	c, err := d.Dial(ls.Listener.Addr().Network(), ls.Addr().String())
-	if err != nil {
-		t.Fatal(err)
+
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
+	handler := func(ls *localServer, ln Listener) {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
 	}
-	defer c.Close()
-	c.Read(make([]byte, 1))
-	err = <-ch
-	if err != nil {
-		t.Error(err)
+	var err error
+	var lss [2]*localServer
+	for i, network := range []string{"tcp4", "tcp6"} {
+		lss[i], err = newLocalServer(network)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer lss[i].teardown()
+		if err := lss[i].buildup(handler); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, tt := range dialerLocalAddrTests {
+		d := &Dialer{LocalAddr: tt.laddr}
+		var addr string
+		ip := ParseIP(tt.raddr)
+		if ip.To4() != nil {
+			addr = lss[0].Listener.Addr().String()
+		}
+		if ip.To16() != nil && ip.To4() == nil {
+			addr = lss[1].Listener.Addr().String()
+		}
+		c, err := d.Dial(tt.network, addr)
+		if err == nil && tt.error != nil || err != nil && tt.error == nil {
+			t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
+		}
+		if err != nil {
+			if perr := parseDialError(err); perr != nil {
+				t.Error(perr)
+			}
+			continue
+		}
+		c.Close()
 	}
 }
 

@@ -13,8 +13,9 @@ type loop struct {
 	outer  *loop  // loop containing this loop
 	// Next two fields not currently used, but cheap to maintain,
 	// and aid in computation of inner-ness and list of blocks.
-	nBlocks int32 // Number of blocks in this loop but not within inner loops
-	isInner bool  // True if never discovered to contain a loop
+	nBlocks      int32 // Number of blocks in this loop but not within inner loops
+	isInner      bool  // True if never discovered to contain a loop
+	containsCall bool  // if any block in this loop or any loop it contains is a BlockCall or BlockDefer
 }
 
 // outerinner records that outer contains inner
@@ -23,6 +24,21 @@ func (sdom sparseTree) outerinner(outer, inner *loop) {
 	if oldouter == nil || sdom.isAncestorEq(oldouter.header, outer.header) {
 		inner.outer = outer
 		outer.isInner = false
+		if inner.containsCall {
+			outer.setContainsCall()
+		}
+	}
+}
+
+func (l *loop) setContainsCall() {
+	for ; l != nil && !l.containsCall; l = l.outer {
+		l.containsCall = true
+	}
+
+}
+func (l *loop) checkContainsCall(bb *Block) {
+	if bb.Kind == BlockCall || bb.Kind == BlockDefer {
+		l.setContainsCall()
 	}
 }
 
@@ -69,7 +85,7 @@ func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
 }
 
 func describeBranchPrediction(f *Func, b *Block, likely, not int8, prediction BranchPrediction) {
-	f.Config.Warnl(int(b.Line), "Branch prediction rule %s < %s%s",
+	f.Config.Warnl(b.Line, "Branch prediction rule %s < %s%s",
 		bllikelies[likely-blMin], bllikelies[not-blMin], describePredictionAgrees(b, prediction))
 }
 
@@ -100,7 +116,7 @@ func likelyadjust(f *Func) {
 			// Calls. TODO not all calls are equal, names give useful clues.
 			// Any name-based heuristics are only relative to other calls,
 			// and less influential than inferences from loop structure.
-		case BlockCall:
+		case BlockCall, BlockDefer:
 			local[b.ID] = blCALL
 			certain[b.ID] = max8(blCALL, certain[b.Succs[0].ID])
 
@@ -144,7 +160,7 @@ func likelyadjust(f *Func) {
 						noprediction = true
 					}
 					if f.pass.debug > 0 && !noprediction {
-						f.Config.Warnl(int(b.Line), "Branch prediction rule stay in loop%s",
+						f.Config.Warnl(b.Line, "Branch prediction rule stay in loop%s",
 							describePredictionAgrees(b, prediction))
 					}
 
@@ -180,7 +196,7 @@ func likelyadjust(f *Func) {
 			}
 		}
 		if f.pass.debug > 2 {
-			f.Config.Warnl(int(b.Line), "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
+			f.Config.Warnl(b.Line, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
 		}
 
 	}
@@ -246,6 +262,7 @@ func loopnestfor(f *Func) *loopnest {
 					l = &loop{header: bb, isInner: true}
 					loops = append(loops, l)
 					b2l[bb.ID] = l
+					l.checkContainsCall(bb)
 				}
 			} else { // Perhaps a loop header is inherited.
 				// is there any loop containing our successor whose
@@ -274,6 +291,7 @@ func loopnestfor(f *Func) *loopnest {
 
 		if innermost != nil {
 			b2l[b.ID] = innermost
+			innermost.checkContainsCall(b)
 			innermost.nBlocks++
 		}
 	}

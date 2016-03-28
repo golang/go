@@ -11,23 +11,6 @@ import (
 )
 
 var (
-	thechar     int           = '6'
-	thestring   string        = "amd64"
-	thelinkarch *obj.LinkArch = &x86.Linkamd64
-)
-
-func linkarchinit() {
-	if obj.Getgoarch() == "amd64p32" {
-		thelinkarch = &x86.Linkamd64p32
-		gc.Thearch.Thelinkarch = thelinkarch
-		thestring = "amd64p32"
-		gc.Thearch.Thestring = "amd64p32"
-	}
-}
-
-var MAXWIDTH int64 = 1 << 50
-
-var (
 	addptr = x86.AADDQ
 	movptr = x86.AMOVQ
 	leaptr = x86.ALEAQ
@@ -59,9 +42,13 @@ func Main() {
 		resvd = append(resvd, x86.REG_BP)
 	}
 
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
+	gc.Thearch.Thechar = '6'
+	gc.Thearch.Thestring = "amd64"
+	gc.Thearch.Thelinkarch = &x86.Linkamd64
+	if obj.Getgoarch() == "amd64p32" {
+		gc.Thearch.Thestring = "amd64p32"
+		gc.Thearch.Thelinkarch = &x86.Linkamd64p32
+	}
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.REGCALLX = x86.REG_BX
@@ -71,7 +58,7 @@ func Main() {
 	gc.Thearch.REGMAX = x86.REG_R15
 	gc.Thearch.FREGMIN = x86.REG_X0
 	gc.Thearch.FREGMAX = x86.REG_X15
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.AddIndex = addindex
@@ -91,7 +78,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp
@@ -109,6 +95,11 @@ func Main() {
 	gc.Thearch.Optoas = optoas
 	gc.Thearch.Doregbits = doregbits
 	gc.Thearch.Regnames = regnames
+
+	gc.Thearch.SSARegToReg = ssaRegToReg
+	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+	gc.Thearch.SSAGenValue = ssaGenValue
+	gc.Thearch.SSAGenBlock = ssaGenBlock
 
 	gc.Main()
 	gc.Exit(0)

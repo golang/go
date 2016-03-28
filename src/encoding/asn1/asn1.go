@@ -461,6 +461,11 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 		if err != nil {
 			return
 		}
+		// Tags should be encoded in minimal form.
+		if ret.tag < 0x1f {
+			err = SyntaxError{"non-minimal tag"}
+			return
+		}
 	}
 	if offset >= len(bytes) {
 		err = SyntaxError{"truncated tag or length"}

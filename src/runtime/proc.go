@@ -245,6 +245,8 @@ func Gosched() {
 
 // Puts the current goroutine into a waiting state and calls unlockf.
 // If unlockf returns false, the goroutine is resumed.
+// unlockf must not access this G's stack, as it may be moved between
+// the call to gopark and the call to unlockf.
 func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
 	mp := acquirem()
 	gp := mp.curg
@@ -328,6 +330,9 @@ func releaseSudog(s *sudog) {
 	}
 	if s.waitlink != nil {
 		throw("runtime: sudog with non-nil waitlink")
+	}
+	if s.c != nil {
+		throw("runtime: sudog with non-nil c")
 	}
 	gp := getg()
 	if gp.param != nil {
@@ -1782,11 +1787,12 @@ func findrunnable() (gp *g, inheritTime bool) {
 	// an M.
 
 top:
+	_p_ := _g_.m.p.ptr()
 	if sched.gcwaiting != 0 {
 		gcstopm()
 		goto top
 	}
-	if _g_.m.p.ptr().runSafePointFn != 0 {
+	if _p_.runSafePointFn != 0 {
 		runSafePointFn()
 	}
 	if fingwait && fingwake {
@@ -1796,14 +1802,14 @@ top:
 	}
 
 	// local runq
-	if gp, inheritTime := runqget(_g_.m.p.ptr()); gp != nil {
+	if gp, inheritTime := runqget(_p_); gp != nil {
 		return gp, inheritTime
 	}
 
 	// global runq
 	if sched.runqsize != 0 {
 		lock(&sched.lock)
-		gp := globrunqget(_g_.m.p.ptr(), 0)
+		gp := globrunqget(_p_, 0)
 		unlock(&sched.lock)
 		if gp != nil {
 			return gp, false
@@ -1828,31 +1834,33 @@ top:
 		}
 	}
 
+	// Steal work from other P's.
+	procs := uint32(gomaxprocs)
+	if atomic.Load(&sched.npidle) == procs-1 {
+		// Either GOMAXPROCS=1 or everybody, except for us, is idle already.
+		// New work can appear from returning syscall/cgocall, network or timers.
+		// Neither of that submits to local run queues, so no point in stealing.
+		goto stop
+	}
 	// If number of spinning M's >= number of busy P's, block.
 	// This is necessary to prevent excessive CPU consumption
 	// when GOMAXPROCS>>1 but the program parallelism is low.
-	if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= uint32(gomaxprocs)-atomic.Load(&sched.npidle) { // TODO: fast atomic
+	if !_g_.m.spinning && 2*atomic.Load(&sched.nmspinning) >= procs-atomic.Load(&sched.npidle) { // TODO: fast atomic
 		goto stop
 	}
 	if !_g_.m.spinning {
 		_g_.m.spinning = true
 		atomic.Xadd(&sched.nmspinning, 1)
 	}
-	// random steal from other P's
-	for i := 0; i < int(4*gomaxprocs); i++ {
-		if sched.gcwaiting != 0 {
-			goto top
-		}
-		_p_ := allp[fastrand1()%uint32(gomaxprocs)]
-		var gp *g
-		if _p_ == _g_.m.p.ptr() {
-			gp, _ = runqget(_p_)
-		} else {
-			stealRunNextG := i > 2*int(gomaxprocs) // first look for ready queues with more than 1 g
-			gp = runqsteal(_g_.m.p.ptr(), _p_, stealRunNextG)
-		}
-		if gp != nil {
-			return gp, false
+	for i := 0; i < 4; i++ {
+		for enum := stealOrder.start(fastrand1()); !enum.done(); enum.next() {
+			if sched.gcwaiting != 0 {
+				goto top
+			}
+			stealRunNextG := i > 2 // first look for ready queues with more than 1 g
+			if gp := runqsteal(_p_, allp[enum.position()], stealRunNextG); gp != nil {
+				return gp, false
+			}
 		}
 	}
 
@@ -1861,7 +1869,7 @@ stop:
 	// We have nothing to do. If we're in the GC mark phase, can
 	// safely scan and blacken objects, and have work to do, run
 	// idle-time marking rather than give up the P.
-	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
+	if gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
 		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
 		gp := _p_.gcBgMarkWorker.ptr()
 		casgstatus(gp, _Gwaiting, _Grunnable)
@@ -1873,16 +1881,18 @@ stop:
 
 	// return P and block
 	lock(&sched.lock)
-	if sched.gcwaiting != 0 || _g_.m.p.ptr().runSafePointFn != 0 {
+	if sched.gcwaiting != 0 || _p_.runSafePointFn != 0 {
 		unlock(&sched.lock)
 		goto top
 	}
 	if sched.runqsize != 0 {
-		gp := globrunqget(_g_.m.p.ptr(), 0)
+		gp := globrunqget(_p_, 0)
 		unlock(&sched.lock)
 		return gp, false
 	}
-	_p_ := releasep()
+	if releasep() != _p_ {
+		throw("findrunnable: wrong p")
+	}
 	pidleput(_p_)
 	unlock(&sched.lock)
 
@@ -3260,6 +3270,7 @@ func procresize(nprocs int32) *p {
 			runnablePs = p
 		}
 	}
+	stealOrder.reset(uint32(nprocs))
 	var int32p *int32 = &gomaxprocs // make compiler check that gomaxprocs is an int32
 	atomic.Store((*uint32)(unsafe.Pointer(int32p)), uint32(nprocs))
 	return runnablePs
@@ -4027,71 +4038,6 @@ func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
 	return gp
 }
 
-func testSchedLocalQueue() {
-	_p_ := new(p)
-	gs := make([]g, len(_p_.runq))
-	for i := 0; i < len(_p_.runq); i++ {
-		if g, _ := runqget(_p_); g != nil {
-			throw("runq is not empty initially")
-		}
-		for j := 0; j < i; j++ {
-			runqput(_p_, &gs[i], false)
-		}
-		for j := 0; j < i; j++ {
-			if g, _ := runqget(_p_); g != &gs[i] {
-				print("bad element at iter ", i, "/", j, "\n")
-				throw("bad element")
-			}
-		}
-		if g, _ := runqget(_p_); g != nil {
-			throw("runq is not empty afterwards")
-		}
-	}
-}
-
-func testSchedLocalQueueSteal() {
-	p1 := new(p)
-	p2 := new(p)
-	gs := make([]g, len(p1.runq))
-	for i := 0; i < len(p1.runq); i++ {
-		for j := 0; j < i; j++ {
-			gs[j].sig = 0
-			runqput(p1, &gs[j], false)
-		}
-		gp := runqsteal(p2, p1, true)
-		s := 0
-		if gp != nil {
-			s++
-			gp.sig++
-		}
-		for {
-			gp, _ = runqget(p2)
-			if gp == nil {
-				break
-			}
-			s++
-			gp.sig++
-		}
-		for {
-			gp, _ = runqget(p1)
-			if gp == nil {
-				break
-			}
-			gp.sig++
-		}
-		for j := 0; j < i; j++ {
-			if gs[j].sig != 1 {
-				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
-				throw("bad element")
-			}
-		}
-		if s != i/2 && s != i/2+1 {
-			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
-			throw("bad steal")
-		}
-	}
-}
-
 //go:linkname setMaxThreads runtime/debug.setMaxThreads
 func setMaxThreads(in int) (out int) {
 	lock(&sched.lock)
@@ -4180,4 +4126,60 @@ func sync_runtime_canSpin(i int) bool {
 //go:nosplit
 func sync_runtime_doSpin() {
 	procyield(active_spin_cnt)
+}
+
+var stealOrder randomOrder
+
+// randomOrder/randomEnum are helper types for randomized work stealing.
+// They allow to enumerate all Ps in different pseudo-random orders without repetitions.
+// The algorithm is based on the fact that if we have X such that X and GOMAXPROCS
+// are coprime, then a sequences of (i + X) % GOMAXPROCS gives the required enumeration.
+type randomOrder struct {
+	count    uint32
+	coprimes []uint32
+}
+
+type randomEnum struct {
+	i     uint32
+	count uint32
+	pos   uint32
+	inc   uint32
+}
+
+func (ord *randomOrder) reset(count uint32) {
+	ord.count = count
+	ord.coprimes = ord.coprimes[:0]
+	for i := uint32(1); i <= count; i++ {
+		if gcd(i, count) == 1 {
+			ord.coprimes = append(ord.coprimes, i)
+		}
+	}
+}
+
+func (ord *randomOrder) start(i uint32) randomEnum {
+	return randomEnum{
+		count: ord.count,
+		pos:   i % ord.count,
+		inc:   ord.coprimes[i%uint32(len(ord.coprimes))],
+	}
+}
+
+func (enum *randomEnum) done() bool {
+	return enum.i == enum.count
+}
+
+func (enum *randomEnum) next() {
+	enum.i++
+	enum.pos = (enum.pos + enum.inc) % enum.count
+}
+
+func (enum *randomEnum) position() uint32 {
+	return enum.pos
+}
+
+func gcd(a, b uint32) uint32 {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
 }

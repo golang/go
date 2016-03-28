@@ -755,11 +755,13 @@ var work struct {
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
-	// finalizersDone indicates that finalizers and objects with
-	// finalizers have been scanned by markroot. During concurrent
-	// GC, this happens during the concurrent scan phase. During
-	// STW GC, this happens during mark termination.
-	finalizersDone bool
+	// markrootDone indicates that roots have been marked at least
+	// once during the current GC cycle. This is checked by root
+	// marking operations that have to happen only during the
+	// first root marking pass, whether that's during the
+	// concurrent mark phase in current GC or mark termination in
+	// STW GC.
+	markrootDone bool
 
 	// Each type of GC state transition is protected by a lock.
 	// Since multiple threads can simultaneously detect the state
@@ -1112,9 +1114,8 @@ top:
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
 
-		// markroot is done now, so record that objects with
-		// finalizers have been scanned.
-		work.finalizersDone = true
+		// Record that one root marking pass has completed.
+		work.markrootDone = true
 
 		// Disable assists and background workers. We must do
 		// this before waking blocked assists.
@@ -1345,15 +1346,21 @@ func gcBgMarkPrepare() {
 }
 
 func gcBgMarkWorker(_p_ *p) {
-	type parkInfo struct {
-		m      *m // Release this m on park.
-		attach *p // If non-nil, attach to this p on park.
-	}
-	var park parkInfo
-
 	gp := getg()
-	park.m = acquirem()
-	park.attach = _p_
+
+	type parkInfo struct {
+		m      muintptr // Release this m on park.
+		attach puintptr // If non-nil, attach to this p on park.
+	}
+	// We pass park to a gopark unlock function, so it can't be on
+	// the stack (see gopark). Prevent deadlock from recursively
+	// starting GC by disabling preemption.
+	gp.m.preemptoff = "GC worker init"
+	park := new(parkInfo)
+	gp.m.preemptoff = ""
+
+	park.m.set(acquirem())
+	park.attach.set(_p_)
 	// Inform gcBgMarkStartWorkers that this worker is ready.
 	// After this point, the background mark worker is scheduled
 	// cooperatively by gcController.findRunnable. Hence, it must
@@ -1372,7 +1379,7 @@ func gcBgMarkWorker(_p_ *p) {
 
 			// The worker G is no longer running, so it's
 			// now safe to allow preemption.
-			releasem(park.m)
+			releasem(park.m.ptr())
 
 			// If the worker isn't attached to its P,
 			// attach now. During initialization and after
@@ -1381,9 +1388,9 @@ func gcBgMarkWorker(_p_ *p) {
 			// attach, the owner P may schedule the
 			// worker, so this must be done after the G is
 			// stopped.
-			if park.attach != nil {
-				p := park.attach
-				park.attach = nil
+			if park.attach != 0 {
+				p := park.attach.ptr()
+				park.attach.set(nil)
 				// cas the worker because we may be
 				// racing with a new worker starting
 				// on this P.
@@ -1394,7 +1401,7 @@ func gcBgMarkWorker(_p_ *p) {
 				}
 			}
 			return true
-		}, noescape(unsafe.Pointer(&park)), "GC worker (idle)", traceEvGoBlock, 0)
+		}, unsafe.Pointer(park), "GC worker (idle)", traceEvGoBlock, 0)
 
 		// Loop until the P dies and disassociates this
 		// worker (the P may later be reused, in which case
@@ -1406,7 +1413,7 @@ func gcBgMarkWorker(_p_ *p) {
 		// Disable preemption so we can use the gcw. If the
 		// scheduler wants to preempt us, we'll stop draining,
 		// dispose the gcw, and then preempt.
-		park.m = acquirem()
+		park.m.set(acquirem())
 
 		if gcBlackenEnabled == 0 {
 			throw("gcBgMarkWorker: blackening not enabled")
@@ -1469,7 +1476,7 @@ func gcBgMarkWorker(_p_ *p) {
 			// findRunnableGCWorker doesn't try to
 			// schedule it.
 			_p_.gcBgMarkWorker.set(nil)
-			releasem(park.m)
+			releasem(park.m.ptr())
 
 			gcMarkDone()
 
@@ -1479,8 +1486,8 @@ func gcBgMarkWorker(_p_ *p) {
 			// We may be running on a different P at this
 			// point, so we can't reattach until this G is
 			// parked.
-			park.m = acquirem()
-			park.attach = _p_
+			park.m.set(acquirem())
+			park.attach.set(_p_)
 		}
 	}
 }
@@ -1554,8 +1561,11 @@ func gcMark(start_time int64) {
 	gcDrain(gcw, gcDrainBlock)
 	gcw.dispose()
 
-	// TODO: Re-enable once this is cheap.
-	//gcMarkRootCheck()
+	if debug.gccheckmark > 0 {
+		// This is expensive when there's a large number of
+		// Gs, so only do it if checkmark is also enabled.
+		gcMarkRootCheck()
+	}
 	if work.full != 0 {
 		throw("work.full != 0")
 	}
@@ -1564,9 +1574,8 @@ func gcMark(start_time int64) {
 		notesleep(&work.alldone)
 	}
 
-	// markroot is done now, so record that objects with
-	// finalizers have been scanned.
-	work.finalizersDone = true
+	// Record that at least one root marking pass has completed.
+	work.markrootDone = true
 
 	for i := 0; i < int(gomaxprocs); i++ {
 		if !allp[i].gcw.empty() {
@@ -1736,7 +1745,7 @@ func gcResetMarkState() {
 
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live
-	work.finalizersDone = false
+	work.markrootDone = false
 }
 
 // Hooks for other packages

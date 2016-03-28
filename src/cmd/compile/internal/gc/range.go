@@ -4,8 +4,6 @@
 
 package gc
 
-import "cmd/internal/obj"
-
 // range
 func typecheckrange(n *Node) {
 	var toomany int
@@ -14,6 +12,7 @@ func typecheckrange(n *Node) {
 	var t2 *Type
 	var v1 *Node
 	var v2 *Node
+	var ls []*Node
 
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
@@ -25,16 +24,17 @@ func typecheckrange(n *Node) {
 	// 3. typecheck body.
 	// 4. decldepth--.
 
-	typecheck(&n.Right, Erv)
+	n.Right = typecheck(n.Right, Erv)
 
 	t := n.Right.Type
 	if t == nil {
 		goto out
 	}
 	// delicate little dance.  see typecheckas2
-	for i1, n1 := range n.List.Slice() {
+	ls = n.List.Slice()
+	for i1, n1 := range ls {
 		if n1.Name == nil || n1.Name.Defn != n {
-			typecheck(&n.List.Slice()[i1], Erv|Easgn)
+			ls[i1] = typecheck(ls[i1], Erv|Easgn)
 		}
 	}
 
@@ -46,7 +46,7 @@ func typecheckrange(n *Node) {
 	toomany = 0
 	switch t.Etype {
 	default:
-		Yyerror("cannot range over %v", Nconv(n.Right, obj.FmtLong))
+		Yyerror("cannot range over %v", Nconv(n.Right, FmtLong))
 		goto out
 
 	case TARRAY:
@@ -54,7 +54,7 @@ func typecheckrange(n *Node) {
 		t2 = t.Type
 
 	case TMAP:
-		t1 = t.Down
+		t1 = t.Key()
 		t2 = t.Type
 
 	case TCHAN:
@@ -93,7 +93,7 @@ func typecheckrange(n *Node) {
 	// present."
 	if isblank(v2) {
 		if v1 != nil {
-			n.List.Set([]*Node{v1})
+			n.List.Set1(v1)
 		}
 		v2 = nil
 	}
@@ -102,7 +102,7 @@ func typecheckrange(n *Node) {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
-			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, obj.FmtLong), why)
+			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, FmtLong), why)
 		}
 		checkassign(n, v1)
 	}
@@ -111,7 +111,7 @@ func typecheckrange(n *Node) {
 		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
-			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, obj.FmtLong), why)
+			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, FmtLong), why)
 		}
 		checkassign(n, v2)
 	}
@@ -119,14 +119,15 @@ func typecheckrange(n *Node) {
 	// second half of dance
 out:
 	n.Typecheck = 1
-	for i2, n2 := range n.List.Slice() {
-		if n2.Typecheck == 0 {
-			typecheck(&n.List.Slice()[i2], Erv|Easgn)
+	ls = n.List.Slice()
+	for i1, n1 := range ls {
+		if n1.Typecheck == 0 {
+			ls[i1] = typecheck(ls[i1], Erv|Easgn)
 		}
 	}
 
 	decldepth++
-	typechecklist(n.Nbody.Slice(), Etop)
+	typecheckslice(n.Nbody.Slice(), Etop)
 	decldepth--
 }
 
@@ -212,8 +213,8 @@ func walkrange(n *Node) {
 			tmp.Right.Type = Types[Tptr]
 			tmp.Right.Typecheck = 1
 			a = Nod(OAS, hp, tmp)
-			typecheck(&a, Etop)
-			n.Right.Ninit.Set([]*Node{a})
+			a = typecheck(a, Etop)
+			n.Right.Ninit.Set1(a)
 		}
 
 		// orderstmt allocated the iterator for us.
@@ -225,27 +226,27 @@ func walkrange(n *Node) {
 		hit := prealloc[n]
 		hit.Type = th
 		n.Left = nil
-		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
-		valname := newname(th.Type.Down.Sym) // ditto
+		keysym := th.Field(0).Sym // depends on layout of iterator struct.  See reflect.go:hiter
+		valsym := th.Field(1).Sym // ditto
 
 		fn := syslook("mapiterinit")
 
-		substArgTypes(&fn, t.Down, t.Type, th)
+		fn = substArgTypes(fn, t.Key(), t.Type, th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
-		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
+		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
 
 		fn = syslook("mapiternext")
-		substArgTypes(&fn, th)
+		fn = substArgTypes(fn, th)
 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
-		key := Nod(ODOT, hit, keyname)
+		key := NodSym(ODOT, hit, keysym)
 		key = Nod(OIND, key, nil)
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
 			body = []*Node{Nod(OAS, v1, key)}
 		} else {
-			val := Nod(ODOT, hit, valname)
+			val := NodSym(ODOT, hit, valsym)
 			val = Nod(OIND, val, nil)
 			a := Nod(OAS2, nil, nil)
 			a.List.Set([]*Node{v1, v2})
@@ -270,8 +271,8 @@ func walkrange(n *Node) {
 		a := Nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
 		a.List.Set([]*Node{hv1, hb})
-		a.Rlist.Set([]*Node{Nod(ORECV, ha, nil)})
-		n.Left.Ninit.Set([]*Node{a})
+		a.Rlist.Set1(Nod(ORECV, ha, nil))
+		n.Left.Ninit.Set1(a)
 		if v1 == nil {
 			body = nil
 		} else {
@@ -296,7 +297,7 @@ func walkrange(n *Node) {
 			a = Nod(OAS2, nil, nil)
 			a.List.Set([]*Node{hv1, hv2})
 			fn := syslook("stringiter2")
-			a.Rlist.Set([]*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
+			a.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
 		}
 
 		n.Left = Nod(ONE, hv1, Nodintconst(0))
@@ -312,14 +313,14 @@ func walkrange(n *Node) {
 	}
 
 	n.Op = OFOR
-	typechecklist(init, Etop)
+	typecheckslice(init, Etop)
 	n.Ninit.Append(init...)
-	typechecklist(n.Left.Ninit.Slice(), Etop)
-	typecheck(&n.Left, Erv)
-	typecheck(&n.Right, Etop)
+	typecheckslice(n.Left.Ninit.Slice(), Etop)
+	n.Left = typecheck(n.Left, Erv)
+	n.Right = typecheck(n.Right, Etop)
 	typecheckslice(body, Etop)
 	n.Nbody.Set(append(body, n.Nbody.Slice()...))
-	walkstmt(&n)
+	n = walkstmt(n)
 
 	lineno = lno
 }
@@ -342,10 +343,10 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	if v1 == nil || v2 != nil {
 		return false
 	}
-	if len(n.Nbody.Slice()) == 0 || n.Nbody.Slice()[0] == nil || len(n.Nbody.Slice()) > 1 {
+	if n.Nbody.Len() == 0 || n.Nbody.First() == nil || n.Nbody.Len() > 1 {
 		return false
 	}
-	stmt := n.Nbody.Slice()[0] // only stmt in body
+	stmt := n.Nbody.First() // only stmt in body
 	if stmt.Op != OAS || stmt.Left.Op != OINDEX {
 		return false
 	}
@@ -397,8 +398,8 @@ func memclrrange(n, v1, v2, a *Node) bool {
 
 	n.Nbody.Append(v1)
 
-	typecheck(&n.Left, Erv)
-	typechecklist(n.Nbody.Slice(), Etop)
-	walkstmt(&n)
+	n.Left = typecheck(n.Left, Erv)
+	typecheckslice(n.Nbody.Slice(), Etop)
+	n = walkstmt(n)
 	return true
 }

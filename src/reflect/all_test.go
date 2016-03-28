@@ -44,15 +44,11 @@ type pair struct {
 	s string
 }
 
-func isDigit(c uint8) bool { return '0' <= c && c <= '9' }
-
 func assert(t *testing.T, s, want string) {
 	if s != want {
 		t.Errorf("have %#q want %#q", s, want)
 	}
 }
-
-func typestring(i interface{}) string { return TypeOf(i).String() }
 
 var typeTests = []pair{
 	{struct{ x int }{}, "int"},
@@ -2371,6 +2367,34 @@ func TestNestedMethods(t *testing.T) {
 	}
 }
 
+type unexp struct{}
+
+func (*unexp) f() (int32, int8) { return 7, 7 }
+func (*unexp) g() (int64, int8) { return 8, 8 }
+
+type unexpI interface {
+	f() (int32, int8)
+}
+
+var unexpi unexpI = new(unexp)
+
+func TestUnexportedMethods(t *testing.T) {
+	typ := TypeOf(unexpi)
+
+	if typ.Method(0).Type == nil {
+		t.Error("missing type for satisfied method 'f'")
+	}
+	if !typ.Method(0).Func.IsValid() {
+		t.Error("missing func for satisfied method 'f'")
+	}
+	if typ.Method(1).Type != nil {
+		t.Error("found type for unsatisfied method 'g'")
+	}
+	if typ.Method(1).Func.IsValid() {
+		t.Error("found func for unsatisfied method 'g'")
+	}
+}
+
 type InnerInt struct {
 	X int
 }
@@ -2407,6 +2431,17 @@ func TestEmbeddedMethods(t *testing.T) {
 	f := (*OuterInt).M
 	if v := f(o); v != 2 {
 		t.Errorf("f(o) = %d, want 2", v)
+	}
+}
+
+type FuncDDD func(...interface{}) error
+
+func (f FuncDDD) M() {}
+
+func TestNumMethodOnDDD(t *testing.T) {
+	rv := ValueOf((FuncDDD)(nil))
+	if n := rv.NumMethod(); n != 1 {
+		t.Fatalf("NumMethod()=%d, want 1", n)
 	}
 }
 
@@ -5028,5 +5063,18 @@ func TestNames(t *testing.T) {
 		if got := TypeOf(test.v).Name(); got != test.want {
 			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
 		}
+	}
+}
+
+type embed struct {
+	EmbedWithUnexpMeth
+}
+
+func TestNameBytesAreAligned(t *testing.T) {
+	typ := TypeOf(embed{})
+	b := FirstMethodNameBytes(typ)
+	v := uintptr(unsafe.Pointer(b))
+	if v%unsafe.Alignof((*byte)(nil)) != 0 {
+		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
 	}
 }

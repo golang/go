@@ -33,9 +33,8 @@ func testString() {
 	}
 }
 
+//go:noinline
 func complex64_ssa(a, b complex64, x bool) complex64 {
-	switch {
-	}
 	var c complex64
 	if x {
 		c = a
@@ -45,9 +44,8 @@ func complex64_ssa(a, b complex64, x bool) complex64 {
 	return c
 }
 
+//go:noinline
 func complex128_ssa(a, b complex128, x bool) complex128 {
-	switch {
-	}
 	var c complex128
 	if x {
 		c = a

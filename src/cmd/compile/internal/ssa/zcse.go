@@ -17,7 +17,7 @@ func zcse(f *Func) {
 			v := b.Values[i]
 			next := true
 			if opcodeTable[v.Op].argLen == 0 {
-				key := vkey{v.Op, keyFor(v), v.Aux, typeStr(v)}
+				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
 				if vals[key] == nil {
 					vals[key] = v
 					if b != f.Entry {
@@ -46,9 +46,9 @@ func zcse(f *Func) {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
 				if opcodeTable[a.Op].argLen == 0 {
-					key := vkey{a.Op, keyFor(a), a.Aux, typeStr(a)}
+					key := vkey{a.Op, keyFor(a), a.Aux, a.Type}
 					if rv, ok := vals[key]; ok {
-						v.Args[i] = rv
+						v.SetArg(i, rv)
 					}
 				}
 			}
@@ -61,15 +61,7 @@ type vkey struct {
 	op Op
 	ai int64       // aux int
 	ax interface{} // aux
-	t  string      // type
-}
-
-// typeStr returns a string version of the type of v.
-func typeStr(v *Value) string {
-	if v.Type == nil {
-		return ""
-	}
-	return v.Type.String()
+	t  Type        // type
 }
 
 // keyFor returns the AuxInt portion of a  key structure uniquely identifying a

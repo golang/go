@@ -12,7 +12,7 @@ func typecheckselect(sel *Node) {
 	var def *Node
 	lno := setlineno(sel)
 	count := 0
-	typechecklist(sel.Ninit.Slice(), Etop)
+	typecheckslice(sel.Ninit.Slice(), Etop)
 	for _, n1 := range sel.List.Slice() {
 		count++
 		ncase = n1
@@ -31,8 +31,8 @@ func typecheckselect(sel *Node) {
 		} else if ncase.List.Len() > 1 {
 			Yyerror("select cases cannot be lists")
 		} else {
-			it2 := nodeSeqIterate(ncase.List)
-			n = typecheck(it2.P(), Etop)
+			ncase.List.SetIndex(0, typecheck(ncase.List.Index(0), Etop))
+			n = ncase.List.Index(0)
 			ncase.Left = n
 			ncase.List.Set(nil)
 			setlineno(n)
@@ -64,7 +64,7 @@ func typecheckselect(sel *Node) {
 
 				n.Op = OSELRECV2
 				n.Left = n.List.First()
-				n.List.Set([]*Node{n.List.Second()})
+				n.List.Set1(n.List.Second())
 				n.Right = n.Rlist.First()
 				n.Rlist.Set(nil)
 
@@ -80,7 +80,7 @@ func typecheckselect(sel *Node) {
 			}
 		}
 
-		typechecklist(ncase.Nbody.Slice(), Etop)
+		typecheckslice(ncase.Nbody.Slice(), Etop)
 	}
 
 	sel.Xoffset = int64(count)
@@ -101,9 +101,8 @@ func walkselect(sel *Node) {
 	var n *Node
 	var var_ *Node
 	var selv *Node
-	var cas *Node
 	if i == 0 {
-		sel.Nbody.Set([]*Node{mkcall("block", nil, nil)})
+		sel.Nbody.Set1(mkcall("block", nil, nil))
 		goto out
 	}
 
@@ -139,17 +138,17 @@ func walkselect(sel *Node) {
 				}
 
 				if n.Left == nil {
-					typecheck(&nblank, Erv|Easgn)
+					nblank = typecheck(nblank, Erv|Easgn)
 					n.Left = nblank
 				}
 
 				n.Op = OAS2
 				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
-				n.Rlist.Set([]*Node{n.Right})
+				n.Rlist.Set1(n.Right)
 				n.Right = nil
 				n.Left = nil
 				n.Typecheck = 0
-				typecheck(&n, Etop)
+				n = typecheck(n, Etop)
 			}
 
 			// if ch == nil { block() }; n;
@@ -158,9 +157,9 @@ func walkselect(sel *Node) {
 			a.Left = Nod(OEQ, ch, nodnil())
 			var ln Nodes
 			ln.Set(l)
-			a.Nbody.Set([]*Node{mkcall("block", nil, &ln)})
+			a.Nbody.Set1(mkcall("block", nil, &ln))
 			l = ln.Slice()
-			typecheck(&a, Etop)
+			a = typecheck(a, Etop)
 			l = append(l, a)
 			l = append(l, n)
 		}
@@ -172,8 +171,7 @@ func walkselect(sel *Node) {
 
 	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
-	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
-		cas = it.N()
+	for _, cas := range sel.List.Slice() {
 		setlineno(cas)
 		n = cas.Left
 		if n == nil {
@@ -182,23 +180,22 @@ func walkselect(sel *Node) {
 		switch n.Op {
 		case OSEND:
 			n.Right = Nod(OADDR, n.Right, nil)
-			typecheck(&n.Right, Erv)
+			n.Right = typecheck(n.Right, Erv)
 
 		case OSELRECV, OSELRECV2:
 			if n.Op == OSELRECV2 && n.List.Len() == 0 {
 				n.Op = OSELRECV
 			}
 			if n.Op == OSELRECV2 {
-				it := nodeSeqIterate(n.List)
-				*it.P() = Nod(OADDR, it.N(), nil)
-				typecheck(it.P(), Erv)
+				n.List.SetIndex(0, Nod(OADDR, n.List.First(), nil))
+				n.List.SetIndex(0, typecheck(n.List.Index(0), Erv))
 			}
 
 			if n.Left == nil {
 				n.Left = nodnil()
 			} else {
 				n.Left = Nod(OADDR, n.Left, nil)
-				typecheck(&n.Left, Erv)
+				n.Left = typecheck(n.Left, Erv)
 			}
 		}
 	}
@@ -212,7 +209,7 @@ func walkselect(sel *Node) {
 			dflt = sel.List.First()
 		} else {
 			dflt = sel.List.Second()
-			cas = nodeSeqFirst(sel.List.Slice())
+			cas = sel.List.First()
 		}
 
 		n := cas.Left
@@ -246,10 +243,10 @@ func walkselect(sel *Node) {
 			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
 		}
 
-		typecheck(&r.Left, Erv)
+		r.Left = typecheck(r.Left, Erv)
 		r.Nbody.Set(cas.Nbody.Slice())
 		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
-		sel.Nbody.Set([]*Node{r})
+		sel.Nbody.Set1(r)
 		goto out
 	}
 
@@ -261,14 +258,14 @@ func walkselect(sel *Node) {
 
 	selv = temp(selecttype(int32(sel.Xoffset)))
 	r = Nod(OAS, selv, nil)
-	typecheck(&r, Etop)
+	r = typecheck(r, Etop)
 	init = append(init, r)
 	var_ = conv(conv(Nod(OADDR, selv, nil), Types[TUNSAFEPTR]), Ptrto(Types[TUINT8]))
 	r = mkcall("newselect", nil, nil, var_, Nodintconst(selv.Type.Width), Nodintconst(sel.Xoffset))
-	typecheck(&r, Etop)
+	r = typecheck(r, Etop)
 	init = append(init, r)
 	// register cases
-	for _, cas = range sel.List.Slice() {
+	for _, cas := range sel.List.Slice() {
 		setlineno(cas)
 		n = cas.Left
 		r = Nod(OIF, nil, nil)
@@ -321,23 +318,10 @@ out:
 	lineno = lno
 }
 
-// Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
+// Keep in sync with src/runtime/select.go.
 func selecttype(size int32) *Type {
-	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
+	// TODO(dvyukov): it's possible to generate Scase only once
 	// and then cache; and also cache Select per size.
-	sudog := Nod(OTSTRUCT, nil, nil)
-
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
-	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
-	typecheck(&sudog, Etype)
-	sudog.Type.Noalg = true
-	sudog.Type.Local = true
 
 	scase := Nod(OTSTRUCT, nil, nil)
 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
@@ -347,7 +331,7 @@ func selecttype(size int32) *Type {
 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
 	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
-	typecheck(&scase, Etype)
+	scase = typecheck(scase, Etype)
 	scase.Type.Noalg = true
 	scase.Type.Local = true
 
@@ -358,11 +342,11 @@ func selecttype(size int32) *Type {
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
 	arr := Nod(OTARRAY, Nodintconst(int64(size)), scase)
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("scase")), arr))
-	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Ptrto(Types[TUINT8])))
+	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
-	typecheck(&sel, Etype)
+	sel = typecheck(sel, Etype)
 	sel.Type.Noalg = true
 	sel.Type.Local = true
 

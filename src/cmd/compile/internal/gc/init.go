@@ -27,7 +27,7 @@ var renameinit_initgen int
 
 func renameinit() *Sym {
 	renameinit_initgen++
-	return Lookupf("init.%d", renameinit_initgen)
+	return LookupN("init.", renameinit_initgen)
 }
 
 // hand-craft the following initialization code
@@ -88,13 +88,13 @@ func anyinit(n []*Node) bool {
 	return false
 }
 
-func fninit(n *NodeList) {
+func fninit(n []*Node) {
 	if Debug['A'] != 0 {
 		// sys.go or unsafe.go during compiler build
 		return
 	}
 
-	nf := initfix(nodeSeqSlice(n))
+	nf := initfix(n)
 	if !anyinit(nf) {
 		return
 	}
@@ -122,7 +122,7 @@ func fninit(n *NodeList) {
 	a.Likely = 1
 	r = append(r, a)
 	// (3a)
-	a.Nbody.Set([]*Node{Nod(ORETURN, nil, nil)})
+	a.Nbody.Set1(Nod(ORETURN, nil, nil))
 
 	// (4)
 	b := Nod(OIF, nil, nil)
@@ -132,7 +132,7 @@ func fninit(n *NodeList) {
 	b.Likely = 1
 	r = append(r, b)
 	// (4a)
-	b.Nbody.Set([]*Node{Nod(OCALL, syslook("throwinit"), nil)})
+	b.Nbody.Set1(Nod(OCALL, syslook("throwinit"), nil))
 
 	// (6)
 	a = Nod(OAS, gatevar, Nodintconst(1))
@@ -154,7 +154,7 @@ func fninit(n *NodeList) {
 	// (9)
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
-		s := Lookupf("init.%d", i)
+		s := LookupN("init.", i)
 		if s.Def == nil {
 			break
 		}
@@ -177,7 +177,7 @@ func fninit(n *NodeList) {
 	funcbody(fn)
 
 	Curfn = fn
-	typecheck(&fn, Etop)
+	fn = typecheck(fn, Etop)
 	typecheckslice(r, Etop)
 	Curfn = nil
 	funccompile(fn)

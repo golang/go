@@ -40,9 +40,7 @@ func TestLineHist(t *testing.T) {
 	}
 
 	for i, want := range expect {
-		var f *LSym
-		var l int32
-		linkgetline(ctxt, int32(i), &f, &l)
+		f, l := linkgetline(ctxt, int32(i))
 		have := fmt.Sprintf("%s:%d", f.Name, l)
 		if have != want {
 			t.Errorf("linkgetline(%d) = %q, want %q", i, have, want)

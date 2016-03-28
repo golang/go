@@ -92,6 +92,38 @@
 (Com16 x) -> (NOTW x)
 (Com8 x) -> (NOTB x)
 
+// CMPQconst 0 below is redundant because BSF sets Z but how to remove?
+(Ctz64 <t> x) -> (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
+(Ctz32 <t> x) -> (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
+(Ctz16 <t> x) -> (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
+
+(CMOVQEQconst x (InvertFlags y) [c]) -> (CMOVQNEconst x y [c])
+(CMOVLEQconst x (InvertFlags y) [c]) -> (CMOVLNEconst x y [c])
+(CMOVWEQconst x (InvertFlags y) [c]) -> (CMOVWNEconst x y [c])
+
+(CMOVQEQconst _ (FlagEQ) [c]) -> (Const64 [c])
+(CMOVLEQconst _ (FlagEQ) [c]) -> (Const32 [c])
+(CMOVWEQconst _ (FlagEQ) [c]) -> (Const16 [c])
+
+(CMOVQEQconst x (FlagLT_ULT)) -> x
+(CMOVLEQconst x (FlagLT_ULT)) -> x
+(CMOVWEQconst x (FlagLT_ULT)) -> x
+
+(CMOVQEQconst x (FlagLT_UGT)) -> x
+(CMOVLEQconst x (FlagLT_UGT)) -> x
+(CMOVWEQconst x (FlagLT_UGT)) -> x
+
+(CMOVQEQconst x (FlagGT_ULT)) -> x
+(CMOVLEQconst x (FlagGT_ULT)) -> x
+(CMOVWEQconst x (FlagGT_ULT)) -> x
+
+(CMOVQEQconst x (FlagGT_UGT)) -> x
+(CMOVLEQconst x (FlagGT_UGT)) -> x
+(CMOVWEQconst x (FlagGT_UGT)) -> x
+
+(Bswap64 x) -> (BSWAPQ x)
+(Bswap32 x) -> (BSWAPL x)
+
 (Sqrt x) -> (SQRTSD x)
 
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
@@ -343,7 +375,8 @@
 
 (Not x) -> (XORBconst [1] x)
 
-(OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+(OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
+(OffPtr [off] ptr) -> (ADDQ (MOVQconst [off]) ptr)
 
 (Const8 [val]) -> (MOVBconst [val])
 (Const16 [val]) -> (MOVWconst [val])
@@ -527,6 +560,21 @@
 (SARB x (MOVWconst [c])) -> (SARBconst [c&31] x)
 (SARB x (MOVBconst [c])) -> (SARBconst [c&31] x)
 
+(SARB x (ANDBconst [31] y)) -> (SARB x y)
+(SARW x (ANDWconst [31] y)) -> (SARW x y)
+(SARL x (ANDLconst [31] y)) -> (SARL x y)
+(SARQ x (ANDQconst [63] y)) -> (SARQ x y)
+
+(SHLB x (ANDBconst [31] y)) -> (SHLB x y)
+(SHLW x (ANDWconst [31] y)) -> (SHLW x y)
+(SHLL x (ANDLconst [31] y)) -> (SHLL x y)
+(SHLQ x (ANDQconst [63] y)) -> (SHLQ x y)
+
+(SHRB x (ANDBconst [31] y)) -> (SHRB x y)
+(SHRW x (ANDWconst [31] y)) -> (SHRW x y)
+(SHRL x (ANDLconst [31] y)) -> (SHRL x y)
+(SHRQ x (ANDQconst [63] y)) -> (SHRQ x y)
+
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
 // for the small shifts. I don't think we'll ever generate a weird shift (e.g.
@@ -548,6 +596,7 @@
 (MULQconst [3] x) -> (LEAQ2 x x)
 (MULQconst [5] x) -> (LEAQ4 x x)
 (MULQconst [9] x) -> (LEAQ8 x x)
+(MULQconst [24] x) -> (SHLQconst [3] (LEAQ2 <v.Type> x x)) // Useful for [][]T accesses
 (MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
 
 // combine add/shift into LEAQ
@@ -564,25 +613,37 @@
 (ADDQ x (ADDQconst [c] y)) -> (LEAQ1 [c] x y)
 
 // fold ADDQ into LEAQ
-(ADDQconst [c] (LEAQ [d] {s} x)) -> (LEAQ [c+d] {s} x)
-(LEAQ [c] {s} (ADDQconst [d] x)) -> (LEAQ [c+d] {s} x)
+(ADDQconst [c] (LEAQ [d] {s} x)) && is32Bit(c+d) -> (LEAQ [c+d] {s} x)
+(LEAQ [c] {s} (ADDQconst [d] x)) && is32Bit(c+d) -> (LEAQ [c+d] {s} x)
 (LEAQ [c] {s} (ADDQ x y)) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
 (ADDQ x (LEAQ [c] {s} y)) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
 (ADDQ (LEAQ [c] {s} x) y) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
 
-// fold ADDQconst into leaqX
-(ADDQconst [c] (LEAQ1 [d] {s} x y)) -> (LEAQ1 [c+d] {s} x y)
-(ADDQconst [c] (LEAQ2 [d] {s} x y)) -> (LEAQ2 [c+d] {s} x y)
-(ADDQconst [c] (LEAQ4 [d] {s} x y)) -> (LEAQ4 [c+d] {s} x y)
-(ADDQconst [c] (LEAQ8 [d] {s} x y)) -> (LEAQ8 [c+d] {s} x y)
-(LEAQ1 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ1 [c+d] {s} x y)
-(LEAQ1 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ1 [c+d] {s} x y)
-(LEAQ2 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ2 [c+d] {s} x y)
-(LEAQ2 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ2 [c+2*d] {s} x y)
-(LEAQ4 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ4 [c+d] {s} x y)
-(LEAQ4 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ4 [c+4*d] {s} x y)
-(LEAQ8 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ8 [c+d] {s} x y)
-(LEAQ8 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ8 [c+8*d] {s} x y)
+// fold ADDQconst into LEAQx
+(ADDQconst [c] (LEAQ1 [d] {s} x y)) && is32Bit(c+d) -> (LEAQ1 [c+d] {s} x y)
+(ADDQconst [c] (LEAQ2 [d] {s} x y)) && is32Bit(c+d) -> (LEAQ2 [c+d] {s} x y)
+(ADDQconst [c] (LEAQ4 [d] {s} x y)) && is32Bit(c+d) -> (LEAQ4 [c+d] {s} x y)
+(ADDQconst [c] (LEAQ8 [d] {s} x y)) && is32Bit(c+d) -> (LEAQ8 [c+d] {s} x y)
+(LEAQ1 [c] {s} (ADDQconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAQ1 [c+d] {s} x y)
+(LEAQ1 [c] {s} x (ADDQconst [d] y)) && is32Bit(c+d)   && y.Op != OpSB -> (LEAQ1 [c+d] {s} x y)
+(LEAQ2 [c] {s} (ADDQconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAQ2 [c+d] {s} x y)
+(LEAQ2 [c] {s} x (ADDQconst [d] y)) && is32Bit(c+2*d) && y.Op != OpSB -> (LEAQ2 [c+2*d] {s} x y)
+(LEAQ4 [c] {s} (ADDQconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAQ4 [c+d] {s} x y)
+(LEAQ4 [c] {s} x (ADDQconst [d] y)) && is32Bit(c+4*d) && y.Op != OpSB -> (LEAQ4 [c+4*d] {s} x y)
+(LEAQ8 [c] {s} (ADDQconst [d] x) y) && is32Bit(c+d)   && x.Op != OpSB -> (LEAQ8 [c+d] {s} x y)
+(LEAQ8 [c] {s} x (ADDQconst [d] y)) && is32Bit(c+8*d) && y.Op != OpSB -> (LEAQ8 [c+8*d] {s} x y)
+
+// fold shifts into LEAQx
+(LEAQ1 [c] {s} x (SHLQconst [1] y)) -> (LEAQ2 [c] {s} x y)
+(LEAQ1 [c] {s} (SHLQconst [1] x) y) -> (LEAQ2 [c] {s} y x)
+(LEAQ1 [c] {s} x (SHLQconst [2] y)) -> (LEAQ4 [c] {s} x y)
+(LEAQ1 [c] {s} (SHLQconst [2] x) y) -> (LEAQ4 [c] {s} y x)
+(LEAQ1 [c] {s} x (SHLQconst [3] y)) -> (LEAQ8 [c] {s} x y)
+(LEAQ1 [c] {s} (SHLQconst [3] x) y) -> (LEAQ8 [c] {s} y x)
+
+(LEAQ2 [c] {s} x (SHLQconst [1] y)) -> (LEAQ4 [c] {s} x y)
+(LEAQ2 [c] {s} x (SHLQconst [2] y)) -> (LEAQ8 [c] {s} x y)
+(LEAQ4 [c] {s} x (SHLQconst [1] y)) -> (LEAQ8 [c] {s} x y)
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETG x)
@@ -601,12 +662,19 @@
 // as the original load. If not, we end up making a value with
 // memory type live in two different blocks, which can lead to
 // multiple memory values alive simultaneously.
-(MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
-(MOVBQZX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
-(MOVWQSX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
-(MOVWQZX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
-(MOVLQSX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
-(MOVLQZX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
+// Make sure we don't combine these ops if the load has another use.
+// This prevents a single load from being split into multiple loads
+// which then might return different values.  See test/atomicload.go.
+(MOVBQSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVWQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+(MOVLQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+(MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+
+(MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+(MOVWQZX x:(MOVWloadidx2 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVWloadidx2 <v.Type> [off] {sym} ptr idx mem)
+(MOVLQZX x:(MOVLloadidx4 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVLloadidx4 <v.Type> [off] {sym} ptr idx mem)
 
 // replace load from same location as preceding store with copy
 (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
@@ -617,7 +685,7 @@
 // Fold extensions and ANDs together.
 (MOVBQZX (ANDBconst [c] x)) -> (ANDQconst [c & 0xff] x)
 (MOVWQZX (ANDWconst [c] x)) -> (ANDQconst [c & 0xffff] x)
-(MOVLQZX (ANDLconst [c] x)) -> (ANDQconst [c & 0xffffffff] x)
+(MOVLQZX (ANDLconst [c] x)) && c & 0x80000000 == 0 -> (ANDQconst [c & 0x7fffffff] x)
 (MOVBQSX (ANDBconst [c] x)) && c & 0x80 == 0 -> (ANDQconst [c & 0x7f] x)
 (MOVWQSX (ANDWconst [c] x)) && c & 0x8000 == 0 -> (ANDQconst [c & 0x7fff] x)
 (MOVLQSX (ANDLconst [c] x)) && c & 0x80000000 == 0 -> (ANDQconst [c & 0x7fffffff] x)
@@ -635,21 +703,21 @@
 // the ADDQconst get eliminated, we still have to compute the ADDQconst and we now
 // have potentially two live values (ptr and (ADDQconst [off] ptr)) instead of one.
 // Nevertheless, let's do it!
-(MOVQload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVQload  [addOff(off1, off2)] {sym} ptr mem)
-(MOVLload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVLload  [addOff(off1, off2)] {sym} ptr mem)
-(MOVWload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVWload  [addOff(off1, off2)] {sym} ptr mem)
-(MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVBload  [addOff(off1, off2)] {sym} ptr mem)
-(MOVSSload [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVSSload [addOff(off1, off2)] {sym} ptr mem)
-(MOVSDload [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVSDload [addOff(off1, off2)] {sym} ptr mem)
-(MOVOload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVOload  [addOff(off1, off2)] {sym} ptr mem)
+(MOVQload  [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVQload  [off1+off2] {sym} ptr mem)
+(MOVLload  [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVLload  [off1+off2] {sym} ptr mem)
+(MOVWload  [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVWload  [off1+off2] {sym} ptr mem)
+(MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVBload  [off1+off2] {sym} ptr mem)
+(MOVSSload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVSSload [off1+off2] {sym} ptr mem)
+(MOVSDload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVSDload [off1+off2] {sym} ptr mem)
+(MOVOload  [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVOload  [off1+off2] {sym} ptr mem)
 
-(MOVQstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVQstore  [addOff(off1, off2)] {sym} ptr val mem)
-(MOVLstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVLstore  [addOff(off1, off2)] {sym} ptr val mem)
-(MOVWstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVWstore  [addOff(off1, off2)] {sym} ptr val mem)
-(MOVBstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVBstore  [addOff(off1, off2)] {sym} ptr val mem)
-(MOVSSstore [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVSSstore [addOff(off1, off2)] {sym} ptr val mem)
-(MOVSDstore [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVSDstore [addOff(off1, off2)] {sym} ptr val mem)
-(MOVOstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVOstore  [addOff(off1, off2)] {sym} ptr val mem)
+(MOVQstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVQstore  [off1+off2] {sym} ptr val mem)
+(MOVLstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVLstore  [off1+off2] {sym} ptr val mem)
+(MOVWstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVWstore  [off1+off2] {sym} ptr val mem)
+(MOVBstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVBstore  [off1+off2] {sym} ptr val mem)
+(MOVSSstore [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVSSstore [off1+off2] {sym} ptr val mem)
+(MOVSDstore [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVSDstore [off1+off2] {sym} ptr val mem)
+(MOVOstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVOstore  [off1+off2] {sym} ptr val mem)
 
 // Fold constants into stores.
 (MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
@@ -673,35 +741,43 @@
 
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
-(MOVQload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVQload  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
-(MOVLload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVLload  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
-(MOVWload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVWload  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
-(MOVBload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVBload  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
-(MOVSSload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVSSload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
-(MOVSDload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVSDload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
-(MOVOload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
-	(MOVOload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVQload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVQload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVLload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVWload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVWload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVBload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVBload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVSSload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVSDload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVOload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVOload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
-(MOVQstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVQstore  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
-(MOVLstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVLstore  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
-(MOVWstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVWstore  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
-(MOVBstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVBstore  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
-(MOVSSstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVSSstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
-(MOVSDstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVSDstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
-(MOVOstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVOstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
+(MOVBQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVBQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVWQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVWQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVLQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLQSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+
+
+(MOVQstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVQstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVLstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVWstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVBstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVSSstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVSDstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVOstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVOstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
 (MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVQstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
@@ -713,31 +789,31 @@
 	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 
 // generating indexed loads and stores
-(MOVBload [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVBloadidx1 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVWload [off1] {sym1} (LEAQ2 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVWloadidx2 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVLload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVLloadidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVQload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVQloadidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVSSload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVSSloadidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVSDload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
-	(MOVSDloadidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVBload [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVBloadidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVWload [off1] {sym1} (LEAQ2 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVWloadidx2 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVLload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLloadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVQload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVQloadidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVSSload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSSloadidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVSDload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSDloadidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx mem)
 
-(MOVBstore [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVBstoreidx1 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVWstore [off1] {sym1} (LEAQ2 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVWstoreidx2 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVLstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVLstoreidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVQstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVQstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVSSstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVSSstoreidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-(MOVSDstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVSDstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVBstore [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVBstoreidx1 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVWstore [off1] {sym1} (LEAQ2 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVWstoreidx2 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVLstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVQstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVQstoreidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVSSstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSSstoreidx4 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVSDstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVSDstoreidx8 [off1+off2] {mergeSym(sym1,sym2)} ptr idx val mem)
 
 (MOVBload [off] {sym} (ADDQ ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
 (MOVBstore [off] {sym} (ADDQ ptr idx) val mem) && ptr.Op != OpSB -> (MOVBstoreidx1 [off] {sym} ptr idx val mem)
@@ -800,34 +876,34 @@
 	(MOVQstoreconstidx8 [ValAndOff(x).add(8*c)] {sym} ptr idx mem)
 
 // fold LEAQs together
-(LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && canMergeSym(sym1, sym2) ->
-      (LEAQ [addOff(off1,off2)] {mergeSym(sym1,sym2)} x)
+(LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+      (LEAQ [off1+off2] {mergeSym(sym1,sym2)} x)
 
 // LEAQ into LEAQ1
-(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
-(LEAQ1 [off1] {sym1} x (LEAQ [off2] {sym2} y)) && canMergeSym(sym1, sym2) && y.Op != OpSB ->
-       (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ1 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ1 [off1] {sym1} x (LEAQ [off2] {sym2} y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && y.Op != OpSB ->
+       (LEAQ1 [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // LEAQ1 into LEAQ
-(LEAQ [off1] {sym1} (LEAQ1 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
-       (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ1 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+       (LEAQ1 [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // LEAQ into LEAQ[248]
-(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ2 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
-(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ4 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
-(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
-       (LEAQ8 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ2 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ4 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ8 [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // LEAQ[248] into LEAQ
-(LEAQ [off1] {sym1} (LEAQ2 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
-      (LEAQ2 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
-(LEAQ [off1] {sym1} (LEAQ4 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
-      (LEAQ4 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
-(LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
-      (LEAQ8 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ2 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+      (LEAQ2 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ4 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+      (LEAQ4 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+      (LEAQ8 [off1+off2] {mergeSym(sym1,sym2)} x y)
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> mem
@@ -913,10 +989,10 @@
 (CMPBconst (MOVBconst [x]) [y]) && int8(x)>int8(y) && uint8(x)>uint8(y) -> (FlagGT_UGT)
 
 // Other known comparisons.
-(CMPQconst (ANDQconst _ [m]) [n]) && m+1==n && isPowerOfTwo(n) -> (FlagLT_ULT)
-(CMPLconst (ANDLconst _ [m]) [n]) && int32(m)+1==int32(n) && isPowerOfTwo(int64(int32(n))) -> (FlagLT_ULT)
-(CMPWconst (ANDWconst _ [m]) [n]) && int16(m)+1==int16(n) && isPowerOfTwo(int64(int16(n))) -> (FlagLT_ULT)
-(CMPBconst (ANDBconst _ [m]) [n]) && int8(m)+1==int8(n) && isPowerOfTwo(int64(int8(n))) -> (FlagLT_ULT)
+(CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
+(CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
+(CMPWconst (ANDWconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
+(CMPBconst (ANDBconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < int8(n) -> (FlagLT_ULT)
 // TODO: DIVxU also.
 
 // Absorb flag constants into SBB ops.
@@ -1089,7 +1165,7 @@
 (ADDLconst [c] (MOVLconst [d])) -> (MOVLconst [c+d])
 (ADDWconst [c] (MOVWconst [d])) -> (MOVWconst [c+d])
 (ADDBconst [c] (MOVBconst [d])) -> (MOVBconst [c+d])
-(ADDQconst [c] (ADDQconst [d] x)) -> (ADDQconst [c+d] x)
+(ADDQconst [c] (ADDQconst [d] x)) && is32Bit(c+d) -> (ADDQconst [c+d] x)
 (ADDLconst [c] (ADDLconst [d] x)) -> (ADDLconst [c+d] x)
 (ADDWconst [c] (ADDWconst [d] x)) -> (ADDWconst [c+d] x)
 (ADDBconst [c] (ADDBconst [d] x)) -> (ADDBconst [c+d] x)
@@ -1097,7 +1173,7 @@
 (SUBLconst [c] (MOVLconst [d])) -> (MOVLconst [d-c])
 (SUBWconst [c] (MOVWconst [d])) -> (MOVWconst [d-c])
 (SUBBconst [c] (MOVBconst [d])) -> (MOVBconst [d-c])
-(SUBQconst [c] (SUBQconst [d] x)) -> (ADDQconst [-c-d] x)
+(SUBQconst [c] (SUBQconst [d] x)) && is32Bit(-c-d) -> (ADDQconst [-c-d] x)
 (SUBLconst [c] (SUBLconst [d] x)) -> (ADDLconst [-c-d] x)
 (SUBWconst [c] (SUBWconst [d] x)) -> (ADDWconst [-c-d] x)
 (SUBBconst [c] (SUBBconst [d] x)) -> (ADDBconst [-c-d] x)
@@ -1166,21 +1242,21 @@
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.
-(ORW                (MOVBQZXload [i]   {s} p mem)
-     (SHLWconst [8] (MOVBQZXload [i+1] {s} p mem))) -> (MOVWload (ADDQconst [i] p) mem)
+(ORW              x:(MOVBload [i]   {s} p mem)
+    (SHLWconst [8]  (MOVBload [i+1] {s} p mem))) -> @x.Block (MOVWload [i] {s} p mem)
 
 (ORL (ORL (ORL
-                    (MOVBQZXload [i]   {s} p mem)
-    (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))
-    (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))
-    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> (MOVLload (ADDQconst [i] p) mem)
+                  x:(MOVBload [i]   {s} p mem)
+    (SHLLconst [8]  (MOVBload [i+1] {s} p mem)))
+    (SHLLconst [16] (MOVBload [i+2] {s} p mem)))
+    (SHLLconst [24] (MOVBload [i+3] {s} p mem))) -> @x.Block (MOVLload [i] {s} p mem)
 
 (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
-                    (MOVBQZXload [i]   {s} p mem)
-    (SHLQconst [8]  (MOVBQZXload [i+1] {s} p mem)))
-    (SHLQconst [16] (MOVBQZXload [i+2] {s} p mem)))
-    (SHLQconst [24] (MOVBQZXload [i+3] {s} p mem)))
-    (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))
-    (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))
-    (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))
-    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> (MOVQload (ADDQconst [i] p) mem)
+                  x:(MOVBload [i]   {s} p mem)
+    (SHLQconst [8]  (MOVBload [i+1] {s} p mem)))
+    (SHLQconst [16] (MOVBload [i+2] {s} p mem)))
+    (SHLQconst [24] (MOVBload [i+3] {s} p mem)))
+    (SHLQconst [32] (MOVBload [i+4] {s} p mem)))
+    (SHLQconst [40] (MOVBload [i+5] {s} p mem)))
+    (SHLQconst [48] (MOVBload [i+6] {s} p mem)))
+    (SHLQconst [56] (MOVBload [i+7] {s} p mem))) -> @x.Block (MOVQload [i] {s} p mem)

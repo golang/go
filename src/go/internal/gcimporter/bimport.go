@@ -87,7 +87,9 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	// read funcs
 	for i := p.int(); i > 0; i-- {
 		name := p.string()
-		sig := p.typ(nil).(*types.Signature)
+		params, isddd := p.paramList()
+		result, _ := p.paramList()
+		sig := types.NewSignature(nil, params, result, isddd)
 		p.int() // read and discard index of inlined function body
 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
 	}
@@ -679,7 +681,10 @@ var predeclared = []types.Type{
 	// package unsafe
 	types.Typ[types.UnsafePointer],
 
-	// any type, for builtin export data
+	// invalid type
+	types.Typ[types.Invalid], // only appears in packages with errors
+
 	// TODO(mdempsky): Provide an actual Type value to represent "any"?
+	// (Why exactly does gc emit the "any" type?)
 	types.Typ[types.Invalid],
 }

@@ -586,6 +586,67 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
 }
 
+var selectSink interface{}
+
+func TestSelectStackAdjust(t *testing.T) {
+	// Test that channel receive slots that contain local stack
+	// pointers are adjusted correctly by stack shrinking.
+	c := make(chan *int)
+	d := make(chan *int)
+	ready := make(chan bool)
+	go func() {
+		// Temporarily grow the stack to 10K.
+		stackGrowthRecursive((10 << 10) / (128 * 8))
+
+		// We're ready to trigger GC and stack shrink.
+		ready <- true
+
+		val := 42
+		var cx *int
+		cx = &val
+		// Receive from d. cx won't be affected.
+		select {
+		case cx = <-c:
+		case <-d:
+		}
+
+		// Check that pointer in cx was adjusted correctly.
+		if cx != &val {
+			t.Error("cx no longer points to val")
+		} else if val != 42 {
+			t.Error("val changed")
+		} else {
+			*cx = 43
+			if val != 43 {
+				t.Error("changing *cx failed to change val")
+			}
+		}
+		ready <- true
+	}()
+
+	// Let the goroutine get into the select.
+	<-ready
+	time.Sleep(10 * time.Millisecond)
+
+	// Force concurrent GC a few times.
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for i := 0; i < 100; i++ {
+		selectSink = new([1 << 20]byte)
+		runtime.ReadMemStats(&after)
+		if after.NumGC-before.NumGC >= 2 {
+			goto done
+		}
+	}
+	t.Fatal("failed to trigger concurrent GC")
+done:
+	selectSink = nil
+
+	// Wake select.
+	d <- nil
+	<-ready
+}
+
 func BenchmarkChanNonblocking(b *testing.B) {
 	myc := make(chan int)
 	b.RunParallel(func(pb *testing.PB) {

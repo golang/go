@@ -168,13 +168,6 @@ var reqWriteExcludeHeaderDump = map[string]bool{
 	"Trailer":           true,
 }
 
-// dumpAsReceived writes req to w in the form as it was received, or
-// at least as accurately as possible from the information retained in
-// the request.
-func dumpAsReceived(req *http.Request, w io.Writer) error {
-	return nil
-}
-
 // DumpRequest returns the given request in its HTTP/1.x wire
 // representation. It should only be used by servers to debug client
 // requests. The returned representation is an approximation only;

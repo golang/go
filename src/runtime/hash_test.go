@@ -11,6 +11,7 @@ import (
 	. "runtime"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 // Smhasher is a torture test for hash functions.
@@ -657,4 +658,26 @@ func TestStructHash(t *testing.T) {
 	if n := testing.AllocsPerRun(10, f); n > 6 {
 		t.Errorf("too many allocs %f - hash not balanced", n)
 	}
+}
+
+var sink uint64
+
+func BenchmarkAlignedLoad(b *testing.B) {
+	var buf [16]byte
+	p := unsafe.Pointer(&buf[0])
+	var s uint64
+	for i := 0; i < b.N; i++ {
+		s += ReadUnaligned64(p)
+	}
+	sink = s
+}
+
+func BenchmarkUnalignedLoad(b *testing.B) {
+	var buf [16]byte
+	p := unsafe.Pointer(&buf[1])
+	var s uint64
+	for i := 0; i < b.N; i++ {
+		s += ReadUnaligned64(p)
+	}
+	sink = s
 }

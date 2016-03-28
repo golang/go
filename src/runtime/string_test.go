@@ -10,6 +10,10 @@ import (
 	"testing"
 )
 
+// Strings and slices that don't escape and fit into tmpBuf are stack allocated,
+// which defeats using AllocsPerRun to test other optimizations.
+const sizeNoStack = 100
+
 func BenchmarkCompareStringEqual(b *testing.B) {
 	bytes := []byte("Hello Gophers!")
 	s1, s2 := string(bytes), string(bytes)
@@ -158,7 +162,7 @@ func TestGostringnocopy(t *testing.T) {
 }
 
 func TestCompareTempString(t *testing.T) {
-	s := "foo"
+	s := strings.Repeat("x", sizeNoStack)
 	b := []byte(s)
 	n := testing.AllocsPerRun(1000, func() {
 		if string(b) != s {
@@ -221,7 +225,7 @@ func TestIntStringAllocs(t *testing.T) {
 }
 
 func TestRangeStringCast(t *testing.T) {
-	s := "abc"
+	s := strings.Repeat("x", sizeNoStack)
 	n := testing.AllocsPerRun(1000, func() {
 		for i, c := range []byte(s) {
 			if c != s[i] {

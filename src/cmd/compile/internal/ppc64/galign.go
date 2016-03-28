@@ -10,25 +10,6 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-var thechar int = '9'
-
-var thestring string = "ppc64"
-
-var thelinkarch *obj.LinkArch
-
-func linkarchinit() {
-	thestring = obj.Getgoarch()
-	gc.Thearch.Thestring = thestring
-	if thestring == "ppc64le" {
-		thelinkarch = &ppc64.Linkppc64le
-	} else {
-		thelinkarch = &ppc64.Linkppc64
-	}
-	gc.Thearch.Thelinkarch = thelinkarch
-}
-
-var MAXWIDTH int64 = 1 << 50
-
 func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
@@ -41,9 +22,13 @@ func betypeinit() {
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
+	gc.Thearch.Thechar = '9'
+	gc.Thearch.Thestring = "ppc64"
+	gc.Thearch.Thelinkarch = &ppc64.Linkppc64
+	if obj.Getgoarch() == "ppc64le" {
+		gc.Thearch.Thestring = "ppc64le"
+		gc.Thearch.Thelinkarch = &ppc64.Linkppc64le
+	}
 	gc.Thearch.REGSP = ppc64.REGSP
 	gc.Thearch.REGCTXT = ppc64.REGCTXT
 	gc.Thearch.REGCALLX = ppc64.REG_R3
@@ -53,7 +38,7 @@ func Main() {
 	gc.Thearch.REGMAX = ppc64.REG_R31
 	gc.Thearch.FREGMIN = ppc64.REG_F0
 	gc.Thearch.FREGMAX = ppc64.REG_F31
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
@@ -70,7 +55,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp

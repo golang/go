@@ -65,8 +65,7 @@ and test commands:
 	-p n
 		the number of programs, such as build commands or
 		test binaries, that can be run in parallel.
-		The default is the number of CPUs available, except
-		on darwin/arm which defaults to 1.
+		The default is the number of CPUs available.
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
@@ -145,17 +144,6 @@ func init() {
 
 	addBuildFlags(cmdBuild)
 	addBuildFlags(cmdInstall)
-
-	if buildContext.GOOS == "darwin" {
-		switch buildContext.GOARCH {
-		case "arm", "arm64":
-			// darwin/arm cannot run multiple tests simultaneously.
-			// Parallelism is limited in go_darwin_arm_exec, but
-			// also needs to be limited here so go test std does not
-			// timeout tests that waiting to run.
-			buildP = 1
-		}
-	}
 }
 
 // Flags set by multiple commands.
@@ -377,7 +365,7 @@ func buildModeInit() {
 			fatalf("-buildmode=pie not supported by gccgo")
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			default:
@@ -391,7 +379,7 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
 			default:
 				fatalf("-buildmode=shared not supported on %s\n", platform)
 			}
@@ -409,7 +397,7 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
 				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				fatalf("-linkshared not supported on %s\n", platform)
@@ -1322,16 +1310,6 @@ func (b *builder) do(root *action) {
 	}
 
 	wg.Wait()
-}
-
-// hasString reports whether s appears in the list of strings.
-func hasString(strings []string, s string) bool {
-	for _, t := range strings {
-		if s == t {
-			return true
-		}
-	}
-	return false
 }
 
 // build is the action for building a single package or command.
@@ -2368,8 +2346,10 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 
 	// The archive file should have been created by the compiler.
 	// Since it used to not work that way, verify.
-	if _, err := os.Stat(absAfile); err != nil {
-		fatalf("os.Stat of archive file failed: %v", err)
+	if !buildN {
+		if _, err := os.Stat(absAfile); err != nil {
+			fatalf("os.Stat of archive file failed: %v", err)
+		}
 	}
 
 	if buildN || buildX {
@@ -3025,6 +3005,8 @@ func (b *builder) gccArchArgs() []string {
 		return []string{"-m64"}
 	case "arm":
 		return []string{"-marm"} // not thumb
+	case "s390x":
+		return []string{"-m64", "-march=z196"}
 	}
 	return nil
 }

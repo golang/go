@@ -450,7 +450,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
-	Ctxt.Version++
+	Ctxt.IncVersion()
 	base := int32(obj.Boffset(f))
 
 	var add uint64

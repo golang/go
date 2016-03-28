@@ -33,7 +33,14 @@ type hchan struct {
 	recvx    uint   // receive index
 	recvq    waitq  // list of recv waiters
 	sendq    waitq  // list of send waiters
-	lock     mutex
+
+	// lock protects all fields in hchan, as well as several
+	// fields in sudogs blocked on this channel.
+	//
+	// Do not change another G's status while holding this lock
+	// (in particular, do not ready a G), as this can deadlock
+	// with stack shrinking.
+	lock mutex
 }
 
 type waitq struct {
@@ -209,6 +216,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	mysg.waitlink = nil
 	mysg.g = gp
 	mysg.selectdone = nil
+	mysg.c = c
 	gp.waiting = mysg
 	gp.param = nil
 	c.sendq.enqueue(mysg)
@@ -229,6 +237,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
+	mysg.c = nil
 	releaseSudog(mysg)
 	return true
 }
@@ -259,12 +268,12 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 			c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
 		}
 	}
-	unlockf()
 	if sg.elem != nil {
 		sendDirect(c.elemtype, sg, ep)
 		sg.elem = nil
 	}
 	gp := sg.g
+	unlockf()
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
@@ -310,6 +319,8 @@ func closechan(c *hchan) {
 
 	c.closed = 1
 
+	var glist *g
+
 	// release all readers
 	for {
 		sg := c.recvq.dequeue()
@@ -328,7 +339,8 @@ func closechan(c *hchan) {
 		if raceenabled {
 			raceacquireg(gp, unsafe.Pointer(c))
 		}
-		goready(gp, 3)
+		gp.schedlink.set(glist)
+		glist = gp
 	}
 
 	// release all writers (they will panic)
@@ -346,9 +358,18 @@ func closechan(c *hchan) {
 		if raceenabled {
 			raceacquireg(gp, unsafe.Pointer(c))
 		}
-		goready(gp, 3)
+		gp.schedlink.set(glist)
+		glist = gp
 	}
 	unlock(&c.lock)
+
+	// Ready all Gs now that we've dropped the channel lock.
+	for glist != nil {
+		gp := glist
+		glist = glist.schedlink.ptr()
+		gp.schedlink = 0
+		goready(gp, 3)
+	}
 }
 
 // entry points for <- c from compiled code
@@ -469,6 +490,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 	gp.waiting = mysg
 	mysg.g = gp
 	mysg.selectdone = nil
+	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
 	goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
@@ -483,6 +505,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 	}
 	closed := gp.param == nil
 	gp.param = nil
+	mysg.c = nil
 	releaseSudog(mysg)
 	return true, !closed
 }
@@ -505,7 +528,6 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 		if raceenabled {
 			racesync(c, sg)
 		}
-		unlockf()
 		if ep != nil {
 			// copy data from sender
 			// ep points to our own stack or heap, so nothing
@@ -535,10 +557,10 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 			c.recvx = 0
 		}
 		c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
-		unlockf()
 	}
 	sg.elem = nil
 	gp := sg.g
+	unlockf()
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()

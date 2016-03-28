@@ -182,7 +182,7 @@ func cse(f *Func) {
 					// them appropriately, so don't mess with them here.
 					continue
 				}
-				b.Control = x
+				b.SetControl(x)
 			}
 		}
 	}

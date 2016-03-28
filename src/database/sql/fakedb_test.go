@@ -51,7 +51,6 @@ type fakeDB struct {
 	name string
 
 	mu      sync.Mutex
-	free    []*fakeConn
 	tables  map[string]*table
 	badConn bool
 }
@@ -74,12 +73,6 @@ func (t *table) columnIndex(name string) int {
 
 type row struct {
 	cols []interface{} // must be same size as its table colname + coltype
-}
-
-func (r *row) clone() *row {
-	nrow := &row{cols: make([]interface{}, len(r.cols))}
-	copy(nrow.cols, r.cols)
-	return nrow
 }
 
 type fakeConn struct {

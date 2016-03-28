@@ -168,7 +168,7 @@ var pkgDeps = map[string][]string{
 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
-	"internal/testenv": {"L2", "os", "testing"},
+	"internal/testenv": {"L2", "OS", "testing"},
 
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
@@ -358,7 +358,7 @@ var pkgDeps = map[string][]string{
 		"L4", "NET", "OS",
 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
 		"net/http/internal",
-		"internal/golang.org/x/net/http2/hpack",
+		"golang.org/x/net/http2/hpack",
 	},
 	"net/http/internal": {"L4"},
 
@@ -400,21 +400,6 @@ func allowed(pkg string) map[string]bool {
 		allow(pp)
 	}
 	return m
-}
-
-var bools = []bool{false, true}
-var geese = []string{"android", "darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
-var goarches = []string{"386", "amd64", "arm"}
-
-type osPkg struct {
-	goos, pkg string
-}
-
-// allowedErrors are the operating systems and packages known to contain errors
-// (currently just "no Go source files")
-var allowedErrors = map[osPkg]bool{
-	osPkg{"windows", "log/syslog"}: true,
-	osPkg{"plan9", "log/syslog"}:   true,
 }
 
 // listStdPkgs returns the same list of packages as "go list std".

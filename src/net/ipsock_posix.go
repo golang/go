@@ -170,11 +170,8 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		if ip = ip.To4(); ip == nil {
 			return nil, &AddrError{Err: "non-IPv4 address", Addr: ip.String()}
 		}
-		sa := new(syscall.SockaddrInet4)
-		for i := 0; i < IPv4len; i++ {
-			sa.Addr[i] = ip[i]
-		}
-		sa.Port = port
+		sa := &syscall.SockaddrInet4{Port: port}
+		copy(sa.Addr[:], ip)
 		return sa, nil
 	case syscall.AF_INET6:
 		if len(ip) == 0 {
@@ -189,12 +186,8 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		if ip = ip.To16(); ip == nil {
 			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
 		}
-		sa := new(syscall.SockaddrInet6)
-		for i := 0; i < IPv6len; i++ {
-			sa.Addr[i] = ip[i]
-		}
-		sa.Port = port
-		sa.ZoneId = uint32(zoneToInt(zone))
+		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneToInt(zone))}
+		copy(sa.Addr[:], ip)
 		return sa, nil
 	}
 	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}

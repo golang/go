@@ -4,8 +4,6 @@
 
 package gc
 
-import "cmd/internal/obj"
-
 // machine size and rounding alignment is dictated around
 // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
 var defercalc int
@@ -19,10 +17,7 @@ func Rnd(o int64, r int64) int64 {
 
 func offmod(t *Type) {
 	o := int32(0)
-	for f := t.Type; f != nil; f = f.Down {
-		if f.Etype != TFIELD {
-			Fatalf("offmod: not TFIELD: %v", Tconv(f, obj.FmtLong))
-		}
+	for _, f := range t.Fields().Slice() {
 		f.Width = int64(o)
 		o += int32(Widthptr)
 		if int64(o) >= Thearch.MAXWIDTH {
@@ -40,10 +35,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 	}
 	lastzero := int64(0)
 	var w int64
-	for f := t.Type; f != nil; f = f.Down {
-		if f.Etype != TFIELD {
-			Fatalf("widstruct: not TFIELD: %v", Tconv(f, obj.FmtLong))
-		}
+	for _, f := range t.Fields().Slice() {
 		if f.Type == nil {
 			// broken field, just skip it so that other valid fields
 			// get a width.
@@ -80,7 +72,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 		o += w
 		if o >= Thearch.MAXWIDTH {
-			Yyerror("type %v too large", Tconv(errtype, obj.FmtLong))
+			Yyerror("type %v too large", Tconv(errtype, FmtLong))
 			o = 8 // small but nonzero
 		}
 	}
@@ -223,7 +215,7 @@ func dowidth(t *Type) {
 		w = int64(Widthptr)
 
 		checkwidth(t.Type)
-		checkwidth(t.Down)
+		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in
 		if !t.Broke {
@@ -254,7 +246,7 @@ func dowidth(t *Type) {
 			if t.Type.Width != 0 {
 				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
 				if uint64(t.Bound) > cap {
-					Yyerror("type %v larger than address space", Tconv(t, obj.FmtLong))
+					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
 				}
 			}
 
@@ -295,7 +287,7 @@ func dowidth(t *Type) {
 	case TFUNCARGS:
 		t1 := t.Type
 
-		w = widstruct(t.Type, t1.Recv(), 0, 0)
+		w = widstruct(t.Type, t1.Recvs(), 0, 0)
 		w = widstruct(t.Type, t1.Params(), w, Widthreg)
 		w = widstruct(t.Type, t1.Results(), w, Widthreg)
 		t1.Argwid = w
@@ -390,236 +382,12 @@ func resumecheckwidth() {
 	defercalc = 0
 }
 
-var itable *Type // distinguished *byte
-
-func typeinit() {
-	if Widthptr == 0 {
-		Fatalf("typeinit before betypeinit")
-	}
-
-	for et := EType(0); et < NTYPE; et++ {
-		Simtype[et] = et
-	}
-
-	Types[TPTR32] = typ(TPTR32)
-	dowidth(Types[TPTR32])
-
-	Types[TPTR64] = typ(TPTR64)
-	dowidth(Types[TPTR64])
-
-	t := typ(TUNSAFEPTR)
-	Types[TUNSAFEPTR] = t
-	t.Sym = Pkglookup("Pointer", unsafepkg)
-	t.Sym.Def = typenod(t)
-	t.Sym.Def.Name = new(Name)
-
-	dowidth(Types[TUNSAFEPTR])
-
-	Tptr = TPTR32
-	if Widthptr == 8 {
-		Tptr = TPTR64
-	}
-
-	for et := TINT8; et <= TUINT64; et++ {
-		Isint[et] = true
-	}
-	Isint[TINT] = true
-	Isint[TUINT] = true
-	Isint[TUINTPTR] = true
-
-	Isfloat[TFLOAT32] = true
-	Isfloat[TFLOAT64] = true
-
-	Iscomplex[TCOMPLEX64] = true
-	Iscomplex[TCOMPLEX128] = true
-
-	Isptr[TPTR32] = true
-	Isptr[TPTR64] = true
-
-	isforw[TFORW] = true
-
-	Issigned[TINT] = true
-	Issigned[TINT8] = true
-	Issigned[TINT16] = true
-	Issigned[TINT32] = true
-	Issigned[TINT64] = true
-
-	// initialize okfor
-	for et := EType(0); et < NTYPE; et++ {
-		if Isint[et] || et == TIDEAL {
-			okforeq[et] = true
-			okforcmp[et] = true
-			okforarith[et] = true
-			okforadd[et] = true
-			okforand[et] = true
-			okforconst[et] = true
-			issimple[et] = true
-			Minintval[et] = new(Mpint)
-			Maxintval[et] = new(Mpint)
-		}
-
-		if Isfloat[et] {
-			okforeq[et] = true
-			okforcmp[et] = true
-			okforadd[et] = true
-			okforarith[et] = true
-			okforconst[et] = true
-			issimple[et] = true
-			minfltval[et] = newMpflt()
-			maxfltval[et] = newMpflt()
-		}
-
-		if Iscomplex[et] {
-			okforeq[et] = true
-			okforadd[et] = true
-			okforarith[et] = true
-			okforconst[et] = true
-			issimple[et] = true
-		}
-	}
-
-	issimple[TBOOL] = true
-
-	okforadd[TSTRING] = true
-
-	okforbool[TBOOL] = true
-
-	okforcap[TARRAY] = true
-	okforcap[TCHAN] = true
-
-	okforconst[TBOOL] = true
-	okforconst[TSTRING] = true
-
-	okforlen[TARRAY] = true
-	okforlen[TCHAN] = true
-	okforlen[TMAP] = true
-	okforlen[TSTRING] = true
-
-	okforeq[TPTR32] = true
-	okforeq[TPTR64] = true
-	okforeq[TUNSAFEPTR] = true
-	okforeq[TINTER] = true
-	okforeq[TCHAN] = true
-	okforeq[TSTRING] = true
-	okforeq[TBOOL] = true
-	okforeq[TMAP] = true    // nil only; refined in typecheck
-	okforeq[TFUNC] = true   // nil only; refined in typecheck
-	okforeq[TARRAY] = true  // nil slice only; refined in typecheck
-	okforeq[TSTRUCT] = true // it's complicated; refined in typecheck
-
-	okforcmp[TSTRING] = true
-
-	var i int
-	for i = 0; i < len(okfor); i++ {
-		okfor[i] = okfornone[:]
-	}
-
-	// binary
-	okfor[OADD] = okforadd[:]
-
-	okfor[OAND] = okforand[:]
-	okfor[OANDAND] = okforbool[:]
-	okfor[OANDNOT] = okforand[:]
-	okfor[ODIV] = okforarith[:]
-	okfor[OEQ] = okforeq[:]
-	okfor[OGE] = okforcmp[:]
-	okfor[OGT] = okforcmp[:]
-	okfor[OLE] = okforcmp[:]
-	okfor[OLT] = okforcmp[:]
-	okfor[OMOD] = okforand[:]
-	okfor[OHMUL] = okforarith[:]
-	okfor[OMUL] = okforarith[:]
-	okfor[ONE] = okforeq[:]
-	okfor[OOR] = okforand[:]
-	okfor[OOROR] = okforbool[:]
-	okfor[OSUB] = okforarith[:]
-	okfor[OXOR] = okforand[:]
-	okfor[OLSH] = okforand[:]
-	okfor[ORSH] = okforand[:]
-
-	// unary
-	okfor[OCOM] = okforand[:]
-
-	okfor[OMINUS] = okforarith[:]
-	okfor[ONOT] = okforbool[:]
-	okfor[OPLUS] = okforarith[:]
-
-	// special
-	okfor[OCAP] = okforcap[:]
-
-	okfor[OLEN] = okforlen[:]
-
-	// comparison
-	iscmp[OLT] = true
-
-	iscmp[OGT] = true
-	iscmp[OGE] = true
-	iscmp[OLE] = true
-	iscmp[OEQ] = true
-	iscmp[ONE] = true
-
-	mpatofix(Maxintval[TINT8], "0x7f")
-	mpatofix(Minintval[TINT8], "-0x80")
-	mpatofix(Maxintval[TINT16], "0x7fff")
-	mpatofix(Minintval[TINT16], "-0x8000")
-	mpatofix(Maxintval[TINT32], "0x7fffffff")
-	mpatofix(Minintval[TINT32], "-0x80000000")
-	mpatofix(Maxintval[TINT64], "0x7fffffffffffffff")
-	mpatofix(Minintval[TINT64], "-0x8000000000000000")
-
-	mpatofix(Maxintval[TUINT8], "0xff")
-	mpatofix(Maxintval[TUINT16], "0xffff")
-	mpatofix(Maxintval[TUINT32], "0xffffffff")
-	mpatofix(Maxintval[TUINT64], "0xffffffffffffffff")
-
-	// f is valid float if min < f < max.  (min and max are not themselves valid.)
-	mpatoflt(maxfltval[TFLOAT32], "33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
-	mpatoflt(minfltval[TFLOAT32], "-33554431p103")
-	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970") // 2^53-1 p (1023-52) + 1/2 ulp
-	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970")
-
-	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32]
-	minfltval[TCOMPLEX64] = minfltval[TFLOAT32]
-	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
-	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
-
-	// for walk to use in error messages
-	Types[TFUNC] = functype(nil, nil, nil)
-
-	// types used in front end
-	// types[TNIL] got set early in lexinit
-	Types[TIDEAL] = typ(TIDEAL)
-
-	Types[TINTER] = typ(TINTER)
-
-	// simple aliases
-	Simtype[TMAP] = Tptr
-
-	Simtype[TCHAN] = Tptr
-	Simtype[TFUNC] = Tptr
-	Simtype[TUNSAFEPTR] = Tptr
-
-	Array_array = int(Rnd(0, int64(Widthptr)))
-	Array_nel = int(Rnd(int64(Array_array)+int64(Widthptr), int64(Widthint)))
-	Array_cap = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthint)))
-	sizeof_Array = int(Rnd(int64(Array_cap)+int64(Widthint), int64(Widthptr)))
-
-	// string is same as slice wo the cap
-	sizeof_String = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthptr)))
-
-	dowidth(Types[TSTRING])
-	dowidth(idealstring)
-
-	itable = typ(Tptr)
-	itable.Type = Types[TUINT8]
-}
-
 // compute total size of f's in/out arguments.
 func Argsize(t *Type) int {
 	var w int64
 
-	for _, p := range recvParamsResults {
-		for f, it := IterFields(p(t)); f != nil; f = it.Next() {
+	for _, p := range recvsParamsResults {
+		for _, f := range p(t).Fields().Slice() {
 			if x := f.Width + f.Type.Width; x > w {
 				w = x
 			}

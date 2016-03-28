@@ -392,10 +392,10 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	if nvar >= NVAR {
 		if Debug['w'] > 1 && node != nil {
-			Fatalf("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+			Fatalf("variable not optimized: %v", Nconv(node, FmtSharp))
 		}
 		if Debug['v'] > 0 {
-			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+			Warn("variable not optimized: %v", Nconv(node, FmtSharp))
 		}
 
 		// If we're not tracking a word in a variable, mark the rest as
@@ -487,7 +487,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	if Debug['R'] != 0 {
-		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, obj.FmtSharp), Ctxt.Dconv(a), v.addr)
+		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, FmtSharp), Ctxt.Dconv(a), v.addr)
 	}
 	Ostats.Nvar++
 
@@ -1286,7 +1286,6 @@ loop2:
 	}
 	nregion = 0
 	region = region[:0]
-	var rgp *Rgn
 	for f := firstf; f != nil; f = f.Link {
 		r := f.Data.(*Reg)
 		for z := 0; z < BITS; z++ {
@@ -1347,16 +1346,14 @@ loop2:
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\nregisterizing\n")
 	}
-	var usedreg uint64
-	var vreg uint64
 	for i := 0; i < nregion; i++ {
-		rgp = &region[i]
+		rgp := &region[i]
 		if Debug['R'] != 0 && Debug['v'] != 0 {
 			fmt.Printf("region %d: cost %d varno %d enter %d\n", i, rgp.cost, rgp.varno, rgp.enter.Prog.Pc)
 		}
 		bit = blsh(uint(rgp.varno))
-		usedreg = paint2(rgp.enter, int(rgp.varno), 0)
-		vreg = allreg(usedreg, rgp)
+		usedreg := paint2(rgp.enter, int(rgp.varno), 0)
+		vreg := allreg(usedreg, rgp)
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
 				v := &vars[rgp.varno]

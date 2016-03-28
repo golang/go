@@ -1282,8 +1282,7 @@ func runGcc(stdin []byte, args []string) (string, string) {
 // with equivalent memory layout.
 type typeConv struct {
 	// Cache of already-translated or in-progress types.
-	m       map[dwarf.Type]*Type
-	typedef map[string]ast.Expr
+	m map[dwarf.Type]*Type
 
 	// Map from types to incomplete pointers to those types.
 	ptrs map[dwarf.Type][]*Type

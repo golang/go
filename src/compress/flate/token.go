@@ -75,9 +75,6 @@ func matchToken(xlength uint32, xoffset uint32) token {
 	return token(matchType + xlength<<lengthShift + xoffset)
 }
 
-// Returns the type of a token
-func (t token) typ() uint32 { return uint32(t) & typeMask }
-
 // Returns the literal of a literal token
 func (t token) literal() uint32 { return uint32(t - literalType) }
 

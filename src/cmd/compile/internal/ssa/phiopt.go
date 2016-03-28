@@ -26,14 +26,14 @@ func phiopt(f *Func) {
 		}
 
 		pb0, b0 := b, b.Preds[0]
-		for b0.Kind != BlockIf && len(b0.Preds) == 1 {
+		for len(b0.Succs) == 1 && len(b0.Preds) == 1 {
 			pb0, b0 = b0, b0.Preds[0]
 		}
 		if b0.Kind != BlockIf {
 			continue
 		}
 		pb1, b1 := b, b.Preds[1]
-		for b1.Kind != BlockIf && len(b1.Preds) == 1 {
+		for len(b1.Succs) == 1 && len(b1.Preds) == 1 {
 			pb1, b1 = b1, b1.Preds[0]
 		}
 		if b1 != b0 {
@@ -66,7 +66,7 @@ func phiopt(f *Func) {
 
 			if ok && isCopy {
 				if f.pass.debug > 0 {
-					f.Config.Warnl(int(b.Line), "converted OpPhi to OpCopy")
+					f.Config.Warnl(b.Line, "converted OpPhi to OpCopy")
 				}
 				v.reset(OpCopy)
 				v.AddArg(b0.Control)
@@ -74,7 +74,7 @@ func phiopt(f *Func) {
 			}
 			if ok && !isCopy {
 				if f.pass.debug > 0 {
-					f.Config.Warnl(int(b.Line), "converted OpPhi to OpNot")
+					f.Config.Warnl(b.Line, "converted OpPhi to OpNot")
 				}
 				v.reset(OpNot)
 				v.AddArg(b0.Control)

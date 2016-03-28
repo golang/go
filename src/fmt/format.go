@@ -31,8 +31,6 @@ type fmtFlags struct {
 	plus        bool
 	sharp       bool
 	space       bool
-	unicode     bool
-	uniQuote    bool // Use 'x'= prefix for %U if printable.
 	zero        bool
 
 	// For the formats %+v %#v, we set the plusV/sharpV flags
@@ -133,17 +131,75 @@ func (f *fmt) fmt_boolean(v bool) {
 	}
 }
 
-// integer; interprets prec but not wid. Once formatted, result is sent to pad()
-// and then flags are cleared.
-func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+// fmt_unicode formats a uint64 as "U+0078" or with f.sharp set as "U+0078 'x'".
+func (f *fmt) fmt_unicode(u uint64) {
+	buf := f.intbuf[0:]
+
+	// With default precision set the maximum needed buf length is 18
+	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF")
+	// which fits into the already allocated intbuf with a capacity of 65 bytes.
+	prec := 4
+	if f.precPresent && f.prec > 4 {
+		prec = f.prec
+		// Compute space needed for "U+" , number, " '", character, "'".
+		width := 2 + prec + 2 + utf8.UTFMax + 1
+		if width > cap(buf) {
+			buf = make([]byte, width)
+		}
+	}
+
+	// Format into buf, ending at buf[i]. Formatting numbers is easier right-to-left.
+	i := len(buf)
+
+	// For %#U we want to add a space and a quoted character at the end of the buffer.
+	if f.sharp && u <= utf8.MaxRune && strconv.IsPrint(rune(u)) {
+		i--
+		buf[i] = '\''
+		i -= utf8.RuneLen(rune(u))
+		utf8.EncodeRune(buf[i:], rune(u))
+		i--
+		buf[i] = '\''
+		i--
+		buf[i] = ' '
+	}
+	// Format the Unicode code point u as a hexadecimal number.
+	for u >= 16 {
+		i--
+		buf[i] = udigits[u&0xF]
+		prec--
+		u >>= 4
+	}
+	i--
+	buf[i] = udigits[u]
+	prec--
+	// Add zeros in front of the number until requested precision is reached.
+	for prec > 0 {
+		i--
+		buf[i] = '0'
+		prec--
+	}
+	// Add a leading "U+".
+	i--
+	buf[i] = '+'
+	i--
+	buf[i] = 'U'
+
+	oldZero := f.zero
+	f.zero = false
+	f.pad(buf[i:])
+	f.zero = oldZero
+}
+
+// fmt_integer formats signed and unsigned integers.
+func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 	// precision of 0 and value of 0 means "print nothing"
-	if f.precPresent && f.prec == 0 && a == 0 {
+	if f.precPresent && f.prec == 0 && u == 0 {
 		return
 	}
 
-	negative := signedness == signed && a < 0
+	negative := isSigned && int64(u) < 0
 	if negative {
-		a = -a
+		u = -u
 	}
 
 	var buf []byte = f.intbuf[0:]
@@ -152,14 +208,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		if base == 16 && f.sharp {
 			// Also adds "0x".
 			width += 2
-		}
-		if f.unicode {
-			// Also adds "U+".
-			width += 2
-			if f.uniQuote {
-				// Also adds " 'x'".
-				width += 1 + 1 + utf8.UTFMax + 1
-			}
 		}
 		if negative || f.plus || f.space {
 			width++
@@ -172,6 +220,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 
 	// two ways to ask for extra leading zero digits: %.3d or %03d.
 	// apparently the first cancels the second.
+	oldZero := f.zero // f.zero is used in f.pad but modified below; restored at end of function.
 	prec := 0
 	if f.precPresent {
 		prec = f.prec
@@ -183,45 +232,43 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		}
 	}
 
-	// format a into buf, ending at buf[i].  (printing is easier right-to-left.)
-	// a is made into unsigned ua.  we could make things
-	// marginally faster by splitting the 32-bit case out into a separate
-	// block but it's not worth the duplication, so ua has 64 bits.
+	// Because printing is easier right-to-left: format u into buf, ending at buf[i].
+	// We could make things marginally faster by splitting the 32-bit case out
+	// into a separate block but it's not worth the duplication, so u has 64 bits.
 	i := len(buf)
-	ua := uint64(a)
-	// use constants for the division and modulo for more efficient code.
-	// switch cases ordered by popularity.
+	// Use constants for the division and modulo for more efficient code.
+	// Switch cases ordered by popularity.
 	switch base {
 	case 10:
-		for ua >= 10 {
+		for u >= 10 {
 			i--
-			next := ua / 10
-			buf[i] = byte('0' + ua - next*10)
-			ua = next
+			next := u / 10
+			buf[i] = byte('0' + u - next*10)
+			u = next
 		}
 	case 16:
-		for ua >= 16 {
+		for u >= 16 {
 			i--
-			buf[i] = digits[ua&0xF]
-			ua >>= 4
+			buf[i] = digits[u&0xF]
+			u >>= 4
 		}
 	case 8:
-		for ua >= 8 {
+		for u >= 8 {
 			i--
-			buf[i] = byte('0' + ua&7)
-			ua >>= 3
+			buf[i] = byte('0' + u&7)
+			u >>= 3
 		}
 	case 2:
-		for ua >= 2 {
+		for u >= 2 {
 			i--
-			buf[i] = byte('0' + ua&1)
-			ua >>= 1
+			buf[i] = byte('0' + u&1)
+			u >>= 1
 		}
 	default:
 		panic("fmt: unknown base; can't happen")
 	}
 	i--
-	buf[i] = digits[ua]
+	buf[i] = digits[u]
 	for i > 0 && prec > len(buf)-i {
 		i--
 		buf[i] = '0'
@@ -243,12 +290,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 			buf[i] = '0'
 		}
 	}
-	if f.unicode {
-		i--
-		buf[i] = '+'
-		i--
-		buf[i] = 'U'
-	}
 
 	if negative {
 		i--
@@ -261,24 +302,8 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		buf[i] = ' '
 	}
 
-	// If we want a quoted char for %#U, move the data up to make room.
-	if f.unicode && f.uniQuote && a >= 0 && a <= utf8.MaxRune && strconv.IsPrint(rune(a)) {
-		runeWidth := utf8.RuneLen(rune(a))
-		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
-		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
-		i -= width
-		// Now put " 'x'" at the end.
-		j := len(buf) - width
-		buf[j] = ' '
-		j++
-		buf[j] = '\''
-		j++
-		utf8.EncodeRune(buf[j:], rune(a))
-		j += runeWidth
-		buf[j] = '\''
-	}
-
 	f.pad(buf[i:])
+	f.zero = oldZero
 }
 
 // truncate truncates the string to the specified precision, if present.
@@ -394,14 +419,30 @@ func (f *fmt) fmt_q(s string) {
 	}
 }
 
-// fmt_qc formats the integer as a single-quoted, escaped Go character constant.
+// fmt_c formats an integer as a Unicode character.
 // If the character is not valid Unicode, it will print '\ufffd'.
-func (f *fmt) fmt_qc(c int64) {
+func (f *fmt) fmt_c(c uint64) {
+	r := rune(c)
+	if c > utf8.MaxRune {
+		r = utf8.RuneError
+	}
+	buf := f.intbuf[:0]
+	w := utf8.EncodeRune(buf[:utf8.UTFMax], r)
+	f.pad(buf[:w])
+}
+
+// fmt_qc formats an integer as a single-quoted, escaped Go character constant.
+// If the character is not valid Unicode, it will print '\ufffd'.
+func (f *fmt) fmt_qc(c uint64) {
+	r := rune(c)
+	if c > utf8.MaxRune {
+		r = utf8.RuneError
+	}
 	buf := f.intbuf[:0]
 	if f.plus {
-		f.pad(strconv.AppendQuoteRuneToASCII(buf, rune(c)))
+		f.pad(strconv.AppendQuoteRuneToASCII(buf, r))
 	} else {
-		f.pad(strconv.AppendQuoteRune(buf, rune(c)))
+		f.pad(strconv.AppendQuoteRune(buf, r))
 	}
 }
 

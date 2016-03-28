@@ -29,7 +29,6 @@ type reader struct {
 	setupDone    bool // true if we have parsed the bzip2 header.
 	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
 	eof          bool
-	buf          []byte    // stores Burrows-Wheeler transformed data.
 	c            [256]uint // the `C' array for the inverse BWT.
 	tt           []uint32  // mirrors the `tt' array in the bzip2 source and contains the P array in the upper 24 bits.
 	tPos         uint32    // Index of the next output byte in tt.

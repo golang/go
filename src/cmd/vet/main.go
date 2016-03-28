@@ -139,6 +139,7 @@ var (
 	genDecl       *ast.GenDecl
 	interfaceType *ast.InterfaceType
 	rangeStmt     *ast.RangeStmt
+	returnStmt    *ast.ReturnStmt
 
 	// checkers is a two-level map.
 	// The outer level is keyed by a nil pointer, one of the AST vars above.
@@ -164,7 +165,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
-	fmt.Fprintf(os.Stderr, "\tgodoc cmd/vet\n\n")
+	fmt.Fprintf(os.Stderr, "\tgo doc cmd/vet\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)
@@ -476,6 +477,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		key = interfaceType
 	case *ast.RangeStmt:
 		key = rangeStmt
+	case *ast.ReturnStmt:
+		key = returnStmt
 	}
 	for _, fn := range f.checkers[key] {
 		fn(f, node)

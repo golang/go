@@ -985,7 +985,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_SP
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
-		if ctxt.Cursym.Cfunc != 0 {
+		if ctxt.Cursym.Cfunc {
 			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 		}
 	} else if framesize <= obj.StackBig {
@@ -1007,7 +1007,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Reg = REG_AX
 		indir_cx(ctxt, p, &p.To)
 		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
-		if ctxt.Cursym.Cfunc != 0 {
+		if ctxt.Cursym.Cfunc {
 			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 		}
 	} else {
@@ -1031,7 +1031,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.As = mov
 		indir_cx(ctxt, p, &p.From)
 		p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
-		if ctxt.Cursym.Cfunc != 0 {
+		if ctxt.Cursym.Cfunc {
 			p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
 		}
 		p.To.Type = obj.TYPE_REG
@@ -1095,7 +1095,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	call.To.Type = obj.TYPE_BRANCH
 	morestack := "runtime.morestack"
 	switch {
-	case ctxt.Cursym.Cfunc != 0:
+	case ctxt.Cursym.Cfunc:
 		morestack = "runtime.morestackc"
 	case ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0:
 		morestack = "runtime.morestack_noctxt"

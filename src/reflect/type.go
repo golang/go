@@ -288,12 +288,10 @@ type typeAlg struct {
 
 // Method on non-interface type
 type method struct {
-	name    *string        // name of method
-	pkgPath *string        // nil for exported Names; otherwise import path
-	mtyp    *rtype         // method type (without receiver)
-	typ     *rtype         // .(*FuncType) underneath (with receiver)
-	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
-	tfn     unsafe.Pointer // fn used for normal method call
+	name name           // name of method
+	mtyp *rtype         // method type (without receiver)
+	ifn  unsafe.Pointer // fn used in interface call (one-word receiver)
+	tfn  unsafe.Pointer // fn used for normal method call
 }
 
 // uncommonType is present only for types with names or methods
@@ -348,14 +346,14 @@ type funcType struct {
 
 // imethod represents a method on an interface type
 type imethod struct {
-	name    *string // name of method
-	pkgPath *string // nil for exported Names; otherwise import path
-	typ     *rtype  // .(*FuncType) underneath
+	name name   // name of method
+	typ  *rtype // .(*FuncType) underneath
 }
 
 // interfaceType represents an interface type.
 type interfaceType struct {
 	rtype   `reflect:"interface"`
+	pkgPath *string   // import path
 	methods []imethod // sorted by hash
 }
 
@@ -389,17 +387,101 @@ type sliceType struct {
 
 // Struct field
 type structField struct {
-	name    *string // nil for embedded fields
-	pkgPath *string // nil for exported Names; otherwise import path
-	typ     *rtype  // type of field
-	tag     *string // nil if no tag
-	offset  uintptr // byte offset of field within struct
+	name   name    // name is empty for embedded fields
+	typ    *rtype  // type of field
+	offset uintptr // byte offset of field within struct
 }
 
 // structType represents a struct type.
 type structType struct {
-	rtype  `reflect:"struct"`
-	fields []structField // sorted by offset
+	rtype   `reflect:"struct"`
+	pkgPath *string
+	fields  []structField // sorted by offset
+}
+
+// name is an encoded type name with optional extra data.
+//
+// The first byte is a bit field containing:
+//
+//	1<<0 the name is exported
+//	1<<1 tag data follows the name
+//	1<<2 pkgPath *string follow the name and tag
+//
+// The next two bytes are the data length:
+//
+//	 l := uint16(data[1])<<8 | uint16(data[2])
+//
+// Bytes [3:3+l] are the string data.
+//
+// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
+// with the data following.
+//
+// If the import path follows, then ptrSize bytes at the end of
+// the data form a *string. The pointer is aligned to its width.
+// The import path is only set for concrete methods that are defined
+// in a different package than their type.
+type name struct {
+	bytes *byte
+}
+
+func (n *name) data(off int) *byte {
+	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
+}
+
+func (n *name) isExported() bool {
+	return (*n.bytes)&(1<<0) != 0
+}
+
+func (n *name) nameLen() int {
+	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
+}
+
+func (n *name) tagLen() int {
+	if *n.data(0)&(1<<1) == 0 {
+		return 0
+	}
+	off := 3 + n.nameLen()
+	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
+}
+
+func (n *name) name() (s string) {
+	nl := n.nameLen()
+	if nl == 0 {
+		return ""
+	}
+	hdr := (*stringHeader)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(n.data(3))
+	hdr.Len = nl
+	return s
+}
+
+func (n *name) tag() (s string) {
+	tl := n.tagLen()
+	if tl == 0 {
+		return ""
+	}
+	nl := n.nameLen()
+	hdr := (*stringHeader)(unsafe.Pointer(&s))
+	hdr.Data = unsafe.Pointer(n.data(3 + nl + 2))
+	hdr.Len = tl
+	return s
+}
+
+func (n *name) pkgPath() *string {
+	if *n.data(0)&(1<<2) == 0 {
+		return nil
+	}
+	off := 3 + n.nameLen()
+	if tl := n.tagLen(); tl > 0 {
+		off += 2 + tl
+	}
+	off = int(round(uintptr(off), ptrSize))
+	return *(**string)(unsafe.Pointer(n.data(off)))
+}
+
+// round n up to a multiple of a.  a must be a power of 2.
+func round(n, a uintptr) uintptr {
+	return (n + a - 1) &^ (a - 1)
 }
 
 /*
@@ -561,57 +643,16 @@ func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
 
 func (t *rtype) common() *rtype { return t }
 
-func (t *uncommonType) Method(i int) (m Method) {
-	if t == nil || i < 0 || i >= len(t.methods) {
-		panic("reflect: Method index out of range")
-	}
-	p := &t.methods[i]
-	if p.name != nil {
-		m.Name = *p.name
-	}
-	fl := flag(Func)
-	if p.pkgPath != nil {
-		m.PkgPath = *p.pkgPath
-		fl |= flagStickyRO
-	}
-	mt := p.typ
-	m.Type = mt
-	fn := unsafe.Pointer(&p.tfn)
-	m.Func = Value{mt, fn, fl}
-	m.Index = i
-	return
-}
-
-func (t *uncommonType) NumMethod() int {
-	if t == nil {
-		return 0
-	}
-	return len(t.methods)
-}
-
-func (t *uncommonType) MethodByName(name string) (m Method, ok bool) {
-	if t == nil {
-		return
-	}
-	var p *method
-	for i := range t.methods {
-		p = &t.methods[i]
-		if p.name != nil && *p.name == name {
-			return t.Method(i), true
-		}
-	}
-	return
-}
-
-// TODO(rsc): gc supplies these, but they are not
-// as efficient as they could be: they have commonType
-// as the receiver instead of *rtype.
 func (t *rtype) NumMethod() int {
 	if t.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
 	}
-	return t.uncommon().NumMethod()
+	ut := t.uncommon()
+	if ut == nil {
+		return 0
+	}
+	return len(ut.methods)
 }
 
 func (t *rtype) Method(i int) (m Method) {
@@ -619,7 +660,40 @@ func (t *rtype) Method(i int) (m Method) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.Method(i)
 	}
-	return t.uncommon().Method(i)
+	ut := t.uncommon()
+
+	if ut == nil || i < 0 || i >= len(ut.methods) {
+		panic("reflect: Method index out of range")
+	}
+	p := &ut.methods[i]
+	m.Name = p.name.name()
+	fl := flag(Func)
+	if !p.name.isExported() {
+		pkgPath := p.name.pkgPath()
+		if pkgPath == nil {
+			pkgPath = ut.pkgPath
+		}
+		m.PkgPath = *pkgPath
+		fl |= flagStickyRO
+	}
+	if p.mtyp != nil {
+		ft := (*funcType)(unsafe.Pointer(p.mtyp))
+		in := make([]Type, 0, 1+len(ft.in()))
+		in = append(in, t)
+		for _, arg := range ft.in() {
+			in = append(in, arg)
+		}
+		out := make([]Type, 0, len(ft.out()))
+		for _, ret := range ft.out() {
+			out = append(out, ret)
+		}
+		mt := FuncOf(in, out, p.mtyp.IsVariadic())
+		m.Type = mt
+		fn := unsafe.Pointer(&p.tfn)
+		m.Func = Value{mt.(*rtype), fn, fl}
+	}
+	m.Index = i
+	return m
 }
 
 func (t *rtype) MethodByName(name string) (m Method, ok bool) {
@@ -627,7 +701,17 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.MethodByName(name)
 	}
-	return t.uncommon().MethodByName(name)
+	ut := t.uncommon()
+	if ut == nil {
+		return Method{}, false
+	}
+	for i := range ut.methods {
+		p := &ut.methods[i]
+		if p.name.name() == name {
+			return t.Method(i), true
+		}
+	}
+	return Method{}, false
 }
 
 func (t *rtype) PkgPath() string {
@@ -832,9 +916,13 @@ func (t *interfaceType) Method(i int) (m Method) {
 		return
 	}
 	p := &t.methods[i]
-	m.Name = *p.name
-	if p.pkgPath != nil {
-		m.PkgPath = *p.pkgPath
+	m.Name = p.name.name()
+	if !p.name.isExported() {
+		pkgPath := p.name.pkgPath()
+		if pkgPath == nil {
+			pkgPath = t.pkgPath
+		}
+		m.PkgPath = *pkgPath
 	}
 	m.Type = toType(p.typ)
 	m.Index = i
@@ -852,7 +940,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 	var p *imethod
 	for i := range t.methods {
 		p = &t.methods[i]
-		if *p.name == name {
+		if p.name.name() == name {
 			return t.Method(i), true
 		}
 	}
@@ -888,8 +976,20 @@ type StructTag string
 // Get returns the value associated with key in the tag string.
 // If there is no such key in the tag, Get returns the empty string.
 // If the tag does not have the conventional format, the value
-// returned by Get is unspecified.
+// returned by Get is unspecified. To determine whether a tag is
+// explicitly set to the empty string, use Lookup.
 func (tag StructTag) Get(key string) string {
+	v, _ := tag.Lookup(key)
+	return v
+}
+
+// Lookup returns the value associated with key in the tag string.
+// If the key is present in the tag the value (which may be empty)
+// is returned. Otherwise the returned value will be the empty string.
+// The ok return value reports whether the value was explicitly set in
+// the tag string. If the tag does not have the conventional format,
+// the value returned by Lookup is unspecified.
+func (tag StructTag) Lookup(key string) (value string, ok bool) {
 	// When modifying this code, also update the validateStructTag code
 	// in golang.org/x/tools/cmd/vet/structtag.go.
 
@@ -937,10 +1037,10 @@ func (tag StructTag) Get(key string) string {
 			if err != nil {
 				break
 			}
-			return value
+			return value, true
 		}
 	}
-	return ""
+	return "", false
 }
 
 // Field returns the i'th struct field.
@@ -950,8 +1050,8 @@ func (t *structType) Field(i int) (f StructField) {
 	}
 	p := &t.fields[i]
 	f.Type = toType(p.typ)
-	if p.name != nil {
-		f.Name = *p.name
+	if name := p.name.name(); name != "" {
+		f.Name = name
 	} else {
 		t := f.Type
 		if t.Kind() == Ptr {
@@ -960,11 +1060,12 @@ func (t *structType) Field(i int) (f StructField) {
 		f.Name = t.Name()
 		f.Anonymous = true
 	}
-	if p.pkgPath != nil {
-		f.PkgPath = *p.pkgPath
+	if t.pkgPath != nil && !p.name.isExported() {
+		// Fields never have an import path in their name.
+		f.PkgPath = *t.pkgPath
 	}
-	if p.tag != nil {
-		f.Tag = StructTag(*p.tag)
+	if tag := p.name.tag(); tag != "" {
+		f.Tag = StructTag(tag)
 	}
 	f.Offset = p.offset
 
@@ -1056,8 +1157,8 @@ func (t *structType) FieldByNameFunc(match func(string) bool) (result StructFiel
 				// Find name and type for field f.
 				var fname string
 				var ntyp *rtype
-				if f.name != nil {
-					fname = *f.name
+				if name := f.name.name(); name != "" {
+					fname = name
 				} else {
 					// Anonymous field of type T or *T.
 					// Name taken from type.
@@ -1122,11 +1223,12 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 	if name != "" {
 		for i := range t.fields {
 			tf := &t.fields[i]
-			if tf.name == nil {
+			tfname := tf.name.name()
+			if tfname == "" {
 				hasAnon = true
 				continue
 			}
-			if *tf.name == name {
+			if tfname == name {
 				return t.Field(i), true
 			}
 		}
@@ -1278,7 +1380,7 @@ func implements(T, V *rtype) bool {
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
 			vm := &v.methods[j]
-			if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
+			if vm.name.name() == tm.name.name() && vm.typ == tm.typ {
 				if i++; i >= len(t.methods) {
 					return true
 				}
@@ -1295,7 +1397,7 @@ func implements(T, V *rtype) bool {
 	for j := 0; j < len(v.methods); j++ {
 		tm := &t.methods[i]
 		vm := &v.methods[j]
-		if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
+		if vm.name.name() == tm.name.name() && vm.mtyp == tm.typ {
 			if i++; i >= len(t.methods) {
 				return true
 			}
@@ -1400,16 +1502,13 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 		for i := range t.fields {
 			tf := &t.fields[i]
 			vf := &v.fields[i]
-			if tf.name != vf.name && (tf.name == nil || vf.name == nil || *tf.name != *vf.name) {
-				return false
-			}
-			if tf.pkgPath != vf.pkgPath && (tf.pkgPath == nil || vf.pkgPath == nil || *tf.pkgPath != *vf.pkgPath) {
+			if tf.name.name() != vf.name.name() {
 				return false
 			}
 			if tf.typ != vf.typ {
 				return false
 			}
-			if tf.tag != vf.tag && (tf.tag == nil || vf.tag == nil || *tf.tag != *vf.tag) {
+			if tf.name.tag() != vf.name.tag() {
 				return false
 			}
 			if tf.offset != vf.offset {

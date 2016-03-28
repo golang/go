@@ -13,14 +13,13 @@ import (
 const (
 	NoCompression      = 0
 	BestSpeed          = 1
-	fastCompression    = 3
 	BestCompression    = 9
 	DefaultCompression = -1
 	logWindowSize      = 15
 	windowSize         = 1 << logWindowSize
 	windowMask         = windowSize - 1
 	logMaxOffsetSize   = 15  // Standard DEFLATE
-	minMatchLength     = 3   // The smallest match that the compressor looks for
+	minMatchLength     = 4   // The smallest match that the compressor looks for
 	maxMatchLength     = 258 // The longest match for the compressor
 	minOffsetSize      = 1   // The shortest offset that makes any sense
 
@@ -28,39 +27,39 @@ const (
 	// stop things from getting too large.
 	maxFlateBlockTokens = 1 << 14
 	maxStoreBlockSize   = 65535
-	hashBits            = 17
+	hashBits            = 17 // After 17 performance degrades
 	hashSize            = 1 << hashBits
 	hashMask            = (1 << hashBits) - 1
-	hashShift           = (hashBits + minMatchLength - 1) / minMatchLength
 	maxHashOffset       = 1 << 24
 
 	skipNever = math.MaxInt32
 )
 
 type compressionLevel struct {
-	good, lazy, nice, chain, fastSkipHashing int
+	level, good, lazy, nice, chain, fastSkipHashing int
 }
 
 var levels = []compressionLevel{
 	{}, // 0
 	// For levels 1-3 we don't bother trying with lazy matches
-	{3, 0, 8, 4, 4},
-	{3, 0, 16, 8, 5},
-	{3, 0, 32, 32, 6},
+	{1, 4, 0, 8, 4, 4},
+	{2, 4, 0, 16, 8, 5},
+	{3, 4, 0, 32, 32, 6},
 	// Levels 4-9 use increasingly more lazy matching
 	// and increasingly stringent conditions for "good enough".
-	{4, 4, 16, 16, skipNever},
-	{8, 16, 32, 32, skipNever},
-	{8, 16, 128, 128, skipNever},
-	{8, 32, 128, 256, skipNever},
-	{32, 128, 258, 1024, skipNever},
-	{32, 258, 258, 4096, skipNever},
+	{4, 4, 4, 16, 16, skipNever},
+	{5, 8, 16, 32, 32, skipNever},
+	{6, 8, 16, 128, 128, skipNever},
+	{7, 8, 32, 128, 256, skipNever},
+	{8, 32, 128, 258, 1024, skipNever},
+	{9, 32, 258, 258, 4096, skipNever},
 }
 
 type compressor struct {
 	compressionLevel
 
-	w *huffmanBitWriter
+	w          *huffmanBitWriter
+	bulkHasher func([]byte, []uint32)
 
 	// compression algorithm
 	fill func(*compressor, []byte) int // copy data to window
@@ -73,8 +72,8 @@ type compressor struct {
 	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
 	// with the same hash value.
 	chainHead  int
-	hashHead   []int
-	hashPrev   []int
+	hashHead   []uint32
+	hashPrev   []uint32
 	hashOffset int
 
 	// input window: unprocessed data is window[index:windowEnd]
@@ -90,9 +89,12 @@ type compressor struct {
 	// deflate state
 	length         int
 	offset         int
-	hash           int
+	hash           uint32
 	maxInsertIndex int
 	err            error
+
+	// hashMatch must be able to contain hashes for the maximum match length.
+	hashMatch [maxMatchLength - 1]uint32
 }
 
 func (d *compressor) fillDeflate(b []byte) int {
@@ -112,15 +114,15 @@ func (d *compressor) fillDeflate(b []byte) int {
 			d.hashOffset -= delta
 			d.chainHead -= delta
 			for i, v := range d.hashPrev {
-				if v > delta {
-					d.hashPrev[i] -= delta
+				if int(v) > delta {
+					d.hashPrev[i] = uint32(int(v) - delta)
 				} else {
 					d.hashPrev[i] = 0
 				}
 			}
 			for i, v := range d.hashHead {
-				if v > delta {
-					d.hashHead[i] -= delta
+				if int(v) > delta {
+					d.hashHead[i] = uint32(int(v) - delta)
 				} else {
 					d.hashHead[i] = 0
 				}
@@ -132,17 +134,71 @@ func (d *compressor) fillDeflate(b []byte) int {
 	return n
 }
 
-func (d *compressor) writeBlock(tokens []token, index int, eof bool) error {
-	if index > 0 || eof {
+func (d *compressor) writeBlock(tokens []token, index int) error {
+	if index > 0 {
 		var window []byte
 		if d.blockStart <= index {
 			window = d.window[d.blockStart:index]
 		}
 		d.blockStart = index
-		d.w.writeBlock(tokens, eof, window)
+		d.w.writeBlock(tokens, false, window)
 		return d.w.err
 	}
 	return nil
+}
+
+// fillWindow will fill the current window with the supplied
+// dictionary and calculate all hashes.
+// This is much faster than doing a full encode.
+// Should only be used after a reset.
+func (d *compressor) fillWindow(b []byte) {
+	// Do not fill window if we are in store-only mode.
+	if d.compressionLevel.level == 0 {
+		return
+	}
+	if d.index != 0 || d.windowEnd != 0 {
+		panic("internal error: fillWindow called with stale data")
+	}
+
+	// If we are given too much, cut it.
+	if len(b) > windowSize {
+		b = b[len(b)-windowSize:]
+	}
+	// Add all to window.
+	n := copy(d.window, b)
+
+	// Calculate 256 hashes at the time (more L1 cache hits)
+	loops := (n + 256 - minMatchLength) / 256
+	for j := 0; j < loops; j++ {
+		index := j * 256
+		end := index + 256 + minMatchLength - 1
+		if end > n {
+			end = n
+		}
+		toCheck := d.window[index:end]
+		dstSize := len(toCheck) - minMatchLength + 1
+
+		if dstSize <= 0 {
+			continue
+		}
+
+		dst := d.hashMatch[:dstSize]
+		d.bulkHasher(toCheck, dst)
+		var newH uint32
+		for i, val := range dst {
+			di := i + index
+			newH = val & hashMask
+			// Get previous value with the same hash.
+			// Our chain should point to the previous value.
+			d.hashPrev[di&windowMask] = d.hashHead[newH]
+			// Set the head of the hash chain to us.
+			d.hashHead[newH] = uint32(di + d.hashOffset)
+		}
+		d.hash = newH
+	}
+	// Update window information.
+	d.windowEnd = n
+	d.index = n
 }
 
 // Try to find a match starting at index whose length is greater than prevSize.
@@ -168,20 +224,15 @@ func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead 
 		tries >>= 2
 	}
 
-	w0 := win[pos]
-	w1 := win[pos+1]
 	wEnd := win[pos+length]
+	wPos := win[pos:]
 	minIndex := pos - windowSize
 
 	for i := prevHead; tries > 0; tries-- {
-		if w0 == win[i] && w1 == win[i+1] && wEnd == win[i+length] {
-			// The hash function ensures that if win[i] and win[i+1] match, win[i+2] matches
+		if wEnd == win[i+length] {
+			n := matchLen(win[i:], wPos, minMatchLook)
 
-			n := 3
-			for pos+n < len(win) && win[i+n] == win[pos+n] {
-				n++
-			}
-			if n > length && (n > 3 || pos-i <= 4096) {
+			if n > length && (n > minMatchLength || pos-i <= 4096) {
 				length = n
 				offset = pos - i
 				ok = true
@@ -196,7 +247,8 @@ func (d *compressor) findMatch(pos int, prevHead int, prevLength int, lookahead 
 			// hashPrev[i & windowMask] has already been overwritten, so stop now.
 			break
 		}
-		if i = d.hashPrev[i&windowMask] - d.hashOffset; i < minIndex || i < 0 {
+		i = int(d.hashPrev[i&windowMask]) - d.hashOffset
+		if i < minIndex || i < 0 {
 			break
 		}
 	}
@@ -211,9 +263,46 @@ func (d *compressor) writeStoredBlock(buf []byte) error {
 	return d.w.err
 }
 
+const hashmul = 0x1e35a7bd
+
+// hash4 returns a hash representation of the first 4 bytes
+// of the supplied slice.
+// The caller must ensure that len(b) >= 4.
+func hash4(b []byte) uint32 {
+	return ((uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24) * hashmul) >> (32 - hashBits)
+}
+
+// bulkHash4 will compute hashes using the same
+// algorithm as hash4
+func bulkHash4(b []byte, dst []uint32) {
+	if len(b) < minMatchLength {
+		return
+	}
+	hb := uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	dst[0] = (hb * hashmul) >> (32 - hashBits)
+	end := len(b) - minMatchLength + 1
+	for i := 1; i < end; i++ {
+		hb = (hb << 8) | uint32(b[i+3])
+		dst[i] = (hb * hashmul) >> (32 - hashBits)
+	}
+}
+
+// matchLen returns the number of matching bytes in a and b
+// up to length 'max'. Both slices must be at least 'max'
+// bytes in size.
+func matchLen(a, b []byte, max int) int {
+	a = a[:max]
+	for i, av := range a {
+		if b[i] != av {
+			return i
+		}
+	}
+	return max
+}
+
 func (d *compressor) initDeflate() {
-	d.hashHead = make([]int, hashSize)
-	d.hashPrev = make([]int, windowSize)
+	d.hashHead = make([]uint32, hashSize)
+	d.hashPrev = make([]uint32, windowSize)
 	d.window = make([]byte, 2*windowSize)
 	d.hashOffset = 1
 	d.tokens = make([]token, 0, maxFlateBlockTokens+1)
@@ -223,6 +312,7 @@ func (d *compressor) initDeflate() {
 	d.index = 0
 	d.hash = 0
 	d.chainHead = -1
+	d.bulkHasher = bulkHash4
 }
 
 func (d *compressor) deflate() {
@@ -232,7 +322,7 @@ func (d *compressor) deflate() {
 
 	d.maxInsertIndex = d.windowEnd - (minMatchLength - 1)
 	if d.index < d.maxInsertIndex {
-		d.hash = int(d.window[d.index])<<hashShift + int(d.window[d.index+1])
+		d.hash = hash4(d.window[d.index : d.index+minMatchLength])
 	}
 
 Loop:
@@ -256,7 +346,7 @@ Loop:
 					d.byteAvailable = false
 				}
 				if len(d.tokens) > 0 {
-					if d.err = d.writeBlock(d.tokens, d.index, false); d.err != nil {
+					if d.err = d.writeBlock(d.tokens, d.index); d.err != nil {
 						return
 					}
 					d.tokens = d.tokens[:0]
@@ -266,10 +356,10 @@ Loop:
 		}
 		if d.index < d.maxInsertIndex {
 			// Update the hash
-			d.hash = (d.hash<<hashShift + int(d.window[d.index+2])) & hashMask
-			d.chainHead = d.hashHead[d.hash]
-			d.hashPrev[d.index&windowMask] = d.chainHead
-			d.hashHead[d.hash] = d.index + d.hashOffset
+			d.hash = hash4(d.window[d.index : d.index+minMatchLength])
+			d.chainHead = int(d.hashHead[d.hash])
+			d.hashPrev[d.index&windowMask] = uint32(d.chainHead)
+			d.hashHead[d.hash] = uint32(d.index + d.hashOffset)
 		}
 		prevLength := d.length
 		prevOffset := d.offset
@@ -293,9 +383,9 @@ Loop:
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			if d.fastSkipHashing != skipNever {
-				d.tokens = append(d.tokens, matchToken(uint32(d.length-minMatchLength), uint32(d.offset-minOffsetSize)))
+				d.tokens = append(d.tokens, matchToken(uint32(d.length-3), uint32(d.offset-minOffsetSize)))
 			} else {
-				d.tokens = append(d.tokens, matchToken(uint32(prevLength-minMatchLength), uint32(prevOffset-minOffsetSize)))
+				d.tokens = append(d.tokens, matchToken(uint32(prevLength-3), uint32(prevOffset-minOffsetSize)))
 			}
 			// Insert in the hash table all strings up to the end of the match.
 			// index and index-1 are already inserted. If there is not enough
@@ -310,12 +400,12 @@ Loop:
 				}
 				for d.index++; d.index < newIndex; d.index++ {
 					if d.index < d.maxInsertIndex {
-						d.hash = (d.hash<<hashShift + int(d.window[d.index+2])) & hashMask
+						d.hash = hash4(d.window[d.index : d.index+minMatchLength])
 						// Get previous value with the same hash.
 						// Our chain should point to the previous value.
 						d.hashPrev[d.index&windowMask] = d.hashHead[d.hash]
 						// Set the head of the hash chain to us.
-						d.hashHead[d.hash] = d.index + d.hashOffset
+						d.hashHead[d.hash] = uint32(d.index + d.hashOffset)
 					}
 				}
 				if d.fastSkipHashing == skipNever {
@@ -327,12 +417,12 @@ Loop:
 				// item into the table.
 				d.index += d.length
 				if d.index < d.maxInsertIndex {
-					d.hash = (int(d.window[d.index])<<hashShift + int(d.window[d.index+1]))
+					d.hash = hash4(d.window[d.index : d.index+minMatchLength])
 				}
 			}
 			if len(d.tokens) == maxFlateBlockTokens {
 				// The block includes the current character
-				if d.err = d.writeBlock(d.tokens, d.index, false); d.err != nil {
+				if d.err = d.writeBlock(d.tokens, d.index); d.err != nil {
 					return
 				}
 				d.tokens = d.tokens[:0]
@@ -345,7 +435,7 @@ Loop:
 				}
 				d.tokens = append(d.tokens, literalToken(uint32(d.window[i])))
 				if len(d.tokens) == maxFlateBlockTokens {
-					if d.err = d.writeBlock(d.tokens, i+1, false); d.err != nil {
+					if d.err = d.writeBlock(d.tokens, i+1); d.err != nil {
 						return
 					}
 					d.tokens = d.tokens[:0]
@@ -373,16 +463,24 @@ func (d *compressor) store() {
 }
 
 func (d *compressor) write(b []byte) (n int, err error) {
+	if d.err != nil {
+		return 0, d.err
+	}
 	n = len(b)
-	b = b[d.fill(d, b):]
 	for len(b) > 0 {
 		d.step(d)
 		b = b[d.fill(d, b):]
+		if d.err != nil {
+			return 0, d.err
+		}
 	}
-	return n, d.err
+	return n, nil
 }
 
 func (d *compressor) syncFlush() error {
+	if d.err != nil {
+		return d.err
+	}
 	d.sync = true
 	d.step(d)
 	if d.err == nil {
@@ -416,42 +514,29 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 	return nil
 }
 
-var zeroes [32]int
-var bzeroes [256]byte
+// hzeroes is used for zeroing the hash slice.
+var hzeroes [256]uint32
 
 func (d *compressor) reset(w io.Writer) {
 	d.w.reset(w)
 	d.sync = false
 	d.err = nil
-	switch d.compressionLevel.chain {
-	case 0:
-		// level was NoCompression.
-		for i := range d.window {
-			d.window[i] = 0
-		}
+	switch d.compressionLevel.level {
+	case NoCompression:
 		d.windowEnd = 0
 	default:
 		d.chainHead = -1
 		for s := d.hashHead; len(s) > 0; {
-			n := copy(s, zeroes[:])
+			n := copy(s, hzeroes[:])
 			s = s[n:]
 		}
-		for s := d.hashPrev; len(s) > 0; s = s[len(zeroes):] {
-			copy(s, zeroes[:])
+		for s := d.hashPrev; len(s) > 0; s = s[len(hzeroes):] {
+			copy(s, hzeroes[:])
 		}
 		d.hashOffset = 1
 
 		d.index, d.windowEnd = 0, 0
-		for s := d.window; len(s) > 0; {
-			n := copy(s, bzeroes[:])
-			s = s[n:]
-		}
 		d.blockStart, d.byteAvailable = 0, false
-
-		d.tokens = d.tokens[:maxFlateBlockTokens+1]
-		for i := 0; i <= maxFlateBlockTokens; i++ {
-			d.tokens[i] = 0
-		}
 		d.tokens = d.tokens[:0]
 		d.length = minMatchLength - 1
 		d.offset = 0
@@ -461,6 +546,9 @@ func (d *compressor) reset(w io.Writer) {
 }
 
 func (d *compressor) close() error {
+	if d.err != nil {
+		return d.err
+	}
 	d.sync = true
 	d.step(d)
 	if d.err != nil {
@@ -497,28 +585,22 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
 // can only be decompressed by a Reader initialized with the
 // same dictionary.
 func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
-	dw := &dictWriter{w, false}
+	dw := &dictWriter{w}
 	zw, err := NewWriter(dw, level)
 	if err != nil {
 		return nil, err
 	}
-	zw.Write(dict)
-	zw.Flush()
-	dw.enabled = true
+	zw.d.fillWindow(dict)
 	zw.dict = append(zw.dict, dict...) // duplicate dictionary for Reset method.
 	return zw, err
 }
 
 type dictWriter struct {
-	w       io.Writer
-	enabled bool
+	w io.Writer
 }
 
 func (w *dictWriter) Write(b []byte) (n int, err error) {
-	if w.enabled {
-		return w.w.Write(b)
-	}
-	return len(b), nil
+	return w.w.Write(b)
 }
 
 // A Writer takes data written to it and writes the compressed
@@ -560,10 +642,7 @@ func (w *Writer) Reset(dst io.Writer) {
 		// w was created with NewWriterDict
 		dw.w = dst
 		w.d.reset(dw)
-		dw.enabled = false
-		w.Write(w.dict)
-		w.Flush()
-		dw.enabled = true
+		w.d.fillWindow(w.dict)
 	} else {
 		// w was created with NewWriter
 		w.d.reset(dst)

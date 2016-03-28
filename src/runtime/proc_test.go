@@ -428,6 +428,9 @@ func TestPingPongHog(t *testing.T) {
 }
 
 func BenchmarkPingPongHog(b *testing.B) {
+	if b.N == 0 {
+		return
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
 	// Create a CPU hog
@@ -685,4 +688,8 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
 	if done != nil {
 		done <- struct{}{}
 	}
+}
+
+func TestStealOrder(t *testing.T) {
+	runtime.RunStealOrderTest()
 }

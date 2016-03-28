@@ -31,7 +31,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			if b.Control != nil && b.Control.Op == OpCopy {
 				for b.Control.Op == OpCopy {
-					b.Control = b.Control.Args[0]
+					b.SetControl(b.Control.Args[0])
 				}
 			}
 			curb = b
@@ -40,7 +40,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			curb = nil
 			for _, v := range b.Values {
-				copyelimValue(v)
+				change = copyelimValue(v) || change
 				change = phielimValue(v) || change
 
 				// apply rewrite function
@@ -93,16 +93,6 @@ func isSigned(t Type) bool {
 
 func typeSize(t Type) int64 {
 	return t.Size()
-}
-
-// addOff adds two int64 offsets. Fails if wraparound happens.
-func addOff(x, y int64) int64 {
-	z := x + y
-	// x and y have same sign and z has a different sign => overflow
-	if x^y >= 0 && x^z < 0 {
-		panic(fmt.Sprintf("offset overflow %d %d", x, y))
-	}
-	return z
 }
 
 // mergeSym merges two symbolic offsets. There is no real merging of
@@ -190,6 +180,16 @@ func b2i(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// i2f is used in rules for converting from an AuxInt to a float.
+func i2f(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+
+// i2f32 is used in rules for converting from an AuxInt to a float32.
+func i2f32(i int64) float32 {
+	return float32(math.Float64frombits(uint64(i)))
 }
 
 // f2i is used in the rules for storing a float in AuxInt.

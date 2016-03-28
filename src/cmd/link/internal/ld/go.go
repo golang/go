@@ -367,133 +367,10 @@ func Adddynsym(ctxt *Link, s *LSym) {
 	}
 }
 
-var markQueue []*LSym
-
-func mark1(s *LSym, parent *LSym) {
-	if s == nil || s.Attr.Reachable() {
-		return
-	}
-	s.Attr |= AttrReachable
-	s.Reachparent = parent
-	markQueue = append(markQueue, s)
-}
-
-func mark(s *LSym) {
-	mark1(s, nil)
-}
-
-// markflood makes the dependencies of any reachable symable also reachable.
-func markflood() {
-	for len(markQueue) > 0 {
-		s := markQueue[0]
-		markQueue = markQueue[1:]
-		if s.Type == obj.STEXT {
-			if Debug['v'] > 1 {
-				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
-			}
-			for _, a := range s.Autom {
-				mark1(a.Gotype, s)
-			}
-		}
-		for i := 0; i < len(s.R); i++ {
-			mark1(s.R[i].Sym, s)
-		}
-		if s.Pcln != nil {
-			for i := 0; i < s.Pcln.Nfuncdata; i++ {
-				mark1(s.Pcln.Funcdata[i], s)
-			}
-		}
-		mark1(s.Gotype, s)
-		mark1(s.Sub, s)
-		mark1(s.Outer, s)
-	}
-}
-
-var markextra = []string{
-	"runtime.morestack",
-	"runtime.morestackx",
-	"runtime.morestack00",
-	"runtime.morestack10",
-	"runtime.morestack01",
-	"runtime.morestack11",
-	"runtime.morestack8",
-	"runtime.morestack16",
-	"runtime.morestack24",
-	"runtime.morestack32",
-	"runtime.morestack40",
-	"runtime.morestack48",
-	// on arm, lock in the div/mod helpers too
-	"_div",
-	"_divu",
-	"_mod",
-	"_modu",
-}
-
-func deadcode() {
-	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
-	}
-
-	if Buildmode == BuildmodeShared {
-		// Mark all symbols defined in this library as reachable when
-		// building a shared library.
-		for _, s := range Ctxt.Allsym {
-			if s.Type != 0 && s.Type != obj.SDYNIMPORT {
-				mark(s)
-			}
-		}
-		markflood()
-	} else {
-		mark(Linklookup(Ctxt, INITENTRY, 0))
-		if Linkshared && Buildmode == BuildmodeExe {
-			mark(Linkrlookup(Ctxt, "main.main", 0))
-			mark(Linkrlookup(Ctxt, "main.init", 0))
-		}
-		for i := 0; i < len(markextra); i++ {
-			mark(Linklookup(Ctxt, markextra[i], 0))
-		}
-
-		for i := 0; i < len(dynexp); i++ {
-			mark(dynexp[i])
-		}
-		markflood()
-
-		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
-		for _, s := range Ctxt.Allsym {
-			if strings.HasPrefix(s.Name, "go.typelink.") {
-				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
-			}
-		}
-
-		// remove dead text but keep file information (z symbols).
-		var last *LSym
-
-		for s := Ctxt.Textp; s != nil; s = s.Next {
-			if !s.Attr.Reachable() {
-				continue
-			}
-
-			// NOTE: Removing s from old textp and adding to new, shorter textp.
-			if last == nil {
-				Ctxt.Textp = s
-			} else {
-				last.Next = s
-			}
-			last = s
-		}
-
-		if last == nil {
-			Ctxt.Textp = nil
-			Ctxt.Etextp = nil
-		} else {
-			last.Next = nil
-			Ctxt.Etextp = last
-		}
-	}
-
+func fieldtrack(ctxt *Link) {
 	// record field tracking references
 	var buf bytes.Buffer
-	for _, s := range Ctxt.Allsym {
+	for _, s := range ctxt.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Attr |= AttrSpecial // do not lay out in data segment
 			s.Attr |= AttrHidden
@@ -514,7 +391,7 @@ func deadcode() {
 	if tracksym == "" {
 		return
 	}
-	s := Linklookup(Ctxt, tracksym, 0)
+	s := Linklookup(ctxt, tracksym, 0)
 	if !s.Attr.Reachable() {
 		return
 	}

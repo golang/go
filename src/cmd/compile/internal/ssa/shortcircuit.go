@@ -36,9 +36,9 @@ func shortcircuit(f *Func) {
 					continue
 				}
 				if p.Succs[0] == b {
-					v.Args[i] = ct
+					v.SetArg(i, ct)
 				} else {
-					v.Args[i] = cf
+					v.SetArg(i, cf)
 				}
 			}
 		}
@@ -111,7 +111,7 @@ func shortcircuit(f *Func) {
 				if w.Op != OpPhi {
 					continue
 				}
-				w.Args = append(w.Args, w.Args[j])
+				w.AddArg(w.Args[j])
 			}
 
 			// Fix up b to have one less predecessor.
@@ -119,6 +119,7 @@ func shortcircuit(f *Func) {
 			b.Preds[i] = b.Preds[n]
 			b.Preds[n] = nil
 			b.Preds = b.Preds[:n]
+			v.Args[i].Uses--
 			v.Args[i] = v.Args[n]
 			v.Args[n] = nil
 			v.Args = v.Args[:n]

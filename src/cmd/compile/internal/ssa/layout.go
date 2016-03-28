@@ -96,7 +96,6 @@ blockloop:
 				continue blockloop
 			}
 		}
-		b.Fatalf("no block available for layout")
 	}
 	f.Blocks = order
 }
