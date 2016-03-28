@@ -44,6 +44,10 @@ type punctuationTag struct {
 	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // https://golang.org/issue/3546
 }
 
+type dashTag struct {
+	V string `json:"-,"`
+}
+
 type emptyTag struct {
 	W string
 }
@@ -80,6 +84,7 @@ var structTagObjectKeyTests = []struct {
 	{basicLatin6xTag{"6x"}, "6x", "abcdefghijklmno"},
 	{basicLatin7xTag{"7x"}, "7x", "pqrstuvwxyz"},
 	{miscPlaneTag{"いろはにほへと"}, "いろはにほへと", "色は匂へど"},
+	{dashTag{"foo"}, "foo", "-"},
 	{emptyTag{"Pour Moi"}, "Pour Moi", "W"},
 	{misnamedTag{"Animal Kingdom"}, "Animal Kingdom", "X"},
 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},
