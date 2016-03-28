@@ -84,7 +84,7 @@ func is8BitInt(t Type) bool {
 }
 
 func isPtr(t Type) bool {
-	return t.IsPtr()
+	return t.IsPtrShaped()
 }
 
 func isSigned(t Type) bool {

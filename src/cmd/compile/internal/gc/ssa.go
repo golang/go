@@ -1512,14 +1512,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// We don't want pointers accidentally classified
 		// as not-pointers or vice-versa because of copy
 		// elision.
-		if to.IsPtr() != from.IsPtr() {
+		if to.IsPtrShaped() != from.IsPtrShaped() {
 			return s.newValue2(ssa.OpConvert, to, x, s.mem())
 		}
 
 		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
 
 		// CONVNOP closure
-		if to.Etype == TFUNC && from.IsPtr() {
+		if to.Etype == TFUNC && from.IsPtrShaped() {
 			return v
 		}
 
@@ -1999,7 +1999,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// So here we ensure that we are selecting the underlying pointer
 		// when we build an eface.
 		// TODO: get rid of this now that structs can be SSA'd?
-		for !data.Type.IsPtr() {
+		for !data.Type.IsPtrShaped() {
 			switch {
 			case data.Type.IsArray():
 				data = s.newValue1I(ssa.OpArrayIndex, data.Type.ElemType(), 0, data)
@@ -2351,7 +2351,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 
 	case t.IsString():
 		return s.constEmptyString(t)
-	case t.IsPtr():
+	case t.IsPtrShaped():
 		return s.constNil(t)
 	case t.IsBoolean():
 		return s.constBool(false)
@@ -3026,7 +3026,7 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
 	switch {
 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
-	case t.IsPtr() || t.IsMap() || t.IsChan():
+	case t.IsPtrShaped():
 		// no scalar fields.
 	case t.IsString():
 		if skip&skipLen != 0 {
@@ -3066,7 +3066,7 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
 // do *left = right for all pointer parts of t.
 func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 	switch {
-	case t.IsPtr() || t.IsMap() || t.IsChan():
+	case t.IsPtrShaped():
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
@@ -3098,7 +3098,7 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 // do *left = right with a write barrier for all pointer parts of t.
 func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 	switch {
-	case t.IsPtr() || t.IsMap() || t.IsChan():
+	case t.IsPtrShaped():
 		s.rtcall(writebarrierptr, true, nil, left, right)
 	case t.IsString():
 		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)

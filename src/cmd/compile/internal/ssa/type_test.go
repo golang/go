@@ -31,7 +31,7 @@ func (t *TypeImpl) IsInteger() bool      { return t.Integer }
 func (t *TypeImpl) IsSigned() bool       { return t.Signed }
 func (t *TypeImpl) IsFloat() bool        { return t.Float }
 func (t *TypeImpl) IsComplex() bool      { return t.Complex }
-func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
+func (t *TypeImpl) IsPtrShaped() bool    { return t.Ptr }
 func (t *TypeImpl) IsString() bool       { return t.string }
 func (t *TypeImpl) IsSlice() bool        { return t.slice }
 func (t *TypeImpl) IsArray() bool        { return t.array }

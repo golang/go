@@ -810,7 +810,18 @@ func (t *Type) IsComplex() bool {
 	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
 }
 
+// IsPtr reports whether t is a regular Go pointer type.
+// This does not include unsafe.Pointer.
 func (t *Type) IsPtr() bool {
+	return t.Etype == TPTR32 || t.Etype == TPTR64
+}
+
+// IsPtrShaped reports whether t is represented by a single machine pointer.
+// In addition to regular Go pointer types, this includes map, channel, and
+// function types and unsafe.Pointer. It does not include array or struct types
+// that consist of a single pointer shaped type.
+// TODO(mdempsky): Should it? See golang.org/issue/15028.
+func (t *Type) IsPtrShaped() bool {
 	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
 }
