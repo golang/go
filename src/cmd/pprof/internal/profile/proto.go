@@ -64,6 +64,20 @@ func encodeUint64(b *buffer, tag int, x uint64) {
 }
 
 func encodeUint64s(b *buffer, tag int, x []uint64) {
+	if len(x) > 2 {
+		// Use packed encoding
+		n1 := len(b.data)
+		for _, u := range x {
+			encodeVarint(b, u)
+		}
+		n2 := len(b.data)
+		encodeLength(b, tag, n2-n1)
+		n3 := len(b.data)
+		copy(b.tmp[:], b.data[n2:n3])
+		copy(b.data[n1+(n3-n2):], b.data[n1:n2])
+		copy(b.data[n1:], b.tmp[:n3-n2])
+		return
+	}
 	for _, u := range x {
 		encodeUint64(b, tag, u)
 	}
@@ -86,6 +100,26 @@ func encodeInt64Opt(b *buffer, tag int, x int64) {
 		return
 	}
 	encodeInt64(b, tag, x)
+}
+
+func encodeInt64s(b *buffer, tag int, x []int64) {
+	if len(x) > 2 {
+		// Use packed encoding
+		n1 := len(b.data)
+		for _, u := range x {
+			encodeVarint(b, uint64(u))
+		}
+		n2 := len(b.data)
+		encodeLength(b, tag, n2-n1)
+		n3 := len(b.data)
+		copy(b.tmp[:], b.data[n2:n3])
+		copy(b.data[n1+(n3-n2):], b.data[n1:n2])
+		copy(b.data[n1:], b.tmp[:n3-n2])
+		return
+	}
+	for _, u := range x {
+		encodeInt64(b, tag, u)
+	}
 }
 
 func encodeString(b *buffer, tag int, x string) {
@@ -243,6 +277,20 @@ func decodeInt64(b *buffer, x *int64) error {
 }
 
 func decodeInt64s(b *buffer, x *[]int64) error {
+	if b.typ == 2 {
+		// Packed encoding
+		data := b.data
+		for len(data) > 0 {
+			var u uint64
+			var err error
+
+			if u, data, err = decodeVarint(data); err != nil {
+				return err
+			}
+			*x = append(*x, int64(u))
+		}
+		return nil
+	}
 	var i int64
 	if err := decodeInt64(b, &i); err != nil {
 		return err
@@ -260,6 +308,20 @@ func decodeUint64(b *buffer, x *uint64) error {
 }
 
 func decodeUint64s(b *buffer, x *[]uint64) error {
+	if b.typ == 2 {
+		data := b.data
+		// Packed encoding
+		for len(data) > 0 {
+			var u uint64
+			var err error
+
+			if u, data, err = decodeVarint(data); err != nil {
+				return err
+			}
+			*x = append(*x, u)
+		}
+		return nil
+	}
 	var u uint64
 	if err := decodeUint64(b, &u); err != nil {
 		return err
