@@ -135,7 +135,7 @@ func gcsymdup(s *Sym) {
 		Fatalf("cannot rosymdup %s with relocations", ls.Name)
 	}
 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
-	ls.Dupok = 1
+	ls.Dupok = true
 }
 
 func emitptrargsmap() {
@@ -442,7 +442,7 @@ func compile(fn *Node) {
 		ptxt.From3.Offset |= obj.REFLECTMETHOD
 	}
 	if fn.Func.Pragma&Systemstack != 0 {
-		ptxt.From.Sym.Cfunc = 1
+		ptxt.From.Sym.Cfunc = true
 	}
 
 	// Clumsy but important.

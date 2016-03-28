@@ -170,15 +170,14 @@ func flushplist(ctxt *Link, freeProgs bool) {
 
 			case AGLOBL:
 				s := p.From.Sym
-				tmp6 := s.Seenglobl
-				s.Seenglobl++
-				if tmp6 != 0 {
+				if s.Seenglobl {
 					fmt.Printf("duplicate %v\n", p)
 				}
-				if s.Onlist != 0 {
+				s.Seenglobl = true
+				if s.Onlist {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Onlist = 1
+				s.Onlist = true
 				ctxt.Data = append(ctxt.Data, s)
 				s.Size = p.To.Offset
 				if s.Type == 0 || s.Type == SXREF {
@@ -186,7 +185,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				}
 				flag := int(p.From3.Offset)
 				if flag&DUPOK != 0 {
-					s.Dupok = 1
+					s.Dupok = true
 				}
 				if flag&RODATA != 0 {
 					s.Type = SRODATA
@@ -209,17 +208,17 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if s.Text != nil {
 					log.Fatalf("duplicate TEXT for %s", s.Name)
 				}
-				if s.Onlist != 0 {
+				if s.Onlist {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Onlist = 1
+				s.Onlist = true
 				text = append(text, s)
 				flag := int(p.From3Offset())
 				if flag&DUPOK != 0 {
-					s.Dupok = 1
+					s.Dupok = true
 				}
 				if flag&NOSPLIT != 0 {
-					s.Nosplit = 1
+					s.Nosplit = true
 				}
 				if flag&REFLECTMETHOD != 0 {
 					s.ReflectMethod = true
@@ -437,19 +436,19 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		if s.Type != 0 {
 			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
 		}
-		if s.Dupok != 0 {
+		if s.Dupok {
 			fmt.Fprintf(ctxt.Bso, "dupok ")
 		}
-		if s.Cfunc != 0 {
+		if s.Cfunc {
 			fmt.Fprintf(ctxt.Bso, "cfunc ")
 		}
-		if s.Nosplit != 0 {
+		if s.Nosplit {
 			fmt.Fprintf(ctxt.Bso, "nosplit ")
 		}
 		fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 		if s.Type == STEXT {
 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
-			if s.Leaf != 0 {
+			if s.Leaf {
 				fmt.Fprintf(ctxt.Bso, " leaf")
 			}
 		}
@@ -499,9 +498,12 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	Bputc(b, 0xfe)
 	wrint(b, int64(s.Type))
 	wrsym(b, s)
-	flags := int64(s.Dupok)
+	flags := int64(0)
+	if s.Dupok {
+		flags |= 1
+	}
 	if s.Local {
-		flags |= 2
+		flags |= 1 << 1
 	}
 	wrint(b, flags)
 	wrint(b, s.Size)
@@ -522,8 +524,18 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	if s.Type == STEXT {
 		wrint(b, int64(s.Args))
 		wrint(b, int64(s.Locals))
-		wrint(b, int64(s.Nosplit))
-		flags := int64(s.Leaf) | int64(s.Cfunc)<<1
+		if s.Nosplit {
+			wrint(b, 1)
+		} else {
+			wrint(b, 0)
+		}
+		flags := int64(0)
+		if s.Leaf {
+			flags |= 1
+		}
+		if s.Cfunc {
+			flags |= 1 << 1
+		}
 		if s.ReflectMethod {
 			flags |= 1 << 2
 		}
