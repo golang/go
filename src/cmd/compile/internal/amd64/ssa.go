@@ -160,7 +160,7 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	s.SetLineno(v.Line)
 	switch v.Op {
-	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL, ssa.OpAMD64ADDW:
+	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL, ssa.OpAMD64ADDW, ssa.OpAMD64ADDB:
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
@@ -179,12 +179,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = r
 		default:
 			var asm obj.As
-			switch v.Op {
-			case ssa.OpAMD64ADDQ:
+			if v.Op == ssa.OpAMD64ADDQ {
 				asm = x86.ALEAQ
-			case ssa.OpAMD64ADDL:
-				asm = x86.ALEAL
-			case ssa.OpAMD64ADDW:
+			} else {
 				asm = x86.ALEAL
 			}
 			p := gc.Prog(asm)
@@ -196,7 +193,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = r
 		}
 	// 2-address opcode arithmetic, symmetric
-	case ssa.OpAMD64ADDB, ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD,
+	case ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD,
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
@@ -416,21 +413,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = gc.SSARegNum(v.Args[1]) // should be CX
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst:
+	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst, ssa.OpAMD64ADDBconst:
 		r := gc.SSARegNum(v)
 		a := gc.SSARegNum(v.Args[0])
 		if r == a {
 			if v.AuxInt == 1 {
 				var asm obj.As
-				switch v.Op {
 				// Software optimization manual recommends add $1,reg.
 				// But inc/dec is 1 byte smaller. ICC always uses inc
 				// Clang/GCC choose depending on flags, but prefer add.
 				// Experiments show that inc/dec is both a little faster
 				// and make a binary a little smaller.
-				case ssa.OpAMD64ADDQconst:
+				if v.Op == ssa.OpAMD64ADDQconst {
 					asm = x86.AINCQ
-				case ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst, ssa.OpAMD64ADDBconst:
+				} else {
 					asm = x86.AINCL
 				}
 				p := gc.Prog(asm)
@@ -439,10 +435,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				return
 			} else if v.AuxInt == -1 {
 				var asm obj.As
-				switch v.Op {
-				case ssa.OpAMD64ADDQconst:
+				if v.Op == ssa.OpAMD64ADDQconst {
 					asm = x86.ADECQ
-				case ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst, ssa.OpAMD64ADDBconst:
+				} else {
 					asm = x86.ADECL
 				}
 				p := gc.Prog(asm)
@@ -459,12 +454,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			}
 		}
 		var asm obj.As
-		switch v.Op {
-		case ssa.OpAMD64ADDQconst:
+		if v.Op == ssa.OpAMD64ADDQconst {
 			asm = x86.ALEAQ
-		case ssa.OpAMD64ADDLconst:
-			asm = x86.ALEAL
-		case ssa.OpAMD64ADDWconst:
+		} else {
 			asm = x86.ALEAL
 		}
 		p := gc.Prog(asm)
@@ -520,7 +512,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//p.From3 = new(obj.Addr)
 		//p.From3.Type = obj.TYPE_REG
 		//p.From3.Reg = gc.SSARegNum(v.Args[0])
-	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst:
+	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst:
 		x := gc.SSARegNum(v.Args[0])
 		r := gc.SSARegNum(v)
 		// We have 3-op add (lea), so transforming a = b - const into
@@ -546,12 +538,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			var asm obj.As
 			// x = x - (-1) is the same as x++
 			// See OpAMD64ADDQconst comments about inc vs add $1,reg
-			switch v.Op {
-			case ssa.OpAMD64SUBQconst:
+			if v.Op == ssa.OpAMD64SUBQconst {
 				asm = x86.AINCQ
-			case ssa.OpAMD64SUBLconst:
-				asm = x86.AINCL
-			case ssa.OpAMD64SUBWconst:
+			} else {
 				asm = x86.AINCL
 			}
 			p := gc.Prog(asm)
@@ -559,12 +548,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = r
 		} else if x == r && v.AuxInt == 1 {
 			var asm obj.As
-			switch v.Op {
-			case ssa.OpAMD64SUBQconst:
+			if v.Op == ssa.OpAMD64SUBQconst {
 				asm = x86.ADECQ
-			case ssa.OpAMD64SUBLconst:
-				asm = x86.ADECL
-			case ssa.OpAMD64SUBWconst:
+			} else {
 				asm = x86.ADECL
 			}
 			p := gc.Prog(asm)
@@ -572,12 +558,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = r
 		} else {
 			var asm obj.As
-			switch v.Op {
-			case ssa.OpAMD64SUBQconst:
+			if v.Op == ssa.OpAMD64SUBQconst {
 				asm = x86.ALEAQ
-			case ssa.OpAMD64SUBLconst:
-				asm = x86.ALEAL
-			case ssa.OpAMD64SUBWconst:
+			} else {
 				asm = x86.ALEAL
 			}
 			p := gc.Prog(asm)
@@ -588,11 +571,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = r
 		}
 
-	case ssa.OpAMD64ADDBconst,
-		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
+	case ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst, ssa.OpAMD64ORWconst, ssa.OpAMD64ORBconst,
 		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst, ssa.OpAMD64XORWconst, ssa.OpAMD64XORBconst,
-		ssa.OpAMD64SUBBconst, ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst,
+		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst,
 		ssa.OpAMD64SHLBconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst,
 		ssa.OpAMD64SHRBconst, ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst,
 		ssa.OpAMD64SARBconst, ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst,
