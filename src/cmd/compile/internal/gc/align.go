@@ -198,14 +198,12 @@ func dowidth(t *Type) {
 
 		// make fake type to check later to
 		// trigger channel argument check.
-		t1 := typ(TCHANARGS)
-
-		t1.Type = t
+		t1 := typWrapper(TCHANARGS, t)
 		checkwidth(t1)
 
 	case TCHANARGS:
-		t1 := t.Type
-		dowidth(t.Type) // just in case
+		t1 := t.Wrapped()
+		dowidth(t1) // just in case
 		if t1.Type.Width >= 1<<16 {
 			Yyerror("channel element type too large (>64kB)")
 		}
@@ -273,22 +271,17 @@ func dowidth(t *Type) {
 	// make fake type to check later to
 	// trigger function argument computation.
 	case TFUNC:
-		t1 := typ(TFUNCARGS)
-
-		t1.Type = t
+		t1 := typWrapper(TFUNCARGS, t)
 		checkwidth(t1)
-
-		// width of func type is pointer
-		w = int64(Widthptr)
+		w = int64(Widthptr) // width of func type is pointer
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
 	case TFUNCARGS:
-		t1 := t.Type
-
-		w = widstruct(t.Type, t1.Recvs(), 0, 0)
-		w = widstruct(t.Type, t1.Params(), w, Widthreg)
-		w = widstruct(t.Type, t1.Results(), w, Widthreg)
+		t1 := t.Wrapped()
+		w = widstruct(t1, t1.Recvs(), 0, 0)
+		w = widstruct(t1, t1.Params(), w, Widthreg)
+		w = widstruct(t1, t1.Results(), w, Widthreg)
 		t1.Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)

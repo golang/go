@@ -267,6 +267,18 @@ func typeChan(elem *Type, dir uint8) *Type {
 	return t
 }
 
+// typWrapper returns a new wrapper psuedo-type.
+func typWrapper(et EType, wrapped *Type) *Type {
+	switch et {
+	case TCHANARGS, TFUNCARGS, TDDDFIELD:
+	default:
+		Fatalf("typWrapper bad etype %s", et)
+	}
+	t := typ(et)
+	t.Type = wrapped
+	return t
+}
+
 func newField() *Field {
 	return &Field{
 		Offset: BADWIDTH,
@@ -471,6 +483,16 @@ func (t *Type) Key() *Type {
 // Val returns the value type of map type t.
 func (t *Type) Val() *Type {
 	t.wantEtype(TMAP)
+	return t.Type
+}
+
+// Wrapped returns the type that pseudo-type t wraps.
+func (t *Type) Wrapped() *Type {
+	switch t.Etype {
+	case TCHANARGS, TFUNCARGS, TDDDFIELD:
+	default:
+		Fatalf("Type.Wrapped %s", t.Etype)
+	}
 	return t.Type
 }
 
