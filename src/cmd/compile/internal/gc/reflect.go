@@ -674,7 +674,7 @@ func haspointers(t *Type) bool {
 		ret = false
 
 	case TARRAY:
-		if t.Bound < 0 { // slice
+		if t.IsSlice() {
 			ret = true
 			break
 		}
@@ -835,7 +835,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = duint8(s, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Etype]
-	if t.Etype == TARRAY && t.Bound < 0 {
+	if t.IsSlice() {
 		i = obj.KindSlice
 	}
 	if !haspointers(t) {
@@ -1114,7 +1114,7 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TARRAY:
-		if t.Bound >= 0 {
+		if t.IsArray() {
 			// ../../../../runtime/type.go:/arrayType
 			s1 := dtypesym(t.Type)
 			t2 := typSlice(t.Type)

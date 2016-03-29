@@ -375,7 +375,7 @@ OpSwitch:
 				Yyerror("array bound is too large")
 				n.Type = nil
 				return n
-			} else if t.Bound < 0 {
+			} else if t.IsSlice() {
 				Yyerror("array bound must be non-negative")
 				n.Type = nil
 				return n
@@ -1412,7 +1412,7 @@ OpSwitch:
 			}
 
 		case TARRAY:
-			if t.Bound < 0 { // slice
+			if t.IsSlice() {
 				break
 			}
 			if callrecv(l) { // has call or receive
@@ -2974,7 +2974,7 @@ func typecheckcomplit(n *Node) *Node {
 			i++
 			if int64(i) > length {
 				length = int64(i)
-				if t.Bound >= 0 && length > t.Bound {
+				if t.IsArray() && length > t.Bound {
 					setlineno(l)
 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.Bound)
 					t.Bound = -1 // no more errors
@@ -2991,7 +2991,7 @@ func typecheckcomplit(n *Node) *Node {
 		if t.isDDDArray() {
 			t.Bound = length
 		}
-		if t.Bound < 0 {
+		if t.IsSlice() {
 			n.Right = Nodintconst(length)
 		}
 		n.Op = OARRAYLIT
