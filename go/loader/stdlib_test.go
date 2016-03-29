@@ -152,7 +152,7 @@ func TestCgoOption(t *testing.T) {
 		pkg, name, genericFile string
 	}{
 		{"net", "cgoLookupHost", "cgo_stub.go"},
-		{"os/user", "lookupId", "lookup_stubs.go"},
+		{"os/user", "current", "lookup_stubs.go"},
 	} {
 		ctxt := build.Default
 		for _, ctxt.CgoEnabled = range []bool{false, true} {
