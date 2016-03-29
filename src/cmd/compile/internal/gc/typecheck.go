@@ -1026,7 +1026,7 @@ OpSwitch:
 			if n.Right.Type != nil {
 				n.Right = assignconv(n.Right, t.Key(), "map index")
 			}
-			n.Type = t.Type
+			n.Type = t.Val()
 			n.Op = OINDEXMAP
 		}
 
@@ -3021,10 +3021,10 @@ func typecheckcomplit(n *Node) *Node {
 			}
 
 			r = l.Right
-			pushtype(r, t.Type)
+			pushtype(r, t.Val())
 			r = typecheck(r, Erv)
-			r = defaultlit(r, t.Type)
-			l.Right = assignconv(r, t.Type, "map value")
+			r = defaultlit(r, t.Val())
+			l.Right = assignconv(r, t.Val(), "map value")
 		}
 
 		n.Op = OMAPLIT

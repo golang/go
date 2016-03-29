@@ -835,7 +835,7 @@ opswitch:
 		r.Right = walkexpr(r.Right, init)
 		t := r.Left.Type
 		p := ""
-		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
 			switch algtype(t.Key()) {
 			case AMEM32:
 				p = "mapaccess2_fast32"
@@ -879,7 +879,7 @@ opswitch:
 
 		// don't generate a = *var if a is _
 		if !isblank(a) {
-			var_ := temp(Ptrto(t.Type))
+			var_ := temp(Ptrto(t.Val()))
 			var_.Typecheck = 1
 			n.List.SetIndex(0, var_)
 			n = walkexpr(n, init)
@@ -1200,7 +1200,7 @@ opswitch:
 
 		t := n.Left.Type
 		p := ""
-		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
 			switch algtype(t.Key()) {
 			case AMEM32:
 				p = "mapaccess1_fast32"
@@ -1223,9 +1223,9 @@ opswitch:
 			p = "mapaccess1"
 		}
 
-		n = mkcall1(mapfn(p, t), Ptrto(t.Type), init, typename(t), n.Left, key)
+		n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
 		n = Nod(OIND, n, nil)
-		n.Type = t.Type
+		n.Type = t.Val()
 		n.Typecheck = 1
 
 	case ORECV:
@@ -1393,7 +1393,7 @@ opswitch:
 		}
 
 		fn := syslook("makemap")
-		fn = substArgTypes(fn, hmap(t), mapbucket(t), t.Key(), t.Type)
+		fn = substArgTypes(fn, hmap(t), mapbucket(t), t.Key(), t.Val())
 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
 
 	case OMAKESLICE:
@@ -2647,7 +2647,7 @@ func mapfn(name string, t *Type) *Node {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
-	fn = substArgTypes(fn, t.Key(), t.Type, t.Key(), t.Type)
+	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key(), t.Val())
 	return fn
 }
 
@@ -2656,7 +2656,7 @@ func mapfndel(name string, t *Type) *Node {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
-	fn = substArgTypes(fn, t.Key(), t.Type, t.Key())
+	fn = substArgTypes(fn, t.Key(), t.Val(), t.Key())
 	return fn
 }
 

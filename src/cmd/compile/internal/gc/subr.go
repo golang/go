@@ -773,6 +773,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		if !eqtype1(t1.Key(), t2.Key(), assumedEqual) {
 			return false
 		}
+		return eqtype1(t1.Val(), t2.Val(), assumedEqual)
 	}
 
 	return eqtype1(t1.Type, t2.Type, assumedEqual)

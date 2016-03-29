@@ -342,6 +342,12 @@ func (t *Type) Key() *Type {
 	return t.Down
 }
 
+// Val returns the value type of map type t.
+func (t *Type) Val() *Type {
+	t.wantEtype(TMAP)
+	return t.Type
+}
+
 func (t *Type) Methods() *Fields {
 	// TODO(mdempsky): Validate t?
 	return &t.methods
@@ -524,9 +530,10 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 
 	switch t.Etype {
 	case TMAP:
-		if c := t.Down.cmp(x.Down); c != ssa.CMPeq {
+		if c := t.Key().cmp(x.Key()); c != ssa.CMPeq {
 			return c
 		}
+		return t.Val().cmp(x.Val())
 
 	case TPTR32, TPTR64:
 		// No special cases for these two, they are handled
@@ -614,7 +621,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		panic(e)
 	}
 
-	// Common element type comparison for TARRAY, TCHAN, TMAP, TPTR32, and TPTR64.
+	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
 	return t.Type.cmp(x.Type)
 }
 
