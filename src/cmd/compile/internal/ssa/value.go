@@ -81,24 +81,6 @@ func (v *Value) AuxInt32() int32 {
 	return int32(v.AuxInt)
 }
 
-// AuxInt2Int64 is used to sign extend the lower bits of AuxInt according to
-// the size of AuxInt specified in the opcode table.
-func (v *Value) AuxInt2Int64() int64 {
-	switch opcodeTable[v.Op].auxType {
-	case auxInt64:
-		return v.AuxInt
-	case auxInt32:
-		return int64(int32(v.AuxInt))
-	case auxInt16:
-		return int64(int16(v.AuxInt))
-	case auxInt8:
-		return int64(int8(v.AuxInt))
-	default:
-		v.Fatalf("op %s doesn't have an aux int field", v.Op)
-		return -1
-	}
-}
-
 func (v *Value) AuxFloat() float64 {
 	if opcodeTable[v.Op].auxType != auxFloat32 && opcodeTable[v.Op].auxType != auxFloat64 {
 		v.Fatalf("op %s doesn't have a float aux field", v.Op)

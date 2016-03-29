@@ -171,7 +171,27 @@ func checkFunc(f *Func) {
 			canHaveAuxInt := false
 			switch opcodeTable[v.Op].auxType {
 			case auxNone:
-			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat64:
+			case auxBool:
+				if v.AuxInt < 0 || v.AuxInt > 1 {
+					f.Fatalf("bad bool AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
+			case auxInt8:
+				if v.AuxInt != int64(int8(v.AuxInt)) {
+					f.Fatalf("bad int8 AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
+			case auxInt16:
+				if v.AuxInt != int64(int16(v.AuxInt)) {
+					f.Fatalf("bad int16 AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
+			case auxInt32:
+				if v.AuxInt != int64(int32(v.AuxInt)) {
+					f.Fatalf("bad int32 AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
+			case auxInt64, auxFloat64:
 				canHaveAuxInt = true
 			case auxFloat32:
 				canHaveAuxInt = true
