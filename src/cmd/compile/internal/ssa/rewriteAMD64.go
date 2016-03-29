@@ -840,7 +840,7 @@ func rewriteValueAMD64_OpAMD64ADDBconst(v *Value, config *Config) bool {
 	}
 	// match: (ADDBconst [c] (MOVBconst [d]))
 	// cond:
-	// result: (MOVBconst [c+d])
+	// result: (MOVBconst [int64(int8(c+d))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -849,12 +849,12 @@ func rewriteValueAMD64_OpAMD64ADDBconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVBconst)
-		v.AuxInt = c + d
+		v.AuxInt = int64(int8(c + d))
 		return true
 	}
 	// match: (ADDBconst [c] (ADDBconst [d] x))
 	// cond:
-	// result: (ADDBconst [c+d] x)
+	// result: (ADDBconst [int64(int8(c+d))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -864,7 +864,7 @@ func rewriteValueAMD64_OpAMD64ADDBconst(v *Value, config *Config) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ADDBconst)
-		v.AuxInt = c + d
+		v.AuxInt = int64(int8(c + d))
 		v.AddArg(x)
 		return true
 	}
@@ -939,7 +939,7 @@ func rewriteValueAMD64_OpAMD64ADDLconst(v *Value, config *Config) bool {
 	}
 	// match: (ADDLconst [c] (MOVLconst [d]))
 	// cond:
-	// result: (MOVLconst [c+d])
+	// result: (MOVLconst [int64(int32(c+d))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -948,12 +948,12 @@ func rewriteValueAMD64_OpAMD64ADDLconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = c + d
+		v.AuxInt = int64(int32(c + d))
 		return true
 	}
 	// match: (ADDLconst [c] (ADDLconst [d] x))
 	// cond:
-	// result: (ADDLconst [c+d] x)
+	// result: (ADDLconst [int64(int32(c+d))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -963,7 +963,7 @@ func rewriteValueAMD64_OpAMD64ADDLconst(v *Value, config *Config) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ADDLconst)
-		v.AuxInt = c + d
+		v.AuxInt = int64(int32(c + d))
 		v.AddArg(x)
 		return true
 	}
@@ -1461,7 +1461,7 @@ func rewriteValueAMD64_OpAMD64ADDWconst(v *Value, config *Config) bool {
 	}
 	// match: (ADDWconst [c] (MOVWconst [d]))
 	// cond:
-	// result: (MOVWconst [c+d])
+	// result: (MOVWconst [int64(int16(c+d))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -1470,12 +1470,12 @@ func rewriteValueAMD64_OpAMD64ADDWconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVWconst)
-		v.AuxInt = c + d
+		v.AuxInt = int64(int16(c + d))
 		return true
 	}
 	// match: (ADDWconst [c] (ADDWconst [d] x))
 	// cond:
-	// result: (ADDWconst [c+d] x)
+	// result: (ADDWconst [int64(int16(c+d))] x)
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -1485,7 +1485,7 @@ func rewriteValueAMD64_OpAMD64ADDWconst(v *Value, config *Config) bool {
 		d := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpAMD64ADDWconst)
-		v.AuxInt = c + d
+		v.AuxInt = int64(int16(c + d))
 		v.AddArg(x)
 		return true
 	}
@@ -9218,7 +9218,7 @@ func rewriteValueAMD64_OpAMD64MULBconst(v *Value, config *Config) bool {
 	_ = b
 	// match: (MULBconst [c] (MOVBconst [d]))
 	// cond:
-	// result: (MOVBconst [c*d])
+	// result: (MOVBconst [int64(int8(c*d))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -9227,7 +9227,7 @@ func rewriteValueAMD64_OpAMD64MULBconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVBconst)
-		v.AuxInt = c * d
+		v.AuxInt = int64(int8(c * d))
 		return true
 	}
 	return false
@@ -9272,7 +9272,7 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value, config *Config) bool {
 	_ = b
 	// match: (MULLconst [c] (MOVLconst [d]))
 	// cond:
-	// result: (MOVLconst [c*d])
+	// result: (MOVLconst [int64(int32(c*d))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -9281,7 +9281,7 @@ func rewriteValueAMD64_OpAMD64MULLconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = c * d
+		v.AuxInt = int64(int32(c * d))
 		return true
 	}
 	return false
@@ -9491,7 +9491,7 @@ func rewriteValueAMD64_OpAMD64MULWconst(v *Value, config *Config) bool {
 	_ = b
 	// match: (MULWconst [c] (MOVWconst [d]))
 	// cond:
-	// result: (MOVWconst [c*d])
+	// result: (MOVWconst [int64(int16(c*d))])
 	for {
 		c := v.AuxInt
 		v_0 := v.Args[0]
@@ -9500,7 +9500,7 @@ func rewriteValueAMD64_OpAMD64MULWconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVWconst)
-		v.AuxInt = c * d
+		v.AuxInt = int64(int16(c * d))
 		return true
 	}
 	return false
@@ -10096,7 +10096,7 @@ func rewriteValueAMD64_OpAMD64NEGB(v *Value, config *Config) bool {
 	_ = b
 	// match: (NEGB (MOVBconst [c]))
 	// cond:
-	// result: (MOVBconst [-c])
+	// result: (MOVBconst [int64(int8(-c))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVBconst {
@@ -10104,7 +10104,7 @@ func rewriteValueAMD64_OpAMD64NEGB(v *Value, config *Config) bool {
 		}
 		c := v_0.AuxInt
 		v.reset(OpAMD64MOVBconst)
-		v.AuxInt = -c
+		v.AuxInt = int64(int8(-c))
 		return true
 	}
 	return false
@@ -10114,7 +10114,7 @@ func rewriteValueAMD64_OpAMD64NEGL(v *Value, config *Config) bool {
 	_ = b
 	// match: (NEGL (MOVLconst [c]))
 	// cond:
-	// result: (MOVLconst [-c])
+	// result: (MOVLconst [int64(int32(-c))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVLconst {
@@ -10122,7 +10122,7 @@ func rewriteValueAMD64_OpAMD64NEGL(v *Value, config *Config) bool {
 		}
 		c := v_0.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = -c
+		v.AuxInt = int64(int32(-c))
 		return true
 	}
 	return false
@@ -10150,7 +10150,7 @@ func rewriteValueAMD64_OpAMD64NEGW(v *Value, config *Config) bool {
 	_ = b
 	// match: (NEGW (MOVWconst [c]))
 	// cond:
-	// result: (MOVWconst [-c])
+	// result: (MOVWconst [int64(int16(-c))])
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVWconst {
@@ -10158,7 +10158,7 @@ func rewriteValueAMD64_OpAMD64NEGW(v *Value, config *Config) bool {
 		}
 		c := v_0.AuxInt
 		v.reset(OpAMD64MOVWconst)
-		v.AuxInt = -c
+		v.AuxInt = int64(int16(-c))
 		return true
 	}
 	return false
@@ -14591,33 +14591,33 @@ func rewriteValueAMD64_OpAMD64SUBBconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (SUBBconst [c] (MOVBconst [d]))
+	// match: (SUBBconst (MOVBconst [d]) [c])
 	// cond:
-	// result: (MOVBconst [d-c])
+	// result: (MOVBconst [int64(int8(d-c))])
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVBconst {
 			break
 		}
 		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64MOVBconst)
-		v.AuxInt = d - c
+		v.AuxInt = int64(int8(d - c))
 		return true
 	}
-	// match: (SUBBconst [c] (SUBBconst [d] x))
+	// match: (SUBBconst (SUBBconst x [d]) [c])
 	// cond:
-	// result: (ADDBconst [-c-d] x)
+	// result: (ADDBconst [int64(int8(-c-d))] x)
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64SUBBconst {
 			break
 		}
-		d := v_0.AuxInt
 		x := v_0.Args[0]
+		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64ADDBconst)
-		v.AuxInt = -c - d
+		v.AuxInt = int64(int8(-c - d))
 		v.AddArg(x)
 		return true
 	}
@@ -14689,33 +14689,33 @@ func rewriteValueAMD64_OpAMD64SUBLconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (SUBLconst [c] (MOVLconst [d]))
+	// match: (SUBLconst (MOVLconst [d]) [c])
 	// cond:
-	// result: (MOVLconst [d-c])
+	// result: (MOVLconst [int64(int32(d-c))])
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVLconst {
 			break
 		}
 		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = d - c
+		v.AuxInt = int64(int32(d - c))
 		return true
 	}
-	// match: (SUBLconst [c] (SUBLconst [d] x))
+	// match: (SUBLconst (SUBLconst x [d]) [c])
 	// cond:
-	// result: (ADDLconst [-c-d] x)
+	// result: (ADDLconst [int64(int32(-c-d))] x)
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64SUBLconst {
 			break
 		}
-		d := v_0.AuxInt
 		x := v_0.Args[0]
+		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64ADDLconst)
-		v.AuxInt = -c - d
+		v.AuxInt = int64(int32(-c - d))
 		v.AddArg(x)
 		return true
 	}
@@ -14792,31 +14792,31 @@ func rewriteValueAMD64_OpAMD64SUBQconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (SUBQconst [c] (MOVQconst [d]))
+	// match: (SUBQconst (MOVQconst [d]) [c])
 	// cond:
 	// result: (MOVQconst [d-c])
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVQconst {
 			break
 		}
 		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = d - c
 		return true
 	}
-	// match: (SUBQconst [c] (SUBQconst [d] x))
+	// match: (SUBQconst (SUBQconst x [d]) [c])
 	// cond: is32Bit(-c-d)
 	// result: (ADDQconst [-c-d] x)
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64SUBQconst {
 			break
 		}
-		d := v_0.AuxInt
 		x := v_0.Args[0]
+		d := v_0.AuxInt
+		c := v.AuxInt
 		if !(is32Bit(-c - d)) {
 			break
 		}
@@ -14893,33 +14893,33 @@ func rewriteValueAMD64_OpAMD64SUBWconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (SUBWconst [c] (MOVWconst [d]))
+	// match: (SUBWconst (MOVWconst [d]) [c])
 	// cond:
-	// result: (MOVWconst [d-c])
+	// result: (MOVWconst [int64(int16(d-c))])
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64MOVWconst {
 			break
 		}
 		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64MOVWconst)
-		v.AuxInt = d - c
+		v.AuxInt = int64(int16(d - c))
 		return true
 	}
-	// match: (SUBWconst [c] (SUBWconst [d] x))
+	// match: (SUBWconst (SUBWconst x [d]) [c])
 	// cond:
-	// result: (ADDWconst [-c-d] x)
+	// result: (ADDWconst [int64(int16(-c-d))] x)
 	for {
-		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpAMD64SUBWconst {
 			break
 		}
-		d := v_0.AuxInt
 		x := v_0.Args[0]
+		d := v_0.AuxInt
+		c := v.AuxInt
 		v.reset(OpAMD64ADDWconst)
-		v.AuxInt = -c - d
+		v.AuxInt = int64(int16(-c - d))
 		v.AddArg(x)
 		return true
 	}

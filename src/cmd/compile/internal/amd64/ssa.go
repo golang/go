@@ -420,7 +420,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r := gc.SSARegNum(v)
 		a := gc.SSARegNum(v.Args[0])
 		if r == a {
-			if v.AuxInt2Int64() == 1 {
+			if v.AuxInt == 1 {
 				var asm obj.As
 				switch v.Op {
 				// Software optimization manual recommends add $1,reg.
@@ -439,7 +439,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
-			} else if v.AuxInt2Int64() == -1 {
+			} else if v.AuxInt == -1 {
 				var asm obj.As
 				switch v.Op {
 				case ssa.OpAMD64ADDQconst:
@@ -456,7 +456,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			} else {
 				p := gc.Prog(v.Op.Asm())
 				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = v.AuxInt2Int64()
+				p.From.Offset = v.AuxInt
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
@@ -474,7 +474,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(asm)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = a
-		p.From.Offset = v.AuxInt2Int64()
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -494,7 +494,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Constant into AX, after arg0 movement in case arg0 is in AX
 		p := gc.Prog(moveByType(v.Type))
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_AX
 
@@ -516,7 +516,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
@@ -531,7 +531,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// a = b + (- const), saves us 1 instruction. We can't fit
 		// - (-1 << 31) into  4 bytes offset in lea.
 		// We handle 2-address just fine below.
-		if v.AuxInt2Int64() == -1<<31 || x == r {
+		if v.AuxInt == -1<<31 || x == r {
 			if x != r {
 				// This code compensates for the fact that the register allocator
 				// doesn't understand 2-address instructions yet. TODO: fix that.
@@ -543,10 +543,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			}
 			p := gc.Prog(v.Op.Asm())
 			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt2Int64()
+			p.From.Offset = v.AuxInt
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-		} else if x == r && v.AuxInt2Int64() == -1 {
+		} else if x == r && v.AuxInt == -1 {
 			var asm obj.As
 			// x = x - (-1) is the same as x++
 			// See OpAMD64ADDQconst comments about inc vs add $1,reg
@@ -561,7 +561,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p := gc.Prog(asm)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-		} else if x == r && v.AuxInt2Int64() == 1 {
+		} else if x == r && v.AuxInt == 1 {
 			var asm obj.As
 			switch v.Op {
 			case ssa.OpAMD64SUBQconst:
@@ -587,7 +587,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p := gc.Prog(asm)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = x
-			p.From.Offset = -v.AuxInt2Int64()
+			p.From.Offset = -v.AuxInt
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
@@ -614,7 +614,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpAMD64SBBQcarrymask, ssa.OpAMD64SBBLcarrymask:
@@ -661,18 +661,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = v.AuxInt2Int64()
+		p.To.Offset = v.AuxInt
 	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 	case ssa.OpAMD64MOVBconst, ssa.OpAMD64MOVWconst, ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
 		x := gc.SSARegNum(v)
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt2Int64()
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
 		// If flags are live at this instruction, suppress the
@@ -804,17 +804,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
-		i := sc.Val()
-		switch v.Op {
-		case ssa.OpAMD64MOVBstoreconst:
-			i = int64(int8(i))
-		case ssa.OpAMD64MOVWstoreconst:
-			i = int64(int16(i))
-		case ssa.OpAMD64MOVLstoreconst:
-			i = int64(int32(i))
-		case ssa.OpAMD64MOVQstoreconst:
-		}
-		p.From.Offset = i
+		p.From.Offset = sc.Val()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux2(&p.To, v, sc.Off())
@@ -822,18 +812,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
+		p.From.Offset = sc.Val()
 		switch v.Op {
 		case ssa.OpAMD64MOVBstoreconstidx1:
-			p.From.Offset = int64(int8(sc.Val()))
 			p.To.Scale = 1
 		case ssa.OpAMD64MOVWstoreconstidx2:
-			p.From.Offset = int64(int16(sc.Val()))
 			p.To.Scale = 2
 		case ssa.OpAMD64MOVLstoreconstidx4:
-			p.From.Offset = int64(int32(sc.Val()))
 			p.To.Scale = 4
 		case ssa.OpAMD64MOVQstoreconstidx8:
-			p.From.Offset = sc.Val()
 			p.To.Scale = 8
 		}
 		p.To.Type = obj.TYPE_MEM

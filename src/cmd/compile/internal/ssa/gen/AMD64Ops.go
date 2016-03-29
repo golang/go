@@ -6,6 +6,25 @@ package main
 
 import "strings"
 
+// Notes:
+//  - Integer types live in the low portion of registers. Upper portions are junk.
+//  - Boolean types use the low-order byte of a register. 0=false, 1=true.
+//    Upper bytes are junk.
+//  - Floating-point types live in the low natural slot of an sse2 register.
+//    Unused portions are junk.
+//  - We do not use AH,BH,CH,DH registers.
+//  - When doing sub-register operations, we try to write the whole
+//    destination register to avoid a partial-register write.
+//  - Unused portions of AuxInt (or the Val portion of ValAndOff) are
+//    filled by sign-extending the used portion.  Users of AuxInt which interpret
+//    AuxInt as unsigned (e.g. shifts) must be careful.
+
+// Suffixes encode the bit width of various instructions.
+// Q (quad word) = 64 bit
+// L (long word) = 32 bit
+// W (word)      = 16 bit
+// B (byte)      = 8 bit
+
 // copied from ../../amd64/reg.go
 var regNamesAMD64 = []string{
 	"AX",
@@ -129,7 +148,6 @@ func init() {
 		gpfp     = regInfo{inputs: gponly, outputs: fponly}
 		fp11     = regInfo{inputs: fponly, outputs: fponly}
 		fp2flags = regInfo{inputs: []regMask{fp, fp}, outputs: flagsonly}
-		// fp1flags = regInfo{inputs: fponly, outputs: flagsonly}
 
 		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
 		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
@@ -137,12 +155,7 @@ func init() {
 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
 	)
-	// TODO: most ops clobber flags
 
-	// Suffixes encode the bit width of various instructions.
-	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
-
-	// TODO: 2-address instructions. Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
 		// fp ops
 		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true}, // fp32 add

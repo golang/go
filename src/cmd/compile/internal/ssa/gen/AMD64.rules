@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// x86 register conventions:
-//  - Integer types live in the low portion of registers. Upper portions are junk.
-//  - Boolean types use the low-order byte of a register. Upper bytes are junk.
-//  - We do not use AH,BH,CH,DH registers.
-//  - Floating-point types will live in the low natural slot of an sse2 register.
-//    Unused portions are junk.
-
 // Lowering arithmetic
 (Add64 x y) -> (ADDQ x y)
 (AddPtr x y) -> (ADDQ x y)
@@ -1162,33 +1155,33 @@
 // generic constant folding
 // TODO: more of this
 (ADDQconst [c] (MOVQconst [d])) -> (MOVQconst [c+d])
-(ADDLconst [c] (MOVLconst [d])) -> (MOVLconst [c+d])
-(ADDWconst [c] (MOVWconst [d])) -> (MOVWconst [c+d])
-(ADDBconst [c] (MOVBconst [d])) -> (MOVBconst [c+d])
+(ADDLconst [c] (MOVLconst [d])) -> (MOVLconst [int64(int32(c+d))])
+(ADDWconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int16(c+d))])
+(ADDBconst [c] (MOVBconst [d])) -> (MOVBconst [int64(int8(c+d))])
 (ADDQconst [c] (ADDQconst [d] x)) && is32Bit(c+d) -> (ADDQconst [c+d] x)
-(ADDLconst [c] (ADDLconst [d] x)) -> (ADDLconst [c+d] x)
-(ADDWconst [c] (ADDWconst [d] x)) -> (ADDWconst [c+d] x)
-(ADDBconst [c] (ADDBconst [d] x)) -> (ADDBconst [c+d] x)
-(SUBQconst [c] (MOVQconst [d])) -> (MOVQconst [d-c])
-(SUBLconst [c] (MOVLconst [d])) -> (MOVLconst [d-c])
-(SUBWconst [c] (MOVWconst [d])) -> (MOVWconst [d-c])
-(SUBBconst [c] (MOVBconst [d])) -> (MOVBconst [d-c])
-(SUBQconst [c] (SUBQconst [d] x)) && is32Bit(-c-d) -> (ADDQconst [-c-d] x)
-(SUBLconst [c] (SUBLconst [d] x)) -> (ADDLconst [-c-d] x)
-(SUBWconst [c] (SUBWconst [d] x)) -> (ADDWconst [-c-d] x)
-(SUBBconst [c] (SUBBconst [d] x)) -> (ADDBconst [-c-d] x)
+(ADDLconst [c] (ADDLconst [d] x)) -> (ADDLconst [int64(int32(c+d))] x)
+(ADDWconst [c] (ADDWconst [d] x)) -> (ADDWconst [int64(int16(c+d))] x)
+(ADDBconst [c] (ADDBconst [d] x)) -> (ADDBconst [int64(int8(c+d))] x)
+(SUBQconst (MOVQconst [d]) [c]) -> (MOVQconst [d-c])
+(SUBLconst (MOVLconst [d]) [c]) -> (MOVLconst [int64(int32(d-c))])
+(SUBWconst (MOVWconst [d]) [c]) -> (MOVWconst [int64(int16(d-c))])
+(SUBBconst (MOVBconst [d]) [c]) -> (MOVBconst [int64(int8(d-c))])
+(SUBQconst (SUBQconst x [d]) [c]) && is32Bit(-c-d) -> (ADDQconst [-c-d] x)
+(SUBLconst (SUBLconst x [d]) [c]) -> (ADDLconst [int64(int32(-c-d))] x)
+(SUBWconst (SUBWconst x [d]) [c]) -> (ADDWconst [int64(int16(-c-d))] x)
+(SUBBconst (SUBBconst x [d]) [c]) -> (ADDBconst [int64(int8(-c-d))] x)
 (SARQconst [c] (MOVQconst [d])) -> (MOVQconst [d>>uint64(c)])
 (SARLconst [c] (MOVQconst [d])) -> (MOVQconst [d>>uint64(c)])
 (SARWconst [c] (MOVQconst [d])) -> (MOVQconst [d>>uint64(c)])
 (SARBconst [c] (MOVQconst [d])) -> (MOVQconst [d>>uint64(c)])
 (NEGQ (MOVQconst [c])) -> (MOVQconst [-c])
-(NEGL (MOVLconst [c])) -> (MOVLconst [-c])
-(NEGW (MOVWconst [c])) -> (MOVWconst [-c])
-(NEGB (MOVBconst [c])) -> (MOVBconst [-c])
+(NEGL (MOVLconst [c])) -> (MOVLconst [int64(int32(-c))])
+(NEGW (MOVWconst [c])) -> (MOVWconst [int64(int16(-c))])
+(NEGB (MOVBconst [c])) -> (MOVBconst [int64(int8(-c))])
 (MULQconst [c] (MOVQconst [d])) -> (MOVQconst [c*d])
-(MULLconst [c] (MOVLconst [d])) -> (MOVLconst [c*d])
-(MULWconst [c] (MOVWconst [d])) -> (MOVWconst [c*d])
-(MULBconst [c] (MOVBconst [d])) -> (MOVBconst [c*d])
+(MULLconst [c] (MOVLconst [d])) -> (MOVLconst [int64(int32(c*d))])
+(MULWconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int16(c*d))])
+(MULBconst [c] (MOVBconst [d])) -> (MOVBconst [int64(int8(c*d))])
 (ANDQconst [c] (MOVQconst [d])) -> (MOVQconst [c&d])
 (ANDLconst [c] (MOVLconst [d])) -> (MOVLconst [c&d])
 (ANDWconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])

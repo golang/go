@@ -111,13 +111,6 @@ func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
 
-func inBounds8(idx, len int64) bool       { return int8(idx) >= 0 && int8(idx) < int8(len) }
-func inBounds16(idx, len int64) bool      { return int16(idx) >= 0 && int16(idx) < int16(len) }
-func inBounds32(idx, len int64) bool      { return int32(idx) >= 0 && int32(idx) < int32(len) }
-func inBounds64(idx, len int64) bool      { return idx >= 0 && idx < len }
-func sliceInBounds32(idx, len int64) bool { return int32(idx) >= 0 && int32(idx) <= int32(len) }
-func sliceInBounds64(idx, len int64) bool { return idx >= 0 && idx <= len }
-
 // nlz returns the number of leading zeros.
 func nlz(x int64) int64 {
 	// log2(0) == 1, so nlz(0) == 64

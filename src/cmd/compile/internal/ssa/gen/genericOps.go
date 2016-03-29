@@ -4,6 +4,19 @@
 
 package main
 
+// Generic opcodes typically specify a width. The inputs and outputs
+// of that op are the given number of bits wide. There is no notion of
+// "sign", so Add32 can be used both for signed and unsigned 32-bit
+// addition.
+
+// Signed/unsigned is explicit with the extension ops
+// (SignExt*/ZeroExt*) and implicit as the arg to some opcodes
+// (e.g. the second argument to shifts is unsigned). If not mentioned,
+// all args take signed inputs, or don't care whether their inputs
+// are signed or unsigned.
+
+// Unused portions of AuxInt are filled by sign-extending the used portion.
+// Users of AuxInt which interpret AuxInt as unsigned (e.g. shifts) must be careful.
 var genericOps = []opData{
 	// 2-input arithmetic
 	// Types must be consistent with Go typing. Add, for example, must take two values
@@ -15,7 +28,6 @@ var genericOps = []opData{
 	{name: "AddPtr", argLength: 2}, // For address calculations.  arg0 is a pointer and arg1 is an int.
 	{name: "Add32F", argLength: 2},
 	{name: "Add64F", argLength: 2},
-	// TODO: Add64C, Add128C
 
 	{name: "Sub8", argLength: 2}, // arg0 - arg1
 	{name: "Sub16", argLength: 2},
@@ -35,8 +47,8 @@ var genericOps = []opData{
 	{name: "Div32F", argLength: 2}, // arg0 / arg1
 	{name: "Div64F", argLength: 2},
 
-	{name: "Hmul8", argLength: 2}, // (arg0 * arg1) >> width
-	{name: "Hmul8u", argLength: 2},
+	{name: "Hmul8", argLength: 2},  // (arg0 * arg1) >> width, signed
+	{name: "Hmul8u", argLength: 2}, // (arg0 * arg1) >> width, unsigned
 	{name: "Hmul16", argLength: 2},
 	{name: "Hmul16u", argLength: 2},
 	{name: "Hmul32", argLength: 2},
@@ -47,8 +59,8 @@ var genericOps = []opData{
 	// Weird special instruction for strength reduction of divides.
 	{name: "Avg64u", argLength: 2}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
 
-	{name: "Div8", argLength: 2}, // arg0 / arg1
-	{name: "Div8u", argLength: 2},
+	{name: "Div8", argLength: 2},  // arg0 / arg1, signed
+	{name: "Div8u", argLength: 2}, // arg0 / arg1, unsigned
 	{name: "Div16", argLength: 2},
 	{name: "Div16u", argLength: 2},
 	{name: "Div32", argLength: 2},
@@ -56,8 +68,8 @@ var genericOps = []opData{
 	{name: "Div64", argLength: 2},
 	{name: "Div64u", argLength: 2},
 
-	{name: "Mod8", argLength: 2}, // arg0 % arg1
-	{name: "Mod8u", argLength: 2},
+	{name: "Mod8", argLength: 2},  // arg0 % arg1, signed
+	{name: "Mod8u", argLength: 2}, // arg0 % arg1, unsigned
 	{name: "Mod16", argLength: 2},
 	{name: "Mod16u", argLength: 2},
 	{name: "Mod32", argLength: 2},
@@ -81,6 +93,7 @@ var genericOps = []opData{
 	{name: "Xor64", argLength: 2, commutative: true},
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
+	// Shift amounts are considered unsigned.
 	{name: "Lsh8x8", argLength: 2}, // arg0 << arg1
 	{name: "Lsh8x16", argLength: 2},
 	{name: "Lsh8x32", argLength: 2},
@@ -178,8 +191,8 @@ var genericOps = []opData{
 	{name: "Neq32F", argLength: 2},
 	{name: "Neq64F", argLength: 2},
 
-	{name: "Less8", argLength: 2}, // arg0 < arg1
-	{name: "Less8U", argLength: 2},
+	{name: "Less8", argLength: 2},  // arg0 < arg1, signed
+	{name: "Less8U", argLength: 2}, // arg0 < arg1, unsigned
 	{name: "Less16", argLength: 2},
 	{name: "Less16U", argLength: 2},
 	{name: "Less32", argLength: 2},
@@ -189,8 +202,8 @@ var genericOps = []opData{
 	{name: "Less32F", argLength: 2},
 	{name: "Less64F", argLength: 2},
 
-	{name: "Leq8", argLength: 2}, // arg0 <= arg1
-	{name: "Leq8U", argLength: 2},
+	{name: "Leq8", argLength: 2},  // arg0 <= arg1, signed
+	{name: "Leq8U", argLength: 2}, // arg0 <= arg1, unsigned
 	{name: "Leq16", argLength: 2},
 	{name: "Leq16U", argLength: 2},
 	{name: "Leq32", argLength: 2},
@@ -200,8 +213,8 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2},
 	{name: "Leq64F", argLength: 2},
 
-	{name: "Greater8", argLength: 2}, // arg0 > arg1
-	{name: "Greater8U", argLength: 2},
+	{name: "Greater8", argLength: 2},  // arg0 > arg1, signed
+	{name: "Greater8U", argLength: 2}, // arg0 > arg1, unsigned
 	{name: "Greater16", argLength: 2},
 	{name: "Greater16U", argLength: 2},
 	{name: "Greater32", argLength: 2},
@@ -211,8 +224,8 @@ var genericOps = []opData{
 	{name: "Greater32F", argLength: 2},
 	{name: "Greater64F", argLength: 2},
 
-	{name: "Geq8", argLength: 2}, // arg0 <= arg1
-	{name: "Geq8U", argLength: 2},
+	{name: "Geq8", argLength: 2},  // arg0 <= arg1, signed
+	{name: "Geq8U", argLength: 2}, // arg0 <= arg1, unsigned
 	{name: "Geq16", argLength: 2},
 	{name: "Geq16U", argLength: 2},
 	{name: "Geq32", argLength: 2},
@@ -223,7 +236,7 @@ var genericOps = []opData{
 	{name: "Geq64F", argLength: 2},
 
 	// 1-input ops
-	{name: "Not", argLength: 1}, // !arg0
+	{name: "Not", argLength: 1}, // !arg0, boolean
 
 	{name: "Neg8", argLength: 1}, // -arg0
 	{name: "Neg16", argLength: 1},
@@ -266,9 +279,9 @@ var genericOps = []opData{
 	{name: "ConstBool", aux: "Bool"},     // auxint is 0 for false and 1 for true
 	{name: "ConstString", aux: "String"}, // value is aux.(string)
 	{name: "ConstNil", typ: "BytePtr"},   // nil pointer
-	{name: "Const8", aux: "Int8"},        // value is low 8 bits of auxint
-	{name: "Const16", aux: "Int16"},      // value is low 16 bits of auxint
-	{name: "Const32", aux: "Int32"},      // value is low 32 bits of auxint
+	{name: "Const8", aux: "Int8"},        // auxint is sign-extended 8 bits
+	{name: "Const16", aux: "Int16"},      // auxint is sign-extended 16 bits
+	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
 	{name: "Const64", aux: "Int64"},      // value is auxint
 	{name: "Const32F", aux: "Float32"},   // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
 	{name: "Const64F", aux: "Float64"},   // value is math.Float64frombits(uint64(auxint))
@@ -337,16 +350,16 @@ var genericOps = []opData{
 
 	// Automatically inserted safety checks
 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
-	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1
-	{name: "IsSliceInBounds", argLength: 2, typ: "Bool"}, // 0 <= arg0 <= arg1
-	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem.  Panics if arg0 is nil, returns void.
+	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.
+	{name: "IsSliceInBounds", argLength: 2, typ: "Bool"}, // 0 <= arg0 <= arg1. arg1 is guaranteed >= 0.
+	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil, returns void.
 
 	// Pseudo-ops
-	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer).  arg0=mem
+	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
 	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
 
 	// Indexing operations
-	{name: "ArrayIndex", aux: "Int64", argLength: 1}, // arg0=array, auxint=index.  Returns a[i]
+	{name: "ArrayIndex", aux: "Int64", argLength: 1}, // arg0=array, auxint=index. Returns a[i]
 	{name: "PtrIndex", argLength: 2},                 // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
 	{name: "OffPtr", argLength: 1, aux: "Int64"},     // arg0 + auxint (arg0 and result are pointers)
 
