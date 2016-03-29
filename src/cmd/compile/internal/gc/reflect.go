@@ -82,7 +82,7 @@ func mapbucket(t *Type) *Type {
 
 	bucket := typ(TSTRUCT)
 	keytype := t.Key()
-	valtype := t.Type
+	valtype := t.Val()
 	dowidth(keytype)
 	dowidth(valtype)
 	if keytype.Width > MAXKEYSIZE {
@@ -125,7 +125,7 @@ func mapbucket(t *Type) *Type {
 	// so if the struct needs 64-bit padding (because a key or value does)
 	// then it would end with an extra 32-bit padding field.
 	// Preempt that by emitting the padding here.
-	if int(t.Type.Align) > Widthptr || int(t.Key().Align) > Widthptr {
+	if int(t.Val().Align) > Widthptr || int(t.Key().Align) > Widthptr {
 		field = append(field, makefield("pad", Types[TUINTPTR]))
 	}
 
@@ -136,7 +136,7 @@ func mapbucket(t *Type) *Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
 	otyp := Ptrto(bucket)
-	if !haspointers(t.Type) && !haspointers(t.Key()) && t.Type.Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
+	if !haspointers(t.Val()) && !haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
 		otyp = Types[TUINTPTR]
 	}
 	ovf := makefield("overflow", otyp)
@@ -211,7 +211,7 @@ func hiter(t *Type) *Type {
 	// must match ../../../../runtime/hashmap.go:hiter.
 	var field [12]*Field
 	field[0] = makefield("key", Ptrto(t.Key()))
-	field[1] = makefield("val", Ptrto(t.Type))
+	field[1] = makefield("val", Ptrto(t.Val()))
 	field[2] = makefield("t", Ptrto(Types[TUINT8]))
 	field[3] = makefield("h", Ptrto(hmap(t)))
 	field[4] = makefield("buckets", Ptrto(mapbucket(t)))
@@ -1226,7 +1226,7 @@ ok:
 	// ../../../../runtime/type.go:/mapType
 	case TMAP:
 		s1 := dtypesym(t.Key())
-		s2 := dtypesym(t.Type)
+		s2 := dtypesym(t.Val())
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
 		ot = dcommontype(s, ot, t)
@@ -1242,11 +1242,11 @@ ok:
 			ot = duint8(s, ot, 0) // not indirect
 		}
 
-		if t.Type.Width > MAXVALSIZE {
+		if t.Val().Width > MAXVALSIZE {
 			ot = duint8(s, ot, uint8(Widthptr))
 			ot = duint8(s, ot, 1) // indirect
 		} else {
-			ot = duint8(s, ot, uint8(t.Type.Width))
+			ot = duint8(s, ot, uint8(t.Val().Width))
 			ot = duint8(s, ot, 0) // not indirect
 		}
 

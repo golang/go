@@ -860,7 +860,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		// build type [count]struct { a Tindex, b Tvalue }
 		t := n.Type
 		tk := t.Key()
-		tv := t.Type
+		tv := t.Val()
 
 		syma := Lookup("a")
 		symb := Lookup("b")
@@ -969,7 +969,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		// use temporary so that mapassign1 can have addressable key, val.
 		if key == nil {
 			key = temp(var_.Type.Key())
-			val = temp(var_.Type.Type)
+			val = temp(var_.Type.Val())
 		}
 
 		setlineno(r.Left)

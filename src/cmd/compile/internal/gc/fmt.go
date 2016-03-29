@@ -609,7 +609,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		return "chan " + t.Type.String()
 
 	case TMAP:
-		return "map[" + t.Key().String() + "]" + t.Type.String()
+		return "map[" + t.Key().String() + "]" + t.Val().String()
 
 	case TINTER:
 		var buf bytes.Buffer
@@ -674,15 +674,15 @@ func typefmt(t *Type, flag FmtFlag) string {
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			if t.Map.Bucket == t {
-				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Type.String()
+				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Val().String()
 			}
 
 			if t.Map.Hmap == t {
-				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Type.String()
+				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Val().String()
 			}
 
 			if t.Map.Hiter == t {
-				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Type.String()
+				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Val().String()
 			}
 
 			Yyerror("unknown internal map type")

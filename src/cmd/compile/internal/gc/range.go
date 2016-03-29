@@ -55,7 +55,7 @@ func typecheckrange(n *Node) {
 
 	case TMAP:
 		t1 = t.Key()
-		t2 = t.Type
+		t2 = t.Val()
 
 	case TCHAN:
 		if t.Chan&Crecv == 0 {
@@ -231,7 +231,7 @@ func walkrange(n *Node) {
 
 		fn := syslook("mapiterinit")
 
-		fn = substArgTypes(fn, t.Key(), t.Type, th)
+		fn = substArgTypes(fn, t.Key(), t.Val(), th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
 

@@ -542,8 +542,8 @@ func (p *exporter) typ(t *Type) {
 
 	case TMAP:
 		p.tag(mapTag)
-		p.typ(t.Key()) // key
-		p.typ(t.Type)  // val
+		p.typ(t.Key())
+		p.typ(t.Val())
 
 	case TCHAN:
 		p.tag(chanTag)
