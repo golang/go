@@ -29,17 +29,11 @@ func pkgConfig(mode string, pkgs []string) (flags []string, err error) {
 	return
 }
 
-// pkgConfigFlags calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
-func pkgConfigFlags(p *build.Package) (cflags, ldflags []string, err error) {
-	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
-		cflags, err = pkgConfig("--cflags", pkgs)
-		if err != nil {
-			return nil, nil, err
-		}
-		ldflags, err = pkgConfig("--libs", pkgs)
-		if err != nil {
-			return nil, nil, err
-		}
+// pkgConfigFlags calls pkg-config if needed and returns the cflags
+// needed to build the package.
+func pkgConfigFlags(p *build.Package) (cflags []string, err error) {
+	if len(p.CgoPkgConfig) == 0 {
+		return nil, nil
 	}
-	return
+	return pkgConfig("--cflags", p.CgoPkgConfig)
 }

@@ -115,16 +115,15 @@ var cgoRe = regexp.MustCompile(`[/\\:]`)
 // Objective C, CGOPKGPATH, CGO_FLAGS.
 //
 func runCgo(bp *build.Package, pkgdir, tmpdir string) (files, displayFiles []string, err error) {
-	cgoCPPFLAGS, _, _, cgoLDFLAGS := cflags(bp, true)
+	cgoCPPFLAGS, _, _, _ := cflags(bp, true)
 	_, cgoexeCFLAGS, _, _ := cflags(bp, false)
 
 	if len(bp.CgoPkgConfig) > 0 {
-		pcCFLAGS, pcLDFLAGS, err := pkgConfigFlags(bp)
+		pcCFLAGS, err := pkgConfigFlags(bp)
 		if err != nil {
 			return nil, nil, err
 		}
 		cgoCPPFLAGS = append(cgoCPPFLAGS, pcCFLAGS...)
-		cgoLDFLAGS = append(cgoLDFLAGS, pcLDFLAGS...)
 	}
 
 	// Allows including _cgo_export.h from .[ch] files in the package.
@@ -150,7 +149,7 @@ func runCgo(bp *build.Package, pkgdir, tmpdir string) (files, displayFiles []str
 
 	args := stringList(
 		"go", "tool", "cgo", "-objdir", tmpdir, cgoflags, "--",
-		cgoCPPFLAGS, cgoLDFLAGS, cgoexeCFLAGS, bp.CgoFiles,
+		cgoCPPFLAGS, cgoexeCFLAGS, bp.CgoFiles,
 	)
 	if false {
 		log.Printf("Running cgo for package %q: %s (dir=%s)", bp.ImportPath, args, pkgdir)
