@@ -473,3 +473,20 @@ func testIfaceEqual(x interface{}) {
 		a = true
 	}
 }
+
+func TestPageAccounting(t *testing.T) {
+	// Grow the heap in small increments. This used to drop the
+	// pages-in-use count below zero because of a rounding
+	// mismatch (golang.org/issue/15022).
+	const blockSize = 64 << 10
+	blocks := make([]*[blockSize]byte, (64<<20)/blockSize)
+	for i := range blocks {
+		blocks[i] = new([blockSize]byte)
+	}
+
+	// Check that the running page count matches reality.
+	pagesInUse, counted := runtime.CountPagesInUse()
+	if pagesInUse != counted {
+		t.Fatalf("mheap_.pagesInUse is %d, but direct count is %d", pagesInUse, counted)
+	}
+}

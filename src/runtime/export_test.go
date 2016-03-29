@@ -171,3 +171,19 @@ func SetTracebackEnv(level string) {
 	setTraceback(level)
 	traceback_env = traceback_cache
 }
+
+func CountPagesInUse() (pagesInUse, counted uintptr) {
+	stopTheWorld("CountPagesInUse")
+
+	pagesInUse = uintptr(mheap_.pagesInUse)
+
+	for _, s := range h_allspans {
+		if s.state == mSpanInUse {
+			counted += s.npages
+		}
+	}
+
+	startTheWorld()
+
+	return
+}
