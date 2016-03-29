@@ -50,7 +50,8 @@ func TypeLinks() []string {
 	for i, offs := range offset {
 		rodata := sections[i]
 		for _, off := range offs {
-			r = append(r, rtypeOff(rodata, off).string)
+			typ := (*rtype)(resolveTypeOff(unsafe.Pointer(rodata), off))
+			r = append(r, typ.string)
 		}
 	}
 	return r
@@ -91,10 +92,11 @@ func FirstMethodNameBytes(t Type) *byte {
 		panic("type has no methods")
 	}
 	m := ut.methods()[0]
-	if *m.name.data(0)&(1<<2) == 0 {
+	mname := t.(*rtype).nameOff(m.name)
+	if *mname.data(0)&(1<<2) == 0 {
 		panic("method name does not have pkgPath *string")
 	}
-	return m.name.bytes
+	return mname.bytes
 }
 
 type OtherPkgFields struct {

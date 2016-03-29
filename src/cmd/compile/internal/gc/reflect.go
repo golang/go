@@ -70,7 +70,7 @@ const (
 )
 
 func structfieldSize() int       { return 3 * Widthptr } // Sizeof(runtime.structfield{})
-func imethodSize() int           { return 2 * Widthptr } // Sizeof(runtime.imethod{})
+func imethodSize() int           { return 4 + 4 }        // Sizeof(runtime.imethod{})
 func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
@@ -647,13 +647,11 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
 			pkg = a.pkg
 		}
 		nsym := dname(a.name, "", pkg, exported)
-		ot = dsymptrLSym(lsym, ot, nsym, 0)
+
+		ot = dsymptrOffLSym(lsym, ot, nsym, 0)
 		ot = dmethodptrOffLSym(lsym, ot, Linksym(dtypesym(a.mtype)))
 		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.isym))
 		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.tsym))
-		if Widthptr == 8 {
-			ot = duintxxLSym(lsym, ot, 0, 4) // pad to reflect.method size
-		}
 	}
 	return ot
 }
@@ -1226,6 +1224,7 @@ ok:
 		dataAdd := imethodSize() * n
 		ot = dextratype(s, ot, t, dataAdd)
 
+		lsym := Linksym(s)
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
 			exported := exportname(a.name)
@@ -1234,8 +1233,9 @@ ok:
 				pkg = a.pkg
 			}
 			nsym := dname(a.name, "", pkg, exported)
-			ot = dsymptrLSym(Linksym(s), ot, nsym, 0)
-			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
+
+			ot = dsymptrOffLSym(lsym, ot, nsym, 0)
+			ot = dsymptrOffLSym(lsym, ot, Linksym(dtypesym(a.type_)), 0)
 		}
 
 	// ../../../../runtime/type.go:/mapType

@@ -288,7 +288,7 @@ type typeAlg struct {
 
 // Method on non-interface type
 type method struct {
-	name name    // name of method
+	name nameOff // name of method
 	mtyp typeOff // method type (without receiver)
 	ifn  textOff // fn used in interface call (one-word receiver)
 	tfn  textOff // fn used for normal method call
@@ -347,8 +347,8 @@ type funcType struct {
 
 // imethod represents a method on an interface type
 type imethod struct {
-	name name   // name of method
-	typ  *rtype // .(*FuncType) underneath
+	name nameOff // name of method
+	typ  typeOff // .(*FuncType) underneath
 }
 
 // interfaceType represents an interface type.
@@ -424,19 +424,19 @@ type name struct {
 	bytes *byte
 }
 
-func (n *name) data(off int) *byte {
+func (n name) data(off int) *byte {
 	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
 }
 
-func (n *name) isExported() bool {
+func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
-func (n *name) nameLen() int {
+func (n name) nameLen() int {
 	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
 }
 
-func (n *name) tagLen() int {
+func (n name) tagLen() int {
 	if *n.data(0)&(1<<1) == 0 {
 		return 0
 	}
@@ -444,7 +444,7 @@ func (n *name) tagLen() int {
 	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
 }
 
-func (n *name) name() (s string) {
+func (n name) name() (s string) {
 	if n.bytes == nil {
 		return ""
 	}
@@ -458,7 +458,7 @@ func (n *name) name() (s string) {
 	return s
 }
 
-func (n *name) tag() (s string) {
+func (n name) tag() (s string) {
 	tl := n.tagLen()
 	if tl == 0 {
 		return ""
@@ -470,7 +470,7 @@ func (n *name) tag() (s string) {
 	return s
 }
 
-func (n *name) pkgPath() string {
+func (n name) pkgPath() string {
 	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
 		return ""
 	}
@@ -480,7 +480,7 @@ func (n *name) pkgPath() string {
 	}
 	var nameOff int32
 	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
-	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n), nameOff))}
+	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n.bytes), nameOff))}
 	return pkgPathName.name()
 }
 
@@ -605,6 +605,11 @@ func (t *uncommonType) PkgPath() string {
 	return t.pkgPath.name()
 }
 
+// resolveNameOff resolves a name offset from a base pointer.
+// The (*rtype).nameOff method is a convenience wrapper for this function.
+// Implemented in the runtime package.
+func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
+
 // resolveTypeOff resolves an *rtype offset from a base type.
 // The (*rtype).typeOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
@@ -620,6 +625,12 @@ func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 // be resolved correctly. Implemented in the runtime package.
 func addReflectOff(ptr unsafe.Pointer) int32
 
+// resolveReflectType adds a name to the reflection lookup map in the runtime.
+// It returns a new nameOff that can be used to refer to the pointer.
+func resolveReflectName(n name) nameOff {
+	return nameOff(addReflectOff(unsafe.Pointer(n.bytes)))
+}
+
 // resolveReflectType adds a *rtype to the reflection lookup map in the runtime.
 // It returns a new typeOff that can be used to refer to the pointer.
 func resolveReflectType(t *rtype) typeOff {
@@ -633,8 +644,16 @@ func resolveReflectText(ptr unsafe.Pointer) textOff {
 	return textOff(addReflectOff(ptr))
 }
 
+type nameOff int32 // offset to a name
 type typeOff int32 // offset to an *rtype
 type textOff int32 // offset from top of text section
+
+func (t *rtype) nameOff(off nameOff) name {
+	if off == 0 {
+		return name{}
+	}
+	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+}
 
 func (t *rtype) typeOff(off typeOff) *rtype {
 	if off == 0 {
@@ -753,10 +772,11 @@ func (t *rtype) Method(i int) (m Method) {
 		panic("reflect: Method index out of range")
 	}
 	p := ut.methods()[i]
-	m.Name = p.name.name()
+	pname := t.nameOff(p.name)
+	m.Name = pname.name()
 	fl := flag(Func)
-	if !p.name.isExported() {
-		m.PkgPath = p.name.pkgPath()
+	if !pname.isExported() {
+		m.PkgPath = pname.pkgPath()
 		if m.PkgPath == "" {
 			m.PkgPath = ut.pkgPath.name()
 		}
@@ -796,7 +816,8 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	utmethods := ut.methods()
 	for i := 0; i < int(ut.mcount); i++ {
 		p := utmethods[i]
-		if p.name.name() == name {
+		pname := t.nameOff(p.name)
+		if pname.name() == name {
 			return t.Method(i), true
 		}
 	}
@@ -1005,14 +1026,15 @@ func (t *interfaceType) Method(i int) (m Method) {
 		return
 	}
 	p := &t.methods[i]
-	m.Name = p.name.name()
-	if !p.name.isExported() {
-		m.PkgPath = p.name.pkgPath()
+	pname := t.nameOff(p.name)
+	m.Name = pname.name()
+	if !pname.isExported() {
+		m.PkgPath = pname.pkgPath()
 		if m.PkgPath == "" {
 			m.PkgPath = t.pkgPath.name()
 		}
 	}
-	m.Type = toType(p.typ)
+	m.Type = toType(t.typeOff(p.typ))
 	m.Index = i
 	return
 }
@@ -1028,7 +1050,7 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 	var p *imethod
 	for i := range t.methods {
 		p = &t.methods[i]
-		if p.name.name() == name {
+		if t.nameOff(p.name).name() == name {
 			return t.Method(i), true
 		}
 	}
@@ -1468,7 +1490,7 @@ func implements(T, V *rtype) bool {
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
 			vm := &v.methods[j]
-			if vm.name.name() == tm.name.name() && vm.typ == tm.typ {
+			if V.nameOff(vm.name).name() == t.nameOff(tm.name).name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
 				if i++; i >= len(t.methods) {
 					return true
 				}
@@ -1486,7 +1508,7 @@ func implements(T, V *rtype) bool {
 	for j := 0; j < int(v.mcount); j++ {
 		tm := &t.methods[i]
 		vm := vmethods[j]
-		if vm.name.name() == tm.name.name() && V.typeOff(vm.mtyp) == tm.typ {
+		if V.nameOff(vm.name).name() == t.nameOff(tm.name).name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
 			if i++; i >= len(t.methods) {
 				return true
 			}
@@ -2327,12 +2349,13 @@ func StructOf(fields []StructField) Type {
 			case Interface:
 				ift := (*interfaceType)(unsafe.Pointer(ft))
 				for im, m := range ift.methods {
-					if m.name.pkgPath() != "" {
+					if ift.nameOff(m.name).pkgPath() != "" {
 						// TODO(sbinet)
 						panic("reflect: embedded interface with unexported method(s) not implemented")
 					}
 
 					var (
+						mtyp    = ift.typeOff(m.typ)
 						ifield  = i
 						imethod = im
 						ifn     Value
@@ -2340,7 +2363,7 @@ func StructOf(fields []StructField) Type {
 					)
 
 					if ft.kind&kindDirectIface != 0 {
-						tfn = MakeFunc(m.typ, func(in []Value) []Value {
+						tfn = MakeFunc(mtyp, func(in []Value) []Value {
 							var args []Value
 							var recv = in[0]
 							if len(in) > 1 {
@@ -2348,7 +2371,7 @@ func StructOf(fields []StructField) Type {
 							}
 							return recv.Field(ifield).Method(imethod).Call(args)
 						})
-						ifn = MakeFunc(m.typ, func(in []Value) []Value {
+						ifn = MakeFunc(mtyp, func(in []Value) []Value {
 							var args []Value
 							var recv = in[0]
 							if len(in) > 1 {
@@ -2357,7 +2380,7 @@ func StructOf(fields []StructField) Type {
 							return recv.Field(ifield).Method(imethod).Call(args)
 						})
 					} else {
-						tfn = MakeFunc(m.typ, func(in []Value) []Value {
+						tfn = MakeFunc(mtyp, func(in []Value) []Value {
 							var args []Value
 							var recv = in[0]
 							if len(in) > 1 {
@@ -2365,7 +2388,7 @@ func StructOf(fields []StructField) Type {
 							}
 							return recv.Field(ifield).Method(imethod).Call(args)
 						})
-						ifn = MakeFunc(m.typ, func(in []Value) []Value {
+						ifn = MakeFunc(mtyp, func(in []Value) []Value {
 							var args []Value
 							var recv = Indirect(in[0])
 							if len(in) > 1 {
@@ -2376,8 +2399,8 @@ func StructOf(fields []StructField) Type {
 					}
 
 					methods = append(methods, method{
-						name: m.name,
-						mtyp: resolveReflectType(m.typ),
+						name: resolveReflectName(ift.nameOff(m.name)),
+						mtyp: resolveReflectType(mtyp),
 						ifn:  resolveReflectText(unsafe.Pointer(&ifn)),
 						tfn:  resolveReflectText(unsafe.Pointer(&tfn)),
 					})
@@ -2386,12 +2409,13 @@ func StructOf(fields []StructField) Type {
 				ptr := (*ptrType)(unsafe.Pointer(ft))
 				if unt := ptr.uncommon(); unt != nil {
 					for _, m := range unt.methods() {
-						if m.name.pkgPath() != "" {
+						mname := ptr.nameOff(m.name)
+						if mname.pkgPath() != "" {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
 						methods = append(methods, method{
-							name: m.name,
+							name: resolveReflectName(mname),
 							mtyp: resolveReflectType(ptr.typeOff(m.mtyp)),
 							ifn:  resolveReflectText(ptr.textOff(m.ifn)),
 							tfn:  resolveReflectText(ptr.textOff(m.tfn)),
@@ -2400,12 +2424,13 @@ func StructOf(fields []StructField) Type {
 				}
 				if unt := ptr.elem.uncommon(); unt != nil {
 					for _, m := range unt.methods() {
-						if m.name.pkgPath() != "" {
+						mname := ptr.nameOff(m.name)
+						if mname.pkgPath() != "" {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
 						methods = append(methods, method{
-							name: m.name,
+							name: resolveReflectName(mname),
 							mtyp: resolveReflectType(ptr.elem.typeOff(m.mtyp)),
 							ifn:  resolveReflectText(ptr.elem.textOff(m.ifn)),
 							tfn:  resolveReflectText(ptr.elem.textOff(m.tfn)),
@@ -2415,12 +2440,13 @@ func StructOf(fields []StructField) Type {
 			default:
 				if unt := ft.uncommon(); unt != nil {
 					for _, m := range unt.methods() {
-						if m.name.pkgPath() != "" {
+						mname := ft.nameOff(m.name)
+						if mname.pkgPath() != "" {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
 						methods = append(methods, method{
-							name: m.name,
+							name: resolveReflectName(mname),
 							mtyp: resolveReflectType(ft.typeOff(m.mtyp)),
 							ifn:  resolveReflectText(ft.textOff(m.ifn)),
 							tfn:  resolveReflectText(ft.textOff(m.tfn)),

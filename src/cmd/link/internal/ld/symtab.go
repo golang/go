@@ -427,7 +427,7 @@ func symtab() {
 			if !DynlinkingGo() {
 				s.Attr |= AttrHidden
 			}
-			if UseRelro() && len(s.R) > 0 {
+			if UseRelro() {
 				s.Type = obj.STYPERELRO
 				s.Outer = symtyperel
 			} else {

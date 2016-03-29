@@ -487,6 +487,12 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 	return sections, ret
 }
 
+// reflect_resolveNameOff resolves a name offset from a base pointer.
+//go:linkname reflect_resolveNameOff reflect.resolveNameOff
+func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+}
+
 // reflect_resolveTypeOff resolves an *rtype offset from a base type.
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {

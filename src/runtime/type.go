@@ -161,11 +161,17 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 		}
 	}
 	if md == nil {
-		println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
-		for next := &firstmoduledata; next != nil; next = next.next {
-			println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
+		lock(&reflectOffs.lock)
+		res, found := reflectOffs.m[int32(off)]
+		unlock(&reflectOffs.lock)
+		if !found {
+			println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
+			for next := &firstmoduledata; next != nil; next = next.next {
+				println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
+			}
+			throw("runtime: name offset base pointer out of range")
 		}
-		throw("runtime: name offset base pointer out of range")
+		return name{(*byte)(res)}
 	}
 	res := md.types + uintptr(off)
 	if res > md.etypes {
@@ -173,6 +179,10 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 		throw("runtime: name offset out of range")
 	}
 	return name{(*byte)(unsafe.Pointer(res))}
+}
+
+func (t *_type) nameOff(off nameOff) name {
+	return resolveNameOff(unsafe.Pointer(t), off)
 }
 
 func (t *_type) typeOff(off typeOff) *_type {
@@ -269,7 +279,7 @@ type typeOff int32
 type textOff int32
 
 type method struct {
-	name name
+	name nameOff
 	mtyp typeOff
 	ifn  textOff
 	tfn  textOff
@@ -282,8 +292,8 @@ type uncommontype struct {
 }
 
 type imethod struct {
-	name  name
-	_type *_type
+	name nameOff
+	ityp typeOff
 }
 
 type interfacetype struct {
@@ -354,19 +364,19 @@ type name struct {
 	bytes *byte
 }
 
-func (n *name) data(off int) *byte {
+func (n name) data(off int) *byte {
 	return (*byte)(add(unsafe.Pointer(n.bytes), uintptr(off)))
 }
 
-func (n *name) isExported() bool {
+func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
-func (n *name) nameLen() int {
+func (n name) nameLen() int {
 	return int(uint16(*n.data(1))<<8 | uint16(*n.data(2)))
 }
 
-func (n *name) tagLen() int {
+func (n name) tagLen() int {
 	if *n.data(0)&(1<<1) == 0 {
 		return 0
 	}
@@ -374,7 +384,7 @@ func (n *name) tagLen() int {
 	return int(uint16(*n.data(off))<<8 | uint16(*n.data(off + 1)))
 }
 
-func (n *name) name() (s string) {
+func (n name) name() (s string) {
 	if n.bytes == nil {
 		return ""
 	}
@@ -388,7 +398,7 @@ func (n *name) name() (s string) {
 	return s
 }
 
-func (n *name) tag() (s string) {
+func (n name) tag() (s string) {
 	tl := n.tagLen()
 	if tl == 0 {
 		return ""
@@ -400,7 +410,7 @@ func (n *name) tag() (s string) {
 	return s
 }
 
-func (n *name) pkgPath() string {
+func (n name) pkgPath() string {
 	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
 		return ""
 	}
@@ -545,13 +555,15 @@ func typesEqual(t, v *_type) bool {
 		for i := range it.mhdr {
 			tm := &it.mhdr[i]
 			vm := &iv.mhdr[i]
-			if tm.name.name() != vm.name.name() {
+			tname := it.typ.nameOff(tm.name)
+			vname := iv.typ.nameOff(vm.name)
+			if tname.name() != vname.name() {
 				return false
 			}
-			if tm.name.pkgPath() != vm.name.pkgPath() {
+			if tname.pkgPath() != vname.pkgPath() {
 				return false
 			}
-			if !typesEqual(tm._type, vm._type) {
+			if !typesEqual(it.typ.typeOff(tm.ityp), iv.typ.typeOff(vm.ityp)) {
 				return false
 			}
 		}
