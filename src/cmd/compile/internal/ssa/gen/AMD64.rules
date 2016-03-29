@@ -1239,6 +1239,12 @@
 (CMPWconst (ANDWconst [c] x) [0]) -> (TESTWconst [c] x)
 (CMPBconst (ANDBconst [c] x) [0]) -> (TESTBconst [c] x)
 
+// TEST %reg,%reg is shorter than CMP
+(CMPQconst x [0]) -> (TESTQ x x)
+(CMPLconst x [0]) -> (TESTL x x)
+(CMPWconst x [0]) -> (TESTW x x)
+(CMPBconst x [0]) -> (TESTB x x)
+
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.

@@ -2608,6 +2608,19 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (CMPBconst x [0])
+	// cond:
+	// result: (TESTB x x)
+	for {
+		x := v.Args[0]
+		if v.AuxInt != 0 {
+			break
+		}
+		v.reset(OpAMD64TESTB)
+		v.AddArg(x)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMPL(v *Value, config *Config) bool {
@@ -2779,6 +2792,19 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value, config *Config) bool {
 		}
 		v.reset(OpAMD64TESTLconst)
 		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMPLconst x [0])
+	// cond:
+	// result: (TESTL x x)
+	for {
+		x := v.Args[0]
+		if v.AuxInt != 0 {
+			break
+		}
+		v.reset(OpAMD64TESTL)
+		v.AddArg(x)
 		v.AddArg(x)
 		return true
 	}
@@ -2962,6 +2988,19 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (CMPQconst x [0])
+	// cond:
+	// result: (TESTQ x x)
+	for {
+		x := v.Args[0]
+		if v.AuxInt != 0 {
+			break
+		}
+		v.reset(OpAMD64TESTQ)
+		v.AddArg(x)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64CMPW(v *Value, config *Config) bool {
@@ -3133,6 +3172,19 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value, config *Config) bool {
 		}
 		v.reset(OpAMD64TESTWconst)
 		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMPWconst x [0])
+	// cond:
+	// result: (TESTW x x)
+	for {
+		x := v.Args[0]
+		if v.AuxInt != 0 {
+			break
+		}
+		v.reset(OpAMD64TESTW)
+		v.AddArg(x)
 		v.AddArg(x)
 		return true
 	}
