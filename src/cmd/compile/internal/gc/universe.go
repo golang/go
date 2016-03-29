@@ -361,8 +361,7 @@ func typeinit() {
 	dowidth(Types[TSTRING])
 	dowidth(idealstring)
 
-	itable = typ(Tptr)
-	itable.Type = Types[TUINT8]
+	itable = typPtr(Types[TUINT8])
 }
 
 func lexinit1() {
