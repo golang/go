@@ -3133,9 +3133,7 @@ func (p *parser) hidden_funarg() *Node {
 		s3 := p.hidden_type()
 		s4 := p.oliteral()
 
-		t := typ(TARRAY)
-		t.Bound = -1
-		t.Type = s3
+		t := typSlice(s3)
 
 		ss := Nod(ODCLFIELD, nil, typenod(t))
 		if s1 != nil {

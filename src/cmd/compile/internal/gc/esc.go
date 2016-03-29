@@ -1494,10 +1494,8 @@ func esccall(e *EscState, n *Node, up *Node) {
 				if n2.Isddd && !n.Isddd {
 					// Introduce ODDDARG node to represent ... allocation.
 					src = Nod(ODDDARG, nil, nil)
-					src.Type = typ(TARRAY)
-					src.Type.Type = n2.Type.Type
-					src.Type.Bound = int64(len(lls))
-					src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+					arr := typArray(n2.Type.Type, int64(len(lls)))
+					src.Type = Ptrto(arr) // make pointer so it will be tracked
 					src.Lineno = n.Lineno
 					e.track(src)
 					n.Right = src
@@ -1556,10 +1554,8 @@ func esccall(e *EscState, n *Node, up *Node) {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
-			src.Type = typ(TARRAY)
-			src.Type.Type = t.Type.Type
-			src.Type.Bound = int64(len(lls) - i)
-			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+			arr := typArray(t.Type.Type, int64(len(lls)-i))
+			src.Type = Ptrto(arr) // make pointer so it will be tracked
 			e.track(src)
 			n.Right = src
 		}

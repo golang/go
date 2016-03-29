@@ -93,19 +93,12 @@ func mapbucket(t *Type) *Type {
 	}
 
 	// The first field is: uint8 topbits[BUCKETSIZE].
-	arr := typ(TARRAY)
-
-	arr.Type = Types[TUINT8]
-	arr.Bound = BUCKETSIZE
+	arr := typArray(Types[TUINT8], BUCKETSIZE)
 	field := make([]*Field, 0, 5)
 	field = append(field, makefield("topbits", arr))
-	arr = typ(TARRAY)
-	arr.Type = keytype
-	arr.Bound = BUCKETSIZE
+	arr = typArray(keytype, BUCKETSIZE)
 	field = append(field, makefield("keys", arr))
-	arr = typ(TARRAY)
-	arr.Type = valtype
-	arr.Bound = BUCKETSIZE
+	arr = typArray(valtype, BUCKETSIZE)
 	field = append(field, makefield("values", arr))
 
 	// Make sure the overflow pointer is the last memory in the struct,
@@ -1124,10 +1117,7 @@ ok:
 		if t.Bound >= 0 {
 			// ../../../../runtime/type.go:/arrayType
 			s1 := dtypesym(t.Type)
-
-			t2 := typ(TARRAY)
-			t2.Type = t.Type
-			t2.Bound = -1 // slice
+			t2 := typSlice(t.Type)
 			s2 := dtypesym(t2)
 			ot = dcommontype(s, ot, t)
 			ot = dsymptr(s, ot, s1, 0)

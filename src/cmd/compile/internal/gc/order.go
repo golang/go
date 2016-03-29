@@ -1005,9 +1005,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		orderexprlist(n.List, order)
 
 		if n.List.Len() > 5 {
-			t := typ(TARRAY)
-			t.Bound = int64(n.List.Len())
-			t.Type = Types[TSTRING]
+			t := typArray(Types[TSTRING], int64(n.List.Len()))
 			prealloc[n] = ordertemp(t, order, false)
 		}
 
