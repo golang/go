@@ -1478,17 +1478,16 @@ func esccall(e *EscState, n *Node, up *Node) {
 		lls := ll.Slice()
 		sawRcvr := false
 		var src *Node
-	DclLoop:
 		for _, n2 := range fn.Name.Defn.Func.Dcl {
 			switch n2.Class {
 			case PPARAM:
 				if n.Op != OCALLFUNC && !sawRcvr {
 					escassignNilWhy(e, n2, n.Left.Left, "call receiver")
 					sawRcvr = true
-					continue DclLoop
+					continue
 				}
 				if len(lls) == 0 {
-					continue DclLoop
+					continue
 				}
 				src = lls[0]
 				if n2.Isddd && !n.Isddd {
@@ -1502,21 +1501,23 @@ func esccall(e *EscState, n *Node, up *Node) {
 				}
 				escassignNilWhy(e, n2, src, "arg to recursive call")
 				if src != lls[0] {
-					break DclLoop
+					// "..." arguments are untracked
+					for _, n2 := range lls {
+						if Debug['m'] > 3 {
+							fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
+						}
+						escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
+					}
+					// No more PPARAM processing, but keep
+					// going for PPARAMOUT.
+					lls = nil
+					continue
 				}
 				lls = lls[1:]
 
 			case PPARAMOUT:
 				nE.Escretval.Append(n2)
 			}
-		}
-
-		// "..." arguments are untracked
-		for _, n2 := range lls {
-			if Debug['m'] > 3 {
-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
-			}
-			escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
 		}
 
 		return
