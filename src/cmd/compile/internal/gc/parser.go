@@ -3050,9 +3050,7 @@ func (p *parser) hidden_type_misc() *Type {
 		default:
 			// LCHAN hidden_type_non_recv_chan
 			s2 := p.hidden_type_non_recv_chan()
-			ss := typ(TCHAN)
-			ss.Type = s2
-			ss.Chan = Cboth
+			ss := typeChan(s2, Cboth)
 			return ss
 
 		case '(':
@@ -3060,18 +3058,14 @@ func (p *parser) hidden_type_misc() *Type {
 			p.next()
 			s3 := p.hidden_type_recv_chan()
 			p.want(')')
-			ss := typ(TCHAN)
-			ss.Type = s3
-			ss.Chan = Cboth
+			ss := typeChan(s3, Cboth)
 			return ss
 
 		case LCOMM:
 			// LCHAN hidden_type
 			p.next()
 			s3 := p.hidden_type()
-			ss := typ(TCHAN)
-			ss.Type = s3
-			ss.Chan = Csend
+			ss := typeChan(s3, Csend)
 			return ss
 		}
 
@@ -3090,9 +3084,7 @@ func (p *parser) hidden_type_recv_chan() *Type {
 	p.want(LCHAN)
 	s3 := p.hidden_type()
 
-	ss := typ(TCHAN)
-	ss.Type = s3
-	ss.Chan = Crecv
+	ss := typeChan(s3, Crecv)
 	return ss
 }
 

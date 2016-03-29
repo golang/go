@@ -259,6 +259,14 @@ func typeDDDArray(elem *Type) *Type {
 	return t
 }
 
+// typeChan returns a new chan Type with direction dir.
+func typeChan(elem *Type, dir uint8) *Type {
+	t := typ(TCHAN)
+	t.Type = elem
+	t.Chan = dir
+	return t
+}
+
 func newField() *Field {
 	return &Field{
 		Offset: BADWIDTH,
