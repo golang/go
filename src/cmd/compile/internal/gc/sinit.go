@@ -859,7 +859,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	if b != 0 {
 		// build type [count]struct { a Tindex, b Tvalue }
 		t := n.Type
-		tk := t.Down
+		tk := t.Key()
 		tv := t.Type
 
 		syma := Lookup("a")
