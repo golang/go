@@ -37,7 +37,8 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if canfail {
 			return nil
 		}
-		panic(&TypeAssertionError{"", typ._string, inter.typ._string, inter.mhdr[0].name.name()})
+		name := inter.typ.nameOff(inter.mhdr[0].name)
+		panic(&TypeAssertionError{"", typ._string, inter.typ._string, name.name()})
 	}
 
 	h := itabhash(inter, typ)
@@ -98,20 +99,22 @@ func additab(m *itab, locked, canfail bool) {
 	j := 0
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
-		iname := i.name.name()
-		itype := i._type
-		ipkg := i.name.pkgPath()
+		itype := inter.typ.typeOff(i.ityp)
+		name := inter.typ.nameOff(i.name)
+		iname := name.name()
+		ipkg := name.pkgPath()
 		if ipkg == "" {
 			ipkg = inter.pkgpath.name()
 		}
 		for ; j < nt; j++ {
 			t := &xmhdr[j]
-			if typ.typeOff(t.mtyp) == itype && t.name.name() == iname {
-				pkgPath := t.name.pkgPath()
+			tname := typ.nameOff(t.name)
+			if typ.typeOff(t.mtyp) == itype && tname.name() == iname {
+				pkgPath := tname.pkgPath()
 				if pkgPath == "" {
 					pkgPath = x.pkgpath.name()
 				}
-				if t.name.isExported() || pkgPath == ipkg {
+				if tname.isExported() || pkgPath == ipkg {
 					if m != nil {
 						ifn := typ.textOff(t.ifn)
 						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn

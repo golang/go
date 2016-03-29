@@ -553,7 +553,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		if !m.name.isExported() {
+		if !tt.nameOff(m.name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		iface := (*nonEmptyInterface)(v.ptr)
@@ -562,7 +562,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 		}
 		rcvrtype = iface.itab.typ
 		fn = unsafe.Pointer(&iface.itab.fun[i])
-		t = m.typ
+		t = tt.typeOff(m.typ)
 	} else {
 		rcvrtype = v.typ
 		ut := v.typ.uncommon()
@@ -570,7 +570,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := ut.methods()[i]
-		if !m.name.isExported() {
+		if !v.typ.nameOff(m.name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		ifn := v.typ.textOff(m.ifn)
@@ -1684,7 +1684,7 @@ func (v Value) Type() Type {
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		return m.typ
+		return v.typ.typeOff(m.typ)
 	}
 	// Method on concrete type.
 	ut := v.typ.uncommon()

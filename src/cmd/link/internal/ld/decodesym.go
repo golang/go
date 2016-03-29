@@ -262,8 +262,9 @@ const (
 )
 
 // decode_methodsig decodes an array of method signature information.
-// Each element of the array is size bytes. The first word is a
-// reflect.name for the name, the second word is a *rtype for the funcType.
+// Each element of the array is size bytes. The first 4 bytes is a
+// nameOff for the method name, and the next 4 bytes is a typeOff for
+// the function type.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
 func decode_methodsig(s *LSym, off, size, count int) []methodsig {
@@ -271,7 +272,7 @@ func decode_methodsig(s *LSym, off, size, count int) []methodsig {
 	var methods []methodsig
 	for i := 0; i < count; i++ {
 		buf.WriteString(decodetype_name(s, off))
-		mtypSym := decode_reloc_sym(s, int32(off+SysArch.PtrSize))
+		mtypSym := decode_reloc_sym(s, int32(off+4))
 
 		buf.WriteRune('(')
 		inCount := decodetype_funcincount(mtypSym)
@@ -311,7 +312,7 @@ func decodetype_ifacemethods(s *LSym) []methodsig {
 	}
 	off := int(r.Add) // array of reflect.imethod values
 	numMethods := int(decodetype_ifacemethodcount(s))
-	sizeofIMethod := 2 * SysArch.PtrSize
+	sizeofIMethod := 4 + 4
 	return decode_methodsig(s, off, sizeofIMethod, numMethods)
 }
 
@@ -343,12 +344,7 @@ func decodetype_methods(s *LSym) []methodsig {
 
 	mcount := int(decode_inuxi(s.P[off+SysArch.PtrSize:], 2))
 	moff := int(decode_inuxi(s.P[off+SysArch.PtrSize+2:], 2))
-	off += moff          // offset to array of reflect.method values
-	var sizeofMethod int // sizeof reflect.method in program
-	if SysArch.PtrSize == 4 {
-		sizeofMethod = 4 * SysArch.PtrSize
-	} else {
-		sizeofMethod = 3 * SysArch.PtrSize
-	}
+	off += moff                // offset to array of reflect.method values
+	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
 	return decode_methodsig(s, off, sizeofMethod, mcount)
 }
