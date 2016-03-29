@@ -244,7 +244,7 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	p.From.Sym = s
 	if flags&obj.LOCAL != 0 {
 		p.From.Sym.Local = true
-		flags &= ^obj.LOCAL
+		flags &^= obj.LOCAL
 	}
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = int64(width)

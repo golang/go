@@ -129,7 +129,7 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
 		*a |= flag
 	} else {
-		*a &= ^flag
+		*a &^= flag
 	}
 }
 
