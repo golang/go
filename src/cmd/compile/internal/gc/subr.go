@@ -1149,19 +1149,11 @@ var (
 )
 
 func initPtrto() {
-	ptrToUint8 = ptrto1(Types[TUINT8])
-	ptrToAny = ptrto1(Types[TANY])
-	ptrToString = ptrto1(Types[TSTRING])
-	ptrToBool = ptrto1(Types[TBOOL])
-	ptrToInt32 = ptrto1(Types[TINT32])
-}
-
-func ptrto1(t *Type) *Type {
-	t1 := typ(Tptr)
-	t1.Type = t
-	t1.Width = int64(Widthptr)
-	t1.Align = uint8(Widthptr)
-	return t1
+	ptrToUint8 = typPtr(Types[TUINT8])
+	ptrToAny = typPtr(Types[TANY])
+	ptrToString = typPtr(Types[TSTRING])
+	ptrToBool = typPtr(Types[TBOOL])
+	ptrToInt32 = typPtr(Types[TINT32])
 }
 
 // Ptrto returns the Type *t.
@@ -1187,7 +1179,7 @@ func Ptrto(t *Type) *Type {
 	case Types[TBOOL]:
 		return ptrToBool
 	}
-	return ptrto1(t)
+	return typPtr(t)
 }
 
 func frame(context int) {

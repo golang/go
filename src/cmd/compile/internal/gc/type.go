@@ -267,6 +267,15 @@ func typeChan(elem *Type, dir uint8) *Type {
 	return t
 }
 
+// typPtr returns a new pointer type pointing to t.
+func typPtr(elem *Type) *Type {
+	t := typ(Tptr)
+	t.Type = elem
+	t.Width = int64(Widthptr)
+	t.Align = uint8(Widthptr)
+	return t
+}
+
 // typWrapper returns a new wrapper psuedo-type.
 func typWrapper(et EType, wrapped *Type) *Type {
 	switch et {
