@@ -235,6 +235,30 @@ func typ(et EType) *Type {
 	return t
 }
 
+// typArray returns a new fixed-length array Type.
+func typArray(elem *Type, bound int64) *Type {
+	t := typ(TARRAY)
+	t.Type = elem
+	t.Bound = bound
+	return t
+}
+
+// typSlice returns a new slice Type.
+func typSlice(elem *Type) *Type {
+	t := typ(TARRAY)
+	t.Type = elem
+	t.Bound = -1
+	return t
+}
+
+// typeDDDArray returns a new [...]T array Type.
+func typeDDDArray(elem *Type) *Type {
+	t := typ(TARRAY)
+	t.Type = elem
+	t.Bound = dddBound
+	return t
+}
+
 func newField() *Field {
 	return &Field{
 		Offset: BADWIDTH,

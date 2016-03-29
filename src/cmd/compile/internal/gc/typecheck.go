@@ -330,13 +330,19 @@ OpSwitch:
 
 	case OTARRAY:
 		ok |= Etype
-		t := typ(TARRAY)
+		var t *Type
 		l := n.Left
 		r := n.Right
+		r = typecheck(r, Etype)
+		if r.Type == nil {
+			n.Type = nil
+			return n
+		}
+
 		if l == nil {
-			t.Bound = -1 // slice
+			t = typSlice(r.Type)
 		} else if l.Op == ODDD {
-			t.Bound = dddBound // to be filled in
+			t = typeDDDArray(r.Type)
 			if top&Ecomplit == 0 && n.Diag == 0 {
 				t.Broke = true
 				n.Diag = 1
@@ -363,7 +369,8 @@ OpSwitch:
 				return n
 			}
 
-			t.Bound = v.U.(*Mpint).Int64()
+			t = typArray(r.Type, v.U.(*Mpint).Int64())
+
 			if doesoverflow(v, Types[TINT]) {
 				Yyerror("array bound is too large")
 				n.Type = nil
@@ -375,12 +382,6 @@ OpSwitch:
 			}
 		}
 
-		r = typecheck(r, Etype)
-		if r.Type == nil {
-			n.Type = nil
-			return n
-		}
-		t.Type = r.Type
 		n.Op = OTYPE
 		n.Type = t
 		n.Left = nil
@@ -1128,9 +1129,7 @@ OpSwitch:
 			n.Op = OSLICESTR
 		} else if Isptr[t.Etype] && Isfixedarray(t.Type) {
 			tp = t.Type
-			n.Type = typ(TARRAY)
-			n.Type.Type = tp.Type
-			n.Type.Bound = -1
+			n.Type = typSlice(tp.Type)
 			dowidth(n.Type)
 			n.Op = OSLICEARR
 		} else if Isslice(t) {
@@ -1195,9 +1194,7 @@ OpSwitch:
 		var tp *Type
 		if Isptr[t.Etype] && Isfixedarray(t.Type) {
 			tp = t.Type
-			n.Type = typ(TARRAY)
-			n.Type.Type = tp.Type
-			n.Type.Bound = -1
+			n.Type = typSlice(tp.Type)
 			dowidth(n.Type)
 			n.Op = OSLICE3ARR
 		} else if Isslice(t) {

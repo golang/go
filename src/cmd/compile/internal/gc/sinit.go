@@ -433,10 +433,8 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		initplan(r)
 		if Isslice(r.Type) {
 			// Init slice.
-			ta := typ(TARRAY)
-
-			ta.Type = r.Type.Type
-			ta.Bound = r.Right.Val().U.(*Mpint).Int64()
+			bound := r.Right.Val().U.(*Mpint).Int64()
+			ta := typArray(r.Type.Type, bound)
 			a := staticname(ta, 1)
 			inittemps[r] = a
 			n := *l
@@ -876,9 +874,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		tstruct := typ(TSTRUCT)
 		tstruct.SetFields(fields[:])
 
-		tarr := typ(TARRAY)
-		tarr.Bound = int64(b)
-		tarr.Type = tstruct
+		tarr := typArray(tstruct, int64(b))
 
 		// TODO(josharian): suppress alg generation for these types?
 		dowidth(tarr)

@@ -1715,9 +1715,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
 		esc = ddd.Esc
 	}
 
-	tslice := typ(TARRAY)
-	tslice.Type = l.Type.Type
-	tslice.Bound = -1
+	tslice := typSlice(l.Type.Type)
 
 	var n *Node
 	if len(lr0) == 0 {
@@ -2707,9 +2705,7 @@ func addstr(n *Node, init *Nodes) *Node {
 		// large numbers of strings are passed to the runtime as a slice.
 		fn = "concatstrings"
 
-		t := typ(TARRAY)
-		t.Type = Types[TSTRING]
-		t.Bound = -1
+		t := typSlice(Types[TSTRING])
 		slice := Nod(OCOMPLIT, nil, typenod(t))
 		if prealloc[n] != nil {
 			prealloc[slice] = prealloc[n]

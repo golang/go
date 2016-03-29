@@ -483,7 +483,8 @@ func Nodbool(b bool) *Node {
 }
 
 func aindex(b *Node, t *Type) *Type {
-	bound := int64(-1) // open bound
+	hasbound := false
+	var bound int64
 	b = typecheck(b, Erv)
 	if b != nil {
 		switch consttype(b) {
@@ -491,6 +492,7 @@ func aindex(b *Node, t *Type) *Type {
 			Yyerror("array bound must be an integer expression")
 
 		case CTINT, CTRUNE:
+			hasbound = true
 			bound = b.Val().U.(*Mpint).Int64()
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
@@ -498,12 +500,10 @@ func aindex(b *Node, t *Type) *Type {
 		}
 	}
 
-	// fixed array
-	r := typ(TARRAY)
-
-	r.Type = t
-	r.Bound = bound
-	return r
+	if !hasbound {
+		return typSlice(t)
+	}
+	return typArray(t, bound)
 }
 
 // treecopy recursively copies n, with the exception of
@@ -1904,10 +1904,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		// that the interface call will pass in.
 		// Add a dummy padding argument after the
 		// receiver to make up the difference.
-		tpad := typ(TARRAY)
-
-		tpad.Type = Types[TUINT8]
-		tpad.Bound = Types[Tptr].Width - rcvr.Width
+		tpad := typArray(Types[TUINT8], Types[Tptr].Width-rcvr.Width)
 		pad := Nod(ODCLFIELD, newname(Lookup(".pad")), typenod(tpad))
 		l = append(l, pad)
 	}

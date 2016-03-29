@@ -747,11 +747,8 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			as.Right = nodnil()
 			as.Right.Type = varargtype
 		} else {
-			vararrtype := typ(TARRAY)
-			vararrtype.Type = varargtype.Type
-			vararrtype.Bound = int64(varargcount)
-
-			as.Right = Nod(OCOMPLIT, nil, typenod(varargtype))
+			vararrtype := typArray(varargtype.Type, int64(varargcount))
+			as.Right = Nod(OCOMPLIT, nil, typenod(vararrtype))
 			as.Right.List.Set(varargs)
 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
 		}
