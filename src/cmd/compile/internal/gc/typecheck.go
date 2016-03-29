@@ -413,10 +413,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		t := typ(TCHAN)
-		t.Type = l.Type
-		// TODO(marvin): Fix Node.EType type union.
-		t.Chan = uint8(n.Etype)
+		t := typeChan(l.Type, uint8(n.Etype)) // TODO(marvin): Fix Node.EType type union.
 		n.Op = OTYPE
 		n.Type = t
 		n.Left = nil
