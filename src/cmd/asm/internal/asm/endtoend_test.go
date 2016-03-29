@@ -389,3 +389,7 @@ func TestMIPS64EndToEnd(t *testing.T) {
 func TestPPC64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "ppc64", "ppc64")
 }
+
+func TestS390XEndToEnd(t *testing.T) {
+	testEndToEnd(t, "s390x", "s390x")
+}
