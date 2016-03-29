@@ -1262,13 +1262,13 @@
     (SHLQconst [56] (MOVBload [i+7] {s} p mem))) -> @x.Block (MOVQload [i] {s} p mem)
 
 (ORW              x:(MOVBloadidx1 [i]   {s} p idx mem)
-    (SHLWconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem))) -> @x.Block (MOVWload [i] {s} (ADDQ <p.Type> p idx) mem)
+    (SHLWconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem))) -> @x.Block (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
 
 (ORL (ORL (ORL
                   x:(MOVBloadidx1 [i]   {s} p idx mem)
     (SHLLconst [8]  (MOVBloadidx1 [i+1] {s} p idx mem)))
     (SHLLconst [16] (MOVBloadidx1 [i+2] {s} p idx mem)))
-    (SHLLconst [24] (MOVBloadidx1 [i+3] {s} p idx mem))) -> @x.Block (MOVLload [i] {s} (ADDQ <p.Type> p idx) mem)
+    (SHLLconst [24] (MOVBloadidx1 [i+3] {s} p idx mem))) -> @x.Block (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
 
 (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
                   x:(MOVBloadidx1 [i]   {s} p idx mem)
@@ -1278,4 +1278,4 @@
     (SHLQconst [32] (MOVBloadidx1 [i+4] {s} p idx mem)))
     (SHLQconst [40] (MOVBloadidx1 [i+5] {s} p idx mem)))
     (SHLQconst [48] (MOVBloadidx1 [i+6] {s} p idx mem)))
-    (SHLQconst [56] (MOVBloadidx1 [i+7] {s} p idx mem))) -> @x.Block (MOVQload [i] {s} (ADDQ <p.Type> p idx) mem)
+    (SHLQconst [56] (MOVBloadidx1 [i+7] {s} p idx mem))) -> @x.Block (MOVQloadidx1 <v.Type> [i] {s} p idx mem)
