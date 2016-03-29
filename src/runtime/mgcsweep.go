@@ -96,7 +96,7 @@ func sweepone() uintptr {
 			mheap_.sweepdone = 1
 			_g_.m.locks--
 			if debug.gcpacertrace > 0 && idx == uint32(len(work.spans)) {
-				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages\n")
+				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
 			}
 			return ^uintptr(0)
 		}
