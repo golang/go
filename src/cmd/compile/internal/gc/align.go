@@ -240,7 +240,7 @@ func dowidth(t *Type) {
 		if t.Type == nil {
 			break
 		}
-		if t.Bound >= 0 {
+		if t.IsArray() {
 			dowidth(t.Type)
 			if t.Type.Width != 0 {
 				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)

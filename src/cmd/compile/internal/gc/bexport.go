@@ -506,7 +506,7 @@ func (p *exporter) typ(t *Type) {
 		if t.isDDDArray() {
 			Fatalf("array bounds should be known at export time: %v", t)
 		}
-		if t.Bound >= 0 {
+		if t.IsArray() {
 			p.tag(arrayTag)
 			p.int64(t.Bound)
 		} else {

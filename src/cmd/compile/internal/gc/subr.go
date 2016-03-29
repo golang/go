@@ -583,11 +583,11 @@ func Istype(t *Type, et EType) bool {
 }
 
 func Isfixedarray(t *Type) bool {
-	return t != nil && t.Etype == TARRAY && t.Bound >= 0
+	return t != nil && t.IsArray()
 }
 
 func Isslice(t *Type) bool {
-	return t != nil && t.Etype == TARRAY && t.Bound < 0
+	return t != nil && t.IsSlice()
 }
 
 func isblank(n *Node) bool {

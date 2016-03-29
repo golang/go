@@ -586,7 +586,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		return "*" + t.Type.String()
 
 	case TARRAY:
-		if t.Bound >= 0 {
+		if t.IsArray() {
 			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
 		}
 		if t.isDDDArray() {

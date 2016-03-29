@@ -540,7 +540,7 @@ func getdyn(n *Node, top int) initGenType {
 		return initDynamic
 
 	case OARRAYLIT:
-		if top == 0 && n.Type.Bound < 0 {
+		if top == 0 && n.Type.IsSlice() {
 			return initDynamic
 		}
 
@@ -568,7 +568,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		switch value.Op {
 		case OARRAYLIT:
-			if value.Type.Bound < 0 {
+			if value.Type.IsSlice() {
 				if pass == 1 && ctxt != 0 {
 					a := NodSym(ODOT, var_, index.Sym)
 					slicelit(ctxt, value, a, init)
@@ -630,7 +630,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		switch value.Op {
 		case OARRAYLIT:
-			if value.Type.Bound < 0 {
+			if value.Type.IsSlice() {
 				if pass == 1 && ctxt != 0 {
 					a := Nod(OINDEX, var_, index)
 					slicelit(ctxt, value, a, init)
@@ -804,7 +804,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 
 		switch value.Op {
 		case OARRAYLIT:
-			if value.Type.Bound < 0 {
+			if value.Type.IsSlice() {
 				break
 			}
 			arraylit(ctxt, 2, value, a, init)
@@ -1076,7 +1076,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		if t.Etype != TARRAY {
 			Fatalf("anylit: not array")
 		}
-		if t.Bound < 0 {
+		if t.IsSlice() {
 			slicelit(ctxt, n, var_, init)
 			break
 		}
@@ -1195,7 +1195,7 @@ func stataddr(nam *Node, n *Node) bool {
 		return true
 
 	case OINDEX:
-		if n.Left.Type.Bound < 0 {
+		if n.Left.Type.IsSlice() {
 			break
 		}
 		if !stataddr(nam, n.Left) {
@@ -1384,7 +1384,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		}
 
 		// nr is the array being converted to a slice
-		if nr.Type == nil || nr.Type.Etype != TARRAY || nr.Type.Bound < 0 {
+		if nr.Type == nil || nr.Type.Etype != TARRAY || nr.Type.IsSlice() {
 			return false
 		}
 

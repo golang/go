@@ -789,6 +789,7 @@ func (t *Type) IsChan() bool {
 }
 
 func (t *Type) IsSlice() bool {
+	// TODO(josharian): Change this to t.Bound == -1.
 	return t.Etype == TARRAY && t.Bound < 0
 }
 
