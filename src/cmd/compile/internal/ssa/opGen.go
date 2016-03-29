@@ -310,8 +310,11 @@ const (
 	OpAMD64MOVOload
 	OpAMD64MOVOstore
 	OpAMD64MOVBloadidx1
+	OpAMD64MOVWloadidx1
 	OpAMD64MOVWloadidx2
+	OpAMD64MOVLloadidx1
 	OpAMD64MOVLloadidx4
+	OpAMD64MOVQloadidx1
 	OpAMD64MOVQloadidx8
 	OpAMD64MOVBstoreidx1
 	OpAMD64MOVWstoreidx2
@@ -3820,6 +3823,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVWloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVWLZX,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
 		name:    "MOVWloadidx2",
 		auxType: auxSymOff,
 		argLen:  3,
@@ -3835,10 +3853,40 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVLloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
 		name:    "MOVLloadidx4",
 		auxType: auxSymOff,
 		argLen:  3,
 		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:    "MOVQloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
