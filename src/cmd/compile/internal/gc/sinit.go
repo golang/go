@@ -45,7 +45,7 @@ func init1(n *Node, out *[]*Node) {
 	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
 		// Methods called as Type.Method(receiver, ...).
 		// Definitions for method expressions are stored in type->nname.
-		init1(n.Type.Nname, out)
+		init1(n.Type.Nname(), out)
 	}
 
 	if n.Op != ONAME {
@@ -216,7 +216,7 @@ func init2(n *Node, out *[]*Node) {
 		init2list(n.Func.Closure.Nbody, out)
 	}
 	if n.Op == ODOTMETH || n.Op == OCALLPART {
-		init2(n.Type.Nname, out)
+		init2(n.Type.Nname(), out)
 	}
 }
 

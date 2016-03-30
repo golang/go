@@ -2018,7 +2018,7 @@ func (p *parser) hidden_fndcl() *Node {
 		// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
 		// out by typecheck's lookdot as this $$.ttype. So by providing
 		// this back link here we avoid special casing there.
-		ss.Type.Nname = ss
+		ss.Type.SetNname(ss)
 		return ss
 	}
 }

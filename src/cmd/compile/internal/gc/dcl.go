@@ -875,8 +875,7 @@ func interfacefield(n *Node) *Field {
 			// right now all we need is the name list.
 			// avoids cycles for recursive interface types.
 			n.Type = typ(TINTERMETH)
-
-			n.Type.Nname = n.Right
+			n.Type.SetNname(n.Right)
 			n.Left.Type = n.Type
 			queuemethod(n)
 

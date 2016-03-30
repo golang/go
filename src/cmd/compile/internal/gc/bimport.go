@@ -261,7 +261,7 @@ func (p *importer) typ() *Type {
 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
 			// out by typecheck's lookdot as this $$.ttype. So by providing
 			// this back link here we avoid special casing there.
-			n.Type.Nname = n
+			n.Type.SetNname(n)
 
 			// parser.go:hidden_import
 			n.Func.Inl.Set(nil)

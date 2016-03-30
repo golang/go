@@ -144,7 +144,7 @@ func caninl(fn *Node) {
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
-	fn.Type.Nname = fn.Func.Nname
+	fn.Type.SetNname(fn.Func.Nname)
 
 	if Debug['m'] > 1 {
 		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, FmtSharp), Tconv(fn.Type, FmtSharp), Hconv(fn.Func.Nname.Func.Inl, FmtSharp))
@@ -192,11 +192,11 @@ func ishairy(n *Node, budget *int) bool {
 		if n.Left.Type == nil {
 			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
 		}
-		if n.Left.Type.Nname == nil {
+		if n.Left.Type.Nname() == nil {
 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
 		}
-		if len(n.Left.Type.Nname.Func.Inl.Slice()) != 0 {
-			*budget -= int(n.Left.Type.Nname.Func.InlCost)
+		if len(n.Left.Type.Nname().Func.Inl.Slice()) != 0 {
+			*budget -= int(n.Left.Type.Nname().Func.InlCost)
 			break
 		}
 		if Debug['l'] < 4 {
@@ -471,11 +471,11 @@ func inlnode(n *Node) *Node {
 			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
 		}
 
-		if n.Left.Type.Nname == nil {
+		if n.Left.Type.Nname() == nil {
 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
 		}
 
-		n = mkinlcall(n, n.Left.Type.Nname, n.Isddd)
+		n = mkinlcall(n, n.Left.Type.Nname(), n.Isddd)
 	}
 
 	lineno = lno

@@ -255,9 +255,9 @@ func methodfunc(f *Type, receiver *Type) *Type {
 	}
 
 	t := functype(nil, in, out)
-	if f.Nname != nil {
+	if f.Nname() != nil {
 		// Link to name of original method function.
-		t.Nname = f.Nname
+		t.SetNname(f.Nname())
 	}
 
 	return t
