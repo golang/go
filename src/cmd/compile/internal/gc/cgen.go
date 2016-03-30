@@ -3469,11 +3469,7 @@ func cgen_slice(n, res *Node, wb bool) {
 		} else {
 			var ptr *Type
 			if n.Op == OSLICESTR {
-				// Yikes! Ptrto(nil)?!
-				// Prior to CL 21331, that's what this code did implicitly.
-				// Now it does it explicitly, to safely preserve old behavior.
-				// This will all be replaced by SSA anyway.
-				ptr = Ptrto(nil)
+				ptr = ptrToUint8
 			} else {
 				ptr = Ptrto(n.Type.Elem())
 			}
