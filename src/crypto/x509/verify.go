@@ -117,10 +117,16 @@ func (e UnknownAuthorityError) Error() string {
 }
 
 // SystemRootsError results when we fail to load the system root certificates.
-type SystemRootsError struct{}
+type SystemRootsError struct {
+	Err error
+}
 
-func (SystemRootsError) Error() string {
-	return "x509: failed to load system roots and no roots provided"
+func (se SystemRootsError) Error() string {
+	msg := "x509: failed to load system roots and no roots provided"
+	if se.Err != nil {
+		return msg + "; " + se.Err.Error()
+	}
+	return msg
 }
 
 // errNotParsed is returned when a certificate without ASN.1 contents is
@@ -240,7 +246,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	if opts.Roots == nil {
 		opts.Roots = systemRootsPool()
 		if opts.Roots == nil {
-			return nil, SystemRootsError{}
+			return nil, SystemRootsError{systemRootsErr}
 		}
 	}
 
