@@ -479,12 +479,17 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		break
 
 	case OCLOSURE:
-		if len(r.Func.Cvars.Slice()) == 0 {
+		if hasemptycvars(r) {
+			if Debug_closure > 0 {
+				Warnl(r.Lineno, "closure converted to global")
+			}
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			n := *l
 			gdata(&n, r.Func.Closure.Func.Nname, Widthptr)
 			return true
+		} else {
+			closuredebugruntimecheck(r)
 		}
 	}
 

@@ -397,10 +397,42 @@ func transformclosure(xfunc *Node) {
 	lineno = lno
 }
 
+// hasemptycvars returns true iff closure func_ has an
+// empty list of captured vars. OXXX nodes don't count.
+func hasemptycvars(func_ *Node) bool {
+	for _, v := range func_.Func.Cvars.Slice() {
+		if v.Op == OXXX {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// closuredebugruntimecheck applies boilerplate checks for debug flags
+// and compiling runtime
+func closuredebugruntimecheck(r *Node) {
+	if Debug_closure > 0 {
+		if r.Esc == EscHeap {
+			Warnl(r.Lineno, "heap closure, captured vars = %v", r.Func.Cvars)
+		} else {
+			Warnl(r.Lineno, "stack closure, captured vars = %v", r.Func.Cvars)
+		}
+	}
+	if compiling_runtime > 0 && r.Esc == EscHeap {
+		yyerrorl(r.Lineno, "heap-allocated closure, not allowed in runtime.")
+	}
+}
+
 func walkclosure(func_ *Node, init *Nodes) *Node {
 	// If no closure vars, don't bother wrapping.
-	if len(func_.Func.Cvars.Slice()) == 0 {
+	if hasemptycvars(func_) {
+		if Debug_closure > 0 {
+			Warnl(func_.Lineno, "closure converted to global")
+		}
 		return func_.Func.Closure.Func.Nname
+	} else {
+		closuredebugruntimecheck(func_)
 	}
 
 	// Create closure in the form of a composite literal.
