@@ -38,7 +38,7 @@ func fnpkg(fn *Node) *Pkg {
 		// method
 		rcvr := fn.Type.Recv().Type
 
-		if Isptr[rcvr.Etype] {
+		if rcvr.IsPtr() {
 			rcvr = rcvr.Elem()
 		}
 		if rcvr.Sym == nil {

@@ -277,12 +277,10 @@ var asmhdr string
 var Simtype [NTYPE]EType
 
 var (
-	Isptr     [NTYPE]bool
 	isforw    [NTYPE]bool
 	Isint     [NTYPE]bool
 	Isfloat   [NTYPE]bool
 	Iscomplex [NTYPE]bool
-	Issigned  [NTYPE]bool
 	issimple  [NTYPE]bool
 )
 

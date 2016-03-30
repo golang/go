@@ -635,7 +635,7 @@ func (p *exporter) fieldName(t *Field) {
 
 func basetypeName(t *Type) string {
 	s := t.Sym
-	if s == nil && Isptr[t.Etype] {
+	if s == nil && t.IsPtr() {
 		s = t.Elem().Sym // deref
 	}
 	if s != nil {

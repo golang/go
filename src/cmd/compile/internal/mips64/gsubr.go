@@ -88,11 +88,11 @@ func ginsbranch(as obj.As, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if !gc.Isfloat[t.Etype] && (op == gc.OLT || op == gc.OGE) {
+	if !t.IsFloat() && (op == gc.OLT || op == gc.OGE) {
 		// swap nodes to fit SGT instruction
 		n1, n2 = n2, n1
 	}
-	if gc.Isfloat[t.Etype] && (op == gc.OLT || op == gc.OLE) {
+	if t.IsFloat() && (op == gc.OLT || op == gc.OLE) {
 		// swap nodes to fit CMPGT, CMPGE instructions and reverse relation
 		n1, n2 = n2, n1
 		if op == gc.OLT {

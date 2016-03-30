@@ -1078,7 +1078,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 			nodl.Type = t
 			nodl.Xoffset = lbase + offset
 			nodr.Type = t
-			if Isfloat[t.Etype] {
+			if t.IsFloat() {
 				// TODO(rsc): Cache zero register like we do for integers?
 				Clearslim(&nodl)
 			} else {

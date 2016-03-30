@@ -138,7 +138,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t0 := t
 
 	if t.Width < 8 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT64]
 		} else {
 			t = gc.Types[gc.TUINT64]
@@ -234,7 +234,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	case gc.TINT64,
 		gc.TUINT64:
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			gins3(mips.AMULV, &n2, &n1, nil)
 		} else {
 			gins3(mips.AMULVU, &n2, &n1, nil)
@@ -330,7 +330,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins3(mips.ASGTU, &n3, &n1, &rtmp)
 		p1 := ginsbranch(mips.ABNE, nil, &rtmp, nil, 0)
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
 		} else {

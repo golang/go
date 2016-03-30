@@ -715,14 +715,14 @@ func checkembeddedtype(t *Type) {
 		return
 	}
 
-	if t.Sym == nil && Isptr[t.Etype] {
+	if t.Sym == nil && t.IsPtr() {
 		t = t.Elem()
 		if t.IsInterface() {
 			Yyerror("embedded type cannot be a pointer to interface")
 		}
 	}
 
-	if Isptr[t.Etype] {
+	if t.IsPtr() {
 		Yyerror("embedded type cannot be a pointer")
 	} else if t.Etype == TFORW && t.Embedlineno == 0 {
 		t.Embedlineno = lineno
@@ -1017,7 +1017,7 @@ func isifacemethod(f *Type) bool {
 		return false
 	}
 	t := rcvr.Type
-	if !Isptr[t.Etype] {
+	if !t.IsPtr() {
 		return false
 	}
 	t = t.Elem()
@@ -1075,7 +1075,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		goto bad
 	}
 	s = t.Sym
-	if s == nil && Isptr[t.Etype] {
+	if s == nil && t.IsPtr() {
 		t = t.Elem()
 		if t == nil {
 			goto bad
@@ -1103,13 +1103,13 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	}
 
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
-		if t0.Sym == nil && Isptr[t0.Etype] {
+		if t0.Sym == nil && t0.IsPtr() {
 			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		}
 	} else {
-		if t0.Sym == nil && Isptr[t0.Etype] {
+		if t0.Sym == nil && t0.IsPtr() {
 			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
@@ -1192,7 +1192,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 			return
 		}
 		if t != nil {
-			if Isptr[t.Etype] {
+			if t.IsPtr() {
 				if t.Sym != nil {
 					Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 					return
@@ -1209,7 +1209,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 				return
 			}
 
-			if Isptr[t.Etype] {
+			if t.IsPtr() {
 				Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return
 			}

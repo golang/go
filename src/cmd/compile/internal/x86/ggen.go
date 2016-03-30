@@ -201,7 +201,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
 
 	t0 := t
 	check := false
-	if gc.Issigned[t.Etype] {
+	if t.IsSigned() {
 		check = true
 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -1<<uint64(t.Width*8-1) {
 			check = false
@@ -211,7 +211,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
 	}
 
 	if t.Width < 4 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT32]
 		} else {
 			t = gc.Types[gc.TUINT32]
@@ -285,7 +285,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
 		gc.Patch(p1, gc.Pc)
 	}
 
-	if !gc.Issigned[t.Etype] {
+	if !t.IsSigned() {
 		var nz gc.Node
 		gc.Nodconst(&nz, t, 0)
 		gmove(&nz, dx)
@@ -341,7 +341,7 @@ func cgen_div(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	var t *gc.Type
-	if gc.Issigned[nl.Type.Etype] {
+	if nl.Type.IsSigned() {
 		t = gc.Types[gc.TINT32]
 	} else {
 		t = gc.Types[gc.TUINT32]
@@ -459,7 +459,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 			p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		}
 
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gins(a, ncon(uint32(w)-1), &n2)
 		} else {
 			gmove(ncon(0), &n2)
@@ -494,7 +494,7 @@ func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 	// copy from byte to full registers
 	t := gc.Types[gc.TUINT32]
 
-	if gc.Issigned[nl.Type.Etype] {
+	if nl.Type.IsSigned() {
 		t = gc.Types[gc.TINT32]
 	}
 

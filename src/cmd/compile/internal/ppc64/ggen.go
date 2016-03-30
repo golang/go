@@ -136,7 +136,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	t0 := t
 	check := false
-	if gc.Issigned[t.Etype] {
+	if t.IsSigned() {
 		check = true
 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
 			check = false
@@ -146,7 +146,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	if t.Width < 8 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT64]
 		} else {
 			t = gc.Types[gc.TUINT64]
@@ -276,7 +276,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	case gc.TINT64,
 		gc.TUINT64:
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			gins(ppc64.AMULHD, &n2, &n1)
 		} else {
 			gins(ppc64.AMULHDU, &n2, &n1)
@@ -367,7 +367,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
 		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
 		} else {

@@ -489,7 +489,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth, FmtLeft))
 	}
 	basetype := rcvrtype
-	if Isptr[rcvrtype.Etype] {
+	if rcvrtype.IsPtr() {
 		basetype = basetype.Elem()
 	}
 	if !basetype.IsInterface() && basetype.Sym == nil {
@@ -582,7 +582,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	ptr.Xoffset = 0
 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
 	var body []*Node
-	if Isptr[rcvrtype.Etype] || rcvrtype.IsInterface() {
+	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
 		ptr.Name.Param.Ntype = typenod(rcvrtype)
 		body = append(body, Nod(OAS, ptr, cv))
 	} else {

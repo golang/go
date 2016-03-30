@@ -162,7 +162,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 		if t != nil && t.Etype == TIDEAL && n.Val().Ctype() != CTINT {
 			n.SetVal(toint(n.Val()))
 		}
-		if t != nil && !Isint[t.Etype] {
+		if t != nil && !t.IsInteger() {
 			Yyerror("invalid operation: %v (shift of type %v)", n, t)
 			t = nil
 		}
@@ -421,7 +421,7 @@ func toint(v Val) Val {
 func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
-		if !Isint[t.Etype] {
+		if !t.IsInteger() {
 			Fatalf("overflow: %v integer constant", t)
 		}
 		if v.U.(*Mpint).Cmp(Minintval[t.Etype]) < 0 || v.U.(*Mpint).Cmp(Maxintval[t.Etype]) > 0 {
@@ -429,7 +429,7 @@ func doesoverflow(v Val, t *Type) bool {
 		}
 
 	case CTFLT:
-		if !Isfloat[t.Etype] {
+		if !t.IsFloat() {
 			Fatalf("overflow: %v floating-point constant", t)
 		}
 		if v.U.(*Mpflt).Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpflt).Cmp(maxfltval[t.Etype]) >= 0 {
@@ -437,7 +437,7 @@ func doesoverflow(v Val, t *Type) bool {
 		}
 
 	case CTCPLX:
-		if !Iscomplex[t.Etype] {
+		if !t.IsComplex() {
 			Fatalf("overflow: %v complex constant", t)
 		}
 		if v.U.(*Mpcplx).Real.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Real.Cmp(maxfltval[t.Etype]) >= 0 || v.U.(*Mpcplx).Imag.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Imag.Cmp(maxfltval[t.Etype]) >= 0 {
@@ -773,7 +773,7 @@ func evconst(n *Node) {
 		nr = defaultlit(nr, Types[TUINT])
 
 		n.Right = nr
-		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
+		if nr.Type != nil && (nr.Type.IsSigned() || !nr.Type.IsInteger()) {
 			goto illegal
 		}
 		if nl.Val().Ctype() != CTRUNE {
@@ -1332,13 +1332,13 @@ num:
 	// in the case of an untyped non-constant value, like 1<<i.
 	v1 := n.Val()
 	if t != nil {
-		if Isint[t.Etype] {
+		if t.IsInteger() {
 			t1 = t
 			v1 = toint(n.Val())
-		} else if Isfloat[t.Etype] {
+		} else if t.IsFloat() {
 			t1 = t
 			v1 = toflt(n.Val())
-		} else if Iscomplex[t.Etype] {
+		} else if t.IsComplex() {
 			t1 = t
 			v1 = tocplx(n.Val())
 		}
@@ -1683,7 +1683,7 @@ func isgoconst(n *Node) bool {
 		// function calls or channel receive operations.
 		t := l.Type
 
-		if t != nil && Isptr[t.Etype] {
+		if t != nil && t.IsPtr() {
 			t = t.Elem()
 		}
 		if t != nil && t.IsArray() && !hascallchan(l) {

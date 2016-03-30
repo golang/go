@@ -460,7 +460,7 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Val().U.(*Mpint).SetInt64(v)
 	n.Type = t
 
-	if Isfloat[t.Etype] {
+	if t.IsFloat() {
 		Fatalf("nodconst: bad type %v", t)
 	}
 }
@@ -562,7 +562,7 @@ func isptrto(t *Type, et EType) bool {
 	if t == nil {
 		return false
 	}
-	if !Isptr[t.Etype] {
+	if !t.IsPtr() {
 		return false
 	}
 	t = t.Elem()
@@ -617,7 +617,7 @@ func methtype(t *Type, mustname int) *Type {
 	}
 
 	// strip away pointer if it's there
-	if Isptr[t.Etype] {
+	if t.IsPtr() {
 		if t.Sym != nil {
 			return nil
 		}
@@ -947,14 +947,14 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 3. src and dst are unnamed pointer types
 	// and their base types have identical underlying types.
-	if Isptr[src.Etype] && Isptr[dst.Etype] && src.Sym == nil && dst.Sym == nil {
+	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
 		if Eqtype(src.Elem().Orig, dst.Elem().Orig) {
 			return OCONVNOP
 		}
 	}
 
 	// 4. src and dst are both integer or floating point types.
-	if (Isint[src.Etype] || Isfloat[src.Etype]) && (Isint[dst.Etype] || Isfloat[dst.Etype]) {
+	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
 		if Simtype[src.Etype] == Simtype[dst.Etype] {
 			return OCONVNOP
 		}
@@ -962,7 +962,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	}
 
 	// 5. src and dst are both complex types.
-	if Iscomplex[src.Etype] && Iscomplex[dst.Etype] {
+	if src.IsComplex() && dst.IsComplex() {
 		if Simtype[src.Etype] == Simtype[dst.Etype] {
 			return OCONVNOP
 		}
@@ -971,7 +971,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 6. src is an integer or has type []byte or []rune
 	// and dst is a string type.
-	if Isint[src.Etype] && dst.IsString() {
+	if src.IsInteger() && dst.IsString() {
 		return ORUNESTR
 	}
 
@@ -996,12 +996,12 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	}
 
 	// 8. src is a pointer or uintptr and dst is unsafe.Pointer.
-	if (Isptr[src.Etype] || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
+	if (src.IsPtr() || src.Etype == TUINTPTR) && dst.Etype == TUNSAFEPTR {
 		return OCONVNOP
 	}
 
 	// 9. src is unsafe.Pointer and dst is a pointer or uintptr.
-	if src.Etype == TUNSAFEPTR && (Isptr[dst.Etype] || dst.Etype == TUINTPTR) {
+	if src.Etype == TUNSAFEPTR && (dst.IsPtr() || dst.Etype == TUINTPTR) {
 		return OCONVNOP
 	}
 
@@ -1265,7 +1265,7 @@ func badtype(op Op, tl *Type, tr *Type) {
 	}
 
 	// common mistake: *struct and *interface.
-	if tl != nil && tr != nil && Isptr[tl.Etype] && Isptr[tr.Etype] {
+	if tl != nil && tr != nil && tl.IsPtr() && tr.IsPtr() {
 		if tl.Elem().IsStruct() && tr.Elem().IsInterface() {
 			fmt_ += "\n\t(*struct vs *interface)"
 		} else if tl.Elem().IsInterface() && tr.Elem().IsStruct() {
@@ -1432,7 +1432,7 @@ var dotlist = make([]Dlist, 10)
 // (if save is not nil).
 func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 	u := t
-	if Isptr[u.Etype] {
+	if u.IsPtr() {
 		u = u.Elem()
 	}
 
@@ -1488,7 +1488,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
 	}
 
 	u = t
-	if Isptr[u.Etype] {
+	if u.IsPtr() {
 		u = u.Elem()
 	}
 	if !u.IsStruct() && !u.IsInterface() {
@@ -1597,7 +1597,7 @@ var slist []Symlink
 
 func expand0(t *Type, followptr bool) {
 	u := t
-	if Isptr[u.Etype] {
+	if u.IsPtr() {
 		followptr = true
 		u = u.Elem()
 	}
@@ -1637,7 +1637,7 @@ func expand1(t *Type, top, followptr bool) {
 	}
 
 	u := t
-	if Isptr[u.Etype] {
+	if u.IsPtr() {
 		followptr = true
 		u = u.Elem()
 	}
@@ -1814,7 +1814,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	methodrcvr := method.Type.Recv().Type
 
 	// generate nil pointer check for better error
-	if Isptr[rcvr.Etype] && rcvr.Elem() == methodrcvr {
+	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
 		n := Nod(OIF, nil, nil)
 
@@ -1840,11 +1840,11 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
 
 	// generate call
-	if !instrumenting && Isptr[rcvr.Etype] && Isptr[methodrcvr.Etype] && method.Embedded != 0 && !isifacemethod(method.Type) {
+	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		dot = dot.Left // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
-		if !Isptr[dotlist[0].field.Type.Etype] {
+		if !dotlist[0].field.Type.IsPtr() {
 			dot = Nod(OADDR, dot, nil)
 		}
 		as := Nod(OAS, this.Left, Nod(OCONVNOP, dot, nil))
@@ -1877,7 +1877,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	testdclstack()
 
 	// wrappers where T is anonymous (struct or interface) can be duplicated.
-	if rcvr.IsStruct() || rcvr.IsInterface() || Isptr[rcvr.Etype] && rcvr.Elem().IsStruct() {
+	if rcvr.IsStruct() || rcvr.IsInterface() || rcvr.IsPtr() && rcvr.Elem().IsStruct() {
 		fn.Func.Dupok = true
 	}
 	fn = typecheck(fn, Etop)
@@ -1922,7 +1922,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
 	}
 
 	for _, d := range path {
-		if Isptr[d.field.Type.Etype] {
+		if d.field.Type.IsPtr() {
 			*followptr = true
 			break
 		}
@@ -1994,7 +1994,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 		// the method does not exist for value types.
 		rcvr := tm.Type.Recv().Type
 
-		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
+		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
 				Yyerror("interface pointer mismatch")
 			}
@@ -2056,7 +2056,7 @@ func powtwo(n *Node) int {
 	if n == nil || n.Op != OLITERAL || n.Type == nil {
 		return -1
 	}
-	if !Isint[n.Type.Etype] {
+	if !n.Type.IsInteger() {
 		return -1
 	}
 
@@ -2069,7 +2069,7 @@ func powtwo(n *Node) int {
 		b = b << 1
 	}
 
-	if !Issigned[n.Type.Etype] {
+	if !n.Type.IsSigned() {
 		return -1
 	}
 
