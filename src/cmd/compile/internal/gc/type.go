@@ -209,10 +209,13 @@ func (f *Fields) Slice() []*Field {
 // Set sets f to a slice.
 // This takes ownership of the slice.
 func (f *Fields) Set(s []*Field) {
-	if len(s) != 0 {
-		f.s = &s
-	} else {
+	if len(s) == 0 {
 		f.s = nil
+	} else {
+		// Copy s and take address of t rather than s to avoid
+		// allocation in the case where len(s) == 0.
+		t := s
+		f.s = &t
 	}
 }
 
