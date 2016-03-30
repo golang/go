@@ -819,15 +819,13 @@ func tostruct0(t *Type, l []*Node) {
 
 	var fields []*Field
 	for _, n := range l {
-		fields = append(fields, structfield(n))
-	}
-	t.SetFields(fields)
-
-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+		f := structfield(n)
 		if f.Broke {
 			t.Broke = true
 		}
+		fields = append(fields, f)
 	}
+	t.SetFields(fields)
 
 	checkdupfields("field", t)
 
@@ -849,17 +847,12 @@ func tofunargs(l []*Node) *Type {
 		if n.Left != nil && n.Left.Class == PPARAM {
 			n.Left.Name.Param.Field = f
 		}
-
-		fields = append(fields, f)
-	}
-	t.SetFields(fields)
-
-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
 			t.Broke = true
 		}
+		fields = append(fields, f)
 	}
-
+	t.SetFields(fields)
 	return t
 }
 
