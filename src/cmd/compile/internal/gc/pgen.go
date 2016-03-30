@@ -318,7 +318,7 @@ func Cgen_checknil(n *Node) {
 	}
 
 	// Ideally we wouldn't see any integer types here, but we do.
-	if n.Type == nil || (!Isptr[n.Type.Etype] && !Isint[n.Type.Etype] && n.Type.Etype != TUNSAFEPTR) {
+	if n.Type == nil || (!n.Type.IsPtr() && !n.Type.IsInteger() && n.Type.Etype != TUNSAFEPTR) {
 		Dump("checknil", n)
 		Fatalf("bad checknil")
 	}

@@ -625,7 +625,7 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if gc.Isint[t.Etype] || t.Etype == gc.Tptr {
+	if t.IsInteger() || t.Etype == gc.Tptr {
 		if (n1.Op == gc.OLITERAL || n1.Op == gc.OADDR && n1.Left.Op == gc.ONAME) && n2.Op != gc.OLITERAL {
 			// Reverse comparison to place constant (including address constant) last.
 			op = gc.Brrev(op)
@@ -651,7 +651,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 		gc.Cgen(n1, &g1)
 		gmove(&g1, &r1)
 	}
-	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
+	if n2.Op == gc.OLITERAL && t.IsInteger() || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
 		r2 = *n2
 	} else {
 		gc.Regalloc(&r2, t, n2)

@@ -361,7 +361,7 @@ func (p *importer) field() *Node {
 	} else {
 		// anonymous field - typ must be T or *T and T must be a type name
 		s := typ.Sym
-		if s == nil && Isptr[typ.Etype] {
+		if s == nil && typ.IsPtr() {
 			s = typ.Type.Sym // deref
 		}
 		pkg := importpkg
@@ -491,7 +491,7 @@ func (p *importer) value(typ *Type) (x Val) {
 	case floatTag:
 		f := newMpflt()
 		p.float(f)
-		if typ == idealint || Isint[typ.Etype] {
+		if typ == idealint || typ.IsInteger() {
 			// uncommon case: large int encoded as float
 			u := new(Mpint)
 			u.SetFloat(f)

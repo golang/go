@@ -229,20 +229,20 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
 	n.SetVal(Val{fval})
 	n.Type = t
 
-	if !Isfloat[t.Etype] {
+	if !t.IsFloat() {
 		Fatalf("nodfconst: bad type %v", t)
 	}
 }
 
 func Complexop(n *Node, res *Node) bool {
 	if n != nil && n.Type != nil {
-		if Iscomplex[n.Type.Etype] {
+		if n.Type.IsComplex() {
 			goto maybe
 		}
 	}
 
 	if res != nil && res.Type != nil {
-		if Iscomplex[res.Type.Etype] {
+		if res.Type.IsComplex() {
 			goto maybe
 		}
 	}

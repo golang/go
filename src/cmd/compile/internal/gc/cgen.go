@@ -127,7 +127,7 @@ func cgen_wb(n, res *Node, wb bool) {
 				f = false
 			}
 
-			if !Iscomplex[n.Type.Etype] && Ctxt.Arch.Regsize == 8 && !wb {
+			if !n.Type.IsComplex() && Ctxt.Arch.Regsize == 8 && !wb {
 				a := Thearch.Optoas(OAS, res.Type)
 				var addr obj.Addr
 				if Thearch.Sudoaddable(a, res, &addr) {
@@ -206,7 +206,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	if Ctxt.Arch.Thechar == '5' { // TODO(rsc): Maybe more often?
 		// if both are addressable, move
 		if n.Addable && res.Addable {
-			if Is64(n.Type) || Is64(res.Type) || n.Op == OREGISTER || res.Op == OREGISTER || Iscomplex[n.Type.Etype] || Iscomplex[res.Type.Etype] {
+			if Is64(n.Type) || Is64(res.Type) || n.Op == OREGISTER || res.Op == OREGISTER || n.Type.IsComplex() || res.Type.IsComplex() {
 				Thearch.Gmove(n, res)
 			} else {
 				var n1 Node
@@ -268,7 +268,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	}
 
 	// if n is sudoaddable generate addr and move
-	if Ctxt.Arch.Thechar == '5' && !Is64(n.Type) && !Is64(res.Type) && !Iscomplex[n.Type.Etype] && !Iscomplex[res.Type.Etype] {
+	if Ctxt.Arch.Thechar == '5' && !Is64(n.Type) && !Is64(res.Type) && !n.Type.IsComplex() && !res.Type.IsComplex() {
 		a := Thearch.Optoas(OAS, n.Type)
 		var addr obj.Addr
 		if Thearch.Sudoaddable(a, n, &addr) {
@@ -329,12 +329,12 @@ func cgen_wb(n, res *Node, wb bool) {
 		}
 	}
 
-	if Thearch.Cgen_float != nil && nl != nil && Isfloat[n.Type.Etype] && Isfloat[nl.Type.Etype] {
+	if Thearch.Cgen_float != nil && nl != nil && n.Type.IsFloat() && nl.Type.IsFloat() {
 		Thearch.Cgen_float(n, res)
 		return
 	}
 
-	if !Iscomplex[n.Type.Etype] && Ctxt.Arch.Regsize == 8 {
+	if !n.Type.IsComplex() && Ctxt.Arch.Regsize == 8 {
 		a := Thearch.Optoas(OAS, n.Type)
 		var addr obj.Addr
 		if Thearch.Sudoaddable(a, n, &addr) {
@@ -388,7 +388,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		return
 
 	case OMINUS:
-		if Isfloat[nl.Type.Etype] {
+		if nl.Type.IsFloat() {
 			nr = Nodintconst(-1)
 			nr = convlit(nr, n.Type)
 			a = Thearch.Optoas(OMUL, nl.Type)
@@ -470,14 +470,14 @@ func cgen_wb(n, res *Node, wb bool) {
 				Regalloc(&n1, nl.Type, res)
 				Thearch.Gmove(nl, &n1)
 			} else {
-				if n.Type.Width > int64(Widthptr) || Is64(nl.Type) || Isfloat[nl.Type.Etype] {
+				if n.Type.Width > int64(Widthptr) || Is64(nl.Type) || nl.Type.IsFloat() {
 					Tempname(&n1, nl.Type)
 				} else {
 					Regalloc(&n1, nl.Type, res)
 				}
 				Cgen(nl, &n1)
 			}
-			if n.Type.Width > int64(Widthptr) || Is64(n.Type) || Isfloat[n.Type.Etype] {
+			if n.Type.Width > int64(Widthptr) || Is64(n.Type) || n.Type.IsFloat() {
 				Tempname(&n2, n.Type)
 			} else {
 				Regalloc(&n2, n.Type, nil)
@@ -653,7 +653,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		cgen_callret(n, res)
 
 	case OMOD, ODIV:
-		if Isfloat[n.Type.Etype] || Thearch.Dodiv == nil {
+		if n.Type.IsFloat() || Thearch.Dodiv == nil {
 			a = Thearch.Optoas(n.Op, nl.Type)
 			goto abop
 		}
@@ -904,7 +904,7 @@ func Mgen(n *Node, n1 *Node, rg *Node) {
 
 	Tempname(n1, n.Type)
 	Cgen(n, n1)
-	if n.Type.Width <= int64(Widthptr) || Isfloat[n.Type.Etype] {
+	if n.Type.Width <= int64(Widthptr) || n.Type.IsFloat() {
 		n2 := *n1
 		Regalloc(n1, n.Type, rg)
 		Thearch.Gmove(&n2, n1)
@@ -1215,7 +1215,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			// i is in register n1, extend to 32 bits.
 			t := Types[TUINT32]
 
-			if Issigned[n1.Type.Etype] {
+			if n1.Type.IsSigned() {
 				t = Types[TINT32]
 			}
 
@@ -1395,7 +1395,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 		// type of the index
 		t := Types[TUINT64]
 
-		if Issigned[n1.Type.Etype] {
+		if n1.Type.IsSigned() {
 			t = Types[TINT64]
 		}
 
@@ -1690,10 +1690,10 @@ func Igen(n *Node, a *Node, res *Node) {
 	// Could do the same for slice except that we need
 	// to use the real index for the bounds checking.
 	case OINDEX:
-		if n.Left.Type.IsArray() || (Isptr[n.Left.Type.Etype] && n.Left.Left.Type.IsArray()) {
+		if n.Left.Type.IsArray() || (n.Left.Type.IsPtr() && n.Left.Left.Type.IsArray()) {
 			if Isconst(n.Right, CTINT) {
 				// Compute &a.
-				if !Isptr[n.Left.Type.Etype] {
+				if !n.Left.Type.IsPtr() {
 					Igen(n.Left, a, res)
 				} else {
 					var n1 Node
@@ -1798,7 +1798,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		Genlist(n.Ninit)
 	}
 
-	if Thearch.Bgen_float != nil && n.Left != nil && Isfloat[n.Left.Type.Etype] {
+	if Thearch.Bgen_float != nil && n.Left != nil && n.Left.Type.IsFloat() {
 		if genval {
 			bvgenjump(n, res, wantTrue, false)
 			return
@@ -1916,7 +1916,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	op := n.Op
 
 	if !wantTrue {
-		if Isfloat[nr.Type.Etype] {
+		if nr.Type.IsFloat() {
 			// Brcom is not valid on floats when NaN is involved.
 			ll := n.Ninit // avoid re-genning Ninit
 			n.Ninit.Set(nil)
@@ -1972,7 +1972,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		return
 	}
 
-	if Iscomplex[nl.Type.Etype] {
+	if nl.Type.IsComplex() {
 		complexbool(op, nl, nr, res, wantTrue, likely, to)
 		return
 	}
@@ -2044,7 +2044,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	l, r := nl, nr
 
 	// On x86, only < and <= work right with NaN; reverse if needed
-	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (op == OGT || op == OGE) {
+	if Ctxt.Arch.Thechar == '6' && nl.Type.IsFloat() && (op == OGT || op == OGE) {
 		l, r = r, l
 		op = Brrev(op)
 	}
@@ -2061,7 +2061,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 
 	// Handle floating point special cases.
 	// Note that 8g has Bgen_float and is handled above.
-	if Isfloat[nl.Type.Etype] {
+	if nl.Type.IsFloat() {
 		switch Ctxt.Arch.Thechar {
 		case '5':
 			if genval {
@@ -2195,7 +2195,7 @@ func stkof(n *Node) int64 {
 
 	case ODOT:
 		t := n.Left.Type
-		if Isptr[t.Etype] {
+		if t.IsPtr() {
 			break
 		}
 		off := stkof(n.Left)
@@ -2220,7 +2220,7 @@ func stkof(n *Node) int64 {
 
 	case OCALLMETH, OCALLINTER, OCALLFUNC:
 		t := n.Left.Type
-		if Isptr[t.Etype] {
+		if t.IsPtr() {
 			t = t.Elem()
 		}
 
@@ -2575,7 +2575,7 @@ func cgen_callret(n *Node, res *Node) {
 //	res = &return value from call.
 func cgen_aret(n *Node, res *Node) {
 	t := n.Left.Type
-	if Isptr[t.Etype] {
+	if t.IsPtr() {
 		t = t.Elem()
 	}
 

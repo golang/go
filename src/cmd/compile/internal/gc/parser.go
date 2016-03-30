@@ -3153,7 +3153,7 @@ func (p *parser) hidden_structdcl() *Node {
 		ss.SetVal(s3)
 	} else {
 		s := s2.Sym
-		if s == nil && Isptr[s2.Etype] {
+		if s == nil && s2.IsPtr() {
 			s = s2.Elem().Sym
 		}
 		pkg := importpkg

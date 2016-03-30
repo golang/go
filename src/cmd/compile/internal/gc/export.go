@@ -149,7 +149,7 @@ func reexportdep(n *Node) {
 		t := n.Left.Type
 
 		if t != Types[t.Etype] && t != idealbool && t != idealstring {
-			if Isptr[t.Etype] {
+			if t.IsPtr() {
 				t = t.Elem()
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
@@ -163,7 +163,7 @@ func reexportdep(n *Node) {
 	case OLITERAL:
 		t := n.Type
 		if t != Types[n.Type.Etype] && t != idealbool && t != idealstring {
-			if Isptr[t.Etype] {
+			if t.IsPtr() {
 				t = t.Elem()
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {

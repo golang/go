@@ -306,10 +306,10 @@ func methods(t *Type) []*Sig {
 		// method does not apply.
 		this := f.Type.Recv().Type
 
-		if Isptr[this.Etype] && this.Elem() == t {
+		if this.IsPtr() && this.Elem() == t {
 			continue
 		}
-		if Isptr[this.Etype] && !Isptr[t.Etype] && f.Embedded != 2 && !isifacemethod(f.Type) {
+		if this.IsPtr() && !t.IsPtr() && f.Embedded != 2 && !isifacemethod(f.Type) {
 			continue
 		}
 
@@ -791,7 +791,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 
 	tptr := Ptrto(t)
-	if !Isptr[t.Etype] && (t.Sym != nil || methods(tptr) != nil) {
+	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
 		sptr := dtypesym(tptr)
 		r := obj.Addrel(Linksym(s))
 		r.Off = 0
@@ -918,7 +918,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
 }
 
 func typenamesym(t *Type) *Sym {
-	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
 		Fatalf("typename %v", t)
 	}
 	s := typesym(t)
@@ -946,7 +946,7 @@ func typename(t *Type) *Node {
 }
 
 func itabname(t, itype *Type) *Node {
-	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
 		Fatalf("itabname %v", t)
 	}
 	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
@@ -1091,7 +1091,7 @@ func dtypesym(t *Type) *Sym {
 	// emit the type structures for int, float, etc.
 	tbase := t
 
-	if Isptr[t.Etype] && t.Sym == nil && t.Elem().Sym != nil {
+	if t.IsPtr() && t.Sym == nil && t.Elem().Sym != nil {
 		tbase = t.Elem()
 	}
 	dupok := 0

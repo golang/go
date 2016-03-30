@@ -375,11 +375,11 @@ func ordercall(n *Node, order *Order) {
 			}
 			if t.Note != nil && *t.Note == unsafeUintptrTag {
 				xp := n.List.Addr(i)
-				for (*xp).Op == OCONVNOP && !Isptr[(*xp).Type.Etype] {
+				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
 					xp = &(*xp).Left
 				}
 				x := *xp
-				if Isptr[x.Type.Etype] {
+				if x.Type.IsPtr() {
 					x = ordercopyexpr(x, x.Type, order, 0)
 					x.Name.Keepalive = true
 					*xp = x

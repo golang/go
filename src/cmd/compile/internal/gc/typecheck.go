@@ -360,7 +360,7 @@ OpSwitch:
 				v = toint(l.Val())
 
 			default:
-				if l.Type != nil && Isint[l.Type.Etype] && l.Op != OLITERAL {
+				if l.Type != nil && l.Type.IsInteger() && l.Op != OLITERAL {
 					Yyerror("non-constant array bound %v", l)
 				} else {
 					Yyerror("invalid array bound %v", l)
@@ -473,7 +473,7 @@ OpSwitch:
 			break OpSwitch
 		}
 
-		if !Isptr[t.Etype] {
+		if !t.IsPtr() {
 			if top&(Erv|Etop) != 0 {
 				Yyerror("invalid indirect of %v", Nconv(n.Left, FmtLong))
 				n.Type = nil
@@ -546,14 +546,14 @@ OpSwitch:
 			r = defaultlit(r, Types[TUINT])
 			n.Right = r
 			t := r.Type
-			if !Isint[t.Etype] || Issigned[t.Etype] {
+			if !t.IsInteger() || t.IsSigned() {
 				Yyerror("invalid operation: %v (shift count type %v, must be unsigned integer)", n, r.Type)
 				n.Type = nil
 				return n
 			}
 
 			t = l.Type
-			if t != nil && t.Etype != TIDEAL && !Isint[t.Etype] {
+			if t != nil && t.Etype != TIDEAL && !t.IsInteger() {
 				Yyerror("invalid operation: %v (shift of type %v)", n, t)
 				n.Type = nil
 				return n
@@ -864,7 +864,7 @@ OpSwitch:
 			break OpSwitch
 		}
 
-		if Isptr[t.Etype] && !t.Elem().IsInterface() {
+		if t.IsPtr() && !t.Elem().IsInterface() {
 			t = t.Elem()
 			if t == nil {
 				n.Type = nil
@@ -886,7 +886,7 @@ OpSwitch:
 			case isnilinter(t):
 				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
 
-			case Isptr[t.Etype] && t.Elem().IsInterface():
+			case t.IsPtr() && t.Elem().IsInterface():
 				// Pointer to interface is almost always a mistake.
 				Yyerror("%v undefined (type %v is pointer to interface, not interface)", n, n.Left.Type)
 
@@ -1000,7 +1000,7 @@ OpSwitch:
 				}
 			}
 
-			if n.Right.Type != nil && !Isint[n.Right.Type.Etype] {
+			if n.Right.Type != nil && !n.Right.Type.IsInteger() {
 				Yyerror("non-integer %s index %v", why, n.Right)
 				break
 			}
@@ -1124,7 +1124,7 @@ OpSwitch:
 		if Istype(t, TSTRING) {
 			n.Type = t
 			n.Op = OSLICESTR
-		} else if Isptr[t.Etype] && t.Elem().IsArray() {
+		} else if t.IsPtr() && t.Elem().IsArray() {
 			tp = t.Elem()
 			n.Type = typSlice(tp.Elem())
 			dowidth(n.Type)
@@ -1189,7 +1189,7 @@ OpSwitch:
 		}
 
 		var tp *Type
-		if Isptr[t.Etype] && t.Elem().IsArray() {
+		if t.IsPtr() && t.Elem().IsArray() {
 			tp = t.Elem()
 			n.Type = typSlice(tp.Elem())
 			dowidth(n.Type)
@@ -1381,7 +1381,7 @@ OpSwitch:
 			}
 
 		case OREAL, OIMAG:
-			if !Iscomplex[t.Etype] {
+			if !t.IsComplex() {
 				goto badcall1
 			}
 			if Isconst(l, CTCPLX) {
@@ -2204,7 +2204,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
 	if t == nil {
 		return false
 	}
-	if !Isint[t.Etype] {
+	if !t.IsInteger() {
 		Yyerror("invalid slice index %v (type %v)", r, t)
 		return false
 	}
@@ -2296,7 +2296,7 @@ func checkdefergo(n *Node) {
 func implicitstar(n *Node) *Node {
 	// insert implicit * if needed for fixed array
 	t := n.Type
-	if t == nil || !Isptr[t.Etype] {
+	if t == nil || !t.IsPtr() {
 		return n
 	}
 	t = t.Elem()
@@ -2377,7 +2377,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
 		if r != nil {
 			if errnode != nil {
 				Yyerror("ambiguous selector %v", errnode)
-			} else if Isptr[t.Etype] {
+			} else if t.IsPtr() {
 				Yyerror("ambiguous selector (%v).%v", t, s)
 			} else {
 				Yyerror("ambiguous selector %v.%v", t, s)
@@ -2421,7 +2421,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	}
 
 	// disallow T.m if m requires *T receiver
-	if Isptr[f2.Type.Recv().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, FmtShort))
 		return false
 	}
@@ -2485,7 +2485,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 			dotField[typeSym{t.Orig, s}] = f1
 		}
 		if t.IsInterface() {
-			if Isptr[n.Left.Type.Etype] {
+			if n.Left.Type.IsPtr() {
 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Erv)
@@ -2538,7 +2538,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 			pll = ll
 			ll = ll.Left
 		}
-		if pll.Implicit && Isptr[ll.Type.Etype] && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
+		if pll.Implicit && ll.Type.IsPtr() && ll.Type.Sym != nil && ll.Type.Sym.Def != nil && ll.Type.Sym.Def.Op == OTYPE {
 			// It is invalid to automatically dereference a named pointer type when selecting a method.
 			// Make n->left == ll to clarify error message.
 			n.Left = ll
@@ -2910,7 +2910,7 @@ func typecheckcomplit(n *Node) *Node {
 	nerr := nerrors
 	n.Type = t
 
-	if Isptr[t.Etype] {
+	if t.IsPtr() {
 		// For better or worse, we don't allow pointers as the composite literal type,
 		// except when using the &T syntax, which sets implicit on the OIND.
 		if !n.Right.Implicit {
@@ -3126,7 +3126,7 @@ func typecheckcomplit(n *Node) *Node {
 	}
 
 	n.Orig = norig
-	if Isptr[n.Type.Etype] {
+	if n.Type.IsPtr() {
 		n = Nod(OPTRLIT, n, nil)
 		n.Typecheck = 1
 		n.Type = n.Left.Type
@@ -3534,7 +3534,7 @@ func copytype(n *Node, t *Type) {
 
 	if embedlineno != 0 {
 		lineno = embedlineno
-		if Isptr[t.Etype] {
+		if t.IsPtr() {
 			Yyerror("embedded type cannot be a pointer")
 		}
 	}
@@ -3814,7 +3814,7 @@ func checkmake(t *Type, arg string, n *Node) bool {
 		}
 	}
 
-	if !Isint[n.Type.Etype] && n.Type.Etype != TIDEAL {
+	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
 		Yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
 		return false
 	}

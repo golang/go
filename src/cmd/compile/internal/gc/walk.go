@@ -541,7 +541,7 @@ opswitch:
 		// delayed until now to preserve side effects.
 		t := n.Left.Type
 
-		if Isptr[t.Etype] {
+		if t.IsPtr() {
 			t = t.Elem()
 		}
 		if t.IsArray() {
@@ -1057,7 +1057,7 @@ opswitch:
 
 	case OCONV, OCONVNOP:
 		if Thearch.Thechar == '5' {
-			if Isfloat[n.Left.Type.Etype] {
+			if n.Left.Type.IsFloat() {
 				if n.Type.Etype == TINT64 {
 					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
 					break
@@ -1069,7 +1069,7 @@ opswitch:
 				}
 			}
 
-			if Isfloat[n.Type.Etype] {
+			if n.Type.IsFloat() {
 				if n.Left.Type.Etype == TINT64 {
 					n = mkcall("int64tofloat64", n.Type, init, conv(n.Left, Types[TINT64]))
 					break
@@ -1154,7 +1154,7 @@ opswitch:
 			break
 		}
 		t := n.Left.Type
-		if t != nil && Isptr[t.Etype] {
+		if t != nil && t.IsPtr() {
 			t = t.Elem()
 		}
 		if t.IsArray() {
@@ -1930,7 +1930,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 				on = syslook("printiface")
 			}
 			on = substArgTypes(on, n.Type) // any-1
-		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
+		} else if n.Type.IsPtr() || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
 		} else if n.Type.IsSlice() {
@@ -3277,7 +3277,7 @@ func walkrotate(n *Node) *Node {
 	l := n.Left
 
 	r := n.Right
-	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || Issigned[n.Type.Etype] || l.Op == r.Op {
+	if (n.Op != OOR && n.Op != OXOR) || (l.Op != OLSH && l.Op != ORSH) || (r.Op != OLSH && r.Op != ORSH) || n.Type == nil || n.Type.IsSigned() || l.Op == r.Op {
 		return n
 	}
 
@@ -3322,7 +3322,7 @@ func walkrotate(n *Node) *Node {
 // The result of walkmul MUST be assigned back to n, e.g.
 // 	n.Left = walkmul(n.Left, init)
 func walkmul(n *Node, init *Nodes) *Node {
-	if !Isint[n.Type.Etype] {
+	if !n.Type.IsInteger() {
 		return n
 	}
 
@@ -3434,7 +3434,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 		var m Magic
 		m.W = w
 
-		if Issigned[nl.Type.Etype] {
+		if nl.Type.IsSigned() {
 			m.Sd = nr.Val().U.(*Mpint).Int64()
 			Smagic(&m)
 		} else {
@@ -3555,7 +3555,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 		}
 
 	default:
-		if Issigned[n.Type.Etype] {
+		if n.Type.IsSigned() {
 			if n.Op == OMOD {
 				// signed modulo 2^pow is like ANDing
 				// with the last pow bits, but if nl < 0,
@@ -3652,11 +3652,11 @@ ret:
 
 // return 1 if integer n must be in range [0, max), 0 otherwise
 func bounded(n *Node, max int64) bool {
-	if n.Type == nil || !Isint[n.Type.Etype] {
+	if n.Type == nil || !n.Type.IsInteger() {
 		return false
 	}
 
-	sign := Issigned[n.Type.Etype]
+	sign := n.Type.IsSigned()
 	bits := int32(8 * n.Type.Width)
 
 	if Smallintconst(n) {
@@ -3772,7 +3772,7 @@ func usefield(n *Node) {
 	}
 
 	t := n.Left.Type
-	if Isptr[t.Etype] {
+	if t.IsPtr() {
 		t = t.Elem()
 	}
 	field := dotField[typeSym{t.Orig, n.Sym}]
@@ -3784,7 +3784,7 @@ func usefield(n *Node) {
 	}
 
 	outer := n.Left.Type
-	if Isptr[outer.Etype] {
+	if outer.IsPtr() {
 		outer = outer.Elem()
 	}
 	if outer.Sym == nil {
