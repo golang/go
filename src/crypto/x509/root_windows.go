@@ -225,5 +225,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	return chains, nil
 }
 
-func initSystemRoots() {
-}
+func loadSystemRoots() (*CertPool, error) { return nil, nil }
