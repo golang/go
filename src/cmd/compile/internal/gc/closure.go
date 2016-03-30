@@ -582,7 +582,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	ptr.Xoffset = 0
 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
 	var body []*Node
-	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
+	if Isptr[rcvrtype.Etype] || rcvrtype.IsInterface() {
 		ptr.Name.Param.Ntype = typenod(rcvrtype)
 		body = append(body, Nod(OAS, ptr, cv))
 	} else {
@@ -622,7 +622,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	//
 	// Like walkclosure above.
 
-	if Isinter(n.Left.Type) {
+	if n.Left.Type.IsInterface() {
 		// Trigger panic for method on nil interface now.
 		// Otherwise it happens in the wrapper and is confusing.
 		n.Left = cheapexpr(n.Left, init)

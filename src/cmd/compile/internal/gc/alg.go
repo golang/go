@@ -99,7 +99,7 @@ func algtype1(t *Type, bad **Type) int {
 		return AINTER
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			if bad != nil {
 				*bad = t
 			}
@@ -196,7 +196,7 @@ func genhash(sym *Sym, t *Type) {
 		Fatalf("genhash %v", t)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("genhash %v", t)
 		}
 
@@ -375,7 +375,7 @@ func geneq(sym *Sym, t *Type) {
 		Fatalf("geneq %v", t)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("geneq %v", t)
 		}
 

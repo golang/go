@@ -544,7 +544,7 @@ opswitch:
 		if Isptr[t.Etype] {
 			t = t.Elem()
 		}
-		if Isfixedarray(t) {
+		if t.IsArray() {
 			safeexpr(n.Left, init)
 			Nodconst(n, n.Type, t.Bound)
 			n.Typecheck = 1
@@ -1004,18 +1004,18 @@ opswitch:
 
 		var ll []*Node
 		if isnilinter(n.Type) {
-			if !Isinter(n.Left.Type) {
+			if !n.Left.Type.IsInterface() {
 				ll = append(ll, typename(n.Left.Type))
 			}
 		} else {
-			if Isinter(n.Left.Type) {
+			if n.Left.Type.IsInterface() {
 				ll = append(ll, typename(n.Type))
 			} else {
 				ll = append(ll, itabname(n.Left.Type, n.Type))
 			}
 		}
 
-		if Isinter(n.Left.Type) {
+		if n.Left.Type.IsInterface() {
 			ll = append(ll, n.Left)
 		} else {
 			// regular types are passed by reference to avoid C vararg calls
@@ -1044,7 +1044,7 @@ opswitch:
 		}
 
 		fn := syslook(convFuncName(n.Left.Type, n.Type))
-		if !Isinter(n.Left.Type) {
+		if !n.Left.Type.IsInterface() {
 			fn = substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
 		} else {
 			fn = substArgTypes(fn, n.Left.Type, n.Type)
@@ -1157,7 +1157,7 @@ opswitch:
 		if t != nil && Isptr[t.Etype] {
 			t = t.Elem()
 		}
-		if Isfixedarray(t) {
+		if t.IsArray() {
 			n.Bounded = bounded(r, t.Bound)
 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
@@ -1923,7 +1923,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 
 		t = n.Type
 		et = n.Type.Etype
-		if Isinter(n.Type) {
+		if n.Type.IsInterface() {
 			if isnilinter(n.Type) {
 				on = syslook("printeface")
 			} else {
@@ -1933,7 +1933,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
 			on = syslook("printpointer")
 			on = substArgTypes(on, n.Type) // any-1
-		} else if Isslice(n.Type) {
+		} else if n.Type.IsSlice() {
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type) // any-1
 		} else if Isint[et] {
@@ -2252,7 +2252,7 @@ func reorder3(all []*Node) []*Node {
 				continue
 			}
 
-			if l.Op == OINDEX && Isfixedarray(l.Left.Type) {
+			if l.Op == OINDEX && l.Left.Type.IsArray() {
 				l.Right = reorder3save(l.Right, all, i, &early)
 				l = l.Left
 				continue
@@ -2317,7 +2317,7 @@ func outervalue(n *Node) *Node {
 			continue
 		}
 
-		if n.Op == OINDEX && Isfixedarray(n.Left.Type) {
+		if n.Op == OINDEX && n.Left.Type != nil && n.Left.Type.IsArray() {
 			n = n.Left
 			continue
 		}
@@ -3047,10 +3047,10 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	var l *Node
 
 	var r *Node
-	if Isinter(n.Left.Type) && !Isinter(n.Right.Type) {
+	if n.Left.Type.IsInterface() && !n.Right.Type.IsInterface() {
 		l = n.Left
 		r = n.Right
-	} else if !Isinter(n.Left.Type) && Isinter(n.Right.Type) {
+	} else if !n.Left.Type.IsInterface() && n.Right.Type.IsInterface() {
 		l = n.Right
 		r = n.Left
 	}
@@ -3097,7 +3097,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		return n
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			return n
 		}
 

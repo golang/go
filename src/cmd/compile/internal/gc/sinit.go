@@ -328,7 +328,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		}
 
 	case OARRAYLIT:
-		if Isslice(r.Type) {
+		if r.Type.IsSlice() {
 			// copy slice
 			a := inittemps[r]
 
@@ -431,7 +431,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 
 	case OARRAYLIT:
 		initplan(r)
-		if Isslice(r.Type) {
+		if r.Type.IsSlice() {
 			// Init slice.
 			bound := r.Right.Val().U.(*Mpint).Int64()
 			ta := typArray(r.Type.Elem(), bound)
@@ -1304,7 +1304,7 @@ func iszero(n *Node) bool {
 		}
 
 	case OARRAYLIT:
-		if Isslice(n.Type) {
+		if n.Type.IsSlice() {
 			break
 		}
 		fallthrough
@@ -1323,7 +1323,7 @@ func iszero(n *Node) bool {
 }
 
 func isvaluelit(n *Node) bool {
-	return (n.Op == OARRAYLIT && Isfixedarray(n.Type)) || n.Op == OSTRUCTLIT
+	return (n.Op == OARRAYLIT && n.Type.IsArray()) || n.Op == OSTRUCTLIT
 }
 
 // gen_as_init attempts to emit static data for n and reports whether it succeeded.

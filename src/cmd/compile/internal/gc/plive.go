@@ -923,7 +923,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		if t.Bound < -1 {
 			Fatalf("onebitwalktype1: invalid bound, %v", t)
 		}
-		if Isslice(t) {
+		if t.IsSlice() {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if *xoffset&int64(Widthptr-1) != 0 {
 				Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)

@@ -150,7 +150,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 
 	case OINDEX, OINDEXMAP:
 		var l *Node
-		if Isfixedarray(n.Left.Type) {
+		if n.Left.Type.IsArray() {
 			l = ordersafeexpr(n.Left, order)
 		} else {
 			l = ordercheapexpr(n.Left, order)
@@ -701,7 +701,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		n.Left = orderexpr(n.Left, order, nil)
-		if !Isinter(n.Left.Type) {
+		if !n.Left.Type.IsInterface() {
 			n.Left = orderaddrtemp(n.Left, order)
 		}
 		order.out = append(order.out, n)
@@ -1078,7 +1078,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 	case OCONVIFACE:
 		n.Left = orderexpr(n.Left, order, nil)
 
-		if !Isinter(n.Left.Type) {
+		if !n.Left.Type.IsInterface() {
 			n.Left = orderaddrtemp(n.Left, order)
 		}
 
@@ -1185,7 +1185,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		n.Left = orderexpr(n.Left, order, nil)
 		n.Right = orderexpr(n.Right, order, nil)
 		t := n.Left.Type
-		if t.Etype == TSTRUCT || Isfixedarray(t) {
+		if t.Etype == TSTRUCT || t.IsArray() {
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.
 			n.Left = orderaddrtemp(n.Left, order)

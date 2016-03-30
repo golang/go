@@ -38,7 +38,7 @@ func typecheckrange(n *Node) {
 		}
 	}
 
-	if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
+	if Isptr[t.Etype] && t.Elem().IsArray() {
 		t = t.Elem()
 	}
 	n.Type = t
