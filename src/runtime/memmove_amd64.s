@@ -77,24 +77,28 @@ forward:
 	CMPQ	BX, $2048
 	JLS	move_256through2048
 
-	// Check alignment
-	MOVQ	SI, AX
-	ORQ	DI, AX
-	TESTL	$7, AX
-	JNE	unaligned_fwd
+	// If REP MOVSB isn't fast, don't use it
+	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
+	JEQ	fwdBy8
 
-	// Aligned - do 8 bytes at a time
+	// Check alignment
+	MOVL	SI, AX
+	ORL	DI, AX
+	TESTL	$7, AX
+	JEQ	fwdBy8
+
+	// Do 1 byte at a time
+	MOVQ	BX, CX
+	REP;	MOVSB
+	RET
+
+fwdBy8:
+	// Do 8 bytes at a time
 	MOVQ	BX, CX
 	SHRQ	$3, CX
 	ANDQ	$7, BX
 	REP;	MOVSQ
 	JMP	tail
-
-unaligned_fwd:
-	// Unaligned - do 1 byte at a time
-	MOVQ	BX, CX
-	REP;	MOVSB
-	RET
 
 back:
 /*

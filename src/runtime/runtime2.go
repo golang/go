@@ -701,6 +701,7 @@ var (
 	// Set on startup in asm_{x86,amd64}.s.
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
+	cpuid_ebx7        uint32
 	lfenceBeforeRdtsc bool
 	support_avx       bool
 	support_avx2      bool

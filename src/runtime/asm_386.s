@@ -54,6 +54,7 @@ bad_proc: // show that the program requires MMX.
 has_cpuid:
 	MOVL	$0, AX
 	CPUID
+	MOVL	AX, SI
 	CMPL	AX, $0
 	JE	nocpuinfo
 
@@ -69,6 +70,7 @@ has_cpuid:
 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
 
+	// Load EAX=1 cpuid flags
 	MOVL	$1, AX
 	CPUID
 	MOVL	CX, AX // Move to global variable clobbers CX when generating PIC
@@ -78,6 +80,14 @@ notintel:
 	// Check for MMX support
 	TESTL	$(1<<23), DX	// MMX
 	JZ 	bad_proc
+
+	// Load EAX=7/ECX=0 cpuid flags
+	CMPL	SI, $7
+	JLT	nocpuinfo
+	MOVL	$7, AX
+	MOVL	$0, CX
+	CPUID
+	MOVL	BX, runtime·cpuid_ebx7(SB)
 
 nocpuinfo:	
 
