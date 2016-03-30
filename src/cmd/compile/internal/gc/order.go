@@ -324,7 +324,7 @@ func ismulticall(l Nodes) bool {
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) []*Node {
-	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
+	if !n.Type.IsStruct() || !n.Type.Funarg {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
 	}
 
@@ -744,7 +744,7 @@ func orderstmt(n *Node, order *Order) {
 			// make copy.
 			r := n.Right
 
-			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
+			if r.Type.IsString() && r.Type != Types[TSTRING] {
 				r = Nod(OCONV, r, nil)
 				r.Type = Types[TSTRING]
 				r = typecheck(r, Erv)
@@ -1185,7 +1185,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		n.Left = orderexpr(n.Left, order, nil)
 		n.Right = orderexpr(n.Right, order, nil)
 		t := n.Left.Type
-		if t.Etype == TSTRUCT || t.IsArray() {
+		if t.IsStruct() || t.IsArray() {
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.
 			n.Left = orderaddrtemp(n.Left, order)

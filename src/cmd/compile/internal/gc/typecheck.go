@@ -668,7 +668,7 @@ OpSwitch:
 			return n
 		}
 
-		if l.Type.Etype == TMAP && !isnil(l) && !isnil(r) {
+		if l.Type.IsMap() && !isnil(l) && !isnil(r) {
 			Yyerror("invalid operation: %v (map can only be compared to nil)", n)
 			n.Type = nil
 			return n
@@ -681,7 +681,7 @@ OpSwitch:
 		}
 
 		var badtype *Type
-		if l.Type.Etype == TSTRUCT && algtype1(l.Type, &badtype) == ANOEQ {
+		if l.Type.IsStruct() && algtype1(l.Type, &badtype) == ANOEQ {
 			Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, badtype)
 			n.Type = nil
 			return n
@@ -864,7 +864,7 @@ OpSwitch:
 			break OpSwitch
 		}
 
-		if Isptr[t.Etype] && t.Elem().Etype != TINTER {
+		if Isptr[t.Etype] && !t.Elem().IsInterface() {
 			t = t.Elem()
 			if t == nil {
 				n.Type = nil
@@ -945,7 +945,7 @@ OpSwitch:
 			}
 		}
 
-		if n.Type != nil && n.Type.Etype != TINTER {
+		if n.Type != nil && !n.Type.IsInterface() {
 			var missing, have *Field
 			var ptr int
 			if !implements(n.Type, t, &missing, &have, &ptr) {
@@ -986,7 +986,7 @@ OpSwitch:
 
 		case TSTRING, TARRAY:
 			n.Right = indexlit(n.Right)
-			if t.Etype == TSTRING {
+			if t.IsString() {
 				n.Type = bytetype
 			} else {
 				n.Type = t.Elem()
@@ -1040,7 +1040,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		if t.Etype != TCHAN {
+		if !t.IsChan() {
 			Yyerror("invalid operation: %v (receive from non-chan type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1067,7 +1067,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		if t.Etype != TCHAN {
+		if !t.IsChan() {
 			Yyerror("invalid operation: %v (send to non-chan type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1520,7 +1520,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		if t.Etype != TCHAN {
+		if !t.IsChan() {
 			Yyerror("invalid operation: %v (non-chan type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1559,7 +1559,7 @@ OpSwitch:
 		typecheckslice(args.Slice(), Erv)
 		l := args.First()
 		r := args.Second()
-		if l.Type != nil && l.Type.Etype != TMAP {
+		if l.Type != nil && !l.Type.IsMap() {
 			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, FmtLong))
 			n.Type = nil
 			return n
@@ -1683,7 +1683,7 @@ OpSwitch:
 		}
 
 		// copy([]byte, string)
-		if n.Left.Type.IsSlice() && n.Right.Type.Etype == TSTRING {
+		if n.Left.Type.IsSlice() && n.Right.Type.IsString() {
 			if Eqtype(n.Left.Type.Elem(), bytetype) {
 				break OpSwitch
 			}
@@ -1958,7 +1958,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		if t.Etype != TINTER {
+		if !t.IsInterface() {
 			Fatalf("OITAB of %v", t)
 		}
 		n.Type = Ptrto(Types[TUINTPTR])
@@ -1972,10 +1972,10 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		if !t.IsSlice() && t.Etype != TSTRING {
+		if !t.IsSlice() && !t.IsString() {
 			Fatalf("OSPTR of %v", t)
 		}
-		if t.Etype == TSTRING {
+		if t.IsString() {
 			n.Type = Ptrto(Types[TUINT8])
 		} else {
 			n.Type = Ptrto(t.Elem())
@@ -2051,7 +2051,7 @@ OpSwitch:
 		n.Left = typecheck(n.Left, Erv)
 		if n.Left != nil {
 			t := n.Left.Type
-			if t != nil && t.Etype != TBOOL {
+			if t != nil && !t.IsBoolean() {
 				Yyerror("non-bool %v used as for condition", Nconv(n.Left, FmtLong))
 			}
 		}
@@ -2066,7 +2066,7 @@ OpSwitch:
 		n.Left = typecheck(n.Left, Erv)
 		if n.Left != nil {
 			t := n.Left.Type
-			if t != nil && t.Etype != TBOOL {
+			if t != nil && !t.IsBoolean() {
 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, FmtLong))
 			}
 		}
@@ -2394,7 +2394,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
 func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	s := n.Sym
 
-	if t.Etype == TINTER {
+	if t.IsInterface() {
 		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
 		if f1 == nil {
 			return false
@@ -2454,7 +2454,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 
 	dowidth(t)
 	var f1 *Field
-	if t.Etype == TSTRUCT || t.Etype == TINTER {
+	if t.IsStruct() || t.IsInterface() {
 		f1 = lookdot1(n, s, t, t.Fields(), dostrcmp)
 	}
 
@@ -2484,7 +2484,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		if obj.Fieldtrack_enabled > 0 {
 			dotField[typeSym{t.Orig, s}] = f1
 		}
-		if t.Etype == TINTER {
+		if t.IsInterface() {
 			if Isptr[n.Left.Type.Etype] {
 				n.Left = Nod(OIND, n.Left, nil) // implicitstar
 				n.Left.Implicit = true
@@ -2595,7 +2595,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 	if nl.Len() == 1 {
 		n = nl.First()
 		if n.Type != nil {
-			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
+			if n.Type.IsStruct() && n.Type.Funarg {
 				if !hasddd(tstruct) {
 					n1 := tstruct.NumFields()
 					n2 := n.Type.NumFields()
@@ -3145,7 +3145,7 @@ func islvalue(n *Node) bool {
 		if n.Left.Type != nil && n.Left.Type.IsArray() {
 			return islvalue(n.Left)
 		}
-		if n.Left.Type != nil && n.Left.Type.Etype == TSTRING {
+		if n.Left.Type != nil && n.Left.Type.IsString() {
 			return false
 		}
 		fallthrough
@@ -3337,7 +3337,7 @@ func typecheckas2(n *Node) {
 		}
 		switch r.Op {
 		case OCALLMETH, OCALLINTER, OCALLFUNC:
-			if r.Type.Etype != TSTRUCT || !r.Type.Funarg {
+			if !r.Type.IsStruct() || !r.Type.Funarg {
 				break
 			}
 			cr = r.Type.NumFields()
@@ -3386,7 +3386,7 @@ func typecheckas2(n *Node) {
 				l.Type = r.Type
 			}
 			l := n.List.Second()
-			if l.Type != nil && l.Type.Etype != TBOOL {
+			if l.Type != nil && !l.Type.IsBoolean() {
 				checkassignto(Types[TBOOL], l)
 			}
 			if l.Name != nil && l.Name.Defn == n && l.Name.Param.Ntype == nil {

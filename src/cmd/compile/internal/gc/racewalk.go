@@ -294,7 +294,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		}
 
 		instrumentnode(&n.Right, init, 0, 0)
-		if n.Left.Type.Etype != TSTRING {
+		if !n.Left.Type.IsString() {
 			callinstr(&n, init, wr, skip)
 		}
 		goto ret
@@ -509,7 +509,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
-		} else if flag_race != 0 && (t.Etype == TSTRUCT || t.IsArray()) {
+		} else if flag_race != 0 && (t.IsStruct() || t.IsArray()) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"

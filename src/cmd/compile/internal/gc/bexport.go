@@ -457,7 +457,7 @@ func (p *exporter) typ(t *Type) {
 		p.typ(t.Orig)
 
 		// interfaces don't have associated methods
-		if t.Orig.Etype == TINTER {
+		if t.Orig.IsInterface() {
 			return
 		}
 
@@ -645,7 +645,7 @@ func basetypeName(t *Type) string {
 }
 
 func (p *exporter) paramList(params *Type, numbered bool) {
-	if params.Etype != TSTRUCT || !params.Funarg {
+	if !params.IsStruct() || !params.Funarg {
 		Fatalf("exporter: parameter list expected")
 	}
 

@@ -717,7 +717,7 @@ func checkembeddedtype(t *Type) {
 
 	if t.Sym == nil && Isptr[t.Etype] {
 		t = t.Elem()
-		if t.Etype == TINTER {
+		if t.IsInterface() {
 			Yyerror("embedded type cannot be a pointer to interface")
 		}
 	}
@@ -813,7 +813,7 @@ func tostruct(l []*Node) *Type {
 }
 
 func tostruct0(t *Type, l []*Node) {
-	if t == nil || t.Etype != TSTRUCT {
+	if t == nil || !t.IsStruct() {
 		Fatalf("struct expected")
 	}
 
@@ -937,7 +937,7 @@ func tointerface(l []*Node) *Type {
 }
 
 func tointerface0(t *Type, l []*Node) *Type {
-	if t == nil || t.Etype != TINTER {
+	if t == nil || !t.IsInterface() {
 		Fatalf("interface expected")
 	}
 
@@ -945,7 +945,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 	for _, n := range l {
 		f := interfacefield(n)
 
-		if n.Left == nil && f.Type.Etype == TINTER {
+		if n.Left == nil && f.Type.IsInterface() {
 			// embedded interface, inline methods
 			for _, t1 := range f.Type.Fields().Slice() {
 				f = newField()
@@ -1021,7 +1021,7 @@ func isifacemethod(f *Type) bool {
 		return false
 	}
 	t = t.Elem()
-	if t.Sym != nil || t.Etype != TSTRUCT || t.NumFields() != 0 {
+	if t.Sym != nil || !t.IsStruct() || t.NumFields() != 0 {
 		return false
 	}
 	return true
@@ -1214,7 +1214,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 				return
 			}
 
-			if t.Etype == TINTER {
+			if t.IsInterface() {
 				Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
 				return
 			}
@@ -1237,7 +1237,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		return
 	}
 
-	if pa.Etype == TSTRUCT {
+	if pa.IsStruct() {
 		for _, f := range pa.Fields().Slice() {
 			if f.Sym == msym {
 				Yyerror("type %v has both field and method named %v", pa, msym)

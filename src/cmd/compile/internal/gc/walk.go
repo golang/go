@@ -1341,7 +1341,7 @@ opswitch:
 		}
 
 		r = typecheck(r, Erv)
-		if n.Type.Etype != TBOOL {
+		if !n.Type.IsBoolean() {
 			Fatalf("cmp %v", n.Type)
 		}
 		r.Type = n.Type
@@ -1783,7 +1783,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 	var nn []*Node
 
 	// f(g()) where g has multiple return values
-	if r != nil && len(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
+	if r != nil && len(lr) <= 1 && r.Type.IsStruct() && r.Type.Funarg {
 		// optimization - can do block copy
 		if eqtypenoname(r.Type, nl) {
 			arg := nodarg(nl, fp)
@@ -2625,7 +2625,7 @@ func conv(n *Node, t *Type) *Node {
 }
 
 func chanfn(name string, n int, t *Type) *Node {
-	if t.Etype != TCHAN {
+	if !t.IsChan() {
 		Fatalf("chanfn %v", t)
 	}
 	fn := syslook(name)
@@ -2641,7 +2641,7 @@ func chanfn(name string, n int, t *Type) *Node {
 }
 
 func mapfn(name string, t *Type) *Node {
-	if t.Etype != TMAP {
+	if !t.IsMap() {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
@@ -2650,7 +2650,7 @@ func mapfn(name string, t *Type) *Node {
 }
 
 func mapfndel(name string, t *Type) *Node {
-	if t.Etype != TMAP {
+	if !t.IsMap() {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
@@ -2803,7 +2803,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 		nptr1.Etype = 1
 		nptr2 := l2
 		var fn *Node
-		if l2.Type.Etype == TSTRING {
+		if l2.Type.IsString() {
 			fn = syslook("slicestringcopy")
 		} else {
 			fn = syslook("slicecopy")
@@ -2956,7 +2956,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 
 	if runtimecall {
 		var fn *Node
-		if n.Right.Type.Etype == TSTRING {
+		if n.Right.Type.IsString() {
 			fn = syslook("slicestringcopy")
 		} else {
 			fn = syslook("slicecopy")
@@ -3174,7 +3174,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		}
 	}
 
-	if t.Etype == TSTRUCT && t.NumFields() <= 4 {
+	if t.IsStruct() && t.NumFields() <= 4 {
 		// Struct of four or fewer fields.
 		// Inline comparisons.
 		var li *Node
@@ -3739,10 +3739,10 @@ func usemethod(n *Node) {
 			return
 		}
 	} else {
-		if p0.Type.Etype != TSTRING {
+		if !p0.Type.IsString() {
 			return
 		}
-		if res1.Type.Etype != TBOOL {
+		if !res1.Type.IsBoolean() {
 			return
 		}
 	}

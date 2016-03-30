@@ -570,7 +570,7 @@ func memrun(t *Type, start int) (size int64, next int) {
 // ispaddedfield reports whether the i'th field of struct type t is followed
 // by padding.
 func ispaddedfield(t *Type, i int) bool {
-	if t.Etype != TSTRUCT {
+	if !t.IsStruct() {
 		Fatalf("ispaddedfield called non-struct %v", t)
 	}
 	end := t.Width
