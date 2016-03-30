@@ -9,6 +9,7 @@ package runtime
 import "unsafe"
 
 var TestingWER = &testingWER
+var OsYield = osyield
 
 func NumberOfProcessors() int32 {
 	var info systeminfo

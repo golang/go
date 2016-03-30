@@ -41,6 +41,7 @@ import (
 //go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
@@ -84,6 +85,7 @@ var (
 	_SetUnhandledExceptionFilter,
 	_SetWaitableTimer,
 	_SuspendThread,
+	_SwitchToThread,
 	_VirtualAlloc,
 	_VirtualFree,
 	_WSAGetOverlappedResult,
@@ -189,6 +191,8 @@ var useLoadLibraryEx bool
 
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
+	switchtothreadAddr = unsafe.Pointer(funcPC(switchtothread))
 
 	setBadSignalMsg()
 
@@ -586,17 +590,22 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 }
 
 // in sys_windows_386.s and sys_windows_amd64.s
-func usleep1(usec uint32)
+func onosstack(fn unsafe.Pointer, arg uint32)
+func usleep2(usec uint32)
+func switchtothread()
+
+var usleep2Addr unsafe.Pointer
+var switchtothreadAddr unsafe.Pointer
 
 //go:nosplit
 func osyield() {
-	usleep1(1)
+	onosstack(switchtothreadAddr, 0)
 }
 
 //go:nosplit
 func usleep(us uint32) {
 	// Have 1us units; want 100ns units.
-	usleep1(10 * us)
+	onosstack(usleep2Addr, 10*us)
 }
 
 func ctrlhandler1(_type uint32) uint32 {
