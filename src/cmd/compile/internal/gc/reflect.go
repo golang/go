@@ -1277,7 +1277,7 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		var pkg *Pkg
+		pkg := localpkg
 		if t.Sym != nil {
 			pkg = t.Sym.Pkg
 		}

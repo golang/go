@@ -94,3 +94,8 @@ func FirstMethodNameBytes(t Type) *byte {
 	}
 	return m.name.bytes
 }
+
+type OtherPkgFields struct {
+	OtherExported   int
+	otherUnexported int
+}
