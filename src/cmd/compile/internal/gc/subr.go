@@ -565,7 +565,7 @@ func isptrto(t *Type, et EType) bool {
 	if !Isptr[t.Etype] {
 		return false
 	}
-	t = t.Type
+	t = t.Elem()
 	if t == nil {
 		return false
 	}
@@ -633,7 +633,7 @@ func methtype(t *Type, mustname int) *Type {
 		if t.Sym != nil {
 			return nil
 		}
-		t = t.Type
+		t = t.Elem()
 		if t == nil {
 			return nil
 		}
@@ -773,7 +773,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		return eqtype1(t1.Val(), t2.Val(), assumedEqual)
 	}
 
-	return eqtype1(t1.Type, t2.Type, assumedEqual)
+	return eqtype1(t1.Elem(), t2.Elem(), assumedEqual)
 }
 
 // Are t1 and t2 equal struct types when field names are ignored?
@@ -886,7 +886,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
 	if src.Etype == TCHAN && src.Chan == Cboth && dst.Etype == TCHAN {
-		if Eqtype(src.Type, dst.Type) && (src.Sym == nil || dst.Sym == nil) {
+		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}
 	}
@@ -960,7 +960,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	// 3. src and dst are unnamed pointer types
 	// and their base types have identical underlying types.
 	if Isptr[src.Etype] && Isptr[dst.Etype] && src.Sym == nil && dst.Sym == nil {
-		if Eqtype(src.Type.Orig, dst.Type.Orig) {
+		if Eqtype(src.Elem().Orig, dst.Elem().Orig) {
 			return OCONVNOP
 		}
 	}
@@ -988,10 +988,10 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	}
 
 	if Isslice(src) && dst.Etype == TSTRING {
-		if src.Type.Etype == bytetype.Etype {
+		if src.Elem().Etype == bytetype.Etype {
 			return OARRAYBYTESTR
 		}
-		if src.Type.Etype == runetype.Etype {
+		if src.Elem().Etype == runetype.Etype {
 			return OARRAYRUNESTR
 		}
 	}
@@ -999,10 +999,10 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
 	if src.Etype == TSTRING && Isslice(dst) {
-		if dst.Type.Etype == bytetype.Etype {
+		if dst.Elem().Etype == bytetype.Etype {
 			return OSTRARRAYBYTE
 		}
-		if dst.Type.Etype == runetype.Etype {
+		if dst.Elem().Etype == runetype.Etype {
 			return OSTRARRAYRUNE
 		}
 	}
@@ -1278,9 +1278,9 @@ func badtype(op Op, tl *Type, tr *Type) {
 
 	// common mistake: *struct and *interface.
 	if tl != nil && tr != nil && Isptr[tl.Etype] && Isptr[tr.Etype] {
-		if tl.Type.Etype == TSTRUCT && tr.Type.Etype == TINTER {
+		if tl.Elem().Etype == TSTRUCT && tr.Elem().Etype == TINTER {
 			fmt_ += "\n\t(*struct vs *interface)"
-		} else if tl.Type.Etype == TINTER && tr.Type.Etype == TSTRUCT {
+		} else if tl.Elem().Etype == TINTER && tr.Elem().Etype == TSTRUCT {
 			fmt_ += "\n\t(*interface vs *struct)"
 		}
 	}
@@ -1445,7 +1445,7 @@ var dotlist = make([]Dlist, 10)
 func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 	u := t
 	if Isptr[u.Etype] {
-		u = u.Type
+		u = u.Elem()
 	}
 
 	c := 0
@@ -1501,7 +1501,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
 
 	u = t
 	if Isptr[u.Etype] {
-		u = u.Type
+		u = u.Elem()
 	}
 	if u.Etype != TSTRUCT && u.Etype != TINTER {
 		goto out
@@ -1611,7 +1611,7 @@ func expand0(t *Type, followptr bool) {
 	u := t
 	if Isptr[u.Etype] {
 		followptr = true
-		u = u.Type
+		u = u.Elem()
 	}
 
 	if u.Etype == TINTER {
@@ -1651,7 +1651,7 @@ func expand1(t *Type, top, followptr bool) {
 	u := t
 	if Isptr[u.Etype] {
 		followptr = true
-		u = u.Type
+		u = u.Elem()
 	}
 
 	if u.Etype != TSTRUCT && u.Etype != TINTER {
@@ -1826,7 +1826,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	methodrcvr := method.Type.Recv().Type
 
 	// generate nil pointer check for better error
-	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
+	if Isptr[rcvr.Etype] && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
 		n := Nod(OIF, nil, nil)
 
@@ -1837,9 +1837,9 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		var l []*Node
 
 		var v Val
-		v.U = rcvr.Type.Sym.Pkg.Name // package name
+		v.U = rcvr.Elem().Sym.Pkg.Name // package name
 		l = append(l, nodlit(v))
-		v.U = rcvr.Type.Sym.Name // type name
+		v.U = rcvr.Elem().Sym.Name // type name
 		l = append(l, nodlit(v))
 		v.U = method.Sym.Name
 		l = append(l, nodlit(v)) // method name
@@ -1889,7 +1889,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	testdclstack()
 
 	// wrappers where T is anonymous (struct or interface) can be duplicated.
-	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Type.Etype == TSTRUCT {
+	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Elem().Etype == TSTRUCT {
 		fn.Func.Dupok = true
 	}
 	fn = typecheck(fn, Etop)
@@ -2273,7 +2273,7 @@ func isdirectiface(t *Type) bool {
 
 	case TARRAY:
 		// Array of 1 direct iface type can be direct.
-		return t.Bound == 1 && isdirectiface(t.Type)
+		return t.Bound == 1 && isdirectiface(t.Elem())
 
 	case TSTRUCT:
 		// Struct with 1 field of direct iface type can be direct.

@@ -365,7 +365,7 @@ func isSmallMakeSlice(n *Node) bool {
 	}
 	t := n.Type
 
-	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || r.Val().U.(*Mpint).Int64() < (1<<16)/t.Type.Width)
+	return Smallintconst(l) && Smallintconst(r) && (t.Elem().Width == 0 || r.Val().U.(*Mpint).Int64() < (1<<16)/t.Elem().Width)
 }
 
 // walk the whole tree of the body of an
@@ -518,7 +518,7 @@ opswitch:
 
 	case ODOTPTR:
 		usefield(n)
-		if n.Op == ODOTPTR && n.Left.Type.Type.Width == 0 {
+		if n.Op == ODOTPTR && n.Left.Type.Elem().Width == 0 {
 			// No actual copy will be generated, so emit an explicit nil check.
 			n.Left = cheapexpr(n.Left, init)
 
@@ -542,7 +542,7 @@ opswitch:
 		t := n.Left.Type
 
 		if Isptr[t.Etype] {
-			t = t.Type
+			t = t.Elem()
 		}
 		if Isfixedarray(t) {
 			safeexpr(n.Left, init)
@@ -1155,7 +1155,7 @@ opswitch:
 		}
 		t := n.Left.Type
 		if t != nil && Isptr[t.Etype] {
-			t = t.Type
+			t = t.Elem()
 		}
 		if Isfixedarray(t) {
 			n.Bounded = bounded(r, t.Bound)
@@ -1268,10 +1268,10 @@ opswitch:
 
 	case ONEW:
 		if n.Esc == EscNone {
-			if n.Type.Type.Width >= 1<<16 {
+			if n.Type.Elem().Width >= 1<<16 {
 				Fatalf("large ONEW with EscNone: %v", n)
 			}
-			r := temp(n.Type.Type)
+			r := temp(n.Type.Elem())
 			r = Nod(OAS, r, nil) // zero temp
 			r = typecheck(r, Etop)
 			init.Append(r)
@@ -1279,7 +1279,7 @@ opswitch:
 			r = typecheck(r, Erv)
 			n = r
 		} else {
-			n = callnew(n.Type.Type)
+			n = callnew(n.Type.Elem())
 		}
 
 		// If one argument to the comparison is an empty string,
@@ -1410,7 +1410,7 @@ opswitch:
 			}
 			// var arr [r]T
 			// n = arr[:l]
-			t = aindex(r, t.Type) // [r]T
+			t = aindex(r, t.Elem()) // [r]T
 			var_ := temp(t)
 			a := Nod(OAS, var_, nil) // zero temp
 			a = typecheck(a, Etop)
@@ -1424,7 +1424,7 @@ opswitch:
 			// makeslice(t *Type, nel int64, max int64) (ary []any)
 			fn := syslook("makeslice")
 
-			fn = substArgTypes(fn, t.Type) // any-1
+			fn = substArgTypes(fn, t.Elem()) // any-1
 			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
 		}
 
@@ -1538,7 +1538,7 @@ opswitch:
 
 	case OSEND:
 		n1 := n.Right
-		n1 = assignconv(n1, n.Left.Type.Type, "chan send")
+		n1 = assignconv(n1, n.Left.Type.Elem(), "chan send")
 		n1 = walkexpr(n1, init)
 		n1 = Nod(OADDR, n1, nil)
 		n = mkcall1(chanfn("chansend1", 2, n.Left.Type), nil, init, typename(n.Left.Type), n.Left, n1)
@@ -1715,7 +1715,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
 		esc = ddd.Esc
 	}
 
-	tslice := typSlice(l.Type.Type)
+	tslice := typSlice(l.Type.Elem())
 
 	var n *Node
 	if len(lr0) == 0 {
@@ -2633,9 +2633,9 @@ func chanfn(name string, n int, t *Type) *Node {
 	default:
 		Fatalf("chanfn %d", n)
 	case 1:
-		fn = substArgTypes(fn, t.Type)
+		fn = substArgTypes(fn, t.Elem())
 	case 2:
-		fn = substArgTypes(fn, t.Type, t.Type)
+		fn = substArgTypes(fn, t.Elem(), t.Elem())
 	}
 	return fn
 }
@@ -2772,7 +2772,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 
 	// instantiate growslice(Type*, []any, int) []any
 	fn := syslook("growslice")
-	fn = substArgTypes(fn, s.Type.Type, s.Type.Type)
+	fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
 
 	// s = growslice(T, s, n)
 	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nn)))
@@ -2783,7 +2783,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 	nt.Etype = 1
 	l = append(l, Nod(OAS, s, nt))
 
-	if haspointers(l1.Type.Type) {
+	if haspointers(l1.Type.Elem()) {
 		// copy(s[len(l1):], l2)
 		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
 
@@ -2793,7 +2793,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 		fn = substArgTypes(fn, l1.Type, l2.Type)
 		var ln Nodes
 		ln.Set(l)
-		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Type), nptr1, nptr2)
+		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Elem()), nptr1, nptr2)
 		l = append(ln.Slice(), nt)
 	} else if instrumenting {
 		// rely on runtime to instrument copy.
@@ -2811,7 +2811,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 		fn = substArgTypes(fn, l1.Type, l2.Type)
 		var ln Nodes
 		ln.Set(l)
-		nt := mkcall1(fn, Types[TINT], &ln, nptr1, nptr2, Nodintconst(s.Type.Type.Width))
+		nt := mkcall1(fn, Types[TINT], &ln, nptr1, nptr2, Nodintconst(s.Type.Elem().Width))
 		l = append(ln.Slice(), nt)
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
@@ -2823,13 +2823,13 @@ func appendslice(n *Node, init *Nodes) *Node {
 		nptr2 := Nod(OSPTR, l2, nil)
 
 		fn := syslook("memmove")
-		fn = substArgTypes(fn, s.Type.Type, s.Type.Type)
+		fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
 
 		var ln Nodes
 		ln.Set(l)
 		nwid := cheapexpr(conv(Nod(OLEN, l2, nil), Types[TUINTPTR]), &ln)
 
-		nwid = Nod(OMUL, nwid, Nodintconst(s.Type.Type.Width))
+		nwid = Nod(OMUL, nwid, Nodintconst(s.Type.Elem().Width))
 		nt := mkcall1(fn, nil, &ln, nptr1, nptr2, nwid)
 		l = append(ln.Slice(), nt)
 	}
@@ -2883,7 +2883,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 
 	// Resolve slice type of multi-valued return.
 	if Istype(nsrc.Type, TSTRUCT) {
-		nsrc.Type = nsrc.Type.Type.Type
+		nsrc.Type = nsrc.Type.Elem().Elem()
 	}
 	argc := n.List.Len() - 1
 	if argc < 1 {
@@ -2906,7 +2906,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
 
 	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
-	fn = substArgTypes(fn, ns.Type.Type, ns.Type.Type)
+	fn = substArgTypes(fn, ns.Type.Elem(), ns.Type.Elem())
 
 	nx.Nbody.Set1(Nod(OAS, ns,
 		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns,
@@ -2949,9 +2949,9 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 // Also works if b is a string.
 //
 func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
-	if haspointers(n.Left.Type.Type) {
+	if haspointers(n.Left.Type.Elem()) {
 		fn := writebarrierfn("typedslicecopy", n.Left.Type, n.Right.Type)
-		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Type), n.Left, n.Right)
+		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), n.Left, n.Right)
 	}
 
 	if runtimecall {
@@ -2962,7 +2962,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 			fn = syslook("slicecopy")
 		}
 		fn = substArgTypes(fn, n.Left.Type, n.Right.Type)
-		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Type.Width))
+		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Elem().Width))
 	}
 
 	n.Left = walkexpr(n.Left, init)
@@ -2991,10 +2991,10 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 	// Call memmove.
 	fn := syslook("memmove")
 
-	fn = substArgTypes(fn, nl.Type.Type, nl.Type.Type)
+	fn = substArgTypes(fn, nl.Type.Elem(), nl.Type.Elem())
 	nwid := temp(Types[TUINTPTR])
 	l = append(l, Nod(OAS, nwid, conv(nlen, Types[TUINTPTR])))
-	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
+	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Elem().Width))
 	l = append(l, mkcall1(fn, nil, init, nto, nfrm, nwid))
 
 	typecheckslice(l, Etop)
@@ -3136,7 +3136,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	}
 
 	var expr *Node
-	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Type.Etype] {
+	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Elem().Etype] {
 		// Four or fewer elements of a basic type.
 		// Unroll comparisons.
 		var li *Node
@@ -3773,7 +3773,7 @@ func usefield(n *Node) {
 
 	t := n.Left.Type
 	if Isptr[t.Etype] {
-		t = t.Type
+		t = t.Elem()
 	}
 	field := dotField[typeSym{t.Orig, n.Sym}]
 	if field == nil {
@@ -3785,7 +3785,7 @@ func usefield(n *Node) {
 
 	outer := n.Left.Type
 	if Isptr[outer.Etype] {
-		outer = outer.Type
+		outer = outer.Elem()
 	}
 	if outer.Sym == nil {
 		Yyerror("tracked field must be in named struct type")

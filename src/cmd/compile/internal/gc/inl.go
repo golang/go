@@ -39,7 +39,7 @@ func fnpkg(fn *Node) *Pkg {
 		rcvr := fn.Type.Recv().Type
 
 		if Isptr[rcvr.Etype] {
-			rcvr = rcvr.Type
+			rcvr = rcvr.Elem()
 		}
 		if rcvr.Sym == nil {
 			Fatalf("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, FmtLong), rcvr)
@@ -747,7 +747,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			as.Right = nodnil()
 			as.Right.Type = varargtype
 		} else {
-			vararrtype := typArray(varargtype.Type, int64(varargcount))
+			vararrtype := typArray(varargtype.Elem(), int64(varargcount))
 			as.Right = Nod(OCOMPLIT, nil, typenod(vararrtype))
 			as.Right.List.Set(varargs)
 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
@@ -866,7 +866,7 @@ func retvar(t *Field, i int) *Node {
 // when they come from a multiple return call.
 func argvar(t *Type, i int) *Node {
 	n := newname(LookupN("~arg", i))
-	n.Type = t.Type
+	n.Type = t.Elem()
 	n.Class = PAUTO
 	n.Used = true
 	n.Name.Curfn = Curfn // the calling function, not the called one

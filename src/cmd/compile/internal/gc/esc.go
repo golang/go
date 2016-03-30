@@ -640,7 +640,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// "Big" conditions that were scattered around in walk have been gathered here
 	if n.Esc != EscHeap && n.Type != nil &&
 		(n.Type.Width > MaxStackVarSize ||
-			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
+			n.Op == ONEW && n.Type.Elem().Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 2 {
 			Warnl(n.Lineno, "%v is too large for stack", n)
@@ -697,7 +697,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// it is also a dereference, because it is implicitly
 			// dereferenced (see #12588)
 			if Isfixedarray(n.Type) &&
-				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
+				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Elem(), n.Type)) {
 				escassignNilWhy(e, n.List.Second(), n.Right, "range")
 			} else {
 				escassignDereference(e, n.List.Second(), n.Right, e.stepAssign(nil, n.List.Second(), n.Right, "range-deref"))
@@ -1341,7 +1341,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" an array
 		// might yield the type of an element. To be enhanced...
-		t = t.Type
+		t = t.Elem()
 	}
 	ind.Type = t
 	return ind
@@ -1493,7 +1493,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 				if n2.Isddd && !n.Isddd {
 					// Introduce ODDDARG node to represent ... allocation.
 					src = Nod(ODDDARG, nil, nil)
-					arr := typArray(n2.Type.Type, int64(len(lls)))
+					arr := typArray(n2.Type.Elem(), int64(len(lls)))
 					src.Type = Ptrto(arr) // make pointer so it will be tracked
 					src.Lineno = n.Lineno
 					e.track(src)
@@ -1555,7 +1555,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
-			arr := typArray(t.Type.Type, int64(len(lls)-i))
+			arr := typArray(t.Type.Elem(), int64(len(lls)-i))
 			src.Type = Ptrto(arr) // make pointer so it will be tracked
 			e.track(src)
 			n.Right = src

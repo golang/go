@@ -1684,7 +1684,7 @@ func isgoconst(n *Node) bool {
 		t := l.Type
 
 		if t != nil && Isptr[t.Etype] {
-			t = t.Type
+			t = t.Elem()
 		}
 		if Isfixedarray(t) && !hascallchan(l) {
 			return true

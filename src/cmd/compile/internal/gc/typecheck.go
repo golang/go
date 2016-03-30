@@ -484,7 +484,7 @@ OpSwitch:
 		}
 
 		ok |= Erv
-		n.Type = t.Type
+		n.Type = t.Elem()
 		break OpSwitch
 
 	// arithmetic exprs
@@ -864,8 +864,8 @@ OpSwitch:
 			break OpSwitch
 		}
 
-		if Isptr[t.Etype] && t.Type.Etype != TINTER {
-			t = t.Type
+		if Isptr[t.Etype] && t.Elem().Etype != TINTER {
+			t = t.Elem()
 			if t == nil {
 				n.Type = nil
 				return n
@@ -886,7 +886,7 @@ OpSwitch:
 			case isnilinter(t):
 				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
 
-			case Isptr[t.Etype] && Isinter(t.Type):
+			case Isptr[t.Etype] && Isinter(t.Elem()):
 				// Pointer to interface is almost always a mistake.
 				Yyerror("%v undefined (type %v is pointer to interface, not interface)", n, n.Left.Type)
 
@@ -989,7 +989,7 @@ OpSwitch:
 			if t.Etype == TSTRING {
 				n.Type = bytetype
 			} else {
-				n.Type = t.Type
+				n.Type = t.Elem()
 			}
 			why := "string"
 			if t.Etype == TARRAY {
@@ -1052,7 +1052,7 @@ OpSwitch:
 			return n
 		}
 
-		n.Type = t.Type
+		n.Type = t.Elem()
 		break OpSwitch
 
 	case OSEND:
@@ -1079,13 +1079,13 @@ OpSwitch:
 			return n
 		}
 
-		n.Right = defaultlit(n.Right, t.Type)
+		n.Right = defaultlit(n.Right, t.Elem())
 		r := n.Right
 		if r.Type == nil {
 			n.Type = nil
 			return n
 		}
-		n.Right = assignconv(r, l.Type.Type, "send")
+		n.Right = assignconv(r, l.Type.Elem(), "send")
 
 		// TODO: more aggressive
 		n.Etype = 0
@@ -1124,9 +1124,9 @@ OpSwitch:
 		if Istype(t, TSTRING) {
 			n.Type = t
 			n.Op = OSLICESTR
-		} else if Isptr[t.Etype] && Isfixedarray(t.Type) {
-			tp = t.Type
-			n.Type = typSlice(tp.Type)
+		} else if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
+			tp = t.Elem()
+			n.Type = typSlice(tp.Elem())
 			dowidth(n.Type)
 			n.Op = OSLICEARR
 		} else if Isslice(t) {
@@ -1189,9 +1189,9 @@ OpSwitch:
 		}
 
 		var tp *Type
-		if Isptr[t.Etype] && Isfixedarray(t.Type) {
-			tp = t.Type
-			n.Type = typSlice(tp.Type)
+		if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
+			tp = t.Elem()
+			n.Type = typSlice(tp.Elem())
 			dowidth(n.Type)
 			n.Op = OSLICE3ARR
 		} else if Isslice(t) {
@@ -1622,7 +1622,7 @@ OpSwitch:
 				return n
 			}
 
-			if Istype(t.Type, TUINT8) && Istype(args.Second().Type, TSTRING) {
+			if Istype(t.Elem(), TUINT8) && Istype(args.Second().Type, TSTRING) {
 				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
 				break OpSwitch
 			}
@@ -1634,8 +1634,8 @@ OpSwitch:
 		if funarg != nil {
 			_, it := IterFields(funarg) // Skip first field
 			for t := it.Next(); t != nil; t = it.Next() {
-				if assignop(t.Type, n.Type.Type, nil) == 0 {
-					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Type)
+				if assignop(t.Type, n.Type.Elem(), nil) == 0 {
+					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Elem())
 				}
 			}
 		} else {
@@ -1644,7 +1644,7 @@ OpSwitch:
 				if n.Type == nil {
 					continue
 				}
-				as[i] = assignconv(n, t.Type, "append")
+				as[i] = assignconv(n, t.Elem(), "append")
 			}
 		}
 
@@ -1684,7 +1684,7 @@ OpSwitch:
 
 		// copy([]byte, string)
 		if Isslice(n.Left.Type) && n.Right.Type.Etype == TSTRING {
-			if Eqtype(n.Left.Type.Type, bytetype) {
+			if Eqtype(n.Left.Type.Elem(), bytetype) {
 				break OpSwitch
 			}
 			Yyerror("arguments to copy have different element types: %v and string", Tconv(n.Left.Type, FmtLong))
@@ -1704,7 +1704,7 @@ OpSwitch:
 			return n
 		}
 
-		if !Eqtype(n.Left.Type.Type, n.Right.Type.Type) {
+		if !Eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
 			Yyerror("arguments to copy have different element types: %v and %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
 			n.Type = nil
 			return n
@@ -1978,7 +1978,7 @@ OpSwitch:
 		if t.Etype == TSTRING {
 			n.Type = Ptrto(Types[TUINT8])
 		} else {
-			n.Type = Ptrto(t.Type)
+			n.Type = Ptrto(t.Elem())
 		}
 		break OpSwitch
 
@@ -2299,7 +2299,7 @@ func implicitstar(n *Node) *Node {
 	if t == nil || !Isptr[t.Etype] {
 		return n
 	}
-	t = t.Type
+	t = t.Elem()
 	if t == nil {
 		return n
 	}
@@ -2435,7 +2435,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 
 func derefall(t *Type) *Type {
 	for t != nil && t.Etype == Tptr {
-		t = t.Type
+		t = t.Elem()
 	}
 	return t
 }
@@ -2506,26 +2506,26 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		dowidth(tt)
 		rcvr := f2.Type.Recv().Type
 		if !Eqtype(rcvr, tt) {
-			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
+			if rcvr.Etype == Tptr && Eqtype(rcvr.Elem(), tt) {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = Nod(OADDR, n.Left, nil)
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Type, rcvr) {
+			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Elem(), rcvr) {
 				n.Left = Nod(OIND, n.Left, nil)
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
 				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Sym, Nconv(n.Left, FmtLong))
 				for tt.Etype == Tptr {
 					// Stop one level early for method with pointer receiver.
-					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
+					if rcvr.Etype == Tptr && tt.Elem().Etype != Tptr {
 						break
 					}
 					n.Left = Nod(OIND, n.Left, nil)
 					n.Left.Implicit = true
 					n.Left = typecheck(n.Left, Etype|Erv)
-					tt = tt.Type
+					tt = tt.Elem()
 				}
 			} else {
 				Fatalf("method mismatch: %v for %v", rcvr, tt)
@@ -2612,11 +2612,11 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 				for _, tl := range tstruct.Fields().Slice() {
 					if tl.Isddd {
 						for ; tn != nil; tn = it.Next() {
-							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
+							if assignop(tn.Type, tl.Type.Elem(), &why) == 0 {
 								if call != nil {
-									Yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Type, call, why)
+									Yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Elem(), call, why)
 								} else {
-									Yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Type, desc(), why)
+									Yyerror("cannot use %v as type %v in %s%s", tn.Type, tl.Type.Elem(), desc(), why)
 								}
 							}
 						}
@@ -2693,7 +2693,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 				n = nl.Index(i)
 				setlineno(n)
 				if n.Type != nil {
-					nl.SetIndex(i, assignconvfn(n, t.Type, desc))
+					nl.SetIndex(i, assignconvfn(n, t.Elem(), desc))
 				}
 			}
 
@@ -2846,7 +2846,7 @@ func iscomptype(t *Type) bool {
 		return true
 
 	case TPTR32, TPTR64:
-		switch t.Type.Etype {
+		switch t.Elem().Etype {
 		case TARRAY, TSTRUCT, TMAP:
 			return true
 		}
@@ -2914,7 +2914,7 @@ func typecheckcomplit(n *Node) *Node {
 		// For better or worse, we don't allow pointers as the composite literal type,
 		// except when using the &T syntax, which sets implicit on the OIND.
 		if !n.Right.Implicit {
-			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Type)
+			Yyerror("invalid pointer type %v for composite literal (use &%v instead)", t, t.Elem())
 			n.Type = nil
 			return n
 		}
@@ -2926,7 +2926,7 @@ func typecheckcomplit(n *Node) *Node {
 			return n
 		}
 
-		t = t.Type
+		t = t.Elem()
 	}
 
 	var r *Node
@@ -2979,10 +2979,10 @@ func typecheckcomplit(n *Node) *Node {
 			}
 
 			r = l.Right
-			pushtype(r, t.Type)
+			pushtype(r, t.Elem())
 			r = typecheck(r, Erv)
-			r = defaultlit(r, t.Type)
-			l.Right = assignconv(r, t.Type, "array or slice literal")
+			r = defaultlit(r, t.Elem())
+			l.Right = assignconv(r, t.Elem(), "array or slice literal")
 		}
 
 		if t.isDDDArray() {
@@ -3440,7 +3440,7 @@ func stringtoarraylit(n *Node) *Node {
 
 	s := n.Left.Val().U.(string)
 	var l []*Node
-	if n.Type.Type.Etype == TUINT8 {
+	if n.Type.Elem().Etype == TUINT8 {
 		// []byte
 		for i := 0; i < len(s); i++ {
 			l = append(l, Nod(OKEY, Nodintconst(int64(i)), Nodintconst(int64(s[0]))))

@@ -150,7 +150,7 @@ func reexportdep(n *Node) {
 
 		if t != Types[t.Etype] && t != idealbool && t != idealstring {
 			if Isptr[t.Etype] {
-				t = t.Type
+				t = t.Elem()
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
@@ -164,7 +164,7 @@ func reexportdep(n *Node) {
 		t := n.Type
 		if t != Types[n.Type.Etype] && t != idealbool && t != idealstring {
 			if Isptr[t.Etype] {
-				t = t.Type
+				t = t.Elem()
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
@@ -205,7 +205,7 @@ func reexportdep(n *Node) {
 		switch t.Etype {
 		case TARRAY, TCHAN, TPTR32, TPTR64:
 			if t.Sym == nil {
-				t = t.Type
+				t = t.Elem()
 			}
 		}
 		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
@@ -304,7 +304,7 @@ func dumpexporttype(t *Type) {
 		dumpexporttype(t.Val())
 		dumpexporttype(t.Key())
 	case TARRAY, TCHAN, TPTR32, TPTR64:
-		dumpexporttype(t.Type)
+		dumpexporttype(t.Elem())
 	}
 
 	if t.Sym == nil {
