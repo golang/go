@@ -481,14 +481,14 @@ func (p *exporter) typ(t *Type) {
 			}
 			p.string(m.Sym.Name)
 			sig := m.Type
-			inlineable := p.isInlineable(sig.Nname)
+			inlineable := p.isInlineable(sig.Nname())
 			p.paramList(sig.Recvs(), inlineable)
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
 			index := -1
 			if inlineable {
 				index = len(p.inlined)
-				p.inlined = append(p.inlined, sig.Nname.Func)
+				p.inlined = append(p.inlined, sig.Nname().Func)
 			}
 			p.int(index)
 		}

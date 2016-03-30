@@ -323,15 +323,15 @@ func dumpexporttype(t *Type) {
 		if f.Nointerface {
 			exportf("\t//go:nointerface\n")
 		}
-		if f.Type.Nname != nil && len(f.Type.Nname.Func.Inl.Slice()) != 0 { // nname was set by caninl
+		if f.Type.Nname() != nil && len(f.Type.Nname().Func.Inl.Slice()) != 0 { // nname was set by caninl
 
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if Debug['l'] < 2 {
-				typecheckinl(f.Type.Nname)
+				typecheckinl(f.Type.Nname())
 			}
-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp|FmtBody))
-			reexportdeplist(f.Type.Nname.Func.Inl)
+			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname().Func.Inl, FmtSharp|FmtBody))
+			reexportdeplist(f.Type.Nname().Func.Inl)
 		} else {
 			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
 		}

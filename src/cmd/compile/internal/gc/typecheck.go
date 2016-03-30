@@ -3418,7 +3418,7 @@ func typecheckfunc(n *Node) {
 		return
 	}
 	n.Type = t
-	t.Nname = n.Func.Nname
+	t.SetNname(n.Func.Nname)
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
 		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Nname.Nointerface)
@@ -3465,7 +3465,7 @@ var ntypecheckdeftype int
 var methodqueue []*Node
 
 func domethod(n *Node) {
-	nt := n.Type.Nname
+	nt := n.Type.Nname()
 	nt = typecheck(nt, Etype)
 	if nt.Type == nil {
 		// type check failed; leave empty func

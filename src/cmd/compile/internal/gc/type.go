@@ -128,7 +128,7 @@ type Type struct {
 	Vargen int32 // unique name for OTYPE/ONAME
 	Lineno int32
 
-	Nname  *Node
+	nname  *Node
 	Argwid int64
 
 	// most nodes
@@ -454,6 +454,12 @@ func (t *Type) wantEtype(et EType) {
 	}
 }
 
+func (t *Type) wantEtype2(et1, et2 EType) {
+	if t.Etype != et1 && t.Etype != et2 {
+		Fatalf("want %v or %v, but have %v", et1, et2, t)
+	}
+}
+
 func (t *Type) RecvsP() **Type {
 	t.wantEtype(TFUNC)
 	return &t.Type
@@ -525,6 +531,18 @@ func (t *Type) Wrapped() *Type {
 		Fatalf("Type.Wrapped %s", t.Etype)
 	}
 	return t.Type
+}
+
+// Nname returns the associated function's nname.
+func (t *Type) Nname() *Node {
+	t.wantEtype2(TFUNC, TINTERMETH)
+	return t.nname
+}
+
+// Nname sets the associated function's nname.
+func (t *Type) SetNname(n *Node) {
+	t.wantEtype2(TFUNC, TINTERMETH)
+	t.nname = n
 }
 
 func (t *Type) Methods() *Fields {
