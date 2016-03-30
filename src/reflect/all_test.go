@@ -2321,6 +2321,33 @@ func TestImportPath(t *testing.T) {
 	}
 }
 
+func TestFieldPkgPath(t *testing.T) {
+	typ := TypeOf(struct {
+		Exported   string
+		unexported string
+		OtherPkgFields
+	}{})
+	for _, test := range []struct {
+		index     []int
+		pkgPath   string
+		anonymous bool
+	}{
+		{[]int{0}, "", false},             // Exported
+		{[]int{1}, "reflect_test", false}, // unexported
+		{[]int{2}, "", true},              // OtherPkgFields
+		{[]int{2, 0}, "", false},          // OtherExported
+		{[]int{2, 1}, "reflect", false},   // otherUnexported
+	} {
+		f := typ.FieldByIndex(test.index)
+		if got, want := f.PkgPath, test.pkgPath; got != want {
+			t.Errorf("Field(%d).PkgPath = %q, want %q", test.index, got, want)
+		}
+		if got, want := f.Anonymous, test.anonymous; got != want {
+			t.Errorf("Field(%d).Anonymous = %v, want %v", test.index, got, want)
+		}
+	}
+}
+
 func TestVariadicType(t *testing.T) {
 	// Test example from Type documentation.
 	var f func(x int, y ...float64)
