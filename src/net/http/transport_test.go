@@ -923,7 +923,9 @@ func TestTransportGzipRecursive(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := &Client{Transport: &Transport{}}
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -3042,6 +3044,50 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 	doReturned <- true
 	<-madeRoundTripper
 	<-handledPendingDial
+}
+
+func TestTransportReuseConnection_Gzip_Chunked(t *testing.T) {
+	testTransportReuseConnection_Gzip(t, true)
+}
+
+func TestTransportReuseConnection_Gzip_ContentLength(t *testing.T) {
+	testTransportReuseConnection_Gzip(t, false)
+}
+
+// Make sure we re-use underlying TCP connection for gzipped responses too.
+func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
+	defer afterTest(t)
+	addr := make(chan string, 2)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		addr <- r.RemoteAddr
+		w.Header().Set("Content-Encoding", "gzip")
+		if chunked {
+			w.(Flusher).Flush()
+		}
+		w.Write(rgz) // arbitrary gzip response
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	for i := 0; i < 2; i++ {
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf := make([]byte, len(rgz))
+		if n, err := io.ReadFull(res.Body, buf); err != nil {
+			t.Errorf("%d. ReadFull = %v, %v", i, n, err)
+		}
+		// Note: no res.Body.Close call. It should work without it,
+		// since the flate.Reader's internal buffering will hit EOF
+		// and that should be sufficient.
+	}
+	a1, a2 := <-addr, <-addr
+	if a1 != a2 {
+		t.Fatalf("didn't reuse connection")
+	}
 }
 
 var errFakeRoundTrip = errors.New("fake roundtrip")

@@ -1147,25 +1147,32 @@ func (pc *persistConn) readLoop() {
 			continue
 		}
 
-		if rc.addedGzip {
-			maybeUngzipResponse(resp)
-		}
-		resp.Body = &bodyEOFSignal{body: resp.Body}
-
 		waitForBodyRead := make(chan bool, 2)
-		resp.Body.(*bodyEOFSignal).earlyCloseFn = func() error {
-			waitForBodyRead <- false
-			return nil
+		body := &bodyEOFSignal{
+			body: resp.Body,
+			earlyCloseFn: func() error {
+				waitForBodyRead <- false
+				return nil
+
+			},
+			fn: func(err error) error {
+				isEOF := err == io.EOF
+				waitForBodyRead <- isEOF
+				if isEOF {
+					<-eofc // see comment above eofc declaration
+				} else if err != nil && pc.isCanceled() {
+					return errRequestCanceled
+				}
+				return err
+			},
 		}
-		resp.Body.(*bodyEOFSignal).fn = func(err error) error {
-			isEOF := err == io.EOF
-			waitForBodyRead <- isEOF
-			if isEOF {
-				<-eofc // see comment above eofc declaration
-			} else if err != nil && pc.isCanceled() {
-				return errRequestCanceled
-			}
-			return err
+
+		resp.Body = body
+		if rc.addedGzip && resp.Header.Get("Content-Encoding") == "gzip" {
+			resp.Body = &gzipReader{body: body}
+			resp.Header.Del("Content-Encoding")
+			resp.Header.Del("Content-Length")
+			resp.ContentLength = -1
 		}
 
 		select {
@@ -1196,15 +1203,6 @@ func (pc *persistConn) readLoop() {
 		}
 
 		testHookReadLoopBeforeNextRead()
-	}
-}
-
-func maybeUngzipResponse(resp *Response) {
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		resp.Header.Del("Content-Encoding")
-		resp.Header.Del("Content-Length")
-		resp.ContentLength = -1
-		resp.Body = &gzipReader{body: resp.Body}
 	}
 }
 
@@ -1580,7 +1578,11 @@ func canonicalAddr(url *url.URL) string {
 	return addr
 }
 
-// bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
+// bodyEOFSignal is used by the HTTP/1 transport when reading response
+// bodies to make sure we see the end of a response body before
+// proceeding and reading on the connection again.
+//
+// It wraps a ReadCloser but runs fn (if non-nil) at most
 // once, right before its final (error-producing) Read or Close call
 // returns. fn should return the new error to return from Read or Close.
 //
@@ -1596,12 +1598,14 @@ type bodyEOFSignal struct {
 	earlyCloseFn func() error      // optional alt Close func used if io.EOF not seen
 }
 
+var errReadOnClosedResBody = errors.New("http: read on closed response body")
+
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 	es.mu.Lock()
 	closed, rerr := es.closed, es.rerr
 	es.mu.Unlock()
 	if closed {
-		return 0, errors.New("http: read on closed response body")
+		return 0, errReadOnClosedResBody
 	}
 	if rerr != nil {
 		return 0, rerr
@@ -1646,16 +1650,29 @@ func (es *bodyEOFSignal) condfn(err error) error {
 // gzipReader wraps a response body so it can lazily
 // call gzip.NewReader on the first call to Read
 type gzipReader struct {
-	body io.ReadCloser // underlying Response.Body
-	zr   io.Reader     // lazily-initialized gzip reader
+	body *bodyEOFSignal // underlying HTTP/1 response body framing
+	zr   *gzip.Reader   // lazily-initialized gzip reader
+	zerr error          // any error from gzip.NewReader; sticky
 }
 
 func (gz *gzipReader) Read(p []byte) (n int, err error) {
 	if gz.zr == nil {
-		gz.zr, err = gzip.NewReader(gz.body)
-		if err != nil {
-			return 0, err
+		if gz.zerr == nil {
+			gz.zr, gz.zerr = gzip.NewReader(gz.body)
 		}
+		if gz.zerr != nil {
+			return 0, gz.zerr
+		}
+	}
+
+	gz.body.mu.Lock()
+	if gz.body.closed {
+		err = errReadOnClosedResBody
+	}
+	gz.body.mu.Unlock()
+
+	if err != nil {
+		return 0, err
 	}
 	return gz.zr.Read(p)
 }
