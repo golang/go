@@ -267,6 +267,14 @@ func typeChan(elem *Type, dir uint8) *Type {
 	return t
 }
 
+// typMap returns a new map Type with key type k and element (aka value) type v.
+func typMap(k, v *Type) *Type {
+	t := typ(TMAP)
+	t.Down = k
+	t.Type = v
+	return t
+}
+
 // typPtr returns a new pointer type pointing to t.
 func typPtr(elem *Type) *Type {
 	t := typ(Tptr)

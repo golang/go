@@ -301,8 +301,8 @@ func dumpexporttype(t *Type) {
 		dumpexporttype(t.Results())
 		dumpexporttype(t.Params())
 	case TMAP:
-		dumpexporttype(t.Type)
-		dumpexporttype(t.Down) // key
+		dumpexporttype(t.Val())
+		dumpexporttype(t.Key())
 	case TARRAY, TCHAN, TPTR32, TPTR64:
 		dumpexporttype(t.Type)
 	}
