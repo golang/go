@@ -342,7 +342,7 @@ OpSwitch:
 		if l == nil {
 			t = typSlice(r.Type)
 		} else if l.Op == ODDD {
-			t = typeDDDArray(r.Type)
+			t = typDDDArray(r.Type)
 			if top&Ecomplit == 0 && n.Diag == 0 {
 				t.Broke = true
 				n.Diag = 1
@@ -413,7 +413,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		t := typeChan(l.Type, uint8(n.Etype)) // TODO(marvin): Fix Node.EType type union.
+		t := typChan(l.Type, uint8(n.Etype)) // TODO(marvin): Fix Node.EType type union.
 		n.Op = OTYPE
 		n.Type = t
 		n.Left = nil

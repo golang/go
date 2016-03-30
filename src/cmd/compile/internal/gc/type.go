@@ -251,16 +251,16 @@ func typSlice(elem *Type) *Type {
 	return t
 }
 
-// typeDDDArray returns a new [...]T array Type.
-func typeDDDArray(elem *Type) *Type {
+// typDDDArray returns a new [...]T array Type.
+func typDDDArray(elem *Type) *Type {
 	t := typ(TARRAY)
 	t.Type = elem
 	t.Bound = dddBound
 	return t
 }
 
-// typeChan returns a new chan Type with direction dir.
-func typeChan(elem *Type, dir uint8) *Type {
+// typChan returns a new chan Type with direction dir.
+func typChan(elem *Type, dir uint8) *Type {
 	t := typ(TCHAN)
 	t.Type = elem
 	t.Chan = dir
