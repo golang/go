@@ -231,7 +231,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			return n
 
 		case TARRAY:
-			if !Isslice(t) {
+			if !t.IsSlice() {
 				goto bad
 			}
 
@@ -1686,7 +1686,7 @@ func isgoconst(n *Node) bool {
 		if t != nil && Isptr[t.Etype] {
 			t = t.Elem()
 		}
-		if Isfixedarray(t) && !hascallchan(l) {
+		if t != nil && t.IsArray() && !hascallchan(l) {
 			return true
 		}
 

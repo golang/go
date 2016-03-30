@@ -743,7 +743,7 @@ func typeptrdata(t *Type) int64 {
 		return 2 * int64(Widthptr)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			return int64(Widthptr)
 		}
@@ -999,7 +999,7 @@ func isreflexive(t *Type) bool {
 		return false
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("slice can't be a map key: %v", t)
 		}
 		return isreflexive(t.Elem())
@@ -1049,7 +1049,7 @@ func needkeyupdate(t *Type) bool {
 		return true
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("slice can't be a map key: %v", t)
 		}
 		return needkeyupdate(t.Elem())
@@ -1633,7 +1633,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
 		p.w.Ptr(offset/int64(Widthptr) + 1)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			p.w.Ptr(offset / int64(Widthptr))
 			return
 		}
@@ -1645,7 +1645,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
 		count := t.Bound
 		elem := t.Elem()
-		for Isfixedarray(elem) {
+		for elem.IsArray() {
 			count *= elem.Bound
 			elem = elem.Elem()
 		}

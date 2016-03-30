@@ -696,7 +696,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// If fixed array is really the address of fixed array,
 			// it is also a dereference, because it is implicitly
 			// dereferenced (see #12588)
-			if Isfixedarray(n.Type) &&
+			if n.Type.IsArray() &&
 				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Elem(), n.Type)) {
 				escassignNilWhy(e, n.List.Second(), n.Right, "range")
 			} else {
@@ -864,7 +864,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OARRAYLIT:
 		why := "array literal element"
-		if Isslice(n.Type) {
+		if n.Type.IsSlice() {
 			// Slice itself is not leaked until proven otherwise
 			e.track(n)
 			why = "slice literal element"
@@ -1037,7 +1037,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		return
 
 	case OINDEX:
-		if Isfixedarray(dst.Left.Type) {
+		if dst.Left.Type.IsArray() {
 			escassign(e, dst.Left, src, e.stepAssign(step, originalDst, src, "array-element-equals"))
 			return
 		}
@@ -1139,7 +1139,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 
 	case OINDEX:
 		// Index of array preserves input value.
-		if Isfixedarray(src.Left.Type) {
+		if src.Left.Type.IsArray() {
 			escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 		} else {
 			escflows(e, dst, src, e.stepAssign(step, originalDst, src, dstwhy))
@@ -1866,7 +1866,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		level = level.dec()
 
 	case OARRAYLIT:
-		if Isfixedarray(src.Type) {
+		if src.Type.IsArray() {
 			break
 		}
 		for _, n1 := range src.List.Slice() {
@@ -1911,7 +1911,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "slice", step))
 
 	case OINDEX:
-		if Isfixedarray(src.Left.Type) {
+		if src.Left.Type.IsArray() {
 			escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "fixed-array-index-of", step))
 			break
 		}

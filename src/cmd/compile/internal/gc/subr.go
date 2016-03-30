@@ -579,14 +579,6 @@ func Istype(t *Type, et EType) bool {
 	return t != nil && t.Etype == et
 }
 
-func Isfixedarray(t *Type) bool {
-	return t != nil && t.IsArray()
-}
-
-func Isslice(t *Type) bool {
-	return t != nil && t.IsSlice()
-}
-
 func isblank(n *Node) bool {
 	if n == nil {
 		return false
@@ -598,12 +590,8 @@ func isblanksym(s *Sym) bool {
 	return s != nil && s.Name == "_"
 }
 
-func Isinter(t *Type) bool {
-	return t != nil && t.Etype == TINTER
-}
-
 func isnilinter(t *Type) bool {
-	return Isinter(t) && t.NumFields() == 0
+	return t.IsInterface() && t.NumFields() == 0
 }
 
 func isideal(t *Type) bool {
@@ -987,7 +975,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 		return ORUNESTR
 	}
 
-	if Isslice(src) && dst.Etype == TSTRING {
+	if src.IsSlice() && dst.Etype == TSTRING {
 		if src.Elem().Etype == bytetype.Etype {
 			return OARRAYBYTESTR
 		}
@@ -998,7 +986,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
-	if src.Etype == TSTRING && Isslice(dst) {
+	if src.Etype == TSTRING && dst.IsSlice() {
 		if dst.Elem().Etype == bytetype.Etype {
 			return OSTRARRAYBYTE
 		}
@@ -2249,7 +2237,7 @@ func isbadimport(path string) bool {
 }
 
 func checknil(x *Node, init *Nodes) {
-	if Isinter(x.Type) {
+	if x.Type.IsInterface() {
 		x = Nod(OITAB, x, nil)
 		x = typecheck(x, Erv)
 	}
@@ -2290,7 +2278,7 @@ func (t *Type) iet() byte {
 	if isnilinter(t) {
 		return 'E'
 	}
-	if Isinter(t) {
+	if t.IsInterface() {
 		return 'I'
 	}
 	return 'T'

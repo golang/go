@@ -98,7 +98,7 @@ func addrescapes(n *Node) {
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
 	case ODOT, OINDEX, OPAREN, OCONVNOP:
-		if !Isslice(n.Left.Type) {
+		if !n.Left.Type.IsSlice() {
 			addrescapes(n.Left)
 		}
 	}
@@ -1204,7 +1204,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
 				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
 				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))

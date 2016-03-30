@@ -174,12 +174,12 @@ func cgen_wb(n, res *Node, wb bool) {
 	// changes if n->left is an escaping local variable.
 	switch n.Op {
 	case OSPTR, OLEN:
-		if Isslice(n.Left.Type) || Istype(n.Left.Type, TSTRING) {
+		if n.Left.Type.IsSlice() || Istype(n.Left.Type, TSTRING) {
 			n.Addable = n.Left.Addable
 		}
 
 	case OCAP:
-		if Isslice(n.Left.Type) {
+		if n.Left.Type.IsSlice() {
 			n.Addable = n.Left.Addable
 		}
 
@@ -578,7 +578,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		if Istype(nl.Type, TSTRING) || Isslice(nl.Type) {
+		if Istype(nl.Type, TSTRING) || nl.Type.IsSlice() {
 			// both slice and string have len one pointer into the struct.
 			// a zero pointer means zero length
 			var n1 Node
@@ -619,7 +619,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		if Isslice(nl.Type) {
+		if nl.Type.IsSlice() {
 			var n1 Node
 			Igen(nl, &n1, res)
 			n1.Type = Types[Simtype[TUINT]]
@@ -1034,7 +1034,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				}
 				v := uint64(nr.Val().U.(*Mpint).Int64())
 				var n2 Node
-				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+				if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 					if Debug['B'] == 0 && !n.Bounded {
 						n1 = n3
 						n1.Op = OINDREG
@@ -1069,7 +1069,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				// check bounds
 				if Isconst(nl, CTSTR) {
 					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val().U.(string))))
-				} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+				} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 					n1 = n3
 					n1.Op = OINDREG
 					n1.Type = Types[Tptr]
@@ -1095,7 +1095,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
 				Datastring(nl.Val().U.(string), &p1.From)
 				p1.From.Type = obj.TYPE_ADDR
-			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+			} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 				n1 = n3
 				n1.Op = OINDREG
 				n1.Type = Types[Tptr]
@@ -1167,7 +1167,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 
 			// For fixed array we really want the pointer in n3.
 			var n2 Node
-			if Isfixedarray(nl.Type) {
+			if nl.Type.IsArray() {
 				Regalloc(&n2, Types[Tptr], &n3)
 				Agen(&n3, &n2)
 				Regfree(&n3)
@@ -1185,7 +1185,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					Fatalf("constant string constant index") // front end should handle
 				}
 				v := uint64(nr.Val().U.(*Mpint).Int64())
-				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+				if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 					if Debug['B'] == 0 && !n.Bounded {
 						nlen := n3
 						nlen.Type = Types[TUINT32]
@@ -1230,7 +1230,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				var nlen Node
 				if Isconst(nl, CTSTR) {
 					Nodconst(&nlen, t, int64(len(nl.Val().U.(string))))
-				} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+				} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 					nlen = n3
 					nlen.Type = t
 					nlen.Xoffset += int64(Array_nel)
@@ -1258,7 +1258,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			// Load base pointer in n3.
 			Regalloc(&tmp, Types[Tptr], &n3)
 
-			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+			if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 				n3.Type = Types[Tptr]
 				n3.Xoffset += int64(Array_array)
 				Thearch.Gmove(&n3, &tmp)
@@ -1304,7 +1304,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 		if nl.Addable {
 			Cgenr(nr, &n1, nil)
 			if !Isconst(nl, CTSTR) {
-				if Isfixedarray(nl.Type) {
+				if nl.Type.IsArray() {
 					Agenr(nl, &n3, res)
 				} else {
 					Igen(nl, &nlen, res)
@@ -1327,7 +1327,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 
 	irad:
 		if !Isconst(nl, CTSTR) {
-			if Isfixedarray(nl.Type) {
+			if nl.Type.IsArray() {
 				Agenr(nl, &n3, res)
 			} else {
 				if !nl.Addable {
@@ -1375,7 +1375,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				Fatalf("constant string constant index") // front end should handle
 			}
 			v := uint64(nr.Val().U.(*Mpint).Int64())
-			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+			if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 				if Debug['B'] == 0 && !n.Bounded {
 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
 					Ginscall(Panicindex, -1)
@@ -1413,7 +1413,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			}
 			if Isconst(nl, CTSTR) {
 				Nodconst(&nlen, t, int64(len(nl.Val().U.(string))))
-			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+			} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
 				// nlen already initialized
 			} else {
 				Nodconst(&nlen, t, nl.Type.Bound)
@@ -1690,7 +1690,7 @@ func Igen(n *Node, a *Node, res *Node) {
 	// Could do the same for slice except that we need
 	// to use the real index for the bounds checking.
 	case OINDEX:
-		if Isfixedarray(n.Left.Type) || (Isptr[n.Left.Type.Etype] && Isfixedarray(n.Left.Left.Type)) {
+		if n.Left.Type.IsArray() || (Isptr[n.Left.Type.Etype] && n.Left.Left.Type.IsArray()) {
 			if Isconst(n.Right, CTINT) {
 				// Compute &a.
 				if !Isptr[n.Left.Type.Etype] {
@@ -1946,10 +1946,10 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		nl, nr = nr, nl
 	}
 
-	if Isslice(nl.Type) || Isinter(nl.Type) {
+	if nl.Type.IsSlice() || nl.Type.IsInterface() {
 		// front end should only leave cmp to literal nil
 		if (op != OEQ && op != ONE) || nr.Op != OLITERAL {
-			if Isslice(nl.Type) {
+			if nl.Type.IsSlice() {
 				Yyerror("illegal slice comparison")
 			} else {
 				Yyerror("illegal interface comparison")
@@ -1959,7 +1959,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 
 		var ptr Node
 		Igen(nl, &ptr, nil)
-		if Isslice(nl.Type) {
+		if nl.Type.IsSlice() {
 			ptr.Xoffset += int64(Array_array)
 		}
 		ptr.Type = Types[Tptr]
@@ -2206,7 +2206,7 @@ func stkof(n *Node) int64 {
 
 	case OINDEX:
 		t := n.Left.Type
-		if !Isfixedarray(t) {
+		if !t.IsArray() {
 			break
 		}
 		off := stkof(n.Left)

@@ -2768,7 +2768,7 @@ func canSSAType(t *Type) bool {
 	}
 	switch t.Etype {
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			return true
 		}
 		// We can't do arrays because dynamic indexing is
