@@ -512,7 +512,7 @@ func (p *exporter) typ(t *Type) {
 		} else {
 			p.tag(sliceTag)
 		}
-		p.typ(t.Type)
+		p.typ(t.Elem())
 
 	case TDDDFIELD:
 		// see p.param use of TDDDFIELD
@@ -525,7 +525,7 @@ func (p *exporter) typ(t *Type) {
 
 	case TPTR32, TPTR64: // could use Tptr but these are constants
 		p.tag(pointerTag)
-		p.typ(t.Type)
+		p.typ(t.Elem())
 
 	case TFUNC:
 		p.tag(signatureTag)
@@ -548,7 +548,7 @@ func (p *exporter) typ(t *Type) {
 	case TCHAN:
 		p.tag(chanTag)
 		p.int(int(t.Chan))
-		p.typ(t.Type)
+		p.typ(t.Elem())
 
 	default:
 		Fatalf("exporter: unexpected type: %s (Etype = %d)", Tconv(t, 0), t.Etype)
@@ -636,7 +636,7 @@ func (p *exporter) fieldName(t *Field) {
 func basetypeName(t *Type) string {
 	s := t.Sym
 	if s == nil && Isptr[t.Etype] {
-		s = t.Type.Sym // deref
+		s = t.Elem().Sym // deref
 	}
 	if s != nil {
 		return s.Name
@@ -666,7 +666,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	t := q.Type
 	if q.Isddd {
 		// create a fake type to encode ... just for the p.typ call
-		t = typWrapper(TDDDFIELD, t.Type)
+		t = typWrapper(TDDDFIELD, t.Elem())
 	}
 	p.typ(t)
 	if n > 0 {

@@ -716,7 +716,7 @@ func checkembeddedtype(t *Type) {
 	}
 
 	if t.Sym == nil && Isptr[t.Etype] {
-		t = t.Type
+		t = t.Elem()
 		if t.Etype == TINTER {
 			Yyerror("embedded type cannot be a pointer to interface")
 		}
@@ -1020,7 +1020,7 @@ func isifacemethod(f *Type) bool {
 	if !Isptr[t.Etype] {
 		return false
 	}
-	t = t.Type
+	t = t.Elem()
 	if t.Sym != nil || t.Etype != TSTRUCT || t.NumFields() != 0 {
 		return false
 	}
@@ -1076,7 +1076,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	}
 	s = t.Sym
 	if s == nil && Isptr[t.Etype] {
-		t = t.Type
+		t = t.Elem()
 		if t == nil {
 			goto bad
 		}
@@ -1198,7 +1198,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 					return
 				}
 
-				t = t.Type
+				t = t.Elem()
 			}
 
 			if t.Broke { // rely on typecheck having complained before

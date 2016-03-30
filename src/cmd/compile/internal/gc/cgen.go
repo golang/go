@@ -2214,14 +2214,14 @@ func stkof(n *Node) int64 {
 			return off
 		}
 		if Isconst(n.Right, CTINT) {
-			return off + t.Type.Width*n.Right.Val().U.(*Mpint).Int64()
+			return off + t.Elem().Width*n.Right.Val().U.(*Mpint).Int64()
 		}
 		return +1000 // on stack but not sure exactly where
 
 	case OCALLMETH, OCALLINTER, OCALLFUNC:
 		t := n.Left.Type
 		if Isptr[t.Etype] {
-			t = t.Type
+			t = t.Elem()
 		}
 
 		f := t.Results().Field(0)
@@ -2552,7 +2552,7 @@ func cgen_call(n *Node, proc int) {
 func cgen_callret(n *Node, res *Node) {
 	t := n.Left.Type
 	if t.Etype == TPTR32 || t.Etype == TPTR64 {
-		t = t.Type
+		t = t.Elem()
 	}
 
 	fp := t.Results().Field(0)
@@ -2576,7 +2576,7 @@ func cgen_callret(n *Node, res *Node) {
 func cgen_aret(n *Node, res *Node) {
 	t := n.Left.Type
 	if Isptr[t.Etype] {
-		t = t.Type
+		t = t.Elem()
 	}
 
 	fp := t.Results().Field(0)
@@ -2865,7 +2865,7 @@ func cgen_append(n, res *Node) {
 	Regfree(&rlen)
 
 	fn := syslook("growslice")
-	fn = substArgTypes(fn, res.Type.Type, res.Type.Type)
+	fn = substArgTypes(fn, res.Type.Elem(), res.Type.Elem())
 	Ginscall(fn, 0)
 
 	if Widthptr == 4 && Widthreg == 8 {
@@ -2945,7 +2945,7 @@ func cgen_append(n, res *Node) {
 		if i > 0 {
 			Thearch.Gins(Thearch.Optoas(OADD, Types[TUINT]), Nodintconst(int64(i)), &r2)
 		}
-		w := res.Type.Type.Width
+		w := res.Type.Elem().Width
 		if Thearch.AddIndex != nil && Thearch.AddIndex(&r2, w, &r1) {
 			// r1 updated by back end
 		} else if w == 1 {
@@ -2957,7 +2957,7 @@ func cgen_append(n, res *Node) {
 		Regfree(&r2)
 
 		r1.Op = OINDREG
-		r1.Type = res.Type.Type
+		r1.Type = res.Type.Elem()
 		cgen_wb(n2, &r1, needwritebarrier(&r1, n2))
 		Regfree(&r1)
 		i++
@@ -3025,7 +3025,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			return
 		}
 		if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-			Nodconst(&xlen, indexRegType, n.Left.Type.Type.Bound)
+			Nodconst(&xlen, indexRegType, n.Left.Type.Elem().Bound)
 			return
 		}
 		if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
@@ -3183,7 +3183,7 @@ func cgen_slice(n, res *Node, wb bool) {
 	// The func obvious below checks for out-of-order constant indexes.
 	var bound int64 = -1
 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-		bound = n.Left.Type.Type.Bound
+		bound = n.Left.Type.Elem().Bound
 	} else if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
 		bound = int64(len(n.Left.Val().U.(string)))
 	}
@@ -3467,7 +3467,17 @@ func cgen_slice(n, res *Node, wb bool) {
 			Cgenr(n.Left, &xbase, nil)
 			Cgen_checknil(&xbase)
 		} else {
-			regalloc(&xbase, Ptrto(res.Type.Type), nil)
+			var ptr *Type
+			if n.Op == OSLICESTR {
+				// Yikes! Ptrto(nil)?!
+				// Prior to CL 21331, that's what this code did implicitly.
+				// Now it does it explicitly, to safely preserve old behavior.
+				// This will all be replaced by SSA anyway.
+				ptr = Ptrto(nil)
+			} else {
+				ptr = Ptrto(n.Type.Elem())
+			}
+			regalloc(&xbase, ptr, nil)
 			x.Type = xbase.Type
 			Thearch.Gmove(&x, &xbase)
 			Regfree(&x)
@@ -3490,7 +3500,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			if n.Op == OSLICESTR {
 				w = 1 // res is string, elem size is 1 (byte)
 			} else {
-				w = res.Type.Type.Width // res is []T, elem size is T.width
+				w = res.Type.Elem().Width // res is []T, elem size is T.width
 			}
 			if Isconst(&i, CTINT) {
 				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Val().U.(*Mpint).Int64()*w, &xbase)

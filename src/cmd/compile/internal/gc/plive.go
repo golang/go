@@ -932,7 +932,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 			*xoffset += t.Width
 		} else {
 			for i := int64(0); i < t.Bound; i++ {
-				onebitwalktype1(t.Type, xoffset, bv)
+				onebitwalktype1(t.Elem(), xoffset, bv)
 			}
 		}
 

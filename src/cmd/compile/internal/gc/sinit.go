@@ -434,7 +434,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		if Isslice(r.Type) {
 			// Init slice.
 			bound := r.Right.Val().U.(*Mpint).Int64()
-			ta := typArray(r.Type.Type, bound)
+			ta := typArray(r.Type.Elem(), bound)
 			a := staticname(ta, 1)
 			inittemps[r] = a
 			n := *l
@@ -1233,7 +1233,7 @@ func initplan(n *Node) {
 			if a.Op != OKEY || !Smallintconst(a.Left) {
 				Fatalf("initplan arraylit")
 			}
-			addvalue(p, n.Type.Type.Width*a.Left.Val().U.(*Mpint).Int64(), a.Right)
+			addvalue(p, n.Type.Elem().Width*a.Left.Val().U.(*Mpint).Int64(), a.Right)
 		}
 
 	case OSTRUCTLIT:

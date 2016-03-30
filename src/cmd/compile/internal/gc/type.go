@@ -503,6 +503,17 @@ func (t *Type) Val() *Type {
 	return t.Type
 }
 
+// Elem returns the type of elements of t.
+// Usable with pointers, channels, arrays, and slices.
+func (t *Type) Elem() *Type {
+	switch t.Etype {
+	case TPTR32, TPTR64, TCHAN, TARRAY:
+	default:
+		Fatalf("Type.Elem %s", t.Etype)
+	}
+	return t.Type
+}
+
 // Wrapped returns the type that pseudo-type t wraps.
 func (t *Type) Wrapped() *Type {
 	switch t.Etype {
@@ -787,7 +798,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 	}
 
 	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
-	return t.Type.cmp(x.Type)
+	return t.Elem().cmp(x.Elem())
 }
 
 func (t *Type) IsBoolean() bool {
@@ -864,11 +875,9 @@ func (t *Type) IsInterface() bool {
 }
 
 func (t *Type) ElemType() ssa.Type {
-	switch t.Etype {
-	case TARRAY, TPTR32, TPTR64:
-		return t.Type
-	}
-	panic(fmt.Sprintf("ElemType on invalid type %v", t))
+	// TODO(josharian): If Type ever moves to a shared
+	// internal package, remove this silly wrapper.
+	return t.Elem()
 }
 func (t *Type) PtrTo() ssa.Type {
 	return Ptrto(t)

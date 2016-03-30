@@ -591,7 +591,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexprlist(n.List, order)
 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // arg to recv
 		ch := n.Rlist.First().Left.Type
-		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
+		tmp1 := ordertemp(ch.Elem(), order, haspointers(ch.Elem()))
 		var tmp2 *Node
 		if !isblank(n.List.Second()) {
 			tmp2 = ordertemp(n.List.Second().Type, order, false)
@@ -861,7 +861,7 @@ func orderstmt(n *Node, order *Order) {
 							n2.Ninit.Append(tmp2)
 						}
 
-						r.Left = ordertemp(r.Right.Left.Type.Type, order, haspointers(r.Right.Left.Type.Type))
+						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, haspointers(r.Right.Left.Type.Elem()))
 						tmp2 = Nod(OAS, tmp1, r.Left)
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
@@ -1165,7 +1165,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it
 			// to be cleaned up when the call completes.
-			prealloc[n] = ordertemp(n.Type.Type, order, false)
+			prealloc[n] = ordertemp(n.Type.Elem(), order, false)
 		}
 
 	case ODOTTYPE, ODOTTYPE2:

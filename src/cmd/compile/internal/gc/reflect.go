@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
 		// method does not apply.
 		this := f.Type.Recv().Type
 
-		if Isptr[this.Etype] && this.Type == t {
+		if Isptr[this.Etype] && this.Elem() == t {
 			continue
 		}
 		if Isptr[this.Etype] && !Isptr[t.Etype] && f.Embedded != 2 && !isifacemethod(f.Type) {
@@ -582,8 +582,13 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 
 func typePkg(t *Type) *Pkg {
 	tsym := t.Sym
-	if tsym == nil && t.Type != nil {
-		tsym = t.Type.Sym
+	if tsym == nil {
+		switch t.Etype {
+		case TARRAY, TPTR32, TPTR64, TCHAN:
+			if t.Elem() != nil {
+				tsym = t.Elem().Sym
+			}
+		}
 	}
 	if tsym != nil && t != Types[t.Etype] && t != errortype {
 		return tsym.Pkg
@@ -684,7 +689,7 @@ func haspointers(t *Type) bool {
 			break
 		}
 
-		ret = haspointers(t.Type)
+		ret = haspointers(t.Elem())
 
 	case TSTRUCT:
 		ret = false
@@ -743,7 +748,7 @@ func typeptrdata(t *Type) int64 {
 			return int64(Widthptr)
 		}
 		// haspointers already eliminated t.Bound == 0.
-		return (t.Bound-1)*t.Type.Width + typeptrdata(t.Type)
+		return (t.Bound-1)*t.Elem().Width + typeptrdata(t.Elem())
 
 	case TSTRUCT:
 		// Find the last field that has pointers.
@@ -913,7 +918,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
 }
 
 func typenamesym(t *Type) *Sym {
-	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
+	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
 		Fatalf("typename %v", t)
 	}
 	s := typesym(t)
@@ -941,7 +946,7 @@ func typename(t *Type) *Node {
 }
 
 func itabname(t, itype *Type) *Node {
-	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
+	if t == nil || (Isptr[t.Etype] && t.Elem() == nil) || isideal(t) {
 		Fatalf("itabname %v", t)
 	}
 	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
@@ -997,7 +1002,7 @@ func isreflexive(t *Type) bool {
 		if Isslice(t) {
 			Fatalf("slice can't be a map key: %v", t)
 		}
-		return isreflexive(t.Type)
+		return isreflexive(t.Elem())
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
@@ -1047,7 +1052,7 @@ func needkeyupdate(t *Type) bool {
 		if Isslice(t) {
 			Fatalf("slice can't be a map key: %v", t)
 		}
-		return needkeyupdate(t.Type)
+		return needkeyupdate(t.Elem())
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
@@ -1086,8 +1091,8 @@ func dtypesym(t *Type) *Sym {
 	// emit the type structures for int, float, etc.
 	tbase := t
 
-	if Isptr[t.Etype] && t.Sym == nil && t.Type.Sym != nil {
-		tbase = t.Type
+	if Isptr[t.Etype] && t.Sym == nil && t.Elem().Sym != nil {
+		tbase = t.Elem()
 	}
 	dupok := 0
 	if tbase.Sym == nil {
@@ -1116,8 +1121,8 @@ ok:
 	case TARRAY:
 		if t.IsArray() {
 			// ../../../../runtime/type.go:/arrayType
-			s1 := dtypesym(t.Type)
-			t2 := typSlice(t.Type)
+			s1 := dtypesym(t.Elem())
+			t2 := typSlice(t.Elem())
 			s2 := dtypesym(t2)
 			ot = dcommontype(s, ot, t)
 			ot = dsymptr(s, ot, s1, 0)
@@ -1125,7 +1130,7 @@ ok:
 			ot = duintptr(s, ot, uint64(t.Bound))
 		} else {
 			// ../../../../runtime/type.go:/sliceType
-			s1 := dtypesym(t.Type)
+			s1 := dtypesym(t.Elem())
 
 			ot = dcommontype(s, ot, t)
 			ot = dsymptr(s, ot, s1, 0)
@@ -1134,7 +1139,7 @@ ok:
 
 	// ../../../../runtime/type.go:/chanType
 	case TCHAN:
-		s1 := dtypesym(t.Type)
+		s1 := dtypesym(t.Elem())
 
 		ot = dcommontype(s, ot, t)
 		ot = dsymptr(s, ot, s1, 0)
@@ -1246,7 +1251,7 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TPTR32, TPTR64:
-		if t.Type.Etype == TANY {
+		if t.Elem().Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(s, ot, t)
 			ot = dextratype(s, ot, t, 0)
@@ -1255,7 +1260,7 @@ ok:
 		}
 
 		// ../../../../runtime/type.go:/ptrType
-		s1 := dtypesym(t.Type)
+		s1 := dtypesym(t.Elem())
 
 		ot = dcommontype(s, ot, t)
 		ot = dsymptr(s, ot, s1, 0)
@@ -1639,10 +1644,10 @@ func (p *GCProg) emit(t *Type, offset int64) {
 
 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
 		count := t.Bound
-		elem := t.Type
+		elem := t.Elem()
 		for Isfixedarray(elem) {
 			count *= elem.Bound
-			elem = elem.Type
+			elem = elem.Elem()
 		}
 
 		if !p.w.ShouldRepeat(elem.Width/int64(Widthptr), count) {

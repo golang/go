@@ -1950,11 +1950,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
 		case n.Left.Type.IsSlice():
 			p := s.addr(n, false)
-			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+			return s.newValue2(ssa.OpLoad, n.Left.Type.Elem(), p, s.mem())
 		case n.Left.Type.IsArray():
 			// TODO: fix when we can SSA arrays of length 1.
 			p := s.addr(n, false)
-			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+			return s.newValue2(ssa.OpLoad, n.Left.Type.Elem(), p, s.mem())
 		default:
 			s.Fatalf("bad type for index %v", n.Left.Type)
 			return nil
@@ -2077,7 +2077,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// *(ptr+len+2) = e3
 		// makeslice(ptr,newlen,cap)
 
-		et := n.Type.Type
+		et := n.Type.Elem()
 		pt := Ptrto(et)
 
 		// Evaluate slice
@@ -2672,7 +2672,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			if !n.Bounded {
 				s.boundsCheck(i, len)
 			}
-			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
+			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Elem()), a, i)
 		}
 	case OIND:
 		p := s.expr(n.Left)
@@ -3138,7 +3138,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	zero := s.constInt(Types[TINT], 0)
 	switch {
 	case t.IsSlice():
-		elemtype = t.Type
+		elemtype = t.Elem()
 		ptrtype = Ptrto(elemtype)
 		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
 		len = s.newValue1(ssa.OpSliceLen, Types[TINT], v)
@@ -3150,14 +3150,14 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 		len = s.newValue1(ssa.OpStringLen, Types[TINT], v)
 		cap = len
 	case t.IsPtr():
-		if !t.Type.IsArray() {
+		if !t.Elem().IsArray() {
 			s.Fatalf("bad ptr to array in slice %v\n", t)
 		}
-		elemtype = t.Type.Type
+		elemtype = t.Elem().Elem()
 		ptrtype = Ptrto(elemtype)
 		s.nilCheck(v)
 		ptr = v
-		len = s.constInt(Types[TINT], t.Type.Bound)
+		len = s.constInt(Types[TINT], t.Elem().Bound)
 		cap = len
 	default:
 		s.Fatalf("bad type in slice %v\n", t)

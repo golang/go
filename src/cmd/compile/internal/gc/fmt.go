@@ -581,32 +581,32 @@ func typefmt(t *Type, flag FmtFlag) string {
 	switch t.Etype {
 	case TPTR32, TPTR64:
 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
-			return "*" + Tconv(t.Type, FmtShort)
+			return "*" + Tconv(t.Elem(), FmtShort)
 		}
-		return "*" + t.Type.String()
+		return "*" + t.Elem().String()
 
 	case TARRAY:
 		if t.IsArray() {
-			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
+			return fmt.Sprintf("[%d]%v", t.Bound, t.Elem())
 		}
 		if t.isDDDArray() {
-			return "[...]" + t.Type.String()
+			return "[...]" + t.Elem().String()
 		}
-		return "[]" + t.Type.String()
+		return "[]" + t.Elem().String()
 
 	case TCHAN:
 		switch t.Chan {
 		case Crecv:
-			return "<-chan " + t.Type.String()
+			return "<-chan " + t.Elem().String()
 
 		case Csend:
-			return "chan<- " + t.Type.String()
+			return "chan<- " + t.Elem().String()
 		}
 
-		if t.Type != nil && t.Type.Etype == TCHAN && t.Type.Sym == nil && t.Type.Chan == Crecv {
-			return "chan (" + t.Type.String() + ")"
+		if t.Elem() != nil && t.Elem().Etype == TCHAN && t.Elem().Sym == nil && t.Elem().Chan == Crecv {
+			return "chan (" + t.Elem().String() + ")"
 		}
-		return "chan " + t.Type.String()
+		return "chan " + t.Elem().String()
 
 	case TMAP:
 		return "map[" + t.Key().String() + "]" + t.Val().String()
@@ -736,7 +736,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
-	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Type)
+	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Elem())
 }
 
 // Statements which may be rendered with a simplestmt as init.
@@ -1185,7 +1185,7 @@ func exprfmt(n *Node, prec int) string {
 		if fmtmode == FErr {
 			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
 				if ptrlit {
-					return fmt.Sprintf("&%v literal", n.Right.Type.Type)
+					return fmt.Sprintf("&%v literal", n.Right.Type.Elem())
 				} else {
 					return fmt.Sprintf("%v literal", n.Right.Type)
 				}
@@ -1196,7 +1196,7 @@ func exprfmt(n *Node, prec int) string {
 
 		if fmtmode == FExp && ptrlit {
 			// typecheck has overwritten OIND by OTYPE with pointer type.
-			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Type, Hconv(n.List, FmtComma))
+			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Elem(), Hconv(n.List, FmtComma))
 		}
 
 		return fmt.Sprintf("(%v{ %v })", n.Right, Hconv(n.List, FmtComma))
@@ -1652,7 +1652,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 
 	var typ string
 	if f.Isddd {
-		typ = "..." + Tconv(f.Type.Type, 0)
+		typ = "..." + Tconv(f.Type.Elem(), 0)
 	} else {
 		typ = Tconv(f.Type, 0)
 	}

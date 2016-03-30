@@ -38,8 +38,8 @@ func typecheckrange(n *Node) {
 		}
 	}
 
-	if Isptr[t.Etype] && Isfixedarray(t.Type) {
-		t = t.Type
+	if Isptr[t.Etype] && Isfixedarray(t.Elem()) {
+		t = t.Elem()
 	}
 	n.Type = t
 
@@ -51,7 +51,7 @@ func typecheckrange(n *Node) {
 
 	case TARRAY:
 		t1 = Types[TINT]
-		t2 = t.Type
+		t2 = t.Elem()
 
 	case TMAP:
 		t1 = t.Key()
@@ -63,7 +63,7 @@ func typecheckrange(n *Node) {
 			goto out
 		}
 
-		t1 = t.Type
+		t1 = t.Elem()
 		t2 = nil
 		if n.List.Len() == 2 {
 			toomany = 1
@@ -180,7 +180,7 @@ func walkrange(n *Node) {
 		init = append(init, Nod(OAS, hv1, nil))
 		init = append(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
 		if v2 != nil {
-			hp = temp(Ptrto(n.Type.Type))
+			hp = temp(Ptrto(n.Type.Elem()))
 			tmp := Nod(OINDEX, ha, Nodintconst(0))
 			tmp.Bounded = true
 			init = append(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
@@ -206,7 +206,7 @@ func walkrange(n *Node) {
 			// Advancing during the increment ensures that the pointer p only points
 			// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
 			// after which p is dead, so it cannot confuse the collector.
-			tmp := Nod(OADD, hp, Nodintconst(t.Type.Width))
+			tmp := Nod(OADD, hp, Nodintconst(t.Elem().Width))
 
 			tmp.Type = hp.Type
 			tmp.Typecheck = 1
@@ -260,9 +260,9 @@ func walkrange(n *Node) {
 
 		n.Left = nil
 
-		hv1 := temp(t.Type)
+		hv1 := temp(t.Elem())
 		hv1.Typecheck = 1
-		if haspointers(t.Type) {
+		if haspointers(t.Elem()) {
 			init = append(init, Nod(OAS, hv1, nil))
 		}
 		hb := temp(Types[TBOOL])
@@ -353,7 +353,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	if !samesafeexpr(stmt.Left.Left, a) || !samesafeexpr(stmt.Left.Right, v1) {
 		return false
 	}
-	elemsize := n.Type.Type.Width
+	elemsize := n.Type.Elem().Width
 	if elemsize <= 0 || !iszero(stmt.Right) {
 		return false
 	}

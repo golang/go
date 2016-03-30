@@ -176,11 +176,11 @@ func dowidth(t *Type) {
 
 	case TPTR32:
 		w = 4
-		checkwidth(t.Type)
+		checkwidth(t.Elem())
 
 	case TPTR64:
 		w = 8
-		checkwidth(t.Type)
+		checkwidth(t.Elem())
 
 	case TUNSAFEPTR:
 		w = int64(Widthptr)
@@ -194,7 +194,7 @@ func dowidth(t *Type) {
 	case TCHAN: // implemented as pointer
 		w = int64(Widthptr)
 
-		checkwidth(t.Type)
+		checkwidth(t.Elem())
 
 		// make fake type to check later to
 		// trigger channel argument check.
@@ -204,7 +204,7 @@ func dowidth(t *Type) {
 	case TCHANARGS:
 		t1 := t.Wrapped()
 		dowidth(t1) // just in case
-		if t1.Type.Width >= 1<<16 {
+		if t1.Elem().Width >= 1<<16 {
 			Yyerror("channel element type too large (>64kB)")
 		}
 		t.Width = 1
@@ -235,23 +235,23 @@ func dowidth(t *Type) {
 		t.Align = uint8(Widthptr)
 
 	case TARRAY:
-		if t.Type == nil {
+		if t.Elem() == nil {
 			break
 		}
 		if t.IsArray() {
-			dowidth(t.Type)
-			if t.Type.Width != 0 {
-				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
+			dowidth(t.Elem())
+			if t.Elem().Width != 0 {
+				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
 				if uint64(t.Bound) > cap {
 					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
 				}
 			}
 
-			w = t.Bound * t.Type.Width
-			t.Align = t.Type.Align
+			w = t.Bound * t.Elem().Width
+			t.Align = t.Elem().Align
 		} else if t.Bound == -1 {
 			w = int64(sizeof_Array)
-			checkwidth(t.Type)
+			checkwidth(t.Elem())
 			t.Align = uint8(Widthptr)
 		} else if t.isDDDArray() {
 			if !t.Broke {

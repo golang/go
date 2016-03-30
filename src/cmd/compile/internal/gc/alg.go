@@ -106,7 +106,7 @@ func algtype1(t *Type, bad **Type) int {
 			return ANOEQ
 		}
 
-		a := algtype1(t.Type, bad)
+		a := algtype1(t.Elem(), bad)
 		switch a {
 		case AMEM:
 			return AMEM
@@ -203,7 +203,7 @@ func genhash(sym *Sym, t *Type) {
 		// An array of pure memory would be handled by the
 		// standard algorithm, so the element type must not be
 		// pure memory.
-		hashel := hashfor(t.Type)
+		hashel := hashfor(t.Elem())
 
 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
 		ni := newname(Lookup("i"))
@@ -519,7 +519,7 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
 	nx = typecheck(nx, Erv)
 	ny = typecheck(ny, Erv)
 
-	fn, needsize := eqmemfunc(size, nx.Type.Type)
+	fn, needsize := eqmemfunc(size, nx.Type.Elem())
 	call := Nod(OCALL, fn, nil)
 	call.List.Append(nx)
 	call.List.Append(ny)
