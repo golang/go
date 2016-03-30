@@ -430,9 +430,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				// and make a binary a little smaller.
 				case ssa.OpAMD64ADDQconst:
 					asm = x86.AINCQ
-				case ssa.OpAMD64ADDLconst:
-					asm = x86.AINCL
-				case ssa.OpAMD64ADDWconst:
+				case ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst, ssa.OpAMD64ADDBconst:
 					asm = x86.AINCL
 				}
 				p := gc.Prog(asm)
@@ -444,9 +442,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				switch v.Op {
 				case ssa.OpAMD64ADDQconst:
 					asm = x86.ADECQ
-				case ssa.OpAMD64ADDLconst:
-					asm = x86.ADECL
-				case ssa.OpAMD64ADDWconst:
+				case ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst, ssa.OpAMD64ADDBconst:
 					asm = x86.ADECL
 				}
 				p := gc.Prog(asm)
