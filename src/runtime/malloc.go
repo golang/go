@@ -690,11 +690,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		publicationBarrier()
 	}
 
-	// GCmarkterminate allocates black
+	// Allocate black during GC.
 	// All slots hold nil so no scanning is needed.
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
-	if gcphase == _GCmarktermination || gcBlackenPromptly {
+	if gcphase != _GCoff {
 		gcmarknewobject(uintptr(x), size, scanSize)
 	}
 

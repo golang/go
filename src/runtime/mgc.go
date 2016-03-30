@@ -24,6 +24,10 @@
 // Hudson, R., and Moss, J.E.B. Copying Garbage Collection without stopping the world.
 // Concurrency and Computation: Practice and Experience 15(3-5), 2003.
 //
+// TODO(austin): The rest of this comment is woefully out of date and
+// needs to be rewritten. There is no distinct scan phase any more and
+// we allocate black during GC.
+//
 //  0. Set phase = GCscan from GCoff.
 //  1. Wait for all P's to acknowledge phase change.
 //         At this point all goroutines have passed through a GC safepoint and
@@ -244,7 +248,7 @@ var gcBlackenPromptly bool
 
 const (
 	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
-	_GCmark                   // GC marking roots and workbufs, write barrier ENABLED
+	_GCmark                   // GC marking roots and workbufs: allocate black, write barrier ENABLED
 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
 )
 
@@ -467,14 +471,18 @@ func (c *gcControllerState) startCycle() {
 // It should only be called when gcBlackenEnabled != 0 (because this
 // is when assists are enabled and the necessary statistics are
 // available).
+//
+// TODO: Consider removing the periodic controller update altogether.
+// Since we switched to allocating black, in theory we shouldn't have
+// to change the assist ratio. However, this is still a useful hook
+// that we've found many uses for when experimenting.
 func (c *gcControllerState) revise() {
 	// Compute the expected scan work remaining.
 	//
-	// Note that the scannable heap size is likely to increase
-	// during the GC cycle. This is why it's important to revise
-	// the assist ratio throughout the cycle: if the scannable
-	// heap size increases, the assist ratio based on the initial
-	// scannable heap size may target too little scan work.
+	// Note that we currently count allocations during GC as both
+	// scannable heap (heap_scan) and scan work completed
+	// (scanWork), so this difference won't be changed by
+	// allocations during GC.
 	//
 	// This particular estimate is a strict upper bound on the
 	// possible remaining scan work for the current heap.
