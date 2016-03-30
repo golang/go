@@ -864,3 +864,147 @@ func TestLoadLibraryEx(t *testing.T) {
 	t.Skipf("LoadLibraryEx not usable, but not expected. (LoadLibraryEx=%v; flags=%v)",
 		have, flags)
 }
+
+var (
+	modwinmm    = syscall.NewLazyDLL("winmm.dll")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+
+	proctimeBeginPeriod = modwinmm.NewProc("timeBeginPeriod")
+	proctimeEndPeriod   = modwinmm.NewProc("timeEndPeriod")
+
+	procCreateEvent = modkernel32.NewProc("CreateEventW")
+	procSetEvent    = modkernel32.NewProc("SetEvent")
+)
+
+func timeBeginPeriod(period uint32) {
+	syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
+}
+
+func timeEndPeriod(period uint32) {
+	syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
+}
+
+func createEvent() (syscall.Handle, error) {
+	r0, _, e0 := syscall.Syscall6(procCreateEvent.Addr(), 4, 0, 0, 0, 0, 0, 0)
+	if r0 == 0 {
+		return 0, syscall.Errno(e0)
+	}
+	return syscall.Handle(r0), nil
+}
+
+func setEvent(h syscall.Handle) error {
+	r0, _, e0 := syscall.Syscall(procSetEvent.Addr(), 1, uintptr(h), 0, 0)
+	if r0 == 0 {
+		return syscall.Errno(e0)
+	}
+	return nil
+}
+
+func benchChanToSyscallPing(b *testing.B) {
+	ch := make(chan int)
+	event, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	go func() {
+		for i := 0; i < b.N; i++ {
+			syscall.WaitForSingleObject(event, syscall.INFINITE)
+			ch <- 1
+		}
+	}()
+	for i := 0; i < b.N; i++ {
+		err := setEvent(event)
+		if err != nil {
+			b.Fatal(err)
+		}
+		<-ch
+	}
+}
+
+func BenchmarkChanToSyscallPing1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchChanToSyscallPing(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkChanToSyscallPing15ms(b *testing.B) {
+	benchChanToSyscallPing(b)
+}
+
+func benchSyscallToSyscallPing(b *testing.B) {
+	event1, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	event2, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	go func() {
+		for i := 0; i < b.N; i++ {
+			syscall.WaitForSingleObject(event1, syscall.INFINITE)
+			err := setEvent(event2)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	}()
+	for i := 0; i < b.N; i++ {
+		err := setEvent(event1)
+		if err != nil {
+			b.Fatal(err)
+		}
+		syscall.WaitForSingleObject(event2, syscall.INFINITE)
+	}
+}
+
+func BenchmarkSyscallToSyscallPing1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchSyscallToSyscallPing(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkSyscallToSyscallPing15ms(b *testing.B) {
+	benchSyscallToSyscallPing(b)
+}
+
+func benchChanToChanPing(b *testing.B) {
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+	go func() {
+		for i := 0; i < b.N; i++ {
+			<-ch1
+			ch2 <- 1
+		}
+	}()
+	for i := 0; i < b.N; i++ {
+		ch1 <- 1
+		<-ch2
+	}
+}
+
+func BenchmarkChanToChanPing1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchChanToChanPing(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkChanToChanPing15ms(b *testing.B) {
+	benchChanToChanPing(b)
+}
+
+func benchOsYield(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		runtime.OsYield()
+	}
+}
+
+func BenchmarkOsYield1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchOsYield(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkOsYield15ms(b *testing.B) {
+	benchOsYield(b)
+}
