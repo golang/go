@@ -1602,27 +1602,8 @@ func gcMark(start_time int64) {
 
 	cachestats()
 
-	// Compute the reachable heap size at the beginning of the
-	// cycle. This is approximately the marked heap size at the
-	// end (which we know) minus the amount of marked heap that
-	// was allocated after marking began (which we don't know, but
-	// is approximately the amount of heap that was allocated
-	// since marking began).
-	allocatedDuringCycle := memstats.heap_live - work.initialHeapLive
-	if memstats.heap_live < work.initialHeapLive {
-		// This can happen if mCentral_UncacheSpan tightens
-		// the heap_live approximation.
-		allocatedDuringCycle = 0
-	}
-	if work.bytesMarked >= allocatedDuringCycle {
-		memstats.heap_reachable = work.bytesMarked - allocatedDuringCycle
-	} else {
-		// This can happen if most of the allocation during
-		// the cycle never became reachable from the heap.
-		// Just set the reachable heap approximation to 0 and
-		// let the heapminimum kick in below.
-		memstats.heap_reachable = 0
-	}
+	// Update the reachable heap stat.
+	memstats.heap_reachable = work.bytesMarked
 
 	// Trigger the next GC cycle when the allocated heap has grown
 	// by triggerRatio over the reachable heap size. Assume that
