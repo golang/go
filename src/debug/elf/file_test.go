@@ -688,7 +688,7 @@ func TestCompressedSection(t *testing.T) {
 		if end > int64(len(buf)) {
 			end = int64(len(buf))
 		}
-		n, err := sf.Read(buf[pos:end])
+		n, err := io.ReadFull(sf, buf[pos:end])
 		if err != nil {
 			t.Fatal(err)
 		}
