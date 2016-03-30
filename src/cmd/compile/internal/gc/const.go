@@ -135,7 +135,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 	switch n.Op {
 	default:
 		if n.Type == idealbool {
-			if t.Etype == TBOOL {
+			if t.IsBoolean() {
 				n.Type = t
 			} else {
 				n.Type = Types[TBOOL]
@@ -661,7 +661,7 @@ func evconst(n *Node) {
 
 		case OCONV_ | CTNIL_,
 			OARRAYBYTESTR_ | CTNIL_:
-			if n.Type.Etype == TSTRING {
+			if n.Type.IsString() {
 				v = tostr(v)
 				nl.Type = n.Type
 				break
@@ -1302,7 +1302,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 
 	case CTBOOL:
 		t1 := Types[TBOOL]
-		if t != nil && t.Etype == TBOOL {
+		if t != nil && t.IsBoolean() {
 			t1 = t
 		}
 		n = convlit1(n, t1, false, reuse)
@@ -1379,7 +1379,7 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 		return l, r
 	}
 
-	if l.Type.Etype == TBOOL {
+	if l.Type.IsBoolean() {
 		l = convlit(l, Types[TBOOL])
 		r = convlit(r, Types[TBOOL])
 	}

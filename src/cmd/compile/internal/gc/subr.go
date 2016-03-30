@@ -628,7 +628,7 @@ func methtype(t *Type, mustname int) *Type {
 	}
 
 	// need a type name
-	if t.Sym == nil && (mustname != 0 || t.Etype != TSTRUCT) {
+	if t.Sym == nil && (mustname != 0 || !t.IsStruct()) {
 		return nil
 	}
 
@@ -768,7 +768,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 // For deciding whether the result struct from g can be copied
 // directly when compiling f(g()).
 func eqtypenoname(t1 *Type, t2 *Type) bool {
-	if t1 == nil || t2 == nil || t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
+	if t1 == nil || t2 == nil || !t1.IsStruct() || !t2.IsStruct() {
 		return false
 	}
 
@@ -823,7 +823,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	}
 
 	// 3. dst is an interface type and src implements dst.
-	if dst.Etype == TINTER && src.Etype != TNIL {
+	if dst.IsInterface() && src.Etype != TNIL {
 		var missing, have *Field
 		var ptr int
 		if implements(src, dst, &missing, &have, &ptr) {
@@ -861,7 +861,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 		return 0
 	}
 
-	if src.Etype == TINTER && dst.Etype != TBLANK {
+	if src.IsInterface() && dst.Etype != TBLANK {
 		var missing, have *Field
 		var ptr int
 		if why != nil && implements(dst, src, &missing, &have, &ptr) {
@@ -873,7 +873,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// 4. src is a bidirectional channel value, dst is a channel type,
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
-	if src.Etype == TCHAN && src.Chan == Cboth && dst.Etype == TCHAN {
+	if src.IsChan() && src.Chan == Cboth && dst.IsChan() {
 		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}
@@ -933,7 +933,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	// than assignments. If interfaces are involved, stop now
 	// with the good message from assignop.
 	// Otherwise clear the error.
-	if src.Etype == TINTER || dst.Etype == TINTER {
+	if src.IsInterface() || dst.IsInterface() {
 		return 0
 	}
 	if why != nil {
@@ -971,11 +971,11 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 6. src is an integer or has type []byte or []rune
 	// and dst is a string type.
-	if Isint[src.Etype] && dst.Etype == TSTRING {
+	if Isint[src.Etype] && dst.IsString() {
 		return ORUNESTR
 	}
 
-	if src.IsSlice() && dst.Etype == TSTRING {
+	if src.IsSlice() && dst.IsString() {
 		if src.Elem().Etype == bytetype.Etype {
 			return OARRAYBYTESTR
 		}
@@ -986,7 +986,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 7. src is a string and dst is []byte or []rune.
 	// String to slice.
-	if src.Etype == TSTRING && dst.IsSlice() {
+	if src.IsString() && dst.IsSlice() {
 		if dst.Elem().Etype == bytetype.Etype {
 			return OSTRARRAYBYTE
 		}
@@ -1032,7 +1032,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 
 	// Convert ideal bool from comparison to plain bool
 	// if the next step is non-bool (like interface{}).
-	if n.Type == idealbool && t.Etype != TBOOL {
+	if n.Type == idealbool && !t.IsBoolean() {
 		if n.Op == ONAME || n.Op == OLITERAL {
 			r := Nod(OCONVNOP, n, nil)
 			r.Type = Types[TBOOL]
@@ -1266,9 +1266,9 @@ func badtype(op Op, tl *Type, tr *Type) {
 
 	// common mistake: *struct and *interface.
 	if tl != nil && tr != nil && Isptr[tl.Etype] && Isptr[tr.Etype] {
-		if tl.Elem().Etype == TSTRUCT && tr.Elem().Etype == TINTER {
+		if tl.Elem().IsStruct() && tr.Elem().IsInterface() {
 			fmt_ += "\n\t(*struct vs *interface)"
-		} else if tl.Elem().Etype == TINTER && tr.Elem().Etype == TSTRUCT {
+		} else if tl.Elem().IsInterface() && tr.Elem().IsStruct() {
 			fmt_ += "\n\t(*interface vs *struct)"
 		}
 	}
@@ -1437,7 +1437,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 	}
 
 	c := 0
-	if u.Etype == TSTRUCT || u.Etype == TINTER {
+	if u.IsStruct() || u.IsInterface() {
 		for _, f := range u.Fields().Slice() {
 			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
@@ -1491,7 +1491,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
 	if Isptr[u.Etype] {
 		u = u.Elem()
 	}
-	if u.Etype != TSTRUCT && u.Etype != TINTER {
+	if !u.IsStruct() && !u.IsInterface() {
 		goto out
 	}
 
@@ -1602,7 +1602,7 @@ func expand0(t *Type, followptr bool) {
 		u = u.Elem()
 	}
 
-	if u.Etype == TINTER {
+	if u.IsInterface() {
 		for _, f := range u.Fields().Slice() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
@@ -1642,7 +1642,7 @@ func expand1(t *Type, top, followptr bool) {
 		u = u.Elem()
 	}
 
-	if u.Etype != TSTRUCT && u.Etype != TINTER {
+	if !u.IsStruct() && !u.IsInterface() {
 		goto out
 	}
 
@@ -1877,7 +1877,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	testdclstack()
 
 	// wrappers where T is anonymous (struct or interface) can be duplicated.
-	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Elem().Etype == TSTRUCT {
+	if rcvr.IsStruct() || rcvr.IsInterface() || Isptr[rcvr.Etype] && rcvr.Elem().IsStruct() {
 		fn.Func.Dupok = true
 	}
 	fn = typecheck(fn, Etop)
@@ -1946,7 +1946,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 	// could sort these first
 	// and then do one loop.
 
-	if t.Etype == TINTER {
+	if t.IsInterface() {
 		for _, im := range iface.Fields().Slice() {
 			for _, tm := range t.Fields().Slice() {
 				if tm.Sym == im.Sym {

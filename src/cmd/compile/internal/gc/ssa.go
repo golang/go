@@ -4117,7 +4117,7 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
 func fieldIdx(n *Node) int {
 	t := n.Left.Type
 	f := n.Sym
-	if t.Etype != TSTRUCT {
+	if !t.IsStruct() {
 		panic("ODOT's LHS is not a struct")
 	}
 

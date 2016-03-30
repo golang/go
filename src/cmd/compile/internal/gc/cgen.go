@@ -1034,7 +1034,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				}
 				v := uint64(nr.Val().U.(*Mpint).Int64())
 				var n2 Node
-				if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+				if nl.Type.IsSlice() || nl.Type.IsString() {
 					if Debug['B'] == 0 && !n.Bounded {
 						n1 = n3
 						n1.Op = OINDREG
@@ -1069,7 +1069,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				// check bounds
 				if Isconst(nl, CTSTR) {
 					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val().U.(string))))
-				} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+				} else if nl.Type.IsSlice() || nl.Type.IsString() {
 					n1 = n3
 					n1.Op = OINDREG
 					n1.Type = Types[Tptr]
@@ -1095,7 +1095,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
 				Datastring(nl.Val().U.(string), &p1.From)
 				p1.From.Type = obj.TYPE_ADDR
-			} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+			} else if nl.Type.IsSlice() || nl.Type.IsString() {
 				n1 = n3
 				n1.Op = OINDREG
 				n1.Type = Types[Tptr]
@@ -1185,7 +1185,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					Fatalf("constant string constant index") // front end should handle
 				}
 				v := uint64(nr.Val().U.(*Mpint).Int64())
-				if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+				if nl.Type.IsSlice() || nl.Type.IsString() {
 					if Debug['B'] == 0 && !n.Bounded {
 						nlen := n3
 						nlen.Type = Types[TUINT32]
@@ -1230,7 +1230,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				var nlen Node
 				if Isconst(nl, CTSTR) {
 					Nodconst(&nlen, t, int64(len(nl.Val().U.(string))))
-				} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+				} else if nl.Type.IsSlice() || nl.Type.IsString() {
 					nlen = n3
 					nlen.Type = t
 					nlen.Xoffset += int64(Array_nel)
@@ -1258,7 +1258,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			// Load base pointer in n3.
 			Regalloc(&tmp, Types[Tptr], &n3)
 
-			if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+			if nl.Type.IsSlice() || nl.Type.IsString() {
 				n3.Type = Types[Tptr]
 				n3.Xoffset += int64(Array_array)
 				Thearch.Gmove(&n3, &tmp)
@@ -1375,7 +1375,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				Fatalf("constant string constant index") // front end should handle
 			}
 			v := uint64(nr.Val().U.(*Mpint).Int64())
-			if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+			if nl.Type.IsSlice() || nl.Type.IsString() {
 				if Debug['B'] == 0 && !n.Bounded {
 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
 					Ginscall(Panicindex, -1)
@@ -1413,7 +1413,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			}
 			if Isconst(nl, CTSTR) {
 				Nodconst(&nlen, t, int64(len(nl.Val().U.(string))))
-			} else if nl.Type.IsSlice() || nl.Type.Etype == TSTRING {
+			} else if nl.Type.IsSlice() || nl.Type.IsString() {
 				// nlen already initialized
 			} else {
 				Nodconst(&nlen, t, nl.Type.Bound)
@@ -1789,7 +1789,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		}
 	}
 
-	if n.Type.Etype != TBOOL {
+	if !n.Type.IsBoolean() {
 		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(n.Op, 0))
 	}
 

@@ -492,7 +492,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	if Isptr[rcvrtype.Etype] {
 		basetype = basetype.Elem()
 	}
-	if basetype.Etype != TINTER && basetype.Sym == nil {
+	if !basetype.IsInterface() && basetype.Sym == nil {
 		Fatalf("missing base type for %v", rcvrtype)
 	}
 

@@ -416,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		// A special case to make write barriers more efficient.
 		// Taking the address of the first field of a named struct
 		// is the same as taking the address of the struct.
-		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Field(0).Sym != n.Sym {
+		if !n.Left.Type.IsStruct() || n.Left.Type.Field(0).Sym != n.Sym {
 			Debug['h'] = 1
 			Dump("naddr", n)
 			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
@@ -541,7 +541,7 @@ func nodarg(t interface{}, fp int) *Node {
 	switch t := t.(type) {
 	case *Type:
 		// entire argument struct, not just one arg
-		if t.Etype != TSTRUCT || !t.Funarg {
+		if !t.IsStruct() || !t.Funarg {
 			Fatalf("nodarg: bad type %v", t)
 		}
 		n = Nod(ONAME, nil, nil)

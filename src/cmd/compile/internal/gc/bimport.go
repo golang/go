@@ -231,7 +231,7 @@ func (p *importer) typ() *Type {
 		importtype(t, t0) // parser.go:hidden_import
 
 		// interfaces don't have associated methods
-		if t0.Etype == TINTER {
+		if t0.IsInterface() {
 			break
 		}
 

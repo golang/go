@@ -1033,7 +1033,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		anylit(ctxt, n.Left, var_, init)
 
 	case OSTRUCTLIT:
-		if t.Etype != TSTRUCT {
+		if !t.IsStruct() {
 			Fatalf("anylit: not struct")
 		}
 
@@ -1117,7 +1117,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		arraylit(ctxt, 3, n, var_, init)
 
 	case OMAPLIT:
-		if t.Etype != TMAP {
+		if !t.IsMap() {
 			Fatalf("anylit: not map")
 		}
 		maplit(ctxt, n, var_, init)

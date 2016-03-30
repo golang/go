@@ -69,7 +69,7 @@ func typecheckswitch(n *Node) {
 		top = Etype
 		n.Left.Right = typecheck(n.Left.Right, Erv)
 		t = n.Left.Right.Type
-		if t != nil && t.Etype != TINTER {
+		if t != nil && !t.IsInterface() {
 			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, FmtLong))
 		}
 	} else {
@@ -91,11 +91,11 @@ func typecheckswitch(n *Node) {
 				nilonly = "slice"
 			case t.Etype == TARRAY && t.IsArray() && algtype1(t, nil) == ANOEQ:
 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
-			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
+			case t.IsStruct() && algtype1(t, &badtype) == ANOEQ:
 				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
 			case t.Etype == TFUNC:
 				nilonly = "func"
-			case t.Etype == TMAP:
+			case t.IsMap():
 				nilonly = "map"
 			}
 		}
@@ -154,7 +154,7 @@ func typecheckswitch(n *Node) {
 						// reset to original type
 						n1 = n.Left.Right
 						ls[i1] = n1
-					case n1.Type.Etype != TINTER && t.Etype == TINTER && !implements(n1.Type, t, &missing, &have, &ptr):
+					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, FmtShort), missing.Sym, Tconv(missing.Type, FmtShort))
 						} else if !missing.Broke {
