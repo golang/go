@@ -13,6 +13,7 @@ package testenv
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -68,10 +69,17 @@ func MustHaveGoRun(t *testing.T) {
 // If the tool should be available and isn't, GoToolPath calls t.Fatal.
 func GoToolPath(t *testing.T) string {
 	MustHaveGoBuild(t)
+
 	var exeSuffix string
 	if runtime.GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
+
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+
 	goBin, err := exec.LookPath("go" + exeSuffix)
 	if err != nil {
 		t.Fatalf("cannot find go tool: %v", err)
