@@ -658,7 +658,6 @@ type Link struct {
 	Textp         *LSym
 	Etextp        *LSym
 	Errors        int
-	RefsWritten   int // Number of symbol references already written to object file.
 
 	// state for writing objects
 	Text []*LSym
