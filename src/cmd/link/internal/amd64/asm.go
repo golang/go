@@ -671,8 +671,7 @@ func asmb() {
 		ld.Diag("unknown header type %d", ld.HEADTYPE)
 		fallthrough
 
-	case obj.Hplan9,
-		obj.Helf:
+	case obj.Hplan9:
 		break
 
 	case obj.Hdarwin:
@@ -702,8 +701,7 @@ func asmb() {
 		ld.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
-		case obj.Hplan9,
-			obj.Helf:
+		case obj.Hplan9:
 			ld.Debug['s'] = 1
 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
