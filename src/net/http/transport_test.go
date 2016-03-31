@@ -3090,6 +3090,42 @@ func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
 	}
 }
 
+func TestTransportResponseHeaderLength(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.URL.Path == "/long" {
+			w.Header().Set("Long", strings.Repeat("a", 1<<20))
+		}
+	}))
+	defer ts.Close()
+
+	tr := &Transport{
+		MaxResponseHeaderBytes: 512 << 10,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	if res, err := c.Get(ts.URL); err != nil {
+		t.Fatal(err)
+	} else {
+		res.Body.Close()
+	}
+
+	res, err := c.Get(ts.URL + "/long")
+	if err == nil {
+		defer res.Body.Close()
+		var n int64
+		for k, vv := range res.Header {
+			for _, v := range vv {
+				n += int64(len(k)) + int64(len(v))
+			}
+		}
+		t.Fatalf("Unexpected success. Got %v and %d bytes of response headers", res.Status, n)
+	}
+	if want := "server response headers exceeded 524288 bytes"; !strings.Contains(err.Error(), want) {
+		t.Errorf("got error: %v; want %q", err, want)
+	}
+}
+
 var errFakeRoundTrip = errors.New("fake roundtrip")
 
 type funcRoundTripper func()

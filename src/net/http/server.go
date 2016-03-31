@@ -497,7 +497,7 @@ type connReader struct {
 }
 
 func (cr *connReader) setReadLimit(remain int64) { cr.remain = remain }
-func (cr *connReader) setInfiniteReadLimit()     { cr.remain = 1<<63 - 1 }
+func (cr *connReader) setInfiniteReadLimit()     { cr.remain = maxInt64 }
 func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 
 func (cr *connReader) Read(p []byte) (n int, err error) {
