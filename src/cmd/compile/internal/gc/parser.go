@@ -1861,7 +1861,7 @@ func (p *parser) xfndcl() *Node {
 	}
 
 	p.want(LFUNC)
-	f := p.fndcl(p.pragma&Nointerface != 0)
+	f := p.fndcl()
 	body := p.fnbody()
 
 	if f == nil {
@@ -1886,7 +1886,7 @@ func (p *parser) xfndcl() *Node {
 // Function     = Signature FunctionBody .
 // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
 // Receiver     = Parameters .
-func (p *parser) fndcl(nointerface bool) *Node {
+func (p *parser) fndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fndcl")()
 	}
@@ -1950,7 +1950,6 @@ func (p *parser) fndcl(nointerface bool) *Node {
 		f.Func.Nname = methodname1(f.Func.Shortname, recv.Right)
 		f.Func.Nname.Name.Defn = f
 		f.Func.Nname.Name.Param.Ntype = t
-		f.Func.Nname.Nointerface = nointerface
 		declare(f.Func.Nname, PFUNC)
 
 		funchdr(f)

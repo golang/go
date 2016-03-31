@@ -49,30 +49,29 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op          Op
-	Nointerface bool
-	Ullman      uint8 // sethi/ullman number
-	Addable     bool  // addressable
-	Etype       EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
-	Bounded     bool  // bounds check unnecessary
-	Class       Class // PPARAM, PAUTO, PEXTERN, etc
-	Embedded    uint8 // ODCLFIELD embedded type
-	Colas       bool  // OAS resulting from :=
-	Diag        uint8 // already printed error about this
-	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	Walkdef     uint8
-	Typecheck   uint8
-	Local       bool
-	Dodata      uint8
-	Initorder   uint8
-	Used        bool
-	Isddd       bool // is the argument variadic
-	Implicit    bool
-	Addrtaken   bool // address taken, even if not moved to heap
-	Assigned    bool // is the variable ever assigned to
-	Likely      int8 // likeliness of if statement
-	Hasbreak    bool // has break statement
-	hasVal      int8 // +1 for Val, -1 for Opt, 0 for not yet set
+	Op        Op
+	Ullman    uint8 // sethi/ullman number
+	Addable   bool  // addressable
+	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+	Bounded   bool  // bounds check unnecessary
+	Class     Class // PPARAM, PAUTO, PEXTERN, etc
+	Embedded  uint8 // ODCLFIELD embedded type
+	Colas     bool  // OAS resulting from :=
+	Diag      uint8 // already printed error about this
+	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	Walkdef   uint8
+	Typecheck uint8
+	Local     bool
+	Dodata    uint8
+	Initorder uint8
+	Used      bool
+	Isddd     bool // is the argument variadic
+	Implicit  bool
+	Addrtaken bool // address taken, even if not moved to heap
+	Assigned  bool // is the variable ever assigned to
+	Likely    int8 // likeliness of if statement
+	Hasbreak  bool // has break statement
+	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
 }
 
 // Val returns the Val for the node.
