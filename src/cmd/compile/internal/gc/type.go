@@ -70,7 +70,10 @@ const (
 	NTYPE
 )
 
-const dddBound = -100 // arrays declared as [...]T start life with Bound=dddBound
+const (
+	sliceBound = -1   // slices have Bound=sliceBound
+	dddBound   = -100 // arrays declared as [...]T start life with Bound=dddBound
+)
 
 // Types stores pointers to predeclared named types.
 //
@@ -250,7 +253,7 @@ func typArray(elem *Type, bound int64) *Type {
 func typSlice(elem *Type) *Type {
 	t := typ(TARRAY)
 	t.Type = elem
-	t.Bound = -1
+	t.Bound = sliceBound
 	return t
 }
 
@@ -582,6 +585,7 @@ func (t *Type) isDDDArray() bool {
 	if t.Etype != TARRAY {
 		return false
 	}
+	t.checkBound()
 	return t.Bound == dddBound
 }
 
@@ -878,12 +882,20 @@ func (t *Type) IsChan() bool {
 	return t.Etype == TCHAN
 }
 
+// checkBound enforces that Bound has an acceptable value.
+func (t *Type) checkBound() {
+	if t.Bound != sliceBound && t.Bound < 0 && t.Bound != dddBound {
+		Fatalf("bad TARRAY bounds %d %s", t.Bound, t)
+	}
+}
+
 func (t *Type) IsSlice() bool {
-	// TODO(josharian): Change this to t.Bound == -1.
-	return t.Etype == TARRAY && t.Bound < 0
+	t.checkBound()
+	return t.Etype == TARRAY && t.Bound == sliceBound
 }
 
 func (t *Type) IsArray() bool {
+	t.checkBound()
 	return t.Etype == TARRAY && t.Bound >= 0
 }
 
@@ -918,6 +930,7 @@ func (t *Type) NumElem() int64 {
 	if t.Etype != TARRAY {
 		panic("NumElem on non-TARRAY")
 	}
+	t.checkBound()
 	return t.Bound
 }
 

@@ -249,7 +249,7 @@ func dowidth(t *Type) {
 
 			w = t.Bound * t.Elem().Width
 			t.Align = t.Elem().Align
-		} else if t.Bound == -1 {
+		} else if t.IsSlice() {
 			w = int64(sizeof_Array)
 			checkwidth(t.Elem())
 			t.Align = uint8(Widthptr)
