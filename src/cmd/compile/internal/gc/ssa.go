@@ -717,7 +717,7 @@ func (s *state) stmt(n *Node) {
 			} else {
 				j = rhs.Right.Right
 			}
-			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Val().U.(*Mpint).Int64() == 0) {
+			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int() == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
 			}
@@ -1423,7 +1423,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLITERAL:
 		switch n.Val().Ctype() {
 		case CTINT:
-			i := n.Val().U.(*Mpint).Int64()
+			i := n.Int()
 			switch n.Type.Size() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))

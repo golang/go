@@ -1455,7 +1455,7 @@ func nonnegconst(n *Node) int {
 			if n.Val().U.(*Mpint).Cmp(Minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
 				break
 			}
-			return int(n.Val().U.(*Mpint).Int64())
+			return int(n.Int())
 		}
 	}
 
@@ -1510,7 +1510,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
 
 		case CTINT, CTRUNE:
-			i = n.Val().U.(*Mpint).Int64()
+			i = n.Int()
 
 		case CTBOOL:
 			i = int64(obj.Bool2int(n.Val().U.(bool)))

@@ -1032,7 +1032,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if Isconst(nl, CTSTR) {
 					Fatalf("constant string constant index")
 				}
-				v := uint64(nr.Val().U.(*Mpint).Int64())
+				v := uint64(nr.Int())
 				var n2 Node
 				if nl.Type.IsSlice() || nl.Type.IsString() {
 					if Debug['B'] == 0 && !n.Bounded {
@@ -1184,7 +1184,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if Isconst(nl, CTSTR) {
 					Fatalf("constant string constant index") // front end should handle
 				}
-				v := uint64(nr.Val().U.(*Mpint).Int64())
+				v := uint64(nr.Int())
 				if nl.Type.IsSlice() || nl.Type.IsString() {
 					if Debug['B'] == 0 && !n.Bounded {
 						nlen := n3
@@ -1374,7 +1374,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isconst(nl, CTSTR) {
 				Fatalf("constant string constant index") // front end should handle
 			}
-			v := uint64(nr.Val().U.(*Mpint).Int64())
+			v := uint64(nr.Int())
 			if nl.Type.IsSlice() || nl.Type.IsString() {
 				if Debug['B'] == 0 && !n.Bounded {
 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
@@ -1708,7 +1708,7 @@ func Igen(n *Node, a *Node, res *Node) {
 				// Compute &a[i] as &a + i*width.
 				a.Type = n.Type
 
-				a.Xoffset += n.Right.Val().U.(*Mpint).Int64() * n.Type.Width
+				a.Xoffset += n.Right.Int() * n.Type.Width
 				Fixlargeoffset(a)
 				return
 			}
@@ -2214,7 +2214,7 @@ func stkof(n *Node) int64 {
 			return off
 		}
 		if Isconst(n.Right, CTINT) {
-			return off + t.Elem().Width*n.Right.Val().U.(*Mpint).Int64()
+			return off + t.Elem().Width*n.Right.Int()
 		}
 		return +1000 // on stack but not sure exactly where
 
@@ -2645,7 +2645,7 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 	case TUINT64:
 		var m Magic
 		m.W = w
-		m.Ud = uint64(nr.Val().U.(*Mpint).Int64())
+		m.Ud = uint64(nr.Int())
 		Umagic(&m)
 		if m.Bad != 0 {
 			break
@@ -2683,7 +2683,7 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 	case TINT64:
 		var m Magic
 		m.W = w
-		m.Sd = nr.Val().U.(*Mpint).Int64()
+		m.Sd = nr.Int()
 		Smagic(&m)
 		if m.Bad != 0 {
 			break
@@ -3243,7 +3243,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				Fatalf("missed slice out of bounds check")
 			}
 			var tmp Node
-			Nodconst(&tmp, indexRegType, n1.Val().U.(*Mpint).Int64())
+			Nodconst(&tmp, indexRegType, n1.Int())
 			n1 = &tmp
 		}
 		p := Thearch.Ginscmp(OGT, indexRegType, n1, n2, -1)
@@ -3327,9 +3327,9 @@ func cgen_slice(n, res *Node, wb bool) {
 			switch j.Op {
 			case OLITERAL:
 				if Isconst(&i, CTINT) {
-					Nodconst(&j, indexRegType, j.Val().U.(*Mpint).Int64()-i.Val().U.(*Mpint).Int64())
+					Nodconst(&j, indexRegType, j.Int()-i.Int())
 					if Debug_slice > 0 {
-						Warn("slice: result len == %d", j.Val().U.(*Mpint).Int64())
+						Warn("slice: result len == %d", j.Int())
 					}
 					break
 				}
@@ -3344,7 +3344,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				fallthrough
 			case OREGISTER:
 				if i.Op == OLITERAL {
-					v := i.Val().U.(*Mpint).Int64()
+					v := i.Int()
 					if v != 0 {
 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &j)
 					}
@@ -3387,9 +3387,9 @@ func cgen_slice(n, res *Node, wb bool) {
 			switch k.Op {
 			case OLITERAL:
 				if Isconst(&i, CTINT) {
-					Nodconst(&k, indexRegType, k.Val().U.(*Mpint).Int64()-i.Val().U.(*Mpint).Int64())
+					Nodconst(&k, indexRegType, k.Int()-i.Int())
 					if Debug_slice > 0 {
-						Warn("slice: result cap == %d", k.Val().U.(*Mpint).Int64())
+						Warn("slice: result cap == %d", k.Int())
 					}
 					break
 				}
@@ -3410,7 +3410,7 @@ func cgen_slice(n, res *Node, wb bool) {
 						Warn("slice: result cap == 0")
 					}
 				} else if i.Op == OLITERAL {
-					v := i.Val().U.(*Mpint).Int64()
+					v := i.Int()
 					if v != 0 {
 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &k)
 					}
@@ -3503,7 +3503,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				w = res.Type.Elem().Width // res is []T, elem size is T.width
 			}
 			if Isconst(&i, CTINT) {
-				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Val().U.(*Mpint).Int64()*w, &xbase)
+				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Int()*w, &xbase)
 			} else if Thearch.AddIndex != nil && Thearch.AddIndex(&i, w, &xbase) {
 				// done by back end
 			} else if w == 1 {

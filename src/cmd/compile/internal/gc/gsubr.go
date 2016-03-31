@@ -438,7 +438,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = n.Val().U.(*Mpint).Int64()
+			a.Offset = n.Int()
 
 		case CTSTR:
 			datagostring(n.Val().U.(string), a)
