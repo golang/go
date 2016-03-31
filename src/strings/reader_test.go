@@ -170,3 +170,23 @@ func TestReaderLenSize(t *testing.T) {
 		t.Errorf("Size = %d; want 3", r.Size())
 	}
 }
+
+func TestReaderReset(t *testing.T) {
+	r := strings.NewReader("世界")
+	if _, _, err := r.ReadRune(); err != nil {
+		t.Errorf("ReadRune: unexpected error: %v", err)
+	}
+
+	const want = "abcdef"
+	r.Reset(want)
+	if err := r.UnreadRune(); err == nil {
+		t.Errorf("UnreadRune: expected error, got nil")
+	}
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Errorf("ReadAll: unexpected error: %v", err)
+	}
+	if got := string(buf); got != want {
+		t.Errorf("ReadAll: got %q, want %q", got, want)
+	}
+}
