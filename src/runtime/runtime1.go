@@ -324,6 +324,7 @@ var debug struct {
 	gcstackbarrierall int32
 	gcstoptheworld    int32
 	gctrace           int32
+	gcroc             int32
 	invalidptr        int32
 	sbrk              int32
 	scavenge          int32
@@ -343,6 +344,7 @@ var dbgvars = []dbgVar{
 	{"gcstackbarrierall", &debug.gcstackbarrierall},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
+	{"gcroc", &debug.gcroc},
 	{"invalidptr", &debug.invalidptr},
 	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
@@ -395,6 +397,11 @@ func parsedebugvars() {
 	// and check all pointer writes.
 	if debug.cgocheck > 1 {
 		writeBarrier.cgo = true
+		writeBarrier.enabled = true
+	}
+	// For the roc algorithm we turn on the write barrier at all times
+	if debug.gcroc >= 1 {
+		writeBarrier.roc = true
 		writeBarrier.enabled = true
 	}
 }
