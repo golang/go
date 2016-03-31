@@ -468,12 +468,12 @@ func overflow(v Val, t *Type) {
 func tostr(v Val) Val {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
-		if v.U.(*Mpint).Cmp(Minintval[TINT]) < 0 || v.U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
-			Yyerror("overflow in int -> string")
+		var i int64 = 0xFFFD
+		if u := v.U.(*Mpint); u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
+			i = u.Int64()
 		}
-		r := uint(v.U.(*Mpint).Int64())
 		v = Val{}
-		v.U = string(r)
+		v.U = string(i)
 
 	case CTFLT:
 		Yyerror("no float -> string")
