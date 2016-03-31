@@ -136,19 +136,6 @@ func archinit() {
 			ld.INITRND = 0x200000
 		}
 
-	case obj.Helf: /* elf32 executable */
-		ld.HEADR = int32(ld.Rnd(52+3*32, 16))
-
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = 0x80110000
-		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
-		}
-		if ld.INITRND == -1 {
-			ld.INITRND = 4096
-		}
-
 	case obj.Hdarwin: /* apple MACH */
 		ld.Machoinit()
 

@@ -716,7 +716,6 @@ const (
 	Hunknown = 0 + iota
 	Hdarwin
 	Hdragonfly
-	Helf
 	Hfreebsd
 	Hlinux
 	Hnacl
