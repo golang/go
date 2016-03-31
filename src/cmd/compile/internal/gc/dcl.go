@@ -296,7 +296,6 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	}
 	clcopy := listtreecopy(cl, lno)
 
-	var c *Node
 	var vv []*Node
 	for _, v := range vl {
 		if len(clcopy) == 0 {
@@ -304,7 +303,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 			break
 		}
 
-		c = clcopy[0]
+		c := clcopy[0]
 		clcopy = clcopy[1:]
 
 		v.Op = OLITERAL
@@ -580,8 +579,7 @@ func funcargs(nt *Node) {
 		}
 	}
 
-	var n *Node
-	for _, n = range nt.List.Slice() {
+	for _, n := range nt.List.Slice() {
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs in %v", Oconv(n.Op, 0))
 		}
@@ -599,7 +597,7 @@ func funcargs(nt *Node) {
 	// declare the out arguments.
 	gen := nt.List.Len()
 	var i int = 0
-	for _, n = range nt.Rlist.Slice() {
+	for _, n := range nt.Rlist.Slice() {
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs out %v", Oconv(n.Op, 0))
 		}
@@ -817,13 +815,13 @@ func tostruct0(t *Type, l []*Node) {
 		Fatalf("struct expected")
 	}
 
-	var fields []*Field
-	for _, n := range l {
+	fields := make([]*Field, len(l))
+	for i, n := range l {
 		f := structfield(n)
 		if f.Broke {
 			t.Broke = true
 		}
-		fields = append(fields, f)
+		fields[i] = f
 	}
 	t.SetFields(fields)
 
@@ -838,8 +836,8 @@ func tofunargs(l []*Node) *Type {
 	t := typ(TSTRUCT)
 	t.Funarg = true
 
-	var fields []*Field
-	for _, n := range l {
+	fields := make([]*Field, len(l))
+	for i, n := range l {
 		f := structfield(n)
 		f.Funarg = true
 
@@ -850,7 +848,7 @@ func tofunargs(l []*Node) *Type {
 		if f.Broke {
 			t.Broke = true
 		}
-		fields = append(fields, f)
+		fields[i] = f
 	}
 	t.SetFields(fields)
 	return t
@@ -953,15 +951,12 @@ func tointerface0(t *Type, l []*Node) *Type {
 		} else {
 			fields = append(fields, f)
 		}
-	}
-	sort.Sort(methcmp(fields))
-	t.SetFields(fields)
-
-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
 			t.Broke = true
 		}
 	}
+	sort.Sort(methcmp(fields))
+	t.SetFields(fields)
 
 	checkdupfields("method", t)
 	checkwidth(t)
