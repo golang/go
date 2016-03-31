@@ -277,15 +277,15 @@ func (p *importer) typ() *Type {
 
 	case arrayTag, sliceTag:
 		t = p.newtyp(TARRAY)
-		t.Bound = sliceBound
 		if i == arrayTag {
-			t.Bound = p.int64()
+			t.SetNumElem(p.int64())
+		} else {
+			t.SetNumElem(sliceBound)
 		}
 		t.Type = p.typ()
 
 	case dddTag:
 		t = p.newtyp(TDDDFIELD)
-		t.Bound = sliceBound
 		t.Type = p.typ()
 
 	case structTag:
@@ -448,9 +448,8 @@ func (p *importer) param(named bool) *Node {
 
 	isddd := false
 	if typ.Etype == TDDDFIELD {
-		// TDDDFIELD indicates ... type
-		// TODO(mdempsky): Fix Type rekinding.
-		typ.Etype = TARRAY
+		// TDDDFIELD indicates wrapped ... slice type
+		typ = typSlice(typ.Wrapped())
 		isddd = true
 	}
 

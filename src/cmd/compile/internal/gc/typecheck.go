@@ -2977,7 +2977,7 @@ func typecheckcomplit(n *Node) *Node {
 					setlineno(l)
 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
 					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
-					t.Bound = sliceBound
+					t.SetNumElem(sliceBound)
 				}
 			}
 
@@ -2989,7 +2989,7 @@ func typecheckcomplit(n *Node) *Node {
 		}
 
 		if t.isDDDArray() {
-			t.Bound = length
+			t.SetNumElem(length)
 		}
 		if t.IsSlice() {
 			n.Right = Nodintconst(length)
