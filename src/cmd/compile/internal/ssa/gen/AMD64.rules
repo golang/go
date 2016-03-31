@@ -475,6 +475,11 @@
 (ANDB x (MOVBconst [c])) -> (ANDBconst [c] x)
 (ANDB (MOVBconst [c]) x) -> (ANDBconst [c] x)
 
+(ANDBconst [c] (ANDBconst [d] x)) -> (ANDBconst [c & d] x)
+(ANDWconst [c] (ANDWconst [d] x)) -> (ANDWconst [c & d] x)
+(ANDLconst [c] (ANDLconst [d] x)) -> (ANDLconst [c & d] x)
+(ANDQconst [c] (ANDQconst [d] x)) -> (ANDQconst [c & d] x)
+
 (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
 (ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
 (ORL x (MOVLconst [c])) -> (ORLconst [c] x)
