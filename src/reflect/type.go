@@ -299,9 +299,9 @@ type method struct {
 // Using a pointer to this struct reduces the overall size required
 // to describe an unnamed type with no methods.
 type uncommonType struct {
-	pkgPath *string // import path; nil for built-in types like int, string
-	mcount  uint16  // number of methods
-	moff    uint16  // offset from this uncommontype to [mcount]method
+	pkgPath name   // import path; empty for built-in types like int, string
+	mcount  uint16 // number of methods
+	moff    uint16 // offset from this uncommontype to [mcount]method
 }
 
 // ChanDir represents a channel type's direction.
@@ -354,7 +354,7 @@ type imethod struct {
 // interfaceType represents an interface type.
 type interfaceType struct {
 	rtype   `reflect:"interface"`
-	pkgPath *string   // import path
+	pkgPath name      // import path
 	methods []imethod // sorted by hash
 }
 
@@ -396,7 +396,7 @@ type structField struct {
 // structType represents a struct type.
 type structType struct {
 	rtype   `reflect:"struct"`
-	pkgPath *string
+	pkgPath name
 	fields  []structField // sorted by offset
 }
 
@@ -406,7 +406,7 @@ type structType struct {
 //
 //	1<<0 the name is exported
 //	1<<1 tag data follows the name
-//	1<<2 pkgPath *string follow the name and tag
+//	1<<2 pkgPath nameOff follows the name and tag
 //
 // The next two bytes are the data length:
 //
@@ -417,10 +417,9 @@ type structType struct {
 // If tag data follows then bytes 3+l and 3+l+1 are the tag length,
 // with the data following.
 //
-// If the import path follows, then ptrSize bytes at the end of
-// the data form a *string. The pointer is aligned to its width.
-// The import path is only set for concrete methods that are defined
-// in a different package than their type.
+// If the import path follows, then 4 bytes at the end of
+// the data form a nameOff. The import path is only set for concrete
+// methods that are defined in a different package than their type.
 type name struct {
 	bytes *byte
 }
@@ -446,6 +445,9 @@ func (n *name) tagLen() int {
 }
 
 func (n *name) name() (s string) {
+	if n.bytes == nil {
+		return ""
+	}
 	nl := n.nameLen()
 	if nl == 0 {
 		return ""
@@ -468,16 +470,18 @@ func (n *name) tag() (s string) {
 	return s
 }
 
-func (n *name) pkgPath() *string {
-	if *n.data(0)&(1<<2) == 0 {
-		return nil
+func (n *name) pkgPath() string {
+	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
+		return ""
 	}
 	off := 3 + n.nameLen()
 	if tl := n.tagLen(); tl > 0 {
 		off += 2 + tl
 	}
-	off = int(round(uintptr(off), ptrSize))
-	return *(**string)(unsafe.Pointer(n.data(off)))
+	var nameOff int32
+	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
+	pkgPathName := name{(*byte)(resolveTypeOff(unsafe.Pointer(n), nameOff))}
+	return pkgPathName.name()
 }
 
 // round n up to a multiple of a.  a must be a power of 2.
@@ -595,10 +599,10 @@ func (t *uncommonType) methods() []method {
 }
 
 func (t *uncommonType) PkgPath() string {
-	if t == nil || t.pkgPath == nil {
+	if t == nil {
 		return ""
 	}
-	return *t.pkgPath
+	return t.pkgPath.name()
 }
 
 // resolveTypeOff resolves an *rtype offset from a base type.
@@ -752,11 +756,10 @@ func (t *rtype) Method(i int) (m Method) {
 	m.Name = p.name.name()
 	fl := flag(Func)
 	if !p.name.isExported() {
-		pkgPath := p.name.pkgPath()
-		if pkgPath == nil {
-			pkgPath = ut.pkgPath
+		m.PkgPath = p.name.pkgPath()
+		if m.PkgPath == "" {
+			m.PkgPath = ut.pkgPath.name()
 		}
-		m.PkgPath = *pkgPath
 		fl |= flagStickyRO
 	}
 	if p.mtyp != 0 {
@@ -1004,11 +1007,10 @@ func (t *interfaceType) Method(i int) (m Method) {
 	p := &t.methods[i]
 	m.Name = p.name.name()
 	if !p.name.isExported() {
-		pkgPath := p.name.pkgPath()
-		if pkgPath == nil {
-			pkgPath = t.pkgPath
+		m.PkgPath = p.name.pkgPath()
+		if m.PkgPath == "" {
+			m.PkgPath = t.pkgPath.name()
 		}
-		m.PkgPath = *pkgPath
 	}
 	m.Type = toType(p.typ)
 	m.Index = i
@@ -1146,9 +1148,9 @@ func (t *structType) Field(i int) (f StructField) {
 		f.Name = t.Name()
 		f.Anonymous = true
 	}
-	if t.pkgPath != nil && !p.name.isExported() {
+	if !p.name.isExported() {
 		// Fields never have an import path in their name.
-		f.PkgPath = *t.pkgPath
+		f.PkgPath = t.pkgPath.name()
 	}
 	if tag := p.name.tag(); tag != "" {
 		f.Tag = StructTag(tag)
@@ -2325,7 +2327,7 @@ func StructOf(fields []StructField) Type {
 			case Interface:
 				ift := (*interfaceType)(unsafe.Pointer(ft))
 				for im, m := range ift.methods {
-					if m.name.pkgPath() != nil {
+					if m.name.pkgPath() != "" {
 						// TODO(sbinet)
 						panic("reflect: embedded interface with unexported method(s) not implemented")
 					}
@@ -2384,7 +2386,7 @@ func StructOf(fields []StructField) Type {
 				ptr := (*ptrType)(unsafe.Pointer(ft))
 				if unt := ptr.uncommon(); unt != nil {
 					for _, m := range unt.methods() {
-						if m.name.pkgPath() != nil {
+						if m.name.pkgPath() != "" {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
@@ -2398,7 +2400,7 @@ func StructOf(fields []StructField) Type {
 				}
 				if unt := ptr.elem.uncommon(); unt != nil {
 					for _, m := range unt.methods() {
-						if m.name.pkgPath() != nil {
+						if m.name.pkgPath() != "" {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}
@@ -2413,7 +2415,7 @@ func StructOf(fields []StructField) Type {
 			default:
 				if unt := ft.uncommon(); unt != nil {
 					for _, m := range unt.methods() {
-						if m.name.pkgPath() != nil {
+						if m.name.pkgPath() != "" {
 							// TODO(sbinet)
 							panic("reflect: embedded interface with unexported method(s) not implemented")
 						}

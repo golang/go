@@ -412,8 +412,6 @@ func imethods(t *Type) []*Sig {
 	return methods
 }
 
-var dimportpath_gopkg *Pkg
-
 func dimportpath(p *Pkg) {
 	if p.Pathsym != nil {
 		return
@@ -426,27 +424,18 @@ func dimportpath(p *Pkg) {
 		return
 	}
 
-	if dimportpath_gopkg == nil {
-		dimportpath_gopkg = mkpkg("go")
-		dimportpath_gopkg.Name = "go"
-	}
-
-	nam := "importpath." + p.Prefix + "."
-
-	n := Nod(ONAME, nil, nil)
-	n.Sym = Pkglookup(nam, dimportpath_gopkg)
-
-	n.Class = PEXTERN
-	n.Xoffset = 0
-	p.Pathsym = n.Sym
-
+	var str string
 	if p == localpkg {
 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
-		gdatastring(n, myimportpath)
+		str = myimportpath
 	} else {
-		gdatastring(n, p.Path)
+		str = p.Path
 	}
-	ggloblsym(n.Sym, int32(Types[TSTRING].Width), obj.DUPOK|obj.RODATA)
+
+	s := obj.Linklookup(Ctxt, "go.importpath."+p.Prefix+".", 0)
+	ot := dnameData(s, 0, str, "", nil, false)
+	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	p.Pathsym = s
 }
 
 func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
@@ -469,7 +458,23 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 	}
 
 	dimportpath(pkg)
-	return dsymptrLSym(s, ot, Linksym(pkg.Pathsym), 0)
+	return dsymptrLSym(s, ot, pkg.Pathsym, 0)
+}
+
+// dgopkgpathOffLSym writes an offset relocation in s at offset ot to the pkg path symbol.
+func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+	if pkg == localpkg && myimportpath == "" {
+		// If we don't know the full import path of the package being compiled
+		// (i.e. -p was not passed on the compiler command line), emit a reference to
+		// go.importpath.""., which the linker will rewrite using the correct import path.
+		// Every package that imports this one directly defines the symbol.
+		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+		ns := obj.Linklookup(Ctxt, `go.importpath."".`, 0)
+		return dsymptrOffLSym(s, ot, ns, 0)
+	}
+
+	dimportpath(pkg)
+	return dsymptrOffLSym(s, ot, pkg.Pathsym, 0)
 }
 
 // isExportedField reports whether a struct field is exported.
@@ -495,13 +500,12 @@ func dnameField(s *Sym, ot int, ft *Field) int {
 	if ft.Note != nil {
 		tag = *ft.Note
 	}
-	return dname(s, ot, name, tag, nil, isExportedField(ft))
+	nsym := dname(name, tag, nil, isExportedField(ft))
+	return dsymptrLSym(Linksym(s), ot, nsym, 0)
 }
 
-var dnameCount int
-
-// dname dumps a reflect.name for a struct field or method.
-func dname(s *Sym, ot int, name, tag string, pkg *Pkg, exported bool) int {
+// dnameData writes the contents of a reflect.name into s at offset ot.
+func dnameData(s *obj.LSym, ot int, name, tag string, pkg *Pkg, exported bool) int {
 	if len(name) > 1<<16-1 {
 		Fatalf("name too long: %s", name)
 	}
@@ -534,31 +538,46 @@ func dname(s *Sym, ot int, name, tag string, pkg *Pkg, exported bool) int {
 		copy(tb[2:], tag)
 	}
 
-	// Very few names require a pkgPath *string (only those
-	// defined in a different package than their type). So if
-	// there is no pkgPath, we treat the name contents as string
-	// data that duplicates across packages.
-	var bsym *obj.LSym
-	if pkg == nil {
-		_, bsym = stringsym(string(b))
-	} else {
-		// Write out data as "type.." to signal two things to the
-		// linker, first that when dynamically linking, the symbol
-		// should be moved to a relro section, and second that the
-		// contents should not be decoded as a type.
-		bsymname := fmt.Sprintf(`type..methodname."".%d`, dnameCount)
-		dnameCount++
-		bsym = obj.Linklookup(Ctxt, bsymname, 0)
-		bsym.P = b
-		boff := len(b)
-		boff = int(Rnd(int64(boff), int64(Widthptr)))
-		boff = dgopkgpathLSym(bsym, boff, pkg)
-		ggloblLSym(bsym, int32(boff), obj.RODATA|obj.LOCAL)
+	ot = int(s.WriteBytes(Ctxt, int64(ot), b))
+
+	if pkg != nil {
+		ot = dgopkgpathOffLSym(s, ot, pkg)
 	}
 
-	ot = dsymptrLSym(Linksym(s), ot, bsym, 0)
-
 	return ot
+}
+
+var dnameCount int
+
+// dname creates a reflect.name for a struct field or method.
+func dname(name, tag string, pkg *Pkg, exported bool) *obj.LSym {
+	// Write out data as "type.." to signal two things to the
+	// linker, first that when dynamically linking, the symbol
+	// should be moved to a relro section, and second that the
+	// contents should not be decoded as a type.
+	sname := "type..namedata."
+	if pkg == nil {
+		// In the common case, share data with other packages.
+		if name == "" {
+			if exported {
+				sname += "-noname-exported." + tag
+			} else {
+				sname += "-noname-unexported." + tag
+			}
+		} else {
+			sname += name + "." + tag
+		}
+	} else {
+		sname = fmt.Sprintf(`%s"".%d`, sname, dnameCount)
+		dnameCount++
+	}
+	s := obj.Linklookup(Ctxt, sname, 0)
+	if len(s.P) > 0 {
+		return s
+	}
+	ot := dnameData(s, 0, name, tag, pkg, exported)
+	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
+	return s
 }
 
 // dextratype dumps the fields of a runtime.uncommontype.
@@ -627,7 +646,8 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
 		if !exported && a.pkg != typePkg(t) {
 			pkg = a.pkg
 		}
-		ot = dname(s, ot, a.name, "", pkg, exported)
+		nsym := dname(a.name, "", pkg, exported)
+		ot = dsymptrLSym(lsym, ot, nsym, 0)
 		ot = dmethodptrOffLSym(lsym, ot, Linksym(dtypesym(a.mtype)))
 		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.isym))
 		ot = dmethodptrOffLSym(lsym, ot, Linksym(a.tsym))
@@ -1213,7 +1233,8 @@ ok:
 			if !exported && a.pkg != tpkg {
 				pkg = a.pkg
 			}
-			ot = dname(s, ot, a.name, "", pkg, exported)
+			nsym := dname(a.name, "", pkg, exported)
+			ot = dsymptrLSym(Linksym(s), ot, nsym, 0)
 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
 		}
 

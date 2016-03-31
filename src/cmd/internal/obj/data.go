@@ -75,7 +75,11 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if s.Type == SBSS || s.Type == STLSBSS {
 		ctxt.Diag("cannot supply data for BSS var")
 	}
-	s.Grow(off + int64(siz))
+	l := off + int64(siz)
+	s.Grow(l)
+	if l > s.Size {
+		s.Size = l
+	}
 }
 
 // WriteFloat32 writes f into s at offset off.
@@ -148,6 +152,13 @@ func (s *LSym) WriteString(ctxt *Link, off int64, siz int, str string) {
 	}
 	s.prepwrite(ctxt, off, siz)
 	copy(s.P[off:off+int64(siz)], str)
+}
+
+// WriteBytes writes a slice of bytes into s at offset off.
+func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
+	s.prepwrite(ctxt, off, len(b))
+	copy(s.P[off:], b)
+	return off + int64(len(b))
 }
 
 func Addrel(s *LSym) *Reloc {

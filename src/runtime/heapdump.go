@@ -183,10 +183,11 @@ func dumptype(t *_type) {
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.size))
-	if x := t.uncommon(); x == nil || x.pkgpath == nil {
+	if x := t.uncommon(); x == nil || x.pkgpath.name() == "" {
 		dumpstr(t._string)
 	} else {
-		pkgpath := stringStructOf(x.pkgpath)
+		pkgpathstr := x.pkgpath.name()
+		pkgpath := stringStructOf(&pkgpathstr)
 		namestr := t.name()
 		name := stringStructOf(&namestr)
 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))

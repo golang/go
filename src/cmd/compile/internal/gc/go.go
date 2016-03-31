@@ -20,7 +20,7 @@ const (
 type Pkg struct {
 	Name     string // package name, e.g. "sys"
 	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
-	Pathsym  *Sym
+	Pathsym  *obj.LSym
 	Prefix   string // escaped path for use in symbol table
 	Imported bool   // export data of this package was parsed
 	Exported bool   // import line written in export data
