@@ -1598,6 +1598,22 @@ func rewriteValueAMD64_OpAMD64ANDB(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpAMD64ANDBconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ANDBconst [c] (ANDBconst [d] x))
+	// cond:
+	// result: (ANDBconst [c & d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ANDBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDBconst)
+		v.AuxInt = c & d
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDBconst [c] _)
 	// cond: int8(c)==0
 	// result: (MOVBconst [0])
@@ -1691,6 +1707,22 @@ func rewriteValueAMD64_OpAMD64ANDL(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpAMD64ANDLconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ANDLconst [c] (ANDLconst [d] x))
+	// cond:
+	// result: (ANDLconst [c & d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ANDLconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDLconst)
+		v.AuxInt = c & d
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDLconst [c] _)
 	// cond: int32(c)==0
 	// result: (MOVLconst [0])
@@ -1790,6 +1822,22 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpAMD64ANDQconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ANDQconst [c] (ANDQconst [d] x))
+	// cond:
+	// result: (ANDQconst [c & d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ANDQconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDQconst)
+		v.AuxInt = c & d
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDQconst [0] _)
 	// cond:
 	// result: (MOVQconst [0])
@@ -1911,6 +1959,22 @@ func rewriteValueAMD64_OpAMD64ANDW(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpAMD64ANDWconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ANDWconst [c] (ANDWconst [d] x))
+	// cond:
+	// result: (ANDWconst [c & d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpAMD64ANDWconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpAMD64ANDWconst)
+		v.AuxInt = c & d
+		v.AddArg(x)
+		return true
+	}
 	// match: (ANDWconst [c] _)
 	// cond: int16(c)==0
 	// result: (MOVWconst [0])
