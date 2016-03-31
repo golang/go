@@ -24,15 +24,11 @@ var (
 // ErrPersistEOF (above) reports that the remote side is closed.
 var errClosed = errors.New("i/o operation on closed connection")
 
-// A ServerConn reads requests and sends responses over an underlying
-// connection, until the HTTP keepalive logic commands an end. ServerConn
-// also allows hijacking the underlying connection by calling Hijack
-// to regain control over the connection. ServerConn supports pipe-lining,
-// i.e. requests can be read out of sync (but in the same order) while the
-// respective responses are sent.
+// ServerConn is an artifact of Go's early HTTP implementation.
+// Is is low-level, old, and unused by Go's current HTTP stack.
+// We should have deleted it before Go 1.
 //
-// ServerConn is low-level and old. Applications should instead use Server
-// in the net/http package.
+// Deprecated: use the Server in package net/http instead.
 type ServerConn struct {
 	mu              sync.Mutex // read-write protects the following fields
 	c               net.Conn
@@ -45,11 +41,11 @@ type ServerConn struct {
 	pipe textproto.Pipeline
 }
 
-// NewServerConn returns a new ServerConn reading and writing c. If r is not
-// nil, it is the buffer to use when reading c.
+// NewServerConn is an artifact of Go's early HTTP implementation.
+// Is is low-level, old, and unused by Go's current HTTP stack.
+// We should have deleted it before Go 1.
 //
-// ServerConn is low-level and old. Applications should instead use Server
-// in the net/http package.
+// Deprecated: use the Server in package net/http instead.
 func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
 	if r == nil {
 		r = bufio.NewReader(c)
@@ -61,17 +57,17 @@ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
 // as the read-side bufio which may have some left over data. Hijack may be
 // called before Read has signaled the end of the keep-alive logic. The user
 // should not call Hijack while Read or Write is in progress.
-func (sc *ServerConn) Hijack() (c net.Conn, r *bufio.Reader) {
+func (sc *ServerConn) Hijack() (net.Conn, *bufio.Reader) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	c = sc.c
-	r = sc.r
+	c := sc.c
+	r := sc.r
 	sc.c = nil
 	sc.r = nil
-	return
+	return c, r
 }
 
-// Close calls Hijack and then also closes the underlying connection
+// Close calls Hijack and then also closes the underlying connection.
 func (sc *ServerConn) Close() error {
 	c, _ := sc.Hijack()
 	if c != nil {
@@ -84,7 +80,9 @@ func (sc *ServerConn) Close() error {
 // it is gracefully determined that there are no more requests (e.g. after the
 // first request on an HTTP/1.0 connection, or after a Connection:close on a
 // HTTP/1.1 connection).
-func (sc *ServerConn) Read() (req *http.Request, err error) {
+func (sc *ServerConn) Read() (*http.Request, error) {
+	var req *http.Request
+	var err error
 
 	// Ensure ordered execution of Reads and Writes
 	id := sc.pipe.Next()
@@ -219,13 +217,11 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
 	return nil
 }
 
-// A ClientConn sends request and receives headers over an underlying
-// connection, while respecting the HTTP keepalive logic. ClientConn
-// supports hijacking the connection calling Hijack to
-// regain control of the underlying net.Conn and deal with it as desired.
+// ClientConn is an artifact of Go's early HTTP implementation.
+// Is is low-level, old, and unused by Go's current HTTP stack.
+// We should have deleted it before Go 1.
 //
-// ClientConn is low-level and old. Applications should instead use
-// Client or Transport in the net/http package.
+// Deprecated: use Client or Transport in package net/http instead.
 type ClientConn struct {
 	mu              sync.Mutex // read-write protects the following fields
 	c               net.Conn
@@ -239,11 +235,11 @@ type ClientConn struct {
 	writeReq func(*http.Request, io.Writer) error
 }
 
-// NewClientConn returns a new ClientConn reading and writing c. If r is not
-// nil, it is the buffer to use when reading c.
+// NewClientConn is an artifact of Go's early HTTP implementation.
+// Is is low-level, old, and unused by Go's current HTTP stack.
+// We should have deleted it before Go 1.
 //
-// ClientConn is low-level and old. Applications should use Client or
-// Transport in the net/http package.
+// Deprecated: use the Client or Transport in package net/http instead.
 func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	if r == nil {
 		r = bufio.NewReader(c)
@@ -256,11 +252,11 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	}
 }
 
-// NewProxyClientConn works like NewClientConn but writes Requests
-// using Request's WriteProxy method.
+// NewProxyClientConn is an artifact of Go's early HTTP implementation.
+// Is is low-level, old, and unused by Go's current HTTP stack.
+// We should have deleted it before Go 1.
 //
-// New code should not use NewProxyClientConn. See Client or
-// Transport in the net/http package instead.
+// Deprecated: use the Client or Transport in package net/http instead.
 func NewProxyClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	cc := NewClientConn(c, r)
 	cc.writeReq = (*http.Request).WriteProxy
@@ -281,7 +277,7 @@ func (cc *ClientConn) Hijack() (c net.Conn, r *bufio.Reader) {
 	return
 }
 
-// Close calls Hijack and then also closes the underlying connection
+// Close calls Hijack and then also closes the underlying connection.
 func (cc *ClientConn) Close() error {
 	c, _ := cc.Hijack()
 	if c != nil {
@@ -295,7 +291,8 @@ func (cc *ClientConn) Close() error {
 // keepalive connection is logically closed after this request and the opposing
 // server is informed. An ErrUnexpectedEOF indicates the remote closed the
 // underlying TCP connection, which is usually considered as graceful close.
-func (cc *ClientConn) Write(req *http.Request) (err error) {
+func (cc *ClientConn) Write(req *http.Request) error {
+	var err error
 
 	// Ensure ordered execution of Writes
 	id := cc.pipe.Next()
@@ -420,10 +417,10 @@ func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
 }
 
 // Do is convenience method that writes a request and reads a response.
-func (cc *ClientConn) Do(req *http.Request) (resp *http.Response, err error) {
-	err = cc.Write(req)
+func (cc *ClientConn) Do(req *http.Request) (*http.Response, error) {
+	err := cc.Write(req)
 	if err != nil {
-		return
+		return nil, err
 	}
 	return cc.Read(req)
 }
