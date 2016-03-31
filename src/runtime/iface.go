@@ -101,15 +101,15 @@ func additab(m *itab, locked, canfail bool) {
 		iname := i.name.name()
 		itype := i._type
 		ipkg := i.name.pkgPath()
-		if ipkg == nil {
-			ipkg = inter.pkgpath
+		if ipkg == "" {
+			ipkg = inter.pkgpath.name()
 		}
 		for ; j < nt; j++ {
 			t := &xmhdr[j]
 			if typ.typeOff(t.mtyp) == itype && t.name.name() == iname {
 				pkgPath := t.name.pkgPath()
-				if pkgPath == nil {
-					pkgPath = x.pkgpath
+				if pkgPath == "" {
+					pkgPath = x.pkgpath.name()
 				}
 				if t.name.isExported() || pkgPath == ipkg {
 					if m != nil {

@@ -6,10 +6,7 @@
 
 package runtime
 
-import (
-	"runtime/internal/sys"
-	"unsafe"
-)
+import "unsafe"
 
 // tflag is documented in ../reflect/type.go.
 type tflag uint8
@@ -151,6 +148,33 @@ var reflectOffs struct {
 	minv map[unsafe.Pointer]int32
 }
 
+func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
+	if off == 0 {
+		return name{}
+	}
+	base := uintptr(ptrInModule)
+	var md *moduledata
+	for next := &firstmoduledata; next != nil; next = next.next {
+		if base >= next.types && base < next.etypes {
+			md = next
+			break
+		}
+	}
+	if md == nil {
+		println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
+		for next := &firstmoduledata; next != nil; next = next.next {
+			println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
+		}
+		throw("runtime: name offset base pointer out of range")
+	}
+	res := md.types + uintptr(off)
+	if res > md.etypes {
+		println("runtime: nameOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
+		throw("runtime: name offset out of range")
+	}
+	return name{(*byte)(unsafe.Pointer(res))}
+}
+
 func (t *_type) typeOff(off typeOff) *_type {
 	if off == 0 {
 		return nil
@@ -240,6 +264,7 @@ func (t *functype) dotdotdot() bool {
 	return t.outCount&(1<<15) != 0
 }
 
+type nameOff int32
 type typeOff int32
 type textOff int32
 
@@ -251,7 +276,7 @@ type method struct {
 }
 
 type uncommontype struct {
-	pkgpath *string
+	pkgpath name
 	mcount  uint16 // number of methods
 	moff    uint16 // offset from this uncommontype to [mcount]method
 }
@@ -263,7 +288,7 @@ type imethod struct {
 
 type interfacetype struct {
 	typ     _type
-	pkgpath *string
+	pkgpath name
 	mhdr    []imethod
 }
 
@@ -319,7 +344,7 @@ type structfield struct {
 
 type structtype struct {
 	typ     _type
-	pkgPath *string
+	pkgPath name
 	fields  []structfield
 }
 
@@ -350,6 +375,9 @@ func (n *name) tagLen() int {
 }
 
 func (n *name) name() (s string) {
+	if n.bytes == nil {
+		return ""
+	}
 	nl := n.nameLen()
 	if nl == 0 {
 		return ""
@@ -372,16 +400,18 @@ func (n *name) tag() (s string) {
 	return s
 }
 
-func (n *name) pkgPath() *string {
-	if *n.data(0)&(1<<2) == 0 {
-		return nil
+func (n *name) pkgPath() string {
+	if n.bytes == nil || *n.data(0)&(1<<2) == 0 {
+		return ""
 	}
 	off := 3 + n.nameLen()
 	if tl := n.tagLen(); tl > 0 {
 		off += 2 + tl
 	}
-	off = int(round(uintptr(off), sys.PtrSize))
-	return *(**string)(unsafe.Pointer(n.data(off)))
+	var nameOff nameOff
+	copy((*[4]byte)(unsafe.Pointer(&nameOff))[:], (*[4]byte)(unsafe.Pointer(n.data(off)))[:])
+	pkgPathName := resolveNameOff(unsafe.Pointer(n.bytes), nameOff)
+	return pkgPathName.name()
 }
 
 // typelinksinit scans the types from extra modules and builds the
@@ -466,7 +496,7 @@ func typesEqual(t, v *_type) bool {
 		if ut == nil || uv == nil {
 			return false
 		}
-		if !pkgPathEqual(ut.pkgpath, uv.pkgpath) {
+		if ut.pkgpath.name() != uv.pkgpath.name() {
 			return false
 		}
 	}
@@ -506,7 +536,7 @@ func typesEqual(t, v *_type) bool {
 	case kindInterface:
 		it := (*interfacetype)(unsafe.Pointer(t))
 		iv := (*interfacetype)(unsafe.Pointer(v))
-		if !pkgPathEqual(it.pkgpath, iv.pkgpath) {
+		if it.pkgpath.name() != iv.pkgpath.name() {
 			return false
 		}
 		if len(it.mhdr) != len(iv.mhdr) {
@@ -518,7 +548,7 @@ func typesEqual(t, v *_type) bool {
 			if tm.name.name() != vm.name.name() {
 				return false
 			}
-			if !pkgPathEqual(tm.name.pkgPath(), vm.name.pkgPath()) {
+			if tm.name.pkgPath() != vm.name.pkgPath() {
 				return false
 			}
 			if !typesEqual(tm._type, vm._type) {
@@ -550,7 +580,7 @@ func typesEqual(t, v *_type) bool {
 			if tf.name.name() != vf.name.name() {
 				return false
 			}
-			if !pkgPathEqual(tf.name.pkgPath(), vf.name.pkgPath()) {
+			if tf.name.pkgPath() != vf.name.pkgPath() {
 				return false
 			}
 			if !typesEqual(tf.typ, vf.typ) {
@@ -569,14 +599,4 @@ func typesEqual(t, v *_type) bool {
 		throw("runtime: impossible type kind")
 		return false
 	}
-}
-
-func pkgPathEqual(p, q *string) bool {
-	if p == q {
-		return true
-	}
-	if p == nil || q == nil {
-		return false
-	}
-	return *p == *q
 }
