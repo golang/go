@@ -688,12 +688,8 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 }
 
 func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
-	// make an array type
-	t := n.Type.Copy()
-	t.Bound = n.Right.Int()
-	t.Width = 0
-	t.Sym = nil
-	t.Haspointers = 0
+	// make an array type corresponding the number of elements we have
+	t := typArray(n.Type.Elem(), n.Right.Int())
 	dowidth(t)
 
 	if ctxt != 0 {

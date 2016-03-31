@@ -936,6 +936,15 @@ func (t *Type) NumElem() int64 {
 	return t.Bound
 }
 
+// SetNumElem sets the number of elements in an array type.
+// It should not be used if at all possible.
+// Create a new array/slice/dddArray with typX instead.
+// TODO(josharian): figure out how to get rid of this.
+func (t *Type) SetNumElem(n int64) {
+	t.wantEtype(TARRAY)
+	t.Bound = n
+}
+
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
 func (t *Type) IsVoid() bool   { return false }
