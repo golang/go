@@ -344,6 +344,7 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
 	}
 
+	origDir := dir
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil && fi.IsDir() {
@@ -360,7 +361,7 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 		dir = ndir
 	}
 
-	return nil, "", fmt.Errorf("directory %q is not using a known version control system", dir)
+	return nil, "", fmt.Errorf("directory %q is not using a known version control system", origDir)
 }
 
 // RepoRoot represents a version control system, a repo, and a root of
