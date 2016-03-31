@@ -1215,7 +1215,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			return true
 		}
 
-		for i := int64(0); i < t.Bound; i++ {
+		for i := int64(0); i < t.NumElem(); i++ {
 			if !visitComponents(t.Elem(), startOffset+i*t.Elem().Width, f) {
 				return false
 			}

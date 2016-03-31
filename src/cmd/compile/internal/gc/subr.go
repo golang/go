@@ -739,7 +739,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		return true
 
 	case TARRAY:
-		if t1.Bound != t2.Bound {
+		if t1.NumElem() != t2.NumElem() {
 			return false
 		}
 
@@ -2255,7 +2255,7 @@ func isdirectiface(t *Type) bool {
 
 	case TARRAY:
 		// Array of 1 direct iface type can be direct.
-		return t.Bound == 1 && isdirectiface(t.Elem())
+		return t.NumElem() == 1 && isdirectiface(t.Elem())
 
 	case TSTRUCT:
 		// Struct with 1 field of direct iface type can be direct.

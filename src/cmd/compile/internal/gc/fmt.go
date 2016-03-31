@@ -587,7 +587,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 
 	case TARRAY:
 		if t.IsArray() {
-			return fmt.Sprintf("[%d]%v", t.Bound, t.Elem())
+			return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
 		}
 		if t.isDDDArray() {
 			return "[...]" + t.Elem().String()
@@ -729,6 +729,12 @@ func typefmt(t *Type, flag FmtFlag) string {
 			return "@\"unsafe\".Pointer"
 		}
 		return "unsafe.Pointer"
+
+	case TDDDFIELD:
+		if fmtmode == FExp {
+			Fatalf("cannot use TDDDFIELD with old exporter")
+		}
+		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Wrapped())
 	}
 
 	if fmtmode == FExp {

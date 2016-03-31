@@ -812,8 +812,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		return ssa.CMPeq
 
 	case TARRAY:
-		if t.Bound != x.Bound {
-			return cmpForNe(t.Bound < x.Bound)
+		if t.NumElem() != x.NumElem() {
+			return cmpForNe(t.NumElem() < x.NumElem())
 		}
 
 	case TCHAN:
@@ -931,9 +931,7 @@ func (t *Type) FieldOff(i int) int64 {
 }
 
 func (t *Type) NumElem() int64 {
-	if t.Etype != TARRAY {
-		panic("NumElem on non-TARRAY")
-	}
+	t.wantEtype(TARRAY)
 	t.checkBound()
 	return t.Bound
 }

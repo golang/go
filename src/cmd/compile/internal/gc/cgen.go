@@ -1077,7 +1077,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					Regalloc(&n4, Types[TUINT32], nil)
 					Thearch.Gmove(&n1, &n4)
 				} else {
-					Nodconst(&n4, Types[TUINT32], nl.Type.Bound)
+					Nodconst(&n4, Types[TUINT32], nl.Type.NumElem())
 				}
 				p1 := Thearch.Ginscmp(OLT, Types[TUINT32], &n2, &n4, +1)
 				if n4.Op == OREGISTER {
@@ -1235,7 +1235,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 					nlen.Type = t
 					nlen.Xoffset += int64(Array_nel)
 				} else {
-					Nodconst(&nlen, t, nl.Type.Bound)
+					Nodconst(&nlen, t, nl.Type.NumElem())
 				}
 
 				p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
@@ -1416,7 +1416,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			} else if nl.Type.IsSlice() || nl.Type.IsString() {
 				// nlen already initialized
 			} else {
-				Nodconst(&nlen, t, nl.Type.Bound)
+				Nodconst(&nlen, t, nl.Type.NumElem())
 			}
 
 			p1 := Thearch.Ginscmp(OLT, t, &n2, &nlen, +1)
@@ -3025,7 +3025,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			return
 		}
 		if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-			Nodconst(&xlen, indexRegType, n.Left.Type.Elem().Bound)
+			Nodconst(&xlen, indexRegType, n.Left.Type.Elem().NumElem())
 			return
 		}
 		if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
@@ -3183,7 +3183,7 @@ func cgen_slice(n, res *Node, wb bool) {
 	// The func obvious below checks for out-of-order constant indexes.
 	var bound int64 = -1
 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
-		bound = n.Left.Type.Elem().Bound
+		bound = n.Left.Type.Elem().NumElem()
 	} else if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
 		bound = int64(len(n.Left.Val().U.(string)))
 	}

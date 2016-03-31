@@ -546,7 +546,7 @@ opswitch:
 		}
 		if t.IsArray() {
 			safeexpr(n.Left, init)
-			Nodconst(n, n.Type, t.Bound)
+			Nodconst(n, n.Type, t.NumElem())
 			n.Typecheck = 1
 		}
 
@@ -1158,7 +1158,7 @@ opswitch:
 			t = t.Elem()
 		}
 		if t.IsArray() {
-			n.Bounded = bounded(r, t.Bound)
+			n.Bounded = bounded(r, t.NumElem())
 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
@@ -3145,12 +3145,12 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	}
 
 	var expr *Node
-	if t.Etype == TARRAY && t.Bound <= 4 && issimple[t.Elem().Etype] {
+	if t.Etype == TARRAY && t.NumElem() <= 4 && issimple[t.Elem().Etype] {
 		// Four or fewer elements of a basic type.
 		// Unroll comparisons.
 		var li *Node
 		var ri *Node
-		for i := 0; int64(i) < t.Bound; i++ {
+		for i := 0; int64(i) < t.NumElem(); i++ {
 			li = Nod(OINDEX, l, Nodintconst(int64(i)))
 			ri = Nod(OINDEX, r, Nodintconst(int64(i)))
 			a = Nod(n.Op, li, ri)
@@ -3170,7 +3170,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 
 	if t.Etype == TARRAY {
 		// Zero- or single-element array, of any type.
-		switch t.Bound {
+		switch t.NumElem() {
 		case 0:
 			n = finishcompare(n, Nodbool(n.Op == OEQ), init)
 			return n

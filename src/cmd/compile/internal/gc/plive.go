@@ -926,7 +926,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
 			*xoffset += t.Width
 		} else {
-			for i := int64(0); i < t.Bound; i++ {
+			for i := int64(0); i < t.NumElem(); i++ {
 				onebitwalktype1(t.Elem(), xoffset, bv)
 			}
 		}
