@@ -1008,7 +1008,7 @@ OpSwitch:
 			}
 
 			if !n.Bounded && Isconst(n.Right, CTINT) {
-				x := n.Right.Val().U.(*Mpint).Int64()
+				x := n.Right.Int()
 				if x < 0 {
 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if t.IsArray() && x >= t.NumElem() {
@@ -2212,13 +2212,13 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
 	}
 
 	if r.Op == OLITERAL {
-		if r.Val().U.(*Mpint).Int64() < 0 {
+		if r.Int() < 0 {
 			Yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.NumElem() > 0 && r.Val().U.(*Mpint).Int64() > tp.NumElem() {
+		} else if tp != nil && tp.NumElem() > 0 && r.Int() > tp.NumElem() {
 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
-		} else if Isconst(l, CTSTR) && r.Val().U.(*Mpint).Int64() > int64(len(l.Val().U.(string))) {
+		} else if Isconst(l, CTSTR) && r.Int() > int64(len(l.Val().U.(string))) {
 			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
 			return false
 		} else if r.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
@@ -2834,7 +2834,7 @@ func indexdup(n *Node, hash map[int64]*Node) {
 		Fatalf("indexdup: not OLITERAL")
 	}
 
-	v := n.Val().U.(*Mpint).Int64()
+	v := n.Int()
 	if hash[v] != nil {
 		Yyerror("duplicate index in array literal: %d", v)
 		return
