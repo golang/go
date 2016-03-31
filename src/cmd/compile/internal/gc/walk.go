@@ -2335,6 +2335,12 @@ func aliased(n *Node, all []*Node, i int) bool {
 		return false
 	}
 
+	// Treat all fields of a struct as referring to the whole struct.
+	// We could do better but we would have to keep track of the fields.
+	for n.Op == ODOT {
+		n = n.Left
+	}
+
 	// Look for obvious aliasing: a variable being assigned
 	// during the all list and appearing in n.
 	// Also record whether there are any writes to main memory.
@@ -2346,6 +2352,11 @@ func aliased(n *Node, all []*Node, i int) bool {
 	var a *Node
 	for _, an := range all[:i] {
 		a = outervalue(an.Left)
+
+		for a.Op == ODOT {
+			a = a.Left
+		}
+
 		if a.Op != ONAME {
 			memwrite = 1
 			continue
@@ -2436,7 +2447,8 @@ func varexpr(n *Node) bool {
 		return varexpr(n.Left) && varexpr(n.Right)
 
 	case ODOT: // but not ODOTPTR
-		return varexpr(n.Left)
+		// Should have been handled in aliased.
+		Fatalf("varexpr unexpected ODOT")
 	}
 
 	// Be conservative.
