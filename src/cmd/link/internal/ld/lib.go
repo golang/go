@@ -1347,7 +1347,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
 	obj.Bseek(f, import1, 0)
 
-	ldobjfile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
+	LoadObjFile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
 	return nil
 }
 
