@@ -145,6 +145,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
+// Reset resets the Reader to be reading from s.
+func (r *Reader) Reset(s string) { *r = Reader{s, 0, -1} }
+
 // NewReader returns a new Reader reading from s.
 // It is similar to bytes.NewBufferString but more efficient and read-only.
 func NewReader(s string) *Reader { return &Reader{s, 0, -1} }
