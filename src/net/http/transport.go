@@ -274,18 +274,32 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.Header")
 	}
+	scheme := req.URL.Scheme
+	isHTTP := scheme == "http" || scheme == "https"
+	if isHTTP {
+		for k, vv := range req.Header {
+			if !validHeaderName(k) {
+				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
+			}
+			for _, v := range vv {
+				if !validHeaderValue(v) {
+					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
+				}
+			}
+		}
+	}
 	// TODO(bradfitz): switch to atomic.Value for this map instead of RWMutex
 	t.altMu.RLock()
-	altRT := t.altProto[req.URL.Scheme]
+	altRT := t.altProto[scheme]
 	t.altMu.RUnlock()
 	if altRT != nil {
 		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
 			return resp, err
 		}
 	}
-	if s := req.URL.Scheme; s != "http" && s != "https" {
+	if !isHTTP {
 		req.closeBody()
-		return nil, &badStringError{"unsupported protocol scheme", s}
+		return nil, &badStringError{"unsupported protocol scheme", scheme}
 	}
 	if req.Method != "" && !validMethod(req.Method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)

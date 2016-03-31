@@ -1045,6 +1045,63 @@ func testTransportGCRequest(t *testing.T, h2, body bool) {
 	}
 }
 
+func TestTransportRejectsInvalidHeaders_h1(t *testing.T) {
+	testTransportRejectsInvalidHeaders(t, h1Mode)
+}
+func TestTransportRejectsInvalidHeaders_h2(t *testing.T) {
+	testTransportRejectsInvalidHeaders(t, h2Mode)
+}
+func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "Handler saw headers: %q", r.Header)
+	}))
+	defer cst.close()
+	cst.tr.DisableKeepAlives = true
+
+	tests := []struct {
+		key, val string
+		ok       bool
+	}{
+		{"Foo", "capital-key", true}, // verify h2 allows capital keys
+		{"Foo", "foo\x00bar", false}, // \x00 byte in value not allowed
+		{"Foo", "two\nlines", false}, // \n byte in value not allowed
+		{"bogus\nkey", "v", false},   // \n byte also not allowed in key
+		{"A space", "v", false},      // spaces in keys not allowed
+		{"имя", "v", false},          // key must be ascii
+		{"name", "валю", true},       // value may be non-ascii
+		{"", "v", false},             // key must be non-empty
+		{"k", "", true},              // value may be empty
+	}
+	for _, tt := range tests {
+		dialedc := make(chan bool, 1)
+		cst.tr.Dial = func(netw, addr string) (net.Conn, error) {
+			dialedc <- true
+			return net.Dial(netw, addr)
+		}
+		req, _ := NewRequest("GET", cst.ts.URL, nil)
+		req.Header[tt.key] = []string{tt.val}
+		res, err := cst.c.Do(req)
+		var body []byte
+		if err == nil {
+			body, _ = ioutil.ReadAll(res.Body)
+			res.Body.Close()
+		}
+		var dialed bool
+		select {
+		case <-dialedc:
+			dialed = true
+		default:
+		}
+
+		if !tt.ok && dialed {
+			t.Errorf("For key %q, value %q, transport dialed. Expected local failure. Response was: (%v, %v)\nServer replied with: %s", tt.key, tt.val, res, err, body)
+		} else if (err == nil) != tt.ok {
+			t.Errorf("For key %q, value %q; got err = %v; want ok=%v", tt.key, tt.val, err, tt.ok)
+		}
+	}
+}
+
 type noteCloseConn struct {
 	net.Conn
 	closeFunc func()
