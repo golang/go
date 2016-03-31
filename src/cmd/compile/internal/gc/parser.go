@@ -3018,7 +3018,7 @@ func (p *parser) hidden_type_misc() *Type {
 		p.want(']')
 		s5 := p.hidden_type()
 
-		return maptype(s3, s5)
+		return typMap(s3, s5)
 
 	case LSTRUCT:
 		// LSTRUCT '{' ohidden_structdcl_list '}'
