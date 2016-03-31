@@ -945,7 +945,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		a.Nbody.Set1(r)
 
 		a.Ninit.Set1(Nod(OAS, index, Nodintconst(0)))
-		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
+		a.Left = Nod(OLT, index, Nodintconst(tarr.NumElem()))
 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
 
 		a = typecheck(a, Etop)
@@ -1112,7 +1112,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		// initialize of not completely specified
-		if var_.isSimpleName() || int64(n.List.Len()) < t.Bound {
+		if var_.isSimpleName() || int64(n.List.Len()) < t.NumElem() {
 			a := Nod(OAS, var_, nil)
 			a = typecheck(a, Etop)
 			a = walkexpr(a, init)
@@ -1399,7 +1399,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 
 			nam.Xoffset += int64(Array_nel) - int64(Array_array)
 			var nod1 Node
-			Nodconst(&nod1, Types[TINT], nr.Type.Bound)
+			Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
 			gdata(&nam, &nod1, Widthint)
 
 			nam.Xoffset += int64(Array_cap) - int64(Array_nel)

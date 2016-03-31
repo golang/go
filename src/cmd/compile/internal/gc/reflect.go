@@ -684,7 +684,7 @@ func haspointers(t *Type) bool {
 			break
 		}
 
-		if t.Bound == 0 { // empty array
+		if t.NumElem() == 0 { // empty array
 			ret = false
 			break
 		}
@@ -747,8 +747,8 @@ func typeptrdata(t *Type) int64 {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			return int64(Widthptr)
 		}
-		// haspointers already eliminated t.Bound == 0.
-		return (t.Bound-1)*t.Elem().Width + typeptrdata(t.Elem())
+		// haspointers already eliminated t.NumElem() == 0.
+		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
 
 	case TSTRUCT:
 		// Find the last field that has pointers.
@@ -1127,7 +1127,7 @@ ok:
 			ot = dcommontype(s, ot, t)
 			ot = dsymptr(s, ot, s1, 0)
 			ot = dsymptr(s, ot, s2, 0)
-			ot = duintptr(s, ot, uint64(t.Bound))
+			ot = duintptr(s, ot, uint64(t.NumElem()))
 		} else {
 			// ../../../../runtime/type.go:/sliceType
 			s1 := dtypesym(t.Elem())
@@ -1637,16 +1637,16 @@ func (p *GCProg) emit(t *Type, offset int64) {
 			p.w.Ptr(offset / int64(Widthptr))
 			return
 		}
-		if t.Bound == 0 {
+		if t.NumElem() == 0 {
 			// should have been handled by haspointers check above
 			Fatalf("GCProg.emit: empty array")
 		}
 
 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
-		count := t.Bound
+		count := t.NumElem()
 		elem := t.Elem()
 		for elem.IsArray() {
-			count *= elem.Bound
+			count *= elem.NumElem()
 			elem = elem.Elem()
 		}
 

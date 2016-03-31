@@ -1011,8 +1011,8 @@ OpSwitch:
 				x := n.Right.Val().U.(*Mpint).Int64()
 				if x < 0 {
 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
-				} else if t.IsArray() && x >= t.Bound {
-					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
+				} else if t.IsArray() && x >= t.NumElem() {
+					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
 					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
 				} else if n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
@@ -1418,7 +1418,7 @@ OpSwitch:
 				break
 			}
 			var r Node
-			Nodconst(&r, Types[TINT], t.Bound)
+			Nodconst(&r, Types[TINT], t.NumElem())
 			r.Orig = n
 			n = &r
 		}
@@ -2215,8 +2215,8 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
 		if r.Val().U.(*Mpint).Int64() < 0 {
 			Yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.Bound > 0 && r.Val().U.(*Mpint).Int64() > tp.Bound {
-			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.Bound)
+		} else if tp != nil && tp.NumElem() > 0 && r.Val().U.(*Mpint).Int64() > tp.NumElem() {
+			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
 			return false
 		} else if Isconst(l, CTSTR) && r.Val().U.(*Mpint).Int64() > int64(len(l.Val().U.(string))) {
 			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
@@ -2973,9 +2973,9 @@ func typecheckcomplit(n *Node) *Node {
 			i++
 			if int64(i) > length {
 				length = int64(i)
-				if t.IsArray() && length > t.Bound {
+				if t.IsArray() && length > t.NumElem() {
 					setlineno(l)
-					Yyerror("array index %d out of bounds [0:%d]", length-1, t.Bound)
+					Yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
 					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
 					t.Bound = sliceBound
 				}

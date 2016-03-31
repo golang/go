@@ -508,7 +508,7 @@ func (p *exporter) typ(t *Type) {
 		}
 		if t.IsArray() {
 			p.tag(arrayTag)
-			p.int64(t.Bound)
+			p.int64(t.NumElem())
 		} else {
 			p.tag(sliceTag)
 		}

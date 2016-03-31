@@ -1973,7 +1973,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case n.Left.Type.IsMap(), n.Left.Type.IsChan():
 			return s.referenceTypeBuiltin(n, s.expr(n.Left))
 		default: // array
-			return s.constInt(Types[TINT], n.Left.Type.Bound)
+			return s.constInt(Types[TINT], n.Left.Type.NumElem())
 		}
 
 	case OSPTR:
@@ -2668,7 +2668,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			a := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			len := s.constInt(Types[TINT], n.Left.Type.Bound)
+			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
 			if !n.Bounded {
 				s.boundsCheck(i, len)
 			}
@@ -3157,7 +3157,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 		ptrtype = Ptrto(elemtype)
 		s.nilCheck(v)
 		ptr = v
-		len = s.constInt(Types[TINT], t.Elem().Bound)
+		len = s.constInt(Types[TINT], t.Elem().NumElem())
 		cap = len
 	default:
 		s.Fatalf("bad type in slice %v\n", t)

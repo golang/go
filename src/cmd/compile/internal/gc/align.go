@@ -242,12 +242,12 @@ func dowidth(t *Type) {
 			dowidth(t.Elem())
 			if t.Elem().Width != 0 {
 				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
-				if uint64(t.Bound) > cap {
+				if uint64(t.NumElem()) > cap {
 					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
 				}
 			}
 
-			w = t.Bound * t.Elem().Width
+			w = t.NumElem() * t.Elem().Width
 			t.Align = t.Elem().Align
 		} else if t.IsSlice() {
 			w = int64(sizeof_Array)
