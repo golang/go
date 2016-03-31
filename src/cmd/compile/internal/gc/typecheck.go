@@ -369,17 +369,18 @@ OpSwitch:
 				return n
 			}
 
-			t = typArray(r.Type, v.U.(*Mpint).Int64())
-
 			if doesoverflow(v, Types[TINT]) {
 				Yyerror("array bound is too large")
 				n.Type = nil
 				return n
-			} else if t.IsSlice() {
+			}
+			bound := v.U.(*Mpint).Int64()
+			if bound < 0 {
 				Yyerror("array bound must be non-negative")
 				n.Type = nil
 				return n
 			}
+			t = typArray(r.Type, bound)
 		}
 
 		n.Op = OTYPE
@@ -2974,7 +2975,8 @@ func typecheckcomplit(n *Node) *Node {
 				if t.IsArray() && length > t.Bound {
 					setlineno(l)
 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.Bound)
-					t.Bound = -1 // no more errors
+					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
+					t.Bound = sliceBound
 				}
 			}
 

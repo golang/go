@@ -277,7 +277,7 @@ func (p *importer) typ() *Type {
 
 	case arrayTag, sliceTag:
 		t = p.newtyp(TARRAY)
-		t.Bound = -1
+		t.Bound = sliceBound
 		if i == arrayTag {
 			t.Bound = p.int64()
 		}
@@ -285,7 +285,7 @@ func (p *importer) typ() *Type {
 
 	case dddTag:
 		t = p.newtyp(TDDDFIELD)
-		t.Bound = -1
+		t.Bound = sliceBound
 		t.Type = p.typ()
 
 	case structTag:
