@@ -155,6 +155,7 @@ func TestStdFixed(t *testing.T) {
 		"issue6889.go",  // gc-specific test
 		"issue7746.go",  // large constants - consumes too much memory
 		"issue11362.go", // canonical import path check
+		"issue15002.go", // uses Mmap; testTestDir should consult build tags
 	)
 }
 
