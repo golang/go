@@ -189,7 +189,6 @@ type Link struct {
 	Filesyms   *LSym
 	Moduledata *LSym
 	LSymBatch  []LSym
-	CurRefs    []*LSym // List of symbol references for the file being read.
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
