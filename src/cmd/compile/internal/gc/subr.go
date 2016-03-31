@@ -372,40 +372,37 @@ func saveorignode(n *Node) {
 	n.Orig = norig
 }
 
-func maptype(key *Type, val *Type) *Type {
-	if key != nil {
-		var bad *Type
-		atype := algtype1(key, &bad)
-		var mtype EType
-		if bad == nil {
-			mtype = key.Etype
-		} else {
-			mtype = bad.Etype
+// checkMapKeyType checks that Type key is valid for use as a map key.
+func checkMapKeyType(key *Type) {
+	var bad *Type
+	atype := algtype1(key, &bad)
+	var mtype EType
+	if bad == nil {
+		mtype = key.Etype
+	} else {
+		mtype = bad.Etype
+	}
+	switch mtype {
+	default:
+		if atype == ANOEQ {
+			Yyerror("invalid map key type %v", key)
 		}
-		switch mtype {
-		default:
-			if atype == ANOEQ {
-				Yyerror("invalid map key type %v", key)
-			}
 
-		case TANY:
-			// will be resolved later.
-			break
+	case TANY:
+		// will be resolved later.
+		break
 
-		case TFORW:
-			// map[key] used during definition of key.
-			// postpone check until key is fully defined.
-			// if there are multiple uses of map[key]
-			// before key is fully defined, the error
-			// will only be printed for the first one.
-			// good enough.
-			if key.Maplineno == 0 {
-				key.Maplineno = lineno
-			}
+	case TFORW:
+		// map[key] used during definition of key.
+		// postpone check until key is fully defined.
+		// if there are multiple uses of map[key]
+		// before key is fully defined, the error
+		// will only be printed for the first one.
+		// good enough.
+		if key.Maplineno == 0 {
+			key.Maplineno = lineno
 		}
 	}
-
-	return typMap(key, val)
 }
 
 // methcmp sorts by symbol, then by package path for unexported symbols.

@@ -275,6 +275,10 @@ func typChan(elem *Type, dir uint8) *Type {
 
 // typMap returns a new map Type with key type k and element (aka value) type v.
 func typMap(k, v *Type) *Type {
+	if k != nil {
+		checkMapKeyType(k)
+	}
+
 	t := typ(TMAP)
 	t.Down = k
 	t.Type = v

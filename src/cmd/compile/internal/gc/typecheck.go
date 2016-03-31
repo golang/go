@@ -402,7 +402,7 @@ OpSwitch:
 			return n
 		}
 		n.Op = OTYPE
-		n.Type = maptype(l.Type, r.Type)
+		n.Type = typMap(l.Type, r.Type)
 		n.Left = nil
 		n.Right = nil
 
@@ -3595,7 +3595,7 @@ ret:
 
 		for _, n := range mapqueue {
 			lineno = n.Type.Maplineno
-			maptype(n.Type, Types[TBOOL])
+			checkMapKeyType(n.Type)
 		}
 
 		lineno = lno
