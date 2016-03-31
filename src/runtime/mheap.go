@@ -145,7 +145,7 @@ type mspan struct {
 	// Cache of the allocBits at freeindex. allocCache is shifted
 	// such that the lowest bit corresponds to the bit freeindex.
 	// allocCache holds the complement of allocBits, thus allowing
-	// ctz64 (count trailing zero) to use it directly.
+	// ctz (count trailing zero) to use it directly.
 	// allocCache may contain bits beyond s.nelems; the caller must ignore
 	// these.
 	allocCache uint64

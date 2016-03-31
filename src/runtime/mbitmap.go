@@ -190,62 +190,7 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
 	return markBits{bytePtr, uint8(1 << whichBit), allocBitIndex}
 }
 
-// ctzVals contains the count of trailing zeros for the
-// index. 0 returns 8 indicating 8 zeros.
-var ctzVals = [256]int8{
-	8, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	5, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	6, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	5, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	7, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	5, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	6, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	5, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0,
-	4, 0, 1, 0, 2, 0, 1, 0,
-	3, 0, 1, 0, 2, 0, 1, 0}
-
-// A temporary stand in for the count trailing zero ctz instruction.
-// IA bsf works on 64 bit non-zero word.
-func ctz64(markBits uint64) uint64 {
-	ctz8 := ctzVals[markBits&0xff]
-	if ctz8 != 8 {
-		return uint64(ctz8)
-	} else if markBits == 0 { // low byte is zero check fill word.
-		return 64 // bits in 64 bit word, ensures loop terminates
-	}
-	result := uint64(8)
-	markBits >>= 8
-	for ctz8 = ctzVals[markBits&0xff]; ctz8 == 8; ctz8 = ctzVals[markBits&0xff] {
-		result += 8
-		markBits >>= 8
-	}
-	result += uint64(ctz8)
-	return result
-}
-
-// refillAllocCache takes 8 bytes s.allocBits starting at whichByte
+// refillaCache takes 8 bytes s.allocBits starting at whichByte
 // and negates them so that ctz (count trailing zeros) instructions
 // can be used. It then places these 8 bytes into the cached 64 bit
 // s.allocCache.
@@ -278,7 +223,8 @@ func (s *mspan) nextFreeIndex() uintptr {
 	}
 
 	aCache := s.allocCache
-	bitIndex := ctz64(aCache)
+
+	bitIndex := sys.Ctz64(aCache)
 	for bitIndex == 64 {
 		// Move index to start of next cached bits.
 		sfreeindex = (sfreeindex + 64) &^ (64 - 1)
@@ -290,8 +236,9 @@ func (s *mspan) nextFreeIndex() uintptr {
 		// Refill s.allocCache with the next 64 alloc bits.
 		s.refillAllocCache(whichByte)
 		aCache = s.allocCache
-		bitIndex = ctz64(aCache)
-		// Nothing was available try again now allocCache has been refilled.
+		bitIndex = sys.Ctz64(aCache)
+		// nothing available in cached bits
+		// grab the next 8 bytes and try again.
 	}
 	result := sfreeindex + uintptr(bitIndex)
 	if result >= snelems {
