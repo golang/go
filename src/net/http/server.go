@@ -714,7 +714,8 @@ func (c *conn) readRequest() (w *response, err error) {
 	c.r.setInfiniteReadLimit()
 
 	hosts, haveHost := req.Header["Host"]
-	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) {
+	isH2Upgrade := req.isH2Upgrade()
+	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) && !isH2Upgrade {
 		return nil, badRequestError("missing required Host header")
 	}
 	if len(hosts) > 1 {
@@ -747,6 +748,9 @@ func (c *conn) readRequest() (w *response, err error) {
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
+	}
+	if isH2Upgrade {
+		w.closeAfterReply = true
 	}
 	w.cw.res = w
 	w.w = newBufioWriterSize(&w.cw, bufferBeforeChunkingSize)
