@@ -319,8 +319,25 @@ func lookup(name string, qtype uint16) (cname string, rrs []dnsRR, err error) {
 	return
 }
 
+// avoidDNS reports whether this is a hostname for which we should not
+// use DNS. Currently this includes only .onion and .local names,
+// per RFC 7686 and RFC 6762, respectively. See golang.org/issue/13705.
+func avoidDNS(name string) bool {
+	if name == "" {
+		return true
+	}
+	if name[len(name)-1] == '.' {
+		name = name[:len(name)-1]
+	}
+	return stringsHasSuffixFold(name, ".onion") || stringsHasSuffixFold(name, ".local")
+}
+
 // nameList returns a list of names for sequential DNS queries.
 func (conf *dnsConfig) nameList(name string) []string {
+	if avoidDNS(name) {
+		return nil
+	}
+
 	// If name is rooted (trailing dot), try only that name.
 	rooted := len(name) > 0 && name[len(name)-1] == '.'
 	if rooted {

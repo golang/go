@@ -94,6 +94,57 @@ func TestSpecialDomainName(t *testing.T) {
 	}
 }
 
+// Issue 13705: don't try to resolve onion addresses, etc
+func TestAvoidDNSName(t *testing.T) {
+	tests := []struct {
+		name  string
+		avoid bool
+	}{
+		{"foo.com", false},
+		{"foo.com.", false},
+
+		{"foo.onion.", true},
+		{"foo.onion", true},
+		{"foo.ONION", true},
+		{"foo.ONION.", true},
+
+		{"foo.local.", true},
+		{"foo.local", true},
+		{"foo.LOCAL", true},
+		{"foo.LOCAL.", true},
+
+		{"", true}, // will be rejected earlier too
+
+		// Without stuff before onion/local, they're fine to
+		// use DNS. With a search path,
+		// "onion.vegegtables.com" can use DNS. Without a
+		// search path (or with a trailing dot), the queries
+		// are just kinda useless, but don't reveal anything
+		// private.
+		{"local", false},
+		{"onion", false},
+		{"local.", false},
+		{"onion.", false},
+	}
+	for _, tt := range tests {
+		got := avoidDNS(tt.name)
+		if got != tt.avoid {
+			t.Errorf("avoidDNS(%q) = %v; want %v", tt.name, got, tt.avoid)
+		}
+	}
+}
+
+// Issue 13705: don't try to resolve onion addresses, etc
+func TestLookupTorOnion(t *testing.T) {
+	addrs, err := goLookupIP("foo.onion")
+	if len(addrs) > 0 {
+		t.Errorf("unexpected addresses: %v", addrs)
+	}
+	if err != nil {
+		t.Fatalf("lookup = %v; want nil", err)
+	}
+}
+
 type resolvConfTest struct {
 	dir  string
 	path string
