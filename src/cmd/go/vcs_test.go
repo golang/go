@@ -6,6 +6,10 @@ package main
 
 import (
 	"internal/testenv"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
 	"testing"
 )
 
@@ -124,6 +128,37 @@ func TestRepoRootForImportPath(t *testing.T) {
 		}
 		if got.vcs.name != want.vcs.name || got.repo != want.repo {
 			t.Errorf("RepoRootForImport(%q) = VCS(%s) Repo(%s), want VCS(%s) Repo(%s)", test.path, got.vcs, got.repo, want.vcs, want.repo)
+		}
+	}
+}
+
+// Test that vcsFromDir correctly inspects a given directory and returns the right VCS and root.
+func TestFromDir(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "vcstest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	for _, vcs := range vcsList {
+		dir := filepath.Join(tempDir, "example.com", vcs.name, "."+vcs.cmd)
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		want := repoRoot{
+			vcs:  vcs,
+			root: path.Join("example.com", vcs.name),
+		}
+		var got repoRoot
+		got.vcs, got.root, err = vcsFromDir(dir, tempDir)
+		if err != nil {
+			t.Errorf("FromDir(%q, %q): %v", dir, tempDir, err)
+			continue
+		}
+		if got.vcs.name != want.vcs.name || got.root != want.root {
+			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", dir, tempDir, got.vcs, got.root, want.vcs, want.root)
 		}
 	}
 }
