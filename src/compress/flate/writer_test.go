@@ -196,7 +196,7 @@ func testDeterministic(i int, t *testing.T) {
 	b1b := b1.Bytes()
 	b2b := b2.Bytes()
 
-	if bytes.Compare(b1b, b2b) != 0 {
+	if !bytes.Equal(b1b, b2b) {
 		t.Errorf("level %d did not produce deterministic result, result mismatch, len(a) = %d, len(b) = %d", i, len(b1b), len(b2b))
 	}
 }
