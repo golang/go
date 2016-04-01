@@ -186,7 +186,7 @@ func UseRelro() bool {
 	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
 		return Iself
 	default:
-		return false
+		return Linkshared
 	}
 }
 

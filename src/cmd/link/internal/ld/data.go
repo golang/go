@@ -1271,7 +1271,7 @@ func dodata() {
 		// when building a shared library. We do this by boosting objects of
 		// type SXXX with relocations to type SXXXRELRO.
 		for s := datap; s != nil; s = s.Next {
-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRINGHDR {
+			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.STYPE || s.Type == obj.SGOSTRINGHDR {
 				s.Type += (obj.STYPERELRO - obj.STYPE)
 				if s.Outer != nil {
 					s.Outer.Type = s.Type
