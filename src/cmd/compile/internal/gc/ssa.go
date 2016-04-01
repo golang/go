@@ -3475,7 +3475,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
 	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
 
-	if isnilinter(n.Type) {
+	if n.Type.IsEmptyInterface() {
 		// Have *eface. The type is the first word in the struct.
 		return s.newValue1(ssa.OpITab, byteptr, v)
 	}
@@ -4189,7 +4189,7 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
 	if n.Class == PAUTO && !n.Addrtaken {
 		// Split this interface up into two separate variables.
 		f := ".itab"
-		if isnilinter(n.Type) {
+		if n.Type.IsEmptyInterface() {
 			f = ".type"
 		}
 		c := e.namedAuto(n.Sym.Name+f, t)

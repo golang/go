@@ -222,7 +222,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OSPTR, OLEN, OCAP:
 		instrumentnode(&n.Left, init, 0, 0)
-		if Istype(n.Left.Type, TMAP) {
+		if n.Left.Type.IsMap() {
 			n1 := Nod(OCONVNOP, n.Left, nil)
 			n1.Type = Ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)

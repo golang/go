@@ -1337,7 +1337,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 	e.nodeEscState(ind).Escloopdepth = e.nodeEscState(n).Escloopdepth
 	ind.Lineno = n.Lineno
 	t := n.Type
-	if Istype(t, Tptr) {
+	if t.IsKind(Tptr) {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" an array
 		// might yield the type of an element. To be enhanced...

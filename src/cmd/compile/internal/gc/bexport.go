@@ -356,7 +356,7 @@ func Export(out *obj.Biobuf, trace bool) int {
 func unidealType(typ *Type, val Val) *Type {
 	// Untyped (ideal) constants get their own type. This decouples
 	// the constant type from the encoding of the constant value.
-	if typ == nil || isideal(typ) {
+	if typ == nil || typ.IsUntyped() {
 		typ = untype(val.Ctype())
 	}
 	return typ

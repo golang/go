@@ -117,10 +117,10 @@ func convlit(n *Node, t *Type) *Node {
 // The result of convlit1 MUST be assigned back to n, e.g.
 // 	n.Left = convlit1(n.Left, t, explicit, reuse)
 func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
-	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
+	if n == nil || t == nil || n.Type == nil || t.IsUntyped() || n.Type == t {
 		return n
 	}
-	if !explicit && !isideal(n.Type) {
+	if !explicit && !n.Type.IsUntyped() {
 		return n
 	}
 
@@ -157,7 +157,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 		}
 
 	case OLSH, ORSH:
-		n.Left = convlit1(n.Left, t, explicit && isideal(n.Left.Type), noReuse)
+		n.Left = convlit1(n.Left, t, explicit && n.Left.Type.IsUntyped(), noReuse)
 		t = n.Left.Type
 		if t != nil && t.Etype == TIDEAL && n.Val().Ctype() != CTINT {
 			n.SetVal(toint(n.Val()))
@@ -319,7 +319,7 @@ bad:
 		n.Diag = 1
 	}
 
-	if isideal(n.Type) {
+	if n.Type.IsUntyped() {
 		n = defaultlitreuse(n, nil, reuse)
 	}
 	return n
@@ -1189,7 +1189,7 @@ func nodcplxlit(r Val, i Val) *Node {
 // idealkind returns a constant kind like consttype
 // but for an arbitrary "ideal" (untyped constant) expression.
 func idealkind(n *Node) Ctype {
-	if n == nil || !isideal(n.Type) {
+	if n == nil || !n.Type.IsUntyped() {
 		return CTxxx
 	}
 
@@ -1259,7 +1259,7 @@ func defaultlit(n *Node, t *Type) *Node {
 // The result of defaultlitreuse MUST be assigned back to n, e.g.
 // 	n.Left = defaultlitreuse(n.Left, t, reuse)
 func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
-	if n == nil || !isideal(n.Type) {
+	if n == nil || !n.Type.IsUntyped() {
 		return n
 	}
 
@@ -1365,12 +1365,12 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 	if l.Type == nil || r.Type == nil {
 		return l, r
 	}
-	if !isideal(l.Type) {
+	if !l.Type.IsUntyped() {
 		r = convlit(r, l.Type)
 		return l, r
 	}
 
-	if !isideal(r.Type) {
+	if !r.Type.IsUntyped() {
 		l = convlit(l, r.Type)
 		return l, r
 	}

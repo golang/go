@@ -830,6 +830,11 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 	return t.Elem().cmp(x.Elem())
 }
 
+// IsKind reports whether t is a Type of the specified kind.
+func (t *Type) IsKind(et EType) bool {
+	return t != nil && t.Etype == et
+}
+
 func (t *Type) IsBoolean() bool {
 	return t.Etype == TBOOL
 }
@@ -911,6 +916,11 @@ func (t *Type) IsInterface() bool {
 	return t.Etype == TINTER
 }
 
+// IsEmptyInterface reports whether t is an empty interface type.
+func (t *Type) IsEmptyInterface() bool {
+	return t.IsInterface() && t.NumFields() == 0
+}
+
 func (t *Type) ElemType() ssa.Type {
 	// TODO(josharian): If Type ever moves to a shared
 	// internal package, remove this silly wrapper.
@@ -948,3 +958,18 @@ func (t *Type) SetNumElem(n int64) {
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
 func (t *Type) IsVoid() bool   { return false }
+
+// IsUntyped reports whether t is an untyped type.
+func (t *Type) IsUntyped() bool {
+	if t == nil {
+		return false
+	}
+	if t == idealstring || t == idealbool {
+		return true
+	}
+	switch t.Etype {
+	case TNIL, TIDEAL:
+		return true
+	}
+	return false
+}

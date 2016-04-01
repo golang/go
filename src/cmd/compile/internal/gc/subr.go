@@ -569,10 +569,6 @@ func isptrto(t *Type, et EType) bool {
 	return true
 }
 
-func Istype(t *Type, et EType) bool {
-	return t != nil && t.Etype == et
-}
-
 func isblank(n *Node) bool {
 	if n == nil {
 		return false
@@ -582,25 +578,6 @@ func isblank(n *Node) bool {
 
 func isblanksym(s *Sym) bool {
 	return s != nil && s.Name == "_"
-}
-
-func isnilinter(t *Type) bool {
-	return t.IsInterface() && t.NumFields() == 0
-}
-
-func isideal(t *Type) bool {
-	if t == nil {
-		return false
-	}
-	if t == idealstring || t == idealbool {
-		return true
-	}
-	switch t.Etype {
-	case TNIL, TIDEAL:
-		return true
-	}
-
-	return false
 }
 
 // given receiver of type t (t == r or t == *r)
@@ -812,7 +789,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// both are empty interface types.
 	// For assignable but different non-empty interface types,
 	// we want to recompute the itab.
-	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || isnilinter(src)) {
+	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || src.IsEmptyInterface()) {
 		return OCONVNOP
 	}
 
@@ -2269,7 +2246,7 @@ func isdirectiface(t *Type) bool {
 // 'I' if t is an interface type, and 'E' if t is an empty interface type.
 // It is used to build calls to the conv* and assert* runtime routines.
 func (t *Type) iet() byte {
-	if isnilinter(t) {
+	if t.IsEmptyInterface() {
 		return 'E'
 	}
 	if t.IsInterface() {

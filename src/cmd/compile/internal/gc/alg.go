@@ -122,7 +122,7 @@ func algtype1(t *Type) (AlgKind, *Type) {
 		return ASTRING, nil
 
 	case TINTER:
-		if isnilinter(t) {
+		if t.IsEmptyInterface() {
 			return ANILINTER, nil
 		}
 		return AINTER, nil

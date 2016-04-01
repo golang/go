@@ -149,7 +149,7 @@ func typecheckswitch(n *Node) {
 					var missing, have *Field
 					var ptr int
 					switch {
-					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
+					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
 						Yyerror("%v is not a type", Nconv(n1, FmtLong))
 						// reset to original type
@@ -170,7 +170,7 @@ func typecheckswitch(n *Node) {
 			ll := ncase.List
 			if ncase.Rlist.Len() != 0 {
 				nvar := ncase.Rlist.First()
-				if ll.Len() == 1 && ll.First().Type != nil && !Istype(ll.First().Type, TNIL) {
+				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
 					// single entry type switch
 					nvar.Name.Param.Ntype = typenod(ll.First().Type)
 				} else {
@@ -449,7 +449,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
 			switch {
 			case n.Left.Op == OLITERAL:
 				c.typ = caseKindTypeNil
-			case Istype(n.Left.Type, TINTER):
+			case n.Left.Type.IsInterface():
 				c.typ = caseKindTypeVar
 			default:
 				c.typ = caseKindTypeConst
@@ -528,7 +528,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	}
 
 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
-	if !Istype(cond.Right.Type, TINTER) {
+	if !cond.Right.Type.IsInterface() {
 		Yyerror("type switch must be on an interface")
 		return
 	}
@@ -594,7 +594,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	i.Left = typecheck(i.Left, Erv)
 	cas = append(cas, i)
 
-	if !isnilinter(cond.Right.Type) {
+	if !cond.Right.Type.IsEmptyInterface() {
 		// Load type from itab.
 		typ = NodSym(ODOTPTR, typ, nil)
 		typ.Type = Ptrto(Types[TUINT8])

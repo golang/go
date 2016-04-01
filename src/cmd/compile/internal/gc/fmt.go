@@ -1366,7 +1366,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Right != nil {
 			return fmt.Sprintf("make(%v, %v, %v)", n.Type, n.Left, n.Right)
 		}
-		if n.Left != nil && (n.Op == OMAKESLICE || !isideal(n.Left.Type)) {
+		if n.Left != nil && (n.Op == OMAKESLICE || !n.Left.Type.IsUntyped()) {
 			return fmt.Sprintf("make(%v, %v)", n.Type, n.Left)
 		}
 		return fmt.Sprintf("make(%v)", n.Type)

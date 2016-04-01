@@ -403,7 +403,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	Regalloc(&r1, byteptr, nil)
 	iface.Type = byteptr
 	Cgen(&iface, &r1)
-	if !isnilinter(n.Left.Type) {
+	if !n.Left.Type.IsEmptyInterface() {
 		// Holding itab, want concrete type in second word.
 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
@@ -492,7 +492,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	Regalloc(&r1, byteptr, res)
 	iface.Type = byteptr
 	Cgen(&iface, &r1)
-	if !isnilinter(n.Left.Type) {
+	if !n.Left.Type.IsEmptyInterface() {
 		// Holding itab, want concrete type in second word.
 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
