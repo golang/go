@@ -990,7 +990,7 @@ opswitch:
 		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
 		if isdirectiface(n.Left.Type) {
 			var t *Node
-			if isnilinter(n.Type) {
+			if n.Type.IsEmptyInterface() {
 				t = typename(n.Left.Type)
 			} else {
 				t = itabname(n.Left.Type, n.Type)
@@ -1003,7 +1003,7 @@ opswitch:
 		}
 
 		var ll []*Node
-		if isnilinter(n.Type) {
+		if n.Type.IsEmptyInterface() {
 			if !n.Left.Type.IsInterface() {
 				ll = append(ll, typename(n.Left.Type))
 			}
@@ -1504,7 +1504,7 @@ opswitch:
 			Fatalf("ifaceeq %v %v %v", Oconv(n.Op, 0), n.Left.Type, n.Right.Type)
 		}
 		var fn *Node
-		if isnilinter(n.Left.Type) {
+		if n.Left.Type.IsEmptyInterface() {
 			fn = syslook("efaceeq")
 		} else {
 			fn = syslook("ifaceeq")
@@ -1924,7 +1924,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		t = n.Type
 		et = n.Type.Etype
 		if n.Type.IsInterface() {
-			if isnilinter(n.Type) {
+			if n.Type.IsEmptyInterface() {
 				on = syslook("printeface")
 			} else {
 				on = syslook("printiface")
@@ -2894,7 +2894,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	nsrc := n.List.First()
 
 	// Resolve slice type of multi-valued return.
-	if Istype(nsrc.Type, TSTRUCT) {
+	if nsrc.Type.IsStruct() {
 		nsrc.Type = nsrc.Type.Elem().Elem()
 	}
 	argc := n.List.Len() - 1

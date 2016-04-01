@@ -233,7 +233,7 @@ func dumpexportconst(s *Sym) {
 	t := n.Type // may or may not be specified
 	dumpexporttype(t)
 
-	if t != nil && !isideal(t) {
+	if t != nil && !t.IsUntyped() {
 		exportf("\tconst %v %v = %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp), Vconv(n.Val(), FmtSharp))
 	} else {
 		exportf("\tconst %v = %v\n", Sconv(s, FmtSharp), Vconv(n.Val(), FmtSharp))

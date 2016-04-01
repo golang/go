@@ -226,7 +226,7 @@ func callrecvlist(l Nodes) bool {
 // The result of indexlit MUST be assigned back to n, e.g.
 // 	n.Left = indexlit(n.Left)
 func indexlit(n *Node) *Node {
-	if n == nil || !isideal(n.Type) {
+	if n == nil || !n.Type.IsUntyped() {
 		return n
 	}
 	switch consttype(n) {
@@ -885,7 +885,7 @@ OpSwitch:
 		if lookdot(n, t, 0) == nil {
 			// Legitimate field or method lookup failed, try to explain the error
 			switch {
-			case isnilinter(t):
+			case t.IsEmptyInterface():
 				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
 
 			case t.IsPtr() && t.Elem().IsInterface():
@@ -1123,7 +1123,7 @@ OpSwitch:
 			return n
 		}
 		var tp *Type
-		if Istype(t, TSTRING) {
+		if t.IsString() {
 			n.Type = t
 			n.Op = OSLICESTR
 		} else if t.IsPtr() && t.Elem().IsArray() {
@@ -1184,7 +1184,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		if Istype(t, TSTRING) {
+		if t.IsString() {
 			Yyerror("invalid operation %v (3-index slice of string)", n)
 			n.Type = nil
 			return n
@@ -1593,7 +1593,7 @@ OpSwitch:
 
 		// Unpack multiple-return result before type-checking.
 		var funarg *Type
-		if Istype(t, TSTRUCT) && t.Funarg {
+		if t.IsStruct() && t.Funarg {
 			funarg = t
 			t = t.Field(0).Type
 		}
@@ -1624,7 +1624,7 @@ OpSwitch:
 				return n
 			}
 
-			if Istype(t.Elem(), TUINT8) && Istype(args.Second().Type, TSTRING) {
+			if t.Elem().IsKind(TUINT8) && args.Second().Type.IsString() {
 				args.SetIndex(1, defaultlit(args.Index(1), Types[TSTRING]))
 				break OpSwitch
 			}
@@ -3704,7 +3704,7 @@ func typecheckdef(n *Node) *Node {
 				goto ret
 			}
 
-			if !isideal(e.Type) && !Eqtype(t, e.Type) {
+			if !e.Type.IsUntyped() && !Eqtype(t, e.Type) {
 				Yyerror("cannot use %v as type %v in const initializer", Nconv(e, FmtLong), t)
 				goto ret
 			}
@@ -3776,7 +3776,7 @@ func typecheckdef(n *Node) *Node {
 	}
 
 ret:
-	if n.Op != OLITERAL && n.Type != nil && isideal(n.Type) {
+	if n.Op != OLITERAL && n.Type != nil && n.Type.IsUntyped() {
 		Fatalf("got %v for %v", n.Type, n)
 	}
 	last := len(typecheckdefstack) - 1

@@ -918,7 +918,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
 }
 
 func typenamesym(t *Type) *Sym {
-	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		Fatalf("typename %v", t)
 	}
 	s := typesym(t)
@@ -946,7 +946,7 @@ func typename(t *Type) *Node {
 }
 
 func itabname(t, itype *Type) *Node {
-	if t == nil || (t.IsPtr() && t.Elem() == nil) || isideal(t) {
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		Fatalf("itabname %v", t)
 	}
 	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
@@ -1076,7 +1076,7 @@ func dtypesym(t *Type) *Sym {
 		t = Types[t.Etype]
 	}
 
-	if isideal(t) {
+	if t.IsUntyped() {
 		Fatalf("dtypesym %v", t)
 	}
 

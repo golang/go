@@ -174,7 +174,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	// changes if n->left is an escaping local variable.
 	switch n.Op {
 	case OSPTR, OLEN:
-		if n.Left.Type.IsSlice() || Istype(n.Left.Type, TSTRING) {
+		if n.Left.Type.IsSlice() || n.Left.Type.IsString() {
 			n.Addable = n.Left.Addable
 		}
 
@@ -554,7 +554,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		Regfree(&n1)
 
 	case OLEN:
-		if Istype(nl.Type, TMAP) || Istype(nl.Type, TCHAN) {
+		if nl.Type.IsMap() || nl.Type.IsChan() {
 			// map and chan have len in the first int-sized word.
 			// a zero pointer means zero length
 			var n1 Node
@@ -578,7 +578,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		if Istype(nl.Type, TSTRING) || nl.Type.IsSlice() {
+		if nl.Type.IsString() || nl.Type.IsSlice() {
 			// both slice and string have len one pointer into the struct.
 			// a zero pointer means zero length
 			var n1 Node
@@ -594,7 +594,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, FmtLong))
 
 	case OCAP:
-		if Istype(nl.Type, TCHAN) {
+		if nl.Type.IsChan() {
 			// chan has cap in the second int-sized word.
 			// a zero pointer means zero length
 			var n1 Node

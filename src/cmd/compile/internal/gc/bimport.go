@@ -131,7 +131,7 @@ func Import(in *bufio.Reader) {
 }
 
 func idealType(typ *Type) *Type {
-	if isideal(typ) {
+	if typ.IsUntyped() {
 		// canonicalize ideal types
 		typ = Types[TIDEAL]
 	}
@@ -519,7 +519,7 @@ func (p *importer) value(typ *Type) (x Val) {
 	}
 
 	// verify ideal type
-	if isideal(typ) && untype(x.Ctype()) != typ {
+	if typ.IsUntyped() && untype(x.Ctype()) != typ {
 		Fatalf("importer: value %v and type %v don't match", x, typ)
 	}
 
