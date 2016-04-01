@@ -48,6 +48,9 @@ func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
 	}
 	return LocalSlot{s.N, d.TypeFloat32(), s.Off}, LocalSlot{s.N, d.TypeFloat32(), s.Off + 4}
 }
+func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+	return LocalSlot{s.N, s.Type.FieldType(i), s.Off + s.Type.FieldOff(i)}
+}
 func (DummyFrontend) Line(line int32) string {
 	return "unknown.go:0"
 }
