@@ -178,7 +178,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 	w := int(nl.Type.Width * 8)
 
 	if op == gc.OLROT {
-		v := nr.Int()
+		v := nr.Int64()
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		if w == 32 {
@@ -205,7 +205,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc == 0 {
 		} else // nothing to do
 		if sc >= uint64(nl.Type.Width*8) {
@@ -475,7 +475,7 @@ func ginscon(as obj.As, c int64, n *gc.Node) {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if t.IsInteger() && n1.Op == gc.OLITERAL && n1.Int() == 0 && n2.Op != gc.OLITERAL {
+	if t.IsInteger() && n1.Op == gc.OLITERAL && n1.Int64() == 0 && n2.Op != gc.OLITERAL {
 		op = gc.Brrev(op)
 		n1, n2 = n2, n1
 	}
@@ -484,7 +484,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	gc.Regalloc(&g1, n1.Type, &r1)
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
-	if t.IsInteger() && n2.Op == gc.OLITERAL && n2.Int() == 0 {
+	if t.IsInteger() && n2.Op == gc.OLITERAL && n2.Int64() == 0 {
 		gins(arm.ACMP, &r1, n2)
 	} else {
 		gc.Regalloc(&r2, t, n2)

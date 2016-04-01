@@ -151,9 +151,9 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	check := false
 	if t.IsSigned() {
 		check = true
-		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
+		if gc.Isconst(nl, gc.CTINT) && nl.Int64() != -(1<<uint64(t.Width*8-1)) {
 			check = false
-		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
+		} else if gc.Isconst(nr, gc.CTINT) && nr.Int64() != -1 {
 			check = false
 		}
 	}
@@ -314,7 +314,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc >= uint64(nl.Type.Width)*8 {
 			// large shift gets 2 shifts by width-1
 			var n3 gc.Node

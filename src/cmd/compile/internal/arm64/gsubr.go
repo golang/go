@@ -115,7 +115,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
 	if t.IsInteger() && gc.Isconst(n2, gc.CTINT) {
-		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int())
+		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int64())
 	} else {
 		gc.Regalloc(&r2, t, n2)
 		gc.Regalloc(&g2, n1.Type, &r2)

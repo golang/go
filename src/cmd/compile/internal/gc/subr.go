@@ -484,7 +484,7 @@ func aindex(b *Node, t *Type) *Type {
 
 		case CTINT, CTRUNE:
 			hasbound = true
-			bound = b.Int()
+			bound = b.Int64()
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
 			}
@@ -2031,7 +2031,7 @@ func powtwo(n *Node) int {
 		return -1
 	}
 
-	v := uint64(n.Int())
+	v := uint64(n.Int64())
 	b := uint64(1)
 	for i := 0; i < 64; i++ {
 		if b == v {

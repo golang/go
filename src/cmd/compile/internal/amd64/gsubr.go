@@ -213,7 +213,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 			// 64-bit immediates are really 32-bit sign-extended
 			// unless moving into a register.
 			if gc.Isint[tt] {
-				if i := con.Int(); int64(int32(i)) != i {
+				if i := con.Int64(); int64(int32(i)) != i {
 					goto hard
 				}
 			}
@@ -1310,7 +1310,7 @@ func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 		if !gc.Isconst(n, gc.CTINT) {
 			break
 		}
-		v := n.Int()
+		v := n.Int64()
 		if v >= 32000 || v <= -32000 {
 			break
 		}
