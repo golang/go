@@ -1193,6 +1193,9 @@ func (t *Type) FieldType(i int) ssa.Type {
 func (t *Type) FieldOff(i int) int64 {
 	return t.Field(i).Offset
 }
+func (t *Type) FieldName(i int) string {
+	return t.Field(i).Sym.Name
+}
 
 func (t *Type) NumElem() int64 {
 	t.wantEtype(TARRAY)

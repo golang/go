@@ -4227,7 +4227,7 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
 
 func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	ptrType := Ptrto(n.Type.Elem())
+	ptrType := Ptrto(name.Type.ElemType().(*Type))
 	lenType := Types[TINT]
 	if n.Class == PAUTO && !n.Addrtaken {
 		// Split this slice up into three separate variables.
@@ -4259,6 +4259,20 @@ func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSl
 	}
 	// Return the two parts of the larger variable.
 	return ssa.LocalSlot{n, t, name.Off}, ssa.LocalSlot{n, t, name.Off + s}
+}
+
+func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+	n := name.N.(*Node)
+	st := name.Type
+	ft := st.FieldType(i)
+	if n.Class == PAUTO && !n.Addrtaken {
+		// Note: the _ field may appear several times.  But
+		// have no fear, identically-named but distinct Autos are
+		// ok, albeit maybe confusing for a debugger.
+		x := e.namedAuto(n.Sym.Name+"."+st.FieldName(i), ft)
+		return ssa.LocalSlot{x, ft, 0}
+	}
+	return ssa.LocalSlot{n, ft, name.Off + st.FieldOff(i)}
 }
 
 // namedAuto returns a new AUTO variable with the given name and type.
