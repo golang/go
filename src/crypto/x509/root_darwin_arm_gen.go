@@ -187,6 +187,6 @@ package x509
 func loadSystemRoots() (*CertPool, error) {
 	p := NewCertPool()
 	p.AppendCertsFromPEM([]byte(systemRootsPEM))
-	return p
+	return p, nil
 }
 `
