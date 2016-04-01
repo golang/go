@@ -374,24 +374,15 @@ func saveorignode(n *Node) {
 
 // checkMapKeyType checks that Type key is valid for use as a map key.
 func checkMapKeyType(key *Type) {
-	var bad *Type
-	atype := algtype1(key, &bad)
-	var mtype EType
-	if bad == nil {
-		mtype = key.Etype
-	} else {
-		mtype = bad.Etype
+	alg, bad := algtype1(key)
+	if alg != ANOEQ {
+		return
 	}
-	switch mtype {
+	switch bad.Etype {
 	default:
-		if atype == ANOEQ {
-			Yyerror("invalid map key type %v", key)
-		}
-
+		Yyerror("invalid map key type %v", key)
 	case TANY:
-		// will be resolved later.
-		break
-
+		// Will be resolved later.
 	case TFORW:
 		// map[key] used during definition of key.
 		// postpone check until key is fully defined.

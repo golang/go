@@ -786,7 +786,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	dowidth(t)
 	alg := algtype(t)
 	var algsym *Sym
-	if alg < 0 || alg == AMEM {
+	if alg == ASPECIAL || alg == AMEM {
 		algsym = dalgsym(t)
 	}
 
@@ -854,7 +854,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 	ot = duint8(s, ot, uint8(i)) // kind
 	if algsym == nil {
-		ot = dsymptr(s, ot, dcommontype_algarray, alg*sizeofAlg)
+		ot = dsymptr(s, ot, dcommontype_algarray, int(alg)*sizeofAlg)
 	} else {
 		ot = dsymptr(s, ot, algsym, 0)
 	}

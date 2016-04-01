@@ -83,16 +83,17 @@ func typecheckswitch(n *Node) {
 			t = Types[TBOOL]
 		}
 		if t != nil {
-			var badtype *Type
 			switch {
 			case !okforeq[t.Etype]:
 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
-			case t.Etype == TARRAY && !t.IsArray():
+			case t.IsSlice():
 				nilonly = "slice"
-			case t.Etype == TARRAY && t.IsArray() && algtype1(t, nil) == ANOEQ:
+			case t.IsArray() && !t.IsComparable():
 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
-			case t.IsStruct() && algtype1(t, &badtype) == ANOEQ:
-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
+			case t.IsStruct():
+				if f := t.IncomparableField(); f != nil {
+					Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), f.Type)
+				}
 			case t.Etype == TFUNC:
 				nilonly = "func"
 			case t.IsMap():
@@ -139,7 +140,7 @@ func typecheckswitch(n *Node) {
 						}
 					case nilonly != "" && !isnil(n1):
 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-					case t.IsInterface() && !n1.Type.IsInterface() && algtype1(n1.Type, nil) == ANOEQ:
+					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
 						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, FmtLong))
 					}
 
