@@ -1466,7 +1466,7 @@ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	defer tg.cleanup()
 	tg.parallel()
 	tg.run("test", "errors", "errors", "errors", "errors", "errors")
-	if strings.Index(strings.TrimSpace(tg.getStdout()), "\n") != -1 {
+	if strings.Contains(strings.TrimSpace(tg.getStdout()), "\n") {
 		t.Error("go test errors errors errors errors errors tested the same package multiple times")
 	}
 }
@@ -1495,7 +1495,7 @@ func TestGoListCmdOnlyShowsCommands(t *testing.T) {
 	tg.run("list", "cmd")
 	out := strings.TrimSpace(tg.getStdout())
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Index(line, "cmd/") == -1 {
+		if !strings.Contains(line, "cmd/") {
 			t.Error("go list cmd shows non-commands")
 			break
 		}
