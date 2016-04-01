@@ -451,8 +451,10 @@ func symtab() {
 			continue
 		}
 
-		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
-			s.Attr |= AttrHidden
+		if strings.HasPrefix(s.Name, "type.") {
+			if !DynlinkingGo() {
+				s.Attr |= AttrHidden
+			}
 			if UseRelro() && len(s.R) > 0 {
 				s.Type = obj.STYPERELRO
 				s.Outer = symtyperel
