@@ -596,7 +596,7 @@ OpSwitch:
 			if r.Type.Etype != TBLANK {
 				aop = assignop(l.Type, r.Type, nil)
 				if aop != 0 {
-					if r.Type.IsInterface() && !l.Type.IsInterface() && algtype1(l.Type, nil) == ANOEQ {
+					if r.Type.IsInterface() && !l.Type.IsInterface() && !l.Type.IsComparable() {
 						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(l.Type))
 						n.Type = nil
 						return n
@@ -618,7 +618,7 @@ OpSwitch:
 			if l.Type.Etype != TBLANK {
 				aop = assignop(r.Type, l.Type, nil)
 				if aop != 0 {
-					if l.Type.IsInterface() && !r.Type.IsInterface() && algtype1(r.Type, nil) == ANOEQ {
+					if l.Type.IsInterface() && !r.Type.IsInterface() && !r.Type.IsComparable() {
 						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(r.Type))
 						n.Type = nil
 						return n
@@ -657,7 +657,7 @@ OpSwitch:
 
 		// okfor allows any array == array, map == map, func == func.
 		// restrict to slice/map/func == nil and nil == slice/map/func.
-		if l.Type.IsArray() && algtype1(l.Type, nil) == ANOEQ {
+		if l.Type.IsArray() && !l.Type.IsComparable() {
 			Yyerror("invalid operation: %v (%v cannot be compared)", n, l.Type)
 			n.Type = nil
 			return n
@@ -681,11 +681,12 @@ OpSwitch:
 			return n
 		}
 
-		var badtype *Type
-		if l.Type.IsStruct() && algtype1(l.Type, &badtype) == ANOEQ {
-			Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, badtype)
-			n.Type = nil
-			return n
+		if l.Type.IsStruct() {
+			if f := l.Type.IncomparableField(); f != nil {
+				Yyerror("invalid operation: %v (struct containing %v cannot be compared)", n, f.Type)
+				n.Type = nil
+				return n
+			}
 		}
 
 		t = l.Type

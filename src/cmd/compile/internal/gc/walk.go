@@ -3020,30 +3020,27 @@ func eqfor(t *Type, needsize *int) *Node {
 	// a struct/array containing a non-memory field/element.
 	// Small memory is handled inline, and single non-memory
 	// is handled during type check (OCMPSTR etc).
-	a := algtype1(t, nil)
-
-	if a != AMEM && a != -1 {
-		Fatalf("eqfor %v", t)
-	}
-
-	if a == AMEM {
+	switch a, _ := algtype1(t); a {
+	case AMEM:
 		n := syslook("memequal")
 		n = substArgTypes(n, t, t)
 		*needsize = 1
 		return n
+	case ASPECIAL:
+		sym := typesymprefix(".eq", t)
+		n := newname(sym)
+		n.Class = PFUNC
+		ntype := Nod(OTFUNC, nil, nil)
+		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+		ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
+		ntype = typecheck(ntype, Etype)
+		n.Type = ntype.Type
+		*needsize = 0
+		return n
 	}
-
-	sym := typesymprefix(".eq", t)
-	n := newname(sym)
-	n.Class = PFUNC
-	ntype := Nod(OTFUNC, nil, nil)
-	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-	ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
-	ntype = typecheck(ntype, Etype)
-	n.Type = ntype.Type
-	*needsize = 0
-	return n
+	Fatalf("eqfor %v", t)
+	return nil
 }
 
 // The result of walkcompare MUST be assigned back to n, e.g.

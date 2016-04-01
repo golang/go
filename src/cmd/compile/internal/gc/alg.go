@@ -6,9 +6,13 @@ package gc
 
 import "fmt"
 
+// AlgKind describes the kind of algorithms used for comparing and
+// hashing a Type.
+type AlgKind int
+
 const (
 	// These values are known by runtime.
-	ANOEQ = iota
+	ANOEQ AlgKind = iota
 	AMEM0
 	AMEM8
 	AMEM16
@@ -22,11 +26,40 @@ const (
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	AMEM = 100
+
+	// Type can be compared/hashed as regular memory.
+	AMEM AlgKind = 100
+
+	// Type needs special comparison/hashing functions.
+	ASPECIAL AlgKind = -1
 )
 
-func algtype(t *Type) int {
-	a := algtype1(t, nil)
+// IsComparable reports whether t is a comparable type.
+func (t *Type) IsComparable() bool {
+	a, _ := algtype1(t)
+	return a != ANOEQ
+}
+
+// IsRegularMemory reports whether t can be compared/hashed as regular memory.
+func (t *Type) IsRegularMemory() bool {
+	a, _ := algtype1(t)
+	return a == AMEM
+}
+
+// IncomparableField returns an incomparable Field of struct Type t, if any.
+func (t *Type) IncomparableField() *Field {
+	for _, f := range t.FieldSlice() {
+		if !f.Type.IsComparable() {
+			return f
+		}
+	}
+	return nil
+}
+
+// algtype is like algtype1, except it returns the fixed-width AMEMxx variants
+// instead of the general AMEM kind when possible.
+func algtype(t *Type) AlgKind {
+	a, _ := algtype1(t)
 	if a == AMEM {
 		switch t.Width {
 		case 0:
@@ -47,115 +80,105 @@ func algtype(t *Type) int {
 	return a
 }
 
-func algtype1(t *Type, bad **Type) int {
-	if bad != nil {
-		*bad = nil
-	}
+// algtype1 returns the AlgKind used for comparing and hashing Type t.
+// If it returns ANOEQ, it also returns the component type of t that
+// makes it incomparable.
+func algtype1(t *Type) (AlgKind, *Type) {
 	if t.Broke {
-		return AMEM
+		return AMEM, nil
 	}
 	if t.Noalg {
-		return ANOEQ
+		return ANOEQ, t
 	}
 
 	switch t.Etype {
 	case TANY, TFORW:
 		// will be defined later.
-		*bad = t
-		return -1
+		return ANOEQ, t
 
 	case TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
 		TINT, TUINT, TUINTPTR,
 		TBOOL, TPTR32, TPTR64,
 		TCHAN, TUNSAFEPTR:
-		return AMEM
+		return AMEM, nil
 
 	case TFUNC, TMAP:
-		if bad != nil {
-			*bad = t
-		}
-		return ANOEQ
+		return ANOEQ, t
 
 	case TFLOAT32:
-		return AFLOAT32
+		return AFLOAT32, nil
 
 	case TFLOAT64:
-		return AFLOAT64
+		return AFLOAT64, nil
 
 	case TCOMPLEX64:
-		return ACPLX64
+		return ACPLX64, nil
 
 	case TCOMPLEX128:
-		return ACPLX128
+		return ACPLX128, nil
 
 	case TSTRING:
-		return ASTRING
+		return ASTRING, nil
 
 	case TINTER:
 		if isnilinter(t) {
-			return ANILINTER
+			return ANILINTER, nil
 		}
-		return AINTER
+		return AINTER, nil
 
 	case TARRAY:
 		if t.IsSlice() {
-			if bad != nil {
-				*bad = t
-			}
-			return ANOEQ
+			return ANOEQ, t
 		}
 
-		a := algtype1(t.Elem(), bad)
+		a, bad := algtype1(t.Elem())
 		switch a {
 		case AMEM:
-			return AMEM
+			return AMEM, nil
 		case ANOEQ:
-			if bad != nil {
-				*bad = t
-			}
-			return ANOEQ
+			return ANOEQ, bad
 		}
 
 		switch t.Bound {
 		case 0:
 			// We checked above that the element type is comparable.
-			return AMEM
+			return AMEM, nil
 		case 1:
 			// Single-element array is same as its lone element.
-			return a
+			return a, nil
 		}
 
-		return -1 // needs special compare
+		return ASPECIAL, nil
 
 	case TSTRUCT:
 		fields := t.FieldSlice()
 
 		// One-field struct is same as that one field alone.
 		if len(fields) == 1 && !isblanksym(fields[0].Sym) {
-			return algtype1(fields[0].Type, bad)
+			return algtype1(fields[0].Type)
 		}
 
 		ret := AMEM
 		for i, f := range fields {
 			// All fields must be comparable.
-			a := algtype1(f.Type, bad)
+			a, bad := algtype1(f.Type)
 			if a == ANOEQ {
-				return ANOEQ
+				return ANOEQ, bad
 			}
 
 			// Blank fields, padded fields, fields with non-memory
 			// equality need special compare.
 			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, i) {
-				ret = -1
+				ret = ASPECIAL
 			}
 		}
 
-		return ret
+		return ret, nil
 	}
 
 	Fatalf("algtype1: unexpected type %v", t)
-	return 0
+	return 0, nil
 }
 
 // Generate a helper function to compute the hash of a value of type t.
@@ -239,7 +262,7 @@ func genhash(sym *Sym, t *Type) {
 			}
 
 			// Hash non-memory fields with appropriate hash function.
-			if algtype1(f.Type, nil) != AMEM {
+			if !f.Type.IsRegularMemory() {
 				hashel := hashfor(f.Type)
 				call := Nod(OCALL, hashel, nil)
 				nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
@@ -304,7 +327,7 @@ func genhash(sym *Sym, t *Type) {
 func hashfor(t *Type) *Node {
 	var sym *Sym
 
-	switch algtype1(t, nil) {
+	switch a, _ := algtype1(t); a {
 	case AMEM:
 		Fatalf("hashfor with AMEM type")
 	case AINTER:
@@ -435,7 +458,7 @@ func geneq(sym *Sym, t *Type) {
 			}
 
 			// Compare non-memory fields with field equality.
-			if algtype1(f.Type, nil) != AMEM {
+			if !f.Type.IsRegularMemory() {
 				and(eqfield(np, nq, f.Sym))
 				i++
 				continue
@@ -560,7 +583,7 @@ func memrun(t *Type, start int) (size int64, next int) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if f := t.Field(next); isblanksym(f.Sym) || algtype1(f.Type, nil) != AMEM {
+		if f := t.Field(next); isblanksym(f.Sym) || !f.Type.IsRegularMemory() {
 			break
 		}
 	}
