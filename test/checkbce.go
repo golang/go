@@ -57,7 +57,7 @@ func f6(a [32]int, b [64]int, i int) {
 	useInt(b[uint64(i*0x07C4ACDD)>>58])
 	useInt(a[uint(i*0x07C4ACDD)>>59])
 
-	// The following bounds should removed as they can overflow.
+	// The following bounds should not be removed because they can overflow.
 	useInt(a[uint32(i*0x106297f105d0cc86)>>26]) // ERROR "Found IsInBounds$"
 	useInt(b[uint64(i*0x106297f105d0cc86)>>57]) // ERROR "Found IsInBounds$"
 	useInt(a[int32(i*0x106297f105d0cc86)>>26])  // ERROR "Found IsInBounds$"
@@ -86,6 +86,19 @@ func g3(a []int) {
 	b := a[:256]
 	for i := range b {
 		useInt(b[i])
+	}
+}
+
+func g4(a [100]int) {
+	for i := 10; i < 50; i++ {
+		useInt(a[i-10])
+		useInt(a[i])
+		useInt(a[i+25])
+		useInt(a[i+50])
+
+		// The following are out of bounds.
+		useInt(a[i-11]) // ERROR "Found IsInBounds$"
+		useInt(a[i+51]) // ERROR "Found IsInBounds$"
 	}
 }
 
