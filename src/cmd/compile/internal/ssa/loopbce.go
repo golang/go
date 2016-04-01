@@ -240,6 +240,37 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
 		}
 	skip2:
 
+		// Simplify
+		// (IsInBounds (Add64 ind) (Const64 [c])) where 0 <= min <= ind < max <= (Const64 [c])
+		// (IsSliceInBounds ind (Const64 [c])) where 0 <= min <= ind < max <= (Const64 [c])
+		if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
+			ind, add := dropAdd64(v.Args[0])
+			if ind.Op != OpPhi {
+				goto skip3
+			}
+
+			// ind + add >= 0 <-> min + add >= 0 <-> min >= -add
+			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
+				if !v.Args[1].isGenericIntConst() || !iv.max.isGenericIntConst() {
+					goto skip3
+				}
+
+				limit := v.Args[1].AuxInt
+				if v.Op == OpIsSliceInBounds {
+					// If limit++ overflows signed integer then 0 <= max && max <= limit will be false.
+					limit++
+				}
+
+				if max := iv.max.AuxInt + add; 0 <= max && max <= limit { // handle overflow
+					if f.pass.debug > 0 {
+						f.Config.Warnl(b.Line, "Found redundant (%s ind %d), ind < %d", v.Op, v.Args[1].AuxInt, iv.max.AuxInt+add)
+					}
+					goto simplify
+				}
+			}
+		}
+	skip3:
+
 		continue
 
 	simplify:
@@ -257,4 +288,14 @@ func dropAdd64(v *Value) (*Value, int64) {
 		return v.Args[0], v.Args[1].AuxInt
 	}
 	return v, 0
+}
+
+func isGreaterOrEqualThan(v *Value, c int64) bool {
+	if c == 0 {
+		return isNonNegative(v)
+	}
+	if v.isGenericIntConst() && v.AuxInt >= c {
+		return true
+	}
+	return false
 }
