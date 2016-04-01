@@ -661,6 +661,17 @@ func (s *state) stmt(n *Node) {
 			return
 		}
 
+		if n.Left == n.Right && n.Left.Op == ONAME {
+			// An x=x assignment. No point in doing anything
+			// here. In addition, skipping this assignment
+			// prevents generating:
+			//   VARDEF x
+			//   COPY x -> x
+			// which is bad because x is incorrectly considered
+			// dead before the vardef. See issue #14904.
+			return
+		}
+
 		var t *Type
 		if n.Right != nil {
 			t = n.Right.Type

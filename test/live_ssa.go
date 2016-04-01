@@ -606,13 +606,12 @@ func f39a() (x []int) {
 	return
 }
 
-// TODO: Reenable after #14904 is fixed.
-//func f39b() (x [10]*int) {
-//	x = [10]*int{}
-//	x[0] = new(int) // E.R.R.O.R. "live at call to newobject: x$"
-//	printnl()       // E.R.R.O.R. "live at call to printnl: x$"
-//	return x
-//}
+func f39b() (x [10]*int) {
+	x = [10]*int{}
+	x[0] = new(int) // ERROR "live at call to newobject: x$"
+	printnl()       // ERROR "live at call to printnl: x$"
+	return x
+}
 
 func f39c() (x [10]*int) {
 	x = [10]*int{}
