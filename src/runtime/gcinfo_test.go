@@ -59,7 +59,7 @@ func TestGCInfo(t *testing.T) {
 
 func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 	mask := runtime.GCMask(p)
-	if bytes.Compare(mask, mask0) != 0 {
+	if !bytes.Equal(mask, mask0) {
 		t.Errorf("bad GC program for %v:\nwant %+v\ngot  %+v", name, mask0, mask)
 		return
 	}

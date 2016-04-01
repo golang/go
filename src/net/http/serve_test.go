@@ -4267,7 +4267,7 @@ func BenchmarkClient(b *testing.B) {
 		if err != nil {
 			b.Fatalf("ReadAll: %v", err)
 		}
-		if bytes.Compare(body, data) != 0 {
+		if !bytes.Equal(body, data) {
 			b.Fatalf("Got body: %q", body)
 		}
 	}
