@@ -249,7 +249,7 @@ func cssValueFilter(args ...interface{}) string {
 		}
 	}
 	id = bytes.ToLower(id)
-	if bytes.Index(id, expressionBytes) != -1 || bytes.Index(id, mozBindingBytes) != -1 {
+	if bytes.Contains(id, expressionBytes) || bytes.Contains(id, mozBindingBytes) {
 		return filterFailsafe
 	}
 	return string(b)

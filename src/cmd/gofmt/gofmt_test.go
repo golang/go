@@ -159,7 +159,7 @@ func TestCRLF(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Index(data, []byte("\r\n")) < 0 {
+	if !bytes.Contains(data, []byte("\r\n")) {
 		t.Errorf("%s contains no CR/LF's", input)
 	}
 
@@ -167,7 +167,7 @@ func TestCRLF(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Index(data, []byte("\r")) >= 0 {
+	if bytes.Contains(data, []byte("\r")) {
 		t.Errorf("%s contains CR's", golden)
 	}
 }
