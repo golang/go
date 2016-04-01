@@ -1289,7 +1289,9 @@ func (a *analysis) generate() {
 		a.genMethodsOf(T)
 	}
 
-	// Generate constraints for entire program.
+	// Generate constraints for functions as they become reachable
+	// from the roots.  (No constraints are generated for functions
+	// that are dead in this analysis scope.)
 	for len(a.genq) > 0 {
 		cgn := a.genq[0]
 		a.genq = a.genq[1:]
