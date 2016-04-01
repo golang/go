@@ -365,7 +365,7 @@ func isSmallMakeSlice(n *Node) bool {
 	}
 	t := n.Type
 
-	return Smallintconst(l) && Smallintconst(r) && (t.Elem().Width == 0 || r.Int() < (1<<16)/t.Elem().Width)
+	return Smallintconst(l) && Smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < (1<<16)/t.Elem().Width)
 }
 
 // walk the whole tree of the body of an
@@ -1177,7 +1177,7 @@ opswitch:
 					// replace "abc"[1] with 'b'.
 					// delayed until now because "abc"[1] is not
 					// an ideal constant.
-					v := n.Right.Int()
+					v := n.Right.Int64()
 
 					Nodconst(n, n.Type, int64(n.Left.Val().U.(string)[v]))
 					n.Typecheck = 1
@@ -3299,9 +3299,9 @@ func walkrotate(n *Node) *Node {
 	w := int(l.Type.Width * 8)
 
 	if Smallintconst(l.Right) && Smallintconst(r.Right) {
-		sl := int(l.Right.Int())
+		sl := int(l.Right.Int64())
 		if sl >= 0 {
-			sr := int(r.Right.Int())
+			sr := int(r.Right.Int64())
 			if sr >= 0 && sl+sr == w {
 				// Rewrite left shift half to left rotate.
 				if l.Op == OLSH {
@@ -3312,7 +3312,7 @@ func walkrotate(n *Node) *Node {
 				n.Op = OLROT
 
 				// Remove rotate 0 and rotate w.
-				s := int(n.Right.Int())
+				s := int(n.Right.Int64())
 
 				if s == 0 || s == w {
 					n = n.Left
@@ -3352,7 +3352,7 @@ func walkmul(n *Node, init *Nodes) *Node {
 	// x*0 is 0 (and side effects of x).
 	var pow int
 	var w int
-	if nr.Int() == 0 {
+	if nr.Int64() == 0 {
 		cheapexpr(nl, init)
 		Nodconst(n, n.Type, 0)
 		goto ret
@@ -3444,10 +3444,10 @@ func walkdiv(n *Node, init *Nodes) *Node {
 		m.W = w
 
 		if nl.Type.IsSigned() {
-			m.Sd = nr.Int()
+			m.Sd = nr.Int64()
 			Smagic(&m)
 		} else {
-			m.Ud = uint64(nr.Int())
+			m.Ud = uint64(nr.Int64())
 			Umagic(&m)
 		}
 
@@ -3639,7 +3639,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			// n = nl & (nr-1)
 			n.Op = OAND
 
-			Nodconst(&nc, nl.Type, nr.Int()-1)
+			Nodconst(&nc, nl.Type, nr.Int64()-1)
 		} else {
 			// n = nl >> pow
 			n.Op = ORSH
@@ -3669,7 +3669,7 @@ func bounded(n *Node, max int64) bool {
 	bits := int32(8 * n.Type.Width)
 
 	if Smallintconst(n) {
-		v := n.Int()
+		v := n.Int64()
 		return 0 <= v && v < max
 	}
 
@@ -3677,9 +3677,9 @@ func bounded(n *Node, max int64) bool {
 	case OAND:
 		v := int64(-1)
 		if Smallintconst(n.Left) {
-			v = n.Left.Int()
+			v = n.Left.Int64()
 		} else if Smallintconst(n.Right) {
-			v = n.Right.Int()
+			v = n.Right.Int64()
 		}
 
 		if 0 <= v && v < max {
@@ -3688,7 +3688,7 @@ func bounded(n *Node, max int64) bool {
 
 	case OMOD:
 		if !sign && Smallintconst(n.Right) {
-			v := n.Right.Int()
+			v := n.Right.Int64()
 			if 0 <= v && v <= max {
 				return true
 			}
@@ -3696,7 +3696,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ODIV:
 		if !sign && Smallintconst(n.Right) {
-			v := n.Right.Int()
+			v := n.Right.Int64()
 			for bits > 0 && v >= 2 {
 				bits--
 				v >>= 1
@@ -3705,7 +3705,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ORSH:
 		if !sign && Smallintconst(n.Right) {
-			v := n.Right.Int()
+			v := n.Right.Int64()
 			if v > int64(bits) {
 				return true
 			}

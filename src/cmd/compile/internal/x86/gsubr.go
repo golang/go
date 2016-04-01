@@ -750,7 +750,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	case gc.OLITERAL:
 		var n1 gc.Node
 		n.Convconst(&n1, n.Type)
-		i := n1.Int()
+		i := n1.Int64()
 		gc.Nodconst(lo, gc.Types[gc.TUINT32], int64(uint32(i)))
 		i >>= 32
 		if n.Type.Etype == gc.TINT64 {

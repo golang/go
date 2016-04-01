@@ -717,7 +717,7 @@ func (s *state) stmt(n *Node) {
 			} else {
 				j = rhs.Right.Right
 			}
-			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int() == 0) {
+			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int64() == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
 			}
@@ -1423,7 +1423,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLITERAL:
 		switch n.Val().Ctype() {
 		case CTINT:
-			i := n.Int()
+			i := n.Int64()
 			switch n.Type.Size() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))
@@ -1825,7 +1825,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(s.ssaShiftOp(n.Op, n.Type, n.Right.Type), a.Type, a, b)
 	case OLROT:
 		a := s.expr(n.Left)
-		i := n.Right.Int()
+		i := n.Right.Int64()
 		if i <= 0 || i >= n.Type.Size()*8 {
 			s.Fatalf("Wrong rotate distance for LROT, expected 1 through %d, saw %d", n.Type.Size()*8-1, i)
 		}
@@ -1943,7 +1943,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			ptrtyp := Ptrto(Types[TUINT8])
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
 			if Isconst(n.Right, CTINT) {
-				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right.Int(), ptr)
+				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right.Int64(), ptr)
 			} else {
 				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
 			}
