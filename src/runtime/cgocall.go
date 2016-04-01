@@ -113,11 +113,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	mp.ncgo++
 	defer endcgo(mp)
 
-	// Allocate memory to hold a cgo traceback if the cgo call crashes.
-	if mp.cgoCallers == nil {
-		mp.cgoCallers = new(cgoCallers)
-	}
-
 	// Reset traceback.
 	mp.cgoCallers[0] = 0
 

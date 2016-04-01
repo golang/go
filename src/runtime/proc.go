@@ -510,6 +510,11 @@ func mcommoninit(mp *m) {
 	// so we need to publish it safely.
 	atomicstorep(unsafe.Pointer(&allm), unsafe.Pointer(mp))
 	unlock(&sched.lock)
+
+	// Allocate memory to hold a cgo traceback if the cgo call crashes.
+	if iscgo || GOOS == "solaris" || GOOS == "windows" {
+		mp.cgoCallers = new(cgoCallers)
+	}
 }
 
 // Mark gp ready to run.
