@@ -2893,10 +2893,6 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 
 	nsrc := n.List.First()
 
-	// Resolve slice type of multi-valued return.
-	if nsrc.Type.IsStruct() {
-		nsrc.Type = nsrc.Type.Elem().Elem()
-	}
 	argc := n.List.Len() - 1
 	if argc < 1 {
 		return nsrc
