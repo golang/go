@@ -1,159 +1,135 @@
 -------- @implements E --------
 {
-	"mode": "implements",
-	"implements": {
-		"type": {
-			"name": "implements-json.E",
-			"pos": "testdata/src/implements-json/main.go:10:6",
-			"kind": "interface"
-		}
+	"type": {
+		"name": "implements-json.E",
+		"pos": "testdata/src/implements-json/main.go:10:6",
+		"kind": "interface"
 	}
 }
 -------- @implements F --------
 {
-	"mode": "implements",
-	"implements": {
-		"type": {
-			"name": "implements-json.F",
-			"pos": "testdata/src/implements-json/main.go:12:6",
-			"kind": "interface"
-		},
-		"to": [
-			{
-				"name": "*implements-json.C",
-				"pos": "testdata/src/implements-json/main.go:21:6",
-				"kind": "pointer"
-			},
-			{
-				"name": "implements-json.D",
-				"pos": "testdata/src/implements-json/main.go:22:6",
-				"kind": "struct"
-			},
-			{
-				"name": "implements-json.FG",
-				"pos": "testdata/src/implements-json/main.go:16:6",
-				"kind": "interface"
-			}
-		]
-	}
-}
--------- @implements FG --------
-{
-	"mode": "implements",
-	"implements": {
-		"type": {
-			"name": "implements-json.FG",
-			"pos": "testdata/src/implements-json/main.go:16:6",
-			"kind": "interface"
-		},
-		"to": [
-			{
-				"name": "*implements-json.D",
-				"pos": "testdata/src/implements-json/main.go:22:6",
-				"kind": "pointer"
-			}
-		],
-		"from": [
-			{
-				"name": "implements-json.F",
-				"pos": "testdata/src/implements-json/main.go:12:6",
-				"kind": "interface"
-			}
-		]
-	}
-}
--------- @implements slice --------
-{
-	"mode": "implements",
-	"implements": {
-		"type": {
-			"name": "[]int",
-			"pos": "-",
-			"kind": "slice"
-		}
-	}
-}
--------- @implements C --------
-{
-	"mode": "implements",
-	"implements": {
-		"type": {
-			"name": "implements-json.C",
-			"pos": "testdata/src/implements-json/main.go:21:6",
-			"kind": "basic"
-		},
-		"fromptr": [
-			{
-				"name": "implements-json.F",
-				"pos": "testdata/src/implements-json/main.go:12:6",
-				"kind": "interface"
-			}
-		]
-	}
-}
--------- @implements starC --------
-{
-	"mode": "implements",
-	"implements": {
-		"type": {
+	"type": {
+		"name": "implements-json.F",
+		"pos": "testdata/src/implements-json/main.go:12:6",
+		"kind": "interface"
+	},
+	"to": [
+		{
 			"name": "*implements-json.C",
 			"pos": "testdata/src/implements-json/main.go:21:6",
 			"kind": "pointer"
 		},
-		"from": [
-			{
-				"name": "implements-json.F",
-				"pos": "testdata/src/implements-json/main.go:12:6",
-				"kind": "interface"
-			}
-		]
-	}
-}
--------- @implements D --------
-{
-	"mode": "implements",
-	"implements": {
-		"type": {
+		{
 			"name": "implements-json.D",
 			"pos": "testdata/src/implements-json/main.go:22:6",
 			"kind": "struct"
 		},
-		"from": [
-			{
-				"name": "implements-json.F",
-				"pos": "testdata/src/implements-json/main.go:12:6",
-				"kind": "interface"
-			}
-		],
-		"fromptr": [
-			{
-				"name": "implements-json.FG",
-				"pos": "testdata/src/implements-json/main.go:16:6",
-				"kind": "interface"
-			}
-		]
-	}
+		{
+			"name": "implements-json.FG",
+			"pos": "testdata/src/implements-json/main.go:16:6",
+			"kind": "interface"
+		}
+	]
 }
--------- @implements starD --------
+-------- @implements FG --------
 {
-	"mode": "implements",
-	"implements": {
-		"type": {
+	"type": {
+		"name": "implements-json.FG",
+		"pos": "testdata/src/implements-json/main.go:16:6",
+		"kind": "interface"
+	},
+	"to": [
+		{
 			"name": "*implements-json.D",
 			"pos": "testdata/src/implements-json/main.go:22:6",
 			"kind": "pointer"
-		},
-		"from": [
-			{
-				"name": "implements-json.F",
-				"pos": "testdata/src/implements-json/main.go:12:6",
-				"kind": "interface"
-			},
-			{
-				"name": "implements-json.FG",
-				"pos": "testdata/src/implements-json/main.go:16:6",
-				"kind": "interface"
-			}
-		]
+		}
+	],
+	"from": [
+		{
+			"name": "implements-json.F",
+			"pos": "testdata/src/implements-json/main.go:12:6",
+			"kind": "interface"
+		}
+	]
+}
+-------- @implements slice --------
+{
+	"type": {
+		"name": "[]int",
+		"pos": "-",
+		"kind": "slice"
 	}
+}
+-------- @implements C --------
+{
+	"type": {
+		"name": "implements-json.C",
+		"pos": "testdata/src/implements-json/main.go:21:6",
+		"kind": "basic"
+	},
+	"fromptr": [
+		{
+			"name": "implements-json.F",
+			"pos": "testdata/src/implements-json/main.go:12:6",
+			"kind": "interface"
+		}
+	]
+}
+-------- @implements starC --------
+{
+	"type": {
+		"name": "*implements-json.C",
+		"pos": "testdata/src/implements-json/main.go:21:6",
+		"kind": "pointer"
+	},
+	"from": [
+		{
+			"name": "implements-json.F",
+			"pos": "testdata/src/implements-json/main.go:12:6",
+			"kind": "interface"
+		}
+	]
+}
+-------- @implements D --------
+{
+	"type": {
+		"name": "implements-json.D",
+		"pos": "testdata/src/implements-json/main.go:22:6",
+		"kind": "struct"
+	},
+	"from": [
+		{
+			"name": "implements-json.F",
+			"pos": "testdata/src/implements-json/main.go:12:6",
+			"kind": "interface"
+		}
+	],
+	"fromptr": [
+		{
+			"name": "implements-json.FG",
+			"pos": "testdata/src/implements-json/main.go:16:6",
+			"kind": "interface"
+		}
+	]
+}
+-------- @implements starD --------
+{
+	"type": {
+		"name": "*implements-json.D",
+		"pos": "testdata/src/implements-json/main.go:22:6",
+		"kind": "pointer"
+	},
+	"from": [
+		{
+			"name": "implements-json.F",
+			"pos": "testdata/src/implements-json/main.go:12:6",
+			"kind": "interface"
+		},
+		{
+			"name": "implements-json.FG",
+			"pos": "testdata/src/implements-json/main.go:16:6",
+			"kind": "interface"
+		}
+	]
 }

@@ -14,11 +14,10 @@ package main // import "golang.org/x/tools/cmd/guru"
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"go/build"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"log"
@@ -27,6 +26,7 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/go/buildutil"
 )
@@ -36,7 +36,7 @@ var (
 	modifiedFlag   = flag.Bool("modified", false, "read archive of modified files from standard input")
 	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` the analysis should be limited to")
 	ptalogFlag     = flag.String("ptalog", "", "write points-to analysis log to `file`")
-	formatFlag     = flag.String("format", "plain", "output `format`; one of {plain,json,xml}")
+	jsonFlag       = flag.Bool("json", false, "emit output in JSON format")
 	reflectFlag    = flag.Bool("reflect", false, "analyze reflection soundly (slow)")
 	cpuprofileFlag = flag.String("cpuprofile", "", "write CPU profile to `file`")
 )
@@ -71,11 +71,10 @@ of the syntax element to query.  For example:
 	foo.go:#123,#128
 	bar.go:#123
 
-The -format flag controls the output format:
-	plain	an editor-friendly format in which every line of output
-		is of the form "pos: text", where pos is "-" if unknown.
-	json	structured data in JSON syntax.
-	xml	structured data in XML syntax.
+The -json flag causes guru to emit output in JSON format;
+	golang.org/x/tools/cmd/guru/serial defines its schema.
+	Otherwise, the output is in an editor-friendly format in which
+	every line has the form "pos: text", where pos is "-" if unknown.
 
 The -modified flag causes guru to read an archive from standard input.
 	Files in this archive will be used in preference to those in
@@ -163,14 +162,6 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// -format flag
-	switch *formatFlag {
-	case "json", "plain", "xml":
-		// ok
-	default:
-		log.Fatalf("illegal -format value: %q.\n"+useHelp, *formatFlag)
-	}
-
 	ctxt := &build.Default
 
 	// If there were modified files,
@@ -191,38 +182,34 @@ func main() {
 		}
 	}
 
+	var outputMu sync.Mutex
+	output := func(fset *token.FileSet, qr QueryResult) {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		if *jsonFlag {
+			// JSON output
+			fmt.Printf("%s\n", qr.JSON(fset))
+		} else {
+			// plain output
+			printf := func(pos interface{}, format string, args ...interface{}) {
+				fprintf(os.Stdout, fset, pos, format, args...)
+			}
+			qr.PrintPlain(printf)
+		}
+	}
+
 	// Ask the guru.
 	query := Query{
-		Mode:       mode,
 		Pos:        posn,
 		Build:      ctxt,
 		Scope:      strings.Split(*scopeFlag, ","),
 		PTALog:     ptalog,
 		Reflection: *reflectFlag,
+		Output:     output,
 	}
 
-	if err := Run(&query); err != nil {
+	if err := Run(mode, &query); err != nil {
 		log.Fatal(err)
-	}
-
-	// Print the result.
-	switch *formatFlag {
-	case "json":
-		b, err := json.MarshalIndent(query.Serial(), "", "\t")
-		if err != nil {
-			log.Fatalf("JSON error: %s", err)
-		}
-		os.Stdout.Write(b)
-
-	case "xml":
-		b, err := xml.MarshalIndent(query.Serial(), "", "\t")
-		if err != nil {
-			log.Fatalf("XML error: %s", err)
-		}
-		os.Stdout.Write(b)
-
-	case "plain":
-		query.WriteTo(os.Stdout)
 	}
 }
 

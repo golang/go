@@ -82,17 +82,13 @@ func referrers(q *Query) error {
 		return globalReferrers(q, qpos.info.Pkg.Path(), defpkg, objposn, pkglevel)
 	}
 
-	// Find uses of obj within the query package.
-	refs := usesOf(obj, qpos.info)
-	sort.Sort(byNamePos{fset, refs})
-	q.Fset = fset
-	q.result = &referrersResult{
-		build: q.Build,
-		fset:  fset,
+	q.Output(fset, &referrersInitialResult{
 		qinfo: qpos.info,
 		obj:   obj,
-		refs:  refs,
-	}
+	})
+
+	outputUses(q, fset, usesOf(obj, qpos.info), obj.Pkg())
+
 	return nil // success
 }
 
@@ -113,8 +109,8 @@ func classify(obj types.Object) (global, pkglevel bool) {
 	return false, false
 }
 
-// packageReferrers finds all references to the specified package
-// throughout the workspace and populates q.result.
+// packageReferrers reports all references to the specified package
+// throughout the workspace.
 func packageReferrers(q *Query, path string) error {
 	// Scan the workspace and build the import graph.
 	// Ignore broken packages.
@@ -134,34 +130,86 @@ func packageReferrers(q *Query, path string) error {
 		},
 	}
 	allowErrors(&lconf)
+
+	// The importgraph doesn't treat external test packages
+	// as separate nodes, so we must use ImportWithTests.
 	for path := range users {
 		lconf.ImportWithTests(path)
 	}
-	lprog, err := lconf.Load()
-	if err != nil {
-		return err
+
+	// Subtle!  AfterTypeCheck needs no mutex for qpkg because the
+	// topological import order gives us the necessary happens-before edges.
+	// TODO(adonovan): what about import cycles?
+	var qpkg *types.Package
+
+	// For efficiency, we scan each package for references
+	// just after it has been type-checked.  The loader calls
+	// AfterTypeCheck (concurrently), providing us with a stream of
+	// packages.
+	lconf.AfterTypeCheck = func(info *loader.PackageInfo, files []*ast.File) {
+		// AfterTypeCheck may be called twice for the same package due to augmentation.
+
+		if info.Pkg.Path() == path && qpkg == nil {
+			// Found the package of interest.
+			qpkg = info.Pkg
+			fakepkgname := types.NewPkgName(token.NoPos, qpkg, qpkg.Name(), qpkg)
+			q.Output(fset, &referrersInitialResult{
+				qinfo: info,
+				obj:   fakepkgname, // bogus
+			})
+		}
+
+		// Only inspect packages that directly import the
+		// declaring package (and thus were type-checked).
+		if lconf.TypeCheckFuncBodies(info.Pkg.Path()) {
+			// Find PkgNames that refer to qpkg.
+			// TODO(adonovan): perhaps more useful would be to show imports
+			// of the package instead of qualified identifiers.
+			var refs []*ast.Ident
+			for id, obj := range info.Uses {
+				if obj, ok := obj.(*types.PkgName); ok && obj.Imported() == qpkg {
+					refs = append(refs, id)
+				}
+			}
+			outputUses(q, fset, refs, info.Pkg)
+		}
+
+		clearInfoFields(info) // save memory
 	}
 
-	// Find uses of [a fake PkgName that imports] the package.
-	//
-	// TODO(adonovan): perhaps more useful would be to show imports
-	// of the package instead of qualified identifiers.
-	qinfo := lprog.Package(path)
-	obj := types.NewPkgName(token.NoPos, qinfo.Pkg, qinfo.Pkg.Name(), qinfo.Pkg)
-	refs := usesOf(obj, lprog.InitialPackages()...)
-	sort.Sort(byNamePos{fset, refs})
-	q.Fset = fset
-	q.result = &referrersResult{
-		build: q.Build,
-		fset:  fset,
-		qinfo: qinfo,
-		obj:   obj,
-		refs:  refs,
+	lconf.Load() // ignore error
+
+	if qpkg == nil {
+		log.Fatalf("query package %q not found during reloading", path)
 	}
+
 	return nil
 }
 
-// globalReferrers finds references throughout the entire workspace to the
+func usesOf(queryObj types.Object, info *loader.PackageInfo) []*ast.Ident {
+	var refs []*ast.Ident
+	for id, obj := range info.Uses {
+		if sameObj(queryObj, obj) {
+			refs = append(refs, id)
+		}
+	}
+	return refs
+}
+
+// outputUses outputs a result describing refs, which appear in the package denoted by info.
+func outputUses(q *Query, fset *token.FileSet, refs []*ast.Ident, pkg *types.Package) {
+	if len(refs) > 0 {
+		sort.Sort(byNamePos{fset, refs})
+		q.Output(fset, &referrersPackageResult{
+			pkg:   pkg,
+			build: q.Build,
+			fset:  fset,
+			refs:  refs,
+		})
+	}
+}
+
+// globalReferrers reports references throughout the entire workspace to the
 // object at the specified source position.  Its defining package is defpkg,
 // and the query package is qpkg.  isPkgLevel indicates whether the object
 // is defined at package-level.
@@ -207,6 +255,11 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position, isPk
 	// so we can't use them here.
 	// TODO(adonovan): smooth things out once the other changes have landed.
 
+	// Results are reported concurrently from within the
+	// AfterTypeCheck hook.  The program may provide a useful stream
+	// of information even if the user doesn't let the program run
+	// to completion.
+
 	var (
 		mu    sync.Mutex
 		qobj  types.Object
@@ -217,8 +270,9 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position, isPk
 	// just after it has been type-checked.  The loader calls
 	// AfterTypeCheck (concurrently), providing us with a stream of
 	// packages.
-	ch := make(chan []*ast.Ident)
 	lconf.AfterTypeCheck = func(info *loader.PackageInfo, files []*ast.File) {
+		// AfterTypeCheck may be called twice for the same package due to augmentation.
+
 		// Only inspect packages that depend on the declaring package
 		// (and thus were type-checked).
 		if lconf.TypeCheckFuncBodies(info.Pkg.Path()) {
@@ -233,64 +287,30 @@ func globalReferrers(q *Query, qpkg, defpkg string, objposn token.Position, isPk
 					log.Fatalf("object at %s not found in package %s",
 						objposn, defpkg)
 				}
+
+				// Object found.
 				qinfo = info
+				q.Output(fset, &referrersInitialResult{
+					qinfo: qinfo,
+					obj:   qobj,
+				})
 			}
 			obj := qobj
 			mu.Unlock()
 
 			// Look for references to the query object.
 			if obj != nil {
-				ch <- usesOf(obj, info)
+				outputUses(q, fset, usesOf(obj, info), info.Pkg)
 			}
 		}
 
-		// TODO(adonovan): opt: save memory by eliminating unneeded scopes/objects.
-		// (Requires go/types change for Go 1.7.)
-		//   info.Pkg.Scope().ClearChildren()
-
-		// Discard the file ASTs and their accumulated type
-		// information to save memory.
-		info.Files = nil
-		info.Defs = make(map[*ast.Ident]types.Object)
-		info.Uses = make(map[*ast.Ident]types.Object)
-		info.Implicits = make(map[ast.Node]types.Object)
-
-		// Also, disable future collection of wholly unneeded
-		// type information for the package in case there is
-		// more type-checking to do (augmentation).
-		info.Types = nil
-		info.Scopes = nil
-		info.Selections = nil
+		clearInfoFields(info) // save memory
 	}
 
-	go func() {
-		lconf.Load() // ignore error
-		close(ch)
-	}()
-
-	var refs []*ast.Ident
-	for ids := range ch {
-		refs = append(refs, ids...)
-	}
-	sort.Sort(byNamePos{fset, refs})
+	lconf.Load() // ignore error
 
 	if qobj == nil {
 		log.Fatal("query object not found during reloading")
-	}
-
-	// TODO(adonovan): in a follow-up, do away with the
-	// analyze/display split so we can print a stream of output
-	// directly from the AfterTypeCheck hook.
-	// (We should not assume that users let the program run long
-	// enough for Load to return.)
-
-	q.Fset = fset
-	q.result = &referrersResult{
-		build: q.Build,
-		fset:  fset,
-		qinfo: qinfo,
-		obj:   qobj,
-		refs:  refs,
 	}
 
 	return nil // success
@@ -318,20 +338,6 @@ func findObject(fset *token.FileSet, info *types.Info, objposn token.Position) t
 	return nil
 }
 
-// usesOf returns all identifiers in the packages denoted by infos
-// that refer to queryObj.
-func usesOf(queryObj types.Object, infos ...*loader.PackageInfo) []*ast.Ident {
-	var refs []*ast.Ident
-	for _, info := range infos {
-		for id, obj := range info.Uses {
-			if sameObj(queryObj, obj) {
-				refs = append(refs, id)
-			}
-		}
-	}
-	return refs
-}
-
 // same reports whether x and y are identical, or both are PkgNames
 // that import the same Package.
 //
@@ -345,6 +351,26 @@ func sameObj(x, y types.Object) bool {
 		}
 	}
 	return false
+}
+
+func clearInfoFields(info *loader.PackageInfo) {
+	// TODO(adonovan): opt: save memory by eliminating unneeded scopes/objects.
+	// (Requires go/types change for Go 1.7.)
+	//   info.Pkg.Scope().ClearChildren()
+
+	// Discard the file ASTs and their accumulated type
+	// information to save memory.
+	info.Files = nil
+	info.Defs = make(map[*ast.Ident]types.Object)
+	info.Uses = make(map[*ast.Ident]types.Object)
+	info.Implicits = make(map[ast.Node]types.Object)
+
+	// Also, disable future collection of wholly unneeded
+	// type information for the package in case there is
+	// more type-checking to do (augmentation).
+	info.Types = nil
+	info.Scopes = nil
+	info.Selections = nil
 }
 
 // -------- utils --------
@@ -371,19 +397,39 @@ func (p byNamePos) Less(i, j int) bool {
 	return lessPos(p.fset, p.ids[i].NamePos, p.ids[j].NamePos)
 }
 
-type referrersResult struct {
+// referrersInitialResult is the initial result of a "referrers" query.
+type referrersInitialResult struct {
+	qinfo *loader.PackageInfo
+	obj   types.Object // object it denotes
+}
+
+func (r *referrersInitialResult) PrintPlain(printf printfFunc) {
+	printf(r.obj, "references to %s",
+		types.ObjectString(r.obj, types.RelativeTo(r.qinfo.Pkg)))
+}
+
+func (r *referrersInitialResult) JSON(fset *token.FileSet) []byte {
+	var objpos string
+	if pos := r.obj.Pos(); pos.IsValid() {
+		objpos = fset.Position(pos).String()
+	}
+	return toJSON(&serial.ReferrersInitial{
+		Desc:   r.obj.String(),
+		ObjPos: objpos,
+	})
+}
+
+// referrersPackageResult is the streaming result for one package of a "referrers" query.
+type referrersPackageResult struct {
+	pkg   *types.Package
 	build *build.Context
 	fset  *token.FileSet
-	qinfo *loader.PackageInfo
-	qpos  *queryPos
-	obj   types.Object // object it denotes
 	refs  []*ast.Ident // set of all other references to it
 }
 
-func (r *referrersResult) display(printf printfFunc) {
-	printf(r.obj, "%d references to %s",
-		len(r.refs), types.ObjectString(r.obj, types.RelativeTo(r.qinfo.Pkg)))
-
+// forEachRef calls f(id, text) for id in r.refs, in order.
+// Text is the text of the line on which id appears.
+func (r *referrersPackageResult) foreachRef(f func(id *ast.Ident, text string)) {
 	// Show referring lines, like grep.
 	type fileinfo struct {
 		refs     []*ast.Ident
@@ -432,13 +478,13 @@ func (r *referrersResult) display(printf printfFunc) {
 			if more := len(fi.refs) - 1; more > 0 {
 				suffix = fmt.Sprintf(" (+ %d more refs in this file)", more)
 			}
-			printf(fi.refs[0], "%v%s", err, suffix)
+			f(fi.refs[0], err.Error()+suffix)
 			continue
 		}
 
 		lines := bytes.Split(v.([]byte), []byte("\n"))
 		for i, ref := range fi.refs {
-			printf(ref, "%s", lines[fi.linenums[i]-1])
+			f(ref, string(lines[fi.linenums[i]-1]))
 		}
 	}
 }
@@ -458,15 +504,19 @@ func readFile(ctxt *build.Context, filename string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (r *referrersResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	referrers := &serial.Referrers{
-		Desc: r.obj.String(),
-	}
-	if pos := r.obj.Pos(); pos != token.NoPos { // Package objects have no Pos()
-		referrers.ObjPos = fset.Position(pos).String()
-	}
-	for _, ref := range r.refs {
-		referrers.Refs = append(referrers.Refs, fset.Position(ref.NamePos).String())
-	}
-	res.Referrers = referrers
+func (r *referrersPackageResult) PrintPlain(printf printfFunc) {
+	r.foreachRef(func(id *ast.Ident, text string) {
+		printf(id, "%s", text)
+	})
+}
+
+func (r *referrersPackageResult) JSON(fset *token.FileSet) []byte {
+	refs := serial.ReferrersPackage{Package: r.pkg.Path()}
+	r.foreachRef(func(id *ast.Ident, text string) {
+		refs.Refs = append(refs.Refs, serial.Ref{
+			Pos:  fset.Position(id.NamePos).String(),
+			Text: text,
+		})
+	})
+	return toJSON(refs)
 }

@@ -2,17 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package serial defines the guru's schema for structured data
-// serialization using JSON, XML, etc.
-package serial
-
-// All 'pos' strings are of the form "file:line:col".
-// TODO(adonovan): improve performance by sharing filename strings.
-// TODO(adonovan): improve precision by providing the start/end
-// interval when available.
+// Package serial defines the guru's schema for -json output.
 //
-// TODO(adonovan): consider richer encodings of types, functions,
-// methods, etc.
+// The output of a guru query is a stream of one or more JSON objects.
+// This table shows the types of objects in the result stream for each
+// query type.
+//
+//      Query      Result stream
+//      -----      -------------
+//      callees    Callees
+//      callers    Caller ...
+//      callstack  CallStack
+//      definition Definition
+//      describe   Describe
+//      freevars   FreeVar ...
+//      implements Implements
+//      peers      Peers
+//      pointsto   PointsTo ...
+//      referrers  ReferrersInitial ReferrersPackage ...
+//      what       What
+//      whicherrs  WhichErrs
+//
+// All 'pos' strings in the output are of the form "file:line:col",
+// where line is the 1-based line number and col is the 1-based byte index.
+package serial
 
 // A Peers is the result of a 'peers' query.
 // If Allocs is empty, the selected channel can't point to anything.
@@ -25,12 +38,22 @@ type Peers struct {
 	Closes   []string `json:"closes,omitempty"`   // locations of aliased close(ch) ops
 }
 
-// A Referrers is the result of a 'referrers' query.
-type Referrers struct {
-	ObjPos string   `json:"objpos,omitempty"` // location of the definition
-	Desc   string   `json:"desc"`             // description of the denoted object
-	Refs   []string `json:"refs,omitempty"`   // locations of all references
-}
+// A "referrers" query emits a ReferrersInitial object followed by zero or
+// more ReferrersPackage objects, one per package that contains a reference.
+type (
+	ReferrersInitial struct {
+		ObjPos string `json:"objpos,omitempty"` // location of the definition
+		Desc   string `json:"desc"`             // description of the denoted object
+	}
+	ReferrersPackage struct {
+		Package string `json:"package"`
+		Refs    []Ref  `json:"refs"` // non-empty list of references within this package
+	}
+	Ref struct {
+		Pos  string `json:"pos"`  // location of all references
+		Text string `json:"text"` // text of the referring line
+	}
+)
 
 // A Definition is the result of a 'definition' query.
 type Definition struct {
@@ -38,20 +61,21 @@ type Definition struct {
 	Desc   string `json:"desc"`             // description of the denoted object
 }
 
-type CalleesItem struct {
-	Name string `json:"name"` // full name of called function
-	Pos  string `json:"pos"`  // location of called function
-}
-
 // A Callees is the result of a 'callees' query.
 //
 // Callees is nonempty unless the call was a dynamic call on a
 // provably nil func or interface value.
-type Callees struct {
-	Pos     string         `json:"pos"`               // location of selected call site
-	Desc    string         `json:"desc"`              // description of call site
-	Callees []*CalleesItem `json:"callees,omitempty"` // set of possible call targets
-}
+type (
+	Callees struct {
+		Pos     string    `json:"pos"`  // location of selected call site
+		Desc    string    `json:"desc"` // description of call site
+		Callees []*Callee `json:"callees"`
+	}
+	Callee struct {
+		Name string `json:"name"` // full name of called function
+		Pos  string `json:"pos"`  // location of called function
+	}
+)
 
 // A Caller is one element of the slice returned by a 'callers' query.
 // (Callstack also contains a similar slice.)
@@ -232,28 +256,4 @@ type WhichErrs struct {
 type WhichErrsType struct {
 	Type     string `json:"type,omitempty"`
 	Position string `json:"position,omitempty"`
-}
-
-// A Result is the common result of any guru query.
-// It contains a query-specific result element.
-//
-// TODO(adonovan): perhaps include other info such as: analysis scope,
-// raw query position, stack of ast nodes, query package, etc.
-type Result struct {
-	Mode string `json:"mode"` // mode of the query
-
-	// Exactly one of the following fields is populated:
-	// the one specified by 'mode'.
-	Callees    *Callees    `json:"callees,omitempty"`
-	Callers    []Caller    `json:"callers,omitempty"`
-	Callstack  *CallStack  `json:"callstack,omitempty"`
-	Definition *Definition `json:"definition,omitempty"`
-	Describe   *Describe   `json:"describe,omitempty"`
-	Freevars   []*FreeVar  `json:"freevars,omitempty"`
-	Implements *Implements `json:"implements,omitempty"`
-	Peers      *Peers      `json:"peers,omitempty"`
-	PointsTo   []PointsTo  `json:"pointsto,omitempty"`
-	Referrers  *Referrers  `json:"referrers,omitempty"`
-	What       *What       `json:"what,omitempty"`
-	WhichErrs  *WhichErrs  `json:"whicherrs,omitempty"`
 }

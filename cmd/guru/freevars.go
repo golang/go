@@ -42,7 +42,6 @@ func freevars(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = lprog.Fset
 
 	qpos, err := parseQueryPos(lprog, q.Pos, false)
 	if err != nil {
@@ -156,10 +155,10 @@ func freevars(q *Query) error {
 	}
 	sort.Sort(byRef(refs))
 
-	q.result = &freevarsResult{
+	q.Output(lprog.Fset, &freevarsResult{
 		qpos: qpos,
 		refs: refs,
-	}
+	})
 	return nil
 }
 
@@ -175,7 +174,7 @@ type freevarsRef struct {
 	obj  types.Object
 }
 
-func (r *freevarsResult) display(printf printfFunc) {
+func (r *freevarsResult) PrintPlain(printf printfFunc) {
 	if len(r.refs) == 0 {
 		printf(r.qpos, "No free identifiers.")
 	} else {
@@ -192,18 +191,20 @@ func (r *freevarsResult) display(printf printfFunc) {
 	}
 }
 
-func (r *freevarsResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	var refs []*serial.FreeVar
-	for _, ref := range r.refs {
-		refs = append(refs,
-			&serial.FreeVar{
-				Pos:  fset.Position(ref.obj.Pos()).String(),
-				Kind: ref.kind,
-				Ref:  ref.ref,
-				Type: ref.typ.String(),
-			})
+func (r *freevarsResult) JSON(fset *token.FileSet) []byte {
+	var buf bytes.Buffer
+	for i, ref := range r.refs {
+		if i > 0 {
+			buf.WriteByte('\n')
+		}
+		buf.Write(toJSON(serial.FreeVar{
+			Pos:  fset.Position(ref.obj.Pos()).String(),
+			Kind: ref.kind,
+			Ref:  ref.ref,
+			Type: ref.typ.String(),
+		}))
 	}
-	res.Freevars = refs
+	return buf.Bytes()
 }
 
 // -------- utils --------

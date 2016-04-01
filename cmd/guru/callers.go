@@ -31,7 +31,6 @@ func callers(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = lprog.Fset
 
 	qpos, err := parseQueryPos(lprog, q.Pos, false)
 	if err != nil {
@@ -77,11 +76,11 @@ func callers(q *Query) error {
 
 	// TODO(adonovan): sort + dedup calls to ensure test determinism.
 
-	q.result = &callersResult{
+	q.Output(lprog.Fset, &callersResult{
 		target:    target,
 		callgraph: cg,
 		edges:     edges,
-	}
+	})
 	return nil
 }
 
@@ -167,7 +166,7 @@ type callersResult struct {
 	edges     []*callgraph.Edge
 }
 
-func (r *callersResult) display(printf printfFunc) {
+func (r *callersResult) PrintPlain(printf printfFunc) {
 	root := r.callgraph.Root
 	if r.edges == nil {
 		printf(r.target, "%s is not reachable in this program.", r.target)
@@ -183,7 +182,7 @@ func (r *callersResult) display(printf printfFunc) {
 	}
 }
 
-func (r *callersResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *callersResult) JSON(fset *token.FileSet) []byte {
 	var callers []serial.Caller
 	for _, edge := range r.edges {
 		callers = append(callers, serial.Caller{
@@ -192,5 +191,5 @@ func (r *callersResult) toSerial(res *serial.Result, fset *token.FileSet) {
 			Desc:   edge.Description(),
 		})
 	}
-	res.Callers = callers
+	return toJSON(callers)
 }

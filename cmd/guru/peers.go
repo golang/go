@@ -35,7 +35,6 @@ func peers(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = lprog.Fset
 
 	qpos, err := parseQueryPos(lprog, q.Pos, false)
 	if err != nil {
@@ -127,14 +126,14 @@ func peers(q *Query) error {
 	sort.Sort(byPos(receives))
 	sort.Sort(byPos(closes))
 
-	q.result = &peersResult{
+	q.Output(lprog.Fset, &peersResult{
 		queryPos:  opPos,
 		queryType: queryType,
 		makes:     makes,
 		sends:     sends,
 		receives:  receives,
 		closes:    closes,
-	}
+	})
 	return nil
 }
 
@@ -195,13 +194,14 @@ func chanOps(instr ssa.Instruction) []chanOp {
 	return ops
 }
 
+// TODO(adonovan): show the line of text for each pos, like "referrers" does.
 type peersResult struct {
 	queryPos                       token.Pos   // of queried channel op
 	queryType                      types.Type  // type of queried channel
 	makes, sends, receives, closes []token.Pos // positions of aliased makechan/send/receive/close instrs
 }
 
-func (r *peersResult) display(printf printfFunc) {
+func (r *peersResult) PrintPlain(printf printfFunc) {
 	if len(r.makes) == 0 {
 		printf(r.queryPos, "This channel can't point to anything.")
 		return
@@ -221,7 +221,7 @@ func (r *peersResult) display(printf printfFunc) {
 	}
 }
 
-func (r *peersResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *peersResult) JSON(fset *token.FileSet) []byte {
 	peers := &serial.Peers{
 		Pos:  fset.Position(r.queryPos).String(),
 		Type: r.queryType.String(),
@@ -238,7 +238,7 @@ func (r *peersResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	for _, clos := range r.closes {
 		peers.Closes = append(peers.Closes, fset.Position(clos).String())
 	}
-	res.Peers = peers
+	return toJSON(peers)
 }
 
 // -------- utils --------

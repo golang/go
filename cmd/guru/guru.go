@@ -11,6 +11,7 @@ package main
 //   (&T{}, var t T, new(T), new(struct{array [3]T}), etc.
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -18,9 +19,9 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"log"
 	"path/filepath"
 
-	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
@@ -30,10 +31,15 @@ import (
 
 type printfFunc func(pos interface{}, format string, args ...interface{})
 
-// queryResult is the interface of each query-specific result type.
-type queryResult interface {
-	toSerial(res *serial.Result, fset *token.FileSet)
-	display(printf printfFunc)
+// A QueryResult is an item of output.  Each query produces a stream of
+// query results, calling Query.Output for each one.
+type QueryResult interface {
+	// JSON returns the QueryResult in JSON form.
+	JSON(fset *token.FileSet) []byte
+
+	// PrintPlain prints the QueryResult in plain text form.
+	// The implementation calls printfFunc to print each line of output.
+	PrintPlain(printf printfFunc)
 }
 
 // A QueryPos represents the position provided as input to a query:
@@ -65,7 +71,6 @@ func (qpos *queryPos) selectionString(sel *types.Selection) string {
 
 // A Query specifies a single guru query.
 type Query struct {
-	Mode  string         // query mode ("callers", etc)
 	Pos   string         // query position
 	Build *build.Context // package loading configuration
 
@@ -74,32 +79,13 @@ type Query struct {
 	PTALog     io.Writer // (optional) pointer-analysis log file
 	Reflection bool      // model reflection soundly (currently slow).
 
-	// Populated during Run()
-	Fset   *token.FileSet
-	result queryResult
-}
-
-// Serial returns an instance of serial.Result, which implements the
-// {xml,json}.Marshaler interfaces so that query results can be
-// serialized as JSON or XML.
-//
-func (q *Query) Serial() *serial.Result {
-	resj := &serial.Result{Mode: q.Mode}
-	q.result.toSerial(resj, q.Fset)
-	return resj
-}
-
-// WriteTo writes the guru query result res to out in a compiler diagnostic format.
-func (q *Query) WriteTo(out io.Writer) {
-	printf := func(pos interface{}, format string, args ...interface{}) {
-		fprintf(out, q.Fset, pos, format, args...)
-	}
-	q.result.display(printf)
+	// result-printing function
+	Output func(*token.FileSet, QueryResult)
 }
 
 // Run runs an guru query and populates its Fset and Result.
-func Run(q *Query) error {
-	switch q.Mode {
+func Run(mode string, q *Query) error {
+	switch mode {
 	case "callees":
 		return callees(q)
 	case "callers":
@@ -125,7 +111,7 @@ func Run(q *Query) error {
 	case "what":
 		return what(q)
 	default:
-		return fmt.Errorf("invalid mode: %q", q.Mode)
+		return fmt.Errorf("invalid mode: %q", mode)
 	}
 }
 
@@ -319,7 +305,6 @@ func deref(typ types.Type) types.Type {
 //
 // The output format is is compatible with the 'gnu'
 // compilation-error-regexp in Emacs' compilation mode.
-// TODO(adonovan): support other editors.
 //
 func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, args ...interface{}) {
 	var start, end token.Pos
@@ -359,4 +344,12 @@ func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, a
 	}
 	fmt.Fprintf(w, format, args...)
 	io.WriteString(w, "\n")
+}
+
+func toJSON(x interface{}) []byte {
+	b, err := json.MarshalIndent(x, "", "\t")
+	if err != nil {
+		log.Fatalf("JSON error: %v", err)
+	}
+	return b
 }

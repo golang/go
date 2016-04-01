@@ -1,64 +1,184 @@
 -------- @referrers ref-package --------
 {
-	"mode": "referrers",
-	"referrers": {
-		"desc": "package lib",
-		"refs": [
-			"testdata/src/describe/main.go:91:8",
-			"testdata/src/imports/main.go:18:12",
-			"testdata/src/imports/main.go:19:2",
-			"testdata/src/imports/main.go:20:2",
-			"testdata/src/imports/main.go:21:8",
-			"testdata/src/imports/main.go:26:8",
-			"testdata/src/referrers-json/main.go:14:8",
-			"testdata/src/referrers-json/main.go:14:19",
-			"testdata/src/referrers/ext_test.go:10:7",
-			"testdata/src/referrers/int_test.go:7:7",
-			"testdata/src/referrers/main.go:16:8",
-			"testdata/src/referrers/main.go:16:19"
-		]
-	}
+	"desc": "package lib"
+}
+{
+	"package": "describe",
+	"refs": [
+		{
+			"pos": "testdata/src/describe/main.go:91:8",
+			"text": "\tvar _ lib.Outer // @describe lib-outer \"Outer\""
+		}
+	]
+}
+{
+	"package": "imports",
+	"refs": [
+		{
+			"pos": "testdata/src/imports/main.go:18:12",
+			"text": "\tconst c = lib.Const // @describe ref-const \"Const\""
+		},
+		{
+			"pos": "testdata/src/imports/main.go:19:2",
+			"text": "\tlib.Func()          // @describe ref-func \"Func\""
+		},
+		{
+			"pos": "testdata/src/imports/main.go:20:2",
+			"text": "\tlib.Var++           // @describe ref-var \"Var\""
+		},
+		{
+			"pos": "testdata/src/imports/main.go:21:8",
+			"text": "\tvar t lib.Type      // @describe ref-type \"Type\""
+		},
+		{
+			"pos": "testdata/src/imports/main.go:26:8",
+			"text": "\tvar _ lib.Type // @describe ref-pkg \"lib\""
+		}
+	]
+}
+{
+	"package": "referrers",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers/int_test.go:7:7",
+			"text": "\t_ = (lib.Type).Method // ref from internal test package"
+		}
+	]
+}
+{
+	"package": "referrers",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers/main.go:16:8",
+			"text": "\tvar v lib.Type = lib.Const // @referrers ref-package \"lib\""
+		},
+		{
+			"pos": "testdata/src/referrers/main.go:16:19",
+			"text": "\tvar v lib.Type = lib.Const // @referrers ref-package \"lib\""
+		}
+	]
+}
+{
+	"package": "referrers-json",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers-json/main.go:14:8",
+			"text": "\tvar v lib.Type = lib.Const // @referrers ref-package \"lib\""
+		},
+		{
+			"pos": "testdata/src/referrers-json/main.go:14:19",
+			"text": "\tvar v lib.Type = lib.Const // @referrers ref-package \"lib\""
+		}
+	]
+}
+{
+	"package": "referrers_test",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers/ext_test.go:10:7",
+			"text": "\t_ = (lib.Type).Method // ref from external test package"
+		}
+	]
 }
 -------- @referrers ref-method --------
 {
-	"mode": "referrers",
-	"referrers": {
-		"objpos": "testdata/src/lib/lib.go:5:13",
-		"desc": "func (lib.Type).Method(x *int) *int",
-		"refs": [
-			"testdata/src/imports/main.go:22:9",
-			"testdata/src/referrers-json/main.go:15:8",
-			"testdata/src/referrers-json/main.go:16:8",
-			"testdata/src/referrers/ext_test.go:10:17",
-			"testdata/src/referrers/int_test.go:7:17",
-			"testdata/src/referrers/main.go:17:8",
-			"testdata/src/referrers/main.go:18:8"
-		]
-	}
+	"objpos": "testdata/src/lib/lib.go:5:13",
+	"desc": "func (lib.Type).Method(x *int) *int"
+}
+{
+	"package": "imports",
+	"refs": [
+		{
+			"pos": "testdata/src/imports/main.go:22:9",
+			"text": "\tp := t.Method(\u0026a)   // @describe ref-method \"Method\""
+		}
+	]
+}
+{
+	"package": "referrers",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers/int_test.go:7:17",
+			"text": "\t_ = (lib.Type).Method // ref from internal test package"
+		}
+	]
+}
+{
+	"package": "referrers",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers/main.go:17:8",
+			"text": "\t_ = v.Method               // @referrers ref-method \"Method\""
+		},
+		{
+			"pos": "testdata/src/referrers/main.go:18:8",
+			"text": "\t_ = v.Method"
+		}
+	]
+}
+{
+	"package": "referrers-json",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers-json/main.go:15:8",
+			"text": "\t_ = v.Method               // @referrers ref-method \"Method\""
+		},
+		{
+			"pos": "testdata/src/referrers-json/main.go:16:8",
+			"text": "\t_ = v.Method"
+		}
+	]
+}
+{
+	"package": "referrers_test",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers/ext_test.go:10:17",
+			"text": "\t_ = (lib.Type).Method // ref from external test package"
+		}
+	]
 }
 -------- @referrers ref-local --------
 {
-	"mode": "referrers",
-	"referrers": {
-		"objpos": "testdata/src/referrers-json/main.go:14:6",
-		"desc": "var v lib.Type",
-		"refs": [
-			"testdata/src/referrers-json/main.go:15:6",
-			"testdata/src/referrers-json/main.go:16:6",
-			"testdata/src/referrers-json/main.go:17:2",
-			"testdata/src/referrers-json/main.go:18:2"
-		]
-	}
+	"objpos": "testdata/src/referrers-json/main.go:14:6",
+	"desc": "var v lib.Type"
+}
+{
+	"package": "referrers-json",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers-json/main.go:15:6",
+			"text": "\t_ = v.Method               // @referrers ref-method \"Method\""
+		},
+		{
+			"pos": "testdata/src/referrers-json/main.go:16:6",
+			"text": "\t_ = v.Method"
+		},
+		{
+			"pos": "testdata/src/referrers-json/main.go:17:2",
+			"text": "\tv++ //@referrers ref-local \"v\""
+		},
+		{
+			"pos": "testdata/src/referrers-json/main.go:18:2",
+			"text": "\tv++"
+		}
+	]
 }
 -------- @referrers ref-field --------
 {
-	"mode": "referrers",
-	"referrers": {
-		"objpos": "testdata/src/referrers-json/main.go:10:2",
-		"desc": "field f int",
-		"refs": [
-			"testdata/src/referrers-json/main.go:20:10",
-			"testdata/src/referrers-json/main.go:23:5"
-		]
-	}
+	"objpos": "testdata/src/referrers-json/main.go:10:2",
+	"desc": "field f int"
+}
+{
+	"package": "referrers-json",
+	"refs": [
+		{
+			"pos": "testdata/src/referrers-json/main.go:20:10",
+			"text": "\t_ = s{}.f // @referrers ref-field \"f\""
+		},
+		{
+			"pos": "testdata/src/referrers-json/main.go:23:5",
+			"text": "\ts2.f = 1"
+		}
+	]
 }

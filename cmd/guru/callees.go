@@ -32,7 +32,6 @@ func callees(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = lprog.Fset
 
 	qpos, err := parseQueryPos(lprog, q.Pos, true) // needs exact pos
 	if err != nil {
@@ -69,10 +68,10 @@ func callees(q *Query) error {
 			return fmt.Errorf("this is a call to the built-in '%s' operator", obj.Name())
 		case *types.Func:
 			// This is a static function call
-			q.result = &calleesTypesResult{
+			q.Output(lprog.Fset, &calleesTypesResult{
 				site:   e,
 				callee: obj,
-			}
+			})
 			return nil
 		}
 	case *ast.SelectorExpr:
@@ -83,10 +82,10 @@ func callees(q *Query) error {
 			// or to top level function.
 			callee := qpos.info.Uses[funexpr.Sel]
 			if obj, ok := callee.(*types.Func); ok {
-				q.result = &calleesTypesResult{
+				q.Output(lprog.Fset, &calleesTypesResult{
 					site:   e,
 					callee: obj,
-				}
+				})
 				return nil
 			}
 		} else if sel.Kind() == types.MethodVal {
@@ -98,10 +97,10 @@ func callees(q *Query) error {
 			recvtype := method.Type().(*types.Signature).Recv().Type()
 			if !types.IsInterface(recvtype) {
 				// static method call
-				q.result = &calleesTypesResult{
+				q.Output(lprog.Fset, &calleesTypesResult{
 					site:   e,
 					callee: method,
-				}
+				})
 				return nil
 			}
 		}
@@ -139,10 +138,10 @@ func callees(q *Query) error {
 		return err
 	}
 
-	q.result = &calleesSSAResult{
+	q.Output(lprog.Fset, &calleesSSAResult{
 		site:  site,
 		funcs: funcs,
-	}
+	})
 	return nil
 }
 
@@ -204,7 +203,7 @@ type calleesTypesResult struct {
 	callee *types.Func
 }
 
-func (r *calleesSSAResult) display(printf printfFunc) {
+func (r *calleesSSAResult) PrintPlain(printf printfFunc) {
 	if len(r.funcs) == 0 {
 		// dynamic call on a provably nil func/interface
 		printf(r.site, "%s on nil value", r.site.Common().Description())
@@ -216,37 +215,37 @@ func (r *calleesSSAResult) display(printf printfFunc) {
 	}
 }
 
-func (r *calleesSSAResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *calleesSSAResult) JSON(fset *token.FileSet) []byte {
 	j := &serial.Callees{
 		Pos:  fset.Position(r.site.Pos()).String(),
 		Desc: r.site.Common().Description(),
 	}
 	for _, callee := range r.funcs {
-		j.Callees = append(j.Callees, &serial.CalleesItem{
+		j.Callees = append(j.Callees, &serial.Callee{
 			Name: callee.String(),
 			Pos:  fset.Position(callee.Pos()).String(),
 		})
 	}
-	res.Callees = j
+	return toJSON(j)
 }
 
-func (r *calleesTypesResult) display(printf printfFunc) {
+func (r *calleesTypesResult) PrintPlain(printf printfFunc) {
 	printf(r.site, "this static function call dispatches to:")
 	printf(r.callee, "\t%s", r.callee.FullName())
 }
 
-func (r *calleesTypesResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *calleesTypesResult) JSON(fset *token.FileSet) []byte {
 	j := &serial.Callees{
 		Pos:  fset.Position(r.site.Pos()).String(),
 		Desc: "static function call",
 	}
-	j.Callees = []*serial.CalleesItem{
-		&serial.CalleesItem{
+	j.Callees = []*serial.Callee{
+		&serial.Callee{
 			Name: r.callee.FullName(),
 			Pos:  fset.Position(r.callee.Pos()).String(),
 		},
 	}
-	res.Callees = j
+	return toJSON(j)
 }
 
 // NB: byFuncPos is not deterministic across packages since it depends on load order.

@@ -96,12 +96,11 @@ func callstack(q *Query) error {
 		}
 	}
 
-	q.Fset = fset
-	q.result = &callstackResult{
+	q.Output(fset, &callstackResult{
 		qpos:     qpos,
 		target:   target,
 		callpath: callpath,
-	}
+	})
 	return nil
 }
 
@@ -111,7 +110,7 @@ type callstackResult struct {
 	callpath []*callgraph.Edge
 }
 
-func (r *callstackResult) display(printf printfFunc) {
+func (r *callstackResult) PrintPlain(printf printfFunc) {
 	if r.callpath != nil {
 		printf(r.qpos, "Found a call path from root to %s", r.target)
 		printf(r.target, "%s", r.target)
@@ -124,7 +123,7 @@ func (r *callstackResult) display(printf printfFunc) {
 	}
 }
 
-func (r *callstackResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *callstackResult) JSON(fset *token.FileSet) []byte {
 	var callers []serial.Caller
 	for i := len(r.callpath) - 1; i >= 0; i-- { // (innermost first)
 		edge := r.callpath[i]
@@ -134,9 +133,9 @@ func (r *callstackResult) toSerial(res *serial.Result, fset *token.FileSet) {
 			Desc:   edge.Description(),
 		})
 	}
-	res.Callstack = &serial.CallStack{
+	return toJSON(&serial.CallStack{
 		Pos:     fset.Position(r.target.Pos()).String(),
 		Target:  r.target.String(),
 		Callers: callers,
-	}
+	})
 }

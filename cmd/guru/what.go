@@ -29,10 +29,9 @@ func what(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = qpos.fset
 
 	// (ignore errors)
-	srcdir, importPath, _ := guessImportPath(q.Fset.File(qpos.start).Name(), q.Build)
+	srcdir, importPath, _ := guessImportPath(qpos.fset.File(qpos.start).Name(), q.Build)
 
 	// Determine which query modes are applicable to the selection.
 	enable := map[string]bool{
@@ -129,14 +128,14 @@ func what(q *Query) error {
 		})
 	}
 
-	q.result = &whatResult{
+	q.Output(qpos.fset, &whatResult{
 		path:       qpos.path,
 		srcdir:     srcdir,
 		importPath: importPath,
 		modes:      modes,
 		object:     object,
 		sameids:    sameids,
-	}
+	})
 	return nil
 }
 
@@ -211,7 +210,7 @@ type whatResult struct {
 	sameids    []token.Pos
 }
 
-func (r *whatResult) display(printf printfFunc) {
+func (r *whatResult) PrintPlain(printf printfFunc) {
 	for _, n := range r.path {
 		printf(n, "%s", astutil.NodeDescription(n))
 	}
@@ -223,7 +222,7 @@ func (r *whatResult) display(printf printfFunc) {
 	}
 }
 
-func (r *whatResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *whatResult) JSON(fset *token.FileSet) []byte {
 	var enclosing []serial.SyntaxNode
 	for _, n := range r.path {
 		enclosing = append(enclosing, serial.SyntaxNode{
@@ -238,12 +237,12 @@ func (r *whatResult) toSerial(res *serial.Result, fset *token.FileSet) {
 		sameids = append(sameids, fset.Position(pos).String())
 	}
 
-	res.What = &serial.What{
+	return toJSON(&serial.What{
 		Modes:      r.modes,
 		SrcDir:     r.srcdir,
 		ImportPath: r.importPath,
 		Enclosing:  enclosing,
 		Object:     r.object,
 		SameIDs:    sameids,
-	}
+	})
 }

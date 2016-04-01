@@ -38,7 +38,6 @@ func pointsto(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = lprog.Fset
 
 	qpos, err := parseQueryPos(lprog, q.Pos, true) // needs exact pos
 	if err != nil {
@@ -103,11 +102,11 @@ func pointsto(q *Query) error {
 		return err // e.g. analytically unreachable
 	}
 
-	q.result = &pointstoResult{
+	q.Output(lprog.Fset, &pointstoResult{
 		qpos: qpos,
 		typ:  typ,
 		ptrs: ptrs,
-	}
+	})
 	return nil
 }
 
@@ -209,7 +208,7 @@ type pointstoResult struct {
 	ptrs []pointerResult // pointer info (typ is concrete => len==1)
 }
 
-func (r *pointstoResult) display(printf printfFunc) {
+func (r *pointstoResult) PrintPlain(printf printfFunc) {
 	if pointer.CanHaveDynamicTypes(r.typ) {
 		// Show concrete types for interface, reflect.Type or
 		// reflect.Value expression.
@@ -244,7 +243,7 @@ func (r *pointstoResult) display(printf printfFunc) {
 	}
 }
 
-func (r *pointstoResult) toSerial(res *serial.Result, fset *token.FileSet) {
+func (r *pointstoResult) JSON(fset *token.FileSet) []byte {
 	var pts []serial.PointsTo
 	for _, ptr := range r.ptrs {
 		var namePos string
@@ -264,7 +263,7 @@ func (r *pointstoResult) toSerial(res *serial.Result, fset *token.FileSet) {
 			Labels:  labels,
 		})
 	}
-	res.PointsTo = pts
+	return toJSON(pts)
 }
 
 type byTypeString []pointerResult

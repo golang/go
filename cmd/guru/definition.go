@@ -31,11 +31,10 @@ func definition(q *Query) error {
 		}
 
 		if obj := id.Obj; obj != nil && obj.Pos().IsValid() {
-			q.Fset = qpos.fset
-			q.result = &definitionResult{
+			q.Output(qpos.fset, &definitionResult{
 				pos:   obj.Pos(),
 				descr: fmt.Sprintf("%s %s", obj.Kind, obj.Name),
-			}
+			})
 			return nil // success
 		}
 	}
@@ -53,7 +52,6 @@ func definition(q *Query) error {
 	if err != nil {
 		return err
 	}
-	q.Fset = lprog.Fset
 
 	qpos, err := parseQueryPos(lprog, q.Pos, false)
 	if err != nil {
@@ -77,10 +75,10 @@ func definition(q *Query) error {
 		return fmt.Errorf("%s is built in", obj.Name())
 	}
 
-	q.result = &definitionResult{
+	q.Output(lprog.Fset, &definitionResult{
 		pos:   obj.Pos(),
 		descr: qpos.objectString(obj),
-	}
+	})
 	return nil
 }
 
@@ -89,14 +87,13 @@ type definitionResult struct {
 	descr string    // description of object it denotes
 }
 
-func (r *definitionResult) display(printf printfFunc) {
+func (r *definitionResult) PrintPlain(printf printfFunc) {
 	printf(r.pos, "defined here as %s", r.descr)
 }
 
-func (r *definitionResult) toSerial(res *serial.Result, fset *token.FileSet) {
-	definition := &serial.Definition{
+func (r *definitionResult) JSON(fset *token.FileSet) []byte {
+	return toJSON(&serial.Definition{
 		Desc:   r.descr,
 		ObjPos: fset.Position(r.pos).String(),
-	}
-	res.Definition = definition
+	})
 }

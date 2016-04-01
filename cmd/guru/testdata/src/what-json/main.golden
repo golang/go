@@ -1,51 +1,48 @@
 -------- @what call --------
 {
-	"mode": "what",
-	"what": {
-		"enclosing": [
-			{
-				"desc": "identifier",
-				"start": 175,
-				"end": 176
-			},
-			{
-				"desc": "function call (or conversion)",
-				"start": 175,
-				"end": 178
-			},
-			{
-				"desc": "expression statement",
-				"start": 175,
-				"end": 178
-			},
-			{
-				"desc": "block",
-				"start": 172,
-				"end": 198
-			},
-			{
-				"desc": "function declaration",
-				"start": 160,
-				"end": 198
-			},
-			{
-				"desc": "source file",
-				"start": 0,
-				"end": 198
-			}
-		],
-		"modes": [
-			"callees",
-			"callers",
-			"callstack",
-			"definition",
-			"describe",
-			"freevars",
-			"implements",
-			"pointsto",
-			"referrers"
-		],
-		"srcdir": "testdata/src",
-		"importpath": "what-json"
-	}
+	"enclosing": [
+		{
+			"desc": "identifier",
+			"start": 175,
+			"end": 176
+		},
+		{
+			"desc": "function call (or conversion)",
+			"start": 175,
+			"end": 178
+		},
+		{
+			"desc": "expression statement",
+			"start": 175,
+			"end": 178
+		},
+		{
+			"desc": "block",
+			"start": 172,
+			"end": 198
+		},
+		{
+			"desc": "function declaration",
+			"start": 160,
+			"end": 198
+		},
+		{
+			"desc": "source file",
+			"start": 0,
+			"end": 198
+		}
+	],
+	"modes": [
+		"callees",
+		"callers",
+		"callstack",
+		"definition",
+		"describe",
+		"freevars",
+		"implements",
+		"pointsto",
+		"referrers"
+	],
+	"srcdir": "testdata/src",
+	"importpath": "what-json"
 }
