@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"compress/flate"
 	"errors"
-	"hash"
 	"hash/crc32"
 	"io"
 	"time"
@@ -72,9 +71,8 @@ type Reader struct {
 	Header       // valid after NewReader or Reader.Reset
 	r            flate.Reader
 	decompressor io.ReadCloser
-	digest       hash.Hash32
-	size         uint32
-	flg          byte
+	digest       uint32 // CRC-32, IEEE polynomial (section 8)
+	size         uint32 // Uncompressed size (section 2.3.1)
 	buf          [512]byte
 	err          error
 	multistream  bool
@@ -91,7 +89,6 @@ func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
 	z.r = makeReader(r)
 	z.multistream = true
-	z.digest = crc32.NewIEEE()
 	if err := z.readHeader(true); err != nil {
 		return nil, err
 	}
@@ -103,11 +100,7 @@ func NewReader(r io.Reader) (*Reader, error) {
 // This permits reusing a Reader rather than allocating a new one.
 func (z *Reader) Reset(r io.Reader) error {
 	z.r = makeReader(r)
-	if z.digest == nil {
-		z.digest = crc32.NewIEEE()
-	} else {
-		z.digest.Reset()
-	}
+	z.digest = 0
 	z.size = 0
 	z.err = nil
 	z.multistream = true
@@ -157,18 +150,18 @@ func (z *Reader) readString() (string, error) {
 			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
 			if needconv {
 				s := make([]rune, 0, i)
-				for _, v := range z.buf[0:i] {
+				for _, v := range z.buf[:i] {
 					s = append(s, rune(v))
 				}
 				return string(s), nil
 			}
-			return string(z.buf[0:i]), nil
+			return string(z.buf[:i]), nil
 		}
 	}
 }
 
 func (z *Reader) read2() (uint32, error) {
-	_, err := io.ReadFull(z.r, z.buf[0:2])
+	_, err := io.ReadFull(z.r, z.buf[:2])
 	if err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
@@ -179,9 +172,9 @@ func (z *Reader) read2() (uint32, error) {
 }
 
 func (z *Reader) readHeader(save bool) error {
-	_, err := io.ReadFull(z.r, z.buf[0:10])
+	_, err := io.ReadFull(z.r, z.buf[:10])
 	if err != nil {
-		// RFC1952 section 2.2 says the following:
+		// RFC 1952, section 2.2, says the following:
 		//	A gzip file consists of a series of "members" (compressed data sets).
 		//
 		// Other than this, the specification does not clarify whether a
@@ -193,16 +186,15 @@ func (z *Reader) readHeader(save bool) error {
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
 		return ErrHeader
 	}
-	z.flg = z.buf[3]
+	flg := z.buf[3]
 	if save {
 		z.ModTime = time.Unix(int64(get4(z.buf[4:8])), 0)
 		// z.buf[8] is xfl, ignored
 		z.OS = z.buf[9]
 	}
-	z.digest.Reset()
-	z.digest.Write(z.buf[0:10])
+	z.digest = crc32.Update(0, crc32.IEEETable, z.buf[:10])
 
-	if z.flg&flagExtra != 0 {
+	if flg&flagExtra != 0 {
 		n, err := z.read2()
 		if err != nil {
 			return err
@@ -220,7 +212,7 @@ func (z *Reader) readHeader(save bool) error {
 	}
 
 	var s string
-	if z.flg&flagName != 0 {
+	if flg&flagName != 0 {
 		if s, err = z.readString(); err != nil {
 			return err
 		}
@@ -229,7 +221,7 @@ func (z *Reader) readHeader(save bool) error {
 		}
 	}
 
-	if z.flg&flagComment != 0 {
+	if flg&flagComment != 0 {
 		if s, err = z.readString(); err != nil {
 			return err
 		}
@@ -238,18 +230,18 @@ func (z *Reader) readHeader(save bool) error {
 		}
 	}
 
-	if z.flg&flagHdrCrc != 0 {
+	if flg&flagHdrCrc != 0 {
 		n, err := z.read2()
 		if err != nil {
 			return err
 		}
-		sum := z.digest.Sum32() & 0xFFFF
+		sum := z.digest & 0xFFFF
 		if n != sum {
 			return ErrHeader
 		}
 	}
 
-	z.digest.Reset()
+	z.digest = 0
 	if z.decompressor == nil {
 		z.decompressor = flate.NewReader(z.r)
 	} else {
@@ -264,29 +256,27 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 	}
 
 	n, z.err = z.decompressor.Read(p)
-	z.digest.Write(p[0:n])
+	z.digest = crc32.Update(z.digest, crc32.IEEETable, p[:n])
 	z.size += uint32(n)
 	if z.err != io.EOF {
 		// In the normal case we return here.
 		return n, z.err
 	}
 
-	// Finished file; check checksum + size.
-	if _, err := io.ReadFull(z.r, z.buf[0:8]); err != nil {
+	// Finished file; check checksum and size.
+	if _, err := io.ReadFull(z.r, z.buf[:8]); err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		z.err = err
 		return n, err
 	}
-	crc32, isize := get4(z.buf[0:4]), get4(z.buf[4:8])
-	sum := z.digest.Sum32()
-	if sum != crc32 || isize != z.size {
+	digest, size := get4(z.buf[:4]), get4(z.buf[4:8])
+	if digest != z.digest || size != z.size {
 		z.err = ErrChecksum
 		return n, z.err
 	}
-	z.digest.Reset()
-	z.size = 0
+	z.digest, z.size = 0, 0
 
 	// File is ok; check if there is another.
 	if !z.multistream {
