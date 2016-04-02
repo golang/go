@@ -296,6 +296,15 @@ func (ft *factsTable) update(v, w *Value, d domain, r relation) {
 	}
 }
 
+// isNonNegative returns true if v is known to be non-negative.
+func (ft *factsTable) isNonNegative(v *Value) bool {
+	if isNonNegative(v) {
+		return true
+	}
+	l, has := ft.limits[v.ID]
+	return has && (l.min >= 0 || l.umax <= math.MaxInt64)
+}
+
 // checkpoint saves the current state of known relations.
 // Called when descending on a branch.
 func (ft *factsTable) checkpoint() {
@@ -608,8 +617,7 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 	// to the upper bound than this is proven. Most useful in cases such as:
 	// if len(a) <= 1 { return }
 	// do something with a[1]
-	// TODO: use constant bounds to do isNonNegative.
-	if (c.Op == OpIsInBounds || c.Op == OpIsSliceInBounds) && isNonNegative(c.Args[0]) {
+	if (c.Op == OpIsInBounds || c.Op == OpIsSliceInBounds) && ft.isNonNegative(c.Args[0]) {
 		m := ft.get(a0, a1, signed)
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
