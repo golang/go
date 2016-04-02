@@ -26,13 +26,6 @@ const (
 	flagComment = 1 << 4
 )
 
-func makeReader(r io.Reader) flate.Reader {
-	if rr, ok := r.(flate.Reader); ok {
-		return rr
-	}
-	return bufio.NewReader(r)
-}
-
 var (
 	// ErrChecksum is returned when reading GZIP data that has an invalid checksum.
 	ErrChecksum = errors.New("gzip: invalid checksum")
@@ -87,9 +80,7 @@ type Reader struct {
 // The Reader.Header fields will be valid in the Reader returned.
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
-	z.r = makeReader(r)
-	z.multistream = true
-	if err := z.readHeader(true); err != nil {
+	if err := z.Reset(r); err != nil {
 		return nil, err
 	}
 	return z, nil
@@ -99,11 +90,15 @@ func NewReader(r io.Reader) (*Reader, error) {
 // result of its original state from NewReader, but reading from r instead.
 // This permits reusing a Reader rather than allocating a new one.
 func (z *Reader) Reset(r io.Reader) error {
-	z.r = makeReader(r)
-	z.digest = 0
-	z.size = 0
-	z.err = nil
-	z.multistream = true
+	*z = Reader{
+		decompressor: z.decompressor,
+		multistream:  true,
+	}
+	if rr, ok := r.(flate.Reader); ok {
+		z.r = rr
+	} else {
+		z.r = bufio.NewReader(r)
+	}
 	return z.readHeader(true)
 }
 
