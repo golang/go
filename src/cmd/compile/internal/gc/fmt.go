@@ -189,6 +189,7 @@ var goopnames = []string{
 	OSUB:      "-",
 	OSWITCH:   "switch",
 	OXOR:      "^",
+	OXFALL:    "fallthrough",
 }
 
 // Fmt "%O":  Node opcodes
