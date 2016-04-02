@@ -37,6 +37,13 @@ type DLL struct {
 }
 
 // LoadDLL loads the named DLL file into memory.
+//
+// If name is not an absolute path and is not a known system DLL used by
+// Go, Windows will search for the named DLL in many locations, causing
+// potential DLL preloading attacks.
+//
+// Use LazyDLL in golang.org/x/sys/windows for a secure way to
+// load system DLLs.
 func LoadDLL(name string) (*DLL, error) {
 	namep, err := UTF16PtrFromString(name)
 	if err != nil {
@@ -174,6 +181,12 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 // It will delay the load of the DLL until the first
 // call to its Handle method or to one of its
 // LazyProc's Addr method.
+//
+// LazyDLL is subject to the same DLL preloading attacks as documented
+// on LoadDLL.
+//
+// Use LazyDLL in golang.org/x/sys/windows for a secure way to
+// load system DLLs.
 type LazyDLL struct {
 	mu   sync.Mutex
 	dll  *DLL // non nil once DLL is loaded
