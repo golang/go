@@ -817,8 +817,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		}
 
 	case TCHAN:
-		if t.Chan != x.Chan {
-			return cmpForNe(t.Chan < x.Chan)
+		if t.ChanDir() != x.ChanDir() {
+			return cmpForNe(t.ChanDir() < x.ChanDir())
 		}
 
 	default:
@@ -953,6 +953,13 @@ func (t *Type) NumElem() int64 {
 func (t *Type) SetNumElem(n int64) {
 	t.wantEtype(TARRAY)
 	t.Bound = n
+}
+
+// ChanDir returns the direction of a channel type t.
+// The direction will be one of Crecv, Csend, or Cboth.
+func (t *Type) ChanDir() uint8 {
+	t.wantEtype(TCHAN)
+	return t.Chan
 }
 
 func (t *Type) IsMemory() bool { return false }

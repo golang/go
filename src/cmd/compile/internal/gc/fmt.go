@@ -596,7 +596,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		return "[]" + t.Elem().String()
 
 	case TCHAN:
-		switch t.Chan {
+		switch t.ChanDir() {
 		case Crecv:
 			return "<-chan " + t.Elem().String()
 
@@ -604,7 +604,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 			return "chan<- " + t.Elem().String()
 		}
 
-		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().Chan == Crecv {
+		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == Crecv {
 			return "chan (" + t.Elem().String() + ")"
 		}
 		return "chan " + t.Elem().String()
@@ -1102,7 +1102,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
-			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.Chan == Crecv) {
+			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == Crecv) {
 				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(n.Val(), 0))
 			} else {
 				return fmt.Sprintf("%v(%v)", n.Type, Vconv(n.Val(), 0))

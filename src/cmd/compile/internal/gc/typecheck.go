@@ -1048,7 +1048,7 @@ OpSwitch:
 			return n
 		}
 
-		if t.Chan&Crecv == 0 {
+		if t.ChanDir()&Crecv == 0 {
 			Yyerror("invalid operation: %v (receive from send-only type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1075,7 +1075,7 @@ OpSwitch:
 			return n
 		}
 
-		if t.Chan&Csend == 0 {
+		if t.ChanDir()&Csend == 0 {
 			Yyerror("invalid operation: %v (send to receive-only type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1528,7 +1528,7 @@ OpSwitch:
 			return n
 		}
 
-		if t.Chan&Csend == 0 {
+		if t.ChanDir()&Csend == 0 {
 			Yyerror("invalid operation: %v (cannot close receive-only channel)", n)
 			n.Type = nil
 			return n
