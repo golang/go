@@ -721,7 +721,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		}
 
 	case TCHAN:
-		if t1.Chan != t2.Chan {
+		if t1.ChanDir() != t2.ChanDir() {
 			return false
 		}
 
@@ -844,7 +844,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// 4. src is a bidirectional channel value, dst is a channel type,
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
-	if src.IsChan() && src.Chan == Cboth && dst.IsChan() {
+	if src.IsChan() && src.ChanDir() == Cboth && dst.IsChan() {
 		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}

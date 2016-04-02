@@ -547,7 +547,7 @@ func (p *exporter) typ(t *Type) {
 
 	case TCHAN:
 		p.tag(chanTag)
-		p.int(int(t.Chan))
+		p.int(int(t.ChanDir()))
 		p.typ(t.Elem())
 
 	default:

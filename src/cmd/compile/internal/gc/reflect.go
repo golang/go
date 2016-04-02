@@ -1143,7 +1143,7 @@ ok:
 
 		ot = dcommontype(s, ot, t)
 		ot = dsymptr(s, ot, s1, 0)
-		ot = duintptr(s, ot, uint64(t.Chan))
+		ot = duintptr(s, ot, uint64(t.ChanDir()))
 		ot = dextratype(s, ot, t, 0)
 
 	case TFUNC:
