@@ -671,19 +671,20 @@ func typefmt(t *Type, flag FmtFlag) string {
 		return buf.String()
 
 	case TSTRUCT:
-		if t.Map != nil {
+		if m := t.StructType().Map; m != nil {
+			mt := m.MapType()
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
-			if t.Map.Bucket == t {
-				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Val().String()
+			if mt.Bucket == t {
+				return "map.bucket[" + m.Key().String() + "]" + m.Val().String()
 			}
 
-			if t.Map.Hmap == t {
-				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Val().String()
+			if mt.Hmap == t {
+				return "map.hdr[" + m.Key().String() + "]" + m.Val().String()
 			}
 
-			if t.Map.Hiter == t {
-				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Val().String()
+			if mt.Hiter == t {
+				return "map.iter[" + m.Key().String() + "]" + m.Val().String()
 			}
 
 			Yyerror("unknown internal map type")
@@ -735,7 +736,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		if fmtmode == FExp {
 			Fatalf("cannot use TDDDFIELD with old exporter")
 		}
-		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Wrapped())
+		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.DDDField())
 	}
 
 	if fmtmode == FExp {

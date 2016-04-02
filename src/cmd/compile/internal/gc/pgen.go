@@ -375,7 +375,7 @@ func compile(fn *Node) {
 	// set up domain for labels
 	clearlabels()
 
-	if Curfn.Type.Outnamed {
+	if Curfn.Type.FuncType().Outnamed {
 		// add clearing of the output parameters
 		for _, t := range Curfn.Type.Results().Fields().Slice() {
 			if t.Nname != nil {
