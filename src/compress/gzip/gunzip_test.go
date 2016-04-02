@@ -411,7 +411,7 @@ Found:
 }
 
 func TestNilStream(t *testing.T) {
-	// Go liberally interprets RFC1952 section 2.2 to mean that a gzip file
+	// Go liberally interprets RFC 1952 section 2.2 to mean that a gzip file
 	// consist of zero or more members. Thus, we test that a nil stream is okay.
 	_, err := NewReader(bytes.NewReader(nil))
 	if err != io.EOF {
