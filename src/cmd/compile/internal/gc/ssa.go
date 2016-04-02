@@ -4218,7 +4218,7 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
 
 func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
 	n := name.N.(*Node)
-	ptrType := Ptrto(n.Type.Type)
+	ptrType := Ptrto(n.Type.Elem())
 	lenType := Types[TINT]
 	if n.Class == PAUTO && !n.Addrtaken {
 		// Split this slice up into three separate variables.

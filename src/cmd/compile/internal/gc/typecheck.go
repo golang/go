@@ -2103,7 +2103,7 @@ OpSwitch:
 			return n
 		}
 
-		if Curfn.Type.Outnamed && n.List.Len() == 0 {
+		if Curfn.Type.FuncType().Outnamed && n.List.Len() == 0 {
 			break OpSwitch
 		}
 		typecheckaste(ORETURN, nil, false, Curfn.Type.Results(), n.List, func() string { return "return argument" })
@@ -2161,12 +2161,8 @@ OpSwitch:
 	t := n.Type
 	if t != nil && !t.IsFuncArgStruct() && n.Op != OTYPE {
 		switch t.Etype {
-		case TFUNC, // might have TANY; wait until its called
-			TANY,
-			TFORW,
-			TIDEAL,
-			TNIL,
-			TBLANK:
+		case TFUNC, // might have TANY; wait until it's called
+			TANY, TFORW, TIDEAL, TNIL, TBLANK:
 			break
 
 		default:
@@ -3522,13 +3518,13 @@ var mapqueue []*Node
 func copytype(n *Node, t *Type) {
 	if t.Etype == TFORW {
 		// This type isn't computed yet; when it is, update n.
-		t.Copyto = append(t.Copyto, n)
+		t.ForwardType().Copyto = append(t.ForwardType().Copyto, n)
 		return
 	}
 
 	maplineno := n.Type.Maplineno
-	embedlineno := n.Type.Embedlineno
-	l := n.Type.Copyto
+	embedlineno := n.Type.ForwardType().Embedlineno
+	l := n.Type.ForwardType().Copyto
 
 	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *t
@@ -3544,7 +3540,6 @@ func copytype(n *Node, t *Type) {
 	t.Nod = nil
 	t.Printed = false
 	t.Deferwidth = false
-	t.Copyto = nil
 
 	// Update nodes waiting on this type.
 	for _, n := range l {

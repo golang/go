@@ -287,7 +287,7 @@ func walkstmt(n *Node) *Node {
 		if n.List.Len() == 0 {
 			break
 		}
-		if (Curfn.Type.Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) {
+		if (Curfn.Type.FuncType().Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) {
 			// assign to the function out parameters,
 			// so that reorder3 can fix up conflicts
 			var rl []*Node

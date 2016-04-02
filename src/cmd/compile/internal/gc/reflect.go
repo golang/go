@@ -86,8 +86,8 @@ func makefield(name string, t *Type) *Field {
 }
 
 func mapbucket(t *Type) *Type {
-	if t.Bucket != nil {
-		return t.Bucket
+	if t.MapType().Bucket != nil {
+		return t.MapType().Bucket
 	}
 
 	bucket := typ(TSTRUCT)
@@ -157,17 +157,17 @@ func mapbucket(t *Type) *Type {
 		Yyerror("bad math in mapbucket for %v", t)
 	}
 
-	t.Bucket = bucket
+	t.MapType().Bucket = bucket
 
-	bucket.Map = t
+	bucket.StructType().Map = t
 	return bucket
 }
 
 // Builds a type representing a Hmap structure for the given map type.
 // Make sure this stays in sync with ../../../../runtime/hashmap.go!
 func hmap(t *Type) *Type {
-	if t.Hmap != nil {
-		return t.Hmap
+	if t.MapType().Hmap != nil {
+		return t.MapType().Hmap
 	}
 
 	bucket := mapbucket(t)
@@ -186,14 +186,14 @@ func hmap(t *Type) *Type {
 	h.Local = t.Local
 	h.SetFields(field[:])
 	dowidth(h)
-	t.Hmap = h
-	h.Map = t
+	t.MapType().Hmap = h
+	h.StructType().Map = t
 	return h
 }
 
 func hiter(t *Type) *Type {
-	if t.Hiter != nil {
-		return t.Hiter
+	if t.MapType().Hiter != nil {
+		return t.MapType().Hiter
 	}
 
 	// build a struct:
@@ -234,8 +234,8 @@ func hiter(t *Type) *Type {
 	if i.Width != int64(12*Widthptr) {
 		Yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
 	}
-	t.Hiter = i
-	i.Map = t
+	t.MapType().Hiter = i
+	i.StructType().Map = t
 	return i
 }
 
@@ -664,67 +664,47 @@ var kinds = []int{
 }
 
 func haspointers(t *Type) bool {
-	if t.Haspointers != 0 {
-		return t.Haspointers-1 != 0
-	}
-
-	var ret bool
 	switch t.Etype {
-	case TINT,
-		TUINT,
-		TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TUINTPTR,
-		TFLOAT32,
-		TFLOAT64,
-		TCOMPLEX64,
-		TCOMPLEX128,
-		TBOOL:
-		ret = false
+	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
+		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
+		return false
 
 	case TARRAY:
 		if t.IsSlice() {
-			ret = true
-			break
+			return true
 		}
 
-		if t.NumElem() == 0 { // empty array
-			ret = false
-			break
+		at := t.Extra.(*ArrayType)
+		if at.Haspointers != 0 {
+			return at.Haspointers-1 != 0
 		}
 
-		ret = haspointers(t.Elem())
+		ret := false
+		if t.NumElem() != 0 { // non-empty array
+			ret = haspointers(t.Elem())
+		}
+
+		at.Haspointers = 1 + uint8(obj.Bool2int(ret))
+		return ret
 
 	case TSTRUCT:
-		ret = false
+		st := t.StructType()
+		if st.Haspointers != 0 {
+			return st.Haspointers-1 != 0
+		}
+
+		ret := false
 		for _, t1 := range t.Fields().Slice() {
 			if haspointers(t1.Type) {
 				ret = true
 				break
 			}
 		}
-
-	case TSTRING,
-		TPTR32,
-		TPTR64,
-		TUNSAFEPTR,
-		TINTER,
-		TCHAN,
-		TMAP,
-		TFUNC:
-		fallthrough
-	default:
-		ret = true
+		st.Haspointers = 1 + uint8(obj.Bool2int(ret))
+		return ret
 	}
 
-	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
-	return ret
+	return true
 }
 
 // typeptrdata returns the length in bytes of the prefix of t

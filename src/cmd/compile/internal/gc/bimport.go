@@ -359,16 +359,20 @@ func (p *importer) typ() *Type {
 
 	case arrayTag, sliceTag:
 		t = p.newtyp(TARRAY)
+		var bound int64
 		if i == arrayTag {
-			t.SetNumElem(p.int64())
-		} else {
-			t.SetNumElem(sliceBound)
+			bound = p.int64()
 		}
-		t.Type = p.typ()
+		elem := p.typ()
+		if i == arrayTag {
+			t.Extra = &ArrayType{Elem: elem, Bound: bound}
+		} else {
+			t.Extra = SliceType{Elem: elem}
+		}
 
 	case dddTag:
 		t = p.newtyp(TDDDFIELD)
-		t.Type = p.typ()
+		t.Extra = DDDFieldType{T: p.typ()}
 
 	case structTag:
 		t = p.newtyp(TSTRUCT)
@@ -376,7 +380,7 @@ func (p *importer) typ() *Type {
 
 	case pointerTag:
 		t = p.newtyp(Tptr)
-		t.Type = p.typ()
+		t.Extra = PtrType{Elem: p.typ()}
 
 	case signatureTag:
 		t = p.newtyp(TFUNC)
@@ -393,13 +397,15 @@ func (p *importer) typ() *Type {
 
 	case mapTag:
 		t = p.newtyp(TMAP)
-		t.Down = p.typ() // key
-		t.Type = p.typ() // val
+		mt := t.MapType()
+		mt.Key = p.typ()
+		mt.Val = p.typ()
 
 	case chanTag:
 		t = p.newtyp(TCHAN)
-		t.Chan = ChanDir(p.int())
-		t.Type = p.typ()
+		ct := t.ChanType()
+		ct.Dir = ChanDir(p.int())
+		ct.Elem = p.typ()
 
 	default:
 		Fatalf("importer: unexpected type (tag = %d)", i)
@@ -444,7 +450,7 @@ func (p *importer) field() *Node {
 		// anonymous field - typ must be T or *T and T must be a type name
 		s := typ.Sym
 		if s == nil && typ.IsPtr() {
-			s = typ.Type.Sym // deref
+			s = typ.Elem().Sym // deref
 		}
 		pkg := importpkg
 		if sym != nil {
@@ -531,7 +537,7 @@ func (p *importer) param(named bool) *Node {
 	isddd := false
 	if typ.Etype == TDDDFIELD {
 		// TDDDFIELD indicates wrapped ... slice type
-		typ = typSlice(typ.Wrapped())
+		typ = typSlice(typ.DDDField())
 		isddd = true
 	}
 

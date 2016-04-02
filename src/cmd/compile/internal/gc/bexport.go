@@ -602,7 +602,7 @@ func (p *exporter) typ(t *Type) {
 	case TDDDFIELD:
 		// see p.param use of TDDDFIELD
 		p.tag(dddTag)
-		p.typ(t.Wrapped())
+		p.typ(t.DDDField())
 
 	case TSTRUCT:
 		p.tag(structTag)
@@ -768,7 +768,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	t := q.Type
 	if q.Isddd {
 		// create a fake type to encode ... just for the p.typ call
-		t = typWrapper(TDDDFIELD, t.Elem())
+		t = typDDDField(t.Elem())
 	}
 	p.typ(t)
 	if n > 0 {

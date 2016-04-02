@@ -743,8 +743,8 @@ func checkembeddedtype(t *Type) {
 
 	if t.IsPtr() {
 		Yyerror("embedded type cannot be a pointer")
-	} else if t.Etype == TFORW && t.Embedlineno == 0 {
-		t.Embedlineno = lineno
+	} else if t.Etype == TFORW && t.ForwardType().Embedlineno == 0 {
+		t.ForwardType().Embedlineno = lineno
 	}
 }
 
@@ -855,7 +855,7 @@ func tostruct0(t *Type, l []*Node) {
 
 func tofunargs(l []*Node) *Type {
 	t := typ(TSTRUCT)
-	t.Funarg = true
+	t.StructType().Funarg = true
 
 	fields := make([]*Field, len(l))
 	for i, n := range l {
@@ -1061,11 +1061,11 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 		t.Broke = true
 	}
 
-	t.Outnamed = false
+	t.FuncType().Outnamed = false
 	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
 		s := out[0].Left.Orig.Sym
 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
-			t.Outnamed = true
+			t.FuncType().Outnamed = true
 		}
 	}
 }
