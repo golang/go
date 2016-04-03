@@ -80,11 +80,13 @@ func checkErrorPredicate(predName string, pred func(error) bool, err error) stri
 	return ""
 }
 
-var isExistTests = []struct {
+type isExistTest struct {
 	err   error
 	is    bool
 	isnot bool
-}{
+}
+
+var isExistTests = []isExistTest{
 	{&os.PathError{Err: os.ErrInvalid}, false, false},
 	{&os.PathError{Err: os.ErrPermission}, false, false},
 	{&os.PathError{Err: os.ErrExist}, true, false},
@@ -109,10 +111,12 @@ func TestIsExist(t *testing.T) {
 	}
 }
 
-var isPermissionTests = []struct {
+type isPermissionTest struct {
 	err  error
 	want bool
-}{
+}
+
+var isPermissionTests = []isPermissionTest{
 	{nil, false},
 	{&os.PathError{Err: os.ErrPermission}, true},
 	{&os.SyscallError{Err: os.ErrPermission}, true},
