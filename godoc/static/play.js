@@ -3,16 +3,16 @@
 // license that can be found in the LICENSE file.
 
 function initPlayground(transport) {
-	"use strict";
+	'use strict';
 
 	function text(node) {
-		var s = "";
+		var s = '';
 		for (var i = 0; i < node.childNodes.length; i++) {
 			var n = node.childNodes[i];
 			if (n.nodeType === 1) {
-				if (n.tagName === "BUTTON") continue
-				if (n.tagName === "SPAN" && n.className === "number") continue;
-				if (n.tagName === "DIV" || n.tagName == "BR") {
+				if (n.tagName === 'BUTTON') continue
+				if (n.tagName === 'SPAN' && n.className === 'number') continue;
+				if (n.tagName === 'DIV' || n.tagName == 'BR') {
 					s += "\n";
 				}
 				s += text(n);
@@ -22,41 +22,53 @@ function initPlayground(transport) {
 				s += n.nodeValue;
 			}
 		}
-		return s.replace("\xA0", " "); // replace non-breaking spaces
+		return s.replace('\xA0', ' '); // replace non-breaking spaces
 	}
 
-	function init(code) {
+	// When presenter notes are enabled, the index passed
+	// here will identify the playground to be synced
+	function init(code, index) {
 		var output = document.createElement('div');
 		var outpre = document.createElement('pre');
 		var running;
 
 		if ($ && $(output).resizable) {
 			$(output).resizable({
-				handles: "n,w,nw",
+				handles: 	'n,w,nw',
 				minHeight:	27,
 				minWidth:	135,
-				maxHeight: 608,
+				maxHeight:	608,
 				maxWidth:	990
 			});
 		}
 
 		function onKill() {
 			if (running) running.Kill();
+			if (notesEnabled) updatePlayStorage('onKill', index);
 		}
 
 		function onRun(e) {
-			onKill();
-			output.style.display = "block";
-			outpre.innerHTML = "";
-			run1.style.display = "none";
-			var options = {Race: e.shiftKey};
+			var sk = e.shiftKey || localStorage.getItem('play-shiftKey') === 'true';
+			if (running) running.Kill();
+			output.style.display = 'block';
+			outpre.innerHTML = '';
+			run1.style.display = 'none';
+			var options = {Race: sk};
 			running = transport.Run(text(code), PlaygroundOutput(outpre), options);
+			if (notesEnabled) updatePlayStorage('onRun', index, e);
 		}
 
 		function onClose() {
-			onKill();
-			output.style.display = "none";
-			run1.style.display = "inline-block";
+			if (running) running.Kill();
+			output.style.display = 'none';
+			run1.style.display = 'inline-block';
+			if (notesEnabled) updatePlayStorage('onClose', index);
+		}
+
+		if (notesEnabled) {
+			playgroundHandlers.onRun.push(onRun);
+			playgroundHandlers.onClose.push(onClose);
+			playgroundHandlers.onKill.push(onKill);
 		}
 
 		var run1 = document.createElement('button');
@@ -91,13 +103,12 @@ function initPlayground(transport) {
 		output.classList.add('output');
 		output.appendChild(buttons);
 		output.appendChild(outpre);
-		output.style.display = "none";
+		output.style.display = 'none';
 		code.parentNode.insertBefore(output, button.nextSibling);
 	}
 
 	var play = document.querySelectorAll('div.playground');
 	for (var i = 0; i < play.length; i++) {
-		init(play[i]);
+		init(play[i], i);
 	}
 }
-

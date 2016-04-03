@@ -6,7 +6,18 @@
   <head>
     <title>{{.Title}}</title>
     <meta charset='utf-8'>
+    <script>
+      var notesEnabled = {{.NotesEnabled}};
+    </script>
     <script src='/static/slides.js'></script>
+
+    {{if .NotesEnabled}}
+    <script>
+      var sections = {{.Sections}};
+    </script>
+    <script src='/static/notes.js'></script>
+    {{end}}
+
     <script>
       // Initialize Google Analytics tracking code on production site only.
       if (window["location"] && window["location"]["hostname"] == "talks.golang.org") {

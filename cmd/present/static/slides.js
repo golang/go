@@ -14,17 +14,17 @@ var curSlide;
 /* classList polyfill by Eli Grey
  * (http://purl.eligrey.com/github/classList.js/blob/master/classList.js) */
 
-if (typeof document !== "undefined" && !("classList" in document.createElement("a"))) {
+if (typeof document !== 'undefined' && !('classList' in document.createElement('a'))) {
 
 (function (view) {
 
 var
-    classListProp = "classList"
-  , protoProp = "prototype"
+    classListProp = 'classList'
+  , protoProp = 'prototype'
   , elemCtrProto = (view.HTMLElement || view.Element)[protoProp]
   , objCtr = Object
     strTrim = String[protoProp].trim || function () {
-    return this.replace(/^\s+|\s+$/g, "");
+    return this.replace(/^\s+|\s+$/g, '');
   }
   , arrIndexOf = Array[protoProp].indexOf || function (item) {
     for (var i = 0, len = this.length; i < len; i++) {
@@ -41,16 +41,16 @@ var
     this.message = message;
   }
   , checkTokenAndGetIndex = function (classList, token) {
-    if (token === "") {
+    if (token === '') {
       throw new DOMEx(
-          "SYNTAX_ERR"
-        , "An invalid or illegal string was specified"
+          'SYNTAX_ERR'
+        , 'An invalid or illegal string was specified'
       );
     }
     if (/\s/.test(token)) {
       throw new DOMEx(
-          "INVALID_CHARACTER_ERR"
-        , "String contains an invalid character"
+          'INVALID_CHARACTER_ERR'
+        , 'String contains an invalid character'
       );
     }
     return arrIndexOf.call(classList, token);
@@ -79,18 +79,18 @@ classListProto.item = function (i) {
   return this[i] || null;
 };
 classListProto.contains = function (token) {
-  token += "";
+  token += '';
   return checkTokenAndGetIndex(this, token) !== -1;
 };
 classListProto.add = function (token) {
-  token += "";
+  token += '';
   if (checkTokenAndGetIndex(this, token) === -1) {
     this.push(token);
     this._updateClassName();
   }
 };
 classListProto.remove = function (token) {
-  token += "";
+  token += '';
   var index = checkTokenAndGetIndex(this, token);
   if (index !== -1) {
     this.splice(index, 1);
@@ -98,7 +98,7 @@ classListProto.remove = function (token) {
   }
 };
 classListProto.toggle = function (token) {
-  token += "";
+  token += '';
   if (checkTokenAndGetIndex(this, token) === -1) {
     this.add(token);
   } else {
@@ -106,7 +106,7 @@ classListProto.toggle = function (token) {
   }
 };
 classListProto.toString = function () {
-  return this.join(" ");
+  return this.join(' ');
 };
 
 if (objCtr.defineProperty) {
@@ -211,6 +211,8 @@ function prevSlide() {
 
     updateSlides();
   }
+
+  if (notesEnabled) localStorage.setItem('destSlide', curSlide);
 };
 
 function nextSlide() {
@@ -220,6 +222,8 @@ function nextSlide() {
 
     updateSlides();
   }
+
+  if (notesEnabled) localStorage.setItem('destSlide', curSlide);
 };
 
 /* Slide events */
@@ -395,9 +399,12 @@ function updateHash() {
 
 function handleBodyKeyDown(event) {
   // If we're in a code element, only handle pgup/down.
-  var inCode = event.target.classList.contains("code");
+  var inCode = event.target.classList.contains('code');
 
   switch (event.keyCode) {
+    case 78: // 'N' opens presenter notes window
+      if (!inCode && notesEnabled) toggleNotesWindow();
+      break;
     case 72: // 'H' hides the help text
     case 27: // escape key
       if (!inCode) hideHelpText();
@@ -481,11 +488,13 @@ function handleDomLoaded() {
 
   setupInteraction();
 
-  if (window.location.hostname == "localhost" || window.location.hostname == "127.0.0.1" || window.location.hostname == "::1") {
+  if (window.location.hostname == 'localhost' || window.location.hostname == '127.0.0.1' || window.location.hostname == '::1') {
     hideHelpText();
   }
 
   document.body.classList.add('loaded');
+
+  setupNotesSync();
 };
 
 function initialize() {
@@ -520,4 +529,57 @@ if (!window['_DEBUG'] && document.location.href.indexOf('?debug') !== -1) {
   s.parentNode.removeChild(s);
 } else {
   initialize();
+}
+
+/* Synchronize windows when notes are enabled */
+
+function setupNotesSync() {
+  if (!notesEnabled) return;
+
+  function setupPlayResizeSync() {
+    var out = document.getElementsByClassName('output');
+    for (let i = 0; i < out.length; i++) {
+      $(out[i]).bind('resize', function(event) {
+        if ($(event.target).hasClass('ui-resizable')) {
+          localStorage.setItem('play-index', i);
+          localStorage.setItem('output-style', out[i].style.cssText);
+        }
+      })
+    }
+  };
+  function setupPlayCodeSync() {
+    var play = document.querySelectorAll('div.playground');
+    for (let i = 0; i < play.length; i++) {
+      play[i].addEventListener('input', inputHandler, false);
+
+      function inputHandler(e) {
+        localStorage.setItem('play-index', i);
+        localStorage.setItem('play-code', e.target.innerHTML);
+      }
+    }
+  };
+
+  setupPlayCodeSync();
+  setupPlayResizeSync();
+  localStorage.setItem('destSlide', curSlide);
+  window.addEventListener('storage', updateOtherWindow, false);
+}
+
+// An update to local storage is caught only by the other window
+// The triggering window does not handle any sync actions
+function updateOtherWindow(e) {
+  // Ignore remove storage events which are not meant to update the other window
+  var isRemoveStorageEvent = !e.newValue;
+  if (isRemoveStorageEvent) return;
+
+  var destSlide = localStorage.getItem('destSlide');
+  while (destSlide > curSlide) {
+    nextSlide();
+  }
+  while (destSlide < curSlide) {
+    prevSlide();
+  }
+
+  updatePlay(e);
+  updateNotes();
 }
