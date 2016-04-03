@@ -1285,7 +1285,7 @@ const (
 	R_MIPS_LITERAL       R_MIPS = 8  /* Reference to literal section  */
 	R_MIPS_GOT16         R_MIPS = 9  /* Reference to global offset table */
 	R_MIPS_PC16          R_MIPS = 10 /* 16 bit PC relative reference */
-	R_MIPS_CALL16        R_MIPS = 11 /* 16 bit call thru glbl offset tbl */
+	R_MIPS_CALL16        R_MIPS = 11 /* 16 bit call through glbl offset tbl */
 	R_MIPS_GPREL32       R_MIPS = 12
 	R_MIPS_SHIFT5        R_MIPS = 16
 	R_MIPS_SHIFT6        R_MIPS = 17

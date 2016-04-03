@@ -14,7 +14,7 @@ import (
 // deadcode marks all reachable symbols.
 //
 // The basis of the dead code elimination is a flood fill of symbols,
-// following their relocations, begining at INITENTRY.
+// following their relocations, beginning at INITENTRY.
 //
 // This flood fill is wrapped in logic for pruning unused methods.
 // All methods are mentioned by relocations on their receiver's *rtype.

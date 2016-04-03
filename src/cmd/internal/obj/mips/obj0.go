@@ -1229,7 +1229,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 			s.used.ireg |= 1 << uint(c-REG_R0)
 		}
 	}
-	s.set.ireg &^= (1 << (REGZERO - REG_R0)) /* R0 cant be set */
+	s.set.ireg &^= (1 << (REGZERO - REG_R0)) /* R0 can't be set */
 }
 
 /*
@@ -1400,7 +1400,7 @@ loop:
 				r = ctxt.NewProg()
 				*r = *p
 				if r.Mark&FOLL == 0 {
-					fmt.Printf("cant happen 1\n")
+					fmt.Printf("can't happen 1\n")
 				}
 				r.Mark |= FOLL
 				if p != q {
@@ -1425,7 +1425,7 @@ loop:
 					xfol(ctxt, r.Link, last)
 				}
 				if r.Pcond.Mark&FOLL == 0 {
-					fmt.Printf("cant happen 2\n")
+					fmt.Printf("can't happen 2\n")
 				}
 				return
 			}

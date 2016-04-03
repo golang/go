@@ -1825,7 +1825,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 			// special case --
 			// only if we are assigning a single ddd
 			// argument to a ddd parameter then it is
-			// passed thru unencapsulated
+			// passed through unencapsulated
 			if r != nil && len(lr) <= 1 && isddd && Eqtype(l.Type, r.Type) {
 				a := Nod(OAS, nodarg(l, fp), r)
 				a = convas(a, init)

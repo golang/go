@@ -44,7 +44,7 @@ const (
 
 // domain represents the domain of a variable pair in which a set
 // of relations is known.  For example, relations learned for unsigned
-// pairs cannot be transfered to signed pairs because the same bit
+// pairs cannot be transferred to signed pairs because the same bit
 // representation can mean something else.
 type domain uint
 

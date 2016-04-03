@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// IntLiteral returns the Node's literal value as an interger.
+// IntLiteral returns the Node's literal value as an integer.
 func (n *Node) IntLiteral() (x int64, ok bool) {
 	switch {
 	case n == nil:

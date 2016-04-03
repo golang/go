@@ -116,7 +116,7 @@ func cgen_wb(n, res *Node, wb bool) {
 				return
 			}
 
-			f := true // gen thru register
+			f := true // gen through register
 			switch n.Op {
 			case OLITERAL:
 				if Smallintconst(n) {
