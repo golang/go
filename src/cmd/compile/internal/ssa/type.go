@@ -40,8 +40,7 @@ type Type interface {
 
 	String() string
 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
-	Equal(Type) bool
-	Compare(Type) Cmp // compare types, returning one of CMPlt, CMPeq, CMPgt.
+	Compare(Type) Cmp     // compare types, returning one of CMPlt, CMPeq, CMPgt.
 }
 
 // Special compiler-only types.
@@ -115,14 +114,6 @@ func (t *CompilerType) Compare(u Type) Cmp {
 		return CMPgt
 	}
 	return CMPlt
-}
-
-func (t *CompilerType) Equal(u Type) bool {
-	x, ok := u.(*CompilerType)
-	if !ok {
-		return false
-	}
-	return x == t
 }
 
 var (

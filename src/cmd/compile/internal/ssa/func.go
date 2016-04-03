@@ -318,7 +318,7 @@ func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value 
 	}
 	vv := f.constants[c]
 	for _, v := range vv {
-		if v.Op == op && v.Type.Equal(t) {
+		if v.Op == op && v.Type.Compare(t) == CMPeq {
 			if setAux && v.AuxInt != c {
 				panic(fmt.Sprintf("cached const %s should have AuxInt of %d", v.LongString(), c))
 			}

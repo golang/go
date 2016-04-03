@@ -108,7 +108,7 @@ func cse(f *Func) {
 						break
 					}
 				}
-				if !equivalent || !v.Type.Equal(w.Type) {
+				if !equivalent || v.Type.Compare(w.Type) != CMPeq {
 					// w is not equivalent to v.
 					// move it to the end and shrink e.
 					e[j], e[len(e)-1] = e[len(e)-1], e[j]

@@ -201,7 +201,7 @@ func (s *stackAllocState) stackalloc() {
 			} else {
 				name = names[v.ID]
 			}
-			if name.N != nil && v.Type.Equal(name.Type) {
+			if name.N != nil && v.Type.Compare(name.Type) == CMPeq {
 				for _, id := range s.interfere[v.ID] {
 					h := f.getHome(id)
 					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
@@ -372,7 +372,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			if s.values[v.ID].needSlot {
 				live.remove(v.ID)
 				for _, id := range live.contents() {
-					if s.values[v.ID].typ.Equal(s.values[id].typ) {
+					if s.values[v.ID].typ.Compare(s.values[id].typ) == CMPeq {
 						s.interfere[v.ID] = append(s.interfere[v.ID], id)
 						s.interfere[id] = append(s.interfere[id], v.ID)
 					}

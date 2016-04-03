@@ -863,19 +863,12 @@ func (t *Type) SimpleString() string {
 	return Econv(t.Etype)
 }
 
-func (t *Type) Equal(u ssa.Type) bool {
-	x, ok := u.(*Type)
-	return ok && Eqtype(t, x)
-}
-
 // Compare compares types for purposes of the SSA back
 // end, returning an ssa.Cmp (one of CMPlt, CMPeq, CMPgt).
 // The answers are correct for an optimizer
-// or code generator, but not for Go source.
-// For example, "type gcDrainFlags int" results in
-// two Go-different types that Compare equal.
-// The order chosen is also arbitrary, only division into
-// equivalence classes (Types that compare CMPeq) matters.
+// or code generator, but not necessarily typechecking.
+// The order chosen is arbitrary, only consistency and division
+// into equivalence classes (Types that compare CMPeq) matters.
 func (t *Type) Compare(u ssa.Type) ssa.Cmp {
 	x, ok := u.(*Type)
 	// ssa.CompilerType is smaller than gc.Type
