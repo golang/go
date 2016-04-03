@@ -122,7 +122,7 @@ nextb:
 			max = w
 		}
 
-		// We can only guarantee that the loops runs withing limits of induction variable
+		// We can only guarantee that the loops runs within limits of induction variable
 		// if the increment is 1 or when the limits are constants.
 		if inc.AuxInt != 1 {
 			ok := false

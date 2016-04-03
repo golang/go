@@ -43,7 +43,7 @@ type HeaderField struct {
 
 // IsPseudo reports whether the header field is an http2 pseudo header.
 // That is, it reports whether it starts with a colon.
-// It is not otherwise guaranteed to be a valid psuedo header field,
+// It is not otherwise guaranteed to be a valid pseudo header field,
 // though.
 func (hf HeaderField) IsPseudo() bool {
 	return len(hf.Name) != 0 && hf.Name[0] == ':'

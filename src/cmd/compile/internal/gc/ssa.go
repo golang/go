@@ -4128,7 +4128,7 @@ func fieldIdx(n *Node) int {
 	}
 	panic(fmt.Sprintf("can't find field in expr %s\n", n))
 
-	// TODO: keep the result of this fucntion somewhere in the ODOT Node
+	// TODO: keep the result of this function somewhere in the ODOT Node
 	// so we don't have to recompute it each time we need it.
 }
 

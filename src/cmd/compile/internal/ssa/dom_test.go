@@ -67,7 +67,7 @@ func genFwdBack(size int) []bloc {
 	return blocs
 }
 
-// genManyPred creates an array of blocks where 1/3rd have a sucessor of the
+// genManyPred creates an array of blocks where 1/3rd have a successor of the
 // first block, 1/3rd the last block, and the remaining third are plain.
 func genManyPred(size int) []bloc {
 	var blocs []bloc
@@ -80,7 +80,7 @@ func genManyPred(size int) []bloc {
 	)
 
 	// We want predecessor lists to be long, so 2/3rds of the blocks have a
-	// sucessor of the first or last block.
+	// successor of the first or last block.
 	for i := 0; i < size; i++ {
 		switch i % 3 {
 		case 0:

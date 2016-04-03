@@ -389,7 +389,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		}
 		stat = append(stat, n.Nbody.Slice()...)
 
-		// botch - shouldn't fall thru declaration
+		// botch - shouldn't fall through declaration
 		last := stat[len(stat)-1]
 		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
 			if typeswvar != nil {

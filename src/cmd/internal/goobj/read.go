@@ -217,7 +217,7 @@ type FuncData struct {
 type Package struct {
 	ImportPath string   // import path denoting this package
 	Imports    []string // packages imported by this package
-	SymRefs    []SymID  // list of symbol names and versions refered to by this pack
+	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
 	Syms       []*Sym   // symbols defined by this package
 	MaxVersion int      // maximum Version in any SymID in Syms
 }
