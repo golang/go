@@ -110,7 +110,7 @@ var (
 type Type struct {
 	Etype       EType
 	Noalg       bool
-	Chan        uint8
+	Chan        ChanDir
 	Trecur      uint8 // to detect loops
 	Printed     bool
 	Funarg      bool // on TSTRUCT and TFIELD
@@ -266,7 +266,7 @@ func typDDDArray(elem *Type) *Type {
 }
 
 // typChan returns a new chan Type with direction dir.
-func typChan(elem *Type, dir uint8) *Type {
+func typChan(elem *Type, dir ChanDir) *Type {
 	t := typ(TCHAN)
 	t.Type = elem
 	t.Chan = dir
@@ -957,7 +957,7 @@ func (t *Type) SetNumElem(n int64) {
 
 // ChanDir returns the direction of a channel type t.
 // The direction will be one of Crecv, Csend, or Cboth.
-func (t *Type) ChanDir() uint8 {
+func (t *Type) ChanDir() ChanDir {
 	t.wantEtype(TCHAN)
 	return t.Chan
 }

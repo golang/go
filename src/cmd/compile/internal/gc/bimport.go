@@ -316,7 +316,7 @@ func (p *importer) typ() *Type {
 
 	case chanTag:
 		t = p.newtyp(TCHAN)
-		t.Chan = uint8(p.int())
+		t.Chan = ChanDir(p.int())
 		t.Type = p.typ()
 
 	default:

@@ -414,7 +414,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 		}
-		t := typChan(l.Type, uint8(n.Etype)) // TODO(marvin): Fix Node.EType type union.
+		t := typChan(l.Type, ChanDir(n.Etype)) // TODO(marvin): Fix Node.EType type union.
 		n.Op = OTYPE
 		n.Type = t
 		n.Left = nil
@@ -1048,7 +1048,7 @@ OpSwitch:
 			return n
 		}
 
-		if t.ChanDir()&Crecv == 0 {
+		if !t.ChanDir().CanRecv() {
 			Yyerror("invalid operation: %v (receive from send-only type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1075,7 +1075,7 @@ OpSwitch:
 			return n
 		}
 
-		if t.ChanDir()&Csend == 0 {
+		if !t.ChanDir().CanSend() {
 			Yyerror("invalid operation: %v (send to receive-only type %v)", n, t)
 			n.Type = nil
 			return n
@@ -1528,7 +1528,7 @@ OpSwitch:
 			return n
 		}
 
-		if t.ChanDir()&Csend == 0 {
+		if !t.ChanDir().CanSend() {
 			Yyerror("invalid operation: %v (cannot close receive-only channel)", n)
 			n.Type = nil
 			return n
