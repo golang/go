@@ -41,8 +41,6 @@ Future/other
 ------------
 - Start another architecture (arm?)
 - 64-bit ops on 32-bit machines
-- Investigate type equality. During SSA generation, should we use n.Type or (say) TypeBool?
 - Should we get rid of named types in favor of underlying types during SSA generation?
-- Should we introduce a new type equality routine that is less strict than the frontend's?
 - Infrastructure for enabling/disabling/configuring passes
 - Modify logging for at least pass=1, to be Warnl compatible
