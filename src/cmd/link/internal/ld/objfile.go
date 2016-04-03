@@ -523,40 +523,49 @@ func (r *objReader) readData() []byte {
 
 // readSymName reads a symbol name, replacing all "". with pkg.
 func (r *objReader) readSymName() string {
-	rdBuf := r.rdBuf
 	pkg := r.pkg
 	n := r.readInt()
 	if n == 0 {
 		r.readInt64()
 		return ""
 	}
-
-	if len(rdBuf) < n {
-		rdBuf = make([]byte, n, 2*n)
+	origName, err := r.rd.Peek(n)
+	if err != nil {
+		log.Fatalf("%s: unexpectedly long symbol name", r.pn)
 	}
-	origName := rdBuf[:n]
-	r.readFull(origName)
-	adjName := rdBuf[n:n]
+	// Calculate needed scratch space, accounting for the growth
+	// of all the `"".` substrings to pkg+".":
+	need := len(origName) + maxInt(0, bytes.Count(origName, emptyPkg)*(len(pkg)+len(".")-len(emptyPkg)))
+	if len(r.rdBuf) < need {
+		r.rdBuf = make([]byte, need)
+	}
+	adjName := r.rdBuf[:0]
 	for {
 		i := bytes.Index(origName, emptyPkg)
 		if i == -1 {
-			adjName = append(adjName, origName...)
-			break
+			s := string(append(adjName, origName...))
+			// Read past the peeked origName, now that we're done with it,
+			// using the rfBuf (also no longer used) as the scratch space.
+			// TODO: use bufio.Reader.Discard if available instead?
+			r.readFull(r.rdBuf[:n])
+			return s
 		}
 		adjName = append(adjName, origName[:i]...)
 		adjName = append(adjName, pkg...)
 		adjName = append(adjName, '.')
 		origName = origName[i+len(emptyPkg):]
 	}
-	name := string(adjName)
-	if len(adjName) > len(rdBuf) {
-		r.rdBuf = adjName // save the larger buffer for reuse
-	}
-	return name
 }
 
 // Reads the index of a symbol reference and resolves it to a symbol
 func (r *objReader) readSymIndex() *LSym {
 	i := r.readInt()
 	return r.refs[i]
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
