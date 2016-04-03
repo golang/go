@@ -31,6 +31,7 @@ var (
 
 func main() {
 	flag.BoolVar(&present.PlayEnabled, "play", true, "enable playground (permit execution of arbitrary user code)")
+	flag.BoolVar(&present.NotesEnabled, "notes", false, "enable presenter notes (press 'N' from the browser to display them)")
 	flag.Parse()
 
 	if *basePath == "" {
@@ -85,6 +86,9 @@ func main() {
 	}
 
 	log.Printf("Open your web browser and visit %s", origin.String())
+	if present.NotesEnabled {
+		log.Println("Notes are enabled, press 'N' from the browser to display them.")
+	}
 	log.Fatal(http.Serve(ln, nil))
 }
 

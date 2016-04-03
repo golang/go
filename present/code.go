@@ -15,13 +15,18 @@ import (
 	"strings"
 )
 
-// Is the playground available?
+// PlayEnabled specifies whether runnable playground snippets should be
+// displayed in the present user interface.
 var PlayEnabled = false
 
 // TODO(adg): replace the PlayEnabled flag with something less spaghetti-like.
 // Instead this will probably be determined by a template execution Context
 // value that contains various global metadata required when rendering
 // templates.
+
+// NotesEnabled specifies whether presenter notes should be displayed in the
+// present user interface.
+var NotesEnabled = false
 
 func init() {
 	Register("code", parseCode)
