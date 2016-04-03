@@ -58,7 +58,7 @@ func typecheckrange(n *Node) {
 		t2 = t.Val()
 
 	case TCHAN:
-		if t.ChanDir()&Crecv == 0 {
+		if !t.ChanDir().CanRecv() {
 			Yyerror("invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
 			goto out
 		}

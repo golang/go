@@ -1187,17 +1187,17 @@ func (p *parser) uexpr() *Node {
 
 		if x.Op == OTCHAN {
 			// x is a channel type => re-associate <-
-			dir := EType(Csend)
+			dir := Csend
 			t := x
 			for ; t.Op == OTCHAN && dir == Csend; t = t.Left {
-				dir = t.Etype
+				dir = ChanDir(t.Etype)
 				if dir == Crecv {
 					// t is type <-chan E but <-<-chan E is not permitted
 					// (report same error as for "type _ <-<-chan E")
 					p.syntax_error("unexpected <-, expecting chan")
 					// already progressed, no need to advance
 				}
-				t.Etype = Crecv
+				t.Etype = EType(Crecv)
 			}
 			if dir == Csend {
 				// channel dir is <- but channel element E is not a channel
@@ -1697,7 +1697,7 @@ func (p *parser) try_ntype() *Node {
 		p.next()
 		p.want(LCHAN)
 		t := Nod(OTCHAN, p.chan_elem(), nil)
-		t.Etype = Crecv
+		t.Etype = EType(Crecv)
 		return t
 
 	case LFUNC:
@@ -1726,9 +1726,9 @@ func (p *parser) try_ntype() *Node {
 		// LCHAN non_recvchantype
 		// LCHAN LCOMM ntype
 		p.next()
-		var dir EType = Cboth
+		var dir = EType(Cboth)
 		if p.got(LCOMM) {
-			dir = Csend
+			dir = EType(Csend)
 		}
 		t := Nod(OTCHAN, p.chan_elem(), nil)
 		t.Etype = dir

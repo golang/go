@@ -1154,7 +1154,7 @@ func exprfmt(n *Node, prec int) string {
 		return fmt.Sprintf("map[%v]%v", n.Left, n.Right)
 
 	case OTCHAN:
-		switch n.Etype {
+		switch ChanDir(n.Etype) {
 		case Crecv:
 			return fmt.Sprintf("<-chan %v", n.Left)
 
@@ -1162,7 +1162,7 @@ func exprfmt(n *Node, prec int) string {
 			return fmt.Sprintf("chan<- %v", n.Left)
 
 		default:
-			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && n.Left.Etype == Crecv {
+			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && ChanDir(n.Left.Etype) == Crecv {
 				return fmt.Sprintf("chan (%v)", n.Left)
 			} else {
 				return fmt.Sprintf("chan %v", n.Left)

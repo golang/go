@@ -128,12 +128,18 @@ const (
 	CTNIL
 )
 
+// ChanDir is whether a channel can send, receive, or both.
+type ChanDir uint8
+
+func (c ChanDir) CanRecv() bool { return c&Crecv != 0 }
+func (c ChanDir) CanSend() bool { return c&Csend != 0 }
+
 const (
 	// types of channel
 	// must match ../../../../reflect/type.go:/ChanDir
-	Crecv = 1 << 0
-	Csend = 1 << 1
-	Cboth = Crecv | Csend
+	Crecv ChanDir = 1 << 0
+	Csend ChanDir = 1 << 1
+	Cboth ChanDir = Crecv | Csend
 )
 
 // The Class of a variable/function describes the "storage class"
