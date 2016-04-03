@@ -224,5 +224,35 @@ It is your responsibilty to make sure the included HTML is valid and safe.
 
 	.html file.html
 
+Presenter notes:
+
+Presenter notes may be enabled by appending the "-notes" flag when you run
+your "present" binary.
+
+This will allow you to open a second window by pressing 'N' from your browser
+displaying your slides. The second window is completely synced with your main
+window, except that presenter notes are only visible on the second window.
+
+Lines that begin with ": " are treated as presenter notes.
+
+	* Title of slide
+
+	Some Text
+
+	: Presenter notes (first paragraph)
+	: Presenter notes (subsequent paragraph(s))
+
+Notes may appear anywhere within the slide text. For example:
+
+	* Title of slide
+
+	: Presenter notes (first paragraph)
+
+	Some Text
+
+	: Presenter notes (subsequent paragraph(s))
+
+This has the same result as the example above.
+
 */
 package present // import "golang.org/x/tools/present"
