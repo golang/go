@@ -120,8 +120,8 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 // Tracing lasts for duration specified in seconds GET parameter, or for 1 second if not specified.
 // The package initialization registers it as /debug/pprof/trace.
 func Trace(w http.ResponseWriter, r *http.Request) {
-	sec, _ := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
-	if sec == 0 {
+	sec, err := strconv.ParseFloat(r.FormValue("seconds"), 64)
+	if sec <= 0 || err != nil {
 		sec = 1
 	}
 
@@ -136,7 +136,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
 		return
 	}
-	sleep(w, time.Duration(sec)*time.Second)
+	sleep(w, time.Duration(sec*float64(time.Second)))
 	trace.Stop()
 }
 
