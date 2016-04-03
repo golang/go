@@ -132,10 +132,6 @@ func newPrinter() *pp {
 
 // free saves used pp structs in ppFree; avoids an allocation per invocation.
 func (p *pp) free() {
-	// Don't hold on to pp structs with large buffers.
-	if cap(p.buf) > 1024 {
-		return
-	}
 	p.buf = p.buf[:0]
 	p.arg = nil
 	p.value = reflect.Value{}
