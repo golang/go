@@ -97,6 +97,7 @@ type Section struct {
 	Number []int
 	Title  string
 	Elem   []Elem
+	Notes  []string
 }
 
 func (s Section) Sections() (sections []Section) {
@@ -338,6 +339,8 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int, doc *D
 				}
 				lines.back()
 				e = List{Bullet: b}
+			case strings.HasPrefix(text, ": "):
+				section.Notes = append(section.Notes, text[2:])
 			case strings.HasPrefix(text, prefix+"* "):
 				lines.back()
 				subsecs, err := parseSections(ctx, name, lines, section.Number, doc)
