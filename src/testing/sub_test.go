@@ -384,10 +384,14 @@ func TestBRun(t *T) {
 			}
 			b.Run("", func(b *B) { alloc(b) })
 			b.Run("", func(b *B) { alloc(b) })
-			if got := b.result.MemAllocs; got != 2 {
+			// runtime.MemStats sometimes reports more allocations than the
+			// benchmark is responsible for. Luckily the point of this test is
+			// to ensure that the results are not underreported, so we can
+			// simply verify the lower bound.
+			if got := b.result.MemAllocs; got < 2 {
 				t.Errorf("MemAllocs was %v; want 2", got)
 			}
-			if got := b.result.MemBytes; got != 2*bufSize {
+			if got := b.result.MemBytes; got < 2*bufSize {
 				t.Errorf("MemBytes was %v; want %v", got, 2*bufSize)
 			}
 		},
