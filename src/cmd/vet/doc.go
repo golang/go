@@ -29,11 +29,10 @@ check every possible problem and depends on unreliable heuristics
 so it should be used as guidance only, not as a firm indicator of
 program correctness.
 
-By default all checks are performed. If any flags are explicitly set
-to true, only those tests are run. Conversely, if any flag is
-explicitly set to false, only those tests are disabled.
-Thus -printf=true runs the printf check, -printf=false runs all checks
-except the printf check.
+By default the -all flag is set so all checks are performed.
+If any flags are explicitly set to true, only those tests are run. Conversely, if
+any flag is explicitly set to false, only those tests are disabled.  Thus -printf=true
+runs the printf check, -printf=false runs all checks except the printf check.
 
 Available checks:
 
@@ -194,4 +193,4 @@ These flags configure the behavior of vet:
 	-shadowstrict
 		Whether to be strict about shadowing; can be noisy.
 */
-package main // import "golang.org/x/tools/cmd/vet"
+package main
