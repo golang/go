@@ -2931,12 +2931,7 @@ func (p *parser) hidden_pkgtype() *Type {
 		defer p.trace("hidden_pkgtype")()
 	}
 
-	s1 := p.hidden_pkg_importsym()
-
-	ss := pkgtype(s1)
-	importsym(s1, OTYPE)
-
-	return ss
+	return pkgtype(p.hidden_pkg_importsym())
 }
 
 // ----------------------------------------------------------------------------

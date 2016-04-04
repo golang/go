@@ -445,10 +445,8 @@ func dumpexport() {
 	}
 }
 
-// import
-
-// return the sym for ss, which should match lexical
-func importsym(s *Sym, op Op) *Sym {
+// importsym declares symbol s as an imported object representable by op.
+func importsym(s *Sym, op Op) {
 	if s.Def != nil && s.Def.Op != op {
 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
 		redeclare(s, pkgstr)
@@ -462,11 +460,10 @@ func importsym(s *Sym, op Op) *Sym {
 			s.Flags |= SymPackage // package scope
 		}
 	}
-
-	return s
 }
 
-// return the type pkg.name, forward declaring if needed
+// pkgtype returns the named type declared by symbol s.
+// If no such type has been declared yet, a forward declaration is returned.
 func pkgtype(s *Sym) *Type {
 	importsym(s, OTYPE)
 	if s.Def == nil || s.Def.Op != OTYPE {
@@ -506,6 +503,7 @@ func importimport(s *Sym, path string) {
 	}
 }
 
+// importconst declares symbol s as an imported constant with type t and value n.
 func importconst(s *Sym, t *Type, n *Node) {
 	importsym(s, OLITERAL)
 	n = convlit(n, t)
@@ -533,6 +531,7 @@ func importconst(s *Sym, t *Type, n *Node) {
 	}
 }
 
+// importvar declares symbol s as an imported variable with type t.
 func importvar(s *Sym, t *Type) {
 	importsym(s, ONAME)
 	if s.Def != nil && s.Def.Op == ONAME {

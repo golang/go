@@ -290,7 +290,6 @@ func (p *importer) typ() *Type {
 
 		// parser.go:hidden_pkgtype
 		t = pkgtype(tsym)
-		importsym(tsym, OTYPE)
 		p.typList = append(p.typList, t)
 
 		// read underlying type
