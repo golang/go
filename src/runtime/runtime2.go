@@ -472,7 +472,7 @@ type p struct {
 const (
 	// The max value of GOMAXPROCS.
 	// There are no fundamental restrictions on the value.
-	_MaxGomaxprocs = 1 << 8
+	_MaxGomaxprocs = 1 << 12
 )
 
 type schedt struct {
