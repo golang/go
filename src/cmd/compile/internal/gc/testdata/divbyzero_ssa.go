@@ -29,6 +29,11 @@ func b(i uint, j uint) uint {
 	return i / j
 }
 
+//go:noinline
+func c(i int) int {
+	return 7 / (i - i)
+}
+
 func main() {
 	if got := checkDivByZero(func() { b(7, 0) }); !got {
 		fmt.Printf("expected div by zero for b(7, 0), got no error\n")
@@ -40,6 +45,10 @@ func main() {
 	}
 	if got := checkDivByZero(func() { a(4, nil) }); !got {
 		fmt.Printf("expected div by zero for a(4, nil), got no error\n")
+		failed = true
+	}
+	if got := checkDivByZero(func() { c(5) }); !got {
+		fmt.Printf("expected div by zero for c(5), got no error\n")
 		failed = true
 	}
 
