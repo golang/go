@@ -507,8 +507,8 @@ func (r *objReader) readUint8() uint8 {
 
 func (r *objReader) readString() string {
 	n := r.readInt()
-	if len(r.rdBuf) < n {
-		r.rdBuf = make([]byte, n)
+	if cap(r.rdBuf) < n {
+		r.rdBuf = make([]byte, 2*n)
 	}
 	r.readFull(r.rdBuf[:n])
 	return string(r.rdBuf[:n])
@@ -533,11 +533,8 @@ func (r *objReader) readSymName() string {
 	if err != nil {
 		log.Fatalf("%s: unexpectedly long symbol name", r.pn)
 	}
-	// Calculate needed scratch space, accounting for the growth
-	// of all the `"".` substrings to pkg+".":
-	need := len(origName) + maxInt(0, bytes.Count(origName, emptyPkg)*(len(pkg)+len(".")-len(emptyPkg)))
-	if len(r.rdBuf) < need {
-		r.rdBuf = make([]byte, need)
+	if cap(r.rdBuf) < n {
+		r.rdBuf = make([]byte, 2*n)
 	}
 	adjName := r.rdBuf[:0]
 	for {
@@ -548,6 +545,7 @@ func (r *objReader) readSymName() string {
 			// using the rfBuf (also no longer used) as the scratch space.
 			// TODO: use bufio.Reader.Discard if available instead?
 			r.readFull(r.rdBuf[:n])
+			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
 			return s
 		}
 		adjName = append(adjName, origName[:i]...)
@@ -561,11 +559,4 @@ func (r *objReader) readSymName() string {
 func (r *objReader) readSymIndex() *LSym {
 	i := r.readInt()
 	return r.refs[i]
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
