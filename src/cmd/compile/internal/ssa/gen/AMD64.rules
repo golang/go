@@ -587,6 +587,11 @@
 (CMPB x (MOVBconst [c])) -> (CMPBconst x [c])
 (CMPB (MOVBconst [c]) x) -> (InvertFlags (CMPBconst x [c]))
 
+// Using MOVBQZX instead of ANDQ is cheaper.
+(ANDQconst [0xFF] x) -> (MOVBQZX x)
+(ANDQconst [0xFFFF] x) -> (MOVWQZX x)
+(ANDQconst [0xFFFFFFFF] x) -> (MOVLQZX x)
+
 // strength reduction
 // Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
 //    1 - addq, shlq, leaq, negq
@@ -1093,6 +1098,9 @@
 (CMPBconst (MOVBconst [x]) [y]) && int8(x)>int8(y) && uint8(x)>uint8(y) -> (FlagGT_UGT)
 
 // Other known comparisons.
+(CMPQconst (MOVBQZX _) [c]) && 0xFF < c -> (FlagLT_ULT)
+(CMPQconst (MOVWQZX _) [c]) && 0xFFFF < c -> (FlagLT_ULT)
+(CMPQconst (MOVLQZX _) [c]) && 0xFFFFFFFF < c -> (FlagLT_ULT)
 (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
 (CMPWconst (ANDWconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
