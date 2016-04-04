@@ -208,7 +208,24 @@ func (b *B) run1() bool {
 		b.runN(1)
 	}()
 	<-b.signal
-	return !b.hasSub
+	if b.failed {
+		fmt.Fprintf(b.w, "--- FAIL: %s\n%s", b.name, b.output)
+		return false
+	}
+	// Only print the output if we know we are not going to proceed.
+	// Otherwise it is printed in processBench.
+	if b.hasSub || b.finished {
+		tag := "BENCH"
+		if b.skipped {
+			tag = "SKIP"
+		}
+		if b.chatty && (len(b.output) > 0 || b.finished) {
+			b.trimOutput()
+			fmt.Fprintf(b.w, "--- %s: %s\n%s", tag, b.name, b.output)
+		}
+		return false
+	}
+	return true
 }
 
 // run executes the benchmark in a separate goroutine, including all of its
@@ -372,7 +389,11 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
 		}
 	}
 	main := &B{
-		common: common{name: "Main"},
+		common: common{
+			name:   "Main",
+			w:      os.Stdout,
+			chatty: *chatty,
+		},
 		benchFunc: func(b *B) {
 			for _, Benchmark := range bs {
 				b.Run(Benchmark.Name, Benchmark.F)
@@ -390,13 +411,15 @@ func (ctx *benchContext) processBench(b *B) {
 	for i, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
 		benchName := benchmarkName(b.name, procs)
-		fmt.Printf("%-*s\t", ctx.maxLen, benchName)
+		fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
 		// Recompute the running time for all but the first iteration.
 		if i > 0 {
 			b = &B{
 				common: common{
 					signal: make(chan bool),
 					name:   b.name,
+					w:      b.w,
+					chatty: b.chatty,
 				},
 				benchFunc: b.benchFunc,
 				benchTime: b.benchTime,
@@ -408,19 +431,19 @@ func (ctx *benchContext) processBench(b *B) {
 			// The output could be very long here, but probably isn't.
 			// We print it all, regardless, because we don't want to trim the reason
 			// the benchmark failed.
-			fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
+			fmt.Fprintf(b.w, "--- FAIL: %s\n%s", benchName, b.output)
 			continue
 		}
 		results := r.String()
 		if *benchmarkMemory || b.showAllocResult {
 			results += "\t" + r.MemString()
 		}
-		fmt.Println(results)
+		fmt.Fprintln(b.w, results)
 		// Unlike with tests, we ignore the -chatty flag and always print output for
 		// benchmarks since the output generation time will skew the results.
 		if len(b.output) > 0 {
 			b.trimOutput()
-			fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
+			fmt.Fprintf(b.w, "--- BENCH: %s\n%s", benchName, b.output)
 		}
 		if p := runtime.GOMAXPROCS(-1); p != procs {
 			fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
@@ -453,6 +476,8 @@ func (b *B) Run(name string, f func(b *B)) bool {
 			name:   benchName,
 			parent: &b.common,
 			level:  b.level + 1,
+			w:      b.w,
+			chatty: b.chatty,
 		},
 		benchFunc: f,
 		benchTime: b.benchTime,
@@ -597,9 +622,17 @@ func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
 			signal: make(chan bool),
+			w:      discard{},
 		},
 		benchFunc: f,
 		benchTime: *benchTime,
 	}
+	if !b.run1() {
+		return BenchmarkResult{}
+	}
 	return b.run()
 }
+
+type discard struct{}
+
+func (discard) Write(b []byte) (n int, err error) { return len(b), nil }
