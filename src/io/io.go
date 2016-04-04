@@ -274,6 +274,15 @@ type RuneScanner interface {
 	UnreadRune() error
 }
 
+// ReadAtSizer is the interface that groups the basic ReadAt and Size
+// methods, representing a sized data source that supports random
+// access by multiple concurrent goroutines.
+type ReadAtSizer interface {
+	ReaderAt
+	// Size reports the length of the data source in bytes.
+	Size() int64
+}
+
 // stringWriter is the interface that wraps the WriteString method.
 type stringWriter interface {
 	WriteString(s string) (n int, err error)
