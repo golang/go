@@ -54,52 +54,6 @@ func TestProhibitionaryDialArg(t *testing.T) {
 	}
 }
 
-func TestSelfConnect(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		// TODO(brainman): do not know why it hangs.
-		t.Skip("known-broken test on windows")
-	}
-
-	// Test that Dial does not honor self-connects.
-	// See the comment in DialTCP.
-
-	// Find a port that would be used as a local address.
-	l, err := Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := Dial("tcp", l.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	addr := c.LocalAddr().String()
-	c.Close()
-	l.Close()
-
-	// Try to connect to that address repeatedly.
-	n := 100000
-	if testing.Short() {
-		n = 1000
-	}
-	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "solaris", "windows":
-		// Non-Linux systems take a long time to figure
-		// out that there is nothing listening on localhost.
-		n = 100
-	}
-	for i := 0; i < n; i++ {
-		c, err := DialTimeout("tcp", addr, time.Millisecond)
-		if err == nil {
-			if c.LocalAddr().String() == addr {
-				t.Errorf("#%d: Dial %q self-connect", i, addr)
-			} else {
-				t.Logf("#%d: Dial %q succeeded - possibly racing with other listener", i, addr)
-			}
-			c.Close()
-		}
-	}
-}
-
 func TestDialTimeoutFDLeak(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
