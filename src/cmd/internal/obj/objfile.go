@@ -553,6 +553,8 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		name := ""
 		if r.Sym != nil {
 			name = r.Sym.Name
+		} else if r.Type == R_TLS_LE {
+			name = "TLS"
 		}
 		if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
 			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
