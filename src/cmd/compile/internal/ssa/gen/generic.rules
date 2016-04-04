@@ -66,6 +66,16 @@
         (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
 (Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
 
+(Mod8 (Const8 [c]) (Const8 [d])) && d != 0-> (Const8 [int64(int8(c % d))])
+(Mod16 (Const16 [c]) (Const16 [d])) && d != 0-> (Const16 [int64(int16(c % d))])
+(Mod32 (Const32 [c]) (Const32 [d])) && d != 0-> (Const32 [int64(int32(c % d))])
+(Mod64 (Const64 [c]) (Const64 [d])) && d != 0-> (Const64 [c % d])
+
+(Mod8u (Const8 [c]) (Const8 [d])) && d != 0-> (Const8 [int64(uint8(c) % uint8(d))])
+(Mod16u (Const16 [c]) (Const16 [d])) && d != 0-> (Const16 [int64(uint16(c) % uint16(d))])
+(Mod32u (Const32 [c]) (Const32 [d])) && d != 0-> (Const32 [int64(uint32(c) % uint32(d))])
+(Mod64u (Const64 [c]) (Const64 [d])) && d != 0-> (Const64 [int64(uint64(c) % uint64(d))])
+
 (Lsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c << uint64(d)])
 (Rsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c >> uint64(d)])
 (Rsh64Ux64 (Const64 [c]) (Const64 [d])) -> (Const64 [int64(uint64(c) >> uint64(d))])
@@ -728,5 +738,5 @@
 // A%B = A-(A/B*B).
 // This implements % with two * and a bunch of ancillary ops.
 // One of the * is free if the user's code also computes A/B.
-(Mod64  <t> x (Const64 [c])) && smagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
-(Mod64u <t> x (Const64 [c])) && umagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+(Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && smagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+(Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && umagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
