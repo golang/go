@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"bytes"
 	"cmd/internal/gcprog"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
@@ -1197,6 +1198,13 @@ func (d dataSlice) Less(i, j int) bool {
 	// sorts before .toc).
 	if s1.Type != obj.SELFGOT && s1.Size != s2.Size {
 		return s1.Size < s2.Size
+	}
+
+	// Sort typelinks by the string field.
+	if strings.HasPrefix(s1.Name, "go.typelink.") && strings.HasPrefix(s2.Name, "go.typelink.") {
+		s1n := decodetype_string(s1.Lsym.R[0].Sym)
+		s2n := decodetype_string(s2.Lsym.R[0].Sym)
+		return bytes.Compare(s1n, s2n) < 0
 	}
 
 	return s1.Name < s2.Name

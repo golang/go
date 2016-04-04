@@ -211,6 +211,18 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
 	return off
 }
 
+// decodetype_string returns the contents of an rtype's string field.
+func decodetype_string(s *LSym) []byte {
+	off := 4*SysArch.PtrSize + 8
+	strlen := int64(decode_inuxi(s.P[off+SysArch.PtrSize:], SysArch.IntSize))
+
+	r := decode_reloc(s, int32(off))
+	if r == nil {
+		return nil
+	}
+	return r.Sym.P[r.Add : r.Add+strlen]
+}
+
 // decodetype_name decodes the name from a reflect.name.
 func decodetype_name(s *LSym, off int) string {
 	r := decode_reloc(s, int32(off))
