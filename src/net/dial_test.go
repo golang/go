@@ -5,6 +5,7 @@
 package net
 
 import (
+	"bufio"
 	"internal/testenv"
 	"io"
 	"net/internal/socktest"
@@ -869,5 +870,86 @@ func TestDialCancel(t *testing.T) {
 			}
 			return // success.
 		}
+	}
+}
+
+func TestCancelAfterDial(t *testing.T) {
+	if testing.Short() {
+		t.Skip("avoiding time.Sleep")
+	}
+
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer func() {
+		ln.Close()
+		wg.Wait()
+	}()
+
+	// Echo back the first line of each incoming connection.
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				break
+			}
+			rb := bufio.NewReader(c)
+			line, err := rb.ReadString('\n')
+			if err != nil {
+				t.Error(err)
+				c.Close()
+				continue
+			}
+			if _, err := c.Write([]byte(line)); err != nil {
+				t.Error(err)
+			}
+			c.Close()
+		}
+		wg.Done()
+	}()
+
+	try := func() {
+		cancel := make(chan struct{})
+		d := &Dialer{Cancel: cancel}
+		c, err := d.Dial("tcp", ln.Addr().String())
+
+		// Immediately after dialing, request cancelation and sleep.
+		// Before Issue 15078 was fixed, this would cause subsequent operations
+		// to fail with an i/o timeout roughly 50% of the time.
+		close(cancel)
+		time.Sleep(10 * time.Millisecond)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+
+		// Send some data to confirm that the connection is still alive.
+		const message = "echo!\n"
+		if _, err := c.Write([]byte(message)); err != nil {
+			t.Fatal(err)
+		}
+
+		// The server should echo the line, and close the connection.
+		rb := bufio.NewReader(c)
+		line, err := rb.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		if line != message {
+			t.Errorf("got %q; want %q", line, message)
+		}
+		if _, err := rb.ReadByte(); err != io.EOF {
+			t.Errorf("got %v; want %v", err, io.EOF)
+		}
+	}
+
+	// This bug manifested about 50% of the time, so try it a few times.
+	for i := 0; i < 10; i++ {
+		try()
 	}
 }
