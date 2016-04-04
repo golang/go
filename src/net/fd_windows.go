@@ -352,14 +352,18 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 	o := &fd.wop
 	o.sa = ra
 	if cancel != nil {
-		done := make(chan struct{})
-		defer close(done)
+		done := make(chan bool)
+		defer func() {
+			// This is unbuffered; wait for the goroutine before returning.
+			done <- true
+		}()
 		go func() {
 			select {
 			case <-cancel:
 				// Force the runtime's poller to immediately give
 				// up waiting for writability.
 				fd.setWriteDeadline(aLongTimeAgo)
+				<-done
 			case <-done:
 			}
 		}()
