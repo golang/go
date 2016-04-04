@@ -912,16 +912,7 @@ func tracksym(t *Type, f *Field) *Sym {
 }
 
 func typelinkLSym(t *Type) *obj.LSym {
-	// %-uT is what the generated Type's string field says.
-	// It uses (ambiguous) package names instead of import paths.
-	// %-T is the complete, unambiguous type name.
-	// We want the types to end up sorted by string field,
-	// so use that first in the name, and then add :%-T to
-	// disambiguate. We use a tab character as the separator to
-	// ensure the types appear sorted by their string field. The
-	// names are a little long but they are discarded by the linker
-	// and do not end up in the symbol table of the final binary.
-	name := "go.typelink." + Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
+	name := "go.typelink." + Tconv(t, FmtLeft) // complete, unambiguous type name
 	return obj.Linklookup(Ctxt, name, 0)
 }
 
