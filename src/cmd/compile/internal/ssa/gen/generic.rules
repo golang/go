@@ -109,12 +109,15 @@
 (IsInBounds (ZeroExt8to64 _) (Const64 [c])) && (1 << 8) <= c -> (ConstBool [1])
 (IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= c -> (ConstBool [1])
 (IsInBounds (ZeroExt16to64 _) (Const64 [c])) && (1 << 16) <= c -> (ConstBool [1])
-
 (IsInBounds x x) -> (ConstBool [0])
 (IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c < d -> (ConstBool [1])
 (IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && 0 <= c && c < d -> (ConstBool [1])
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(0 <= c && c < d)])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(0 <= c && c < d)])
+// (Mod64u x y) is always between 0 (inclusive) and y (exclusive).
+(IsInBounds (Mod32u _ y) y) -> (ConstBool [1])
+(IsInBounds (Mod64u _ y) y) -> (ConstBool [1])
+
 (IsSliceInBounds x x) -> (ConstBool [1])
 (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && 0 <= c && c <= d -> (ConstBool [1])
 (IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && 0 <= c && c <= d -> (ConstBool [1])

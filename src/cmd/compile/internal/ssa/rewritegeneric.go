@@ -2815,6 +2815,38 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 		v.AuxInt = b2i(0 <= c && c < d)
 		return true
 	}
+	// match: (IsInBounds (Mod32u _ y) y)
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMod32u {
+			break
+		}
+		y := v_0.Args[1]
+		if y != v.Args[1] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (Mod64u _ y) y)
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMod64u {
+			break
+		}
+		y := v_0.Args[1]
+		if y != v.Args[1] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
