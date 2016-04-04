@@ -2066,103 +2066,108 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue1(ssa.OpGetG, n.Type, s.mem())
 
 	case OAPPEND:
-		// append(s, e1, e2, e3).  Compile like:
-		// ptr,len,cap := s
-		// newlen := len + 3
-		// if newlen > s.cap {
-		//     ptr,_,cap = growslice(s, newlen)
-		// }
-		// *(ptr+len) = e1
-		// *(ptr+len+1) = e2
-		// *(ptr+len+2) = e3
-		// makeslice(ptr,newlen,cap)
-
-		et := n.Type.Elem()
-		pt := Ptrto(et)
-
-		// Evaluate slice
-		slice := s.expr(n.List.First())
-
-		// Allocate new blocks
-		grow := s.f.NewBlock(ssa.BlockPlain)
-		assign := s.f.NewBlock(ssa.BlockPlain)
-
-		// Decide if we need to grow
-		nargs := int64(n.List.Len() - 1)
-		p := s.newValue1(ssa.OpSlicePtr, pt, slice)
-		l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
-		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
-		nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
-		cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
-		s.vars[&ptrVar] = p
-		s.vars[&capVar] = c
-		b := s.endBlock()
-		b.Kind = ssa.BlockIf
-		b.Likely = ssa.BranchUnlikely
-		b.SetControl(cmp)
-		b.AddEdgeTo(grow)
-		b.AddEdgeTo(assign)
-
-		// Call growslice
-		s.startBlock(grow)
-		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(n.Type)}, s.sb)
-
-		r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
-
-		s.vars[&ptrVar] = r[0]
-		// Note: we don't need to read r[1], the result's length. It will be nl.
-		// (or maybe we should, we just have to spill/restore nl otherwise?)
-		s.vars[&capVar] = r[2]
-		b = s.endBlock()
-		b.AddEdgeTo(assign)
-
-		// assign new elements to slots
-		s.startBlock(assign)
-
-		// Evaluate args
-		args := make([]*ssa.Value, 0, nargs)
-		store := make([]bool, 0, nargs)
-		for _, n := range n.List.Slice()[1:] {
-			if canSSAType(n.Type) {
-				args = append(args, s.expr(n))
-				store = append(store, true)
-			} else {
-				args = append(args, s.addr(n, false))
-				store = append(store, false)
-			}
-		}
-
-		p = s.variable(&ptrVar, pt)          // generates phi for ptr
-		c = s.variable(&capVar, Types[TINT]) // generates phi for cap
-		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
-		// TODO: just one write barrier call for all of these writes?
-		// TODO: maybe just one writeBarrier.enabled check?
-		for i, arg := range args {
-			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
-			if store[i] {
-				if haspointers(et) {
-					s.insertWBstore(et, addr, arg, n.Lineno, 0)
-				} else {
-					s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
-				}
-			} else {
-				if haspointers(et) {
-					s.insertWBmove(et, addr, arg, n.Lineno)
-				} else {
-					s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg, s.mem())
-				}
-			}
-		}
-
-		// make result
-		delete(s.vars, &ptrVar)
-		delete(s.vars, &capVar)
-		return s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
+		return s.exprAppend(n)
 
 	default:
 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
 		return nil
 	}
+}
+
+// exprAppend converts an OAPPEND node n to an ssa.Value, adds it to s, and returns the Value.
+func (s *state) exprAppend(n *Node) *ssa.Value {
+	// append(s, e1, e2, e3).  Compile like:
+	// ptr,len,cap := s
+	// newlen := len + 3
+	// if newlen > s.cap {
+	//     ptr,_,cap = growslice(s, newlen)
+	// }
+	// *(ptr+len) = e1
+	// *(ptr+len+1) = e2
+	// *(ptr+len+2) = e3
+	// makeslice(ptr,newlen,cap)
+
+	et := n.Type.Elem()
+	pt := Ptrto(et)
+
+	// Evaluate slice
+	slice := s.expr(n.List.First())
+
+	// Allocate new blocks
+	grow := s.f.NewBlock(ssa.BlockPlain)
+	assign := s.f.NewBlock(ssa.BlockPlain)
+
+	// Decide if we need to grow
+	nargs := int64(n.List.Len() - 1)
+	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
+	l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+	c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
+	nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+	cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
+	s.vars[&ptrVar] = p
+	s.vars[&capVar] = c
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Likely = ssa.BranchUnlikely
+	b.SetControl(cmp)
+	b.AddEdgeTo(grow)
+	b.AddEdgeTo(assign)
+
+	// Call growslice
+	s.startBlock(grow)
+	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(n.Type)}, s.sb)
+
+	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
+
+	s.vars[&ptrVar] = r[0]
+	// Note: we don't need to read r[1], the result's length. It will be nl.
+	// (or maybe we should, we just have to spill/restore nl otherwise?)
+	s.vars[&capVar] = r[2]
+	b = s.endBlock()
+	b.AddEdgeTo(assign)
+
+	// assign new elements to slots
+	s.startBlock(assign)
+
+	// Evaluate args
+	args := make([]*ssa.Value, 0, nargs)
+	store := make([]bool, 0, nargs)
+	for _, n := range n.List.Slice()[1:] {
+		if canSSAType(n.Type) {
+			args = append(args, s.expr(n))
+			store = append(store, true)
+		} else {
+			args = append(args, s.addr(n, false))
+			store = append(store, false)
+		}
+	}
+
+	p = s.variable(&ptrVar, pt)          // generates phi for ptr
+	c = s.variable(&capVar, Types[TINT]) // generates phi for cap
+	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+	// TODO: just one write barrier call for all of these writes?
+	// TODO: maybe just one writeBarrier.enabled check?
+	for i, arg := range args {
+		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
+		if store[i] {
+			if haspointers(et) {
+				s.insertWBstore(et, addr, arg, n.Lineno, 0)
+			} else {
+				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			}
+		} else {
+			if haspointers(et) {
+				s.insertWBmove(et, addr, arg, n.Lineno)
+			} else {
+				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			}
+		}
+	}
+
+	// make result
+	delete(s.vars, &ptrVar)
+	delete(s.vars, &capVar)
+	return s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
