@@ -468,9 +468,6 @@ function addGeneralStyle() {
   document.querySelector('head').appendChild(el);
 };
 
-function showHelpText() {
-};
-
 function handleDomLoaded() {
   slideEls = document.querySelectorAll('section.slides > article');
 
