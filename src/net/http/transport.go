@@ -758,6 +758,9 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 	case <-req.Cancel:
 		handlePendingDial()
 		return nil, errRequestCanceledConn
+	case <-req.Context().Done():
+		handlePendingDial()
+		return nil, errRequestCanceledConn
 	case <-cancelc:
 		handlePendingDial()
 		return nil, errRequestCanceledConn
@@ -1263,6 +1266,9 @@ func (pc *persistConn) readLoop() {
 		case <-rc.req.Cancel:
 			alive = false
 			pc.t.CancelRequest(rc.req)
+		case <-rc.req.Context().Done():
+			alive = false
+			pc.t.CancelRequest(rc.req)
 		case <-pc.closech:
 			alive = false
 		}
@@ -1565,6 +1571,9 @@ WaitResponse:
 			}
 			break WaitResponse
 		case <-cancelChan:
+			pc.t.CancelRequest(req.Request)
+			cancelChan = nil
+		case <-req.Context().Done():
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
 		}

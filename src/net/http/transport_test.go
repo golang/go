@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
@@ -1625,7 +1626,13 @@ func TestCancelRequestWithChannel(t *testing.T) {
 	}
 }
 
-func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+func TestCancelRequestWithChannelBeforeDo_Cancel(t *testing.T) {
+	testCancelRequestWithChannelBeforeDo(t, false)
+}
+func TestCancelRequestWithChannelBeforeDo_Context(t *testing.T) {
+	testCancelRequestWithChannelBeforeDo(t, true)
+}
+func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
 	setParallel(t)
 	defer afterTest(t)
 	unblockc := make(chan bool)
@@ -1646,9 +1653,15 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
 	c := &Client{Transport: tr}
 
 	req, _ := NewRequest("GET", ts.URL, nil)
-	ch := make(chan struct{})
-	req.Cancel = ch
-	close(ch)
+	if withCtx {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		req = req.WithContext(ctx)
+	} else {
+		ch := make(chan struct{})
+		req.Cancel = ch
+		close(ch)
+	}
 
 	_, err := c.Do(req)
 	if err == nil || !strings.Contains(err.Error(), "canceled") {
