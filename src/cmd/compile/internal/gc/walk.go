@@ -1783,7 +1783,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 	var nn []*Node
 
 	// f(g()) where g has multiple return values
-	if r != nil && len(lr) <= 1 && r.Type.IsStruct() && r.Type.Funarg {
+	if r != nil && len(lr) <= 1 && r.Type.IsFuncArgStruct() {
 		// optimization - can do block copy
 		if eqtypenoname(r.Type, nl) {
 			arg := nodarg(nl, fp)

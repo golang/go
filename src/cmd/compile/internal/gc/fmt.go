@@ -690,7 +690,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		}
 
 		var buf bytes.Buffer
-		if t.Funarg {
+		if t.IsFuncArgStruct() {
 			buf.WriteString("(")
 			var flag1 FmtFlag
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags

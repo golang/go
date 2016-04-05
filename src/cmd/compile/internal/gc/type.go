@@ -127,7 +127,7 @@ type Type struct {
 	Chan        ChanDir
 	Trecur      uint8 // to detect loops
 	Printed     bool
-	Funarg      bool // on TSTRUCT and TFIELD
+	Funarg      bool // TSTRUCT only: whether this struct represents function parameters
 	Local       bool // created in this file
 	Deferwidth  bool
 	Broke       bool // broken type definition.
@@ -564,6 +564,11 @@ func (t *Type) Nname() *Node {
 func (t *Type) SetNname(n *Node) {
 	t.wantEtype2(TFUNC, TINTERMETH)
 	t.nname = n
+}
+
+// IsFuncArgStruct reports whether t is a struct representing function parameters.
+func (t *Type) IsFuncArgStruct() bool {
+	return t.Etype == TSTRUCT && t.Funarg
 }
 
 func (t *Type) Methods() *Fields {

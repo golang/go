@@ -1435,7 +1435,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	ll := n.List
 	if n.List.Len() == 1 {
 		a := n.List.First()
-		if a.Type.IsStruct() && a.Type.Funarg { // f(g()).
+		if a.Type.IsFuncArgStruct() { // f(g())
 			ll = e.nodeEscState(a).Escretval
 		}
 	}
