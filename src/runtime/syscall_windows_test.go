@@ -901,18 +901,19 @@ func setEvent(h syscall.Handle) error {
 }
 
 func benchChanToSyscallPing(b *testing.B) {
+	n := b.N
 	ch := make(chan int)
 	event, err := createEvent()
 	if err != nil {
 		b.Fatal(err)
 	}
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < n; i++ {
 			syscall.WaitForSingleObject(event, syscall.INFINITE)
 			ch <- 1
 		}
 	}()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < n; i++ {
 		err := setEvent(event)
 		if err != nil {
 			b.Fatal(err)
@@ -932,6 +933,7 @@ func BenchmarkChanToSyscallPing15ms(b *testing.B) {
 }
 
 func benchSyscallToSyscallPing(b *testing.B) {
+	n := b.N
 	event1, err := createEvent()
 	if err != nil {
 		b.Fatal(err)
@@ -941,7 +943,7 @@ func benchSyscallToSyscallPing(b *testing.B) {
 		b.Fatal(err)
 	}
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < n; i++ {
 			syscall.WaitForSingleObject(event1, syscall.INFINITE)
 			err := setEvent(event2)
 			if err != nil {
@@ -949,7 +951,7 @@ func benchSyscallToSyscallPing(b *testing.B) {
 			}
 		}
 	}()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < n; i++ {
 		err := setEvent(event1)
 		if err != nil {
 			b.Fatal(err)
@@ -969,15 +971,16 @@ func BenchmarkSyscallToSyscallPing15ms(b *testing.B) {
 }
 
 func benchChanToChanPing(b *testing.B) {
+	n := b.N
 	ch1 := make(chan int)
 	ch2 := make(chan int)
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < n; i++ {
 			<-ch1
 			ch2 <- 1
 		}
 	}()
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < n; i++ {
 		ch1 <- 1
 		<-ch2
 	}
