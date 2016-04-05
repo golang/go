@@ -952,7 +952,7 @@ var UnreadRuneErrorTests = []struct {
 	{"Read", func(r *Reader) { r.Read([]byte{0}) }},
 	{"ReadByte", func(r *Reader) { r.ReadByte() }},
 	{"UnreadRune", func(r *Reader) { r.UnreadRune() }},
-	{"Seek", func(r *Reader) { r.Seek(0, 1) }},
+	{"Seek", func(r *Reader) { r.Seek(0, io.SeekCurrent) }},
 	{"WriteTo", func(r *Reader) { r.WriteTo(&bytes.Buffer{}) }},
 }
 

@@ -189,7 +189,7 @@ func ExampleSectionReader_Seek() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 	s := io.NewSectionReader(r, 5, 16)
 
-	if _, err := s.Seek(10, 0); err != nil {
+	if _, err := s.Seek(10, io.SeekStart); err != nil {
 		log.Fatal(err)
 	}
 

@@ -1475,7 +1475,7 @@ func BenchmarkReaderWriteToOptimal(b *testing.B) {
 		b.Fatal("ioutil.Discard doesn't support ReaderFrom")
 	}
 	for i := 0; i < b.N; i++ {
-		r.Seek(0, 0)
+		r.Seek(0, io.SeekStart)
 		srcReader.Reset(onlyReader{r})
 		n, err := srcReader.WriteTo(ioutil.Discard)
 		if err != nil {

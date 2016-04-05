@@ -60,7 +60,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
 
 		dir := netdir + "/" + comp[n-2]
 		ctl = os.NewFile(uintptr(fd), dir+"/"+file)
-		ctl.Seek(0, 0)
+		ctl.Seek(0, io.SeekStart)
 		var buf [16]byte
 		n, err := ctl.Read(buf[:])
 		if err != nil {

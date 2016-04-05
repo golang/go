@@ -110,7 +110,7 @@ func readELFGoBuildID(filename string, f *os.File, data []byte) (buildid string,
 			// or even the first few megabytes of the file
 			// due to differences in note segment placement;
 			// in that case, extract the note data manually.
-			_, err = f.Seek(int64(p.Off), 0)
+			_, err = f.Seek(int64(p.Off), io.SeekStart)
 			if err != nil {
 				return "", err
 			}

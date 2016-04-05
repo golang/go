@@ -325,11 +325,11 @@ func (f *File) read(b []byte) (n int, err error) {
 func (f *File) pread(b []byte, off int64) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
-	curoffset, e := syscall.Seek(f.fd, 0, 1)
+	curoffset, e := syscall.Seek(f.fd, 0, io.SeekCurrent)
 	if e != nil {
 		return 0, e
 	}
-	defer syscall.Seek(f.fd, curoffset, 0)
+	defer syscall.Seek(f.fd, curoffset, io.SeekStart)
 	o := syscall.Overlapped{
 		OffsetHigh: uint32(off >> 32),
 		Offset:     uint32(off),
@@ -405,11 +405,11 @@ func (f *File) write(b []byte) (n int, err error) {
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	f.l.Lock()
 	defer f.l.Unlock()
-	curoffset, e := syscall.Seek(f.fd, 0, 1)
+	curoffset, e := syscall.Seek(f.fd, 0, io.SeekCurrent)
 	if e != nil {
 		return 0, e
 	}
-	defer syscall.Seek(f.fd, curoffset, 0)
+	defer syscall.Seek(f.fd, curoffset, io.SeekStart)
 	o := syscall.Overlapped{
 		OffsetHigh: uint32(off >> 32),
 		Offset:     uint32(off),
