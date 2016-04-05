@@ -8,6 +8,7 @@ package http_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -287,6 +288,33 @@ func TestClientRedirects(t *testing.T) {
 	res.Body.Close()
 	if res.Header.Get("Location") == "" {
 		t.Errorf("no Location header in Response")
+	}
+}
+
+func TestClientRedirectContext(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		Redirect(w, r, "/", StatusFound)
+	}))
+	defer ts.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	c := &Client{CheckRedirect: func(req *Request, via []*Request) error {
+		cancel()
+		if len(via) > 2 {
+			return errors.New("too many redirects")
+		}
+		return nil
+	}}
+	req, _ := NewRequest("GET", ts.URL, nil)
+	req = req.WithContext(ctx)
+	_, err := c.Do(req)
+	ue, ok := err.(*url.Error)
+	if !ok {
+		t.Fatalf("got error %T; want *url.Error")
+	}
+	if ue.Err != ExportErrRequestCanceled && ue.Err != ExportErrRequestCanceledConn {
+		t.Errorf("url.Error.Err = %v; want errRequestCanceled or errRequestCanceledConn", ue.Err)
 	}
 }
 

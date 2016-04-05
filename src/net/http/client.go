@@ -475,6 +475,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 				URL:    u,
 				Header: make(Header),
 				Cancel: ireq.Cancel,
+				ctx:    ireq.ctx,
 			}
 			if ireq.Method == "POST" || ireq.Method == "PUT" {
 				req.Method = "GET"
