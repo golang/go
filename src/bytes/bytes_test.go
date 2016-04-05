@@ -1218,6 +1218,33 @@ func TestContains(t *testing.T) {
 	}
 }
 
+var ContainsAnyTests = []struct {
+	b        []byte
+	substr   string
+	expected bool
+}{
+	{[]byte(""), "", false},
+	{[]byte(""), "a", false},
+	{[]byte(""), "abc", false},
+	{[]byte("a"), "", false},
+	{[]byte("a"), "a", true},
+	{[]byte("aaa"), "a", true},
+	{[]byte("abc"), "xyz", false},
+	{[]byte("abc"), "xcz", true},
+	{[]byte("a☺b☻c☹d"), "uvw☻xyz", true},
+	{[]byte("aRegExp*"), ".(|)*+?^$[]", true},
+	{[]byte(dots + dots + dots), " ", false},
+}
+
+func TestContainsAny(t *testing.T) {
+	for _, ct := range ContainsAnyTests {
+		if ContainsAny(ct.b, ct.substr) != ct.expected {
+			t.Errorf("ContainsAny(%s, %s) = %v, want %v",
+				ct.b, ct.substr, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
