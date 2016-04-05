@@ -83,6 +83,11 @@ func Contains(b, subslice []byte) bool {
 	return Index(b, subslice) != -1
 }
 
+// ContainsAny reports whether any of the UTF-8-encoded Unicode code points in chars are within b.
+func ContainsAny(b []byte, chars string) bool {
+	return IndexAny(b, chars) >= 0
+}
+
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep []byte) int {
 	n := len(sep)
