@@ -5,6 +5,7 @@
 package os
 
 import (
+	"io"
 	"runtime"
 	"syscall"
 	"time"
@@ -123,7 +124,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	if append {
-		if _, e = syscall.Seek(fd, 0, SEEK_END); e != nil {
+		if _, e = syscall.Seek(fd, 0, io.SeekEnd); e != nil {
 			return nil, &PathError{"seek", name, e}
 		}
 	}

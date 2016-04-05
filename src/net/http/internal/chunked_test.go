@@ -122,7 +122,7 @@ func TestChunkReaderAllocs(t *testing.T) {
 	byter := bytes.NewReader(buf.Bytes())
 	bufr := bufio.NewReader(byter)
 	mallocs := testing.AllocsPerRun(100, func() {
-		byter.Seek(0, 0)
+		byter.Seek(0, io.SeekStart)
 		bufr.Reset(byter)
 		r := NewChunkedReader(bufr)
 		n, err := io.ReadFull(r, readBuf)
