@@ -10,6 +10,59 @@ import (
 	"strings"
 )
 
+// Ctype describes the constant kind of an "ideal" (untyped) constant.
+type Ctype int8
+
+const (
+	CTxxx Ctype = iota
+
+	CTINT
+	CTRUNE
+	CTFLT
+	CTCPLX
+	CTSTR
+	CTBOOL
+	CTNIL
+)
+
+type Val struct {
+	// U contains one of:
+	// bool     bool when n.ValCtype() == CTBOOL
+	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
+	// *Mpflt   float when n.ValCtype() == CTFLT
+	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
+	// string   string when n.ValCtype() == CTSTR
+	// *Nilval  when n.ValCtype() == CTNIL
+	U interface{}
+}
+
+func (v Val) Ctype() Ctype {
+	switch x := v.U.(type) {
+	default:
+		Fatalf("unexpected Ctype for %T", v.U)
+		panic("not reached")
+	case nil:
+		return 0
+	case *NilVal:
+		return CTNIL
+	case bool:
+		return CTBOOL
+	case *Mpint:
+		if x.Rune {
+			return CTRUNE
+		}
+		return CTINT
+	case *Mpflt:
+		return CTFLT
+	case *Mpcplx:
+		return CTCPLX
+	case string:
+		return CTSTR
+	}
+}
+
+type NilVal struct{}
+
 // IntLiteral returns the Node's literal value as an integer.
 func (n *Node) IntLiteral() (x int64, ok bool) {
 	switch {

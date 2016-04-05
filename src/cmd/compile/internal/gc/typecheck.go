@@ -11,6 +11,20 @@ import (
 	"strings"
 )
 
+const (
+	Etop      = 1 << 1 // evaluated at statement level
+	Erv       = 1 << 2 // evaluated in value context
+	Etype     = 1 << 3
+	Ecall     = 1 << 4  // call-only expressions are ok
+	Efnstruct = 1 << 5  // multivalue function returns are ok
+	Eiota     = 1 << 6  // iota is ok
+	Easgn     = 1 << 7  // assigning to expression
+	Eindir    = 1 << 8  // indirecting through expression
+	Eaddr     = 1 << 9  // taking address of expression
+	Eproc     = 1 << 10 // inside a go statement
+	Ecomplit  = 1 << 11 // type in composite literal
+)
+
 // type check the whole tree of an expression.
 // calculates expression types.
 // evaluates compile time constants.

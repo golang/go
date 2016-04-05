@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 )
@@ -15,44 +14,6 @@ const (
 	BADWIDTH        = -1000000000
 	MaxStackVarSize = 10 * 1024 * 1024
 )
-
-type Val struct {
-	// U contains one of:
-	// bool     bool when n.ValCtype() == CTBOOL
-	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
-	// *Mpflt   float when n.ValCtype() == CTFLT
-	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
-	// string   string when n.ValCtype() == CTSTR
-	// *Nilval  when n.ValCtype() == CTNIL
-	U interface{}
-}
-
-type NilVal struct{}
-
-func (v Val) Ctype() Ctype {
-	switch x := v.U.(type) {
-	default:
-		Fatalf("unexpected Ctype for %T", v.U)
-		panic("not reached")
-	case nil:
-		return 0
-	case *NilVal:
-		return CTNIL
-	case bool:
-		return CTBOOL
-	case *Mpint:
-		if x.Rune {
-			return CTRUNE
-		}
-		return CTINT
-	case *Mpflt:
-		return CTFLT
-	case *Mpcplx:
-		return CTCPLX
-	case string:
-		return CTSTR
-	}
-}
 
 type Pkg struct {
 	Name     string // package name, e.g. "sys"
@@ -119,35 +80,6 @@ const (
 	SymAlgGen
 )
 
-// Ctype describes the constant kind of an "ideal" (untyped) constant.
-type Ctype int8
-
-const (
-	CTxxx Ctype = iota
-
-	CTINT
-	CTRUNE
-	CTFLT
-	CTCPLX
-	CTSTR
-	CTBOOL
-	CTNIL
-)
-
-// ChanDir is whether a channel can send, receive, or both.
-type ChanDir uint8
-
-func (c ChanDir) CanRecv() bool { return c&Crecv != 0 }
-func (c ChanDir) CanSend() bool { return c&Csend != 0 }
-
-const (
-	// types of channel
-	// must match ../../../../reflect/type.go:/ChanDir
-	Crecv ChanDir = 1 << 0
-	Csend ChanDir = 1 << 1
-	Cboth ChanDir = Crecv | Csend
-)
-
 // The Class of a variable/function describes the "storage class"
 // of a variable or function. During parsing, storage classes are
 // called declaration contexts.
@@ -166,30 +98,6 @@ const (
 
 	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
 )
-
-const (
-	Etop      = 1 << 1 // evaluated at statement level
-	Erv       = 1 << 2 // evaluated in value context
-	Etype     = 1 << 3
-	Ecall     = 1 << 4  // call-only expressions are ok
-	Efnstruct = 1 << 5  // multivalue function returns are ok
-	Eiota     = 1 << 6  // iota is ok
-	Easgn     = 1 << 7  // assigning to expression
-	Eindir    = 1 << 8  // indirecting through expression
-	Eaddr     = 1 << 9  // taking address of expression
-	Eproc     = 1 << 10 // inside a go statement
-	Ecomplit  = 1 << 11 // type in composite literal
-)
-
-type Sig struct {
-	name   string
-	pkg    *Pkg
-	isym   *Sym
-	tsym   *Sym
-	type_  *Type
-	mtype  *Type
-	offset int32
-}
 
 // note this is the runtime representation
 // of the compilers arrays.
@@ -218,13 +126,6 @@ var sizeof_Array int // runtime sizeof(Array)
 // } String;
 var sizeof_String int // runtime sizeof(String)
 
-// lexlineno is the line number _after_ the most recently read rune.
-// In particular, it's advanced (or rewound) as newlines are read (or unread).
-var lexlineno int32
-
-// lineno is the line number at the start of the most recently lexed token.
-var lineno int32
-
 var pragcgobuf string
 
 var infile string
@@ -244,10 +145,6 @@ var decldepth int32
 var safemode int
 
 var nolocalimports int
-
-var lexbuf bytes.Buffer
-var strbuf bytes.Buffer
-var litbuf string // LLITERAL value for use in syntax error messages
 
 var Debug [256]int
 
@@ -324,8 +221,6 @@ var maxfltval [NTYPE]*Mpflt
 
 var xtop []*Node
 
-var externdcl []*Node
-
 var exportlist []*Node
 
 var importlist []*Node // imported functions and methods with inlinable bodies
@@ -349,10 +244,6 @@ var Maxarg int64
 var Stksize int64 // stack size for current frame
 
 var stkptrsize int64 // prefix of stack containing pointers
-
-var blockgen int32 // max block number
-
-var block int32 // current block number
 
 var hasdefer bool // flag that curfn has defer statement
 
@@ -409,34 +300,6 @@ var Pc *obj.Prog
 var nodfp *Node
 
 var Disable_checknil int
-
-type Flow struct {
-	Prog   *obj.Prog // actual instruction
-	P1     *Flow     // predecessors of this instruction: p1,
-	P2     *Flow     // and then p2 linked though p2link.
-	P2link *Flow
-	S1     *Flow // successors of this instruction (at most two: s1 and s2).
-	S2     *Flow
-	Link   *Flow // next instruction in function code
-
-	Active int32 // usable by client
-
-	Id     int32  // sequence number in flow graph
-	Rpo    int32  // reverse post ordering
-	Loop   uint16 // x5 for every loop
-	Refset bool   // diagnostic generated
-
-	Data interface{} // for use by client
-}
-
-type Graph struct {
-	Start *Flow
-	Num   int
-
-	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
-	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
-	Rpo []*Flow
-}
 
 // interface to back end
 

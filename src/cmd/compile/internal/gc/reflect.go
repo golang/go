@@ -22,6 +22,16 @@ type itabEntry struct {
 var signatlist []*Node
 var itabs []itabEntry
 
+type Sig struct {
+	name   string
+	pkg    *Pkg
+	isym   *Sym
+	tsym   *Sym
+	type_  *Type
+	mtype  *Type
+	offset int32
+}
+
 // byMethodNameAndPackagePath sorts method signatures by name, then package path.
 type byMethodNameAndPackagePath []*Sig
 
