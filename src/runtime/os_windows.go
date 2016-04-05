@@ -10,7 +10,7 @@ type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
 }
 
-type stdFunction *byte
+type stdFunction unsafe.Pointer
 
 //go:linkname os_sigpipe os.sigpipe
 func os_sigpipe() {

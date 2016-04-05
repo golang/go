@@ -110,28 +110,24 @@ func asmstdcall(fn unsafe.Pointer)
 
 var asmstdcallAddr unsafe.Pointer
 
-func windowsFindfunc(name []byte, lib uintptr) stdFunction {
+func windowsFindfunc(lib uintptr, name []byte) stdFunction {
+	if name[len(name)-1] != 0 {
+		throw("usage")
+	}
 	f := stdcall2(_GetProcAddress, lib, uintptr(unsafe.Pointer(&name[0])))
 	return stdFunction(unsafe.Pointer(f))
 }
 
 func loadOptionalSyscalls() {
-	var (
-		kernel32dll                 = []byte("kernel32.dll\000")
-		addVectoredContinueHandler  = []byte("AddVectoredContinueHandler\000")
-		getQueuedCompletionStatusEx = []byte("GetQueuedCompletionStatusEx\000")
-		addDllDirectory             = []byte("AddDllDirectory\000")
-		loadLibraryExW              = []byte("LoadLibraryExW\000")
-	)
-
+	var kernel32dll = []byte("kernel32.dll\000")
 	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
 	if k32 == 0 {
 		throw("kernel32.dll not found")
 	}
-	_AddDllDirectory = windowsFindfunc(addDllDirectory, k32)
-	_AddVectoredContinueHandler = windowsFindfunc(addVectoredContinueHandler, k32)
-	_GetQueuedCompletionStatusEx = windowsFindfunc(getQueuedCompletionStatusEx, k32)
-	_LoadLibraryExW = windowsFindfunc(loadLibraryExW, k32)
+	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
+	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
+	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
+	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
 }
 
 //go:nosplit
