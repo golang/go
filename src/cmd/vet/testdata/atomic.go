@@ -40,4 +40,13 @@ func AtomicTests() {
 	*ap[1] = atomic.AddUint64(ap[0], 1)
 
 	x = atomic.AddUint64() // Used to make vet crash; now silently ignored.
+
+	{
+		// A variable declaration creates a new variable in the current scope.
+		x := atomic.AddUint64(&x, 1) // ERROR "declaration of .x. shadows declaration at testdata/atomic.go:16"
+
+		// Re-declaration assigns a new value.
+		x, w := atomic.AddUint64(&x, 1), 10 // ERROR "direct assignment to atomic value"
+		_ = w
+	}
 }
