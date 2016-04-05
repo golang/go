@@ -19,8 +19,9 @@ import (
 var only = flag.String("only", "", "If non-empty, the fix test to run")
 
 var tests = []struct {
-	name    string
-	in, out string
+	name       string
+	formatOnly bool
+	in, out    string
 }{
 	// Adding an import to an existing parenthesized import
 	{
@@ -750,6 +751,31 @@ import "fmt"
 func main() { fmt.Println() }
 `,
 	},
+
+	// FormatOnly
+	{
+		name:       "format only",
+		formatOnly: true,
+		in: `package main
+
+import (
+"fmt"
+"golang.org/x/foo"
+)
+
+func main() {}
+`,
+		out: `package main
+
+import (
+	"fmt"
+
+	"golang.org/x/foo"
+)
+
+func main() {}
+`,
+	},
 }
 
 func TestFixImports(t *testing.T) {
@@ -782,6 +808,7 @@ func TestFixImports(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		options.FormatOnly = tt.formatOnly
 		if *only != "" && tt.name != *only {
 			continue
 		}
