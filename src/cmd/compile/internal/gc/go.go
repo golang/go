@@ -66,6 +66,14 @@ type Pkg struct {
 	Syms     map[string]*Sym
 }
 
+// Sym represents an object name. Most commonly, this is a Go identifier naming
+// an object declared within a package, but Syms are also used to name internal
+// synthesized objects.
+//
+// As a special exception, field and method names that are exported use the Sym
+// associated with localpkg instead of the package that declared them. This
+// allows using Sym pointer equality to test for Go identifier uniqueness when
+// handling selector expressions.
 type Sym struct {
 	Flags     SymFlags
 	Link      *Sym
@@ -110,8 +118,6 @@ const (
 	SymAsm
 	SymAlgGen
 )
-
-var dclstack *Sym
 
 // Ctype describes the constant kind of an "ideal" (untyped) constant.
 type Ctype int8

@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+// Declaration stack & operations
+
 func dflag() bool {
 	if Debug['d'] == 0 {
 		return false
@@ -24,8 +26,21 @@ func dflag() bool {
 	return true
 }
 
-// declaration stack & operations
-func dcopy(a *Sym, b *Sym) {
+// dclstack maintains a stack of shadowed symbol declarations so that
+// popdcl can restore their declarations when a block scope ends.
+// The stack is maintained as a linked list, using Sym's Link field.
+//
+// In practice, the "stack" actually ends up forming a tree: goto and label
+// statements record the current state of dclstack so that checkgoto can
+// validate that a goto statement does not jump over any declarations or
+// into a new block scope.
+//
+// Finally, the Syms in this list are not "real" Syms as they don't actually
+// represent object names. Sym is just a convenient type for saving shadowed
+// Sym definitions, and only a subset of its fields are actually used.
+var dclstack *Sym
+
+func dcopy(a, b *Sym) {
 	a.Pkg = b.Pkg
 	a.Name = b.Name
 	a.Def = b.Def
@@ -41,6 +56,8 @@ func push() *Sym {
 	return d
 }
 
+// pushdcl pushes the current declaration for symbol s (if any) so that
+// it can be shadowed by a new declaration within a nested block scope.
 func pushdcl(s *Sym) *Sym {
 	d := push()
 	dcopy(d, s)
@@ -50,6 +67,8 @@ func pushdcl(s *Sym) *Sym {
 	return d
 }
 
+// popdcl pops the innermost block scope and restores all symbol declarations
+// to their previous state.
 func popdcl() {
 	d := dclstack
 	for ; d != nil && d.Name != ""; d = d.Link {
@@ -70,6 +89,7 @@ func popdcl() {
 	block = d.Block
 }
 
+// markdcl records the start of a new block scope for declarations.
 func markdcl() {
 	d := push()
 	d.Name = "" // used as a mark in fifo
@@ -104,6 +124,7 @@ func testdclstack() {
 	}
 }
 
+// redeclare emits a diagnostic about symbol s being redeclared somewhere.
 func redeclare(s *Sym, where string) {
 	if s.Lastlineno == 0 {
 		var tmp string
@@ -137,6 +158,8 @@ var vargen int
 
 var declare_typegen int
 
+// declare records that Node n declares symbol n.Sym in the specified
+// declaration context.
 func declare(n *Node, ctxt Class) {
 	if ctxt == PDISCARD {
 		return
@@ -318,8 +341,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	return vv
 }
 
-// this generates a new name node,
-// typically for labels or other one-off names.
+// newname returns a new ONAME Node associated with symbol s.
 func newname(s *Sym) *Node {
 	if s == nil {
 		Fatalf("newname nil")
@@ -364,17 +386,14 @@ func typenod(t *Type) *Node {
 	return t.Nod
 }
 
-// this will return an old name
-// that has already been pushed on the
-// declaration list. a diagnostic is
-// generated if no name has been defined.
+// oldname returns the Node that declares symbol s in the current scope.
+// If no such Node currently exists, an ONONAME Node is returned instead.
 func oldname(s *Sym) *Node {
 	n := s.Def
 	if n == nil {
-		// maybe a top-level name will come along
-		// to give this a definition later.
-		// walkdef will check s->def again once
-		// all the input source has been processed.
+		// Maybe a top-level declaration will come along later to
+		// define s. resolve will check s.Def again once all input
+		// source has been processed.
 		n = newname(s)
 		n.Op = ONONAME
 		n.Name.Iota = iota_ // save current iota value in const declarations
