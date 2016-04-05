@@ -742,7 +742,7 @@ func basetypeName(t *Type) string {
 }
 
 func (p *exporter) paramList(params *Type, numbered bool) {
-	if !params.IsStruct() || !params.Funarg {
+	if !params.IsFuncArgStruct() {
 		Fatalf("exporter: parameter list expected")
 	}
 

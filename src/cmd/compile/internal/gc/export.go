@@ -592,7 +592,7 @@ func dumpasmhdr() {
 
 		case OTYPE:
 			t := n.Type
-			if !t.IsStruct() || t.Map != nil || t.Funarg {
+			if !t.IsStruct() || t.Map != nil || t.IsFuncArgStruct() {
 				break
 			}
 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))

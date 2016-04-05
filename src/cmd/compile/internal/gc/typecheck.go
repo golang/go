@@ -1607,7 +1607,7 @@ OpSwitch:
 
 		// Unpack multiple-return result before type-checking.
 		var funarg *Type
-		if t.IsStruct() && t.Funarg {
+		if t.IsFuncArgStruct() {
 			funarg = t
 			t = t.Field(0).Type
 		}
@@ -2159,7 +2159,7 @@ OpSwitch:
 	}
 
 	t := n.Type
-	if t != nil && !t.Funarg && n.Op != OTYPE {
+	if t != nil && !t.IsFuncArgStruct() && n.Op != OTYPE {
 		switch t.Etype {
 		case TFUNC, // might have TANY; wait until its called
 			TANY,
@@ -2611,7 +2611,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 	if nl.Len() == 1 {
 		n = nl.First()
 		if n.Type != nil {
-			if n.Type.IsStruct() && n.Type.Funarg {
+			if n.Type.IsFuncArgStruct() {
 				if !hasddd(tstruct) {
 					n1 := tstruct.NumFields()
 					n2 := n.Type.NumFields()
@@ -3359,7 +3359,7 @@ func typecheckas2(n *Node) {
 		}
 		switch r.Op {
 		case OCALLMETH, OCALLINTER, OCALLFUNC:
-			if !r.Type.IsStruct() || !r.Type.Funarg {
+			if !r.Type.IsFuncArgStruct() {
 				break
 			}
 			cr = r.Type.NumFields()

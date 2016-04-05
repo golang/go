@@ -541,7 +541,7 @@ func nodarg(t interface{}, fp int) *Node {
 	switch t := t.(type) {
 	case *Type:
 		// entire argument struct, not just one arg
-		if !t.IsStruct() || !t.Funarg {
+		if !t.IsFuncArgStruct() {
 			Fatalf("nodarg: bad type %v", t)
 		}
 		n = Nod(ONAME, nil, nil)
