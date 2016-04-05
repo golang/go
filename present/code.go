@@ -18,7 +18,7 @@ import (
 // Is the playground available?
 var PlayEnabled = false
 
-// TOOD(adg): replace the PlayEnabled flag with something less spaghetti-like.
+// TODO(adg): replace the PlayEnabled flag with something less spaghetti-like.
 // Instead this will probably be determined by a template execution Context
 // value that contains various global metadata required when rendering
 // templates.
