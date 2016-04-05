@@ -649,6 +649,17 @@ func TestDLLPreloadMitigation(t *testing.T) {
 		t.Skip("skipping test: gcc is missing")
 	}
 
+	tmpdir, err := ioutil.TempDir("", "TestDLLPreloadMitigation")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer func() {
+		err := os.RemoveAll(tmpdir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
 	dir0, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -663,12 +674,6 @@ uintptr_t cfunc() {
    SetLastError(123);
 }
 `
-	tmpdir, err := ioutil.TempDir("", "TestDLLPreloadMitigation")
-	if err != nil {
-		t.Fatal("TempDir failed: ", err)
-	}
-	defer os.RemoveAll(tmpdir)
-
 	srcname := "nojack.c"
 	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
 	if err != nil {
