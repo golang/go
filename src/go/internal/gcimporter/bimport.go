@@ -723,7 +723,11 @@ var predeclared = []types.Type{
 	// invalid type
 	types.Typ[types.Invalid], // only appears in packages with errors
 
-	// TODO(mdempsky): Provide an actual Type value to represent "any"?
-	// (Why exactly does gc emit the "any" type?)
-	types.Typ[types.Invalid],
+	// used internally by gc; never used by this package or in .a files
+	anyType{},
 }
+
+type anyType struct{}
+
+func (t anyType) Underlying() types.Type { return t }
+func (t anyType) String() string         { return "any" }
