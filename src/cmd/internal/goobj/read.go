@@ -43,6 +43,7 @@ const (
 	SRODATA    SymKind = obj.SRODATA
 	SFUNCTAB   SymKind = obj.SFUNCTAB
 	STYPELINK  SymKind = obj.STYPELINK
+	SITABLINK  SymKind = obj.SITABLINK
 	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
 	SPCLNTAB   SymKind = obj.SPCLNTAB
 	SELFROSECT SymKind = obj.SELFROSECT
@@ -106,6 +107,7 @@ var symKindStrings = []string{
 	STLSBSS:           "STLSBSS",
 	STYPE:             "STYPE",
 	STYPELINK:         "STYPELINK",
+	SITABLINK:         "SITABLINK",
 	SWINDOWS:          "SWINDOWS",
 	SXREF:             "SXREF",
 }
@@ -215,7 +217,7 @@ type FuncData struct {
 type Package struct {
 	ImportPath string   // import path denoting this package
 	Imports    []string // packages imported by this package
-	SymRefs    []SymID  // list of symbol names and versions refered to by this pack
+	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
 	Syms       []*Sym   // symbols defined by this package
 	MaxVersion int      // maximum Version in any SymID in Syms
 }
@@ -612,6 +614,12 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 
 	dataLength := r.readInt()
+	r.readInt() // n relocations - ignore
+	r.readInt() // n pcdata - ignore
+	r.readInt() // n autom - ignore
+	r.readInt() // n funcdata - ignore
+	r.readInt() // n files - ignore
+
 	r.dataOffset = r.offset
 	r.skip(int64(dataLength))
 

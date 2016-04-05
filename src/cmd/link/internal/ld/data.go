@@ -149,6 +149,9 @@ func Addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	r.Add = add
 	r.Type = obj.R_PCREL
 	r.Siz = 4
+	if Thearch.Thechar == 'z' {
+		r.Variant = RV_390_DBL
+	}
 	return i + int64(r.Siz)
 }
 
@@ -345,6 +348,17 @@ func relocsym(s *LSym) {
 		}
 		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Attr.Reachable() {
 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
+		}
+
+		// TODO(mundaym): remove this special case - see issue 14218.
+		if Thearch.Thechar == 'z' {
+			switch r.Type {
+			case obj.R_PCRELDBL:
+				r.Type = obj.R_PCREL
+				r.Variant = RV_390_DBL
+			case obj.R_CALL:
+				r.Variant = RV_390_DBL
+			}
 		}
 
 		switch r.Type {
@@ -1020,7 +1034,7 @@ func symalign(s *LSym) int32 {
 	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
 		// String data is just bytes.
 		// If we align it, we waste a lot of space to padding.
-		return 1
+		return min
 	}
 	align := int32(Thearch.Maxalign)
 	for int64(align) > s.Size && align > min {
@@ -1257,7 +1271,7 @@ func dodata() {
 		// when building a shared library. We do this by boosting objects of
 		// type SXXX with relocations to type SXXXRELRO.
 		for s := datap; s != nil; s = s.Next {
-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRINGHDR {
+			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.STYPE || s.Type == obj.SGOSTRINGHDR {
 				s.Type += (obj.STYPERELRO - obj.STYPE)
 				if s.Outer != nil {
 					s.Outer.Type = s.Type
@@ -1605,6 +1619,24 @@ func dodata() {
 
 	sect.Length = uint64(datsize) - sect.Vaddr
 
+	/* itablink */
+	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
+
+	sect.Align = maxalign(s, obj.SITABLINK)
+	datsize = Rnd(datsize, int64(sect.Align))
+	sect.Vaddr = uint64(datsize)
+	Linklookup(Ctxt, "runtime.itablink", 0).Sect = sect
+	Linklookup(Ctxt, "runtime.eitablink", 0).Sect = sect
+	for ; s != nil && s.Type == obj.SITABLINK; s = s.Next {
+		datsize = aligndatsize(datsize, s)
+		s.Sect = sect
+		s.Type = obj.SRODATA
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		growdatsize(&datsize, s)
+	}
+
+	sect.Length = uint64(datsize) - sect.Vaddr
+
 	/* gosymtab */
 	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
 
@@ -1713,6 +1745,9 @@ func textaddress() {
 	sect.Align = int32(Funcalign)
 	Linklookup(Ctxt, "runtime.text", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.etext", 0).Sect = sect
+	if HEADTYPE == obj.Hwindows {
+		Linklookup(Ctxt, ".text", 0).Sect = sect
+	}
 	va := uint64(INITTEXT)
 	sect.Vaddr = va
 	for sym := Ctxt.Textp; sym != nil; sym = sym.Next {
@@ -1835,7 +1870,8 @@ func address() {
 		// object on elf systems.
 		typelink = typelink.Next
 	}
-	symtab := typelink.Next
+	itablink := typelink.Next
+	symtab := itablink.Next
 	pclntab := symtab.Next
 
 	var sub *LSym
@@ -1858,10 +1894,15 @@ func address() {
 
 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
+	if HEADTYPE == obj.Hwindows {
+		xdefine(".text", obj.STEXT, int64(text.Vaddr))
+	}
 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
 	xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
+	xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
+	xdefine("runtime.eitablink", obj.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
 	sym := Linklookup(Ctxt, "runtime.gcdata", 0)
 	sym.Attr |= AttrLocal

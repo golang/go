@@ -777,7 +777,7 @@ func BenchmarkChanContended(b *testing.B) {
 	})
 }
 
-func BenchmarkChanSync(b *testing.B) {
+func benchmarkChanSync(b *testing.B, work int) {
 	const CallsPerSched = 1000
 	procs := 2
 	N := int32(b.N / CallsPerSched / procs * procs)
@@ -793,10 +793,14 @@ func BenchmarkChanSync(b *testing.B) {
 				for g := 0; g < CallsPerSched; g++ {
 					if i%2 == 0 {
 						<-myc
+						localWork(work)
 						myc <- 0
+						localWork(work)
 					} else {
 						myc <- 0
+						localWork(work)
 						<-myc
+						localWork(work)
 					}
 				}
 			}
@@ -806,6 +810,14 @@ func BenchmarkChanSync(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 	}
+}
+
+func BenchmarkChanSync(b *testing.B) {
+	benchmarkChanSync(b, 0)
+}
+
+func BenchmarkChanSyncWork(b *testing.B) {
+	benchmarkChanSync(b, 1000)
 }
 
 func benchmarkChanProdCons(b *testing.B, chanSize, localWork int) {
@@ -980,4 +992,19 @@ func BenchmarkChanPopular(b *testing.B) {
 		}
 	}
 	wg.Wait()
+}
+
+var (
+	alwaysFalse = false
+	workSink    = 0
+)
+
+func localWork(w int) {
+	foo := 0
+	for i := 0; i < w; i++ {
+		foo /= (foo + 1)
+	}
+	if alwaysFalse {
+		workSink += foo
+	}
 }

@@ -61,19 +61,23 @@ int FetchPEMRoots(CFDataRef *pemRoots) {
 }
 */
 import "C"
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
-func initSystemRoots() {
+func loadSystemRoots() (*CertPool, error) {
 	roots := NewCertPool()
 
 	var data C.CFDataRef = nil
 	err := C.FetchPEMRoots(&data)
 	if err == -1 {
-		return
+		// TODO: better error message
+		return nil, errors.New("crypto/x509: failed to load darwin system roots with cgo")
 	}
 
 	defer C.CFRelease(C.CFTypeRef(data))
 	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
 	roots.AppendCertsFromPEM(buf)
-	systemRoots = roots
+	return roots, nil
 }

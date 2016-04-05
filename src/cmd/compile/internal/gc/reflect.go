@@ -13,8 +13,14 @@ import (
 	"strings"
 )
 
+type itabEntry struct {
+	t, itype *Type
+	sym      *Sym
+}
+
 // runtime interface and reflection data structures
 var signatlist []*Node
+var itabs []itabEntry
 
 // byMethodNameAndPackagePath sorts method signatures by name, then package path.
 type byMethodNameAndPackagePath []*Sig
@@ -76,7 +82,7 @@ func mapbucket(t *Type) *Type {
 
 	bucket := typ(TSTRUCT)
 	keytype := t.Key()
-	valtype := t.Type
+	valtype := t.Val()
 	dowidth(keytype)
 	dowidth(valtype)
 	if keytype.Width > MAXKEYSIZE {
@@ -87,19 +93,12 @@ func mapbucket(t *Type) *Type {
 	}
 
 	// The first field is: uint8 topbits[BUCKETSIZE].
-	arr := typ(TARRAY)
-
-	arr.Type = Types[TUINT8]
-	arr.Bound = BUCKETSIZE
+	arr := typArray(Types[TUINT8], BUCKETSIZE)
 	field := make([]*Field, 0, 5)
 	field = append(field, makefield("topbits", arr))
-	arr = typ(TARRAY)
-	arr.Type = keytype
-	arr.Bound = BUCKETSIZE
+	arr = typArray(keytype, BUCKETSIZE)
 	field = append(field, makefield("keys", arr))
-	arr = typ(TARRAY)
-	arr.Type = valtype
-	arr.Bound = BUCKETSIZE
+	arr = typArray(valtype, BUCKETSIZE)
 	field = append(field, makefield("values", arr))
 
 	// Make sure the overflow pointer is the last memory in the struct,
@@ -119,7 +118,7 @@ func mapbucket(t *Type) *Type {
 	// so if the struct needs 64-bit padding (because a key or value does)
 	// then it would end with an extra 32-bit padding field.
 	// Preempt that by emitting the padding here.
-	if int(t.Type.Align) > Widthptr || int(t.Key().Align) > Widthptr {
+	if int(t.Val().Align) > Widthptr || int(t.Key().Align) > Widthptr {
 		field = append(field, makefield("pad", Types[TUINTPTR]))
 	}
 
@@ -130,7 +129,7 @@ func mapbucket(t *Type) *Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
 	otyp := Ptrto(bucket)
-	if !haspointers(t.Type) && !haspointers(t.Key()) && t.Type.Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
+	if !haspointers(t.Val()) && !haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
 		otyp = Types[TUINTPTR]
 	}
 	ovf := makefield("overflow", otyp)
@@ -144,7 +143,7 @@ func mapbucket(t *Type) *Type {
 
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end. See comment above.
-	if ovf.Width != bucket.Width-int64(Widthptr) {
+	if ovf.Offset != bucket.Width-int64(Widthptr) {
 		Yyerror("bad math in mapbucket for %v", t)
 	}
 
@@ -205,7 +204,7 @@ func hiter(t *Type) *Type {
 	// must match ../../../../runtime/hashmap.go:hiter.
 	var field [12]*Field
 	field[0] = makefield("key", Ptrto(t.Key()))
-	field[1] = makefield("val", Ptrto(t.Type))
+	field[1] = makefield("val", Ptrto(t.Val()))
 	field[2] = makefield("t", Ptrto(Types[TUINT8]))
 	field[3] = makefield("h", Ptrto(hmap(t)))
 	field[4] = makefield("buckets", Ptrto(mapbucket(t)))
@@ -256,9 +255,9 @@ func methodfunc(f *Type, receiver *Type) *Type {
 	}
 
 	t := functype(nil, in, out)
-	if f.Nname != nil {
+	if f.Nname() != nil {
 		// Link to name of original method function.
-		t.Nname = f.Nname
+		t.SetNname(f.Nname())
 	}
 
 	return t
@@ -307,10 +306,10 @@ func methods(t *Type) []*Sig {
 		// method does not apply.
 		this := f.Type.Recv().Type
 
-		if Isptr[this.Etype] && this.Type == t {
+		if this.IsPtr() && this.Elem() == t {
 			continue
 		}
-		if Isptr[this.Etype] && !Isptr[t.Etype] && f.Embedded != 2 && !isifacemethod(f.Type) {
+		if this.IsPtr() && !t.IsPtr() && f.Embedded != 2 && !isifacemethod(f.Type) {
 			continue
 		}
 
@@ -583,8 +582,13 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 
 func typePkg(t *Type) *Pkg {
 	tsym := t.Sym
-	if tsym == nil && t.Type != nil {
-		tsym = t.Type.Sym
+	if tsym == nil {
+		switch t.Etype {
+		case TARRAY, TPTR32, TPTR64, TCHAN:
+			if t.Elem() != nil {
+				tsym = t.Elem().Sym
+			}
+		}
 	}
 	if tsym != nil && t != Types[t.Etype] && t != errortype {
 		return tsym.Pkg
@@ -675,17 +679,17 @@ func haspointers(t *Type) bool {
 		ret = false
 
 	case TARRAY:
-		if t.Bound < 0 { // slice
+		if t.IsSlice() {
 			ret = true
 			break
 		}
 
-		if t.Bound == 0 { // empty array
+		if t.NumElem() == 0 { // empty array
 			ret = false
 			break
 		}
 
-		ret = haspointers(t.Type)
+		ret = haspointers(t.Elem())
 
 	case TSTRUCT:
 		ret = false
@@ -739,12 +743,12 @@ func typeptrdata(t *Type) int64 {
 		return 2 * int64(Widthptr)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			return int64(Widthptr)
 		}
-		// haspointers already eliminated t.Bound == 0.
-		return (t.Bound-1)*t.Type.Width + typeptrdata(t.Type)
+		// haspointers already eliminated t.NumElem() == 0.
+		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
 
 	case TSTRUCT:
 		// Find the last field that has pointers.
@@ -754,7 +758,7 @@ func typeptrdata(t *Type) int64 {
 				lastPtrField = t1
 			}
 		}
-		return lastPtrField.Width + typeptrdata(lastPtrField.Type)
+		return lastPtrField.Offset + typeptrdata(lastPtrField.Type)
 
 	default:
 		Fatalf("typeptrdata: unexpected type, %v", t)
@@ -782,12 +786,12 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	dowidth(t)
 	alg := algtype(t)
 	var algsym *Sym
-	if alg < 0 || alg == AMEM {
+	if alg == ASPECIAL || alg == AMEM {
 		algsym = dalgsym(t)
 	}
 
 	tptr := Ptrto(t)
-	if !Isptr[t.Etype] && (t.Sym != nil || methods(tptr) != nil) {
+	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
 		sptr := dtypesym(tptr)
 		r := obj.Addrel(Linksym(s))
 		r.Off = 0
@@ -836,7 +840,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = duint8(s, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Etype]
-	if t.Etype == TARRAY && t.Bound < 0 {
+	if t.IsSlice() {
 		i = obj.KindSlice
 	}
 	if !haspointers(t) {
@@ -850,7 +854,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 	ot = duint8(s, ot, uint8(i)) // kind
 	if algsym == nil {
-		ot = dsymptr(s, ot, dcommontype_algarray, alg*sizeofAlg)
+		ot = dsymptr(s, ot, dcommontype_algarray, int(alg)*sizeofAlg)
 	} else {
 		ot = dsymptr(s, ot, algsym, 0)
 	}
@@ -914,18 +918,14 @@ func typesymprefix(prefix string, t *Type) *Sym {
 }
 
 func typenamesym(t *Type) *Sym {
-	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		Fatalf("typename %v", t)
 	}
 	s := typesym(t)
 	if s.Def == nil {
-		n := Nod(ONAME, nil, nil)
-		n.Sym = s
+		n := newname(s)
 		n.Type = Types[TUINT8]
-		n.Addable = true
-		n.Ullman = 1
 		n.Class = PEXTERN
-		n.Xoffset = 0
 		n.Typecheck = 1
 		s.Def = n
 
@@ -937,6 +937,29 @@ func typenamesym(t *Type) *Sym {
 
 func typename(t *Type) *Node {
 	s := typenamesym(t)
+	n := Nod(OADDR, s.Def, nil)
+	n.Type = Ptrto(s.Def.Type)
+	n.Addable = true
+	n.Ullman = 2
+	n.Typecheck = 1
+	return n
+}
+
+func itabname(t, itype *Type) *Node {
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
+		Fatalf("itabname %v", t)
+	}
+	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
+	if s.Def == nil {
+		n := newname(s)
+		n.Type = Types[TUINT8]
+		n.Class = PEXTERN
+		n.Typecheck = 1
+		s.Def = n
+
+		itabs = append(itabs, itabEntry{t: t, itype: itype, sym: s})
+	}
+
 	n := Nod(OADDR, s.Def, nil)
 	n.Type = Ptrto(s.Def.Type)
 	n.Addable = true
@@ -976,10 +999,10 @@ func isreflexive(t *Type) bool {
 		return false
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("slice can't be a map key: %v", t)
 		}
-		return isreflexive(t.Type)
+		return isreflexive(t.Elem())
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
@@ -1026,10 +1049,10 @@ func needkeyupdate(t *Type) bool {
 		return true
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("slice can't be a map key: %v", t)
 		}
-		return needkeyupdate(t.Type)
+		return needkeyupdate(t.Elem())
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
@@ -1053,7 +1076,7 @@ func dtypesym(t *Type) *Sym {
 		t = Types[t.Etype]
 	}
 
-	if isideal(t) {
+	if t.IsUntyped() {
 		Fatalf("dtypesym %v", t)
 	}
 
@@ -1068,8 +1091,8 @@ func dtypesym(t *Type) *Sym {
 	// emit the type structures for int, float, etc.
 	tbase := t
 
-	if Isptr[t.Etype] && t.Sym == nil && t.Type.Sym != nil {
-		tbase = t.Type
+	if t.IsPtr() && t.Sym == nil && t.Elem().Sym != nil {
+		tbase = t.Elem()
 	}
 	dupok := 0
 	if tbase.Sym == nil {
@@ -1096,21 +1119,18 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TARRAY:
-		if t.Bound >= 0 {
+		if t.IsArray() {
 			// ../../../../runtime/type.go:/arrayType
-			s1 := dtypesym(t.Type)
-
-			t2 := typ(TARRAY)
-			t2.Type = t.Type
-			t2.Bound = -1 // slice
+			s1 := dtypesym(t.Elem())
+			t2 := typSlice(t.Elem())
 			s2 := dtypesym(t2)
 			ot = dcommontype(s, ot, t)
 			ot = dsymptr(s, ot, s1, 0)
 			ot = dsymptr(s, ot, s2, 0)
-			ot = duintptr(s, ot, uint64(t.Bound))
+			ot = duintptr(s, ot, uint64(t.NumElem()))
 		} else {
 			// ../../../../runtime/type.go:/sliceType
-			s1 := dtypesym(t.Type)
+			s1 := dtypesym(t.Elem())
 
 			ot = dcommontype(s, ot, t)
 			ot = dsymptr(s, ot, s1, 0)
@@ -1119,11 +1139,11 @@ ok:
 
 	// ../../../../runtime/type.go:/chanType
 	case TCHAN:
-		s1 := dtypesym(t.Type)
+		s1 := dtypesym(t.Elem())
 
 		ot = dcommontype(s, ot, t)
 		ot = dsymptr(s, ot, s1, 0)
-		ot = duintptr(s, ot, uint64(t.Chan))
+		ot = duintptr(s, ot, uint64(t.ChanDir()))
 		ot = dextratype(s, ot, t, 0)
 
 	case TFUNC:
@@ -1201,7 +1221,7 @@ ok:
 	// ../../../../runtime/type.go:/mapType
 	case TMAP:
 		s1 := dtypesym(t.Key())
-		s2 := dtypesym(t.Type)
+		s2 := dtypesym(t.Val())
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
 		ot = dcommontype(s, ot, t)
@@ -1217,11 +1237,11 @@ ok:
 			ot = duint8(s, ot, 0) // not indirect
 		}
 
-		if t.Type.Width > MAXVALSIZE {
+		if t.Val().Width > MAXVALSIZE {
 			ot = duint8(s, ot, uint8(Widthptr))
 			ot = duint8(s, ot, 1) // indirect
 		} else {
-			ot = duint8(s, ot, uint8(t.Type.Width))
+			ot = duint8(s, ot, uint8(t.Val().Width))
 			ot = duint8(s, ot, 0) // not indirect
 		}
 
@@ -1231,7 +1251,7 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TPTR32, TPTR64:
-		if t.Type.Etype == TANY {
+		if t.Elem().Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(s, ot, t)
 			ot = dextratype(s, ot, t, 0)
@@ -1240,7 +1260,7 @@ ok:
 		}
 
 		// ../../../../runtime/type.go:/ptrType
-		s1 := dtypesym(t.Type)
+		s1 := dtypesym(t.Elem())
 
 		ot = dcommontype(s, ot, t)
 		ot = dsymptr(s, ot, s1, 0)
@@ -1257,7 +1277,7 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		var pkg *Pkg
+		pkg := localpkg
 		if t.Sym != nil {
 			pkg = t.Sym.Pkg
 		}
@@ -1273,7 +1293,7 @@ ok:
 			// ../../../../runtime/type.go:/structField
 			ot = dnameField(s, ot, f)
 			ot = dsymptr(s, ot, dtypesym(f.Type), 0)
-			ot = duintptr(s, ot, uint64(f.Width)) // field offset
+			ot = duintptr(s, ot, uint64(f.Offset))
 		}
 	}
 
@@ -1287,7 +1307,7 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
-		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP:
+		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
 			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
@@ -1318,6 +1338,30 @@ func dumptypestructs() {
 		if t.Sym != nil {
 			dtypesym(Ptrto(t))
 		}
+	}
+
+	// process itabs
+	for _, i := range itabs {
+		// dump empty itab symbol into i.sym
+		// type itab struct {
+		//   inter  *interfacetype
+		//   _type  *_type
+		//   link   *itab
+		//   bad    int32
+		//   unused int32
+		//   fun    [1]uintptr // variable sized
+		// }
+		o := dsymptr(i.sym, 0, dtypesym(i.itype), 0)
+		o = dsymptr(i.sym, o, dtypesym(i.t), 0)
+		o += Widthptr + 8                      // skip link/bad/unused fields
+		o += len(imethods(i.itype)) * Widthptr // skip fun method pointers
+		// at runtime the itab will contain pointers to types, other itabs and
+		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+
+		ilink := Pkglookup(Tconv(i.t, FmtLeft)+","+Tconv(i.itype, FmtLeft), itablinkpkg)
+		dsymptr(ilink, 0, i.sym, 0)
+		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}
 
 	// generate import strings for imported packages
@@ -1589,21 +1633,21 @@ func (p *GCProg) emit(t *Type, offset int64) {
 		p.w.Ptr(offset/int64(Widthptr) + 1)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			p.w.Ptr(offset / int64(Widthptr))
 			return
 		}
-		if t.Bound == 0 {
+		if t.NumElem() == 0 {
 			// should have been handled by haspointers check above
 			Fatalf("GCProg.emit: empty array")
 		}
 
 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
-		count := t.Bound
-		elem := t.Type
-		for Isfixedarray(elem) {
-			count *= elem.Bound
-			elem = elem.Type
+		count := t.NumElem()
+		elem := t.Elem()
+		for elem.IsArray() {
+			count *= elem.NumElem()
+			elem = elem.Elem()
 		}
 
 		if !p.w.ShouldRepeat(elem.Width/int64(Widthptr), count) {
@@ -1619,7 +1663,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
 
 	case TSTRUCT:
 		for _, t1 := range t.Fields().Slice() {
-			p.emit(t1.Type, offset+t1.Width)
+			p.emit(t1.Type, offset+t1.Offset)
 		}
 	}
 }

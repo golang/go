@@ -59,7 +59,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not read target: %v", err)
 	}
-	if bytes.Index(out, []byte("scanInt")) != -1 {
+	if bytes.Contains(out, []byte("scanInt")) {
 		log.Fatalf("scanf code not removed from helloworld")
 	}
 }

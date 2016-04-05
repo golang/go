@@ -15,7 +15,7 @@ func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
@@ -138,7 +138,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t0 := t
 
 	if t.Width < 8 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT64]
 		} else {
 			t = gc.Types[gc.TUINT64]
@@ -234,7 +234,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	case gc.TINT64,
 		gc.TUINT64:
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			gins3(mips.AMULV, &n2, &n1, nil)
 		} else {
 			gins3(mips.AMULVU, &n2, &n1, nil)
@@ -264,7 +264,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
 			var n3 gc.Node
@@ -330,7 +330,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins3(mips.ASGTU, &n3, &n1, &rtmp)
 		p1 := ginsbranch(mips.ABNE, nil, &rtmp, nil, 0)
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
 		} else {

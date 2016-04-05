@@ -4,6 +4,8 @@
 
 package ssa
 
+import "math"
+
 type branch int
 
 const (
@@ -42,7 +44,7 @@ const (
 
 // domain represents the domain of a variable pair in which a set
 // of relations is known.  For example, relations learned for unsigned
-// pairs cannot be transfered to signed pairs because the same bit
+// pairs cannot be transferred to signed pairs because the same bit
 // representation can mean something else.
 type domain uint
 
@@ -66,30 +68,109 @@ type fact struct {
 	r relation
 }
 
+// a limit records known upper and lower bounds for a value.
+type limit struct {
+	min, max   int64  // min <= value <= max, signed
+	umin, umax uint64 // umin <= value <= umax, unsigned
+}
+
+var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
+
+// a limitFact is a limit known for a particular value.
+type limitFact struct {
+	vid   ID
+	limit limit
+}
+
 // factsTable keeps track of relations between pairs of values.
 type factsTable struct {
 	facts map[pair]relation // current known set of relation
 	stack []fact            // previous sets of relations
+
+	// known lower and upper bounds on individual values.
+	limits     map[ID]limit
+	limitStack []limitFact // previous entries
 }
 
 // checkpointFact is an invalid value used for checkpointing
 // and restoring factsTable.
 var checkpointFact = fact{}
+var checkpointBound = limitFact{}
 
 func newFactsTable() *factsTable {
 	ft := &factsTable{}
 	ft.facts = make(map[pair]relation)
 	ft.stack = make([]fact, 4)
+	ft.limits = make(map[ID]limit)
+	ft.limitStack = make([]limitFact, 4)
 	return ft
 }
 
 // get returns the known possible relations between v and w.
 // If v and w are not in the map it returns lt|eq|gt, i.e. any order.
 func (ft *factsTable) get(v, w *Value, d domain) relation {
+	if v.isGenericIntConst() || w.isGenericIntConst() {
+		reversed := false
+		if v.isGenericIntConst() {
+			v, w = w, v
+			reversed = true
+		}
+		r := lt | eq | gt
+		lim, ok := ft.limits[v.ID]
+		if !ok {
+			return r
+		}
+		c := w.AuxInt
+		switch d {
+		case signed:
+			switch {
+			case c < lim.min:
+				r = gt
+			case c > lim.max:
+				r = lt
+			case c == lim.min && c == lim.max:
+				r = eq
+			case c == lim.min:
+				r = gt | eq
+			case c == lim.max:
+				r = lt | eq
+			}
+		case unsigned:
+			// TODO: also use signed data if lim.min >= 0?
+			var uc uint64
+			switch w.Op {
+			case OpConst64:
+				uc = uint64(c)
+			case OpConst32:
+				uc = uint64(uint32(c))
+			case OpConst16:
+				uc = uint64(uint16(c))
+			case OpConst8:
+				uc = uint64(uint8(c))
+			}
+			switch {
+			case uc < lim.umin:
+				r = gt
+			case uc > lim.umax:
+				r = lt
+			case uc == lim.umin && uc == lim.umax:
+				r = eq
+			case uc == lim.umin:
+				r = gt | eq
+			case uc == lim.umax:
+				r = lt | eq
+			}
+		}
+		if reversed {
+			return reverseBits[r]
+		}
+		return r
+	}
+
 	reversed := false
 	if lessByID(w, v) {
 		v, w = w, v
-		reversed = true
+		reversed = !reversed
 	}
 
 	p := pair{v, w, d}
@@ -120,12 +201,115 @@ func (ft *factsTable) update(v, w *Value, d domain, r relation) {
 	oldR := ft.get(v, w, d)
 	ft.stack = append(ft.stack, fact{p, oldR})
 	ft.facts[p] = oldR & r
+
+	// Extract bounds when comparing against constants
+	if v.isGenericIntConst() {
+		v, w = w, v
+		r = reverseBits[r]
+	}
+	if v != nil && w.isGenericIntConst() {
+		c := w.AuxInt
+		// Note: all the +1/-1 below could overflow/underflow. Either will
+		// still generate correct results, it will just lead to imprecision.
+		// In fact if there is overflow/underflow, the corresponding
+		// code is unreachable because the known range is outside the range
+		// of the value's type.
+		old, ok := ft.limits[v.ID]
+		if !ok {
+			old = noLimit
+		}
+		lim := old
+		// Update lim with the new information we know.
+		switch d {
+		case signed:
+			switch r {
+			case lt:
+				if c-1 < lim.max {
+					lim.max = c - 1
+				}
+			case lt | eq:
+				if c < lim.max {
+					lim.max = c
+				}
+			case gt | eq:
+				if c > lim.min {
+					lim.min = c
+				}
+			case gt:
+				if c+1 > lim.min {
+					lim.min = c + 1
+				}
+			case lt | gt:
+				if c == lim.min {
+					lim.min++
+				}
+				if c == lim.max {
+					lim.max--
+				}
+			case eq:
+				lim.min = c
+				lim.max = c
+			}
+		case unsigned:
+			var uc uint64
+			switch w.Op {
+			case OpConst64:
+				uc = uint64(c)
+			case OpConst32:
+				uc = uint64(uint32(c))
+			case OpConst16:
+				uc = uint64(uint16(c))
+			case OpConst8:
+				uc = uint64(uint8(c))
+			}
+			switch r {
+			case lt:
+				if uc-1 < lim.umax {
+					lim.umax = uc - 1
+				}
+			case lt | eq:
+				if uc < lim.umax {
+					lim.umax = uc
+				}
+			case gt | eq:
+				if uc > lim.umin {
+					lim.umin = uc
+				}
+			case gt:
+				if uc+1 > lim.umin {
+					lim.umin = uc + 1
+				}
+			case lt | gt:
+				if uc == lim.umin {
+					lim.umin++
+				}
+				if uc == lim.umax {
+					lim.umax--
+				}
+			case eq:
+				lim.umin = uc
+				lim.umax = uc
+			}
+		}
+		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
+		ft.limits[v.ID] = lim
+	}
+}
+
+// isNonNegative returns true if v is known to be non-negative.
+func (ft *factsTable) isNonNegative(v *Value) bool {
+	if isNonNegative(v) {
+		return true
+	}
+	l, has := ft.limits[v.ID]
+	return has && (l.min >= 0 || l.umax <= math.MaxInt64)
 }
 
 // checkpoint saves the current state of known relations.
 // Called when descending on a branch.
 func (ft *factsTable) checkpoint() {
 	ft.stack = append(ft.stack, checkpointFact)
+	ft.limitStack = append(ft.limitStack, checkpointBound)
 }
 
 // restore restores known relation to the state just
@@ -142,6 +326,18 @@ func (ft *factsTable) restore() {
 			delete(ft.facts, old.p)
 		} else {
 			ft.facts[old.p] = old.r
+		}
+	}
+	for {
+		old := ft.limitStack[len(ft.limitStack)-1]
+		ft.limitStack = ft.limitStack[:len(ft.limitStack)-1]
+		if old.vid == 0 { // checkpointBound
+			break
+		}
+		if old.limit == noLimit {
+			delete(ft.limits, old.vid)
+		} else {
+			ft.limits[old.vid] = old.limit
 		}
 	}
 }
@@ -421,7 +617,7 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 	// to the upper bound than this is proven. Most useful in cases such as:
 	// if len(a) <= 1 { return }
 	// do something with a[1]
-	if (c.Op == OpIsInBounds || c.Op == OpIsSliceInBounds) && isNonNegative(c.Args[0]) {
+	if (c.Op == OpIsInBounds || c.Op == OpIsSliceInBounds) && ft.isNonNegative(c.Args[0]) {
 		m := ft.get(a0, a1, signed)
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {

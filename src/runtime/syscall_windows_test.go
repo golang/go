@@ -7,6 +7,8 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/syscall/windows/sysdll"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -770,4 +772,247 @@ func TestNumCPU(t *testing.T) {
 	if newmask != mask {
 		t.Fatalf("SetProcessAffinityMask didn't set newmask of 0x%x. Current mask is 0x%x.", newmask, mask)
 	}
+}
+
+// See Issue 14959
+func TestDLLPreloadMitigation(t *testing.T) {
+	if _, err := exec.LookPath("gcc"); err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestDLLPreloadMitigation")
+	if err != nil {
+		t.Fatal("TempDir failed: ", err)
+	}
+	defer func() {
+		err := os.RemoveAll(tmpdir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+
+	dir0, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(dir0)
+
+	const src = `
+#include <stdint.h>
+#include <windows.h>
+
+uintptr_t cfunc() {
+   SetLastError(123);
+}
+`
+	srcname := "nojack.c"
+	err = ioutil.WriteFile(filepath.Join(tmpdir, srcname), []byte(src), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "nojack.dll"
+	cmd := exec.Command("gcc", "-shared", "-s", "-Werror", "-o", name, srcname)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build dll: %v - %v", err, string(out))
+	}
+	dllpath := filepath.Join(tmpdir, name)
+
+	dll := syscall.MustLoadDLL(dllpath)
+	dll.MustFindProc("cfunc")
+	dll.Release()
+
+	// Get into the directory with the DLL we'll load by base name
+	// ("nojack.dll") Think of this as the user double-clicking an
+	// installer from their Downloads directory where a browser
+	// silently downloaded some malicious DLLs.
+	os.Chdir(tmpdir)
+
+	// First before we can load a DLL from the current directory,
+	// loading it only as "nojack.dll", without an absolute path.
+	delete(sysdll.IsSystemDLL, name) // in case test was run repeatedly
+	dll, err = syscall.LoadDLL(name)
+	if err != nil {
+		t.Fatalf("failed to load %s by base name before sysdll registration: %v", name, err)
+	}
+	dll.Release()
+
+	// And now verify that if we register it as a system32-only
+	// DLL, the implicit loading from the current directory no
+	// longer works.
+	sysdll.IsSystemDLL[name] = true
+	dll, err = syscall.LoadDLL(name)
+	if err == nil {
+		dll.Release()
+		if wantLoadLibraryEx() {
+			t.Fatalf("Bad: insecure load of DLL by base name %q before sysdll registration: %v", name, err)
+		}
+		t.Skip("insecure load of DLL, but expected")
+	}
+}
+
+// wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
+func wantLoadLibraryEx() bool {
+	return testenv.Builder() == "windows-amd64-gce" || testenv.Builder() == "windows-386-gce"
+}
+
+func TestLoadLibraryEx(t *testing.T) {
+	use, have, flags := runtime.LoadLibraryExStatus()
+	if use {
+		return // success.
+	}
+	if wantLoadLibraryEx() {
+		t.Fatalf("Expected LoadLibraryEx+flags to be available. (LoadLibraryEx=%v; flags=%v)",
+			have, flags)
+	}
+	t.Skipf("LoadLibraryEx not usable, but not expected. (LoadLibraryEx=%v; flags=%v)",
+		have, flags)
+}
+
+var (
+	modwinmm    = syscall.NewLazyDLL("winmm.dll")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+
+	proctimeBeginPeriod = modwinmm.NewProc("timeBeginPeriod")
+	proctimeEndPeriod   = modwinmm.NewProc("timeEndPeriod")
+
+	procCreateEvent = modkernel32.NewProc("CreateEventW")
+	procSetEvent    = modkernel32.NewProc("SetEvent")
+)
+
+func timeBeginPeriod(period uint32) {
+	syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
+}
+
+func timeEndPeriod(period uint32) {
+	syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
+}
+
+func createEvent() (syscall.Handle, error) {
+	r0, _, e0 := syscall.Syscall6(procCreateEvent.Addr(), 4, 0, 0, 0, 0, 0, 0)
+	if r0 == 0 {
+		return 0, syscall.Errno(e0)
+	}
+	return syscall.Handle(r0), nil
+}
+
+func setEvent(h syscall.Handle) error {
+	r0, _, e0 := syscall.Syscall(procSetEvent.Addr(), 1, uintptr(h), 0, 0)
+	if r0 == 0 {
+		return syscall.Errno(e0)
+	}
+	return nil
+}
+
+func benchChanToSyscallPing(b *testing.B) {
+	n := b.N
+	ch := make(chan int)
+	event, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	go func() {
+		for i := 0; i < n; i++ {
+			syscall.WaitForSingleObject(event, syscall.INFINITE)
+			ch <- 1
+		}
+	}()
+	for i := 0; i < n; i++ {
+		err := setEvent(event)
+		if err != nil {
+			b.Fatal(err)
+		}
+		<-ch
+	}
+}
+
+func BenchmarkChanToSyscallPing1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchChanToSyscallPing(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkChanToSyscallPing15ms(b *testing.B) {
+	benchChanToSyscallPing(b)
+}
+
+func benchSyscallToSyscallPing(b *testing.B) {
+	n := b.N
+	event1, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	event2, err := createEvent()
+	if err != nil {
+		b.Fatal(err)
+	}
+	go func() {
+		for i := 0; i < n; i++ {
+			syscall.WaitForSingleObject(event1, syscall.INFINITE)
+			err := setEvent(event2)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	}()
+	for i := 0; i < n; i++ {
+		err := setEvent(event1)
+		if err != nil {
+			b.Fatal(err)
+		}
+		syscall.WaitForSingleObject(event2, syscall.INFINITE)
+	}
+}
+
+func BenchmarkSyscallToSyscallPing1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchSyscallToSyscallPing(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkSyscallToSyscallPing15ms(b *testing.B) {
+	benchSyscallToSyscallPing(b)
+}
+
+func benchChanToChanPing(b *testing.B) {
+	n := b.N
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+	go func() {
+		for i := 0; i < n; i++ {
+			<-ch1
+			ch2 <- 1
+		}
+	}()
+	for i := 0; i < n; i++ {
+		ch1 <- 1
+		<-ch2
+	}
+}
+
+func BenchmarkChanToChanPing1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchChanToChanPing(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkChanToChanPing15ms(b *testing.B) {
+	benchChanToChanPing(b)
+}
+
+func benchOsYield(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		runtime.OsYield()
+	}
+}
+
+func BenchmarkOsYield1ms(b *testing.B) {
+	timeBeginPeriod(1)
+	benchOsYield(b)
+	timeEndPeriod(1)
+}
+
+func BenchmarkOsYield15ms(b *testing.B) {
+	benchOsYield(b)
 }

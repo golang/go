@@ -45,6 +45,9 @@ func benchmarkEncoder(b *testing.B, testfile, level, n int) {
 	}
 }
 
+func BenchmarkEncodeDigitsHuffman1e4(b *testing.B)  { benchmarkEncoder(b, digits, huffman, 1e4) }
+func BenchmarkEncodeDigitsHuffman1e5(b *testing.B)  { benchmarkEncoder(b, digits, huffman, 1e5) }
+func BenchmarkEncodeDigitsHuffman1e6(b *testing.B)  { benchmarkEncoder(b, digits, huffman, 1e6) }
 func BenchmarkEncodeDigitsSpeed1e4(b *testing.B)    { benchmarkEncoder(b, digits, speed, 1e4) }
 func BenchmarkEncodeDigitsSpeed1e5(b *testing.B)    { benchmarkEncoder(b, digits, speed, 1e5) }
 func BenchmarkEncodeDigitsSpeed1e6(b *testing.B)    { benchmarkEncoder(b, digits, speed, 1e6) }
@@ -54,6 +57,9 @@ func BenchmarkEncodeDigitsDefault1e6(b *testing.B)  { benchmarkEncoder(b, digits
 func BenchmarkEncodeDigitsCompress1e4(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e4) }
 func BenchmarkEncodeDigitsCompress1e5(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e5) }
 func BenchmarkEncodeDigitsCompress1e6(b *testing.B) { benchmarkEncoder(b, digits, compress, 1e6) }
+func BenchmarkEncodeTwainHuffman1e4(b *testing.B)   { benchmarkEncoder(b, twain, huffman, 1e4) }
+func BenchmarkEncodeTwainHuffman1e5(b *testing.B)   { benchmarkEncoder(b, twain, huffman, 1e5) }
+func BenchmarkEncodeTwainHuffman1e6(b *testing.B)   { benchmarkEncoder(b, twain, huffman, 1e6) }
 func BenchmarkEncodeTwainSpeed1e4(b *testing.B)     { benchmarkEncoder(b, twain, speed, 1e4) }
 func BenchmarkEncodeTwainSpeed1e5(b *testing.B)     { benchmarkEncoder(b, twain, speed, 1e5) }
 func BenchmarkEncodeTwainSpeed1e6(b *testing.B)     { benchmarkEncoder(b, twain, speed, 1e6) }
@@ -131,16 +137,17 @@ func TestWriteError(t *testing.T) {
 
 // Test if two runs produce identical results
 // even when writing different sizes to the Writer.
-func TestDeterministicL0(t *testing.T) { testDeterministic(0, t) }
-func TestDeterministicL1(t *testing.T) { testDeterministic(1, t) }
-func TestDeterministicL2(t *testing.T) { testDeterministic(2, t) }
-func TestDeterministicL3(t *testing.T) { testDeterministic(3, t) }
-func TestDeterministicL4(t *testing.T) { testDeterministic(4, t) }
-func TestDeterministicL5(t *testing.T) { testDeterministic(5, t) }
-func TestDeterministicL6(t *testing.T) { testDeterministic(6, t) }
-func TestDeterministicL7(t *testing.T) { testDeterministic(7, t) }
-func TestDeterministicL8(t *testing.T) { testDeterministic(8, t) }
-func TestDeterministicL9(t *testing.T) { testDeterministic(9, t) }
+func TestDeterministicL0(t *testing.T)  { testDeterministic(0, t) }
+func TestDeterministicL1(t *testing.T)  { testDeterministic(1, t) }
+func TestDeterministicL2(t *testing.T)  { testDeterministic(2, t) }
+func TestDeterministicL3(t *testing.T)  { testDeterministic(3, t) }
+func TestDeterministicL4(t *testing.T)  { testDeterministic(4, t) }
+func TestDeterministicL5(t *testing.T)  { testDeterministic(5, t) }
+func TestDeterministicL6(t *testing.T)  { testDeterministic(6, t) }
+func TestDeterministicL7(t *testing.T)  { testDeterministic(7, t) }
+func TestDeterministicL8(t *testing.T)  { testDeterministic(8, t) }
+func TestDeterministicL9(t *testing.T)  { testDeterministic(9, t) }
+func TestDeterministicLM2(t *testing.T) { testDeterministic(-2, t) }
 
 func testDeterministic(i int, t *testing.T) {
 	// Test so much we cross a good number of block boundaries.
@@ -189,7 +196,7 @@ func testDeterministic(i int, t *testing.T) {
 	b1b := b1.Bytes()
 	b2b := b2.Bytes()
 
-	if bytes.Compare(b1b, b2b) != 0 {
+	if !bytes.Equal(b1b, b2b) {
 		t.Errorf("level %d did not produce deterministic result, result mismatch, len(a) = %d, len(b) = %d", i, len(b1b), len(b2b))
 	}
 }

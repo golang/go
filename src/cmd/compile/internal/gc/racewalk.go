@@ -222,7 +222,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OSPTR, OLEN, OCAP:
 		instrumentnode(&n.Left, init, 0, 0)
-		if Istype(n.Left.Type, TMAP) {
+		if n.Left.Type.IsMap() {
 			n1 := Nod(OCONVNOP, n.Left, nil)
 			n1.Type = Ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)
@@ -283,7 +283,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		goto ret
 
 	case OINDEX:
-		if !Isfixedarray(n.Left.Type) {
+		if !n.Left.Type.IsArray() {
 			instrumentnode(&n.Left, init, 0, 0)
 		} else if !islvalue(n.Left) {
 			// index of unaddressable array, like Map[k][i].
@@ -294,7 +294,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		}
 
 		instrumentnode(&n.Right, init, 0, 0)
-		if n.Left.Type.Etype != TSTRING {
+		if !n.Left.Type.IsString() {
 			callinstr(&n, init, wr, skip)
 		}
 		goto ret
@@ -509,7 +509,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
-		} else if flag_race != 0 && (t.Etype == TSTRUCT || Isfixedarray(t)) {
+		} else if flag_race != 0 && (t.IsStruct() || t.IsArray()) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
@@ -548,7 +548,7 @@ func makeaddable(n *Node) {
 	// an addressable value.
 	switch n.Op {
 	case OINDEX:
-		if Isfixedarray(n.Left.Type) {
+		if n.Left.Type.IsArray() {
 			makeaddable(n.Left)
 		}
 

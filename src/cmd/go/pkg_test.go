@@ -161,9 +161,12 @@ func TestSharedLibName(t *testing.T) {
 				}
 				oldGopath := buildContext.GOPATH
 				defer func() {
-					os.RemoveAll(tmpGopath)
 					buildContext.GOPATH = oldGopath
 					os.Chdir(cwd)
+					err := os.RemoveAll(tmpGopath)
+					if err != nil {
+						t.Error(err)
+					}
 				}()
 				root := filepath.Join(tmpGopath, "src", data.rootedAt)
 				err = os.MkdirAll(root, 0755)

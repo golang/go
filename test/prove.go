@@ -3,12 +3,14 @@
 
 package main
 
+import "math"
+
 func f0(a []int) int {
 	a[0] = 1
 	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
 	a[6] = 1
 	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
-	a[5] = 1
+	a[5] = 1 // ERROR "Proved IsInBounds$"
 	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
 	return 13
 }
@@ -17,19 +19,48 @@ func f1(a []int) int {
 	if len(a) <= 5 {
 		return 18
 	}
-	a[0] = 1
+	a[0] = 1 // ERROR "Proved non-negative bounds IsInBounds$"
 	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
 	a[6] = 1
 	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
-	a[5] = 1 // ERROR "Proved non-negative bounds IsInBounds$"
+	a[5] = 1 // ERROR "Proved IsInBounds$"
 	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
 	return 26
 }
 
+func f1b(a []int, i int, j uint) int {
+	if i >= 0 && i < len(a) {
+		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+	}
+	if i >= 10 && i < len(a) {
+		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+	}
+	if i >= 10 && i < len(a) {
+		return a[i] // ERROR "Proved non-negative bounds IsInBounds$"
+	}
+	if i >= 10 && i < len(a) { // todo: handle this case
+		return a[i-10]
+	}
+	if j < uint(len(a)) {
+		return a[j] // ERROR "Proved IsInBounds$"
+	}
+	return 0
+}
+
+func f1c(a []int, i int64) int {
+	c := uint64(math.MaxInt64 + 10) // overflows int
+	d := int64(c)
+	if i >= d && i < int64(len(a)) {
+		// d overflows, should not be handled.
+		return a[i]
+	}
+	return 0
+}
+
 func f2(a []int) int {
 	for i := range a {
-		a[i] = i
-		a[i] = i // ERROR "Proved boolean IsInBounds$"
+		a[i+1] = i
+		a[i+1] = i // ERROR "Proved boolean IsInBounds$"
 	}
 	return 34
 }
@@ -243,6 +274,164 @@ func f11d(a []int, i int) {
 
 func f12(a []int, b int) {
 	useSlice(a[:b])
+}
+
+func f13a(a, b, c int, x bool) int {
+	if a > 12 {
+		if x {
+			if a < 12 { // ERROR "Disproved Less64$"
+				return 1
+			}
+		}
+		if x {
+			if a <= 12 { // ERROR "Disproved Leq64$"
+				return 2
+			}
+		}
+		if x {
+			if a == 12 { // ERROR "Disproved Eq64$"
+				return 3
+			}
+		}
+		if x {
+			if a >= 12 { // ERROR "Proved Geq64$"
+				return 4
+			}
+		}
+		if x {
+			if a > 12 { // ERROR "Proved boolean Greater64$"
+				return 5
+			}
+		}
+		return 6
+	}
+	return 0
+}
+
+func f13b(a int, x bool) int {
+	if a == -9 {
+		if x {
+			if a < -9 { // ERROR "Disproved Less64$"
+				return 7
+			}
+		}
+		if x {
+			if a <= -9 { // ERROR "Proved Leq64$"
+				return 8
+			}
+		}
+		if x {
+			if a == -9 { // ERROR "Proved boolean Eq64$"
+				return 9
+			}
+		}
+		if x {
+			if a >= -9 { // ERROR "Proved Geq64$"
+				return 10
+			}
+		}
+		if x {
+			if a > -9 { // ERROR "Disproved Greater64$"
+				return 11
+			}
+		}
+		return 12
+	}
+	return 0
+}
+
+func f13c(a int, x bool) int {
+	if a < 90 {
+		if x {
+			if a < 90 { // ERROR "Proved boolean Less64$"
+				return 13
+			}
+		}
+		if x {
+			if a <= 90 { // ERROR "Proved Leq64$"
+				return 14
+			}
+		}
+		if x {
+			if a == 90 { // ERROR "Disproved Eq64$"
+				return 15
+			}
+		}
+		if x {
+			if a >= 90 { // ERROR "Disproved Geq64$"
+				return 16
+			}
+		}
+		if x {
+			if a > 90 { // ERROR "Disproved Greater64$"
+				return 17
+			}
+		}
+		return 18
+	}
+	return 0
+}
+
+func f13d(a int) int {
+	if a < 5 {
+		if a < 9 { // ERROR "Proved Less64$"
+			return 1
+		}
+	}
+	return 0
+}
+
+func f13e(a int) int {
+	if a > 9 {
+		if a > 5 { // ERROR "Proved Greater64$"
+			return 1
+		}
+	}
+	return 0
+}
+
+func f13f(a int64) int64 {
+	if a > math.MaxInt64 {
+		// Unreachable, but prove doesn't know that.
+		if a == 0 {
+			return 1
+		}
+	}
+	return 0
+}
+
+func f13g(a int) int {
+	if a < 3 {
+		return 5
+	}
+	if a > 3 {
+		return 6
+	}
+	if a == 3 { // ERROR "Proved Eq64$"
+		return 7
+	}
+	return 8
+}
+
+func f13h(a int) int {
+	if a < 3 {
+		if a > 1 {
+			if a == 2 { // ERROR "Proved Eq64$"
+				return 5
+			}
+		}
+	}
+	return 0
+}
+
+func f13i(a uint) int {
+	if a == 0 {
+		return 1
+	}
+	if a > 0 { // ERROR "Proved Greater64U$"
+		return 2
+	}
+	return 3
 }
 
 //go:noinline

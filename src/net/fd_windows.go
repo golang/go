@@ -352,14 +352,18 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 	o := &fd.wop
 	o.sa = ra
 	if cancel != nil {
-		done := make(chan struct{})
-		defer close(done)
+		done := make(chan bool)
+		defer func() {
+			// This is unbuffered; wait for the goroutine before returning.
+			done <- true
+		}()
 		go func() {
 			select {
 			case <-cancel:
 				// Force the runtime's poller to immediately give
 				// up waiting for writability.
 				fd.setWriteDeadline(aLongTimeAgo)
+				<-done
 			case <-done:
 			}
 		}()
@@ -393,55 +397,6 @@ func (fd *netFD) destroy() {
 	fd.sysfd = syscall.InvalidHandle
 	// no need for a finalizer anymore
 	runtime.SetFinalizer(fd, nil)
-}
-
-// Add a reference to this fd.
-// Returns an error if the fd cannot be used.
-func (fd *netFD) incref() error {
-	if !fd.fdmu.incref() {
-		return errClosing
-	}
-	return nil
-}
-
-// Remove a reference to this FD and close if we've been asked to do so
-// (and there are no references left).
-func (fd *netFD) decref() {
-	if fd.fdmu.decref() {
-		fd.destroy()
-	}
-}
-
-// Add a reference to this fd and lock for reading.
-// Returns an error if the fd cannot be used.
-func (fd *netFD) readLock() error {
-	if !fd.fdmu.rwlock(true) {
-		return errClosing
-	}
-	return nil
-}
-
-// Unlock for reading and remove a reference to this FD.
-func (fd *netFD) readUnlock() {
-	if fd.fdmu.rwunlock(true) {
-		fd.destroy()
-	}
-}
-
-// Add a reference to this fd and lock for writing.
-// Returns an error if the fd cannot be used.
-func (fd *netFD) writeLock() error {
-	if !fd.fdmu.rwlock(false) {
-		return errClosing
-	}
-	return nil
-}
-
-// Unlock for writing and remove a reference to this FD.
-func (fd *netFD) writeUnlock() {
-	if fd.fdmu.rwunlock(false) {
-		fd.destroy()
-	}
 }
 
 func (fd *netFD) Close() error {

@@ -97,6 +97,13 @@ type Frontend interface {
 	// The SSA compiler uses this function to allocate space for spills.
 	Auto(Type) GCNode
 
+	// Given the name for a compound type, returns the name we should use
+	// for the parts of that compound type.
+	SplitString(LocalSlot) (LocalSlot, LocalSlot)
+	SplitInterface(LocalSlot) (LocalSlot, LocalSlot)
+	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
+	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
+
 	// Line returns a string describing the given line number.
 	Line(int32) string
 }

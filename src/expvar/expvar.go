@@ -38,6 +38,7 @@ import (
 
 // Var is an abstract type for all exported variables.
 type Var interface {
+	// String returns a valid JSON value for the variable.
 	String() string
 }
 

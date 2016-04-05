@@ -244,7 +244,7 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	p.From.Sym = s
 	if flags&obj.LOCAL != 0 {
 		p.From.Sym.Local = true
-		flags &= ^obj.LOCAL
+		flags &^= obj.LOCAL
 	}
 	p.To.Type = obj.TYPE_CONST
 	p.To.Offset = int64(width)
@@ -416,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		// A special case to make write barriers more efficient.
 		// Taking the address of the first field of a named struct
 		// is the same as taking the address of the struct.
-		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Field(0).Sym != n.Sym {
+		if !n.Left.Type.IsStruct() || n.Left.Type.Field(0).Sym != n.Sym {
 			Debug['h'] = 1
 			Dump("naddr", n)
 			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
@@ -438,7 +438,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = n.Val().U.(*Mpint).Int64()
+			a.Offset = n.Int64()
 
 		case CTSTR:
 			datagostring(n.Val().U.(string), a)
@@ -541,7 +541,7 @@ func nodarg(t interface{}, fp int) *Node {
 	switch t := t.(type) {
 	case *Type:
 		// entire argument struct, not just one arg
-		if t.Etype != TSTRUCT || !t.Funarg {
+		if !t.IsStruct() || !t.Funarg {
 			Fatalf("nodarg: bad type %v", t)
 		}
 		n = Nod(ONAME, nil, nil)
@@ -551,10 +551,10 @@ func nodarg(t interface{}, fp int) *Node {
 		if first == nil {
 			Fatalf("nodarg: bad struct")
 		}
-		if first.Width == BADWIDTH {
+		if first.Offset == BADWIDTH {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
-		n.Xoffset = first.Width
+		n.Xoffset = first.Offset
 		n.Addable = true
 	case *Field:
 		if fp == 1 || fp == -1 {
@@ -568,10 +568,10 @@ func nodarg(t interface{}, fp int) *Node {
 		n = Nod(ONAME, nil, nil)
 		n.Type = t.Type
 		n.Sym = t.Sym
-		if t.Width == BADWIDTH {
+		if t.Offset == BADWIDTH {
 			Fatalf("nodarg: offset not computed for %v", t)
 		}
-		n.Xoffset = t.Width
+		n.Xoffset = t.Offset
 		n.Addable = true
 		n.Orig = t.Nname
 	default:

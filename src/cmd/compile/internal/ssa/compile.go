@@ -237,10 +237,12 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "loopbce", fn: loopbce},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "dec", fn: dec, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "generic deadcode", fn: deadcode},
+	{name: "check bce", fn: checkbce},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
 	{name: "tighten", fn: tighten}, // move values closer to their uses
@@ -289,6 +291,8 @@ var passOrder = [...]constraint{
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
+	// checkbce needs the values removed
+	{"generic deadcode", "check bce"},
 	// don't run optimization pass until we've decomposed builtin objects
 	{"decompose builtin", "late opt"},
 	// don't layout blocks until critical edges have been removed

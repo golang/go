@@ -70,23 +70,28 @@ nosse2:
  * forward copy loop
  */
 forward:
+	// If REP MOVSB isn't fast, don't use it
+	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
+	JEQ	fwdBy4
+
 	// Check alignment
 	MOVL	SI, AX
 	ORL	DI, AX
 	TESTL	$3, AX
-	JNE	unaligned_fwd
+	JEQ	fwdBy4
 
-	MOVL	BX, CX
-	SHRL	$2, CX
-	ANDL	$3, BX
-
-	REP;	MOVSL
-	JMP	tail
-
-unaligned_fwd:
+	// Do 1 byte at a time
 	MOVL	BX, CX
 	REP;	MOVSB
 	RET
+
+fwdBy4:
+	// Do 4 bytes at a time
+	MOVL	BX, CX
+	SHRL	$2, CX
+	ANDL	$3, BX
+	REP;	MOVSL
+	JMP	tail
 
 /*
  * check overlap

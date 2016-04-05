@@ -17,10 +17,16 @@ func OkFunc() {
 	}
 
 	yy := []Tlock{
-		sync.Tlock{},
-		sync.Tlock{
+		Tlock{},
+		Tlock{
 			once: sync.Once{},
 		},
+	}
+
+	nl := new(sync.Mutex)
+	mx := make([]sync.Mutex, 10)
+	xx := struct{ L *sync.Mutex }{
+		L: new(sync.Mutex),
 	}
 }
 
@@ -55,4 +61,8 @@ func BadFunc() {
 		t,   // ERROR "literal copies lock value from t: testdata.Tlock contains sync.Once contains sync.Mutex"
 		*tp, // ERROR "literal copies lock value from \*tp: testdata.Tlock contains sync.Once contains sync.Mutex"
 	}
+
+	// override 'new' keyword
+	new := func(interface{}) {}
+	new(t) // ERROR "function call copies lock value: testdata.Tlock contains sync.Once contains sync.Mutex"
 }

@@ -184,16 +184,7 @@ func typeinit() {
 	Iscomplex[TCOMPLEX64] = true
 	Iscomplex[TCOMPLEX128] = true
 
-	Isptr[TPTR32] = true
-	Isptr[TPTR64] = true
-
 	isforw[TFORW] = true
-
-	Issigned[TINT] = true
-	Issigned[TINT8] = true
-	Issigned[TINT16] = true
-	Issigned[TINT32] = true
-	Issigned[TINT64] = true
 
 	// initialize okfor
 	for et := EType(0); et < NTYPE; et++ {
@@ -361,8 +352,7 @@ func typeinit() {
 	dowidth(Types[TSTRING])
 	dowidth(idealstring)
 
-	itable = typ(Tptr)
-	itable.Type = Types[TUINT8]
+	itable = typPtr(Types[TUINT8])
 }
 
 func lexinit1() {

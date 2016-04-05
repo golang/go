@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"errors"
@@ -923,7 +924,9 @@ func TestTransportGzipRecursive(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := &Client{Transport: &Transport{}}
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
 	res, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -1623,7 +1626,13 @@ func TestCancelRequestWithChannel(t *testing.T) {
 	}
 }
 
-func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+func TestCancelRequestWithChannelBeforeDo_Cancel(t *testing.T) {
+	testCancelRequestWithChannelBeforeDo(t, false)
+}
+func TestCancelRequestWithChannelBeforeDo_Context(t *testing.T) {
+	testCancelRequestWithChannelBeforeDo(t, true)
+}
+func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
 	setParallel(t)
 	defer afterTest(t)
 	unblockc := make(chan bool)
@@ -1644,9 +1653,15 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
 	c := &Client{Transport: tr}
 
 	req, _ := NewRequest("GET", ts.URL, nil)
-	ch := make(chan struct{})
-	req.Cancel = ch
-	close(ch)
+	if withCtx {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		req = req.WithContext(ctx)
+	} else {
+		ch := make(chan struct{})
+		req.Cancel = ch
+		close(ch)
+	}
 
 	_, err := c.Do(req)
 	if err == nil || !strings.Contains(err.Error(), "canceled") {
@@ -3042,6 +3057,86 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 	doReturned <- true
 	<-madeRoundTripper
 	<-handledPendingDial
+}
+
+func TestTransportReuseConnection_Gzip_Chunked(t *testing.T) {
+	testTransportReuseConnection_Gzip(t, true)
+}
+
+func TestTransportReuseConnection_Gzip_ContentLength(t *testing.T) {
+	testTransportReuseConnection_Gzip(t, false)
+}
+
+// Make sure we re-use underlying TCP connection for gzipped responses too.
+func testTransportReuseConnection_Gzip(t *testing.T, chunked bool) {
+	defer afterTest(t)
+	addr := make(chan string, 2)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		addr <- r.RemoteAddr
+		w.Header().Set("Content-Encoding", "gzip")
+		if chunked {
+			w.(Flusher).Flush()
+		}
+		w.Write(rgz) // arbitrary gzip response
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	for i := 0; i < 2; i++ {
+		res, err := c.Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		buf := make([]byte, len(rgz))
+		if n, err := io.ReadFull(res.Body, buf); err != nil {
+			t.Errorf("%d. ReadFull = %v, %v", i, n, err)
+		}
+		// Note: no res.Body.Close call. It should work without it,
+		// since the flate.Reader's internal buffering will hit EOF
+		// and that should be sufficient.
+	}
+	a1, a2 := <-addr, <-addr
+	if a1 != a2 {
+		t.Fatalf("didn't reuse connection")
+	}
+}
+
+func TestTransportResponseHeaderLength(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.URL.Path == "/long" {
+			w.Header().Set("Long", strings.Repeat("a", 1<<20))
+		}
+	}))
+	defer ts.Close()
+
+	tr := &Transport{
+		MaxResponseHeaderBytes: 512 << 10,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+	if res, err := c.Get(ts.URL); err != nil {
+		t.Fatal(err)
+	} else {
+		res.Body.Close()
+	}
+
+	res, err := c.Get(ts.URL + "/long")
+	if err == nil {
+		defer res.Body.Close()
+		var n int64
+		for k, vv := range res.Header {
+			for _, v := range vv {
+				n += int64(len(k)) + int64(len(v))
+			}
+		}
+		t.Fatalf("Unexpected success. Got %v and %d bytes of response headers", res.Status, n)
+	}
+	if want := "server response headers exceeded 524288 bytes"; !strings.Contains(err.Error(), want) {
+		t.Errorf("got error: %v; want %q", err, want)
+	}
 }
 
 var errFakeRoundTrip = errors.New("fake roundtrip")

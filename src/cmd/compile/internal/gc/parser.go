@@ -1187,17 +1187,17 @@ func (p *parser) uexpr() *Node {
 
 		if x.Op == OTCHAN {
 			// x is a channel type => re-associate <-
-			dir := EType(Csend)
+			dir := Csend
 			t := x
 			for ; t.Op == OTCHAN && dir == Csend; t = t.Left {
-				dir = t.Etype
+				dir = ChanDir(t.Etype)
 				if dir == Crecv {
 					// t is type <-chan E but <-<-chan E is not permitted
 					// (report same error as for "type _ <-<-chan E")
 					p.syntax_error("unexpected <-, expecting chan")
 					// already progressed, no need to advance
 				}
-				t.Etype = Crecv
+				t.Etype = EType(Crecv)
 			}
 			if dir == Csend {
 				// channel dir is <- but channel element E is not a channel
@@ -1588,7 +1588,7 @@ func (p *parser) onew_name() *Node {
 func (p *parser) sym() *Sym {
 	switch p.tok {
 	case LNAME:
-		s := p.sym_
+		s := p.sym_ // from localpkg
 		p.next()
 		// during imports, unqualified non-exported identifiers are from builtinpkg
 		if importpkg != nil && !exportname(s.Name) {
@@ -1697,7 +1697,7 @@ func (p *parser) try_ntype() *Node {
 		p.next()
 		p.want(LCHAN)
 		t := Nod(OTCHAN, p.chan_elem(), nil)
-		t.Etype = Crecv
+		t.Etype = EType(Crecv)
 		return t
 
 	case LFUNC:
@@ -1726,9 +1726,9 @@ func (p *parser) try_ntype() *Node {
 		// LCHAN non_recvchantype
 		// LCHAN LCOMM ntype
 		p.next()
-		var dir EType = Cboth
+		var dir = EType(Cboth)
 		if p.got(LCOMM) {
-			dir = Csend
+			dir = EType(Csend)
 		}
 		t := Nod(OTCHAN, p.chan_elem(), nil)
 		t.Etype = dir
@@ -1861,7 +1861,7 @@ func (p *parser) xfndcl() *Node {
 	}
 
 	p.want(LFUNC)
-	f := p.fndcl(p.pragma&Nointerface != 0)
+	f := p.fndcl()
 	body := p.fnbody()
 
 	if f == nil {
@@ -1886,7 +1886,7 @@ func (p *parser) xfndcl() *Node {
 // Function     = Signature FunctionBody .
 // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
 // Receiver     = Parameters .
-func (p *parser) fndcl(nointerface bool) *Node {
+func (p *parser) fndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fndcl")()
 	}
@@ -1950,7 +1950,6 @@ func (p *parser) fndcl(nointerface bool) *Node {
 		f.Func.Nname = methodname1(f.Func.Shortname, recv.Right)
 		f.Func.Nname.Name.Defn = f
 		f.Func.Nname.Name.Param.Ntype = t
-		f.Func.Nname.Nointerface = nointerface
 		declare(f.Func.Nname, PFUNC)
 
 		funchdr(f)
@@ -2018,7 +2017,7 @@ func (p *parser) hidden_fndcl() *Node {
 		// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
 		// out by typecheck's lookdot as this $$.ttype. So by providing
 		// this back link here we avoid special casing there.
-		ss.Type.Nname = ss
+		ss.Type.SetNname(ss)
 		return ss
 	}
 }
@@ -2932,12 +2931,7 @@ func (p *parser) hidden_pkgtype() *Type {
 		defer p.trace("hidden_pkgtype")()
 	}
 
-	s1 := p.hidden_pkg_importsym()
-
-	ss := pkgtype(s1)
-	importsym(s1, OTYPE)
-
-	return ss
+	return pkgtype(p.hidden_pkg_importsym())
 }
 
 // ----------------------------------------------------------------------------
@@ -3018,7 +3012,7 @@ func (p *parser) hidden_type_misc() *Type {
 		p.want(']')
 		s5 := p.hidden_type()
 
-		return maptype(s3, s5)
+		return typMap(s3, s5)
 
 	case LSTRUCT:
 		// LSTRUCT '{' ohidden_structdcl_list '}'
@@ -3050,9 +3044,7 @@ func (p *parser) hidden_type_misc() *Type {
 		default:
 			// LCHAN hidden_type_non_recv_chan
 			s2 := p.hidden_type_non_recv_chan()
-			ss := typ(TCHAN)
-			ss.Type = s2
-			ss.Chan = Cboth
+			ss := typChan(s2, Cboth)
 			return ss
 
 		case '(':
@@ -3060,18 +3052,14 @@ func (p *parser) hidden_type_misc() *Type {
 			p.next()
 			s3 := p.hidden_type_recv_chan()
 			p.want(')')
-			ss := typ(TCHAN)
-			ss.Type = s3
-			ss.Chan = Cboth
+			ss := typChan(s3, Cboth)
 			return ss
 
 		case LCOMM:
 			// LCHAN hidden_type
 			p.next()
 			s3 := p.hidden_type()
-			ss := typ(TCHAN)
-			ss.Type = s3
-			ss.Chan = Csend
+			ss := typChan(s3, Csend)
 			return ss
 		}
 
@@ -3090,9 +3078,7 @@ func (p *parser) hidden_type_recv_chan() *Type {
 	p.want(LCHAN)
 	s3 := p.hidden_type()
 
-	ss := typ(TCHAN)
-	ss.Type = s3
-	ss.Chan = Crecv
+	ss := typChan(s3, Crecv)
 	return ss
 }
 
@@ -3133,9 +3119,7 @@ func (p *parser) hidden_funarg() *Node {
 		s3 := p.hidden_type()
 		s4 := p.oliteral()
 
-		t := typ(TARRAY)
-		t.Bound = -1
-		t.Type = s3
+		t := typSlice(s3)
 
 		ss := Nod(ODCLFIELD, nil, typenod(t))
 		if s1 != nil {
@@ -3163,8 +3147,8 @@ func (p *parser) hidden_structdcl() *Node {
 		ss.SetVal(s3)
 	} else {
 		s := s2.Sym
-		if s == nil && Isptr[s2.Etype] {
-			s = s2.Type.Sym
+		if s == nil && s2.IsPtr() {
+			s = s2.Elem().Sym
 		}
 		pkg := importpkg
 		if s1 != nil {

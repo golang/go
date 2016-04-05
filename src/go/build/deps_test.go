@@ -132,10 +132,10 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":                           {"L0", "internal/race", "unicode/utf16"},
+	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "unicode/utf16"},
 	"internal/syscall/unix":             {"L0", "syscall"},
-	"internal/syscall/windows":          {"L0", "syscall"},
-	"internal/syscall/windows/registry": {"L0", "syscall", "unicode/utf16"},
+	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
+	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
 	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
@@ -215,6 +215,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":            {"L4", "compress/flate"},
 	"compress/lzw":             {"L4"},
 	"compress/zlib":            {"L4", "compress/flate"},
+	"context":                  {"errors", "fmt", "sync", "time"},
 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
 	"database/sql/driver":      {"L4", "time"},
 	"debug/dwarf":              {"L4"},
@@ -356,7 +357,8 @@ var pkgDeps = map[string][]string{
 	// HTTP, kingpin of dependencies.
 	"net/http": {
 		"L4", "NET", "OS",
-		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
+		"context", "compress/gzip", "crypto/tls",
+		"mime/multipart", "runtime/debug",
 		"net/http/internal",
 		"golang.org/x/net/http2/hpack",
 	},

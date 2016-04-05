@@ -184,8 +184,9 @@ const header = `
 
 package x509
 
-func initSystemRoots() {
-	systemRoots = NewCertPool()
-	systemRoots.AppendCertsFromPEM([]byte(systemRootsPEM))
+func loadSystemRoots() (*CertPool, error) {
+	p := NewCertPool()
+	p.AppendCertsFromPEM([]byte(systemRootsPEM))
+	return p, nil
 }
 `

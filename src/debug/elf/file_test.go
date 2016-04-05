@@ -473,6 +473,25 @@ var relocationTests = []relocationTest{
 		},
 	},
 	{
+		"testdata/go-relocation-test-gcc531-s390x.obj",
+		[]relocationTestEntry{
+			{0, &dwarf.Entry{
+				Offset:   0xb,
+				Tag:      dwarf.TagCompileUnit,
+				Children: true,
+				Field: []dwarf.Field{
+					{Attr: dwarf.AttrProducer, Val: "GNU C11 5.3.1 20160316 -march=zEC12 -m64 -mzarch -g -fstack-protector-strong", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrLanguage, Val: int64(12), Class: dwarf.ClassConstant},
+					{Attr: dwarf.AttrName, Val: "hello.c", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrCompDir, Val: "/tmp", Class: dwarf.ClassString},
+					{Attr: dwarf.AttrLowpc, Val: uint64(0x0), Class: dwarf.ClassAddress},
+					{Attr: dwarf.AttrHighpc, Val: int64(58), Class: dwarf.ClassConstant},
+					{Attr: dwarf.AttrStmtList, Val: int64(0), Class: dwarf.ClassLinePtr},
+				},
+			}},
+		},
+	},
+	{
 		"testdata/go-relocation-test-gcc493-mips64le.obj",
 		[]relocationTestEntry{
 			{0, &dwarf.Entry{
@@ -669,7 +688,7 @@ func TestCompressedSection(t *testing.T) {
 		if end > int64(len(buf)) {
 			end = int64(len(buf))
 		}
-		n, err := sf.Read(buf[pos:end])
+		n, err := io.ReadFull(sf, buf[pos:end])
 		if err != nil {
 			t.Fatal(err)
 		}

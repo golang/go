@@ -15,6 +15,7 @@ const (
 	BestSpeed          = 1
 	BestCompression    = 9
 	DefaultCompression = -1
+	HuffmanOnly        = -2 // Disables match search and only does Huffman entropy reduction.
 	logWindowSize      = 15
 	windowSize         = 1 << logWindowSize
 	windowMask         = windowSize - 1
@@ -462,6 +463,18 @@ func (d *compressor) store() {
 	d.windowEnd = 0
 }
 
+// storeHuff compresses and stores the currently added data
+// when the d.window is full or we are at the end of the stream.
+// Any error that occurred will be in d.err
+func (d *compressor) storeHuff() {
+	if d.windowEnd < len(d.window) && !d.sync || d.windowEnd == 0 {
+		return
+	}
+	d.w.writeBlockHuff(false, d.window[:d.windowEnd])
+	d.err = d.w.err
+	d.windowEnd = 0
+}
+
 func (d *compressor) write(b []byte) (n int, err error) {
 	if d.err != nil {
 		return 0, d.err
@@ -500,6 +513,10 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 		d.window = make([]byte, maxStoreBlockSize)
 		d.fill = (*compressor).fillStore
 		d.step = (*compressor).store
+	case level == HuffmanOnly:
+		d.window = make([]byte, maxStoreBlockSize)
+		d.fill = (*compressor).fillStore
+		d.step = (*compressor).storeHuff
 	case level == DefaultCompression:
 		level = 6
 		fallthrough
@@ -509,7 +526,7 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 		d.fill = (*compressor).fillDeflate
 		d.step = (*compressor).deflate
 	default:
-		return fmt.Errorf("flate: invalid compression level %d: want value in range [-1, 9]", level)
+		return fmt.Errorf("flate: invalid compression level %d: want value in range [-2, 9]", level)
 	}
 	return nil
 }
@@ -565,10 +582,14 @@ func (d *compressor) close() error {
 // Following zlib, levels range from 1 (BestSpeed) to 9 (BestCompression);
 // higher levels typically run slower but compress more. Level 0
 // (NoCompression) does not attempt any compression; it only adds the
-// necessary DEFLATE framing. Level -1 (DefaultCompression) uses the default
-// compression level.
+// necessary DEFLATE framing.
+// Level -1 (DefaultCompression) uses the default compression level.
+// Level -2 (HuffmanOnly) will use Huffman compression only, giving
+// a very fast compression for all types of input, but sacrificing considerable
+// compression efficiency.
 //
-// If level is in the range [-1, 9] then the error returned will be nil.
+//
+// If level is in the range [-2, 9] then the error returned will be nil.
 // Otherwise the error returned will be non-nil.
 func NewWriter(w io.Writer, level int) (*Writer, error) {
 	var dw Writer

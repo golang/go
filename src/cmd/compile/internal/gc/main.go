@@ -31,10 +31,11 @@ var (
 )
 
 var (
-	Debug_append int
-	Debug_panic  int
-	Debug_slice  int
-	Debug_wb     int
+	Debug_append  int
+	Debug_closure int
+	Debug_panic   int
+	Debug_slice   int
+	Debug_wb      int
 )
 
 // Debug arguments.
@@ -46,6 +47,7 @@ var debugtab = []struct {
 	val  *int
 }{
 	{"append", &Debug_append},         // print information about append compilation
+	{"closure", &Debug_closure},       // print information about closure compilation
 	{"disablenil", &Disable_checknil}, // disable nil checks
 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
 	{"nil", &Debug_checknil},          // print information about nil checks
@@ -109,22 +111,18 @@ func Main() {
 
 	// pseudo-package, for scoping
 	builtinpkg = mkpkg("go.builtin")
-
 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
 	unsafepkg = mkpkg("unsafe")
-
 	unsafepkg.Name = "unsafe"
 
 	// real package, referred to by generated runtime calls
 	Runtimepkg = mkpkg("runtime")
-
 	Runtimepkg.Name = "runtime"
 
 	// pseudo-packages used in symbol tables
 	itabpkg = mkpkg("go.itab")
-
 	itabpkg.Name = "go.itab"
 	itabpkg.Prefix = "go.itab" // not go%2eitab
 
@@ -132,13 +130,15 @@ func Main() {
 	typelinkpkg.Name = "go.typelink"
 	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
 
-	trackpkg = mkpkg("go.track")
+	itablinkpkg = mkpkg("go.itablink")
+	itablinkpkg.Name = "go.itablink"
+	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
 
+	trackpkg = mkpkg("go.track")
 	trackpkg.Name = "go.track"
 	trackpkg.Prefix = "go.track" // not go%2etrack
 
 	typepkg = mkpkg("type")
-
 	typepkg.Name = "type"
 
 	goroot = obj.Getgoroot()
@@ -815,6 +815,9 @@ func importfile(f *Val, indent []byte) {
 
 	case 'B':
 		// new export format
+		if Debug_export != 0 {
+			fmt.Printf("importing %s (%s)\n", path_, file)
+		}
 		imp.ReadByte() // skip \n after $$B
 		Import(imp)
 

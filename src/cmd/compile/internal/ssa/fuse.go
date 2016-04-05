@@ -65,7 +65,7 @@ func fuseBlockIf(b *Block) bool {
 		b.Fatalf("invalid predecessors")
 	}
 	for _, v := range ss.Values {
-		if v.Op == OpPhi && v.Args[i0] != v.Args[i1] {
+		if v.Op == OpPhi && v.Uses > 0 && v.Args[i0] != v.Args[i1] {
 			return false
 		}
 	}

@@ -41,6 +41,7 @@ import (
 //go:cgo_import_dynamic runtime._SetUnhandledExceptionFilter SetUnhandledExceptionFilter%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetWaitableTimer SetWaitableTimer%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SuspendThread SuspendThread%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SwitchToThread SwitchToThread%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualAlloc VirtualAlloc%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
@@ -84,6 +85,7 @@ var (
 	_SetUnhandledExceptionFilter,
 	_SetWaitableTimer,
 	_SuspendThread,
+	_SwitchToThread,
 	_VirtualAlloc,
 	_VirtualFree,
 	_WSAGetOverlappedResult,
@@ -93,8 +95,11 @@ var (
 
 	// Following syscalls are only available on some Windows PCs.
 	// We will load syscalls, if available, before using them.
+	_AddDllDirectory,
 	_AddVectoredContinueHandler,
-	_GetQueuedCompletionStatusEx stdFunction
+	_GetQueuedCompletionStatusEx,
+	_LoadLibraryExW,
+	_ stdFunction
 )
 
 type sigset struct{}
@@ -105,26 +110,38 @@ func asmstdcall(fn unsafe.Pointer)
 
 var asmstdcallAddr unsafe.Pointer
 
+func windowsFindfunc(name []byte, lib uintptr) stdFunction {
+	f := stdcall2(_GetProcAddress, lib, uintptr(unsafe.Pointer(&name[0])))
+	return stdFunction(unsafe.Pointer(f))
+}
+
 func loadOptionalSyscalls() {
-	var buf [50]byte // large enough for longest string
-	strtoptr := func(s string) uintptr {
-		buf[copy(buf[:], s)] = 0 // nil-terminated for OS
-		return uintptr(noescape(unsafe.Pointer(&buf[0])))
+	var (
+		kernel32dll                 = []byte("kernel32.dll\000")
+		addVectoredContinueHandler  = []byte("AddVectoredContinueHandler\000")
+		getQueuedCompletionStatusEx = []byte("GetQueuedCompletionStatusEx\000")
+		addDllDirectory             = []byte("AddDllDirectory\000")
+		loadLibraryExW              = []byte("LoadLibraryExW\000")
+	)
+
+	k32 := stdcall1(_LoadLibraryA, uintptr(unsafe.Pointer(&kernel32dll[0])))
+	if k32 == 0 {
+		throw("kernel32.dll not found")
 	}
-	l := stdcall1(_LoadLibraryA, strtoptr("kernel32.dll"))
-	findfunc := func(name string) stdFunction {
-		f := stdcall2(_GetProcAddress, l, strtoptr(name))
-		return stdFunction(unsafe.Pointer(f))
-	}
-	if l != 0 {
-		_AddVectoredContinueHandler = findfunc("AddVectoredContinueHandler")
-		_GetQueuedCompletionStatusEx = findfunc("GetQueuedCompletionStatusEx")
-	}
+	_AddDllDirectory = windowsFindfunc(addDllDirectory, k32)
+	_AddVectoredContinueHandler = windowsFindfunc(addVectoredContinueHandler, k32)
+	_GetQueuedCompletionStatusEx = windowsFindfunc(getQueuedCompletionStatusEx, k32)
+	_LoadLibraryExW = windowsFindfunc(loadLibraryExW, k32)
 }
 
 //go:nosplit
 func getLoadLibrary() uintptr {
 	return uintptr(unsafe.Pointer(_LoadLibraryW))
+}
+
+//go:nosplit
+func getLoadLibraryEx() uintptr {
+	return uintptr(unsafe.Pointer(_LoadLibraryExW))
 }
 
 //go:nosplit
@@ -161,12 +178,32 @@ const (
 // in sys_windows_386.s and sys_windows_amd64.s
 func externalthreadhandler()
 
+// When loading DLLs, we prefer to use LoadLibraryEx with
+// LOAD_LIBRARY_SEARCH_* flags, if available. LoadLibraryEx is not
+// available on old Windows, though, and the LOAD_LIBRARY_SEARCH_*
+// flags are not available on some versions of Windows without a
+// security patch.
+//
+// https://msdn.microsoft.com/en-us/library/ms684179(v=vs.85).aspx says:
+// "Windows 7, Windows Server 2008 R2, Windows Vista, and Windows
+// Server 2008: The LOAD_LIBRARY_SEARCH_* flags are available on
+// systems that have KB2533623 installed. To determine whether the
+// flags are available, use GetProcAddress to get the address of the
+// AddDllDirectory, RemoveDllDirectory, or SetDefaultDllDirectories
+// function. If GetProcAddress succeeds, the LOAD_LIBRARY_SEARCH_*
+// flags can be used with LoadLibraryEx."
+var useLoadLibraryEx bool
+
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
+	switchtothreadAddr = unsafe.Pointer(funcPC(switchtothread))
 
 	setBadSignalMsg()
 
 	loadOptionalSyscalls()
+
+	useLoadLibraryEx = (_LoadLibraryExW != nil && _AddDllDirectory != nil)
 
 	disableWER()
 
@@ -368,8 +405,11 @@ func semacreate(mp *m) {
 	mp.waitsema = stdcall4(_CreateEventA, 0, 0, 0, 0)
 }
 
-// May run with m.p==nil, so write barriers are not allowed.
-//go:nowritebarrier
+// May run with m.p==nil, so write barriers are not allowed. This
+// function is called by newosproc0, so it is also required to
+// operate without stack guards.
+//go:nowritebarrierc
+//go:nosplit
 func newosproc(mp *m, stk unsafe.Pointer) {
 	const _STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000
 	thandle := stdcall6(_CreateThread, 0, 0x20000,
@@ -379,6 +419,15 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
 	}
+}
+
+// Used by the C library build mode. On Linux this function would allocate a
+// stack, but that's not necessary for Windows. No stack guards are present
+// and the GC has not been initialized, so write barriers will fail.
+//go:nowritebarrierc
+//go:nosplit
+func newosproc0(mp *m, stk unsafe.Pointer) {
+	newosproc(mp, stk)
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -546,17 +595,22 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 }
 
 // in sys_windows_386.s and sys_windows_amd64.s
-func usleep1(usec uint32)
+func onosstack(fn unsafe.Pointer, arg uint32)
+func usleep2(usec uint32)
+func switchtothread()
+
+var usleep2Addr unsafe.Pointer
+var switchtothreadAddr unsafe.Pointer
 
 //go:nosplit
 func osyield() {
-	usleep1(1)
+	onosstack(switchtothreadAddr, 0)
 }
 
 //go:nosplit
 func usleep(us uint32) {
 	// Have 1us units; want 100ns units.
-	usleep1(10 * us)
+	onosstack(usleep2Addr, 10*us)
 }
 
 func ctrlhandler1(_type uint32) uint32 {

@@ -210,7 +210,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	res, err := transport.RoundTrip(outreq)
 	if err != nil {
 		p.logf("http: proxy error: %v", err)
-		rw.WriteHeader(http.StatusInternalServerError)
+		rw.WriteHeader(http.StatusBadGateway)
 		return
 	}
 
@@ -285,13 +285,13 @@ type maxLatencyWriter struct {
 	dst     writeFlusher
 	latency time.Duration
 
-	lk   sync.Mutex // protects Write + Flush
+	mu   sync.Mutex // protects Write + Flush
 	done chan bool
 }
 
 func (m *maxLatencyWriter) Write(p []byte) (int, error) {
-	m.lk.Lock()
-	defer m.lk.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.dst.Write(p)
 }
 
@@ -306,9 +306,9 @@ func (m *maxLatencyWriter) flushLoop() {
 			}
 			return
 		case <-t.C:
-			m.lk.Lock()
+			m.mu.Lock()
 			m.dst.Flush()
-			m.lk.Unlock()
+			m.mu.Unlock()
 		}
 	}
 }

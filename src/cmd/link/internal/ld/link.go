@@ -129,7 +129,7 @@ func (a *Attribute) Set(flag Attribute, value bool) {
 	if value {
 		*a |= flag
 	} else {
-		*a &= ^flag
+		*a &^= flag
 	}
 }
 
@@ -189,7 +189,6 @@ type Link struct {
 	Filesyms   *LSym
 	Moduledata *LSym
 	LSymBatch  []LSym
-	CurRefs    []*LSym // List of symbol references for the file being read.
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -240,8 +239,6 @@ type Pcln struct {
 	Funcdata    []*LSym
 	Funcdataoff []int64
 	File        []*LSym
-	Lastfile    *LSym
-	Lastindex   int
 }
 
 type Pcdata struct {
@@ -266,6 +263,12 @@ const (
 	RV_POWER_HI
 	RV_POWER_HA
 	RV_POWER_DS
+
+	// RV_390_DBL is a s390x-specific relocation variant that indicates that
+	// the value to be placed into the relocatable field should first be
+	// divided by 2.
+	RV_390_DBL
+
 	RV_CHECK_OVERFLOW = 1 << 8
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )

@@ -31,6 +31,23 @@ func (DummyFrontend) StringData(s string) interface{} {
 func (DummyFrontend) Auto(t Type) GCNode {
 	return nil
 }
+func (d DummyFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+	return LocalSlot{s.N, d.TypeBytePtr(), s.Off}, LocalSlot{s.N, d.TypeInt(), s.Off + 8}
+}
+func (d DummyFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
+	return LocalSlot{s.N, d.TypeBytePtr(), s.Off}, LocalSlot{s.N, d.TypeBytePtr(), s.Off + 8}
+}
+func (d DummyFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
+	return LocalSlot{s.N, s.Type.ElemType().PtrTo(), s.Off},
+		LocalSlot{s.N, d.TypeInt(), s.Off + 8},
+		LocalSlot{s.N, d.TypeInt(), s.Off + 16}
+}
+func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
+	if s.Type.Size() == 16 {
+		return LocalSlot{s.N, d.TypeFloat64(), s.Off}, LocalSlot{s.N, d.TypeFloat64(), s.Off + 8}
+	}
+	return LocalSlot{s.N, d.TypeFloat32(), s.Off}, LocalSlot{s.N, d.TypeFloat32(), s.Off + 4}
+}
 func (DummyFrontend) Line(line int32) string {
 	return "unknown.go:0"
 }

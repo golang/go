@@ -373,8 +373,10 @@ type m struct {
 	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
 	fastrand      uint32
-	ncgocall      uint64 // number of cgo calls in total
-	ncgo          int32  // number of cgo calls currently in progress
+	ncgocall      uint64      // number of cgo calls in total
+	ncgo          int32       // number of cgo calls currently in progress
+	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
+	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
@@ -577,6 +579,8 @@ type _func struct {
 
 // layout of Itab known to compilers
 // allocated in non-garbage-collected memory
+// Needs to be in sync with
+// ../cmd/compile/internal/gc/reflect.go:/^func.dumptypestructs.
 type itab struct {
 	inter  *interfacetype
 	_type  *_type
@@ -699,6 +703,7 @@ var (
 	// Set on startup in asm_{x86,amd64}.s.
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
+	cpuid_ebx7        uint32
 	lfenceBeforeRdtsc bool
 	support_avx       bool
 	support_avx2      bool

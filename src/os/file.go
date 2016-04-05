@@ -66,6 +66,8 @@ const (
 )
 
 // Seek whence values.
+//
+// Deprecated: Use io.SeekStart, io.SeekCurrent, and io.SeekEnd.
 const (
 	SEEK_SET int = 0 // seek relative to the origin of the file
 	SEEK_CUR int = 1 // seek relative to the current offset

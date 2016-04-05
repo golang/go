@@ -78,32 +78,63 @@ var printList = map[string]int{
 	"sprint": 0, "sprintln": 0,
 }
 
-// signature returns the types.Signature of a call. If it is unable to
-// identify the call's signature, it can return nil.
-func signature(f *File, call *ast.CallExpr) *types.Signature {
+// formatString returns the format string argument and its index within
+// the given printf-like call expression.
+//
+// The last parameter before variadic arguments is assumed to be
+// a format string.
+//
+// The first string literal or string constant is assumed to be a format string
+// if the call's signature cannot be determined.
+//
+// If it cannot find any format string parameter, it returns  ("", -1).
+func formatString(f *File, call *ast.CallExpr) (string, int) {
 	typ := f.pkg.types[call.Fun].Type
-	if typ == nil {
-		return nil
-	}
-	sig, _ := typ.(*types.Signature)
-	return sig
-}
-
-// formatIndex returns the index of the format string parameter within
-// a signature. If it cannot find any format string parameter, it
-// returns -1.
-func formatIndex(sig *types.Signature) int {
-	if sig == nil {
-		return -1
-	}
-	idx := -1
-	for i := 0; i < sig.Params().Len(); i++ {
-		p := sig.Params().At(i)
-		if typ, ok := p.Type().(*types.Basic); ok && typ.Kind() == types.String {
-			idx = i
+	if typ != nil {
+		if sig, ok := typ.(*types.Signature); ok {
+			if !sig.Variadic() {
+				// Skip checking non-variadic functions
+				return "", -1
+			}
+			idx := sig.Params().Len() - 2
+			if idx < 0 {
+				// Skip checking variadic functions without
+				// fixed arguments.
+				return "", -1
+			}
+			s, ok := stringLiteralArg(f, call, idx)
+			if !ok {
+				// The last argument before variadic args isn't a string
+				return "", -1
+			}
+			return s, idx
 		}
 	}
-	return idx
+
+	// Cannot determine call's signature. Fallback to scanning for the first
+	// string argument in the call
+	for idx := range call.Args {
+		if s, ok := stringLiteralArg(f, call, idx); ok {
+			return s, idx
+		}
+	}
+	return "", -1
+}
+
+// stringLiteralArg returns call's string constant argument at the index idx.
+//
+// ("", false) is returned if call's argument at the index idx isn't a string
+// literal.
+func stringLiteralArg(f *File, call *ast.CallExpr, idx int) (string, bool) {
+	if idx >= len(call.Args) {
+		return "", false
+	}
+	arg := call.Args[idx]
+	lit := f.pkg.types[arg].Value
+	if lit != nil && lit.Kind() == constant.String {
+		return constant.StringVal(lit), true
+	}
+	return "", false
 }
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
@@ -173,32 +204,15 @@ type formatState struct {
 }
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
-// call.Args[formatIndex] is (well, should be) the format argument.
 func (f *File) checkPrintf(call *ast.CallExpr, name string) {
-	idx := formatIndex(signature(f, call))
-
+	format, idx := formatString(f, call)
 	if idx < 0 {
-		f.Badf(call.Pos(), "no formatting directive in %s call", name)
-		return
-	}
-
-	if idx >= len(call.Args) {
-		f.Bad(call.Pos(), "too few arguments in call to", name)
-		return
-	}
-
-	lit := f.pkg.types[call.Args[idx]].Value
-	if lit == nil {
 		if *verbose {
 			f.Warn(call.Pos(), "can't check non-constant format in call to", name)
 		}
 		return
 	}
-	if lit.Kind() != constant.String {
-		f.Badf(call.Pos(), "constant %v not a string in call to %s", lit, name)
-		return
-	}
-	format := constant.StringVal(lit)
+
 	firstArg := idx + 1 // Arguments are immediately after format string.
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > firstArg {

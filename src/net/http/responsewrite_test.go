@@ -222,6 +222,39 @@ func TestResponseWrite(t *testing.T) {
 			},
 			"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef",
 		},
+
+		// Status code under 100 should be zero-padded to
+		// three digits.  Still bogus, but less bogus. (be
+		// consistent with generating three digits, since the
+		// Transport requires it)
+		{
+			Response{
+				StatusCode: 7,
+				Status:     "license to violate specs",
+				ProtoMajor: 1,
+				ProtoMinor: 0,
+				Request:    dummyReq("GET"),
+				Header:     Header{},
+				Body:       nil,
+			},
+
+			"HTTP/1.0 007 license to violate specs\r\nContent-Length: 0\r\n\r\n",
+		},
+
+		// No stutter.
+		{
+			Response{
+				StatusCode: 123,
+				Status:     "123 Sesame Street",
+				ProtoMajor: 1,
+				ProtoMinor: 0,
+				Request:    dummyReq("GET"),
+				Header:     Header{},
+				Body:       nil,
+			},
+
+			"HTTP/1.0 123 Sesame Street\r\nContent-Length: 0\r\n\r\n",
+		},
 	}
 
 	for i := range respWriteTests {

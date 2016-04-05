@@ -79,18 +79,17 @@ func markdcl() {
 	block = blockgen
 }
 
-func dumpdcl(st string) {
+// keep around for debugging
+func dumpdclstack() {
 	i := 0
 	for d := dclstack; d != nil; d = d.Link {
-		i++
-		fmt.Printf("    %.2d %p", i, d)
-		if d.Name == "" {
-			fmt.Printf("\n")
-			continue
+		fmt.Printf("%6d  %p", i, d)
+		if d.Name != "" {
+			fmt.Printf("  '%s'  %v\n", d.Name, Pkglookup(d.Name, d.Pkg))
+		} else {
+			fmt.Printf("  ---\n")
 		}
-
-		fmt.Printf(" '%s'", d.Name)
-		fmt.Printf(" %v\n", Pkglookup(d.Name, d.Pkg))
+		i++
 	}
 }
 
@@ -250,11 +249,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 				Yyerror("missing expression in var declaration")
 				break
 			}
-
 			e = el[0]
 			el = el[1:]
-		} else {
-			e = nil
 		}
 
 		v.Op = ONAME
@@ -296,7 +292,6 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	}
 	clcopy := listtreecopy(cl, lno)
 
-	var c *Node
 	var vv []*Node
 	for _, v := range vl {
 		if len(clcopy) == 0 {
@@ -304,7 +299,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 			break
 		}
 
-		c = clcopy[0]
+		c := clcopy[0]
 		clcopy = clcopy[1:]
 
 		v.Op = OLITERAL
@@ -528,7 +523,7 @@ func ifacedcl(n *Node) {
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
 	if Funcdepth == 0 && dclcontext != PEXTERN {
-		Fatalf("funchdr: dclcontext")
+		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
 	if importpkg == nil && n.Func.Nname != nil {
@@ -580,8 +575,7 @@ func funcargs(nt *Node) {
 		}
 	}
 
-	var n *Node
-	for _, n = range nt.List.Slice() {
+	for _, n := range nt.List.Slice() {
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs in %v", Oconv(n.Op, 0))
 		}
@@ -599,7 +593,7 @@ func funcargs(nt *Node) {
 	// declare the out arguments.
 	gen := nt.List.Len()
 	var i int = 0
-	for _, n = range nt.Rlist.Slice() {
+	for _, n := range nt.Rlist.Slice() {
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs out %v", Oconv(n.Op, 0))
 		}
@@ -680,7 +674,7 @@ func funcargs2(t *Type) {
 func funcbody(n *Node) {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
-		Fatalf("funcbody: dclcontext")
+		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
 	}
 	popdcl()
 	Funcdepth--
@@ -715,14 +709,14 @@ func checkembeddedtype(t *Type) {
 		return
 	}
 
-	if t.Sym == nil && Isptr[t.Etype] {
-		t = t.Type
-		if t.Etype == TINTER {
+	if t.Sym == nil && t.IsPtr() {
+		t = t.Elem()
+		if t.IsInterface() {
 			Yyerror("embedded type cannot be a pointer to interface")
 		}
 	}
 
-	if Isptr[t.Etype] {
+	if t.IsPtr() {
 		Yyerror("embedded type cannot be a pointer")
 	} else if t.Etype == TFORW && t.Embedlineno == 0 {
 		t.Embedlineno = lineno
@@ -813,21 +807,19 @@ func tostruct(l []*Node) *Type {
 }
 
 func tostruct0(t *Type, l []*Node) {
-	if t == nil || t.Etype != TSTRUCT {
+	if t == nil || !t.IsStruct() {
 		Fatalf("struct expected")
 	}
 
-	var fields []*Field
-	for _, n := range l {
-		fields = append(fields, structfield(n))
-	}
-	t.SetFields(fields)
-
-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
+	fields := make([]*Field, len(l))
+	for i, n := range l {
+		f := structfield(n)
 		if f.Broke {
 			t.Broke = true
 		}
+		fields[i] = f
 	}
+	t.SetFields(fields)
 
 	checkdupfields("field", t)
 
@@ -840,8 +832,8 @@ func tofunargs(l []*Node) *Type {
 	t := typ(TSTRUCT)
 	t.Funarg = true
 
-	var fields []*Field
-	for _, n := range l {
+	fields := make([]*Field, len(l))
+	for i, n := range l {
 		f := structfield(n)
 		f.Funarg = true
 
@@ -849,17 +841,12 @@ func tofunargs(l []*Node) *Type {
 		if n.Left != nil && n.Left.Class == PPARAM {
 			n.Left.Name.Param.Field = f
 		}
-
-		fields = append(fields, f)
-	}
-	t.SetFields(fields)
-
-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
 			t.Broke = true
 		}
+		fields[i] = f
 	}
-
+	t.SetFields(fields)
 	return t
 }
 
@@ -884,8 +871,7 @@ func interfacefield(n *Node) *Field {
 			// right now all we need is the name list.
 			// avoids cycles for recursive interface types.
 			n.Type = typ(TINTERMETH)
-
-			n.Type.Nname = n.Right
+			n.Type.SetNname(n.Right)
 			n.Left.Type = n.Type
 			queuemethod(n)
 
@@ -937,7 +923,7 @@ func tointerface(l []*Node) *Type {
 }
 
 func tointerface0(t *Type, l []*Node) *Type {
-	if t == nil || t.Etype != TINTER {
+	if t == nil || !t.IsInterface() {
 		Fatalf("interface expected")
 	}
 
@@ -945,7 +931,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 	for _, n := range l {
 		f := interfacefield(n)
 
-		if n.Left == nil && f.Type.Etype == TINTER {
+		if n.Left == nil && f.Type.IsInterface() {
 			// embedded interface, inline methods
 			for _, t1 := range f.Type.Fields().Slice() {
 				f = newField()
@@ -960,15 +946,12 @@ func tointerface0(t *Type, l []*Node) *Type {
 		} else {
 			fields = append(fields, f)
 		}
-	}
-	sort.Sort(methcmp(fields))
-	t.SetFields(fields)
-
-	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
 			t.Broke = true
 		}
 	}
+	sort.Sort(methcmp(fields))
+	t.SetFields(fields)
 
 	checkdupfields("method", t)
 	checkwidth(t)
@@ -1017,11 +1000,11 @@ func isifacemethod(f *Type) bool {
 		return false
 	}
 	t := rcvr.Type
-	if !Isptr[t.Etype] {
+	if !t.IsPtr() {
 		return false
 	}
-	t = t.Type
-	if t.Sym != nil || t.Etype != TSTRUCT || t.NumFields() != 0 {
+	t = t.Elem()
+	if t.Sym != nil || !t.IsStruct() || t.NumFields() != 0 {
 		return false
 	}
 	return true
@@ -1075,8 +1058,8 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 		goto bad
 	}
 	s = t.Sym
-	if s == nil && Isptr[t.Etype] {
-		t = t.Type
+	if s == nil && t.IsPtr() {
+		t = t.Elem()
 		if t == nil {
 			goto bad
 		}
@@ -1103,13 +1086,13 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	}
 
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
-		if t0.Sym == nil && Isptr[t0.Etype] {
+		if t0.Sym == nil && t0.IsPtr() {
 			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
 		}
 	} else {
-		if t0.Sym == nil && Isptr[t0.Etype] {
+		if t0.Sym == nil && t0.IsPtr() {
 			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
 		} else {
 			p = fmt.Sprintf("%v.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
@@ -1192,13 +1175,13 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 			return
 		}
 		if t != nil {
-			if Isptr[t.Etype] {
+			if t.IsPtr() {
 				if t.Sym != nil {
 					Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 					return
 				}
 
-				t = t.Type
+				t = t.Elem()
 			}
 
 			if t.Broke { // rely on typecheck having complained before
@@ -1209,12 +1192,12 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 				return
 			}
 
-			if Isptr[t.Etype] {
+			if t.IsPtr() {
 				Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return
 			}
 
-			if t.Etype == TINTER {
+			if t.IsInterface() {
 				Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
 				return
 			}
@@ -1237,7 +1220,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		return
 	}
 
-	if pa.Etype == TSTRUCT {
+	if pa.IsStruct() {
 		for _, f := range pa.Fields().Slice() {
 			if f.Sym == msym {
 				Yyerror("type %v has both field and method named %v", pa, msym)

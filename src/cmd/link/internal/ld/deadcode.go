@@ -14,7 +14,7 @@ import (
 // deadcode marks all reachable symbols.
 //
 // The basis of the dead code elimination is a flood fill of symbols,
-// following their relocations, begining at INITENTRY.
+// following their relocations, beginning at INITENTRY.
 //
 // This flood fill is wrapped in logic for pruning unused methods.
 // All methods are mentioned by relocations on their receiver's *rtype.
@@ -107,10 +107,11 @@ func deadcode(ctxt *Link) {
 	}
 
 	if Buildmode != BuildmodeShared {
-		// Keep a typelink if the symbol it points at is being kept.
-		// (When BuildmodeShared, always keep typelinks.)
+		// Keep a typelink or itablink if the symbol it points at is being kept.
+		// (When BuildmodeShared, always keep typelinks and itablinks.)
 		for _, s := range ctxt.Allsym {
-			if strings.HasPrefix(s.Name, "go.typelink.") {
+			if strings.HasPrefix(s.Name, "go.typelink.") ||
+				strings.HasPrefix(s.Name, "go.itablink.") {
 				s.Attr.Set(AttrReachable, len(s.R) == 1 && s.R[0].Sym.Attr.Reachable())
 			}
 		}

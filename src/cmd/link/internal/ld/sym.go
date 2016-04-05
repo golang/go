@@ -43,7 +43,6 @@ var headers = []struct {
 }{
 	{"darwin", obj.Hdarwin},
 	{"dragonfly", obj.Hdragonfly},
-	{"elf", obj.Helf},
 	{"freebsd", obj.Hfreebsd},
 	{"linux", obj.Hlinux},
 	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"

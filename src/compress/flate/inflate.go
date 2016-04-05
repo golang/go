@@ -299,15 +299,6 @@ type decompressor struct {
 }
 
 func (f *decompressor) nextBlock() {
-	if f.final {
-		if f.dict.availRead() > 0 {
-			f.toRead = f.dict.readFlush()
-			f.step = (*decompressor).nextBlock
-			return
-		}
-		f.err = io.EOF
-		return
-	}
 	for f.nb < 1+2 {
 		if f.err = f.moreBits(); f.err != nil {
 			return
@@ -345,6 +336,9 @@ func (f *decompressor) Read(b []byte) (int, error) {
 		if len(f.toRead) > 0 {
 			n := copy(b, f.toRead)
 			f.toRead = f.toRead[n:]
+			if len(f.toRead) == 0 {
+				return n, f.err
+			}
 			return n, nil
 		}
 		if f.err != nil {
@@ -512,8 +506,7 @@ readLiteral:
 			}
 			goto readLiteral
 		case v == 256:
-			// Done with huffman block; read next block.
-			f.step = (*decompressor).nextBlock
+			f.finishBlock()
 			return
 		// otherwise, reference to older data
 		case v < 265:
@@ -648,7 +641,7 @@ func (f *decompressor) dataBlock() {
 
 	if n == 0 {
 		f.toRead = f.dict.readFlush()
-		f.step = (*decompressor).nextBlock
+		f.finishBlock()
 		return
 	}
 
@@ -680,6 +673,16 @@ func (f *decompressor) copyData() {
 		f.toRead = f.dict.readFlush()
 		f.step = (*decompressor).copyData
 		return
+	}
+	f.finishBlock()
+}
+
+func (f *decompressor) finishBlock() {
+	if f.final {
+		if f.dict.availRead() > 0 {
+			f.toRead = f.dict.readFlush()
+		}
+		f.err = io.EOF
 	}
 	f.step = (*decompressor).nextBlock
 }

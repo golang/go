@@ -118,13 +118,12 @@ func goEnv(key string) string {
 }
 
 func compilemain(t *testing.T, libgo string) {
-	ccArgs := append(cc, "-o", "testp"+exeSuffix)
+	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c")
 	if GOOS == "windows" {
-		ccArgs = append(ccArgs, "main_windows.c")
+		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32")
 	} else {
-		ccArgs = append(ccArgs, "main_unix.c")
+		ccArgs = append(ccArgs, "main_unix.c", libgo)
 	}
-	ccArgs = append(ccArgs, "main.c", libgo)
 	t.Log(ccArgs)
 
 	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {

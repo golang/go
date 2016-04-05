@@ -397,6 +397,7 @@ const (
 	SFUNCTABRELRO
 
 	STYPELINK
+	SITABLINK
 	SSYMTAB
 	SPCLNTAB
 	SELFROSECT
@@ -657,7 +658,6 @@ type Link struct {
 	Textp         *LSym
 	Etextp        *LSym
 	Errors        int
-	RefsWritten   int // Number of symbol references already written to object file.
 
 	// state for writing objects
 	Text []*LSym
@@ -715,7 +715,6 @@ const (
 	Hunknown = 0 + iota
 	Hdarwin
 	Hdragonfly
-	Helf
 	Hfreebsd
 	Hlinux
 	Hnacl

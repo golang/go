@@ -588,3 +588,50 @@ func TestTCPStress(t *testing.T) {
 	ln.Close()
 	<-done
 }
+
+func TestTCPSelfConnect(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// TODO(brainman): do not know why it hangs.
+		t.Skip("known-broken test on windows")
+	}
+
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d Dialer
+	c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
+	if err != nil {
+		ln.Close()
+		t.Fatal(err)
+	}
+	network := c.LocalAddr().Network()
+	laddr := *c.LocalAddr().(*TCPAddr)
+	c.Close()
+	ln.Close()
+
+	// Try to connect to that address repeatedly.
+	n := 100000
+	if testing.Short() {
+		n = 1000
+	}
+	switch runtime.GOOS {
+	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "solaris", "windows":
+		// Non-Linux systems take a long time to figure
+		// out that there is nothing listening on localhost.
+		n = 100
+	}
+	for i := 0; i < n; i++ {
+		d.Timeout = time.Millisecond
+		c, err := d.Dial(network, laddr.String())
+		if err == nil {
+			addr := c.LocalAddr().(*TCPAddr)
+			if addr.Port == laddr.Port || addr.IP.Equal(laddr.IP) {
+				t.Errorf("Dial %v should fail", addr)
+			} else {
+				t.Logf("Dial %v succeeded - possibly racing with other listener", addr)
+			}
+			c.Close()
+		}
+	}
+}

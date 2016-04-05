@@ -18,7 +18,7 @@ func Rnd(o int64, r int64) int64 {
 func offmod(t *Type) {
 	o := int32(0)
 	for _, f := range t.Fields().Slice() {
-		f.Width = int64(o)
+		f.Offset = int64(o)
 		o += int32(Widthptr)
 		if int64(o) >= Thearch.MAXWIDTH {
 			Yyerror("interface too large")
@@ -53,7 +53,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		if f.Type.Align > 0 {
 			o = Rnd(o, int64(f.Type.Align))
 		}
-		f.Width = o // really offset for TFIELD
+		f.Offset = o
 		if f.Nname != nil {
 			// this same stackparam logic is in addrescapes
 			// in typecheck.go.  usually addrescapes runs after
@@ -176,11 +176,11 @@ func dowidth(t *Type) {
 
 	case TPTR32:
 		w = 4
-		checkwidth(t.Type)
+		checkwidth(t.Elem())
 
 	case TPTR64:
 		w = 8
-		checkwidth(t.Type)
+		checkwidth(t.Elem())
 
 	case TUNSAFEPTR:
 		w = int64(Widthptr)
@@ -194,27 +194,24 @@ func dowidth(t *Type) {
 	case TCHAN: // implemented as pointer
 		w = int64(Widthptr)
 
-		checkwidth(t.Type)
+		checkwidth(t.Elem())
 
 		// make fake type to check later to
 		// trigger channel argument check.
-		t1 := typ(TCHANARGS)
-
-		t1.Type = t
+		t1 := typWrapper(TCHANARGS, t)
 		checkwidth(t1)
 
 	case TCHANARGS:
-		t1 := t.Type
-		dowidth(t.Type) // just in case
-		if t1.Type.Width >= 1<<16 {
+		t1 := t.Wrapped()
+		dowidth(t1) // just in case
+		if t1.Elem().Width >= 1<<16 {
 			Yyerror("channel element type too large (>64kB)")
 		}
 		t.Width = 1
 
 	case TMAP: // implemented as pointer
 		w = int64(Widthptr)
-
-		checkwidth(t.Type)
+		checkwidth(t.Val())
 		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in
@@ -238,25 +235,25 @@ func dowidth(t *Type) {
 		t.Align = uint8(Widthptr)
 
 	case TARRAY:
-		if t.Type == nil {
+		if t.Elem() == nil {
 			break
 		}
-		if t.Bound >= 0 {
-			dowidth(t.Type)
-			if t.Type.Width != 0 {
-				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
-				if uint64(t.Bound) > cap {
+		if t.IsArray() {
+			dowidth(t.Elem())
+			if t.Elem().Width != 0 {
+				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+				if uint64(t.NumElem()) > cap {
 					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
 				}
 			}
 
-			w = t.Bound * t.Type.Width
-			t.Align = t.Type.Align
-		} else if t.Bound == -1 {
+			w = t.NumElem() * t.Elem().Width
+			t.Align = t.Elem().Align
+		} else if t.IsSlice() {
 			w = int64(sizeof_Array)
-			checkwidth(t.Type)
+			checkwidth(t.Elem())
 			t.Align = uint8(Widthptr)
-		} else if t.Bound == -100 {
+		} else if t.isDDDArray() {
 			if !t.Broke {
 				Yyerror("use of [...] array outside of array literal")
 				t.Broke = true
@@ -274,22 +271,17 @@ func dowidth(t *Type) {
 	// make fake type to check later to
 	// trigger function argument computation.
 	case TFUNC:
-		t1 := typ(TFUNCARGS)
-
-		t1.Type = t
+		t1 := typWrapper(TFUNCARGS, t)
 		checkwidth(t1)
-
-		// width of func type is pointer
-		w = int64(Widthptr)
+		w = int64(Widthptr) // width of func type is pointer
 
 	// function is 3 cated structures;
 	// compute their widths as side-effect.
 	case TFUNCARGS:
-		t1 := t.Type
-
-		w = widstruct(t.Type, t1.Recvs(), 0, 0)
-		w = widstruct(t.Type, t1.Params(), w, Widthreg)
-		w = widstruct(t.Type, t1.Results(), w, Widthreg)
+		t1 := t.Wrapped()
+		w = widstruct(t1, t1.Recvs(), 0, 0)
+		w = widstruct(t1, t1.Params(), w, Widthreg)
+		w = widstruct(t1, t1.Results(), w, Widthreg)
 		t1.Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)
@@ -388,7 +380,7 @@ func Argsize(t *Type) int {
 
 	for _, p := range recvsParamsResults {
 		for _, f := range p(t).Fields().Slice() {
-			if x := f.Width + f.Type.Width; x > w {
+			if x := f.End(); x > w {
 				w = x
 			}
 		}

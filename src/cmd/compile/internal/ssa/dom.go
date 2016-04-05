@@ -268,7 +268,7 @@ func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linked
 		idom[v] = fromID[bucket[0]]
 	}
 
-	// Step 4. Explictly define the immediate dominator of each vertex,
+	// Step 4. Explicitly define the immediate dominator of each vertex,
 	// carrying out the computation vertex by vertex in increasing order by
 	// number.
 	for i := 1; i < maxBlockID-1; i++ {

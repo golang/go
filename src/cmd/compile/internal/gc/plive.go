@@ -918,12 +918,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		*xoffset += t.Width
 
 	case TARRAY:
-		// The value of t.bound is -1 for slices types and >=0 for
-		// for fixed array types. All other values are invalid.
-		if t.Bound < -1 {
-			Fatalf("onebitwalktype1: invalid bound, %v", t)
-		}
-		if Isslice(t) {
+		if t.IsSlice() {
 			// struct { byte *array; uintgo len; uintgo cap; }
 			if *xoffset&int64(Widthptr-1) != 0 {
 				Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
@@ -931,15 +926,15 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
 			*xoffset += t.Width
 		} else {
-			for i := int64(0); i < t.Bound; i++ {
-				onebitwalktype1(t.Type, xoffset, bv)
+			for i := int64(0); i < t.NumElem(); i++ {
+				onebitwalktype1(t.Elem(), xoffset, bv)
 			}
 		}
 
 	case TSTRUCT:
 		var o int64
 		for _, t1 := range t.Fields().Slice() {
-			fieldoffset := t1.Width
+			fieldoffset := t1.Offset
 			*xoffset += fieldoffset - o
 			onebitwalktype1(t1.Type, xoffset, bv)
 			o = fieldoffset + t1.Type.Width
@@ -959,7 +954,7 @@ func localswords() int32 {
 
 // Returns the number of words of in and out arguments.
 func argswords() int32 {
-	return int32(Curfn.Type.Argwid / int64(Widthptr))
+	return int32(Curfn.Type.ArgWidth() / int64(Widthptr))
 }
 
 // Generates live pointer value maps for arguments and local variables. The

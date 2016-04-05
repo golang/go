@@ -98,7 +98,7 @@ func addrescapes(n *Node) {
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
 	case ODOT, OINDEX, OPAREN, OCONVNOP:
-		if !Isslice(n.Left.Type) {
+		if !n.Left.Type.IsSlice() {
 			addrescapes(n.Left)
 		}
 	}
@@ -403,7 +403,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	Regalloc(&r1, byteptr, nil)
 	iface.Type = byteptr
 	Cgen(&iface, &r1)
-	if !isnilinter(n.Left.Type) {
+	if !n.Left.Type.IsEmptyInterface() {
 		// Holding itab, want concrete type in second word.
 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
@@ -492,7 +492,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	Regalloc(&r1, byteptr, res)
 	iface.Type = byteptr
 	Cgen(&iface, &r1)
-	if !isnilinter(n.Left.Type) {
+	if !n.Left.Type.IsEmptyInterface() {
 		// Holding itab, want concrete type in second word.
 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
@@ -1078,7 +1078,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 			nodl.Type = t
 			nodl.Xoffset = lbase + offset
 			nodr.Type = t
-			if Isfloat[t.Etype] {
+			if t.IsFloat() {
 				// TODO(rsc): Cache zero register like we do for integers?
 				Clearslim(&nodl)
 			} else {
@@ -1204,38 +1204,27 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
 
 	case TARRAY:
-		if Isslice(t) {
-			return f(Ptrto(t.Type), startOffset+int64(Array_array)) &&
+		if t.IsSlice() {
+			return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
 				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
 				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
 		}
 
 		// Short-circuit [1e6]struct{}.
-		if t.Type.Width == 0 {
+		if t.Elem().Width == 0 {
 			return true
 		}
 
-		for i := int64(0); i < t.Bound; i++ {
-			if !visitComponents(t.Type, startOffset+i*t.Type.Width, f) {
+		for i := int64(0); i < t.NumElem(); i++ {
+			if !visitComponents(t.Elem(), startOffset+i*t.Elem().Width, f) {
 				return false
 			}
 		}
 		return true
 
 	case TSTRUCT:
-		if t.Type != nil && t.Type.Width != 0 {
-			// NOTE(rsc): If this happens, the right thing to do is to say
-			//	startOffset -= t.Type.Width
-			// but I want to see if it does.
-			// The old version of componentgen handled this,
-			// in code introduced in CL 6932045 to fix issue #4518.
-			// But the test case in issue 4518 does not trigger this anymore,
-			// so maybe this complication is no longer needed.
-			Fatalf("struct not at offset 0")
-		}
-
 		for _, field := range t.Fields().Slice() {
-			if !visitComponents(field.Type, startOffset+field.Width, f) {
+			if !visitComponents(field.Type, startOffset+field.Offset, f) {
 				return false
 			}
 		}

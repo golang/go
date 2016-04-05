@@ -9,7 +9,6 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -647,6 +646,68 @@ const (
 	R_SPARC_UA64     = 54
 	R_SPARC_UA16     = 55
 
+	R_390_NONE        = 0
+	R_390_8           = 1
+	R_390_12          = 2
+	R_390_16          = 3
+	R_390_32          = 4
+	R_390_PC32        = 5
+	R_390_GOT12       = 6
+	R_390_GOT32       = 7
+	R_390_PLT32       = 8
+	R_390_COPY        = 9
+	R_390_GLOB_DAT    = 10
+	R_390_JMP_SLOT    = 11
+	R_390_RELATIVE    = 12
+	R_390_GOTOFF      = 13
+	R_390_GOTPC       = 14
+	R_390_GOT16       = 15
+	R_390_PC16        = 16
+	R_390_PC16DBL     = 17
+	R_390_PLT16DBL    = 18
+	R_390_PC32DBL     = 19
+	R_390_PLT32DBL    = 20
+	R_390_GOTPCDBL    = 21
+	R_390_64          = 22
+	R_390_PC64        = 23
+	R_390_GOT64       = 24
+	R_390_PLT64       = 25
+	R_390_GOTENT      = 26
+	R_390_GOTOFF16    = 27
+	R_390_GOTOFF64    = 28
+	R_390_GOTPLT12    = 29
+	R_390_GOTPLT16    = 30
+	R_390_GOTPLT32    = 31
+	R_390_GOTPLT64    = 32
+	R_390_GOTPLTENT   = 33
+	R_390_GOTPLTOFF16 = 34
+	R_390_GOTPLTOFF32 = 35
+	R_390_GOTPLTOFF64 = 36
+	R_390_TLS_LOAD    = 37
+	R_390_TLS_GDCALL  = 38
+	R_390_TLS_LDCALL  = 39
+	R_390_TLS_GD32    = 40
+	R_390_TLS_GD64    = 41
+	R_390_TLS_GOTIE12 = 42
+	R_390_TLS_GOTIE32 = 43
+	R_390_TLS_GOTIE64 = 44
+	R_390_TLS_LDM32   = 45
+	R_390_TLS_LDM64   = 46
+	R_390_TLS_IE32    = 47
+	R_390_TLS_IE64    = 48
+	R_390_TLS_IEENT   = 49
+	R_390_TLS_LE32    = 50
+	R_390_TLS_LE64    = 51
+	R_390_TLS_LDO32   = 52
+	R_390_TLS_LDO64   = 53
+	R_390_TLS_DTPMOD  = 54
+	R_390_TLS_DTPOFF  = 55
+	R_390_TLS_TPOFF   = 56
+	R_390_20          = 57
+	R_390_GOT20       = 58
+	R_390_GOTPLT20    = 59
+	R_390_TLS_GOTIE20 = 60
+
 	ARM_MAGIC_TRAMP_NUMBER = 0x5c000003
 )
 
@@ -770,19 +831,22 @@ const (
 	NSECT = 48
 )
 
-var Iself bool
+var (
+	Iself bool
 
-var Nelfsym int = 1
+	Nelfsym int = 1
 
-var elf64 bool
+	elf64 bool
+	// Either ".rel" or ".rela" depending on which type of relocation the
+	// target platform uses.
+	elfRelType string
 
-var ehdr ElfEhdr
+	ehdr ElfEhdr
+	phdr [NSECT]*ElfPhdr
+	shdr [NSECT]*ElfShdr
 
-var phdr [NSECT]*ElfPhdr
-
-var shdr [NSECT]*ElfShdr
-
-var interp string
+	interp string
+)
 
 type Elfstring struct {
 	s   string
@@ -803,8 +867,15 @@ func Elfinit() {
 	Iself = true
 
 	switch Thearch.Thechar {
+	case '0', '6', '7', '9', 'z':
+		elfRelType = ".rela"
+	default:
+		elfRelType = ".rel"
+	}
+
+	switch Thearch.Thechar {
 	// 64-bit architectures
-	case '9':
+	case '9', 'z':
 		if Ctxt.Arch.ByteOrder == binary.BigEndian {
 			ehdr.flags = 1 /* Version 1 ABI */
 		} else {
@@ -1360,13 +1431,25 @@ func elfdynhash() {
 		buckets[b] = uint32(sy.Dynid)
 	}
 
-	Adduint32(Ctxt, s, uint32(nbucket))
-	Adduint32(Ctxt, s, uint32(nsym))
-	for i := 0; i < nbucket; i++ {
-		Adduint32(Ctxt, s, buckets[i])
-	}
-	for i := 0; i < nsym; i++ {
-		Adduint32(Ctxt, s, chain[i])
+	// s390x (ELF64) hash table entries are 8 bytes
+	if Thearch.Thechar == 'z' {
+		Adduint64(Ctxt, s, uint64(nbucket))
+		Adduint64(Ctxt, s, uint64(nsym))
+		for i := 0; i < nbucket; i++ {
+			Adduint64(Ctxt, s, uint64(buckets[i]))
+		}
+		for i := 0; i < nsym; i++ {
+			Adduint64(Ctxt, s, uint64(chain[i]))
+		}
+	} else {
+		Adduint32(Ctxt, s, uint32(nbucket))
+		Adduint32(Ctxt, s, uint32(nsym))
+		for i := 0; i < nbucket; i++ {
+			Adduint32(Ctxt, s, buckets[i])
+		}
+		for i := 0; i < nsym; i++ {
+			Adduint32(Ctxt, s, chain[i])
+		}
 	}
 
 	// version symbols
@@ -1433,21 +1516,15 @@ func elfdynhash() {
 		elfwritedynentsym(s, DT_VERSYM, Linklookup(Ctxt, ".gnu.version", 0))
 	}
 
-	switch Thearch.Thechar {
-	case '0', '6', '7', '9':
-		sy := Linklookup(Ctxt, ".rela.plt", 0)
-		if sy.Size > 0 {
+	sy := Linklookup(Ctxt, elfRelType+".plt", 0)
+	if sy.Size > 0 {
+		if elfRelType == ".rela" {
 			Elfwritedynent(s, DT_PLTREL, DT_RELA)
-			elfwritedynentsymsize(s, DT_PLTRELSZ, sy)
-			elfwritedynentsym(s, DT_JMPREL, sy)
-		}
-	default:
-		sy := Linklookup(Ctxt, ".rel.plt", 0)
-		if sy.Size > 0 {
+		} else {
 			Elfwritedynent(s, DT_PLTREL, DT_REL)
-			elfwritedynentsymsize(s, DT_PLTRELSZ, sy)
-			elfwritedynentsym(s, DT_JMPREL, sy)
 		}
+		elfwritedynentsymsize(s, DT_PLTRELSZ, sy)
+		elfwritedynentsym(s, DT_JMPREL, sy)
 	}
 
 	Elfwritedynent(s, DT_NULL, 0)
@@ -1571,19 +1648,14 @@ func elfshreloc(sect *Section) *ElfShdr {
 		return nil
 	}
 
-	var prefix string
 	var typ int
-	switch Thearch.Thechar {
-	case '0', '6', '7', '9':
-		prefix = ".rela"
+	if elfRelType == ".rela" {
 		typ = SHT_RELA
-	default:
-		prefix = ".rel"
+	} else {
 		typ = SHT_REL
 	}
 
-	buf := fmt.Sprintf("%s%s", prefix, sect.Name)
-	sh := elfshname(buf)
+	sh := elfshname(elfRelType + sect.Name)
 	sh.type_ = uint32(typ)
 	sh.entsize = uint64(Thearch.Regsize) * 2
 	if typ == SHT_RELA {
@@ -1740,36 +1812,23 @@ func doelf() {
 		relro_prefix = ".data.rel.ro"
 	}
 	Addstring(shstrtab, relro_prefix+".typelink")
+	Addstring(shstrtab, relro_prefix+".itablink")
 	Addstring(shstrtab, relro_prefix+".gosymtab")
 	Addstring(shstrtab, relro_prefix+".gopclntab")
 
 	if Linkmode == LinkExternal {
 		Debug['d'] = 1
 
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
-			Addstring(shstrtab, ".rela.text")
-			Addstring(shstrtab, ".rela.rodata")
-			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
-			Addstring(shstrtab, ".rela"+relro_prefix+".gosymtab")
-			Addstring(shstrtab, ".rela"+relro_prefix+".gopclntab")
-			Addstring(shstrtab, ".rela.noptrdata")
-			Addstring(shstrtab, ".rela.data")
-			if UseRelro() {
-				Addstring(shstrtab, ".rela.data.rel.ro")
-			}
-
-		default:
-			Addstring(shstrtab, ".rel.text")
-			Addstring(shstrtab, ".rel.rodata")
-			Addstring(shstrtab, ".rel"+relro_prefix+".typelink")
-			Addstring(shstrtab, ".rel"+relro_prefix+".gosymtab")
-			Addstring(shstrtab, ".rel"+relro_prefix+".gopclntab")
-			Addstring(shstrtab, ".rel.noptrdata")
-			Addstring(shstrtab, ".rel.data")
-			if UseRelro() {
-				Addstring(shstrtab, ".rel.data.rel.ro")
-			}
+		Addstring(shstrtab, elfRelType+".text")
+		Addstring(shstrtab, elfRelType+".rodata")
+		Addstring(shstrtab, elfRelType+relro_prefix+".typelink")
+		Addstring(shstrtab, elfRelType+relro_prefix+".itablink")
+		Addstring(shstrtab, elfRelType+relro_prefix+".gosymtab")
+		Addstring(shstrtab, elfRelType+relro_prefix+".gopclntab")
+		Addstring(shstrtab, elfRelType+".noptrdata")
+		Addstring(shstrtab, elfRelType+".data")
+		if UseRelro() {
+			Addstring(shstrtab, elfRelType+".data.rel.ro")
 		}
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
@@ -1792,12 +1851,7 @@ func doelf() {
 
 	if hasinitarr {
 		Addstring(shstrtab, ".init_array")
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
-			Addstring(shstrtab, ".rela.init_array")
-		default:
-			Addstring(shstrtab, ".rel.init_array")
-		}
+		Addstring(shstrtab, elfRelType+".init_array")
 	}
 
 	if Debug['s'] == 0 {
@@ -1819,14 +1873,8 @@ func doelf() {
 		Addstring(shstrtab, ".dynamic")
 		Addstring(shstrtab, ".dynsym")
 		Addstring(shstrtab, ".dynstr")
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
-			Addstring(shstrtab, ".rela")
-			Addstring(shstrtab, ".rela.plt")
-		default:
-			Addstring(shstrtab, ".rel")
-			Addstring(shstrtab, ".rel.plt")
-		}
+		Addstring(shstrtab, elfRelType)
+		Addstring(shstrtab, elfRelType+".plt")
 
 		Addstring(shstrtab, ".plt")
 		Addstring(shstrtab, ".gnu.version")
@@ -1838,7 +1886,7 @@ func doelf() {
 		s.Type = obj.SELFROSECT
 		s.Attr |= AttrReachable
 		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
+		case '0', '6', '7', '9', 'z':
 			s.Size += ELF64SYMSIZE
 		default:
 			s.Size += ELF32SYMSIZE
@@ -1855,12 +1903,7 @@ func doelf() {
 		dynstr := s
 
 		/* relocation table */
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
-			s = Linklookup(Ctxt, ".rela", 0)
-		default:
-			s = Linklookup(Ctxt, ".rel", 0)
-		}
+		s = Linklookup(Ctxt, elfRelType, 0)
 		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
@@ -1900,12 +1943,7 @@ func doelf() {
 
 		Thearch.Elfsetupplt()
 
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
-			s = Linklookup(Ctxt, ".rela.plt", 0)
-		default:
-			s = Linklookup(Ctxt, ".rel.plt", 0)
-		}
+		s = Linklookup(Ctxt, elfRelType+".plt", 0)
 		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
@@ -1930,19 +1968,18 @@ func doelf() {
 
 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
 		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
+		case '0', '6', '7', '9', 'z':
 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
 		default:
 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
 		}
 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))
 		elfwritedynentsymsize(s, DT_STRSZ, Linklookup(Ctxt, ".dynstr", 0))
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9':
+		if elfRelType == ".rela" {
 			elfwritedynentsym(s, DT_RELA, Linklookup(Ctxt, ".rela", 0))
 			elfwritedynentsymsize(s, DT_RELASZ, Linklookup(Ctxt, ".rela", 0))
 			Elfwritedynent(s, DT_RELAENT, ELF64RELASIZE)
-		default:
+		} else {
 			elfwritedynentsym(s, DT_REL, Linklookup(Ctxt, ".rel", 0))
 			elfwritedynentsymsize(s, DT_RELSZ, Linklookup(Ctxt, ".rel", 0))
 			Elfwritedynent(s, DT_RELENT, ELF32RELSIZE)
@@ -1954,6 +1991,8 @@ func doelf() {
 
 		if Thearch.Thechar == '9' {
 			elfwritedynentsym(s, DT_PLTGOT, Linklookup(Ctxt, ".plt", 0))
+		} else if Thearch.Thechar == 'z' {
+			elfwritedynentsym(s, DT_PLTGOT, Linklookup(Ctxt, ".got", 0))
 		} else {
 			elfwritedynentsym(s, DT_PLTGOT, Linklookup(Ctxt, ".got.plt", 0))
 		}
@@ -2049,6 +2088,8 @@ func Asmbelf(symo int64) {
 		eh.machine = EM_386
 	case '9':
 		eh.machine = EM_PPC64
+	case 'z':
+		eh.machine = EM_S390
 	}
 
 	elfreserve := int64(ELFRESERVE)
@@ -2233,8 +2274,7 @@ func Asmbelf(symo int64) {
 			shsym(sh, Linklookup(Ctxt, ".gnu.version_r", 0))
 		}
 
-		switch eh.machine {
-		case EM_X86_64, EM_PPC64, EM_AARCH64:
+		if elfRelType == ".rela" {
 			sh := elfshname(".rela.plt")
 			sh.type_ = SHT_RELA
 			sh.flags = SHF_ALLOC
@@ -2251,8 +2291,7 @@ func Asmbelf(symo int64) {
 			sh.addralign = 8
 			sh.link = uint32(elfshname(".dynsym").shnum)
 			shsym(sh, Linklookup(Ctxt, ".rela", 0))
-
-		default:
+		} else {
 			sh := elfshname(".rel.plt")
 			sh.type_ = SHT_REL
 			sh.flags = SHF_ALLOC
@@ -2283,6 +2322,8 @@ func Asmbelf(symo int64) {
 		sh.flags = SHF_ALLOC + SHF_EXECINSTR
 		if eh.machine == EM_X86_64 {
 			sh.entsize = 16
+		} else if eh.machine == EM_S390 {
+			sh.entsize = 32
 		} else if eh.machine == EM_PPC64 {
 			// On ppc64, this is just a table of addresses
 			// filled by the dynamic linker

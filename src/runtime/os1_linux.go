@@ -305,6 +305,7 @@ func memlimit() uintptr {
 
 func sigreturn()
 func sigtramp()
+func cgoSigtramp()
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -323,7 +324,11 @@ func setsig(i int32, fn uintptr, restart bool) {
 		sa.sa_restorer = funcPC(sigreturn)
 	}
 	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+		if iscgo {
+			fn = funcPC(cgoSigtramp)
+		} else {
+			fn = funcPC(sigtramp)
+		}
 	}
 	sa.sa_handler = fn
 	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
@@ -354,7 +359,7 @@ func getsig(i int32) uintptr {
 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
 		throw("rt_sigaction read failure")
 	}
-	if sa.sa_handler == funcPC(sigtramp) {
+	if sa.sa_handler == funcPC(sigtramp) || sa.sa_handler == funcPC(cgoSigtramp) {
 		return funcPC(sighandler)
 	}
 	return sa.sa_handler

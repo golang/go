@@ -17,7 +17,7 @@ func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
@@ -204,17 +204,17 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 
 	t0 := t
 	check := false
-	if gc.Issigned[t.Etype] {
+	if t.IsSigned() {
 		check = true
-		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
+		if gc.Isconst(nl, gc.CTINT) && nl.Int64() != -(1<<uint64(t.Width*8-1)) {
 			check = false
-		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
+		} else if gc.Isconst(nr, gc.CTINT) && nr.Int64() != -1 {
 			check = false
 		}
 	}
 
 	if t.Width < 4 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT32]
 		} else {
 			t = gc.Types[gc.TUINT32]
@@ -291,7 +291,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	var olddx gc.Node
 	var dx gc.Node
 	savex(x86.REG_DX, &dx, &olddx, res, t)
-	if !gc.Issigned[t.Etype] {
+	if !t.IsSigned() {
 		gc.Nodconst(&n4, t, 0)
 		gmove(&n4, &dx)
 	} else {
@@ -397,7 +397,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
 			var n3 gc.Node
@@ -478,7 +478,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
 		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
 		} else {
@@ -531,7 +531,7 @@ func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 	// perform full-width multiplication.
 	t := gc.Types[gc.TUINT64]
 
-	if gc.Issigned[nl.Type.Etype] {
+	if nl.Type.IsSigned() {
 		t = gc.Types[gc.TINT64]
 	}
 	var n1 gc.Node

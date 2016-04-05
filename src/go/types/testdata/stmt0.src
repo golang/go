@@ -137,7 +137,7 @@ func issue6487() {
 
 	type M map[string]S
 	var m M
-	m /* ERROR "cannot assign" */ ["foo"].x = 0
+	m /* ERROR "cannot directly assign to struct field" */ ["foo"].x = 0
 	_ = &( /* ERROR "cannot take address" */ m["foo"].x)
 	_ = &m /* ERROR "cannot take address" */ ["foo"].x
 }

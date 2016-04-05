@@ -237,7 +237,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	//	shld hi:lo, c
 	//	shld lo:t, c
 	case gc.OLROT:
-		v := uint64(r.Int())
+		v := uint64(r.Int64())
 
 		var bl gc.Node
 		gc.Regalloc(&bl, lo1.Type, nil)
@@ -291,7 +291,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		var p4 *obj.Prog
 		var p5 *obj.Prog
 		if r.Op == gc.OLITERAL {
-			v := uint64(r.Int())
+			v := uint64(r.Int64())
 			if v >= 64 {
 				// TODO(kaib): replace with gins(AMOVW, nodintconst(0), &al)
 				// here and below (verify it optimizes to EOR)
@@ -452,7 +452,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		var creg gc.Node
 		var p3 *obj.Prog
 		if r.Op == gc.OLITERAL {
-			v := uint64(r.Int())
+			v := uint64(r.Int64())
 			if v >= 64 {
 				if bh.Type.Etype == gc.TINT32 {
 					//	MOVW	bh->31, al

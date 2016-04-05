@@ -189,6 +189,7 @@ var goopnames = []string{
 	OSUB:      "-",
 	OSWITCH:   "switch",
 	OXOR:      "^",
+	OXFALL:    "fallthrough",
 }
 
 // Fmt "%O":  Node opcodes
@@ -394,6 +395,7 @@ s%^	........*\]%&~%g
 s%~	%%g
 */
 var etnames = []string{
+	Txxx:        "Txxx",
 	TINT:        "INT",
 	TUINT:       "UINT",
 	TINT8:       "INT8",
@@ -422,6 +424,13 @@ var etnames = []string{
 	TSTRING:     "STRING",
 	TUNSAFEPTR:  "TUNSAFEPTR",
 	TANY:        "ANY",
+	TIDEAL:      "TIDEAL",
+	TNIL:        "TNIL",
+	TBLANK:      "TBLANK",
+	TFUNCARGS:   "TFUNCARGS",
+	TCHANARGS:   "TCHANARGS",
+	TINTERMETH:  "TINTERMETH",
+	TDDDFIELD:   "TDDDFIELD",
 }
 
 // Fmt "%E": etype
@@ -430,6 +439,10 @@ func Econv(et EType) string {
 		return etnames[et]
 	}
 	return fmt.Sprintf("E-%d", et)
+}
+
+func (e EType) String() string {
+	return Econv(e)
 }
 
 // Fmt "%S": syms
@@ -569,35 +582,35 @@ func typefmt(t *Type, flag FmtFlag) string {
 	switch t.Etype {
 	case TPTR32, TPTR64:
 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
-			return "*" + Tconv(t.Type, FmtShort)
+			return "*" + Tconv(t.Elem(), FmtShort)
 		}
-		return "*" + t.Type.String()
+		return "*" + t.Elem().String()
 
 	case TARRAY:
-		if t.Bound >= 0 {
-			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
+		if t.IsArray() {
+			return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
 		}
-		if t.Bound == -100 {
-			return "[...]" + t.Type.String()
+		if t.isDDDArray() {
+			return "[...]" + t.Elem().String()
 		}
-		return "[]" + t.Type.String()
+		return "[]" + t.Elem().String()
 
 	case TCHAN:
-		switch t.Chan {
+		switch t.ChanDir() {
 		case Crecv:
-			return "<-chan " + t.Type.String()
+			return "<-chan " + t.Elem().String()
 
 		case Csend:
-			return "chan<- " + t.Type.String()
+			return "chan<- " + t.Elem().String()
 		}
 
-		if t.Type != nil && t.Type.Etype == TCHAN && t.Type.Sym == nil && t.Type.Chan == Crecv {
-			return "chan (" + t.Type.String() + ")"
+		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == Crecv {
+			return "chan (" + t.Elem().String() + ")"
 		}
-		return "chan " + t.Type.String()
+		return "chan " + t.Elem().String()
 
 	case TMAP:
-		return "map[" + t.Key().String() + "]" + t.Type.String()
+		return "map[" + t.Key().String() + "]" + t.Val().String()
 
 	case TINTER:
 		var buf bytes.Buffer
@@ -662,15 +675,15 @@ func typefmt(t *Type, flag FmtFlag) string {
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			if t.Map.Bucket == t {
-				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Type.String()
+				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Val().String()
 			}
 
 			if t.Map.Hmap == t {
-				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Type.String()
+				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Val().String()
 			}
 
 			if t.Map.Hiter == t {
-				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Type.String()
+				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Val().String()
 			}
 
 			Yyerror("unknown internal map type")
@@ -717,6 +730,12 @@ func typefmt(t *Type, flag FmtFlag) string {
 			return "@\"unsafe\".Pointer"
 		}
 		return "unsafe.Pointer"
+
+	case TDDDFIELD:
+		if fmtmode == FExp {
+			Fatalf("cannot use TDDDFIELD with old exporter")
+		}
+		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Wrapped())
 	}
 
 	if fmtmode == FExp {
@@ -724,7 +743,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
-	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Type)
+	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Elem())
 }
 
 // Statements which may be rendered with a simplestmt as init.
@@ -782,7 +801,7 @@ func stmtfmt(n *Node) string {
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
-	// preceded by the DCL which will be re-parsed and typecheck to reproduce
+	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS, OASWB:
 		if fmtmode == FExp && n.Right == nil {
@@ -1083,7 +1102,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
-			if Isptr[n.Type.Etype] || (n.Type.Etype == TCHAN && n.Type.Chan == Crecv) {
+			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == Crecv) {
 				return fmt.Sprintf("(%v)(%v)", n.Type, Vconv(n.Val(), 0))
 			} else {
 				return fmt.Sprintf("%v(%v)", n.Type, Vconv(n.Val(), 0))
@@ -1106,7 +1125,7 @@ func exprfmt(n *Node, prec int) string {
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if fmtmode == FExp && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
-			if Isptr[n.Left.Type.Etype] {
+			if n.Left.Type.IsPtr() {
 				return fmt.Sprintf("(%v).%v", n.Left.Type, Sconv(n.Right.Sym, FmtShort|FmtByte))
 			} else {
 				return fmt.Sprintf("%v.%v", n.Left.Type, Sconv(n.Right.Sym, FmtShort|FmtByte))
@@ -1127,15 +1146,13 @@ func exprfmt(n *Node, prec int) string {
 		if n.Left != nil {
 			return fmt.Sprintf("[]%v", n.Left)
 		}
-		var f string
-		f += fmt.Sprintf("[]%v", n.Right)
-		return f // happens before typecheck
+		return fmt.Sprintf("[]%v", n.Right) // happens before typecheck
 
 	case OTMAP:
 		return fmt.Sprintf("map[%v]%v", n.Left, n.Right)
 
 	case OTCHAN:
-		switch n.Etype {
+		switch ChanDir(n.Etype) {
 		case Crecv:
 			return fmt.Sprintf("<-chan %v", n.Left)
 
@@ -1143,7 +1160,7 @@ func exprfmt(n *Node, prec int) string {
 			return fmt.Sprintf("chan<- %v", n.Left)
 
 		default:
-			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && n.Left.Etype == Crecv {
+			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && ChanDir(n.Left.Etype) == Crecv {
 				return fmt.Sprintf("chan (%v)", n.Left)
 			} else {
 				return fmt.Sprintf("chan %v", n.Left)
@@ -1169,11 +1186,11 @@ func exprfmt(n *Node, prec int) string {
 		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
 
 	case OCOMPLIT:
-		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && Isptr[n.Right.Type.Etype]
+		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && n.Right.Type.IsPtr()
 		if fmtmode == FErr {
 			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
 				if ptrlit {
-					return fmt.Sprintf("&%v literal", n.Right.Type.Type)
+					return fmt.Sprintf("&%v literal", n.Right.Type.Elem())
 				} else {
 					return fmt.Sprintf("%v literal", n.Right.Type)
 				}
@@ -1184,7 +1201,7 @@ func exprfmt(n *Node, prec int) string {
 
 		if fmtmode == FExp && ptrlit {
 			// typecheck has overwritten OIND by OTYPE with pointer type.
-			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Type, Hconv(n.List, FmtComma))
+			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Elem(), Hconv(n.List, FmtComma))
 		}
 
 		return fmt.Sprintf("(%v{ %v })", n.Right, Hconv(n.List, FmtComma))
@@ -1348,7 +1365,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Right != nil {
 			return fmt.Sprintf("make(%v, %v, %v)", n.Type, n.Left, n.Right)
 		}
-		if n.Left != nil && (n.Op == OMAKESLICE || !isideal(n.Left.Type)) {
+		if n.Left != nil && (n.Op == OMAKESLICE || !n.Left.Type.IsUntyped()) {
 			return fmt.Sprintf("make(%v, %v)", n.Type, n.Left)
 		}
 		return fmt.Sprintf("make(%v)", n.Type)
@@ -1640,7 +1657,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 
 	var typ string
 	if f.Isddd {
-		typ = "..." + Tconv(f.Type.Type, 0)
+		typ = "..." + Tconv(f.Type.Elem(), 0)
 	} else {
 		typ = Tconv(f.Type, 0)
 	}
