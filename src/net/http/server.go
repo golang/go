@@ -50,6 +50,9 @@ var (
 // ResponseWriter. Cautious handlers should read the Request.Body
 // first, and then reply.
 //
+// Except for reading the body, handlers should not modify the
+// provided Request.
+//
 // If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
 // that the effect of the panic was isolated to the active request.
 // It recovers the panic, logs a stack trace to the server error log,
@@ -306,11 +309,13 @@ func (cw *chunkWriter) close() {
 
 // A response represents the server side of an HTTP response.
 type response struct {
-	conn          *conn
-	req           *Request // request for this response
-	reqBody       io.ReadCloser
-	wroteHeader   bool // reply header has been (logically) written
-	wroteContinue bool // 100 Continue response was written
+	conn             *conn
+	req              *Request // request for this response
+	reqBody          io.ReadCloser
+	wroteHeader      bool // reply header has been (logically) written
+	wroteContinue    bool // 100 Continue response was written
+	wants10KeepAlive bool // HTTP/1.0 w/ Connection "keep-alive"
+	wantsClose       bool // HTTP request has Connection "close"
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
@@ -748,6 +753,12 @@ func (c *conn) readRequest() (w *response, err error) {
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
+
+		// We populate these ahead of time so we're not
+		// reading from req.Header after their Handler starts
+		// and maybe mutates it (Issue 14940)
+		wants10KeepAlive: req.wantsHttp10KeepAlive(),
+		wantsClose:       req.wantsClose(),
 	}
 	if isH2Upgrade {
 		w.closeAfterReply = true
@@ -929,7 +940,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 	// If this was an HTTP/1.0 request with keep-alive and we sent a
 	// Content-Length back, we can make this a keep-alive response ...
-	if w.req.wantsHttp10KeepAlive() && keepAlivesEnabled {
+	if w.wants10KeepAlive && keepAlivesEnabled {
 		sentLength := header.get("Content-Length") != ""
 		if sentLength && header.get("Connection") == "keep-alive" {
 			w.closeAfterReply = false
@@ -939,12 +950,12 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// Check for a explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
-	if w.req.wantsHttp10KeepAlive() && (isHEAD || hasCL) {
+	if w.wants10KeepAlive && (isHEAD || hasCL) {
 		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"
 		}
-	} else if !w.req.ProtoAtLeast(1, 1) || w.req.wantsClose() {
+	} else if !w.req.ProtoAtLeast(1, 1) || w.wantsClose {
 		w.closeAfterReply = true
 	}
 
