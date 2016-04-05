@@ -146,6 +146,13 @@ type Transport struct {
 	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
 
+	// MaxResponseHeaderBytes specifies a limit on how many
+	// response bytes are allowed in the server's response
+	// header.
+	//
+	// Zero means to use a default limit.
+	MaxResponseHeaderBytes int64
+
 	// nextProtoOnce guards initialization of TLSNextProto and
 	// h2transport (via onceSetNextProtoDefaults)
 	nextProtoOnce sync.Once
@@ -188,8 +195,23 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	t2, err := http2configureTransport(t)
 	if err != nil {
 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
-	} else {
-		t.h2transport = t2
+		return
+	}
+	t.h2transport = t2
+
+	// Auto-configure the http2.Transport's MaxHeaderListSize from
+	// the http.Transport's MaxResponseHeaderBytes. They don't
+	// exactly mean the same thing, but they're close.
+	//
+	// TODO: also add this to x/net/http2.Configure Transport, behind
+	// a +build go1.7 build tag:
+	if limit1 := t.MaxResponseHeaderBytes; limit1 != 0 && t2.MaxHeaderListSize == 0 {
+		const h2max = 1<<32 - 1
+		if limit1 >= h2max {
+			t2.MaxHeaderListSize = h2max
+		} else {
+			t2.MaxHeaderListSize = uint32(limit1)
+		}
 	}
 }
 
@@ -274,18 +296,32 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.Header")
 	}
+	scheme := req.URL.Scheme
+	isHTTP := scheme == "http" || scheme == "https"
+	if isHTTP {
+		for k, vv := range req.Header {
+			if !validHeaderName(k) {
+				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
+			}
+			for _, v := range vv {
+				if !validHeaderValue(v) {
+					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
+				}
+			}
+		}
+	}
 	// TODO(bradfitz): switch to atomic.Value for this map instead of RWMutex
 	t.altMu.RLock()
-	altRT := t.altProto[req.URL.Scheme]
+	altRT := t.altProto[scheme]
 	t.altMu.RUnlock()
 	if altRT != nil {
 		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
 			return resp, err
 		}
 	}
-	if s := req.URL.Scheme; s != "http" && s != "https" {
+	if !isHTTP {
 		req.closeBody()
-		return nil, &badStringError{"unsupported protocol scheme", s}
+		return nil, &badStringError{"unsupported protocol scheme", scheme}
 	}
 	if req.Method != "" && !validMethod(req.Method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
@@ -337,7 +373,8 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 // resent on a new connection. The non-nil input error is the error from
 // roundTrip, which might be wrapped in a beforeRespHeaderError error.
 //
-// The return value is err or the unwrapped error inside a
+// The return value is either nil to retry the request, the provided
+// err unmodified, or the unwrapped error inside a
 // beforeRespHeaderError.
 func checkTransportResend(err error, req *Request, pconn *persistConn) error {
 	brhErr, ok := err.(beforeRespHeaderError)
@@ -721,6 +758,9 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 	case <-req.Cancel:
 		handlePendingDial()
 		return nil, errRequestCanceledConn
+	case <-req.Context().Done():
+		handlePendingDial()
+		return nil, errRequestCanceledConn
 	case <-cancelc:
 		handlePendingDial()
 		return nil, errRequestCanceledConn
@@ -850,7 +890,7 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 		}
 	}
 
-	pconn.br = bufio.NewReader(noteEOFReader{pconn.conn, &pconn.sawEOF})
+	pconn.br = bufio.NewReader(pconn)
 	pconn.bw = bufio.NewWriter(pconn.conn)
 	go pconn.readLoop()
 	go pconn.writeLoop()
@@ -984,24 +1024,25 @@ type persistConn struct {
 	// If it's non-nil, the rest of the fields are unused.
 	alt RoundTripper
 
-	t        *Transport
-	cacheKey connectMethodKey
-	conn     net.Conn
-	tlsState *tls.ConnectionState
-	br       *bufio.Reader       // from conn
-	sawEOF   bool                // whether we've seen EOF from conn; owned by readLoop
-	bw       *bufio.Writer       // to conn
-	reqch    chan requestAndChan // written by roundTrip; read by readLoop
-	writech  chan writeRequest   // written by roundTrip; read by writeLoop
-	closech  chan struct{}       // closed when conn closed
-	isProxy  bool
+	t         *Transport
+	cacheKey  connectMethodKey
+	conn      net.Conn
+	tlsState  *tls.ConnectionState
+	br        *bufio.Reader       // from conn
+	bw        *bufio.Writer       // to conn
+	reqch     chan requestAndChan // written by roundTrip; read by readLoop
+	writech   chan writeRequest   // written by roundTrip; read by writeLoop
+	closech   chan struct{}       // closed when conn closed
+	isProxy   bool
+	sawEOF    bool  // whether we've seen EOF from conn; owned by readLoop
+	readLimit int64 // bytes allowed to be read; owned by readLoop
 	// writeErrCh passes the request write error (usually nil)
 	// from the writeLoop goroutine to the readLoop which passes
 	// it off to the res.Body reader, which then uses it to decide
 	// whether or not a connection can be reused. Issue 7569.
 	writeErrCh chan error
 
-	lk                   sync.Mutex // guards following fields
+	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
 	closed               error // set non-nil when conn is closed, before closech is closed
 	broken               bool  // an error has happened on this connection; marked broken so it's not reused.
@@ -1013,32 +1054,54 @@ type persistConn struct {
 	mutateHeaderFunc func(Header)
 }
 
+func (pc *persistConn) maxHeaderResponseSize() int64 {
+	if v := pc.t.MaxResponseHeaderBytes; v != 0 {
+		return v
+	}
+	return 10 << 20 // conservative default; same as http2
+}
+
+func (pc *persistConn) Read(p []byte) (n int, err error) {
+	if pc.readLimit <= 0 {
+		return 0, fmt.Errorf("read limit of %d bytes exhausted", pc.maxHeaderResponseSize())
+	}
+	if int64(len(p)) > pc.readLimit {
+		p = p[:pc.readLimit]
+	}
+	n, err = pc.conn.Read(p)
+	if err == io.EOF {
+		pc.sawEOF = true
+	}
+	pc.readLimit -= int64(n)
+	return
+}
+
 // isBroken reports whether this connection is in a known broken state.
 func (pc *persistConn) isBroken() bool {
-	pc.lk.Lock()
+	pc.mu.Lock()
 	b := pc.broken
-	pc.lk.Unlock()
+	pc.mu.Unlock()
 	return b
 }
 
 // isCanceled reports whether this connection was closed due to CancelRequest.
 func (pc *persistConn) isCanceled() bool {
-	pc.lk.Lock()
-	defer pc.lk.Unlock()
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
 	return pc.canceled
 }
 
 // isReused reports whether this connection is in a known broken state.
 func (pc *persistConn) isReused() bool {
-	pc.lk.Lock()
+	pc.mu.Lock()
 	r := pc.reused
-	pc.lk.Unlock()
+	pc.mu.Unlock()
 	return r
 }
 
 func (pc *persistConn) cancelRequest() {
-	pc.lk.Lock()
-	defer pc.lk.Unlock()
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
 	pc.canceled = true
 	pc.closeLocked(errRequestCanceled)
 }
@@ -1068,18 +1131,19 @@ func (pc *persistConn) readLoop() {
 
 	alive := true
 	for alive {
+		pc.readLimit = pc.maxHeaderResponseSize()
 		_, err := pc.br.Peek(1)
 		if err != nil {
 			err = beforeRespHeaderError{err}
 		}
 
-		pc.lk.Lock()
+		pc.mu.Lock()
 		if pc.numExpectedResponses == 0 {
 			pc.readLoopPeekFailLocked(err)
-			pc.lk.Unlock()
+			pc.mu.Unlock()
 			return
 		}
-		pc.lk.Unlock()
+		pc.mu.Unlock()
 
 		rc := <-pc.reqch
 
@@ -1089,6 +1153,9 @@ func (pc *persistConn) readLoop() {
 		}
 
 		if err != nil {
+			if pc.readLimit <= 0 {
+				err = fmt.Errorf("net/http: server response headers exceeded %d bytes; aborted", pc.maxHeaderResponseSize())
+			}
 			// If we won't be able to retry this request later (from the
 			// roundTrip goroutine), mark it as done now.
 			// BEFORE the send on rc.ch, as the client might re-use the
@@ -1106,10 +1173,11 @@ func (pc *persistConn) readLoop() {
 			}
 			return
 		}
+		pc.readLimit = maxInt64 // effictively no limit for response bodies
 
-		pc.lk.Lock()
+		pc.mu.Lock()
 		pc.numExpectedResponses--
-		pc.lk.Unlock()
+		pc.mu.Unlock()
 
 		hasBody := rc.req.Method != "HEAD" && resp.ContentLength != 0
 
@@ -1147,25 +1215,32 @@ func (pc *persistConn) readLoop() {
 			continue
 		}
 
-		if rc.addedGzip {
-			maybeUngzipResponse(resp)
-		}
-		resp.Body = &bodyEOFSignal{body: resp.Body}
-
 		waitForBodyRead := make(chan bool, 2)
-		resp.Body.(*bodyEOFSignal).earlyCloseFn = func() error {
-			waitForBodyRead <- false
-			return nil
+		body := &bodyEOFSignal{
+			body: resp.Body,
+			earlyCloseFn: func() error {
+				waitForBodyRead <- false
+				return nil
+
+			},
+			fn: func(err error) error {
+				isEOF := err == io.EOF
+				waitForBodyRead <- isEOF
+				if isEOF {
+					<-eofc // see comment above eofc declaration
+				} else if err != nil && pc.isCanceled() {
+					return errRequestCanceled
+				}
+				return err
+			},
 		}
-		resp.Body.(*bodyEOFSignal).fn = func(err error) error {
-			isEOF := err == io.EOF
-			waitForBodyRead <- isEOF
-			if isEOF {
-				<-eofc // see comment above eofc declaration
-			} else if err != nil && pc.isCanceled() {
-				return errRequestCanceled
-			}
-			return err
+
+		resp.Body = body
+		if rc.addedGzip && resp.Header.Get("Content-Encoding") == "gzip" {
+			resp.Body = &gzipReader{body: body}
+			resp.Header.Del("Content-Encoding")
+			resp.Header.Del("Content-Length")
+			resp.ContentLength = -1
 		}
 
 		select {
@@ -1191,20 +1266,14 @@ func (pc *persistConn) readLoop() {
 		case <-rc.req.Cancel:
 			alive = false
 			pc.t.CancelRequest(rc.req)
+		case <-rc.req.Context().Done():
+			alive = false
+			pc.t.CancelRequest(rc.req)
 		case <-pc.closech:
 			alive = false
 		}
 
 		testHookReadLoopBeforeNextRead()
-	}
-}
-
-func maybeUngzipResponse(resp *Response) {
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		resp.Header.Del("Content-Encoding")
-		resp.Header.Del("Content-Length")
-		resp.ContentLength = -1
-		resp.Body = &gzipReader{body: resp.Body}
 	}
 }
 
@@ -1239,6 +1308,7 @@ func (pc *persistConn) readResponse(rc requestAndChan) (resp *Response, err erro
 		}
 	}
 	if resp.StatusCode == 100 {
+		pc.readLimit = pc.maxHeaderResponseSize() // reset the limit
 		resp, err = ReadResponse(pc.br, rc.req)
 		if err != nil {
 			return
@@ -1400,10 +1470,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		pc.t.putOrCloseIdleConn(pc)
 		return nil, errRequestCanceled
 	}
-	pc.lk.Lock()
+	pc.mu.Lock()
 	pc.numExpectedResponses++
 	headerFn := pc.mutateHeaderFunc
-	pc.lk.Unlock()
+	pc.mu.Unlock()
 
 	if headerFn != nil {
 		headerFn(req.extraHeaders())
@@ -1503,6 +1573,9 @@ WaitResponse:
 		case <-cancelChan:
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
+		case <-req.Context().Done():
+			pc.t.CancelRequest(req.Request)
+			cancelChan = nil
 		}
 	}
 
@@ -1519,17 +1592,17 @@ WaitResponse:
 // It differs from close in that it doesn't close the underlying
 // connection for use when it's still being read.
 func (pc *persistConn) markBroken() {
-	pc.lk.Lock()
-	defer pc.lk.Unlock()
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
 	pc.broken = true
 }
 
 // markReused marks this connection as having been successfully used for a
 // request and response.
 func (pc *persistConn) markReused() {
-	pc.lk.Lock()
+	pc.mu.Lock()
 	pc.reused = true
-	pc.lk.Unlock()
+	pc.mu.Unlock()
 }
 
 // close closes the underlying TCP connection and closes
@@ -1538,8 +1611,8 @@ func (pc *persistConn) markReused() {
 // The provided err is only for testing and debugging; in normal
 // circumstances it should never be seen by users.
 func (pc *persistConn) close(err error) {
-	pc.lk.Lock()
-	defer pc.lk.Unlock()
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
 	pc.closeLocked(err)
 }
 
@@ -1580,7 +1653,11 @@ func canonicalAddr(url *url.URL) string {
 	return addr
 }
 
-// bodyEOFSignal wraps a ReadCloser but runs fn (if non-nil) at most
+// bodyEOFSignal is used by the HTTP/1 transport when reading response
+// bodies to make sure we see the end of a response body before
+// proceeding and reading on the connection again.
+//
+// It wraps a ReadCloser but runs fn (if non-nil) at most
 // once, right before its final (error-producing) Read or Close call
 // returns. fn should return the new error to return from Read or Close.
 //
@@ -1596,12 +1673,14 @@ type bodyEOFSignal struct {
 	earlyCloseFn func() error      // optional alt Close func used if io.EOF not seen
 }
 
+var errReadOnClosedResBody = errors.New("http: read on closed response body")
+
 func (es *bodyEOFSignal) Read(p []byte) (n int, err error) {
 	es.mu.Lock()
 	closed, rerr := es.closed, es.rerr
 	es.mu.Unlock()
 	if closed {
-		return 0, errors.New("http: read on closed response body")
+		return 0, errReadOnClosedResBody
 	}
 	if rerr != nil {
 		return 0, rerr
@@ -1646,16 +1725,29 @@ func (es *bodyEOFSignal) condfn(err error) error {
 // gzipReader wraps a response body so it can lazily
 // call gzip.NewReader on the first call to Read
 type gzipReader struct {
-	body io.ReadCloser // underlying Response.Body
-	zr   io.Reader     // lazily-initialized gzip reader
+	body *bodyEOFSignal // underlying HTTP/1 response body framing
+	zr   *gzip.Reader   // lazily-initialized gzip reader
+	zerr error          // any error from gzip.NewReader; sticky
 }
 
 func (gz *gzipReader) Read(p []byte) (n int, err error) {
 	if gz.zr == nil {
-		gz.zr, err = gzip.NewReader(gz.body)
-		if err != nil {
-			return 0, err
+		if gz.zerr == nil {
+			gz.zr, gz.zerr = gzip.NewReader(gz.body)
 		}
+		if gz.zerr != nil {
+			return 0, gz.zerr
+		}
+	}
+
+	gz.body.mu.Lock()
+	if gz.body.closed {
+		err = errReadOnClosedResBody
+	}
+	gz.body.mu.Unlock()
+
+	if err != nil {
+		return 0, err
 	}
 	return gz.zr.Read(p)
 }
@@ -1674,19 +1766,6 @@ type tlsHandshakeTimeoutError struct{}
 func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
 func (tlsHandshakeTimeoutError) Temporary() bool { return true }
 func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
-
-type noteEOFReader struct {
-	r      io.Reader
-	sawEOF *bool
-}
-
-func (nr noteEOFReader) Read(p []byte) (n int, err error) {
-	n, err = nr.r.Read(p)
-	if err == io.EOF {
-		*nr.sawEOF = true
-	}
-	return
-}
 
 // fakeLocker is a sync.Locker which does nothing. It's used to guard
 // test-only fields when not under test, to avoid runtime atomic

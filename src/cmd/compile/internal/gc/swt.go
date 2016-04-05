@@ -69,7 +69,7 @@ func typecheckswitch(n *Node) {
 		top = Etype
 		n.Left.Right = typecheck(n.Left.Right, Erv)
 		t = n.Left.Right.Type
-		if t != nil && t.Etype != TINTER {
+		if t != nil && !t.IsInterface() {
 			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, FmtLong))
 		}
 	} else {
@@ -83,19 +83,20 @@ func typecheckswitch(n *Node) {
 			t = Types[TBOOL]
 		}
 		if t != nil {
-			var badtype *Type
 			switch {
 			case !okforeq[t.Etype]:
 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
-			case t.Etype == TARRAY && !Isfixedarray(t):
+			case t.IsSlice():
 				nilonly = "slice"
-			case t.Etype == TARRAY && Isfixedarray(t) && algtype1(t, nil) == ANOEQ:
+			case t.IsArray() && !t.IsComparable():
 				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
-			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
+			case t.IsStruct():
+				if f := t.IncomparableField(); f != nil {
+					Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), f.Type)
+				}
 			case t.Etype == TFUNC:
 				nilonly = "func"
-			case t.Etype == TMAP:
+			case t.IsMap():
 				nilonly = "map"
 			}
 		}
@@ -139,7 +140,7 @@ func typecheckswitch(n *Node) {
 						}
 					case nilonly != "" && !isnil(n1):
 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
-					case Isinter(t) && !Isinter(n1.Type) && algtype1(n1.Type, nil) == ANOEQ:
+					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
 						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, FmtLong))
 					}
 
@@ -148,13 +149,13 @@ func typecheckswitch(n *Node) {
 					var missing, have *Field
 					var ptr int
 					switch {
-					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
+					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
 						Yyerror("%v is not a type", Nconv(n1, FmtLong))
 						// reset to original type
 						n1 = n.Left.Right
 						ls[i1] = n1
-					case n1.Type.Etype != TINTER && t.Etype == TINTER && !implements(n1.Type, t, &missing, &have, &ptr):
+					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, FmtShort), missing.Sym, Tconv(missing.Type, FmtShort))
 						} else if !missing.Broke {
@@ -169,7 +170,7 @@ func typecheckswitch(n *Node) {
 			ll := ncase.List
 			if ncase.Rlist.Len() != 0 {
 				nvar := ncase.Rlist.First()
-				if ll.Len() == 1 && ll.First().Type != nil && !Istype(ll.First().Type, TNIL) {
+				if ll.Len() == 1 && ll.First().Type != nil && !ll.First().Type.IsKind(TNIL) {
 					// single entry type switch
 					nvar.Name.Param.Ntype = typenod(ll.First().Type)
 				} else {
@@ -388,7 +389,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		}
 		stat = append(stat, n.Nbody.Slice()...)
 
-		// botch - shouldn't fall thru declaration
+		// botch - shouldn't fall through declaration
 		last := stat[len(stat)-1]
 		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
 			if typeswvar != nil {
@@ -448,7 +449,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
 			switch {
 			case n.Left.Op == OLITERAL:
 				c.typ = caseKindTypeNil
-			case Istype(n.Left.Type, TINTER):
+			case n.Left.Type.IsInterface():
 				c.typ = caseKindTypeVar
 			default:
 				c.typ = caseKindTypeConst
@@ -527,7 +528,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	}
 
 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
-	if !Istype(cond.Right.Type, TINTER) {
+	if !cond.Right.Type.IsInterface() {
 		Yyerror("type switch must be on an interface")
 		return
 	}
@@ -593,7 +594,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	i.Left = typecheck(i.Left, Erv)
 	cas = append(cas, i)
 
-	if !isnilinter(cond.Right.Type) {
+	if !cond.Right.Type.IsEmptyInterface() {
 		// Load type from itab.
 		typ = NodSym(ODOTPTR, typ, nil)
 		typ.Type = Ptrto(Types[TUINT8])

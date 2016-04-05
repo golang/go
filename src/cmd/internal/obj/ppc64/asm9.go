@@ -1906,7 +1906,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 22: /* add $lcon,r1,r2 ==> cau+or+add */ /* could do add/sub more efficiently */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
-			ctxt.Diag("cant synthesize large constant\n%v", p)
+			ctxt.Diag("can't synthesize large constant\n%v", p)
 		}
 		d := vregoff(ctxt, &p.From)
 		o1 = loadu32(REGTMP, d)
@@ -1924,7 +1924,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 23: /* and $lcon,r1,r2 ==> cau+or+and */ /* masks could be done using rlnm etc. */
 		if p.To.Reg == REGTMP || p.Reg == REGTMP {
-			ctxt.Diag("cant synthesize large constant\n%v", p)
+			ctxt.Diag("can't synthesize large constant\n%v", p)
 		}
 		d := vregoff(ctxt, &p.From)
 		o1 = loadu32(REGTMP, d)

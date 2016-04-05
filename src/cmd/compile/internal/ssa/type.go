@@ -17,7 +17,7 @@ type Type interface {
 	IsSigned() bool
 	IsFloat() bool
 	IsComplex() bool
-	IsPtr() bool
+	IsPtrShaped() bool
 	IsString() bool
 	IsSlice() bool
 	IsArray() bool
@@ -60,7 +60,7 @@ func (t *CompilerType) IsInteger() bool      { return false }
 func (t *CompilerType) IsSigned() bool       { return false }
 func (t *CompilerType) IsFloat() bool        { return false }
 func (t *CompilerType) IsComplex() bool      { return false }
-func (t *CompilerType) IsPtr() bool          { return false }
+func (t *CompilerType) IsPtrShaped() bool    { return false }
 func (t *CompilerType) IsString() bool       { return false }
 func (t *CompilerType) IsSlice() bool        { return false }
 func (t *CompilerType) IsArray() bool        { return false }

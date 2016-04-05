@@ -732,7 +732,7 @@ func TestABIChecking(t *testing.T) {
 	// If we make an ABI-breaking change to dep and rebuild libp.so but not exe,
 	// exe will abort with a complaint on startup.
 	// This assumes adding an exported function breaks ABI, which is not true in
-	// some senses but suffices for the narrow definition of ABI compatiblity the
+	// some senses but suffices for the narrow definition of ABI compatibility the
 	// toolchain uses today.
 	resetFileStamps()
 	appendFile("src/dep/dep.go", "func ABIBreak() {}\n")

@@ -70,6 +70,11 @@ const (
 	NTYPE
 )
 
+const (
+	sliceBound = -1   // slices have Bound=sliceBound
+	dddBound   = -100 // arrays declared as [...]T start life with Bound=dddBound
+)
+
 // Types stores pointers to predeclared named types.
 //
 // It also stores pointers to several special types:
@@ -105,7 +110,7 @@ var (
 type Type struct {
 	Etype       EType
 	Noalg       bool
-	Chan        uint8
+	Chan        ChanDir
 	Trecur      uint8 // to detect loops
 	Printed     bool
 	Funarg      bool // on TSTRUCT and TFIELD
@@ -126,7 +131,7 @@ type Type struct {
 	Vargen int32 // unique name for OTYPE/ONAME
 	Lineno int32
 
-	Nname  *Node
+	nname  *Node
 	Argwid int64
 
 	// most nodes
@@ -166,9 +171,18 @@ type Field struct {
 	Sym   *Sym
 	Nname *Node
 
-	Type  *Type   // field type
-	Width int64   // TODO(mdempsky): Rename to offset.
-	Note  *string // literal string annotation
+	Type *Type // field type
+
+	// Offset in bytes of this field or method within its enclosing struct
+	// or interface Type.
+	Offset int64
+
+	Note *string // literal string annotation
+}
+
+// End returns the offset of the first byte immediately after this field.
+func (f *Field) End() int64 {
+	return f.Offset + f.Type.Width
 }
 
 // Fields is a pointer to a slice of *Field.
@@ -198,10 +212,13 @@ func (f *Fields) Slice() []*Field {
 // Set sets f to a slice.
 // This takes ownership of the slice.
 func (f *Fields) Set(s []*Field) {
-	if len(s) != 0 {
-		f.s = &s
-	} else {
+	if len(s) == 0 {
 		f.s = nil
+	} else {
+		// Copy s and take address of t rather than s to avoid
+		// allocation in the case where len(s) == 0.
+		t := s
+		f.s = &t
 	}
 }
 
@@ -224,10 +241,169 @@ func typ(et EType) *Type {
 	return t
 }
 
+// typArray returns a new fixed-length array Type.
+func typArray(elem *Type, bound int64) *Type {
+	t := typ(TARRAY)
+	t.Type = elem
+	t.Bound = bound
+	return t
+}
+
+// typSlice returns a new slice Type.
+func typSlice(elem *Type) *Type {
+	t := typ(TARRAY)
+	t.Type = elem
+	t.Bound = sliceBound
+	return t
+}
+
+// typDDDArray returns a new [...]T array Type.
+func typDDDArray(elem *Type) *Type {
+	t := typ(TARRAY)
+	t.Type = elem
+	t.Bound = dddBound
+	return t
+}
+
+// typChan returns a new chan Type with direction dir.
+func typChan(elem *Type, dir ChanDir) *Type {
+	t := typ(TCHAN)
+	t.Type = elem
+	t.Chan = dir
+	return t
+}
+
+// typMap returns a new map Type with key type k and element (aka value) type v.
+func typMap(k, v *Type) *Type {
+	if k != nil {
+		checkMapKeyType(k)
+	}
+
+	t := typ(TMAP)
+	t.Down = k
+	t.Type = v
+	return t
+}
+
+// typPtr returns a new pointer type pointing to t.
+func typPtr(elem *Type) *Type {
+	t := typ(Tptr)
+	t.Type = elem
+	t.Width = int64(Widthptr)
+	t.Align = uint8(Widthptr)
+	return t
+}
+
+// typWrapper returns a new wrapper psuedo-type.
+func typWrapper(et EType, wrapped *Type) *Type {
+	switch et {
+	case TCHANARGS, TFUNCARGS, TDDDFIELD:
+	default:
+		Fatalf("typWrapper bad etype %s", et)
+	}
+	t := typ(et)
+	t.Type = wrapped
+	return t
+}
+
 func newField() *Field {
 	return &Field{
-		Width: BADWIDTH,
+		Offset: BADWIDTH,
 	}
+}
+
+// substArgTypes substitutes the given list of types for
+// successive occurrences of the "any" placeholder in the
+// type syntax expression n.Type.
+// The result of substArgTypes MUST be assigned back to old, e.g.
+// 	n.Left = substArgTypes(n.Left, t1, t2)
+func substArgTypes(old *Node, types ...*Type) *Node {
+	n := *old // make shallow copy
+
+	for _, t := range types {
+		dowidth(t)
+	}
+	n.Type = substAny(n.Type, &types)
+	if len(types) > 0 {
+		Fatalf("substArgTypes: too many argument types")
+	}
+	return &n
+}
+
+// substAny walks t, replacing instances of "any" with successive
+// elements removed from types.  It returns the substituted type.
+func substAny(t *Type, types *[]*Type) *Type {
+	if t == nil {
+		return nil
+	}
+
+	switch t.Etype {
+	default:
+		// Leave the type unchanged.
+
+	case TANY:
+		if len(*types) == 0 {
+			Fatalf("substArgTypes: not enough argument types")
+		}
+		t = (*types)[0]
+		*types = (*types)[1:]
+
+	case TPTR32, TPTR64, TCHAN, TARRAY:
+		elem := substAny(t.Type, types)
+		if elem != t.Type {
+			t = t.Copy()
+			t.Type = elem
+		}
+
+	case TMAP:
+		key := substAny(t.Down, types)
+		val := substAny(t.Type, types)
+		if key != t.Down || val != t.Type {
+			t = t.Copy()
+			t.Down = key
+			t.Type = val
+		}
+
+	case TFUNC:
+		recvs := substAny(t.Recvs(), types)
+		params := substAny(t.Params(), types)
+		results := substAny(t.Results(), types)
+		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
+			// Note that this code has to be aware of the
+			// representation underlying Recvs/Results/Params.
+			if recvs == t.Recvs() {
+				recvs = recvs.Copy()
+			}
+			if results == t.Results() {
+				results = results.Copy()
+			}
+			t = t.Copy()
+			*t.RecvsP() = recvs
+			*t.ResultsP() = results
+			*t.ParamsP() = params
+		}
+
+	case TSTRUCT:
+		fields := t.FieldSlice()
+		var nfs []*Field
+		for i, f := range fields {
+			nft := substAny(f.Type, types)
+			if nft == f.Type {
+				continue
+			}
+			if nfs == nil {
+				nfs = append([]*Field(nil), fields...)
+			}
+			nfs[i] = f.Copy()
+			nfs[i].Type = nft
+		}
+		if nfs != nil {
+			t = t.Copy()
+			t.SetFields(nfs)
+		}
+	}
+
+	return t
 }
 
 // Copy returns a shallow copy of the Type.
@@ -285,6 +461,12 @@ func (t *Type) wantEtype(et EType) {
 	}
 }
 
+func (t *Type) wantEtype2(et1, et2 EType) {
+	if t.Etype != et1 && t.Etype != et2 {
+		Fatalf("want %v or %v, but have %v", et1, et2, t)
+	}
+}
+
 func (t *Type) RecvsP() **Type {
 	t.wantEtype(TFUNC)
 	return &t.Type
@@ -331,6 +513,45 @@ func (t *Type) Key() *Type {
 	return t.Down
 }
 
+// Val returns the value type of map type t.
+func (t *Type) Val() *Type {
+	t.wantEtype(TMAP)
+	return t.Type
+}
+
+// Elem returns the type of elements of t.
+// Usable with pointers, channels, arrays, and slices.
+func (t *Type) Elem() *Type {
+	switch t.Etype {
+	case TPTR32, TPTR64, TCHAN, TARRAY:
+	default:
+		Fatalf("Type.Elem %s", t.Etype)
+	}
+	return t.Type
+}
+
+// Wrapped returns the type that pseudo-type t wraps.
+func (t *Type) Wrapped() *Type {
+	switch t.Etype {
+	case TCHANARGS, TFUNCARGS, TDDDFIELD:
+	default:
+		Fatalf("Type.Wrapped %s", t.Etype)
+	}
+	return t.Type
+}
+
+// Nname returns the associated function's nname.
+func (t *Type) Nname() *Node {
+	t.wantEtype2(TFUNC, TINTERMETH)
+	return t.nname
+}
+
+// Nname sets the associated function's nname.
+func (t *Type) SetNname(n *Node) {
+	t.wantEtype2(TFUNC, TINTERMETH)
+	t.nname = n
+}
+
 func (t *Type) Methods() *Fields {
 	// TODO(mdempsky): Validate t?
 	return &t.methods
@@ -362,6 +583,21 @@ func (t *Type) FieldSlice() []*Field {
 // SetFields sets struct/interface type t's fields/methods to fields.
 func (t *Type) SetFields(fields []*Field) {
 	t.Fields().Set(fields)
+}
+
+func (t *Type) isDDDArray() bool {
+	if t.Etype != TARRAY {
+		return false
+	}
+	t.checkBound()
+	return t.Bound == dddBound
+}
+
+// ArgWidth returns the total aligned argument size for a function.
+// It includes the receiver, parameters, and results.
+func (t *Type) ArgWidth() int64 {
+	t.wantEtype(TFUNC)
+	return t.Argwid
 }
 
 func (t *Type) Size() int64 {
@@ -499,9 +735,10 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 
 	switch t.Etype {
 	case TMAP:
-		if c := t.Down.cmp(x.Down); c != ssa.CMPeq {
+		if c := t.Key().cmp(x.Key()); c != ssa.CMPeq {
 			return c
 		}
+		return t.Val().cmp(x.Val())
 
 	case TPTR32, TPTR64:
 		// No special cases for these two, they are handled
@@ -575,13 +812,13 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		return ssa.CMPeq
 
 	case TARRAY:
-		if t.Bound != x.Bound {
-			return cmpForNe(t.Bound < x.Bound)
+		if t.NumElem() != x.NumElem() {
+			return cmpForNe(t.NumElem() < x.NumElem())
 		}
 
 	case TCHAN:
-		if t.Chan != x.Chan {
-			return cmpForNe(t.Chan < x.Chan)
+		if t.ChanDir() != x.ChanDir() {
+			return cmpForNe(t.ChanDir() < x.ChanDir())
 		}
 
 	default:
@@ -589,8 +826,13 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		panic(e)
 	}
 
-	// Common element type comparison for TARRAY, TCHAN, TMAP, TPTR32, and TPTR64.
-	return t.Type.cmp(x.Type)
+	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
+	return t.Elem().cmp(x.Elem())
+}
+
+// IsKind reports whether t is a Type of the specified kind.
+func (t *Type) IsKind(et EType) bool {
+	return t != nil && t.Etype == et
 }
 
 func (t *Type) IsBoolean() bool {
@@ -621,7 +863,18 @@ func (t *Type) IsComplex() bool {
 	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
 }
 
+// IsPtr reports whether t is a regular Go pointer type.
+// This does not include unsafe.Pointer.
 func (t *Type) IsPtr() bool {
+	return t.Etype == TPTR32 || t.Etype == TPTR64
+}
+
+// IsPtrShaped reports whether t is represented by a single machine pointer.
+// In addition to regular Go pointer types, this includes map, channel, and
+// function types and unsafe.Pointer. It does not include array or struct types
+// that consist of a single pointer shaped type.
+// TODO(mdempsky): Should it? See golang.org/issue/15028.
+func (t *Type) IsPtrShaped() bool {
 	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC
 }
@@ -638,11 +891,20 @@ func (t *Type) IsChan() bool {
 	return t.Etype == TCHAN
 }
 
+// checkBound enforces that Bound has an acceptable value.
+func (t *Type) checkBound() {
+	if t.Bound != sliceBound && t.Bound < 0 && t.Bound != dddBound {
+		Fatalf("bad TARRAY bounds %d %s", t.Bound, t)
+	}
+}
+
 func (t *Type) IsSlice() bool {
-	return t.Etype == TARRAY && t.Bound < 0
+	t.checkBound()
+	return t.Etype == TARRAY && t.Bound == sliceBound
 }
 
 func (t *Type) IsArray() bool {
+	t.checkBound()
 	return t.Etype == TARRAY && t.Bound >= 0
 }
 
@@ -654,12 +916,15 @@ func (t *Type) IsInterface() bool {
 	return t.Etype == TINTER
 }
 
+// IsEmptyInterface reports whether t is an empty interface type.
+func (t *Type) IsEmptyInterface() bool {
+	return t.IsInterface() && t.NumFields() == 0
+}
+
 func (t *Type) ElemType() ssa.Type {
-	switch t.Etype {
-	case TARRAY, TPTR32, TPTR64:
-		return t.Type
-	}
-	panic(fmt.Sprintf("ElemType on invalid type %v", t))
+	// TODO(josharian): If Type ever moves to a shared
+	// internal package, remove this silly wrapper.
+	return t.Elem()
 }
 func (t *Type) PtrTo() ssa.Type {
 	return Ptrto(t)
@@ -672,16 +937,46 @@ func (t *Type) FieldType(i int) ssa.Type {
 	return t.Field(i).Type
 }
 func (t *Type) FieldOff(i int) int64 {
-	return t.Field(i).Width
+	return t.Field(i).Offset
 }
 
 func (t *Type) NumElem() int64 {
-	if t.Etype != TARRAY {
-		panic("NumElem on non-TARRAY")
-	}
+	t.wantEtype(TARRAY)
+	t.checkBound()
 	return t.Bound
+}
+
+// SetNumElem sets the number of elements in an array type.
+// It should not be used if at all possible.
+// Create a new array/slice/dddArray with typX instead.
+// TODO(josharian): figure out how to get rid of this.
+func (t *Type) SetNumElem(n int64) {
+	t.wantEtype(TARRAY)
+	t.Bound = n
+}
+
+// ChanDir returns the direction of a channel type t.
+// The direction will be one of Crecv, Csend, or Cboth.
+func (t *Type) ChanDir() ChanDir {
+	t.wantEtype(TCHAN)
+	return t.Chan
 }
 
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
 func (t *Type) IsVoid() bool   { return false }
+
+// IsUntyped reports whether t is an untyped type.
+func (t *Type) IsUntyped() bool {
+	if t == nil {
+		return false
+	}
+	if t == idealstring || t == idealbool {
+		return true
+	}
+	switch t.Etype {
+	case TNIL, TIDEAL:
+		return true
+	}
+	return false
+}

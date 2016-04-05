@@ -150,7 +150,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 
 	case OINDEX, OINDEXMAP:
 		var l *Node
-		if Isfixedarray(n.Left.Type) {
+		if n.Left.Type.IsArray() {
 			l = ordersafeexpr(n.Left, order)
 		} else {
 			l = ordercheapexpr(n.Left, order)
@@ -324,7 +324,7 @@ func ismulticall(l Nodes) bool {
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) []*Node {
-	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
+	if !n.Type.IsStruct() || !n.Type.Funarg {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
 	}
 
@@ -375,11 +375,11 @@ func ordercall(n *Node, order *Order) {
 			}
 			if t.Note != nil && *t.Note == unsafeUintptrTag {
 				xp := n.List.Addr(i)
-				for (*xp).Op == OCONVNOP && !Isptr[(*xp).Type.Etype] {
+				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
 					xp = &(*xp).Left
 				}
 				x := *xp
-				if Isptr[x.Type.Etype] {
+				if x.Type.IsPtr() {
 					x = ordercopyexpr(x, x.Type, order, 0)
 					x.Name.Keepalive = true
 					*xp = x
@@ -422,6 +422,8 @@ func ordermapassign(n *Node, order *Order) {
 		order.out = append(order.out, n)
 
 		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
+		// TODO(mdempsky): writebarrierfat doesn't exist anymore, but removing that
+		// logic causes net/http's tests to become flaky; see CL 21242.
 		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
 			m := n.Left
 			n.Left = ordertemp(m.Type, order, false)
@@ -589,7 +591,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexprlist(n.List, order)
 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // arg to recv
 		ch := n.Rlist.First().Left.Type
-		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
+		tmp1 := ordertemp(ch.Elem(), order, haspointers(ch.Elem()))
 		var tmp2 *Node
 		if !isblank(n.List.Second()) {
 			tmp2 = ordertemp(n.List.Second().Type, order, false)
@@ -699,7 +701,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		n.Left = orderexpr(n.Left, order, nil)
-		if !Isinter(n.Left.Type) {
+		if !n.Left.Type.IsInterface() {
 			n.Left = orderaddrtemp(n.Left, order)
 		}
 		order.out = append(order.out, n)
@@ -742,7 +744,7 @@ func orderstmt(n *Node, order *Order) {
 			// make copy.
 			r := n.Right
 
-			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
+			if r.Type.IsString() && r.Type != Types[TSTRING] {
 				r = Nod(OCONV, r, nil)
 				r.Type = Types[TSTRING]
 				r = typecheck(r, Erv)
@@ -859,7 +861,7 @@ func orderstmt(n *Node, order *Order) {
 							n2.Ninit.Append(tmp2)
 						}
 
-						r.Left = ordertemp(r.Right.Left.Type.Type, order, haspointers(r.Right.Left.Type.Type))
+						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, haspointers(r.Right.Left.Type.Elem()))
 						tmp2 = Nod(OAS, tmp1, r.Left)
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
@@ -1003,9 +1005,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		orderexprlist(n.List, order)
 
 		if n.List.Len() > 5 {
-			t := typ(TARRAY)
-			t.Bound = int64(n.List.Len())
-			t.Type = Types[TSTRING]
+			t := typArray(Types[TSTRING], int64(n.List.Len()))
 			prealloc[n] = ordertemp(t, order, false)
 		}
 
@@ -1078,7 +1078,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 	case OCONVIFACE:
 		n.Left = orderexpr(n.Left, order, nil)
 
-		if !Isinter(n.Left.Type) {
+		if !n.Left.Type.IsInterface() {
 			n.Left = orderaddrtemp(n.Left, order)
 		}
 
@@ -1165,7 +1165,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			// Allocate a temporary that will be cleaned up when this statement
 			// completes. We could be more aggressive and try to arrange for it
 			// to be cleaned up when the call completes.
-			prealloc[n] = ordertemp(n.Type.Type, order, false)
+			prealloc[n] = ordertemp(n.Type.Elem(), order, false)
 		}
 
 	case ODOTTYPE, ODOTTYPE2:
@@ -1185,7 +1185,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		n.Left = orderexpr(n.Left, order, nil)
 		n.Right = orderexpr(n.Right, order, nil)
 		t := n.Left.Type
-		if t.Etype == TSTRUCT || Isfixedarray(t) {
+		if t.IsStruct() || t.IsArray() {
 			// for complex comparisons, we need both args to be
 			// addressable so we can pass them to the runtime.
 			n.Left = orderaddrtemp(n.Left, order)

@@ -380,6 +380,27 @@ var reqTests = []reqTest{
 		noTrailer,
 		noError,
 	},
+
+	// http2 client preface:
+	{
+		"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n",
+		&Request{
+			Method: "PRI",
+			URL: &url.URL{
+				Path: "*",
+			},
+			Header:        Header{},
+			Proto:         "HTTP/2.0",
+			ProtoMajor:    2,
+			ProtoMinor:    0,
+			RequestURI:    "*",
+			ContentLength: -1,
+			Close:         true,
+		},
+		noBody,
+		noTrailer,
+		noError,
+	},
 }
 
 func TestReadRequest(t *testing.T) {

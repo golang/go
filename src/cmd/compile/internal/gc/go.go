@@ -128,12 +128,18 @@ const (
 	CTNIL
 )
 
+// ChanDir is whether a channel can send, receive, or both.
+type ChanDir uint8
+
+func (c ChanDir) CanRecv() bool { return c&Crecv != 0 }
+func (c ChanDir) CanSend() bool { return c&Csend != 0 }
+
 const (
 	// types of channel
 	// must match ../../../../reflect/type.go:/ChanDir
-	Crecv = 1 << 0
-	Csend = 1 << 1
-	Cboth = Crecv | Csend
+	Crecv ChanDir = 1 << 0
+	Csend ChanDir = 1 << 1
+	Cboth ChanDir = Crecv | Csend
 )
 
 // The Class of a variable/function describes the "storage class"
@@ -248,7 +254,9 @@ var localpkg *Pkg // package being compiled
 
 var importpkg *Pkg // package being imported
 
-var itabpkg *Pkg // fake pkg for itab cache
+var itabpkg *Pkg // fake pkg for itab entries
+
+var itablinkpkg *Pkg // fake package for runtime itab entries
 
 var Runtimepkg *Pkg // package runtime
 
@@ -275,12 +283,10 @@ var asmhdr string
 var Simtype [NTYPE]EType
 
 var (
-	Isptr     [NTYPE]bool
 	isforw    [NTYPE]bool
 	Isint     [NTYPE]bool
 	Isfloat   [NTYPE]bool
 	Iscomplex [NTYPE]bool
-	Issigned  [NTYPE]bool
 	issimple  [NTYPE]bool
 )
 

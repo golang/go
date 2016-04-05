@@ -435,6 +435,7 @@ func schedinit() {
 	tracebackinit()
 	moduledataverify()
 	stackinit()
+	itabsinit()
 	mallocinit()
 	mcommoninit(_g_.m)
 
@@ -509,6 +510,11 @@ func mcommoninit(mp *m) {
 	// so we need to publish it safely.
 	atomicstorep(unsafe.Pointer(&allm), unsafe.Pointer(mp))
 	unlock(&sched.lock)
+
+	// Allocate memory to hold a cgo traceback if the cgo call crashes.
+	if iscgo || GOOS == "solaris" || GOOS == "windows" {
+		mp.cgoCallers = new(cgoCallers)
+	}
 }
 
 // Mark gp ready to run.
@@ -715,9 +721,13 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		throw("casgstatus")
 	}
 
+	// See http://golang.org/cl/21503 for justification of the yield delay.
+	const yieldDelay = 5 * 1000
+	var nextYield int64
+
 	// loop if gp->atomicstatus is in a scan state giving
 	// GC time to finish and change the state to oldval.
-	for !atomic.Cas(&gp.atomicstatus, oldval, newval) {
+	for i := 0; !atomic.Cas(&gp.atomicstatus, oldval, newval); i++ {
 		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
 			systemstack(func() {
 				throw("casgstatus: waiting for Gwaiting but is Grunnable")
@@ -730,6 +740,18 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		// 		gcphasework(gp)
 		// 	})
 		// }
+		// But meanwhile just yield.
+		if i == 0 {
+			nextYield = nanotime() + yieldDelay
+		}
+		if nanotime() < nextYield {
+			for x := 0; x < 10 && gp.atomicstatus != oldval; x++ {
+				procyield(1)
+			}
+		} else {
+			osyield()
+			nextYield = nanotime() + yieldDelay/2
+		}
 	}
 	if newval == _Grunning {
 		gp.gcscanvalid = false
@@ -767,12 +789,17 @@ func scang(gp *g) {
 
 	gp.gcscandone = false
 
+	// See http://golang.org/cl/21503 for justification of the yield delay.
+	const yieldDelay = 10 * 1000
+	var nextYield int64
+
 	// Endeavor to get gcscandone set to true,
 	// either by doing the stack scan ourselves or by coercing gp to scan itself.
 	// gp.gcscandone can transition from false to true when we're not looking
 	// (if we asked for preemption), so any time we lock the status using
 	// castogscanstatus we have to double-check that the scan is still not done.
-	for !gp.gcscandone {
+loop:
+	for i := 0; !gp.gcscandone; i++ {
 		switch s := readgstatus(gp); s {
 		default:
 			dumpgstatus(gp)
@@ -781,6 +808,7 @@ func scang(gp *g) {
 		case _Gdead:
 			// No stack.
 			gp.gcscandone = true
+			break loop
 
 		case _Gcopystack:
 		// Stack being switched. Go around again.
@@ -796,6 +824,7 @@ func scang(gp *g) {
 					gp.gcscandone = true
 				}
 				restartg(gp)
+				break loop
 			}
 
 		case _Gscanwaiting:
@@ -820,6 +849,16 @@ func scang(gp *g) {
 				}
 				casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
 			}
+		}
+
+		if i == 0 {
+			nextYield = nanotime() + yieldDelay
+		}
+		if nanotime() < nextYield {
+			procyield(10)
+		} else {
+			osyield()
+			nextYield = nanotime() + yieldDelay/2
 		}
 	}
 
@@ -3993,7 +4032,16 @@ func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool
 					// Instead of stealing runnext in this window, back off
 					// to give _p_ a chance to schedule runnext. This will avoid
 					// thrashing gs between different Ps.
-					usleep(100)
+					// A sync chan send/recv takes ~50ns as of time of writing,
+					// so 3us gives ~50x overshoot.
+					if GOOS != "windows" {
+						usleep(3)
+					} else {
+						// On windows system timer granularity is 1-15ms,
+						// which is way too much for this optimization.
+						// So just yield.
+						osyield()
+					}
 					if !_p_.runnext.cas(next, 0) {
 						continue
 					}

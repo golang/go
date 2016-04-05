@@ -97,7 +97,7 @@ func TestNilcheckSimple(t *testing.T) {
 	}
 }
 
-// TestNilcheckDomOrder ensures that the nil check elimination isn't dependant
+// TestNilcheckDomOrder ensures that the nil check elimination isn't dependent
 // on the order of the dominees.
 func TestNilcheckDomOrder(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing

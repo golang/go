@@ -58,6 +58,7 @@ type Handler struct {
 	InheritEnv []string    // environment variables to inherit from host, as "key"
 	Logger     *log.Logger // optional log for errors or nil to use log.Print
 	Args       []string    // optional arguments to pass to child process
+	Stderr     io.Writer   // optional stderr for the child process; nil means os.Stderr
 
 	// PathLocationHandler specifies the root http Handler that
 	// should handle internal redirects when the CGI process
@@ -68,6 +69,13 @@ type Handler struct {
 	// If nil, a CGI response with a local URI path is instead sent
 	// back to the client and not redirected internally.
 	PathLocationHandler http.Handler
+}
+
+func (h *Handler) stderr() io.Writer {
+	if h.Stderr != nil {
+		return h.Stderr
+	}
+	return os.Stderr
 }
 
 // removeLeadingDuplicates remove leading duplicate in environments.
@@ -204,7 +212,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		Args:   append([]string{h.Path}, h.Args...),
 		Dir:    cwd,
 		Env:    env,
-		Stderr: os.Stderr, // for now
+		Stderr: h.stderr(),
 	}
 	if req.ContentLength != 0 {
 		cmd.Stdin = req.Body

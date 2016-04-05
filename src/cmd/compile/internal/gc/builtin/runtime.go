@@ -60,11 +60,10 @@ func slicecopy(to any, fr any, wid uintptr) int
 func slicestringcopy(to any, fr any) int
 
 // interface conversions
-func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
 func convI2E(elem any) (ret any)
 func convI2I(typ *byte, elem any) (ret any)
 func convT2E(typ *byte, elem, buf *any) (ret any)
-func convT2I(typ *byte, typ2 *byte, cache **byte, elem, buf *any) (ret any)
+func convT2I(tab *byte, elem, buf *any) (ret any)
 
 // interface type assertions  x.(T)
 func assertE2E(typ *byte, iface any, ret *any)
@@ -113,39 +112,6 @@ var writeBarrier struct {
 }
 
 func writebarrierptr(dst *any, src any)
-func writebarrierstring(dst *any, src any)
-func writebarrierslice(dst *any, src any)
-func writebarrieriface(dst *any, src any)
-
-// The unused *byte argument makes sure that src is 2-pointer-aligned,
-// which is the maximum alignment on NaCl amd64p32
-// (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
-// The bitmap in the name tells which words being copied are pointers.
-func writebarrierfat01(dst *any, _ uintptr, src any)
-func writebarrierfat10(dst *any, _ uintptr, src any)
-func writebarrierfat11(dst *any, _ uintptr, src any)
-func writebarrierfat001(dst *any, _ uintptr, src any)
-func writebarrierfat010(dst *any, _ uintptr, src any)
-func writebarrierfat011(dst *any, _ uintptr, src any)
-func writebarrierfat100(dst *any, _ uintptr, src any)
-func writebarrierfat101(dst *any, _ uintptr, src any)
-func writebarrierfat110(dst *any, _ uintptr, src any)
-func writebarrierfat111(dst *any, _ uintptr, src any)
-func writebarrierfat0001(dst *any, _ uintptr, src any)
-func writebarrierfat0010(dst *any, _ uintptr, src any)
-func writebarrierfat0011(dst *any, _ uintptr, src any)
-func writebarrierfat0100(dst *any, _ uintptr, src any)
-func writebarrierfat0101(dst *any, _ uintptr, src any)
-func writebarrierfat0110(dst *any, _ uintptr, src any)
-func writebarrierfat0111(dst *any, _ uintptr, src any)
-func writebarrierfat1000(dst *any, _ uintptr, src any)
-func writebarrierfat1001(dst *any, _ uintptr, src any)
-func writebarrierfat1010(dst *any, _ uintptr, src any)
-func writebarrierfat1011(dst *any, _ uintptr, src any)
-func writebarrierfat1100(dst *any, _ uintptr, src any)
-func writebarrierfat1101(dst *any, _ uintptr, src any)
-func writebarrierfat1110(dst *any, _ uintptr, src any)
-func writebarrierfat1111(dst *any, _ uintptr, src any)
 
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)

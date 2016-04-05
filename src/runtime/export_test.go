@@ -196,3 +196,19 @@ func SetTracebackEnv(level string) {
 
 var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
+
+func CountPagesInUse() (pagesInUse, counted uintptr) {
+	stopTheWorld("CountPagesInUse")
+
+	pagesInUse = uintptr(mheap_.pagesInUse)
+
+	for _, s := range h_allspans {
+		if s.state == mSpanInUse {
+			counted += s.npages
+		}
+	}
+
+	startTheWorld()
+
+	return
+}

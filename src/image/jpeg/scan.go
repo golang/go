@@ -173,7 +173,6 @@ func (d *decoder) processSOS(n int) error {
 				compIndex := scan[i].compIndex
 				hi := d.comp[compIndex].h
 				vi := d.comp[compIndex].v
-				qt := &d.quant[d.comp[compIndex].tq]
 				for j := 0; j < hi*vi; j++ {
 					// The blocks are traversed one MCU at a time. For 4:2:0 chroma
 					// subsampling, there are four Y 8x8 blocks in every 16x16 MCU.
@@ -286,55 +285,19 @@ func (d *decoder) processSOS(n int) error {
 					}
 
 					if d.progressive {
-						if zigEnd != blockSize-1 || al != 0 {
-							// We haven't completely decoded this 8x8 block. Save the coefficients.
-							d.progCoeffs[compIndex][by*mxx*hi+bx] = b
-							// At this point, we could execute the rest of the loop body to dequantize and
-							// perform the inverse DCT, to save early stages of a progressive image to the
-							// *image.YCbCr buffers (the whole point of progressive encoding), but in Go,
-							// the jpeg.Decode function does not return until the entire image is decoded,
-							// so we "continue" here to avoid wasted computation.
-							continue
-						}
+						// Save the coefficients.
+						d.progCoeffs[compIndex][by*mxx*hi+bx] = b
+						// At this point, we could call reconstructBlock to dequantize and perform the
+						// inverse DCT, to save early stages of a progressive image to the *image.YCbCr
+						// buffers (the whole point of progressive encoding), but in Go, the jpeg.Decode
+						// function does not return until the entire image is decoded, so we "continue"
+						// here to avoid wasted computation. Instead, reconstructBlock is called on each
+						// accumulated block by the reconstructProgressiveImage method after all of the
+						// SOS markers are processed.
+						continue
 					}
-
-					// Dequantize, perform the inverse DCT and store the block to the image.
-					for zig := 0; zig < blockSize; zig++ {
-						b[unzig[zig]] *= qt[zig]
-					}
-					idct(&b)
-					dst, stride := []byte(nil), 0
-					if d.nComp == 1 {
-						dst, stride = d.img1.Pix[8*(by*d.img1.Stride+bx):], d.img1.Stride
-					} else {
-						switch compIndex {
-						case 0:
-							dst, stride = d.img3.Y[8*(by*d.img3.YStride+bx):], d.img3.YStride
-						case 1:
-							dst, stride = d.img3.Cb[8*(by*d.img3.CStride+bx):], d.img3.CStride
-						case 2:
-							dst, stride = d.img3.Cr[8*(by*d.img3.CStride+bx):], d.img3.CStride
-						case 3:
-							dst, stride = d.blackPix[8*(by*d.blackStride+bx):], d.blackStride
-						default:
-							return UnsupportedError("too many components")
-						}
-					}
-					// Level shift by +128, clip to [0, 255], and write to dst.
-					for y := 0; y < 8; y++ {
-						y8 := y * 8
-						yStride := y * stride
-						for x := 0; x < 8; x++ {
-							c := b[y8+x]
-							if c < -128 {
-								c = 0
-							} else if c > 127 {
-								c = 255
-							} else {
-								c += 128
-							}
-							dst[yStride+x] = uint8(c)
-						}
+					if err := d.reconstructBlock(&b, bx, by, int(compIndex)); err != nil {
+						return err
 					}
 				} // for j
 			} // for i
@@ -469,4 +432,71 @@ func (d *decoder) refineNonZeroes(b *block, zig, zigEnd, nz, delta int32) (int32
 		}
 	}
 	return zig, nil
+}
+
+func (d *decoder) reconstructProgressiveImage() error {
+	// The h0, mxx, by and bx variables have the same meaning as in the
+	// processSOS method.
+	h0 := d.comp[0].h
+	mxx := (d.width + 8*h0 - 1) / (8 * h0)
+	for i := 0; i < d.nComp; i++ {
+		if d.progCoeffs[i] == nil {
+			continue
+		}
+		v := 8 * d.comp[0].v / d.comp[i].v
+		h := 8 * d.comp[0].h / d.comp[i].h
+		stride := mxx * d.comp[i].h
+		for by := 0; by*v < d.height; by++ {
+			for bx := 0; bx*h < d.width; bx++ {
+				if err := d.reconstructBlock(&d.progCoeffs[i][by*stride+bx], bx, by, i); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// reconstructBlock dequantizes, performs the inverse DCT and stores the block
+// to the image.
+func (d *decoder) reconstructBlock(b *block, bx, by, compIndex int) error {
+	qt := &d.quant[d.comp[compIndex].tq]
+	for zig := 0; zig < blockSize; zig++ {
+		b[unzig[zig]] *= qt[zig]
+	}
+	idct(b)
+	dst, stride := []byte(nil), 0
+	if d.nComp == 1 {
+		dst, stride = d.img1.Pix[8*(by*d.img1.Stride+bx):], d.img1.Stride
+	} else {
+		switch compIndex {
+		case 0:
+			dst, stride = d.img3.Y[8*(by*d.img3.YStride+bx):], d.img3.YStride
+		case 1:
+			dst, stride = d.img3.Cb[8*(by*d.img3.CStride+bx):], d.img3.CStride
+		case 2:
+			dst, stride = d.img3.Cr[8*(by*d.img3.CStride+bx):], d.img3.CStride
+		case 3:
+			dst, stride = d.blackPix[8*(by*d.blackStride+bx):], d.blackStride
+		default:
+			return UnsupportedError("too many components")
+		}
+	}
+	// Level shift by +128, clip to [0, 255], and write to dst.
+	for y := 0; y < 8; y++ {
+		y8 := y * 8
+		yStride := y * stride
+		for x := 0; x < 8; x++ {
+			c := b[y8+x]
+			if c < -128 {
+				c = 0
+			} else if c > 127 {
+				c = 255
+			} else {
+				c += 128
+			}
+			dst[yStride+x] = uint8(c)
+		}
+	}
+	return nil
 }

@@ -671,7 +671,7 @@ func (h *mheap) grow(npage uintptr) bool {
 	}
 	atomic.Store(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
-	h.pagesInUse += uint64(npage)
+	h.pagesInUse += uint64(s.npages)
 	h.freeSpanLocked(s, false, true, 0)
 	return true
 }

@@ -187,7 +187,7 @@ func (s *stackAllocState) stackalloc() {
 			if name.N != nil && v.Type.Equal(name.Type) {
 				for _, id := range s.interfere[v.ID] {
 					h := f.getHome(id)
-					if h != nil && h.(LocalSlot) == name {
+					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
 						// A variable can interfere with itself.
 						// It is rare, but but it can happen.
 						goto noname

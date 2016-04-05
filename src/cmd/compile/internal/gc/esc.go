@@ -640,7 +640,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// "Big" conditions that were scattered around in walk have been gathered here
 	if n.Esc != EscHeap && n.Type != nil &&
 		(n.Type.Width > MaxStackVarSize ||
-			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
+			n.Op == ONEW && n.Type.Elem().Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 2 {
 			Warnl(n.Lineno, "%v is too large for stack", n)
@@ -696,8 +696,8 @@ func esc(e *EscState, n *Node, up *Node) {
 			// If fixed array is really the address of fixed array,
 			// it is also a dereference, because it is implicitly
 			// dereferenced (see #12588)
-			if Isfixedarray(n.Type) &&
-				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
+			if n.Type.IsArray() &&
+				!(n.Right.Type.IsPtr() && Eqtype(n.Right.Type.Elem(), n.Type)) {
 				escassignNilWhy(e, n.List.Second(), n.Right, "range")
 			} else {
 				escassignDereference(e, n.List.Second(), n.Right, e.stepAssign(nil, n.List.Second(), n.Right, "range-deref"))
@@ -864,7 +864,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OARRAYLIT:
 		why := "array literal element"
-		if Isslice(n.Type) {
+		if n.Type.IsSlice() {
 			// Slice itself is not leaked until proven otherwise
 			e.track(n)
 			why = "slice literal element"
@@ -1037,7 +1037,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		return
 
 	case OINDEX:
-		if Isfixedarray(dst.Left.Type) {
+		if dst.Left.Type.IsArray() {
 			escassign(e, dst.Left, src, e.stepAssign(step, originalDst, src, "array-element-equals"))
 			return
 		}
@@ -1139,7 +1139,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 
 	case OINDEX:
 		// Index of array preserves input value.
-		if Isfixedarray(src.Left.Type) {
+		if src.Left.Type.IsArray() {
 			escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 		} else {
 			escflows(e, dst, src, e.stepAssign(step, originalDst, src, dstwhy))
@@ -1337,11 +1337,11 @@ func (e *EscState) addDereference(n *Node) *Node {
 	e.nodeEscState(ind).Escloopdepth = e.nodeEscState(n).Escloopdepth
 	ind.Lineno = n.Lineno
 	t := n.Type
-	if Istype(t, Tptr) {
+	if t.IsKind(Tptr) {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" an array
 		// might yield the type of an element. To be enhanced...
-		t = t.Type
+		t = t.Elem()
 	}
 	ind.Type = t
 	return ind
@@ -1435,7 +1435,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	ll := n.List
 	if n.List.Len() == 1 {
 		a := n.List.First()
-		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).
+		if a.Type.IsStruct() && a.Type.Funarg { // f(g()).
 			ll = e.nodeEscState(a).Escretval
 		}
 	}
@@ -1458,6 +1458,11 @@ func esccall(e *EscState, n *Node, up *Node) {
 			if haspointers(t.Type) {
 				escassignSinkNilWhy(e, n, src, "receiver in indirect call")
 			}
+		} else { // indirect and OCALLFUNC = could be captured variables, too. (#14409)
+			ll := e.nodeEscState(n).Escretval.Slice()
+			for _, llN := range ll {
+				escassignDereference(e, llN, fn, e.stepAssign(nil, llN, fn, "captured by called closure"))
+			}
 		}
 		return
 	}
@@ -1478,47 +1483,46 @@ func esccall(e *EscState, n *Node, up *Node) {
 		lls := ll.Slice()
 		sawRcvr := false
 		var src *Node
-	DclLoop:
 		for _, n2 := range fn.Name.Defn.Func.Dcl {
 			switch n2.Class {
 			case PPARAM:
 				if n.Op != OCALLFUNC && !sawRcvr {
 					escassignNilWhy(e, n2, n.Left.Left, "call receiver")
 					sawRcvr = true
-					continue DclLoop
+					continue
 				}
 				if len(lls) == 0 {
-					continue DclLoop
+					continue
 				}
 				src = lls[0]
 				if n2.Isddd && !n.Isddd {
 					// Introduce ODDDARG node to represent ... allocation.
 					src = Nod(ODDDARG, nil, nil)
-					src.Type = typ(TARRAY)
-					src.Type.Type = n2.Type.Type
-					src.Type.Bound = int64(len(lls))
-					src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+					arr := typArray(n2.Type.Elem(), int64(len(lls)))
+					src.Type = Ptrto(arr) // make pointer so it will be tracked
 					src.Lineno = n.Lineno
 					e.track(src)
 					n.Right = src
 				}
 				escassignNilWhy(e, n2, src, "arg to recursive call")
 				if src != lls[0] {
-					break DclLoop
+					// "..." arguments are untracked
+					for _, n2 := range lls {
+						if Debug['m'] > 3 {
+							fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
+						}
+						escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
+					}
+					// No more PPARAM processing, but keep
+					// going for PPARAMOUT.
+					lls = nil
+					continue
 				}
 				lls = lls[1:]
 
 			case PPARAMOUT:
 				nE.Escretval.Append(n2)
 			}
-		}
-
-		// "..." arguments are untracked
-		for _, n2 := range lls {
-			if Debug['m'] > 3 {
-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(n2, FmtShort))
-			}
-			escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
 		}
 
 		return
@@ -1556,10 +1560,8 @@ func esccall(e *EscState, n *Node, up *Node) {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
-			src.Type = typ(TARRAY)
-			src.Type.Type = t.Type.Type
-			src.Type.Bound = int64(len(lls) - i)
-			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
+			arr := typArray(t.Type.Elem(), int64(len(lls)-i))
+			src.Type = Ptrto(arr) // make pointer so it will be tracked
 			e.track(src)
 			n.Right = src
 		}
@@ -1869,7 +1871,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		level = level.dec()
 
 	case OARRAYLIT:
-		if Isfixedarray(src.Type) {
+		if src.Type.IsArray() {
 			break
 		}
 		for _, n1 := range src.List.Slice() {
@@ -1914,7 +1916,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "slice", step))
 
 	case OINDEX:
-		if Isfixedarray(src.Left.Type) {
+		if src.Left.Type.IsArray() {
 			escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "fixed-array-index-of", step))
 			break
 		}

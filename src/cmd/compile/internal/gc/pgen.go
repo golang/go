@@ -144,7 +144,7 @@ func emitptrargsmap() {
 	}
 	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
 
-	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
+	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
 	if Curfn.Type.Results().NumFields() > 0 {
@@ -318,7 +318,7 @@ func Cgen_checknil(n *Node) {
 	}
 
 	// Ideally we wouldn't see any integer types here, but we do.
-	if n.Type == nil || (!Isptr[n.Type.Etype] && !Isint[n.Type.Etype] && n.Type.Etype != TUNSAFEPTR) {
+	if n.Type == nil || (!n.Type.IsPtr() && !n.Type.IsInteger() && n.Type.Etype != TUNSAFEPTR) {
 		Dump("checknil", n)
 		Fatalf("bad checknil")
 	}
@@ -489,6 +489,12 @@ func compile(fn *Node) {
 		genlegacy(ptxt, gcargs, gclocals)
 	}
 }
+
+type symByName []*Sym
+
+func (a symByName) Len() int           { return len(a) }
+func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
+func (a symByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // genlegacy compiles Curfn using the legacy non-SSA code generator.
 func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {

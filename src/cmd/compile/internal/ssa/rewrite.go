@@ -84,7 +84,7 @@ func is8BitInt(t Type) bool {
 }
 
 func isPtr(t Type) bool {
-	return t.IsPtr()
+	return t.IsPtrShaped()
 }
 
 func isSigned(t Type) bool {
@@ -110,13 +110,6 @@ func mergeSym(x, y interface{}) interface{} {
 func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
-
-func inBounds8(idx, len int64) bool       { return int8(idx) >= 0 && int8(idx) < int8(len) }
-func inBounds16(idx, len int64) bool      { return int16(idx) >= 0 && int16(idx) < int16(len) }
-func inBounds32(idx, len int64) bool      { return int32(idx) >= 0 && int32(idx) < int32(len) }
-func inBounds64(idx, len int64) bool      { return idx >= 0 && idx < len }
-func sliceInBounds32(idx, len int64) bool { return int32(idx) >= 0 && int32(idx) <= int32(len) }
-func sliceInBounds64(idx, len int64) bool { return idx >= 0 && idx <= len }
 
 // nlz returns the number of leading zeros.
 func nlz(x int64) int64 {
@@ -267,4 +260,54 @@ func duff(size int64) (int64, int64) {
 		adj -= dzClearStep * (dzBlockLen - steps)
 	}
 	return off, adj
+}
+
+// mergePoint finds a block among a's blocks which dominates b and is itself
+// dominated by all of a's blocks. Returns nil if it can't find one.
+// Might return nil even if one does exist.
+func mergePoint(b *Block, a ...*Value) *Block {
+	// Walk backward from b looking for one of the a's blocks.
+
+	// Max distance
+	d := 100
+
+	for d > 0 {
+		for _, x := range a {
+			if b == x.Block {
+				goto found
+			}
+		}
+		if len(b.Preds) > 1 {
+			// Don't know which way to go back. Abort.
+			return nil
+		}
+		b = b.Preds[0]
+		d--
+	}
+	return nil // too far away
+found:
+	// At this point, r is the first value in a that we find by walking backwards.
+	// if we return anything, r will be it.
+	r := b
+
+	// Keep going, counting the other a's that we find. They must all dominate r.
+	na := 0
+	for d > 0 {
+		for _, x := range a {
+			if b == x.Block {
+				na++
+			}
+		}
+		if na == len(a) {
+			// Found all of a in a backwards walk. We can return r.
+			return r
+		}
+		if len(b.Preds) > 1 {
+			return nil
+		}
+		b = b.Preds[0]
+		d--
+
+	}
+	return nil // too far away
 }

@@ -66,7 +66,7 @@ func p256NegCond(val []uint64, cond int)
 // if cond == 0 res <- b; else res <- a
 func p256MovCond(res, a, b []uint64, cond int)
 
-// Endianess swap
+// Endianness swap
 func p256BigToLittle(res []uint64, in []byte)
 func p256LittleToBig(res []byte, in []uint64)
 

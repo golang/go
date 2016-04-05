@@ -122,9 +122,9 @@ func main() {
 		<-test.donec
 		status := "ok  "
 		errStr := ""
-		if _, isSkip := test.err.(skipError); isSkip {
+		if e, isSkip := test.err.(skipError); isSkip {
 			test.err = nil
-			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
+			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + string(e)
 			status = "FAIL"
 		}
 		if test.err != nil {

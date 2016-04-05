@@ -641,6 +641,12 @@ func (d *decoder) decode(r io.Reader, configOnly bool) (image.Image, error) {
 			return nil, err
 		}
 	}
+
+	if d.progressive {
+		if err := d.reconstructProgressiveImage(); err != nil {
+			return nil, err
+		}
+	}
 	if d.img1 != nil {
 		return d.img1, nil
 	}

@@ -103,7 +103,7 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
-		flag &= ^O_NONBLOCK
+		flag &^= O_NONBLOCK
 	}
 	_, err = fcntl(fd, F_SETFL, flag)
 	return err

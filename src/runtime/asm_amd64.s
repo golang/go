@@ -28,6 +28,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// find out information about the processor we're on
 	MOVQ	$0, AX
 	CPUID
+	MOVQ	AX, SI
 	CMPQ	AX, $0
 	JE	nocpuinfo
 
@@ -42,15 +43,25 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	JNE	notintel
 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
-	// Do nothing.
 
+	// Load EAX=1 cpuid flags
 	MOVQ	$1, AX
 	CPUID
 	MOVL	CX, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
+
+	// Load EAX=7/ECX=0 cpuid flags
+	CMPQ	SI, $7
+	JLT	no7
+	MOVL	$7, AX
+	MOVL	$0, CX
+	CPUID
+	MOVL	BX, runtime·cpuid_ebx7(SB)
+no7:
 	// Detect AVX and AVX2 as per 14.7.1  Detection of AVX2 chapter of [1]
 	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
 	// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
+	MOVL	runtime·cpuid_ecx(SB), CX
 	ANDL    $0x18000000, CX // check for OSXSAVE and AVX bits
 	CMPL    CX, $0x18000000
 	JNE     noavx
@@ -61,12 +72,8 @@ notintel:
 	CMPL    AX, $6 // Check for OS support of YMM registers
 	JNE     noavx
 	MOVB    $1, runtime·support_avx(SB)
-	MOVL    $7, AX
-	MOVL    $0, CX
-	CPUID
-	ANDL    $0x20, BX // check for AVX2 bit
-	CMPL    BX, $0x20
-	JNE     noavx2
+	TESTL   $(1<<5), runtime·cpuid_ebx7(SB) // check for AVX2 bit
+	JEQ     noavx2
 	MOVB    $1, runtime·support_avx2(SB)
 	JMP     nocpuinfo
 noavx:

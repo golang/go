@@ -144,7 +144,7 @@ func (e *Encoder) SetMaxDynamicTableSizeLimit(v uint32) {
 
 // shouldIndex reports whether f should be indexed.
 func (e *Encoder) shouldIndex(f HeaderField) bool {
-	return !f.Sensitive && f.size() <= e.dynTab.maxSize
+	return !f.Sensitive && f.Size() <= e.dynTab.maxSize
 }
 
 // appendIndexed appends index i, as encoded in "Indexed Header Field"

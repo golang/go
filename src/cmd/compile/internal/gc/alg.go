@@ -6,9 +6,13 @@ package gc
 
 import "fmt"
 
+// AlgKind describes the kind of algorithms used for comparing and
+// hashing a Type.
+type AlgKind int
+
 const (
 	// These values are known by runtime.
-	ANOEQ = iota
+	ANOEQ AlgKind = iota
 	AMEM0
 	AMEM8
 	AMEM16
@@ -22,11 +26,40 @@ const (
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	AMEM = 100
+
+	// Type can be compared/hashed as regular memory.
+	AMEM AlgKind = 100
+
+	// Type needs special comparison/hashing functions.
+	ASPECIAL AlgKind = -1
 )
 
-func algtype(t *Type) int {
-	a := algtype1(t, nil)
+// IsComparable reports whether t is a comparable type.
+func (t *Type) IsComparable() bool {
+	a, _ := algtype1(t)
+	return a != ANOEQ
+}
+
+// IsRegularMemory reports whether t can be compared/hashed as regular memory.
+func (t *Type) IsRegularMemory() bool {
+	a, _ := algtype1(t)
+	return a == AMEM
+}
+
+// IncomparableField returns an incomparable Field of struct Type t, if any.
+func (t *Type) IncomparableField() *Field {
+	for _, f := range t.FieldSlice() {
+		if !f.Type.IsComparable() {
+			return f
+		}
+	}
+	return nil
+}
+
+// algtype is like algtype1, except it returns the fixed-width AMEMxx variants
+// instead of the general AMEM kind when possible.
+func algtype(t *Type) AlgKind {
+	a, _ := algtype1(t)
 	if a == AMEM {
 		switch t.Width {
 		case 0:
@@ -47,115 +80,105 @@ func algtype(t *Type) int {
 	return a
 }
 
-func algtype1(t *Type, bad **Type) int {
-	if bad != nil {
-		*bad = nil
-	}
+// algtype1 returns the AlgKind used for comparing and hashing Type t.
+// If it returns ANOEQ, it also returns the component type of t that
+// makes it incomparable.
+func algtype1(t *Type) (AlgKind, *Type) {
 	if t.Broke {
-		return AMEM
+		return AMEM, nil
 	}
 	if t.Noalg {
-		return ANOEQ
+		return ANOEQ, t
 	}
 
 	switch t.Etype {
 	case TANY, TFORW:
 		// will be defined later.
-		*bad = t
-		return -1
+		return ANOEQ, t
 
 	case TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
 		TINT, TUINT, TUINTPTR,
 		TBOOL, TPTR32, TPTR64,
 		TCHAN, TUNSAFEPTR:
-		return AMEM
+		return AMEM, nil
 
 	case TFUNC, TMAP:
-		if bad != nil {
-			*bad = t
-		}
-		return ANOEQ
+		return ANOEQ, t
 
 	case TFLOAT32:
-		return AFLOAT32
+		return AFLOAT32, nil
 
 	case TFLOAT64:
-		return AFLOAT64
+		return AFLOAT64, nil
 
 	case TCOMPLEX64:
-		return ACPLX64
+		return ACPLX64, nil
 
 	case TCOMPLEX128:
-		return ACPLX128
+		return ACPLX128, nil
 
 	case TSTRING:
-		return ASTRING
+		return ASTRING, nil
 
 	case TINTER:
-		if isnilinter(t) {
-			return ANILINTER
+		if t.IsEmptyInterface() {
+			return ANILINTER, nil
 		}
-		return AINTER
+		return AINTER, nil
 
 	case TARRAY:
-		if Isslice(t) {
-			if bad != nil {
-				*bad = t
-			}
-			return ANOEQ
+		if t.IsSlice() {
+			return ANOEQ, t
 		}
 
-		a := algtype1(t.Type, bad)
+		a, bad := algtype1(t.Elem())
 		switch a {
 		case AMEM:
-			return AMEM
+			return AMEM, nil
 		case ANOEQ:
-			if bad != nil {
-				*bad = t
-			}
-			return ANOEQ
+			return ANOEQ, bad
 		}
 
-		switch t.Bound {
+		switch t.NumElem() {
 		case 0:
 			// We checked above that the element type is comparable.
-			return AMEM
+			return AMEM, nil
 		case 1:
 			// Single-element array is same as its lone element.
-			return a
+			return a, nil
 		}
 
-		return -1 // needs special compare
+		return ASPECIAL, nil
 
 	case TSTRUCT:
 		fields := t.FieldSlice()
 
 		// One-field struct is same as that one field alone.
 		if len(fields) == 1 && !isblanksym(fields[0].Sym) {
-			return algtype1(fields[0].Type, bad)
+			return algtype1(fields[0].Type)
 		}
 
 		ret := AMEM
 		for i, f := range fields {
 			// All fields must be comparable.
-			a := algtype1(f.Type, bad)
+			a, bad := algtype1(f.Type)
 			if a == ANOEQ {
-				return ANOEQ
+				return ANOEQ, bad
 			}
 
 			// Blank fields, padded fields, fields with non-memory
 			// equality need special compare.
-			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, fields, i) {
-				ret = -1
+			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, i) {
+				ret = ASPECIAL
 			}
 		}
 
-		return ret
+		return ret, nil
 	}
 
 	Fatalf("algtype1: unexpected type %v", t)
-	return 0
+	return 0, nil
 }
 
 // Generate a helper function to compute the hash of a value of type t.
@@ -196,14 +219,14 @@ func genhash(sym *Sym, t *Type) {
 		Fatalf("genhash %v", t)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("genhash %v", t)
 		}
 
 		// An array of pure memory would be handled by the
 		// standard algorithm, so the element type must not be
 		// pure memory.
-		hashel := hashfor(t.Type)
+		hashel := hashfor(t.Elem())
 
 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
 		ni := newname(Lookup("i"))
@@ -239,7 +262,7 @@ func genhash(sym *Sym, t *Type) {
 			}
 
 			// Hash non-memory fields with appropriate hash function.
-			if algtype1(f.Type, nil) != AMEM {
+			if !f.Type.IsRegularMemory() {
 				hashel := hashfor(f.Type)
 				call := Nod(OCALL, hashel, nil)
 				nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
@@ -253,7 +276,7 @@ func genhash(sym *Sym, t *Type) {
 			}
 
 			// Otherwise, hash a maximal length run of raw memory.
-			size, next := memrun(t, fields, i)
+			size, next := memrun(t, i)
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
@@ -304,7 +327,7 @@ func genhash(sym *Sym, t *Type) {
 func hashfor(t *Type) *Node {
 	var sym *Sym
 
-	switch algtype1(t, nil) {
+	switch a, _ := algtype1(t); a {
 	case AMEM:
 		Fatalf("hashfor with AMEM type")
 	case AINTER:
@@ -375,7 +398,7 @@ func geneq(sym *Sym, t *Type) {
 		Fatalf("geneq %v", t)
 
 	case TARRAY:
-		if Isslice(t) {
+		if t.IsSlice() {
 			Fatalf("geneq %v", t)
 		}
 
@@ -435,14 +458,14 @@ func geneq(sym *Sym, t *Type) {
 			}
 
 			// Compare non-memory fields with field equality.
-			if algtype1(f.Type, nil) != AMEM {
+			if !f.Type.IsRegularMemory() {
 				and(eqfield(np, nq, f.Sym))
 				i++
 				continue
 			}
 
 			// Find maximal length run of memory-only fields.
-			size, next := memrun(t, fields, i)
+			size, next := memrun(t, i)
 
 			// TODO(rsc): All the calls to newname are wrong for
 			// cross-package unexported fields.
@@ -519,7 +542,7 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
 	nx = typecheck(nx, Erv)
 	ny = typecheck(ny, Erv)
 
-	fn, needsize := eqmemfunc(size, nx.Type.Type)
+	fn, needsize := eqmemfunc(size, nx.Type.Elem())
 	call := Nod(OCALL, fn, nil)
 	call.List.Append(nx)
 	call.List.Append(ny)
@@ -546,40 +569,36 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 
 // memrun finds runs of struct fields for which memory-only algs are appropriate.
 // t is the parent struct type, and start is the field index at which to start the run.
-// The caller is responsible for providing t.FieldSlice() as fields.
 // size is the length in bytes of the memory included in the run.
 // next is the index just after the end of the memory run.
-// TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
-func memrun(t *Type, fields []*Field, start int) (size int64, next int) {
+func memrun(t *Type, start int) (size int64, next int) {
 	next = start
 	for {
 		next++
-		if next == len(fields) {
+		if next == t.NumFields() {
 			break
 		}
 		// Stop run after a padded field.
-		if ispaddedfield(t, fields, next-1) {
+		if ispaddedfield(t, next-1) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if isblanksym(fields[next].Sym) || algtype1(fields[next].Type, nil) != AMEM {
+		if f := t.Field(next); isblanksym(f.Sym) || !f.Type.IsRegularMemory() {
 			break
 		}
 	}
-	end := fields[next-1].Width + fields[next-1].Type.Width
-	return end - fields[start].Width, next
+	return t.Field(next-1).End() - t.Field(start).Offset, next
 }
 
 // ispaddedfield reports whether the i'th field of struct type t is followed
-// by padding. The caller is responsible for providing t.FieldSlice() as fields.
-// TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
-func ispaddedfield(t *Type, fields []*Field, i int) bool {
-	if t.Etype != TSTRUCT {
+// by padding.
+func ispaddedfield(t *Type, i int) bool {
+	if !t.IsStruct() {
 		Fatalf("ispaddedfield called non-struct %v", t)
 	}
 	end := t.Width
-	if i+1 < len(fields) {
-		end = fields[i+1].Width
+	if i+1 < t.NumFields() {
+		end = t.Field(i + 1).Offset
 	}
-	return fields[i].Width+fields[i].Type.Width != end
+	return t.Field(i).End() != end
 }

@@ -149,8 +149,8 @@ func reexportdep(n *Node) {
 		t := n.Left.Type
 
 		if t != Types[t.Etype] && t != idealbool && t != idealstring {
-			if Isptr[t.Etype] {
-				t = t.Type
+			if t.IsPtr() {
+				t = t.Elem()
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
@@ -163,8 +163,8 @@ func reexportdep(n *Node) {
 	case OLITERAL:
 		t := n.Type
 		if t != Types[n.Type.Etype] && t != idealbool && t != idealstring {
-			if Isptr[t.Etype] {
-				t = t.Type
+			if t.IsPtr() {
+				t = t.Elem()
 			}
 			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 				if Debug['E'] != 0 {
@@ -205,7 +205,7 @@ func reexportdep(n *Node) {
 		switch t.Etype {
 		case TARRAY, TCHAN, TPTR32, TPTR64:
 			if t.Sym == nil {
-				t = t.Type
+				t = t.Elem()
 			}
 		}
 		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
@@ -233,7 +233,7 @@ func dumpexportconst(s *Sym) {
 	t := n.Type // may or may not be specified
 	dumpexporttype(t)
 
-	if t != nil && !isideal(t) {
+	if t != nil && !t.IsUntyped() {
 		exportf("\tconst %v %v = %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp), Vconv(n.Val(), FmtSharp))
 	} else {
 		exportf("\tconst %v = %v\n", Sconv(s, FmtSharp), Vconv(n.Val(), FmtSharp))
@@ -301,10 +301,10 @@ func dumpexporttype(t *Type) {
 		dumpexporttype(t.Results())
 		dumpexporttype(t.Params())
 	case TMAP:
-		dumpexporttype(t.Type)
-		dumpexporttype(t.Down) // key
+		dumpexporttype(t.Val())
+		dumpexporttype(t.Key())
 	case TARRAY, TCHAN, TPTR32, TPTR64:
-		dumpexporttype(t.Type)
+		dumpexporttype(t.Elem())
 	}
 
 	if t.Sym == nil {
@@ -323,15 +323,15 @@ func dumpexporttype(t *Type) {
 		if f.Nointerface {
 			exportf("\t//go:nointerface\n")
 		}
-		if f.Type.Nname != nil && len(f.Type.Nname.Func.Inl.Slice()) != 0 { // nname was set by caninl
+		if f.Type.Nname() != nil && len(f.Type.Nname().Func.Inl.Slice()) != 0 { // nname was set by caninl
 
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if Debug['l'] < 2 {
-				typecheckinl(f.Type.Nname)
+				typecheckinl(f.Type.Nname())
 			}
-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp|FmtBody))
-			reexportdeplist(f.Type.Nname.Func.Inl)
+			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname().Func.Inl, FmtSharp|FmtBody))
+			reexportdeplist(f.Type.Nname().Func.Inl)
 		} else {
 			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
 		}
@@ -380,9 +380,8 @@ func dumpexport() {
 	if forceNewExport || newexport != 0 {
 		// binary export
 		// The linker also looks for the $$ marker - use char after $$ to distinguish format.
-		exportf("\n$$B\n")        // indicate binary format
-		const verifyExport = true // enable to check format changes
-		if verifyExport {
+		exportf("\n$$B\n") // indicate binary format
+		if debugFormat {
 			// save a copy of the export data
 			var copy bytes.Buffer
 			bcopy := obj.Binitw(&copy)
@@ -430,9 +429,8 @@ func dumpexport() {
 		}
 
 		// exportlist grows during iteration - cannot use range
-		for len(exportlist) > 0 {
-			n := exportlist[0]
-			exportlist = exportlist[1:]
+		for i := 0; i < len(exportlist); i++ {
+			n := exportlist[i]
 			lineno = n.Lineno
 			dumpsym(n.Sym)
 		}
@@ -447,10 +445,8 @@ func dumpexport() {
 	}
 }
 
-// import
-
-// return the sym for ss, which should match lexical
-func importsym(s *Sym, op Op) *Sym {
+// importsym declares symbol s as an imported object representable by op.
+func importsym(s *Sym, op Op) {
 	if s.Def != nil && s.Def.Op != op {
 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
 		redeclare(s, pkgstr)
@@ -464,11 +460,10 @@ func importsym(s *Sym, op Op) *Sym {
 			s.Flags |= SymPackage // package scope
 		}
 	}
-
-	return s
 }
 
-// return the type pkg.name, forward declaring if needed
+// pkgtype returns the named type declared by symbol s.
+// If no such type has been declared yet, a forward declaration is returned.
 func pkgtype(s *Sym) *Type {
 	importsym(s, OTYPE)
 	if s.Def == nil || s.Def.Op != OTYPE {
@@ -508,6 +503,7 @@ func importimport(s *Sym, path string) {
 	}
 }
 
+// importconst declares symbol s as an imported constant with type t and value n.
 func importconst(s *Sym, t *Type, n *Node) {
 	importsym(s, OLITERAL)
 	n = convlit(n, t)
@@ -535,6 +531,7 @@ func importconst(s *Sym, t *Type, n *Node) {
 	}
 }
 
+// importvar declares symbol s as an imported variable with type t.
 func importvar(s *Sym, t *Type) {
 	importsym(s, ONAME)
 	if s.Def != nil && s.Def.Op == ONAME {
@@ -595,13 +592,13 @@ func dumpasmhdr() {
 
 		case OTYPE:
 			t := n.Type
-			if t.Etype != TSTRUCT || t.Map != nil || t.Funarg {
+			if !t.IsStruct() || t.Map != nil || t.Funarg {
 				break
 			}
 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
 			for _, t := range t.Fields().Slice() {
 				if !isblanksym(t.Sym) {
-					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Width))
+					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Offset))
 				}
 			}
 		}

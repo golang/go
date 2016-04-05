@@ -84,6 +84,10 @@ import (
 	"unsafe"
 )
 
+// Addresses collected in a cgo backtrace when crashing.
+// Length must match arg.Max in x_cgo_callers in runtime/cgo/gcc_traceback.c.
+type cgoCallers [32]uintptr
+
 // Call from Go to C.
 //go:nosplit
 func cgocall(fn, arg unsafe.Pointer) int32 {
@@ -108,6 +112,9 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	mp.ncgocall++
 	mp.ncgo++
 	defer endcgo(mp)
+
+	// Reset traceback.
+	mp.cgoCallers[0] = 0
 
 	/*
 	 * Announce we are entering a system call

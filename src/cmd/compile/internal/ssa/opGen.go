@@ -108,11 +108,15 @@ const (
 	OpAMD64MOVSDload
 	OpAMD64MOVSSconst
 	OpAMD64MOVSDconst
+	OpAMD64MOVSSloadidx1
 	OpAMD64MOVSSloadidx4
+	OpAMD64MOVSDloadidx1
 	OpAMD64MOVSDloadidx8
 	OpAMD64MOVSSstore
 	OpAMD64MOVSDstore
+	OpAMD64MOVSSstoreidx1
 	OpAMD64MOVSSstoreidx4
+	OpAMD64MOVSDstoreidx1
 	OpAMD64MOVSDstoreidx8
 	OpAMD64ADDQ
 	OpAMD64ADDL
@@ -310,20 +314,29 @@ const (
 	OpAMD64MOVOload
 	OpAMD64MOVOstore
 	OpAMD64MOVBloadidx1
+	OpAMD64MOVWloadidx1
 	OpAMD64MOVWloadidx2
+	OpAMD64MOVLloadidx1
 	OpAMD64MOVLloadidx4
+	OpAMD64MOVQloadidx1
 	OpAMD64MOVQloadidx8
 	OpAMD64MOVBstoreidx1
+	OpAMD64MOVWstoreidx1
 	OpAMD64MOVWstoreidx2
+	OpAMD64MOVLstoreidx1
 	OpAMD64MOVLstoreidx4
+	OpAMD64MOVQstoreidx1
 	OpAMD64MOVQstoreidx8
 	OpAMD64MOVBstoreconst
 	OpAMD64MOVWstoreconst
 	OpAMD64MOVLstoreconst
 	OpAMD64MOVQstoreconst
 	OpAMD64MOVBstoreconstidx1
+	OpAMD64MOVWstoreconstidx1
 	OpAMD64MOVWstoreconstidx2
+	OpAMD64MOVLstoreconstidx1
 	OpAMD64MOVLstoreconstidx4
+	OpAMD64MOVQstoreconstidx1
 	OpAMD64MOVQstoreconstidx8
 	OpAMD64DUFFZERO
 	OpAMD64MOVOconst
@@ -822,10 +835,40 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVSSloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
 		name:    "MOVSSloadidx4",
 		auxType: auxSymOff,
 		argLen:  3,
 		asm:     x86.AMOVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			},
+		},
+	},
+	{
+		name:    "MOVSDloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -876,10 +919,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVSSstoreidx1",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.AMOVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:    "MOVSSstoreidx4",
 		auxType: auxSymOff,
 		argLen:  4,
 		asm:     x86.AMOVSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:    "MOVSDstoreidx1",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -3820,6 +3889,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVWloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVWLZX,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
 		name:    "MOVWloadidx2",
 		auxType: auxSymOff,
 		argLen:  3,
@@ -3835,10 +3919,40 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVLloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
 		name:    "MOVLloadidx4",
 		auxType: auxSymOff,
 		argLen:  3,
 		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+			outputs: []regMask{
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:    "MOVQloadidx1",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -3878,6 +3992,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVWstoreidx1",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:    "MOVWstoreidx2",
 		auxType: auxSymOff,
 		argLen:  4,
@@ -3891,10 +4018,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVLstoreidx1",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:    "MOVLstoreidx4",
 		auxType: auxSymOff,
 		argLen:  4,
 		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:    "MOVQstoreidx1",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -3973,6 +4126,18 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVWstoreconstidx1",
+		auxType: auxSymValAndOff,
+		argLen:  3,
+		asm:     x86.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:    "MOVWstoreconstidx2",
 		auxType: auxSymValAndOff,
 		argLen:  3,
@@ -3985,10 +4150,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "MOVLstoreconstidx1",
+		auxType: auxSymValAndOff,
+		argLen:  3,
+		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
 		name:    "MOVLstoreconstidx4",
 		auxType: auxSymValAndOff,
 		argLen:  3,
 		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:    "MOVQstoreconstidx1",
+		auxType: auxSymValAndOff,
+		argLen:  3,
+		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15

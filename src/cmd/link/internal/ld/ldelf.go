@@ -586,6 +586,11 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 			Diag("%s: elf object but not ppc64", pn)
 			return
 		}
+	case 'z':
+		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
+			Diag("%s: elf object but not s390x", pn)
+			return
+		}
 	}
 
 	// load section list into memory.
@@ -778,6 +783,9 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 				continue
 			}
 
+			if strings.HasPrefix(sym.name, ".LASF") { // gcc on s390x does this
+				continue
+			}
 			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
 			continue
 		}
@@ -1124,6 +1132,9 @@ func reltype(pn string, elftype int, siz *uint8) int {
 		Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 		fallthrough
 
+	case 'z' | R_390_8:
+		*siz = 1
+
 	case '9' | R_PPC64_TOC16<<24,
 		'9' | R_PPC64_TOC16_LO<<24,
 		'9' | R_PPC64_TOC16_HI<<24,
@@ -1132,7 +1143,12 @@ func reltype(pn string, elftype int, siz *uint8) int {
 		'9' | R_PPC64_TOC16_LO_DS<<24,
 		'9' | R_PPC64_REL16_LO<<24,
 		'9' | R_PPC64_REL16_HI<<24,
-		'9' | R_PPC64_REL16_HA<<24:
+		'9' | R_PPC64_REL16_HA<<24,
+		'z' | R_390_16<<24,
+		'z' | R_390_GOT16<<24,
+		'z' | R_390_PC16<<24,
+		'z' | R_390_PC16DBL<<24,
+		'z' | R_390_PLT16DBL<<24:
 		*siz = 2
 
 	case '5' | R_ARM_ABS32<<24,
@@ -1160,11 +1176,27 @@ func reltype(pn string, elftype int, siz *uint8) int {
 		'8' | R_386_GOTPC<<24,
 		'8' | R_386_GOT32X<<24,
 		'9' | R_PPC64_REL24<<24,
-		'9' | R_PPC_REL32<<24:
+		'9' | R_PPC_REL32<<24,
+		'z' | R_390_32<<24,
+		'z' | R_390_PC32<<24,
+		'z' | R_390_GOT32<<24,
+		'z' | R_390_PLT32<<24,
+		'z' | R_390_PC32DBL<<24,
+		'z' | R_390_PLT32DBL<<24,
+		'z' | R_390_GOTPCDBL<<24,
+		'z' | R_390_GOTENT<<24:
 		*siz = 4
 
 	case '6' | R_X86_64_64<<24,
-		'9' | R_PPC64_ADDR64<<24:
+		'9' | R_PPC64_ADDR64<<24,
+		'z' | R_390_GLOB_DAT<<24,
+		'z' | R_390_RELATIVE<<24,
+		'z' | R_390_GOTOFF<<24,
+		'z' | R_390_GOTPC<<24,
+		'z' | R_390_64<<24,
+		'z' | R_390_PC64<<24,
+		'z' | R_390_GOT64<<24,
+		'z' | R_390_PLT64<<24:
 		*siz = 8
 	}
 

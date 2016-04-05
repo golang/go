@@ -94,7 +94,7 @@ func readTrace(r io.Reader) ([]rawEvent, error) {
 	if off != 16 || err != nil {
 		return nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
 	}
-	if bytes.Compare(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) != 0 {
+	if !bytes.Equal(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) {
 		return nil, fmt.Errorf("not a trace file")
 	}
 

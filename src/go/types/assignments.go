@@ -179,6 +179,14 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	case variable, mapindex:
 		// ok
 	default:
+		if sel, ok := z.expr.(*ast.SelectorExpr); ok {
+			var op operand
+			check.expr(&op, sel.X)
+			if op.mode == mapindex {
+				check.errorf(z.pos(), "cannot directly assign to struct field %s in map", ExprString(z.expr))
+				return nil
+			}
+		}
 		check.errorf(z.pos(), "cannot assign to %s", &z)
 		return nil
 	}

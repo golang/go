@@ -36,6 +36,17 @@ var gunzipTests = []gunzipTest{
 		},
 		nil,
 	},
+	{
+		"",
+		"empty - with no file name",
+		"",
+		[]byte{
+			0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88,
+			0x00, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+		nil,
+	},
 	{ // has 1 non-empty fixed huffman block
 		"hello.txt",
 		"hello.txt",
@@ -284,46 +295,52 @@ var gunzipTests = []gunzipTest{
 }
 
 func TestDecompressor(t *testing.T) {
+	// Keep resetting this reader.
+	// It is intended behavior that Reader.Reset can be called on a zero-value
+	// Reader and be the equivalent as if NewReader was used instead.
+	r1 := new(Reader)
+
 	b := new(bytes.Buffer)
 	for _, tt := range gunzipTests {
+		// Test NewReader.
 		in := bytes.NewReader(tt.gzip)
-		gzip, err := NewReader(in)
+		r2, err := NewReader(in)
 		if err != nil {
-			t.Errorf("%s: NewReader: %s", tt.name, err)
+			t.Errorf("%s: NewReader: %s", tt.desc, err)
 			continue
 		}
-		defer gzip.Close()
-		if tt.name != gzip.Name {
-			t.Errorf("%s: got name %s", tt.name, gzip.Name)
+		defer r2.Close()
+		if tt.name != r2.Name {
+			t.Errorf("%s: got name %s", tt.desc, r2.Name)
 		}
 		b.Reset()
-		n, err := io.Copy(b, gzip)
+		n, err := io.Copy(b, r2)
 		if err != tt.err {
-			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
+			t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
 		}
 		s := b.String()
 		if s != tt.raw {
-			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
+			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
 		}
 
-		// Test Reader Reset.
+		// Test Reader.Reset.
 		in = bytes.NewReader(tt.gzip)
-		err = gzip.Reset(in)
+		err = r1.Reset(in)
 		if err != nil {
-			t.Errorf("%s: Reset: %s", tt.name, err)
+			t.Errorf("%s: Reset: %s", tt.desc, err)
 			continue
 		}
-		if tt.name != gzip.Name {
-			t.Errorf("%s: got name %s", tt.name, gzip.Name)
+		if tt.name != r1.Name {
+			t.Errorf("%s: got name %s", tt.desc, r1.Name)
 		}
 		b.Reset()
-		n, err = io.Copy(b, gzip)
+		n, err = io.Copy(b, r1)
 		if err != tt.err {
-			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
+			t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
 		}
 		s = b.String()
 		if s != tt.raw {
-			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
+			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
 		}
 	}
 }
@@ -353,20 +370,6 @@ func TestIssue6550(t *testing.T) {
 		t.Errorf("Copy hung")
 	case <-done:
 		// ok
-	}
-}
-
-func TestInitialReset(t *testing.T) {
-	var r Reader
-	if err := r.Reset(bytes.NewReader(gunzipTests[1].gzip)); err != nil {
-		t.Error(err)
-	}
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, &r); err != nil {
-		t.Error(err)
-	}
-	if s := buf.String(); s != gunzipTests[1].raw {
-		t.Errorf("got %q want %q", s, gunzipTests[1].raw)
 	}
 }
 
@@ -411,7 +414,7 @@ Found:
 }
 
 func TestNilStream(t *testing.T) {
-	// Go liberally interprets RFC1952 section 2.2 to mean that a gzip file
+	// Go liberally interprets RFC 1952 section 2.2 to mean that a gzip file
 	// consist of zero or more members. Thus, we test that a nil stream is okay.
 	_, err := NewReader(bytes.NewReader(nil))
 	if err != io.EOF {

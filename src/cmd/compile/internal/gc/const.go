@@ -10,22 +10,22 @@ import (
 	"strings"
 )
 
-// IntLiteral returns the Node's literal value as an interger.
+// IntLiteral returns the Node's literal value as an integer.
 func (n *Node) IntLiteral() (x int64, ok bool) {
 	switch {
 	case n == nil:
 		return
 	case Isconst(n, CTINT):
-		return n.Int(), true
+		return n.Int64(), true
 	case Isconst(n, CTBOOL):
 		return int64(obj.Bool2int(n.Bool())), true
 	}
 	return
 }
 
-// Int returns n as an int.
-// n must be an integer constant.
-func (n *Node) Int() int64 {
+// Int64 returns n as an int64.
+// n must be an integer or rune constant.
+func (n *Node) Int64() int64 {
 	if !Isconst(n, CTINT) {
 		Fatalf("Int(%v)", n)
 	}
@@ -95,36 +95,47 @@ func NegOne(t *Type) *Node {
 	return n
 }
 
+// canReuseNode indicates whether it is known to be safe
+// to reuse a Node.
+type canReuseNode bool
+
+const (
+	noReuse canReuseNode = false // not necessarily safe to reuse
+	reuseOK canReuseNode = true  // safe to reuse
+)
+
 // convert n, if literal, to type t.
 // implicit conversion.
 // The result of convlit MUST be assigned back to n, e.g.
 // 	n.Left = convlit(n.Left, t)
 func convlit(n *Node, t *Type) *Node {
-	return convlit1(n, t, false)
+	return convlit1(n, t, false, noReuse)
 }
 
-// convert n, if literal, to type t.
-// return a new node if necessary
-// (if n is a named constant, can't edit n->type directly).
+// convlit1 converts n, if literal, to type t.
+// It returns a new node if necessary.
 // The result of convlit1 MUST be assigned back to n, e.g.
-// 	n.Left = convlit1(n.Left, t, explicit)
-func convlit1(n *Node, t *Type, explicit bool) *Node {
-	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
+// 	n.Left = convlit1(n.Left, t, explicit, reuse)
+func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
+	if n == nil || t == nil || n.Type == nil || t.IsUntyped() || n.Type == t {
 		return n
 	}
-	if !explicit && !isideal(n.Type) {
+	if !explicit && !n.Type.IsUntyped() {
 		return n
 	}
 
-	if n.Op == OLITERAL {
+	if n.Op == OLITERAL && !reuse {
+		// Can't always set n.Type directly on OLITERAL nodes.
+		// See discussion on CL 20813.
 		nn := *n
 		n = &nn
+		reuse = true
 	}
 
 	switch n.Op {
 	default:
 		if n.Type == idealbool {
-			if t.Etype == TBOOL {
+			if t.IsBoolean() {
 				n.Type = t
 			} else {
 				n.Type = Types[TBOOL]
@@ -142,16 +153,16 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
 		// target is invalid type for a constant?  leave alone.
 	case OLITERAL:
 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
-			return defaultlit(n, nil)
+			return defaultlitreuse(n, nil, reuse)
 		}
 
 	case OLSH, ORSH:
-		n.Left = convlit1(n.Left, t, explicit && isideal(n.Left.Type))
+		n.Left = convlit1(n.Left, t, explicit && n.Left.Type.IsUntyped(), noReuse)
 		t = n.Left.Type
 		if t != nil && t.Etype == TIDEAL && n.Val().Ctype() != CTINT {
 			n.SetVal(toint(n.Val()))
 		}
-		if t != nil && !Isint[t.Etype] {
+		if t != nil && !t.IsInteger() {
 			Yyerror("invalid operation: %v (shift of type %v)", n, t)
 			t = nil
 		}
@@ -202,7 +213,7 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
 			n.Type = t
 			return n
 		}
-		return defaultlit(n, nil)
+		return defaultlitreuse(n, nil, reuse)
 	}
 
 	switch ct {
@@ -220,7 +231,7 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
 			return n
 
 		case TARRAY:
-			if !Isslice(t) {
+			if !t.IsSlice() {
 				goto bad
 			}
 
@@ -308,8 +319,8 @@ bad:
 		n.Diag = 1
 	}
 
-	if isideal(n.Type) {
-		n = defaultlit(n, nil)
+	if n.Type.IsUntyped() {
+		n = defaultlitreuse(n, nil, reuse)
 	}
 	return n
 }
@@ -410,7 +421,7 @@ func toint(v Val) Val {
 func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
-		if !Isint[t.Etype] {
+		if !t.IsInteger() {
 			Fatalf("overflow: %v integer constant", t)
 		}
 		if v.U.(*Mpint).Cmp(Minintval[t.Etype]) < 0 || v.U.(*Mpint).Cmp(Maxintval[t.Etype]) > 0 {
@@ -418,7 +429,7 @@ func doesoverflow(v Val, t *Type) bool {
 		}
 
 	case CTFLT:
-		if !Isfloat[t.Etype] {
+		if !t.IsFloat() {
 			Fatalf("overflow: %v floating-point constant", t)
 		}
 		if v.U.(*Mpflt).Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpflt).Cmp(maxfltval[t.Etype]) >= 0 {
@@ -426,7 +437,7 @@ func doesoverflow(v Val, t *Type) bool {
 		}
 
 	case CTCPLX:
-		if !Iscomplex[t.Etype] {
+		if !t.IsComplex() {
 			Fatalf("overflow: %v complex constant", t)
 		}
 		if v.U.(*Mpcplx).Real.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Real.Cmp(maxfltval[t.Etype]) >= 0 || v.U.(*Mpcplx).Imag.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Imag.Cmp(maxfltval[t.Etype]) >= 0 {
@@ -457,12 +468,12 @@ func overflow(v Val, t *Type) {
 func tostr(v Val) Val {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
-		if v.U.(*Mpint).Cmp(Minintval[TINT]) < 0 || v.U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
-			Yyerror("overflow in int -> string")
+		var i int64 = 0xFFFD
+		if u := v.U.(*Mpint); u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
+			i = u.Int64()
 		}
-		r := uint(v.U.(*Mpint).Int64())
 		v = Val{}
-		v.U = string(r)
+		v.U = string(i)
 
 	case CTFLT:
 		Yyerror("no float -> string")
@@ -650,7 +661,7 @@ func evconst(n *Node) {
 
 		case OCONV_ | CTNIL_,
 			OARRAYBYTESTR_ | CTNIL_:
-			if n.Type.Etype == TSTRING {
+			if n.Type.IsString() {
 				v = tostr(v)
 				nl.Type = n.Type
 				break
@@ -663,8 +674,7 @@ func evconst(n *Node) {
 			OCONV_ | CTFLT_,
 			OCONV_ | CTSTR_,
 			OCONV_ | CTBOOL_:
-			nl = convlit1(nl, n.Type, true)
-
+			nl = convlit1(nl, n.Type, true, false)
 			v = nl.Val()
 
 		case OPLUS_ | CTINT_,
@@ -763,7 +773,7 @@ func evconst(n *Node) {
 		nr = defaultlit(nr, Types[TUINT])
 
 		n.Right = nr
-		if nr.Type != nil && (Issigned[nr.Type.Etype] || !Isint[nr.Type.Etype]) {
+		if nr.Type != nil && (nr.Type.IsSigned() || !nr.Type.IsInteger()) {
 			goto illegal
 		}
 		if nl.Val().Ctype() != CTRUNE {
@@ -1179,7 +1189,7 @@ func nodcplxlit(r Val, i Val) *Node {
 // idealkind returns a constant kind like consttype
 // but for an arbitrary "ideal" (untyped constant) expression.
 func idealkind(n *Node) Ctype {
-	if n == nil || !isideal(n.Type) {
+	if n == nil || !n.Type.IsUntyped() {
 		return CTxxx
 	}
 
@@ -1243,13 +1253,20 @@ func idealkind(n *Node) Ctype {
 // The result of defaultlit MUST be assigned back to n, e.g.
 // 	n.Left = defaultlit(n.Left, t)
 func defaultlit(n *Node, t *Type) *Node {
-	if n == nil || !isideal(n.Type) {
+	return defaultlitreuse(n, t, noReuse)
+}
+
+// The result of defaultlitreuse MUST be assigned back to n, e.g.
+// 	n.Left = defaultlitreuse(n.Left, t, reuse)
+func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
+	if n == nil || !n.Type.IsUntyped() {
 		return n
 	}
 
-	if n.Op == OLITERAL {
+	if n.Op == OLITERAL && !reuse {
 		nn := *n
 		n = &nn
+		reuse = true
 	}
 
 	lno := setlineno(n)
@@ -1274,7 +1291,7 @@ func defaultlit(n *Node, t *Type) *Node {
 
 		if n.Val().Ctype() == CTSTR {
 			t1 := Types[TSTRING]
-			n = convlit(n, t1)
+			n = convlit1(n, t1, false, reuse)
 			break
 		}
 
@@ -1285,10 +1302,10 @@ func defaultlit(n *Node, t *Type) *Node {
 
 	case CTBOOL:
 		t1 := Types[TBOOL]
-		if t != nil && t.Etype == TBOOL {
+		if t != nil && t.IsBoolean() {
 			t1 = t
 		}
-		n = convlit(n, t1)
+		n = convlit1(n, t1, false, reuse)
 
 	case CTINT:
 		t1 = Types[TINT]
@@ -1315,13 +1332,13 @@ num:
 	// in the case of an untyped non-constant value, like 1<<i.
 	v1 := n.Val()
 	if t != nil {
-		if Isint[t.Etype] {
+		if t.IsInteger() {
 			t1 = t
 			v1 = toint(n.Val())
-		} else if Isfloat[t.Etype] {
+		} else if t.IsFloat() {
 			t1 = t
 			v1 = toflt(n.Val())
-		} else if Iscomplex[t.Etype] {
+		} else if t.IsComplex() {
 			t1 = t
 			v1 = tocplx(n.Val())
 		}
@@ -1333,7 +1350,7 @@ num:
 	if n.Val().Ctype() != CTxxx {
 		overflow(n.Val(), t1)
 	}
-	n = convlit(n, t1)
+	n = convlit1(n, t1, false, reuse)
 	lineno = lno
 	return n
 }
@@ -1348,12 +1365,12 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 	if l.Type == nil || r.Type == nil {
 		return l, r
 	}
-	if !isideal(l.Type) {
+	if !l.Type.IsUntyped() {
 		r = convlit(r, l.Type)
 		return l, r
 	}
 
-	if !isideal(r.Type) {
+	if !r.Type.IsUntyped() {
 		l = convlit(l, r.Type)
 		return l, r
 	}
@@ -1362,7 +1379,7 @@ func defaultlit2(l *Node, r *Node, force bool) (*Node, *Node) {
 		return l, r
 	}
 
-	if l.Type.Etype == TBOOL {
+	if l.Type.IsBoolean() {
 		l = convlit(l, Types[TBOOL])
 		r = convlit(r, Types[TBOOL])
 	}
@@ -1438,7 +1455,7 @@ func nonnegconst(n *Node) int {
 			if n.Val().U.(*Mpint).Cmp(Minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
 				break
 			}
-			return int(n.Val().U.(*Mpint).Int64())
+			return int(n.Int64())
 		}
 	}
 
@@ -1493,7 +1510,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
 
 		case CTINT, CTRUNE:
-			i = n.Val().U.(*Mpint).Int64()
+			i = n.Int64()
 
 		case CTBOOL:
 			i = int64(obj.Bool2int(n.Val().U.(bool)))
@@ -1666,10 +1683,10 @@ func isgoconst(n *Node) bool {
 		// function calls or channel receive operations.
 		t := l.Type
 
-		if t != nil && Isptr[t.Etype] {
-			t = t.Type
+		if t != nil && t.IsPtr() {
+			t = t.Elem()
 		}
-		if Isfixedarray(t) && !hascallchan(l) {
+		if t != nil && t.IsArray() && !hascallchan(l) {
 			return true
 		}
 

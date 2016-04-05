@@ -236,6 +236,9 @@ func intstring(buf *[4]byte, v int64) string {
 	} else {
 		s, b = rawstring(4)
 	}
+	if int64(rune(v)) != v {
+		v = runeerror
+	}
 	n := runetochar(b, rune(v))
 	return s[:n]
 }

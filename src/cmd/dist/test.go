@@ -445,7 +445,7 @@ func (t *tester) registerTests() {
 		if fortran == "" {
 			fortran, _ = exec.LookPath("gfortran")
 		}
-		if fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
+		if t.hasBash() && fortran != "" && t.goos != "dragonfly" { // see golang.org/issue/14544
 			t.tests = append(t.tests, distTest{
 				name:    "cgo_fortran",
 				heading: "../misc/cgo/fortran",
@@ -667,7 +667,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
-			"linux-amd64", "linux-386":
+			"linux-amd64", "linux-386", "windows-amd64", "windows-386":
 			return true
 		}
 		return false
