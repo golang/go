@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bufio"
+	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 	"io"
@@ -19,6 +20,17 @@ const (
 	EOF = -1
 	BOM = 0xFEFF
 )
+
+// lexlineno is the line number _after_ the most recently read rune.
+// In particular, it's advanced (or rewound) as newlines are read (or unread).
+var lexlineno int32
+
+// lineno is the line number at the start of the most recently lexed token.
+var lineno int32
+
+var lexbuf bytes.Buffer
+var strbuf bytes.Buffer
+var litbuf string // LLITERAL value for use in syntax error messages
 
 func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'

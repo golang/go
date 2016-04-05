@@ -26,6 +26,12 @@ func dflag() bool {
 	return true
 }
 
+var externdcl []*Node
+
+var blockgen int32 // max block number
+
+var block int32 // current block number
+
 // dclstack maintains a stack of shadowed symbol declarations so that
 // popdcl can restore their declarations when a block scope ends.
 // The stack is maintained as a linked list, using Sym's Link field.
