@@ -1101,6 +1101,8 @@
 (CMPQconst (MOVBQZX _) [c]) && 0xFF < c -> (FlagLT_ULT)
 (CMPQconst (MOVWQZX _) [c]) && 0xFFFF < c -> (FlagLT_ULT)
 (CMPQconst (MOVLQZX _) [c]) && 0xFFFFFFFF < c -> (FlagLT_ULT)
+(CMPLconst (SHRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n) -> (FlagLT_ULT)
+(CMPQconst (SHRQconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 64 && (1<<uint64(64-c)) <= uint64(n) -> (FlagLT_ULT)
 (CMPQconst (ANDQconst _ [m]) [n]) && 0 <= m && m < n -> (FlagLT_ULT)
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
 (CMPWconst (ANDWconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
