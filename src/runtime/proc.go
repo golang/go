@@ -1796,23 +1796,7 @@ func execute(gp *g, inheritTime bool) {
 		// GoSysExit has to happen when we have a P, but before GoStart.
 		// So we emit it here.
 		if gp.syscallsp != 0 && gp.sysblocktraced {
-			// Since gp.sysblocktraced is true, we must emit an event.
-			// There is a race between the code that initializes sysexitseq
-			// and sysexitticks (in exitsyscall, which runs without a P,
-			// and therefore is not stopped with the rest of the world)
-			// and the code that initializes a new trace.
-			// The recorded sysexitseq and sysexitticks must therefore
-			// be treated as "best effort". If they are valid for this trace,
-			// then great, use them for greater accuracy.
-			// But if they're not valid for this trace, assume that the
-			// trace was started after the actual syscall exit (but before
-			// we actually managed to start the goroutine, aka right now),
-			// and assign a fresh time stamp to keep the log consistent.
-			seq, ts := gp.sysexitseq, gp.sysexitticks
-			if seq == 0 || int64(seq)-int64(trace.seqStart) < 0 {
-				seq, ts = tracestamp()
-			}
-			traceGoSysExit(seq, ts)
+			traceGoSysExit(gp.sysexitticks)
 		}
 		traceGoStart()
 	}
@@ -2481,7 +2465,6 @@ func exitsyscall(dummy int32) {
 	}
 
 	_g_.sysexitticks = 0
-	_g_.sysexitseq = 0
 	if trace.enabled {
 		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
@@ -2492,7 +2475,7 @@ func exitsyscall(dummy int32) {
 		// Tracing code can invoke write barriers that cannot run without a P.
 		// So instead we remember the syscall exit time and emit the event
 		// in execute when we have a P.
-		_g_.sysexitseq, _g_.sysexitticks = tracestamp()
+		_g_.sysexitticks = cputicks()
 	}
 
 	_g_.m.locks--
@@ -2540,7 +2523,7 @@ func exitsyscallfast() bool {
 					// Denote blocking of the new syscall.
 					traceGoSysBlock(_g_.m.p.ptr())
 					// Denote completion of the current syscall.
-					traceGoSysExit(tracestamp())
+					traceGoSysExit(0)
 				})
 			}
 			_g_.m.p.ptr().syscalltick++
@@ -2564,7 +2547,7 @@ func exitsyscallfast() bool {
 						osyield()
 					}
 				}
-				traceGoSysExit(tracestamp())
+				traceGoSysExit(0)
 			}
 		})
 		if ok {

@@ -89,10 +89,10 @@ func TestParseVersion(t *testing.T) {
 func TestTimestampOverflow(t *testing.T) {
 	// Test that parser correctly handles large timestamps (long tracing).
 	w := newWriter()
-	w.emit(EvBatch, 0, 0, 0)
-	w.emit(EvFrequency, 1e9, 0)
+	w.emit(EvBatch, 0, 0)
+	w.emit(EvFrequency, 1e9)
 	for ts := uint64(1); ts < 1e16; ts *= 2 {
-		w.emit(EvGoCreate, 1, ts, ts, 1, 0)
+		w.emit(EvGoCreate, ts, ts, 0, 0)
 	}
 	if _, err := Parse(w, ""); err != nil {
 		t.Fatalf("failed to parse: %v", err)
@@ -110,7 +110,7 @@ func newWriter() *writer {
 }
 
 func (w *writer) emit(typ byte, args ...uint64) {
-	nargs := byte(len(args)) - 2
+	nargs := byte(len(args)) - 1
 	if nargs > 3 {
 		nargs = 3
 	}
