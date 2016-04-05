@@ -249,6 +249,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	// FIPS 186-3, section 4.7
 
+	if pub.P.Sign() == 0 {
+		return false
+	}
+
 	if r.Sign() < 1 || r.Cmp(pub.Q) >= 0 {
 		return false
 	}
