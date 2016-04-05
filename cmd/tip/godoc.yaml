@@ -2,9 +2,8 @@ module: tip
 runtime: custom
 vm: true
 
-automatic_scaling:
-  min_num_instances: 1
-  max_num_instances: 2
+manual_scaling:
+  instances: 4
 
 env_variables:
   TIP_BUILDER: 'godoc'
