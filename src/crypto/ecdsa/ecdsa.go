@@ -23,6 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/sha512"
 	"encoding/asn1"
+	"errors"
 	"io"
 	"math/big"
 )
@@ -140,6 +141,8 @@ func fermatInverse(k, N *big.Int) *big.Int {
 	return new(big.Int).Exp(k, nMinus2, N)
 }
 
+var errZeroParam = errors.New("zero parameter")
+
 // Sign signs an arbitrary length hash (which should be the result of hashing a
 // larger message) using the private key, priv. It returns the signature as a
 // pair of integers. The security of the private key depends on the entropy of
@@ -180,7 +183,9 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 	// See [NSA] 3.4.1
 	c := priv.PublicKey.Curve
 	N := c.Params().N
-
+	if N.Sign() == 0 {
+		return nil, nil, errZeroParam
+	}
 	var k, kInv *big.Int
 	for {
 		for {
@@ -193,7 +198,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 			if in, ok := priv.Curve.(invertible); ok {
 				kInv = in.Inverse(k)
 			} else {
-				kInv = fermatInverse(k, N)
+				kInv = fermatInverse(k, N) // N != 0
 			}
 
 			r, _ = priv.Curve.ScalarBaseMult(k.Bytes())
@@ -207,7 +212,7 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 		s = new(big.Int).Mul(priv.D, r)
 		s.Add(s, e)
 		s.Mul(s, kInv)
-		s.Mod(s, N)
+		s.Mod(s, N) // N != 0
 		if s.Sign() != 0 {
 			break
 		}
