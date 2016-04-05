@@ -208,6 +208,7 @@ func TestPCLine(t *testing.T) {
 	defer endtest()
 
 	f, tab := crack(pclinetestBinary, t)
+	defer f.Close()
 	text := f.Section(".text")
 	textdat, err := text.Data()
 	if err != nil {
