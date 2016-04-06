@@ -9,6 +9,7 @@ package eg
 import (
 	"fmt"
 	"go/ast"
+	exact "go/constant"
 	"go/token"
 	"go/types"
 	"log"
@@ -16,7 +17,6 @@ import (
 	"reflect"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/exact"
 )
 
 // matchExpr reports whether pattern x matches y.
@@ -69,8 +69,8 @@ func (tr *Transformer) matchExpr(x, y ast.Expr) bool {
 
 	case *ast.BasicLit:
 		y := y.(*ast.BasicLit)
-		xval := exact.MakeFromLiteral(x.Value, x.Kind)
-		yval := exact.MakeFromLiteral(y.Value, y.Kind)
+		xval := exact.MakeFromLiteral(x.Value, x.Kind, 0)
+		yval := exact.MakeFromLiteral(y.Value, y.Kind, 0)
 		return exact.Compare(xval, token.EQL, yval)
 
 	case *ast.FuncLit:
