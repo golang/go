@@ -390,8 +390,8 @@ func checkMapKeyType(key *Type) {
 		// before key is fully defined, the error
 		// will only be printed for the first one.
 		// good enough.
-		if key.Maplineno == 0 {
-			key.Maplineno = lineno
+		if maplineno[key] == 0 {
+			maplineno[key] = lineno
 		}
 	}
 }

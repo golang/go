@@ -153,8 +153,6 @@ type Type struct {
 	Vargen int32 // unique name for OTYPE/ONAME
 	Lineno int32 // line at which this type was declared, implicitly or explicitly
 
-	Maplineno int32 // first use of this type as a map key
-
 	Etype      EType // kind of type
 	Noalg      bool  // suppress hash and eq algorithm generation
 	Trecur     uint8 // to detect loops
