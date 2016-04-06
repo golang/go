@@ -179,6 +179,22 @@ func TestTRun(t *T) {
 --- SKIP: skipping without message, chatty (0.00s)`,
 		f: func(t *T) { t.SkipNow() },
 	}, {
+		desc:   "chatty with recursion",
+		ok:     true,
+		chatty: true,
+		output: `
+=== RUN   chatty with recursion
+=== RUN   chatty with recursion/#00
+=== RUN   chatty with recursion/#00/#00
+--- PASS: chatty with recursion (0.00s)
+    --- PASS: chatty with recursion/#00 (0.00s)
+        --- PASS: chatty with recursion/#00/#00 (0.00s)`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.Run("", func(t *T) {})
+			})
+		},
+	}, {
 		desc: "skipping without message, not chatty",
 		ok:   true,
 		f:    func(t *T) { t.SkipNow() },
@@ -435,6 +451,14 @@ func TestBRun(t *T) {
 --- SKIP: root
 	sub_test.go:: skipping`,
 		f: func(b *B) { b.Skip("skipping") },
+	}, {
+		desc:   "chatty with recursion",
+		chatty: true,
+		f: func(b *B) {
+			b.Run("", func(b *B) {
+				b.Run("", func(b *B) {})
+			})
+		},
 	}, {
 		desc: "skipping without message, not chatty",
 		f:    func(b *B) { b.SkipNow() },
