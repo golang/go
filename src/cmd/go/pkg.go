@@ -434,6 +434,12 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 		}
 		targ := filepath.Join(dir[:i], vpath)
 		if isDir(targ) && hasGoFiles(targ) {
+			importPath := parent.ImportPath
+			if importPath == "command-line-arguments" {
+				// If parent.ImportPath is 'command-line-arguments'.
+				// set to relative directory to root (also chopped root directory)
+				importPath = dir[len(root)+1:]
+			}
 			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
 			// We know the import path for parent's dir.
 			// We chopped off some number of path elements and
@@ -443,14 +449,14 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 			// (actually the same number of bytes) from parent's import path
 			// and then append /vendor/path.
 			chopped := len(dir) - i
-			if chopped == len(parent.ImportPath)+1 {
+			if chopped == len(importPath)+1 {
 				// We walked up from c:\gopath\src\foo\bar
 				// and found c:\gopath\src\vendor\path.
 				// We chopped \foo\bar (length 8) but the import path is "foo/bar" (length 7).
 				// Use "vendor/path" without any prefix.
 				return vpath
 			}
-			return parent.ImportPath[:len(parent.ImportPath)-chopped] + "/" + vpath
+			return importPath[:len(importPath)-chopped] + "/" + vpath
 		}
 	}
 	return path
