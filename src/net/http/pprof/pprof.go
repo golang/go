@@ -30,7 +30,8 @@
 //
 //	go tool pprof http://localhost:6060/debug/pprof/profile
 //
-// Or to look at the goroutine blocking profile:
+// Or to look at the goroutine blocking profile, after calling
+// runtime.SetBlockProfileRate in your program:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/block
 //
