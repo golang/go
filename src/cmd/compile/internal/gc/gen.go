@@ -8,6 +8,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 )
 
@@ -1174,7 +1175,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		}
 		// NOTE: Assuming little endian (signed top half at offset 4).
 		// We don't have any 32-bit big-endian systems.
-		if Thearch.Thechar != '5' && Thearch.Thechar != '8' {
+		if !Thearch.LinkArch.InFamily(sys.ARM, sys.I386) {
 			Fatalf("unknown 32-bit architecture")
 		}
 		return f(Types[TUINT32], startOffset) &&

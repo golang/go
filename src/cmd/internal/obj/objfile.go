@@ -109,6 +109,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -556,7 +557,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		} else if r.Type == R_TLS_LE {
 			name = "TLS"
 		}
-		if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
+		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
 			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
 		} else {
 			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))

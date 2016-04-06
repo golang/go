@@ -11,10 +11,6 @@ import (
 )
 
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
-
 	if gc.Ctxt.Flag_shared != 0 {
 		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R2)
 		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R12)
@@ -22,12 +18,9 @@ func betypeinit() {
 }
 
 func Main() {
-	gc.Thearch.Thechar = '9'
-	gc.Thearch.Thestring = "ppc64"
-	gc.Thearch.Thelinkarch = &ppc64.Linkppc64
+	gc.Thearch.LinkArch = &ppc64.Linkppc64
 	if obj.Getgoarch() == "ppc64le" {
-		gc.Thearch.Thestring = "ppc64le"
-		gc.Thearch.Thelinkarch = &ppc64.Linkppc64le
+		gc.Thearch.LinkArch = &ppc64.Linkppc64le
 	}
 	gc.Thearch.REGSP = ppc64.REGSP
 	gc.Thearch.REGCTXT = ppc64.REGCTXT

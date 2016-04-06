@@ -11,15 +11,10 @@ import (
 )
 
 func betypeinit() {
-	gc.Widthptr = 4
-	gc.Widthint = 4
-	gc.Widthreg = 4
 }
 
 func Main() {
-	gc.Thearch.Thechar = '5'
-	gc.Thearch.Thestring = "arm"
-	gc.Thearch.Thelinkarch = &arm.Linkarm
+	gc.Thearch.LinkArch = &arm.Linkarm
 	gc.Thearch.REGSP = arm.REGSP
 	gc.Thearch.REGCTXT = arm.REGCTXT
 	gc.Thearch.REGCALLX = arm.REG_R1

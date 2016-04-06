@@ -10,15 +10,10 @@ import (
 )
 
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 }
 
 func Main() {
-	gc.Thearch.Thechar = '7'
-	gc.Thearch.Thestring = "arm64"
-	gc.Thearch.Thelinkarch = &arm64.Linkarm64
+	gc.Thearch.LinkArch = &arm64.Linkarm64
 	gc.Thearch.REGSP = arm64.REGSP
 	gc.Thearch.REGCTXT = arm64.REGCTXT
 	gc.Thearch.REGCALLX = arm64.REGRT1

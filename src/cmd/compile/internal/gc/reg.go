@@ -33,6 +33,7 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"sort"
 	"strings"
@@ -249,7 +250,7 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	p1.As = Thearch.Optoas(OAS, Types[uint8(v.etype)])
 
 	// TODO(rsc): Remove special case here.
-	if (Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && v.etype == TBOOL {
+	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) && v.etype == TBOOL {
 		p1.As = Thearch.Optoas(OAS, Types[TUINT8])
 	}
 	p1.From.Type = obj.TYPE_REG
@@ -302,7 +303,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// TODO(rsc): Remove special case here.
 	case obj.TYPE_ADDR:
 		var bit Bits
-		if Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+		if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) {
 			goto memcase
 		}
 		a.Type = obj.TYPE_MEM
@@ -368,7 +369,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 				if v.etype == et {
 					if int64(v.width) == w {
 						// TODO(rsc): Remove special case for arm here.
-						if flag == 0 || Thearch.Thechar != '5' {
+						if flag == 0 || Thearch.LinkArch.Family != sys.ARM {
 							return blsh(uint(i))
 						}
 					}

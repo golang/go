@@ -32,6 +32,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"runtime"
 	"strings"
@@ -57,7 +58,7 @@ func Ismem(n *Node) bool {
 		return true
 
 	case OADDR:
-		return Thearch.Thechar == '6' || Thearch.Thechar == '9' // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
+		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64) // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
 	}
 
 	return false
@@ -83,7 +84,7 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Val = nil
-	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' && Thearch.Thechar != '0' {
+	if as != obj.AJMP && likely != 0 && Thearch.LinkArch.Family != sys.PPC64 && Thearch.LinkArch.Family != sys.ARM64 && Thearch.LinkArch.Family != sys.MIPS64 {
 		p.From.Type = obj.TYPE_CONST
 		if likely > 0 {
 			p.From.Offset = 1
@@ -330,7 +331,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Type = obj.TYPE_REG
 		a.Reg = n.Reg
 		a.Sym = nil
-		if Thearch.Thechar == '8' { // TODO(rsc): Never clear a->width.
+		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
 			a.Width = 0
 		}
 
@@ -342,7 +343,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Offset != int64(int32(a.Offset)) {
 			Yyerror("offset %d too large for OINDREG", a.Offset)
 		}
-		if Thearch.Thechar == '8' { // TODO(rsc): Never clear a->width.
+		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
 			a.Width = 0
 		}
 
@@ -424,7 +425,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		Naddr(a, n.Left)
 
 	case OLITERAL:
-		if Thearch.Thechar == '8' {
+		if Thearch.LinkArch.Family == sys.I386 {
 			a.Width = 0
 		}
 		switch n.Val().Ctype() {
@@ -457,7 +458,7 @@ func Naddr(a *obj.Addr, n *Node) {
 	case OADDR:
 		Naddr(a, n.Left)
 		a.Etype = uint8(Tptr)
-		if Thearch.Thechar != '0' && Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
+		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) { // TODO(rsc): Do this even for arm, ppc64.
 			a.Width = int64(Widthptr)
 		}
 		if a.Type != obj.TYPE_MEM {
@@ -496,7 +497,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_nel)
-		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
 		}
 
@@ -509,7 +510,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_cap)
-		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
 		}
 	}
@@ -695,7 +696,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
 		Fatalf("regalloc: t nil")
 	}
 	et := Simtype[t.Etype]
-	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
+	if Ctxt.Arch.RegSize == 4 && (et == TINT64 || et == TUINT64) {
 		Fatalf("regalloc 64bit")
 	}
 

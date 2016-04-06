@@ -292,7 +292,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			return
 		}
 
-		if ld.HEADTYPE == obj.Hdarwin && s.Size == PtrSize && r.Off == 0 {
+		if ld.HEADTYPE == obj.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -317,7 +317,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			return
 		}
 
-		if ld.HEADTYPE == obj.Hwindows && s.Size == PtrSize {
+		if ld.HEADTYPE == obj.Hwindows && s.Size == int64(ld.SysArch.PtrSize) {
 			// nothing to do, the relocation will be laid out in pereloc1
 			return
 		}

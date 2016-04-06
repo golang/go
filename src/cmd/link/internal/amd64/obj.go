@@ -32,6 +32,7 @@ package amd64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -45,20 +46,14 @@ func Main() {
 }
 
 func linkarchinit() {
-	ld.Thestring = "amd64"
-	ld.Thelinkarch = &ld.Linkamd64
+	ld.SysArch = sys.ArchAMD64
 	if obj.Getgoarch() == "amd64p32" {
-		ld.Thelinkarch = &ld.Linkamd64p32
+		ld.SysArch = sys.ArchAMD64P32
 	}
 
-	ld.Thearch.Thechar = thechar
-	ld.Thearch.Ptrsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Intsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
 	ld.Thearch.Funcalign = FuncAlign
 	ld.Thearch.Maxalign = MaxAlign
 	ld.Thearch.Minalign = MinAlign
-	ld.Thearch.Minlc = MINLC
 	ld.Thearch.Dwarfregsp = DWARFREGSP
 	ld.Thearch.Dwarfreglr = DWARFREGLR
 

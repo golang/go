@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -419,9 +420,9 @@ func chksectseg(h *IMAGE_SECTION_HEADER, s *Segment) {
 func Peinit() {
 	var l int
 
-	switch Thearch.Thechar {
+	switch SysArch.Family {
 	// 64-bit architectures
-	case '6':
+	case sys.AMD64:
 		pe64 = 1
 
 		l = binary.Size(&oh64)
@@ -506,7 +507,7 @@ func initdynimport() *Dll {
 			if err != nil {
 				Diag("failed to parse stdcall decoration: %v", err)
 			}
-			m.argsize *= Thearch.Ptrsize
+			m.argsize *= SysArch.PtrSize
 			s.Extname = s.Extname[:i]
 		}
 
@@ -520,10 +521,10 @@ func initdynimport() *Dll {
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
 				m.s.Type = obj.SDATA
-				Symgrow(Ctxt, m.s, int64(Thearch.Ptrsize))
+				Symgrow(Ctxt, m.s, int64(SysArch.PtrSize))
 				dynName := m.s.Extname
 				// only windows/386 requires stdcall decoration
-				if Thearch.Thechar == '8' && m.argsize >= 0 {
+				if SysArch.Family == sys.I386 && m.argsize >= 0 {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := Linklookup(Ctxt, dynName, 0)
@@ -532,7 +533,7 @@ func initdynimport() *Dll {
 				r := Addrel(m.s)
 				r.Sym = dynSym
 				r.Off = 0
-				r.Siz = uint8(Thearch.Ptrsize)
+				r.Siz = uint8(SysArch.PtrSize)
 				r.Type = obj.R_ADDR
 			}
 		}
@@ -546,10 +547,10 @@ func initdynimport() *Dll {
 				m.s.Sub = dynamic.Sub
 				dynamic.Sub = m.s
 				m.s.Value = dynamic.Size
-				dynamic.Size += int64(Thearch.Ptrsize)
+				dynamic.Size += int64(SysArch.PtrSize)
 			}
 
-			dynamic.Size += int64(Thearch.Ptrsize)
+			dynamic.Size += int64(SysArch.PtrSize)
 		}
 	}
 
@@ -946,7 +947,7 @@ func writePESymTableRecords() int {
 		}
 
 		// only windows/386 requires underscore prefix on external symbols
-		if Thearch.Thechar == '8' &&
+		if SysArch.Family == sys.I386 &&
 			Linkmode == LinkExternal &&
 			(s.Type != obj.SDYNIMPORT || s.Attr.CgoExport()) &&
 			s.Name == s.Extname &&
@@ -1002,7 +1003,7 @@ func writePESymTableRecords() int {
 		for d := dr; d != nil; d = d.next {
 			for m := d.ms; m != nil; m = m.next {
 				s := m.s.R[0].Xsym
-				put(s, s.Name, 'U', 0, int64(Thearch.Ptrsize), 0, nil)
+				put(s, s.Name, 'U', 0, int64(SysArch.PtrSize), 0, nil)
 			}
 		}
 
@@ -1129,12 +1130,12 @@ func addinitarray() (c *IMAGE_SECTION_HEADER) {
 }
 
 func Asmbpe() {
-	switch Thearch.Thechar {
+	switch SysArch.Family {
 	default:
-		Exitf("unknown PE architecture: %v", Thearch.Thechar)
-	case '6':
+		Exitf("unknown PE architecture: %v", SysArch.Family)
+	case sys.AMD64:
 		fh.Machine = IMAGE_FILE_MACHINE_AMD64
-	case '8':
+	case sys.I386:
 		fh.Machine = IMAGE_FILE_MACHINE_I386
 	}
 

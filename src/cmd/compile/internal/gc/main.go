@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"io"
@@ -96,12 +97,12 @@ func Main() {
 	// but not other values.
 	p := obj.Getgoarch()
 
-	if !strings.HasPrefix(p, Thearch.Thestring) {
-		log.Fatalf("cannot use %cg with GOARCH=%s", Thearch.Thechar, p)
+	if !strings.HasPrefix(p, Thearch.LinkArch.Name) {
+		log.Fatalf("cannot use %cg with GOARCH=%s", Thearch.LinkArch.Family, p)
 	}
 	goarch = p
 
-	Ctxt = obj.Linknew(Thearch.Thelinkarch)
+	Ctxt = obj.Linknew(Thearch.LinkArch)
 	Ctxt.DiagFunc = Yyerror
 	Ctxt.Bso = &bstdout
 	bstdout = *obj.Binitw(os.Stdout)
@@ -200,15 +201,13 @@ func Main() {
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared int
 	var flag_dynlink bool
-	switch Thearch.Thechar {
-	case '5', '6', '7', '8', '9':
+	if Thearch.LinkArch.InFamily(sys.ARM, sys.AMD64, sys.ARM64, sys.I386, sys.PPC64) {
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
 	}
-	if Thearch.Thechar == '6' {
+	if Thearch.LinkArch.Family == sys.AMD64 {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
 	}
-	switch Thearch.Thechar {
-	case '5', '6', '7', '8', '9':
+	if Thearch.LinkArch.InFamily(sys.ARM, sys.AMD64, sys.ARM64, sys.I386, sys.PPC64) {
 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
@@ -301,9 +300,9 @@ func Main() {
 	}
 
 	Thearch.Betypeinit()
-	if Widthptr == 0 {
-		Fatalf("betypeinit failed")
-	}
+	Widthint = Thearch.LinkArch.IntSize
+	Widthptr = Thearch.LinkArch.PtrSize
+	Widthreg = Thearch.LinkArch.RegSize
 
 	initUniverse()
 

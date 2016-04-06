@@ -62,11 +62,9 @@ package ppc64
 // THE SOFTWARE.
 
 const (
-	thechar   = '9'
 	MaxAlign  = 32 // max data alignment
 	MinAlign  = 1  // min data alignment
 	FuncAlign = 8
-	MINLC     = 4
 )
 
 /* Used by ../internal/ld/dwarf.go */

@@ -32,6 +32,7 @@ package mips64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"encoding/binary"
 	"fmt"
@@ -82,8 +83,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 		// the first instruction is always at the lower address, this is endian neutral;
 		// but note that o1 and o2 should still use the target endian.
-		o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off:])
-		o2 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off+4:])
+		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+		o2 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off+4:])
 		o1 = o1&0xffff0000 | uint32(t>>16)&0xffff
 		o2 = o2&0xffff0000 | uint32(t)&0xffff
 
@@ -99,7 +100,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		obj.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ld.Thelinkarch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
 		*val = int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000)
 		return 0
 	}
@@ -214,7 +215,7 @@ func asmb() {
 	default:
 	case obj.Hplan9: /* plan 9 */
 		magic := uint32(4*18*18 + 7)
-		if ld.Thestring == "mips64le" {
+		if ld.SysArch == sys.ArchMIPS64LE {
 			magic = uint32(4*26*26 + 7)
 		}
 		ld.Thearch.Lput(uint32(magic))              /* magic */
