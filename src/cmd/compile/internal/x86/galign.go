@@ -13,15 +13,10 @@ import (
 )
 
 func betypeinit() {
-	gc.Widthptr = 4
-	gc.Widthint = 4
-	gc.Widthreg = 4
 }
 
 func Main() {
-	gc.Thearch.Thechar = '8'
-	gc.Thearch.Thestring = "386"
-	gc.Thearch.Thelinkarch = &x86.Link386
+	gc.Thearch.LinkArch = &x86.Link386
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.REGCALLX = x86.REG_BX

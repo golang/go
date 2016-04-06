@@ -32,8 +32,8 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"debug/elf"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -161,11 +161,9 @@ type Shlib struct {
 }
 
 type Link struct {
-	Thechar   int32
-	Thestring string
 	Goarm     int32
 	Headtype  int
-	Arch      *LinkArch
+	Arch      *sys.Arch
 	Debugvlog int32
 	Bso       *obj.Biobuf
 	Windows   int32
@@ -196,30 +194,21 @@ type Link struct {
 // on the stack in the function prologue and so always have a pointer between
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Thechar {
-	case '6', '8':
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
 		return 0
-	case '9':
+	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
 		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.Ptrsize)
+		return int64(4 * ctxt.Arch.PtrSize)
 	default:
-		return int64(ctxt.Arch.Ptrsize)
+		return int64(ctxt.Arch.PtrSize)
 	}
 }
 
 func (l *Link) IncVersion() {
 	l.Version++
 	l.Hash = append(l.Hash, make(map[string]*LSym))
-}
-
-type LinkArch struct {
-	ByteOrder binary.ByteOrder
-	Name      string
-	Thechar   int
-	Minlc     int
-	Ptrsize   int
-	Regsize   int
 }
 
 type Library struct {

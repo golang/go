@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"strings"
 	"unicode"
@@ -227,7 +228,7 @@ func (d *deadcodepass) markMethod(m methodref) {
 func (d *deadcodepass) init() {
 	var names []string
 
-	if Thearch.Thechar == '5' {
+	if SysArch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
 		if d.ctxt.Goarm == 5 {
 			names = append(names, "_sfloat")

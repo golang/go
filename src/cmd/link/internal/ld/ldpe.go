@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -492,7 +493,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 		if strings.HasPrefix(name, "__imp_") {
 			name = name[6:] // __imp_Name => Name
 		}
-		if Thearch.Thechar == '8' && name[0] == '_' {
+		if SysArch.Family == sys.I386 && name[0] == '_' {
 			name = name[1:] // _Name => Name
 		}
 	}

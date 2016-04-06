@@ -17,6 +17,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"sort"
 	"strings"
@@ -1396,7 +1397,7 @@ func livenessepilogue(lv *Liveness) {
 						// The instruction before a call to deferreturn is always a
 						// no-op, to keep PC-specific data unambiguous.
 						prev := p.Opt.(*obj.Prog)
-						if Ctxt.Arch.Thechar == '9' {
+						if Ctxt.Arch.Family == sys.PPC64 {
 							// On ppc64 there is an additional instruction
 							// (another no-op or reload of toc pointer) before
 							// the call.

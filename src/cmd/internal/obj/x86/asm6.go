@@ -1754,7 +1754,7 @@ func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
 }
 
 func spadjop(ctxt *obj.Link, p *obj.Prog, l, q obj.As) obj.As {
-	if p.Mode != 64 || ctxt.Arch.Ptrsize == 4 {
+	if p.Mode != 64 || ctxt.Arch.PtrSize == 4 {
 		return l
 	}
 	return q

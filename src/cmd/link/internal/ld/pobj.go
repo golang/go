@@ -32,6 +32,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"os"
@@ -44,9 +45,7 @@ var (
 )
 
 func Ldmain() {
-	Ctxt = linknew(Thelinkarch)
-	Ctxt.Thechar = int32(Thearch.Thechar)
-	Ctxt.Thestring = Thestring
+	Ctxt = linknew(SysArch)
 	Ctxt.Diag = Diag
 	Ctxt.Bso = &Bso
 
@@ -70,7 +69,7 @@ func Ldmain() {
 		}
 	}
 
-	if Thearch.Thechar == '6' && obj.Getgoos() == "plan9" {
+	if SysArch.Family == sys.AMD64 && obj.Getgoos() == "plan9" {
 		obj.Flagcount("8", "use 64-bit addresses in symbol table", &Debug['8'])
 	}
 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
@@ -107,7 +106,7 @@ func Ldmain() {
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
 	var flagShared int
-	if Thearch.Thechar == '5' || Thearch.Thechar == '6' {
+	if SysArch.InFamily(sys.ARM, sys.AMD64) {
 		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &flagShared)
 	}
 	obj.Flagstr("tmpdir", "use `directory` for temporary files", &tmpdir)

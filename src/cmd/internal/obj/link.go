@@ -30,7 +30,7 @@
 
 package obj
 
-import "encoding/binary"
+import "cmd/internal/sys"
 
 // An Addr is an argument to an instruction.
 // The general forms and their encodings are:
@@ -682,15 +682,15 @@ func (ctxt *Link) Diag(format string, args ...interface{}) {
 // on the stack in the function prologue and so always have a pointer between
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Thechar {
-	case '6', '8':
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
 		return 0
-	case '9':
+	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
 		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.Ptrsize)
+		return int64(4 * ctxt.Arch.PtrSize)
 	default:
-		return int64(ctxt.Arch.Ptrsize)
+		return int64(ctxt.Arch.PtrSize)
 	}
 }
 
@@ -701,17 +701,12 @@ type SymVer struct {
 
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
-	ByteOrder  binary.ByteOrder
-	Name       string
-	Thechar    int
+	*sys.Arch
 	Preprocess func(*Link, *LSym)
 	Assemble   func(*Link, *LSym)
 	Follow     func(*Link, *LSym)
 	Progedit   func(*Link, *Prog)
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
-	Minlc      int
-	Ptrsize    int
-	Regsize    int
 }
 
 /* executable header types */

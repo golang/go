@@ -39,7 +39,7 @@ var gdbscript string
  *  Basic I/O
  */
 func addrput(s *LSym, addr int64) {
-	switch Thearch.Ptrsize {
+	switch SysArch.PtrSize {
 	case 4:
 		Adduint32(Ctxt, s, uint32(addr))
 
@@ -569,7 +569,7 @@ func adddwarfref(ctxt *Link, s *LSym, t *LSym, size int) int64 {
 	default:
 		Diag("invalid size %d in adddwarfref\n", size)
 		fallthrough
-	case Thearch.Ptrsize:
+	case SysArch.PtrSize:
 		result = Addaddr(ctxt, s, t)
 	case 4:
 		result = addaddrplus4(ctxt, s, t, 0)
@@ -599,7 +599,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
 
 	case DW_FORM_block1: // block
 		if cls == DW_CLS_ADDRESS {
-			Adduint8(Ctxt, s, uint8(1+Thearch.Ptrsize))
+			Adduint8(Ctxt, s, uint8(1+SysArch.PtrSize))
 			Adduint8(Ctxt, s, DW_OP_addr)
 			Addaddr(Ctxt, s, data.(*LSym))
 			break
@@ -682,14 +682,14 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
 	case DW_FORM_ref_addr: // reference to a DIE in the .info section
 		if data == nil {
 			Diag("dwarf: null reference in %d", abbrev)
-			if Thearch.Ptrsize == 8 {
+			if SysArch.PtrSize == 8 {
 				Adduint64(Ctxt, s, 0) // invalid dwarf, gdb will complain.
 			} else {
 				Adduint32(Ctxt, s, 0) // invalid dwarf, gdb will complain.
 			}
 		} else {
 			dsym := data.(*LSym)
-			adddwarfref(Ctxt, s, dsym, Thearch.Ptrsize)
+			adddwarfref(Ctxt, s, dsym, SysArch.PtrSize)
 		}
 
 	case DW_FORM_ref1, // reference within the compilation unit
@@ -1161,11 +1161,11 @@ func synthesizemaptypes(die *DWDie) {
 		// compute size info like hashmap.c does.
 		indirect_key, indirect_val := false, false
 		if keysize > MaxKeySize {
-			keysize = int64(Thearch.Ptrsize)
+			keysize = int64(SysArch.PtrSize)
 			indirect_key = true
 		}
 		if valsize > MaxValSize {
-			valsize = int64(Thearch.Ptrsize)
+			valsize = int64(SysArch.PtrSize)
 			indirect_val = true
 		}
 
@@ -1212,13 +1212,13 @@ func synthesizemaptypes(die *DWDie) {
 			fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "overflow", 0)
 			newrefattr(fld, DW_AT_type, defptrto(dwhb.sym))
 			newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize)))
-			if Thearch.Regsize > Thearch.Ptrsize {
+			if SysArch.RegSize > SysArch.PtrSize {
 				fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "pad", 0)
 				newrefattr(fld, DW_AT_type, mustFind("uintptr"))
-				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(Thearch.Ptrsize))
+				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(SysArch.PtrSize))
 			}
 
-			newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*int64(keysize)+BucketSize*int64(valsize)+int64(Thearch.Regsize), 0)
+			newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*int64(keysize)+BucketSize*int64(valsize)+int64(SysArch.RegSize), 0)
 		})
 
 		// Construct hash<K,V>
@@ -1481,7 +1481,7 @@ func writelines(prev *LSym) *LSym {
 	headerend = ls.Size
 
 	Adduint8(Ctxt, ls, 0) // start extended opcode
-	uleb128put(ls, 1+int64(Thearch.Ptrsize))
+	uleb128put(ls, 1+int64(SysArch.PtrSize))
 	Adduint8(Ctxt, ls, DW_LNE_set_address)
 
 	pc := s.Value
@@ -1555,7 +1555,7 @@ func writelines(prev *LSym) *LSym {
 				dt = DW_ABRV_AUTO
 				offs = int64(a.Aoffset)
 				if !haslinkregister() {
-					offs -= int64(Thearch.Ptrsize)
+					offs -= int64(SysArch.PtrSize)
 				}
 
 			case obj.A_PARAM:
@@ -1667,7 +1667,7 @@ func writeframes(prev *LSym) *LSym {
 	if haslinkregister() {
 		uleb128put(fs, int64(0)) // offset
 	} else {
-		uleb128put(fs, int64(Thearch.Ptrsize)) // offset
+		uleb128put(fs, int64(SysArch.PtrSize)) // offset
 	}
 
 	Adduint8(Ctxt, fs, DW_CFA_offset_extended)
@@ -1675,7 +1675,7 @@ func writeframes(prev *LSym) *LSym {
 	if haslinkregister() {
 		uleb128put(fs, int64(0)/DATAALIGNMENTFACTOR) // at cfa - 0
 	} else {
-		uleb128put(fs, int64(-Thearch.Ptrsize)/DATAALIGNMENTFACTOR) // at cfa - x*4
+		uleb128put(fs, int64(-SysArch.PtrSize)/DATAALIGNMENTFACTOR) // at cfa - x*4
 	}
 
 	// 4 is to exclude the length field.
@@ -1713,10 +1713,10 @@ func writeframes(prev *LSym) *LSym {
 			if haslinkregister() {
 				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
 			} else {
-				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(Thearch.Ptrsize)+int64(pcsp.value))
+				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(SysArch.PtrSize)+int64(pcsp.value))
 			}
 		}
-		pad := int(Rnd(int64(len(deltaBuf)), int64(Thearch.Ptrsize))) - len(deltaBuf)
+		pad := int(Rnd(int64(len(deltaBuf)), int64(SysArch.PtrSize))) - len(deltaBuf)
 		deltaBuf = append(deltaBuf, zeros[:pad]...)
 
 		// Emit the FDE header, Section 6.4.1.
@@ -1724,7 +1724,7 @@ func writeframes(prev *LSym) *LSym {
 		//	4 bytes: Pointer to the CIE above, at offset 0
 		//	ptrsize: initial location
 		//	ptrsize: address range
-		Adduint32(Ctxt, fs, uint32(4+2*Thearch.Ptrsize+len(deltaBuf))) // length (excludes itself)
+		Adduint32(Ctxt, fs, uint32(4+2*SysArch.PtrSize+len(deltaBuf))) // length (excludes itself)
 		if Linkmode == LinkExternal {
 			adddwarfref(Ctxt, fs, framesec, 4)
 		} else {
@@ -1771,7 +1771,7 @@ func writeinfo(prev *LSym) *LSym {
 		// debug_abbrev_offset (*)
 		adddwarfref(Ctxt, s, abbrevsym, 4)
 
-		Adduint8(Ctxt, s, uint8(Thearch.Ptrsize)) // address_size
+		Adduint8(Ctxt, s, uint8(SysArch.PtrSize)) // address_size
 
 		prev = putdie(prev, compunit)
 		cusize := s.Size - 4 // exclude the length field.
@@ -1848,7 +1848,7 @@ func writearanges(prev *LSym) *LSym {
 	s.Type = obj.SDWARFSECT
 	// The first tuple is aligned to a multiple of the size of a single tuple
 	// (twice the size of an address)
-	headersize := int(Rnd(4+2+4+1+1, int64(Thearch.Ptrsize*2))) // don't count unit_length field itself
+	headersize := int(Rnd(4+2+4+1+1, int64(SysArch.PtrSize*2))) // don't count unit_length field itself
 
 	for compunit := dwroot.child; compunit != nil; compunit = compunit.link {
 		b := getattr(compunit, DW_AT_low_pc)
@@ -1861,13 +1861,13 @@ func writearanges(prev *LSym) *LSym {
 		}
 
 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
-		unitlength := uint32(headersize) + 4*uint32(Thearch.Ptrsize) - 4
+		unitlength := uint32(headersize) + 4*uint32(SysArch.PtrSize) - 4
 		Adduint32(Ctxt, s, unitlength) // unit_length (*)
 		Adduint16(Ctxt, s, 2)          // dwarf version (appendix F)
 
 		adddwarfref(Ctxt, s, compunit.sym, 4)
 
-		Adduint8(Ctxt, s, uint8(Thearch.Ptrsize)) // address_size
+		Adduint8(Ctxt, s, uint8(SysArch.PtrSize)) // address_size
 		Adduint8(Ctxt, s, 0)                      // segment_size
 		padding := headersize - (4 + 2 + 4 + 1 + 1)
 		for i := 0; i < padding; i++ {
@@ -1940,7 +1940,7 @@ func dwarfgeneratedebugsyms() {
 
 	die := newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr", 0) // needed for array size
 	newattr(die, DW_AT_encoding, DW_CLS_CONSTANT, DW_ATE_unsigned, 0)
-	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, int64(Thearch.Ptrsize), 0)
+	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, int64(SysArch.PtrSize), 0)
 	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, obj.KindUintptr, 0)
 
 	// Prototypes needed for type synthesis.

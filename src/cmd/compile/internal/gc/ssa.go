@@ -13,6 +13,7 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 )
 
 var ssaEnabled = true
@@ -24,13 +25,13 @@ func initssa() *ssa.Config {
 	ssaExp.unimplemented = false
 	ssaExp.mustImplement = true
 	if ssaConfig == nil {
-		ssaConfig = ssa.NewConfig(Thearch.Thestring, &ssaExp, Ctxt, Debug['N'] == 0)
+		ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
 	}
 	return ssaConfig
 }
 
 func shouldssa(fn *Node) bool {
-	switch Thearch.Thestring {
+	switch Thearch.LinkArch.Name {
 	default:
 		// Only available for testing.
 		if os.Getenv("SSATEST") == "" {
@@ -2409,7 +2410,7 @@ func isSSAIntrinsic1(s *Sym) bool {
 	// so far has only been noticed for Bswap32 and the 16-bit count
 	// leading/trailing instructions, but heuristics might change
 	// in the future or on different architectures).
-	if !ssaEnabled || ssa.IntrinsicsDisable || Thearch.Thechar != '6' {
+	if !ssaEnabled || ssa.IntrinsicsDisable || Thearch.LinkArch.Family != sys.AMD64 {
 		return false
 	}
 	if s != nil && s.Pkg != nil && s.Pkg.Path == "runtime/internal/sys" {

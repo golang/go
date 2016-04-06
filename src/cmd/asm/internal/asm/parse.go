@@ -19,6 +19,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 )
 
 type Parser struct {
@@ -130,7 +131,7 @@ func (p *Parser) line() bool {
 		for {
 			tok = p.lex.Next()
 			if len(operands) == 0 && len(items) == 0 {
-				if (p.arch.Thechar == '5' || p.arch.Thechar == '7') && tok == '.' {
+				if p.arch.InFamily(sys.ARM, sys.ARM64) && tok == '.' {
 					// ARM conditionals.
 					tok = p.lex.Next()
 					str := p.lex.Text()
@@ -420,7 +421,7 @@ func (p *Parser) atStartOfRegister(name string) bool {
 // We have consumed the register or R prefix.
 func (p *Parser) atRegisterShift() bool {
 	// ARM only.
-	if p.arch.Thechar != '5' {
+	if p.arch.Family != sys.ARM {
 		return false
 	}
 	// R1<<...
@@ -476,15 +477,14 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 	if c == ':' || c == ',' || c == '+' {
 		// 2nd register; syntax (R1+R2) etc. No two architectures agree.
 		// Check the architectures match the syntax.
-		char := p.arch.Thechar
 		switch p.next().ScanToken {
 		case ',':
-			if char != '5' && char != '7' {
+			if !p.arch.InFamily(sys.ARM, sys.ARM64) {
 				p.errorf("(register,register) not supported on this architecture")
 				return
 			}
 		case '+':
-			if char != '9' {
+			if p.arch.Family != sys.PPC64 {
 				p.errorf("(register+register) not supported on this architecture")
 				return
 			}
@@ -649,7 +649,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 	a.Reg = r1
 	if r2 != 0 {
 		// TODO: Consistency in the encoding would be nice here.
-		if p.arch.Thechar == '5' || p.arch.Thechar == '7' {
+		if p.arch.InFamily(sys.ARM, sys.ARM64) {
 			// Special form
 			// ARM: destination register pair (R1, R2).
 			// ARM64: register pair (R1, R2) for LDP/STP.
@@ -662,7 +662,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			// Nothing may follow
 			return
 		}
-		if p.arch.Thechar == '9' {
+		if p.arch.Family == sys.PPC64 {
 			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
 			if prefix != 0 || scale != 0 {
 				p.errorf("illegal address mode for register+register")
@@ -752,7 +752,7 @@ ListLoop:
 
 // register number is ARM-specific. It returns the number of the specified register.
 func (p *Parser) registerNumber(name string) uint16 {
-	if p.arch.Thechar == '5' && name == "g" {
+	if p.arch.Family == sys.ARM && name == "g" {
 		return 10
 	}
 	if name[0] != 'R' {

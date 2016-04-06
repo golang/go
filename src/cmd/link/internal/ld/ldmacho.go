@@ -2,6 +2,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -471,18 +472,18 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 	m.length = length
 	m.name = pn
 
-	switch Thearch.Thechar {
+	switch SysArch.Family {
 	default:
-		Diag("%s: mach-o %s unimplemented", pn, Thestring)
+		Diag("%s: mach-o %s unimplemented", pn, SysArch.Name)
 		return
 
-	case '6':
+	case sys.AMD64:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
 			Diag("%s: mach-o object but not amd64", pn)
 			return
 		}
 
-	case '8':
+	case sys.I386:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpu386 {
 			Diag("%s: mach-o object but not 386", pn)
 			return
@@ -724,10 +725,9 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 			rp = &r[rpi]
 			rel = &sect.rel[j]
 			if rel.scattered != 0 {
-				if Thearch.Thechar != '8' {
+				if SysArch.Family != sys.I386 {
 					// mach-o only uses scattered relocation on 32-bit platforms
 					Diag("unexpected scattered relocation")
-
 					continue
 				}
 
@@ -821,7 +821,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
-			if Thearch.Thechar == '6' && rel.extrn == 0 && rel.type_ == 1 {
+			if SysArch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == 1 {
 				// Calculate the addend as the offset into the section.
 				//
 				// The rip-relative offset stored in the object file is encoded
@@ -847,7 +847,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 			// For i386 Mach-O PC-relative, the addend is written such that
 			// it *is* the PC being subtracted. Use that to make
 			// it match our version of PC-relative.
-			if rel.pcrel != 0 && Thearch.Thechar == '8' {
+			if rel.pcrel != 0 && SysArch.Family == sys.I386 {
 				rp.Add += int64(rp.Off) + int64(rp.Siz)
 			}
 			if rel.extrn == 0 {
@@ -866,7 +866,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 				// include that information in the addend.
 				// We only care about the delta from the
 				// section base.
-				if Thearch.Thechar == '8' {
+				if SysArch.Family == sys.I386 {
 					rp.Add -= int64(c.seg.sect[rel.symnum-1].addr)
 				}
 			} else {

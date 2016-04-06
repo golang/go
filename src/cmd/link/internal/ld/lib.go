@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"crypto/sha1"
 	"debug/elf"
 	"encoding/binary"
@@ -82,14 +83,9 @@ import (
 // THE SOFTWARE.
 
 type Arch struct {
-	Thechar          int
-	Ptrsize          int
-	Intsize          int
-	Regsize          int
 	Funcalign        int
 	Maxalign         int
 	Minalign         int
-	Minlc            int
 	Dwarfregsp       int
 	Dwarfreglr       int
 	Linuxdynld       string
@@ -191,8 +187,7 @@ func UseRelro() bool {
 }
 
 var (
-	Thestring          string
-	Thelinkarch        *LinkArch
+	SysArch            *sys.Arch
 	outfile            string
 	dynexp             []*LSym
 	dynlib             []string
@@ -509,7 +504,7 @@ func loadlib() {
 	}
 
 	loadinternal("runtime")
-	if Thearch.Thechar == '5' {
+	if SysArch.Family == sys.ARM {
 		loadinternal("math")
 	}
 	if flag_race != 0 {
@@ -562,7 +557,7 @@ func loadlib() {
 		// dependency problems when compiling natively (external linking requires
 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
 		// compiled using external linking.)
-		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == obj.Hdarwin && iscgo {
+		if SysArch.InFamily(sys.ARM, sys.ARM64) && HEADTYPE == obj.Hdarwin && iscgo {
 			Linkmode = LinkExternal
 		}
 
@@ -621,7 +616,7 @@ func loadlib() {
 	// a variable to hold g in assembly (currently only intel).
 	if tlsg.Type == 0 {
 		tlsg.Type = obj.STLSBSS
-		tlsg.Size = int64(Thearch.Ptrsize)
+		tlsg.Size = int64(SysArch.PtrSize)
 	} else if tlsg.Type != obj.SDYNIMPORT {
 		Diag("internal error: runtime declared tlsg variable %d", tlsg.Type)
 	}
@@ -639,7 +634,7 @@ func loadlib() {
 
 		// In addition, on ARM, the runtime depends on the linker
 		// recording the value of GOARM.
-		if Thearch.Thechar == '5' {
+		if SysArch.Family == sys.ARM {
 			s := Linklookup(Ctxt, "runtime.goarm", 0)
 
 			s.Type = obj.SRODATA
@@ -1226,7 +1221,7 @@ func hostlink() {
 
 	if Debug['s'] == 0 && debug_s == 0 && HEADTYPE == obj.Hdarwin {
 		// Skip combining dwarf on arm.
-		if Thearch.Thechar != '5' && Thearch.Thechar != '7' {
+		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(tmpdir, "go.dwarf")
 			if out, err := exec.Command("dsymutil", "-f", outfile, "-o", dsym).CombinedOutput(); err != nil {
 				Ctxt.Cursym = nil
@@ -1254,14 +1249,14 @@ func hostlink() {
 // hostlinkArchArgs returns arguments to pass to the external linker
 // based on the architecture.
 func hostlinkArchArgs() []string {
-	switch Thearch.Thechar {
-	case '8':
+	switch SysArch.Family {
+	case sys.I386:
 		return []string{"-m32"}
-	case '6', '9', 'z':
+	case sys.AMD64, sys.PPC64, sys.S390X:
 		return []string{"-m64"}
-	case '5':
+	case sys.ARM:
 		return []string{"-marm"}
-	case '7':
+	case sys.ARM64:
 		// nothing needed
 	}
 	return nil
@@ -1306,10 +1301,10 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 
 	if !strings.HasPrefix(line, "go object ") {
 		if strings.HasSuffix(pn, ".go") {
-			Exitf("%cl: input %s is not .%c file (use %cg to compile .go files)", Thearch.Thechar, pn, Thearch.Thechar, Thearch.Thechar)
+			Exitf("%cl: input %s is not .%c file (use %cg to compile .go files)", SysArch.Family, pn, SysArch.Family, SysArch.Family)
 		}
 
-		if line == Thestring {
+		if line == SysArch.Name {
 			// old header format: just $GOOS
 			Diag("%s: stale object file", pn)
 			return nil
@@ -1500,12 +1495,12 @@ func ldshlibsyms(shlib string) {
 			// the type data.
 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
 				lsym.P = readelfsymboldata(f, &elfsym)
-				gcdata_locations[elfsym.Value+2*uint64(Thearch.Ptrsize)+8+1*uint64(Thearch.Ptrsize)] = lsym
+				gcdata_locations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
 			}
 		}
 	}
 	gcdata_addresses := make(map[*LSym]uint64)
-	if Thearch.Thechar == '7' {
+	if SysArch.Family == sys.ARM64 {
 		for _, sect := range f.Sections {
 			if sect.Type == elf.SHT_RELA {
 				var rela elf.Rela64
@@ -1565,8 +1560,8 @@ func mywhatsys() {
 	goos = obj.Getgoos()
 	goarch = obj.Getgoarch()
 
-	if !strings.HasPrefix(goarch, Thestring) {
-		log.Fatalf("cannot use %cc with GOARCH=%s", Thearch.Thechar, goarch)
+	if !strings.HasPrefix(goarch, SysArch.Name) {
+		log.Fatalf("cannot use %cc with GOARCH=%s", SysArch.Family, goarch)
 	}
 }
 
@@ -1608,7 +1603,7 @@ func addsection(seg *Segment, name string, rwx int) *Section {
 	sect.Rwx = uint8(rwx)
 	sect.Name = name
 	sect.Seg = seg
-	sect.Align = int32(Thearch.Ptrsize) // everything is at least pointer-aligned
+	sect.Align = int32(SysArch.PtrSize) // everything is at least pointer-aligned
 	*l = sect
 	return sect
 }
@@ -1652,7 +1647,7 @@ func callsize() int {
 	if haslinkregister() {
 		return 0
 	}
-	return Thearch.Regsize
+	return SysArch.RegSize
 }
 
 func dostkcheck() {
@@ -1986,7 +1981,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
 
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(nil, ".frame", 'm', int64(s.Locals)+int64(Thearch.Ptrsize), 0, 0, nil)
+		put(nil, ".frame", 'm', int64(s.Locals)+int64(SysArch.PtrSize), 0, 0, nil)
 
 		for _, a := range s.Autom {
 			// Emit a or p according to actual offset, even if label is wrong.
@@ -1999,7 +1994,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			if a.Name == obj.A_PARAM {
 				off = a.Aoffset
 			} else {
-				off = a.Aoffset - int32(Thearch.Ptrsize)
+				off = a.Aoffset - int32(SysArch.PtrSize)
 			}
 
 			// FP
@@ -2009,8 +2004,8 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			}
 
 			// SP
-			if off <= int32(-Thearch.Ptrsize) {
-				put(nil, a.Asym.Name, 'a', -(int64(off) + int64(Thearch.Ptrsize)), 0, 0, a.Gotype)
+			if off <= int32(-SysArch.PtrSize) {
+				put(nil, a.Asym.Name, 'a', -(int64(off) + int64(SysArch.PtrSize)), 0, 0, a.Gotype)
 				continue
 			}
 		}

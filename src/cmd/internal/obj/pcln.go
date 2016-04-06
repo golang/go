@@ -100,7 +100,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		}
 
 		if started != 0 {
-			addvarint(ctxt, dst, uint32((p.Pc-pc)/int64(ctxt.Arch.Minlc)))
+			addvarint(ctxt, dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
 			pc = p.Pc
 		}
 
@@ -120,7 +120,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if ctxt.Debugpcln != 0 {
 			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(int64(func_.Text.Pc)+func_.Size))
 		}
-		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.Minlc)))
+		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
 		addvarint(ctxt, dst, 0) // terminator
 	}
 

@@ -360,9 +360,8 @@ const (
 )
 
 type Arch struct {
-	Thechar      int
-	Thestring    string
-	Thelinkarch  *obj.LinkArch
+	LinkArch *obj.LinkArch
+
 	REGSP        int
 	REGCTXT      int
 	REGCALLX     int // BX
