@@ -531,12 +531,17 @@ func (r *objReader) readSymName() string {
 		r.readInt64()
 		return ""
 	}
-	origName, err := r.rd.Peek(n)
-	if err != nil {
-		log.Fatalf("%s: unexpectedly long symbol name", r.pn)
-	}
 	if cap(r.rdBuf) < n {
 		r.rdBuf = make([]byte, 2*n)
+	}
+	origName, err := r.rd.Peek(n)
+	if err == bufio.ErrBufferFull {
+		// Long symbol names are rare but exist. One source is type
+		// symbols for types with long string forms. See #15104.
+		origName = make([]byte, n)
+		r.readFull(origName)
+	} else if err != nil {
+		log.Fatalf("%s: error reading symbol: %v", err)
 	}
 	adjName := r.rdBuf[:0]
 	for {
@@ -546,7 +551,9 @@ func (r *objReader) readSymName() string {
 			// Read past the peeked origName, now that we're done with it,
 			// using the rfBuf (also no longer used) as the scratch space.
 			// TODO: use bufio.Reader.Discard if available instead?
-			r.readFull(r.rdBuf[:n])
+			if err == nil {
+				r.readFull(r.rdBuf[:n])
+			}
 			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
 			return s
 		}
