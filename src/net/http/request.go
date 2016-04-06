@@ -266,9 +266,13 @@ type Request struct {
 //
 // The returned context is always non-nil; it defaults to the
 // background context.
+//
+// For outgoing client requests, the context controls cancelation.
+//
+// For incoming server requests, the context is canceled when either
+// the client's connection closes, or when the ServeHTTP method
+// returns.
 func (r *Request) Context() context.Context {
-	// TODO(bradfitz): document above what Context means for server and client
-	// requests, once implemented.
 	if r.ctx != nil {
 		return r.ctx
 	}
