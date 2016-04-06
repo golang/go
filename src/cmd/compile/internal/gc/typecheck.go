@@ -3513,7 +3513,11 @@ func domethod(n *Node) {
 	checkwidth(n.Type)
 }
 
-var mapqueue []*Node
+var (
+	mapqueue []*Node
+	// maplineno tracks the line numbers at which types are first used as map keys
+	maplineno = map[*Type]int32{}
+)
 
 func copytype(n *Node, t *Type) {
 	if t.Etype == TFORW {
@@ -3522,7 +3526,7 @@ func copytype(n *Node, t *Type) {
 		return
 	}
 
-	maplineno := n.Type.Maplineno
+	mapline := maplineno[n.Type]
 	embedlineno := n.Type.ForwardType().Embedlineno
 	l := n.Type.ForwardType().Copyto
 
@@ -3559,8 +3563,8 @@ func copytype(n *Node, t *Type) {
 	lineno = lno
 
 	// Queue check for map until all the types are done settling.
-	if maplineno != 0 {
-		t.Maplineno = maplineno
+	if mapline != 0 {
+		maplineno[t] = mapline
 		mapqueue = append(mapqueue, n)
 	}
 }
@@ -3609,7 +3613,7 @@ ret:
 		}
 
 		for _, n := range mapqueue {
-			lineno = n.Type.Maplineno
+			lineno = maplineno[n.Type]
 			checkMapKeyType(n.Type)
 		}
 
