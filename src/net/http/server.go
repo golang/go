@@ -9,6 +9,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -312,10 +313,11 @@ type response struct {
 	conn             *conn
 	req              *Request // request for this response
 	reqBody          io.ReadCloser
-	wroteHeader      bool // reply header has been (logically) written
-	wroteContinue    bool // 100 Continue response was written
-	wants10KeepAlive bool // HTTP/1.0 w/ Connection "keep-alive"
-	wantsClose       bool // HTTP request has Connection "close"
+	cancelCtx        context.CancelFunc // when ServeHTTP exits
+	wroteHeader      bool               // reply header has been (logically) written
+	wroteContinue    bool               // 100 Continue response was written
+	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
+	wantsClose       bool               // HTTP request has Connection "close"
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
@@ -686,7 +688,7 @@ func appendTime(b []byte, t time.Time) []byte {
 var errTooLarge = errors.New("http: request too large")
 
 // Read next request from connection.
-func (c *conn) readRequest() (w *response, err error) {
+func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	if c.hijacked() {
 		return nil, ErrHijacked
 	}
@@ -715,6 +717,10 @@ func (c *conn) readRequest() (w *response, err error) {
 		}
 		return nil, err
 	}
+
+	ctx, cancelCtx := context.WithCancel(ctx)
+	req.ctx = ctx
+
 	c.lastMethod = req.Method
 	c.r.setInfiniteReadLimit()
 
@@ -749,6 +755,7 @@ func (c *conn) readRequest() (w *response, err error) {
 
 	w = &response{
 		conn:          c,
+		cancelCtx:     cancelCtx,
 		req:           req,
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
@@ -1432,12 +1439,20 @@ func (c *conn) serve() {
 		}
 	}
 
+	// HTTP/1.x from here on.
+
 	c.r = &connReader{r: c.rwc}
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
+	// TODO: allow changing base context? can't imagine concrete
+	// use cases yet.
+	baseCtx := context.Background()
+	ctx, cancelCtx := context.WithCancel(baseCtx)
+	defer cancelCtx()
+
 	for {
-		w, err := c.readRequest()
+		w, err := c.readRequest(ctx)
 		if c.r.remain != c.server.initialReadLimitSize() {
 			// If we read any bytes off the wire, we're active.
 			c.setState(c.rwc, StateActive)
@@ -1485,6 +1500,7 @@ func (c *conn) serve() {
 		// [*] Not strictly true: HTTP pipelining. We could let them all process
 		// in parallel even if their responses need to be serialized.
 		serverHandler{c.server}.ServeHTTP(w, w.req)
+		w.cancelCtx()
 		if c.hijacked() {
 			return
 		}

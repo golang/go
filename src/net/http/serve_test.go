@@ -9,6 +9,7 @@ package http_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -3986,6 +3987,72 @@ func TestServerValidatesHeaders(t *testing.T) {
 		if res.StatusCode != tt.want {
 			t.Errorf("For %q, Status = %d; want %d", tt.header, res.StatusCode, tt.want)
 		}
+	}
+}
+
+func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
+	defer afterTest(t)
+	ctxc := make(chan context.Context, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ctx := r.Context()
+		select {
+		case <-ctx.Done():
+			t.Error("should not be Done in ServeHTTP")
+		default:
+		}
+		ctxc <- ctx
+	}))
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	ctx := <-ctxc
+	select {
+	case <-ctx.Done():
+	default:
+		t.Error("context should be done after ServeHTTP completes")
+	}
+}
+
+func TestServerRequestContextCancel_ConnClose(t *testing.T) {
+	// Currently the context is not canceled when the connection
+	// is closed because we're not reading from the connection
+	// until after ServeHTTP for the previous handler is done.
+	// Until the server code is modified to always be in a read
+	// (Issue 15224), this test doesn't work yet.
+	t.Skip("TODO(bradfitz): this test doesn't yet work; golang.org/issue/15224")
+	defer afterTest(t)
+	inHandler := make(chan struct{})
+	handlerDone := make(chan struct{})
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		close(inHandler)
+		select {
+		case <-r.Context().Done():
+		case <-time.After(3 * time.Second):
+			t.Errorf("timeout waiting for context to be done")
+		}
+		close(handlerDone)
+	}))
+	defer ts.Close()
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n")
+	select {
+	case <-inHandler:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("timeout waiting to see ServeHTTP get called")
+	}
+	c.Close() // this should trigger the context being done
+
+	select {
+	case <-handlerDone:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("timeout waiting to see ServeHTTP exit")
 	}
 }
 
