@@ -66,8 +66,7 @@ func putelfstr(s string) int {
 }
 
 func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
-	switch Thearch.Thechar {
-	case '0', '6', '7', '9', 'z':
+	if elf64 {
 		Thearch.Lput(uint32(off))
 		Cput(uint8(info))
 		Cput(uint8(other))
@@ -75,8 +74,7 @@ func putelfsyment(off int, addr int64, size int64, info int, shndx int, other in
 		Thearch.Vput(uint64(addr))
 		Thearch.Vput(uint64(size))
 		Symsize += ELF64SYMSIZE
-
-	default:
+	} else {
 		Thearch.Lput(uint32(off))
 		Thearch.Lput(uint32(addr))
 		Thearch.Lput(uint32(size))

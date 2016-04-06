@@ -1885,10 +1885,9 @@ func doelf() {
 
 		s.Type = obj.SELFROSECT
 		s.Attr |= AttrReachable
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9', 'z':
+		if elf64 {
 			s.Size += ELF64SYMSIZE
-		default:
+		} else {
 			s.Size += ELF32SYMSIZE
 		}
 
@@ -1967,10 +1966,9 @@ func doelf() {
 		elfwritedynentsym(s, DT_HASH, Linklookup(Ctxt, ".hash", 0))
 
 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9', 'z':
+		if elf64 {
 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
-		default:
+		} else {
 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
 		}
 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))

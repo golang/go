@@ -2169,18 +2169,10 @@ func dwarfaddshstrings(shstrtab *LSym) {
 	elfstrdbg[ElfStrDebugStr] = Addstring(shstrtab, ".debug_str")
 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
 	if Linkmode == LinkExternal {
-		switch Thearch.Thechar {
-		case '0', '6', '7', '9', 'z':
-			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
-			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
-			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
-			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rela.debug_frame")
-		default:
-			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rel.debug_info")
-			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rel.debug_aranges")
-			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rel.debug_line")
-			elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, ".rel.debug_frame")
-		}
+		elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, elfRelType+".debug_info")
+		elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, elfRelType+".debug_aranges")
+		elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, elfRelType+".debug_line")
+		elfstrdbg[ElfStrRelDebugFrame] = Addstring(shstrtab, elfRelType+".debug_frame")
 
 		infosym = Linklookup(Ctxt, ".debug_info", 0)
 		infosym.Attr |= AttrHidden
@@ -2222,10 +2214,9 @@ func dwarfaddelfsectionsyms() {
 
 func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
 	sh := newElfShdr(elfstrdbg[elfstr])
-	switch Thearch.Thechar {
-	case '0', '6', '7', '9', 'z':
+	if elfRelType == ".rela" {
 		sh.type_ = SHT_RELA
-	default:
+	} else {
 		sh.type_ = SHT_REL
 	}
 
