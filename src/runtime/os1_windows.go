@@ -9,6 +9,11 @@ import (
 	"unsafe"
 )
 
+// TODO(brainman): should not need those
+const (
+	_NSIG = 65
+)
+
 //go:cgo_import_dynamic runtime._AddVectoredExceptionHandler AddVectoredExceptionHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CloseHandle CloseHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._CreateEventA CreateEventA%4 "kernel32.dll"
@@ -48,6 +53,8 @@ import (
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
+
+type stdFunction unsafe.Pointer
 
 var (
 	// Following syscalls are available on every Windows PC.
@@ -101,6 +108,35 @@ var (
 	_LoadLibraryExW,
 	_ stdFunction
 )
+
+// Function to be called by windows CreateThread
+// to start new os thread.
+func tstart_stdcall(newm *m) uint32
+
+func ctrlhandler(_type uint32) uint32
+
+type mOS struct {
+	waitsema uintptr // semaphore for parking on locks
+}
+
+//go:linkname os_sigpipe os.sigpipe
+func os_sigpipe() {
+	throw("too many writes on closed pipe")
+}
+
+// Stubs so tests can link correctly. These should never be called.
+func open(name *byte, mode, perm int32) int32 {
+	throw("unimplemented")
+	return -1
+}
+func closefd(fd int32) int32 {
+	throw("unimplemented")
+	return -1
+}
+func read(fd int32, p unsafe.Pointer, n int32) int32 {
+	throw("unimplemented")
+	return -1
+}
 
 type sigset struct{}
 
@@ -171,8 +207,10 @@ const (
 	currentThread  = ^uintptr(1) // -2 = current thread
 )
 
-// in sys_windows_386.s and sys_windows_amd64.s
+// in sys_windows_386.s and sys_windows_amd64.s:
 func externalthreadhandler()
+func getlasterror() uint32
+func setlasterror(err uint32)
 
 // When loading DLLs, we prefer to use LoadLibraryEx with
 // LOAD_LIBRARY_SEARCH_* flags, if available. LoadLibraryEx is not
