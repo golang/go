@@ -504,6 +504,8 @@ func (p *importer) value() constant.Value {
 		return constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
 	case stringTag:
 		return constant.MakeString(p.string())
+	case unknownTag:
+		return constant.MakeUnknown()
 	default:
 		panic(fmt.Sprintf("unexpected value tag %d", tag))
 	}

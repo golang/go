@@ -24,12 +24,31 @@ import (
 	"strings"
 )
 
+// If debugFormat is set, each integer and string value is preceded by a marker
+// and position information in the encoding. This mechanism permits an importer
+// to recognize immediately when it is out of sync. The importer recognizes this
+// mode automatically (i.e., it can import export data produced with debugging
+// support even if debugFormat is not set at the time of import). This mode will
+// lead to massively larger export data (by a factor of 2 to 3) and should only
+// be enabled during development and debugging.
+//
+// NOTE: This flag is the first flag to enable if importing dies because of
+// (suspected) format errors, and whenever a change is made to the format.
+const debugFormat = false // default: false
+
+// If trace is set, debugging output is printed to std out.
+const trace = false // default: false
+
 const exportVersion = "v0"
 
-const (
-	debugFormat = false // use debugging format for export data (emits a lot of additional data)
-	trace       = false
-)
+type exporter struct {
+	out      bytes.Buffer
+	pkgIndex map[*types.Package]int
+	typIndex map[types.Type]int
+
+	written int // bytes written
+	indent  int // for trace
+}
 
 // BExportData returns binary export data for pkg.
 func BExportData(pkg *types.Package) []byte {
@@ -38,7 +57,7 @@ func BExportData(pkg *types.Package) []byte {
 		typIndex: make(map[types.Type]int),
 	}
 
-	// write low-level encoding format
+	// first byte indicates low-level encoding format
 	var format byte = 'c' // compact
 	if debugFormat {
 		format = 'd'
@@ -50,10 +69,13 @@ func BExportData(pkg *types.Package) []byte {
 	if trace {
 		p.tracef("\n--- generic export data ---\n")
 		if p.indent != 0 {
-			log.Fatalf("incorrect indentation %d", p.indent)
+			log.Fatalf("gcimporter: incorrect indentation %d", p.indent)
 		}
 	}
 
+	if trace {
+		p.tracef("version = ")
+	}
 	p.string(exportVersion)
 	if trace {
 		p.tracef("\n")
@@ -64,97 +86,41 @@ func BExportData(pkg *types.Package) []byte {
 		p.typIndex[typ] = index
 	}
 	if len(p.typIndex) != len(predeclared) {
-		log.Fatalf("duplicate entries in type map?")
+		log.Fatalf("gcimporter: duplicate entries in type map?")
 	}
 
 	// write package data
 	p.pkg(pkg, true)
 
 	// write compiler-specific flags
-	p.string("")
+	p.string("") // no flags to write in our case
 
 	if trace {
 		p.tracef("\n")
 	}
 
-	// Collect objects to export, already sorted by name.
-	var consts []*types.Const
-	var vars []*types.Var
-	var funcs []*types.Func
-	var typs []*types.TypeName
+	// write objects
+	objcount := 0
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		if !ast.IsExported(name) {
 			continue
 		}
-		switch obj := scope.Lookup(name).(type) {
-		case *types.Const:
-			consts = append(consts, obj)
-		case *types.Var:
-			vars = append(vars, obj)
-		case *types.Func:
-			funcs = append(funcs, obj)
-		case *types.TypeName:
-			typs = append(typs, obj)
+		if trace {
+			p.tracef("\n")
 		}
+		p.obj(scope.Lookup(name))
+		objcount++
 	}
 
-	// write consts
-	p.int(len(consts))
-	for _, obj := range consts {
-		p.string(obj.Name())
-		p.typ(obj.Type())
-		p.value(obj.Val())
-	}
-
-	// write vars
-	p.int(len(vars))
-	for _, obj := range vars {
-		p.string(obj.Name())
-		p.typ(obj.Type())
-	}
-
-	// write funcs
-	p.int(len(funcs))
-	for _, obj := range funcs {
-		p.string(obj.Name())
-		sig := obj.Type().(*types.Signature)
-		p.paramList(sig.Params(), sig.Variadic())
-		p.paramList(sig.Results(), false)
-		p.int(-1) // no inlined function bodies
-	}
-
-	// Determine which types are still left to write.
-	i := 0
-	for _, t := range typs {
-		if _, ok := p.typIndex[t.Type()]; !ok {
-			typs[i] = t
-			i++
-		}
-	}
-	typs = typs[:i]
-
-	// Write types.
-	p.int(len(typs))
-	for _, t := range typs {
-		// Writing a type may further reduce the number of types
-		// that are left to be written, but at this point we don't
-		// care.
-		p.typ(t.Type())
-	}
-
+	// indicate end of list
 	if trace {
 		p.tracef("\n")
 	}
+	p.tag(endTag)
 
-	// --- compiler-specific export data ---
-
-	if trace {
-		p.tracef("\n--- compiler specific export data ---\n")
-		if p.indent != 0 {
-			log.Fatalf("incorrect indentation")
-		}
-	}
+	// for self-verification only (redundant)
+	p.int(objcount)
 
 	if trace {
 		p.tracef("\n")
@@ -165,19 +131,9 @@ func BExportData(pkg *types.Package) []byte {
 	return p.out.Bytes()
 }
 
-type exporter struct {
-	out      bytes.Buffer
-	pkgIndex map[*types.Package]int
-	typIndex map[types.Type]int
-
-	written int // bytes written
-	indent  int // for trace
-	trace   bool
-}
-
 func (p *exporter) pkg(pkg *types.Package, emptypath bool) {
 	if pkg == nil {
-		log.Fatalf("unexpected nil pkg")
+		log.Fatalf("gcimporter: unexpected nil pkg")
 	}
 
 	// if we saw the package before, write its index (>= 0)
@@ -202,9 +158,44 @@ func (p *exporter) pkg(pkg *types.Package, emptypath bool) {
 	}
 }
 
+func (p *exporter) obj(obj types.Object) {
+	switch obj := obj.(type) {
+	case *types.Const:
+		p.tag(constTag)
+		p.qualifiedName(obj)
+		p.typ(obj.Type())
+		p.value(obj.Val())
+
+	case *types.TypeName:
+		p.tag(typeTag)
+		p.typ(obj.Type())
+
+	case *types.Var:
+		p.tag(varTag)
+		p.qualifiedName(obj)
+		p.typ(obj.Type())
+
+	case *types.Func:
+		p.tag(funcTag)
+		p.qualifiedName(obj)
+		sig := obj.Type().(*types.Signature)
+		p.paramList(sig.Params(), sig.Variadic())
+		p.paramList(sig.Results(), false)
+		p.int(-1) // no inlined function bodies
+
+	default:
+		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
+	}
+}
+
+func (p *exporter) qualifiedName(obj types.Object) {
+	p.string(obj.Name())
+	p.pkg(obj.Pkg(), false)
+}
+
 func (p *exporter) typ(t types.Type) {
 	if t == nil {
-		log.Fatalf("nil type")
+		log.Fatalf("gcimporter: nil type")
 	}
 
 	// Possible optimization: Anonymous pointer types *T where
@@ -236,7 +227,7 @@ func (p *exporter) typ(t types.Type) {
 		p.qualifiedName(t.Obj())
 		p.typ(t.Underlying())
 		if !types.IsInterface(t) {
-			p.declaredMethods(t)
+			p.assocMethods(t)
 		}
 
 	case *types.Array:
@@ -280,19 +271,19 @@ func (p *exporter) typ(t types.Type) {
 		p.typ(t.Elem())
 
 	default:
-		log.Fatalf("unexpected type %T: %s", t, t)
+		log.Fatalf("gcimporter: unexpected type %T: %s", t, t)
 	}
 }
 
-func (p *exporter) declaredMethods(named *types.Named) {
-	p.int(named.NumMethods())
-
+func (p *exporter) assocMethods(named *types.Named) {
 	// Sort methods (for determinism).
 	var methods []*types.Func
 	for i := 0; i < named.NumMethods(); i++ {
 		methods = append(methods, named.Method(i))
 	}
 	sort.Sort(methodsByName(methods))
+
+	p.int(len(methods))
 
 	if trace && methods != nil {
 		p.tracef("associated methods {>\n")
@@ -302,9 +293,15 @@ func (p *exporter) declaredMethods(named *types.Named) {
 		if trace && i > 0 {
 			p.tracef("\n")
 		}
-		p.string(m.Name())
+
+		name := m.Name()
+		p.string(name)
+		if !exported(name) {
+			p.pkg(m.Pkg(), false)
+		}
+
 		sig := m.Type().(*types.Signature)
-		p.recv(sig.Recv())
+		p.paramList(types.NewTuple(sig.Recv()), false)
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
 		p.int(-1) // no inlining
@@ -320,24 +317,6 @@ type methodsByName []*types.Func
 func (x methodsByName) Len() int           { return len(x) }
 func (x methodsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methodsByName) Less(i, j int) bool { return x[i].Name() < x[j].Name() }
-
-func (p *exporter) recv(recv *types.Var) {
-	// Use negative length to indicate unnamed parameter.
-	if recv.Name() == "" {
-		p.int(-1)
-		p.typ(recv.Type())
-	} else {
-		p.int(1)
-		p.typ(recv.Type())
-		p.string(recv.Name())
-	}
-	p.string("")
-}
-
-func (p *exporter) qualifiedName(obj types.Object) {
-	p.string(obj.Name())
-	p.pkg(obj.Pkg(), false)
-}
 
 func (p *exporter) fieldList(t *types.Struct) {
 	if trace && t.NumFields() > 0 {
@@ -357,7 +336,7 @@ func (p *exporter) fieldList(t *types.Struct) {
 
 func (p *exporter) field(f *types.Var) {
 	if !f.IsField() {
-		log.Fatalf("field expected")
+		log.Fatalf("gcimporter: field expected")
 	}
 
 	p.fieldName(f)
@@ -386,7 +365,7 @@ func (p *exporter) iface(t *types.Interface) {
 func (p *exporter) method(m *types.Func) {
 	sig := m.Type().(*types.Signature)
 	if sig.Recv() == nil {
-		log.Fatalf("method expected")
+		log.Fatalf("gcimporter: method expected")
 	}
 
 	p.string(m.Name())
@@ -440,8 +419,9 @@ func (p *exporter) paramList(params *types.Tuple, variadic bool) {
 		p.typ(t)
 		if n > 0 {
 			p.string(q.Name())
+			p.pkg(q.Pkg(), false)
 		}
-		p.string("")
+		p.string("") // no compiler-specific info
 	}
 }
 
@@ -484,17 +464,17 @@ func (p *exporter) value(x constant.Value) {
 		p.string(constant.StringVal(x))
 
 	case constant.Unknown:
-		// (Package contains type errors.)
+		// package contains type errors
 		p.tag(unknownTag)
 
 	default:
-		log.Fatalf("unexpected value %v (%T)", x, x)
+		log.Fatalf("gcimporter: unexpected value %v (%T)", x, x)
 	}
 }
 
 func (p *exporter) float(x constant.Value) {
 	if x.Kind() != constant.Float {
-		log.Fatalf("unexpected constant %v, want float", x)
+		log.Fatalf("gcimporter: unexpected constant %v, want float", x)
 	}
 	// extract sign (there is no -0)
 	sign := constant.Sign(x)
@@ -529,7 +509,7 @@ func (p *exporter) float(x constant.Value) {
 	m.SetMantExp(&m, int(m.MinPrec()))
 	mant, acc := m.Int(nil)
 	if acc != big.Exact {
-		log.Fatalf("internal error")
+		log.Fatalf("gcimporter: internal error")
 	}
 
 	p.int(sign)
@@ -552,7 +532,7 @@ func valueToRat(x constant.Value) *big.Rat {
 
 func (p *exporter) index(marker byte, index int) {
 	if index < 0 {
-		log.Fatalf("invalid index < 0")
+		log.Fatalf("gcimporter: invalid index < 0")
 	}
 	if debugFormat {
 		p.marker('t')
@@ -565,7 +545,7 @@ func (p *exporter) index(marker byte, index int) {
 
 func (p *exporter) tag(tag int) {
 	if tag >= 0 {
-		log.Fatalf("invalid tag >= 0")
+		log.Fatalf("gcimporter: invalid tag >= 0")
 	}
 	if debugFormat {
 		p.marker('t')
@@ -608,6 +588,11 @@ func (p *exporter) string(s string) {
 // debugFormat format only.
 func (p *exporter) marker(m byte) {
 	p.byte(m)
+	// Enable this for help tracking down the location
+	// of an incorrect marker when running in debugFormat.
+	if false && trace {
+		p.tracef("#%d ", p.written)
+	}
 	p.rawInt64(int64(p.written))
 }
 
