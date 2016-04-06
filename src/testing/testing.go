@@ -571,7 +571,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	if t.chatty {
 		// Print directly to root's io.Writer so there is no delay.
 		root := t.parent
-		for ; root.parent != nil; root = t.parent {
+		for ; root.parent != nil; root = root.parent {
 		}
 		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
 	}
