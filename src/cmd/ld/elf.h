@@ -502,8 +502,9 @@ typedef struct {
 #define	R_X86_64_DTPOFF32 21	/* Offset in TLS block */
 #define	R_X86_64_GOTTPOFF 22	/* PC relative offset to IE GOT entry */
 #define	R_X86_64_TPOFF32 23	/* Offset in static TLS block */
-
-#define	R_X86_64_COUNT	24	/* Count of defined relocation types. */
+#define	R_X86_64_GOTPCRELX	41
+#define	R_X86_64_REX_GOTPCRELX	42
+#define	R_X86_64_COUNT	26	/* Count of defined relocation types. */
 
 
 #define	R_ALPHA_NONE		0	/* No reloc */
@@ -612,8 +613,9 @@ typedef struct {
 #define	R_386_TLS_DTPMOD32 35	/* GOT entry containing TLS index */
 #define	R_386_TLS_DTPOFF32 36	/* GOT entry containing TLS offset */
 #define	R_386_TLS_TPOFF32 37	/* GOT entry of -ve static TLS offset */
+#define	R_386_GOT32X 43
 
-#define	R_386_COUNT	38	/* Count of defined relocation types. */
+#define	R_386_COUNT	39	/* Count of defined relocation types. */
 
 #define	R_PPC_NONE		0	/* No relocation. */
 #define	R_PPC_ADDR32		1
