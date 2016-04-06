@@ -1,14 +1,17 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips64 mips64le
-// +build linux
+// +build arm64 mips64 mips64le ppc64 ppc64le
 
 package runtime
 
 import "unsafe"
 
+// On ppc64, Linux limits the user address space to 46 bits (see
+// TASK_SIZE_USER64 in the Linux kernel).  This has grown over time,
+// so here we allow 48 bit addresses.
+//
 // On mips64, Linux limits the user address space to 40 bits (see
 // TASK_SIZE64 in the Linux kernel).  This has grown over time,
 // so here we allow 48 bit addresses.
