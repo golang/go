@@ -5,7 +5,6 @@
 package http_test
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,8 +14,6 @@ import (
 	"testing"
 	"time"
 )
-
-var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 
 func TestMain(m *testing.M) {
 	v := m.Run()
@@ -88,12 +85,6 @@ func goroutineLeaked() bool {
 func setParallel(t *testing.T) {
 	if testing.Short() {
 		t.Parallel()
-	}
-}
-
-func setFlaky(t *testing.T, issue int) {
-	if !*flaky {
-		t.Skipf("skipping known flaky test; see golang.org/issue/%d", issue)
 	}
 }
 

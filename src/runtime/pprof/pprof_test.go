@@ -585,6 +585,9 @@ func func3(c chan int) { <-c }
 func func4(c chan int) { <-c }
 
 func TestGoroutineCounts(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15156)
+	}
 	c := make(chan int)
 	for i := 0; i < 100; i++ {
 		if i%10 == 0 {
