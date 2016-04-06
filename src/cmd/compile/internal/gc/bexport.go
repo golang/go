@@ -109,8 +109,6 @@ import (
 //
 // NOTE: This flag is the first flag to enable if importing dies because of
 // (suspected) format errors, and whenever a change is made to the format.
-// Having debugFormat enabled increases the export data size massively (by
-// several factors) - avoid running with the flag enabled in general.
 const debugFormat = false // default: false
 
 // TODO(gri) remove eventually
@@ -515,19 +513,19 @@ func (p *exporter) typ(t *Type) {
 	p.typIndex[t] = len(p.typIndex)
 
 	// pick off named types
-	if sym := t.Sym; sym != nil {
+	if tsym := t.Sym; tsym != nil {
 		// Predeclared types should have been found in the type map.
 		if t.Orig == t {
 			Fatalf("exporter: predeclared type missing from type map?")
 		}
 		// TODO(gri) The assertion below seems incorrect (crashes during all.bash).
 		// we expect the respective definition to point to us
-		// if sym.Def.Type != t {
+		// if tsym.Def.Type != t {
 		// 	Fatalf("exporter: type definition doesn't point to us?")
 		// }
 
 		p.tag(namedTag)
-		p.qualifiedName(sym)
+		p.qualifiedName(tsym)
 
 		// write underlying type
 		p.typ(t.Orig)
