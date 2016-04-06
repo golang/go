@@ -232,8 +232,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 	switch i {
 	case namedTag:
 		// read type object
-		name := p.string()
-		parent = p.pkg()
+		parent, name := p.qualifiedName()
 		scope := parent.Scope()
 		obj := scope.Lookup(name)
 
@@ -258,7 +257,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		t0.SetUnderlying(p.typ(parent))
 
 		// interfaces don't have associated methods
-		if _, ok := t0.Underlying().(*types.Interface); ok {
+		if types.IsInterface(t0) {
 			return t
 		}
 
