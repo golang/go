@@ -5,6 +5,7 @@
 // +build !linux !amd64
 // +build !linux !386
 // +build !linux !arm
+// +build !linux !arm64
 
 package runtime
 
