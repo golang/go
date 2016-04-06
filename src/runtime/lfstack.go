@@ -15,7 +15,7 @@ import (
 func lfstackpush(head *uint64, node *lfnode) {
 	node.pushcnt++
 	new := lfstackPack(node, node.pushcnt)
-	if node1, _ := lfstackUnpack(new); node1 != node {
+	if node1 := lfstackUnpack(new); node1 != node {
 		print("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
 		throw("lfstackpush")
 	}
@@ -34,7 +34,7 @@ func lfstackpop(head *uint64) unsafe.Pointer {
 		if old == 0 {
 			return nil
 		}
-		node, _ := lfstackUnpack(old)
+		node := lfstackUnpack(old)
 		next := atomic.Load64(&node.next)
 		if atomic.Cas64(head, old, next) {
 			return unsafe.Pointer(node)

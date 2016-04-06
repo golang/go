@@ -28,8 +28,6 @@ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
 	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
 }
 
-func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
-	node = (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
-	cnt = uintptr(val & (1<<cntBits - 1))
-	return
+func lfstackUnpack(val uint64) *lfnode {
+	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
 }
