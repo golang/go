@@ -59,6 +59,8 @@ func TestDialTimeoutFDLeak(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+	case "openbsd":
+		testenv.SkipFlaky(t, 15157)
 	}
 
 	const T = 100 * time.Millisecond
@@ -126,6 +128,8 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
 	case "windows":
 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
+	case "openbsd":
+		testenv.SkipFlaky(t, 15157)
 	}
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")

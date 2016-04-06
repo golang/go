@@ -6,6 +6,7 @@ package net
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"net/internal/socktest"
@@ -112,6 +113,9 @@ var dialTimeoutMaxDurationTests = []struct {
 
 func TestDialTimeoutMaxDuration(t *testing.T) {
 	t.Parallel()
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15157)
+	}
 
 	ln, err := newLocalListener("tcp")
 	if err != nil {

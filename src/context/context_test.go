@@ -6,6 +6,7 @@ package context
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math/rand"
 	"runtime"
 	"strings"
@@ -258,6 +259,9 @@ func TestDeadline(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15158)
+	}
 	c, _ := WithTimeout(Background(), 100*time.Millisecond)
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)

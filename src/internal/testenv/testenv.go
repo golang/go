@@ -11,6 +11,7 @@
 package testenv
 
 import (
+	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -122,5 +123,13 @@ func HasExternalNetwork() bool {
 func MustHaveExternalNetwork(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping test: no external network in -short mode")
+	}
+}
+
+var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+
+func SkipFlaky(t *testing.T, issue int) {
+	if !*flaky {
+		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
 	}
 }
