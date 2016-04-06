@@ -530,15 +530,20 @@ func blockChanClose() {
 }
 
 func blockSelectRecvAsync() {
+	const numTries = 3
 	c := make(chan bool, 1)
 	c2 := make(chan bool, 1)
 	go func() {
-		time.Sleep(blockDelay)
-		c <- true
+		for i := 0; i < numTries; i++ {
+			time.Sleep(blockDelay)
+			c <- true
+		}
 	}()
-	select {
-	case <-c:
-	case <-c2:
+	for i := 0; i < numTries; i++ {
+		select {
+		case <-c:
+		case <-c2:
+		}
 	}
 }
 
