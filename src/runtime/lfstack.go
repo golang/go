@@ -41,3 +41,38 @@ func lfstackpop(head *uint64) unsafe.Pointer {
 		}
 	}
 }
+
+const (
+	addrBits = 48
+	cntBits  = 64 - addrBits + 3
+)
+
+func lfstackPack(node *lfnode, cnt uintptr) uint64 {
+	if unsafe.Sizeof(uintptr(0)) == 4 {
+		// On 32-bit systems, the stored uint64 has a 32-bit pointer and 32-bit count.
+		return uint64(uintptr(unsafe.Pointer(node)))<<32 | uint64(cnt)
+	}
+	// On ppc64, Linux limits the user address space to 46 bits (see
+	// TASK_SIZE_USER64 in the Linux kernel).  This has grown over time,
+	// so here we allow 48 bit addresses.
+	//
+	// On mips64, Linux limits the user address space to 40 bits (see
+	// TASK_SIZE64 in the Linux kernel).  This has grown over time,
+	// so here we allow 48 bit addresses.
+	//
+	// On AMD64, virtual addresses are 48-bit numbers sign extended to 64.
+	// We shift the address left 16 to eliminate the sign extended part and make
+	// room in the bottom for the count.
+	//
+	// In addition to the 16 bits taken from the top, we can take 3 from the
+	// bottom, because node must be pointer-aligned, giving a total of 19 bits
+	// of count.
+	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
+}
+
+func lfstackUnpack(val uint64) *lfnode {
+	if unsafe.Sizeof(uintptr(0)) == 4 {
+		return (*lfnode)(unsafe.Pointer(uintptr(val >> 32)))
+	}
+	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
+}
