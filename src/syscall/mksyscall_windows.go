@@ -707,9 +707,9 @@ func (src *Source) Generate(w io.Writer) error {
 			}
 			if *sysRepo {
 				if packageName == "windows" {
-					return "&LazyDLL{Name: " + arg + ", System: true}"
+					return "NewLazySystemDLL(" + arg + ")"
 				} else {
-					return "&windows.LazyDLL{Name: " + arg + ", System: true}"
+					return "windows.NewLazySystemDLL(" + arg + ")"
 				}
 			} else {
 				return syscalldot() + "NewLazyDLL(" + arg + ")"
