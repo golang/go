@@ -91,6 +91,12 @@ func doversion() {
 	os.Exit(0)
 }
 
+// supportsDynlink reports whether or not the code generator for the given
+// architecture supports the -shared and -dynlink flags.
+func supportsDynlink(arch *sys.Arch) bool {
+	return arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.S390X)
+}
+
 func Main() {
 	defer hidePanic()
 
@@ -195,14 +201,12 @@ func Main() {
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared int
 	var flag_dynlink bool
-	if Thearch.LinkArch.InFamily(sys.ARM, sys.AMD64, sys.ARM64, sys.I386, sys.PPC64) {
+	if supportsDynlink(Thearch.LinkArch.Arch) {
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
 	if Thearch.LinkArch.Family == sys.AMD64 {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
-	}
-	if Thearch.LinkArch.InFamily(sys.ARM, sys.AMD64, sys.ARM64, sys.I386, sys.PPC64) {
-		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
 	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
