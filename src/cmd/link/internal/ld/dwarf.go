@@ -88,9 +88,7 @@ func uleb128put(s *LSym, v int64) {
 
 func sleb128put(s *LSym, v int64) {
 	b := appendSleb128(encbuf[:0], v)
-	for _, x := range b {
-		Adduint8(Ctxt, s, x)
-	}
+	Addbytes(Ctxt, s, b)
 }
 
 /*
@@ -552,8 +550,15 @@ func findchild(die *DWDie, name string) *DWDie {
 	return nil
 }
 
+// Used to avoid string allocation when looking up dwarf symbols
+var prefixBuf = []byte(infoprefix)
+
 func find(name string) *LSym {
-	return Linkrlookup(Ctxt, infoprefix+name, 0)
+	n := append(prefixBuf, name...)
+	// The string allocation below is optimized away because it is only used in a map lookup.
+	s := Linkrlookup(Ctxt, string(n), 0)
+	prefixBuf = n[:len(infoprefix)]
+	return s
 }
 
 func mustFind(name string) *LSym {

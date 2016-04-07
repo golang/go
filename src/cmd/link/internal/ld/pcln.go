@@ -127,8 +127,7 @@ func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
 	var start int32
 	if len(d.P) > 0 {
 		start = int32(len(ftab.P))
-		Symgrow(Ctxt, ftab, int64(start)+int64(len(d.P)))
-		copy(ftab.P[start:], d.P)
+		Addbytes(Ctxt, ftab, d.P)
 	}
 	return int32(setuint32(Ctxt, ftab, int64(off), uint32(start)))
 }
