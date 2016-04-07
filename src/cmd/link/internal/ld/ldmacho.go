@@ -1,6 +1,7 @@
 package ld
 
 import (
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"encoding/binary"
@@ -42,7 +43,7 @@ const (
 )
 
 type LdMachoObj struct {
-	f          *obj.Biobuf
+	f          *bio.Buf
 	base       int64 // off in f where Mach-O begins
 	length     int64 // length of Mach-O
 	is64       bool
@@ -298,7 +299,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
 	rel := make([]LdMachoRel, sect.nreloc)
 	n := int(sect.nreloc * 8)
 	buf := make([]byte, n)
-	if obj.Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || obj.Bread(m.f, buf) != n {
+	if bio.Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
 		return -1
 	}
 	var p []byte
@@ -344,7 +345,7 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
 	n := int(d.nindirectsyms)
 
 	p := make([]byte, n*4)
-	if obj.Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || obj.Bread(m.f, p) != len(p) {
+	if bio.Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
 		return -1
 	}
 
@@ -361,7 +362,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	}
 
 	strbuf := make([]byte, symtab.strsize)
-	if obj.Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || obj.Bread(m.f, strbuf) != len(strbuf) {
+	if bio.Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
 		return -1
 	}
 
@@ -371,7 +372,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	}
 	n := int(symtab.nsym * uint32(symsize))
 	symbuf := make([]byte, n)
-	if obj.Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || obj.Bread(m.f, symbuf) != len(symbuf) {
+	if bio.Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
 		return -1
 	}
 	sym := make([]LdMachoSym, symtab.nsym)
@@ -401,7 +402,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	return 0
 }
 
-func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
+func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
 	var err error
 	var j int
 	var is64 bool
@@ -431,8 +432,8 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 	var name string
 
 	Ctxt.IncVersion()
-	base := obj.Boffset(f)
-	if obj.Bread(f, hdr[:]) != len(hdr) {
+	base := bio.Boffset(f)
+	if bio.Bread(f, hdr[:]) != len(hdr) {
 		goto bad
 	}
 
@@ -455,7 +456,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 
 	if is64 {
 		var tmp [4]uint8
-		obj.Bread(f, tmp[:4]) // skip reserved word in header
+		bio.Bread(f, tmp[:4]) // skip reserved word in header
 	}
 
 	m = new(LdMachoObj)
@@ -493,7 +494,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 	m.cmd = make([]LdMachoCmd, ncmd)
 	off = uint32(len(hdr))
 	cmdp = make([]byte, cmdsz)
-	if obj.Bread(f, cmdp) != len(cmdp) {
+	if bio.Bread(f, cmdp) != len(cmdp) {
 		err = fmt.Errorf("reading cmds: %v", err)
 		goto bad
 	}
@@ -556,7 +557,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 	}
 
 	dat = make([]byte, c.seg.filesz)
-	if obj.Bseek(f, m.base+int64(c.seg.fileoff), 0) < 0 || obj.Bread(f, dat) != len(dat) {
+	if bio.Bseek(f, m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
 		err = fmt.Errorf("cannot load object data: %v", err)
 		goto bad
 	}

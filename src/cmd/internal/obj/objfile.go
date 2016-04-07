@@ -109,6 +109,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/bio"
 	"cmd/internal/sys"
 	"fmt"
 	"log"
@@ -120,7 +121,7 @@ import (
 // The Go and C compilers, and the assembler, call writeobj to write
 // out a Go object file. The linker does not call this; the linker
 // does not write out object files.
-func Writeobjdirect(ctxt *Link, b *Biobuf) {
+func Writeobjdirect(ctxt *Link, b *bio.Buf) {
 	Flushplist(ctxt)
 	WriteObjFile(ctxt, b)
 }
@@ -373,16 +374,16 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nFile))
 }
 
-func newObjWriter(ctxt *Link, b *Biobuf) *objWriter {
+func newObjWriter(ctxt *Link, b *bio.Buf) *objWriter {
 	return &objWriter{
 		ctxt:    ctxt,
-		wr:      b.w,
+		wr:      b.Writer(),
 		vrefIdx: make(map[string]int),
 		refIdx:  make(map[string]int),
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *Biobuf) {
+func WriteObjFile(ctxt *Link, b *bio.Buf) {
 	w := newObjWriter(ctxt, b)
 
 	// Magic header

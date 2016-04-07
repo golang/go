@@ -30,7 +30,10 @@
 
 package obj
 
-import "cmd/internal/sys"
+import (
+	"cmd/internal/bio"
+	"cmd/internal/sys"
+)
 
 // An Addr is an argument to an instruction.
 // The general forms and their encodings are:
@@ -626,7 +629,7 @@ type Link struct {
 	Flag_shared   int32
 	Flag_dynlink  bool
 	Flag_optimize bool
-	Bso           *Biobuf
+	Bso           *bio.Buf
 	Pathname      string
 	Goroot        string
 	Goroot_final  string

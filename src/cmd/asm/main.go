@@ -15,6 +15,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 )
 
@@ -45,9 +46,9 @@ func main() {
 	if *flags.Shared || *flags.Dynlink {
 		ctxt.Flag_shared = 1
 	}
-	ctxt.Bso = obj.Binitw(os.Stdout)
+	ctxt.Bso = bio.BufWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
-	output := obj.Binitw(fd)
+	output := bio.BufWriter(fd)
 	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
 	fmt.Fprintf(output, "!\n")
 

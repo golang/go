@@ -110,6 +110,7 @@ package ld
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"io"
 	"log"
@@ -146,8 +147,8 @@ type objReader struct {
 	file        []*LSym
 }
 
-func LoadObjFile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
-	start := obj.Boffset(f)
+func LoadObjFile(ctxt *Link, f *bio.Buf, pkg string, length int64, pn string) {
+	start := bio.Boffset(f)
 	r := &objReader{
 		rd:     f.Reader(),
 		pkg:    pkg,
@@ -156,8 +157,8 @@ func LoadObjFile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string)
 		dupSym: &LSym{Name: ".dup"},
 	}
 	r.loadObjFile()
-	if obj.Boffset(f) != start+length {
-		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(obj.Boffset(f)), int64(start+length))
+	if bio.Boffset(f) != start+length {
+		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(bio.Boffset(f)), int64(start+length))
 	}
 }
 
