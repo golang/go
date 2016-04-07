@@ -5,7 +5,7 @@
 package sys
 
 const (
-	TheChar       = 'z'
+	ArchFamily    = S390X
 	BigEndian     = 1
 	CacheLineSize = 256
 	PhysPageSize  = 4096

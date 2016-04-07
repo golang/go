@@ -719,8 +719,8 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 	// Scan local variables if stack frame has been allocated.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	switch sys.TheChar {
-	case '7':
+	switch sys.ArchFamily {
+	case sys.ARM64:
 		minsize = sys.SpAlign
 	default:
 		minsize = sys.MinFrameSize

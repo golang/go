@@ -496,7 +496,7 @@ func dumpparams() {
 	dumpint(sys.PtrSize)
 	dumpint(uint64(mheap_.arena_start))
 	dumpint(uint64(mheap_.arena_used))
-	dumpint(sys.TheChar)
+	dumpstr(sys.GOARCH)
 	dumpstr(sys.Goexperiment)
 	dumpint(uint64(ncpu))
 }

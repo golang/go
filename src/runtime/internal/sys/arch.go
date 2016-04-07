@@ -4,15 +4,14 @@
 
 package sys
 
-const (
-	ArchFamily    = PPC64
-	BigEndian     = 0
-	CacheLineSize = 64
-	PhysPageSize  = 65536
-	PCQuantum     = 4
-	Int64Align    = 8
-	HugePageSize  = 0
-	MinFrameSize  = 32
-)
+type ArchFamilyType int
 
-type Uintreg uint64
+const (
+	AMD64 ArchFamilyType = iota
+	ARM
+	ARM64
+	I386
+	MIPS64
+	PPC64
+	S390X
+)

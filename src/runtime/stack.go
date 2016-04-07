@@ -634,8 +634,8 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	// Adjust local variables if stack frame has been allocated.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	switch sys.TheChar {
-	case '7':
+	switch sys.ArchFamily {
+	case sys.ARM64:
 		minsize = sys.SpAlign
 	default:
 		minsize = sys.MinFrameSize
@@ -662,7 +662,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	}
 
 	// Adjust saved base pointer if there is one.
-	if sys.TheChar == '6' && frame.argp-frame.varp == 2*sys.RegSize {
+	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
 		if !framepointer_enabled {
 			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
 			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
@@ -969,7 +969,7 @@ func newstack() {
 		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
-	if sys.TheChar == '6' || sys.TheChar == '8' {
+	if sys.ArchFamily == sys.AMD64 || sys.ArchFamily == sys.I386 {
 		// The call to morestack cost a word.
 		sp -= sys.PtrSize
 	}
