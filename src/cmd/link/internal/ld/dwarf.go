@@ -509,6 +509,7 @@ func newdie(parent *DWDie, abbrev int, name string, version int) *DWDie {
 	if name != "" && (abbrev <= DW_ABRV_VARIABLE || abbrev >= DW_ABRV_NULLTYPE) {
 		if abbrev != DW_ABRV_VARIABLE || version == 0 {
 			die.sym = Linklookup(Ctxt, infoprefix+name, version)
+			die.sym.Attr |= AttrHidden
 			die.sym.Type = obj.SDWARFINFO
 		}
 	}
@@ -814,6 +815,7 @@ func dotypedef(parent *DWDie, name string, def *DWDie) {
 	}
 
 	def.sym = Linklookup(Ctxt, def.sym.Name+".def", 0)
+	def.sym.Attr |= AttrHidden
 	def.sym.Type = obj.SDWARFINFO
 
 	// The typedef entry must be created after the def,
