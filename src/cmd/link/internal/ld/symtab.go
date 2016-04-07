@@ -54,15 +54,9 @@ func putelfstr(s string) int {
 		s = strings.Replace(s, "·", ".", -1)
 	}
 
-	n := len(s) + 1
-	for len(Elfstrdat)+n > cap(Elfstrdat) {
-		Elfstrdat = append(Elfstrdat[:cap(Elfstrdat)], 0)[:len(Elfstrdat)]
-	}
-
 	off := len(Elfstrdat)
-	Elfstrdat = Elfstrdat[:off+n]
-	copy(Elfstrdat[off:], s)
-
+	Elfstrdat = append(Elfstrdat, s...)
+	Elfstrdat = append(Elfstrdat, 0)
 	return off
 }
 

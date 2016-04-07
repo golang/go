@@ -50,8 +50,9 @@ func Symgrow(ctxt *Link, s *LSym, siz int64) {
 	if int64(len(s.P)) >= siz {
 		return
 	}
-	for cap(s.P) < int(siz) {
-		s.P = append(s.P[:len(s.P)], 0)
+	if cap(s.P) < int(siz) {
+		p := make([]byte, 2*(siz+1))
+		s.P = append(p[:0], s.P...)
 	}
 	s.P = s.P[:siz]
 }
@@ -90,11 +91,8 @@ func Addbytes(ctxt *Link, s *LSym, bytes []byte) int64 {
 		s.Type = obj.SDATA
 	}
 	s.Attr |= AttrReachable
-	s.Size += int64(len(bytes))
-	if int64(int(s.Size)) != s.Size {
-		log.Fatalf("Addbytes size %d too long", s.Size)
-	}
 	s.P = append(s.P, bytes...)
+	s.Size = int64(len(s.P))
 
 	return s.Size
 }
@@ -106,7 +104,15 @@ func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
 }
 
 func Adduint8(ctxt *Link, s *LSym, v uint8) int64 {
-	return adduintxx(ctxt, s, uint64(v), 1)
+	off := s.Size
+	if s.Type == 0 {
+		s.Type = obj.SDATA
+	}
+	s.Attr |= AttrReachable
+	s.Size++
+	s.P = append(s.P, v)
+
+	return off
 }
 
 func Adduint16(ctxt *Link, s *LSym, v uint16) int64 {
@@ -1006,16 +1012,14 @@ func Addstring(s *LSym, str string) int64 {
 		s.Type = obj.SNOPTRDATA
 	}
 	s.Attr |= AttrReachable
-	r := int32(s.Size)
-	n := len(str) + 1
+	r := s.Size
 	if s.Name == ".shstrtab" {
 		elfsetstring(str, int(r))
 	}
-	Symgrow(Ctxt, s, int64(r)+int64(n))
-	copy(s.P[r:], str)
-	s.P[int(r)+len(str)] = 0
-	s.Size += int64(n)
-	return int64(r)
+	s.P = append(s.P, str...)
+	s.P = append(s.P, 0)
+	s.Size = int64(len(s.P))
+	return r
 }
 
 // addgostring adds str, as a Go string value, to s. symname is the name of the
