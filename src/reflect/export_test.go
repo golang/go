@@ -51,7 +51,7 @@ func TypeLinks() []string {
 		rodata := sections[i]
 		for _, off := range offs {
 			typ := (*rtype)(resolveTypeOff(unsafe.Pointer(rodata), off))
-			r = append(r, typ.string)
+			r = append(r, typ.String())
 		}
 	}
 	return r
@@ -102,4 +102,10 @@ func FirstMethodNameBytes(t Type) *byte {
 type OtherPkgFields struct {
 	OtherExported   int
 	otherUnexported int
+}
+
+func IsExported(t Type) bool {
+	typ := t.(*rtype)
+	n := typ.nameOff(typ.str)
+	return n.isExported()
 }

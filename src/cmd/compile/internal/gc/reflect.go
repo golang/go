@@ -788,14 +788,21 @@ func typeptrdata(t *Type) int64 {
 	}
 }
 
-// tflag is documented in ../../../../reflect/type.go.
-const tflagUncommon = 1
-
-// commonType
-// ../../../../runtime/type.go:/commonType
+// tflag is documented in reflect/type.go.
+//
+// tflag values must be kept in sync with copies in:
+//	cmd/compile/internal/gc/reflect.go
+//	cmd/link/internal/ld/decodesym.go
+//	reflect/type.go
+//	runtime/type.go
+const (
+	tflagUncommon  = 1 << 0
+	tflagExtraStar = 1 << 1
+)
 
 var dcommontype_algarray *Sym
 
+// dcommontype dumps the contents of a reflect.rtype (runtime._type).
 func dcommontype(s *Sym, ot int, t *Type) int {
 	if ot != 0 {
 		Fatalf("dcommontype %d", ot)
@@ -836,7 +843,8 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		kind          uint8
 	//		alg           *typeAlg
 	//		gcdata        *byte
-	//		string        *string
+	//		str           nameOff
+	//		_             int32
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
 	ot = duintptr(s, ot, uint64(ptrdata))
@@ -847,6 +855,26 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	if uncommonSize(t) != 0 {
 		tflag |= tflagUncommon
 	}
+
+	exported := false
+	p := Tconv(t, FmtLeft|FmtUnsigned)
+	// If we're writing out type T,
+	// we are very likely to write out type *T as well.
+	// Use the string "*T"[1:] for "T", so that the two
+	// share storage. This is a cheap way to reduce the
+	// amount of space taken up by reflect strings.
+	if !strings.HasPrefix(p, "*") {
+		p = "*" + p
+		tflag |= tflagExtraStar
+		if t.Sym != nil {
+			exported = exportname(t.Sym.Name)
+		}
+	} else {
+		if t.Elem() != nil && t.Elem().Sym != nil {
+			exported = exportname(t.Elem().Sym.Name)
+		}
+	}
+
 	ot = duint8(s, ot, tflag)
 
 	// runtime (and common sense) expects alignment to be a power of two.
@@ -882,21 +910,9 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
-	p := Tconv(t, FmtLeft|FmtUnsigned)
-
-	// If we're writing out type T,
-	// we are very likely to write out type *T as well.
-	// Use the string "*T"[1:] for "T", so that the two
-	// share storage. This is a cheap way to reduce the
-	// amount of space taken up by reflect strings.
-	prefix := 0
-	if !strings.HasPrefix(p, "*") {
-		p = "*" + p
-		prefix = 1
-	}
-	_, symdata := stringsym(p) // string
-	ot = dsymptrLSym(Linksym(s), ot, symdata, prefix)
-	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
+	nsym := dname(p, "", nil, exported)
+	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0)
+	ot = duint32(s, ot, 0)
 
 	return ot
 }

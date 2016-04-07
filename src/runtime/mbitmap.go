@@ -461,11 +461,11 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
 		throw("runtime: typeBitsBulkBarrier without type")
 	}
 	if typ.size != size {
-		println("runtime: typeBitsBulkBarrier with type ", typ._string, " of size ", typ.size, " but memory size", size)
+		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " of size ", typ.size, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if typ.kind&kindGCProg != 0 {
-		println("runtime: typeBitsBulkBarrier with type ", typ._string, " with GC prog")
+		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if !writeBarrier.needed {
@@ -916,7 +916,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	}
 	if nw == 0 {
 		// No pointers! Caller was supposed to check.
-		println("runtime: invalid type ", typ._string)
+		println("runtime: invalid type ", typ.string())
 		throw("heapBitsSetType: called with non-pointer type")
 		return
 	}
@@ -1100,7 +1100,7 @@ Phase4:
 	if doubleCheck {
 		end := heapBitsForAddr(x + size)
 		if typ.kind&kindGCProg == 0 && (hbitp != end.bitp || (w == nw+2) != (end.shift == 2)) {
-			println("ended at wrong bitmap byte for", typ._string, "x", dataSize/typ.size)
+			println("ended at wrong bitmap byte for", typ.string(), "x", dataSize/typ.size)
 			print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
 			print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
 			h0 := heapBitsForAddr(x)
@@ -1136,7 +1136,7 @@ Phase4:
 				}
 			}
 			if have != want {
-				println("mismatch writing bits for", typ._string, "x", dataSize/typ.size)
+				println("mismatch writing bits for", typ.string(), "x", dataSize/typ.size)
 				print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
 				print("kindGCProg=", typ.kind&kindGCProg != 0, "\n")
 				print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")

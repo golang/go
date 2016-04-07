@@ -8,10 +8,18 @@ package runtime
 
 import "unsafe"
 
-// tflag is documented in ../reflect/type.go.
+// tflag is documented in reflect/type.go.
+//
+// tflag values must be kept in sync with copies in:
+//	cmd/compile/internal/gc/reflect.go
+//	cmd/link/internal/ld/decodesym.go
+//	reflect/type.go
 type tflag uint8
 
-const tflagUncommon tflag = 1
+const (
+	tflagUncommon  tflag = 1 << 0
+	tflagExtraStar tflag = 1 << 1
+)
 
 // Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
 // ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
@@ -28,8 +36,17 @@ type _type struct {
 	// gcdata stores the GC type data for the garbage collector.
 	// If the KindGCProg bit is set in kind, gcdata is a GC program.
 	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
-	gcdata  *byte
-	_string string
+	gcdata *byte
+	str    nameOff
+	_      int32
+}
+
+func (t *_type) string() string {
+	s := t.nameOff(t.str).name()
+	if t.tflag&tflagExtraStar != 0 {
+		return s[1:]
+	}
+	return s
 }
 
 func (t *_type) uncommon() *uncommontype {
@@ -99,33 +116,34 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func (t *_type) name() string {
-	if hasPrefix(t._string, "map[") {
+	s := t.string()
+	if hasPrefix(s, "map[") {
 		return ""
 	}
-	if hasPrefix(t._string, "struct {") {
+	if hasPrefix(s, "struct {") {
 		return ""
 	}
-	if hasPrefix(t._string, "chan ") {
+	if hasPrefix(s, "chan ") {
 		return ""
 	}
-	if hasPrefix(t._string, "chan<-") {
+	if hasPrefix(s, "chan<-") {
 		return ""
 	}
-	if hasPrefix(t._string, "func(") {
+	if hasPrefix(s, "func(") {
 		return ""
 	}
-	switch t._string[0] {
+	switch s[0] {
 	case '[', '*', '<':
 		return ""
 	}
-	i := len(t._string) - 1
+	i := len(s) - 1
 	for i >= 0 {
-		if t._string[i] == '.' {
+		if s[i] == '.' {
 			break
 		}
 		i--
 	}
-	return t._string[i+1:]
+	return s[i+1:]
 }
 
 // reflectOffs holds type offsets defined at run time by the reflect package.
@@ -497,7 +515,7 @@ func typesEqual(t, v *_type) bool {
 	if kind != v.kind&kindMask {
 		return false
 	}
-	if t._string != v._string {
+	if t.string() != v.string() {
 		return false
 	}
 	ut := t.uncommon()
