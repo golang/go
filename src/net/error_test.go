@@ -206,6 +206,55 @@ func TestProtocolDialError(t *testing.T) {
 	}
 }
 
+func TestDialAddrError(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	for _, tt := range []struct {
+		network string
+		lit     string
+		addr    *TCPAddr
+	}{
+		{"tcp4", "::1", nil},
+		{"tcp4", "", &TCPAddr{IP: IPv6loopback}},
+		// We don't test the {"tcp6", "byte sequence", nil}
+		// case for now because there is no easy way to
+		// control name resolution.
+		{"tcp6", "", &TCPAddr{IP: IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}}},
+	} {
+		var err error
+		var c Conn
+		if tt.lit != "" {
+			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
+		} else {
+			c, err = DialTCP(tt.network, nil, tt.addr)
+		}
+		if err == nil {
+			c.Close()
+			t.Errorf("%s %q/%v: should fail", tt.network, tt.lit, tt.addr)
+			continue
+		}
+		if perr := parseDialError(err); perr != nil {
+			t.Error(perr)
+			continue
+		}
+		aerr, ok := err.(*OpError).Err.(*AddrError)
+		if !ok {
+			t.Errorf("%s %q/%v: should be AddrError: %v", tt.network, tt.lit, tt.addr, err)
+			continue
+		}
+		want := tt.lit
+		if tt.lit == "" {
+			want = tt.addr.IP.String()
+		}
+		if aerr.Addr != want {
+			t.Fatalf("%s: got %q; want %q", tt.network, aerr.Addr, want)
+		}
+	}
+}
+
 var listenErrorTests = []struct {
 	network, address string
 }{
