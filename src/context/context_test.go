@@ -242,6 +242,9 @@ func testDeadline(c Context, wait time.Duration, t *testing.T) {
 }
 
 func TestDeadline(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15158)
+	}
 	c, _ := WithDeadline(Background(), time.Now().Add(100*time.Millisecond))
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
@@ -279,6 +282,9 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestCanceledTimeout(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15158)
+	}
 	c, _ := WithTimeout(Background(), 200*time.Millisecond)
 	o := otherContext{c}
 	c, cancel := WithTimeout(o, 400*time.Millisecond)
