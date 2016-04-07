@@ -1915,6 +1915,9 @@ func dwarfgeneratedebugsyms() {
 	if Debug['w'] != 0 { // disable dwarf
 		return
 	}
+	if Debug['s'] != 0 && HEADTYPE != obj.Hdarwin {
+		return
+	}
 	if HEADTYPE == obj.Hplan9 {
 		return
 	}
