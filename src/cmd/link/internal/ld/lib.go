@@ -1301,7 +1301,8 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 
 	if !strings.HasPrefix(line, "go object ") {
 		if strings.HasSuffix(pn, ".go") {
-			Exitf("%cl: input %s is not .%c file (use %cg to compile .go files)", SysArch.Family, pn, SysArch.Family, SysArch.Family)
+			Exitf("%s: uncompiled .go source file", pn)
+			return nil
 		}
 
 		if line == SysArch.Name {
@@ -1559,10 +1560,6 @@ func mywhatsys() {
 	goroot = obj.Getgoroot()
 	goos = obj.Getgoos()
 	goarch = obj.Getgoarch()
-
-	if !strings.HasPrefix(goarch, SysArch.Name) {
-		log.Fatalf("cannot use %cc with GOARCH=%s", SysArch.Family, goarch)
-	}
 }
 
 // Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
