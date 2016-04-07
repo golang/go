@@ -10,13 +10,13 @@ import "encoding/binary"
 type ArchFamily byte
 
 const (
-	AMD64  ArchFamily = '6'
-	ARM    ArchFamily = '5'
-	ARM64  ArchFamily = '7'
-	I386   ArchFamily = '8'
-	MIPS64 ArchFamily = '0'
-	PPC64  ArchFamily = '9'
-	S390X  ArchFamily = 'z'
+	AMD64 ArchFamily = iota
+	ARM
+	ARM64
+	I386
+	MIPS64
+	PPC64
+	S390X
 )
 
 // Arch represents an individual architecture.
@@ -30,6 +30,7 @@ type Arch struct {
 	PtrSize int
 	RegSize int
 
+	// MinLC is the minimum length of an instruction code.
 	MinLC int
 }
 
