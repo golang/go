@@ -4175,12 +4175,12 @@ func TestStructOfExportRules(t *testing.T) {
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(ΦType{})},
-			mustPanic: true, // TODO(sbinet): creating a struct with UTF-8 fields not supported
+			mustPanic: false,
 			exported:  true,
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(φType{})},
-			mustPanic: true, // TODO(sbinet): creating a struct with UTF-8 fields not supported
+			mustPanic: false,
 			exported:  false,
 		},
 		{
@@ -5670,6 +5670,42 @@ func TestNames(t *testing.T) {
 	for _, test := range nameTests {
 		if got := TypeOf(test.v).Name(); got != test.want {
 			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
+		}
+	}
+}
+
+func TestExported(t *testing.T) {
+	type ΦExported struct{}
+	type φUnexported struct{}
+	type BigP *big
+	type P int
+	type p *P
+	type P2 p
+	type p3 p
+
+	type exportTest struct {
+		v    interface{}
+		want bool
+	}
+	exportTests := []exportTest{
+		{D1{}, true},
+		{(*D1)(nil), true},
+		{big{}, false},
+		{(*big)(nil), false},
+		{(BigP)(nil), true},
+		{(*BigP)(nil), true},
+		{ΦExported{}, true},
+		{φUnexported{}, false},
+		{P(0), true},
+		{(p)(nil), false},
+		{(P2)(nil), true},
+		{(p3)(nil), false},
+	}
+
+	for i, test := range exportTests {
+		typ := TypeOf(test.v)
+		if got := IsExported(typ); got != test.want {
+			t.Errorf("%d: %s exported=%v, want %v", i, typ.Name(), got, test.want)
 		}
 	}
 }

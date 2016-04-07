@@ -242,6 +242,11 @@ const (
 
 // tflag is used by an rtype to signal what extra type information is
 // available in the memory directly following the rtype value.
+//
+// tflag values must be kept in sync with copies in:
+//	cmd/compile/internal/gc/reflect.go
+//	cmd/link/internal/ld/decodesym.go
+//	runtime/type.go
 type tflag uint8
 
 const (
@@ -256,7 +261,13 @@ const (
 	//		u uncommonType
 	//	}
 	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
-	tflagUncommon tflag = 1
+	tflagUncommon tflag = 1 << 0
+
+	// tflagExtraStar means the name in the str field has an
+	// extraneous '*' prefix. This is because for most types T in
+	// a program, the type *T also exists and reusing the str data
+	// saves binary size.
+	tflagExtraStar tflag = 1 << 1
 )
 
 // rtype is the common implementation of most values.
@@ -273,7 +284,8 @@ type rtype struct {
 	kind       uint8    // enumeration for C
 	alg        *typeAlg // algorithm table
 	gcdata     *byte    // garbage collection data
-	string     string   // string form; unnecessary but undeniably useful
+	str        nameOff  // string form
+	_          int32    // unused; keeps rtype always a multiple of ptrSize
 }
 
 // a copy of runtime.typeAlg
@@ -420,6 +432,9 @@ type structType struct {
 // If the import path follows, then 4 bytes at the end of
 // the data form a nameOff. The import path is only set for concrete
 // methods that are defined in a different package than their type.
+//
+// If a name starts with "*", then the exported bit represents
+// whether the pointed to type is exported.
 type name struct {
 	bytes *byte
 }
@@ -724,7 +739,13 @@ func (t *rtype) uncommon() *uncommonType {
 	}
 }
 
-func (t *rtype) String() string { return t.string }
+func (t *rtype) String() string {
+	s := t.nameOff(t.str).name()
+	if t.tflag&tflagExtraStar != 0 {
+		return s[1:]
+	}
+	return s
+}
 
 func (t *rtype) Size() uintptr { return t.size }
 
@@ -833,33 +854,34 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func (t *rtype) Name() string {
-	if hasPrefix(t.string, "map[") {
+	s := t.String()
+	if hasPrefix(s, "map[") {
 		return ""
 	}
-	if hasPrefix(t.string, "struct {") {
+	if hasPrefix(s, "struct {") {
 		return ""
 	}
-	if hasPrefix(t.string, "chan ") {
+	if hasPrefix(s, "chan ") {
 		return ""
 	}
-	if hasPrefix(t.string, "chan<-") {
+	if hasPrefix(s, "chan<-") {
 		return ""
 	}
-	if hasPrefix(t.string, "func(") {
+	if hasPrefix(s, "func(") {
 		return ""
 	}
-	switch t.string[0] {
+	switch s[0] {
 	case '[', '*', '<':
 		return ""
 	}
-	i := len(t.string) - 1
+	i := len(s) - 1
 	for i >= 0 {
-		if t.string[i] == '.' {
+		if s[i] == '.' {
 			break
 		}
 		i--
 	}
-	return t.string[i+1:]
+	return s[i+1:]
 }
 
 func (t *rtype) ChanDir() ChanDir {
@@ -1391,7 +1413,7 @@ func (t *rtype) ptrTo() *rtype {
 	}
 
 	// Look in known types.
-	s := "*" + t.string
+	s := "*" + t.String()
 	for _, tt := range typesByString(s) {
 		p = (*ptrType)(unsafe.Pointer(tt))
 		if p.elem == t {
@@ -1408,7 +1430,7 @@ func (t *rtype) ptrTo() *rtype {
 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
 	*p = *prototype
 
-	p.string = s
+	p.str = resolveReflectName(newName(s, "", "", false))
 
 	// For the type structures linked into the binary, the
 	// compiler provides a good hash of the string.
@@ -1645,7 +1667,7 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 //
 // and
 //
-//	t1.string < t2.string
+//	t1.String() < t2.String()
 //
 // Note that strings are not unique identifiers for types:
 // there can be more than one with a given string.
@@ -1669,12 +1691,12 @@ func typesByString(s string) []*rtype {
 		section := sections[offsI]
 
 		// We are looking for the first index i where the string becomes >= s.
-		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
+		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
 		i, j := 0, len(offs)
 		for i < j {
 			h := i + (j-i)/2 // avoid overflow when computing h
 			// i ≤ h < j
-			if !(rtypeOff(section, offs[h]).string >= s) {
+			if !(rtypeOff(section, offs[h]).String() >= s) {
 				i = h + 1 // preserves f(i-1) == false
 			} else {
 				j = h // preserves f(j) == true
@@ -1687,7 +1709,7 @@ func typesByString(s string) []*rtype {
 		// to do a linear scan anyway.
 		for j := i; j < len(offs); j++ {
 			typ := rtypeOff(section, offs[j])
-			if typ.string != s {
+			if typ.String() != s {
 				break
 			}
 			ret = append(ret, typ)
@@ -1783,11 +1805,11 @@ func ChanOf(dir ChanDir, t Type) Type {
 		lookupCache.Unlock()
 		panic("reflect.ChanOf: invalid dir")
 	case SendDir:
-		s = "chan<- " + typ.string
+		s = "chan<- " + typ.String()
 	case RecvDir:
-		s = "<-chan " + typ.string
+		s = "<-chan " + typ.String()
 	case BothDir:
-		s = "chan " + typ.string
+		s = "chan " + typ.String()
 	}
 	for _, tt := range typesByString(s) {
 		ch := (*chanType)(unsafe.Pointer(tt))
@@ -1802,7 +1824,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	ch := new(chanType)
 	*ch = *prototype
 	ch.dir = uintptr(dir)
-	ch.string = s
+	ch.str = resolveReflectName(newName(s, "", "", false))
 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
 	ch.elem = typ
 
@@ -1832,7 +1854,7 @@ func MapOf(key, elem Type) Type {
 	}
 
 	// Look in known types.
-	s := "map[" + ktyp.string + "]" + etyp.string
+	s := "map[" + ktyp.String() + "]" + etyp.String()
 	for _, tt := range typesByString(s) {
 		mt := (*mapType)(unsafe.Pointer(tt))
 		if mt.key == ktyp && mt.elem == etyp {
@@ -1844,7 +1866,7 @@ func MapOf(key, elem Type) Type {
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := new(mapType)
 	*mt = **(**mapType)(unsafe.Pointer(&imap))
-	mt.string = s
+	mt.str = resolveReflectName(newName(s, "", "", false))
 	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
 	mt.key = ktyp
 	mt.elem = etyp
@@ -2002,7 +2024,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	}
 
 	// Populate the remaining fields of ft and store in cache.
-	ft.string = str
+	ft.str = resolveReflectName(newName(str, "", "", false))
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return &ft.rtype
@@ -2018,9 +2040,9 @@ func funcStr(ft *funcType) string {
 		}
 		if ft.IsVariadic() && i == int(ft.inCount)-1 {
 			repr = append(repr, "..."...)
-			repr = append(repr, (*sliceType)(unsafe.Pointer(t)).elem.string...)
+			repr = append(repr, (*sliceType)(unsafe.Pointer(t)).elem.String()...)
 		} else {
-			repr = append(repr, t.string...)
+			repr = append(repr, t.String()...)
 		}
 	}
 	repr = append(repr, ')')
@@ -2034,7 +2056,7 @@ func funcStr(ft *funcType) string {
 		if i > 0 {
 			repr = append(repr, ", "...)
 		}
-		repr = append(repr, t.string...)
+		repr = append(repr, t.String()...)
 	}
 	if len(out) > 1 {
 		repr = append(repr, ')')
@@ -2199,8 +2221,8 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	b.ptrdata = ptrdata
 	b.kind = kind
 	b.gcdata = gcdata
-	s := "bucket(" + ktyp.string + "," + etyp.string + ")"
-	b.string = s
+	s := "bucket(" + ktyp.String() + "," + etyp.String() + ")"
+	b.str = resolveReflectName(newName(s, "", "", false))
 	return b
 }
 
@@ -2216,7 +2238,7 @@ func SliceOf(t Type) Type {
 	}
 
 	// Look in known types.
-	s := "[]" + typ.string
+	s := "[]" + typ.String()
 	for _, tt := range typesByString(s) {
 		slice := (*sliceType)(unsafe.Pointer(tt))
 		if slice.elem == typ {
@@ -2229,7 +2251,7 @@ func SliceOf(t Type) Type {
 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
 	slice := new(sliceType)
 	*slice = *prototype
-	slice.string = s
+	slice.str = resolveReflectName(newName(s, "", "", false))
 	slice.hash = fnv1(typ.hash, '[')
 	slice.elem = typ
 
@@ -2337,11 +2359,11 @@ func StructOf(fields []StructField) Type {
 				// Embedded ** and *interface{} are illegal
 				elem := ft.Elem()
 				if k := elem.Kind(); k == Ptr || k == Interface {
-					panic("reflect.StructOf: illegal anonymous field type " + ft.string)
+					panic("reflect.StructOf: illegal anonymous field type " + ft.String())
 				}
 				name = elem.String()
 			} else {
-				name = ft.string
+				name = ft.String()
 			}
 			// TODO(sbinet) check for syntactically impossible type names?
 
@@ -2463,7 +2485,7 @@ func StructOf(fields []StructField) Type {
 
 		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
 
-		repr = append(repr, (" " + ft.string)...)
+		repr = append(repr, (" " + ft.String())...)
 		if f.name.tagLen() > 0 {
 			hash = fnv1(hash, []byte(f.name.tag())...)
 			repr = append(repr, (" " + strconv.Quote(f.name.tag()))...)
@@ -2579,7 +2601,7 @@ func StructOf(fields []StructField) Type {
 		}
 	}
 
-	typ.string = str
+	typ.str = resolveReflectName(newName(str, "", "", false))
 	typ.hash = hash
 	typ.size = size
 	typ.align = typalign
@@ -2691,11 +2713,11 @@ func StructOf(fields []StructField) Type {
 func runtimeStructField(field StructField) structField {
 	exported := field.PkgPath == ""
 	if field.Name == "" {
-		t := field.Type
+		t := field.Type.(*rtype)
 		if t.Kind() == Ptr {
-			t = t.Elem()
+			t = t.Elem().(*rtype)
 		}
-		exported = isExported(t.Name())
+		exported = t.nameOff(t.str).isExported()
 	} else if exported {
 		b0 := field.Name[0]
 		if ('a' <= b0 && b0 <= 'z') || b0 == '_' {
@@ -2708,25 +2730,6 @@ func runtimeStructField(field StructField) structField {
 		name:   newName(field.Name, string(field.Tag), field.PkgPath, exported),
 		typ:    field.Type.common(),
 		offset: 0,
-	}
-}
-
-func isExported(s string) bool {
-	if s == "" {
-		return false
-	}
-	// FIXME(sbinet): handle utf8/runes (see https://golang.org/issue/15064)
-	// TODO: turn rtype.string into a reflect.name type, and put the exported
-	//       bit on there which can be checked here with field.Type.(*rtype).string.isExported()
-	//       When done, remove the documented limitation of StructOf.
-	r := s[0]
-	switch {
-	case 'A' <= r && r <= 'Z':
-		return true
-	case r == '_' || 'a' <= r && r <= 'z':
-		return false
-	default:
-		panic("reflect.StructOf: creating a struct with UTF-8 fields is not supported yet")
 	}
 }
 
@@ -2779,7 +2782,7 @@ func ArrayOf(count int, elem Type) Type {
 	}
 
 	// Look in known types.
-	s := "[" + strconv.Itoa(count) + "]" + typ.string
+	s := "[" + strconv.Itoa(count) + "]" + typ.String()
 	for _, tt := range typesByString(s) {
 		array := (*arrayType)(unsafe.Pointer(tt))
 		if array.elem == typ {
@@ -2792,7 +2795,7 @@ func ArrayOf(count int, elem Type) Type {
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := new(arrayType)
 	*array = *prototype
-	array.string = s
+	array.str = resolveReflectName(newName(s, "", "", false))
 	array.hash = fnv1(typ.hash, '[')
 	for n := uint32(count); n > 0; n >>= 8 {
 		array.hash = fnv1(array.hash, byte(n))
@@ -3046,11 +3049,11 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 
 	var s string
 	if rcvr != nil {
-		s = "methodargs(" + rcvr.string + ")(" + t.string + ")"
+		s = "methodargs(" + rcvr.String() + ")(" + t.String() + ")"
 	} else {
-		s = "funcargs(" + t.string + ")"
+		s = "funcargs(" + t.String() + ")"
 	}
-	x.string = s
+	x.str = resolveReflectName(newName(s, "", "", false))
 
 	// cache result for future callers
 	if layoutCache.m == nil {

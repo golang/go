@@ -1832,7 +1832,7 @@ func dodataSect(symn int, syms []*LSym) (result []*LSym, maxAlign int32) {
 		case obj.STYPELINK:
 			// Sort typelinks by the rtype.string field so the reflect
 			// package can binary search type links.
-			symsSort[i].name = string(decodetype_string(s.R[0].Sym))
+			symsSort[i].name = string(decodetype_str(s.R[0].Sym))
 		}
 	}
 

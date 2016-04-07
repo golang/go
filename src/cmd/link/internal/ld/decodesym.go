@@ -16,6 +16,18 @@ import (
 // ../../runtime/type.go, or more specifically, with what
 // ../gc/reflect.c stuffs in these.
 
+// tflag is documented in reflect/type.go.
+//
+// tflag values must be kept in sync with copies in:
+//	cmd/compile/internal/gc/reflect.go
+//	cmd/link/internal/ld/decodesym.go
+//	reflect/type.go
+//	runtime/type.go
+const (
+	tflagUncommon  = 1 << 0
+	tflagExtraStar = 1 << 1
+)
+
 func decode_reloc(s *LSym, off int32) *Reloc {
 	for i := range s.R {
 		if s.R[i].Off == off {
@@ -47,9 +59,9 @@ func decode_inuxi(p []byte, sz int) uint64 {
 	}
 }
 
-func commonsize() int      { return 6*SysArch.PtrSize + 8 } // runtime._type
-func structfieldSize() int { return 3 * SysArch.PtrSize }   // runtime.structfield
-func uncommonSize() int    { return 2 * SysArch.PtrSize }   // runtime.uncommontype
+func commonsize() int      { return 4*SysArch.PtrSize + 8 + 8 } // runtime._type
+func structfieldSize() int { return 3 * SysArch.PtrSize }       // runtime.structfield
+func uncommonSize() int    { return 2 * SysArch.PtrSize }       // runtime.uncommontype
 
 // Type.commonType.kind
 func decodetype_kind(s *LSym) uint8 {
@@ -73,7 +85,6 @@ func decodetype_ptrdata(s *LSym) int64 {
 
 // Type.commonType.tflag
 func decodetype_hasUncommon(s *LSym) bool {
-	const tflagUncommon = 1 // see ../../../../reflect/type.go:/^type.tflag
 	return s.P[2*SysArch.PtrSize+4]&tflagUncommon != 0
 }
 
@@ -211,16 +222,13 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
 	return off
 }
 
-// decodetype_string returns the contents of an rtype's string field.
-func decodetype_string(s *LSym) []byte {
-	off := 4*SysArch.PtrSize + 8
-	strlen := int64(decode_inuxi(s.P[off+SysArch.PtrSize:], SysArch.IntSize))
-
-	r := decode_reloc(s, int32(off))
-	if r == nil {
-		return nil
+// decodetype_str returns the contents of an rtype's str field (a nameOff).
+func decodetype_str(s *LSym) string {
+	str := decodetype_name(s, 4*SysArch.PtrSize+8)
+	if s.P[2*SysArch.PtrSize+4]&tflagExtraStar != 0 {
+		return str[1:]
 	}
-	return r.Sym.P[r.Add : r.Add+strlen]
+	return str
 }
 
 // decodetype_name decodes the name from a reflect.name.
@@ -233,7 +241,6 @@ func decodetype_name(s *LSym, off int) string {
 	data := r.Sym.P
 	namelen := int(uint16(data[1]<<8) | uint16(data[2]))
 	return string(data[3 : 3+namelen])
-
 }
 
 func decodetype_structfieldname(s *LSym, i int) string {
