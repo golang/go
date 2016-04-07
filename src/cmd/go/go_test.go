@@ -580,32 +580,6 @@ func (tg *testgoData) cleanup() {
 	}
 }
 
-// resetReadOnlyFlagAll resets windows read-only flag
-// set on path and any children it contains.
-// The flag is set by git and has to be removed.
-// os.Remove refuses to remove files with read-only flag set.
-func (tg *testgoData) resetReadOnlyFlagAll(path string) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		tg.t.Fatalf("resetReadOnlyFlagAll(%q) failed: %v", path, err)
-	}
-	if !fi.IsDir() {
-		err := os.Chmod(path, 0666)
-		if err != nil {
-			tg.t.Fatalf("resetReadOnlyFlagAll(%q) failed: %v", path, err)
-		}
-	}
-	fd, err := os.Open(path)
-	if err != nil {
-		tg.t.Fatalf("resetReadOnlyFlagAll(%q) failed: %v", path, err)
-	}
-	defer fd.Close()
-	names, _ := fd.Readdirnames(-1)
-	for _, name := range names {
-		tg.resetReadOnlyFlagAll(path + string(filepath.Separator) + name)
-	}
-}
-
 // failSSH puts an ssh executable in the PATH that always fails.
 // This is to stub out uses of ssh by go get.
 func (tg *testgoData) failSSH() {
@@ -1192,7 +1166,6 @@ func TestIssue10952(t *testing.T) {
 	const importPath = "github.com/zombiezen/go-get-issue-10952"
 	tg.run("get", "-d", "-u", importPath)
 	repoDir := tg.path("src/" + importPath)
-	defer tg.resetReadOnlyFlagAll(repoDir)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
 	tg.run("get", "-d", "-u", importPath)
 }
@@ -1216,7 +1189,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
 
 	tg.run("get", "-d", importPath)
 	repoDir := tg.path("src/" + importPath)
-	defer tg.resetReadOnlyFlagAll(repoDir)
 	tg.runGit(repoDir, "branch", "--contains", "HEAD")
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 
