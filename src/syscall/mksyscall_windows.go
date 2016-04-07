@@ -617,9 +617,6 @@ func ParseFiles(fs []string) (*Source, error) {
 			"unsafe",
 		},
 	}
-	if *systemDLL {
-		src.Import("internal/syscall/windows/sysdll")
-	}
 	for _, file := range fs {
 		if err := src.ParseFile(file); err != nil {
 			return nil, err
@@ -691,8 +688,29 @@ func (src *Source) ParseFile(path string) error {
 
 // Generate output source file from a source set src.
 func (src *Source) Generate(w io.Writer) error {
-	if *sysRepo && packageName != "windows" {
-		src.Import("golang.org/x/sys/windows")
+	const (
+		pkgStd         = iota // any package in std library
+		pkgXSysWindows        // x/sys/windows package
+		pkgOther
+	)
+	var pkgtype int
+	switch {
+	case !*sysRepo:
+		pkgtype = pkgStd
+	case packageName == "windows":
+		// TODO: this needs better logic than just using package name
+		pkgtype = pkgXSysWindows
+	default:
+		pkgtype = pkgOther
+	}
+	if *systemDLL {
+		switch pkgtype {
+		case pkgStd:
+			src.Import("internal/syscall/windows/sysdll")
+		case pkgXSysWindows:
+		default:
+			src.Import("golang.org/x/sys/windows")
+		}
 	}
 	if packageName != "syscall" {
 		src.Import("syscall")
@@ -702,17 +720,16 @@ func (src *Source) Generate(w io.Writer) error {
 		"syscalldot":  syscalldot,
 		"newlazydll": func(dll string) string {
 			arg := "\"" + dll + ".dll\""
-			if *systemDLL {
-				arg = "sysdll.Add(" + arg + ")"
-			}
-			if *sysRepo {
-				if packageName == "windows" {
-					return "NewLazySystemDLL(" + arg + ")"
-				} else {
-					return "windows.NewLazySystemDLL(" + arg + ")"
-				}
-			} else {
+			if !*systemDLL {
 				return syscalldot() + "NewLazyDLL(" + arg + ")"
+			}
+			switch pkgtype {
+			case pkgStd:
+				return syscalldot() + "NewLazyDLL(sysdll.Add(" + arg + "))"
+			case pkgXSysWindows:
+				return "NewLazySystemDLL(" + arg + ")"
+			default:
+				return "windows.NewLazySystemDLL(" + arg + ")"
 			}
 		},
 	}
