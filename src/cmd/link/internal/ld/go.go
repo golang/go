@@ -8,6 +8,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"fmt"
 	"os"
@@ -26,7 +27,7 @@ func expandpkg(t0 string, pkg string) string {
 //	once the dust settles, try to move some code to
 //		libmach, so that other linkers and ar can share.
 
-func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int) {
+func ldpkg(f *bio.Buf, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
 	if Debug['g'] != 0 {
@@ -48,7 +49,7 @@ func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int)
 	}
 
 	bdata := make([]byte, length)
-	if int64(obj.Bread(f, bdata)) != length {
+	if int64(bio.Bread(f, bdata)) != length {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
 			errorexit()

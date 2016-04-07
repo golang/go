@@ -7,7 +7,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/obj"
+	"cmd/internal/bio"
 	"fmt"
 	"sort"
 	"unicode"
@@ -384,7 +384,7 @@ func dumpexport() {
 		if debugFormat {
 			// save a copy of the export data
 			var copy bytes.Buffer
-			bcopy := obj.Binitw(&copy)
+			bcopy := bio.BufWriter(&copy)
 			size = Export(bcopy, Debug_export != 0)
 			bcopy.Flush() // flushing to bytes.Buffer cannot fail
 			if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
@@ -577,7 +577,7 @@ func importtype(pt *Type, t *Type) {
 }
 
 func dumpasmhdr() {
-	b, err := obj.Bopenw(asmhdr)
+	b, err := bio.Create(asmhdr)
 	if err != nil {
 		Fatalf("%v", err)
 	}
@@ -604,5 +604,5 @@ func dumpasmhdr() {
 		}
 	}
 
-	obj.Bterm(b)
+	b.Close()
 }

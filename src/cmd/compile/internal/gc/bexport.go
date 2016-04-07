@@ -92,7 +92,7 @@ package gc
 import (
 	"bytes"
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
+	"cmd/internal/bio"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -124,7 +124,7 @@ const exportVersion = "v0"
 const exportInlined = true // default: true
 
 type exporter struct {
-	out      *obj.Biobuf
+	out      *bio.Buf
 	pkgIndex map[*Pkg]int
 	typIndex map[*Type]int
 	inlined  []*Func
@@ -136,7 +136,7 @@ type exporter struct {
 }
 
 // Export writes the exportlist for localpkg to out and returns the number of bytes written.
-func Export(out *obj.Biobuf, trace bool) int {
+func Export(out *bio.Buf, trace bool) int {
 	p := exporter{
 		out:      out,
 		pkgIndex: make(map[*Pkg]int),
@@ -1531,10 +1531,10 @@ func (p *exporter) byte(b byte) {
 		fallthrough
 	case '|':
 		// write '|' as '|' '|'
-		obj.Bputc(p.out, '|')
+		p.out.WriteByte('|')
 		p.written++
 	}
-	obj.Bputc(p.out, b)
+	p.out.WriteByte(b)
 	p.written++
 }
 

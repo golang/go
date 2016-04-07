@@ -33,6 +33,7 @@ package ld
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"crypto/sha1"
@@ -240,7 +241,7 @@ const (
 var (
 	headstring string
 	// buffered output
-	Bso obj.Biobuf
+	Bso bio.Buf
 )
 
 type outBuf struct {
@@ -738,13 +739,13 @@ func loadlib() {
  * look for the next file in an archive.
  * adapted from libmach.
  */
-func nextar(bp *obj.Biobuf, off int64, a *ArHdr) int64 {
+func nextar(bp *bio.Buf, off int64, a *ArHdr) int64 {
 	if off&1 != 0 {
 		off++
 	}
-	obj.Bseek(bp, off, 0)
+	bio.Bseek(bp, off, 0)
 	buf := make([]byte, SAR_HDR)
-	if n := obj.Bread(bp, buf); n < len(buf) {
+	if n := bio.Bread(bp, buf); n < len(buf) {
 		if n >= 0 {
 			return 0
 		}
@@ -773,25 +774,25 @@ func objfile(lib *Library) {
 		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
 	}
 	Bso.Flush()
-	f, err := obj.Bopenr(lib.File)
+	f, err := bio.Open(lib.File)
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
 
 	magbuf := make([]byte, len(ARMAG))
-	if obj.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
+	if bio.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
 		/* load it as a regular file */
-		l := obj.Bseek(f, 0, 2)
+		l := bio.Bseek(f, 0, 2)
 
-		obj.Bseek(f, 0, 0)
+		bio.Bseek(f, 0, 0)
 		ldobj(f, pkg, l, lib.File, lib.File, FileObj)
-		obj.Bterm(f)
+		f.Close()
 
 		return
 	}
 
 	/* process __.PKGDEF */
-	off := obj.Boffset(f)
+	off := bio.Boffset(f)
 
 	var arhdr ArHdr
 	l := nextar(f, off, &arhdr)
@@ -807,12 +808,12 @@ func objfile(lib *Library) {
 	}
 
 	if Buildmode == BuildmodeShared {
-		before := obj.Boffset(f)
+		before := bio.Boffset(f)
 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
-		obj.Bread(f, pkgdefBytes)
+		bio.Bread(f, pkgdefBytes)
 		hash := sha1.Sum(pkgdefBytes)
 		lib.hash = hash[:]
-		obj.Bseek(f, before, 0)
+		bio.Bseek(f, before, 0)
 	}
 
 	off += l
@@ -848,11 +849,11 @@ func objfile(lib *Library) {
 	}
 
 out:
-	obj.Bterm(f)
+	f.Close()
 }
 
 type Hostobj struct {
-	ld     func(*obj.Biobuf, string, int64, string)
+	ld     func(*bio.Buf, string, int64, string)
 	pkg    string
 	pn     string
 	file   string
@@ -873,7 +874,7 @@ var internalpkg = []string{
 	"runtime/msan",
 }
 
-func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) *Hostobj {
+func ldhostobj(ld func(*bio.Buf, string, int64, string), f *bio.Buf, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
@@ -904,26 +905,26 @@ func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg s
 	h.pkg = pkg
 	h.pn = pn
 	h.file = file
-	h.off = obj.Boffset(f)
+	h.off = bio.Boffset(f)
 	h.length = length
 	return h
 }
 
 func hostobjs() {
-	var f *obj.Biobuf
+	var f *bio.Buf
 	var h *Hostobj
 
 	for i := 0; i < len(hostobj); i++ {
 		h = &hostobj[i]
 		var err error
-		f, err = obj.Bopenr(h.file)
+		f, err = bio.Open(h.file)
 		if f == nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 
-		obj.Bseek(f, h.off, 0)
+		bio.Bseek(f, h.off, 0)
 		h.ld(f, h.pkg, h.length, h.pn)
-		obj.Bterm(f)
+		f.Close()
 	}
 }
 
@@ -1265,15 +1266,15 @@ func hostlinkArchArgs() []string {
 // ldobj loads an input object. If it is a host object (an object
 // compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
-func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
-	eof := obj.Boffset(f) + length
+func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
+	eof := bio.Boffset(f) + length
 
-	start := obj.Boffset(f)
-	c1 := obj.Bgetc(f)
-	c2 := obj.Bgetc(f)
-	c3 := obj.Bgetc(f)
-	c4 := obj.Bgetc(f)
-	obj.Bseek(f, start, 0)
+	start := bio.Boffset(f)
+	c1 := bio.Bgetc(f)
+	c2 := bio.Bgetc(f)
+	c3 := bio.Bgetc(f)
+	c4 := bio.Bgetc(f)
+	bio.Bseek(f, start, 0)
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
@@ -1289,12 +1290,8 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 	}
 
 	/* check the header */
-	line := obj.Brdline(f, '\n')
+	line := bio.Brdline(f, '\n')
 	if line == "" {
-		if obj.Blinelen(f) > 0 {
-			Diag("%s: not an object file", pn)
-			return nil
-		}
 		Diag("truncated object file: %s", pn)
 		return nil
 	}
@@ -1337,28 +1334,28 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 	}
 
 	/* skip over exports and other info -- ends with \n!\n */
-	import0 := obj.Boffset(f)
+	import0 := bio.Boffset(f)
 
 	c1 = '\n' // the last line ended in \n
-	c2 = obj.Bgetc(f)
-	c3 = obj.Bgetc(f)
+	c2 = bio.Bgetc(f)
+	c3 = bio.Bgetc(f)
 	for c1 != '\n' || c2 != '!' || c3 != '\n' {
 		c1 = c2
 		c2 = c3
-		c3 = obj.Bgetc(f)
-		if c3 == obj.Beof {
+		c3 = bio.Bgetc(f)
+		if c3 == bio.EOF {
 			Diag("truncated object file: %s", pn)
 			return nil
 		}
 	}
 
-	import1 := obj.Boffset(f)
+	import1 := bio.Boffset(f)
 
-	obj.Bseek(f, import0, 0)
+	bio.Bseek(f, import0, 0)
 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
-	obj.Bseek(f, import1, 0)
+	bio.Bseek(f, import1, 0)
 
-	LoadObjFile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
+	LoadObjFile(Ctxt, f, pkg, eof-bio.Boffset(f), pn)
 	return nil
 }
 

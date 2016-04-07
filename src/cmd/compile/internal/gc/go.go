@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 )
 
@@ -132,7 +133,7 @@ var infile string
 
 var outfile string
 
-var bout *obj.Biobuf
+var bout *bio.Buf
 
 var nerrors int
 
@@ -287,7 +288,7 @@ var Ctxt *obj.Link
 
 var writearchive int
 
-var bstdout obj.Biobuf
+var bstdout *bio.Buf
 
 var Nacl bool
 

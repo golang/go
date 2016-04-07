@@ -31,7 +31,7 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"cmd/internal/bio"
 	"cmd/internal/sys"
 	"debug/elf"
 	"fmt"
@@ -165,7 +165,7 @@ type Link struct {
 	Headtype  int
 	Arch      *sys.Arch
 	Debugvlog int32
-	Bso       *obj.Biobuf
+	Bso       *bio.Buf
 	Windows   int32
 	Goroot    string
 

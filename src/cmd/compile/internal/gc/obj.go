@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"crypto/sha256"
 	"fmt"
@@ -23,7 +24,7 @@ func formathdr(arhdr []byte, name string, size int64) {
 
 func dumpobj() {
 	var err error
-	bout, err = obj.Bopenw(outfile)
+	bout, err = bio.Create(outfile)
 	if err != nil {
 		Flusherrors()
 		fmt.Printf("can't create %s: %v\n", outfile, err)
@@ -33,10 +34,10 @@ func dumpobj() {
 	startobj := int64(0)
 	var arhdr [ArhdrSize]byte
 	if writearchive != 0 {
-		obj.Bwritestring(bout, "!<arch>\n")
+		bout.WriteString("!<arch>\n")
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
-		startobj = obj.Boffset(bout)
+		startobj = bio.Boffset(bout)
 	}
 
 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
@@ -44,19 +45,19 @@ func dumpobj() {
 
 	if writearchive != 0 {
 		bout.Flush()
-		size := obj.Boffset(bout) - startobj
+		size := bio.Boffset(bout) - startobj
 		if size&1 != 0 {
-			obj.Bputc(bout, 0)
+			bout.WriteByte(0)
 		}
-		obj.Bseek(bout, startobj-ArhdrSize, 0)
+		bio.Bseek(bout, startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "__.PKGDEF", size)
 		bout.Write(arhdr[:])
 		bout.Flush()
 
-		obj.Bseek(bout, startobj+size+(size&1), 0)
+		bio.Bseek(bout, startobj+size+(size&1), 0)
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
-		startobj = obj.Boffset(bout)
+		startobj = bio.Boffset(bout)
 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 	}
 
@@ -91,16 +92,16 @@ func dumpobj() {
 
 	if writearchive != 0 {
 		bout.Flush()
-		size := obj.Boffset(bout) - startobj
+		size := bio.Boffset(bout) - startobj
 		if size&1 != 0 {
-			obj.Bputc(bout, 0)
+			bout.WriteByte(0)
 		}
-		obj.Bseek(bout, startobj-ArhdrSize, 0)
+		bio.Bseek(bout, startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "_go_.o", size)
 		bout.Write(arhdr[:])
 	}
 
-	obj.Bterm(bout)
+	bout.Close()
 }
 
 func dumpglobls() {
@@ -132,9 +133,9 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-func Bputname(b *obj.Biobuf, s *obj.LSym) {
-	obj.Bwritestring(b, s.Name)
-	obj.Bputc(b, 0)
+func Bputname(b *bio.Buf, s *obj.LSym) {
+	b.WriteString(s.Name)
+	b.WriteByte(0)
 }
 
 func Linksym(s *Sym) *obj.LSym {
