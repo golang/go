@@ -93,14 +93,7 @@ func doversion() {
 func Main() {
 	defer hidePanic()
 
-	// Allow GOARCH=thearch.thestring or GOARCH=thearch.thestringsuffix,
-	// but not other values.
-	p := obj.Getgoarch()
-
-	if !strings.HasPrefix(p, Thearch.LinkArch.Name) {
-		log.Fatalf("cannot use %cg with GOARCH=%s", Thearch.LinkArch.Family, p)
-	}
-	goarch = p
+	goarch = obj.Getgoarch()
 
 	Ctxt = obj.Linknew(Thearch.LinkArch)
 	Ctxt.DiagFunc = Yyerror
