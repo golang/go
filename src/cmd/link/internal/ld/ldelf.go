@@ -927,7 +927,8 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 				rp.Sym = sym.sym
 			}
 
-			rp.Type = int32(reltype(pn, int(uint32(info)), &rp.Siz))
+			rp.Type = 256 + int32(info)
+			rp.Siz = relSize(pn, uint32(info))
 			if rela != 0 {
 				rp.Add = int64(add)
 			} else {
@@ -1128,81 +1129,89 @@ func (x rbyoff) Less(i, j int) bool {
 	return false
 }
 
-func reltype(pn string, elftype int, siz *uint8) int {
-	// TODO(mdempsky): Remove dependency on ArchFamily char values.
+func relSize(pn string, elftype uint32) uint8 {
+	// TODO(mdempsky): Replace this with a struct-valued switch statement
+	// once golang.org/issue/15164 is fixed or found to not impair cmd/link
+	// performance.
 
-	switch uint32(SysArch.Family) | uint32(elftype)<<24 {
+	const (
+		AMD64 = uint32(sys.AMD64)
+		ARM   = uint32(sys.ARM)
+		I386  = uint32(sys.I386)
+		PPC64 = uint32(sys.PPC64)
+		S390X = uint32(sys.S390X)
+	)
+
+	switch uint32(SysArch.Family) | elftype<<24 {
 	default:
 		Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 		fallthrough
 
-	case 'z' | R_390_8:
-		*siz = 1
+	case S390X | R_390_8<<24:
+		return 1
 
-	case '9' | R_PPC64_TOC16<<24,
-		'9' | R_PPC64_TOC16_LO<<24,
-		'9' | R_PPC64_TOC16_HI<<24,
-		'9' | R_PPC64_TOC16_HA<<24,
-		'9' | R_PPC64_TOC16_DS<<24,
-		'9' | R_PPC64_TOC16_LO_DS<<24,
-		'9' | R_PPC64_REL16_LO<<24,
-		'9' | R_PPC64_REL16_HI<<24,
-		'9' | R_PPC64_REL16_HA<<24,
-		'z' | R_390_16<<24,
-		'z' | R_390_GOT16<<24,
-		'z' | R_390_PC16<<24,
-		'z' | R_390_PC16DBL<<24,
-		'z' | R_390_PLT16DBL<<24:
-		*siz = 2
+	case PPC64 | R_PPC64_TOC16<<24,
+		PPC64 | R_PPC64_TOC16_LO<<24,
+		PPC64 | R_PPC64_TOC16_HI<<24,
+		PPC64 | R_PPC64_TOC16_HA<<24,
+		PPC64 | R_PPC64_TOC16_DS<<24,
+		PPC64 | R_PPC64_TOC16_LO_DS<<24,
+		PPC64 | R_PPC64_REL16_LO<<24,
+		PPC64 | R_PPC64_REL16_HI<<24,
+		PPC64 | R_PPC64_REL16_HA<<24,
+		S390X | R_390_16<<24,
+		S390X | R_390_GOT16<<24,
+		S390X | R_390_PC16<<24,
+		S390X | R_390_PC16DBL<<24,
+		S390X | R_390_PLT16DBL<<24:
+		return 2
 
-	case '5' | R_ARM_ABS32<<24,
-		'5' | R_ARM_GOT32<<24,
-		'5' | R_ARM_PLT32<<24,
-		'5' | R_ARM_GOTOFF<<24,
-		'5' | R_ARM_GOTPC<<24,
-		'5' | R_ARM_THM_PC22<<24,
-		'5' | R_ARM_REL32<<24,
-		'5' | R_ARM_CALL<<24,
-		'5' | R_ARM_V4BX<<24,
-		'5' | R_ARM_GOT_PREL<<24,
-		'5' | R_ARM_PC24<<24,
-		'5' | R_ARM_JUMP24<<24,
-		'6' | R_X86_64_PC32<<24,
-		'6' | R_X86_64_PLT32<<24,
-		'6' | R_X86_64_GOTPCREL<<24,
-		'6' | R_X86_64_GOTPCRELX<<24,
-		'6' | R_X86_64_REX_GOTPCRELX<<24,
-		'8' | R_386_32<<24,
-		'8' | R_386_PC32<<24,
-		'8' | R_386_GOT32<<24,
-		'8' | R_386_PLT32<<24,
-		'8' | R_386_GOTOFF<<24,
-		'8' | R_386_GOTPC<<24,
-		'8' | R_386_GOT32X<<24,
-		'9' | R_PPC64_REL24<<24,
-		'9' | R_PPC_REL32<<24,
-		'z' | R_390_32<<24,
-		'z' | R_390_PC32<<24,
-		'z' | R_390_GOT32<<24,
-		'z' | R_390_PLT32<<24,
-		'z' | R_390_PC32DBL<<24,
-		'z' | R_390_PLT32DBL<<24,
-		'z' | R_390_GOTPCDBL<<24,
-		'z' | R_390_GOTENT<<24:
-		*siz = 4
+	case ARM | R_ARM_ABS32<<24,
+		ARM | R_ARM_GOT32<<24,
+		ARM | R_ARM_PLT32<<24,
+		ARM | R_ARM_GOTOFF<<24,
+		ARM | R_ARM_GOTPC<<24,
+		ARM | R_ARM_THM_PC22<<24,
+		ARM | R_ARM_REL32<<24,
+		ARM | R_ARM_CALL<<24,
+		ARM | R_ARM_V4BX<<24,
+		ARM | R_ARM_GOT_PREL<<24,
+		ARM | R_ARM_PC24<<24,
+		ARM | R_ARM_JUMP24<<24,
+		AMD64 | R_X86_64_PC32<<24,
+		AMD64 | R_X86_64_PLT32<<24,
+		AMD64 | R_X86_64_GOTPCREL<<24,
+		AMD64 | R_X86_64_GOTPCRELX<<24,
+		AMD64 | R_X86_64_REX_GOTPCRELX<<24,
+		I386 | R_386_32<<24,
+		I386 | R_386_PC32<<24,
+		I386 | R_386_GOT32<<24,
+		I386 | R_386_PLT32<<24,
+		I386 | R_386_GOTOFF<<24,
+		I386 | R_386_GOTPC<<24,
+		I386 | R_386_GOT32X<<24,
+		PPC64 | R_PPC64_REL24<<24,
+		PPC64 | R_PPC_REL32<<24,
+		S390X | R_390_32<<24,
+		S390X | R_390_PC32<<24,
+		S390X | R_390_GOT32<<24,
+		S390X | R_390_PLT32<<24,
+		S390X | R_390_PC32DBL<<24,
+		S390X | R_390_PLT32DBL<<24,
+		S390X | R_390_GOTPCDBL<<24,
+		S390X | R_390_GOTENT<<24:
+		return 4
 
-	case '6' | R_X86_64_64<<24,
-		'9' | R_PPC64_ADDR64<<24,
-		'z' | R_390_GLOB_DAT<<24,
-		'z' | R_390_RELATIVE<<24,
-		'z' | R_390_GOTOFF<<24,
-		'z' | R_390_GOTPC<<24,
-		'z' | R_390_64<<24,
-		'z' | R_390_PC64<<24,
-		'z' | R_390_GOT64<<24,
-		'z' | R_390_PLT64<<24:
-		*siz = 8
+	case AMD64 | R_X86_64_64<<24,
+		PPC64 | R_PPC64_ADDR64<<24,
+		S390X | R_390_GLOB_DAT<<24,
+		S390X | R_390_RELATIVE<<24,
+		S390X | R_390_GOTOFF<<24,
+		S390X | R_390_GOTPC<<24,
+		S390X | R_390_64<<24,
+		S390X | R_390_PC64<<24,
+		S390X | R_390_GOT64<<24,
+		S390X | R_390_PLT64<<24:
+		return 8
 	}
-
-	return 256 + elftype
 }
