@@ -1042,3 +1042,20 @@ func f() {
 		}
 	}
 }
+
+func TestIdentical_issue15173(t *testing.T) {
+	// Identical should allow nil arguments and be symmetric.
+	for _, test := range []struct {
+		x, y Type
+		want bool
+	}{
+		{Typ[Int], Typ[Int], true},
+		{Typ[Int], nil, false},
+		{nil, Typ[Int], false},
+		{nil, nil, true},
+	} {
+		if got := Identical(test.x, test.y); got != test.want {
+			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
+		}
+	}
+}
