@@ -9,10 +9,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	_ "unsafe"
 )
 
 // Event describes one event in the trace.
@@ -370,6 +372,16 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 	if ticksPerSec == 0 {
 		err = fmt.Errorf("no EvFrequency event")
 		return
+	}
+	if BreakTimestampsForTesting {
+		var batchArr [][]*Event
+		for _, batch := range batches {
+			batchArr = append(batchArr, batch)
+		}
+		for i := 0; i < 5; i++ {
+			batch := batchArr[rand.Intn(len(batchArr))]
+			batch[rand.Intn(len(batch))].Ts += int64(rand.Intn(2000) - 1000)
+		}
 	}
 	if ver < 1007 {
 		events, err = order1005(batches)
@@ -812,6 +824,9 @@ func argNum(raw rawEvent, ver int) int {
 	}
 	return narg
 }
+
+// BreakTimestampsForTesting causes the parser to randomly alter timestamps (for testing of broken cputicks).
+var BreakTimestampsForTesting bool
 
 // Event types in the trace.
 // Verbatim copy from src/runtime/trace.go.

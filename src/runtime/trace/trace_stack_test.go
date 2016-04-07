@@ -125,10 +125,7 @@ func TestTraceSymbolize(t *testing.T) {
 	<-pipeReadDone
 
 	Stop()
-	events, _, err := parseTrace(t, buf)
-	if err != nil {
-		t.Fatalf("failed to parse trace: %v", err)
-	}
+	events, _ := parseTrace(t, buf)
 
 	// Now check that the stacks are correct.
 	type frame struct {
