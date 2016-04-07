@@ -198,7 +198,9 @@ func Asmelfsym() {
 
 	// Some linkers will add a FILE sym if one is not present.
 	// Avoid having the working directory inserted into the symbol table.
-	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+	// It is added with a name to avoid problems with external linking
+	// encountered on some versions of Solaris. See issue #14957.
+	putelfsyment(putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
 	numelfsym++
 
 	elfbind = STB_LOCAL
