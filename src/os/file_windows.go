@@ -474,6 +474,12 @@ func Remove(name string) error {
 		} else {
 			if a&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
 				e = e1
+			} else if a&syscall.FILE_ATTRIBUTE_READONLY != 0 {
+				if e1 = syscall.SetFileAttributes(p, a&^syscall.FILE_ATTRIBUTE_READONLY); e1 == nil {
+					if e = syscall.DeleteFile(p); e == nil {
+						return nil
+					}
+				}
 			}
 		}
 	}
