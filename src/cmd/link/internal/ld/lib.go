@@ -745,12 +745,12 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 		off++
 	}
 	bp.Seek(off, 0)
-	buf := make([]byte, SAR_HDR)
-	if n := bio.Bread(bp, buf); n < len(buf) {
-		if n >= 0 {
-			return 0
+	var buf [SAR_HDR]byte
+	if n, err := io.ReadFull(bp, buf[:]); err != nil {
+		if n == 0 && err != io.EOF {
+			return -1
 		}
-		return -1
+		return 0
 	}
 
 	a.name = artrim(buf[0:16])
@@ -780,8 +780,11 @@ func objfile(lib *Library) {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
 
-	magbuf := make([]byte, len(ARMAG))
-	if bio.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
+	for i := 0; i < len(ARMAG); i++ {
+		if c, err := f.ReadByte(); err == nil && c == ARMAG[i] {
+			continue
+		}
+
 		/* load it as a regular file */
 		l := f.Seek(0, 2)
 
@@ -811,7 +814,9 @@ func objfile(lib *Library) {
 	if Buildmode == BuildmodeShared {
 		before := f.Offset()
 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
-		bio.Bread(f, pkgdefBytes)
+		if _, err := io.ReadFull(f, pkgdefBytes); err != nil {
+			Diag("%s: short read on archive file symbol header: %v", lib.File, err)
+		}
 		hash := sha1.Sum(pkgdefBytes)
 		lib.hash = hash[:]
 		f.Seek(before, 0)

@@ -7,7 +7,6 @@ package bio
 
 import (
 	"bufio"
-	"io"
 	"log"
 	"os"
 )
@@ -84,16 +83,6 @@ func (w *Writer) Offset() int64 {
 		log.Fatalf("seeking in output [0, 1]: %v", err)
 	}
 	return off
-}
-
-func Bread(r *Reader, p []byte) int {
-	n, err := io.ReadFull(r, p)
-	if n == 0 {
-		if err != nil && err != io.EOF {
-			n = -1
-		}
-	}
-	return n
 }
 
 func (r *Reader) Close() error {

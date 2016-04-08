@@ -476,7 +476,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	var sect *ElfSect
 	var sym ElfSym
 	var symbols []*LSym
-	if bio.Bread(f, hdrbuf[:]) != len(hdrbuf) {
+	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
 		goto bad
 	}
 	hdr = new(ElfHdrBytes)
@@ -986,9 +986,11 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	}
 
 	sect.base = make([]byte, sect.size)
-	err = fmt.Errorf("short read")
-	if elfobj.f.Seek(int64(uint64(elfobj.base)+sect.off), 0) < 0 || bio.Bread(elfobj.f, sect.base) != len(sect.base) {
-		return err
+	if elfobj.f.Seek(int64(uint64(elfobj.base)+sect.off), 0) < 0 {
+		return fmt.Errorf("short read: seek not successful")
+	}
+	if _, err := io.ReadFull(elfobj.f, sect.base); err != nil {
+		return fmt.Errorf("short read: %v", err)
 	}
 
 	return nil
