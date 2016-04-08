@@ -538,14 +538,14 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		return s.evalCall(dot, method, node, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || final.IsValid()
-	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
-	if isNil {
-		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
-	}
+	// It's not a method; must be a field of a struct or an element of a map.
 	switch receiver.Kind() {
 	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
 		if ok {
+			if isNil {
+				s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+			}
 			field := receiver.FieldByIndex(tField.Index)
 			if tField.PkgPath != "" { // field is unexported
 				s.errorf("%s is an unexported field of struct type %s", fieldName, typ)
@@ -556,8 +556,10 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			}
 			return field
 		}
-		s.errorf("%s is not a field of struct type %s", fieldName, typ)
 	case reflect.Map:
+		if isNil {
+			s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+		}
 		// If it's a map, attempt to use the field name as a key.
 		nameVal := reflect.ValueOf(fieldName)
 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
