@@ -150,7 +150,7 @@ type objReader struct {
 func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	start := f.Offset()
 	r := &objReader{
-		rd:     f.Reader(),
+		rd:     f.Reader,
 		pkg:    pkg,
 		ctxt:   ctxt,
 		pn:     pn,

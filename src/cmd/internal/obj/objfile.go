@@ -377,7 +377,7 @@ func (w *objWriter) writeLengths() {
 func newObjWriter(ctxt *Link, b *bio.Writer) *objWriter {
 	return &objWriter{
 		ctxt:    ctxt,
-		wr:      b.Writer(),
+		wr:      b.Writer,
 		vrefIdx: make(map[string]int),
 		refIdx:  make(map[string]int),
 	}

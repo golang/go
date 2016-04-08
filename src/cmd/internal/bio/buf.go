@@ -17,20 +17,14 @@ const EOF = -1
 // Reader implements a seekable buffered io.Reader.
 type Reader struct {
 	f *os.File
-	r *bufio.Reader
+	*bufio.Reader
 }
 
 // Writer implements a seekable buffered io.Writer.
 type Writer struct {
 	f *os.File
-	w *bufio.Writer
+	*bufio.Writer
 }
-
-// Reader returns this Reader's underlying bufio.Reader.
-func (r *Reader) Reader() *bufio.Reader { return r.r }
-
-// Writer returns this Writer's underlying bufio.Writer.
-func (w *Writer) Writer() *bufio.Writer { return w.w }
 
 // Create creates the file named name and returns a Writer
 // for that file.
@@ -39,7 +33,7 @@ func Create(name string) (*Writer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Writer{f: f, w: bufio.NewWriter(f)}, nil
+	return &Writer{f: f, Writer: bufio.NewWriter(f)}, nil
 }
 
 // Open returns a Reader for the file named name.
@@ -48,31 +42,23 @@ func Open(name string) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Reader{f: f, r: bufio.NewReader(f)}, nil
-}
-
-func (w *Writer) Write(p []byte) (int, error) {
-	return w.w.Write(p)
-}
-
-func (w *Writer) WriteString(p string) (int, error) {
-	return w.w.WriteString(p)
+	return &Reader{f: f, Reader: bufio.NewReader(f)}, nil
 }
 
 func (r *Reader) Seek(offset int64, whence int) int64 {
 	if whence == 1 {
-		offset -= int64(r.r.Buffered())
+		offset -= int64(r.Buffered())
 	}
 	off, err := r.f.Seek(offset, whence)
 	if err != nil {
 		log.Fatalf("seeking in output: %v", err)
 	}
-	r.r.Reset(r.f)
+	r.Reset(r.f)
 	return off
 }
 
 func (w *Writer) Seek(offset int64, whence int) int64 {
-	if err := w.w.Flush(); err != nil {
+	if err := w.Flush(); err != nil {
 		log.Fatalf("writing output: %v", err)
 	}
 	off, err := w.f.Seek(offset, whence)
@@ -87,12 +73,12 @@ func (r *Reader) Offset() int64 {
 	if err != nil {
 		log.Fatalf("seeking in output [0, 1]: %v", err)
 	}
-	off -= int64(r.r.Buffered())
+	off -= int64(r.Buffered())
 	return off
 }
 
 func (w *Writer) Offset() int64 {
-	if err := w.w.Flush(); err != nil {
+	if err := w.Flush(); err != nil {
 		log.Fatalf("writing output: %v", err)
 	}
 	off, err := w.f.Seek(0, 1)
@@ -102,16 +88,8 @@ func (w *Writer) Offset() int64 {
 	return off
 }
 
-func (w *Writer) Flush() error {
-	return w.w.Flush()
-}
-
-func (w *Writer) WriteByte(c byte) error {
-	return w.w.WriteByte(c)
-}
-
 func Bread(r *Reader, p []byte) int {
-	n, err := io.ReadFull(r.r, p)
+	n, err := io.ReadFull(r, p)
 	if n == 0 {
 		if err != nil && err != io.EOF {
 			n = -1
@@ -121,7 +99,7 @@ func Bread(r *Reader, p []byte) int {
 }
 
 func Bgetc(r *Reader) int {
-	c, err := r.r.ReadByte()
+	c, err := r.ReadByte()
 	if err != nil {
 		if err != io.EOF {
 			log.Fatalf("reading input: %v", err)
@@ -131,16 +109,8 @@ func Bgetc(r *Reader) int {
 	return int(c)
 }
 
-func (r *Reader) Read(p []byte) (int, error) {
-	return r.r.Read(p)
-}
-
-func (r *Reader) Peek(n int) ([]byte, error) {
-	return r.r.Peek(n)
-}
-
 func Brdline(r *Reader, delim int) string {
-	s, err := r.r.ReadBytes(byte(delim))
+	s, err := r.ReadBytes(byte(delim))
 	if err != nil {
 		log.Fatalf("reading input: %v", err)
 	}
@@ -152,7 +122,7 @@ func (r *Reader) Close() error {
 }
 
 func (w *Writer) Close() error {
-	err := w.w.Flush()
+	err := w.Flush()
 	err1 := w.f.Close()
 	if err == nil {
 		err = err1
