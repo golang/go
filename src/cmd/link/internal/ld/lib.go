@@ -1269,10 +1269,10 @@ func ldobj(f *bio.Reader, pkg string, length int64, pn string, file string, when
 	eof := f.Offset() + length
 
 	start := f.Offset()
-	c1 := bio.Bgetc(f)
-	c2 := bio.Bgetc(f)
-	c3 := bio.Bgetc(f)
-	c4 := bio.Bgetc(f)
+	c1 := bgetc(f)
+	c2 := bgetc(f)
+	c3 := bgetc(f)
+	c4 := bgetc(f)
 	f.Seek(start, 0)
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
@@ -1289,9 +1289,9 @@ func ldobj(f *bio.Reader, pkg string, length int64, pn string, file string, when
 	}
 
 	/* check the header */
-	line := bio.Brdline(f, '\n')
-	if line == "" {
-		Diag("truncated object file: %s", pn)
+	line, err := f.ReadString('\n')
+	if err != nil {
+		Diag("truncated object file: %s: %v", pn, err)
 		return nil
 	}
 
@@ -1336,13 +1336,13 @@ func ldobj(f *bio.Reader, pkg string, length int64, pn string, file string, when
 	import0 := f.Offset()
 
 	c1 = '\n' // the last line ended in \n
-	c2 = bio.Bgetc(f)
-	c3 = bio.Bgetc(f)
+	c2 = bgetc(f)
+	c3 = bgetc(f)
 	for c1 != '\n' || c2 != '!' || c3 != '\n' {
 		c1 = c2
 		c2 = c3
-		c3 = bio.Bgetc(f)
-		if c3 == bio.EOF {
+		c3 = bgetc(f)
+		if c3 == -1 {
 			Diag("truncated object file: %s", pn)
 			return nil
 		}
@@ -2132,4 +2132,15 @@ func Rnd(v int64, r int64) int64 {
 	}
 	v -= c
 	return v
+}
+
+func bgetc(r *bio.Reader) int {
+	c, err := r.ReadByte()
+	if err != nil {
+		if err != io.EOF {
+			log.Fatalf("reading input: %v", err)
+		}
+		return -1
+	}
+	return int(c)
 }
