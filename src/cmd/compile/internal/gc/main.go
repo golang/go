@@ -9,7 +9,6 @@ package gc
 import (
 	"bufio"
 	"cmd/compile/internal/ssa"
-	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"flag"
@@ -104,7 +103,7 @@ func Main() {
 
 	Ctxt = obj.Linknew(Thearch.LinkArch)
 	Ctxt.DiagFunc = Yyerror
-	bstdout = bio.BufWriter(os.Stdout)
+	bstdout = bufio.NewWriter(os.Stdout)
 	Ctxt.Bso = bstdout
 
 	localpkg = mkpkg("")

@@ -31,7 +31,7 @@
 package obj
 
 import (
-	"cmd/internal/bio"
+	"bufio"
 	"cmd/internal/sys"
 )
 
@@ -629,7 +629,7 @@ type Link struct {
 	Flag_shared   int32
 	Flag_dynlink  bool
 	Flag_optimize bool
-	Bso           *bio.Writer
+	Bso           *bufio.Writer
 	Pathname      string
 	Goroot        string
 	Goroot_final  string

@@ -384,7 +384,7 @@ func dumpexport() {
 		if debugFormat {
 			// save a copy of the export data
 			var copy bytes.Buffer
-			bcopy := bio.BufWriter(&copy)
+			bcopy := bufio.NewWriter(&copy)
 			size = export(bcopy, Debug_export != 0)
 			bcopy.Flush() // flushing to bytes.Buffer cannot fail
 			if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
@@ -407,7 +407,7 @@ func dumpexport() {
 			pkgs = savedPkgs
 			pkgMap = savedPkgMap
 		} else {
-			size = export(bout, Debug_export != 0)
+			size = export(bout.Writer(), Debug_export != 0)
 		}
 		exportf("\n$$\n")
 	} else {

@@ -31,7 +31,7 @@
 package ld
 
 import (
-	"cmd/internal/bio"
+	"bufio"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"flag"
@@ -46,7 +46,7 @@ var (
 )
 
 func Ldmain() {
-	Bso = bio.BufWriter(os.Stdout)
+	Bso = bufio.NewWriter(os.Stdout)
 
 	Ctxt = linknew(SysArch)
 	Ctxt.Diag = Diag

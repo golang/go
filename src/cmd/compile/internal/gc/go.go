@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"bufio"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
@@ -288,7 +289,7 @@ var Ctxt *obj.Link
 
 var writearchive int
 
-var bstdout *bio.Writer
+var bstdout *bufio.Writer
 
 var Nacl bool
 

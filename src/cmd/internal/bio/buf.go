@@ -51,18 +51,6 @@ func Open(name string) (*Reader, error) {
 	return &Reader{f: f, r: bufio.NewReader(f)}, nil
 }
 
-// BufWriter returns a Writer on top of w.
-// TODO(dfc) remove this method and replace caller with bufio.Writer.
-func BufWriter(w io.Writer) *Writer {
-	return &Writer{w: bufio.NewWriter(w)}
-}
-
-// BufWriter returns a Reader on top of r.
-// TODO(dfc) remove this method and replace caller with bufio.Reader.
-func BufReader(r io.Reader) *Reader {
-	return &Reader{r: bufio.NewReader(r)}
-}
-
 func (w *Writer) Write(p []byte) (int, error) {
 	return w.w.Write(p)
 }

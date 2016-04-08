@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -32,11 +33,6 @@ func main() {
 
 	flags.Parse()
 
-	// Create object file, write header.
-	fd, err := os.Create(*flags.OutputFile)
-	if err != nil {
-		log.Fatal(err)
-	}
 	ctxt := obj.Linknew(architecture.LinkArch)
 	if *flags.PrintOut {
 		ctxt.Debugasm = 1
@@ -46,9 +42,14 @@ func main() {
 	if *flags.Shared || *flags.Dynlink {
 		ctxt.Flag_shared = 1
 	}
-	ctxt.Bso = bio.BufWriter(os.Stdout)
+	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
-	output := bio.BufWriter(fd)
+
+	// Create object file, write header.
+	output, err := bio.Create(*flags.OutputFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
 	fmt.Fprintf(output, "!\n")
 
