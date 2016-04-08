@@ -1377,28 +1377,6 @@ func TestInstallToGOBINCommandLinePackage(t *testing.T) {
 	tg.wantExecutable("testdata/bin1/helloworld"+exeSuffix, "go install testdata/src/go-cmd-test/helloworld.go did not write testdata/bin1/helloworld")
 }
 
-func TestGodocInstalls(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	// godoc installs into GOBIN
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("gobin")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GOBIN", tg.path("gobin"))
-	tg.run("get", "golang.org/x/tools/cmd/godoc")
-	tg.wantExecutable(tg.path("gobin/godoc"), "did not install godoc to $GOBIN")
-	tg.unsetenv("GOBIN")
-
-	// godoc installs into GOROOT
-	goroot := runtime.GOROOT()
-	tg.setenv("GOROOT", goroot)
-	tg.check(os.RemoveAll(filepath.Join(goroot, "bin", "godoc")))
-	tg.run("install", "golang.org/x/tools/cmd/godoc")
-	tg.wantExecutable(filepath.Join(goroot, "bin", "godoc"), "did not install godoc to $GOROOT/bin")
-}
-
 func TestGoGetNonPkg(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 

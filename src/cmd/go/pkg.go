@@ -682,7 +682,6 @@ type targetDir int
 const (
 	toRoot    targetDir = iota // to bin dir inside package root (default)
 	toTool                     // GOROOT/pkg/tool
-	toBin                      // GOROOT/bin
 	stalePath                  // the old import path; fail to build
 )
 
@@ -706,7 +705,6 @@ var goTools = map[string]targetDir{
 	"cmd/trace":                            toTool,
 	"cmd/vet":                              toTool,
 	"cmd/yacc":                             toTool,
-	"golang.org/x/tools/cmd/godoc":         toBin,
 	"code.google.com/p/go.tools/cmd/cover": stalePath,
 	"code.google.com/p/go.tools/cmd/godoc": stalePath,
 	"code.google.com/p/go.tools/cmd/vet":   stalePath,
@@ -793,12 +791,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			// Install cross-compiled binaries to subdirectories of bin.
 			elem = full
 		}
-		if p.build.BinDir != gobin && goTools[p.ImportPath] == toBin {
-			// Override BinDir.
-			// This is from a subrepo but installs to $GOROOT/bin
-			// by default anyway (like godoc).
-			p.target = filepath.Join(gorootBin, elem)
-		} else if p.build.BinDir != "" {
+		if p.build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
 			p.target = filepath.Join(p.build.BinDir, elem)
 			if !p.Goroot && strings.Contains(elem, "/") && gobin != "" {
