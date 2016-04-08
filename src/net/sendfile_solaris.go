@@ -26,8 +26,6 @@ const maxSendfileSize int = 4 << 20
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	return // Solaris sendfile is disabled until Issue 13892 is understood and fixed
-
 	// Solaris uses 0 as the "until EOF" value. If you pass in more bytes than the
 	// file contains, it will loop back to the beginning ad nauseam until it's sent
 	// exactly the number of bytes told to. As such, we need to know exactly how many
@@ -78,6 +76,13 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		}
 		pos1 := pos
 		n, err1 := syscall.Sendfile(dst, src, &pos1, n)
+		if err1 == syscall.EAGAIN || err1 == syscall.EINTR {
+			// partial write may have occurred
+			if n = int(pos1 - pos); n == 0 {
+				// nothing more to write
+				err1 = nil
+			}
+		}
 		if n > 0 {
 			pos += int64(n)
 			written += int64(n)
