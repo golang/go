@@ -75,7 +75,7 @@ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 2 * Widthptr
+	return 4 + 2 + 2
 }
 
 func makefield(name string, t *Type) *Field {
@@ -463,6 +463,9 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 
 // dgopkgpathOffLSym writes an offset relocation in s at offset ot to the pkg path symbol.
 func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
+	if pkg == nil {
+		return duintxxLSym(s, ot, 0, 4)
+	}
 	if pkg == localpkg && myimportpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
@@ -597,12 +600,9 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 		dtypesym(a.type_)
 	}
 
-	ot = dgopkgpath(s, ot, typePkg(t))
+	ot = dgopkgpathOffLSym(Linksym(s), ot, typePkg(t))
 
-	dataAdd += Widthptr + 2 + 2
-	if Widthptr == 8 {
-		dataAdd += 4
-	}
+	dataAdd += 4 + 2 + 2
 	mcount := len(m)
 	if mcount != int(uint16(mcount)) {
 		Fatalf("too many methods on %s: %d", t, mcount)
@@ -613,9 +613,6 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 
 	ot = duint16(s, ot, uint16(mcount))
 	ot = duint16(s, ot, uint16(dataAdd))
-	if Widthptr == 8 {
-		ot = duint32(s, ot, 0) // align for following pointers
-	}
 	return ot
 }
 

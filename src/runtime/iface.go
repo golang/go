@@ -112,7 +112,7 @@ func additab(m *itab, locked, canfail bool) {
 			if typ.typeOff(t.mtyp) == itype && tname.name() == iname {
 				pkgPath := tname.pkgPath()
 				if pkgPath == "" {
-					pkgPath = x.pkgpath.name()
+					pkgPath = typ.nameOff(x.pkgpath).name()
 				}
 				if tname.isExported() || pkgPath == ipkg {
 					if m != nil {

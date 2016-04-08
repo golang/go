@@ -304,7 +304,7 @@ type method struct {
 }
 
 type uncommontype struct {
-	pkgpath name
+	pkgpath nameOff
 	mcount  uint16 // number of methods
 	moff    uint16 // offset from this uncommontype to [mcount]method
 }
@@ -524,7 +524,9 @@ func typesEqual(t, v *_type) bool {
 		if ut == nil || uv == nil {
 			return false
 		}
-		if ut.pkgpath.name() != uv.pkgpath.name() {
+		pkgpatht := t.nameOff(ut.pkgpath).name()
+		pkgpathv := v.nameOff(uv.pkgpath).name()
+		if pkgpatht != pkgpathv {
 			return false
 		}
 	}
