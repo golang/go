@@ -37,7 +37,7 @@ func dumpobj() {
 		bout.WriteString("!<arch>\n")
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
-		startobj = bio.Boffset(bout)
+		startobj = bout.Offset()
 	}
 
 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
@@ -45,19 +45,19 @@ func dumpobj() {
 
 	if writearchive != 0 {
 		bout.Flush()
-		size := bio.Boffset(bout) - startobj
+		size := bout.Offset() - startobj
 		if size&1 != 0 {
 			bout.WriteByte(0)
 		}
-		bio.Bseek(bout, startobj-ArhdrSize, 0)
+		bout.Seek(startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "__.PKGDEF", size)
 		bout.Write(arhdr[:])
 		bout.Flush()
 
-		bio.Bseek(bout, startobj+size+(size&1), 0)
+		bout.Seek(startobj+size+(size&1), 0)
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
-		startobj = bio.Boffset(bout)
+		startobj = bout.Offset()
 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 	}
 
@@ -92,11 +92,11 @@ func dumpobj() {
 
 	if writearchive != 0 {
 		bout.Flush()
-		size := bio.Boffset(bout) - startobj
+		size := bout.Offset() - startobj
 		if size&1 != 0 {
 			bout.WriteByte(0)
 		}
-		bio.Bseek(bout, startobj-ArhdrSize, 0)
+		bout.Seek(startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "_go_.o", size)
 		bout.Write(arhdr[:])
 	}
@@ -133,7 +133,7 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-func Bputname(b *bio.Buf, s *obj.LSym) {
+func Bputname(b *bio.Writer, s *obj.LSym) {
 	b.WriteString(s.Name)
 	b.WriteByte(0)
 }

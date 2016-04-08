@@ -241,9 +241,10 @@ const (
 var (
 	headstring string
 	// buffered output
-	Bso bio.Buf
+	Bso bio.Writer
 )
 
+// TODO(dfc) outBuf duplicates bio.Writer
 type outBuf struct {
 	w   *bufio.Writer
 	f   *os.File
@@ -739,11 +740,11 @@ func loadlib() {
  * look for the next file in an archive.
  * adapted from libmach.
  */
-func nextar(bp *bio.Buf, off int64, a *ArHdr) int64 {
+func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 	if off&1 != 0 {
 		off++
 	}
-	bio.Bseek(bp, off, 0)
+	bp.Seek(off, 0)
 	buf := make([]byte, SAR_HDR)
 	if n := bio.Bread(bp, buf); n < len(buf) {
 		if n >= 0 {
@@ -782,9 +783,9 @@ func objfile(lib *Library) {
 	magbuf := make([]byte, len(ARMAG))
 	if bio.Bread(f, magbuf) != len(magbuf) || !strings.HasPrefix(string(magbuf), ARMAG) {
 		/* load it as a regular file */
-		l := bio.Bseek(f, 0, 2)
+		l := f.Seek(0, 2)
 
-		bio.Bseek(f, 0, 0)
+		f.Seek(0, 0)
 		ldobj(f, pkg, l, lib.File, lib.File, FileObj)
 		f.Close()
 
@@ -792,7 +793,7 @@ func objfile(lib *Library) {
 	}
 
 	/* process __.PKGDEF */
-	off := bio.Boffset(f)
+	off := f.Offset()
 
 	var arhdr ArHdr
 	l := nextar(f, off, &arhdr)
@@ -808,12 +809,12 @@ func objfile(lib *Library) {
 	}
 
 	if Buildmode == BuildmodeShared {
-		before := bio.Boffset(f)
+		before := f.Offset()
 		pkgdefBytes := make([]byte, atolwhex(arhdr.size))
 		bio.Bread(f, pkgdefBytes)
 		hash := sha1.Sum(pkgdefBytes)
 		lib.hash = hash[:]
-		bio.Bseek(f, before, 0)
+		f.Seek(before, 0)
 	}
 
 	off += l
@@ -853,7 +854,7 @@ out:
 }
 
 type Hostobj struct {
-	ld     func(*bio.Buf, string, int64, string)
+	ld     func(*bio.Reader, string, int64, string)
 	pkg    string
 	pn     string
 	file   string
@@ -874,7 +875,7 @@ var internalpkg = []string{
 	"runtime/msan",
 }
 
-func ldhostobj(ld func(*bio.Buf, string, int64, string), f *bio.Buf, pkg string, length int64, pn string, file string) *Hostobj {
+func ldhostobj(ld func(*bio.Reader, string, int64, string), f *bio.Reader, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
@@ -905,24 +906,22 @@ func ldhostobj(ld func(*bio.Buf, string, int64, string), f *bio.Buf, pkg string,
 	h.pkg = pkg
 	h.pn = pn
 	h.file = file
-	h.off = bio.Boffset(f)
+	h.off = f.Offset()
 	h.length = length
 	return h
 }
 
 func hostobjs() {
-	var f *bio.Buf
 	var h *Hostobj
 
 	for i := 0; i < len(hostobj); i++ {
 		h = &hostobj[i]
-		var err error
-		f, err = bio.Open(h.file)
-		if f == nil {
+		f, err := bio.Open(h.file)
+		if err != nil {
 			Exitf("cannot reopen %s: %v", h.pn, err)
 		}
 
-		bio.Bseek(f, h.off, 0)
+		f.Seek(h.off, 0)
 		h.ld(f, h.pkg, h.length, h.pn)
 		f.Close()
 	}
@@ -1266,15 +1265,15 @@ func hostlinkArchArgs() []string {
 // ldobj loads an input object. If it is a host object (an object
 // compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
-func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
-	eof := bio.Boffset(f) + length
+func ldobj(f *bio.Reader, pkg string, length int64, pn string, file string, whence int) *Hostobj {
+	eof := f.Offset() + length
 
-	start := bio.Boffset(f)
+	start := f.Offset()
 	c1 := bio.Bgetc(f)
 	c2 := bio.Bgetc(f)
 	c3 := bio.Bgetc(f)
 	c4 := bio.Bgetc(f)
-	bio.Bseek(f, start, 0)
+	f.Seek(start, 0)
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
@@ -1334,7 +1333,7 @@ func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence 
 	}
 
 	/* skip over exports and other info -- ends with \n!\n */
-	import0 := bio.Boffset(f)
+	import0 := f.Offset()
 
 	c1 = '\n' // the last line ended in \n
 	c2 = bio.Bgetc(f)
@@ -1349,13 +1348,13 @@ func ldobj(f *bio.Buf, pkg string, length int64, pn string, file string, whence 
 		}
 	}
 
-	import1 := bio.Boffset(f)
+	import1 := f.Offset()
 
-	bio.Bseek(f, import0, 0)
+	f.Seek(import0, 0)
 	ldpkg(f, pkg, import1-import0-2, pn, whence) // -2 for !\n
-	bio.Bseek(f, import1, 0)
+	f.Seek(import1, 0)
 
-	LoadObjFile(Ctxt, f, pkg, eof-bio.Boffset(f), pn)
+	LoadObjFile(Ctxt, f, pkg, eof-f.Offset(), pn)
 	return nil
 }
 

@@ -14,94 +14,116 @@ import (
 
 const EOF = -1
 
-// Buf implements a seekable buffered I/O abstraction.
-type Buf struct {
+// Reader implements a seekable buffered io.Reader.
+type Reader struct {
 	f *os.File
 	r *bufio.Reader
+}
+
+// Writer implements a seekable buffered io.Writer.
+type Writer struct {
+	f *os.File
 	w *bufio.Writer
 }
 
-func (b *Buf) Reader() *bufio.Reader { return b.r }
-func (b *Buf) Writer() *bufio.Writer { return b.w }
+// Reader returns this Reader's underlying bufio.Reader.
+func (r *Reader) Reader() *bufio.Reader { return r.r }
 
-func Create(name string) (*Buf, error) {
+// Writer returns this Writer's underlying bufio.Writer.
+func (w *Writer) Writer() *bufio.Writer { return w.w }
+
+// Create creates the file named name and returns a Writer
+// for that file.
+func Create(name string) (*Writer, error) {
 	f, err := os.Create(name)
 	if err != nil {
 		return nil, err
 	}
-	return &Buf{f: f, w: bufio.NewWriter(f)}, nil
+	return &Writer{f: f, w: bufio.NewWriter(f)}, nil
 }
 
-func Open(name string) (*Buf, error) {
+// Open returns a Reader for the file named name.
+func Open(name string) (*Reader, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	return &Buf{f: f, r: bufio.NewReader(f)}, nil
+	return &Reader{f: f, r: bufio.NewReader(f)}, nil
 }
 
-func BufWriter(w io.Writer) *Buf {
-	return &Buf{w: bufio.NewWriter(w)}
+// BufWriter returns a Writer on top of w.
+// TODO(dfc) remove this method and replace caller with bufio.Writer.
+func BufWriter(w io.Writer) *Writer {
+	return &Writer{w: bufio.NewWriter(w)}
 }
 
-func BufReader(r io.Reader) *Buf {
-	return &Buf{r: bufio.NewReader(r)}
+// BufWriter returns a Reader on top of r.
+// TODO(dfc) remove this method and replace caller with bufio.Reader.
+func BufReader(r io.Reader) *Reader {
+	return &Reader{r: bufio.NewReader(r)}
 }
 
-func (b *Buf) Write(p []byte) (int, error) {
-	return b.w.Write(p)
+func (w *Writer) Write(p []byte) (int, error) {
+	return w.w.Write(p)
 }
 
-func (b *Buf) WriteString(p string) (int, error) {
-	return b.w.WriteString(p)
+func (w *Writer) WriteString(p string) (int, error) {
+	return w.w.WriteString(p)
 }
 
-func Bseek(b *Buf, offset int64, whence int) int64 {
-	if b.w != nil {
-		if err := b.w.Flush(); err != nil {
-			log.Fatalf("writing output: %v", err)
-		}
-	} else if b.r != nil {
-		if whence == 1 {
-			offset -= int64(b.r.Buffered())
-		}
+func (r *Reader) Seek(offset int64, whence int) int64 {
+	if whence == 1 {
+		offset -= int64(r.r.Buffered())
 	}
-	off, err := b.f.Seek(offset, whence)
+	off, err := r.f.Seek(offset, whence)
 	if err != nil {
 		log.Fatalf("seeking in output: %v", err)
 	}
-	if b.r != nil {
-		b.r.Reset(b.f)
+	r.r.Reset(r.f)
+	return off
+}
+
+func (w *Writer) Seek(offset int64, whence int) int64 {
+	if err := w.w.Flush(); err != nil {
+		log.Fatalf("writing output: %v", err)
+	}
+	off, err := w.f.Seek(offset, whence)
+	if err != nil {
+		log.Fatalf("seeking in output: %v", err)
 	}
 	return off
 }
 
-func Boffset(b *Buf) int64 {
-	if b.w != nil {
-		if err := b.w.Flush(); err != nil {
-			log.Fatalf("writing output: %v", err)
-		}
-	}
-	off, err := b.f.Seek(0, 1)
+func (r *Reader) Offset() int64 {
+	off, err := r.f.Seek(0, 1)
 	if err != nil {
 		log.Fatalf("seeking in output [0, 1]: %v", err)
 	}
-	if b.r != nil {
-		off -= int64(b.r.Buffered())
+	off -= int64(r.r.Buffered())
+	return off
+}
+
+func (w *Writer) Offset() int64 {
+	if err := w.w.Flush(); err != nil {
+		log.Fatalf("writing output: %v", err)
+	}
+	off, err := w.f.Seek(0, 1)
+	if err != nil {
+		log.Fatalf("seeking in output [0, 1]: %v", err)
 	}
 	return off
 }
 
-func (b *Buf) Flush() error {
-	return b.w.Flush()
+func (w *Writer) Flush() error {
+	return w.w.Flush()
 }
 
-func (b *Buf) WriteByte(c byte) error {
-	return b.w.WriteByte(c)
+func (w *Writer) WriteByte(c byte) error {
+	return w.w.WriteByte(c)
 }
 
-func Bread(b *Buf, p []byte) int {
-	n, err := io.ReadFull(b.r, p)
+func Bread(r *Reader, p []byte) int {
+	n, err := io.ReadFull(r.r, p)
 	if n == 0 {
 		if err != nil && err != io.EOF {
 			n = -1
@@ -110,8 +132,8 @@ func Bread(b *Buf, p []byte) int {
 	return n
 }
 
-func Bgetc(b *Buf) int {
-	c, err := b.r.ReadByte()
+func Bgetc(r *Reader) int {
+	c, err := r.r.ReadByte()
 	if err != nil {
 		if err != io.EOF {
 			log.Fatalf("reading input: %v", err)
@@ -121,28 +143,29 @@ func Bgetc(b *Buf) int {
 	return int(c)
 }
 
-func (b *Buf) Read(p []byte) (int, error) {
-	return b.r.Read(p)
+func (r *Reader) Read(p []byte) (int, error) {
+	return r.r.Read(p)
 }
 
-func (b *Buf) Peek(n int) ([]byte, error) {
-	return b.r.Peek(n)
+func (r *Reader) Peek(n int) ([]byte, error) {
+	return r.r.Peek(n)
 }
 
-func Brdline(b *Buf, delim int) string {
-	s, err := b.r.ReadBytes(byte(delim))
+func Brdline(r *Reader, delim int) string {
+	s, err := r.r.ReadBytes(byte(delim))
 	if err != nil {
 		log.Fatalf("reading input: %v", err)
 	}
 	return string(s)
 }
 
-func (b *Buf) Close() error {
-	var err error
-	if b.w != nil {
-		err = b.w.Flush()
-	}
-	err1 := b.f.Close()
+func (r *Reader) Close() error {
+	return r.f.Close()
+}
+
+func (w *Writer) Close() error {
+	err := w.w.Flush()
+	err1 := w.f.Close()
 	if err == nil {
 		err = err1
 	}
