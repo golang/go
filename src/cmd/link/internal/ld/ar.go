@@ -82,7 +82,7 @@ func hostArchive(name string) {
 	}
 
 	var arhdr ArHdr
-	l := nextar(f, bio.Boffset(f), &arhdr)
+	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {
 		Exitf("%s missing armap", name)
 	}
@@ -118,7 +118,7 @@ func hostArchive(name string) {
 			l = atolwhex(arhdr.size)
 
 			h := ldobj(f, "libgcc", l, pname, name, ArchiveObj)
-			bio.Bseek(f, h.off, 0)
+			f.Seek(h.off, 0)
 			h.ld(f, h.pkg, h.length, h.pn)
 		}
 
@@ -131,7 +131,7 @@ func hostArchive(name string) {
 type archiveMap map[string]uint64
 
 // readArmap reads the archive symbol map.
-func readArmap(filename string, f *bio.Buf, arhdr ArHdr) archiveMap {
+func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 	is64 := arhdr.name == "/SYM64/"
 	wordSize := 4
 	if is64 {

@@ -147,8 +147,8 @@ type objReader struct {
 	file        []*LSym
 }
 
-func LoadObjFile(ctxt *Link, f *bio.Buf, pkg string, length int64, pn string) {
-	start := bio.Boffset(f)
+func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+	start := f.Offset()
 	r := &objReader{
 		rd:     f.Reader(),
 		pkg:    pkg,
@@ -157,8 +157,8 @@ func LoadObjFile(ctxt *Link, f *bio.Buf, pkg string, length int64, pn string) {
 		dupSym: &LSym{Name: ".dup"},
 	}
 	r.loadObjFile()
-	if bio.Boffset(f) != start+length {
-		log.Fatalf("%s: unexpected end at %d, want %d", pn, int64(bio.Boffset(f)), int64(start+length))
+	if f.Offset() != start+length {
+		log.Fatalf("%s: unexpected end at %d, want %d", pn, f.Offset(), start+length)
 	}
 }
 

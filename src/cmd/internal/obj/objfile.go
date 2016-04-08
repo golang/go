@@ -121,7 +121,7 @@ import (
 // The Go and C compilers, and the assembler, call writeobj to write
 // out a Go object file. The linker does not call this; the linker
 // does not write out object files.
-func Writeobjdirect(ctxt *Link, b *bio.Buf) {
+func Writeobjdirect(ctxt *Link, b *bio.Writer) {
 	Flushplist(ctxt)
 	WriteObjFile(ctxt, b)
 }
@@ -374,7 +374,7 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nFile))
 }
 
-func newObjWriter(ctxt *Link, b *bio.Buf) *objWriter {
+func newObjWriter(ctxt *Link, b *bio.Writer) *objWriter {
 	return &objWriter{
 		ctxt:    ctxt,
 		wr:      b.Writer(),
@@ -383,7 +383,7 @@ func newObjWriter(ctxt *Link, b *bio.Buf) *objWriter {
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bio.Buf) {
+func WriteObjFile(ctxt *Link, b *bio.Writer) {
 	w := newObjWriter(ctxt, b)
 
 	// Magic header

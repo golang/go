@@ -27,7 +27,7 @@ func expandpkg(t0 string, pkg string) string {
 //	once the dust settles, try to move some code to
 //		libmach, so that other linkers and ar can share.
 
-func ldpkg(f *bio.Buf, pkg string, length int64, filename string, whence int) {
+func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
 	if Debug['g'] != 0 {

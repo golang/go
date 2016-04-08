@@ -165,9 +165,10 @@ type Link struct {
 	Headtype  int
 	Arch      *sys.Arch
 	Debugvlog int32
-	Bso       *bio.Buf
-	Windows   int32
-	Goroot    string
+
+	Bso     *bio.Writer
+	Windows int32
+	Goroot  string
 
 	// Symbol lookup based on name and indexed by version.
 	Hash []map[string]*LSym

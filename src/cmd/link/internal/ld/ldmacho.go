@@ -43,7 +43,7 @@ const (
 )
 
 type LdMachoObj struct {
-	f          *bio.Buf
+	f          *bio.Reader
 	base       int64 // off in f where Mach-O begins
 	length     int64 // length of Mach-O
 	is64       bool
@@ -299,7 +299,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
 	rel := make([]LdMachoRel, sect.nreloc)
 	n := int(sect.nreloc * 8)
 	buf := make([]byte, n)
-	if bio.Bseek(m.f, m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
+	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
 		return -1
 	}
 	var p []byte
@@ -345,7 +345,7 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
 	n := int(d.nindirectsyms)
 
 	p := make([]byte, n*4)
-	if bio.Bseek(m.f, m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
+	if m.f.Seek(m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
 		return -1
 	}
 
@@ -362,7 +362,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	}
 
 	strbuf := make([]byte, symtab.strsize)
-	if bio.Bseek(m.f, m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
+	if m.f.Seek(m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
 		return -1
 	}
 
@@ -372,7 +372,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	}
 	n := int(symtab.nsym * uint32(symsize))
 	symbuf := make([]byte, n)
-	if bio.Bseek(m.f, m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
+	if m.f.Seek(m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
 		return -1
 	}
 	sym := make([]LdMachoSym, symtab.nsym)
@@ -402,7 +402,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	return 0
 }
 
-func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
+func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	var err error
 	var j int
 	var is64 bool
@@ -432,7 +432,7 @@ func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
 	var name string
 
 	Ctxt.IncVersion()
-	base := bio.Boffset(f)
+	base := f.Offset()
 	if bio.Bread(f, hdr[:]) != len(hdr) {
 		goto bad
 	}
@@ -557,7 +557,7 @@ func ldmacho(f *bio.Buf, pkg string, length int64, pn string) {
 	}
 
 	dat = make([]byte, c.seg.filesz)
-	if bio.Bseek(f, m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
+	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
 		err = fmt.Errorf("cannot load object data: %v", err)
 		goto bad
 	}

@@ -629,7 +629,7 @@ type Link struct {
 	Flag_shared   int32
 	Flag_dynlink  bool
 	Flag_optimize bool
-	Bso           *bio.Buf
+	Bso           *bio.Writer
 	Pathname      string
 	Goroot        string
 	Goroot_final  string

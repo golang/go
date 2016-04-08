@@ -133,7 +133,7 @@ var infile string
 
 var outfile string
 
-var bout *bio.Buf
+var bout *bio.Writer
 
 var nerrors int
 
@@ -288,7 +288,7 @@ var Ctxt *obj.Link
 
 var writearchive int
 
-var bstdout *bio.Buf
+var bstdout *bio.Writer
 
 var Nacl bool
 
