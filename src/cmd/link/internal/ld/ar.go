@@ -35,6 +35,7 @@ import (
 	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -76,8 +77,8 @@ func hostArchive(name string) {
 	}
 	defer f.Close()
 
-	magbuf := make([]byte, len(ARMAG))
-	if bio.Bread(f, magbuf) != len(magbuf) {
+	var magbuf [len(ARMAG)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
 		Exitf("file %s too short", name)
 	}
 
@@ -138,9 +139,8 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 		wordSize = 8
 	}
 
-	l := atolwhex(arhdr.size)
-	contents := make([]byte, l)
-	if bio.Bread(f, contents) != int(l) {
+	contents := make([]byte, atolwhex(arhdr.size))
+	if _, err := io.ReadFull(f, contents); err != nil {
 		Exitf("short read from %s", filename)
 	}
 

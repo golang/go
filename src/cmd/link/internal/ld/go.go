@@ -11,6 +11,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -49,7 +50,7 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 	}
 
 	bdata := make([]byte, length)
-	if int64(bio.Bread(f, bdata)) != length {
+	if _, err := io.ReadFull(f, bdata); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
 			errorexit()

@@ -6,6 +6,7 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"sort"
 )
@@ -299,7 +300,10 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
 	rel := make([]LdMachoRel, sect.nreloc)
 	n := int(sect.nreloc * 8)
 	buf := make([]byte, n)
-	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 || bio.Bread(m.f, buf) != n {
+	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 {
+		return -1
+	}
+	if _, err := io.ReadFull(m.f, buf); err != nil {
 		return -1
 	}
 	var p []byte
@@ -345,7 +349,10 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
 	n := int(d.nindirectsyms)
 
 	p := make([]byte, n*4)
-	if m.f.Seek(m.base+int64(d.indirectsymoff), 0) < 0 || bio.Bread(m.f, p) != len(p) {
+	if m.f.Seek(m.base+int64(d.indirectsymoff), 0) < 0 {
+		return -1
+	}
+	if _, err := io.ReadFull(m.f, p); err != nil {
 		return -1
 	}
 
@@ -362,7 +369,10 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	}
 
 	strbuf := make([]byte, symtab.strsize)
-	if m.f.Seek(m.base+int64(symtab.stroff), 0) < 0 || bio.Bread(m.f, strbuf) != len(strbuf) {
+	if m.f.Seek(m.base+int64(symtab.stroff), 0) < 0 {
+		return -1
+	}
+	if _, err := io.ReadFull(m.f, strbuf); err != nil {
 		return -1
 	}
 
@@ -372,7 +382,10 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	}
 	n := int(symtab.nsym * uint32(symsize))
 	symbuf := make([]byte, n)
-	if m.f.Seek(m.base+int64(symtab.symoff), 0) < 0 || bio.Bread(m.f, symbuf) != len(symbuf) {
+	if m.f.Seek(m.base+int64(symtab.symoff), 0) < 0 {
+		return -1
+	}
+	if _, err := io.ReadFull(m.f, symbuf); err != nil {
 		return -1
 	}
 	sym := make([]LdMachoSym, symtab.nsym)
@@ -433,7 +446,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 
 	Ctxt.IncVersion()
 	base := f.Offset()
-	if bio.Bread(f, hdr[:]) != len(hdr) {
+	if _, err := io.ReadFull(f, hdr[:]); err != nil {
 		goto bad
 	}
 
@@ -455,8 +468,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	if is64 {
-		var tmp [4]uint8
-		bio.Bread(f, tmp[:4]) // skip reserved word in header
+		f.Seek(4, 1) // skip reserved word in header
 	}
 
 	m = new(LdMachoObj)
@@ -494,7 +506,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	m.cmd = make([]LdMachoCmd, ncmd)
 	off = uint32(len(hdr))
 	cmdp = make([]byte, cmdsz)
-	if bio.Bread(f, cmdp) != len(cmdp) {
+	if _, err2 := io.ReadFull(f, cmdp); err2 != nil {
 		err = fmt.Errorf("reading cmds: %v", err)
 		goto bad
 	}
@@ -557,7 +569,11 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	dat = make([]byte, c.seg.filesz)
-	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 || bio.Bread(f, dat) != len(dat) {
+	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 {
+		err = fmt.Errorf("cannot load object data: %v", err)
+		goto bad
+	}
+	if _, err2 := io.ReadFull(f, dat); err2 != nil {
 		err = fmt.Errorf("cannot load object data: %v", err)
 		goto bad
 	}
