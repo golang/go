@@ -2602,10 +2602,9 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions []*action, mainpkg string, ofiles []string) error {
 	// gccgo needs explicit linking with all package dependencies,
 	// and all LDFLAGS from cgo dependencies.
-	apackagesSeen := make(map[*Package]bool)
+	apackagePathsSeen := make(map[string]bool)
 	afiles := []string{}
 	shlibs := []string{}
-	xfiles := []string{}
 	ldflags := b.gccArchArgs()
 	cgoldflags := []string{}
 	usesCgo := false
@@ -2694,10 +2693,10 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 			// rather than the 'build' location (which may not exist any
 			// more). We still need to traverse the dependencies of the
 			// build action though so saying
-			// if apackagesSeen[a.p] { return }
+			// if apackagePathsSeen[a.p.ImportPath] { return }
 			// doesn't work.
-			if !apackagesSeen[a.p] {
-				apackagesSeen[a.p] = true
+			if !apackagePathsSeen[a.p.ImportPath] {
+				apackagePathsSeen[a.p.ImportPath] = true
 				target := a.target
 				if len(a.p.CgoFiles) > 0 {
 					target, err = readAndRemoveCgoFlags(target)
@@ -2705,17 +2704,7 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 						return
 					}
 				}
-				if a.p.fake && a.p.external {
-					// external _tests, if present must come before
-					// internal _tests. Store these on a separate list
-					// and place them at the head after this loop.
-					xfiles = append(xfiles, target)
-				} else if a.p.fake {
-					// move _test files to the top of the link order
-					afiles = append([]string{target}, afiles...)
-				} else {
-					afiles = append(afiles, target)
-				}
+				afiles = append(afiles, target)
 			}
 		}
 		if strings.HasSuffix(a.target, ".so") {
@@ -2735,7 +2724,6 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 			return err
 		}
 	}
-	afiles = append(xfiles, afiles...)
 
 	for _, a := range allactions {
 		// Gather CgoLDFLAGS, but not from standard packages.
