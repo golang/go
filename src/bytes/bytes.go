@@ -88,6 +88,11 @@ func ContainsAny(b []byte, chars string) bool {
 	return IndexAny(b, chars) >= 0
 }
 
+// ContainsRune reports whether the Unicode code point r is within b.
+func ContainsRune(b []byte, r rune) bool {
+	return IndexRune(b, r) >= 0
+}
+
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep []byte) int {
 	n := len(sep)

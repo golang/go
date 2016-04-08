@@ -1245,6 +1245,30 @@ func TestContainsAny(t *testing.T) {
 	}
 }
 
+var ContainsRuneTests = []struct {
+	b        []byte
+	r        rune
+	expected bool
+}{
+	{[]byte(""), 'a', false},
+	{[]byte("a"), 'a', true},
+	{[]byte("aaa"), 'a', true},
+	{[]byte("abc"), 'y', false},
+	{[]byte("abc"), 'c', true},
+	{[]byte("a☺b☻c☹d"), 'x', false},
+	{[]byte("a☺b☻c☹d"), '☻', true},
+	{[]byte("aRegExp*"), '*', true},
+}
+
+func TestContainsRune(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if ContainsRune(ct.b, ct.r) != ct.expected {
+			t.Errorf("ContainsRune(%q, %q) = %v, want %v",
+				ct.b, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
 var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
