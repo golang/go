@@ -407,7 +407,7 @@ func dumpexport() {
 			pkgs = savedPkgs
 			pkgMap = savedPkgMap
 		} else {
-			size = export(bout.Writer(), Debug_export != 0)
+			size = export(bout.Writer, Debug_export != 0)
 		}
 		exportf("\n$$\n")
 	} else {
