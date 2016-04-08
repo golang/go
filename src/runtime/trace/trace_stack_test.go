@@ -129,10 +129,6 @@ func TestTraceSymbolize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
-	err = trace.Symbolize(events, os.Args[0])
-	if err != nil {
-		t.Fatalf("failed to symbolize trace: %v", err)
-	}
 
 	// Now check that the stacks are correct.
 	type frame struct {
@@ -148,6 +144,9 @@ func TestTraceSymbolize(t *testing.T) {
 			{"runtime.GC", 0},
 			{"runtime/trace_test.TestTraceSymbolize", 106},
 			{"testing.tRunner", 0},
+		}},
+		{trace.EvGoStart, []frame{
+			{"runtime/trace_test.TestTraceSymbolize.func1", 37},
 		}},
 		{trace.EvGoSched, []frame{
 			{"runtime/trace_test.TestTraceSymbolize", 107},

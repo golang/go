@@ -104,11 +104,6 @@ func parseEvents() ([]*trace.Event, error) {
 			loader.err = fmt.Errorf("failed to parse trace: %v", err)
 			return
 		}
-		err = trace.Symbolize(events, programBinary)
-		if err != nil {
-			loader.err = fmt.Errorf("failed to symbolize trace: %v", err)
-			return
-		}
 		loader.events = events
 	})
 	return loader.events, loader.err

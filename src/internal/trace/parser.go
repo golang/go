@@ -5,15 +5,10 @@
 package trace
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"os"
-	"os/exec"
 	"sort"
-	"strconv"
-	"strings"
 )
 
 // Event describes one event in the trace.
@@ -59,11 +54,11 @@ const (
 
 // Parse parses, post-processes and verifies the trace.
 func Parse(r io.Reader) ([]*Event, error) {
-	rawEvents, err := readTrace(r)
+	rawEvents, strings, err := readTrace(r)
 	if err != nil {
 		return nil, err
 	}
-	events, err := parseEvents(rawEvents)
+	events, stacks, err := parseEvents(rawEvents, strings)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +69,12 @@ func Parse(r io.Reader) ([]*Event, error) {
 	err = postProcessTrace(events)
 	if err != nil {
 		return nil, err
+	}
+	// Attach stack traces.
+	for _, ev := range events {
+		if ev.StkID != 0 {
+			ev.Stk = stacks[ev.StkID]
+		}
 	}
 	return events, nil
 }
@@ -87,19 +88,20 @@ type rawEvent struct {
 
 // readTrace does wire-format parsing and verification.
 // It does not care about specific event types and argument meaning.
-func readTrace(r io.Reader) ([]rawEvent, error) {
+func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
 	// Read and validate trace header.
 	var buf [16]byte
 	off, err := r.Read(buf[:])
 	if off != 16 || err != nil {
-		return nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
+		return nil, nil, fmt.Errorf("failed to read header: read %v, err %v", off, err)
 	}
 	if !bytes.Equal(buf[:], []byte("go 1.5 trace\x00\x00\x00\x00")) {
-		return nil, fmt.Errorf("not a trace file")
+		return nil, nil, fmt.Errorf("not a trace file")
 	}
 
 	// Read events.
 	var events []rawEvent
+	strings := make(map[uint64]string)
 	for {
 		// Read event type and number of arguments (1 byte).
 		off0 := off
@@ -108,18 +110,51 @@ func readTrace(r io.Reader) ([]rawEvent, error) {
 			break
 		}
 		if err != nil || n != 1 {
-			return nil, fmt.Errorf("failed to read trace at offset 0x%x: n=%v err=%v", off0, n, err)
+			return nil, nil, fmt.Errorf("failed to read trace at offset 0x%x: n=%v err=%v", off0, n, err)
 		}
 		off += n
 		typ := buf[0] << 2 >> 2
 		narg := buf[0] >> 6
+		if typ == EvString {
+			// String dictionary entry [ID, length, string].
+			var id uint64
+			id, off, err = readVal(r, off)
+			if err != nil {
+				return nil, nil, err
+			}
+			if id == 0 {
+				return nil, nil, fmt.Errorf("string at offset %d has invalid id 0", off)
+			}
+			if strings[id] != "" {
+				return nil, nil, fmt.Errorf("string at offset %d has duplicate id %v", off, id)
+			}
+			var ln uint64
+			ln, off, err = readVal(r, off)
+			if err != nil {
+				return nil, nil, err
+			}
+			if ln == 0 {
+				return nil, nil, fmt.Errorf("string at offset %d has invalie length 0", off)
+			}
+			if ln > 1e6 {
+				return nil, nil, fmt.Errorf("string at offset %d has too large length %v", off, ln)
+			}
+			buf := make([]byte, ln)
+			n, err := io.ReadFull(r, buf)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to read trace at offset %d: read %v, want %v, error %v", off, n, ln, err)
+			}
+			off += n
+			strings[id] = string(buf)
+			continue
+		}
 		ev := rawEvent{typ: typ, off: off0}
 		if narg < 3 {
 			for i := 0; i < int(narg)+2; i++ { // sequence number and time stamp are present but not counted in narg
 				var v uint64
 				v, off, err = readVal(r, off)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				ev.args = append(ev.args, v)
 			}
@@ -128,34 +163,34 @@ func readTrace(r io.Reader) ([]rawEvent, error) {
 			var v uint64
 			v, off, err = readVal(r, off)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			evLen := v
 			off1 := off
 			for evLen > uint64(off-off1) {
 				v, off, err = readVal(r, off)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				ev.args = append(ev.args, v)
 			}
 			if evLen != uint64(off-off1) {
-				return nil, fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
+				return nil, nil, fmt.Errorf("event has wrong length at offset 0x%x: want %v, got %v", off0, evLen, off-off1)
 			}
 		}
 		events = append(events, ev)
 	}
-	return events, nil
+	return events, strings, nil
 }
 
 // Parse events transforms raw events into events.
 // It does analyze and verify per-event-type arguments.
-func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+func parseEvents(rawEvents []rawEvent, strings map[uint64]string) (events []*Event, stacks map[uint64][]*Frame, err error) {
 	var ticksPerSec, lastSeq, lastTs int64
 	var lastG, timerGoid uint64
 	var lastP int
 	lastGs := make(map[int]uint64) // last goroutine running on P
-	stacks := make(map[uint64][]*Frame)
+	stacks = make(map[uint64][]*Frame)
 	for _, raw := range rawEvents {
 		if raw.typ == EvNone || raw.typ >= EvCount {
 			err = fmt.Errorf("unknown event type %v at offset 0x%x", raw.typ, raw.off)
@@ -211,16 +246,20 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 					raw.off, size)
 				return
 			}
-			if uint64(len(raw.args)) != size+2 {
+			if want := 2 + 4*size; uint64(len(raw.args)) != want {
 				err = fmt.Errorf("EvStack has wrong number of arguments at offset 0x%x: want %v, got %v",
-					raw.off, size+2, len(raw.args))
+					raw.off, want, len(raw.args))
 				return
 			}
 			id := raw.args[0]
 			if id != 0 && size > 0 {
 				stk := make([]*Frame, size)
 				for i := 0; i < int(size); i++ {
-					stk[i] = &Frame{PC: raw.args[i+2]}
+					pc := raw.args[2+i*4+0]
+					fn := raw.args[2+i*4+1]
+					file := raw.args[2+i*4+2]
+					line := raw.args[2+i*4+3]
+					stk[i] = &Frame{PC: pc, Fn: strings[fn], File: strings[file], Line: int(line)}
 				}
 				stacks[id] = stk
 			}
@@ -261,13 +300,6 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
 	if len(events) == 0 {
 		err = fmt.Errorf("trace is empty")
 		return
-	}
-
-	// Attach stack traces.
-	for _, ev := range events {
-		if ev.StkID != 0 {
-			ev.Stk = stacks[ev.StkID]
-		}
 	}
 
 	// Sort by sequence number and translate cpu ticks to real time.
@@ -478,8 +510,7 @@ func postProcessTrace(events []*Event) error {
 			g.evStart = ev
 			p.g = ev.G
 			if g.evCreate != nil {
-				// +1 because symbolizer expects return pc.
-				ev.Stk = []*Frame{{PC: g.evCreate.Args[1] + 1}}
+				ev.StkID = g.evCreate.Args[1]
 				g.evCreate = nil
 			}
 
@@ -580,79 +611,6 @@ func postProcessTrace(events []*Event) error {
 	return nil
 }
 
-// symbolizeTrace attaches func/file/line info to stack traces.
-func Symbolize(events []*Event, bin string) error {
-	// First, collect and dedup all pcs.
-	pcs := make(map[uint64]*Frame)
-	for _, ev := range events {
-		for _, f := range ev.Stk {
-			pcs[f.PC] = nil
-		}
-	}
-
-	// Start addr2line.
-	cmd := exec.Command("go", "tool", "addr2line", bin)
-	in, err := cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("failed to pipe addr2line stdin: %v", err)
-	}
-	cmd.Stderr = os.Stderr
-	out, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to pipe addr2line stdout: %v", err)
-	}
-	err = cmd.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start addr2line: %v", err)
-	}
-	outb := bufio.NewReader(out)
-
-	// Write all pcs to addr2line.
-	// Need to copy pcs to an array, because map iteration order is non-deterministic.
-	var pcArray []uint64
-	for pc := range pcs {
-		pcArray = append(pcArray, pc)
-		_, err := fmt.Fprintf(in, "0x%x\n", pc-1)
-		if err != nil {
-			return fmt.Errorf("failed to write to addr2line: %v", err)
-		}
-	}
-	in.Close()
-
-	// Read in answers.
-	for _, pc := range pcArray {
-		fn, err := outb.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read from addr2line: %v", err)
-		}
-		file, err := outb.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read from addr2line: %v", err)
-		}
-		f := &Frame{PC: pc}
-		f.Fn = fn[:len(fn)-1]
-		f.File = file[:len(file)-1]
-		if colon := strings.LastIndex(f.File, ":"); colon != -1 {
-			ln, err := strconv.Atoi(f.File[colon+1:])
-			if err == nil {
-				f.File = f.File[:colon]
-				f.Line = ln
-			}
-		}
-		pcs[pc] = f
-	}
-	cmd.Wait()
-
-	// Replace frames in events array.
-	for _, ev := range events {
-		for i, f := range ev.Stk {
-			ev.Stk[i] = pcs[f.PC]
-		}
-	}
-
-	return nil
-}
-
 // readVal reads unsigned base-128 value from r.
 func readVal(r io.Reader, off0 int) (v uint64, off int, err error) {
 	off = off0
@@ -704,7 +662,7 @@ const (
 	EvNone           = 0  // unused
 	EvBatch          = 1  // start of per-P batch of events [pid, timestamp]
 	EvFrequency      = 2  // contains tracer timer frequency [frequency (ticks per second)]
-	EvStack          = 3  // stack [stack id, number of PCs, array of PCs]
+	EvStack          = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
 	EvGomaxprocs     = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
 	EvProcStart      = 5  // start of P [timestamp, thread id]
 	EvProcStop       = 6  // stop of P [timestamp]
@@ -714,7 +672,7 @@ const (
 	EvGCScanDone     = 10 // GC scan done [timestamp]
 	EvGCSweepStart   = 11 // GC sweep start [timestamp, stack id]
 	EvGCSweepDone    = 12 // GC sweep done [timestamp]
-	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, start PC, stack id]
+	EvGoCreate       = 13 // goroutine creation [timestamp, new goroutine id, new start id, stack id]
 	EvGoStart        = 14 // goroutine starts running [timestamp, goroutine id]
 	EvGoEnd          = 15 // goroutine ends [timestamp]
 	EvGoStop         = 16 // goroutine stops (like in select{}) [timestamp, stack]
@@ -738,7 +696,8 @@ const (
 	EvNextGC         = 34 // memstats.next_gc change [timestamp, next_gc]
 	EvTimerGoroutine = 35 // denotes timer goroutine [timer goroutine id]
 	EvFutileWakeup   = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
-	EvCount          = 37
+	EvString         = 37 // string dictionary entry [ID, length, string]
+	EvCount          = 38
 )
 
 var EventDescriptions = [EvCount]struct {
@@ -759,7 +718,7 @@ var EventDescriptions = [EvCount]struct {
 	EvGCScanDone:     {"GCScanDone", false, []string{}},
 	EvGCSweepStart:   {"GCSweepStart", true, []string{}},
 	EvGCSweepDone:    {"GCSweepDone", false, []string{}},
-	EvGoCreate:       {"GoCreate", true, []string{"g", "pc"}},
+	EvGoCreate:       {"GoCreate", true, []string{"g", "stack"}},
 	EvGoStart:        {"GoStart", false, []string{"g"}},
 	EvGoEnd:          {"GoEnd", false, []string{}},
 	EvGoStop:         {"GoStop", true, []string{}},
@@ -783,4 +742,5 @@ var EventDescriptions = [EvCount]struct {
 	EvNextGC:         {"NextGC", false, []string{"mem"}},
 	EvTimerGoroutine: {"TimerGoroutine", false, []string{"g", "unused"}},
 	EvFutileWakeup:   {"FutileWakeup", false, []string{}},
+	EvString:         {"String", false, []string{}},
 }
