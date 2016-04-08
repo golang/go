@@ -164,7 +164,13 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 				var outn Nodes
 				outn.Set(out)
 				instrumentnode(&ls[i], &outn, 0, 0)
-				out = append(outn.Slice(), ls[i])
+				if ls[i].Op != OAS || ls[i].Ninit.Len() == 0 {
+					out = append(outn.Slice(), ls[i])
+				} else {
+					// Splice outn onto end of ls[i].Ninit
+					ls[i].Ninit.AppendNodes(&outn)
+					out = append(out, ls[i])
+				}
 			}
 		}
 		n.List.Set(out)

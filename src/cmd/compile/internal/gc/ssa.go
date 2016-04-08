@@ -3699,6 +3699,10 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 	if b == s.f.Entry {
 		// Live variable at start of function.
 		if s.canSSA(name) {
+			if strings.HasPrefix(name.Sym.Name, "autotmp_") {
+				// It's likely that this is an uninitialized variable in the entry block.
+				s.Fatalf("Treating auto as if it were arg, func %s, node %v, value %v", b.Func.Name, name, v)
+			}
 			v.Op = ssa.OpArg
 			v.Aux = name
 			return
