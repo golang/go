@@ -385,7 +385,7 @@ func dumpexport() {
 			// save a copy of the export data
 			var copy bytes.Buffer
 			bcopy := bio.BufWriter(&copy)
-			size = Export(bcopy, Debug_export != 0)
+			size = export(bcopy, Debug_export != 0)
 			bcopy.Flush() // flushing to bytes.Buffer cannot fail
 			if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
 				Fatalf("error writing export data: got %d bytes, want %d bytes, err = %v", n, size, err)
@@ -407,7 +407,7 @@ func dumpexport() {
 			pkgs = savedPkgs
 			pkgMap = savedPkgMap
 		} else {
-			size = Export(bout, Debug_export != 0)
+			size = export(bout, Debug_export != 0)
 		}
 		exportf("\n$$\n")
 	} else {

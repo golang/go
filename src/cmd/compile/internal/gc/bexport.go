@@ -135,8 +135,8 @@ type exporter struct {
 	trace   bool
 }
 
-// Export writes the exportlist for localpkg to out and returns the number of bytes written.
-func Export(out *bio.Buf, trace bool) int {
+// export writes the exportlist for localpkg to out and returns the number of bytes written.
+func export(out *bio.Buf, trace bool) int {
 	p := exporter{
 		out:      out,
 		pkgIndex: make(map[*Pkg]int),
