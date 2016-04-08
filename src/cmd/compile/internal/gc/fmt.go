@@ -737,6 +737,9 @@ func typefmt(t *Type, flag FmtFlag) string {
 			Fatalf("cannot use TDDDFIELD with old exporter")
 		}
 		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.DDDField())
+
+	case Txxx:
+		return "Txxx"
 	}
 
 	if fmtmode == FExp {
