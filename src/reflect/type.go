@@ -311,9 +311,9 @@ type method struct {
 // Using a pointer to this struct reduces the overall size required
 // to describe an unnamed type with no methods.
 type uncommonType struct {
-	pkgPath name   // import path; empty for built-in types like int, string
-	mcount  uint16 // number of methods
-	moff    uint16 // offset from this uncommontype to [mcount]method
+	pkgPath nameOff // import path; empty for built-in types like int, string
+	mcount  uint16  // number of methods
+	moff    uint16  // offset from this uncommontype to [mcount]method
 }
 
 // ChanDir represents a channel type's direction.
@@ -613,13 +613,6 @@ func (t *uncommonType) methods() []method {
 	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff)))[:t.mcount:t.mcount]
 }
 
-func (t *uncommonType) PkgPath() string {
-	if t == nil {
-		return ""
-	}
-	return t.pkgPath.name()
-}
-
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
@@ -799,7 +792,7 @@ func (t *rtype) Method(i int) (m Method) {
 	if !pname.isExported() {
 		m.PkgPath = pname.pkgPath()
 		if m.PkgPath == "" {
-			m.PkgPath = ut.pkgPath.name()
+			m.PkgPath = t.nameOff(ut.pkgPath).name()
 		}
 		fl |= flagStickyRO
 	}
@@ -846,7 +839,11 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 }
 
 func (t *rtype) PkgPath() string {
-	return t.uncommon().PkgPath()
+	ut := t.uncommon()
+	if ut == nil {
+		return ""
+	}
+	return t.nameOff(ut.pkgPath).name()
 }
 
 func hasPrefix(s, prefix string) bool {

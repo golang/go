@@ -435,6 +435,11 @@ func symtab() {
 				s.Outer = symtype
 			}
 
+		case strings.HasPrefix(s.Name, "go.importpath.") && UseRelro():
+			// Keep go.importpath symbols in the same section as types and
+			// names, as they can be referred to by a section offset.
+			s.Type = obj.STYPERELRO
+
 		case strings.HasPrefix(s.Name, "go.typelink."):
 			ntypelinks++
 			s.Type = obj.STYPELINK
