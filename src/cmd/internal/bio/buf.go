@@ -12,8 +12,6 @@ import (
 	"os"
 )
 
-const EOF = -1
-
 // Reader implements a seekable buffered io.Reader.
 type Reader struct {
 	f *os.File
@@ -96,25 +94,6 @@ func Bread(r *Reader, p []byte) int {
 		}
 	}
 	return n
-}
-
-func Bgetc(r *Reader) int {
-	c, err := r.ReadByte()
-	if err != nil {
-		if err != io.EOF {
-			log.Fatalf("reading input: %v", err)
-		}
-		return EOF
-	}
-	return int(c)
-}
-
-func Brdline(r *Reader, delim int) string {
-	s, err := r.ReadBytes(byte(delim))
-	if err != nil {
-		log.Fatalf("reading input: %v", err)
-	}
-	return string(s)
 }
 
 func (r *Reader) Close() error {
