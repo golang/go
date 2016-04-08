@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build arm64 mips64 mips64le ppc64 ppc64le s390x
+// +build amd64 arm64 mips64 mips64le ppc64 ppc64le s390x
 
 package runtime
 
@@ -22,6 +22,10 @@ const (
 	// s390x         TASK_SIZE         0x020000000000UL (41 bit addresses)
 	//
 	// These values may increase over time.
+	//
+	// On AMD64, virtual addresses are 48-bit numbers sign extended to 64.
+	// We shift the address left 16 to eliminate the sign extended part and make
+	// room in the bottom for the count.
 	addrBits = 48
 
 	// In addition to the 16 bits taken from the top, we can take 3 from the
@@ -35,5 +39,10 @@ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
 }
 
 func lfstackUnpack(val uint64) *lfnode {
+	if GOARCH == "amd64" {
+		// amd64 systems can place the stack above the VA hole, so we need to sign extend
+		// val before unpacking.
+		return (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> cntBits << 3)))
+	}
 	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
 }
