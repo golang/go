@@ -155,10 +155,10 @@ func TestNewRequest(t *testing.T) {
 		got := NewRequest(tt.method, tt.uri, tt.body)
 		slurp, err := ioutil.ReadAll(got.Body)
 		if err != nil {
-			t.Errorf("%i. ReadAll: %v", i, err)
+			t.Errorf("%d. ReadAll: %v", i, err)
 		}
 		if string(slurp) != tt.wantBody {
-			t.Errorf("%i. Body = %q; want %q", i, slurp, tt.wantBody)
+			t.Errorf("%d. Body = %q; want %q", i, slurp, tt.wantBody)
 		}
 		got.Body = nil // before DeepEqual
 		if !reflect.DeepEqual(got.URL, tt.want.URL) {
