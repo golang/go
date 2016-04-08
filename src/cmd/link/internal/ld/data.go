@@ -1116,7 +1116,7 @@ func symalign(s *LSym) int32 {
 	} else if s.Align != 0 {
 		return min
 	}
-	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
+	if (strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.")) || strings.HasPrefix(s.Name, "type..namedata.") {
 		// String data is just bytes.
 		// If we align it, we waste a lot of space to padding.
 		return min
