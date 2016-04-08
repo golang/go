@@ -372,8 +372,10 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
 		return
 	}
 	minTs := events[0].Ts
+	// Use floating point to avoid integer overflows.
+	freq := 1e9 / float64(ticksPerSec)
 	for _, ev := range events {
-		ev.Ts = (ev.Ts - minTs) * 1e9 / ticksPerSec
+		ev.Ts = int64(float64(ev.Ts-minTs) * freq)
 		// Move timers and syscalls to separate fake Ps.
 		if timerGoid != 0 && ev.G == timerGoid && ev.Type == EvGoUnblock {
 			ev.P = TimerP
