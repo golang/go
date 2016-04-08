@@ -90,9 +90,9 @@ importer.
 package gc
 
 import (
+	"bufio"
 	"bytes"
 	"cmd/compile/internal/big"
-	"cmd/internal/bio"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -124,7 +124,7 @@ const exportVersion = "v0"
 const exportInlined = true // default: true
 
 type exporter struct {
-	out      *bio.Writer
+	out      *bufio.Writer
 	pkgIndex map[*Pkg]int
 	typIndex map[*Type]int
 	inlined  []*Func
@@ -136,7 +136,7 @@ type exporter struct {
 }
 
 // export writes the exportlist for localpkg to out and returns the number of bytes written.
-func export(out *bio.Writer, trace bool) int {
+func export(out *bufio.Writer, trace bool) int {
 	p := exporter{
 		out:      out,
 		pkgIndex: make(map[*Pkg]int),

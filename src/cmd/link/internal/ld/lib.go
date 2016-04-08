@@ -241,7 +241,7 @@ const (
 var (
 	headstring string
 	// buffered output
-	Bso *bio.Writer
+	Bso *bufio.Writer
 )
 
 // TODO(dfc) outBuf duplicates bio.Writer
