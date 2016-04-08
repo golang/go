@@ -494,6 +494,9 @@ func TestLayersTimeout(t *testing.T) {
 }
 
 func testLayers(t *testing.T, seed int64, testTimeout bool) {
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15158)
+	}
 	rand.Seed(seed)
 	errorf := func(format string, a ...interface{}) {
 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
