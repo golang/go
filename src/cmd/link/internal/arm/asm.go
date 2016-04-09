@@ -114,11 +114,6 @@ func braddoff(a int32, b int32) int32 {
 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
 }
 
-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	ld.Addaddrplus(ld.Ctxt, rel, s, int64(r.Off))
-	ld.Adduint32(ld.Ctxt, rel, ld.R_ARM_RELATIVE)
-}
-
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s

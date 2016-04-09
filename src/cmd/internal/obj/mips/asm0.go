@@ -974,10 +974,6 @@ func OP_JMP(op uint32, i uint32) uint32 {
 	return op | i&0x3FFFFFF
 }
 
-func oclass(a *obj.Addr) int {
-	return int(a.Class) - 1
-}
-
 func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	o1 := uint32(0)
 	o2 := uint32(0)

@@ -265,10 +265,6 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	ld.Adduint32(ld.Ctxt, stub, 0x4e800420) // bctr
 }
 
-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	log.Fatalf("adddynrela not implemented")
-}
-
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s

@@ -41,10 +41,6 @@ import (
 
 func gentext() {}
 
-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	log.Fatalf("adddynrela not implemented")
-}
-
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	log.Fatalf("adddynrel not implemented")
 }

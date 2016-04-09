@@ -170,9 +170,7 @@ type methodref struct {
 	r   [3]*Reloc // R_METHOD relocations to fields of runtime.method
 }
 
-func (m methodref) mtyp() *LSym { return m.r[0].Sym }
-func (m methodref) ifn() *LSym  { return m.r[1].Sym }
-func (m methodref) tfn() *LSym  { return m.r[2].Sym }
+func (m methodref) ifn() *LSym { return m.r[1].Sym }
 
 func (m methodref) isExported() bool {
 	for _, r := range m.m {
