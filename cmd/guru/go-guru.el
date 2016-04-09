@@ -73,6 +73,10 @@
   nil
   "The global timer used for highlighting identifiers.")
 
+(defvar go-guru--last-enclosing
+  nil
+  "The remaining enclosing regions of the previous go-expand-region invocation.")
+
 ;; Extend go-mode-map.
 (let ((m (define-prefix-command 'go-guru-map)))
   (define-key m "d" #'go-guru-describe)
@@ -85,7 +89,8 @@
   (define-key m "s" #'go-guru-callstack) ; s for stack
   (define-key m "e" #'go-guru-whicherrs) ; e for error
   (define-key m "<" #'go-guru-callers)
-  (define-key m ">" #'go-guru-callees))
+  (define-key m ">" #'go-guru-callees)
+  (define-key m "x" #'go-guru-expand-region)) ;; x for expand
 
 (define-key go-mode-map (kbd "C-c C-o") #'go-guru-map)
 
@@ -446,6 +451,31 @@ timeout."
 
 ;; TODO(dominikh): a future feature may be to cycle through all uses
 ;; of an identifier.
+
+(defun go-guru--enclosing ()
+  "Return a list of enclosing regions, with duplicates removed."
+  (let ((enclosing (cdr (assoc 'enclosing (go-guru-what)))))
+    (cl-remove-duplicates enclosing
+                          :test (lambda (a b)
+                                  (and (= (cdr (assoc 'start a))
+                                          (cdr (assoc 'start b)))
+                                       (= (cdr (assoc 'end a))
+                                          (cdr (assoc 'end b))))))))
+
+(defun go-guru-expand-region ()
+  "Expand region to the next enclosing syntactic unit."
+  (interactive)
+  (let* ((enclosing (if (eq last-command #'go-guru-expand-region)
+                        go-guru--last-enclosing
+                      (go-guru--enclosing)))
+         (block (if (> (length enclosing) 0) (elt enclosing 0))))
+    (when block
+      (goto-char (1+ (cdr (assoc 'start block))))
+      (set-mark (1+ (cdr (assoc 'end block))))
+      (setq go-guru--last-enclosing (subseq enclosing 1))
+      (message "Region: %s" (cdr (assoc 'desc block)))
+      (setq deactivate-mark nil))))
+
 
 (provide 'go-guru)
 
