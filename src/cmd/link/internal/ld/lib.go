@@ -241,7 +241,7 @@ const (
 var (
 	headstring string
 	// buffered output
-	Bso bio.Writer
+	Bso *bio.Writer
 )
 
 // TODO(dfc) outBuf duplicates bio.Writer
@@ -469,7 +469,7 @@ func loadinternal(name string) {
 		if Linkshared {
 			shlibname := filepath.Join(Ctxt.Libdir[i], name+".shlibname")
 			if Debug['v'] != 0 {
-				fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, shlibname)
+				fmt.Fprintf(Bso, "searching for %s.a in %s\n", name, shlibname)
 			}
 			if _, err := os.Stat(shlibname); err == nil {
 				addlibpath(Ctxt, "internal", "internal", "", name, shlibname)
@@ -479,7 +479,7 @@ func loadinternal(name string) {
 		}
 		pname := filepath.Join(Ctxt.Libdir[i], name+".a")
 		if Debug['v'] != 0 {
-			fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, pname)
+			fmt.Fprintf(Bso, "searching for %s.a in %s\n", name, pname)
 		}
 		if _, err := os.Stat(pname); err == nil {
 			addlibpath(Ctxt, "internal", "internal", pname, name, "")
@@ -489,7 +489,7 @@ func loadinternal(name string) {
 	}
 
 	if found == 0 {
-		fmt.Fprintf(&Bso, "warning: unable to find %s.a\n", name)
+		fmt.Fprintf(Bso, "warning: unable to find %s.a\n", name)
 	}
 }
 
@@ -521,7 +521,7 @@ func loadlib() {
 		iscgo = iscgo || Ctxt.Library[i].Pkg == "runtime/cgo"
 		if Ctxt.Library[i].Shlib == "" {
 			if Debug['v'] > 1 {
-				fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
+				fmt.Fprintf(Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
 			}
 			objfile(Ctxt.Library[i])
 		}
@@ -530,7 +530,7 @@ func loadlib() {
 	for i = 0; i < len(Ctxt.Library); i++ {
 		if Ctxt.Library[i].Shlib != "" {
 			if Debug['v'] > 1 {
-				fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].Shlib, Ctxt.Library[i].Objref)
+				fmt.Fprintf(Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].Shlib, Ctxt.Library[i].Objref)
 			}
 			ldshlibsyms(Ctxt.Library[i].Shlib)
 		}
@@ -693,13 +693,13 @@ func loadlib() {
 				args := hostlinkArchArgs()
 				args = append(args, "--print-libgcc-file-name")
 				if Debug['v'] != 0 {
-					fmt.Fprintf(&Bso, "%s %v\n", extld, args)
+					fmt.Fprintf(Bso, "%s %v\n", extld, args)
 				}
 				out, err := exec.Command(extld, args...).Output()
 				if err != nil {
 					if Debug['v'] != 0 {
-						fmt.Fprintln(&Bso, "not using a libgcc file because compiler failed")
-						fmt.Fprintf(&Bso, "%v\n%s\n", err, out)
+						fmt.Fprintln(Bso, "not using a libgcc file because compiler failed")
+						fmt.Fprintf(Bso, "%v\n%s\n", err, out)
 					}
 					libgccfile = "none"
 				} else {
@@ -772,7 +772,7 @@ func objfile(lib *Library) {
 	pkg := pathtoprefix(lib.Pkg)
 
 	if Debug['v'] > 1 {
-		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
+		fmt.Fprintf(Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
 	}
 	Bso.Flush()
 	f, err := bio.Open(lib.File)
@@ -1035,7 +1035,7 @@ func archive() {
 	argv = append(argv, hostobjCopy()...)
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "archive: %s\n", strings.Join(argv, " "))
+		fmt.Fprintf(Bso, "archive: %s\n", strings.Join(argv, " "))
 		Bso.Flush()
 	}
 
@@ -1204,18 +1204,18 @@ func hostlink() {
 	}
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "host link:")
+		fmt.Fprintf(Bso, "host link:")
 		for _, v := range argv {
-			fmt.Fprintf(&Bso, " %q", v)
+			fmt.Fprintf(Bso, " %q", v)
 		}
-		fmt.Fprintf(&Bso, "\n")
+		fmt.Fprintf(Bso, "\n")
 		Bso.Flush()
 	}
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
 	} else if Debug['v'] != 0 && len(out) > 0 {
-		fmt.Fprintf(&Bso, "%s", out)
+		fmt.Fprintf(Bso, "%s", out)
 		Bso.Flush()
 	}
 
@@ -2007,7 +2007,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	// Otherwise, off is addressing the saved program counter.
 	// Something underhanded is going on. Say nothing.
 	if Debug['v'] != 0 || Debug['n'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
+		fmt.Fprintf(Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
 	}
 	Bso.Flush()
 }
@@ -2098,7 +2098,7 @@ func callgraph() {
 				continue
 			}
 			if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM || r.Type == obj.R_CALLPOWER || r.Type == obj.R_CALLMIPS) && r.Sym.Type == obj.STEXT {
-				fmt.Fprintf(&Bso, "%s calls %s\n", s.Name, r.Sym.Name)
+				fmt.Fprintf(Bso, "%s calls %s\n", s.Name, r.Sym.Name)
 			}
 		}
 	}

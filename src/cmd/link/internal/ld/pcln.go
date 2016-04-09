@@ -375,7 +375,7 @@ func pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), int64(ftab.Size), int64(funcdata_bytes))
+		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), int64(ftab.Size), int64(funcdata_bytes))
 	}
 }
 
