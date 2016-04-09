@@ -523,7 +523,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		return p
 	}
 
-	// Check for "internal" element: four cases depending on begin of string and/or end of string.
+	// Check for "internal" element: three cases depending on begin of string and/or end of string.
 	i, ok := findInternal(p.ImportPath)
 	if !ok {
 		return p
@@ -560,7 +560,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 // If there isn't one, findInternal returns ok=false.
 // Otherwise, findInternal returns ok=true and the index of the "internal".
 func findInternal(path string) (index int, ok bool) {
-	// Four cases, depending on internal at start/end of string or not.
+	// Three cases, depending on internal at start/end of string or not.
 	// The order matters: we must return the index of the final element,
 	// because the final one produces the most restrictive requirement
 	// on the importer.
