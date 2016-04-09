@@ -109,147 +109,152 @@ A pattern preceded by '-' is negative, so the scope
 matches all encoding packages except encoding/xml."
   (interactive)
   (let ((scope (read-from-minibuffer "Go guru scope: "
-                                     go-guru-scope
-                                     nil
-                                     nil
-                                     'go-guru--scope-history)))
+				     go-guru-scope
+				     nil
+				     nil
+				     'go-guru--scope-history)))
     (if (string-equal "" scope)
-        (error "You must specify a non-empty scope for the Go guru"))
+	(error "You must specify a non-empty scope for the Go guru"))
     (setq go-guru-scope scope)))
 
-(defun go-guru--run (mode &optional need-scope)
-  "Run the Go guru in the specified MODE, passing it the selected
-region of the current buffer.  If NEED-SCOPE, prompt for a scope
-if not already set.  Mark up the output using `compilation-mode`,
-replacing each file name with a small hyperlink, and display the
-result."
-  (let ((output (go-guru--exec mode need-scope))
-	(display (get-buffer-create "*go-guru*"))
-	(dir default-directory))
-    (with-current-buffer display
-      (setq buffer-read-only nil)
-      (setq default-directory dir)
-      (erase-buffer)
-      (insert-buffer-substring output)
-      (go-guru--compilation-markup))))
+(defun go-guru--set-scope-if-empty ()
+  (if (string-equal "" go-guru-scope)
+      (go-guru-set-scope)))
 
-(defun go-guru--exec (mode &optional need-scope flags allow-unnamed)
+(defun go-guru--json (mode)
   "Execute the Go guru in the specified MODE, passing it the
-selected region of the current buffer. If NEED-SCOPE, prompt for
-a scope if not already set. If ALLOW-UNNAMED is non-nil, a
-synthetic file for the unnamed buffer will be created. This
-should only be used with queries that work on single files
-only (e.g. 'what'). If ALLOW-UNNAMED is nil and the buffer has no
-associated name, an error will be signaled.
+selected region of the current buffer, requesting JSON output.
+Parse and return the resulting JSON object."
+  ;; A "what" query works even in a buffer without a file name.
+  (let* ((filename (file-truename (or buffer-file-name "synthetic.go")))
+	 (cmd (go-guru--command mode filename '("-json")))
+	 (buf (current-buffer))
+	 ;; Use temporary buffers to avoid conflict with go-guru--start.
+	 (json-buffer (generate-new-buffer "*go-guru-json-output*"))
+	 (input-buffer (generate-new-buffer "*go-guru-json-input*")))
+    (unwind-protect
+	;; Run guru, feeding it the input buffer (modified files).
+	(with-current-buffer input-buffer
+	  (go-guru--insert-modified-files)
+	  (unless (buffer-file-name buf)
+	    (go-guru--insert-modified-file filename buf))
+	  (let ((exitcode (apply #'call-process-region
+				 (append (list (point-min)
+					       (point-max)
+					       (car cmd) ; guru
+					       nil ; delete
+					       json-buffer ; output
+					       nil) ; display
+					 (cdr cmd))))) ; args
+	    (with-current-buffer json-buffer
+	      (unless (zerop exitcode)
+		;; Failed: use buffer contents (sans final \n) as an error.
+		(error "%s" (buffer-substring (point-min) (1- (point-max)))))
+	      ;; Success: parse JSON.
+	      (goto-char (point-min))
+	      (json-read))))
+      ;; Clean up temporary buffers.
+      (kill-buffer json-buffer)
+      (kill-buffer input-buffer))))
 
-Return the output buffer."
-  (or
-   buffer-file-name
-   allow-unnamed
-   (error "Cannot use guru on a buffer without a file name"))
-  (and need-scope
-       (string-equal "" go-guru-scope)
-       (go-guru-set-scope))
-  (let* ((is-unnamed (not buffer-file-name))
-	 (filename (file-truename (or buffer-file-name "synthetic.go")))
-         (posn (if (use-region-p)
+(define-compilation-mode go-guru-output-mode "Go guru"
+  "Go guru output mode is a variant of `compilation-mode' for the
+output of the Go guru tool."
+  (set (make-local-variable 'compilation-error-screen-columns) nil)
+  (set (make-local-variable 'compilation-filter-hook) #'go-guru--compilation-filter-hook)
+  (set (make-local-variable 'compilation-start-hook) #'go-guru--compilation-start-hook))
+
+(defun go-guru--compilation-filter-hook ()
+  "Post-process a blob of input to the go-guru-output buffer."
+  ;; For readability, truncate each "file:line:col:" prefix to a fixed width.
+  ;; If the prefix is longer than 20, show "…/last/19chars.go".
+  ;; This usually includes the last segment of the package name.
+  ;; Hide the line and column numbers.
+  (let ((start compilation-filter-start)
+	(end (point)))
+    (goto-char start)
+    (unless (bolp)
+      ;; TODO(adonovan): not quite right: the filter may be called
+      ;; with chunks of output containing incomplete lines.  Moving to
+      ;; beginning-of-line may cause duplicate post-processing.
+      (beginning-of-line))
+    (setq start (point))
+    (while (< start end)
+      (let ((p (search-forward ": " end t)))
+	(if (null p)
+	    (setq start end) ; break out of loop
+	  (setq p (1- p)) ; exclude final space
+	  (let* ((posn (buffer-substring-no-properties start p))
+		 (flen (search ":" posn)) ; length of filename
+		 (filename (if (< flen 19)
+			       (substring posn 0 flen)
+			     (concat "…" (substring posn (- flen 19) flen)))))
+	    (put-text-property start p 'display filename)
+	    (forward-line 1)
+	    (setq start (point))))))))
+
+(defun go-guru--compilation-start-hook (proc)
+  "Erase default output header inserted by `compilation-mode'."
+  (with-current-buffer (process-buffer proc)
+    (let ((inhibit-read-only t))
+      (beginning-of-buffer)
+      (delete-region (point) (point-max)))))
+
+(defun go-guru--start (mode)
+  "Start an asynchronous Go guru process for the specified query
+MODE, passing it the selected region of the current buffer, and
+feeding its standard input with the contents of all modified Go
+buffers.  Its output is handled by `go-guru-output-mode', a
+variant of `compilation-mode'."
+  (or buffer-file-name
+      (error "Cannot use guru on a buffer without a file name"))
+  (let* ((filename (file-truename buffer-file-name))
+	 (cmd (combine-and-quote-strings (go-guru--command mode filename)))
+	 (process-connection-type nil) ; use pipe (not pty) so EOF closes stdin
+	 (procbuf (compilation-start cmd 'go-guru-output-mode)))
+    (with-current-buffer procbuf
+      (setq truncate-lines t)) ; the output is neater without line wrapping
+    (with-current-buffer (get-buffer-create "*go-guru-input*")
+      (erase-buffer)
+      (go-guru--insert-modified-files)
+      (process-send-region procbuf (point-min) (point-max))
+      (process-send-eof procbuf))
+    procbuf))
+
+(defun go-guru--command (mode filename &optional flags)
+  "Return a command and argument list for a Go guru query of MODE, passing it
+the selected region of the current buffer.  FILENAME is the
+effective name of the current buffer."
+  (let* ((posn (if (use-region-p)
 		   (format "%s:#%d,#%d"
 			   filename
 			   (1- (go--position-bytes (region-beginning)))
 			   (1- (go--position-bytes (region-end))))
 		 (format "%s:#%d"
 			 filename
-			 (1- (position-bytes (point))))))
-         (env-vars (go-root-and-paths))
-         (goroot-env (concat "GOROOT=" (car env-vars)))
-         (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":")))
-         (output-buffer (get-buffer-create "*go-guru-output*"))
-         (buf (current-buffer)))
-    (with-current-buffer output-buffer
-      (setq buffer-read-only nil)
-      (erase-buffer))
-    (with-current-buffer (get-buffer-create "*go-guru-input*")
-      (setq buffer-read-only nil)
-      (erase-buffer)
-      (if is-unnamed
-	  (go-guru--insert-modified-file filename buf)
-        (go-guru--insert-modified-files))
-      (let* ((args (append (list "-modified"
-                                 "-scope" go-guru-scope
-                                 "-tags" go-guru-build-tags)
-			   flags
-			   (list mode posn))))
-	;; Log the command to *Messages*, for debugging.
- 	(when go-guru-debug
-	  (message "Command: %s:" args)
-	  (message nil) ; clears/shrinks minibuffer
-	  (message "Running guru %s..." mode))
-	;; Use dynamic binding to modify/restore the environment
-	(let* ((process-environment (list* goroot-env gopath-env process-environment))
-	       (c-p-args (append (list (point-min)
-				       (point-max)
-				       go-guru-command
-				       nil ; delete
-				       output-buffer
-				       t)
-				 args))
-	       (exitcode (apply #'call-process-region c-p-args)))
-	  ;; If the command fails, don't show the output buffer,
-	  ;; but use its contents (sans final \n) as an error.
-	  (unless (zerop exitcode)
-	    (with-current-buffer output-buffer
-	      (bury-buffer)
-	      (error "%s" (buffer-substring (point-min) (1- (point-max)))))))))
-    output-buffer))
-
-(defun go-guru--compilation-markup ()
-  "Present guru output in the current buffer using `compilation-mode'."
-  (goto-char (point-max))
-  (insert "\n")
-  (compilation-mode)
-  (setq compilation-error-screen-columns nil)
-
-  ;; Hide the file/line info to save space.
-  ;; Replace each with a little widget.
-  ;; compilation-mode + this loop = slooow.
-  ;; TODO(adonovan): have guru give us JSON
-  ;; and we'll do the markup directly.
-  (let ((buffer-read-only nil)
-	(p 1))
-    (while (not (null p))
-      (let ((np (compilation-next-single-property-change p 'compilation-message)))
-	(if np
-	    (when (equal (line-number-at-pos p) (line-number-at-pos np))
-	      ;; Using a fixed width greatly improves readability, so
-	      ;; if the filename is longer than 20, show ".../last/17chars.go".
-	      ;; This usually includes the last segment of the package name.
-	      ;; Don't show the line or column number.
-	      (let* ((loc (buffer-substring p np)) ; "/home/foo/go/pkg/file.go:1:2-3:4"
-		     (i (search ":" loc)))
-		(setq loc (cond
-			   ((null i)  "...")
-			   ((>= i 17) (concat "..." (substring loc (- i 17) i)))
-			   (t         (substring loc 0 i))))
-		;; np is (typically) the space following ":"; consume it too.
-		(put-text-property p np 'display (concat loc ":")))
-	      (goto-char np)
-	      (insert " ")
-	      (incf np))) ; so we don't get stuck (e.g. on a panic stack dump)
-	(setq p np)))
-    (message nil))
-
-  (let ((w (display-buffer (current-buffer))))
-    (set-window-point w (point-min))))
+			 (1- (go--position-bytes (point))))))
+	 (cmd (append (list go-guru-command
+			    "-modified"
+			    "-scope" go-guru-scope
+			    (format "-tags=%s" (mapconcat 'identity go-guru-build-tags ",")))
+		      flags
+		      (list mode
+			    posn))))
+    ;; Log the command to *Messages*, for debugging.
+    (when go-guru-debug
+      (message "go-guru--command: %s" cmd)
+      (message nil)) ; clear/shrink minibuffer
+    cmd))
 
 (defun go-guru--insert-modified-files ()
   "Insert the contents of each modified Go buffer into the
 current buffer in the format specified by guru's -modified flag."
   (mapc #'(lambda (b)
-            (and (buffer-modified-p b)
-                 (buffer-file-name b)
-                 (string= (file-name-extension (buffer-file-name b)) "go")
-                 (go-guru--insert-modified-file (buffer-file-name b) b)))
-        (buffer-list)))
+	    (and (buffer-modified-p b)
+		 (buffer-file-name b)
+		 (string= (file-name-extension (buffer-file-name b)) "go")
+		 (go-guru--insert-modified-file (buffer-file-name b) b)))
+	(buffer-list)))
 
 (defun go-guru--insert-modified-file (name buffer)
   (insert (format "%s\n%d\n" name (go-guru--buffer-size-bytes buffer)))
@@ -260,7 +265,7 @@ current buffer in the format specified by guru's -modified flag."
 If BUFFER, return the number of characters in that buffer instead."
   (with-current-buffer (or buffer (current-buffer))
     (string-bytes (buffer-substring (point-min)
-                                    (point-max)))))
+				    (point-max)))))
 
 (defun go-guru--goto-byte (offset)
   "Go to the OFFSETth byte in the buffer."
@@ -291,28 +296,31 @@ component will be ignored."
 (defun go-guru-callees ()
   "Show possible callees of the function call at the current point."
   (interactive)
-  (go-guru--run "callees" t))
+  (go-guru--set-scope-if-empty)
+  (go-guru--start "callees"))
 
 ;;;###autoload
 (defun go-guru-callers ()
   "Show the set of callers of the function containing the current point."
   (interactive)
-  (go-guru--run "callers" t))
+  (go-guru--set-scope-if-empty)
+  (go-guru--start "callers"))
 
 ;;;###autoload
 (defun go-guru-callstack ()
   "Show an arbitrary path from a root of the call graph to the
 function containing the current point."
   (interactive)
-  (go-guru--run "callstack" t))
+  (go-guru--set-scope-if-empty)
+  (go-guru--start "callstack"))
 
 ;;;###autoload
 (defun go-guru-definition ()
   "Jump to the definition of the selected identifier."
   (interactive)
-  (let* ((res (with-current-buffer (go-guru--exec "definition" nil '("-json"))
-		(goto-char (point-min))
-		(json-read)))
+  (or buffer-file-name
+      (error "Cannot use guru on a buffer without a file name"))
+  (let* ((res (go-guru--json "definition"))
 	 (desc (cdr (assoc 'desc res))))
     (push-mark)
     (ring-insert find-tag-marker-ring (point-marker))
@@ -323,54 +331,55 @@ function containing the current point."
 (defun go-guru-describe ()
   "Describe the selected syntax, its kind, type and methods."
   (interactive)
-  (go-guru--run "describe"))
+  (go-guru--start "describe"))
 
 ;;;###autoload
 (defun go-guru-pointsto ()
   "Show what the selected expression points to."
   (interactive)
-  (go-guru--run "pointsto" t))
+  (go-guru--set-scope-if-empty)
+  (go-guru--start "pointsto"))
 
 ;;;###autoload
 (defun go-guru-implements ()
   "Describe the 'implements' relation for types in the package
 containing the current point."
   (interactive)
-  (go-guru--run "implements"))
+  (go-guru--start "implements"))
 
 ;;;###autoload
 (defun go-guru-freevars ()
   "Enumerate the free variables of the current selection."
   (interactive)
-  (go-guru--run "freevars"))
+  (go-guru--start "freevars"))
 
 ;;;###autoload
 (defun go-guru-peers ()
   "Enumerate the set of possible corresponding sends/receives for
 this channel receive/send operation."
   (interactive)
-  (go-guru--run "peers" t))
+  (go-guru--set-scope-if-empty)
+  (go-guru--start "peers"))
 
 ;;;###autoload
 (defun go-guru-referrers ()
   "Enumerate all references to the object denoted by the selected
 identifier."
   (interactive)
-  (go-guru--run "referrers"))
+  (go-guru--start "referrers"))
 
 ;;;###autoload
 (defun go-guru-whicherrs ()
   "Show globals, constants and types to which the selected
 expression (of type 'error') may refer."
   (interactive)
-  (go-guru--run "whicherrs" t))
+  (go-guru--set-scope-if-empty)
+  (go-guru--start "whicherrs"))
 
 (defun go-guru-what ()
   "Run a 'what' query and return the parsed JSON response as an
 association list."
-  (with-current-buffer (go-guru--exec "what" nil '("-json") t)
-    (goto-char (point-min))
-    (json-read)))
+  (go-guru--json "what"))
 
 (defun go-guru--hl-symbols (posn face id)
   "Highlight the symbols at the positions POSN by creating
@@ -411,8 +420,8 @@ identifier at point, if necessary."
       ;; every time the timer runs, e.g. because of a malformed
       ;; buffer.
       (condition-case nil
-          (go-guru-hl-identifier)
-        (error nil)))
+	  (go-guru-hl-identifier)
+	(error nil)))
     (unless (eq go-guru--current-hl-identifier-idle-time go-guru-hl-identifier-idle-time)
       (go-guru--hl-set-timer))))
 
@@ -466,20 +475,20 @@ Two regions are considered equal if they have the same start and
 end point."
   (let ((enclosing (go-guru--enclosing)))
     (cl-remove-duplicates enclosing
-                          :from-end t
-                          :test (lambda (a b)
-                                  (and (= (cdr (assoc 'start a))
-                                          (cdr (assoc 'start b)))
-                                       (= (cdr (assoc 'end a))
-                                          (cdr (assoc 'end b))))))))
+			  :from-end t
+			  :test (lambda (a b)
+				  (and (= (cdr (assoc 'start a))
+					  (cdr (assoc 'start b)))
+				       (= (cdr (assoc 'end a))
+					  (cdr (assoc 'end b))))))))
 
 (defun go-guru-expand-region ()
   "Expand region to the next enclosing syntactic unit."
   (interactive)
   (let* ((enclosing (if (eq last-command #'go-guru-expand-region)
-                        go-guru--last-enclosing
-                      (go-guru--enclosing-unique)))
-         (block (if (> (length enclosing) 0) (elt enclosing 0))))
+			go-guru--last-enclosing
+		      (go-guru--enclosing-unique)))
+	 (block (if (> (length enclosing) 0) (elt enclosing 0))))
     (when block
       (go-guru--goto-byte (1+ (cdr (assoc 'start block))))
       (set-mark (byte-to-position (1+ (cdr (assoc 'end block)))))
@@ -489,5 +498,10 @@ end point."
 
 
 (provide 'go-guru)
+
+;; Local variables:
+;; indent-tabs-mode: t
+;; tab-width: 8
+;; End
 
 ;;; go-guru.el ends here
