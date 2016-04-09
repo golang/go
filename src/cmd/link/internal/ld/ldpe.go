@@ -131,7 +131,7 @@ type PeObj struct {
 
 func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
+		fmt.Fprintf(Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
 	var sect *PeSect

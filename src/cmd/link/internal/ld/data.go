@@ -638,7 +638,7 @@ func relocsym(s *LSym) {
 
 func reloc() {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f reloc\n", obj.Cputime())
+		fmt.Fprintf(Bso, "%5.2f reloc\n", obj.Cputime())
 	}
 	Bso.Flush()
 
@@ -717,7 +717,7 @@ func dynreloc() {
 		return
 	}
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f reloc\n", obj.Cputime())
+		fmt.Fprintf(Bso, "%5.2f reloc\n", obj.Cputime())
 	}
 	Bso.Flush()
 
@@ -785,7 +785,7 @@ func blk(start *LSym, addr int64, size int64) {
 
 func Codeblk(addr int64, size int64) {
 	if Debug['a'] != 0 {
-		fmt.Fprintf(&Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(Ctxt.Textp, addr, size)
@@ -816,32 +816,32 @@ func Codeblk(addr int64, size int64) {
 		}
 
 		if addr < sym.Value {
-			fmt.Fprintf(&Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
+			fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
 			for ; addr < sym.Value; addr++ {
-				fmt.Fprintf(&Bso, " %.2x", 0)
+				fmt.Fprintf(Bso, " %.2x", 0)
 			}
-			fmt.Fprintf(&Bso, "\n")
+			fmt.Fprintf(Bso, "\n")
 		}
 
-		fmt.Fprintf(&Bso, "%.6x\t%-20s\n", uint64(int64(addr)), sym.Name)
+		fmt.Fprintf(Bso, "%.6x\t%-20s\n", uint64(int64(addr)), sym.Name)
 		q = sym.P
 
 		for len(q) >= 16 {
-			fmt.Fprintf(&Bso, "%.6x\t% x\n", uint64(addr), q[:16])
+			fmt.Fprintf(Bso, "%.6x\t% x\n", uint64(addr), q[:16])
 			addr += 16
 			q = q[16:]
 		}
 
 		if len(q) > 0 {
-			fmt.Fprintf(&Bso, "%.6x\t% x\n", uint64(addr), q)
+			fmt.Fprintf(Bso, "%.6x\t% x\n", uint64(addr), q)
 			addr += int64(len(q))
 		}
 	}
 
 	if addr < eaddr {
-		fmt.Fprintf(&Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
+		fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
 		for ; addr < eaddr; addr++ {
-			fmt.Fprintf(&Bso, " %.2x", 0)
+			fmt.Fprintf(Bso, " %.2x", 0)
 		}
 	}
 
@@ -850,7 +850,7 @@ func Codeblk(addr int64, size int64) {
 
 func Datblk(addr int64, size int64) {
 	if Debug['a'] != 0 {
-		fmt.Fprintf(&Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(datap, addr, size)
@@ -879,26 +879,26 @@ func Datblk(addr int64, size int64) {
 			break
 		}
 		if addr < sym.Value {
-			fmt.Fprintf(&Bso, "\t%.8x| 00 ...\n", uint64(addr))
+			fmt.Fprintf(Bso, "\t%.8x| 00 ...\n", uint64(addr))
 			addr = sym.Value
 		}
 
-		fmt.Fprintf(&Bso, "%s\n\t%.8x|", sym.Name, uint(addr))
+		fmt.Fprintf(Bso, "%s\n\t%.8x|", sym.Name, uint(addr))
 		p = sym.P
 		ep = p[len(sym.P):]
 		for -cap(p) < -cap(ep) {
 			if -cap(p) > -cap(sym.P) && int(-cap(p)+cap(sym.P))%16 == 0 {
-				fmt.Fprintf(&Bso, "\n\t%.8x|", uint(addr+int64(-cap(p)+cap(sym.P))))
+				fmt.Fprintf(Bso, "\n\t%.8x|", uint(addr+int64(-cap(p)+cap(sym.P))))
 			}
-			fmt.Fprintf(&Bso, " %.2x", p[0])
+			fmt.Fprintf(Bso, " %.2x", p[0])
 			p = p[1:]
 		}
 
 		addr += int64(len(sym.P))
 		for ; addr < sym.Value+sym.Size; addr++ {
-			fmt.Fprintf(&Bso, " %.2x", 0)
+			fmt.Fprintf(Bso, " %.2x", 0)
 		}
-		fmt.Fprintf(&Bso, "\n")
+		fmt.Fprintf(Bso, "\n")
 
 		if Linkmode == LinkExternal {
 			for i = 0; i < int64(len(sym.R)); i++ {
@@ -919,20 +919,20 @@ func Datblk(addr int64, size int64) {
 					typ = "call"
 				}
 
-				fmt.Fprintf(&Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, int64(r.Add), int64(r.Sym.Value+r.Add))
+				fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, int64(r.Add), int64(r.Sym.Value+r.Add))
 			}
 		}
 	}
 
 	if addr < eaddr {
-		fmt.Fprintf(&Bso, "\t%.8x| 00 ...\n", uint(addr))
+		fmt.Fprintf(Bso, "\t%.8x| 00 ...\n", uint(addr))
 	}
-	fmt.Fprintf(&Bso, "\t%.8x|\n", uint(eaddr))
+	fmt.Fprintf(Bso, "\t%.8x|\n", uint(eaddr))
 }
 
 func Dwarfblk(addr int64, size int64) {
 	if Debug['a'] != 0 {
-		fmt.Fprintf(&Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(dwarfp, addr, size)
@@ -1248,7 +1248,7 @@ func dataSort(head *LSym) *LSym {
 
 func dodata() {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f dodata\n", obj.Cputime())
+		fmt.Fprintf(Bso, "%5.2f dodata\n", obj.Cputime())
 	}
 	Bso.Flush()
 

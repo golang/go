@@ -1931,7 +1931,7 @@ func dwarfgeneratedebugsyms() {
 	}
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f dwarf\n", obj.Cputime())
+		fmt.Fprintf(Bso, "%5.2f dwarf\n", obj.Cputime())
 	}
 
 	// For diagnostic messages.
