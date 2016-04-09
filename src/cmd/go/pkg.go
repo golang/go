@@ -658,7 +658,7 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 
 // findVendor looks for the last non-terminating "vendor" path element in the given import path.
 // If there isn't one, findVendor returns ok=false.
-// Otherwise, findInternal returns ok=true and the index of the "vendor".
+// Otherwise, findVendor returns ok=true and the index of the "vendor".
 //
 // Note that terminating "vendor" elements don't count: "x/vendor" is its own package,
 // not the vendored copy of an import "" (the empty import path).
