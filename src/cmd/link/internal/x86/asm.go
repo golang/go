@@ -139,10 +139,6 @@ func gentext() {
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
-func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	log.Fatalf("adddynrela not implemented")
-}
-
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s

@@ -57,11 +57,6 @@ func decodetype_kind(s *LSym) uint8 {
 }
 
 // Type.commonType.kind
-func decodetype_noptr(s *LSym) uint8 {
-	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindNoPointers) //  0x13 / 0x1f
-}
-
-// Type.commonType.kind
 func decodetype_usegcprog(s *LSym) uint8 {
 	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindGCProg) //  0x13 / 0x1f
 }
@@ -214,19 +209,6 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
 	}
 	off += i * structfieldSize()
 	return off
-}
-
-func decodetype_stringptr(s *LSym, off int) string {
-	s = decode_reloc_sym(s, int32(off))
-	if s == nil {
-		return ""
-	}
-	r := decode_reloc(s, 0) // s has a pointer to the string data at offset 0
-	if r == nil {           // shouldn't happen.
-		return ""
-	}
-	strlen := int64(decode_inuxi(s.P[SysArch.PtrSize:], SysArch.IntSize))
-	return string(r.Sym.P[r.Add : r.Add+strlen])
 }
 
 // decodetype_name decodes the name from a reflect.name.

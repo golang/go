@@ -99,12 +99,6 @@ func gentext() {
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
-func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	ld.Addaddrplus(ld.Ctxt, rela, s, int64(r.Off))
-	ld.Adduint64(ld.Ctxt, rela, ld.R_X86_64_RELATIVE)
-	ld.Addaddrplus(ld.Ctxt, rela, r.Sym, r.Add) // Addend
-}
-
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s

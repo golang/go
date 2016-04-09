@@ -884,11 +884,6 @@ var yvex_vpbroadcast = []ytab{
 	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
 }
 
-var yvex_xxmyxm = []ytab{
-	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
-	{Yyr, Ynone, Yxm, Zvex_r_v_rm, 2},
-}
-
 var ymmxmm0f38 = []ytab{
 	{Ymm, Ynone, Ymr, Zlitm_r, 3},
 	{Yxm, Ynone, Yxr, Zlitm_r, 5},

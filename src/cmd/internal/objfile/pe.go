@@ -69,8 +69,6 @@ func (f *peFile) symbols() ([]Sym, error) {
 				text  = 0x20
 				data  = 0x40
 				bss   = 0x80
-				permX = 0x20000000
-				permR = 0x40000000
 				permW = 0x80000000
 			)
 			ch := sect.Characteristics

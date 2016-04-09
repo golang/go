@@ -419,35 +419,7 @@ type Pkg struct {
 	impby   []*Pkg
 }
 
-var (
-	// pkgmap records the imported-by relationship between packages.
-	// Entries are keyed by package path (e.g., "runtime" or "net/url").
-	pkgmap = map[string]*Pkg{}
-
-	pkgall []*Pkg
-)
-
-func lookupPkg(path string) *Pkg {
-	if p, ok := pkgmap[path]; ok {
-		return p
-	}
-	p := &Pkg{path: path}
-	pkgmap[path] = p
-	pkgall = append(pkgall, p)
-	return p
-}
-
-// imported records that package pkg imports package imp.
-func imported(pkg, imp string) {
-	// everyone imports runtime, even runtime.
-	if imp == "runtime" {
-		return
-	}
-
-	p := lookupPkg(pkg)
-	i := lookupPkg(imp)
-	i.impby = append(i.impby, p)
-}
+var pkgall []*Pkg
 
 func (p *Pkg) cycle() *Pkg {
 	if p.checked {

@@ -236,10 +236,6 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
  * Used for the data block.
  */
 
-func listnextp(s *LSym) **LSym {
-	return &s.Next
-}
-
 func listsubp(s *LSym) **LSym {
 	return &s.Sub
 }
