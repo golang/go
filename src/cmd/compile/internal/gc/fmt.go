@@ -337,7 +337,7 @@ func Vconv(v Val, flag FmtFlag) string {
 
 	case CTRUNE:
 		x := v.U.(*Mpint).Int64()
-		if ' ' <= x && x < 0x80 && x != '\\' && x != '\'' {
+		if ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'' {
 			return fmt.Sprintf("'%c'", int(x))
 		}
 		if 0 <= x && x < 1<<16 {

@@ -393,7 +393,7 @@ func isPrintable(b byte) bool {
 // byte slice and returns it.
 func parseIA5String(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
-		if b >= 0x80 {
+		if b >= utf8.RuneSelf {
 			err = SyntaxError{"IA5String contains invalid character"}
 			return
 		}

@@ -243,7 +243,7 @@ func cssValueFilter(args ...interface{}) string {
 				return filterFailsafe
 			}
 		default:
-			if c < 0x80 && isCSSNmchar(rune(c)) {
+			if c < utf8.RuneSelf && isCSSNmchar(rune(c)) {
 				id = append(id, c)
 			}
 		}
