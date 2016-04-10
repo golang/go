@@ -7,6 +7,14 @@ import "testing"
 
 const N = 20
 
+func BenchmarkMakeSlice(b *testing.B) {
+	var x []byte
+	for i := 0; i < b.N; i++ {
+		x = make([]byte, 32)
+		_ = x
+	}
+}
+
 func BenchmarkGrowSliceBytes(b *testing.B) {
 	b.StopTimer()
 	var x = make([]byte, 9)
