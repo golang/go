@@ -790,7 +790,9 @@ next:
 				}
 			}
 			it.bucket = bucket
-			it.bptr = b
+			if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
+				it.bptr = b
+			}
 			it.i = i + 1
 			it.checkBucket = checkBucket
 			return
