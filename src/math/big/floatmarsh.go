@@ -6,7 +6,70 @@
 
 package big
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+)
+
+// Gob codec version. Permits backward-compatible changes to the encoding.
+const floatGobVersion byte = 1
+
+// GobEncode implements the gob.GobEncoder interface.
+func (x *Float) GobEncode() ([]byte, error) {
+	if x == nil {
+		return nil, nil
+	}
+	sz := 1 + 1 + 4 // version + mode|acc|form|neg (3+2+2+1bit) + prec
+	if x.form == finite {
+		sz += 4 + int((x.prec+(_W-1))/_W)*_S // exp + mant
+	}
+	buf := make([]byte, sz)
+
+	buf[0] = floatGobVersion
+	b := byte(x.mode&7)<<5 | byte((x.acc+1)&3)<<3 | byte(x.form&3)<<1
+	if x.neg {
+		b |= 1
+	}
+	buf[1] = b
+	binary.BigEndian.PutUint32(buf[2:], x.prec)
+	if x.form == finite {
+		binary.BigEndian.PutUint32(buf[6:], uint32(x.exp))
+		x.mant.bytes(buf[10:])
+	}
+	return buf, nil
+}
+
+// GobDecode implements the gob.GobDecoder interface.
+func (z *Float) GobDecode(buf []byte) error {
+	if len(buf) == 0 {
+		// Other side sent a nil or default value.
+		*z = Float{}
+		return nil
+	}
+
+	if buf[0] != floatGobVersion {
+		return fmt.Errorf("Float.GobDecode: encoding version %d not supported", buf[0])
+	}
+
+	b := buf[1]
+	z.mode = RoundingMode((b >> 5) & 7)
+	z.acc = Accuracy((b>>3)&3) - 1
+	z.form = form((b >> 1) & 3)
+	z.neg = b&1 != 0
+
+	oldPrec := uint(z.prec)
+	z.prec = binary.BigEndian.Uint32(buf[2:])
+
+	if z.form == finite {
+		z.exp = int32(binary.BigEndian.Uint32(buf[6:]))
+		z.mant = z.mant.setBytes(buf[10:])
+	}
+
+	if oldPrec != 0 {
+		z.SetPrec(oldPrec)
+	}
+	return nil
+}
 
 // MarshalText implements the encoding.TextMarshaler interface.
 // Only the Float value is marshaled (in full precision), other
