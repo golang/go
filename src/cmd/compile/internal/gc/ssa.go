@@ -683,14 +683,27 @@ func (s *state) stmt(n *Node) {
 
 		// Evaluate RHS.
 		rhs := n.Right
-		if rhs != nil && (rhs.Op == OSTRUCTLIT || rhs.Op == OARRAYLIT) {
-			// All literals with nonzero fields have already been
-			// rewritten during walk. Any that remain are just T{}
-			// or equivalents. Use the zero value.
-			if !iszero(rhs) {
-				Fatalf("literal with nonzero value in SSA: %v", rhs)
+		if rhs != nil {
+			switch rhs.Op {
+			case OSTRUCTLIT, OARRAYLIT:
+				// All literals with nonzero fields have already been
+				// rewritten during walk. Any that remain are just T{}
+				// or equivalents. Use the zero value.
+				if !iszero(rhs) {
+					Fatalf("literal with nonzero value in SSA: %v", rhs)
+				}
+				rhs = nil
+			case OAPPEND:
+				// If we're writing the result of an append back to the same slice,
+				// handle it specially to avoid write barriers on the fast (non-growth) path.
+				// If the slice can be SSA'd, it'll be on the stack,
+				// so there will be no write barriers,
+				// so there's no need to attempt to prevent them.
+				if samesafeexpr(n.Left, rhs.List.First()) && !s.canSSA(n.Left) {
+					s.append(rhs, true)
+					return
+				}
 			}
-			rhs = nil
 		}
 		var r *ssa.Value
 		needwb := n.Op == OASWB && rhs != nil
@@ -709,11 +722,11 @@ func (s *state) stmt(n *Node) {
 			}
 		}
 		if rhs != nil && rhs.Op == OAPPEND {
-			// Yuck!  The frontend gets rid of the write barrier, but we need it!
-			// At least, we need it in the case where growslice is called.
-			// TODO: Do the write barrier on just the growslice branch.
+			// The frontend gets rid of the write barrier to enable the special OAPPEND
+			// handling above, but since this is not a special case, we need it.
 			// TODO: just add a ptr graying to the end of growslice?
-			// TODO: check whether we need to do this for ODOTTYPE and ORECV also.
+			// TODO: check whether we need to provide special handling and a write barrier
+			// for ODOTTYPE and ORECV also.
 			// They get similar wb-removal treatment in walk.go:OAS.
 			needwb = true
 		}
@@ -2079,7 +2092,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue1(ssa.OpGetG, n.Type, s.mem())
 
 	case OAPPEND:
-		return s.exprAppend(n)
+		return s.append(n, false)
 
 	default:
 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
@@ -2087,25 +2100,57 @@ func (s *state) expr(n *Node) *ssa.Value {
 	}
 }
 
-// exprAppend converts an OAPPEND node n to an ssa.Value, adds it to s, and returns the Value.
-func (s *state) exprAppend(n *Node) *ssa.Value {
-	// append(s, e1, e2, e3).  Compile like:
+// append converts an OAPPEND node to SSA.
+// If inplace is false, it converts the OAPPEND expression n to an ssa.Value,
+// adds it to s, and returns the Value.
+// If inplace is true, it writes the result of the OAPPEND expression n
+// back to the slice being appended to, and returns nil.
+// inplace MUST be set to false if the slice can be SSA'd.
+func (s *state) append(n *Node, inplace bool) *ssa.Value {
+	// If inplace is false, process as expression "append(s, e1, e2, e3)":
+	//
 	// ptr, len, cap := s
 	// newlen := len + 3
-	// if newlen > s.cap {
+	// if newlen > cap {
 	//     ptr, len, cap = growslice(s, newlen)
 	//     newlen = len + 3 // recalculate to avoid a spill
 	// }
+	// // with write barriers, if needed:
 	// *(ptr+len) = e1
 	// *(ptr+len+1) = e2
 	// *(ptr+len+2) = e3
-	// makeslice(ptr, newlen, cap)
+	// return makeslice(ptr, newlen, cap)
+	//
+	//
+	// If inplace is true, process as statement "s = append(s, e1, e2, e3)":
+	//
+	// a := &s
+	// ptr, len, cap := s
+	// newlen := len + 3
+	// *a.len = newlen // store newlen immediately to avoid a spill
+	// if newlen > cap {
+	//    newptr, _, newcap = growslice(ptr, len, cap, newlen)
+	//    *a.cap = newcap // write before ptr to avoid a spill
+	//    *a.ptr = newptr // with write barrier
+	// }
+	// // with write barriers, if needed:
+	// *(ptr+len) = e1
+	// *(ptr+len+1) = e2
+	// *(ptr+len+2) = e3
 
 	et := n.Type.Elem()
 	pt := Ptrto(et)
 
 	// Evaluate slice
-	slice := s.expr(n.List.First())
+	sn := n.List.First() // the slice node is the first in the list
+
+	var slice, addr *ssa.Value
+	if inplace {
+		addr = s.addr(sn, false)
+		slice = s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+	} else {
+		slice = s.expr(sn)
+	}
 
 	// Allocate new blocks
 	grow := s.f.NewBlock(ssa.BlockPlain)
@@ -2117,10 +2162,20 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
 	l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 	c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
 	nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+
+	if inplace {
+		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_nel), addr)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
+	}
+
 	cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
 	s.vars[&ptrVar] = p
-	s.vars[&newlenVar] = nl
-	s.vars[&capVar] = c
+
+	if !inplace {
+		s.vars[&newlenVar] = nl
+		s.vars[&capVar] = c
+	}
+
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
@@ -2134,9 +2189,18 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
 
 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
-	s.vars[&ptrVar] = r[0]
-	s.vars[&newlenVar] = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], r[1], s.constInt(Types[TINT], nargs))
-	s.vars[&capVar] = r[2]
+	if inplace {
+		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_cap), addr)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
+		s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
+		// load the value we just stored to avoid having to spill it
+		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
+	} else {
+		s.vars[&ptrVar] = r[0]
+		s.vars[&newlenVar] = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], r[1], s.constInt(Types[TINT], nargs))
+		s.vars[&capVar] = r[2]
+	}
+
 	b = s.endBlock()
 	b.AddEdgeTo(assign)
 
@@ -2156,9 +2220,11 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
 		}
 	}
 
-	p = s.variable(&ptrVar, pt)              // generates phi for ptr
-	nl = s.variable(&newlenVar, Types[TINT]) // generates phi for nl
-	c = s.variable(&capVar, Types[TINT])     // generates phi for cap
+	p = s.variable(&ptrVar, pt) // generates phi for ptr
+	if !inplace {
+		nl = s.variable(&newlenVar, Types[TINT]) // generates phi for nl
+		c = s.variable(&capVar, Types[TINT])     // generates phi for cap
+	}
 	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
 	// TODO: just one write barrier call for all of these writes?
 	// TODO: maybe just one writeBarrier.enabled check?
@@ -2179,10 +2245,13 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
 		}
 	}
 
-	// make result
 	delete(s.vars, &ptrVar)
+	if inplace {
+		return nil
+	}
 	delete(s.vars, &newlenVar)
 	delete(s.vars, &capVar)
+	// make result
 	return s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
 }
 
