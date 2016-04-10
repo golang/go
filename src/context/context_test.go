@@ -586,3 +586,16 @@ func TestCancelRemoves(t *testing.T) {
 	cancel()
 	checkChildren("after cancelling WithTimeout child", ctx, 0)
 }
+
+func TestWithValueChecksKey(t *testing.T) {
+	panicVal := recoveredValue(func() { WithValue(Background(), []byte("foo"), "bar") })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+}
+
+func recoveredValue(fn func()) (v interface{}) {
+	defer func() { v = recover() }()
+	fn()
+	return
+}

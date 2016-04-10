@@ -215,7 +215,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":            {"L4", "compress/flate"},
 	"compress/lzw":             {"L4"},
 	"compress/zlib":            {"L4", "compress/flate"},
-	"context":                  {"errors", "fmt", "sync", "time"},
+	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
 	"database/sql/driver":      {"L4", "time"},
 	"debug/dwarf":              {"L4"},
