@@ -64,7 +64,7 @@ func (s *Scanner) next() {
 		switch {
 		case r == 0:
 			s.error(s.offset, "illegal character NUL")
-		case r >= 0x80:
+		case r >= utf8.RuneSelf:
 			// not ASCII
 			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
 			if r == utf8.RuneError && w == 1 {
@@ -255,11 +255,11 @@ func (s *Scanner) findLineEnd() bool {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch)
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
 }
 
 func isDigit(ch rune) bool {
-	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
+	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
 }
 
 func (s *Scanner) scanIdentifier() string {

@@ -266,7 +266,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 		return 0, 0, b.readErr()
 	}
 	r, size = rune(b.buf[b.r]), 1
-	if r >= 0x80 {
+	if r >= utf8.RuneSelf {
 		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	}
 	b.r += size
