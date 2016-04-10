@@ -440,7 +440,9 @@ func TestIssue6458(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want := `{"M":"ImZvbyI="}`; string(b) != want {
+	// Until Go 1.8, this generated `{"M":"ImZvbyI="}`.
+	// See https://github.com/golang/go/issues/14493#issuecomment-255857318
+	if want := `{"M":"foo"}`; string(b) != want {
 		t.Errorf("Marshal(x) = %#q; want %#q", b, want)
 	}
 }
@@ -716,4 +718,15 @@ func TestMarshalFloat(t *testing.T) {
 	test(math.Copysign(0, -1), 64)
 	test(0, 32)
 	test(math.Copysign(0, -1), 32)
+}
+
+func TestMarshalRawMessageValue(t *testing.T) {
+	const val = "\"some value\""
+	b, err := Marshal(RawMessage(val))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != val {
+		t.Errorf("got %q; want %q", b, val)
+	}
 }
