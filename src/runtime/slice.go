@@ -37,6 +37,12 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 // It is passed the slice type, the old slice, and the desired new minimum capacity,
 // and it returns a new slice with at least that capacity, with the old data
 // copied into it.
+// The new slice's length is set to the old slice's length,
+// NOT to the new requested capacity.
+// This is for codegen convenience. The old slice's length is used immediately
+// to calculate where to write new values during an append.
+// TODO: When the old backend is gone, reconsider this decision.
+// The SSA backend might prefer the new length or to return only ptr/cap and save stack space.
 func growslice(t *slicetype, old slice, cap int) slice {
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
