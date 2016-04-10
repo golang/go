@@ -105,11 +105,11 @@ func generateFixedOffsetEncoding() *huffmanEncoder {
 var fixedLiteralEncoding *huffmanEncoder = generateFixedLiteralEncoding()
 var fixedOffsetEncoding *huffmanEncoder = generateFixedOffsetEncoding()
 
-func (h *huffmanEncoder) bitLength(freq []int32) int64 {
-	var total int64
+func (h *huffmanEncoder) bitLength(freq []int32) int {
+	var total int
 	for i, f := range freq {
 		if f != 0 {
-			total += int64(f) * int64(h.codes[i].len)
+			total += int(f) * int(h.codes[i].len)
 		}
 	}
 	return total
