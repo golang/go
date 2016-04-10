@@ -376,41 +376,45 @@ func TestDuplicatedFieldDisappears(t *testing.T) {
 
 func TestStringBytes(t *testing.T) {
 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
-	es := &encodeState{}
 	var r []rune
 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
 		r = append(r, i)
 	}
 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
-	es.string(s)
 
-	esBytes := &encodeState{}
-	esBytes.stringBytes([]byte(s))
+	for _, escapeHTML := range []bool{true, false} {
+		es := &encodeState{}
+		es.string(s, escapeHTML)
 
-	enc := es.Buffer.String()
-	encBytes := esBytes.Buffer.String()
-	if enc != encBytes {
-		i := 0
-		for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
-			i++
-		}
-		enc = enc[i:]
-		encBytes = encBytes[i:]
-		i = 0
-		for i < len(enc) && i < len(encBytes) && enc[len(enc)-i-1] == encBytes[len(encBytes)-i-1] {
-			i++
-		}
-		enc = enc[:len(enc)-i]
-		encBytes = encBytes[:len(encBytes)-i]
+		esBytes := &encodeState{}
+		esBytes.stringBytes([]byte(s), escapeHTML)
 
-		if len(enc) > 20 {
-			enc = enc[:20] + "..."
-		}
-		if len(encBytes) > 20 {
-			encBytes = encBytes[:20] + "..."
-		}
+		enc := es.Buffer.String()
+		encBytes := esBytes.Buffer.String()
+		if enc != encBytes {
+			i := 0
+			for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
+				i++
+			}
+			enc = enc[i:]
+			encBytes = encBytes[i:]
+			i = 0
+			for i < len(enc) && i < len(encBytes) && enc[len(enc)-i-1] == encBytes[len(encBytes)-i-1] {
+				i++
+			}
+			enc = enc[:len(enc)-i]
+			encBytes = encBytes[:len(encBytes)-i]
 
-		t.Errorf("encodings differ at %#q vs %#q", enc, encBytes)
+			if len(enc) > 20 {
+				enc = enc[:20] + "..."
+			}
+			if len(encBytes) > 20 {
+				encBytes = encBytes[:20] + "..."
+			}
+
+			t.Errorf("with escapeHTML=%t, encodings differ at %#q vs %#q",
+				escapeHTML, enc, encBytes)
+		}
 	}
 }
 
