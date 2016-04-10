@@ -1,3 +1,4 @@
+pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
 pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
 pkg syscall (darwin-386), func Fchflags(string, int) error
 pkg syscall (darwin-386-cgo), func Fchflags(string, int) error
