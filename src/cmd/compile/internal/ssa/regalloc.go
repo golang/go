@@ -527,6 +527,18 @@ func (s *regAllocState) advanceUses(v *Value) {
 	}
 }
 
+// liveAfterCurrentInstruction reports whether v is live after
+// the current instruction is completed.  v must be used by the
+// current instruction.
+func (s *regAllocState) liveAfterCurrentInstruction(v *Value) bool {
+	u := s.values[v.ID].uses
+	d := u.dist
+	for u != nil && u.dist == d {
+		u = u.next
+	}
+	return u != nil && u.dist > d
+}
+
 // Sets the state of the registers to that encoded in regs.
 func (s *regAllocState) setState(regs []endReg) {
 	s.freeRegs(s.used)
@@ -891,6 +903,27 @@ func (s *regAllocState) regalloc(f *Func) {
 				args[i.idx] = s.allocValToReg(v.Args[i.idx], i.regs, true, v.Line)
 			}
 
+			// If the output clobbers the input register, and the input register is
+			// live beyond the instruction, make another copy of the input register so
+			// we don't have to reload the value from the spill location.
+			if opcodeTable[v.Op].resultInArg0 &&
+				s.liveAfterCurrentInstruction(v.Args[0]) &&
+				countRegs(s.values[v.Args[0].ID].regs) == 1 {
+
+				if opcodeTable[v.Op].commutative &&
+					(!s.liveAfterCurrentInstruction(v.Args[1]) ||
+						countRegs(s.values[v.Args[1].ID].regs) > 1) {
+					// Input #1 is dead after the instruction, or we have
+					// more than one copy of it in a register.  Either way,
+					// use that input as the one that is clobbered.
+					args[0], args[1] = args[1], args[0]
+				} else {
+					m := s.compatRegs(v.Args[0].Type)
+					m &^= s.values[v.Args[0].ID].regs // a register not already holding v.Args[0]
+					s.allocValToReg(v.Args[0], m, true, v.Line)
+				}
+			}
+
 			// Now that all args are in regs, we're ready to issue the value itself.
 			// Before we pick a register for the output value, allow input registers
 			// to be deallocated. We do this here so that the output can use the
@@ -908,19 +941,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					s.f.Fatalf("bad mask %s\n", v.LongString())
 				}
 				if opcodeTable[v.Op].resultInArg0 {
+					// Output must use the same register as input 0.
 					r := register(s.f.getHome(args[0].ID).(*Register).Num)
-					if (mask&^s.used)>>r&1 != 0 {
-						mask = regMask(1) << r
-					}
-					if opcodeTable[v.Op].commutative {
-						r := register(s.f.getHome(args[1].ID).(*Register).Num)
-						if (mask&^s.used)>>r&1 != 0 {
-							mask = regMask(1) << r
-						}
-					}
-					// TODO: enforce resultInArg0 always, instead of treating it
-					// as a hint.  Then we don't need the special cases adding
-					// moves all throughout ssa.go:genValue.
+					mask = regMask(1) << r
 				}
 				r := s.allocReg(v, mask)
 				s.assignReg(r, v, v)
