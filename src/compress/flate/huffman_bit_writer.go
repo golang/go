@@ -84,11 +84,11 @@ type huffmanBitWriter struct {
 	bits            uint64
 	nbits           uint
 	bytes           [bufferSize]byte
+	codegenFreq     [codegenCodeCount]int32
 	nbytes          int
 	literalFreq     []int32
 	offsetFreq      []int32
 	codegen         []uint8
-	codegenFreq     []int32
 	literalEncoding *huffmanEncoder
 	offsetEncoding  *huffmanEncoder
 	codegenEncoding *huffmanEncoder
@@ -101,7 +101,6 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 		literalFreq:     make([]int32, maxNumLit),
 		offsetFreq:      make([]int32, offsetCodeCount),
 		codegen:         make([]uint8, maxNumLit+offsetCodeCount+1),
-		codegenFreq:     make([]int32, codegenCodeCount),
 		literalEncoding: newHuffmanEncoder(maxNumLit),
 		codegenEncoding: newHuffmanEncoder(codegenCodeCount),
 		offsetEncoding:  newHuffmanEncoder(offsetCodeCount),
@@ -143,12 +142,13 @@ func (w *huffmanBitWriter) writeBits(b int32, nb uint) {
 		w.bits >>= 48
 		w.nbits -= 48
 		n := w.nbytes
-		w.bytes[n+0] = byte(bits)
-		w.bytes[n+1] = byte(bits >> 8)
-		w.bytes[n+2] = byte(bits >> 16)
-		w.bytes[n+3] = byte(bits >> 24)
-		w.bytes[n+4] = byte(bits >> 32)
-		w.bytes[n+5] = byte(bits >> 40)
+		bytes := w.bytes[n : n+6]
+		bytes[0] = byte(bits)
+		bytes[1] = byte(bits >> 8)
+		bytes[2] = byte(bits >> 16)
+		bytes[3] = byte(bits >> 24)
+		bytes[4] = byte(bits >> 32)
+		bytes[5] = byte(bits >> 40)
 		n += 6
 		if n >= bufferFlushSize {
 			_, w.err = w.w.Write(w.bytes[:n])
@@ -293,12 +293,13 @@ func (w *huffmanBitWriter) writeCode(c hcode) {
 		w.bits >>= 48
 		w.nbits -= 48
 		n := w.nbytes
-		w.bytes[n+0] = byte(bits)
-		w.bytes[n+1] = byte(bits >> 8)
-		w.bytes[n+2] = byte(bits >> 16)
-		w.bytes[n+3] = byte(bits >> 24)
-		w.bytes[n+4] = byte(bits >> 32)
-		w.bytes[n+5] = byte(bits >> 40)
+		bytes := w.bytes[n : n+6]
+		bytes[0] = byte(bits)
+		bytes[1] = byte(bits >> 8)
+		bytes[2] = byte(bits >> 16)
+		bytes[3] = byte(bits >> 24)
+		bytes[4] = byte(bits >> 32)
+		bytes[5] = byte(bits >> 40)
 		n += 6
 		if n >= bufferFlushSize {
 			_, w.err = w.w.Write(w.bytes[:n])
@@ -428,13 +429,13 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	// Generate codegen and codegenFrequencies, which indicates how to encode
 	// the literalEncoding and the offsetEncoding.
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
-	w.codegenEncoding.generate(w.codegenFreq, 7)
+	w.codegenEncoding.generate(w.codegenFreq[:], 7)
 	numCodegens = len(w.codegenFreq)
 	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
 		numCodegens--
 	}
 	dynamicHeader := int64(3+5+5+4+(3*numCodegens)) +
-		w.codegenEncoding.bitLength(w.codegenFreq) +
+		w.codegenEncoding.bitLength(w.codegenFreq[:]) +
 		int64(extraBits) +
 		int64(w.codegenFreq[16]*2) +
 		int64(w.codegenFreq[17]*3) +
@@ -482,7 +483,7 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []b
 	// Generate codegen and codegenFrequencies, which indicates how to encode
 	// the literalEncoding and the offsetEncoding.
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
-	w.codegenEncoding.generate(w.codegenFreq, 7)
+	w.codegenEncoding.generate(w.codegenFreq[:], 7)
 	numCodegens := len(w.codegenFreq)
 	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
 		numCodegens--
@@ -609,13 +610,13 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	// Generate codegen and codegenFrequencies, which indicates how to encode
 	// the literalEncoding and the offsetEncoding.
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, huffOffset)
-	w.codegenEncoding.generate(w.codegenFreq, 7)
+	w.codegenEncoding.generate(w.codegenFreq[:], 7)
 	numCodegens = len(w.codegenFreq)
 	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
 		numCodegens--
 	}
 	headerSize := int64(3+5+5+4+(3*numCodegens)) +
-		w.codegenEncoding.bitLength(w.codegenFreq) +
+		w.codegenEncoding.bitLength(w.codegenFreq[:]) +
 		int64(w.codegenFreq[16]*2) +
 		int64(w.codegenFreq[17]*3) +
 		int64(w.codegenFreq[18]*7)
@@ -639,7 +640,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 
 	// Huffman.
 	w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
-	encoding := w.literalEncoding.codes
+	encoding := w.literalEncoding.codes[:257]
 	n := w.nbytes
 	for _, t := range input {
 		// Bitwriting inlined, ~30% speedup
@@ -653,12 +654,13 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 		bits := w.bits
 		w.bits >>= 48
 		w.nbits -= 48
-		w.bytes[n+0] = byte(bits)
-		w.bytes[n+1] = byte(bits >> 8)
-		w.bytes[n+2] = byte(bits >> 16)
-		w.bytes[n+3] = byte(bits >> 24)
-		w.bytes[n+4] = byte(bits >> 32)
-		w.bytes[n+5] = byte(bits >> 40)
+		bytes := w.bytes[n : n+6]
+		bytes[0] = byte(bits)
+		bytes[1] = byte(bits >> 8)
+		bytes[2] = byte(bits >> 16)
+		bytes[3] = byte(bits >> 24)
+		bytes[4] = byte(bits >> 32)
+		bytes[5] = byte(bits >> 40)
 		n += 6
 		if n < bufferFlushSize {
 			continue
@@ -677,6 +679,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 //
 // len(h) must be >= 256, and h's elements must be all zeroes.
 func histogram(b []byte, h []int32) {
+	h = h[:256]
 	for _, t := range b {
 		h[t]++
 	}

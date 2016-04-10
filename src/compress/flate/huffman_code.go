@@ -96,8 +96,8 @@ func generateFixedLiteralEncoding() *huffmanEncoder {
 func generateFixedOffsetEncoding() *huffmanEncoder {
 	h := newHuffmanEncoder(30)
 	codes := h.codes
-	for ch := uint16(0); ch < 30; ch++ {
-		codes[ch] = hcode{code: reverseBits(ch, 5), len: 5}
+	for ch := range codes {
+		codes[ch] = hcode{code: reverseBits(uint16(ch), 5), len: 5}
 	}
 	return h
 }
