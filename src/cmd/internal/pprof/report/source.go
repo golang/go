@@ -257,7 +257,7 @@ func printHeader(w io.Writer, rpt *Report) {
 // printFunctionHeader prints a function header for a weblist report.
 func printFunctionHeader(w io.Writer, name, path string, flatSum, cumSum int64, rpt *Report) {
 	fmt.Fprintf(w, `<h1>%s</h1>%s
-<pre onClick="pprof_toggle_asm()">
+<pre onClick="pprof_toggle_asm(event)">
   Total:  %10s %10s (flat, cum) %s
 `,
 		template.HTMLEscapeString(name), template.HTMLEscapeString(path),
