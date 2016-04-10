@@ -192,74 +192,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
-	// 2-address opcode arithmetic, symmetric
-	case ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD,
+	// 2-address opcode arithmetic
+	case ssa.OpAMD64SUBQ, ssa.OpAMD64SUBL, ssa.OpAMD64SUBW, ssa.OpAMD64SUBB,
+		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB,
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB,
-		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64PXOR:
+		ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
+		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
+		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB,
+		ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD, ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD,
+		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD,
+		ssa.OpAMD64PXOR:
 		r := gc.SSARegNum(v)
-		x := gc.SSARegNum(v.Args[0])
-		y := gc.SSARegNum(v.Args[1])
-		if x != r && y != r {
-			opregreg(moveByType(v.Type), r, x)
-			x = r
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		if x == r {
-			p.From.Reg = y
-		} else {
-			p.From.Reg = x
-		}
-	// 2-address opcode arithmetic, not symmetric
-	case ssa.OpAMD64SUBQ, ssa.OpAMD64SUBL, ssa.OpAMD64SUBW, ssa.OpAMD64SUBB:
-		r := gc.SSARegNum(v)
-		x := gc.SSARegNum(v.Args[0])
-		y := gc.SSARegNum(v.Args[1])
-		var neg bool
-		if y == r {
-			// compute -(y-x) instead
-			x, y = y, x
-			neg = true
-		}
-		if x != r {
-			opregreg(moveByType(v.Type), r, x)
-		}
-		opregreg(v.Op.Asm(), r, y)
-
-		if neg {
-			if v.Op == ssa.OpAMD64SUBQ {
-				p := gc.Prog(x86.ANEGQ)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-			} else { // Avoids partial registers write
-				p := gc.Prog(x86.ANEGL)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-			}
-		}
-	case ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD:
-		r := gc.SSARegNum(v)
-		x := gc.SSARegNum(v.Args[0])
-		y := gc.SSARegNum(v.Args[1])
-		if y == r && x != r {
-			// r/y := x op r/y, need to preserve x and rewrite to
-			// r/y := r/y op x15
-			x15 := int16(x86.REG_X15)
-			// register move y to x15
-			// register move x to y
-			// rename y with x15
-			opregreg(moveByType(v.Type), x15, y)
-			opregreg(moveByType(v.Type), r, x)
-			y = x15
-		} else if x != r {
-			opregreg(moveByType(v.Type), r, x)
-		}
-		opregreg(v.Op.Asm(), r, y)
+		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
 
 	case ssa.OpAMD64DIVQ, ssa.OpAMD64DIVL, ssa.OpAMD64DIVW,
 		ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU,
@@ -372,47 +321,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Do a 64-bit add, the overflow goes into the carry.
 		// Shift right once and pull the carry back into the 63rd bit.
 		r := gc.SSARegNum(v)
-		x := gc.SSARegNum(v.Args[0])
-		y := gc.SSARegNum(v.Args[1])
-		if x != r && y != r {
-			opregreg(moveByType(v.Type), r, x)
-			x = r
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		p := gc.Prog(x86.AADDQ)
 		p.From.Type = obj.TYPE_REG
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-		if x == r {
-			p.From.Reg = y
-		} else {
-			p.From.Reg = x
-		}
+		p.From.Reg = gc.SSARegNum(v.Args[1])
 		p = gc.Prog(x86.ARCRQ)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
-	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
-		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,
-		ssa.OpAMD64SARQ, ssa.OpAMD64SARL, ssa.OpAMD64SARW, ssa.OpAMD64SARB:
-		x := gc.SSARegNum(v.Args[0])
-		r := gc.SSARegNum(v)
-		if x != r {
-			if r == x86.REG_CX {
-				v.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
-			}
-			p := gc.Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
-		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[1]) // should be CX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst, ssa.OpAMD64ADDBconst:
 		r := gc.SSARegNum(v)
 		a := gc.SSARegNum(v.Args[0])
@@ -433,7 +355,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
-			} else if v.AuxInt == -1 {
+			}
+			if v.AuxInt == -1 {
 				var asm obj.As
 				if v.Op == ssa.OpAMD64ADDQconst {
 					asm = x86.ADECQ
@@ -444,14 +367,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
-			} else {
-				p := gc.Prog(v.Op.Asm())
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = v.AuxInt
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-				return
 			}
+			p := gc.Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = v.AuxInt
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			return
 		}
 		var asm obj.As
 		if v.Op == ssa.OpAMD64ADDQconst {
@@ -469,17 +391,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64CMOVQEQconst, ssa.OpAMD64CMOVLEQconst, ssa.OpAMD64CMOVWEQconst,
 		ssa.OpAMD64CMOVQNEconst, ssa.OpAMD64CMOVLNEconst, ssa.OpAMD64CMOVWNEconst:
 		r := gc.SSARegNum(v)
-		x := gc.SSARegNum(v.Args[0])
-		// Arg0 is in/out, move in to out if not already same
-		if r != x {
-			p := gc.Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 
-		// Constant into AX, after arg0 movement in case arg0 is in AX
+		// Constant into AX
 		p := gc.Prog(moveByType(v.Type))
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -494,13 +410,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
 		r := gc.SSARegNum(v)
-		x := gc.SSARegNum(v.Args[0])
-		if r != x {
-			p := gc.Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -508,87 +419,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
-		// instead of using the MOVQ above.
+		// then we don't need to use resultInArg0 for these ops.
 		//p.From3 = new(obj.Addr)
 		//p.From3.Type = obj.TYPE_REG
 		//p.From3.Reg = gc.SSARegNum(v.Args[0])
-	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst:
-		x := gc.SSARegNum(v.Args[0])
-		r := gc.SSARegNum(v)
-		// We have 3-op add (lea), so transforming a = b - const into
-		// a = b + (- const), saves us 1 instruction. We can't fit
-		// - (-1 << 31) into  4 bytes offset in lea.
-		// We handle 2-address just fine below.
-		if v.AuxInt == -1<<31 || x == r {
-			if x != r {
-				// This code compensates for the fact that the register allocator
-				// doesn't understand 2-address instructions yet. TODO: fix that.
-				p := gc.Prog(moveByType(v.Type))
-				p.From.Type = obj.TYPE_REG
-				p.From.Reg = x
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = r
-			}
-			p := gc.Prog(v.Op.Asm())
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else if x == r && v.AuxInt == -1 {
-			var asm obj.As
-			// x = x - (-1) is the same as x++
-			// See OpAMD64ADDQconst comments about inc vs add $1,reg
-			if v.Op == ssa.OpAMD64SUBQconst {
-				asm = x86.AINCQ
-			} else {
-				asm = x86.AINCL
-			}
-			p := gc.Prog(asm)
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else if x == r && v.AuxInt == 1 {
-			var asm obj.As
-			if v.Op == ssa.OpAMD64SUBQconst {
-				asm = x86.ADECQ
-			} else {
-				asm = x86.ADECL
-			}
-			p := gc.Prog(asm)
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		} else {
-			var asm obj.As
-			if v.Op == ssa.OpAMD64SUBQconst {
-				asm = x86.ALEAQ
-			} else {
-				asm = x86.ALEAL
-			}
-			p := gc.Prog(asm)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = x
-			p.From.Offset = -v.AuxInt
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
 
-	case ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
+	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst,
+		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst, ssa.OpAMD64ORWconst, ssa.OpAMD64ORBconst,
 		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst, ssa.OpAMD64XORWconst, ssa.OpAMD64XORBconst,
-		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst,
-		ssa.OpAMD64SHLBconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst,
-		ssa.OpAMD64SHRBconst, ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst,
-		ssa.OpAMD64SARBconst, ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst,
-		ssa.OpAMD64ROLBconst:
-		// This code compensates for the fact that the register allocator
-		// doesn't understand 2-address instructions yet. TODO: fix that.
-		x := gc.SSARegNum(v.Args[0])
+		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst, ssa.OpAMD64SHLBconst,
+		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
+		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst,
+		ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst, ssa.OpAMD64ROLBconst:
 		r := gc.SSARegNum(v)
-		if x != r {
-			p := gc.Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -821,9 +667,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Offset = v.AuxInt
 
 	case ssa.OpCopy, ssa.OpAMD64MOVQconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
-		if v.Type.IsMemory() {
-			return
-		}
 		x := gc.SSARegNum(v.Args[0])
 		y := gc.SSARegNum(v)
 		if x != y {
@@ -969,14 +812,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
-		x := gc.SSARegNum(v.Args[0])
 		r := gc.SSARegNum(v)
-		if x != r {
-			p := gc.Prog(moveByType(v.Type))
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = x
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		p := gc.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG

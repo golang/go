@@ -1273,6 +1273,12 @@
 (XORWconst [c] x) && int16(c)==0   -> x
 (XORBconst [c] x) && int8(c)==0    -> x
 
+// Convert constant subtracts to constant adds
+(SUBQconst [c] x) && c != -(1<<31) -> (ADDQconst [-c] x)
+(SUBLconst [c] x) -> (ADDLconst [int64(int32(-c))] x)
+(SUBWconst [c] x) -> (ADDWconst [int64(int16(-c))] x)
+(SUBBconst [c] x) -> (ADDBconst [int64(int8(-c))] x)
+
 // generic constant folding
 // TODO: more of this
 (ADDQconst [c] (MOVQconst [d])) -> (MOVQconst [c+d])

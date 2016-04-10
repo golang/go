@@ -971,15 +971,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDQ",
-		argLen:       2,
-		commutative:  true,
-		resultInArg0: true,
-		asm:          x86.AADDQ,
+		name:        "ADDQ",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -988,15 +987,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDL",
-		argLen:       2,
-		commutative:  true,
-		resultInArg0: true,
-		asm:          x86.AADDL,
+		name:        "ADDL",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1005,15 +1003,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDW",
-		argLen:       2,
-		commutative:  true,
-		resultInArg0: true,
-		asm:          x86.AADDL,
+		name:        "ADDW",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1022,15 +1019,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDB",
-		argLen:       2,
-		commutative:  true,
-		resultInArg0: true,
-		asm:          x86.AADDL,
+		name:        "ADDB",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1039,11 +1035,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDQconst",
-		auxType:      auxInt64,
-		argLen:       1,
-		resultInArg0: true,
-		asm:          x86.AADDQ,
+		name:    "ADDQconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -1055,11 +1050,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDLconst",
-		auxType:      auxInt32,
-		argLen:       1,
-		resultInArg0: true,
-		asm:          x86.AADDL,
+		name:    "ADDLconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -1071,11 +1065,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDWconst",
-		auxType:      auxInt16,
-		argLen:       1,
-		resultInArg0: true,
-		asm:          x86.AADDL,
+		name:    "ADDWconst",
+		auxType: auxInt16,
+		argLen:  1,
+		asm:     x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -1087,11 +1080,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "ADDBconst",
-		auxType:      auxInt8,
-		argLen:       1,
-		resultInArg0: true,
-		asm:          x86.AADDL,
+		name:    "ADDBconst",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -1109,8 +1101,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1125,8 +1117,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1141,8 +1133,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1157,8 +1149,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1174,7 +1166,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1190,7 +1182,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1206,7 +1198,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1222,7 +1214,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1238,8 +1230,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1255,8 +1247,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1272,8 +1264,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1289,8 +1281,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1306,7 +1298,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1322,7 +1314,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1338,7 +1330,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1354,7 +1346,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1489,8 +1481,8 @@ var opcodeTable = [...]opInfo{
 		resultInArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1686,8 +1678,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1703,8 +1695,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1720,8 +1712,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1737,8 +1729,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1754,7 +1746,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1770,7 +1762,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1786,7 +1778,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1802,7 +1794,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1818,8 +1810,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1835,8 +1827,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1852,8 +1844,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1869,8 +1861,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1886,7 +1878,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1902,7 +1894,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1918,7 +1910,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1934,7 +1926,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1950,8 +1942,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1967,8 +1959,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -1984,8 +1976,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2001,8 +1993,8 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2018,7 +2010,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2034,7 +2026,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2050,7 +2042,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2066,7 +2058,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2334,11 +2326,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2350,11 +2342,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2366,11 +2358,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2382,11 +2374,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2398,7 +2390,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2414,7 +2406,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2430,7 +2422,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2446,7 +2438,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2462,11 +2454,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2478,11 +2470,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2494,11 +2486,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2510,11 +2502,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2526,7 +2518,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2542,7 +2534,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2558,7 +2550,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2574,7 +2566,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2590,11 +2582,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2606,11 +2598,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2622,11 +2614,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2638,11 +2630,11 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
-				65517, // AX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -2654,7 +2646,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2670,7 +2662,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2686,7 +2678,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2702,7 +2694,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2718,7 +2710,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2734,7 +2726,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2750,7 +2742,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2766,7 +2758,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2781,7 +2773,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2796,7 +2788,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2811,7 +2803,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2826,7 +2818,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2841,7 +2833,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANOTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2856,7 +2848,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2871,7 +2863,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2886,7 +2878,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2900,7 +2892,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSFQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2914,7 +2906,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2928,7 +2920,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSFW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2942,7 +2934,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2956,7 +2948,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2970,7 +2962,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.ABSRW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -2987,7 +2979,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 8589934592}, // FLAGS
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
 			outputs: []regMask{
@@ -3004,7 +2996,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 8589934592}, // FLAGS
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
 			outputs: []regMask{
@@ -3021,7 +3013,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 8589934592}, // FLAGS
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
 			outputs: []regMask{
@@ -3038,7 +3030,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 8589934592}, // FLAGS
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
 			outputs: []regMask{
@@ -3055,7 +3047,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 8589934592}, // FLAGS
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
 			outputs: []regMask{
@@ -3072,7 +3064,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 8589934592}, // FLAGS
-				{0, 65519},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
 			outputs: []regMask{
@@ -3087,7 +3079,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABSWAPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{
@@ -3102,7 +3094,7 @@ var opcodeTable = [...]opInfo{
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
 			outputs: []regMask{

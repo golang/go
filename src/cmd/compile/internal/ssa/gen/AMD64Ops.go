@@ -111,12 +111,14 @@ func init() {
 	// Common regInfo
 	var (
 		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
-		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
+		gp11      = regInfo{inputs: []regMask{gp}, outputs: gponly, clobbers: flags}
+		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
 		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
-		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly, clobbers: flags}
+		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly, clobbers: flags}
+		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly, clobbers: flags}
 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
-		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
+		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
 			clobbers: dx | flags}
 		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
@@ -128,8 +130,8 @@ func init() {
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
 		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly}
 
-		// for CMOVconst -- uses AX to hold constant temporary. AX input is moved before temp.
-		gp1flagsgp = regInfo{inputs: []regMask{gp, flags}, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
+		// for CMOVconst -- uses AX to hold constant temporary.
+		gp1flagsgp = regInfo{inputs: []regMask{gp &^ ax, flags}, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
 
 		readflags = regInfo{inputs: flagsonly, outputs: gponly}
 		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
@@ -186,14 +188,14 @@ func init() {
 		{name: "MOVSDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by 8i store
 
 		// binary ops
-		{name: "ADDQ", argLength: 2, reg: gp21, asm: "ADDQ", commutative: true, resultInArg0: true},                // arg0 + arg1
-		{name: "ADDL", argLength: 2, reg: gp21, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1
-		{name: "ADDW", argLength: 2, reg: gp21, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1
-		{name: "ADDB", argLength: 2, reg: gp21, asm: "ADDL", commutative: true, resultInArg0: true},                // arg0 + arg1
-		{name: "ADDQconst", argLength: 1, reg: gp11, asm: "ADDQ", aux: "Int64", resultInArg0: true, typ: "UInt64"}, // arg0 + auxint
-		{name: "ADDLconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int32", resultInArg0: true},                // arg0 + auxint
-		{name: "ADDWconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int16", resultInArg0: true},                // arg0 + auxint
-		{name: "ADDBconst", argLength: 1, reg: gp11, asm: "ADDL", aux: "Int8", resultInArg0: true},                 // arg0 + auxint
+		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true},                // arg0 + arg1
+		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true},                // arg0 + arg1
+		{name: "ADDW", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true},                // arg0 + arg1
+		{name: "ADDB", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true},                // arg0 + arg1
+		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int64", typ: "UInt64"}, // arg0 + auxint
+		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32"},                // arg0 + auxint
+		{name: "ADDWconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int16"},                // arg0 + auxint
+		{name: "ADDBconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int8"},                 // arg0 + auxint
 
 		{name: "SUBQ", argLength: 2, reg: gp21, asm: "SUBQ", resultInArg0: true},                    // arg0 - arg1
 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true},                    // arg0 - arg1
