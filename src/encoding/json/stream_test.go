@@ -87,6 +87,39 @@ func TestEncoderIndent(t *testing.T) {
 	}
 }
 
+func TestEncoderDisableHTMLEscaping(t *testing.T) {
+	var c C
+	var ct CText
+	for _, tt := range []struct {
+		name       string
+		v          interface{}
+		wantEscape string
+		want       string
+	}{
+		{"c", c, `"\u003c\u0026\u003e"`, `"<&>"`},
+		{"ct", ct, `"\"\u003c\u0026\u003e\""`, `"\"<&>\""`},
+		{`"<&>"`, "<&>", `"\u003c\u0026\u003e"`, `"<&>"`},
+	} {
+		var buf bytes.Buffer
+		enc := NewEncoder(&buf)
+		if err := enc.Encode(tt.v); err != nil {
+			t.Fatalf("Encode(%s): %s", tt.name, err)
+		}
+		if got := strings.TrimSpace(buf.String()); got != tt.wantEscape {
+			t.Errorf("Encode(%s) = %#q, want %#q", tt.name, got, tt.wantEscape)
+		}
+		buf.Reset()
+		enc.DisableHTMLEscaping()
+		if err := enc.Encode(tt.v); err != nil {
+			t.Fatalf("DisableHTMLEscaping Encode(%s): %s", tt.name, err)
+		}
+		if got := strings.TrimSpace(buf.String()); got != tt.want {
+			t.Errorf("DisableHTMLEscaping Encode(%s) = %#q, want %#q",
+				tt.name, got, tt.want)
+		}
+	}
+}
+
 func TestDecoder(t *testing.T) {
 	for i := 0; i <= len(streamTest); i++ {
 		// Use stream without newlines as input,
