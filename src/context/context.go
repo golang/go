@@ -39,6 +39,7 @@ package context
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -424,7 +425,12 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 //
 // Use context Values only for request-scoped data that transits processes and
 // APIs, not for passing optional parameters to functions.
-func WithValue(parent Context, key interface{}, val interface{}) Context {
+//
+// The provided key must be comparable.
+func WithValue(parent Context, key, val interface{}) Context {
+	if !reflect.TypeOf(key).Comparable() {
+		panic("key is not comparable")
+	}
 	return &valueCtx{parent, key, val}
 }
 
