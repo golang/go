@@ -134,7 +134,7 @@ func readTrace(r io.Reader) ([]rawEvent, map[uint64]string, error) {
 				return nil, nil, err
 			}
 			if ln == 0 {
-				return nil, nil, fmt.Errorf("string at offset %d has invalie length 0", off)
+				return nil, nil, fmt.Errorf("string at offset %d has invalid length 0", off)
 			}
 			if ln > 1e6 {
 				return nil, nil, fmt.Errorf("string at offset %d has too large length %v", off, ln)
