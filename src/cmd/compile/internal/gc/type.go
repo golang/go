@@ -429,10 +429,6 @@ func typChan(elem *Type, dir ChanDir) *Type {
 
 // typMap returns a new map Type with key type k and element (aka value) type v.
 func typMap(k, v *Type) *Type {
-	if k != nil {
-		checkMapKeyType(k)
-	}
-
 	t := typ(TMAP)
 	mt := t.MapType()
 	mt.Key = k

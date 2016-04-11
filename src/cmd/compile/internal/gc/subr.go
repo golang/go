@@ -372,30 +372,6 @@ func saveorignode(n *Node) {
 	n.Orig = norig
 }
 
-// checkMapKeyType checks that Type key is valid for use as a map key.
-func checkMapKeyType(key *Type) {
-	alg, bad := algtype1(key)
-	if alg != ANOEQ {
-		return
-	}
-	switch bad.Etype {
-	default:
-		Yyerror("invalid map key type %v", key)
-	case TANY:
-		// Will be resolved later.
-	case TFORW:
-		// map[key] used during definition of key.
-		// postpone check until key is fully defined.
-		// if there are multiple uses of map[key]
-		// before key is fully defined, the error
-		// will only be printed for the first one.
-		// good enough.
-		if maplineno[key] == 0 {
-			maplineno[key] = lineno
-		}
-	}
-}
-
 // methcmp sorts by symbol, then by package path for unexported symbols.
 type methcmp []*Field
 
