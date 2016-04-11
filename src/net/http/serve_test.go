@@ -4056,6 +4056,23 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	}
 }
 
+func TestServerContext_ServerContextKey(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ctx := r.Context()
+		got := ctx.Value(ServerContextKey)
+		if _, ok := got.(*Server); !ok {
+			t.Errorf("context value = %T; want *http.Server")
+		}
+	}))
+	defer ts.Close()
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
