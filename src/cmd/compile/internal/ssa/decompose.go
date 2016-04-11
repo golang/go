@@ -79,7 +79,7 @@ func decomposeBuiltIn(f *Func) {
 			}
 			delete(f.NamedValues, name)
 		case t.Size() > f.Config.IntSize:
-			f.Unimplementedf("undecomposed named type %s", t)
+			f.Unimplementedf("undecomposed named type %s %s", name, t)
 		default:
 			newNames = append(newNames, name)
 		}
