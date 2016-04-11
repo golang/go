@@ -1556,7 +1556,7 @@ func writelines(prev *LSym) *LSym {
 			dt, da int
 			offs   int64
 		)
-		for _, a := range s.Autom {
+		for _, a := range s.Pcln.Autom {
 			switch a.Name {
 			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO

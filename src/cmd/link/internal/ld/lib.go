@@ -1747,7 +1747,11 @@ func stkcheck(up *Chain, depth int) int {
 			return 0
 		}
 		// Raise limit to allow frame.
-		limit = int(obj.StackLimit+s.Locals) + int(Ctxt.FixedFrameSize())
+		locals := int32(0)
+		if s.Pcln != nil {
+			locals = s.Pcln.Locals
+		}
+		limit = int(obj.StackLimit+locals) + int(Ctxt.FixedFrameSize())
 	}
 
 	// Walk through sp adjustments in function, consuming relocs.
@@ -1978,10 +1982,17 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
 
+		locals := int32(0)
+		if s.Pcln != nil {
+			locals = s.Pcln.Locals
+		}
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(nil, ".frame", 'm', int64(s.Locals)+int64(SysArch.PtrSize), 0, 0, nil)
+		put(nil, ".frame", 'm', int64(locals)+int64(SysArch.PtrSize), 0, 0, nil)
 
-		for _, a := range s.Autom {
+		if s.Pcln == nil {
+			continue
+		}
+		for _, a := range s.Pcln.Autom {
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
 			if a.Name != obj.A_AUTO && a.Name != obj.A_PARAM {

@@ -272,9 +272,12 @@ func (d *deadcodepass) flood() {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(d.ctxt.Bso, "marktext %s\n", s.Name)
 			}
-			for _, a := range s.Autom {
-				d.mark(a.Gotype, s)
+			if s.Pcln != nil {
+				for _, a := range s.Pcln.Autom {
+					d.mark(a.Gotype, s)
+				}
 			}
+
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
