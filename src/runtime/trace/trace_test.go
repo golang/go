@@ -52,7 +52,7 @@ func TestTrace(t *testing.T) {
 		t.Fatalf("failed to start tracing: %v", err)
 	}
 	Stop()
-	_, err := trace.Parse(buf)
+	_, err := trace.Parse(buf, "")
 	if err == trace.ErrTimeOrder {
 		t.Skipf("skipping trace: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestTrace(t *testing.T) {
 }
 
 func parseTrace(t *testing.T, r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc, error) {
-	events, err := trace.Parse(r)
+	events, err := trace.Parse(r, "")
 	if err == trace.ErrTimeOrder {
 		t.Skipf("skipping trace: %v", err)
 	}

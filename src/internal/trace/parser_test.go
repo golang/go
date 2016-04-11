@@ -5,6 +5,9 @@
 package trace
 
 import (
+	"bytes"
+	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -22,9 +25,63 @@ func TestCorruptedInputs(t *testing.T) {
 		"go 1.5 trace\x00\x00\x00\x00\xc3\x0200",
 	}
 	for _, data := range tests {
-		events, err := Parse(strings.NewReader(data))
+		events, err := Parse(strings.NewReader(data), "")
 		if err == nil || events != nil {
-			t.Fatalf("no error on input: %q\n", data)
+			t.Fatalf("no error on input: %q", data)
+		}
+	}
+}
+
+func TestParseCanned(t *testing.T) {
+	files, err := ioutil.ReadDir("./testdata")
+	if err != nil {
+		t.Fatalf("failed to read ./testdata: %v", err)
+	}
+	for _, f := range files {
+		data, err := ioutil.ReadFile(filepath.Join("./testdata", f.Name()))
+		if err != nil {
+			t.Fatalf("failed to read input file: %v", err)
+		}
+		_, err = Parse(bytes.NewReader(data), "")
+		switch {
+		case strings.HasSuffix(f.Name(), "_good"):
+			if err != nil {
+				t.Errorf("failed to parse good trace %v: %v", f.Name(), err)
+			}
+		case strings.HasSuffix(f.Name(), "_unordered"):
+			if err != ErrTimeOrder {
+				t.Errorf("unordered trace is not detected %v: %v", f.Name(), err)
+			}
+		default:
+			t.Errorf("unknown input file suffix: %v", f.Name())
+		}
+	}
+}
+
+func TestParseVersion(t *testing.T) {
+	tests := map[string]int{
+		"go 1.5 trace\x00\x00\x00\x00": 1005,
+		"go 1.7 trace\x00\x00\x00\x00": 1007,
+		"go 1.10 trace\x00\x00\x00":    1010,
+		"go 1.25 trace\x00\x00\x00":    1025,
+		"go 1.234 trace\x00\x00":       1234,
+		"go 1.2345 trace\x00":          -1,
+		"go 0.0 trace\x00\x00\x00\x00": -1,
+		"go a.b trace\x00\x00\x00\x00": -1,
+	}
+	for header, ver := range tests {
+		ver1, err := parseHeader([]byte(header))
+		if ver == -1 {
+			if err == nil {
+				t.Fatalf("no error on input: %q, version %v", header, ver1)
+			}
+		} else {
+			if err != nil {
+				t.Fatalf("failed to parse: %q (%v)", header, err)
+			}
+			if ver != ver1 {
+				t.Fatalf("wrong version: %v, want %v, input: %q", ver1, ver, header)
+			}
 		}
 	}
 }
