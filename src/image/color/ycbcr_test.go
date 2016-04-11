@@ -171,3 +171,26 @@ func TestPalette(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
+
+var sinkr, sinkg, sinkb uint8
+
+func BenchmarkYCbCrToRGB(b *testing.B) {
+	// YCbCrToRGB does saturating arithmetic.
+	// Low, middle, and high values can take
+	// different paths through the generated code.
+	b.Run("0", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sinkr, sinkg, sinkb = YCbCrToRGB(0, 0, 0)
+		}
+	})
+	b.Run("128", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sinkr, sinkg, sinkb = YCbCrToRGB(128, 128, 128)
+		}
+	})
+	b.Run("255", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sinkr, sinkg, sinkb = YCbCrToRGB(255, 255, 255)
+		}
+	})
+}
