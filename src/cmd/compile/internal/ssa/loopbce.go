@@ -31,7 +31,7 @@ type indVar struct {
 //
 //
 // TODO: handle 32 bit operations
-func findIndVar(f *Func, sdom sparseTree) []indVar {
+func findIndVar(f *Func) []indVar {
 	var iv []indVar
 
 nextb:
@@ -110,7 +110,7 @@ nextb:
 
 		// Second condition: b.Succs[entry] dominates nxt so that
 		// nxt is computed when inc < max, meaning nxt <= max.
-		if !sdom.isAncestorEq(b.Succs[entry], nxt.Block) {
+		if !f.sdom.isAncestorEq(b.Succs[entry], nxt.Block) {
 			// inc+ind can only be reached through the branch that enters the loop.
 			continue
 		}
@@ -160,20 +160,18 @@ nextb:
 
 // loopbce performs loop based bounds check elimination.
 func loopbce(f *Func) {
-	idom := dominators(f)
-	sdom := newSparseTree(f, idom)
-	ivList := findIndVar(f, sdom)
+	ivList := findIndVar(f)
 
 	m := make(map[*Value]indVar)
 	for _, iv := range ivList {
 		m[iv.ind] = iv
 	}
 
-	removeBoundsChecks(f, sdom, m)
+	removeBoundsChecks(f, m)
 }
 
 // removesBoundsChecks remove IsInBounds and IsSliceInBounds based on the induction variables.
-func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
+func removeBoundsChecks(f *Func, m map[*Value]indVar) {
 	for _, b := range f.Blocks {
 		if b.Kind != BlockIf {
 			continue
@@ -202,7 +200,7 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
 				goto skip1
 			}
 
-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
+			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
 				if v.Args[1] == iv.max {
 					if f.pass.debug > 0 {
 						f.Config.Warnl(b.Line, "Found redundant %s", v.Op)
@@ -229,7 +227,7 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
 				goto skip2
 			}
 
-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
+			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
 				if v.Args[1].Op == OpSliceCap && iv.max.Op == OpSliceLen && v.Args[1].Args[0] == iv.max.Args[0] {
 					if f.pass.debug > 0 {
 						f.Config.Warnl(b.Line, "Found redundant %s (len promoted to cap)", v.Op)
@@ -250,7 +248,7 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
 			}
 
 			// ind + add >= 0 <-> min + add >= 0 <-> min >= -add
-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
+			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
 				if !v.Args[1].isGenericIntConst() || !iv.max.isGenericIntConst() {
 					goto skip3
 				}

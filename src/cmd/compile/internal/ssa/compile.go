@@ -234,6 +234,7 @@ var passes = [...]pass{
 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
+	{name: "generic domtree", fn: domTree},
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
@@ -288,6 +289,10 @@ var passOrder = [...]constraint{
 	{"opt", "nilcheckelim"},
 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
 	{"tighten", "lower"},
+	// nilcheckelim, prove and loopbce share idom.
+	{"generic domtree", "nilcheckelim"},
+	{"generic domtree", "prove"},
+	{"generic domtree", "loopbce"},
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
