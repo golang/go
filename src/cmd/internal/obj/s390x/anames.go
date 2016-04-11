@@ -17,6 +17,7 @@ var Anames = []string{
 	"DIVDU",
 	"MULLW",
 	"MULLD",
+	"MULHD",
 	"MULHDU",
 	"SUB",
 	"SUBC",
