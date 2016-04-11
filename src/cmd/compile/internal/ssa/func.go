@@ -284,7 +284,10 @@ func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *
 func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, line)
 	v.AuxInt = 0
-	v.Args = []*Value{arg0, arg1, arg2}
+	v.Args = v.argstorage[:3]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	v.argstorage[2] = arg2
 	arg0.Uses++
 	arg1.Uses++
 	arg2.Uses++
@@ -295,7 +298,10 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
 func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.newValue(op, t, b, line)
 	v.AuxInt = auxint
-	v.Args = []*Value{arg0, arg1, arg2}
+	v.Args = v.argstorage[:3]
+	v.argstorage[0] = arg0
+	v.argstorage[1] = arg1
+	v.argstorage[2] = arg2
 	arg0.Uses++
 	arg1.Uses++
 	arg2.Uses++
