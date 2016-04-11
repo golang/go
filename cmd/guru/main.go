@@ -13,18 +13,14 @@ package main // import "golang.org/x/tools/cmd/guru"
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
 	"go/token"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime/pprof"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -168,7 +164,7 @@ func main() {
 	// read them from the standard input and
 	// overlay them on the build context.
 	if *modifiedFlag {
-		modified, err := parseArchive(os.Stdin)
+		modified, err := buildutil.ParseOverlayArchive(os.Stdin)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -178,7 +174,7 @@ func main() {
 		// but the loader's cgo preprocessing currently does not.
 
 		if len(modified) > 0 {
-			ctxt = useModifiedFiles(ctxt, modified)
+			ctxt = buildutil.OverlayContext(ctxt, modified)
 		}
 	}
 
@@ -211,69 +207,4 @@ func main() {
 	if err := Run(mode, &query); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func parseArchive(archive io.Reader) (map[string][]byte, error) {
-	modified := make(map[string][]byte)
-	r := bufio.NewReader(archive)
-	for {
-		// Read file name.
-		filename, err := r.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break // OK
-			}
-			return nil, fmt.Errorf("reading modified file name: %v", err)
-		}
-		filename = filepath.Clean(strings.TrimSpace(filename))
-
-		// Read file size.
-		sz, err := r.ReadString('\n')
-		if err != nil {
-			return nil, fmt.Errorf("reading size of modified file %s: %v", filename, err)
-		}
-		sz = strings.TrimSpace(sz)
-		size, err := strconv.ParseInt(sz, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("parsing size of modified file %s: %v", filename, err)
-		}
-
-		// Read file content.
-		var content bytes.Buffer
-		content.Grow(int(size))
-		if _, err := io.CopyN(&content, r, size); err != nil {
-			return nil, fmt.Errorf("reading modified file %s: %v", filename, err)
-		}
-		modified[filename] = content.Bytes()
-	}
-
-	return modified, nil
-}
-
-// useModifiedFiles augments the provided build.Context by the
-// mapping from file names to alternative contents.
-func useModifiedFiles(orig *build.Context, modified map[string][]byte) *build.Context {
-	rc := func(data []byte) (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(data)), nil
-	}
-
-	copy := *orig // make a copy
-	ctxt := &copy
-	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
-		// Fast path: names match exactly.
-		if content, ok := modified[path]; ok {
-			return rc(content)
-		}
-
-		// Slow path: check for same file under a different
-		// alias, perhaps due to a symbolic link.
-		for filename, content := range modified {
-			if sameFile(path, filename) {
-				return rc(content)
-			}
-		}
-
-		return buildutil.OpenFile(orig, path)
-	}
-	return ctxt
 }

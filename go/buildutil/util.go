@@ -165,3 +165,20 @@ func SplitPathList(ctxt *build.Context, s string) []string {
 	}
 	return filepath.SplitList(s)
 }
+
+// sameFile returns true if x and y have the same basename and denote
+// the same file.
+//
+func sameFile(x, y string) bool {
+	if path.Clean(x) == path.Clean(y) {
+		return true
+	}
+	if filepath.Base(x) == filepath.Base(y) { // (optimisation)
+		if xi, err := os.Stat(x); err == nil {
+			if yi, err := os.Stat(y); err == nil {
+				return os.SameFile(xi, yi)
+			}
+		}
+	}
+	return false
+}
