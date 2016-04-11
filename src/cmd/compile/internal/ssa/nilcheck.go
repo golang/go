@@ -11,7 +11,7 @@ func nilcheckelim(f *Func) {
 	// A nil check is redundant if the same nil check was successful in a
 	// dominating block. The efficacy of this pass depends heavily on the
 	// efficacy of the cse pass.
-	idom := dominators(f)
+	idom := f.idom
 	domTree := make([][]*Block, f.NumBlocks())
 
 	// Create a block ID -> [dominees] mapping

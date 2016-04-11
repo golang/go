@@ -364,3 +364,9 @@ func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
 	}
 	return b
 }
+
+// build immediate dominators.
+func domTree(f *Func) {
+	f.idom = dominators(f)
+	f.sdom = newSparseTree(f, f.idom)
+}
