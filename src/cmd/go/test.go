@@ -126,8 +126,8 @@ control the execution of any test:
 const testFlag2 = `
 	-bench regexp
 	    Run benchmarks matching the regular expression.
-	    By default, no benchmarks run. To run all benchmarks,
-	    use '-bench .' or '-bench=.'.
+	    By default, no benchmarks run.
+	    To run all benchmarks, use '-bench=.'.
 
 	-benchmem
 	    Print memory allocation statistics for benchmarks.
@@ -214,7 +214,9 @@ const testFlag2 = `
 
 	-run regexp
 	    Run only those tests and examples matching the regular
-	    expression.
+	    expression. By default, all tests run.
+	    To skip all tests, use a pattern that matches no test names,
+	    such as '-run=^$'.
 
 	-short
 	    Tell long-running tests to shorten their run time.
