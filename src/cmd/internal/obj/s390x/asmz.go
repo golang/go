@@ -150,6 +150,8 @@ var optab = []Optab{
 	Optab{AMULLW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
 	Optab{AMULLW, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
 	Optab{AMULLW, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
+	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
 	Optab{ASUBC, C_REG, C_REG, C_NONE, C_REG, 10, 0},
 	Optab{ASUBC, C_REG, C_NONE, C_NONE, C_REG, 10, 0},
 	Optab{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
@@ -793,10 +795,11 @@ func buildop(ctxt *obj.Link) {
 		case ADIVW:
 			opset(AADDE, r)
 			opset(AMULLD, r)
-			opset(AMULHDU, r)
 			opset(ADIVD, r)
 			opset(ADIVDU, r)
 			opset(ADIVWU, r)
+		case AMULHD:
+			opset(AMULHDU, r)
 		case AMOVBZ:
 			opset(AMOVH, r)
 			opset(AMOVHZ, r)
@@ -2580,8 +2583,6 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			opcode = op_MSGFR
 		case AMULLD:
 			opcode = op_MSGR
-		case AMULHDU:
-			opcode = op_MLGR
 		case ADIVW:
 			opcode = op_DSGFR
 		case ADIVWU:
@@ -2627,11 +2628,6 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			zRRE(op_LGR, REGTMP2, uint32(r), asm)
 			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
 			zRRE(op_LGR, uint32(p.To.Reg), REGTMP2, asm)
-
-		case AMULHDU:
-			zRRE(op_LGR, REGTMP2, uint32(r), asm)
-			zRRE(opcode, REGTMP, uint32(p.From.Reg), asm)
-			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
 
 		case AFADD, AFADDS:
 			if r == int(p.To.Reg) {
@@ -2693,6 +2689,28 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 		} else {
 			zRIL(_a, op_LLILF, uint32(p.To.Reg), uint32(v), asm)
 			zRIL(_a, op_IIHF, uint32(p.To.Reg), uint32(v>>32), asm)
+		}
+
+	case 4: // multiply high (a*b)>>64
+		r := p.Reg
+		if r == 0 {
+			r = p.To.Reg
+		}
+		zRRE(op_LGR, REGTMP2, uint32(r), asm)
+		zRRE(op_MLGR, REGTMP, uint32(p.From.Reg), asm)
+		switch p.As {
+		case AMULHDU:
+			// Unsigned: move result into correct register.
+			zRRE(op_LGR, uint32(p.To.Reg), REGTMP, asm)
+		case AMULHD:
+			// Signed: need to convert result.
+			// See Hacker's Delight 8-3.
+			zRSY(op_SRAG, REGTMP2, uint32(p.From.Reg), 0, 63, asm)
+			zRRE(op_NGR, REGTMP2, uint32(r), asm)
+			zRRE(op_SGR, REGTMP, REGTMP2, asm)
+			zRSY(op_SRAG, REGTMP2, uint32(r), 0, 63, asm)
+			zRRE(op_NGR, REGTMP2, uint32(p.From.Reg), asm)
+			zRRF(op_SGRK, REGTMP2, 0, uint32(p.To.Reg), REGTMP, asm)
 		}
 
 	case 5: // syscall
