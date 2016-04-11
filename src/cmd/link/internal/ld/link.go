@@ -50,8 +50,6 @@ type LSym struct {
 	Align       int32
 	Elfsym      int32
 	LocalElfsym int32
-	Args        int32
-	Locals      int32
 	Value       int64
 	Size        int64
 	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
@@ -67,7 +65,6 @@ type LSym struct {
 	Dynimplib   string
 	Dynimpvers  string
 	Sect        *Section
-	Autom       []Auto
 	Pcln        *Pcln
 	P           []byte
 	R           []Reloc
@@ -221,6 +218,9 @@ type Library struct {
 }
 
 type Pcln struct {
+	Args        int32
+	Locals      int32
+	Autom       []Auto
 	Pcsp        Pcdata
 	Pcfile      Pcdata
 	Pcline      Pcdata

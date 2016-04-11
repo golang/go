@@ -331,8 +331,11 @@ overwrite:
 	}
 
 	if s.Type == obj.STEXT {
-		s.Args = r.readInt32()
-		s.Locals = r.readInt32()
+		s.Pcln = new(Pcln)
+		pc := s.Pcln
+
+		pc.Args = r.readInt32()
+		pc.Locals = r.readInt32()
 		if r.readUint8() != 0 {
 			s.Attr |= AttrNoSplit
 		}
@@ -341,13 +344,13 @@ overwrite:
 			s.Attr |= AttrReflectMethod
 		}
 		n := r.readInt()
-		s.Autom = r.autom[:n:n]
+		pc.Autom = r.autom[:n:n]
 		if !isdup {
 			r.autom = r.autom[n:]
 		}
 
 		for i := 0; i < n; i++ {
-			s.Autom[i] = Auto{
+			pc.Autom[i] = Auto{
 				Asym:    r.readSymIndex(),
 				Aoffset: r.readInt32(),
 				Name:    r.readInt16(),
@@ -355,8 +358,6 @@ overwrite:
 			}
 		}
 
-		s.Pcln = new(Pcln)
-		pc := s.Pcln
 		pc.Pcsp.P = r.readData()
 		pc.Pcfile.P = r.readData()
 		pc.Pcline.P = r.readData()

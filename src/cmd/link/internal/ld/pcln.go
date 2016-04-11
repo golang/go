@@ -293,7 +293,11 @@ func pclntab() {
 
 		// args int32
 		// TODO: Move into funcinfo.
-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(Ctxt.Cursym.Args)))
+		args := uint32(0)
+		if Ctxt.Cursym.Pcln != nil {
+			args = uint32(Ctxt.Cursym.Pcln.Args)
+		}
+		off = int32(setuint32(Ctxt, ftab, int64(off), args))
 
 		// frame int32
 		// This has been removed (it was never set quite correctly anyway).
