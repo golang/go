@@ -1476,6 +1476,12 @@ func TestFunc(t *testing.T) {
 	if i != 10 || j != 20 || k != 30 || l != (two{40, 50}) || m != 60 || n != 70 || o != 80 {
 		t.Errorf("Call returned %d, %d, %d, %v, %d, %g, %d; want 10, 20, 30, [40, 50], 60, 70, 80", i, j, k, l, m, n, o)
 	}
+
+	for i, v := range ret {
+		if v.CanAddr() {
+			t.Errorf("result %d is addressable", i)
+		}
+	}
 }
 
 type emptyStruct struct{}
