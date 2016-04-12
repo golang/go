@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/testenv"
 	"reflect"
 	"runtime"
 	"testing"
@@ -56,6 +57,10 @@ type routeStats struct {
 }
 
 func TestInterfaces(t *testing.T) {
+	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+		// 100% flaky, actually, at least on some FreeBSD versions
+		testenv.SkipFlaky(t, 15262)
+	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
