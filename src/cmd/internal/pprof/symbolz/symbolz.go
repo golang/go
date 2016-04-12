@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/pprof/internal/profile"
+	"cmd/internal/pprof/profile"
 )
 
 var (

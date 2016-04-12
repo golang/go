@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cmd/pprof/internal/plugin"
-	"cmd/pprof/internal/profile"
+	"cmd/internal/pprof/plugin"
+	"cmd/internal/pprof/profile"
 )
 
 // Symbolize adds symbol and line number information to all locations
