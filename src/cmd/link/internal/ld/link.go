@@ -65,7 +65,7 @@ type LSym struct {
 	Dynimplib   string
 	Dynimpvers  string
 	Sect        *Section
-	Pcln        *Pcln
+	FuncInfo    *FuncInfo
 	P           []byte
 	R           []Reloc
 }
@@ -217,7 +217,7 @@ type Library struct {
 	hash   []byte
 }
 
-type Pcln struct {
+type FuncInfo struct {
 	Args        int32
 	Locals      int32
 	Autom       []Auto

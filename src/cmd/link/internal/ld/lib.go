@@ -1710,7 +1710,7 @@ func stkcheck(up *Chain, depth int) int {
 		return -1
 	}
 
-	if s.Attr.External() || s.Pcln == nil {
+	if s.Attr.External() || s.FuncInfo == nil {
 		// external function.
 		// should never be called directly.
 		// only diagnose the direct caller.
@@ -1748,8 +1748,8 @@ func stkcheck(up *Chain, depth int) int {
 		}
 		// Raise limit to allow frame.
 		locals := int32(0)
-		if s.Pcln != nil {
-			locals = s.Pcln.Locals
+		if s.FuncInfo != nil {
+			locals = s.FuncInfo.Locals
 		}
 		limit = int(obj.StackLimit+locals) + int(Ctxt.FixedFrameSize())
 	}
@@ -1761,7 +1761,7 @@ func stkcheck(up *Chain, depth int) int {
 	var ch1 Chain
 	var pcsp Pciter
 	var r *Reloc
-	for pciterinit(Ctxt, &pcsp, &s.Pcln.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+	for pciterinit(Ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.
@@ -1983,16 +1983,16 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
 
 		locals := int32(0)
-		if s.Pcln != nil {
-			locals = s.Pcln.Locals
+		if s.FuncInfo != nil {
+			locals = s.FuncInfo.Locals
 		}
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
 		put(nil, ".frame", 'm', int64(locals)+int64(SysArch.PtrSize), 0, 0, nil)
 
-		if s.Pcln == nil {
+		if s.FuncInfo == nil {
 			continue
 		}
-		for _, a := range s.Pcln.Autom {
+		for _, a := range s.FuncInfo.Autom {
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
 			if a.Name != obj.A_AUTO && a.Name != obj.A_PARAM {
