@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"cmd/internal/pprof/profile"
 	"fmt"
 	"internal/trace"
 	"io/ioutil"
@@ -133,34 +134,79 @@ func serveSVGProfile(w http.ResponseWriter, r *http.Request, prof map[uint64]Rec
 		http.Error(w, fmt.Sprintf("failed to create temp file: %v", err), http.StatusInternalServerError)
 		return
 	}
-	defer os.Remove(blockf.Name())
+	defer func() {
+		blockf.Close()
+		os.Remove(blockf.Name())
+	}()
 	blockb := bufio.NewWriter(blockf)
-	fmt.Fprintf(blockb, "--- contention:\ncycles/second=1000000000\n")
-	for _, rec := range prof {
-		fmt.Fprintf(blockb, "%v %v @", rec.time, rec.n)
-		for _, f := range rec.stk {
-			fmt.Fprintf(blockb, " 0x%x", f.PC)
-		}
-		fmt.Fprintf(blockb, "\n")
+	if err := buildProfile(prof).Write(blockb); err != nil {
+		http.Error(w, fmt.Sprintf("failed to write profile: %v", err), http.StatusInternalServerError)
+		return
 	}
-	err = blockb.Flush()
-	if err != nil {
+	if err := blockb.Flush(); err != nil {
 		http.Error(w, fmt.Sprintf("failed to flush temp file: %v", err), http.StatusInternalServerError)
 		return
 	}
-	err = blockf.Close()
-	if err != nil {
+	if err := blockf.Close(); err != nil {
 		http.Error(w, fmt.Sprintf("failed to close temp file: %v", err), http.StatusInternalServerError)
 		return
 	}
-
 	svgFilename := blockf.Name() + ".svg"
-	_, err = exec.Command("go", "tool", "pprof", "-svg", "-output", svgFilename, programBinary, blockf.Name()).CombinedOutput()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to execute go tool pprof: %v", err), http.StatusInternalServerError)
+	if output, err := exec.Command("go", "tool", "pprof", "-svg", "-output", svgFilename, blockf.Name()).CombinedOutput(); err != nil {
+		http.Error(w, fmt.Sprintf("failed to execute go tool pprof: %v\n%s", err, output), http.StatusInternalServerError)
 		return
 	}
 	defer os.Remove(svgFilename)
 	w.Header().Set("Content-Type", "image/svg+xml")
 	http.ServeFile(w, r, svgFilename)
+}
+
+func buildProfile(prof map[uint64]Record) *profile.Profile {
+	p := &profile.Profile{
+		PeriodType: &profile.ValueType{Type: "trace", Unit: "count"},
+		Period:     1,
+		SampleType: []*profile.ValueType{
+			{Type: "contentions", Unit: "count"},
+			{Type: "delay", Unit: "nanoseconds"},
+		},
+	}
+	locs := make(map[uint64]*profile.Location)
+	funcs := make(map[string]*profile.Function)
+	for _, rec := range prof {
+		var sloc []*profile.Location
+		for _, frame := range rec.stk {
+			loc := locs[frame.PC]
+			if loc == nil {
+				fn := funcs[frame.File+frame.Fn]
+				if fn == nil {
+					fn = &profile.Function{
+						ID:         uint64(len(p.Function) + 1),
+						Name:       frame.Fn,
+						SystemName: frame.Fn,
+						Filename:   frame.File,
+					}
+					p.Function = append(p.Function, fn)
+					funcs[frame.File+frame.Fn] = fn
+				}
+				loc = &profile.Location{
+					ID:      uint64(len(p.Location) + 1),
+					Address: frame.PC,
+					Line: []profile.Line{
+						profile.Line{
+							Function: fn,
+							Line:     int64(frame.Line),
+						},
+					},
+				}
+				p.Location = append(p.Location, loc)
+				locs[frame.PC] = loc
+			}
+			sloc = append(sloc, loc)
+		}
+		p.Sample = append(p.Sample, &profile.Sample{
+			Value:    []int64{int64(rec.n), rec.time},
+			Location: sloc,
+		})
+	}
+	return p
 }
