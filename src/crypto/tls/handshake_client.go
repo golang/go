@@ -533,17 +533,17 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 
 	if !clientDidNPN && serverHasNPN {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised unrequested NPN extension")
+		return false, errors.New("tls: server advertised unrequested NPN extension")
 	}
 
 	if !clientDidALPN && serverHasALPN {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised unrequested ALPN extension")
+		return false, errors.New("tls: server advertised unrequested ALPN extension")
 	}
 
 	if serverHasNPN && serverHasALPN {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised both NPN and ALPN extensions")
+		return false, errors.New("tls: server advertised both NPN and ALPN extensions")
 	}
 
 	if serverHasALPN {

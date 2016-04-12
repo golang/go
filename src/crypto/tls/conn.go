@@ -928,7 +928,7 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	return m, nil
 }
 
-var errClosed = errors.New("crypto/tls: use of closed connection")
+var errClosed = errors.New("tls: use of closed connection")
 
 // Write writes data to the connection.
 func (c *Conn) Write(b []byte) (int, error) {
