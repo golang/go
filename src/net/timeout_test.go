@@ -112,7 +112,6 @@ var dialTimeoutMaxDurationTests = []struct {
 }
 
 func TestDialTimeoutMaxDuration(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS == "openbsd" {
 		testenv.SkipFlaky(t, 15157)
 	}
@@ -315,8 +314,6 @@ var readTimeoutTests = []struct {
 }
 
 func TestReadTimeout(t *testing.T) {
-	t.Parallel()
-
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
