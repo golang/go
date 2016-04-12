@@ -600,19 +600,6 @@ type Pcdata struct {
 	P []byte
 }
 
-// Pcdata iterator.
-//      for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
-type Pciter struct {
-	d       Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
-}
-
 // symbol version, incremented each time a file is loaded.
 // version==1 is reserved for savehist.
 const (
