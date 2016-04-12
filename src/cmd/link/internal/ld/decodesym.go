@@ -17,9 +17,9 @@ import (
 // ../gc/reflect.c stuffs in these.
 
 func decode_reloc(s *LSym, off int32) *Reloc {
-	for i := 0; i < len(s.R); i++ {
+	for i := range s.R {
 		if s.R[i].Off == off {
-			return &s.R[i:][0]
+			return &s.R[i]
 		}
 	}
 	return nil

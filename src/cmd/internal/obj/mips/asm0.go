@@ -611,7 +611,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 
 	a1 := int(p.Optab)
 	if a1 != 0 {
-		return &optab[a1-1:][0]
+		return &optab[a1-1]
 	}
 	a1 = int(p.From.Class)
 	if a1 == 0 {

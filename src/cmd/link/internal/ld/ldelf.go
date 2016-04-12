@@ -774,7 +774,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 		if sym.sym == nil {
 			continue
 		}
-		sect = &elfobj.sect[sym.shndx:][0]
+		sect = &elfobj.sect[sym.shndx]
 		if sect.sym == nil {
 			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
 				continue
