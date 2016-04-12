@@ -289,8 +289,9 @@ var passOrder = [...]constraint{
 	{"opt", "nilcheckelim"},
 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
 	{"tighten", "lower"},
-	// cse, nilcheckelim, prove and loopbce share idom.
+	// cse, phiopt, nilcheckelim, prove and loopbce share idom.
 	{"generic domtree", "generic cse"},
+	{"generic domtree", "phiopt"},
 	{"generic domtree", "nilcheckelim"},
 	{"generic domtree", "prove"},
 	{"generic domtree", "loopbce"},
