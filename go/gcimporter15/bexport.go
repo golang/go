@@ -91,10 +91,6 @@ func BExportData(pkg *types.Package) []byte {
 
 	// write package data
 	p.pkg(pkg, true)
-
-	// write compiler-specific flags
-	p.string("") // no flags to write in our case
-
 	if trace {
 		p.tracef("\n")
 	}

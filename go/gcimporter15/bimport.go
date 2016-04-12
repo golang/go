@@ -82,9 +82,6 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 		panic("imported packaged not found in pkgList[0]")
 	}
 
-	// read compiler-specific flags
-	p.string() // discard
-
 	// read objects of phase 1 only (see cmd/compiler/internal/gc/bexport.go)
 	objcount := 0
 	for {
@@ -197,7 +194,7 @@ func (p *importer) obj(tag int) {
 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
 
 	default:
-		panic("unexpected object tag")
+		panic(fmt.Sprintf("unexpected object tag %d", tag))
 	}
 }
 
@@ -236,8 +233,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 	switch i {
 	case namedTag:
 		// read type object
-		name := p.string()
-		parent = p.pkg()
+		parent, name := p.qualifiedName()
 		scope := parent.Scope()
 		obj := scope.Lookup(name)
 
@@ -262,7 +258,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		t0.SetUnderlying(p.typ(parent))
 
 		// interfaces don't have associated methods
-		if _, ok := t0.Underlying().(*types.Interface); ok {
+		if types.IsInterface(t0) {
 			return t
 		}
 
