@@ -823,6 +823,9 @@ func TestDialCancel(t *testing.T) {
 	if testing.Short() && !onGoBuildFarm {
 		t.Skip("skipping in short mode")
 	}
+	if testenv.Builder() == "linux-arm64-buildlet" {
+		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
+	}
 
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
 	if !supportsIPv4 {
