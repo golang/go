@@ -4452,9 +4452,8 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	n := ctxt.AsmBuf.Len()
-	var r *obj.Reloc
 	for i := len(ctxt.Cursym.R) - 1; i >= 0; i-- {
-		r = &ctxt.Cursym.R[i:][0]
+		r := &ctxt.Cursym.R[i]
 		if int64(r.Off) < p.Pc {
 			break
 		}
