@@ -418,7 +418,7 @@ func TestNilcheckBug(t *testing.T) {
 			Goto("exit")),
 		Bloc("exit",
 			Valu("phi", OpPhi, TypeMem, 0, nil, "mem", "store"),
-			Exit("mem")))
+			Exit("phi")))
 
 	CheckFunc(fun.f)
 	// we need the opt here to rewrite the user nilcheck
