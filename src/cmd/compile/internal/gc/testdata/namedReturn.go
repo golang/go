@@ -1,5 +1,9 @@
 // run
 
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This test makes sure that naming named
 // return variables in a return statement works.
 // See issue #14904.
