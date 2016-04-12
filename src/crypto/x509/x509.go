@@ -1587,21 +1587,21 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, err
 	}
 
-	if len(parent.SubjectKeyId) > 0 {
-		template.AuthorityKeyId = parent.SubjectKeyId
-	}
-
-	extensions, err := buildExtensions(template)
-	if err != nil {
-		return
-	}
-
 	asn1Issuer, err := subjectBytes(parent)
 	if err != nil {
 		return
 	}
 
 	asn1Subject, err := subjectBytes(template)
+	if err != nil {
+		return
+	}
+
+	if !bytes.Equal(asn1Issuer, asn1Subject) && len(parent.SubjectKeyId) > 0 {
+		template.AuthorityKeyId = parent.SubjectKeyId
+	}
+
+	extensions, err := buildExtensions(template)
 	if err != nil {
 		return
 	}
