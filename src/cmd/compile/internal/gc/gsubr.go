@@ -58,7 +58,9 @@ func Ismem(n *Node) bool {
 		return true
 
 	case OADDR:
-		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64) // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
+		// amd64 and s390x use PC relative addressing.
+		// TODO(rsc): not sure why ppc64 needs this too.
+		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64, sys.S390X)
 	}
 
 	return false
@@ -84,7 +86,7 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Val = nil
-	if as != obj.AJMP && likely != 0 && Thearch.LinkArch.Family != sys.PPC64 && Thearch.LinkArch.Family != sys.ARM64 && Thearch.LinkArch.Family != sys.MIPS64 {
+	if as != obj.AJMP && likely != 0 && !Thearch.LinkArch.InFamily(sys.PPC64, sys.ARM64, sys.MIPS64, sys.S390X) {
 		p.From.Type = obj.TYPE_CONST
 		if likely > 0 {
 			p.From.Offset = 1
@@ -458,7 +460,7 @@ func Naddr(a *obj.Addr, n *Node) {
 	case OADDR:
 		Naddr(a, n.Left)
 		a.Etype = uint8(Tptr)
-		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) { // TODO(rsc): Do this even for arm, ppc64.
+		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) { // TODO(rsc): Do this even for these architectures.
 			a.Width = int64(Widthptr)
 		}
 		if a.Type != obj.TYPE_MEM {
