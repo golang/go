@@ -21,8 +21,8 @@ type pkcs8 struct {
 	// optional attributes omitted.
 }
 
-// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key. See
-// http://www.rsa.com/rsalabs/node.asp?id=2130 and RFC5208.
+// ParsePKCS8PrivateKey parses an unencrypted, PKCS#8 private key.
+// See RFC 5208.
 func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 	var privKey pkcs8
 	if _, err := asn1.Unmarshal(der, &privKey); err != nil {
