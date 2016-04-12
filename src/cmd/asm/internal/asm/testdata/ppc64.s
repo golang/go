@@ -664,6 +664,213 @@ label1:
 	DCBF	(R1)
 	DCBF	(R1+R2) // DCBF	(R1)(R2*1)
 
+//	VMX instructions
+
+//	Described as:
+//	<instruction type>, <instruction format>
+//	<golang asm operand order> produces
+//	<Power ISA operand order>
+
+//	Vector load, VX-form
+//	<MNEMONIC> (RB)(RA*1),VRT produces
+//	<mnemonic> VRT,RA,RB
+	LVEBX	(R1)(R2*1), V0
+	LVEHX	(R3)(R4*1), V1
+	LVEWX	(R5)(R6*1), V2
+	LVX	(R7)(R8*1), V3
+	LVXL	(R9)(R10*1), V4
+	LVSL	(R11)(R12*1), V5
+	LVSR	(R14)(R15*1), V6
+
+//	Vector store, VX-form
+//	<MNEMONIC> VRT,(RB)(RA*1) produces
+//	<mnemonic> VRT,RA,RB
+	STVEBX	V31, (R1)(R2*1)
+	STVEHX	V30, (R2)(R3*1)
+	STVEWX	V29, (R4)(R5*1)
+	STVX	V28, (R6)(R7*1)
+	STVXL	V27, (R9)(R9*1)
+
+//	Vector AND, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VANDL	V10, V9, V8
+	VANDC	V15, V14, V13
+	VNAND	V19, V18, V17
+
+//	Vector OR, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VORL	V26, V25, V24
+	VORC	V23, V22, V21
+	VNOR	V20, V19, V18
+	VXOR	V17, V16, V15
+	VEQV	V14, V13, V12
+
+//	Vector ADD, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VADDUBM	V3, V2, V1
+	VADDUHM	V3, V2, V1
+	VADDUWM	V3, V2, V1
+	VADDUDM	V3, V2, V1
+	VADDUQM	V3, V2, V1
+	VADDCUQ	V3, V2, V1
+	VADDCUW	V3, V2, V1
+	VADDUBS	V3, V2, V1
+	VADDUHS	V3, V2, V1
+	VADDUWS	V3, V2, V1
+	VADDSBS	V3, V2, V1
+	VADDSHS	V3, V2, V1
+	VADDSWS	V3, V2, V1
+
+//	Vector ADD extended, VA-form
+//	<MNEMONIC> VRA,VRB,VRC,VRT produces
+//	<mnemonic> VRT,VRA,VRB,VRC
+	VADDEUQM V4, V3, V2, V1
+	VADDECUQ V4, V3, V2, V1
+
+//	Vector SUB, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VSUBUBM	V3, V2, V1
+	VSUBUHM	V3, V2, V1
+	VSUBUWM	V3, V2, V1
+	VSUBUDM	V3, V2, V1
+	VSUBUQM	V3, V2, V1
+	VSUBCUQ	V3, V2, V1
+	VSUBCUW	V3, V2, V1
+	VSUBUBS	V3, V2, V1
+	VSUBUHS	V3, V2, V1
+	VSUBUWS	V3, V2, V1
+	VSUBSBS	V3, V2, V1
+	VSUBSHS	V3, V2, V1
+	VSUBSWS	V3, V2, V1
+
+//	Vector SUB extended, VA-form
+//	<MNEMONIC> VRA,VRB,VRC,VRT produces
+//	<mnemonic> VRT,VRA,VRB,VRC
+	VSUBEUQM V4, V3, V2, V1
+	VSUBECUQ V4, V3, V2, V1
+
+//	Vector rotate, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VRLB	V2, V1, V0
+	VRLH	V2, V1, V0
+	VRLW	V2, V1, V0
+	VRLD	V2, V1, V0
+
+//	Vector shift, VX-form
+//	<MNEMONIC> VRA,VRB,VRT
+//	<mnemonic> VRT,VRA,VRB
+	VSLB	V2, V1, V0
+	VSLH	V2, V1, V0
+	VSLW	V2, V1, V0
+	VSL	V2, V1, V0
+	VSLO	V2, V1, V0
+	VSRB	V2, V1, V0
+	VSRH	V2, V1, V0
+	VSRW	V2, V1, V0
+	VSR	V2, V1, V0
+	VSRO	V2, V1, V0
+	VSLD	V2, V1, V0
+	VSRD	V2, V1, V0
+	VSRAB	V2, V1, V0
+	VSRAH	V2, V1, V0
+	VSRAW	V2, V1, V0
+	VSRAD	V2, V1, V0
+
+//	Vector shift by octect immediate, VA-form with SHB 4-bit field
+//	<MNEMONIC> SHB,VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB,SHB
+	VSLDOI	$4, V2, V1, V0
+
+//	Vector count, VX-form
+//	<MNEMONIC> VRB,VRT produces
+//	<mnemonic> VRT,VRB
+	VCLZB	V4, V5
+	VCLZH	V4, V5
+	VCLZW	V4, V5
+	VCLZD	V4, V5
+	VPOPCNTB V4, V5
+	VPOPCNTH V4, V5
+	VPOPCNTW V4, V5
+	VPOPCNTD V4, V5
+
+//	Vector compare, VC-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+//	* Note: 'CC' suffix denotes Rc=1
+//	  i.e. vcmpequb. v3,v1,v2 equals VCMPEQUBCC V1,V2,V3
+	VCMPEQUB    V3, V2, V1
+	VCMPEQUBCC  V3, V2, V1
+	VCMPEQUH    V3, V2, V1
+	VCMPEQUHCC  V3, V2, V1
+	VCMPEQUW    V3, V2, V1
+	VCMPEQUWCC  V3, V2, V1
+	VCMPEQUD    V3, V2, V1
+	VCMPEQUDCC  V3, V2, V1
+	VCMPGTUB    V3, V2, V1
+	VCMPGTUBCC  V3, V2, V1
+	VCMPGTUH    V3, V2, V1
+	VCMPGTUHCC  V3, V2, V1
+	VCMPGTUW    V3, V2, V1
+	VCMPGTUWCC  V3, V2, V1
+	VCMPGTUD    V3, V2, V1
+	VCMPGTUDCC  V3, V2, V1
+	VCMPGTSB    V3, V2, V1
+	VCMPGTSBCC  V3, V2, V1
+	VCMPGTSH    V3, V2, V1
+	VCMPGTSHCC  V3, V2, V1
+	VCMPGTSW    V3, V2, V1
+	VCMPGTSWCC  V3, V2, V1
+	VCMPGTSD    V3, V2, V1
+	VCMPGTSDCC  V3, V2, V1
+
+//	Vector permute, VA-form
+//	<MNEMONIC> VRA,VRB,VRC,VRT produces
+//	<mnemonic> VRT,VRA,VRB,VRC
+	VPERM V3, V2, V1, V0
+
+//	Vector select, VA-form
+//	<MNEMONIC> VRA,VRB,VRC,VRT produces
+//	<mnemonic> VRT,VRA,VRB,VRC
+	VSEL  V3, V2, V1, V0
+
+//	Vector splat, VX-form with 4-bit UIM field
+//	<MNEMONIC> UIM,VRB,VRT produces
+//	<mnemonic> VRT,VRB,UIM
+	VSPLTB	  $15, V1, V0
+	VSPLTH	  $7, V1, V0
+	VSPLTW	  $3, V1, V0
+
+//	Vector splat immediate signed, VX-form with 5-bit SIM field
+//	<MNEMONIC> SIM,VRT produces
+//	<mnemonic> VRT,SIM
+	VSPLTISB  $31, V4
+	VSPLTISH  $31, V4
+	VSPLTISW  $31, V4
+
+//	Vector AES cipher, VX-form
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+	VCIPHER	      V3, V2, V1
+	VCIPHERLAST   V3, V2, V1
+	VNCIPHER      V3, V2, V1
+	VNCIPHERLAST  V3, V2, V1
+
+//	Vector AES subbytes, VX-form
+//	<MNEMONIC> VRA,VRT produces
+//	<mnemonic> VRT,VRA
+	VSBOX	      V2, V1
+
+//	Vector SHA, VX-form with ST bit field and 4-bit SIX field
+//	<MNEMONIC> SIX,VRA,ST,VRT produces
+//	<mnemonic> VRT,VRA,ST,SIX
+	VSHASIGMAW    $15, V1, $1, V0
+	VSHASIGMAD    $15, V1, $1, V0
+
 //
 // NOP
 //
