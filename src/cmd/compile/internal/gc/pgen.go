@@ -324,7 +324,12 @@ func Cgen_checknil(n *Node) {
 		Fatalf("bad checknil")
 	}
 
-	if (Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
+	// Most architectures require that the address to be checked is
+	// in a register (it could be in memory).
+	needsReg := !Thearch.LinkArch.InFamily(sys.AMD64, sys.I386)
+
+	// Move the address to be checked into a register if necessary.
+	if (needsReg && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
 		var reg Node
 		Regalloc(&reg, Types[Tptr], n)
 		Cgen(n, &reg)
