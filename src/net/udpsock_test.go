@@ -12,6 +12,43 @@ import (
 	"time"
 )
 
+func BenchmarkUDP6LinkLocalUnicast(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	if !supportsIPv6 {
+		b.Skip("IPv6 is not supported")
+	}
+	ifi := loopbackInterface()
+	if ifi == nil {
+		b.Skip("loopback interface not found")
+	}
+	lla := ipv6LinkLocalUnicastAddr(ifi)
+	if lla == "" {
+		b.Skip("IPv6 link-local unicast address not found")
+	}
+
+	c1, err := ListenPacket("udp6", JoinHostPort(lla+"%"+ifi.Name, "0"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer c1.Close()
+	c2, err := ListenPacket("udp6", JoinHostPort(lla+"%"+ifi.Name, "0"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer c2.Close()
+
+	var buf [1]byte
+	for i := 0; i < b.N; i++ {
+		if _, err := c1.WriteTo(buf[:], c2.LocalAddr()); err != nil {
+			b.Fatal(err)
+		}
+		if _, _, err := c2.ReadFrom(buf[:]); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type resolveUDPAddrTest struct {
 	network       string
 	litAddrOrName string
