@@ -272,8 +272,8 @@ func (d *deadcodepass) flood() {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(d.ctxt.Bso, "marktext %s\n", s.Name)
 			}
-			if s.Pcln != nil {
-				for _, a := range s.Pcln.Autom {
+			if s.FuncInfo != nil {
+				for _, a := range s.FuncInfo.Autom {
 					d.mark(a.Gotype, s)
 				}
 			}
@@ -335,9 +335,9 @@ func (d *deadcodepass) flood() {
 			d.markableMethods = append(d.markableMethods, methods...)
 		}
 
-		if s.Pcln != nil {
-			for i := range s.Pcln.Funcdata {
-				d.mark(s.Pcln.Funcdata[i], s)
+		if s.FuncInfo != nil {
+			for i := range s.FuncInfo.Funcdata {
+				d.mark(s.FuncInfo.Funcdata[i], s)
 			}
 		}
 		d.mark(s.Gotype, s)

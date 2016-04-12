@@ -204,7 +204,7 @@ func container(s *LSym) int {
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
-var pclntab_zpcln Pcln
+var pclntab_zpcln FuncInfo
 
 // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
 var pclntabNfunc int32
@@ -255,13 +255,13 @@ func pclntab() {
 	var i int32
 	var it Pciter
 	var off int32
-	var pcln *Pcln
+	var pcln *FuncInfo
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		last = Ctxt.Cursym
 		if container(Ctxt.Cursym) != 0 {
 			continue
 		}
-		pcln = Ctxt.Cursym.Pcln
+		pcln = Ctxt.Cursym.FuncInfo
 		if pcln == nil {
 			pcln = &pclntab_zpcln
 		}
@@ -294,8 +294,8 @@ func pclntab() {
 		// args int32
 		// TODO: Move into funcinfo.
 		args := uint32(0)
-		if Ctxt.Cursym.Pcln != nil {
-			args = uint32(Ctxt.Cursym.Pcln.Args)
+		if Ctxt.Cursym.FuncInfo != nil {
+			args = uint32(Ctxt.Cursym.FuncInfo.Args)
 		}
 		off = int32(setuint32(Ctxt, ftab, int64(off), args))
 

@@ -331,8 +331,8 @@ overwrite:
 	}
 
 	if s.Type == obj.STEXT {
-		s.Pcln = new(Pcln)
-		pc := s.Pcln
+		s.FuncInfo = new(FuncInfo)
+		pc := s.FuncInfo
 
 		pc.Args = r.readInt32()
 		pc.Locals = r.readInt32()

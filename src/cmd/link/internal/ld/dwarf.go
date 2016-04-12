@@ -1345,8 +1345,8 @@ func finddebugruntimepath(s *LSym) {
 		return
 	}
 
-	for i := range s.Pcln.File {
-		f := s.Pcln.File[i]
+	for i := range s.FuncInfo.File {
+		f := s.FuncInfo.File[i]
 		if i := strings.Index(f.Name, "runtime/runtime.go"); i >= 0 {
 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"
 			break
@@ -1514,14 +1514,14 @@ func writelines(prev *LSym) *LSym {
 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0)
 		}
 
-		if s.Pcln == nil {
+		if s.FuncInfo == nil {
 			continue
 		}
 
 		finddebugruntimepath(s)
 
-		pciterinit(Ctxt, &pcfile, &s.Pcln.Pcfile)
-		pciterinit(Ctxt, &pcline, &s.Pcln.Pcline)
+		pciterinit(Ctxt, &pcfile, &s.FuncInfo.Pcfile)
+		pciterinit(Ctxt, &pcline, &s.FuncInfo.Pcline)
 		epc = pc
 		for pcfile.done == 0 && pcline.done == 0 {
 			if epc-s.Value >= int64(pcfile.nextpc) {
@@ -1556,7 +1556,7 @@ func writelines(prev *LSym) *LSym {
 			dt, da int
 			offs   int64
 		)
-		for _, a := range s.Pcln.Autom {
+		for _, a := range s.FuncInfo.Autom {
 			switch a.Name {
 			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO
@@ -1698,14 +1698,14 @@ func writeframes(prev *LSym) *LSym {
 	var pcsp Pciter
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		s := Ctxt.Cursym
-		if s.Pcln == nil {
+		if s.FuncInfo == nil {
 			continue
 		}
 
 		// Emit a FDE, Section 6.4.1.
 		// First build the section contents into a byte buffer.
 		deltaBuf = deltaBuf[:0]
-		for pciterinit(Ctxt, &pcsp, &s.Pcln.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
+		for pciterinit(Ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
 			nextpc := pcsp.nextpc
 
 			// pciterinit goes up to the end of the function,
