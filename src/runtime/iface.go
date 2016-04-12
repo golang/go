@@ -173,7 +173,7 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
