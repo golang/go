@@ -276,7 +276,7 @@ func (t *transferReader) protoAtLeast(m, n int) bool {
 }
 
 // bodyAllowedForStatus reports whether a given response status code
-// permits a body. See RFC2616, section 4.4.
+// permits a body. See RFC 2616, section 4.4.
 func bodyAllowedForStatus(status int) bool {
 	switch {
 	case status >= 100 && status <= 199:
@@ -368,7 +368,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 
 	// If there is no Content-Length or chunked Transfer-Encoding on a *Response
 	// and the status is not 1xx, 204 or 304, then the body is unbounded.
-	// See RFC2616, section 4.4.
+	// See RFC 2616, section 4.4.
 	switch msg.(type) {
 	case *Response:
 		if realLength == -1 &&

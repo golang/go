@@ -92,7 +92,7 @@ func TestDateParsing(t *testing.T) {
 			"Fri, 21 Nov 1997 09:55:06 -0600",
 			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
 		},
-		// RFC5322, Appendix A.6.2
+		// RFC 5322, Appendix A.6.2
 		// Obsolete date.
 		{
 			"21 Nov 97 09:55:06 GMT",

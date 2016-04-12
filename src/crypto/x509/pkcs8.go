@@ -13,7 +13,7 @@ import (
 
 // pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See
 // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-8/pkcs-8v1_2.asn
-// and RFC5208.
+// and RFC 5208.
 type pkcs8 struct {
 	Version    int
 	Algo       pkix.AlgorithmIdentifier

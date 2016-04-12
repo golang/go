@@ -185,7 +185,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	return resp, nil
 }
 
-// RFC2616: Should treat
+// RFC 2616: Should treat
 //	Pragma: no-cache
 // like
 //	Cache-Control: no-cache
