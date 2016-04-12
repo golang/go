@@ -21,11 +21,11 @@ import (
 	"sync"
 	"time"
 
-	"cmd/pprof/internal/commands"
-	"cmd/pprof/internal/plugin"
-	"cmd/pprof/internal/profile"
-	"cmd/pprof/internal/report"
-	"cmd/pprof/internal/tempfile"
+	"cmd/internal/pprof/commands"
+	"cmd/internal/pprof/plugin"
+	"cmd/internal/pprof/profile"
+	"cmd/internal/pprof/report"
+	"cmd/internal/pprof/tempfile"
 )
 
 // PProf acquires a profile, and symbolizes it using a profile

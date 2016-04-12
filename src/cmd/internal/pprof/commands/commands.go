@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"cmd/pprof/internal/plugin"
-	"cmd/pprof/internal/report"
-	"cmd/pprof/internal/svg"
-	"cmd/pprof/internal/tempfile"
+	"cmd/internal/pprof/plugin"
+	"cmd/internal/pprof/report"
+	"cmd/internal/pprof/svg"
+	"cmd/internal/pprof/tempfile"
 )
 
 // Commands describes the commands accepted by pprof.
