@@ -516,7 +516,7 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 	}
 
 	if len(c.Certificates) == 0 {
-		return nil, errors.New("crypto/tls: no certificates configured")
+		return nil, errors.New("tls: no certificates configured")
 	}
 
 	if len(c.Certificates) == 1 || c.NameToCertificate == nil {
