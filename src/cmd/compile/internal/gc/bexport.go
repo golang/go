@@ -182,22 +182,12 @@ func export(out *bufio.Writer, trace bool) int {
 		Fatalf("exporter: local package path not empty: %q", localpkg.Path)
 	}
 	p.pkg(localpkg)
-
-	// write compiler-specific flags
-	// TODO(gri) move this into the compiler-specific export data section
-	{
-		var flags string
-		if safemode != 0 {
-			flags = "safe"
-		}
-		p.string(flags)
-	}
 	if p.trace {
 		p.tracef("\n")
 	}
 
 	// export objects
-
+	//
 	// First, export all exported (package-level) objects; i.e., all objects
 	// in the current exportlist. These objects represent all information
 	// required to import this package and type-check against it; i.e., this
@@ -268,6 +258,12 @@ func export(out *bufio.Writer, trace bool) int {
 		if p.indent != 0 {
 			Fatalf("exporter: incorrect indentation")
 		}
+	}
+
+	// write compiler-specific flags
+	p.bool(safemode != 0)
+	if p.trace {
+		p.tracef("\n")
 	}
 
 	// Phase 2: Export objects added to exportlist during phase 1.

@@ -62,9 +62,6 @@ func Import(in *bufio.Reader) {
 		Fatalf("importer: imported package not found in pkgList[0]")
 	}
 
-	// read compiler-specific flags
-	importpkg.Safe = p.string() == "safe"
-
 	// defer some type-checking until all types are read in completely
 	// (parser.go:import_package)
 	tcok := typecheckok
@@ -73,7 +70,7 @@ func Import(in *bufio.Reader) {
 
 	// read objects
 
-	// Phase 1
+	// phase 1
 	objcount := 0
 	for {
 		tag := p.tagOrIndex()
@@ -91,7 +88,10 @@ func Import(in *bufio.Reader) {
 
 	// --- compiler-specific export data ---
 
-	// Phase 2
+	// read compiler-specific flags
+	importpkg.Safe = p.bool()
+
+	// phase 2
 	objcount = 0
 	for {
 		tag := p.tagOrIndex()
@@ -264,7 +264,7 @@ func (p *importer) obj(tag int) {
 		}
 
 	default:
-		Fatalf("importer: unexpected object tag")
+		Fatalf("importer: unexpected object (tag = %d)", tag)
 	}
 }
 
