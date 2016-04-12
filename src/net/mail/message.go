@@ -570,7 +570,7 @@ func isQtext(c byte) bool {
 	return '!' <= c && c <= '~'
 }
 
-// quoteString renders a string as a RFC5322 quoted-string.
+// quoteString renders a string as an RFC 5322 quoted-string.
 func quoteString(s string) string {
 	var buf bytes.Buffer
 	buf.WriteByte('"')
@@ -594,7 +594,7 @@ func isVchar(c byte) bool {
 }
 
 // isWSP reports whether c is a WSP (white space).
-// WSP is a space or horizontal tab (RFC5234 Appendix B).
+// WSP is a space or horizontal tab (RFC 5234 Appendix B).
 func isWSP(c byte) bool {
 	return c == ' ' || c == '\t'
 }

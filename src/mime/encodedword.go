@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-// A WordEncoder is a RFC 2047 encoded-word encoder.
+// A WordEncoder is an RFC 2047 encoded-word encoder.
 type WordEncoder byte
 
 const (

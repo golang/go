@@ -1747,7 +1747,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 	w.Header().Set("Location", urlStr)
 	w.WriteHeader(code)
 
-	// RFC2616 recommends that a short note "SHOULD" be included in the
+	// RFC 2616 recommends that a short note "SHOULD" be included in the
 	// response because older user agents may not understand 301/307.
 	// Shouldn't send the response for POST or HEAD; that leaves GET.
 	if r.Method == "GET" {
