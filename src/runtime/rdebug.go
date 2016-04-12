@@ -15,9 +15,8 @@ func setMaxStack(in int) (out int) {
 
 //go:linkname setPanicOnFault runtime/debug.setPanicOnFault
 func setPanicOnFault(new bool) (old bool) {
-	mp := acquirem()
-	old = mp.curg.paniconfault
-	mp.curg.paniconfault = new
-	releasem(mp)
+	_g_ := getg()
+	old = _g_.paniconfault
+	_g_.paniconfault = new
 	return old
 }
