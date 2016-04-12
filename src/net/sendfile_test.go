@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	twain       = "../compress/testdata/Mark.Twain-Tom.Sawyer.txt"
+	twain       = "testdata/Mark.Twain-Tom.Sawyer.txt"
 	twainLen    = 387851
 	twainSHA256 = "461eb7cb2d57d293fc680c836464c9125e4382be3596f7d415093ae9db8fcb0e"
 )
 
-func TestSendFile(t *testing.T) {
+func TestSendfile(t *testing.T) {
 	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)
