@@ -249,24 +249,3 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 	}
 	return filterAddrList(filter, ips, inetaddr)
 }
-
-func zoneToString(zone int) string {
-	if zone == 0 {
-		return ""
-	}
-	if ifi, err := InterfaceByIndex(zone); err == nil {
-		return ifi.Name
-	}
-	return uitoa(uint(zone))
-}
-
-func zoneToInt(zone string) int {
-	if zone == "" {
-		return 0
-	}
-	if ifi, err := InterfaceByName(zone); err == nil {
-		return ifi.Index
-	}
-	n, _, _ := dtoi(zone, 0)
-	return n
-}
