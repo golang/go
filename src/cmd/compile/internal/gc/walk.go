@@ -673,7 +673,7 @@ opswitch:
 		walkexprlist(n.List.Slice(), init)
 
 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
-			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.PPC64) {
+			if Thearch.LinkArch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
 				n.Op = OSQRT
 				n.Left = n.List.First()
 				n.List.Set(nil)
@@ -3293,6 +3293,11 @@ func walkrotate(n *Node) *Node {
 
 	// Constants adding to width?
 	w := int(l.Type.Width * 8)
+
+	if Thearch.LinkArch.Family == sys.S390X && w != 32 && w != 64 {
+		// only supports 32-bit and 64-bit rotates
+		return n
+	}
 
 	if Smallintconst(l.Right) && Smallintconst(r.Right) {
 		sl := int(l.Right.Int64())

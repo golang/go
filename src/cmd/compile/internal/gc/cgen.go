@@ -247,7 +247,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		return
 	}
 
-	if Ctxt.Arch.InFamily(sys.AMD64, sys.I386) && n.Addable {
+	if Ctxt.Arch.InFamily(sys.AMD64, sys.I386, sys.S390X) && n.Addable {
 		Thearch.Gmove(n, res)
 		return
 	}
@@ -1829,7 +1829,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		// Some architectures might need a temporary or other help here,
 		// but they don't support direct generation of a bool value yet.
 		// We can fix that as we go.
-		mayNeedTemp := Ctxt.Arch.InFamily(sys.ARM, sys.ARM64, sys.MIPS64, sys.PPC64)
+		mayNeedTemp := Ctxt.Arch.InFamily(sys.ARM, sys.ARM64, sys.MIPS64, sys.PPC64, sys.S390X)
 
 		if genval {
 			if mayNeedTemp {
