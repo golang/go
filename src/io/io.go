@@ -291,6 +291,7 @@ type stringWriter interface {
 
 // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
 // If w implements a WriteString method, it is invoked directly.
+// Otherwise, w.Write is called exactly once.
 func WriteString(w Writer, s string) (n int, err error) {
 	if sw, ok := w.(stringWriter); ok {
 		return sw.WriteString(s)
