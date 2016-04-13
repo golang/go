@@ -150,7 +150,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, os.SEEK_SET)
+	sr.Seek(base, io.SeekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	var ss []byte
 	if f.FileHeader.NumberOfSymbols > 0 {
 		// Get COFF string table, which is located at the end of the COFF symbol table.
-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
+		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), io.SeekStart)
 		var l uint32
 		if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
 			return nil, err
@@ -172,7 +172,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 
 		// Process COFF symbol table.
-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
+		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), io.SeekStart)
 		aux := uint8(0)
 		for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
 			cs := new(COFFSymbol)
@@ -203,7 +203,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read optional header.
-	sr.Seek(base, os.SEEK_SET)
+	sr.Seek(base, io.SeekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
