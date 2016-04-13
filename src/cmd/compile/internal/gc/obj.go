@@ -88,7 +88,7 @@ func dumpobj() {
 	externdcl = tmp
 
 	dumpdata()
-	obj.Writeobjdirect(Ctxt, bout)
+	obj.Writeobjdirect(Ctxt, bout.Writer)
 
 	if writearchive {
 		bout.Flush()

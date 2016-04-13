@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bio implements seekable buffered I/O.
+// Package bio implements common I/O abstractions used within the Go toolchain.
 package bio
 
 import (
