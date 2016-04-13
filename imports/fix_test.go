@@ -823,6 +823,60 @@ func TestFixImports(t *testing.T) {
 	}
 }
 
+// Test for correctly identifying the name of a vendored package when it
+// differs from its directory name. In this test, the import line
+// "mypkg.com/mypkg.v1" would be removed if goimports wasn't able to detect
+// that the package name is "mypkg".
+func TestFixImportsVendorPackage(t *testing.T) {
+	// Skip this test on go versions with no vendor support.
+	if _, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/vendor")); err != nil {
+		t.Skip(err)
+	}
+
+	newGoPath, err := ioutil.TempDir("", "vendortest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(newGoPath)
+
+	vendoredPath := newGoPath + "/src/mypkg.com/outpkg/vendor/mypkg.com/mypkg.v1"
+	if err := os.MkdirAll(vendoredPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	pkgIndexOnce = &sync.Once{}
+	oldGOPATH := build.Default.GOPATH
+	build.Default.GOPATH = newGoPath
+	defer func() {
+		build.Default.GOPATH = oldGOPATH
+	}()
+
+	if err := ioutil.WriteFile(vendoredPath+"/f.go", []byte("package mypkg\nvar Foo = 123\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	input := `package p
+
+import (
+	"fmt"
+
+	"mypkg.com/mypkg.v1"
+)
+
+var (
+	_ = fmt.Print
+	_ = mypkg.Foo
+)
+`
+	buf, err := Process(newGoPath+"/src/mypkg.com/outpkg/toformat.go", []byte(input), &Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(buf); got != input {
+		t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, input)
+	}
+}
+
 func TestFindImportGoPath(t *testing.T) {
 	goroot, err := ioutil.TempDir("", "goimports-")
 	if err != nil {

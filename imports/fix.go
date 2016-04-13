@@ -54,6 +54,12 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 	// decls are the current package imports. key is base package or renamed package.
 	decls := make(map[string]*ast.ImportSpec)
 
+	abs, err := filepath.Abs(filename)
+	if err != nil {
+		return nil, err
+	}
+	srcDir := path.Dir(abs)
+
 	// collect potential uses of packages.
 	var visitor visitFn
 	visitor = visitFn(func(node ast.Node) ast.Visitor {
@@ -65,7 +71,7 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 			if v.Name != nil {
 				decls[v.Name.Name] = v
 			} else {
-				local := importPathToName(strings.Trim(v.Path.Value, `\"`))
+				local := importPathToName(strings.Trim(v.Path.Value, `\"`), srcDir)
 				decls[local] = v
 			}
 		case *ast.SelectorExpr:
@@ -152,17 +158,17 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 var importPathToName = importPathToNameGoPath
 
 // importPathToNameBasic assumes the package name is the base of import path.
-func importPathToNameBasic(importPath string) (packageName string) {
+func importPathToNameBasic(importPath, srcDir string) (packageName string) {
 	return path.Base(importPath)
 }
 
 // importPathToNameGoPath finds out the actual package name, as declared in its .go files.
 // If there's a problem, it falls back to using importPathToNameBasic.
-func importPathToNameGoPath(importPath string) (packageName string) {
-	if buildPkg, err := build.Import(importPath, "", 0); err == nil {
+func importPathToNameGoPath(importPath, srcDir string) (packageName string) {
+	if buildPkg, err := build.Import(importPath, srcDir, 0); err == nil {
 		return buildPkg.Name
 	} else {
-		return importPathToNameBasic(importPath)
+		return importPathToNameBasic(importPath, srcDir)
 	}
 }
 
@@ -260,7 +266,7 @@ func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 		}
 	}
 	if hasGo {
-		shortName := importPathToName(importpath)
+		shortName := importPathToName(importpath, "")
 		pkgIndex.Lock()
 		pkgIndex.m[shortName] = append(pkgIndex.m[shortName], pkg{
 			importpath: importpath,
