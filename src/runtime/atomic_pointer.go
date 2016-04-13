@@ -20,7 +20,7 @@ import (
 //
 //go:nosplit
 func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
-	atomic.Storep1(noescape(ptr), new)
+	atomic.StorepNoWB(noescape(ptr), new)
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
 }
 
@@ -44,7 +44,7 @@ func sync_atomic_StoreUintptr(ptr *uintptr, new uintptr)
 //go:nosplit
 func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	atomic.Storep1(noescape(unsafe.Pointer(ptr)), new)
+	atomic.StorepNoWB(noescape(unsafe.Pointer(ptr)), new)
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 }
 

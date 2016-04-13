@@ -61,5 +61,8 @@ func Store(ptr *uint32, val uint32)
 //go:noescape
 func Store64(ptr *uint64, val uint64)
 
+// StorepNoWB performs *ptr = val atomically and without a write
+// barrier.
+//
 // NO go:noescape annotation; see atomic_pointer.go.
-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer)
+func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
