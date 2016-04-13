@@ -124,10 +124,11 @@ const exportVersion = "v0"
 const exportInlined = true // default: true
 
 type exporter struct {
-	out      *bufio.Writer
-	pkgIndex map[*Pkg]int
-	typIndex map[*Type]int
-	inlined  []*Func
+	out *bufio.Writer
+
+	pkgIndex map[*Pkg]int  // pkg -> pkg index in order of appearance
+	typIndex map[*Type]int // type -> type index in order of appearance
+	funcList []*Func       // in order of appearance
 
 	// debugging support
 	written int // bytes written
@@ -322,26 +323,38 @@ func export(out *bufio.Writer, trace bool) int {
 	// --- inlined function bodies ---
 
 	if p.trace {
-		p.tracef("\n--- inlined function bodies ---\n[ ")
+		p.tracef("\n--- inlined function bodies ---\n")
 		if p.indent != 0 {
 			Fatalf("exporter: incorrect indentation")
 		}
 	}
 
-	// write inlined function bodies
-	p.int(len(p.inlined))
+	// write inlineable function bodies
+	objcount = 0
+	for i, f := range p.funcList {
+		if f != nil {
+			// function has inlineable body:
+			// write index and body
+			if p.trace {
+				p.tracef("\n----\nfunc { %s }\n", Hconv(f.Inl, FmtSharp))
+			}
+			p.int(i)
+			p.stmtList(f.Inl)
+			if p.trace {
+				p.tracef("\n")
+			}
+			objcount++
+		}
+	}
+
+	// indicate end of list
 	if p.trace {
-		p.tracef("]\n")
+		p.tracef("\n")
 	}
-	for _, f := range p.inlined {
-		if p.trace {
-			p.tracef("\n----\nfunc { %s }\n", Hconv(f.Inl, FmtSharp))
-		}
-		p.stmtList(f.Inl)
-		if p.trace {
-			p.tracef("\n")
-		}
-	}
+	p.tag(-1) // invalid index terminates list
+
+	// for self-verification only (redundant)
+	p.int(objcount)
 
 	if p.trace {
 		p.tracef("\n--- end ---\n")
@@ -443,10 +456,9 @@ func (p *exporter) obj(sym *Sym) {
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
 
-			index := -1
+			var f *Func
 			if inlineable {
-				index = len(p.inlined)
-				p.inlined = append(p.inlined, sym.Def.Func)
+				f = sym.Def.Func
 				// TODO(gri) re-examine reexportdeplist:
 				// Because we can trivially export types
 				// in-place, we don't need to collect types
@@ -454,9 +466,9 @@ func (p *exporter) obj(sym *Sym) {
 				// With an adjusted reexportdeplist used only
 				// by the binary exporter, we can also avoid
 				// the global exportlist.
-				reexportdeplist(sym.Def.Func.Inl)
+				reexportdeplist(f.Inl)
 			}
-			p.int(index)
+			p.funcList = append(p.funcList, f)
 		} else {
 			// variable
 			p.tag(varTag)
@@ -563,13 +575,12 @@ func (p *exporter) typ(t *Type) {
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
 
-			index := -1
+			var f *Func
 			if inlineable {
-				index = len(p.inlined)
-				p.inlined = append(p.inlined, mfn.Func)
+				f = mfn.Func
 				reexportdeplist(mfn.Func.Inl)
 			}
-			p.int(index)
+			p.funcList = append(p.funcList, f)
 		}
 
 		if p.trace && len(methods) > 0 {

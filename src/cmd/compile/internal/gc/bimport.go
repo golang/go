@@ -23,9 +23,10 @@ type importer struct {
 	in       *bufio.Reader
 	buf      []byte   // for reading strings
 	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
-	pkgList  []*Pkg
-	typList  []*Type
-	inlined  []*Node // functions with pending inlined function bodies
+
+	pkgList  []*Pkg  // in order of appearance
+	typList  []*Type // in order of appearance
+	funcList []*Node // in order of appearance; nil entry means already declared
 
 	// debugging support
 	debugFormat bool
@@ -107,21 +108,35 @@ func Import(in *bufio.Reader) {
 		Fatalf("importer: got %d objects; want %d", objcount, count)
 	}
 
-	// read inlined functions bodies
+	// read inlineable functions bodies
 	if dclcontext != PEXTERN {
 		Fatalf("importer: unexpected context %d", dclcontext)
 	}
 
-	bcount := p.int() // consistency check only
-	if bcount != len(p.inlined) {
-		Fatalf("importer: expected %d inlined function bodies; got %d", bcount, len(p.inlined))
-	}
-	for _, f := range p.inlined {
+	objcount = 0
+	for i0 := -1; ; {
+		i := p.int() // index of function with inlineable body
+		if i < 0 {
+			break
+		}
+
+		// don't process the same function twice
+		if i <= i0 {
+			Fatalf("importer: index not increasing: %d <= %d", i, i0)
+		}
+		i0 = i
+
 		if Funcdepth != 0 {
 			Fatalf("importer: unexpected Funcdepth %d", Funcdepth)
 		}
-		if f != nil {
-			// function body not yet imported - read body and set it
+
+		// Note: In the original code, funchdr and funcbody are called for
+		// all functions (that were not yet imported). Now, we are calling
+		// them only for functions with inlineable bodies. funchdr does
+		// parameter renaming which doesn't matter if we don't have a body.
+
+		if f := p.funcList[i]; f != nil {
+			// function not yet imported - read body and set it
 			funchdr(f)
 			f.Func.Inl.Set(p.stmtList())
 			funcbody(f)
@@ -131,6 +146,13 @@ func Import(in *bufio.Reader) {
 			p.stmtList()
 			dclcontext = PEXTERN
 		}
+
+		objcount++
+	}
+
+	// self-verification
+	if count := p.int(); count != objcount {
+		Fatalf("importer: got %d functions; want %d", objcount, count)
 	}
 
 	if dclcontext != PEXTERN {
@@ -214,47 +236,23 @@ func (p *importer) obj(tag int) {
 		sym := p.qualifiedName()
 		params := p.paramList()
 		result := p.paramList()
-		inl := p.int()
 
 		sig := functype(nil, params, result)
 		importsym(sym, ONAME)
 		if sym.Def != nil && sym.Def.Op == ONAME {
-			if Eqtype(sig, sym.Def.Type) {
-				// function was imported before (via another import)
-				dclcontext = PDISCARD // since we skip funchdr below
-			} else {
+			// function was imported before (via another import)
+			if !Eqtype(sig, sym.Def.Type) {
 				Fatalf("importer: inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, sig)
 			}
-		}
-
-		var n *Node
-		if dclcontext != PDISCARD {
-			n = newfuncname(sym)
-			n.Type = sig
-			declare(n, PFUNC)
-			if inl < 0 {
-				funchdr(n)
-			}
-		}
-
-		if inl >= 0 {
-			// function has inlined body - collect for later
-			if inl != len(p.inlined) {
-				Fatalf("importer: inlined index = %d; want %d", inl, len(p.inlined))
-			}
-			p.inlined = append(p.inlined, n)
-		}
-
-		// parser.go:hidden_import
-		if dclcontext == PDISCARD {
-			dclcontext = PEXTERN // since we skip the funcbody below
+			p.funcList = append(p.funcList, nil)
 			break
 		}
 
-		if inl < 0 {
-			funcbody(n)
-		}
-		importlist = append(importlist, n) // TODO(gri) may only be needed for inlineable functions
+		n := newfuncname(sym)
+		n.Type = sig
+		declare(n, PFUNC)
+		p.funcList = append(p.funcList, n)
+		importlist = append(importlist, n)
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", importpkg.Path, n)
@@ -316,23 +314,13 @@ func (p *importer) typ() *Type {
 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
 			params := p.paramList()
 			result := p.paramList()
-			inl := p.int()
 
 			n := methodname1(newname(sym), recv[0].Right)
 			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
 			addmethod(sym, n.Type, tsym.Pkg, false, false)
-			if inl < 0 {
-				funchdr(n)
-			}
-
-			if inl >= 0 {
-				// method has inlined body - collect for later
-				if inl != len(p.inlined) {
-					Fatalf("importer: inlined index = %d; want %d", inl, len(p.inlined))
-				}
-				p.inlined = append(p.inlined, n)
-			}
+			p.funcList = append(p.funcList, n)
+			importlist = append(importlist, n)
 
 			// (comment from parser.go)
 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
@@ -340,12 +328,6 @@ func (p *importer) typ() *Type {
 			// out by typecheck's lookdot as this $$.ttype. So by providing
 			// this back link here we avoid special casing there.
 			n.Type.SetNname(n)
-
-			// parser.go:hidden_import
-			if inl < 0 {
-				funcbody(n)
-			}
-			importlist = append(importlist, n) // TODO(gri) may only be needed for inlineable functions
 
 			if Debug['E'] > 0 {
 				fmt.Printf("import [%q] meth %v \n", importpkg.Path, n)
