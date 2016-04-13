@@ -219,7 +219,7 @@
 			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
 			<ul style="list-style: none; padding: 0;">
 			{{range .}}
-			<li><a href="{{posLink_url $ .}}">&#x261e;</a> {{html .Body}}</li>
+			<li><a href="{{posLink_url $ .}}" style="float: left;">&#x261e;</a> {{comment_html .Body}}</li>
 			{{end}}
 			</ul>
 		{{end}}
