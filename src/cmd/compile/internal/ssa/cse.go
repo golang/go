@@ -131,9 +131,7 @@ func cse(f *Func) {
 		}
 	}
 
-	// Compute dominator tree
-	idom := dominators(f)
-	sdom := newSparseTree(f, idom)
+	// Dominator tree (f.sdom) is computed by the generic domtree pass.
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
@@ -143,7 +141,7 @@ func cse(f *Func) {
 			// Find a maximal dominant element in e
 			v := e[0]
 			for _, w := range e[1:] {
-				if sdom.isAncestorEq(w.Block, v.Block) {
+				if f.sdom.isAncestorEq(w.Block, v.Block) {
 					v = w
 				}
 			}
@@ -153,7 +151,7 @@ func cse(f *Func) {
 				w := e[i]
 				if w == v {
 					e, e[i] = e[:len(e)-1], e[len(e)-1]
-				} else if sdom.isAncestorEq(v.Block, w.Block) {
+				} else if f.sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e, e[i] = e[:len(e)-1], e[len(e)-1]
 				} else {
