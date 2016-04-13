@@ -39,7 +39,7 @@ func Store64(ptr *uint64, val uint64) {
 // NO go:noescape annotation; see atomic_pointer.go.
 //go:noinline
 //go:nosplit
-func Storep1(ptr unsafe.Pointer, val unsafe.Pointer) {
+func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer) {
 	*(*uintptr)(ptr) = uintptr(val)
 }
 

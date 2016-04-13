@@ -85,7 +85,7 @@ func Loadp(addr unsafe.Pointer) unsafe.Pointer {
 }
 
 //go:nosplit
-func Storep1(addr unsafe.Pointer, v unsafe.Pointer) {
+func StorepNoWB(addr unsafe.Pointer, v unsafe.Pointer) {
 	for {
 		old := *(*unsafe.Pointer)(addr)
 		if Casp1((*unsafe.Pointer)(addr), old, v) {

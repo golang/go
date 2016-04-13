@@ -155,7 +155,7 @@ TEXT ·Xchg64(SB), NOSPLIT, $0-24
 TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
 	JMP	·Xchg64(SB)
 
-TEXT ·Storep1(SB), NOSPLIT, $0-16
+TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 	JMP	·Store64(SB)
 
 TEXT ·Store(SB), NOSPLIT, $0-12

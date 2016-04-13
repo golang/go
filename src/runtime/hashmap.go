@@ -1075,8 +1075,8 @@ func mapzero(t *_type) {
 				throw("map element too large")
 			}
 		}
-		atomic.Storep1(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
-		atomic.Storep1(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
+		atomic.StorepNoWB(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
+		atomic.StorepNoWB(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
 	}
 	unlock(&zerolock)
 }
