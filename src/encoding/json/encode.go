@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package json implements encoding and decoding of JSON objects as defined in
-// RFC 4627. The mapping between JSON objects and Go values is described
+// Package json implements encoding and decoding of JSON as defined in
+// RFC 4627. The mapping between JSON and Go values is described
 // in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
@@ -52,7 +52,7 @@ import (
 //
 // Array and slice values encode as JSON arrays, except that
 // []byte encodes as a base64-encoded string, and a nil slice
-// encodes as the null JSON object.
+// encodes as the null JSON value.
 //
 // Struct values encode as JSON objects. Each exported struct field
 // becomes a member of the object unless
@@ -121,10 +121,10 @@ import (
 // keys, subject to the UTF-8 coercion described for string values above.
 //
 // Pointer values encode as the value pointed to.
-// A nil pointer encodes as the null JSON object.
+// A nil pointer encodes as the null JSON value.
 //
 // Interface values encode as the value contained in the interface.
-// A nil interface value encodes as the null JSON object.
+// A nil interface value encodes as the null JSON value.
 //
 // Channel, complex, and function values cannot be encoded in JSON.
 // Attempting to encode such a value causes Marshal to return
@@ -192,7 +192,7 @@ func HTMLEscape(dst *bytes.Buffer, src []byte) {
 	}
 }
 
-// Marshaler is the interface implemented by objects that
+// Marshaler is the interface implemented by types that
 // can marshal themselves into valid JSON.
 type Marshaler interface {
 	MarshalJSON() ([]byte, error)
