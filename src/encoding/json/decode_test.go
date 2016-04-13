@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"math"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -53,6 +55,8 @@ type tx struct {
 	x int
 }
 
+type u8 uint8
+
 // A type that can unmarshal itself.
 
 type unmarshaler struct {
@@ -91,6 +95,29 @@ var _ encoding.TextUnmarshaler = (*unmarshalerText)(nil)
 type ustructText struct {
 	M unmarshalerText
 }
+
+// u8marshal is an integer type that can marshal/unmarshal itself.
+type u8marshal uint8
+
+func (u8 u8marshal) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("u%d", u8)), nil
+}
+
+var errMissingU8Prefix = errors.New("missing 'u' prefix")
+
+func (u8 *u8marshal) UnmarshalText(b []byte) error {
+	if !bytes.HasPrefix(b, []byte{'u'}) {
+		return errMissingU8Prefix
+	}
+	n, err := strconv.Atoi(string(b[1:]))
+	if err != nil {
+		return err
+	}
+	*u8 = u8marshal(n)
+	return nil
+}
+
+var _ encoding.TextUnmarshaler = (*u8marshal)(nil)
 
 var (
 	um0, um1 unmarshaler // target2 of unmarshaling
@@ -320,7 +347,69 @@ var unmarshalTests = []unmarshalTest{
 	{in: `["x:y"]`, ptr: &umslicepType, out: &umsliceXY},
 	{in: `{"M":"x:y"}`, ptr: umstructType, out: umstructXY},
 
-	// Map keys can be encoding.TextUnmarshalers
+	// integer-keyed map test
+	{
+		in:  `{"-1":"a","0":"b","1":"c"}`,
+		ptr: new(map[int]string),
+		out: map[int]string{-1: "a", 0: "b", 1: "c"},
+	},
+	{
+		in:  `{"0":"a","10":"c","9":"b"}`,
+		ptr: new(map[u8]string),
+		out: map[u8]string{0: "a", 9: "b", 10: "c"},
+	},
+	{
+		in:  `{"-9223372036854775808":"min","9223372036854775807":"max"}`,
+		ptr: new(map[int64]string),
+		out: map[int64]string{math.MinInt64: "min", math.MaxInt64: "max"},
+	},
+	{
+		in:  `{"18446744073709551615":"max"}`,
+		ptr: new(map[uint64]string),
+		out: map[uint64]string{math.MaxUint64: "max"},
+	},
+	{
+		in:  `{"0":false,"10":true}`,
+		ptr: new(map[uintptr]bool),
+		out: map[uintptr]bool{0: false, 10: true},
+	},
+
+	// Check that MarshalText and UnmarshalText take precedence
+	// over default integer handling in map keys.
+	{
+		in:  `{"u2":4}`,
+		ptr: new(map[u8marshal]int),
+		out: map[u8marshal]int{2: 4},
+	},
+	{
+		in:  `{"2":4}`,
+		ptr: new(map[u8marshal]int),
+		err: errMissingU8Prefix,
+	},
+
+	// integer-keyed map errors
+	{
+		in:  `{"abc":"abc"}`,
+		ptr: new(map[int]string),
+		err: &UnmarshalTypeError{"number abc", reflect.TypeOf(0), 2},
+	},
+	{
+		in:  `{"256":"abc"}`,
+		ptr: new(map[uint8]string),
+		err: &UnmarshalTypeError{"number 256", reflect.TypeOf(uint8(0)), 2},
+	},
+	{
+		in:  `{"128":"abc"}`,
+		ptr: new(map[int8]string),
+		err: &UnmarshalTypeError{"number 128", reflect.TypeOf(int8(0)), 2},
+	},
+	{
+		in:  `{"-1":"abc"}`,
+		ptr: new(map[uint8]string),
+		err: &UnmarshalTypeError{"number -1", reflect.TypeOf(uint8(0)), 2},
+	},
+
+	// Map keys can be encoding.TextUnmarshalers.
 	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
 	// If multiple values for the same key exists, only the most recent value is used.
 	{in: `{"x:y":false,"x:y":true}`, ptr: &ummapType, out: ummapXY},

@@ -117,9 +117,13 @@ import (
 // an anonymous struct field in both current and earlier versions, give the field
 // a JSON tag of "-".
 //
-// Map values encode as JSON objects. The map's key type must either be a string
-// or implement encoding.TextMarshaler.  The map keys are used as JSON object
-// keys, subject to the UTF-8 coercion described for string values above.
+// Map values encode as JSON objects. The map's key type must either be a
+// string, an integer type, or implement encoding.TextMarshaler. The map keys
+// are used as JSON object keys by applying the following rules, subject to the
+// UTF-8 coercion described for string values above:
+//   - string keys are used directly
+//   - encoding.TextMarshalers are marshaled
+//   - integer keys are converted to strings
 //
 // Pointer values encode as the value pointed to.
 // A nil pointer encodes as the null JSON value.
@@ -644,8 +648,14 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func newMapEncoder(t reflect.Type) encoderFunc {
-	if t.Key().Kind() != reflect.String && !t.Key().Implements(textMarshalerType) {
-		return unsupportedTypeEncoder
+	switch t.Key().Kind() {
+	case reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+	default:
+		if !t.Key().Implements(textMarshalerType) {
+			return unsupportedTypeEncoder
+		}
 	}
 	me := &mapEncoder{typeEncoder(t.Elem())}
 	return me.encode
@@ -806,9 +816,20 @@ func (w *reflectWithString) resolve() error {
 		w.s = w.v.String()
 		return nil
 	}
-	buf, err := w.v.Interface().(encoding.TextMarshaler).MarshalText()
-	w.s = string(buf)
-	return err
+	if tm, ok := w.v.Interface().(encoding.TextMarshaler); ok {
+		buf, err := tm.MarshalText()
+		w.s = string(buf)
+		return err
+	}
+	switch w.v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		w.s = strconv.FormatInt(w.v.Int(), 10)
+		return nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		w.s = strconv.FormatUint(w.v.Uint(), 10)
+		return nil
+	}
+	panic("unexpected map key type")
 }
 
 // byString is a slice of reflectWithString where the reflect.Value is either
