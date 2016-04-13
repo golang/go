@@ -6,11 +6,23 @@ package runtime
 
 import "unsafe"
 
-//extern SigTabTT runtime·sigtab[];
+type mOS struct {
+	machport uint32 // return address for mach ipc
+	waitsema uint32 // semaphore for parking on locks
+}
 
-type sigset uint32
+func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+func bsdthread_register() int32
 
-var sigset_all = ^sigset(0)
+//go:noescape
+func mach_msg_trap(h unsafe.Pointer, op int32, send_size, rcv_size, rcv_name, timeout, notify uint32) int32
+
+func mach_reply_port() uint32
+func mach_task_self() uint32
+func mach_thread_self() uint32
+
+//go:noescape
+func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
 func unimplemented(name string) {
 	println(name, "not implemented")
@@ -472,6 +484,38 @@ func memlimit() uintptr {
 	// the limit.
 	return 0
 }
+
+const (
+	_NSIG        = 32
+	_SI_USER     = 0 /* empirically true, but not what headers say */
+	_SIG_BLOCK   = 1
+	_SIG_UNBLOCK = 2
+	_SIG_SETMASK = 3
+	_SS_DISABLE  = 4
+)
+
+//go:noescape
+func sigprocmask(how uint32, new, old *sigset)
+
+//go:noescape
+func sigaction(mode uint32, new *sigactiont, old *usigactiont)
+
+//go:noescape
+func sigaltstack(new, old *stackt)
+
+func sigtramp()
+
+//go:noescape
+func setitimer(mode int32, new, old *itimerval)
+
+func raise(sig int32)
+func raiseproc(int32)
+
+//extern SigTabTT runtime·sigtab[];
+
+type sigset uint32
+
+var sigset_all = ^sigset(0)
 
 //go:nosplit
 //go:nowritebarrierrec
