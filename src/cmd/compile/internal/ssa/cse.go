@@ -255,6 +255,14 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
 		return lt2Cmp(v.Block.ID < w.Block.ID)
 	}
 
+	switch v.Op {
+	case OpStaticCall, OpAMD64CALLstatic, OpARMCALLstatic:
+		sym := v.Aux.(GCSym)
+		if sym.IsRuntimeCall("newobject") {
+			return lt2Cmp(v.ID < w.ID)
+		}
+	}
+
 	if tc := v.Type.Compare(w.Type); tc != CMPeq {
 		return tc
 	}
