@@ -1619,14 +1619,13 @@ func writelines(prev *LSym) *LSym {
  *  Emit .debug_frame
  */
 const (
-	CIERESERVE          = 16
-	DATAALIGNMENTFACTOR = -4
+	dataAlignmentFactor = -4
 )
 
 // appendPCDeltaCFA appends per-PC CFA deltas to b and returns the final slice.
 func appendPCDeltaCFA(b []byte, deltapc, cfa int64) []byte {
 	b = append(b, DW_CFA_def_cfa_offset_sf)
-	b = appendSleb128(b, cfa/DATAALIGNMENTFACTOR)
+	b = appendSleb128(b, cfa/dataAlignmentFactor)
 
 	switch {
 	case deltapc < 0x40:
@@ -1654,36 +1653,42 @@ func writeframes(prev *LSym) *LSym {
 	prev.Next = fs
 
 	// Emit the CIE, Section 6.4.1
-	Adduint32(Ctxt, fs, CIERESERVE)           // initial length, must be multiple of thearch.ptrsize
+	cieReserve := uint32(16)
+	if haslinkregister() {
+		cieReserve = 32
+	}
+	Adduint32(Ctxt, fs, cieReserve)           // initial length, must be multiple of pointer size
 	Adduint32(Ctxt, fs, 0xffffffff)           // cid.
 	Adduint8(Ctxt, fs, 3)                     // dwarf version (appendix F)
 	Adduint8(Ctxt, fs, 0)                     // augmentation ""
 	uleb128put(fs, 1)                         // code_alignment_factor
-	sleb128put(fs, DATAALIGNMENTFACTOR)       // guess
+	sleb128put(fs, dataAlignmentFactor)       // all CFI offset calculations include multiplication with this factor
 	uleb128put(fs, int64(Thearch.Dwarfreglr)) // return_address_register
 
-	Adduint8(Ctxt, fs, DW_CFA_def_cfa)
-
-	uleb128put(fs, int64(Thearch.Dwarfregsp)) // register SP (**ABI-dependent, defined in l.h)
+	Adduint8(Ctxt, fs, DW_CFA_def_cfa)        // Set the current frame address..
+	uleb128put(fs, int64(Thearch.Dwarfregsp)) // ...to use the value in the platform's SP register (defined in l.go)...
 	if haslinkregister() {
-		uleb128put(fs, int64(0)) // offset
-	} else {
-		uleb128put(fs, int64(SysArch.PtrSize)) // offset
-	}
+		uleb128put(fs, int64(0)) // ...plus a 0 offset.
 
-	Adduint8(Ctxt, fs, DW_CFA_offset_extended)
-	uleb128put(fs, int64(Thearch.Dwarfreglr)) // return address
-	if haslinkregister() {
-		uleb128put(fs, int64(0)/DATAALIGNMENTFACTOR) // at cfa - 0
+		Adduint8(Ctxt, fs, DW_CFA_same_value) // The platform's link register is unchanged during the prologue.
+		uleb128put(fs, int64(Thearch.Dwarfreglr))
+
+		Adduint8(Ctxt, fs, DW_CFA_val_offset)     // The previous value...
+		uleb128put(fs, int64(Thearch.Dwarfregsp)) // ...of the platform's SP register...
+		uleb128put(fs, int64(0))                  // ...is CFA+0.
 	} else {
-		uleb128put(fs, int64(-SysArch.PtrSize)/DATAALIGNMENTFACTOR) // at cfa - x*4
+		uleb128put(fs, int64(SysArch.PtrSize)) // ...plus the word size (because the call instruction implicitly adds one word to the frame).
+
+		Adduint8(Ctxt, fs, DW_CFA_offset_extended)                  // The previous value...
+		uleb128put(fs, int64(Thearch.Dwarfreglr))                   // ...of the return address...
+		uleb128put(fs, int64(-SysArch.PtrSize)/dataAlignmentFactor) // ...is saved at [CFA - (PtrSize/4)].
 	}
 
 	// 4 is to exclude the length field.
-	pad := CIERESERVE + 4 - fs.Size
+	pad := int64(cieReserve) + 4 - fs.Size
 
 	if pad < 0 {
-		Exitf("dwarf: CIERESERVE too small by %d bytes.", -pad)
+		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
 	}
 
 	Addbytes(Ctxt, fs, zeros[:pad])
@@ -1712,6 +1717,21 @@ func writeframes(prev *LSym) *LSym {
 			}
 
 			if haslinkregister() {
+				// TODO(bryanpkc): This is imprecise. In general, the instruction
+				// that stores the return address to the stack frame is not the
+				// same one that allocates the frame.
+				if pcsp.value > 0 {
+					// The return address is preserved at (CFA-frame_size)
+					// after a stack frame has been allocated.
+					deltaBuf = append(deltaBuf, DW_CFA_offset_extended_sf)
+					deltaBuf = appendUleb128(deltaBuf, uint64(Thearch.Dwarfreglr))
+					deltaBuf = appendSleb128(deltaBuf, -int64(pcsp.value)/dataAlignmentFactor)
+				} else {
+					// The return address is restored into the link register
+					// when a stack frame has been de-allocated.
+					deltaBuf = append(deltaBuf, DW_CFA_same_value)
+					deltaBuf = appendUleb128(deltaBuf, uint64(Thearch.Dwarfreglr))
+				}
 				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(pcsp.value))
 			} else {
 				deltaBuf = appendPCDeltaCFA(deltaBuf, int64(nextpc)-int64(pcsp.pc), int64(SysArch.PtrSize)+int64(pcsp.value))
