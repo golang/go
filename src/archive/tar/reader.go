@@ -13,7 +13,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -523,10 +522,10 @@ func (tr *Reader) skipUnread() error {
 		// io.Seeker, but calling Seek always returns an error and performs
 		// no action. Thus, we try an innocent seek to the current position
 		// to see if Seek is really supported.
-		pos1, err := sr.Seek(0, os.SEEK_CUR)
+		pos1, err := sr.Seek(0, io.SeekCurrent)
 		if err == nil {
 			// Seek seems supported, so perform the real Seek.
-			pos2, err := sr.Seek(dataSkip-1, os.SEEK_CUR)
+			pos2, err := sr.Seek(dataSkip-1, io.SeekCurrent)
 			if err != nil {
 				tr.err = err
 				return tr.err
