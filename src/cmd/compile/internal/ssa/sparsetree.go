@@ -116,6 +116,9 @@ func (t sparseTree) Child(x *Block) *Block {
 
 // isAncestorEq reports whether x is an ancestor of or equal to y.
 func (t sparseTree) isAncestorEq(x, y *Block) bool {
+	if x == y {
+		return true
+	}
 	xx := &t[x.ID]
 	yy := &t[y.ID]
 	return xx.entry <= yy.entry && yy.exit <= xx.exit
@@ -123,7 +126,16 @@ func (t sparseTree) isAncestorEq(x, y *Block) bool {
 
 // isAncestor reports whether x is a strict ancestor of y.
 func (t sparseTree) isAncestor(x, y *Block) bool {
+	if x == y {
+		return false
+	}
 	xx := &t[x.ID]
 	yy := &t[y.ID]
 	return xx.entry < yy.entry && yy.exit < xx.exit
+}
+
+// maxdomorder returns a value to allow a maximal dominator first sort.  maxdomorder(x) < maxdomorder(y) is true
+// if x may dominate y, and false if x cannot dominate y.
+func (t sparseTree) maxdomorder(x *Block) int32 {
+	return t[x.ID].entry
 }
