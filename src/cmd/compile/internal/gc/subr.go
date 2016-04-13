@@ -540,8 +540,15 @@ func treecopy(n *Node, lineno int32) *Node {
 		}
 		return n
 
+	case OPACK:
+		// OPACK nodes are never valid in const value declarations,
+		// but allow them like any other declared symbol to avoid
+		// crashing (golang.org/issue/11361).
+		fallthrough
+
 	case ONAME, OLITERAL, OTYPE:
 		return n
+
 	}
 }
 
