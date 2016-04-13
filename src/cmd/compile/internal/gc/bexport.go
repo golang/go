@@ -350,7 +350,7 @@ func export(out *bufio.Writer, trace bool) int {
 	if p.trace {
 		p.tracef("\n")
 	}
-	p.tag(-1) // invalid index terminates list
+	p.int(-1) // invalid index terminates list
 
 	// for self-verification only (redundant)
 	p.int(objcount)
