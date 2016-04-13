@@ -59,9 +59,6 @@ func Import(in *bufio.Reader) {
 
 	// read package data
 	p.pkg()
-	if p.pkgList[0] != importpkg {
-		Fatalf("importer: imported package not found in pkgList[0]")
-	}
 
 	// defer some type-checking until all types are read in completely
 	// (parser.go:import_package)
@@ -193,7 +190,12 @@ func (p *importer) pkg() *Pkg {
 		Fatalf("importer: bad path in import: %q", path)
 	}
 
-	// an empty path denotes the package we are currently importing
+	// an empty path denotes the package we are currently importing;
+	// it must be the first package we see
+	if (path == "") != (len(p.pkgList) == 0) {
+		panic(fmt.Sprintf("package path %q for pkg index %d", path, len(p.pkgList)))
+	}
+
 	pkg := importpkg
 	if path != "" {
 		pkg = mkpkg(path)
