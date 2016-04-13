@@ -162,7 +162,7 @@ func checkFunc(f *Func) {
 			// variable length args)
 			nArgs := opcodeTable[v.Op].argLen
 			if nArgs != -1 && int32(len(v.Args)) != nArgs {
-				f.Fatalf("value %v has %d args, expected %d", v.LongString(),
+				f.Fatalf("value %s has %d args, expected %d", v.LongString(),
 					len(v.Args), nArgs)
 			}
 
@@ -207,15 +207,15 @@ func checkFunc(f *Func) {
 				f.Fatalf("unknown aux type for %s", v.Op)
 			}
 			if !canHaveAux && v.Aux != nil {
-				f.Fatalf("value %v has an Aux value %v but shouldn't", v.LongString(), v.Aux)
+				f.Fatalf("value %s has an Aux value %v but shouldn't", v.LongString(), v.Aux)
 			}
 			if !canHaveAuxInt && v.AuxInt != 0 {
-				f.Fatalf("value %v has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
+				f.Fatalf("value %s has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
 			}
 
 			for _, arg := range v.Args {
 				if arg == nil {
-					f.Fatalf("value %v has nil arg", v.LongString())
+					f.Fatalf("value %s has nil arg", v.LongString())
 				}
 			}
 
@@ -271,7 +271,7 @@ func checkFunc(f *Func) {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
 				if !valueMark[a.ID] {
-					f.Fatalf("%v, arg %d of %v, is missing", a, i, v)
+					f.Fatalf("%v, arg %d of %s, is missing", a, i, v.LongString())
 				}
 			}
 		}
