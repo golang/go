@@ -53,9 +53,9 @@ func sync_atomic_SwapUintptr(ptr *uintptr, new uintptr) uintptr
 
 //go:linkname sync_atomic_SwapPointer sync/atomic.SwapPointer
 //go:nosplit
-func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
-	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(ptr)), uintptr(new)))
-	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+func sync_atomic_SwapPointer(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(unsafe.Pointer(ptr))), uintptr(new)))
+	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 	return old
 }
 
