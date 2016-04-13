@@ -59,9 +59,8 @@ Encoding format:
 
 The export data starts with a single byte indicating the encoding format
 (compact, or with debugging information), followed by a version string
-(so we can evolve the encoding if need be), the name of the imported
-package, and a string containing platform-specific information for that
-package.
+(so we can evolve the encoding if need be), and then the package object
+for the exported package (with an empty path).
 
 After this header, two lists of objects and the list of inlined function
 bodies follows.

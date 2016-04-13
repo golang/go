@@ -16,12 +16,15 @@ import (
 )
 
 type importer struct {
-	imports  map[string]*types.Package
-	data     []byte
+	imports map[string]*types.Package
+	data    []byte
+	path    string
+
 	buf      []byte   // for reading strings
 	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
-	pkgList  []*types.Package
-	typList  []types.Type
+
+	pkgList []*types.Package
+	typList []types.Type
 
 	debugFormat bool
 	read        int // bytes read
@@ -35,6 +38,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	p := importer{
 		imports: imports,
 		data:    data,
+		path:    path,
 	}
 	p.buf = p.bufarray[:]
 
@@ -58,25 +62,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	p.typList = append(p.typList, predeclared...)
 
 	// read package data
-	// TODO(gri) clean this up
-	i := p.tagOrIndex()
-	if i != packageTag {
-		panic(fmt.Sprintf("package tag expected, got %d", i))
-	}
-	name := p.string()
-	if s := p.string(); s != "" {
-		panic(fmt.Sprintf("empty path expected, got %s", s))
-	}
-	pkg := p.imports[path]
-	if pkg == nil {
-		pkg = types.NewPackage(path, name)
-		p.imports[path] = pkg
-	}
-	p.pkgList = append(p.pkgList, pkg)
-
-	if debug && p.pkgList[0] != pkg {
-		panic("imported packaged not found in pkgList[0]")
-	}
+	pkg := p.pkg()
 
 	// read objects of phase 1 only (see cmd/compiler/internal/gc/bexport.go)
 	objcount := 0
@@ -91,7 +77,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 
 	// self-verification
 	if count := p.int(); count != objcount {
-		panic(fmt.Sprintf("importer: got %d objects; want %d", objcount, count))
+		panic(fmt.Sprintf("got %d objects; want %d", objcount, count))
 	}
 
 	// ignore compiler-specific import data
@@ -135,16 +121,22 @@ func (p *importer) pkg() *types.Package {
 		panic("empty package name in import")
 	}
 
-	// we should never see an empty import path
-	if path == "" {
-		panic("empty import path")
+	// an empty path denotes the package we are currently importing;
+	// it must be the first package we see
+	if (path == "") != (len(p.pkgList) == 0) {
+		panic(fmt.Sprintf("package path %q for pkg index %d", path, len(p.pkgList)))
 	}
 
 	// if the package was imported before, use that one; otherwise create a new one
+	if path == "" {
+		path = p.path
+	}
 	pkg := p.imports[path]
 	if pkg == nil {
 		pkg = types.NewPackage(path, name)
 		p.imports[path] = pkg
+	} else if pkg.Name() != name {
+		panic(fmt.Sprintf("conflicting names %s and %s for package %q", pkg.Name(), name, path))
 	}
 	p.pkgList = append(p.pkgList, pkg)
 
