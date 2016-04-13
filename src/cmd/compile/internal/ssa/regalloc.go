@@ -96,7 +96,12 @@
 // there is one spill site (one StoreReg) targeting stack slot X, after
 // sinking there may be multiple spill sites targeting stack slot X,
 // with no phi functions at any join points reachable by the multiple
-// spill sites.
+// spill sites.  In addition, uses of the spill from copies of the original
+// will not name the copy in their reference; instead they will name
+// the original, though both will have the same spill location.  The
+// first sunk spill will be the original, but moved, to an exit block,
+// thus ensuring that there is a definition somewhere corresponding to
+// the original spill's uses.
 
 package ssa
 
@@ -1354,6 +1359,7 @@ sinking:
 		}
 		b.Values = b.Values[:i]
 
+		first := true
 		for i := uint(0); i < 32 && dests != 0; i++ {
 
 			if dests&(1<<i) == 0 {
@@ -1363,18 +1369,28 @@ sinking:
 			dests ^= 1 << i
 
 			d := loop.exits[i]
-			vspnew := d.NewValue1(e.Line, OpStoreReg, e.Type, e)
-
-			if s.f.pass.debug > moveSpills {
-				s.f.Config.Warnl(e.Line, "moved spill %v in %v for %v to %v in %v",
-					vsp, b, e, vspnew, d)
+			vspnew := vsp // reuse original for first sunk spill, saves tracking down and renaming uses
+			if !first {   // any sunk spills after first must make a copy
+				vspnew = d.NewValue1(e.Line, OpStoreReg, e.Type, e)
+				f.setHome(vspnew, f.getHome(vsp.ID)) // copy stack home
+				if s.f.pass.debug > moveSpills {
+					s.f.Config.Warnl(e.Line, "copied spill %v in %v for %v to %v in %v",
+						vsp, b, e, vspnew, d)
+				}
+			} else {
+				first = false
+				vspnew.Block = d
+				d.Values = append(d.Values, vspnew)
+				if s.f.pass.debug > moveSpills {
+					s.f.Config.Warnl(e.Line, "moved spill %v in %v for %v to %v in %v",
+						vsp, b, e, vspnew, d)
+				}
 			}
-
-			f.setHome(vspnew, f.getHome(vsp.ID)) // copy stack home
 
 			// shuffle vspnew to the beginning of its block
 			copy(d.Values[1:], d.Values[0:len(d.Values)-1])
 			d.Values[0] = vspnew
+
 		}
 	}
 
