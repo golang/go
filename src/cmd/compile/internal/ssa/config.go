@@ -116,6 +116,12 @@ type GCNode interface {
 	String() string
 }
 
+// GCSym is an interface that *gc.Sym implements.
+// Using *gc.Sym directly would lead to import cycles.
+type GCSym interface {
+	IsRuntimeCall(name string) bool
+}
+
 // NewConfig returns a new configuration object for the given architecture.
 func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, fe: fe}

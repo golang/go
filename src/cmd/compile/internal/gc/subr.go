@@ -1081,6 +1081,10 @@ func syslook(name string) *Node {
 	return s.Def
 }
 
+func (s *Sym) IsRuntimeCall(name string) bool {
+	return s.Pkg == Runtimepkg && s.Name == name
+}
+
 // typehash computes a hash value for type t to use in type switch
 // statements.
 func typehash(t *Type) uint32 {
