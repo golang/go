@@ -44,7 +44,6 @@ func sync_atomic_StoreUintptr(ptr *uintptr, new uintptr)
 //go:nosplit
 func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	atomic.StorepNoWB(noescape(unsafe.Pointer(ptr)), new)
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 }
 
