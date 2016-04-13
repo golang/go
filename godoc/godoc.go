@@ -587,7 +587,7 @@ func startsWithUppercase(s string) bool {
 	return unicode.IsUpper(r)
 }
 
-var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
+var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*(unordered )?output:`)
 
 // stripExampleSuffix strips lowercase braz in Foo_braz or Foo_Bar_braz from name
 // while keeping uppercase Braz in Foo_Braz.
