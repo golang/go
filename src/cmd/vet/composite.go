@@ -68,8 +68,10 @@ func checkUnkeyedLiteral(f *File, node ast.Node) {
 	allKeyValue := true
 	for _, e := range c.Elts {
 		if _, ok := e.(*ast.KeyValueExpr); !ok {
-			allKeyValue = false
-			break
+			if cl, ok := e.(*ast.CompositeLit); !ok || cl.Type != nil {
+				allKeyValue = false
+				break
+			}
 		}
 	}
 	if allKeyValue {
