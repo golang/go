@@ -384,33 +384,19 @@ func symtab() {
 		symtyperel = s
 	}
 
-	s = Linklookup(Ctxt, "go.string.*", 0)
-	s.Type = obj.SGOSTRING
-	s.Attr |= AttrLocal
-	s.Size = 0
-	s.Attr |= AttrReachable
-	symgostring := s
-
-	s = Linklookup(Ctxt, "go.string.hdr.*", 0)
-	s.Type = obj.SGOSTRINGHDR
-	s.Attr |= AttrLocal
-	s.Size = 0
-	s.Attr |= AttrReachable
-	symgostringhdr := s
-
-	s = Linklookup(Ctxt, "go.func.*", 0)
-	s.Type = obj.SGOFUNC
-	s.Attr |= AttrLocal
-	s.Size = 0
-	s.Attr |= AttrReachable
-	symgofunc := s
-
-	s = Linklookup(Ctxt, "runtime.gcbits.*", 0)
-	s.Type = obj.SGCBITS
-	s.Attr |= AttrLocal
-	s.Size = 0
-	s.Attr |= AttrReachable
-	symgcbits := s
+	groupSym := func(name string, t int16) *LSym {
+		s := Linklookup(Ctxt, name, 0)
+		s.Type = t
+		s.Size = 0
+		s.Attr |= AttrLocal | AttrReachable
+		return s
+	}
+	var (
+		symgostring    = groupSym("go.string.*", obj.SGOSTRING)
+		symgostringhdr = groupSym("go.string.hdr.*", obj.SGOSTRINGHDR)
+		symgofunc      = groupSym("go.func.*", obj.SGOFUNC)
+		symgcbits      = groupSym("runtime.gcbits.*", obj.SGCBITS)
+	)
 
 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
 	symtypelink.Type = obj.STYPELINK
@@ -436,7 +422,8 @@ func symtab() {
 			continue
 		}
 
-		if strings.HasPrefix(s.Name, "type.") {
+		switch {
+		case strings.HasPrefix(s.Name, "type."):
 			if !DynlinkingGo() {
 				s.Attr |= AttrHidden
 			}
@@ -447,23 +434,20 @@ func symtab() {
 				s.Type = obj.STYPE
 				s.Outer = symtype
 			}
-		}
 
-		if strings.HasPrefix(s.Name, "go.typelink.") {
+		case strings.HasPrefix(s.Name, "go.typelink."):
 			ntypelinks++
 			s.Type = obj.STYPELINK
 			s.Attr |= AttrHidden
 			s.Outer = symtypelink
-		}
 
-		if strings.HasPrefix(s.Name, "go.itablink.") {
+		case strings.HasPrefix(s.Name, "go.itablink."):
 			nitablinks++
 			s.Type = obj.SITABLINK
 			s.Attr |= AttrHidden
 			s.Outer = symitablink
-		}
 
-		if strings.HasPrefix(s.Name, "go.string.") {
+		case strings.HasPrefix(s.Name, "go.string."):
 			s.Type = obj.SGOSTRING
 			s.Attr |= AttrHidden
 			s.Outer = symgostring
@@ -471,21 +455,18 @@ func symtab() {
 				s.Type = obj.SGOSTRINGHDR
 				s.Outer = symgostringhdr
 			}
-		}
 
-		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+		case strings.HasPrefix(s.Name, "runtime.gcbits."):
 			s.Type = obj.SGCBITS
 			s.Attr |= AttrHidden
 			s.Outer = symgcbits
-		}
 
-		if strings.HasPrefix(s.Name, "go.func.") {
+		case strings.HasPrefix(s.Name, "go.func."):
 			s.Type = obj.SGOFUNC
 			s.Attr |= AttrHidden
 			s.Outer = symgofunc
-		}
 
-		if strings.HasPrefix(s.Name, "gcargs.") || strings.HasPrefix(s.Name, "gclocals.") || strings.HasPrefix(s.Name, "gclocals·") {
+		case strings.HasPrefix(s.Name, "gcargs."), strings.HasPrefix(s.Name, "gclocals."), strings.HasPrefix(s.Name, "gclocals·"):
 			s.Type = obj.SGOFUNC
 			s.Attr |= AttrHidden
 			s.Outer = symgofunc
