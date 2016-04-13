@@ -177,7 +177,6 @@ func (p *exporter) obj(obj types.Object) {
 		sig := obj.Type().(*types.Signature)
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
-		p.int(-1) // no inlined function bodies
 
 	default:
 		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
@@ -300,7 +299,6 @@ func (p *exporter) assocMethods(named *types.Named) {
 		p.paramList(types.NewTuple(sig.Recv()), false)
 		p.paramList(sig.Params(), sig.Variadic())
 		p.paramList(sig.Results(), false)
-		p.int(-1) // no inlining
 	}
 
 	if trace && methods != nil {
