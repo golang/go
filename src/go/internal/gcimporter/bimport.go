@@ -186,7 +186,6 @@ func (p *importer) obj(tag int) {
 		params, isddd := p.paramList()
 		result, _ := p.paramList()
 		sig := types.NewSignature(nil, params, result, isddd)
-		p.int() // read and discard index of inlined function body
 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
 
 	default:
@@ -269,7 +268,6 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			recv, _ := p.paramList() // TODO(gri) do we need a full param list for the receiver?
 			params, isddd := p.paramList()
 			result, _ := p.paramList()
-			p.int() // read and discard index of inlined function body
 
 			sig := types.NewSignature(recv.At(0), params, result, isddd)
 			t0.AddMethod(types.NewFunc(token.NoPos, parent, name, sig))
