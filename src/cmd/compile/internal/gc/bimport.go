@@ -626,6 +626,10 @@ func (p *importer) float(x *Mpflt) {
 // re-establish the syntax tree's invariants. At some future point we might be
 // able to avoid this round-about way and create the rewritten nodes directly,
 // possibly avoiding a lot of duplicate work (name resolution, type checking).
+//
+// Refined nodes (e.g., ODOTPTR as a refinement of OXDOT) are exported as their
+// unrefined nodes (since this is what the importer uses). The respective case
+// entries are unreachable in the importer.
 
 func (p *importer) stmtList() []*Node {
 	var list []*Node
@@ -871,14 +875,11 @@ func (p *importer) node() *Node {
 	// case ODCLFIELD:
 	//	unimplemented
 
-	case OAS, OASWB:
-		if p.bool() {
-			lhs := p.expr()
-			rhs := p.expr()
-			return Nod(OAS, lhs, rhs)
-		}
-		// TODO(gri) we should not have emitted anything here
-		return Nod(OEMPTY, nil, nil)
+	// case OAS, OASWB:
+	// 	unreachable - mapped to OAS case below by exporter
+
+	case OAS:
+		return Nod(OAS, p.expr(), p.expr())
 
 	case OASOP:
 		n := Nod(OASOP, nil, nil)
@@ -892,15 +893,10 @@ func (p *importer) node() *Node {
 		}
 		return n
 
-	case OAS2:
-		lhs := p.exprList()
-		rhs := p.exprList()
-		n := Nod(OAS2, nil, nil)
-		n.List.Set(lhs)
-		n.Rlist.Set(rhs)
-		return n
+	// case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+	// 	unreachable - mapped to OAS2 case below by exporter
 
-	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+	case OAS2:
 		n := Nod(OAS2, nil, nil)
 		n.List.Set(p.exprList())
 		n.Rlist.Set(p.exprList())
@@ -954,7 +950,10 @@ func (p *importer) node() *Node {
 		popdcl()
 		return n
 
-	case OCASE, OXCASE:
+	// case OCASE, OXCASE:
+	// 	unreachable - mapped to OXCASE case below by exporter
+
+	case OXCASE:
 		markdcl()
 		n := Nod(OXCASE, nil, nil)
 		n.List.Set(p.exprList())
@@ -964,10 +963,10 @@ func (p *importer) node() *Node {
 		popdcl()
 		return n
 
-	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
-		if op == OFALL {
-			op = OXFALL
-		}
+	// case OFALL:
+	// 	unreachable - mapped to OXFALL case below by exporter
+
+	case OBREAK, OCONTINUE, OGOTO, OXFALL:
 		left, _ := p.exprsOrNil()
 		return Nod(op, left, nil)
 
