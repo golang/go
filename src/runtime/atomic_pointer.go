@@ -15,10 +15,9 @@ import (
 // escape analysis decisions about the pointer value being stored.
 // Instead, these are wrappers around the actual atomics (casp1 and so on)
 // that use noescape to convey which arguments do not escape.
-//
-// Additionally, these functions must update the shadow heap for
-// write barrier checking.
 
+// atomicstorep performs *ptr = new atomically and invokes a write barrier.
+//
 //go:nosplit
 func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	atomic.Storep1(noescape(ptr), new)

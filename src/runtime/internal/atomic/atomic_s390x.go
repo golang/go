@@ -40,7 +40,7 @@ func Store64(ptr *uint64, val uint64) {
 //go:noinline
 //go:nosplit
 func Storep1(ptr unsafe.Pointer, val unsafe.Pointer) {
-	*(*unsafe.Pointer)(ptr) = val
+	*(*uintptr)(ptr) = uintptr(val)
 }
 
 //go:noescape
