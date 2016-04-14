@@ -132,6 +132,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		}
 	}
 
+	if uintptr(v)&(sys.PhysPageSize-1) != 0 || n&(sys.PhysPageSize-1) != 0 {
+		// madvise will round this to any physical page
+		// *covered* by this range, so an unaligned madvise
+		// will release more memory than intended.
+		throw("unaligned sysUnused")
+	}
+
 	madvise(v, n, _MADV_DONTNEED)
 }
 
