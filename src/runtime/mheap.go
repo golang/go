@@ -824,15 +824,6 @@ func (h *mheap) busyList(npages uintptr) *mSpanList {
 }
 
 func scavengelist(list *mSpanList, now, limit uint64) uintptr {
-	if sys.PhysPageSize > _PageSize {
-		// golang.org/issue/9993
-		// If the physical page size of the machine is larger than
-		// our logical heap page size the kernel may round up the
-		// amount to be freed to its page size and corrupt the heap
-		// pages surrounding the unused block.
-		return 0
-	}
-
 	if list.isEmpty() {
 		return 0
 	}
@@ -840,11 +831,30 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 	var sumreleased uintptr
 	for s := list.first; s != nil; s = s.next {
 		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
-			released := (s.npages - s.npreleased) << _PageShift
+			start := uintptr(s.start) << _PageShift
+			end := start + s.npages<<_PageShift
+			if sys.PhysPageSize > _PageSize {
+				// We can only release pages in
+				// PhysPageSize blocks, so round start
+				// and end in. (Otherwise, madvise
+				// will round them *out* and release
+				// more memory than we want.)
+				start = (start + sys.PhysPageSize - 1) &^ (sys.PhysPageSize - 1)
+				end &^= sys.PhysPageSize - 1
+				if start == end {
+					continue
+				}
+			}
+			len := end - start
+
+			released := len - (s.npreleased << _PageShift)
+			if sys.PhysPageSize > _PageSize && released == 0 {
+				continue
+			}
 			memstats.heap_released += uint64(released)
 			sumreleased += released
-			s.npreleased = s.npages
-			sysUnused(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
+			s.npreleased = len >> _PageShift
+			sysUnused(unsafe.Pointer(start), len)
 		}
 	}
 	return sumreleased
