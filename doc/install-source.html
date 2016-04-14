@@ -194,13 +194,18 @@ To build without <code>cgo</code>, set the environment variable
 <p>Go will install to a directory named <code>go</code>.
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
-Then clone the repository and check out the latest release tag:</p>
+Then clone the repository and check out the latest release tag
+(<code class="versionTag">go1.6</code>, for example):</p>
 
 <pre>
 $ git clone https://go.googlesource.com/go
 $ cd go
-$ git checkout go1.6
+$ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
 </pre>
+
+<p class="whereTag">
+Where <code>&lt;tag&gt;</code> is the version string of the release.
+</p>
 
 <h2 id="head">(Optional) Switch to the master branch</h2>
 
@@ -378,7 +383,7 @@ New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 Each announcement mentions the latest release tag, for instance,
-<code>go1.6</code>.
+<code class="versionTag">go1.6</code>.
 </p>
 
 <p>
@@ -388,11 +393,13 @@ To update an existing tree to the latest release, you can run:
 <pre>
 $ cd go/src
 $ git fetch
-$ git checkout <i>&lt;tag&gt;</i>
+$ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></psan>
 $ ./all.bash
 </pre>
 
+<p class="whereTag">
 Where <code>&lt;tag&gt;</code> is the version string of the release.
+</p>
 
 
 <h2 id="environment">Optional environment variables</h2>
