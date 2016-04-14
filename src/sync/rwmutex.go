@@ -16,6 +16,8 @@ import (
 // RWMutexes can be created as part of other
 // structures; the zero value for a RWMutex is
 // an unlocked mutex.
+//
+// An RWMutex must not be copied after first use.
 type RWMutex struct {
 	w           Mutex  // held if there are pending writers
 	writerSem   uint32 // semaphore for writers to wait for completing readers
