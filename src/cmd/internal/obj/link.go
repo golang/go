@@ -617,7 +617,7 @@ type Link struct {
 	Debugvlog     int32
 	Debugdivmod   int32
 	Debugpcln     int32
-	Flag_shared   int32
+	Flag_shared   bool
 	Flag_dynlink  bool
 	Flag_optimize bool
 	Bso           *bufio.Writer

@@ -580,7 +580,7 @@ func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	case obj.ACALL:
 		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
 			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
-			if gc.Ctxt.Flag_shared != 0 {
+			if gc.Ctxt.Flag_shared {
 				// Make sure function pointer is in R12 as well when
 				// compiling Go into PIC.
 				// TODO(mwhudson): it would obviously be better to
@@ -602,7 +602,7 @@ func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = ppc64.REG_CTR
 
-			if gc.Ctxt.Flag_shared != 0 {
+			if gc.Ctxt.Flag_shared {
 				// When compiling Go into PIC, the function we just
 				// called via pointer might have been implemented in
 				// a separate module and so overwritten the TOC

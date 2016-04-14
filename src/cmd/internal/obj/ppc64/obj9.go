@@ -470,7 +470,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			q = p
 
-			if ctxt.Flag_shared != 0 && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" && cursym.Name != "runtime.stackBarrier" {
+			if ctxt.Flag_shared && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" && cursym.Name != "runtime.stackBarrier" {
 				// When compiling Go into PIC, all functions must start
 				// with instructions to load the TOC pointer into r2:
 				//
@@ -558,7 +558,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.Spadj = int32(-aoffset)
 			}
 
-			if ctxt.Flag_shared != 0 {
+			if ctxt.Flag_shared {
 				q = obj.Appendp(ctxt, q)
 				q.As = AMOVD
 				q.Lineno = p.Lineno

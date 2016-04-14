@@ -66,7 +66,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 		obj.Hwindows:
 		return false
 	case obj.Hlinux:
-		return ctxt.Flag_shared == 0
+		return !ctxt.Flag_shared
 	}
 
 	return true
@@ -314,7 +314,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		rewriteToUseGot(ctxt, p)
 	}
 
-	if ctxt.Flag_shared != 0 && p.Mode == 32 {
+	if ctxt.Flag_shared && p.Mode == 32 {
 		rewriteToPcrel(ctxt, p)
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func betypeinit() {
-	if gc.Ctxt.Flag_shared != 0 {
+	if gc.Ctxt.Flag_shared {
 		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R2)
 		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R12)
 	}

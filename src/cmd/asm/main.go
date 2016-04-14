@@ -39,9 +39,7 @@ func main() {
 	}
 	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
 	ctxt.Flag_dynlink = *flags.Dynlink
-	if *flags.Shared || *flags.Dynlink {
-		ctxt.Flag_shared = 1
-	}
+	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
 

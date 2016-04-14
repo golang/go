@@ -585,7 +585,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			ctxt.Instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == obj.STLSBSS {
-					if ctxt.Flag_shared != 0 {
+					if ctxt.Flag_shared {
 						return C_TLS_IE
 					} else {
 						return C_TLS_LE
@@ -1413,7 +1413,7 @@ func opform(ctxt *obj.Link, insn uint32) int {
 func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op uint32) (o1, o2 uint32) {
 	var base uint32
 	form := opform(ctxt, op)
-	if ctxt.Flag_shared != 0 {
+	if ctxt.Flag_shared {
 		base = REG_R2
 	} else {
 		base = REG_R0
@@ -1425,7 +1425,7 @@ func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op uint32) (o
 	rel.Siz = 8
 	rel.Sym = s
 	rel.Add = d
-	if ctxt.Flag_shared != 0 {
+	if ctxt.Flag_shared {
 		switch form {
 		case D_FORM:
 			rel.Type = obj.R_ADDRPOWER_TOCREL
@@ -1646,7 +1646,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			if ctxt.Flag_shared != 0 && r == REG_R13 {
+			if ctxt.Flag_shared && r == REG_R13 {
 				rel := obj.Addrel(ctxt.Cursym)
 				rel.Off = int32(ctxt.Pc)
 				rel.Siz = 4
@@ -1677,7 +1677,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
-			if ctxt.Flag_shared != 0 && r == REG_R13 {
+			if ctxt.Flag_shared && r == REG_R13 {
 				rel := obj.Addrel(ctxt.Cursym)
 				rel.Off = int32(ctxt.Pc)
 				rel.Siz = 4
