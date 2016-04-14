@@ -1376,6 +1376,11 @@ func esccall(e *EscState, n *Node, up *Node) {
 			if haspointers(t.Type) {
 				escassign(e, &e.theSink, src)
 			}
+		} else { // indirect and OCALLFUNC = could be captured variables, too. (#14409)
+			ll = e.nodeEscState(n).Escretval
+			for ; ll != nil; ll = ll.Next {
+				escassignDereference(e, ll.N, fn)
+			}
 		}
 		return
 	}
