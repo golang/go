@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"internal/testenv"
 	"os/exec"
 	"reflect"
 	"regexp"
@@ -24,9 +25,7 @@ func toJson(v interface{}) string {
 }
 
 func TestLookupMX(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
 		mx, err := LookupMX(server)
@@ -51,9 +50,7 @@ func TestLookupMX(t *testing.T) {
 }
 
 func TestLookupCNAME(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
 		cname, err := LookupCNAME(server)
@@ -76,9 +73,7 @@ func TestLookupCNAME(t *testing.T) {
 }
 
 func TestLookupNS(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
 		ns, err := LookupNS(server)
@@ -104,9 +99,7 @@ func TestLookupNS(t *testing.T) {
 }
 
 func TestLookupTXT(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, server := range nslookupTestServers {
 		txt, err := LookupTXT(server)

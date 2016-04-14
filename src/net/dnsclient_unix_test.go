@@ -8,6 +8,7 @@ package net
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,9 +33,7 @@ var dnsTransportFallbackTests = []struct {
 }
 
 func TestDNSTransportFallback(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range dnsTransportFallbackTests {
 		timeout := time.Duration(tt.timeout) * time.Second
@@ -74,9 +73,7 @@ var specialDomainNameTests = []struct {
 }
 
 func TestSpecialDomainName(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	server := "8.8.8.8:53"
 	for _, tt := range specialDomainNameTests {
@@ -232,9 +229,7 @@ var updateResolvConfTests = []struct {
 }
 
 func TestUpdateResolvConf(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	conf, err := newResolvConfTest()
 	if err != nil {
@@ -389,9 +384,7 @@ var goLookupIPWithResolverConfigTests = []struct {
 }
 
 func TestGoLookupIPWithResolverConfig(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	conf, err := newResolvConfTest()
 	if err != nil {
@@ -436,9 +429,7 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 
 // Test that goLookupIPOrder falls back to the host file when no DNS servers are available.
 func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	// Add a config that simulates no dns servers being available.
 	conf, err := newResolvConfTest()

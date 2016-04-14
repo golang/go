@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/testenv"
 	"io"
 	"reflect"
 	"runtime"
@@ -345,9 +346,7 @@ var tcpListenerNameTests = []struct {
 }
 
 func TestTCPListenerName(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range tcpListenerNameTests {
 		ln, err := ListenTCP(tt.net, tt.laddr)
@@ -363,9 +362,8 @@ func TestTCPListenerName(t *testing.T) {
 }
 
 func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
+
 	if !supportsIPv6 {
 		t.Skip("IPv6 is not supported")
 	}

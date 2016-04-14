@@ -58,9 +58,10 @@ var lookupGoogleSRVTests = []struct {
 }
 
 func TestLookupGoogleSRV(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -92,9 +93,10 @@ var lookupGmailMXTests = []struct {
 }
 
 func TestLookupGmailMX(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -123,9 +125,10 @@ var lookupGmailNSTests = []struct {
 }
 
 func TestLookupGmailNS(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -154,9 +157,10 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -188,9 +192,10 @@ var lookupGooglePublicDNSAddrTests = []struct {
 }
 
 func TestLookupGooglePublicDNSAddr(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
@@ -243,9 +248,10 @@ var lookupIANACNAMETests = []struct {
 }
 
 func TestLookupIANACNAME(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -269,9 +275,10 @@ var lookupGoogleHostTests = []struct {
 }
 
 func TestLookupGoogleHost(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -300,9 +307,10 @@ var lookupGoogleIPTests = []struct {
 }
 
 func TestLookupGoogleIP(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -463,9 +471,10 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
