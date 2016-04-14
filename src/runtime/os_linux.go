@@ -178,6 +178,7 @@ var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 const (
 	_AT_NULL   = 0  // End of vector
+	_AT_PAGESZ = 6  // System physical page size
 	_AT_RANDOM = 25 // introduced in 2.6.29
 )
 
@@ -201,7 +202,21 @@ func sysargs(argc int32, argv **byte) {
 			// The kernel provides a pointer to 16-bytes
 			// worth of random data.
 			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+
+		case _AT_PAGESZ:
+			// Check that the true physical page size is
+			// compatible with the runtime's assumed
+			// physical page size.
+			if sys.PhysPageSize < val {
+				print("runtime: kernel page size (", val, ") is larger than runtime page size (", sys.PhysPageSize, ")\n")
+				exit(1)
+			}
+			if sys.PhysPageSize%val != 0 {
+				print("runtime: runtime page size (", sys.PhysPageSize, ") is not a multiple of kernel page size (", val, ")\n")
+				exit(1)
+			}
 		}
+
 		archauxv(tag, val)
 	}
 }
