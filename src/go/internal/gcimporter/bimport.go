@@ -19,13 +19,18 @@ type importer struct {
 	imports map[string]*types.Package
 	data    []byte
 	path    string
+	buf     []byte // for reading strings
 
-	buf      []byte   // for reading strings
-	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
+	// object lists
+	strList []string         // in order of appearance
+	pkgList []*types.Package // in order of appearance
+	typList []types.Type     // in order of appearance
 
-	pkgList []*types.Package
-	typList []types.Type
+	// position encoding
+	prevFile string
+	prevLine int
 
+	// debugging support
 	debugFormat bool
 	read        int // bytes read
 }
@@ -39,11 +44,11 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 		imports: imports,
 		data:    data,
 		path:    path,
+		strList: []string{""}, // empty string is mapped to 0
 	}
-	p.buf = p.bufarray[:]
 
 	// read low-level encoding format
-	switch format := p.byte(); format {
+	switch format := p.rawByte(); format {
 	case 'c':
 		// compact format - nothing to do
 	case 'd':
@@ -160,6 +165,7 @@ func (p *importer) declare(obj types.Object) {
 func (p *importer) obj(tag int) {
 	switch tag {
 	case constTag:
+		p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
 		val := p.value()
@@ -169,11 +175,13 @@ func (p *importer) obj(tag int) {
 		_ = p.typ(nil)
 
 	case varTag:
+		p.pos()
 		pkg, name := p.qualifiedName()
 		typ := p.typ(nil)
 		p.declare(types.NewVar(token.NoPos, pkg, name, typ))
 
 	case funcTag:
+		p.pos()
 		pkg, name := p.qualifiedName()
 		params, isddd := p.paramList()
 		result, _ := p.paramList()
@@ -183,6 +191,22 @@ func (p *importer) obj(tag int) {
 	default:
 		panic(fmt.Sprintf("unexpected object tag %d", tag))
 	}
+}
+
+func (p *importer) pos() {
+	file := p.prevFile
+	line := p.prevLine
+
+	if delta := p.int(); delta != 0 {
+		line += delta
+	} else {
+		file = p.string()
+		line = p.int()
+		p.prevFile = file
+	}
+	p.prevLine = line
+
+	// TODO(gri) register new position
 }
 
 func (p *importer) qualifiedName() (pkg *types.Package, name string) {
@@ -220,6 +244,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 	switch i {
 	case namedTag:
 		// read type object
+		p.pos()
 		parent, name := p.qualifiedName()
 		scope := parent.Scope()
 		obj := scope.Lookup(name)
@@ -252,6 +277,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		// read associated methods
 		for i := p.int(); i > 0; i-- {
 			// TODO(gri) replace this with something closer to fieldName
+			p.pos()
 			name := p.string()
 			if !exported(name) {
 				p.pkg()
@@ -293,14 +319,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		t := new(types.Struct)
 		p.record(t)
 
-		n := p.int()
-		fields := make([]*types.Var, n)
-		tags := make([]string, n)
-		for i := range fields {
-			fields[i] = p.field(parent)
-			tags[i] = p.string()
-		}
-		*t = *types.NewStruct(fields, tags)
+		*t = *types.NewStruct(p.fieldList(parent))
 		return t
 
 	case pointerTag:
@@ -332,17 +351,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			panic("unexpected embedded interface")
 		}
 
-		// read methods
-		methods := make([]*types.Func, p.int())
-		for i := range methods {
-			pkg, name := p.fieldName(parent)
-			params, isddd := p.paramList()
-			result, _ := p.paramList()
-			sig := types.NewSignature(nil, params, result, isddd)
-			methods[i] = types.NewFunc(token.NoPos, pkg, name, sig)
-		}
-
-		t := types.NewInterface(methods, nil)
+		t := types.NewInterface(p.methodList(parent), nil)
 		p.typList[n] = t
 		return t
 
@@ -380,7 +389,20 @@ func (p *importer) typ(parent *types.Package) types.Type {
 	}
 }
 
+func (p *importer) fieldList(parent *types.Package) (fields []*types.Var, tags []string) {
+	if n := p.int(); n > 0 {
+		fields = make([]*types.Var, n)
+		tags = make([]string, n)
+		for i := range fields {
+			fields[i] = p.field(parent)
+			tags[i] = p.string()
+		}
+	}
+	return
+}
+
 func (p *importer) field(parent *types.Package) *types.Var {
+	p.pos()
 	pkg, name := p.fieldName(parent)
 	typ := p.typ(parent)
 
@@ -400,6 +422,25 @@ func (p *importer) field(parent *types.Package) *types.Var {
 	}
 
 	return types.NewField(token.NoPos, pkg, name, typ, anonymous)
+}
+
+func (p *importer) methodList(parent *types.Package) (methods []*types.Func) {
+	if n := p.int(); n > 0 {
+		methods = make([]*types.Func, n)
+		for i := range methods {
+			methods[i] = p.method(parent)
+		}
+	}
+	return
+}
+
+func (p *importer) method(parent *types.Package) *types.Func {
+	p.pos()
+	pkg, name := p.fieldName(parent)
+	params, isddd := p.paramList()
+	result, _ := p.paramList()
+	sig := types.NewSignature(nil, params, result, isddd)
+	return types.NewFunc(token.NoPos, pkg, name, sig)
 }
 
 func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
@@ -567,24 +608,28 @@ func (p *importer) string() string {
 	if p.debugFormat {
 		p.marker('s')
 	}
-
-	if n := int(p.rawInt64()); n > 0 {
-		if cap(p.buf) < n {
-			p.buf = make([]byte, n)
-		} else {
-			p.buf = p.buf[:n]
-		}
-		for i := 0; i < n; i++ {
-			p.buf[i] = p.byte()
-		}
-		return string(p.buf)
+	// if the string was seen before, i is its index (>= 0)
+	// (the empty string is at index 0)
+	i := p.rawInt64()
+	if i >= 0 {
+		return p.strList[i]
 	}
-
-	return ""
+	// otherwise, i is the negative string length (< 0)
+	if n := int(-i); n <= cap(p.buf) {
+		p.buf = p.buf[:n]
+	} else {
+		p.buf = make([]byte, n)
+	}
+	for i := range p.buf {
+		p.buf[i] = p.rawByte()
+	}
+	s := string(p.buf)
+	p.strList = append(p.strList, s)
+	return s
 }
 
 func (p *importer) marker(want byte) {
-	if got := p.byte(); got != want {
+	if got := p.rawByte(); got != want {
 		panic(fmt.Sprintf("incorrect marker: got %c; want %c (pos = %d)", got, want, p.read))
 	}
 
@@ -605,12 +650,13 @@ func (p *importer) rawInt64() int64 {
 
 // needed for binary.ReadVarint in rawInt64
 func (p *importer) ReadByte() (byte, error) {
-	return p.byte(), nil
+	return p.rawByte(), nil
 }
 
 // byte is the bottleneck interface for reading p.data.
 // It unescapes '|' 'S' to '$' and '|' '|' to '|'.
-func (p *importer) byte() byte {
+// rawByte should only be used by low-level decoders.
+func (p *importer) rawByte() byte {
 	b := p.data[0]
 	r := 1
 	if b == '|' {
