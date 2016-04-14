@@ -432,7 +432,7 @@ func dimportpath(p *Pkg) {
 		str = p.Path
 	}
 
-	s := obj.Linklookup(Ctxt, "go.importpath."+p.Prefix+".", 0)
+	s := obj.Linklookup(Ctxt, "type..importpath."+p.Prefix+".", 0)
 	ot := dnameData(s, 0, str, "", nil, false)
 	ggloblLSym(s, int32(ot), obj.DUPOK|obj.RODATA)
 	p.Pathsym = s
@@ -450,10 +450,10 @@ func dgopkgpathLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 	if pkg == localpkg && myimportpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
-		// go.importpath.""., which the linker will rewrite using the correct import path.
+		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := obj.Linklookup(Ctxt, `go.importpath."".`, 0)
+		ns := obj.Linklookup(Ctxt, `type..importpath."".`, 0)
 		return dsymptrLSym(s, ot, ns, 0)
 	}
 
@@ -466,10 +466,10 @@ func dgopkgpathOffLSym(s *obj.LSym, ot int, pkg *Pkg) int {
 	if pkg == localpkg && myimportpath == "" {
 		// If we don't know the full import path of the package being compiled
 		// (i.e. -p was not passed on the compiler command line), emit a reference to
-		// go.importpath.""., which the linker will rewrite using the correct import path.
+		// type..importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
 		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
-		ns := obj.Linklookup(Ctxt, `go.importpath."".`, 0)
+		ns := obj.Linklookup(Ctxt, `type..importpath."".`, 0)
 		return dsymptrOffLSym(s, ot, ns, 0)
 	}
 
