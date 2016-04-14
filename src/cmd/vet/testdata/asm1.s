@@ -252,3 +252,14 @@ TEXT ·returnnamed(SB),0,$0-41
 
 TEXT ·returnintmissing(SB),0,$0-8
 	RET // ERROR "RET without writing to 8-byte ret\+0\(FP\)"
+
+
+// issue 15271
+TEXT ·f15271(SB), NOSPLIT, $0-4
+    // Stick 123 into the low 32 bits of X0.
+    MOVQ $123, AX
+    PINSRD $0, AX, X0
+
+    // Return them.
+    PEXTRD $0, X0, x+0(FP)
+    RET
