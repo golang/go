@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/testenv"
 	"reflect"
 	"runtime"
 	"testing"
@@ -178,9 +179,7 @@ var udpConnLocalNameTests = []struct {
 }
 
 func TestUDPConnLocalName(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range udpConnLocalNameTests {
 		c, err := ListenUDP(tt.net, tt.laddr)
@@ -234,9 +233,8 @@ func TestUDPConnLocalAndRemoteNames(t *testing.T) {
 }
 
 func TestIPv6LinkLocalUnicastUDP(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
+
 	if !supportsIPv6 {
 		t.Skip("IPv6 is not supported")
 	}

@@ -24,12 +24,11 @@ var prohibitionaryDialArgTests = []struct {
 }
 
 func TestProhibitionaryDialArg(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
 	}
 	if !supportsIPv4map {
 		t.Skip("mapping ipv4 address inside ipv6 address not supported")
@@ -243,9 +242,8 @@ func dialClosedPort() (actual, expected time.Duration) {
 }
 
 func TestDialParallel(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
+
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
@@ -422,9 +420,8 @@ func lookupSlowFast(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, e
 }
 
 func TestDialerFallbackDelay(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skip("avoid external network")
-	}
+	testenv.MustHaveExternalNetwork(t)
+
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
@@ -814,17 +811,17 @@ func TestDialerKeepAlive(t *testing.T) {
 }
 
 func TestDialCancel(t *testing.T) {
+	switch testenv.Builder() {
+	case "linux-arm64-buildlet":
+		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
+	case "":
+		testenv.MustHaveExternalNetwork(t)
+	}
+
 	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
 		// plan9 is not implemented and nacl doesn't have
 		// external network access.
 		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-	onGoBuildFarm := testenv.Builder() != ""
-	if testing.Short() && !onGoBuildFarm {
-		t.Skip("skipping in short mode")
-	}
-	if testenv.Builder() == "linux-arm64-buildlet" {
-		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
 	}
 
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")

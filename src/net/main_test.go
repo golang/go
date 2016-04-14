@@ -26,8 +26,6 @@ var (
 var (
 	testDNSFlood = flag.Bool("dnsflood", false, "whether to test DNS query flooding")
 
-	testExternal = flag.Bool("external", true, "allow use of external networks during long test")
-
 	// If external IPv4 connectivity exists, we can try dialing
 	// non-node/interface local scope IPv4 addresses.
 	// On Windows, Lookup APIs may not return IPv4-related
