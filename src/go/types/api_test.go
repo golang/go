@@ -1059,3 +1059,28 @@ func TestIdentical_issue15173(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue15305(t *testing.T) {
+	const src = "package p; func f() int16; var _ = f(undef)"
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "issue15305.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf := Config{
+		Error: func(err error) {}, // allow errors
+	}
+	info := &Info{
+		Types: make(map[ast.Expr]TypeAndValue),
+	}
+	conf.Check("p", fset, []*ast.File{f}, info) // ignore result
+	for e, tv := range info.Types {
+		if _, ok := e.(*ast.CallExpr); ok {
+			if tv.Type != Typ[Int16] {
+				t.Errorf("CallExpr has type %v, want int16", tv.Type)
+			}
+			return
+		}
+	}
+	t.Errorf("CallExpr has no type")
+}
