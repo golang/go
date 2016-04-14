@@ -33,7 +33,7 @@ func dumpobj() {
 
 	startobj := int64(0)
 	var arhdr [ArhdrSize]byte
-	if writearchive != 0 {
+	if writearchive {
 		bout.WriteString("!<arch>\n")
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
@@ -43,7 +43,7 @@ func dumpobj() {
 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 	dumpexport()
 
-	if writearchive != 0 {
+	if writearchive {
 		bout.Flush()
 		size := bout.Offset() - startobj
 		if size&1 != 0 {
@@ -62,7 +62,7 @@ func dumpobj() {
 	}
 
 	if pragcgobuf != "" {
-		if writearchive != 0 {
+		if writearchive {
 			// write empty export section; must be before cgo section
 			fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		}
@@ -90,7 +90,7 @@ func dumpobj() {
 	dumpdata()
 	obj.Writeobjdirect(Ctxt, bout)
 
-	if writearchive != 0 {
+	if writearchive {
 		bout.Flush()
 		size := bout.Offset() - startobj
 		if size&1 != 0 {

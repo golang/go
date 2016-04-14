@@ -1330,7 +1330,7 @@ func makefuncsym(s *Sym) {
 	if isblanksym(s) {
 		return
 	}
-	if compiling_runtime != 0 && s.Name == "getg" {
+	if compiling_runtime && s.Name == "getg" {
 		// runtime.getg() is not a real function and so does
 		// not get a funcsym.
 		return
@@ -1440,7 +1440,7 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
 		return
 	}
-	if (compiling_runtime != 0 || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
+	if (compiling_runtime || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
 		return
 	}
 	defn := fn.Name.Defn

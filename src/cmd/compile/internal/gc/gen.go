@@ -246,7 +246,7 @@ func cgen_dcl(n *Node) {
 	if n.Class&PHEAP == 0 {
 		return
 	}
-	if compiling_runtime != 0 {
+	if compiling_runtime {
 		Yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
 	if prealloc[n] == nil {

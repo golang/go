@@ -9,7 +9,7 @@ func unsafenmagic(nn *Node) *Node {
 	fn := nn.Left
 	args := nn.List
 
-	if safemode != 0 || fn == nil || fn.Op != ONAME {
+	if safemode || fn == nil || fn.Op != ONAME {
 		return nil
 	}
 	s := fn.Sym

@@ -261,7 +261,7 @@ func export(out *bufio.Writer, trace bool) int {
 	}
 
 	// write compiler-specific flags
-	p.bool(safemode != 0)
+	p.bool(safemode)
 	if p.trace {
 		p.tracef("\n")
 	}

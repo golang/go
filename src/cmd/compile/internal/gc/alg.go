@@ -316,11 +316,12 @@ func genhash(sym *Sym, t *Type) {
 	// for a struct containing a reflect.Value, which itself has
 	// an unexported field of type unsafe.Pointer.
 	old_safemode := safemode
+	safemode = false
 
-	safemode = 0
 	Disable_checknil++
 	funccompile(fn)
 	Disable_checknil--
+
 	safemode = old_safemode
 }
 
@@ -509,7 +510,7 @@ func geneq(sym *Sym, t *Type) {
 	// for a struct containing a reflect.Value, which itself has
 	// an unexported field of type unsafe.Pointer.
 	old_safemode := safemode
-	safemode = 0
+	safemode = false
 
 	// Disable checknils while compiling this code.
 	// We are comparing a struct or an array,
