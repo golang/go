@@ -154,7 +154,7 @@ func walkrange(n *Node) {
 		v2 = n.List.Second()
 	}
 
-	// n->list has no meaning anymore, clear it
+	// n.List has no meaning anymore, clear it
 	// to avoid erroneous processing by racewalk.
 	n.List.Set(nil)
 
@@ -217,9 +217,9 @@ func walkrange(n *Node) {
 			n.Right.Ninit.Set1(a)
 		}
 
-		// orderstmt allocated the iterator for us.
-	// we only use a once, so no copy needed.
 	case TMAP:
+		// orderstmt allocated the iterator for us.
+		// we only use a once, so no copy needed.
 		ha := a
 
 		th := hiter(t)
@@ -254,8 +254,8 @@ func walkrange(n *Node) {
 			body = []*Node{a}
 		}
 
-		// orderstmt arranged for a copy of the channel variable.
 	case TCHAN:
+		// orderstmt arranged for a copy of the channel variable.
 		ha := a
 
 		n.Left = nil
@@ -278,9 +278,13 @@ func walkrange(n *Node) {
 		} else {
 			body = []*Node{Nod(OAS, v1, hv1)}
 		}
+		// Zero hv1. This prevents hv1 from being the sole, inaccessible
+		// reference to an otherwise GC-able value during the next channel receive.
+		// See issue 15281.
+		body = append(body, Nod(OAS, hv1, nil))
 
-		// orderstmt arranged for a copy of the string variable.
 	case TSTRING:
+		// orderstmt arranged for a copy of the string variable.
 		ha := a
 
 		ohv1 := temp(Types[TINT])
