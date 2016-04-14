@@ -63,7 +63,7 @@ type UnknownType undefined
 		if info.Files == nil {
 			continue // empty directory
 		}
-		exportdata := gcimporter.BExportData(pkg)
+		exportdata := gcimporter.BExportData(conf.Fset, pkg)
 
 		imports := make(map[string]*types.Package)
 		n, pkg2, err := gcimporter.BImportData(imports, exportdata, pkg.Path())

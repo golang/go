@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/token"
 	"go/types"
 	"log"
 	"math"
@@ -42,17 +43,29 @@ const trace = false // default: false
 const exportVersion = "v0"
 
 type exporter struct {
-	out      bytes.Buffer
+	fset *token.FileSet
+	out  bytes.Buffer
+
+	// object -> index maps, indexed in order of serialization
+	strIndex map[string]int
 	pkgIndex map[*types.Package]int
 	typIndex map[types.Type]int
 
+	// position encoding
+	prevFile string
+	prevLine int
+
+	// debugging support
 	written int // bytes written
 	indent  int // for trace
 }
 
 // BExportData returns binary export data for pkg.
-func BExportData(pkg *types.Package) []byte {
+// If no file set is provided, position info will be missing.
+func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 	p := exporter{
+		fset:     fset,
+		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
 		pkgIndex: make(map[*types.Package]int),
 		typIndex: make(map[types.Type]int),
 	}
@@ -62,7 +75,7 @@ func BExportData(pkg *types.Package) []byte {
 	if debugFormat {
 		format = 'd'
 	}
-	p.byte(format)
+	p.rawByte(format)
 
 	// --- generic export data ---
 
@@ -158,6 +171,7 @@ func (p *exporter) obj(obj types.Object) {
 	switch obj := obj.(type) {
 	case *types.Const:
 		p.tag(constTag)
+		p.pos(obj)
 		p.qualifiedName(obj)
 		p.typ(obj.Type())
 		p.value(obj.Val())
@@ -168,11 +182,13 @@ func (p *exporter) obj(obj types.Object) {
 
 	case *types.Var:
 		p.tag(varTag)
+		p.pos(obj)
 		p.qualifiedName(obj)
 		p.typ(obj.Type())
 
 	case *types.Func:
 		p.tag(funcTag)
+		p.pos(obj)
 		p.qualifiedName(obj)
 		sig := obj.Type().(*types.Signature)
 		p.paramList(sig.Params(), sig.Variadic())
@@ -181,6 +197,28 @@ func (p *exporter) obj(obj types.Object) {
 	default:
 		log.Fatalf("gcimporter: unexpected object %v (%T)", obj, obj)
 	}
+}
+
+func (p *exporter) pos(obj types.Object) {
+	var file string
+	var line int
+	if p.fset != nil {
+		pos := p.fset.Position(obj.Pos())
+		file = pos.Filename
+		line = pos.Line
+	}
+
+	if file == p.prevFile && line != p.prevLine {
+		// common case: write delta-encoded line number
+		p.int(line - p.prevLine) // != 0
+	} else {
+		// uncommon case: filename changed, or line didn't change
+		p.int(0)
+		p.string(file)
+		p.int(line)
+		p.prevFile = file
+	}
+	p.prevLine = line
 }
 
 func (p *exporter) qualifiedName(obj types.Object) {
@@ -219,6 +257,7 @@ func (p *exporter) typ(t types.Type) {
 	switch t := t.(type) {
 	case *types.Named:
 		p.tag(namedTag)
+		p.pos(t.Obj())
 		p.qualifiedName(t.Obj())
 		p.typ(t.Underlying())
 		if !types.IsInterface(t) {
@@ -289,6 +328,7 @@ func (p *exporter) assocMethods(named *types.Named) {
 			p.tracef("\n")
 		}
 
+		p.pos(m)
 		name := m.Name()
 		p.string(name)
 		if !exported(name) {
@@ -333,6 +373,7 @@ func (p *exporter) field(f *types.Var) {
 		log.Fatalf("gcimporter: field expected")
 	}
 
+	p.pos(f)
 	p.fieldName(f)
 	p.typ(f.Type())
 }
@@ -362,6 +403,7 @@ func (p *exporter) method(m *types.Func) {
 		log.Fatalf("gcimporter: method expected")
 	}
 
+	p.pos(m)
 	p.string(m.Name())
 	if m.Name() != "_" && !ast.IsExported(m.Name()) {
 		p.pkg(m.Pkg(), false)
@@ -571,9 +613,17 @@ func (p *exporter) string(s string) {
 	if trace {
 		p.tracef("%q ", s)
 	}
-	p.rawInt64(int64(len(s)))
+	// if we saw the string before, write its index (>= 0)
+	// (the empty string is mapped to 0)
+	if i, ok := p.strIndex[s]; ok {
+		p.rawInt64(int64(i))
+		return
+	}
+	// otherwise, remember string and write its negative length and bytes
+	p.strIndex[s] = len(p.strIndex)
+	p.rawInt64(-int64(len(s)))
 	for i := 0; i < len(s); i++ {
-		p.byte(s[i])
+		p.rawByte(s[i])
 	}
 }
 
@@ -581,7 +631,7 @@ func (p *exporter) string(s string) {
 // it easy for a reader to detect if it is "out of sync". Used for
 // debugFormat format only.
 func (p *exporter) marker(m byte) {
-	p.byte(m)
+	p.rawByte(m)
 	// Enable this for help tracking down the location
 	// of an incorrect marker when running in debugFormat.
 	if false && trace {
@@ -595,12 +645,12 @@ func (p *exporter) rawInt64(x int64) {
 	var tmp [binary.MaxVarintLen64]byte
 	n := binary.PutVarint(tmp[:], x)
 	for i := 0; i < n; i++ {
-		p.byte(tmp[i])
+		p.rawByte(tmp[i])
 	}
 }
 
-// byte is the bottleneck interface to write to p.out.
-// byte escapes b as follows (any encoding does that
+// rawByte is the bottleneck interface to write to p.out.
+// rawByte escapes b as follows (any encoding does that
 // hides '$'):
 //
 //	'$'  => '|' 'S'
@@ -608,7 +658,8 @@ func (p *exporter) rawInt64(x int64) {
 //
 // Necessary so other tools can find the end of the
 // export data by searching for "$$".
-func (p *exporter) byte(b byte) {
+// rawByte should only be used by low-level encoders.
+func (p *exporter) rawByte(b byte) {
 	switch b {
 	case '$':
 		// write '$' as '|' 'S'
