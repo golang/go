@@ -594,8 +594,7 @@ opswitch:
 		// for a struct containing a reflect.Value, which itself has
 		// an unexported field of type unsafe.Pointer.
 		old_safemode := safemode
-
-		safemode = 0
+		safemode = false
 		n = walkcompare(n, init)
 		safemode = old_safemode
 
@@ -1938,7 +1937,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			on = substArgTypes(on, n.Type) // any-1
 		} else if Isint[et] {
 			if et == TUINT64 {
-				if (t.Sym.Pkg == Runtimepkg || compiling_runtime != 0) && t.Sym.Name == "hex" {
+				if (t.Sym.Pkg == Runtimepkg || compiling_runtime) && t.Sym.Name == "hex" {
 					on = syslook("printhex")
 				} else {
 					on = syslook("printuint")
@@ -2041,7 +2040,7 @@ func isglobal(n *Node) bool {
 
 // Do we need a write barrier for the assignment l = r?
 func needwritebarrier(l *Node, r *Node) bool {
-	if use_writebarrier == 0 {
+	if !use_writebarrier {
 		return false
 	}
 
@@ -2550,7 +2549,7 @@ func paramstoheap(params *Type, out bool) []*Node {
 		}
 
 		// generate allocation & copying code
-		if compiling_runtime != 0 {
+		if compiling_runtime {
 			Yyerror("%v escapes to heap, not allowed in runtime.", v)
 		}
 		if prealloc[v] == nil {

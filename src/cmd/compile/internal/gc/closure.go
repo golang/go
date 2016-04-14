@@ -419,7 +419,7 @@ func closuredebugruntimecheck(r *Node) {
 			Warnl(r.Lineno, "stack closure, captured vars = %v", r.Func.Cvars)
 		}
 	}
-	if compiling_runtime > 0 && r.Esc == EscHeap {
+	if compiling_runtime && r.Esc == EscHeap {
 		yyerrorl(r.Lineno, "heap-allocated closure, not allowed in runtime.")
 	}
 }

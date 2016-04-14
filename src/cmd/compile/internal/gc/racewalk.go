@@ -54,14 +54,14 @@ func instrument(fn *Node) {
 		return
 	}
 
-	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
+	if !flag_race || !ispkgin(norace_inst_pkgs) {
 		instrumentlist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
 		instrumentlist(fn.Func.Exit, nil)
 	}
 
-	if flag_race != 0 {
+	if flag_race {
 		// nodpc is the PC of the caller as extracted by
 		// getcallerpc. We use -widthptr(FP) for x86.
 		// BUG: this will not work on arm.
@@ -503,7 +503,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 		n = treecopy(n, 0)
 		makeaddable(n)
 		var f *Node
-		if flag_msan != 0 {
+		if flag_msan {
 			name := "msanread"
 			if wr != 0 {
 				name = "msanwrite"
@@ -515,7 +515,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
-		} else if flag_race != 0 && (t.IsStruct() || t.IsArray()) {
+		} else if flag_race && (t.IsStruct() || t.IsArray()) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
@@ -527,7 +527,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
-		} else if flag_race != 0 {
+		} else if flag_race {
 			name := "raceread"
 			if wr != 0 {
 				name = "racewrite"

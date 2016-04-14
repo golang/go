@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	newexport    int // if set, use new export format
-	Debug_export int // if set, print debugging information about export data
+	newexport    bool // if set, use new export format
+	Debug_export int  // if set, print debugging information about export data
 	exportsize   int
 )
 
@@ -377,7 +377,7 @@ func dumpexport() {
 	}
 
 	size := 0 // size of export section without enclosing markers
-	if forceNewExport || newexport != 0 {
+	if forceNewExport || newexport {
 		// binary export
 		// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 		exportf("\n$$B\n") // indicate binary format
@@ -417,7 +417,7 @@ func dumpexport() {
 		exportf("\n$$\n") // indicate textual format
 		exportsize = 0
 		exportf("package %s", localpkg.Name)
-		if safemode != 0 {
+		if safemode {
 			exportf(" safe")
 		}
 		exportf("\n")

@@ -1424,10 +1424,10 @@ func dumptypestructs() {
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)
 
-		if flag_race != 0 {
+		if flag_race {
 			dimportpath(racepkg)
 		}
-		if flag_msan != 0 {
+		if flag_msan {
 			dimportpath(msanpkg)
 		}
 		dimportpath(mkpkg("main"))

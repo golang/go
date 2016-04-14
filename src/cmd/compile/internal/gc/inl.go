@@ -71,7 +71,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	save_safemode := safemode
-	safemode = 0
+	safemode = false
 
 	savefn := Curfn
 	Curfn = fn
@@ -492,7 +492,7 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
 	pkg := fnpkg(fn)
 
 	if pkg != localpkg && pkg != nil {
-		safemode = 0
+		safemode = false
 	}
 	n = mkinlcall1(n, fn, isddd)
 	safemode = save_safemode

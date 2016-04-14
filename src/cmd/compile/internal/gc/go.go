@@ -144,9 +144,9 @@ var nsyntaxerrors int
 
 var decldepth int32
 
-var safemode int
+var safemode bool
 
-var nolocalimports int
+var nolocalimports bool
 
 var Debug [256]int
 
@@ -261,21 +261,21 @@ var Funcdepth int32
 
 var typecheckok bool
 
-var compiling_runtime int
+var compiling_runtime bool
 
 var compiling_wrappers int
 
-var use_writebarrier int
+var use_writebarrier bool
 
-var pure_go int
+var pure_go bool
 
 var flag_installsuffix string
 
-var flag_race int
+var flag_race bool
 
-var flag_msan int
+var flag_msan bool
 
-var flag_largemodel int
+var flag_largemodel bool
 
 // Whether we are adding any sort of code instrumentation, such as
 // when the race detector is enabled.
@@ -285,7 +285,7 @@ var debuglive int
 
 var Ctxt *obj.Link
 
-var writearchive int
+var writearchive bool
 
 var bstdout *bufio.Writer
 

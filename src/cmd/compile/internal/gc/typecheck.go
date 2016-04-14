@@ -1354,7 +1354,7 @@ OpSwitch:
 		if t.Results().NumFields() == 1 {
 			n.Type = l.Type.Results().Field(0).Type
 
-			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime != 0 || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
+			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
 				// Emit code for runtime.getg() directly instead of calling function.
 				// Most such rewrites (for example the similar one for math.Sqrt) should be done in walk,
 				// so that the ordering pass can make sure to preserve the semantics of the original code
@@ -2176,7 +2176,7 @@ OpSwitch:
 		}
 	}
 
-	if safemode != 0 && incannedimport == 0 && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+	if safemode && incannedimport == 0 && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
 		Yyerror("cannot use unsafe.Pointer")
 	}
 

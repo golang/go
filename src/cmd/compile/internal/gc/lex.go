@@ -914,17 +914,17 @@ func (l *lexer) getlinepragma() rune {
 		case "go:noinline":
 			l.pragma |= Noinline
 		case "go:systemstack":
-			if compiling_runtime == 0 {
+			if !compiling_runtime {
 				Yyerror("//go:systemstack only allowed in runtime")
 			}
 			l.pragma |= Systemstack
 		case "go:nowritebarrier":
-			if compiling_runtime == 0 {
+			if !compiling_runtime {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
 			l.pragma |= Nowritebarrier
 		case "go:nowritebarrierrec":
-			if compiling_runtime == 0 {
+			if !compiling_runtime {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier

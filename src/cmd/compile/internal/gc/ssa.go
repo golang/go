@@ -554,7 +554,7 @@ func (s *state) stmt(n *Node) {
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		s.call(n, callNormal)
 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC &&
-			(compiling_runtime != 0 && n.Left.Sym.Name == "throw" ||
+			(compiling_runtime && n.Left.Sym.Name == "throw" ||
 				n.Left.Sym.Pkg == Runtimepkg && (n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo" || n.Left.Sym.Name == "block")) {
 			m := s.mem()
 			b := s.endBlock()
@@ -579,7 +579,7 @@ func (s *state) stmt(n *Node) {
 		if n.Left.Class&PHEAP == 0 {
 			return
 		}
-		if compiling_runtime != 0 {
+		if compiling_runtime {
 			Fatalf("%v escapes to heap, not allowed in runtime.", n)
 		}
 
