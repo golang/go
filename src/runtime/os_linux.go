@@ -176,6 +176,29 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
 var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
+const (
+	_AT_NULL = 0 // End of vector
+)
+
+func sysargs(argc int32, argv **byte) {
+	n := argc + 1
+
+	// skip over argv, envp to get to auxv
+	for argv_index(argv, n) != nil {
+		n++
+	}
+
+	// skip NULL separator
+	n++
+
+	// now argv+n is auxv
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+		tag, val := auxv[i], auxv[i+1]
+		archauxv(tag, val)
+	}
+}
+
 func osinit() {
 	ncpu = getproccount()
 }
