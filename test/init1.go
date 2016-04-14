@@ -40,7 +40,7 @@ func init() {
 	sys1, numGC1 := memstats.Sys, memstats.NumGC
 	if sys1-sys >= N*MB || numGC1 == numGC {
 		println("allocated 1000 chunks of", MB, "and used ", sys1-sys, "memory")
-		println("numGC went", numGC, "to", numGC)
+		println("numGC went", numGC, "to", numGC1)
 		panic("init1")
 	}
 }
