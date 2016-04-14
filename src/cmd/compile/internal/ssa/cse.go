@@ -138,21 +138,29 @@ func cse(f *Func) {
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
 		sort.Sort(sortbyentry{e, f.sdom})
-		for len(e) > 1 {
+		for i := 0; i < len(e)-1; i++ {
 			// e is sorted by entry value so maximal dominant element should be
 			// found first in the slice
-			v := e[0]
-			e = e[1:]
+			v := e[i]
+			if v == nil {
+				continue
+			}
+
+			e[i] = nil
 			// Replace all elements of e which v dominates
-			for i := 0; i < len(e); {
-				w := e[i]
+			for j := i + 1; j < len(e); j++ {
+				w := e[j]
+				if w == nil {
+					continue
+				}
 				if f.sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
-					// retain the sort order
-					copy(e[i:], e[i+1:])
-					e = e[:len(e)-1]
+					e[j] = nil
 				} else {
-					i++
+					// since the blocks are assorted in ascending order by entry number
+					// once we know that we don't dominate a block we can't dominate any
+					// 'later' block
+					break
 				}
 			}
 		}
