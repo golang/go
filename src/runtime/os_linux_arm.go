@@ -9,7 +9,6 @@ import "unsafe"
 const (
 	_AT_PLATFORM = 15 //  introduced in at least 2.6.11
 	_AT_HWCAP    = 16 // introduced in at least 2.6.11
-	_AT_RANDOM   = 25 // introduced in 2.6.29
 
 	_HWCAP_VFP   = 1 << 6  // introduced in at least 2.6.11
 	_HWCAP_VFPv3 = 1 << 13 // introduced in 2.6.30
@@ -34,10 +33,10 @@ func checkgoarm() {
 
 func archauxv(tag, val uintptr) {
 	switch tag {
-	case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
-		// the pointer provided may not be word aligned, so we must treat it
-		// as a byte array.
+	case _AT_RANDOM:
+		// sysargs filled in startupRandomData, but that
+		// pointer may not be word aligned, so we must treat
+		// it as a byte array.
 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
 

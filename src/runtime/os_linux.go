@@ -177,7 +177,8 @@ var failallocatestack = []byte("runtime: failed to allocate stack for the new OS
 var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 const (
-	_AT_NULL = 0 // End of vector
+	_AT_NULL   = 0  // End of vector
+	_AT_RANDOM = 25 // introduced in 2.6.29
 )
 
 func sysargs(argc int32, argv **byte) {
@@ -195,6 +196,12 @@ func sysargs(argc int32, argv **byte) {
 	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
+		switch tag {
+		case _AT_RANDOM:
+			// The kernel provides a pointer to 16-bytes
+			// worth of random data.
+			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
+		}
 		archauxv(tag, val)
 	}
 }
