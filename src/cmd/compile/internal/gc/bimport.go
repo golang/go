@@ -20,13 +20,18 @@ import (
 // changes to bimport.go and bexport.go.
 
 type importer struct {
-	in       *bufio.Reader
-	buf      []byte   // for reading strings
-	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
+	in  *bufio.Reader
+	buf []byte // reused for reading strings
 
-	pkgList  []*Pkg  // in order of appearance
-	typList  []*Type // in order of appearance
-	funcList []*Node // in order of appearance; nil entry means already declared
+	// object lists, in order of deserialization
+	strList  []string
+	pkgList  []*Pkg
+	typList  []*Type
+	funcList []*Node // nil entry means already declared
+
+	// position encoding
+	prevFile string
+	prevLine int
 
 	// debugging support
 	debugFormat bool
@@ -35,11 +40,13 @@ type importer struct {
 
 // Import populates importpkg from the serialized package data.
 func Import(in *bufio.Reader) {
-	p := importer{in: in}
-	p.buf = p.bufarray[:]
+	p := importer{
+		in:      in,
+		strList: []string{""}, // empty string is mapped to 0
+	}
 
 	// read low-level encoding format
-	switch format := p.byte(); format {
+	switch format := p.rawByte(); format {
 	case 'c':
 		// compact format - nothing to do
 	case 'd':
@@ -221,6 +228,7 @@ func idealType(typ *Type) *Type {
 func (p *importer) obj(tag int) {
 	switch tag {
 	case constTag:
+		p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
 		val := p.value(typ)
@@ -230,11 +238,13 @@ func (p *importer) obj(tag int) {
 		p.typ()
 
 	case varTag:
+		p.pos()
 		sym := p.qualifiedName()
 		typ := p.typ()
 		importvar(sym, typ)
 
 	case funcTag:
+		p.pos()
 		sym := p.qualifiedName()
 		params := p.paramList()
 		result := p.paramList()
@@ -268,6 +278,22 @@ func (p *importer) obj(tag int) {
 	}
 }
 
+func (p *importer) pos() {
+	file := p.prevFile
+	line := p.prevLine
+
+	if delta := p.int(); delta != 0 {
+		line += delta
+	} else {
+		file = p.string()
+		line = p.int()
+		p.prevFile = file
+	}
+	p.prevLine = line
+
+	// TODO(gri) register new position
+}
+
 func (p *importer) newtyp(etype EType) *Type {
 	t := typ(etype)
 	p.typList = append(p.typList, t)
@@ -286,6 +312,7 @@ func (p *importer) typ() *Type {
 	switch i {
 	case namedTag:
 		// parser.go:hidden_importsym
+		p.pos()
 		tsym := p.qualifiedName()
 
 		// parser.go:hidden_pkgtype
@@ -311,6 +338,7 @@ func (p *importer) typ() *Type {
 		for i := p.int(); i > 0; i-- {
 			// parser.go:hidden_fndcl
 
+			p.pos()
 			sym := p.fieldSym()
 
 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
@@ -409,20 +437,19 @@ func (p *importer) qualifiedName() *Sym {
 }
 
 // parser.go:hidden_structdcl_list
-func (p *importer) fieldList() []*Node {
-	i := p.int()
-	if i == 0 {
-		return nil
+func (p *importer) fieldList() (fields []*Node) {
+	if n := p.int(); n > 0 {
+		fields = make([]*Node, n)
+		for i := range fields {
+			fields[i] = p.field()
+		}
 	}
-	n := make([]*Node, i)
-	for i := range n {
-		n[i] = p.field()
-	}
-	return n
+	return
 }
 
 // parser.go:hidden_structdcl
 func (p *importer) field() *Node {
+	p.pos()
 	sym := p.fieldName()
 	typ := p.typ()
 	note := p.note()
@@ -456,20 +483,19 @@ func (p *importer) note() (v Val) {
 }
 
 // parser.go:hidden_interfacedcl_list
-func (p *importer) methodList() []*Node {
-	i := p.int()
-	if i == 0 {
-		return nil
+func (p *importer) methodList() (methods []*Node) {
+	if n := p.int(); n > 0 {
+		methods = make([]*Node, n)
+		for i := range methods {
+			methods[i] = p.method()
+		}
 	}
-	n := make([]*Node, i)
-	for i := range n {
-		n[i] = p.method()
-	}
-	return n
+	return
 }
 
 // parser.go:hidden_interfacedcl
 func (p *importer) method() *Node {
+	p.pos()
 	sym := p.fieldName()
 	params := p.paramList()
 	result := p.paramList()
@@ -1056,29 +1082,31 @@ func (p *importer) int64() int64 {
 }
 
 func (p *importer) string() string {
-	if p.debugFormat {
+	if debugFormat {
 		p.marker('s')
 	}
-
-	// TODO(gri) should we intern strings here?
-
-	if n := int(p.rawInt64()); n > 0 {
-		if cap(p.buf) < n {
-			p.buf = make([]byte, n)
-		} else {
-			p.buf = p.buf[:n]
-		}
-		for i := range p.buf {
-			p.buf[i] = p.byte()
-		}
-		return string(p.buf)
+	// if the string was seen before, i is its index (>= 0)
+	// (the empty string is at index 0)
+	i := p.rawInt64()
+	if i >= 0 {
+		return p.strList[i]
 	}
-
-	return ""
+	// otherwise, i is the negative string length (< 0)
+	if n := int(-i); n <= cap(p.buf) {
+		p.buf = p.buf[:n]
+	} else {
+		p.buf = make([]byte, n)
+	}
+	for i := range p.buf {
+		p.buf[i] = p.rawByte()
+	}
+	s := string(p.buf)
+	p.strList = append(p.strList, s)
+	return s
 }
 
 func (p *importer) marker(want byte) {
-	if got := p.byte(); got != want {
+	if got := p.rawByte(); got != want {
 		Fatalf("importer: incorrect marker: got %c; want %c (pos = %d)", got, want, p.read)
 	}
 
@@ -1099,12 +1127,13 @@ func (p *importer) rawInt64() int64 {
 
 // needed for binary.ReadVarint in rawInt64
 func (p *importer) ReadByte() (byte, error) {
-	return p.byte(), nil
+	return p.rawByte(), nil
 }
 
-// byte is the bottleneck interface for reading from p.in.
+// rawByte is the bottleneck interface for reading from p.in.
 // It unescapes '|' 'S' to '$' and '|' '|' to '|'.
-func (p *importer) byte() byte {
+// rawByte should only be used by low-level decoders.
+func (p *importer) rawByte() byte {
 	c, err := p.in.ReadByte()
 	p.read++
 	if err != nil {
