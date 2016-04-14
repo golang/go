@@ -946,7 +946,7 @@ func Cgenr(n *Node, a *Node, res *Node) {
 		OCALLINTER:
 		var n1 Node
 		Igen(n, &n1, res)
-		Regalloc(a, Types[Tptr], &n1)
+		Regalloc(a, n.Type, &n1)
 		Thearch.Gmove(&n1, a)
 		Regfree(&n1)
 
