@@ -473,7 +473,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 			ctxt.Instoffset = a.Offset
 			if a.Sym.Type == obj.STLSBSS {
-				if ctxt.Flag_shared != 0 {
+				if ctxt.Flag_shared {
 					return C_TLS_IE // initial exec model
 				}
 				return C_TLS_LE // local exec model

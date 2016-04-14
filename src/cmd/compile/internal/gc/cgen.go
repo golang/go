@@ -2363,7 +2363,7 @@ func Ginscall(f *Node, proc int) {
 					// If the MOVD is not needed, insert a hardware NOP
 					// so that the same number of instructions are used
 					// on ppc64 in both shared and non-shared modes.
-					if Ctxt.Flag_shared != 0 {
+					if Ctxt.Flag_shared {
 						p := Thearch.Gins(ppc64.AMOVD, nil, nil)
 						p.From.Type = obj.TYPE_MEM
 						p.From.Offset = 24

@@ -2165,7 +2165,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 					return 0x64 // FS
 				}
 
-				if ctxt.Flag_shared != 0 {
+				if ctxt.Flag_shared {
 					log.Fatalf("unknown TLS base register for linux with -shared")
 				} else {
 					return 0x64 // FS
@@ -2185,7 +2185,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	}
 
 	if p.Mode == 32 {
-		if a.Index == REG_TLS && ctxt.Flag_shared != 0 {
+		if a.Index == REG_TLS && ctxt.Flag_shared {
 			// When building for inclusion into a shared library, an instruction of the form
 			//     MOVL 0(CX)(TLS*1), AX
 			// becomes
@@ -2214,7 +2214,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		return 0x26
 
 	case REG_TLS:
-		if ctxt.Flag_shared != 0 {
+		if ctxt.Flag_shared {
 			// When building for inclusion into a shared library, an instruction of the form
 			//     MOV 0(CX)(TLS*1), AX
 			// becomes
@@ -2288,7 +2288,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && ctxt.Flag_shared == 0) {
+			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && !ctxt.Flag_shared) {
 				return Yi32
 			}
 			return Yiauto // use pc-relative addressing
@@ -2707,7 +2707,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		if a.Name == obj.NAME_GOTREF {
 			r.Siz = 4
 			r.Type = obj.R_GOTPCREL
-		} else if isextern(s) || (p.Mode != 64 && ctxt.Flag_shared == 0) {
+		} else if isextern(s) || (p.Mode != 64 && !ctxt.Flag_shared) {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
@@ -2728,7 +2728,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 			log.Fatalf("reloc")
 		}
 
-		if ctxt.Flag_shared == 0 || isAndroid {
+		if !ctxt.Flag_shared || isAndroid {
 			r.Type = obj.R_TLS_LE
 			r.Siz = 4
 			r.Off = -1 // caller must fill in
@@ -2793,7 +2793,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 			if !isextern(a.Sym) && p.Mode == 64 {
 				goto bad
 			}
-			if p.Mode == 32 && ctxt.Flag_shared != 0 {
+			if p.Mode == 32 && ctxt.Flag_shared {
 				base = REG_CX
 			} else {
 				base = REG_NONE
@@ -2838,7 +2838,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		if a.Sym == nil {
 			ctxt.Diag("bad addr: %v", p)
 		}
-		if p.Mode == 32 && ctxt.Flag_shared != 0 {
+		if p.Mode == 32 && ctxt.Flag_shared {
 			base = REG_CX
 		} else {
 			base = REG_NONE
@@ -2892,7 +2892,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	}
 
 	if REG_AX <= base && base <= REG_R15 {
-		if a.Index == REG_TLS && ctxt.Flag_shared == 0 {
+		if a.Index == REG_TLS && !ctxt.Flag_shared {
 			rel = obj.Reloc{}
 			rel.Type = obj.R_TLS_LE
 			rel.Siz = 4
@@ -3945,7 +3945,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 						case obj.Hlinux,
 							obj.Hnacl:
-							if ctxt.Flag_shared != 0 {
+							if ctxt.Flag_shared {
 								// Note that this is not generating the same insns as the other cases.
 								//     MOV TLS, R_to
 								// becomes
@@ -4019,7 +4019,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 						log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
 
 					case obj.Hlinux:
-						if ctxt.Flag_shared == 0 {
+						if !ctxt.Flag_shared {
 							log.Fatalf("unknown TLS base location for linux without -shared")
 						}
 						// Note that this is not generating the same insn as the other cases.

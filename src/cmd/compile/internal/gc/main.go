@@ -207,13 +207,7 @@ func Main() {
 	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
 	obj.Flagparse(usage)
 
-	if flag_dynlink {
-		flag_shared = true
-	}
-	if flag_shared {
-		// TODO(mdempsky): Change Flag_shared to bool.
-		Ctxt.Flag_shared = 1
-	}
+	Ctxt.Flag_shared = flag_dynlink || flag_shared
 	Ctxt.Flag_dynlink = flag_dynlink
 	Ctxt.Flag_optimize = Debug['N'] == 0
 
