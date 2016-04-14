@@ -4,16 +4,9 @@
 
 package runtime
 
-import "unsafe"
-
 const (
-	_AT_RANDOM  = 25
 	_AT_SYSINFO = 32
 )
 
 func archauxv(tag, val uintptr) {
-	switch tag {
-	case _AT_RANDOM:
-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
-	}
 }

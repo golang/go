@@ -18,7 +18,6 @@ import "unsafe"
 // http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
 
 const (
-	_AT_RANDOM       = 25
 	_AT_SYSINFO_EHDR = 33
 
 	_PT_LOAD    = 1 /* Loadable program segment */
@@ -303,8 +302,5 @@ func archauxv(tag, val uintptr) {
 		info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
 		vdso_init_from_sysinfo_ehdr(info1, (*elf64Ehdr)(unsafe.Pointer(val)))
 		vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
-
-	case _AT_RANDOM:
-		startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
 	}
 }
