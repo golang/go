@@ -380,6 +380,6 @@ func BenchmarkExpand(b *testing.B) {
 	c := &aesCipher{make([]uint32, n), make([]uint32, n)}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		expandKey(tt.key, c.enc, c.dec)
+		expandKeyGo(tt.key, c.enc, c.dec)
 	}
 }
