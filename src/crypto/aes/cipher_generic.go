@@ -6,22 +6,15 @@
 
 package aes
 
-func encryptBlock(xk []uint32, dst, src []byte) {
-	encryptBlockGo(xk, dst, src)
-}
+import (
+	"crypto/cipher"
+)
 
-func decryptBlock(xk []uint32, dst, src []byte) {
-	decryptBlockGo(xk, dst, src)
-}
-
-func expandKey(key []byte, enc, dec []uint32) {
-	expandKeyGo(key, enc, dec)
-}
-
-func hasGCMAsm() bool {
-	return false
-}
-
-type aesCipherGCM struct {
-	aesCipher
+// newCipher calls the newCipherGeneric function
+// directly. Platforms with hardware accelerated
+// implementations of AES should implement their
+// own version of newCipher (which may then call
+// newCipherGeneric if needed).
+func newCipher(key []byte) (cipher.Block, error) {
+	return newCipherGeneric(key)
 }

@@ -45,7 +45,7 @@ var errOpen = errors.New("cipher: message authentication failed")
 // will use the optimised implementation in this file when possible. Instances
 // of this type only exist when hasGCMAsm returns true.
 type aesCipherGCM struct {
-	aesCipher
+	aesCipherAsm
 }
 
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
