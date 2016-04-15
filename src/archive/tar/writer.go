@@ -278,7 +278,7 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 			return err
 		}
 	}
-	tw.nb = int64(hdr.Size)
+	tw.nb = hdr.Size
 	tw.pad = (blockSize - (tw.nb % blockSize)) % blockSize
 
 	_, tw.err = tw.w.Write(header)

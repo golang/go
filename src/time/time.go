@@ -606,7 +606,7 @@ func (d Duration) Hours() float64 {
 // Add returns the time t+d.
 func (t Time) Add(d Duration) Time {
 	t.sec += int64(d / 1e9)
-	nsec := int32(t.nsec) + int32(d%1e9)
+	nsec := t.nsec + int32(d%1e9)
 	if nsec >= 1e9 {
 		t.sec++
 		nsec -= 1e9
@@ -623,7 +623,7 @@ func (t Time) Add(d Duration) Time {
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
-	d := Duration(t.sec-u.sec)*Second + Duration(int32(t.nsec)-int32(u.nsec))
+	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
 	// Check for overflow or underflow.
 	switch {
 	case u.Add(d).Equal(t):
@@ -1125,7 +1125,7 @@ func (t Time) Round(d Duration) Time {
 // but it's still here in case we change our minds.
 func div(t Time, d Duration) (qmod2 int, r Duration) {
 	neg := false
-	nsec := int32(t.nsec)
+	nsec := t.nsec
 	if t.sec < 0 {
 		// Operate on absolute value.
 		neg = true
@@ -1159,7 +1159,7 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
 		tmp := (sec >> 32) * 1e9
 		u1 := tmp >> 32
 		u0 := tmp << 32
-		tmp = uint64(sec&0xFFFFFFFF) * 1e9
+		tmp = (sec & 0xFFFFFFFF) * 1e9
 		u0x, u0 := u0, u0+tmp
 		if u0 < u0x {
 			u1++

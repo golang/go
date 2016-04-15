@@ -436,7 +436,7 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	}
 	dynamicHeader := int64(3+5+5+4+(3*numCodegens)) +
 		w.codegenEncoding.bitLength(w.codegenFreq[:]) +
-		int64(extraBits) +
+		extraBits +
 		int64(w.codegenFreq[16]*2) +
 		int64(w.codegenFreq[17]*3) +
 		int64(w.codegenFreq[18]*7)

@@ -967,7 +967,7 @@ func (t *rtype) Out(i int) Type {
 }
 
 func (t *funcType) in() []*rtype {
-	uadd := uintptr(unsafe.Sizeof(*t))
+	uadd := unsafe.Sizeof(*t)
 	if t.tflag&tflagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommonType{})
 	}
@@ -975,7 +975,7 @@ func (t *funcType) in() []*rtype {
 }
 
 func (t *funcType) out() []*rtype {
-	uadd := uintptr(unsafe.Sizeof(*t))
+	uadd := unsafe.Sizeof(*t)
 	if t.tflag&tflagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommonType{})
 	}

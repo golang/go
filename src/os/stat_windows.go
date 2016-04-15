@@ -35,7 +35,7 @@ func (file *File) Stat() (FileInfo, error) {
 	}
 
 	var d syscall.ByHandleFileInformation
-	err = syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
+	err = syscall.GetFileInformationByHandle(file.fd, &d)
 	if err != nil {
 		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
 	}

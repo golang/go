@@ -302,7 +302,7 @@ func (x nat) itoa(neg bool, base int) []byte {
 		}
 
 	} else {
-		bb, ndigits := maxPow(Word(b))
+		bb, ndigits := maxPow(b)
 
 		// construct table of successive squares of bb*leafSize to use in subdivisions
 		// result (table != nil) <=> (len(x) > leafSize > 0)

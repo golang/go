@@ -127,7 +127,7 @@ func (state *encoderState) encodeInt(i int64) {
 	} else {
 		x = uint64(i << 1)
 	}
-	state.encodeUint(uint64(x))
+	state.encodeUint(x)
 }
 
 // encOp is the signature of an encoding operator for a given type.
