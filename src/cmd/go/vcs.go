@@ -253,7 +253,7 @@ func bzrResolveRepo(vcsBzr *vcsCmd, rootDir, remoteRepo string) (realRepo string
 		return "", fmt.Errorf("unable to parse output of bzr info")
 	}
 	out = out[:i]
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
 // vcsSvn describes how to use Subversion.
@@ -294,7 +294,7 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
 		return "", fmt.Errorf("unable to parse output of svn info")
 	}
 	out = out[:i]
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
 func (v *vcsCmd) String() string {

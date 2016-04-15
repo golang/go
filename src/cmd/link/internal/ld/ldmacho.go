@@ -399,8 +399,8 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 			return -1
 		}
 		s.name = cstring(strbuf[v:])
-		s.type_ = uint8(p[4])
-		s.sectnum = uint8(p[5])
+		s.type_ = p[4]
+		s.sectnum = p[5]
 		s.desc = m.e.Uint16(p[6:])
 		if m.is64 {
 			s.value = m.e.Uint64(p[8:])
@@ -460,8 +460,8 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	is64 = e.Uint32(hdr[:]) == 0xFEEDFACF
-	ncmd = e.Uint32([]byte(hdr[4*4:]))
-	cmdsz = e.Uint32([]byte(hdr[5*4:]))
+	ncmd = e.Uint32(hdr[4*4:])
+	cmdsz = e.Uint32(hdr[5*4:])
 	if ncmd > 0x10000 || cmdsz >= 0x01000000 {
 		err = fmt.Errorf("implausible mach-o header ncmd=%d cmdsz=%d", ncmd, cmdsz)
 		goto bad
@@ -475,11 +475,11 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 
 	m.f = f
 	m.e = e
-	m.cputype = uint(e.Uint32([]byte(hdr[1*4:])))
-	m.subcputype = uint(e.Uint32([]byte(hdr[2*4:])))
-	m.filetype = e.Uint32([]byte(hdr[3*4:]))
+	m.cputype = uint(e.Uint32(hdr[1*4:]))
+	m.subcputype = uint(e.Uint32(hdr[2*4:]))
+	m.filetype = e.Uint32(hdr[3*4:])
 	m.ncmd = uint(ncmd)
-	m.flags = e.Uint32([]byte(hdr[6*4:]))
+	m.flags = e.Uint32(hdr[6*4:])
 	m.is64 = is64
 	m.base = base
 	m.length = length

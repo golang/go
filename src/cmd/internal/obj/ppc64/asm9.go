@@ -1384,7 +1384,7 @@ const (
 // which relocation to use with a load or store and only supports the needed
 // instructions.
 func opform(ctxt *obj.Link, insn uint32) int {
-	switch uint32(insn) {
+	switch insn {
 	default:
 		ctxt.Diag("bad insn in loadform: %x", insn)
 	case OPVCC(58, 0, 0, 0), // ld
@@ -2198,9 +2198,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		v := oprrr(ctxt, p.As)
 		t := v & (1<<10 | 1) /* OE|Rc */
-		o1 = AOP_RRR(uint32(v)&^uint32(t), REGTMP, uint32(r), uint32(p.From.Reg))
+		o1 = AOP_RRR(v&^t, REGTMP, uint32(r), uint32(p.From.Reg))
 		o2 = AOP_RRR(OP_MULLW, REGTMP, REGTMP, uint32(p.From.Reg))
-		o3 = AOP_RRR(OP_SUBF|uint32(t), uint32(p.To.Reg), REGTMP, uint32(r))
+		o3 = AOP_RRR(OP_SUBF|t, uint32(p.To.Reg), REGTMP, uint32(r))
 		if p.As == AREMU {
 			o4 = o3
 
@@ -2216,9 +2216,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		v := oprrr(ctxt, p.As)
 		t := v & (1<<10 | 1) /* OE|Rc */
-		o1 = AOP_RRR(uint32(v)&^uint32(t), REGTMP, uint32(r), uint32(p.From.Reg))
+		o1 = AOP_RRR(v&^t, REGTMP, uint32(r), uint32(p.From.Reg))
 		o2 = AOP_RRR(OP_MULLD, REGTMP, REGTMP, uint32(p.From.Reg))
-		o3 = AOP_RRR(OP_SUBF|uint32(t), uint32(p.To.Reg), REGTMP, uint32(r))
+		o3 = AOP_RRR(OP_SUBF|t, uint32(p.To.Reg), REGTMP, uint32(r))
 
 	case 52: /* mtfsbNx cr(n) */
 		v := regoff(ctxt, &p.From) & 31
@@ -2485,7 +2485,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			ctxt.Diag("invalid offset against tls var %v", p)
 		}
 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
-		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		o2 = AOP_IRR(opload(ctxt, AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
 		rel := obj.Addrel(ctxt.Cursym)
 		rel.Off = int32(ctxt.Pc)
 		rel.Siz = 8
@@ -2499,7 +2499,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
-		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		o2 = AOP_IRR(opload(ctxt, AMOVD), uint32(p.To.Reg), uint32(p.To.Reg), 0)
 		rel := obj.Addrel(ctxt.Cursym)
 		rel.Off = int32(ctxt.Pc)
 		rel.Siz = 8

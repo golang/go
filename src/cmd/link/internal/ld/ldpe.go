@@ -175,14 +175,14 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 	// TODO return error if found .cormeta
 
 	// load string table
-	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
 
 	if _, err := io.ReadFull(f, symbuf[:4]); err != nil {
 		goto bad
 	}
 	l = Le32(symbuf[:])
 	peobj.snames = make([]byte, l)
-	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
 	if _, err := io.ReadFull(f, peobj.snames); err != nil {
 		goto bad
 	}
@@ -203,9 +203,9 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
 
 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
-	f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
+	f.Seek(base+int64(peobj.fh.PointerToSymbolTable), 0)
 	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
-		f.Seek(int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
+		f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
 		if _, err := io.ReadFull(f, symbuf[:]); err != nil {
 			goto bad
 		}

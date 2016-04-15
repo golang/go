@@ -279,7 +279,7 @@ func Dconv(p *Prog, a *Addr) string {
 
 	case TYPE_SHIFT:
 		v := int(a.Offset)
-		op := string("<<>>->@>"[((v>>5)&3)<<1:])
+		op := "<<>>->@>"[((v>>5)&3)<<1:]
 		if v&(1<<4) != 0 {
 			str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
 		} else {

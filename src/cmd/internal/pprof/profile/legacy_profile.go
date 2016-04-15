@@ -74,7 +74,7 @@ func parseGoCount(b []byte) (*Profile, error) {
 	if m == nil {
 		return nil, errUnrecognized
 	}
-	profileType := string(m[1])
+	profileType := m[1]
 	p := &Profile{
 		PeriodType: &ValueType{Type: profileType, Unit: "count"},
 		Period:     1,
@@ -99,11 +99,11 @@ func parseGoCount(b []byte) (*Profile, error) {
 		if m == nil {
 			return nil, errMalformed
 		}
-		n, err := strconv.ParseInt(string(m[1]), 0, 64)
+		n, err := strconv.ParseInt(m[1], 0, 64)
 		if err != nil {
 			return nil, errMalformed
 		}
-		fields := strings.Fields(string(m[2]))
+		fields := strings.Fields(m[2])
 		locs := make([]*Location, 0, len(fields))
 		for _, stk := range fields {
 			addr, err := strconv.ParseUint(stk, 0, 64)
@@ -458,7 +458,7 @@ func parseCPUSamples(b []byte, parse func(b []byte) (uint64, []byte), adjust boo
 		}
 		p.Sample = append(p.Sample,
 			&Sample{
-				Value:    []int64{int64(count), int64(count) * int64(p.Period)},
+				Value:    []int64{int64(count), int64(count) * p.Period},
 				Location: sloc,
 			})
 	}
@@ -488,7 +488,7 @@ func parseHeap(b []byte) (p *Profile, err error) {
 
 		var period int64
 		if len(header[6]) > 0 {
-			if period, err = strconv.ParseInt(string(header[6]), 10, 64); err != nil {
+			if period, err = strconv.ParseInt(header[6], 10, 64); err != nil {
 				return nil, errUnrecognized
 			}
 		}

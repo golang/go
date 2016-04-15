@@ -699,7 +699,7 @@ func asmb() {
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {
-					ld.Cput(uint8(sym.P[i]))
+					ld.Cput(sym.P[i])
 				}
 
 				ld.Cflush()

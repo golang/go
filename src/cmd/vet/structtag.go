@@ -111,7 +111,7 @@ func validateStructTag(tag string) error {
 		if i >= len(tag) {
 			return errTagValueSyntax
 		}
-		qvalue := string(tag[:i+1])
+		qvalue := tag[:i+1]
 		tag = tag[i+1:]
 
 		if _, err := strconv.Unquote(qvalue); err != nil {

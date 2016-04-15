@@ -59,7 +59,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		}
 		p.pendingLabels = p.pendingLabels[0:0]
 	}
-	prog.Pc = int64(p.pc)
+	prog.Pc = p.pc
 	if *flags.Debug {
 		fmt.Println(p.histLineNum, prog)
 	}
@@ -371,7 +371,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 				Offset: p.getConstant(prog, op, &a[0]),
 			}
 			reg := int16(p.getConstant(prog, op, &a[1]))
-			reg, ok := p.arch.RegisterNumber("R", int16(reg))
+			reg, ok := p.arch.RegisterNumber("R", reg)
 			if !ok {
 				p.errorf("bad register number %d", reg)
 				return

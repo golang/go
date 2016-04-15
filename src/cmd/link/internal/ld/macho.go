@@ -703,11 +703,11 @@ func machosymtab() {
 			Addstring(symstr, s.Extname)
 		} else {
 			for p = s.Extname; p != ""; p = p[1:] {
-				if uint8(p[0]) == 0xc2 && uint8((p[1:])[0]) == 0xb7 {
+				if p[0] == 0xc2 && (p[1:])[0] == 0xb7 {
 					Adduint8(Ctxt, symstr, '.')
 					p = p[1:]
 				} else {
-					Adduint8(Ctxt, symstr, uint8(p[0]))
+					Adduint8(Ctxt, symstr, p[0])
 				}
 			}
 

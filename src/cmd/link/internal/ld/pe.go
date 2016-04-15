@@ -877,7 +877,7 @@ func peemitreloc(text, data, ctors *IMAGE_SECTION_HEADER) {
 	ctors.NumberOfRelocations = 1
 	ctors.PointerToRelocations = uint32(Cpos())
 	sectoff := ctors.VirtualAddress
-	Lputl(uint32(sectoff))
+	Lputl(sectoff)
 	Lputl(uint32(dottext.Dynid))
 	switch obj.Getgoarch() {
 	default:
@@ -1043,7 +1043,7 @@ func addpesymtable() {
 	// write COFF string table
 	Lputl(uint32(len(strtbl)) + 4)
 	for i := 0; i < len(strtbl); i++ {
-		Cput(uint8(strtbl[i]))
+		Cput(strtbl[i])
 	}
 	if Linkmode != LinkExternal {
 		strnput("", int(h.SizeOfRawData-uint32(size)))

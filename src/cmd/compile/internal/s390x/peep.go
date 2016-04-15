@@ -135,7 +135,7 @@ func pushback(r0 *gc.Flow) {
 		}
 	}
 
-	t := obj.Prog(*r0.Prog)
+	t := *r0.Prog
 	for r = gc.Uniqp(r0); ; r = gc.Uniqp(r) {
 		p0 = r.Link.Prog
 		p := r.Prog
@@ -162,7 +162,7 @@ func pushback(r0 *gc.Flow) {
 
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("\tafter\n")
-		for r := (*gc.Flow)(b); ; r = r.Link {
+		for r := b; ; r = r.Link {
 			fmt.Printf("\t%v\n", r.Prog)
 			if r == r0 {
 				break
