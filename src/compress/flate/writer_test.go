@@ -91,7 +91,7 @@ func TestWriteError(t *testing.T) {
 		n *= 4
 	}
 	for i := 0; i < n; i++ {
-		buf.WriteString(fmt.Sprintf("asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i))
+		fmt.Fprintf(buf, "asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i)
 	}
 	in := buf.Bytes()
 	// We create our own buffer to control number of writes.
