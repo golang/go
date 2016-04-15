@@ -153,7 +153,6 @@ func Main() {
 	obj.Flagcount("E", "debug symbol export", &Debug['E'])
 	obj.Flagfn1("I", "add `directory` to import search path", addidir)
 	obj.Flagcount("K", "debug missing line numbers", &Debug['K'])
-	obj.Flagcount("L", "use full (long) path in error messages", &Debug['L'])
 	obj.Flagcount("M", "debug move generation", &Debug['M'])
 	obj.Flagcount("N", "disable optimizations", &Debug['N'])
 	obj.Flagcount("P", "debug peephole optimizer", &Debug['P'])
@@ -191,7 +190,6 @@ func Main() {
 	obj.Flagcount("w", "debug type checking", &Debug['w'])
 	flag.BoolVar(&use_writebarrier, "wb", true, "enable write barrier")
 	obj.Flagcount("x", "debug lexer", &Debug['x'])
-	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared bool
 	var flag_dynlink bool
 	if supportsDynlink(Thearch.LinkArch.Arch) {
