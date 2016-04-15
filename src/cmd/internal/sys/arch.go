@@ -6,7 +6,9 @@ package sys
 
 import "encoding/binary"
 
-// ArchFamily represents an architecture family.
+// ArchFamily represents a family of one or more related architectures.
+// For example, amd64 and amd64p32 are both members of the AMD64 family,
+// and ppc64 and ppc64le are both members of the PPC64 family.
 type ArchFamily byte
 
 const (
@@ -34,7 +36,7 @@ type Arch struct {
 	MinLC int
 }
 
-// HasFamily reports whether a is a member of any of the specified
+// InFamily reports whether a is a member of any of the specified
 // architecture families.
 func (a *Arch) InFamily(xs ...ArchFamily) bool {
 	for _, x := range xs {
