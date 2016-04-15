@@ -377,7 +377,7 @@ func dumpexport() {
 	}
 
 	size := 0 // size of export section without enclosing markers
-	if forceNewExport || newexport {
+	if newexport {
 		// binary export
 		// The linker also looks for the $$ marker - use char after $$ to distinguish format.
 		exportf("\n$$B\n") // indicate binary format
