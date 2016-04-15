@@ -15,24 +15,37 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	r1 := int32(r)
 	g1 := int32(g)
 	b1 := int32(b)
+
+	// yy is in range [0,0xff].
 	yy := (19595*r1 + 38470*g1 + 7471*b1 + 1<<15) >> 16
-	cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
-	cr := (32768*r1 - 27440*g1 - 5328*b1 + 257<<15) >> 16
-	if yy < 0 {
-		yy = 0
-	} else if yy > 0xff {
-		yy = 0xff
+
+	// The bit twiddling below is equivalent to
+	//
+	// cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
+	// if cb < 0 {
+	//     cb = 0
+	// } else if cb > 0xff {
+	//     cb = ^int32(0)
+	// }
+	//
+	// but uses fewer branches and is faster.
+	// Note that the uint8 type conversion in the return
+	// statement will convert ^int32(0) to 0xff.
+	// The code below to compute cr uses a similar pattern.
+	cb := -11056*r1 - 21712*g1 + 32768*b1 + 257<<15
+	if uint32(cb)&0xff000000 == 0 {
+		cb >>= 16
+	} else {
+		cb = ^(cb >> 31)
 	}
-	if cb < 0 {
-		cb = 0
-	} else if cb > 0xff {
-		cb = 0xff
+
+	cr := 32768*r1 - 27440*g1 - 5328*b1 + 257<<15
+	if uint32(cr)&0xff000000 == 0 {
+		cr >>= 16
+	} else {
+		cr = ^(cr >> 31)
 	}
-	if cr < 0 {
-		cr = 0
-	} else if cr > 0xff {
-		cr = 0xff
-	}
+
 	return uint8(yy), uint8(cb), uint8(cr)
 }
 
