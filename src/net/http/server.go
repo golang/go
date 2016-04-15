@@ -94,6 +94,10 @@ type ResponseWriter interface {
 // The Flusher interface is implemented by ResponseWriters that allow
 // an HTTP handler to flush buffered data to the client.
 //
+// The default HTTP/1.x and HTTP/2 ResponseWriter implementations
+// support Flusher, but ResponseWriter wrappers may not. Handlers
+// should always test for this ability at runtime.
+//
 // Note that even for ResponseWriters that support Flush,
 // if the client is connected through an HTTP proxy,
 // the buffered data may not reach the client until the response
@@ -105,6 +109,11 @@ type Flusher interface {
 
 // The Hijacker interface is implemented by ResponseWriters that allow
 // an HTTP handler to take over the connection.
+//
+// The default ResponseWriter for HTTP/1.x connections supports
+// Hijacker, but HTTP/2 connections intentionally do not.
+// ResponseWriter wrappers may also not support Hijacker. Handlers
+// should always test for this ability at runtime.
 type Hijacker interface {
 	// Hijack lets the caller take over the connection.
 	// After a call to Hijack(), the HTTP server library
