@@ -158,19 +158,18 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 		return int32(pcln.Lastindex)
 	}
 
-	var i int32
-	for i = 0; i < int32(len(pcln.File)); i++ {
-		file := pcln.File[i]
+	for i, file := range pcln.File {
 		if file == f {
 			pcln.Lastfile = f
-			pcln.Lastindex = int(i)
-			return i
+			pcln.Lastindex = i
+			return int32(i)
 		}
 	}
+	i := len(pcln.File)
 	pcln.File = append(pcln.File, f)
 	pcln.Lastfile = f
-	pcln.Lastindex = int(i)
-	return i
+	pcln.Lastindex = i
+	return int32(i)
 }
 
 // pctospadj computes the sp adjustment in effect.
