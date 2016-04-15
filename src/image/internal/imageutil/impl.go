@@ -60,7 +60,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				// but uses fewer branches and is faster.
 				// Note that the uint8 type conversion in the return
 				// statement will convert ^int32(0) to 0xff.
-				// The code below to compute b and g uses a similar pattern.
+				// The code below to compute g and b uses a similar pattern.
 				r := yy1 + 91881*cr1
 				if uint32(r)&0xff000000 == 0 {
 					r >>= 16
@@ -68,18 +68,18 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 					r = ^(r >> 31)
 				}
 
-				b := yy1 + 116130*cb1
-				if uint32(b)&0xff000000 == 0 {
-					b >>= 16
-				} else {
-					b = ^(b >> 31)
-				}
-
 				g := yy1 - 22554*cb1 - 46802*cr1
 				if uint32(g)&0xff000000 == 0 {
 					g >>= 16
 				} else {
 					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
 				}
 
 				dpix[x+0] = uint8(r)
@@ -115,7 +115,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				// but uses fewer branches and is faster.
 				// Note that the uint8 type conversion in the return
 				// statement will convert ^int32(0) to 0xff.
-				// The code below to compute b and g uses a similar pattern.
+				// The code below to compute g and b uses a similar pattern.
 				r := yy1 + 91881*cr1
 				if uint32(r)&0xff000000 == 0 {
 					r >>= 16
@@ -123,18 +123,18 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 					r = ^(r >> 31)
 				}
 
-				b := yy1 + 116130*cb1
-				if uint32(b)&0xff000000 == 0 {
-					b >>= 16
-				} else {
-					b = ^(b >> 31)
-				}
-
 				g := yy1 - 22554*cb1 - 46802*cr1
 				if uint32(g)&0xff000000 == 0 {
 					g >>= 16
 				} else {
 					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
 				}
 
 				dpix[x+0] = uint8(r)
@@ -170,7 +170,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				// but uses fewer branches and is faster.
 				// Note that the uint8 type conversion in the return
 				// statement will convert ^int32(0) to 0xff.
-				// The code below to compute b and g uses a similar pattern.
+				// The code below to compute g and b uses a similar pattern.
 				r := yy1 + 91881*cr1
 				if uint32(r)&0xff000000 == 0 {
 					r >>= 16
@@ -178,18 +178,18 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 					r = ^(r >> 31)
 				}
 
-				b := yy1 + 116130*cb1
-				if uint32(b)&0xff000000 == 0 {
-					b >>= 16
-				} else {
-					b = ^(b >> 31)
-				}
-
 				g := yy1 - 22554*cb1 - 46802*cr1
 				if uint32(g)&0xff000000 == 0 {
 					g >>= 16
 				} else {
 					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
 				}
 
 				dpix[x+0] = uint8(r)
@@ -224,7 +224,7 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				// but uses fewer branches and is faster.
 				// Note that the uint8 type conversion in the return
 				// statement will convert ^int32(0) to 0xff.
-				// The code below to compute b and g uses a similar pattern.
+				// The code below to compute g and b uses a similar pattern.
 				r := yy1 + 91881*cr1
 				if uint32(r)&0xff000000 == 0 {
 					r >>= 16
@@ -232,18 +232,18 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 					r = ^(r >> 31)
 				}
 
-				b := yy1 + 116130*cb1
-				if uint32(b)&0xff000000 == 0 {
-					b >>= 16
-				} else {
-					b = ^(b >> 31)
-				}
-
 				g := yy1 - 22554*cb1 - 46802*cr1
 				if uint32(g)&0xff000000 == 0 {
 					g >>= 16
 				} else {
 					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
 				}
 
 				dpix[x+0] = uint8(r)
