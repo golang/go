@@ -336,17 +336,17 @@ func parsePAXTime(t string) (time.Time, error) {
 		if err != nil {
 			return time.Time{}, err
 		}
-		nano_buf := string(buf[pos+1:])
+		nanoBuf := string(buf[pos+1:])
 		// Pad as needed before converting to a decimal.
 		// For example .030 -> .030000000 -> 30000000 nanoseconds
-		if len(nano_buf) < maxNanoSecondIntSize {
+		if len(nanoBuf) < maxNanoSecondIntSize {
 			// Right pad
-			nano_buf += strings.Repeat("0", maxNanoSecondIntSize-len(nano_buf))
-		} else if len(nano_buf) > maxNanoSecondIntSize {
+			nanoBuf += strings.Repeat("0", maxNanoSecondIntSize-len(nanoBuf))
+		} else if len(nanoBuf) > maxNanoSecondIntSize {
 			// Right truncate
-			nano_buf = nano_buf[:maxNanoSecondIntSize]
+			nanoBuf = nanoBuf[:maxNanoSecondIntSize]
 		}
-		nanoseconds, err = strconv.ParseInt(nano_buf, 10, 0)
+		nanoseconds, err = strconv.ParseInt(nanoBuf, 10, 0)
 		if err != nil {
 			return time.Time{}, err
 		}
