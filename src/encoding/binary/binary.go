@@ -269,7 +269,7 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		case *uint8:
 			b[0] = *v
 		case uint8:
-			b[0] = byte(v)
+			b[0] = v
 		case []uint8:
 			bs = v
 		case *int16:

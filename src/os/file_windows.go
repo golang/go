@@ -181,9 +181,9 @@ func (file *file) close() error {
 	}
 	var e error
 	if file.isdir() {
-		e = syscall.FindClose(syscall.Handle(file.fd))
+		e = syscall.FindClose(file.fd)
 	} else {
-		e = syscall.CloseHandle(syscall.Handle(file.fd))
+		e = syscall.CloseHandle(file.fd)
 	}
 	var err error
 	if e != nil {
@@ -216,7 +216,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 	d := &file.dirinfo.data
 	for n != 0 && !file.dirinfo.isempty {
 		if file.dirinfo.needdata {
-			e := syscall.FindNextFile(syscall.Handle(file.fd), d)
+			e := syscall.FindNextFile(file.fd, d)
 			if e != nil {
 				if e == syscall.ERROR_NO_MORE_FILES {
 					break
@@ -230,7 +230,7 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
 			}
 		}
 		file.dirinfo.needdata = true
-		name := string(syscall.UTF16ToString(d.FileName[0:]))
+		name := syscall.UTF16ToString(d.FileName[0:])
 		if name == "." || name == ".." { // Useless names
 			continue
 		}
@@ -288,7 +288,7 @@ func (f *File) readConsole(b []byte) (n int, err error) {
 			}
 			wchars := make([]uint16, nwc)
 			pwc := &wchars[0]
-			nwc, err = windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), pwc, int32(nwc))
+			nwc, err = windows.MultiByteToWideChar(acp, 2, pmb, int32(nmb), pwc, nwc)
 			if err != nil {
 				return 0, err
 			}
@@ -335,7 +335,7 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 		Offset:     uint32(off),
 	}
 	var done uint32
-	e = syscall.ReadFile(syscall.Handle(f.fd), b, &done, &o)
+	e = syscall.ReadFile(f.fd, b, &done, &o)
 	if e != nil {
 		if e == syscall.ERROR_HANDLE_EOF {
 			// end of file
@@ -415,7 +415,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 		Offset:     uint32(off),
 	}
 	var done uint32
-	e = syscall.WriteFile(syscall.Handle(f.fd), b, &done, &o)
+	e = syscall.WriteFile(f.fd, b, &done, &o)
 	if e != nil {
 		return 0, e
 	}

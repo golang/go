@@ -477,7 +477,7 @@ func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err er
 	if i < p.len() && p.s[i] > 127 {
 		return "", errNonASCII
 	}
-	atom, p.s = string(p.s[:i]), p.s[i:]
+	atom, p.s = p.s[:i], p.s[i:]
 	if !permissive {
 		if strings.HasPrefix(atom, ".") {
 			return "", errors.New("mail: leading dot in atom")

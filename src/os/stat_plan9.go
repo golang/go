@@ -20,7 +20,7 @@ func sameFile(fs1, fs2 *fileStat) bool {
 func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
 		name:    d.Name,
-		size:    int64(d.Length),
+		size:    d.Length,
 		modTime: time.Unix(int64(d.Mtime), 0),
 		sys:     d,
 	}

@@ -179,8 +179,8 @@ func (p *Pool) pinSlow() *poolLocal {
 	// If GOMAXPROCS changes between GCs, we re-allocate the array and lose the old one.
 	size := runtime.GOMAXPROCS(0)
 	local := make([]poolLocal, size)
-	atomic.StorePointer((*unsafe.Pointer)(&p.local), unsafe.Pointer(&local[0])) // store-release
-	atomic.StoreUintptr(&p.localSize, uintptr(size))                            // store-release
+	atomic.StorePointer(&p.local, unsafe.Pointer(&local[0])) // store-release
+	atomic.StoreUintptr(&p.localSize, uintptr(size))         // store-release
 	return &local[pid]
 }
 

@@ -44,5 +44,5 @@ func reverseUint16(v uint16) uint16 {
 }
 
 func reverseBits(number uint16, bitLength byte) uint16 {
-	return reverseUint16(number << uint8(16-bitLength))
+	return reverseUint16(number << (16 - bitLength))
 }

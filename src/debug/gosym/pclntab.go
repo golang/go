@@ -207,8 +207,8 @@ func (t *LineTable) go12Funcs() []Func {
 	funcs := make([]Func, n)
 	for i := range funcs {
 		f := &funcs[i]
-		f.Entry = uint64(t.uintptr(t.functab[2*i*int(t.ptrsize):]))
-		f.End = uint64(t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):]))
+		f.Entry = t.uintptr(t.functab[2*i*int(t.ptrsize):])
+		f.End = t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):])
 		info := t.Data[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
 		f.LineTable = t
 		f.FrameSize = int(t.binary.Uint32(info[t.ptrsize+2*4:]))

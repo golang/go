@@ -306,7 +306,7 @@ func mergePAX(hdr *Header, headers map[string]string) error {
 			if err != nil {
 				return err
 			}
-			hdr.Size = int64(size)
+			hdr.Size = size
 		default:
 			if strings.HasPrefix(k, paxXattr) {
 				if hdr.Xattrs == nil {
@@ -346,7 +346,7 @@ func parsePAXTime(t string) (time.Time, error) {
 			// Right truncate
 			nano_buf = nano_buf[:maxNanoSecondIntSize]
 		}
-		nanoseconds, err = strconv.ParseInt(string(nano_buf), 10, 0)
+		nanoseconds, err = strconv.ParseInt(nano_buf, 10, 0)
 		if err != nil {
 			return time.Time{}, err
 		}
@@ -378,14 +378,14 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		}
 		sbuf = residual
 
-		keyStr := string(key)
+		keyStr := key
 		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
 			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
 			sparseMap.WriteString(value)
 			sparseMap.Write([]byte{','})
 		} else {
 			// Normal key. Set the value in the headers map.
-			headers[keyStr] = string(value)
+			headers[keyStr] = value
 		}
 	}
 	if sparseMap.Len() != 0 {

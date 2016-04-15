@@ -237,10 +237,10 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
 
 // CMYKToRGB converts a CMYK quadruple to an RGB triple.
 func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
-	w := uint32(0xffff - uint32(k)*0x101)
-	r := uint32(0xffff-uint32(c)*0x101) * w / 0xffff
-	g := uint32(0xffff-uint32(m)*0x101) * w / 0xffff
-	b := uint32(0xffff-uint32(y)*0x101) * w / 0xffff
+	w := 0xffff - uint32(k)*0x101
+	r := (0xffff - uint32(c)*0x101) * w / 0xffff
+	g := (0xffff - uint32(m)*0x101) * w / 0xffff
+	b := (0xffff - uint32(y)*0x101) * w / 0xffff
 	return uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)
 }
 
@@ -256,11 +256,11 @@ func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
 	// This code is a copy of the CMYKToRGB function above, except that it
 	// returns values in the range [0, 0xffff] instead of [0, 0xff].
 
-	w := uint32(0xffff - uint32(c.K)*0x101)
-	r := uint32(0xffff-uint32(c.C)*0x101) * w / 0xffff
-	g := uint32(0xffff-uint32(c.M)*0x101) * w / 0xffff
-	b := uint32(0xffff-uint32(c.Y)*0x101) * w / 0xffff
-	return uint32(r), uint32(g), uint32(b), 0xffff
+	w := 0xffff - uint32(c.K)*0x101
+	r := (0xffff - uint32(c.C)*0x101) * w / 0xffff
+	g := (0xffff - uint32(c.M)*0x101) * w / 0xffff
+	b := (0xffff - uint32(c.Y)*0x101) * w / 0xffff
+	return r, g, b, 0xffff
 }
 
 // CMYKModel is the Model for CMYK colors.
