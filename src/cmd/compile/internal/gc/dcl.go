@@ -13,19 +13,6 @@ import (
 
 // Declaration stack & operations
 
-func dflag() bool {
-	if Debug['d'] == 0 {
-		return false
-	}
-	if Debug['y'] != 0 {
-		return true
-	}
-	if incannedimport != 0 {
-		return false
-	}
-	return true
-}
-
 var externdcl []*Node
 
 var blockgen int32 // max block number
@@ -67,9 +54,6 @@ func push() *Sym {
 func pushdcl(s *Sym) *Sym {
 	d := push()
 	dcopy(d, s)
-	if dflag() {
-		fmt.Printf("\t%v push %v %p\n", linestr(lineno), s, s.Def)
-	}
 	return d
 }
 
@@ -82,9 +66,6 @@ func popdcl() {
 		lno := s.Lastlineno
 		dcopy(s, d)
 		d.Lastlineno = lno
-		if dflag() {
-			fmt.Printf("\t%v pop %v %p\n", linestr(lineno), s, s.Def)
-		}
 	}
 
 	if d == nil {
@@ -194,9 +175,6 @@ func declare(n *Node, ctxt Class) {
 	gen := 0
 	if ctxt == PEXTERN {
 		externdcl = append(externdcl, n)
-		if dflag() {
-			fmt.Printf("\t%v global decl %v %p\n", linestr(lineno), s, n)
-		}
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
 			Fatalf("automatic outside function")
