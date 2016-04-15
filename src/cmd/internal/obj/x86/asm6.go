@@ -3308,7 +3308,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Pf2, /* xmm opcode escape */
 				Pf3:
-				ctxt.AsmBuf.Put2(byte(o.prefix), Pm)
+				ctxt.AsmBuf.Put2(o.prefix, Pm)
 
 			case Pef3:
 				ctxt.AsmBuf.Put3(Pe, Pf3, Pm)
@@ -3421,7 +3421,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				asmand(ctxt, p, &p.From, &p.To)
 
 			case Zm2_r:
-				ctxt.AsmBuf.Put2(byte(op), byte(o.op[z+1]))
+				ctxt.AsmBuf.Put2(byte(op), o.op[z+1])
 				asmand(ctxt, p, &p.From, &p.To)
 
 			case Zm_r_xm:
@@ -3531,7 +3531,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				}
 				ctxt.AsmBuf.Put1(byte(op))
 				if p.As == AXABORT {
-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
+					ctxt.AsmBuf.Put1(o.op[z+1])
 				}
 				ctxt.AsmBuf.Put1(byte(vaddr(ctxt, p, a, nil)))
 
@@ -3657,7 +3657,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				if yt.zcase == Zcallcon {
 					ctxt.AsmBuf.Put1(byte(op))
 				} else {
-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
+					ctxt.AsmBuf.Put1(o.op[z+1])
 				}
 				r = obj.Addrel(ctxt.Cursym)
 				r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
@@ -3667,7 +3667,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.AsmBuf.PutInt32(0)
 
 			case Zcallind:
-				ctxt.AsmBuf.Put2(byte(op), byte(o.op[z+1]))
+				ctxt.AsmBuf.Put2(byte(op), o.op[z+1])
 				r = obj.Addrel(ctxt.Cursym)
 				r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
 				r.Type = obj.R_ADDR
@@ -3722,7 +3722,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 						log.Fatalf("bad code")
 					}
 
-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
+					ctxt.AsmBuf.Put1(o.op[z+1])
 					r = obj.Addrel(ctxt.Cursym)
 					r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
 					r.Sym = p.To.Sym
@@ -3762,7 +3762,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 							v--
 						}
 
-						ctxt.AsmBuf.Put1(byte(o.op[z+1]))
+						ctxt.AsmBuf.Put1(o.op[z+1])
 						ctxt.AsmBuf.PutInt32(int32(v))
 					}
 
@@ -3784,7 +3784,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 					if yt.zcase == Zbr {
 						ctxt.AsmBuf.Put1(0x0f)
 					}
-					ctxt.AsmBuf.Put1(byte(o.op[z+1]))
+					ctxt.AsmBuf.Put1(o.op[z+1])
 					ctxt.AsmBuf.PutInt32(0)
 				}
 

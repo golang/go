@@ -179,7 +179,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 
 		dv = val - newval
 		newval = val
-		v = (uint32(dv) << 1) ^ uint32(int32(dv>>31))
+		v = (uint32(dv) << 1) ^ uint32(dv>>31)
 		addvarint(&out, v)
 
 		// pc delta
@@ -378,7 +378,7 @@ func pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), int64(ftab.Size), int64(funcdata_bytes))
+		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
 	}
 }
 

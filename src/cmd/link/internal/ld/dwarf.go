@@ -615,7 +615,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
 		Adduint8(Ctxt, s, uint8(value))
 		p := data.([]byte)
 		for i := 0; int64(i) < value; i++ {
-			Adduint8(Ctxt, s, uint8(p[i]))
+			Adduint8(Ctxt, s, p[i])
 		}
 
 	case DW_FORM_block2: // block
@@ -624,7 +624,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
 		Adduint16(Ctxt, s, uint16(value))
 		p := data.([]byte)
 		for i := 0; int64(i) < value; i++ {
-			Adduint8(Ctxt, s, uint8(p[i]))
+			Adduint8(Ctxt, s, p[i])
 		}
 
 	case DW_FORM_block4: // block
@@ -633,7 +633,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
 		Adduint32(Ctxt, s, uint32(value))
 		p := data.([]byte)
 		for i := 0; int64(i) < value; i++ {
-			Adduint8(Ctxt, s, uint8(p[i]))
+			Adduint8(Ctxt, s, p[i])
 		}
 
 	case DW_FORM_block: // block
@@ -641,7 +641,7 @@ func putattr(s *LSym, abbrev int, form int, cls int, value int64, data interface
 
 		p := data.([]byte)
 		for i := 0; int64(i) < value; i++ {
-			Adduint8(Ctxt, s, uint8(p[i]))
+			Adduint8(Ctxt, s, p[i])
 		}
 
 	case DW_FORM_data1: // constant
@@ -1179,7 +1179,7 @@ func synthesizemaptypes(die *DWDie) {
 		// Construct type to represent an array of BucketSize keys
 		keyname := nameFromDIESym(keytype)
 		dwhks := mkinternaltype(DW_ABRV_ARRAYTYPE, "[]key", keyname, "", func(dwhk *DWDie) {
-			newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*int64(keysize), 0)
+			newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*keysize, 0)
 			t := keytype
 			if indirect_key {
 				t = defptrto(keytype)
@@ -1193,7 +1193,7 @@ func synthesizemaptypes(die *DWDie) {
 		// Construct type to represent an array of BucketSize values
 		valname := nameFromDIESym(valtype)
 		dwhvs := mkinternaltype(DW_ABRV_ARRAYTYPE, "[]val", valname, "", func(dwhv *DWDie) {
-			newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*int64(valsize), 0)
+			newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*valsize, 0)
 			t := valtype
 			if indirect_val {
 				t = defptrto(valtype)
@@ -1225,7 +1225,7 @@ func synthesizemaptypes(die *DWDie) {
 				newmemberoffsetattr(fld, BucketSize+BucketSize*(int32(keysize)+int32(valsize))+int32(SysArch.PtrSize))
 			}
 
-			newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*int64(keysize)+BucketSize*int64(valsize)+int64(SysArch.RegSize), 0)
+			newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*keysize+BucketSize*valsize+int64(SysArch.RegSize), 0)
 		})
 
 		// Construct hash<K,V>
@@ -1269,7 +1269,7 @@ func synthesizechantypes(die *DWDie) {
 			} else {
 				elemsize = 0
 			}
-			newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, int64(sudogsize)+int64(elemsize), nil)
+			newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, int64(sudogsize)+elemsize, nil)
 		})
 
 		// waitq<T>
@@ -1787,7 +1787,7 @@ func writeinfo(prev *LSym) *LSym {
 		}
 
 		setuint32(Ctxt, s, 0, uint32(cusize))
-		newattr(compunit, DW_AT_byte_size, DW_CLS_CONSTANT, int64(cusize), 0)
+		newattr(compunit, DW_AT_byte_size, DW_CLS_CONSTANT, cusize, 0)
 	}
 	return prev
 }

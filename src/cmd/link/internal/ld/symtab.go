@@ -236,10 +236,10 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 
 		var i int
 		if t == 'z' || t == 'Z' {
-			Cput(uint8(s[0]))
+			Cput(s[0])
 			for i = 1; s[i] != 0 || s[i+1] != 0; i += 2 {
-				Cput(uint8(s[i]))
-				Cput(uint8(s[i+1]))
+				Cput(s[i])
+				Cput(s[i+1])
 			}
 
 			Cput(0)
@@ -251,7 +251,7 @@ func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ 
 				s = s[1:]
 			}
 			for i = 0; i < len(s); i++ {
-				Cput(uint8(s[i]))
+				Cput(s[i])
 			}
 			Cput(0)
 		}

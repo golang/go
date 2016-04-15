@@ -472,7 +472,7 @@ func (r *objReader) readInt64() int64 {
 		}
 	}
 
-	return int64(uv>>1) ^ (int64(uint64(uv)<<63) >> 63)
+	return int64(uv>>1) ^ (int64(uv<<63) >> 63)
 }
 
 func (r *objReader) readInt() int {

@@ -64,7 +64,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if val == oldval && started != 0 {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(int64(p.Pc)), "", p)
+				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
 		}
@@ -76,7 +76,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if p.Link != nil && p.Link.Pc == p.Pc {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(int64(p.Pc)), "", p)
+				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
 		}
@@ -96,7 +96,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// where the 0x80 bit indicates that the integer continues.
 
 		if ctxt.Debugpcln != 0 {
-			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(int64(p.Pc)), val, p)
+			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(p.Pc), val, p)
 		}
 
 		if started != 0 {
@@ -118,7 +118,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if started != 0 {
 		if ctxt.Debugpcln != 0 {
-			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(int64(func_.Text.Pc)+func_.Size))
+			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(func_.Text.Pc+func_.Size))
 		}
 		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
 		addvarint(ctxt, dst, 0) // terminator
@@ -164,7 +164,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 		if file == f {
 			pcln.Lastfile = f
 			pcln.Lastindex = int(i)
-			return int32(i)
+			return i
 		}
 	}
 	pcln.File = append(pcln.File, f)

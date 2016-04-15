@@ -2026,7 +2026,7 @@ func doelf() {
 			h.Write(l.hash)
 		}
 		addgonote(".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
-		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, []byte(pkglistfornote))
+		addgonote(".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, pkglistfornote)
 		var deplist []string
 		for _, shlib := range Ctxt.Shlibs {
 			deplist = append(deplist, filepath.Base(shlib.Path))

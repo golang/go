@@ -765,7 +765,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 	if arsize&1 != 0 {
 		arsize++
 	}
-	return int64(arsize) + SAR_HDR
+	return arsize + SAR_HDR
 }
 
 func objfile(lib *Library) {
@@ -1953,7 +1953,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 				continue
 			}
 			if len(s.P) > 0 {
-				Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, int(len(s.P)), s.Type, s.Attr.Special())
+				Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, len(s.P), s.Type, s.Attr.Special())
 			}
 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
 

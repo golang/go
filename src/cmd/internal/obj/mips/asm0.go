@@ -1024,7 +1024,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_IRR(opirr(ctxt, p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 5: /* syscall */
-		o1 = uint32(oprrr(ctxt, p.As))
+		o1 = oprrr(ctxt, p.As)
 
 	case 6: /* beq r1,[r2],sbra */
 		v := int32(0)

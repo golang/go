@@ -59,7 +59,7 @@ func (f *plan9File) symbols() ([]Sym, error) {
 		if !validSymType[s.Type] {
 			continue
 		}
-		sym := Sym{Addr: s.Value, Name: s.Name, Code: rune(s.Type)}
+		sym := Sym{Addr: s.Value, Name: s.Name, Code: s.Type}
 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
 		if i < len(addrs) {
 			sym.Size = int64(addrs[i] - s.Value)

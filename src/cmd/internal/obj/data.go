@@ -183,7 +183,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	case 4:
 		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
 	case 8:
-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(v))
+		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
 	}
 
 	return off + wid

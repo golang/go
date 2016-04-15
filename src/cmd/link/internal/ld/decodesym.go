@@ -53,12 +53,12 @@ func uncommonSize() int    { return 2 * SysArch.PtrSize }   // runtime.uncommont
 
 // Type.commonType.kind
 func decodetype_kind(s *LSym) uint8 {
-	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindMask) //  0x13 / 0x1f
+	return s.P[2*SysArch.PtrSize+7] & obj.KindMask //  0x13 / 0x1f
 }
 
 // Type.commonType.kind
 func decodetype_usegcprog(s *LSym) uint8 {
-	return uint8(s.P[2*SysArch.PtrSize+7] & obj.KindGCProg) //  0x13 / 0x1f
+	return s.P[2*SysArch.PtrSize+7] & obj.KindGCProg //  0x13 / 0x1f
 }
 
 // Type.commonType.size

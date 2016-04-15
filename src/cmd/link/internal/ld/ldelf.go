@@ -500,7 +500,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 
 	elfobj.e = e
 	elfobj.f = f
-	elfobj.base = int64(base)
+	elfobj.base = base
 	elfobj.length = length
 	elfobj.name = pn
 
@@ -612,7 +612,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 				goto bad
 			}
 
-			sect.nameoff = uint32(e.Uint32(b.Name[:]))
+			sect.nameoff = e.Uint32(b.Name[:])
 			sect.type_ = e.Uint32(b.Type[:])
 			sect.flags = e.Uint64(b.Flags[:])
 			sect.addr = e.Uint64(b.Addr[:])
@@ -629,7 +629,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 				goto bad
 			}
 
-			sect.nameoff = uint32(e.Uint32(b.Name[:]))
+			sect.nameoff = e.Uint32(b.Name[:])
 			sect.type_ = e.Uint32(b.Type[:])
 			sect.flags = uint64(e.Uint32(b.Flags[:]))
 			sect.addr = uint64(e.Uint32(b.Addr[:]))

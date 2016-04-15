@@ -371,9 +371,9 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 			name = "TLS"
 		}
 		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(r.Add))
 		} else {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, r.Add)
 		}
 	}
 }
@@ -473,7 +473,7 @@ func (w *objWriter) writeSym(s *LSym) {
 
 func (w *objWriter) writeInt(sval int64) {
 	var v uint64
-	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
+	uv := (uint64(sval) << 1) ^ uint64(sval>>63)
 	p := w.varintbuf[:]
 	for v = uv; v >= 0x80; v >>= 7 {
 		p[0] = uint8(v | 0x80)

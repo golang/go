@@ -193,7 +193,7 @@ func asmb() {
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {
-					ld.Cput(uint8(sym.P[i]))
+					ld.Cput(sym.P[i])
 				}
 
 				ld.Cflush()
@@ -214,7 +214,7 @@ func asmb() {
 		if ld.SysArch == sys.ArchMIPS64LE {
 			magic = uint32(4*26*26 + 7)
 		}
-		ld.Thearch.Lput(uint32(magic))              /* magic */
+		ld.Thearch.Lput(magic)                      /* magic */
 		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
 		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
 		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))

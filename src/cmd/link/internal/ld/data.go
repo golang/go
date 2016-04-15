@@ -80,7 +80,7 @@ func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	case 4:
 		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(v))
 	case 8:
-		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(v))
+		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], v)
 	}
 
 	return off + wid
@@ -757,7 +757,7 @@ func blk(start *LSym, addr int64, size int64) {
 		}
 		Ctxt.Cursym = sym
 		if sym.Value < addr {
-			Diag("phase error: addr=%#x but sym=%#x type=%d", int64(addr), int64(sym.Value), sym.Type)
+			Diag("phase error: addr=%#x but sym=%#x type=%d", addr, sym.Value, sym.Type)
 			errorexit()
 		}
 
@@ -773,7 +773,7 @@ func blk(start *LSym, addr int64, size int64) {
 			addr = sym.Value + sym.Size
 		}
 		if addr != sym.Value+sym.Size {
-			Diag("phase error: addr=%#x value+size=%#x", int64(addr), int64(sym.Value)+sym.Size)
+			Diag("phase error: addr=%#x value+size=%#x", addr, sym.Value+sym.Size)
 			errorexit()
 		}
 
@@ -821,14 +821,14 @@ func Codeblk(addr int64, size int64) {
 		}
 
 		if addr < sym.Value {
-			fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
+			fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(addr))
 			for ; addr < sym.Value; addr++ {
 				fmt.Fprintf(Bso, " %.2x", 0)
 			}
 			fmt.Fprintf(Bso, "\n")
 		}
 
-		fmt.Fprintf(Bso, "%.6x\t%-20s\n", uint64(int64(addr)), sym.Name)
+		fmt.Fprintf(Bso, "%.6x\t%-20s\n", uint64(addr), sym.Name)
 		q = sym.P
 
 		for len(q) >= 16 {
@@ -844,7 +844,7 @@ func Codeblk(addr int64, size int64) {
 	}
 
 	if addr < eaddr {
-		fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(int64(addr)))
+		fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(addr))
 		for ; addr < eaddr; addr++ {
 			fmt.Fprintf(Bso, " %.2x", 0)
 		}
@@ -892,7 +892,7 @@ func Datblk(addr int64, size int64) {
 		p = sym.P
 		ep = p[len(sym.P):]
 		for -cap(p) < -cap(ep) {
-			if -cap(p) > -cap(sym.P) && int(-cap(p)+cap(sym.P))%16 == 0 {
+			if -cap(p) > -cap(sym.P) && (-cap(p)+cap(sym.P))%16 == 0 {
 				fmt.Fprintf(Bso, "\n\t%.8x|", uint(addr+int64(-cap(p)+cap(sym.P))))
 			}
 			fmt.Fprintf(Bso, " %.2x", p[0])
@@ -924,7 +924,7 @@ func Datblk(addr int64, size int64) {
 					typ = "call"
 				}
 
-				fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, int64(r.Add), int64(r.Sym.Value+r.Add))
+				fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
 			}
 		}
 	}
@@ -1279,7 +1279,7 @@ func dodata() {
 
 	for s := datap; s != nil; s = s.Next {
 		if int64(len(s.P)) > s.Size {
-			Diag("%s: initialize bounds (%d < %d)", s.Name, int64(s.Size), len(s.P))
+			Diag("%s: initialize bounds (%d < %d)", s.Name, s.Size, len(s.P))
 		}
 	}
 
