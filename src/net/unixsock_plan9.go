@@ -5,9 +5,9 @@
 package net
 
 import (
+	"context"
 	"os"
 	"syscall"
-	"time"
 )
 
 func (c *UnixConn) readFrom(b []byte) (int, *UnixAddr, error) {
@@ -26,7 +26,7 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
 	return 0, 0, syscall.EPLAN9
 }
 
-func dialUnix(network string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
+func dialUnix(ctx context.Context, network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }
 
@@ -42,10 +42,10 @@ func (ln *UnixListener) file() (*os.File, error) {
 	return nil, syscall.EPLAN9
 }
 
-func listenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+func listenUnix(ctx context.Context, network string, laddr *UnixAddr) (*UnixListener, error) {
 	return nil, syscall.EPLAN9
 }
 
-func listenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
+func listenUnixgram(ctx context.Context, network string, laddr *UnixAddr) (*UnixConn, error) {
 	return nil, syscall.EPLAN9
 }

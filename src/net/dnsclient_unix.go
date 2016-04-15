@@ -16,6 +16,7 @@
 package net
 
 import (
+	"context"
 	"errors"
 	"io"
 	"math/rand"
@@ -399,11 +400,11 @@ func (o hostLookupOrder) String() string {
 // Normally we let cgo use the C library resolver instead of
 // depending on our lookup code, so that Go and C get the same
 // answers.
-func goLookupHost(name string) (addrs []string, err error) {
-	return goLookupHostOrder(name, hostLookupFilesDNS)
+func goLookupHost(ctx context.Context, name string) (addrs []string, err error) {
+	return goLookupHostOrder(ctx, name, hostLookupFilesDNS)
 }
 
-func goLookupHostOrder(name string, order hostLookupOrder) (addrs []string, err error) {
+func goLookupHostOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []string, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		// Use entries from /etc/hosts if they match.
 		addrs = lookupStaticHost(name)
@@ -411,7 +412,7 @@ func goLookupHostOrder(name string, order hostLookupOrder) (addrs []string, err 
 			return
 		}
 	}
-	ips, err := goLookupIPOrder(name, order)
+	ips, err := goLookupIPOrder(ctx, name, order)
 	if err != nil {
 		return
 	}
@@ -437,11 +438,11 @@ func goLookupIPFiles(name string) (addrs []IPAddr) {
 
 // goLookupIP is the native Go implementation of LookupIP.
 // The libc versions are in cgo_*.go.
-func goLookupIP(name string) (addrs []IPAddr, err error) {
-	return goLookupIPOrder(name, hostLookupFilesDNS)
+func goLookupIP(ctx context.Context, name string) (addrs []IPAddr, err error) {
+	return goLookupIPOrder(ctx, name, hostLookupFilesDNS)
 }
 
-func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err error) {
+func goLookupIPOrder(ctx context.Context, name string, order hostLookupOrder) (addrs []IPAddr, err error) {
 	if order == hostLookupFilesDNS || order == hostLookupFiles {
 		addrs = goLookupIPFiles(name)
 		if len(addrs) > 0 || order == hostLookupFiles {

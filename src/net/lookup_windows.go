@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"os"
 	"runtime"
 	"syscall"
@@ -51,8 +52,8 @@ func lookupProtocol(name string) (int, error) {
 	return r.proto, r.err
 }
 
-func lookupHost(name string) ([]string, error) {
-	ips, err := LookupIP(name)
+func lookupHost(ctx context.Context, name string) ([]string, error) {
+	ips, err := lookupIP(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -83,59 +84,97 @@ func gethostbyname(name string) (addrs []IPAddr, err error) {
 	return addrs, nil
 }
 
-func oldLookupIP(name string) ([]IPAddr, error) {
+func oldLookupIP(ctx context.Context, name string) ([]IPAddr, error) {
 	// GetHostByName return value is stored in thread local storage.
 	// Start new os thread before the call to prevent races.
-	type result struct {
+	type ret struct {
 		addrs []IPAddr
 		err   error
 	}
-	ch := make(chan result)
+	ch := make(chan ret, 1)
 	go func() {
 		acquireThread()
 		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		addrs, err := gethostbyname(name)
-		ch <- result{addrs: addrs, err: err}
+		ch <- ret{addrs: addrs, err: err}
 	}()
-	r := <-ch
-	if r.err != nil {
-		r.err = &DNSError{Err: r.err.Error(), Name: name}
-	}
-	return r.addrs, r.err
-}
-
-func newLookupIP(name string) ([]IPAddr, error) {
-	acquireThread()
-	defer releaseThread()
-	hints := syscall.AddrinfoW{
-		Family:   syscall.AF_UNSPEC,
-		Socktype: syscall.SOCK_STREAM,
-		Protocol: syscall.IPPROTO_IP,
-	}
-	var result *syscall.AddrinfoW
-	e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
-	if e != nil {
-		return nil, &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: name}
-	}
-	defer syscall.FreeAddrInfoW(result)
-	addrs := make([]IPAddr, 0, 5)
-	for ; result != nil; result = result.Next {
-		addr := unsafe.Pointer(result.Addr)
-		switch result.Family {
-		case syscall.AF_INET:
-			a := (*syscall.RawSockaddrInet4)(addr).Addr
-			addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
-		case syscall.AF_INET6:
-			a := (*syscall.RawSockaddrInet6)(addr).Addr
-			zone := zoneToString(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
-			addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
-		default:
-			return nil, &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			r.err = &DNSError{Err: r.err.Error(), Name: name}
+		}
+		return r.addrs, r.err
+	case <-ctx.Done():
+		// TODO(bradfitz,brainman): cancel the ongoing
+		// gethostbyname?  For now we just let it finish and
+		// write to the buffered channel.
+		return nil, &DNSError{
+			Name:      name,
+			Err:       ctx.Err().Error(),
+			IsTimeout: ctx.Err() == context.DeadlineExceeded,
 		}
 	}
-	return addrs, nil
+}
+
+func newLookupIP(ctx context.Context, name string) ([]IPAddr, error) {
+	// TODO(bradfitz,brainman): use ctx?
+
+	type ret struct {
+		addrs []IPAddr
+		err   error
+	}
+	ch := make(chan ret, 1)
+	go func() {
+		acquireThread()
+		defer releaseThread()
+		hints := syscall.AddrinfoW{
+			Family:   syscall.AF_UNSPEC,
+			Socktype: syscall.SOCK_STREAM,
+			Protocol: syscall.IPPROTO_IP,
+		}
+		var result *syscall.AddrinfoW
+		e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
+		if e != nil {
+			ch <- ret{err: &DNSError{Err: os.NewSyscallError("getaddrinfow", e).Error(), Name: name}}
+		}
+		defer syscall.FreeAddrInfoW(result)
+		addrs := make([]IPAddr, 0, 5)
+		for ; result != nil; result = result.Next {
+			addr := unsafe.Pointer(result.Addr)
+			switch result.Family {
+			case syscall.AF_INET:
+				a := (*syscall.RawSockaddrInet4)(addr).Addr
+				addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
+			case syscall.AF_INET6:
+				a := (*syscall.RawSockaddrInet6)(addr).Addr
+				zone := zoneToString(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
+				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
+			default:
+				ch <- ret{err: &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}}
+			}
+		}
+		ch <- ret{addrs: addrs}
+	}()
+	select {
+	case r := <-ch:
+		return r.addrs, r.err
+	case <-ctx.Done():
+		// TODO(bradfitz,brainman): cancel the ongoing
+		// GetAddrInfoW? It would require conditionally using
+		// GetAddrInfoEx with lpOverlapped, which requires
+		// Windows 8 or newer. I guess we'll need oldLookupIP,
+		// newLookupIP, and newerLookUP.
+		//
+		// For now we just let it finish and write to the
+		// buffered channel.
+		return nil, &DNSError{
+			Name:      name,
+			Err:       ctx.Err().Error(),
+			IsTimeout: ctx.Err() == context.DeadlineExceeded,
+		}
+	}
 }
 
 func getservbyname(network, service string) (int, error) {

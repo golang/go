@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"errors"
 	"os"
 )
@@ -115,7 +116,7 @@ func lookupProtocol(name string) (proto int, err error) {
 	return 0, UnknownNetworkError(name)
 }
 
-func lookupHost(host string) (addrs []string, err error) {
+func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Use netdir/cs instead of netdir/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS("net", host, "1")
@@ -146,7 +147,8 @@ loop:
 	return
 }
 
-func lookupIP(host string) (addrs []IPAddr, err error) {
+func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	// TODO(bradfitz): push down ctx
 	lits, err := LookupHost(host)
 	if err != nil {
 		return

@@ -6,6 +6,7 @@ package net
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
 	"runtime"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupLocalhost(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
 	switch host {
 	case "localhost":
 		return []IPAddr{
@@ -22,7 +23,7 @@ func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, 
 			{IP: IPv6loopback},
 		}, nil
 	default:
-		return fn(host)
+		return fn(ctx, host)
 	}
 }
 
@@ -375,15 +376,20 @@ func TestLookupIPDeadline(t *testing.T) {
 
 	const N = 5000
 	const timeout = 3 * time.Second
+	ctxHalfTimeout, cancel := context.WithTimeout(context.Background(), timeout/2)
+	defer cancel()
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	c := make(chan error, 2*N)
 	for i := 0; i < N; i++ {
 		name := fmt.Sprintf("%d.net-test.golang.org", i)
 		go func() {
-			_, err := lookupIPDeadline(name, time.Now().Add(timeout/2))
+			_, err := lookupIPContext(ctxHalfTimeout, name)
 			c <- err
 		}()
 		go func() {
-			_, err := lookupIPDeadline(name, time.Now().Add(timeout))
+			_, err := lookupIPContext(ctxTimeout, name)
 			c <- err
 		}()
 	}

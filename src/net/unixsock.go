@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"os"
 	"syscall"
 	"time"
@@ -188,7 +189,7 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	default:
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
 	}
-	c, err := dialUnix(net, laddr, raddr, noDeadline)
+	c, err := dialUnix(context.Background(), net, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -290,7 +291,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	if laddr == nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: errMissingAddress}
 	}
-	ln, err := listenUnix(net, laddr)
+	ln, err := listenUnix(context.Background(), net, laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
@@ -310,7 +311,7 @@ func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
 	if laddr == nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: errMissingAddress}
 	}
-	c, err := listenUnixgram(net, laddr)
+	c, err := listenUnixgram(context.Background(), net, laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}

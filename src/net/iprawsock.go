@@ -4,7 +4,10 @@
 
 package net
 
-import "syscall"
+import (
+	"context"
+	"syscall"
+)
 
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
@@ -56,7 +59,7 @@ func ResolveIPAddr(net, addr string) (*IPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(afnet, addr, noDeadline)
+	addrs, err := internetAddrList(context.Background(), afnet, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +174,7 @@ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 // netProto, which must be "ip", "ip4", or "ip6" followed by a colon
 // and a protocol number or name.
 func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
-	c, err := dialIP(netProto, laddr, raddr, noDeadline)
+	c, err := dialIP(context.Background(), netProto, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -183,7 +186,7 @@ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 // methods can be used to receive and send IP packets with per-packet
 // addressing.
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
-	c, err := listenIP(netProto, laddr)
+	c, err := listenIP(context.Background(), netProto, laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: netProto, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}

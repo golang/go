@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"internal/race"
 	"os"
 	"runtime"
@@ -320,14 +321,14 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-chan struct{}) error {
+func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
 	if err := fd.init(); err != nil {
 		return err
 	}
-	if !deadline.IsZero() {
+	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
 		fd.setWriteDeadline(deadline)
 		defer fd.setWriteDeadline(noDeadline)
 	}
@@ -351,30 +352,30 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 	// Call ConnectEx API.
 	o := &fd.wop
 	o.sa = ra
-	if cancel != nil {
-		done := make(chan bool)
-		defer func() {
-			// This is unbuffered; wait for the goroutine before returning.
-			done <- true
-		}()
-		go func() {
-			select {
-			case <-cancel:
-				// Force the runtime's poller to immediately give
-				// up waiting for writability.
-				fd.setWriteDeadline(aLongTimeAgo)
-				<-done
-			case <-done:
-			}
-		}()
-	}
+
+	// Wait for the goroutine converting context.Done into a write timeout
+	// to exist, otherwise our caller might cancel the context and
+	// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.
+	done := make(chan bool) // must be unbuffered
+	defer func() { done <- true }()
+	go func() {
+		select {
+		case <-ctx.Done():
+			// Force the runtime's poller to immediately give
+			// up waiting for writability.
+			fd.setWriteDeadline(aLongTimeAgo)
+			<-done
+		case <-done:
+		}
+	}()
+
 	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
 		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
 		select {
-		case <-cancel:
-			return errCanceled
+		case <-ctx.Done():
+			return mapErr(ctx.Err())
 		default:
 			if _, ok := err.(syscall.Errno); ok {
 				err = os.NewSyscallError("connectex", err)

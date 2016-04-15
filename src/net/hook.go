@@ -4,9 +4,19 @@
 
 package net
 
+import "context"
+
 var (
-	testHookDialTCP      = dialTCP
-	testHookHostsPath    = "/etc/hosts"
-	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
+	// if non-nil, overrides dialTCP.
+	testHookDialTCP func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error)
+
+	testHookHostsPath = "/etc/hosts"
+	testHookLookupIP  = func(
+		ctx context.Context,
+		fn func(context.Context, string) ([]IPAddr, error),
+		host string,
+	) ([]IPAddr, error) {
+		return fn(ctx, host)
+	}
 	testHookSetKeepAlive = func() {}
 )
