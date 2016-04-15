@@ -682,15 +682,11 @@ func machosymorder() {
 }
 
 func machosymtab() {
-	var s *LSym
-	var o *LSym
-	var p string
-
 	symtab := Linklookup(Ctxt, ".machosymtab", 0)
 	symstr := Linklookup(Ctxt, ".machosymstr", 0)
 
 	for i := 0; i < nsortsym; i++ {
-		s = sortsym[i]
+		s := sortsym[i]
 		Adduint32(Ctxt, symtab, uint32(symstr.Size))
 
 		// Only add _ to C symbols. Go symbols have dot in the name.
@@ -699,20 +695,7 @@ func machosymtab() {
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		if !strings.Contains(s.Extname, "·") {
-			Addstring(symstr, s.Extname)
-		} else {
-			for p = s.Extname; p != ""; p = p[1:] {
-				if p[0] == 0xc2 && (p[1:])[0] == 0xb7 {
-					Adduint8(Ctxt, symstr, '.')
-					p = p[1:]
-				} else {
-					Adduint8(Ctxt, symstr, p[0])
-				}
-			}
-
-			Adduint8(Ctxt, symstr, '\x00')
-		}
+		Addstring(symstr, strings.Replace(s.Extname, "·", ".", -1))
 
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			Adduint8(Ctxt, symtab, 0x01)                // type N_EXT, external symbol
@@ -725,7 +708,7 @@ func machosymtab() {
 			} else {
 				Adduint8(Ctxt, symtab, 0x0e)
 			}
-			o = s
+			o := s
 			for o.Outer != nil {
 				o = o.Outer
 			}
