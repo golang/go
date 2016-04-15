@@ -5,17 +5,24 @@
 package net
 
 import (
+	"context"
 	"io"
 	"os"
-	"time"
 )
 
 func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
 	return genericReadFrom(c, r)
 }
 
-func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
-	if !deadline.IsZero() {
+func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	if testHookDialTCP != nil {
+		return testHookDialTCP(ctx, net, laddr, raddr)
+	}
+	return doDialTCP(ctx, net, laddr, raddr)
+}
+
+func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	if d, _ := ctx.Deadline(); !d.IsZero() {
 		panic("net.dialTCP: deadline not implemented on Plan 9")
 	}
 	// TODO(bradfitz,0intro): also use the cancel channel.
@@ -63,7 +70,7 @@ func (ln *TCPListener) file() (*os.File, error) {
 	return f, nil
 }
 
-func listenTCP(network string, laddr *TCPAddr) (*TCPListener, error) {
+func listenTCP(ctx context.Context, network string, laddr *TCPAddr) (*TCPListener, error) {
 	fd, err := listenPlan9(network, laddr)
 	if err != nil {
 		return nil, err

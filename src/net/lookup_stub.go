@@ -6,17 +6,20 @@
 
 package net
 
-import "syscall"
+import (
+	"context"
+	"syscall"
+)
 
 func lookupProtocol(name string) (proto int, err error) {
 	return 0, syscall.ENOPROTOOPT
 }
 
-func lookupHost(host string) (addrs []string, err error) {
+func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func lookupIP(host string) (addrs []IPAddr, err error) {
+func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 

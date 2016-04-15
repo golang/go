@@ -7,13 +7,13 @@
 package net
 
 import (
+	"context"
 	"errors"
 	"os"
 	"syscall"
-	"time"
 )
 
-func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Time) (*netFD, error) {
+func unixSocket(ctx context.Context, net string, laddr, raddr sockaddr, mode string) (*netFD, error) {
 	var sotype int
 	switch net {
 	case "unix":
@@ -42,7 +42,7 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
 		return nil, errors.New("unknown mode: " + mode)
 	}
 
-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, noCancel)
+	fd, err := socket(ctx, net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +146,8 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
 	return c.fd.writeMsg(b, oob, sa)
 }
 
-func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
-	fd, err := unixSocket(net, laddr, raddr, "dial", deadline)
+func dialUnix(ctx context.Context, net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+	fd, err := unixSocket(ctx, net, laddr, raddr, "dial")
 	if err != nil {
 		return nil, err
 	}
@@ -187,16 +187,16 @@ func (ln *UnixListener) file() (*os.File, error) {
 	return f, nil
 }
 
-func listenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
-	fd, err := unixSocket(network, laddr, nil, "listen", noDeadline)
+func listenUnix(ctx context.Context, network string, laddr *UnixAddr) (*UnixListener, error) {
+	fd, err := unixSocket(ctx, network, laddr, nil, "listen")
 	if err != nil {
 		return nil, err
 	}
 	return &UnixListener{fd: fd, path: fd.laddr.String(), unlink: true}, nil
 }
 
-func listenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
-	fd, err := unixSocket(network, laddr, nil, "listen", noDeadline)
+func listenUnixgram(ctx context.Context, network string, laddr *UnixAddr) (*UnixConn, error) {
+	fd, err := unixSocket(ctx, network, laddr, nil, "listen")
 	if err != nil {
 		return nil, err
 	}

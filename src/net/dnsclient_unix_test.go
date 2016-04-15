@@ -7,6 +7,7 @@
 package net
 
 import (
+	"context"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -133,7 +134,7 @@ func TestAvoidDNSName(t *testing.T) {
 
 // Issue 13705: don't try to resolve onion addresses, etc
 func TestLookupTorOnion(t *testing.T) {
-	addrs, err := goLookupIP("foo.onion")
+	addrs, err := goLookupIP(context.Background(), "foo.onion")
 	if len(addrs) > 0 {
 		t.Errorf("unexpected addresses: %v", addrs)
 	}
@@ -249,7 +250,7 @@ func TestUpdateResolvConf(t *testing.T) {
 			for j := 0; j < N; j++ {
 				go func(name string) {
 					defer wg.Done()
-					ips, err := goLookupIP(name)
+					ips, err := goLookupIP(context.Background(), name)
 					if err != nil {
 						t.Error(err)
 						return
@@ -397,7 +398,7 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		addrs, err := goLookupIP(tt.name)
+		addrs, err := goLookupIP(context.Background(), tt.name)
 		if err != nil {
 			// This test uses external network connectivity.
 			// We need to take care with errors on both
@@ -447,14 +448,14 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 		name := fmt.Sprintf("order %v", order)
 
 		// First ensure that we get an error when contacting a non-existent host.
-		_, err := goLookupIPOrder("notarealhost", order)
+		_, err := goLookupIPOrder(context.Background(), "notarealhost", order)
 		if err == nil {
 			t.Errorf("%s: expected error while looking up name not in hosts file", name)
 			continue
 		}
 
 		// Now check that we get an address when the name appears in the hosts file.
-		addrs, err := goLookupIPOrder("thor", order) // entry is in "testdata/hosts"
+		addrs, err := goLookupIPOrder(context.Background(), "thor", order) // entry is in "testdata/hosts"
 		if err != nil {
 			t.Errorf("%s: expected to successfully lookup host entry", name)
 			continue
@@ -510,7 +511,7 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 		return r, nil
 	}
 
-	_, err = goLookupIP(fqdn)
+	_, err = goLookupIP(context.Background(), fqdn)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -523,17 +524,19 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 
 func BenchmarkGoLookupIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
+	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
-		goLookupIP("www.example.com")
+		goLookupIP(ctx, "www.example.com")
 	}
 }
 
 func BenchmarkGoLookupIPNoSuchHost(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
+	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
-		goLookupIP("some.nonexistent")
+		goLookupIP(ctx, "some.nonexistent")
 	}
 }
 
@@ -553,9 +556,10 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 	if err := conf.writeAndUpdate(lines); err != nil {
 		b.Fatal(err)
 	}
+	ctx := context.Background()
 
 	for i := 0; i < b.N; i++ {
-		goLookupIP("www.example.com")
+		goLookupIP(ctx, "www.example.com")
 	}
 }
 

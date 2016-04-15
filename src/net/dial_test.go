@@ -6,6 +6,7 @@ package net
 
 import (
 	"bufio"
+	"context"
 	"internal/testenv"
 	"io"
 	"net/internal/socktest"
@@ -193,18 +194,11 @@ const (
 // In some environments, the slow IPs may be explicitly unreachable, and fail
 // more quickly than expected. This test hook prevents dialTCP from returning
 // before the deadline.
-func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
-	c, err := dialTCP(net, laddr, raddr, deadline, cancel)
+func slowDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+	c, err := doDialTCP(ctx, net, laddr, raddr)
 	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
 		// Wait for the deadline, or indefinitely if none exists.
-		var wait <-chan time.Time
-		if !deadline.IsZero() {
-			wait = time.After(deadline.Sub(time.Now()))
-		}
-		select {
-		case <-cancel:
-		case <-wait:
-		}
+		<-ctx.Done()
 	}
 	return c, err
 }
@@ -356,15 +350,14 @@ func TestDialParallel(t *testing.T) {
 		d := Dialer{
 			FallbackDelay: fallbackDelay,
 		}
-		ctx := &dialContext{
-			Dialer:        d,
-			network:       "tcp",
-			address:       "?",
-			finalDeadline: d.deadline(time.Now()),
-		}
 		startTime := time.Now()
-		c, err := dialParallel(ctx, primaries, fallbacks, nil)
-		elapsed := time.Now().Sub(startTime)
+		dp := &dialParam{
+			Dialer:  d,
+			network: "tcp",
+			address: "?",
+		}
+		c, err := dialParallel(context.Background(), dp, primaries, fallbacks)
+		elapsed := time.Since(startTime)
 
 		if c != nil {
 			c.Close()
@@ -385,16 +378,16 @@ func TestDialParallel(t *testing.T) {
 		}
 
 		// Repeat each case, ensuring that it can be canceled quickly.
-		cancel := make(chan struct{})
+		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			time.Sleep(5 * time.Millisecond)
-			close(cancel)
+			cancel()
 			wg.Done()
 		}()
 		startTime = time.Now()
-		c, err = dialParallel(ctx, primaries, fallbacks, cancel)
+		c, err = dialParallel(ctx, dp, primaries, fallbacks)
 		if c != nil {
 			c.Close()
 		}
@@ -406,7 +399,7 @@ func TestDialParallel(t *testing.T) {
 	}
 }
 
-func lookupSlowFast(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupSlowFast(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
 	switch host {
 	case "slow6loopback4":
 		// Returns a slow IPv6 address, and a local IPv4 address.
@@ -415,7 +408,7 @@ func lookupSlowFast(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, e
 			{IP: ParseIP("127.0.0.1")},
 		}, nil
 	default:
-		return fn(host)
+		return fn(ctx, host)
 	}
 }
 
@@ -530,22 +523,24 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 
 	origTestHookDialTCP := testHookDialTCP
 	defer func() { testHookDialTCP = origTestHookDialTCP }()
-	testHookDialTCP = func(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
+	testHookDialTCP = func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 		// Sleep long enough for Happy Eyeballs to kick in, and inhibit cancelation.
 		// This forces dialParallel to juggle two successful connections.
 		time.Sleep(fallbackDelay * 2)
-		cancel = nil
-		return dialTCP(net, laddr, raddr, deadline, cancel)
+
+		// Now ignore the provided context (which will be canceled) and use a
+		// different one to make sure this completes with a valid connection,
+		// which we hope to be closed below:
+		return doDialTCP(context.Background(), net, laddr, raddr)
 	}
 
 	d := Dialer{
 		FallbackDelay: fallbackDelay,
 	}
-	ctx := &dialContext{
-		Dialer:        d,
-		network:       "tcp",
-		address:       "?",
-		finalDeadline: d.deadline(time.Now()),
+	dp := &dialParam{
+		Dialer:  d,
+		network: "tcp",
+		address: "?",
 	}
 
 	makeAddr := func(ip string) addrList {
@@ -557,7 +552,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 	}
 
 	// dialParallel returns one connection (and closes the other.)
-	c, err := dialParallel(ctx, makeAddr("127.0.0.1"), makeAddr("::1"), nil)
+	c, err := dialParallel(context.Background(), dp, makeAddr("127.0.0.1"), makeAddr("::1"))
 	if err != nil {
 		t.Fatal(err)
 	}

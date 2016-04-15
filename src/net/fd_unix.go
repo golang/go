@@ -7,12 +7,12 @@
 package net
 
 import (
+	"context"
 	"io"
 	"os"
 	"runtime"
 	"sync/atomic"
 	"syscall"
-	"time"
 )
 
 // Network file descriptor.
@@ -34,10 +34,6 @@ type netFD struct {
 }
 
 func sysInit() {
-}
-
-func dial(network string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
-	return dialer(deadline)
 }
 
 func newFD(sysfd, family, sotype int, net string) (*netFD, error) {
@@ -68,15 +64,17 @@ func (fd *netFD) name() string {
 	return fd.net + ":" + ls + "->" + rs
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-chan struct{}) error {
+func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
 	switch err := connectFunc(fd.sysfd, ra); err {
 	case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
 	case nil, syscall.EISCONN:
-		if !deadline.IsZero() && deadline.Before(time.Now()) {
-			return errTimeout
+		select {
+		case <-ctx.Done():
+			return mapErr(ctx.Err())
+		default:
 		}
 		if err := fd.init(); err != nil {
 			return err
@@ -98,27 +96,27 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 	if err := fd.init(); err != nil {
 		return err
 	}
-	if !deadline.IsZero() {
+	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
 		fd.setWriteDeadline(deadline)
 		defer fd.setWriteDeadline(noDeadline)
 	}
-	if cancel != nil {
-		done := make(chan bool)
-		defer func() {
-			// This is unbuffered; wait for the goroutine before returning.
-			done <- true
-		}()
-		go func() {
-			select {
-			case <-cancel:
-				// Force the runtime's poller to immediately give
-				// up waiting for writability.
-				fd.setWriteDeadline(aLongTimeAgo)
-				<-done
-			case <-done:
-			}
-		}()
-	}
+
+	// Wait for the goroutine converting context.Done into a write timeout
+	// to exist, otherwise our caller might cancel the context and
+	// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.
+	done := make(chan bool) // must be unbuffered
+	defer func() { done <- true }()
+	go func() {
+		select {
+		case <-ctx.Done():
+			// Force the runtime's poller to immediately give
+			// up waiting for writability.
+			fd.setWriteDeadline(aLongTimeAgo)
+			<-done
+		case <-done:
+		}
+	}()
+
 	for {
 		// Performing multiple connect system calls on a
 		// non-blocking socket under Unix variants does not
@@ -130,8 +128,8 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 		// details.
 		if err := fd.pd.waitWrite(); err != nil {
 			select {
-			case <-cancel:
-				return errCanceled
+			case <-ctx.Done():
+				return mapErr(ctx.Err())
 			default:
 			}
 			return err
