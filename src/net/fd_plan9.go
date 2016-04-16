@@ -32,12 +32,6 @@ func sysInit() {
 	netdir = "/net"
 }
 
-func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
-	// On plan9, use the relatively inefficient
-	// goroutine-racing implementation.
-	return dialChannel(net, ra, dialer, deadline)
-}
-
 func newFD(net, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
 	return &netFD{net: net, n: name, dir: netdir + "/" + net + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
 }

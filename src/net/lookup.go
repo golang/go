@@ -114,7 +114,7 @@ func lookupIPContext(ctx context.Context, host string) (addrs []IPAddr, err erro
 func LookupPort(network, service string) (port int, err error) {
 	port, needsLookup := parsePort(service)
 	if needsLookup {
-		port, err = lookupPort(network, service)
+		port, err = lookupPort(context.Background(), network, service)
 		if err != nil {
 			return 0, err
 		}
@@ -130,7 +130,7 @@ func LookupPort(network, service string) (port int, err error) {
 // LookupHost or LookupIP directly; both take care of resolving
 // the canonical name as part of the lookup.
 func LookupCNAME(name string) (cname string, err error) {
-	return lookupCNAME(name)
+	return lookupCNAME(context.Background(), name)
 }
 
 // LookupSRV tries to resolve an SRV query of the given service,
@@ -143,26 +143,26 @@ func LookupCNAME(name string) (cname string, err error) {
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
-	return lookupSRV(service, proto, name)
+	return lookupSRV(context.Background(), service, proto, name)
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
 func LookupMX(name string) (mxs []*MX, err error) {
-	return lookupMX(name)
+	return lookupMX(context.Background(), name)
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
 func LookupNS(name string) (nss []*NS, err error) {
-	return lookupNS(name)
+	return lookupNS(context.Background(), name)
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
 func LookupTXT(name string) (txts []string, err error) {
-	return lookupTXT(name)
+	return lookupTXT(context.Background(), name)
 }
 
 // LookupAddr performs a reverse lookup for the given address, returning a list
 // of names mapping to that address.
 func LookupAddr(addr string) (names []string, err error) {
-	return lookupAddr(addr)
+	return lookupAddr(context.Background(), addr)
 }

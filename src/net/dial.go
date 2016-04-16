@@ -124,7 +124,7 @@ func (d *Dialer) fallbackDelay() time.Duration {
 	}
 }
 
-func parseNetwork(net string) (afnet string, proto int, err error) {
+func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err error) {
 	i := last(net, ':')
 	if i < 0 { // no colon
 		switch net {
@@ -143,7 +143,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 		protostr := net[i+1:]
 		proto, i, ok := dtoi(protostr, 0)
 		if !ok || i != len(protostr) {
-			proto, err = lookupProtocol(protostr)
+			proto, err = lookupProtocol(ctx, protostr)
 			if err != nil {
 				return "", 0, err
 			}
@@ -157,7 +157,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 // addresses. The result contains at least one address when error is
 // nil.
 func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (addrList, error) {
-	afnet, _, err := parseNetwork(network)
+	afnet, _, err := parseNetwork(ctx, network)
 	if err != nil {
 		return nil, err
 	}
@@ -472,8 +472,7 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error) 
 }
 
 // dialSingle attempts to establish and returns a single connection to
-// the destination address. This must be called through the OS-specific
-// dial function, because some OSes don't implement the deadline feature.
+// the destination address.
 func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error) {
 	la := dp.LocalAddr
 	switch ra := ra.(type) {
