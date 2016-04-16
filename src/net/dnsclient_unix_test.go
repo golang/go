@@ -567,9 +567,6 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 }
 
 type fakeDNSConn struct {
-	// last query
-	qmu sync.Mutex // guards q
-	q   *dnsMsg
 	// reply handler
 	rh func(*dnsMsg) (*dnsMsg, error)
 }
@@ -586,16 +583,76 @@ func (f *fakeDNSConn) SetDeadline(time.Time) error {
 	return nil
 }
 
-func (f *fakeDNSConn) writeDNSQuery(q *dnsMsg) error {
-	f.qmu.Lock()
-	defer f.qmu.Unlock()
-	f.q = q
-	return nil
+func (f *fakeDNSConn) dnsRoundTrip(q *dnsMsg) (*dnsMsg, error) {
+	return f.rh(q)
 }
 
-func (f *fakeDNSConn) readDNSResponse() (*dnsMsg, error) {
-	f.qmu.Lock()
-	q := f.q
-	f.qmu.Unlock()
-	return f.rh(q)
+// UDP round-tripper algorithm should ignore invalid DNS responses (issue 13281).
+func TestIgnoreDNSForgeries(t *testing.T) {
+	const TestAddr uint32 = 0x80420001
+
+	c, s := Pipe()
+	go func() {
+		b := make([]byte, 512)
+		n, err := s.Read(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		msg := &dnsMsg{}
+		if !msg.Unpack(b[:n]) {
+			t.Fatal("invalid DNS query")
+		}
+
+		s.Write([]byte("garbage DNS response packet"))
+
+		msg.response = true
+		msg.id++ // make invalid ID
+		b, ok := msg.Pack()
+		if !ok {
+			t.Fatal("failed to pack DNS response")
+		}
+		s.Write(b)
+
+		msg.id-- // restore original ID
+		msg.answer = []dnsRR{
+			&dnsRR_A{
+				Hdr: dnsRR_Header{
+					Name:     "www.example.com.",
+					Rrtype:   dnsTypeA,
+					Class:    dnsClassINET,
+					Rdlength: 4,
+				},
+				A: TestAddr,
+			},
+		}
+
+		b, ok = msg.Pack()
+		if !ok {
+			t.Fatal("failed to pack DNS response")
+		}
+		s.Write(b)
+	}()
+
+	msg := &dnsMsg{
+		dnsMsgHdr: dnsMsgHdr{
+			id: 42,
+		},
+		question: []dnsQuestion{
+			{
+				Name:   "www.example.com.",
+				Qtype:  dnsTypeA,
+				Qclass: dnsClassINET,
+			},
+		},
+	}
+
+	resp, err := dnsRoundTripUDP(c, msg)
+	if err != nil {
+		t.Fatalf("dnsRoundTripUDP failed: %v", err)
+	}
+
+	if got := resp.answer[0].(*dnsRR_A).A; got != TestAddr {
+		t.Error("got address %v, want %v", got, TestAddr)
+	}
 }

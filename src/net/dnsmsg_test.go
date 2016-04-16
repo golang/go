@@ -280,6 +280,124 @@ func TestDNSParseTXTCorruptTXTLengthReply(t *testing.T) {
 	}
 }
 
+func TestIsResponseTo(t *testing.T) {
+	// Sample DNS query.
+	query := dnsMsg{
+		dnsMsgHdr: dnsMsgHdr{
+			id: 42,
+		},
+		question: []dnsQuestion{
+			{
+				Name:   "www.example.com.",
+				Qtype:  dnsTypeA,
+				Qclass: dnsClassINET,
+			},
+		},
+	}
+
+	resp := query
+	resp.response = true
+	if !resp.IsResponseTo(&query) {
+		t.Error("got false, want true")
+	}
+
+	badResponses := []dnsMsg{
+		// Different ID.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       43,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+
+		// Different query name.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.google.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+
+		// Different query type.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeAAAA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+
+		// Different query class.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassCSNET,
+				},
+			},
+		},
+
+		// No questions.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+		},
+
+		// Extra questions.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassINET,
+				},
+				{
+					Name:   "www.golang.org.",
+					Qtype:  dnsTypeAAAA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+	}
+
+	for i := range badResponses {
+		if badResponses[i].IsResponseTo(&query) {
+			t.Error("%v: got true, want false", i)
+		}
+	}
+}
+
 // Valid DNS SRV reply
 const dnsSRVReply = "0901818000010005000000000c5f786d70702d736572766572045f74637006676f6f67" +
 	"6c6503636f6d0000210001c00c002100010000012c00210014000014950c786d70702d" +
