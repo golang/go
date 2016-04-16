@@ -17,6 +17,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"reflect"
@@ -147,10 +148,11 @@ type reqFunc func(c *Client, url string) (*Response, error)
 // h12Compare is a test that compares HTTP/1 and HTTP/2 behavior
 // against each other.
 type h12Compare struct {
-	Handler       func(ResponseWriter, *Request)    // required
-	ReqFunc       reqFunc                           // optional
-	CheckResponse func(proto string, res *Response) // optional
-	Opts          []interface{}
+	Handler            func(ResponseWriter, *Request)    // required
+	ReqFunc            reqFunc                           // optional
+	CheckResponse      func(proto string, res *Response) // optional
+	EarlyCheckResponse func(proto string, res *Response) // optional; pre-normalize
+	Opts               []interface{}
 }
 
 func (tt h12Compare) reqFunc() reqFunc {
@@ -176,6 +178,12 @@ func (tt h12Compare) run(t *testing.T) {
 		t.Errorf("HTTP/2 request: %v", err)
 		return
 	}
+
+	if fn := tt.EarlyCheckResponse; fn != nil {
+		fn("HTTP/1.1", res1)
+		fn("HTTP/2.0", res2)
+	}
+
 	tt.normalizeRes(t, res1, "HTTP/1.1")
 	tt.normalizeRes(t, res2, "HTTP/2.0")
 	res1body, res2body := res1.Body, res2.Body
@@ -220,6 +228,12 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
 		t.Errorf("got %q response; want %q", res.Proto, wantProto)
 	}
 	slurp, err := ioutil.ReadAll(res.Body)
+
+	// TODO(bradfitz): short-term hack. Fix the
+	// http2 side of golang.org/issue/15366 once
+	// the http1 part is submitted.
+	res.Uncompressed = false
+
 	res.Body.Close()
 	res.Body = slurpResult{
 		ReadCloser: ioutil.NopCloser(bytes.NewReader(slurp)),
@@ -1149,6 +1163,41 @@ func testInterruptWithPanic(t *testing.T, h2 bool) {
 	if err == nil {
 		t.Errorf("client read all successfully; want some error")
 	}
+}
+
+// Issue 15366
+func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			h := w.Header()
+			h.Set("Content-Encoding", "gzip")
+			h.Set("Content-Length", "23")
+			h.Set("Connection", "keep-alive")
+			io.WriteString(w, "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00")
+		},
+		EarlyCheckResponse: func(proto string, res *Response) {
+			if proto == "HTTP/2.0" {
+				// TODO(bradfitz): Fix the http2 side
+				// of golang.org/issue/15366 once the
+				// http1 part is submitted.
+				return
+			}
+			if !res.Uncompressed {
+				t.Errorf("%s: expected Uncompressed to be set", proto)
+			}
+			dump, err := httputil.DumpResponse(res, true)
+			if err != nil {
+				t.Errorf("%s: DumpResponse: %v", proto, err)
+				return
+			}
+			if strings.Contains(string(dump), "Connection: close") {
+				t.Errorf("%s: should not see \"Connection: close\" in dump; got:\n%s", proto, dump)
+			}
+			if !strings.Contains(string(dump), "FOO") {
+				t.Errorf("%s: should see \"FOO\" in response; got:\n%s", proto, dump)
+			}
+		},
+	}.run(t)
 }
 
 type noteCloseConn struct {
