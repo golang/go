@@ -110,10 +110,6 @@ type RoundTripper interface {
 	RoundTrip(*Request) (*Response, error)
 }
 
-// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
-// return true if the string includes a port.
-func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
-
 // refererForURL returns a referer without any authentication info or
 // an empty string if lastReq scheme is https and newReq scheme is http.
 func refererForURL(lastReq, newReq *url.URL) string {
