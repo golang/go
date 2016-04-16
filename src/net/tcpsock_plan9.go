@@ -23,7 +23,7 @@ func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, 
 
 func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if d, _ := ctx.Deadline(); !d.IsZero() {
-		panic("net.dialTCP: deadline not implemented on Plan 9")
+		// TODO: deadline not implemented on Plan 9 (see golang.og/issue/11932)
 	}
 	// TODO(bradfitz,0intro): also use the cancel channel.
 	switch net {
