@@ -1134,12 +1134,14 @@ func gcDumpObject(label string, obj, off uintptr) {
 
 // If gcBlackenPromptly is true we are in the second mark phase phase so we allocate black.
 //go:nowritebarrier
-func gcmarknewobject_m(obj, size uintptr) {
+func gcmarknewobject_m(obj, size, scanSize uintptr) {
 	if useCheckmark && !gcBlackenPromptly { // The world should be stopped so this should not happen.
 		throw("gcmarknewobject called while doing checkmark")
 	}
 	heapBitsForAddr(obj).setMarked()
 	atomic.Xadd64(&work.bytesMarked, int64(size))
+	gcw := &getg().m.p.ptr().gcw
+	gcw.scanWork += int64(scanSize)
 }
 
 // Checkmarking
