@@ -1392,6 +1392,7 @@ func (pc *persistConn) readLoop() {
 			resp.Header.Del("Content-Encoding")
 			resp.Header.Del("Content-Length")
 			resp.ContentLength = -1
+			resp.Uncompressed = true
 		}
 
 		select {

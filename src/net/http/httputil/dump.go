@@ -183,7 +183,8 @@ var reqWriteExcludeHeaderDump = map[string]bool{
 //
 // The documentation for http.Request.Write details which fields
 // of req are included in the dump.
-func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+func DumpRequest(req *http.Request, body bool) ([]byte, error) {
+	var err error
 	save := req.Body
 	if !body || req.Body == nil {
 		req.Body = nil
@@ -231,7 +232,7 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	io.WriteString(&b, "\r\n")
@@ -250,10 +251,9 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	req.Body = save
 	if err != nil {
-		return
+		return nil, err
 	}
-	dump = b.Bytes()
-	return
+	return b.Bytes(), nil
 }
 
 // errNoBody is a sentinel error value used by failureToReadBody so we
@@ -273,8 +273,9 @@ func (failureToReadBody) Close() error             { return nil }
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // DumpResponse is like DumpRequest but dumps a response.
-func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
+func DumpResponse(resp *http.Response, body bool) ([]byte, error) {
 	var b bytes.Buffer
+	var err error
 	save := resp.Body
 	savecl := resp.ContentLength
 
