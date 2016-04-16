@@ -192,14 +192,6 @@ func (f *fmt) fmt_unicode(u uint64) {
 
 // fmt_integer formats signed and unsigned integers.
 func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
-	// Precision of 0 and value of 0 means "print nothing" but padding.
-	if f.precPresent && f.prec == 0 && u == 0 {
-		if f.widPresent {
-			f.writePadding(f.wid)
-		}
-		return
-	}
-
 	negative := isSigned && int64(u) < 0
 	if negative {
 		u = -u
@@ -217,11 +209,20 @@ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 		}
 	}
 
-	// two ways to ask for extra leading zero digits: %.3d or %03d.
-	// apparently the first cancels the second.
+	// Two ways to ask for extra leading zero digits: %.3d or %03d.
+	// If both are specified the f.zero flag is ignored and
+	// padding with spaces is used instead.
 	prec := 0
 	if f.precPresent {
 		prec = f.prec
+		// Precision of 0 and value of 0 means "print nothing" but padding.
+		if prec == 0 && u == 0 {
+			oldZero := f.zero
+			f.zero = false
+			f.writePadding(f.wid)
+			f.zero = oldZero
+			return
+		}
 	} else if f.zero && f.widPresent {
 		prec = f.wid
 		if negative || f.plus || f.space {
@@ -300,13 +301,11 @@ func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 	}
 
 	// Left padding with zeros has already been handled like precision earlier
-	// or was overruled by an explicitly set precision.
-	if f.zero {
-		f.buf.Write(buf[i:])
-		return
-	}
-
+	// or the f.zero flag is ignored due to an explicitly set precision.
+	oldZero := f.zero
+	f.zero = false
 	f.pad(buf[i:])
+	f.zero = oldZero
 }
 
 // truncate truncates the string to the specified precision, if present.
