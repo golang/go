@@ -19,6 +19,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"strings"
@@ -168,7 +169,7 @@ type Transport struct {
 	h2transport   *http2Transport // non-nil if http2 wired up
 
 	// TODO: MaxIdleConns tunable for global max cached connections (Issue 15461)
-	// TODO: tunable on timeout on cached connections
+	// TODO: tunable on timeout on cached connections (and advertise with Keep-Alive header?)
 	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
 }
 
@@ -280,8 +281,9 @@ func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, error) {
 // transportRequest is a wrapper around a *Request that adds
 // optional extra headers to write.
 type transportRequest struct {
-	*Request        // original request, not to be mutated
-	extra    Header // extra headers to write, or nil
+	*Request                        // original request, not to be mutated
+	extra    Header                 // extra headers to write, or nil
+	trace    *httptrace.ClientTrace // optional
 }
 
 func (tr *transportRequest) extraHeaders() Header {
@@ -297,6 +299,9 @@ func (tr *transportRequest) extraHeaders() Header {
 // and redirects), see Get, Post, and the Client type.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
+	ctx := req.Context()
+	trace := httptrace.ContextClientTrace(ctx)
+
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
@@ -342,7 +347,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 
 	for {
 		// treq gets modified by roundTrip, so we need to recreate for each retry.
-		treq := &transportRequest{Request: req}
+		treq := &transportRequest{Request: req, trace: trace}
 		cm, err := t.connectMethodForRequest(treq)
 		if err != nil {
 			req.closeBody()
@@ -353,7 +358,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		// host (for http or https), the http proxy, or the http proxy
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
-		pconn, err := t.getConn(req, cm)
+		pconn, err := t.getConn(treq, cm)
 		if err != nil {
 			t.setReqCanceler(req, nil)
 			req.closeBody()
@@ -605,16 +610,19 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	if t.idleConn == nil {
 		t.idleConn = make(map[connectMethodKey][]*persistConn)
 	}
-	if len(t.idleConn[key]) >= max {
+	idles := t.idleConn[key]
+	if len(idles) >= max {
 		return errTooManyIdle
 	}
-	for _, exist := range t.idleConn[key] {
+	for _, exist := range idles {
 		if exist == pconn {
 			log.Fatalf("dup idle pconn %p in freelist", pconn)
 		}
 	}
-	t.idleConn[key] = append(t.idleConn[key], pconn)
+
+	t.idleConn[key] = append(idles, pconn)
 	t.idleCount++
+	pconn.idleAt = time.Now()
 	return nil
 }
 
@@ -640,18 +648,14 @@ func (t *Transport) getIdleConnCh(cm connectMethod) chan *persistConn {
 	return ch
 }
 
-func (t *Transport) getIdleConn(cm connectMethod) *persistConn {
+func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince time.Time) {
 	key := cm.key()
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	if t.idleConn == nil {
-		return nil
-	}
-	var pconn *persistConn
 	for {
 		pconns, ok := t.idleConn[key]
 		if !ok {
-			return nil
+			return nil, time.Time{}
 		}
 		if len(pconns) == 1 {
 			pconn = pconns[0]
@@ -671,7 +675,7 @@ func (t *Transport) getIdleConn(cm connectMethod) *persistConn {
 			// carry on.
 			continue
 		}
-		return pconn
+		return pconn, pconn.idleAt
 	}
 }
 
@@ -736,6 +740,8 @@ func (t *Transport) replaceReqCanceler(r *Request, fn func()) bool {
 	return true
 }
 
+var zeroDialer net.Dialer
+
 func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, error) {
 	if t.Dialer != nil {
 		return t.Dialer.DialContext(ctx, network, addr)
@@ -747,16 +753,24 @@ func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, e
 		}
 		return c, err
 	}
-	return net.Dial(network, addr)
+	return zeroDialer.DialContext(ctx, network, addr)
 }
 
 // getConn dials and creates a new persistConn to the target as
 // specified in the connectMethod. This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
 // is ready to write requests to.
-func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error) {
+func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistConn, error) {
+	req := treq.Request
+	trace := treq.trace
 	ctx := req.Context()
-	if pc := t.getIdleConn(cm); pc != nil {
+	if trace != nil {
+		trace.GetConn(cm.addr())
+	}
+	if pc, idleSince := t.getIdleConn(cm); pc != nil {
+		if trace != nil {
+			trace.GotConn(pc.gotIdleConnTrace(idleSince))
+		}
 		// set request canceler to some non-nil function so we
 		// can detect whether it was cleared between now and when
 		// we enter roundTrip
@@ -797,6 +811,9 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 	select {
 	case v := <-dialc:
 		// Our dial finished.
+		if trace != nil && v.pc != nil {
+			trace.GotConn(httptrace.GotConnInfo{Conn: v.pc.conn})
+		}
 		return v.pc, v.err
 	case pc := <-idleConnCh:
 		// Another request finished first and its net.Conn
@@ -805,6 +822,9 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 		// But our dial is still going, so give it away
 		// when it finishes:
 		handlePendingDial()
+		if trace != nil {
+			trace.GotConn(httptrace.GotConnInfo{Conn: pc.conn, Reused: pc.isReused()})
+		}
 		return pc, nil
 	case <-req.Cancel:
 		handlePendingDial()
@@ -1093,6 +1113,8 @@ type persistConn struct {
 	// whether or not a connection can be reused. Issue 7569.
 	writeErrCh chan error
 
+	idleAt time.Time // time it last become idle; guarded by Transport.idleMu
+
 	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
 	closed               error // set non-nil when conn is closed, before closech is closed
@@ -1150,6 +1172,16 @@ func (pc *persistConn) isReused() bool {
 	return r
 }
 
+func (pc *persistConn) gotIdleConnTrace(idleAt time.Time) (t httptrace.GotConnInfo) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	t.Reused = pc.reused
+	t.Conn = pc.conn
+	t.WasIdle = true
+	t.IdleTime = time.Since(idleAt)
+	return
+}
+
 func (pc *persistConn) cancelRequest() {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
@@ -1164,10 +1196,16 @@ func (pc *persistConn) readLoop() {
 		pc.t.removeIdleConn(pc)
 	}()
 
-	tryPutIdleConn := func() bool {
+	tryPutIdleConn := func(trace *httptrace.ClientTrace) bool {
 		if err := pc.t.tryPutIdleConn(pc); err != nil {
 			closeErr = err
+			if trace != nil && trace.PutIdleConn != nil && err != errKeepAlivesDisabled {
+				trace.PutIdleConn(err)
+			}
 			return false
+		}
+		if trace != nil && trace.PutIdleConn != nil {
+			trace.PutIdleConn(nil)
 		}
 		return true
 	}
@@ -1200,10 +1238,11 @@ func (pc *persistConn) readLoop() {
 		pc.mu.Unlock()
 
 		rc := <-pc.reqch
+		trace := httptrace.ContextClientTrace(rc.req.Context())
 
 		var resp *Response
 		if err == nil {
-			resp, err = pc.readResponse(rc)
+			resp, err = pc.readResponse(rc, trace)
 		}
 
 		if err != nil {
@@ -1254,7 +1293,7 @@ func (pc *persistConn) readLoop() {
 			alive = alive &&
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
-				tryPutIdleConn()
+				tryPutIdleConn(trace)
 
 			select {
 			case rc.ch <- responseAndError{res: resp}:
@@ -1313,7 +1352,7 @@ func (pc *persistConn) readLoop() {
 				bodyEOF &&
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
-				tryPutIdleConn()
+				tryPutIdleConn(trace)
 			if bodyEOF {
 				eofc <- struct{}{}
 			}
@@ -1349,13 +1388,22 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 
 // readResponse reads an HTTP response (or two, in the case of "Expect:
 // 100-continue") from the server. It returns the final non-100 one.
-func (pc *persistConn) readResponse(rc requestAndChan) (resp *Response, err error) {
+// trace is optional.
+func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTrace) (resp *Response, err error) {
+	if trace != nil && trace.GotFirstResponseByte != nil {
+		if peek, err := pc.br.Peek(1); err == nil && len(peek) == 1 {
+			trace.GotFirstResponseByte()
+		}
+	}
 	resp, err = ReadResponse(pc.br, rc.req)
 	if err != nil {
 		return
 	}
 	if rc.continueCh != nil {
 		if resp.StatusCode == 100 {
+			if trace != nil && trace.Got100Continue != nil {
+				trace.Got100Continue()
+			}
 			rc.continueCh <- struct{}{}
 		} else {
 			close(rc.continueCh)

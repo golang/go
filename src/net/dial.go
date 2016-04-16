@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/nettrace"
 	"time"
 )
 
@@ -474,6 +475,16 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error) 
 // dialSingle attempts to establish and returns a single connection to
 // the destination address.
 func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error) {
+	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
+	if trace != nil {
+		raStr := ra.String()
+		if trace.ConnectStart != nil {
+			trace.ConnectStart(dp.network, raStr)
+		}
+		if trace.ConnectDone != nil {
+			defer func() { trace.ConnectDone(dp.network, raStr, err) }()
+		}
+	}
 	la := dp.LocalAddr
 	switch ra := ra.(type) {
 	case *TCPAddr:
