@@ -1117,6 +1117,18 @@ func hostlink() {
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
 		argv = append(argv, "-Wl,-znow")
+
+		// Do not let the host linker generate COPY relocations. These
+		// can move symbols out of sections that rely on stable offsets
+		// from the beginning of the section (like STYPE).
+		argv = append(argv, "-Wl,-znocopyreloc")
+
+		if SysArch.Family == sys.ARM {
+			// The GNU linker will generate COPY relocations on ARM
+			// even with -znocopyreloc set. Switch to gold.
+			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
+			argv = append(argv, "-fuse-ld=gold")
+		}
 	}
 
 	if Iself && len(buildinfo) > 0 {
