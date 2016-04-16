@@ -37,8 +37,9 @@ func TestDNSTransportFallback(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range dnsTransportFallbackTests {
-		timeout := time.Duration(tt.timeout) * time.Second
-		msg, err := exchange(tt.server, tt.name, tt.qtype, timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(tt.timeout)*time.Second)
+		defer cancel()
+		msg, err := exchange(ctx, tt.server, tt.name, tt.qtype)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -78,7 +79,9 @@ func TestSpecialDomainName(t *testing.T) {
 
 	server := "8.8.8.8:53"
 	for _, tt := range specialDomainNameTests {
-		msg, err := exchange(server, tt.name, tt.qtype, 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		msg, err := exchange(ctx, server, tt.name, tt.qtype)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -492,7 +495,7 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 	}
 
 	d := &fakeDNSConn{}
-	testHookDNSDialer = func(time.Duration) dnsDialer { return d }
+	testHookDNSDialer = func() dnsDialer { return d }
 
 	d.rh = func(q *dnsMsg) (*dnsMsg, error) {
 		r := &dnsMsg{
@@ -571,7 +574,7 @@ type fakeDNSConn struct {
 	rh func(*dnsMsg) (*dnsMsg, error)
 }
 
-func (f *fakeDNSConn) dialDNS(n, s string) (dnsConn, error) {
+func (f *fakeDNSConn) dialDNS(_ context.Context, n, s string) (dnsConn, error) {
 	return f, nil
 }
 

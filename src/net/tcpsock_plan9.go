@@ -22,10 +22,6 @@ func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, 
 }
 
 func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	if d, _ := ctx.Deadline(); !d.IsZero() {
-		// TODO: deadline not implemented on Plan 9 (see golang.og/issue/11932)
-	}
-	// TODO(bradfitz,0intro): also use the cancel channel.
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:
@@ -34,7 +30,7 @@ func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn
 	if raddr == nil {
 		return nil, errMissingAddress
 	}
-	fd, err := dialPlan9(net, laddr, raddr)
+	fd, err := dialPlan9(ctx, net, laddr, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +67,7 @@ func (ln *TCPListener) file() (*os.File, error) {
 }
 
 func listenTCP(ctx context.Context, network string, laddr *TCPAddr) (*TCPListener, error) {
-	fd, err := listenPlan9(network, laddr)
+	fd, err := listenPlan9(ctx, network, laddr)
 	if err != nil {
 		return nil, err
 	}

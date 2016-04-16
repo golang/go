@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 )
 
@@ -70,22 +69,15 @@ func sysInit() {
 	}
 }
 
+// canUseConnectEx reports whether we can use the ConnectEx Windows API call
+// for the given network type.
 func canUseConnectEx(net string) bool {
 	switch net {
-	case "udp", "udp4", "udp6", "ip", "ip4", "ip6":
-		// ConnectEx windows API does not support connectionless sockets.
-		return false
+	case "tcp", "tcp4", "tcp6":
+		return true
 	}
-	return syscall.LoadConnectEx() == nil
-}
-
-func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
-	if !canUseConnectEx(net) {
-		// Use the relatively inefficient goroutine-racing
-		// implementation of DialTimeout.
-		return dialChannel(net, ra, dialer, deadline)
-	}
-	return dialer(deadline)
+	// ConnectEx windows API does not support connectionless sockets.
+	return false
 }
 
 // operation contains superset of data necessary to perform all async IO.
@@ -328,12 +320,13 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 	if err := fd.init(); err != nil {
 		return err
 	}
-	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
+	if deadline, ok := ctx.Deadline(); ok && !deadline.IsZero() {
 		fd.setWriteDeadline(deadline)
 		defer fd.setWriteDeadline(noDeadline)
 	}
 	if !canUseConnectEx(fd.net) {
-		return os.NewSyscallError("connect", connectFunc(fd.sysfd, ra))
+		err := connectFunc(fd.sysfd, ra)
+		return os.NewSyscallError("connect", err)
 	}
 	// ConnectEx windows API requires an unconnected, previously bound socket.
 	if la == nil {

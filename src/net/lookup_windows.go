@@ -26,30 +26,37 @@ func getprotobyname(name string) (proto int, err error) {
 }
 
 // lookupProtocol looks up IP protocol name and returns correspondent protocol number.
-func lookupProtocol(name string) (int, error) {
+func lookupProtocol(ctx context.Context, name string) (int, error) {
 	// GetProtoByName return value is stored in thread local storage.
 	// Start new os thread before the call to prevent races.
 	type result struct {
 		proto int
 		err   error
 	}
-	ch := make(chan result)
+	ch := make(chan result) // unbuffered
 	go func() {
 		acquireThread()
 		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		proto, err := getprotobyname(name)
-		ch <- result{proto: proto, err: err}
-	}()
-	r := <-ch
-	if r.err != nil {
-		if proto, ok := protocols[name]; ok {
-			return proto, nil
+		select {
+		case ch <- result{proto: proto, err: err}:
+		case <-ctx.Done():
 		}
-		r.err = &DNSError{Err: r.err.Error(), Name: name}
+	}()
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			if proto, ok := protocols[name]; ok {
+				return proto, nil
+			}
+			r.err = &DNSError{Err: r.err.Error(), Name: name}
+		}
+		return r.proto, r.err
+	case <-ctx.Done():
+		return 0, mapErr(ctx.Err())
 	}
-	return r.proto, r.err
 }
 
 func lookupHost(ctx context.Context, name string) ([]string, error) {
@@ -193,30 +200,38 @@ func getservbyname(network, service string) (int, error) {
 	return int(syscall.Ntohs(s.Port)), nil
 }
 
-func oldLookupPort(network, service string) (int, error) {
+func oldLookupPort(ctx context.Context, network, service string) (int, error) {
 	// GetServByName return value is stored in thread local storage.
 	// Start new os thread before the call to prevent races.
 	type result struct {
 		port int
 		err  error
 	}
-	ch := make(chan result)
+	ch := make(chan result) // unbuffered
 	go func() {
 		acquireThread()
 		defer releaseThread()
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		port, err := getservbyname(network, service)
-		ch <- result{port: port, err: err}
+		select {
+		case ch <- result{port: port, err: err}:
+		case <-ctx.Done():
+		}
 	}()
-	r := <-ch
-	if r.err != nil {
-		r.err = &DNSError{Err: r.err.Error(), Name: network + "/" + service}
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			r.err = &DNSError{Err: r.err.Error(), Name: network + "/" + service}
+		}
+		return r.port, r.err
+	case <-ctx.Done():
+		return 0, mapErr(ctx.Err())
 	}
-	return r.port, r.err
 }
 
-func newLookupPort(network, service string) (int, error) {
+func newLookupPort(ctx context.Context, network, service string) (int, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	var stype int32
@@ -252,7 +267,8 @@ func newLookupPort(network, service string) (int, error) {
 	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
 }
 
-func lookupCNAME(name string) (string, error) {
+func lookupCNAME(ctx context.Context, name string) (string, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	var r *syscall.DNSRecord
@@ -272,7 +288,8 @@ func lookupCNAME(name string) (string, error) {
 	return absDomainName([]byte(cname)), nil
 }
 
-func lookupSRV(service, proto, name string) (string, []*SRV, error) {
+func lookupSRV(ctx context.Context, service, proto, name string) (string, []*SRV, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	var target string
@@ -297,7 +314,8 @@ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
 	return absDomainName([]byte(target)), srvs, nil
 }
 
-func lookupMX(name string) ([]*MX, error) {
+func lookupMX(ctx context.Context, name string) ([]*MX, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	var r *syscall.DNSRecord
@@ -316,7 +334,8 @@ func lookupMX(name string) ([]*MX, error) {
 	return mxs, nil
 }
 
-func lookupNS(name string) ([]*NS, error) {
+func lookupNS(ctx context.Context, name string) ([]*NS, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	var r *syscall.DNSRecord
@@ -334,7 +353,8 @@ func lookupNS(name string) ([]*NS, error) {
 	return nss, nil
 }
 
-func lookupTXT(name string) ([]string, error) {
+func lookupTXT(ctx context.Context, name string) ([]string, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	var r *syscall.DNSRecord
@@ -355,7 +375,8 @@ func lookupTXT(name string) ([]string, error) {
 	return txts, nil
 }
 
-func lookupAddr(addr string) ([]string, error) {
+func lookupAddr(ctx context.Context, addr string) ([]string, error) {
+	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
 	arpa, err := reverseaddr(addr)
