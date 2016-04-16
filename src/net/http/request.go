@@ -660,6 +660,8 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	if !ok && body != nil {
 		rc = ioutil.NopCloser(body)
 	}
+	// The host's colon:port should be normalized. See Issue 14836.
+	u.Host = removeEmptyPort(u.Host)
 	req := &Request{
 		Method:     method,
 		URL:        u,
