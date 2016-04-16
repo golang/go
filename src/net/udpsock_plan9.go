@@ -57,7 +57,7 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
 
 func dialUDP(ctx context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
-		panic("net.dialUDP: deadline not implemented on Plan 9")
+		// TODO: deadline not implemented on Plan 9 (see golang.og/issue/11932)
 	}
 	fd, err := dialPlan9(net, laddr, raddr)
 	if err != nil {
