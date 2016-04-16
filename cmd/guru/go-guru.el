@@ -453,9 +453,16 @@ timeout."
 ;; of an identifier.
 
 (defun go-guru--enclosing ()
-  "Return a list of enclosing regions, with duplicates removed."
-  (let ((enclosing (cdr (assoc 'enclosing (go-guru-what)))))
+  "Return a list of enclosing regions."
+  (cdr (assoc 'enclosing (go-guru-what))))
+
+(defun go-guru--enclosing-unique ()
+  "Return a list of enclosing regions, with duplicates removed.
+Two regions are considered equal if they have the same start and
+end point."
+  (let ((enclosing (go-guru--enclosing)))
     (cl-remove-duplicates enclosing
+                          :from-end t
                           :test (lambda (a b)
                                   (and (= (cdr (assoc 'start a))
                                           (cdr (assoc 'start b)))
@@ -467,7 +474,7 @@ timeout."
   (interactive)
   (let* ((enclosing (if (eq last-command #'go-guru-expand-region)
                         go-guru--last-enclosing
-                      (go-guru--enclosing)))
+                      (go-guru--enclosing-unique)))
          (block (if (> (length enclosing) 0) (elt enclosing 0))))
     (when block
       (goto-char (1+ (cdr (assoc 'start block))))
