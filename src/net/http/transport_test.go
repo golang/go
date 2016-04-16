@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/nettrace"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -25,6 +26,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/http/internal"
 	"net/url"
@@ -3188,6 +3190,104 @@ func TestTransportResponseHeaderLength(t *testing.T) {
 	}
 	if want := "server response headers exceeded 524288 bytes"; !strings.Contains(err.Error(), want) {
 		t.Errorf("got error: %v; want %q", err, want)
+	}
+}
+
+func TestTransportEventTrace(t *testing.T) {
+	defer afterTest(t)
+	const resBody = "some body"
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if _, err := ioutil.ReadAll(r.Body); err != nil {
+			t.Error(err)
+		}
+		io.WriteString(w, resBody)
+	}))
+	defer ts.Close()
+	tr := &Transport{
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	logf := func(format string, args ...interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(&buf, format, args...)
+		buf.WriteByte('\n')
+	}
+
+	ip, port, err := net.SplitHostPort(ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Install a fake DNS server.
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+		if host != "dns-is-faked.golang" {
+			t.Errorf("unexpected DNS host lookup for %q", host)
+			return nil, nil
+		}
+		if err != nil {
+			t.Error(err)
+			return nil, err
+		}
+		return []net.IPAddr{net.IPAddr{IP: net.ParseIP(ip)}}, nil
+	})
+
+	req, _ := NewRequest("POST", "http://dns-is-faked.golang:"+port, strings.NewReader("some body"))
+	req = req.WithContext(httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
+		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
+		GotFirstResponseByte: func() { logf("first response byte") },
+		PutIdleConn:          func(err error) { logf("PutIdleConn = %v", err) },
+		DNSStart:             func(e httptrace.DNSStartInfo) { logf("DNS start: %+v", e) },
+		DNSDone:              func(e httptrace.DNSDoneInfo) { logf("DNS done: %+v", e) },
+		ConnectStart:         func(network, addr string) { logf("ConnectStart: Connecting to %s %s ...", network, addr) },
+		ConnectDone: func(network, addr string, err error) {
+			if err != nil {
+				t.Errorf("ConnectDone: %v", err)
+			}
+			logf("ConnectDone: connected to %s %s = %v", network, addr, err)
+		},
+		Wait100Continue: func() { logf("Wait100Continue") },
+		Got100Continue:  func() { logf("Got100Continue") },
+		WroteRequest:    func(e httptrace.WroteRequestInfo) { logf("WroteRequest: %+v", e) },
+	}))
+
+	req.Header.Set("Expect", "100-continue")
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != resBody || res.StatusCode != 200 {
+		t.Fatalf("Got %q, %v; want %q, 200 OK", slurp, res.Status, resBody)
+	}
+	res.Body.Close()
+
+	got := buf.String()
+	wantSub := func(sub string) {
+		if !strings.Contains(got, sub) {
+			t.Errorf("expected substring %q in output.", sub)
+		}
+	}
+	wantSub("Getting conn for dns-is-faked.golang:" + port)
+	wantSub("DNS start: {Host:dns-is-faked.golang}")
+	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
+	wantSub("connected to tcp " + ts.Listener.Addr().String() + " = <nil>")
+	wantSub("Reused:false WasIdle:false IdleTime:0s")
+	wantSub("first response byte")
+	wantSub("PutIdleConn = <nil>")
+	wantSub("WroteRequest: {Err:<nil>}")
+	wantSub("Wait100Continue")
+	wantSub("Got100Continue")
+	if t.Failed() {
+		t.Errorf("Output:\n%s", got)
 	}
 }
 

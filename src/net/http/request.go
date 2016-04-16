@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
+	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -437,7 +438,16 @@ var errMissingHost = errors.New("http: Request.Write on Request with no Host or 
 
 // extraHeaders may be nil
 // waitForContinue may be nil
-func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) error {
+func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) (err error) {
+	trace := httptrace.ContextClientTrace(req.Context())
+	if trace != nil && trace.WroteRequest != nil {
+		defer func() {
+			trace.WroteRequest(httptrace.WroteRequestInfo{
+				Err: err,
+			})
+		}()
+	}
+
 	// Find the target host. Prefer the Host: header, but if that
 	// is not given, use the host from the request URL.
 	//
@@ -474,7 +484,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 		w = bw
 	}
 
-	_, err := fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
+	_, err = fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
 	if err != nil {
 		return err
 	}
@@ -525,6 +535,10 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 		return err
 	}
 
+	if trace != nil && trace.WroteHeaders != nil {
+		trace.WroteHeaders()
+	}
+
 	// Flush and wait for 100-continue if expected.
 	if waitForContinue != nil {
 		if bw, ok := w.(*bufio.Writer); ok {
@@ -533,7 +547,9 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 				return err
 			}
 		}
-
+		if trace != nil && trace.Wait100Continue != nil {
+			trace.Wait100Continue()
+		}
 		if !waitForContinue() {
 			req.closeBody()
 			return nil
