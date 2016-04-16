@@ -304,7 +304,8 @@ type gcControllerState struct {
 	// scanWork is the total scan work performed this cycle. This
 	// is updated atomically during the cycle. Updates occur in
 	// bounded batches, since it is both written and read
-	// throughout the cycle.
+	// throughout the cycle. At the end of the cycle, this is how
+	// much of the retained heap is scannable.
 	//
 	// Currently this is the bytes of heap scanned. For most uses,
 	// this is an opaque unit of work, but for estimation the
@@ -1578,8 +1579,12 @@ func gcMark(start_time int64) {
 	work.markrootDone = true
 
 	for i := 0; i < int(gomaxprocs); i++ {
-		if !allp[i].gcw.empty() {
+		gcw := &allp[i].gcw
+		if !gcw.empty() {
 			throw("P has cached GC work at end of mark termination")
+		}
+		if gcw.scanWork != 0 || gcw.bytesMarked != 0 {
+			throw("P has unflushed stats at end of mark termination")
 		}
 	}
 
