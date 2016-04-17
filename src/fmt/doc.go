@@ -62,7 +62,7 @@
 	For compound objects, the elements are printed using these rules, recursively,
 	laid out like this:
 		struct:             {field0 field1 ...}
-		array, slice:       [elem0  elem1 ...]
+		array, slice:       [elem0 elem1 ...]
 		maps:               map[key1:value1 key2:value2]
 		pointer to above:   &{}, &[], &map[]
 
