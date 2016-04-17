@@ -3099,7 +3099,12 @@ func typecheckcomplit(n *Node) *Node {
 				}
 
 				s := l.Left.Sym
-				if s == nil {
+
+				// An OXDOT uses the Sym field to hold
+				// the field to the right of the dot,
+				// so s will be non-nil, but an OXDOT
+				// is never a valid struct literal key.
+				if s == nil || l.Left.Op == OXDOT {
 					Yyerror("invalid field name %v in struct initializer", l.Left)
 					l.Right = typecheck(l.Right, Erv)
 					continue
