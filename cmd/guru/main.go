@@ -194,11 +194,17 @@ func main() {
 		}
 	}
 
+	// Avoid corner case of split("").
+	var scope []string
+	if *scopeFlag != "" {
+		scope = strings.Split(*scopeFlag, ",")
+	}
+
 	// Ask the guru.
 	query := Query{
 		Pos:        posn,
 		Build:      ctxt,
-		Scope:      strings.Split(*scopeFlag, ","),
+		Scope:      scope,
 		PTALog:     ptalog,
 		Reflection: *reflectFlag,
 		Output:     output,
