@@ -1183,7 +1183,7 @@ func TestNoAuthorityKeyIdInSelfSignedCert(t *testing.T) {
 		t.Fatalf("self-signed certificate contained default authority key id")
 	}
 
-	template.AuthorityKeyId = []byte{1,2,3,4}
+	template.AuthorityKeyId = []byte{1, 2, 3, 4}
 	if cert := serialiseAndParse(t, template); len(cert.AuthorityKeyId) == 0 {
 		t.Fatalf("self-signed certificate erased explicit authority key id")
 	}
