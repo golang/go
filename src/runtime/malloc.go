@@ -695,9 +695,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase == _GCmarktermination || gcBlackenPromptly {
-		systemstack(func() {
-			gcmarknewobject_m(uintptr(x), size, scanSize)
-		})
+		gcmarknewobject(uintptr(x), size, scanSize)
 	}
 
 	if raceenabled {
