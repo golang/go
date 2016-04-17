@@ -133,10 +133,13 @@ const sratioCase = `
 					b = ^(b >> 31)
 				}
 
-				dpix[x+0] = uint8(r)
-				dpix[x+1] = uint8(g)
-				dpix[x+2] = uint8(b)
-				dpix[x+3] = 255
+
+				// use a temp slice to hint to the compiler that a single bounds check suffices
+				rgba := dpix[x : x+4 : len(dpix)]
+				rgba[0] = uint8(r)
+				rgba[1] = uint8(g)
+				rgba[2] = uint8(b)
+				rgba[3] = 255
 			}
 		}
 `
