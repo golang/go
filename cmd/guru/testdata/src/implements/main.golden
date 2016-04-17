@@ -42,3 +42,9 @@ slice type sorter
 interface type I
 	is implemented by basic type lib.Type
 
+-------- @implements var_d --------
+struct type D
+	implements F
+pointer type *D
+	implements FG
+

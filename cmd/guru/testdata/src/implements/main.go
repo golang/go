@@ -37,3 +37,8 @@ func (sorter) Swap(i, j int)      {}
 type I interface { // @implements I "I"
 	Method(*int) *int
 }
+
+func _() {
+	var d D
+	_ = d // @implements var_d "d"
+}

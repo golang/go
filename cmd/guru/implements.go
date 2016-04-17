@@ -88,11 +88,17 @@ func implements(q *Query) error {
 				T = recv.Type()
 			}
 		}
+
+		// If not a method, use the expression's type.
+		if T == nil {
+			T = qpos.info.TypeOf(path[0].(ast.Expr))
+		}
+
 	case actionType:
 		T = qpos.info.TypeOf(path[0].(ast.Expr))
 	}
 	if T == nil {
-		return fmt.Errorf("no type or method here")
+		return fmt.Errorf("not a type, method, or value")
 	}
 
 	// Find all named types, even local types (which can have
