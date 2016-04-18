@@ -234,3 +234,132 @@ func BenchmarkCopy16String(b *testing.B)   { benchmarkCopyStr(b, 16) }
 func BenchmarkCopy32String(b *testing.B)   { benchmarkCopyStr(b, 32) }
 func BenchmarkCopy128String(b *testing.B)  { benchmarkCopyStr(b, 128) }
 func BenchmarkCopy1024String(b *testing.B) { benchmarkCopyStr(b, 1024) }
+
+var (
+	sByte []byte
+	s1Ptr []uintptr
+	s2Ptr [][2]uintptr
+	s3Ptr [][3]uintptr
+	s4Ptr [][4]uintptr
+)
+
+// BenchmarkAppendInPlace tests the performance of append
+// when the result is being written back to the same slice.
+// In order for the in-place optimization to occur,
+// the slice must be referred to by address;
+// using a global is an easy way to trigger that.
+// We test the "grow" and "no grow" paths separately,
+// but not the "normal" (occasionally grow) path,
+// because it is a blend of the other two.
+// We use small numbers and small sizes in an attempt
+// to avoid benchmarking memory allocation and copying.
+// We use scalars instead of pointers in an attempt
+// to avoid benchmarking the write barriers.
+// We benchmark four common sizes (byte, pointer, string/interface, slice),
+// and one larger size.
+func BenchmarkAppendInPlace(b *testing.B) {
+	b.Run("NoGrow", func(b *testing.B) {
+		const C = 128
+
+		b.Run("Byte", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				sByte = make([]byte, C)
+				for j := 0; j < C; j++ {
+					sByte = append(sByte, 0x77)
+				}
+			}
+		})
+
+		b.Run("1Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s1Ptr = make([]uintptr, C)
+				for j := 0; j < C; j++ {
+					s1Ptr = append(s1Ptr, 0x77)
+				}
+			}
+		})
+
+		b.Run("2Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s2Ptr = make([][2]uintptr, C)
+				for j := 0; j < C; j++ {
+					s2Ptr = append(s2Ptr, [2]uintptr{0x77, 0x88})
+				}
+			}
+		})
+
+		b.Run("3Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s3Ptr = make([][3]uintptr, C)
+				for j := 0; j < C; j++ {
+					s3Ptr = append(s3Ptr, [3]uintptr{0x77, 0x88, 0x99})
+				}
+			}
+		})
+
+		b.Run("4Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s4Ptr = make([][4]uintptr, C)
+				for j := 0; j < C; j++ {
+					s4Ptr = append(s4Ptr, [4]uintptr{0x77, 0x88, 0x99, 0xAA})
+				}
+			}
+		})
+
+	})
+
+	b.Run("Grow", func(b *testing.B) {
+		const C = 5
+
+		b.Run("Byte", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				sByte = make([]byte, 0)
+				for j := 0; j < C; j++ {
+					sByte = append(sByte, 0x77)
+					sByte = sByte[:cap(sByte)]
+				}
+			}
+		})
+
+		b.Run("1Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s1Ptr = make([]uintptr, 0)
+				for j := 0; j < C; j++ {
+					s1Ptr = append(s1Ptr, 0x77)
+					s1Ptr = s1Ptr[:cap(s1Ptr)]
+				}
+			}
+		})
+
+		b.Run("2Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s2Ptr = make([][2]uintptr, 0)
+				for j := 0; j < C; j++ {
+					s2Ptr = append(s2Ptr, [2]uintptr{0x77, 0x88})
+					s2Ptr = s2Ptr[:cap(s2Ptr)]
+				}
+			}
+		})
+
+		b.Run("3Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s3Ptr = make([][3]uintptr, 0)
+				for j := 0; j < C; j++ {
+					s3Ptr = append(s3Ptr, [3]uintptr{0x77, 0x88, 0x99})
+					s3Ptr = s3Ptr[:cap(s3Ptr)]
+				}
+			}
+		})
+
+		b.Run("4Ptr", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				s4Ptr = make([][4]uintptr, 0)
+				for j := 0; j < C; j++ {
+					s4Ptr = append(s4Ptr, [4]uintptr{0x77, 0x88, 0x99, 0xAA})
+					s4Ptr = s4Ptr[:cap(s4Ptr)]
+				}
+			}
+		})
+
+	})
+}
