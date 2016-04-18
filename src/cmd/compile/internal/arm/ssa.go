@@ -91,8 +91,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMCMP:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[0])
-		p.Reg = gc.SSARegNum(v.Args[1])
+		// Special layout in ARM assembly
+		// Comparing to x86, the operands of ARM's CMP are reversed.
+		p.From.Reg = gc.SSARegNum(v.Args[1])
+		p.Reg = gc.SSARegNum(v.Args[0])
 	case ssa.OpARMMOVWload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
@@ -142,7 +144,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)
 	case ssa.BlockARMLT:
-		p := gc.Prog(arm.ABGE)
+		p := gc.Prog(arm.ABLT)
 		p.To.Type = obj.TYPE_BRANCH
 		s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
 		p = gc.Prog(obj.AJMP)
