@@ -32,7 +32,6 @@
 package ld
 
 import (
-	"bytes"
 	"cmd/internal/gcprog"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
@@ -42,6 +41,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func Symgrow(ctxt *Link, s *LSym, siz int64) {
@@ -651,8 +651,8 @@ func reloc() {
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		relocsym(s)
 	}
-	for s := datap; s != nil; s = s.Next {
-		relocsym(s)
+	for _, sym := range datap {
+		relocsym(sym)
 	}
 	for s := dwarfp; s != nil; s = s.Next {
 		relocsym(s)
@@ -713,7 +713,7 @@ func dynrelocsym(s *LSym) {
 	}
 }
 
-func dynreloc() {
+func dynreloc(data *[obj.SXREF][]*LSym) {
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
 	if Debug['d'] != 0 && HEADTYPE != obj.Hwindows {
@@ -727,8 +727,10 @@ func dynreloc() {
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		dynrelocsym(s)
 	}
-	for s := datap; s != nil; s = s.Next {
-		dynrelocsym(s)
+	for _, syms := range data {
+		for _, sym := range syms {
+			dynrelocsym(sym)
+		}
 	}
 	if Iself {
 		elfdynhash()
@@ -849,27 +851,77 @@ func Codeblk(addr int64, size int64) {
 	Bso.Flush()
 }
 
+// blkSlice is a variant of blk that processes slices.
+// After text symbols are converted from a linked list to a slice,
+// delete blk and give this function its name.
+func blkSlice(syms []*LSym, addr, size int64) {
+	for i, s := range syms {
+		if s.Type&obj.SSUB == 0 && s.Value >= addr {
+			syms = syms[i:]
+			break
+		}
+	}
+
+	eaddr := addr + size
+	for _, s := range syms {
+		if s.Type&obj.SSUB != 0 {
+			continue
+		}
+		if s.Value >= eaddr {
+			break
+		}
+		Ctxt.Cursym = s
+		if s.Value < addr {
+			Diag("phase error: addr=%#x but sym=%#x type=%d", addr, s.Value, s.Type)
+			errorexit()
+		}
+		if addr < s.Value {
+			strnput("", int(s.Value-addr))
+			addr = s.Value
+		}
+		Cwrite(s.P)
+		addr += int64(len(s.P))
+		if addr < s.Value+s.Size {
+			strnput("", int(s.Value+s.Size-addr))
+			addr = s.Value + s.Size
+		}
+		if addr != s.Value+s.Size {
+			Diag("phase error: addr=%#x value+size=%#x", addr, s.Value+s.Size)
+			errorexit()
+		}
+		if s.Value+s.Size >= eaddr {
+			break
+		}
+	}
+
+	if addr < eaddr {
+		strnput("", int(eaddr-addr))
+	}
+	Cflush()
+}
+
 func Datblk(addr int64, size int64) {
 	if Debug['a'] != 0 {
 		fmt.Fprintf(Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blk(datap, addr, size)
+	blkSlice(datap, addr, size)
 
 	/* again for printing */
 	if Debug['a'] == 0 {
 		return
 	}
 
-	var sym *LSym
-	for sym = datap; sym != nil; sym = sym.Next {
+	syms := datap
+	for i, sym := range syms {
 		if sym.Value >= addr {
+			syms = syms[i:]
 			break
 		}
 	}
 
 	eaddr := addr + size
-	for ; sym != nil; sym = sym.Next {
+	for _, sym := range syms {
 		if sym.Value >= eaddr {
 			break
 		}
@@ -1080,18 +1132,15 @@ func aligndatsize(datsize int64, s *LSym) int64 {
 }
 
 // maxalign returns the maximum required alignment for
-// the list of symbols s; the list stops when s->type exceeds type.
-func maxalign(s *LSym, type_ int) int32 {
-	var align int32
-
-	max := int32(0)
-	for ; s != nil && int(s.Type) <= type_; s = s.Next {
-		align = symalign(s)
+// the slice of symbols syms
+func maxalign(syms []*LSym) int32 {
+	var max int32
+	for _, sym := range syms {
+		align := symalign(sym)
 		if max < align {
 			max = align
 		}
 	}
-
 	return max
 }
 
@@ -1156,41 +1205,24 @@ func (p *GCProg) AddSym(s *LSym) {
 	p.w.Append(prog[4:], nptr)
 }
 
+// dataSortKey is used to sort a slice of data symbol *LSym pointers.
+// The sort keys are kept inline to improve cache behaviour while sorting.
 type dataSortKey struct {
-	// keep sort keys inline to improve cache behaviour while sorting
-	Type int16
-	Size int64
-	Name string
-
-	Lsym *LSym
+	size int64
+	name string
+	lsym *LSym
 }
 
-type dataSlice []dataSortKey
+type bySizeAndName []dataSortKey
 
-func (d dataSlice) Len() int      { return len(d) }
-func (d dataSlice) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
-func (d dataSlice) Less(i, j int) bool {
-	s1, s2 := &d[i], &d[j]
-	if s1.Type != s2.Type {
-		return s1.Type < s2.Type
+func (d bySizeAndName) Len() int      { return len(d) }
+func (d bySizeAndName) Swap(i, j int) { d[i], d[j] = d[j], d[i] }
+func (d bySizeAndName) Less(i, j int) bool {
+	s1, s2 := d[i], d[j]
+	if s1.size != s2.size {
+		return s1.size < s2.size
 	}
-
-	// For ppc64, we want to interleave the .got and .toc sections
-	// from input files. Both are type SELFGOT, so in that case
-	// fall through to the name comparison (conveniently, .got
-	// sorts before .toc).
-	if s1.Type != obj.SELFGOT && s1.Size != s2.Size {
-		return s1.Size < s2.Size
-	}
-
-	// Sort typelinks by the string field.
-	if strings.HasPrefix(s1.Name, "go.typelink.") && strings.HasPrefix(s2.Name, "go.typelink.") {
-		s1n := decodetype_string(s1.Lsym.R[0].Sym)
-		s2n := decodetype_string(s2.Lsym.R[0].Sym)
-		return bytes.Compare(s1n, s2n) < 0
-	}
-
-	return s1.Name < s2.Name
+	return s1.name < s2.name
 }
 
 func growdatsize(datsizep *int64, s *LSym) {
@@ -1207,38 +1239,17 @@ func growdatsize(datsizep *int64, s *LSym) {
 	*datsizep = datsize + s.Size
 }
 
-func list2Slice(head *LSym) dataSlice {
-	n := 0
-	for s := datap; s != nil; s = s.Next {
-		n++
+func list2slice(s *LSym) []*LSym {
+	var syms []*LSym
+	for ; s != nil; s = s.Next {
+		syms = append(syms, s)
 	}
-	slice := make(dataSlice, n)
-	i := 0
-	for s := datap; s != nil; s = s.Next {
-		k := &slice[i]
-		k.Type = s.Type
-		k.Size = s.Size
-		k.Name = s.Name
-		k.Lsym = s
-
-		i++
-	}
-	return slice
+	return syms
 }
 
-func slice2List(d dataSlice) *LSym {
-	for i := 0; i < len(d)-1; i++ {
-		d[i].Lsym.Next = d[i+1].Lsym
-	}
-	d[len(d)-1].Lsym.Next = nil
-	return d[0].Lsym
-}
-
-func dataSort(head *LSym) *LSym {
-	d := list2Slice(head)
-	sort.Sort(d)
-	return slice2List(d)
-}
+// datap is a collection of reachable data symbols in address order.
+// Generated by dodata.
+var datap []*LSym
 
 func dodata() {
 	if Debug['v'] != 0 {
@@ -1246,153 +1257,122 @@ func dodata() {
 	}
 	Bso.Flush()
 
-	var last *LSym
-	datap = nil
-
+	// Collect data symbols by type into data.
+	var data [obj.SXREF][]*LSym
 	for _, s := range Ctxt.Allsym {
 		if !s.Attr.Reachable() || s.Attr.Special() {
 			continue
 		}
-		if obj.STEXT < s.Type && s.Type < obj.SXREF {
-			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
-			}
-			s.Attr |= AttrOnList
-			if last == nil {
-				datap = s
-			} else {
-				last.Next = s
-			}
-			s.Next = nil
-			last = s
+		if s.Type <= obj.STEXT || s.Type >= obj.SXREF {
+			continue
 		}
+		data[s.Type] = append(data[s.Type], s)
 	}
 
-	for s := datap; s != nil; s = s.Next {
-		if int64(len(s.P)) > s.Size {
-			Diag("%s: initialize bounds (%d < %d)", s.Name, s.Size, len(s.P))
-		}
-	}
-
-	/*
-	 * now that we have the datap list, but before we start
-	 * to assign addresses, record all the necessary
-	 * dynamic relocations.  these will grow the relocation
-	 * symbol, which is itself data.
-	 *
-	 * on darwin, we need the symbol table numbers for dynreloc.
-	 */
+	// Now that we have the data symbols, but before we start
+	// to assign addresses, record all the necessary
+	// dynamic relocations. These will grow the relocation
+	// symbol, which is itself data.
+	//
+	// On darwin, we need the symbol table numbers for dynreloc.
 	if HEADTYPE == obj.Hdarwin {
 		machosymorder()
 	}
-	dynreloc()
-
-	/* some symbols may no longer belong in datap (Mach-O) */
-	var l **LSym
-	var s *LSym
-	for l = &datap; ; {
-		s = *l
-		if s == nil {
-			break
-		}
-
-		if s.Type <= obj.STEXT || obj.SXREF <= s.Type {
-			*l = s.Next
-		} else {
-			l = &s.Next
-		}
-	}
-
-	*l = nil
+	dynreloc(&data)
 
 	if UseRelro() {
 		// "read only" data with relocations needs to go in its own section
 		// when building a shared library. We do this by boosting objects of
 		// type SXXX with relocations to type SXXXRELRO.
-		for s := datap; s != nil; s = s.Next {
-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.STYPE || s.Type == obj.SGOSTRINGHDR {
-				s.Type += (obj.STYPERELRO - obj.STYPE)
-				if s.Outer != nil {
-					s.Outer.Type = s.Type
+		for symnro := int16(obj.STYPE); symnro < obj.STYPERELRO; symnro++ {
+			symnrelro := symnro + obj.STYPERELRO - obj.STYPE
+
+			ro := []*LSym{}
+			relro := data[symnrelro]
+
+			for _, s := range data[symnro] {
+				isRelro := len(s.R) > 0
+				switch s.Type {
+				case obj.STYPE, obj.SGOSTRINGHDR, obj.STYPERELRO, obj.SGOSTRINGHDRRELRO:
+					// Symbols are not sorted yet, so it is possible
+					// that an Outer symbol has been changed to a
+					// relro Type before it reaches here.
+					isRelro = true
+				}
+				if isRelro {
+					s.Type = symnrelro
+					if s.Outer != nil {
+						s.Outer.Type = s.Type
+					}
+					relro = append(relro, s)
+				} else {
+					ro = append(ro, s)
 				}
 			}
-		}
-		// Check that we haven't made two symbols with the same .Outer into
-		// different types (because references two symbols with non-nil Outer
-		// become references to the outer symbol + offset it's vital that the
-		// symbol and the outer end up in the same section).
-		for s := datap; s != nil; s = s.Next {
-			if s.Outer != nil && s.Outer.Type != s.Type {
-				Diag("inconsistent types for %s and its Outer %s (%d != %d)",
-					s.Name, s.Outer.Name, s.Type, s.Outer.Type)
-			}
-		}
 
-	}
-
-	datap = dataSort(datap)
-
-	if Iself {
-		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
-		// and Solaris actually cares.
-		var relplt *LSym
-		for l = &datap; *l != nil; l = &(*l).Next {
-			if (*l).Name == ".rel.plt" || (*l).Name == ".rela.plt" {
-				relplt = (*l)
-				*l = (*l).Next
-				break
-			}
-		}
-		if relplt != nil {
-			for s = datap; s != nil; s = s.Next {
-				if s.Name == ".rel" || s.Name == ".rela" {
-					relplt.Next = s.Next
-					s.Next = relplt
+			// Check that we haven't made two symbols with the same .Outer into
+			// different types (because references two symbols with non-nil Outer
+			// become references to the outer symbol + offset it's vital that the
+			// symbol and the outer end up in the same section).
+			for _, s := range relro {
+				if s.Outer != nil && s.Outer.Type != s.Type {
+					Diag("inconsistent types for %s and its Outer %s (%d != %d)",
+						s.Name, s.Outer.Name, s.Type, s.Outer.Type)
 				}
 			}
+
+			data[symnro] = ro
+			data[symnrelro] = relro
 		}
 	}
 
-	/*
-	 * allocate sections.  list is sorted by type,
-	 * so we can just walk it for each piece we want to emit.
-	 * segdata is processed before segtext, because we need
-	 * to see all symbols in the .data and .bss sections in order
-	 * to generate garbage collection information.
-	 */
-
-	/* begin segdata */
-
-	/* skip symbols belonging to segtext */
-	s = datap
-
-	for ; s != nil && s.Type < obj.SELFSECT; s = s.Next {
+	// Sort symbols.
+	var wg sync.WaitGroup
+	for symn := range data {
+		symn := symn
+		wg.Add(1)
+		go func() {
+			data[symn] = dodataSect(symn, data[symn])
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 
-	/* writable ELF sections */
+	// Allocate sections.
+	// Data is processed before segtext, because we need
+	// to see all symbols in the .data and .bss sections in order
+	// to generate garbage collection information.
 	datsize := int64(0)
 
-	var sect *Section
-	for ; s != nil && s.Type < obj.SELFGOT; s = s.Next {
-		sect = addsection(&Segdata, s.Name, 06)
-		sect.Align = symalign(s)
-		datsize = Rnd(datsize, int64(sect.Align))
-		sect.Vaddr = uint64(datsize)
-		s.Sect = sect
-		s.Type = obj.SDATA
-		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
-		sect.Length = uint64(datsize) - sect.Vaddr
+	// Writable sections.
+	writableSects := []int{
+		obj.SELFSECT,
+		obj.SMACHO,
+		obj.SMACHOGOT,
+		obj.SWINDOWS,
+	}
+	for _, symn := range writableSects {
+		for _, s := range data[symn] {
+			sect := addsection(&Segdata, s.Name, 06)
+			sect.Align = symalign(s)
+			datsize = Rnd(datsize, int64(sect.Align))
+			sect.Vaddr = uint64(datsize)
+			s.Sect = sect
+			s.Type = obj.SDATA
+			s.Value = int64(uint64(datsize) - sect.Vaddr)
+			growdatsize(&datsize, s)
+			sect.Length = uint64(datsize) - sect.Vaddr
+		}
 	}
 
-	/* .got (and .toc on ppc64) */
-	if s.Type == obj.SELFGOT {
+	// .got (and .toc on ppc64)
+	if len(data[obj.SELFGOT]) > 0 {
 		sect := addsection(&Segdata, ".got", 06)
-		sect.Align = maxalign(s, obj.SELFGOT)
+		sect.Align = maxalign(data[obj.SELFGOT])
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
 		var toc *LSym
-		for ; s != nil && s.Type == obj.SELFGOT; s = s.Next {
+		for _, s := range data[obj.SELFGOT] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Type = obj.SDATA
@@ -1400,7 +1380,6 @@ func dodata() {
 
 			// Resolve .TOC. symbol for this object file (ppc64)
 			toc = Linkrlookup(Ctxt, ".TOC.", int(s.Version))
-
 			if toc != nil {
 				toc.Sect = sect
 				toc.Outer = s
@@ -1412,26 +1391,24 @@ func dodata() {
 
 			growdatsize(&datsize, s)
 		}
-
 		sect.Length = uint64(datsize) - sect.Vaddr
 	}
 
 	/* pointer-free data */
-	sect = addsection(&Segdata, ".noptrdata", 06)
+	sect := addsection(&Segdata, ".noptrdata", 06)
 
-	sect.Align = maxalign(s, obj.SINITARR-1)
+	sect.Align = maxalign(data[obj.SNOPTRDATA])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.noptrdata", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.enoptrdata", 0).Sect = sect
-	for ; s != nil && s.Type < obj.SINITARR; s = s.Next {
+	for _, s := range data[obj.SNOPTRDATA] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = obj.SDATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	hasinitarr := Linkshared
@@ -1441,37 +1418,30 @@ func dodata() {
 	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
 		hasinitarr = true
 	}
-
 	if hasinitarr {
 		sect := addsection(&Segdata, ".init_array", 06)
-		sect.Align = maxalign(s, obj.SINITARR)
+		sect.Align = maxalign(data[obj.SINITARR])
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		for ; s != nil && s.Type == obj.SINITARR; s = s.Next {
+		for _, s := range data[obj.SINITARR] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
 			growdatsize(&datsize, s)
 		}
-
 		sect.Length = uint64(datsize) - sect.Vaddr
 	}
 
 	/* data */
 	sect = addsection(&Segdata, ".data", 06)
-	sect.Align = maxalign(s, obj.SBSS-1)
+	sect.Align = maxalign(data[obj.SDATA])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.data", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.edata", 0).Sect = sect
 	var gc GCProg
 	gc.Init("runtime.gcdata")
-	for ; s != nil && s.Type < obj.SBSS; s = s.Next {
-		if s.Type == obj.SINITARR {
-			Ctxt.Cursym = s
-			Diag("unexpected symbol type %d", s.Type)
-		}
-
+	for _, s := range data[obj.SDATA] {
 		s.Sect = sect
 		s.Type = obj.SDATA
 		datsize = aligndatsize(datsize, s)
@@ -1484,14 +1454,14 @@ func dodata() {
 
 	/* bss */
 	sect = addsection(&Segdata, ".bss", 06)
-	sect.Align = maxalign(s, obj.SNOPTRBSS-1)
+	sect.Align = maxalign(data[obj.SBSS])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.bss", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.ebss", 0).Sect = sect
 	gc = GCProg{}
 	gc.Init("runtime.gcbss")
-	for ; s != nil && s.Type < obj.SNOPTRBSS; s = s.Next {
+	for _, s := range data[obj.SBSS] {
 		s.Sect = sect
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -1504,12 +1474,12 @@ func dodata() {
 	/* pointer-free bss */
 	sect = addsection(&Segdata, ".noptrbss", 06)
 
-	sect.Align = maxalign(s, obj.SNOPTRBSS)
+	sect.Align = maxalign(data[obj.SNOPTRBSS])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.noptrbss", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.enoptrbss", 0).Sect = sect
-	for ; s != nil && s.Type == obj.SNOPTRBSS; s = s.Next {
+	for _, s := range data[obj.SNOPTRBSS] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -1519,22 +1489,21 @@ func dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 	Linklookup(Ctxt, "runtime.end", 0).Sect = sect
 
-	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+	// The compiler uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if datsize != int64(uint32(datsize)) {
 		Diag("data or bss segment too large")
 	}
 
-	if s != nil && s.Type == obj.STLSBSS {
+	if len(data[obj.STLSBSS]) > 0 {
+		var sect *Section
 		if Iself && (Linkmode == LinkExternal || Debug['d'] == 0) && HEADTYPE != obj.Hopenbsd {
 			sect = addsection(&Segdata, ".tbss", 06)
 			sect.Align = int32(SysArch.PtrSize)
 			sect.Vaddr = 0
-		} else {
-			sect = nil
 		}
 		datsize = 0
 
-		for ; s != nil && s.Type == obj.STLSBSS; s = s.Next {
+		for _, s := range data[obj.STLSBSS] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = datsize
@@ -1544,11 +1513,6 @@ func dodata() {
 		if sect != nil {
 			sect.Length = uint64(datsize)
 		}
-	}
-
-	if s != nil {
-		Ctxt.Cursym = nil
-		Diag("unexpected symbol type %d for %s", s.Type, s.Name)
 	}
 
 	/*
@@ -1568,13 +1532,14 @@ func dodata() {
 		segro = &Segtext
 	}
 
-	s = datap
-
 	datsize = 0
 
 	/* read-only executable ELF, Mach-O sections */
-	for ; s != nil && s.Type < obj.STYPE; s = s.Next {
-		sect = addsection(&Segtext, s.Name, 04)
+	if len(data[obj.STEXT]) != 0 {
+		Diag("dodata found an STEXT symbol: %s", data[obj.STEXT][0].Name)
+	}
+	for _, s := range data[obj.SELFRXSECT] {
+		sect := addsection(&Segtext, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1588,8 +1553,6 @@ func dodata() {
 	/* read-only data */
 	sect = addsection(segro, ".rodata", 04)
 
-	sect.Align = maxalign(s, obj.STYPERELRO-1)
-	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = 0
 	Linklookup(Ctxt, "runtime.rodata", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.erodata", 0).Sect = sect
@@ -1597,14 +1560,32 @@ func dodata() {
 		Linklookup(Ctxt, "runtime.types", 0).Sect = sect
 		Linklookup(Ctxt, "runtime.etypes", 0).Sect = sect
 	}
-	for ; s != nil && s.Type < obj.STYPERELRO; s = s.Next {
-		datsize = aligndatsize(datsize, s)
-		s.Sect = sect
-		s.Type = obj.SRODATA
-		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+	roSects := []int{
+		obj.STYPE,
+		obj.SSTRING,
+		obj.SGOSTRING,
+		obj.SGOSTRINGHDR,
+		obj.SGOFUNC,
+		obj.SGCBITS,
+		obj.SRODATA,
+		obj.SFUNCTAB,
 	}
-
+	for _, symn := range roSects {
+		align := maxalign(data[symn])
+		if sect.Align < align {
+			sect.Align = align
+		}
+	}
+	datsize = Rnd(datsize, int64(sect.Align))
+	for _, symn := range roSects {
+		for _, s := range data[symn] {
+			datsize = aligndatsize(datsize, s)
+			s.Sect = sect
+			s.Type = obj.SRODATA
+			s.Value = int64(uint64(datsize) - sect.Vaddr)
+			growdatsize(&datsize, s)
+		}
+	}
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	// There is some data that are conceptually read-only but are written to by
@@ -1626,20 +1607,37 @@ func dodata() {
 		/* data only written by relocations */
 		sect = addsection(segro, ".data.rel.ro", 06)
 
-		sect.Align = maxalign(s, obj.STYPELINK-1)
-		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = 0
 		Linklookup(Ctxt, "runtime.types", 0).Sect = sect
 		Linklookup(Ctxt, "runtime.etypes", 0).Sect = sect
-		for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
-			datsize = aligndatsize(datsize, s)
-			if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
-				Diag("s.Outer (%s) in different section from s (%s)", s.Outer.Name, s.Name)
+		relroSects := []int{
+			obj.STYPERELRO,
+			obj.SSTRINGRELRO,
+			obj.SGOSTRINGRELRO,
+			obj.SGOSTRINGHDRRELRO,
+			obj.SGOFUNCRELRO,
+			obj.SGCBITSRELRO,
+			obj.SRODATARELRO,
+			obj.SFUNCTABRELRO,
+		}
+		for _, symn := range relroSects {
+			align := maxalign(data[symn])
+			if sect.Align < align {
+				sect.Align = align
 			}
-			s.Sect = sect
-			s.Type = obj.SRODATA
-			s.Value = int64(uint64(datsize) - sect.Vaddr)
-			growdatsize(&datsize, s)
+		}
+		datsize = Rnd(datsize, int64(sect.Align))
+		for _, symn := range relroSects {
+			for _, s := range data[symn] {
+				datsize = aligndatsize(datsize, s)
+				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+					Diag("s.Outer (%s) in different section from s (%s)", s.Outer.Name, s.Name)
+				}
+				s.Sect = sect
+				s.Type = obj.SRODATA
+				s.Value = int64(uint64(datsize) - sect.Vaddr)
+				growdatsize(&datsize, s)
+			}
 		}
 
 		sect.Length = uint64(datsize) - sect.Vaddr
@@ -1648,78 +1646,85 @@ func dodata() {
 
 	/* typelink */
 	sect = addsection(segro, relro_prefix+".typelink", relro_perms)
-
-	sect.Align = maxalign(s, obj.STYPELINK)
+	sect.Align = maxalign(data[obj.STYPELINK])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.typelink", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.etypelink", 0).Sect = sect
-	for ; s != nil && s.Type == obj.STYPELINK; s = s.Next {
+	for _, s := range data[obj.STYPELINK] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* itablink */
 	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
 
-	sect.Align = maxalign(s, obj.SITABLINK)
+	sect.Align = maxalign(data[obj.SITABLINK])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.itablink", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.eitablink", 0).Sect = sect
-	for ; s != nil && s.Type == obj.SITABLINK; s = s.Next {
+	for _, s := range data[obj.SITABLINK] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gosymtab */
 	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
 
-	sect.Align = maxalign(s, obj.SPCLNTAB-1)
+	sect.Align = maxalign(data[obj.SSYMTAB])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.symtab", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.esymtab", 0).Sect = sect
-	for ; s != nil && s.Type < obj.SPCLNTAB; s = s.Next {
+	for _, s := range data[obj.SSYMTAB] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gopclntab */
 	sect = addsection(segro, relro_prefix+".gopclntab", relro_perms)
 
-	sect.Align = maxalign(s, obj.SELFROSECT-1)
+	sect.Align = maxalign(data[obj.SPCLNTAB])
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.pclntab", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.epclntab", 0).Sect = sect
-	for ; s != nil && s.Type < obj.SELFROSECT; s = s.Next {
+	for _, s := range data[obj.SPCLNTAB] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		growdatsize(&datsize, s)
 	}
-
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* read-only ELF, Mach-O sections */
-	for ; s != nil && s.Type < obj.SELFSECT; s = s.Next {
+	for _, s := range data[obj.SELFROSECT] {
+		sect = addsection(segro, s.Name, 04)
+		sect.Align = symalign(s)
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		s.Sect = sect
+		s.Type = obj.SRODATA
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		growdatsize(&datsize, s)
+		sect.Length = uint64(datsize) - sect.Vaddr
+	}
+
+	for _, s := range data[obj.SMACHOPLT] {
 		sect = addsection(segro, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
@@ -1736,8 +1741,13 @@ func dodata() {
 		Diag("read-only data segment too large")
 	}
 
+	for symn := obj.SELFRXSECT; symn < obj.SXREF; symn++ {
+		datap = append(datap, data[symn]...)
+	}
+
 	dwarfgeneratedebugsyms()
 
+	var s *LSym
 	for s = dwarfp; s != nil && s.Type == obj.SDWARFSECT; s = s.Next {
 		sect = addsection(&Segdwarf, s.Name, 04)
 		sect.Align = 1
@@ -1791,6 +1801,84 @@ func dodata() {
 	}
 }
 
+func dodataSect(symn int, syms []*LSym) []*LSym {
+	if HEADTYPE == obj.Hdarwin {
+		// Some symbols may no longer belong in syms
+		// due to movement in machosymorder.
+		newSyms := make([]*LSym, 0, len(syms))
+		for _, s := range syms {
+			if int(s.Type) == symn {
+				newSyms = append(newSyms, s)
+			}
+		}
+		syms = newSyms
+	}
+
+	symsSort := make([]dataSortKey, len(syms))
+	for i, s := range syms {
+		if s.Attr.OnList() {
+			log.Fatalf("symbol %s listed multiple times", s.Name)
+		}
+		s.Attr |= AttrOnList
+		if int64(len(s.P)) > s.Size {
+			Diag("%s: initialize bounds (%d < %d)", s.Name, s.Size, len(s.P))
+		}
+
+		symsSort[i] = dataSortKey{
+			size: s.Size,
+			name: s.Name,
+			lsym: s,
+		}
+
+		switch s.Type {
+		case obj.SELFGOT:
+			// For ppc64, we want to interleave the .got and .toc sections
+			// from input files. Both are type SELFGOT, so in that case
+			// we skip size comparison and fall through to the name
+			// comparison (conveniently, .got sorts before .toc).
+			symsSort[i].size = 0
+		case obj.STYPELINK:
+			// Sort typelinks by the rtype.string field so the reflect
+			// package can binary search type links.
+			symsSort[i].name = string(decodetype_string(s.R[0].Sym))
+		}
+	}
+
+	sort.Sort(bySizeAndName(symsSort))
+
+	for i, symSort := range symsSort {
+		syms[i] = symSort.lsym
+	}
+
+	if Iself && symn == obj.SELFROSECT {
+		// Make .rela and .rela.plt contiguous, the ELF ABI requires this
+		// and Solaris actually cares.
+		reli, plti := -1, -1
+		for i, s := range syms {
+			switch s.Name {
+			case ".rel.plt", ".rela.plt":
+				plti = i
+			case ".rel", ".rela":
+				reli = i
+			}
+		}
+		if reli >= 0 && plti >= 0 && plti != reli+1 {
+			newSyms := make([]*LSym, 0, len(syms))
+			plt := syms[plti]
+			newSyms = append(newSyms, syms[:reli+1]...)
+			newSyms = append(newSyms, plt)
+			newSyms = append(newSyms, syms[reli+1:plti]...)
+			newSyms = append(newSyms, syms[plti+1:]...)
+			if len(newSyms) != len(syms) {
+				Diag("plt move failed: len %d/%d", len(newSyms), len(syms))
+			}
+			syms = newSyms
+		}
+	}
+
+	return syms
+}
+
 // Add buildid to beginning of text segment, on non-ELF systems.
 // Non-ELF binary formats are not always flexible enough to
 // give us a place to put the Go build ID. On those systems, we put it
@@ -1816,8 +1904,6 @@ func textbuildid() {
 
 // assign addresses to text
 func textaddress() {
-	var sub *LSym
-
 	addsection(&Segtext, ".text", 05)
 
 	// Assign PCs in text segment.
@@ -1844,7 +1930,7 @@ func textaddress() {
 			va = uint64(Rnd(int64(va), int64(Funcalign)))
 		}
 		sym.Value = 0
-		for sub = sym; sub != nil; sub = sub.Sub {
+		for sub := sym; sub != nil; sub = sub.Sub {
 			sub.Value += int64(va)
 		}
 		if sym.Size == 0 && sym.Sub != nil {
@@ -1982,22 +2068,22 @@ func address() {
 	symtab := itablink.Next
 	pclntab := symtab.Next
 
-	var sub *LSym
-	for sym := datap; sym != nil; sym = sym.Next {
-		Ctxt.Cursym = sym
-		if sym.Sect != nil {
-			sym.Value += int64(sym.Sect.Vaddr)
+	for _, s := range datap {
+		Ctxt.Cursym = s
+		if s.Sect != nil {
+			s.Value += int64(s.Sect.Vaddr)
 		}
-		for sub = sym.Sub; sub != nil; sub = sub.Sub {
-			sub.Value += sym.Value
+		for sub := s.Sub; sub != nil; sub = sub.Sub {
+			sub.Value += s.Value
 		}
 	}
+
 	for sym := dwarfp; sym != nil; sym = sym.Next {
 		Ctxt.Cursym = sym
 		if sym.Sect != nil {
 			sym.Value += int64(sym.Sect.Vaddr)
 		}
-		for sub = sym.Sub; sub != nil; sub = sub.Sub {
+		for sub := sym.Sub; sub != nil; sub = sub.Sub {
 			sub.Value += sym.Value
 		}
 	}

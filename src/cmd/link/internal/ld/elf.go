@@ -1670,7 +1670,7 @@ func elfshreloc(sect *Section) *ElfShdr {
 	return sh
 }
 
-func elfrelocsect(sect *Section, first *LSym) {
+func elfrelocsect(sect *Section, syms []*LSym) {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -1681,18 +1681,18 @@ func elfrelocsect(sect *Section, first *LSym) {
 	}
 
 	sect.Reloff = uint64(Cpos())
-	var sym *LSym
-	for sym = first; sym != nil; sym = sym.Next {
-		if !sym.Attr.Reachable() {
+	for i, s := range syms {
+		if !s.Attr.Reachable() {
 			continue
 		}
-		if uint64(sym.Value) >= sect.Vaddr {
+		if uint64(s.Value) >= sect.Vaddr {
+			syms = syms[i:]
 			break
 		}
 	}
 
 	eaddr := int32(sect.Vaddr + sect.Length)
-	for ; sym != nil; sym = sym.Next {
+	for _, sym := range syms {
 		if !sym.Attr.Reachable() {
 			continue
 		}
@@ -1710,7 +1710,6 @@ func elfrelocsect(sect *Section, first *LSym) {
 				Diag("missing xsym in relocation")
 				continue
 			}
-
 			if r.Xsym.ElfsymForReloc() == 0 {
 				Diag("reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
@@ -1728,7 +1727,7 @@ func Elfemitreloc() {
 		Cput(0)
 	}
 
-	elfrelocsect(Segtext.Sect, Ctxt.Textp)
+	elfrelocsect(Segtext.Sect, list2slice(Ctxt.Textp))
 	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
 		elfrelocsect(sect, datap)
 	}
@@ -1739,7 +1738,7 @@ func Elfemitreloc() {
 		elfrelocsect(sect, datap)
 	}
 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
-		elfrelocsect(sect, dwarfp)
+		elfrelocsect(sect, list2slice(dwarfp))
 	}
 }
 
