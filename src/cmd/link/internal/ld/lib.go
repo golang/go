@@ -1123,10 +1123,15 @@ func hostlink() {
 		// from the beginning of the section (like STYPE).
 		argv = append(argv, "-Wl,-znocopyreloc")
 
-		if SysArch.Family == sys.ARM {
-			// The GNU linker will generate COPY relocations on ARM
-			// even with -znocopyreloc set. Switch to gold.
+		if SysArch.InFamily(sys.ARM, sys.ARM64) {
+			// On ARM, the GNU linker will generate COPY relocations
+			// even with -znocopyreloc set.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
+			//
+			// On ARM64, the GNU linker will fail instead of
+			// generating COPY relocations.
+			//
+			// In both cases, switch to gold.
 			argv = append(argv, "-fuse-ld=gold")
 		}
 	}
