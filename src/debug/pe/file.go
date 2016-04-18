@@ -59,16 +59,6 @@ type Symbol struct {
 	StorageClass  uint8
 }
 
-type ImportDirectory struct {
-	OriginalFirstThunk uint32
-	TimeDateStamp      uint32
-	ForwarderChain     uint32
-	Name               uint32
-	FirstThunk         uint32
-
-	dll string
-}
-
 // Data reads and returns the contents of the PE section.
 func (s *Section) Data() ([]byte, error) {
 	dat := make([]byte, s.sr.Size())
@@ -81,21 +71,6 @@ func (s *Section) Data() ([]byte, error) {
 
 // Open returns a new ReadSeeker reading the PE section.
 func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
-
-type FormatError struct {
-	off int64
-	msg string
-	val interface{}
-}
-
-func (e *FormatError) Error() string {
-	msg := e.msg
-	if e.val != nil {
-		msg += fmt.Sprintf(" '%v'", e.val)
-	}
-	msg += fmt.Sprintf(" in record at byte %#x", e.off)
-	return msg
-}
 
 // Open opens the named file using os.Open and prepares it for use as a PE binary.
 func Open(name string) (*File, error) {
@@ -320,6 +295,18 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
 }
 
+// TODO(brainman): document ImportDirectory once we decide what to do with it.
+
+type ImportDirectory struct {
+	OriginalFirstThunk uint32
+	TimeDateStamp      uint32
+	ForwarderChain     uint32
+	Name               uint32
+	FirstThunk         uint32
+
+	dll string
+}
+
 // ImportedSymbols returns the names of all symbols
 // referred to by the binary f that are expected to be
 // satisfied by other libraries at dynamic load time.
@@ -347,6 +334,12 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		}
 		ida = append(ida, dt)
 	}
+	// TODO(brainman): this needs to be rewritten
+	//  ds.Data() return contets of .idata section. Why store in variable called "names"?
+	//  Why we are retrieving it second time? We already have it in "d", and it is not modified anywhere.
+	//  getString does not extracts a string from symbol string table (as getString doco says).
+	//  Why ds.Data() called again and again in the loop?
+	//  Needs test before rewrite.
 	names, _ := ds.Data()
 	var all []string
 	for _, dt := range ida {
@@ -394,4 +387,13 @@ func (f *File) ImportedLibraries() ([]string, error) {
 	// TODO
 	// cgo -dynimport don't use this for windows PE, so just return.
 	return nil, nil
+}
+
+// FormatError is unused.
+// The type is retained for compatibility.
+type FormatError struct {
+}
+
+func (e *FormatError) Error() string {
+	return "unknown error"
 }
