@@ -34,6 +34,9 @@ func (*testBlock) NewCBCEncrypter([]byte) cipher.BlockMode {
 func (*testBlock) NewCBCDecrypter([]byte) cipher.BlockMode {
 	return &testBlockMode{}
 }
+func (*testBlock) NewCTR([]byte) cipher.Stream {
+	return &testStream{}
+}
 
 // testAEAD implements the cipher.AEAD interface.
 type testAEAD struct{}
@@ -87,5 +90,23 @@ func TestCBCDecAble(t *testing.T) {
 	bm := cipher.NewCBCDecrypter(b, []byte{})
 	if _, ok := bm.(testInterface); !ok {
 		t.Fatalf("cipher.NewCBCDecrypter did not use cbcDecAble interface")
+	}
+}
+
+// testStream implements the cipher.Stream interface.
+type testStream struct{}
+
+func (*testStream) XORKeyStream(a, b []byte) {}
+func (*testStream) InAESPackage() bool       { return true }
+
+// Test the ctrAble interface is detected correctly by the cipher package.
+func TestCTRAble(t *testing.T) {
+	b := cipher.Block(&testBlock{})
+	if _, ok := b.(ctrAble); !ok {
+		t.Fatalf("testBlock does not implement the ctrAble interface")
+	}
+	s := cipher.NewCTR(b, []byte{})
+	if _, ok := s.(testInterface); !ok {
+		t.Fatalf("cipher.NewCTR did not use ctrAble interface")
 	}
 }

@@ -28,3 +28,10 @@ type cbcEncAble interface {
 type cbcDecAble interface {
 	NewCBCDecrypter(iv []byte) cipher.BlockMode
 }
+
+// ctrAble is implemented by cipher.Blocks that can provide an optimized
+// implementation of CTR through the cipher.Stream interface.
+// See crypto/cipher/ctr.go.
+type ctrAble interface {
+	NewCTR(iv []byte) cipher.Stream
+}
