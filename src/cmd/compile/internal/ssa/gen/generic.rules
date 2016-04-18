@@ -414,6 +414,55 @@
 (Neg32 (Sub32 x y)) -> (Sub32 y x)
 (Neg64 (Sub64 x y)) -> (Sub64 y x)
 
+(And64 x (And64 x y)) -> (And64 x y)
+(And32 x (And32 x y)) -> (And32 x y)
+(And16 x (And16 x y)) -> (And16 x y)
+(And8  x (And8  x y)) -> (And8  x y)
+(And64 x (And64 y x)) -> (And64 x y)
+(And32 x (And32 y x)) -> (And32 x y)
+(And16 x (And16 y x)) -> (And16 x y)
+(And8  x (And8  y x)) -> (And8  x y)
+(And64 (And64 x y) x) -> (And64 x y)
+(And32 (And32 x y) x) -> (And32 x y)
+(And16 (And16 x y) x) -> (And16 x y)
+(And8  (And8  x y) x) -> (And8  x y)
+(And64 (And64 x y) y) -> (And64 x y)
+(And32 (And32 x y) y) -> (And32 x y)
+(And16 (And16 x y) y) -> (And16 x y)
+(And8  (And8  x y) y) -> (And8  x y)
+(Or64 x (Or64 x y)) -> (Or64 x y)
+(Or32 x (Or32 x y)) -> (Or32 x y)
+(Or16 x (Or16 x y)) -> (Or16 x y)
+(Or8  x (Or8  x y)) -> (Or8  x y)
+(Or64 x (Or64 y x)) -> (Or64 x y)
+(Or32 x (Or32 y x)) -> (Or32 x y)
+(Or16 x (Or16 y x)) -> (Or16 x y)
+(Or8  x (Or8  y x)) -> (Or8  x y)
+(Or64 (Or64 x y) x) -> (Or64 x y)
+(Or32 (Or32 x y) x) -> (Or32 x y)
+(Or16 (Or16 x y) x) -> (Or16 x y)
+(Or8  (Or8  x y) x) -> (Or8  x y)
+(Or64 (Or64 x y) y) -> (Or64 x y)
+(Or32 (Or32 x y) y) -> (Or32 x y)
+(Or16 (Or16 x y) y) -> (Or16 x y)
+(Or8  (Or8  x y) y) -> (Or8  x y)
+(Xor64 x (Xor64 x y)) -> y
+(Xor32 x (Xor32 x y)) -> y
+(Xor16 x (Xor16 x y)) -> y
+(Xor8  x (Xor8  x y)) -> y
+(Xor64 x (Xor64 y x)) -> y
+(Xor32 x (Xor32 y x)) -> y
+(Xor16 x (Xor16 y x)) -> y
+(Xor8  x (Xor8  y x)) -> y
+(Xor64 (Xor64 x y) x) -> y
+(Xor32 (Xor32 x y) x) -> y
+(Xor16 (Xor16 x y) x) -> y
+(Xor8  (Xor8  x y) x) -> y
+(Xor64 (Xor64 x y) y) -> x
+(Xor32 (Xor32 x y) y) -> x
+(Xor16 (Xor16 x y) y) -> x
+(Xor8  (Xor8  x y) y) -> x
+
 (Trunc64to8 (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
 (Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)
 (Trunc64to32 (And64 (Const64 [y]) x)) && y&0xFFFFFFFF == 0xFFFFFFFF -> (Trunc64to32 x)
