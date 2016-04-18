@@ -338,6 +338,7 @@ var (
 
 	// dummy nodes for temporary variables
 	ptrVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ptr"}}
+	lenVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "len"}}
 	newlenVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "newlen"}}
 	capVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "cap"}}
 	typVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
@@ -699,8 +700,7 @@ func (s *state) stmt(n *Node) {
 				// If the slice can be SSA'd, it'll be on the stack,
 				// so there will be no write barriers,
 				// so there's no need to attempt to prevent them.
-				const doInPlaceAppend = false // issue 15246
-				if doInPlaceAppend && samesafeexpr(n.Left, rhs.List.First()) && !s.canSSA(n.Left) {
+				if samesafeexpr(n.Left, rhs.List.First()) && !s.canSSA(n.Left) {
 					s.append(rhs, true)
 					return
 				}
@@ -2128,12 +2128,14 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	// a := &s
 	// ptr, len, cap := s
 	// newlen := len + 3
-	// *a.len = newlen // store newlen immediately to avoid a spill
 	// if newlen > cap {
-	//    newptr, _, newcap = growslice(ptr, len, cap, newlen)
+	//    newptr, len, newcap = growslice(ptr, len, cap, newlen)
+	//    vardef(a)       // if necessary, advise liveness we are writing a new a
 	//    *a.cap = newcap // write before ptr to avoid a spill
 	//    *a.ptr = newptr // with write barrier
 	// }
+	// newlen = len + 3 // recalculate to avoid a spill
+	// *a.len = newlen
 	// // with write barriers, if needed:
 	// *(ptr+len) = e1
 	// *(ptr+len+1) = e2
@@ -2164,17 +2166,14 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
 	nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
 
-	if inplace {
-		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_nel), addr)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
-	}
-
 	cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
 	s.vars[&ptrVar] = p
 
 	if !inplace {
 		s.vars[&newlenVar] = nl
 		s.vars[&capVar] = c
+	} else {
+		s.vars[&lenVar] = l
 	}
 
 	b := s.endBlock()
@@ -2191,11 +2190,16 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
 	if inplace {
+		if sn.Op == ONAME {
+			// Tell liveness we're about to build a new slice
+			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
+		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_cap), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
 		s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
 		// load the value we just stored to avoid having to spill it
 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
+		s.vars[&lenVar] = r[1] // avoid a spill in the fast path
 	} else {
 		s.vars[&ptrVar] = r[0]
 		s.vars[&newlenVar] = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], r[1], s.constInt(Types[TINT], nargs))
@@ -2207,6 +2211,13 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	// assign new elements to slots
 	s.startBlock(assign)
+
+	if inplace {
+		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
+		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_nel), addr)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
+	}
 
 	// Evaluate args
 	args := make([]*ssa.Value, 0, nargs)
@@ -2248,6 +2259,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	delete(s.vars, &ptrVar)
 	if inplace {
+		delete(s.vars, &lenVar)
 		return nil
 	}
 	delete(s.vars, &newlenVar)
