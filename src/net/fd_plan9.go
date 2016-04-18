@@ -77,6 +77,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 	}
 	defer fd.readUnlock()
 	n, err = fd.data.Read(b)
+	if isHangup(err) {
+		err = io.EOF
+	}
 	if fd.net == "udp" && err == io.EOF {
 		n = 0
 		err = nil
@@ -178,4 +181,8 @@ func setReadBuffer(fd *netFD, bytes int) error {
 
 func setWriteBuffer(fd *netFD, bytes int) error {
 	return syscall.EPLAN9
+}
+
+func isHangup(err error) bool {
+	return err != nil && stringsHasSuffix(err.Error(), "Hangup")
 }
