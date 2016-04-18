@@ -629,12 +629,12 @@ func (p *exporter) typ(t *Type) {
 		if t.isDDDArray() {
 			Fatalf("array bounds should be known at export time: %v", t)
 		}
-		if t.IsArray() {
-			p.tag(arrayTag)
-			p.int64(t.NumElem())
-		} else {
-			p.tag(sliceTag)
-		}
+		p.tag(arrayTag)
+		p.int64(t.NumElem())
+		p.typ(t.Elem())
+
+	case TSLICE:
+		p.tag(sliceTag)
 		p.typ(t.Elem())
 
 	case TDDDFIELD:

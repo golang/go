@@ -1103,12 +1103,12 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		structlit(ctxt, 3, n, var_, init)
 
 	case OARRAYLIT:
-		if t.Etype != TARRAY {
-			Fatalf("anylit: not array")
-		}
 		if t.IsSlice() {
 			slicelit(ctxt, n, var_, init)
 			break
+		}
+		if !t.IsArray() {
+			Fatalf("anylit: not array")
 		}
 
 		if var_.isSimpleName() && n.List.Len() > 4 {
@@ -1414,7 +1414,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		}
 
 		// nr is the array being converted to a slice
-		if nr.Type == nil || nr.Type.Etype != TARRAY || nr.Type.IsSlice() {
+		if nr.Type == nil || !nr.Type.IsArray() {
 			return false
 		}
 

@@ -76,6 +76,7 @@ var _typekind = []string{
 	TCHAN:       "chan",
 	TMAP:        "map",
 	TARRAY:      "array",
+	TSLICE:      "slice",
 	TFUNC:       "func",
 	TNIL:        "nil",
 	TIDEAL:      "untyped number",
@@ -997,7 +998,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 
-		case TSTRING, TARRAY:
+		case TSTRING, TARRAY, TSLICE:
 			n.Right = indexlit(n.Right)
 			if t.IsString() {
 				n.Type = bytetype
@@ -1005,12 +1006,10 @@ OpSwitch:
 				n.Type = t.Elem()
 			}
 			why := "string"
-			if t.Etype == TARRAY {
-				if t.IsArray() {
-					why = "array"
-				} else {
-					why = "slice"
-				}
+			if t.IsArray() {
+				why = "array"
+			} else if t.IsSlice() {
+				why = "slice"
 			}
 
 			if n.Right.Type != nil && !n.Right.Type.IsInteger() {
@@ -1422,9 +1421,6 @@ OpSwitch:
 			}
 
 		case TARRAY:
-			if t.IsSlice() {
-				break
-			}
 			if callrecv(l) { // has call or receive
 				break
 			}
@@ -1795,13 +1791,7 @@ OpSwitch:
 			n.Type = nil
 			return n
 
-		case TARRAY:
-			if !t.IsSlice() {
-				Yyerror("cannot make type %v", t)
-				n.Type = nil
-				return n
-			}
-
+		case TSLICE:
 			if i >= len(args) {
 				Yyerror("missing len argument to make(%v)", t)
 				n.Type = nil
@@ -2848,19 +2838,19 @@ func indexdup(n *Node, hash map[int64]*Node) {
 	hash[v] = n
 }
 
+// iscomptype reports whether type t is a composite literal type
+// or a pointer to one.
 func iscomptype(t *Type) bool {
-	switch t.Etype {
-	case TARRAY, TSTRUCT, TMAP:
-		return true
-
-	case TPTR32, TPTR64:
-		switch t.Elem().Etype {
-		case TARRAY, TSTRUCT, TMAP:
-			return true
-		}
+	if t.IsPtr() {
+		t = t.Elem()
 	}
 
-	return false
+	switch t.Etype {
+	case TARRAY, TSLICE, TSTRUCT, TMAP:
+		return true
+	default:
+		return false
+	}
 }
 
 func pushtype(n *Node, t *Type) {
@@ -2943,7 +2933,7 @@ func typecheckcomplit(n *Node) *Node {
 		Yyerror("invalid type for composite literal: %v", t)
 		n.Type = nil
 
-	case TARRAY:
+	case TARRAY, TSLICE:
 		// Only allocate hash if there are some key/value pairs.
 		var hash map[int64]*Node
 		for _, n1 := range n.List.Slice() {
@@ -2954,6 +2944,7 @@ func typecheckcomplit(n *Node) *Node {
 		}
 		length := int64(0)
 		i := 0
+		checkBounds := t.IsArray() && !t.isDDDArray()
 		for i2, n2 := range n.List.Slice() {
 			l := n2
 			setlineno(l)
@@ -2979,11 +2970,10 @@ func typecheckcomplit(n *Node) *Node {
 			i++
 			if int64(i) > length {
 				length = int64(i)
-				if t.IsArray() && length > t.NumElem() {
+				if checkBounds && length > t.NumElem() {
 					setlineno(l)
 					Yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
-					// suppress any further errors out of bounds errors for the same type by pretending it is a slice
-					t.SetNumElem(sliceBound)
+					checkBounds = false
 				}
 			}
 

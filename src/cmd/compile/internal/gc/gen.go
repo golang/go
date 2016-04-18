@@ -1031,7 +1031,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 		// Emit vardef if needed.
 		if nl.Op == ONAME {
 			switch nl.Type.Etype {
-			case TARRAY, TSTRING, TINTER, TSTRUCT:
+			case TARRAY, TSLICE, TSTRING, TINTER, TSTRUCT:
 				Gvardef(nl)
 			}
 		}
@@ -1204,13 +1204,12 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		return f(Ptrto(Types[TUINT8]), startOffset) &&
 			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
 
-	case TARRAY:
-		if t.IsSlice() {
-			return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
-				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
-				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
-		}
+	case TSLICE:
+		return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
 
+	case TARRAY:
 		// Short-circuit [1e6]struct{}.
 		if t.Elem().Width == 0 {
 			return true

@@ -238,29 +238,31 @@ func dowidth(t *Type) {
 		if t.Elem() == nil {
 			break
 		}
-		if t.IsArray() {
-			dowidth(t.Elem())
-			if t.Elem().Width != 0 {
-				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
-				if uint64(t.NumElem()) > cap {
-					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
-				}
-			}
-
-			w = t.NumElem() * t.Elem().Width
-			t.Align = t.Elem().Align
-		} else if t.IsSlice() {
-			w = int64(sizeof_Array)
-			checkwidth(t.Elem())
-			t.Align = uint8(Widthptr)
-		} else if t.isDDDArray() {
+		if t.isDDDArray() {
 			if !t.Broke {
 				Yyerror("use of [...] array outside of array literal")
 				t.Broke = true
 			}
-		} else {
-			Fatalf("dowidth %v", t) // probably [...]T
+			break
 		}
+
+		dowidth(t.Elem())
+		if t.Elem().Width != 0 {
+			cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
+			if uint64(t.NumElem()) > cap {
+				Yyerror("type %v larger than address space", Tconv(t, FmtLong))
+			}
+		}
+		w = t.NumElem() * t.Elem().Width
+		t.Align = t.Elem().Align
+
+	case TSLICE:
+		if t.Elem() == nil {
+			break
+		}
+		w = int64(sizeof_Array)
+		checkwidth(t.Elem())
+		t.Align = uint8(Widthptr)
 
 	case TSTRUCT:
 		if t.IsFuncArgStruct() {

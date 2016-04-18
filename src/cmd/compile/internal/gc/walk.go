@@ -3125,12 +3125,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	default:
 		return n
 
-	case TARRAY:
-		if t.IsSlice() {
-			return n
-		}
-
-	case TSTRUCT:
+	case TARRAY, TSTRUCT:
 		break
 	}
 

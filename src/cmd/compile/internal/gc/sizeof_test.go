@@ -41,7 +41,6 @@ func TestSizeof(t *testing.T) {
 		{ChanArgsType{}, 4, 8},
 		{PtrType{}, 4, 8},
 		{SliceType{}, 4, 8},
-		{DDDArrayType{}, 4, 8},
 	}
 
 	for _, tt := range tests {

@@ -594,6 +594,7 @@ func methtype(t *Type, mustname int) *Type {
 
 		case TSTRUCT,
 			TARRAY,
+			TSLICE,
 			TMAP,
 			TCHAN,
 			TSTRING,
@@ -641,7 +642,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 	if t1 == t2 {
 		return true
 	}
-	if t1 == nil || t2 == nil || t1.Etype != t2.Etype {
+	if t1 == nil || t2 == nil || t1.Etype != t2.Etype || t1.Broke || t2.Broke {
 		return false
 	}
 	if t1.Sym != nil || t2.Sym != nil {
@@ -836,18 +837,13 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// 5. src is the predeclared identifier nil and dst is a nillable type.
 	if src.Etype == TNIL {
 		switch dst.Etype {
-		case TARRAY:
-			if !dst.IsSlice() {
-				break
-			}
-			fallthrough
-
 		case TPTR32,
 			TPTR64,
 			TFUNC,
 			TMAP,
 			TCHAN,
-			TINTER:
+			TINTER,
+			TSLICE:
 			return OCONVNOP
 		}
 	}
