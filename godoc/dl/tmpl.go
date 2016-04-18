@@ -134,12 +134,6 @@ information about Go releases.
 {{template "releases" .}}
 {{end}}
 
-<h3>Older versions</h3>
-
-<p>
-Older releases of Go are available at <a href="https://code.google.com/p/go/downloads/list?can=1">Google Code</a>.
-</p>
-
 
 <!-- Disabled for now; there's no admin functionality yet.
 <p>
