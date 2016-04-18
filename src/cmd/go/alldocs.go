@@ -69,6 +69,8 @@ When compiling multiple packages or a single non-main package,
 build compiles the packages but discards the resulting object,
 serving only as a check that the packages can be built.
 
+When compiling packages, build ignores files that end in '_test.go'.
+
 The -o flag, only allowed when compiling a single package,
 forces build to write the resulting executable or object
 to the named output file, instead of the default behavior described
