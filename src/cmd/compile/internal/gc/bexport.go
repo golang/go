@@ -558,16 +558,13 @@ func (p *exporter) typ(t *Type) {
 			Fatalf("exporter: predeclared type missing from type map?")
 		}
 
-		// TODO(gri) The assertion below is incorrect (crashes during all.bash),
-		// likely because of symbol shadowing (we expect the respective definition
-		// to point to us). Determine the correct Def so we get correct position
-		// info.
-		// if tsym.Def.Type != t {
-		// 	Fatalf("exporter: type definition doesn't point to us?")
-		// }
+		n := typenod(t)
+		if n.Type != t {
+			Fatalf("exporter: named type definition incorrectly set up")
+		}
 
 		p.tag(namedTag)
-		p.pos(tsym.Def) // TODO(gri) this may not be the correct node - fix and add tests
+		p.pos(n)
 		p.qualifiedName(tsym)
 
 		// write underlying type
