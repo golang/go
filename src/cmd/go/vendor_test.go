@@ -241,7 +241,7 @@ func TestVendorTest3(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "github.com/clsung/go-vendor-issue-14613")
 
-	tg.run("build", "-i", "github.com/clsung/go-vendor-issue-14613")
+	tg.run("build", "-o", tg.path("a.out"), "-i", "github.com/clsung/go-vendor-issue-14613")
 
 	// test folder should work
 	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613")
