@@ -643,17 +643,17 @@ func readgstatus(gp *g) uint32 {
 	return atomic.Load(&gp.atomicstatus)
 }
 
-// Ownership of gscanvalid:
+// Ownership of gcscanvalid:
 //
 // If gp is running (meaning status == _Grunning or _Grunning|_Gscan),
-// then gp owns gp.gscanvalid, and other goroutines must not modify it.
+// then gp owns gp.gcscanvalid, and other goroutines must not modify it.
 //
 // Otherwise, a second goroutine can lock the scan state by setting _Gscan
-// in the status bit and then modify gscanvalid, and then unlock the scan state.
+// in the status bit and then modify gcscanvalid, and then unlock the scan state.
 //
 // Note that the first condition implies an exception to the second:
 // if a second goroutine changes gp's status to _Grunning|_Gscan,
-// that second goroutine still does not have the right to modify gscanvalid.
+// that second goroutine still does not have the right to modify gcscanvalid.
 
 // The Gscanstatuses are acting like locks and this releases them.
 // If it proves to be a performance hit we should be able to make these
