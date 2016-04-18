@@ -21,6 +21,7 @@ type File struct {
 	OptionalHeader interface{} // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
 	Symbols        []*Symbol
+	StringTable    StringTable
 
 	closer io.Closer
 }
@@ -133,6 +134,14 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, errors.New("Invalid PE File Format.")
 	}
 
+	var err error
+
+	// Read string table.
+	f.StringTable, err = readStringTable(&f.FileHeader, sr)
+	if err != nil {
+		return nil, err
+	}
+
 	var ss []byte
 	if f.FileHeader.NumberOfSymbols > 0 {
 		// Get COFF string table, which is located at the end of the COFF symbol table.
@@ -235,13 +244,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		f.Sections[i] = s
 	}
 	return f, nil
-}
-
-func cstring(b []byte) string {
-	var i int
-	for i = 0; i < len(b) && b[i] != 0; i++ {
-	}
-	return string(b[0:i])
 }
 
 // getString extracts a string from symbol string table.
