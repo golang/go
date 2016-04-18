@@ -5686,3 +5686,14 @@ func TestNameBytesAreAligned(t *testing.T) {
 		t.Errorf("reflect.name.bytes pointer is not aligned: %x", v)
 	}
 }
+
+func TestMethodPkgPathReadable(t *testing.T) {
+	// Reading the Method type for an unexported method triggers an
+	// offset resolution via p.name.pkgPath(). Make sure it uses a
+	// valid base pointer for the offset.
+	v := ValueOf(embed{})
+	m := v.Type().Method(0)
+	if m.PkgPath != "reflect" {
+		t.Errorf(`PkgPath=%q, want "reflect"`, m.PkgPath)
+	}
+}
