@@ -623,7 +623,7 @@ func typePkg(t *Type) *Pkg {
 	tsym := t.Sym
 	if tsym == nil {
 		switch t.Etype {
-		case TARRAY, TPTR32, TPTR64, TCHAN:
+		case TARRAY, TSLICE, TPTR32, TPTR64, TCHAN:
 			if t.Elem() != nil {
 				tsym = t.Elem().Sym
 			}
@@ -689,6 +689,7 @@ var kinds = []int{
 	TCHAN:       obj.KindChan,
 	TMAP:        obj.KindMap,
 	TARRAY:      obj.KindArray,
+	TSLICE:      obj.KindArray,
 	TFUNC:       obj.KindFunc,
 	TCOMPLEX64:  obj.KindComplex64,
 	TCOMPLEX128: obj.KindComplex128,
@@ -701,11 +702,10 @@ func haspointers(t *Type) bool {
 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL:
 		return false
 
-	case TARRAY:
-		if t.IsSlice() {
-			return true
-		}
+	case TSLICE:
+		return true
 
+	case TARRAY:
 		at := t.Extra.(*ArrayType)
 		if at.Haspointers != 0 {
 			return at.Haspointers-1 != 0
@@ -764,11 +764,11 @@ func typeptrdata(t *Type) int64 {
 		// struct { Type *type; void *data; }
 		return 2 * int64(Widthptr)
 
+	case TSLICE:
+		// struct { byte *array; uintgo len; uintgo cap; }
+		return int64(Widthptr)
+
 	case TARRAY:
-		if t.IsSlice() {
-			// struct { byte *array; uintgo len; uintgo cap; }
-			return int64(Widthptr)
-		}
 		// haspointers already eliminated t.NumElem() == 0.
 		return (t.NumElem()-1)*t.Elem().Width + typeptrdata(t.Elem())
 
@@ -1007,9 +1007,6 @@ func isreflexive(t *Type) bool {
 		return false
 
 	case TARRAY:
-		if t.IsSlice() {
-			Fatalf("slice can't be a map key: %v", t)
-		}
 		return isreflexive(t.Elem())
 
 	case TSTRUCT:
@@ -1057,9 +1054,6 @@ func needkeyupdate(t *Type) bool {
 		return true
 
 	case TARRAY:
-		if t.IsSlice() {
-			Fatalf("slice can't be a map key: %v", t)
-		}
 		return needkeyupdate(t.Elem())
 
 	case TSTRUCT:
@@ -1127,28 +1121,26 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TARRAY:
-		if t.IsArray() {
-			// ../../../../runtime/type.go:/arrayType
-			s1 := dtypesym(t.Elem())
-			t2 := typSlice(t.Elem())
-			s2 := dtypesym(t2)
-			ot = dcommontype(s, ot, t)
-			ot = dsymptr(s, ot, s1, 0)
-			ot = dsymptr(s, ot, s2, 0)
-			ot = duintptr(s, ot, uint64(t.NumElem()))
-		} else {
-			// ../../../../runtime/type.go:/sliceType
-			s1 := dtypesym(t.Elem())
-
-			ot = dcommontype(s, ot, t)
-			ot = dsymptr(s, ot, s1, 0)
-		}
+		// ../../../../runtime/type.go:/arrayType
+		s1 := dtypesym(t.Elem())
+		t2 := typSlice(t.Elem())
+		s2 := dtypesym(t2)
+		ot = dcommontype(s, ot, t)
+		ot = dsymptr(s, ot, s1, 0)
+		ot = dsymptr(s, ot, s2, 0)
+		ot = duintptr(s, ot, uint64(t.NumElem()))
 		ot = dextratype(s, ot, t, 0)
 
-	// ../../../../runtime/type.go:/chanType
-	case TCHAN:
+	case TSLICE:
+		// ../../../../runtime/type.go:/sliceType
 		s1 := dtypesym(t.Elem())
+		ot = dcommontype(s, ot, t)
+		ot = dsymptr(s, ot, s1, 0)
+		ot = dextratype(s, ot, t, 0)
 
+	case TCHAN:
+		// ../../../../runtime/type.go:/chanType
+		s1 := dtypesym(t.Elem())
 		ot = dcommontype(s, ot, t)
 		ot = dsymptr(s, ot, s1, 0)
 		ot = duintptr(s, ot, uint64(t.ChanDir()))
@@ -1326,7 +1318,7 @@ ok:
 		// functions must return the existing type structure rather
 		// than creating a new one.
 		switch t.Etype {
-		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
+		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSLICE, TSTRUCT:
 			keep = true
 		}
 	}
@@ -1654,11 +1646,10 @@ func (p *GCProg) emit(t *Type, offset int64) {
 		p.w.Ptr(offset / int64(Widthptr))
 		p.w.Ptr(offset/int64(Widthptr) + 1)
 
+	case TSLICE:
+		p.w.Ptr(offset / int64(Widthptr))
+
 	case TARRAY:
-		if t.IsSlice() {
-			p.w.Ptr(offset / int64(Widthptr))
-			return
-		}
 		if t.NumElem() == 0 {
 			// should have been handled by haspointers check above
 			Fatalf("GCProg.emit: empty array")

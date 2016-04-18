@@ -416,6 +416,7 @@ var etnames = []string{
 	TPTR64:      "PTR64",
 	TFUNC:       "FUNC",
 	TARRAY:      "ARRAY",
+	TSLICE:      "SLICE",
 	TSTRUCT:     "STRUCT",
 	TCHAN:       "CHAN",
 	TMAP:        "MAP",
@@ -587,12 +588,12 @@ func typefmt(t *Type, flag FmtFlag) string {
 		return "*" + t.Elem().String()
 
 	case TARRAY:
-		if t.IsArray() {
-			return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
-		}
 		if t.isDDDArray() {
 			return "[...]" + t.Elem().String()
 		}
+		return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
+
+	case TSLICE:
 		return "[]" + t.Elem().String()
 
 	case TCHAN:

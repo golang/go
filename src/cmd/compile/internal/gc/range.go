@@ -49,7 +49,7 @@ func typecheckrange(n *Node) {
 		Yyerror("cannot range over %v", Nconv(n.Right, FmtLong))
 		goto out
 
-	case TARRAY:
+	case TARRAY, TSLICE:
 		t1 = Types[TINT]
 		t2 = t.Elem()
 
@@ -164,7 +164,7 @@ func walkrange(n *Node) {
 	default:
 		Fatalf("walkrange")
 
-	case TARRAY:
+	case TARRAY, TSLICE:
 		if memclrrange(n, v1, v2, a) {
 			lineno = lno
 			return

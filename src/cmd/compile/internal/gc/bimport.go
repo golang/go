@@ -369,18 +369,16 @@ func (p *importer) typ() *Type {
 
 		dclcontext = savedContext
 
-	case arrayTag, sliceTag:
+	case arrayTag:
 		t = p.newtyp(TARRAY)
-		var bound int64
-		if i == arrayTag {
-			bound = p.int64()
-		}
+		bound := p.int64()
 		elem := p.typ()
-		if i == arrayTag {
-			t.Extra = &ArrayType{Elem: elem, Bound: bound}
-		} else {
-			t.Extra = SliceType{Elem: elem}
-		}
+		t.Extra = &ArrayType{Elem: elem, Bound: bound}
+
+	case sliceTag:
+		t = p.newtyp(TSLICE)
+		elem := p.typ()
+		t.Extra = SliceType{Elem: elem}
 
 	case dddTag:
 		t = p.newtyp(TDDDFIELD)

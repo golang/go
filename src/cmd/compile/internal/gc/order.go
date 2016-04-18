@@ -731,7 +731,7 @@ func orderstmt(n *Node, order *Order) {
 		default:
 			Fatalf("orderstmt range %v", n.Type)
 
-		case TARRAY:
+		case TARRAY, TSLICE:
 			if n.List.Len() < 2 || isblank(n.List.Second()) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.

@@ -277,7 +277,7 @@ func gused(n *Node) {
 func Isfat(t *Type) bool {
 	if t != nil {
 		switch t.Etype {
-		case TSTRUCT, TARRAY, TSTRING,
+		case TSTRUCT, TARRAY, TSLICE, TSTRING,
 			TINTER: // maybe remove later
 			return true
 		}

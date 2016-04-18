@@ -1138,7 +1138,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OEQ, TINT64}:     ssa.OpEq64,
 	opAndType{OEQ, TUINT64}:    ssa.OpEq64,
 	opAndType{OEQ, TINTER}:     ssa.OpEqInter,
-	opAndType{OEQ, TARRAY}:     ssa.OpEqSlice,
+	opAndType{OEQ, TSLICE}:     ssa.OpEqSlice,
 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
@@ -1158,7 +1158,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ONE, TINT64}:     ssa.OpNeq64,
 	opAndType{ONE, TUINT64}:    ssa.OpNeq64,
 	opAndType{ONE, TINTER}:     ssa.OpNeqInter,
-	opAndType{ONE, TARRAY}:     ssa.OpNeqSlice,
+	opAndType{ONE, TSLICE}:     ssa.OpNeqSlice,
 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
@@ -2871,9 +2871,6 @@ func canSSAType(t *Type) bool {
 	}
 	switch t.Etype {
 	case TARRAY:
-		if t.IsSlice() {
-			return true
-		}
 		// We can't do arrays because dynamic indexing is
 		// not supported on SSA variables.
 		// TODO: maybe allow if length is <=1?  All indexes

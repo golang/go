@@ -284,9 +284,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			return n
 
 		case TARRAY:
-			if !t.IsSlice() {
-				goto bad
-			}
+			goto bad
 
 		case TPTR32,
 			TPTR64,
@@ -294,6 +292,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			TMAP,
 			TCHAN,
 			TFUNC,
+			TSLICE,
 			TUNSAFEPTR:
 			break
 

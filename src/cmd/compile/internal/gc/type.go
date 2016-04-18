@@ -44,6 +44,7 @@ const (
 	TPTR64
 
 	TFUNC
+	TSLICE
 	TARRAY
 	TSTRUCT
 	TCHAN
@@ -68,11 +69,6 @@ const (
 	TDDDFIELD // wrapper: contained type is a ... field
 
 	NTYPE
-)
-
-const (
-	sliceBound = -1   // slices have Bound=sliceBound
-	dddBound   = -100 // arrays declared as [...]T start life with Bound=dddBound
 )
 
 // ChanDir is whether a channel can send, receive, or both.
@@ -137,7 +133,8 @@ type Type struct {
 	// TCHANARGS: ChanArgsType
 	// TCHAN: *ChanType
 	// TPTR32, TPTR64: PtrType
-	// TARRAY: *ArrayType, SliceType, or DDDArrayType
+	// TARRAY: *ArrayType
+	// TSLICE: SliceType
 	Extra interface{}
 
 	// Width is the width of this Type in bytes.
@@ -273,20 +270,15 @@ func (t *Type) ChanType() *ChanType {
 	return t.Extra.(*ChanType)
 }
 
-// ArrayType contains Type fields specific to array types with known lengths.
+// ArrayType contains Type fields specific to array types.
 type ArrayType struct {
 	Elem        *Type // element type
-	Bound       int64 // number of elements; always >= 0; do not use with sliceBound or dddBound
+	Bound       int64 // number of elements; <0 if unknown yet
 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
 }
 
 // SliceType contains Type fields specific to slice types.
 type SliceType struct {
-	Elem *Type // element type
-}
-
-// DDDArrayType contains Type fields specific to ddd array types.
-type DDDArrayType struct {
 	Elem *Type // element type
 }
 
@@ -399,6 +391,9 @@ func typ(et EType) *Type {
 
 // typArray returns a new fixed-length array Type.
 func typArray(elem *Type, bound int64) *Type {
+	if bound < 0 {
+		Fatalf("typArray: invalid bound %v", bound)
+	}
 	t := typ(TARRAY)
 	t.Extra = &ArrayType{Elem: elem, Bound: bound}
 	return t
@@ -406,7 +401,7 @@ func typArray(elem *Type, bound int64) *Type {
 
 // typSlice returns a new slice Type.
 func typSlice(elem *Type) *Type {
-	t := typ(TARRAY)
+	t := typ(TSLICE)
 	t.Extra = SliceType{Elem: elem}
 	return t
 }
@@ -414,7 +409,7 @@ func typSlice(elem *Type) *Type {
 // typDDDArray returns a new [...]T array Type.
 func typDDDArray(elem *Type) *Type {
 	t := typ(TARRAY)
-	t.Extra = DDDArrayType{Elem: elem}
+	t.Extra = &ArrayType{Elem: elem, Bound: -1}
 	return t
 }
 
@@ -519,16 +514,14 @@ func substAny(t *Type, types *[]*Type) *Type {
 		elem := substAny(t.Elem(), types)
 		if elem != t.Elem() {
 			t = t.Copy()
-			switch x := t.Extra.(type) {
-			case *ArrayType:
-				x.Elem = elem
-			case SliceType:
-				t.Extra = SliceType{Elem: elem}
-			case DDDArrayType:
-				t.Extra = DDDArrayType{Elem: elem}
-			default:
-				Fatalf("substAny bad array elem type %T %v", x, t)
-			}
+			t.Extra.(*ArrayType).Elem = elem
+		}
+
+	case TSLICE:
+		elem := substAny(t.Elem(), types)
+		if elem != t.Elem() {
+			t = t.Copy()
+			t.Extra = SliceType{Elem: elem}
 		}
 
 	case TCHAN:
@@ -616,10 +609,8 @@ func (t *Type) Copy() *Type {
 		x := *t.Extra.(*ChanType)
 		nt.Extra = &x
 	case TARRAY:
-		if arr, ok := t.Extra.(*ArrayType); ok {
-			x := *arr
-			nt.Extra = &x
-		}
+		x := *t.Extra.(*ArrayType)
+		nt.Extra = &x
 	}
 	// TODO(mdempsky): Find out why this is necessary and explain.
 	if t.Orig == t {
@@ -735,14 +726,9 @@ func (t *Type) Elem() *Type {
 	case TPTR32, TPTR64:
 		return t.Extra.(PtrType).Elem
 	case TARRAY:
-		switch t := t.Extra.(type) {
-		case *ArrayType:
-			return t.Elem
-		case SliceType:
-			return t.Elem
-		case DDDArrayType:
-			return t.Elem
-		}
+		return t.Extra.(*ArrayType).Elem
+	case TSLICE:
+		return t.Extra.(SliceType).Elem
 	case TCHAN:
 		return t.Extra.(*ChanType).Elem
 	}
@@ -838,8 +824,7 @@ func (t *Type) isDDDArray() bool {
 	if t.Etype != TARRAY {
 		return false
 	}
-	_, ok := t.Extra.(DDDArrayType)
-	return ok
+	return t.Extra.(*ArrayType).Bound < 0
 }
 
 // ArgWidth returns the total aligned argument size for a function.
@@ -982,8 +967,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		}
 		return t.Val().cmp(x.Val())
 
-	case TPTR32, TPTR64:
-		// No special cases for these two, they are handled
+	case TPTR32, TPTR64, TSLICE:
+		// No special cases for these, they are handled
 		// by the general code after the switch.
 
 	case TSTRUCT:
@@ -1068,7 +1053,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		panic(e)
 	}
 
-	// Common element type comparison for TARRAY, TCHAN, TPTR32, and TPTR64.
+	// Common element type comparison for TARRAY, TCHAN, TPTR32, TPTR64, and TSLICE.
 	return t.Elem().cmp(x.Elem())
 }
 
@@ -1138,22 +1123,12 @@ func (t *Type) IsChan() bool {
 	return t.Etype == TCHAN
 }
 
-// TODO: Remove noinline when issue 15084 is resolved.
-//go:noinline
 func (t *Type) IsSlice() bool {
-	if t.Etype != TARRAY {
-		return false
-	}
-	_, ok := t.Extra.(SliceType)
-	return ok
+	return t.Etype == TSLICE
 }
 
 func (t *Type) IsArray() bool {
-	if t.Etype != TARRAY {
-		return false
-	}
-	_, ok := t.Extra.(*ArrayType)
-	return ok
+	return t.Etype == TARRAY
 }
 
 func (t *Type) IsStruct() bool {
@@ -1193,41 +1168,23 @@ func (t *Type) FieldName(i int) string {
 
 func (t *Type) NumElem() int64 {
 	t.wantEtype(TARRAY)
-	switch t := t.Extra.(type) {
-	case *ArrayType:
-		return t.Bound
-	case SliceType:
-		return sliceBound
-	case DDDArrayType:
-		return dddBound
+	at := t.Extra.(*ArrayType)
+	if at.Bound < 0 {
+		Fatalf("NumElem array %v does not have bound yet", t)
 	}
-	Fatalf("NumElem on non-array %T %v", t.Extra, t)
-	return 0
+	return at.Bound
 }
 
 // SetNumElem sets the number of elements in an array type.
-// It should not be used if at all possible.
-// Create a new array/slice/dddArray with typX instead.
-// The only allowed uses are:
-//   * array -> slice as a hack to suppress extra error output
-//   * ddd array -> array
-// TODO(josharian): figure out how to get rid of this entirely.
+// The only allowed use is on array types created with typDDDArray.
+// For other uses, create a new array with typArray instead.
 func (t *Type) SetNumElem(n int64) {
 	t.wantEtype(TARRAY)
-	switch {
-	case n >= 0:
-		if !t.isDDDArray() {
-			Fatalf("SetNumElem non-ddd -> array %v", t)
-		}
-		t.Extra = &ArrayType{Elem: t.Elem(), Bound: n}
-	case n == sliceBound:
-		if !t.IsArray() {
-			Fatalf("SetNumElem non-array -> slice %v", t)
-		}
-		t.Extra = SliceType{Elem: t.Elem()}
-	default:
-		Fatalf("SetNumElem %d %v", n, t)
+	at := t.Extra.(*ArrayType)
+	if at.Bound >= 0 {
+		Fatalf("SetNumElem array %v already has bound %d", t, at.Bound)
 	}
+	at.Bound = n
 }
 
 // ChanDir returns the direction of a channel type t.

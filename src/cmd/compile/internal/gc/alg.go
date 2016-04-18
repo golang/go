@@ -127,11 +127,10 @@ func algtype1(t *Type) (AlgKind, *Type) {
 		}
 		return AINTER, nil
 
-	case TARRAY:
-		if t.IsSlice() {
-			return ANOEQ, t
-		}
+	case TSLICE:
+		return ANOEQ, t
 
+	case TARRAY:
 		a, bad := algtype1(t.Elem())
 		switch a {
 		case AMEM:
@@ -219,10 +218,6 @@ func genhash(sym *Sym, t *Type) {
 		Fatalf("genhash %v", t)
 
 	case TARRAY:
-		if t.IsSlice() {
-			Fatalf("genhash %v", t)
-		}
-
 		// An array of pure memory would be handled by the
 		// standard algorithm, so the element type must not be
 		// pure memory.
@@ -399,10 +394,6 @@ func geneq(sym *Sym, t *Type) {
 		Fatalf("geneq %v", t)
 
 	case TARRAY:
-		if t.IsSlice() {
-			Fatalf("geneq %v", t)
-		}
-
 		// An array of pure memory would be handled by the
 		// standard memequal, so the element type must not be
 		// pure memory. Even if we unrolled the range loop,
