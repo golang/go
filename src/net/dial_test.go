@@ -241,9 +241,6 @@ func TestDialParallel(t *testing.T) {
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; cannot cancel dialTCP, golang.org/issue/11225")
-	}
 
 	closedPortDelay, expectClosedPortDelay := dialClosedPort()
 	if closedPortDelay > expectClosedPortDelay {
@@ -485,9 +482,6 @@ func TestDialerFallbackDelay(t *testing.T) {
 func TestDialParallelSpuriousConnection(t *testing.T) {
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
-	}
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; cannot cancel dialTCP, golang.org/issue/11225")
 	}
 
 	var wg sync.WaitGroup
@@ -813,9 +807,8 @@ func TestDialCancel(t *testing.T) {
 		testenv.MustHaveExternalNetwork(t)
 	}
 
-	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
-		// plan9 is not implemented and nacl doesn't have
-		// external network access.
+	if runtime.GOOS == "nacl" {
+		// nacl doesn't have external network access.
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
