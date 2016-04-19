@@ -564,8 +564,18 @@ func getdyn(n *Node, top int) initGenType {
 }
 
 // isStaticCompositeLiteral reports whether n is a compile-time constant.
-// n must be a struct or array literal.
 func isStaticCompositeLiteral(n *Node) bool {
+	switch n.Op {
+	case OARRAYLIT:
+		if n.Type.IsSlice() {
+			return false
+		}
+	case OSTRUCTLIT:
+	case OLITERAL:
+		return true
+	default:
+		return false
+	}
 	for _, r := range n.List.Slice() {
 		if r.Op != OKEY {
 			Fatalf("isStaticCompositeLiteral: rhs not OKEY: %v", r)
@@ -575,15 +585,8 @@ func isStaticCompositeLiteral(n *Node) bool {
 			return false
 		}
 		value := r.Right
-		switch value.Op {
-		case OSTRUCTLIT, OARRAYLIT:
-			if !isStaticCompositeLiteral(value) {
-				return false
-			}
-		default:
-			if value.Op != OLITERAL {
-				return false
-			}
+		if !isStaticCompositeLiteral(value) {
+			return false
 		}
 	}
 	return true
@@ -1031,7 +1034,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	t := n.Type
 	switch n.Op {
 	default:
-		Fatalf("anylit: not lit")
+		Fatalf("anylit: not lit, op=%v node=%v", opnames[n.Op], n)
 
 	case OPTRLIT:
 		if !t.IsPtr() {

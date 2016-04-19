@@ -1531,7 +1531,7 @@ opswitch:
 		n = r
 
 	case OARRAYLIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
-		if (n.Op == OSTRUCTLIT || (n.Op == OARRAYLIT && !n.Type.IsSlice())) && isStaticCompositeLiteral(n) {
+		if isStaticCompositeLiteral(n) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
 			vstat := staticname(n.Type, 0)
