@@ -12,17 +12,13 @@ import (
 )
 
 const (
-	Etop      = 1 << 1 // evaluated at statement level
-	Erv       = 1 << 2 // evaluated in value context
-	Etype     = 1 << 3
-	Ecall     = 1 << 4  // call-only expressions are ok
-	Efnstruct = 1 << 5  // multivalue function returns are ok
-	Eiota     = 1 << 6  // iota is ok
-	Easgn     = 1 << 7  // assigning to expression
-	Eindir    = 1 << 8  // indirecting through expression
-	Eaddr     = 1 << 9  // taking address of expression
-	Eproc     = 1 << 10 // inside a go statement
-	Ecomplit  = 1 << 11 // type in composite literal
+	Etop      = 1 << iota // evaluated at statement level
+	Erv                   // evaluated in value context
+	Etype                 // evaluated in type context
+	Ecall                 // call-only expressions are ok
+	Efnstruct             // multivalue function returns are ok
+	Easgn                 // assigning to expression
+	Ecomplit              // type in composite literal
 )
 
 // type check the whole tree of an expression.
@@ -476,13 +472,7 @@ OpSwitch:
 
 	// type or expr
 	case OIND:
-		ntop := Erv | Etype
-
-		if top&Eaddr == 0 { // The *x in &*x is not an indirect.
-			ntop |= Eindir
-		}
-		ntop |= top & Ecomplit
-		n.Left = typecheck(n.Left, ntop)
+		n.Left = typecheck(n.Left, Erv|Etype|top&Ecomplit)
 		l := n.Left
 		t := l.Type
 		if t == nil {
@@ -556,8 +546,8 @@ OpSwitch:
 			op = Op(n.Etype)
 		} else {
 			ok |= Erv
-			n.Left = typecheck(n.Left, Erv|top&Eiota)
-			n.Right = typecheck(n.Right, Erv|top&Eiota)
+			n.Left = typecheck(n.Left, Erv)
+			n.Right = typecheck(n.Right, Erv)
 			l = n.Left
 			r = n.Right
 			if l.Type == nil || r.Type == nil {
@@ -775,7 +765,7 @@ OpSwitch:
 
 	case OCOM, OMINUS, ONOT, OPLUS:
 		ok |= Erv
-		n.Left = typecheck(n.Left, Erv|top&Eiota)
+		n.Left = typecheck(n.Left, Erv)
 		l := n.Left
 		t := l.Type
 		if t == nil {
@@ -795,7 +785,7 @@ OpSwitch:
 	case OADDR:
 		ok |= Erv
 
-		n.Left = typecheck(n.Left, Erv|Eaddr)
+		n.Left = typecheck(n.Left, Erv)
 		if n.Left.Type == nil {
 			n.Type = nil
 			return n
@@ -1262,7 +1252,7 @@ OpSwitch:
 			}
 		}
 
-		n.Left = typecheck(n.Left, Erv|Etype|Ecall|top&Eproc)
+		n.Left = typecheck(n.Left, Erv|Etype|Ecall)
 		n.Diag |= n.Left.Diag
 		l = n.Left
 		if l.Op == ONAME && l.Etype != 0 {
@@ -1479,8 +1469,8 @@ OpSwitch:
 				n.Type = nil
 				return n
 			}
-			n.Left = typecheck(n.Left, Erv|top&Eiota)
-			n.Right = typecheck(n.Right, Erv|top&Eiota)
+			n.Left = typecheck(n.Left, Erv)
+			n.Right = typecheck(n.Right, Erv)
 			l = n.Left
 			r = n.Right
 			if l.Type == nil || r.Type == nil {
@@ -1738,7 +1728,7 @@ OpSwitch:
 	case OCONV:
 		ok |= Erv
 		saveorignode(n)
-		n.Left = typecheck(n.Left, Erv|top&(Eindir|Eiota))
+		n.Left = typecheck(n.Left, Erv)
 		n.Left = convlit1(n.Left, n.Type, true, noReuse)
 		t := n.Left.Type
 		if t == nil || n.Type == nil {
@@ -1926,7 +1916,7 @@ OpSwitch:
 
 	case OPRINT, OPRINTN:
 		ok |= Etop
-		typecheckslice(n.List.Slice(), Erv|Eindir) // Eindir: address does not escape
+		typecheckslice(n.List.Slice(), Erv)
 		ls := n.List.Slice()
 		for i1, n1 := range ls {
 			// Special case for print: int constant is int64, not int.
@@ -2062,7 +2052,7 @@ OpSwitch:
 
 	case OPROC:
 		ok |= Etop
-		n.Left = typecheck(n.Left, Etop|Eproc|Erv)
+		n.Left = typecheck(n.Left, Etop|Erv)
 		checkdefergo(n)
 		break OpSwitch
 
@@ -3707,7 +3697,7 @@ func typecheckdef(n *Node) *Node {
 			Yyerror("xxx")
 		}
 
-		e = typecheck(e, Erv|Eiota)
+		e = typecheck(e, Erv)
 		if Isconst(e, CTNIL) {
 			Yyerror("const initializer cannot be nil")
 			goto ret
