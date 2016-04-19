@@ -14,6 +14,28 @@ type slice struct {
 	cap   int
 }
 
+// maxElems is a lookup table containing the maximum capacity for a slice.
+// The index is the size of the slice element.
+var maxElems = [...]uintptr{
+	^uintptr(0),
+	_MaxMem / 1, _MaxMem / 2, _MaxMem / 3, _MaxMem / 4,
+	_MaxMem / 5, _MaxMem / 6, _MaxMem / 7, _MaxMem / 8,
+	_MaxMem / 9, _MaxMem / 10, _MaxMem / 11, _MaxMem / 12,
+	_MaxMem / 13, _MaxMem / 14, _MaxMem / 15, _MaxMem / 16,
+	_MaxMem / 17, _MaxMem / 18, _MaxMem / 19, _MaxMem / 20,
+	_MaxMem / 21, _MaxMem / 22, _MaxMem / 23, _MaxMem / 24,
+	_MaxMem / 25, _MaxMem / 26, _MaxMem / 27, _MaxMem / 28,
+	_MaxMem / 29, _MaxMem / 30, _MaxMem / 31, _MaxMem / 32,
+}
+
+// maxSliceCap returns the maximum capacity for a slice.
+func maxSliceCap(elemsize uintptr) uintptr {
+	if elemsize < uintptr(len(maxElems)) {
+		return maxElems[elemsize]
+	}
+	return _MaxMem / elemsize
+}
+
 // TODO: take uintptrs instead of int64s?
 func makeslice(t *slicetype, len64, cap64 int64) slice {
 	// NOTE: The len > maxElements check here is not strictly necessary,
@@ -22,11 +44,7 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 	// but since the cap is only being supplied implicitly, saying len is clearer.
 	// See issue 4085.
 
-	maxElements := ^uintptr(0)
-	if t.elem.size > 0 {
-		maxElements = _MaxMem / t.elem.size
-	}
-
+	maxElements := maxSliceCap(t.elem.size)
 	len := int(len64)
 	if len64 < 0 || int64(len) != len64 || uintptr(len) > maxElements {
 		panic(errorString("makeslice: len out of range"))
@@ -84,27 +102,24 @@ func growslice(t *slicetype, old slice, cap int) slice {
 		}
 	}
 
-	var lenmem, capmem, maxcap uintptr
+	var lenmem, capmem uintptr
 	const ptrSize = unsafe.Sizeof((*byte)(nil))
 	switch et.size {
 	case 1:
 		lenmem = uintptr(old.len)
 		capmem = roundupsize(uintptr(newcap))
 		newcap = int(capmem)
-		maxcap = _MaxMem
 	case ptrSize:
 		lenmem = uintptr(old.len) * ptrSize
 		capmem = roundupsize(uintptr(newcap) * ptrSize)
 		newcap = int(capmem / ptrSize)
-		maxcap = _MaxMem / ptrSize
 	default:
 		lenmem = uintptr(old.len) * et.size
 		capmem = roundupsize(uintptr(newcap) * et.size)
 		newcap = int(capmem / et.size)
-		maxcap = _MaxMem / et.size
 	}
 
-	if cap < old.cap || uintptr(newcap) > maxcap {
+	if cap < old.cap || uintptr(newcap) > maxSliceCap(et.size) {
 		panic(errorString("growslice: cap out of range"))
 	}
 
