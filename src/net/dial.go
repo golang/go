@@ -6,7 +6,6 @@ package net
 
 import (
 	"context"
-	"runtime"
 	"time"
 )
 
@@ -325,10 +324,8 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		address: address,
 	}
 
-	// DualStack mode requires that dialTCP support cancelation. This is
-	// not available on plan9 (golang.org/issue/11225), so we ignore it.
 	var primaries, fallbacks addrList
-	if d.DualStack && network == "tcp" && runtime.GOOS != "plan9" {
+	if d.DualStack && network == "tcp" {
 		primaries, fallbacks = addrs.partition(isIPv4)
 	} else {
 		primaries = addrs
