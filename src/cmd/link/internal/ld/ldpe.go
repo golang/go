@@ -435,19 +435,13 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= AttrOnList
-			if Ctxt.Etextp != nil {
-				Ctxt.Etextp.Next = s
-			} else {
-				Ctxt.Textp = s
-			}
-			Ctxt.Etextp = s
+			Ctxt.Textp = append(Ctxt.Textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
 				s.Attr |= AttrOnList
-				Ctxt.Etextp.Next = s
-				Ctxt.Etextp = s
+				Ctxt.Textp = append(Ctxt.Textp, s)
 			}
 		}
 	}

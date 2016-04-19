@@ -224,14 +224,14 @@ func pclntab() {
 	nfunc := int32(0)
 
 	// Find container symbols, mark them with SCONTAINER
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
-		if Ctxt.Cursym.Outer != nil {
-			Ctxt.Cursym.Outer.Type |= obj.SCONTAINER
+	for _, s := range Ctxt.Textp {
+		if s.Outer != nil {
+			s.Outer.Type |= obj.SCONTAINER
 		}
 	}
 
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
-		if container(Ctxt.Cursym) == 0 {
+	for _, s := range Ctxt.Textp {
+		if container(s) == 0 {
 			nfunc++
 		}
 	}
@@ -246,7 +246,7 @@ func pclntab() {
 
 	nfunc = 0
 	var last *LSym
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+	for _, Ctxt.Cursym = range Ctxt.Textp {
 		last = Ctxt.Cursym
 		if container(Ctxt.Cursym) != 0 {
 			continue
@@ -401,10 +401,9 @@ func findfunctab() {
 	t.Attr |= AttrLocal
 
 	// find min and max address
-	min := Ctxt.Textp.Value
-
+	min := Ctxt.Textp[0].Value
 	max := int64(0)
-	for s := Ctxt.Textp; s != nil; s = s.Next {
+	for _, s := range Ctxt.Textp {
 		max = s.Value + s.Size
 	}
 
@@ -417,34 +416,34 @@ func findfunctab() {
 		indexes[i] = NOIDX
 	}
 	idx := int32(0)
-	var e *LSym
-	var i int32
-	var p int64
-	var q int64
-	for s := Ctxt.Textp; s != nil; s = s.Next {
+	for i, s := range Ctxt.Textp {
 		if container(s) != 0 {
 			continue
 		}
-		p = s.Value
-		e = s.Next
-		for container(e) != 0 {
-			e = e.Next
+		p := s.Value
+		var e *LSym
+		i++
+		if i < len(Ctxt.Textp) {
+			e = Ctxt.Textp[i]
 		}
+		for container(e) != 0 && i < len(Ctxt.Textp) {
+			e = Ctxt.Textp[i]
+			i++
+		}
+		q := max
 		if e != nil {
 			q = e.Value
-		} else {
-			q = max
 		}
 
 		//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
 		for ; p < q; p += SUBBUCKETSIZE {
-			i = int32((p - min) / SUBBUCKETSIZE)
+			i = int((p - min) / SUBBUCKETSIZE)
 			if indexes[i] > idx {
 				indexes[i] = idx
 			}
 		}
 
-		i = int32((q - 1 - min) / SUBBUCKETSIZE)
+		i = int((q - 1 - min) / SUBBUCKETSIZE)
 		if indexes[i] > idx {
 			indexes[i] = idx
 		}
@@ -457,15 +456,13 @@ func findfunctab() {
 	Symgrow(Ctxt, t, 4*int64(nbuckets)+int64(n))
 
 	// fill in table
-	var base int32
-	var j int32
 	for i := int32(0); i < nbuckets; i++ {
-		base = indexes[i*SUBBUCKETS]
+		base := indexes[i*SUBBUCKETS]
 		if base == NOIDX {
 			Diag("hole in findfunctab")
 		}
 		setuint32(Ctxt, t, int64(i)*(4+SUBBUCKETS), uint32(base))
-		for j = 0; j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
+		for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
 			idx = indexes[i*SUBBUCKETS+j]
 			if idx == NOIDX {
 				Diag("hole in findfunctab")

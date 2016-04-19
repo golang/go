@@ -707,19 +707,13 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= AttrOnList
-			if Ctxt.Etextp != nil {
-				Ctxt.Etextp.Next = s
-			} else {
-				Ctxt.Textp = s
-			}
-			Ctxt.Etextp = s
+			Ctxt.Textp = append(Ctxt.Textp, s)
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
 				if s1.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s1.Name)
 				}
 				s1.Attr |= AttrOnList
-				Ctxt.Etextp.Next = s1
-				Ctxt.Etextp = s1
+				Ctxt.Textp = append(Ctxt.Textp, s1)
 			}
 		}
 	}

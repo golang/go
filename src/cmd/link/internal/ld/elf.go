@@ -1727,7 +1727,7 @@ func Elfemitreloc() {
 		Cput(0)
 	}
 
-	elfrelocsect(Segtext.Sect, list2slice(Ctxt.Textp))
+	elfrelocsect(Segtext.Sect, Ctxt.Textp)
 	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
 		elfrelocsect(sect, datap)
 	}

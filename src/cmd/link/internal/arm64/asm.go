@@ -78,12 +78,7 @@ func gentext() {
 	rel.Sym = ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
 	rel.Type = obj.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
