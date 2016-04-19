@@ -1133,7 +1133,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				if rest, err := asn1.Unmarshal(e.Value, &keyid); err != nil {
 					return nil, err
 				} else if len(rest) != 0 {
-					return nil, errors.New("x509: trailing data after X.509 authority key-id")
+					return nil, errors.New("x509: trailing data after X.509 key-id")
 				}
 				out.SubjectKeyId = keyid
 
