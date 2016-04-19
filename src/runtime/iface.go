@@ -160,18 +160,16 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 		msanread(elem, t.size)
 	}
 	if isDirectIface(t) {
-		e._type = t
-		typedmemmove(t, unsafe.Pointer(&e.data), elem)
-	} else {
-		if x == nil {
-			x = newobject(t)
-		}
+		throw("direct convT2E")
+	}
+	if x == nil {
+		x = newobject(t)
 		// TODO: We allocate a zeroed object only to overwrite it with
 		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
-		typedmemmove(t, x, elem)
-		e._type = t
-		e.data = x
 	}
+	typedmemmove(t, x, elem)
+	e._type = t
+	e.data = x
 	return
 }
 
@@ -184,16 +182,14 @@ func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
 		msanread(elem, t.size)
 	}
 	if isDirectIface(t) {
-		i.tab = tab
-		typedmemmove(t, unsafe.Pointer(&i.data), elem)
-	} else {
-		if x == nil {
-			x = newobject(t)
-		}
-		typedmemmove(t, x, elem)
-		i.tab = tab
-		i.data = x
+		throw("direct convT2I")
 	}
+	if x == nil {
+		x = newobject(t)
+	}
+	typedmemmove(t, x, elem)
+	i.tab = tab
+	i.data = x
 	return
 }
 
