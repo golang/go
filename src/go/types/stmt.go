@@ -83,9 +83,19 @@ func (check *Checker) simpleStmt(s ast.Stmt) {
 	}
 }
 
+func trimTrailingEmptyStmts(list []ast.Stmt) []ast.Stmt {
+	for i := len(list); i > 0; i-- {
+		if _, ok := list[i-1].(*ast.EmptyStmt); !ok {
+			return list[:i]
+		}
+	}
+	return nil
+}
+
 func (check *Checker) stmtList(ctxt stmtContext, list []ast.Stmt) {
 	ok := ctxt&fallthroughOk != 0
 	inner := ctxt &^ fallthroughOk
+	list = trimTrailingEmptyStmts(list) // trailing empty statements are "invisible" to fallthrough analysis
 	for i, s := range list {
 		inner := inner
 		if ok && i+1 == len(list) {
