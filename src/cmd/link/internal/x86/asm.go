@@ -69,12 +69,7 @@ func gentext() {
 	// c3		ret
 	o(0xc3)
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = thunkfunc
-	} else {
-		ld.Ctxt.Textp = thunkfunc
-	}
-	ld.Ctxt.Etextp = thunkfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, thunkfunc)
 
 	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
 	if addmoduledata.Type == obj.STEXT {
@@ -130,8 +125,7 @@ func gentext() {
 
 	o(0xc3)
 
-	ld.Ctxt.Etextp.Next = initfunc
-	ld.Ctxt.Etextp = initfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal

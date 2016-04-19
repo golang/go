@@ -87,9 +87,7 @@ func genplt() {
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
-	pprevtextp := &ld.Ctxt.Textp
-
-	for s := *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
+	for _, s := range ld.Ctxt.Textp {
 		for i := range s.R {
 			r := &s.R[i]
 			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != obj.SDYNIMPORT {
@@ -110,15 +108,7 @@ func genplt() {
 			if stub.Size == 0 {
 				// Need outer to resolve .TOC.
 				stub.Outer = s
-
-				// Link in to textp before s (we could
-				// do it after, but would have to skip
-				// the subsymbols)
-				*pprevtextp = stub
-
-				stub.Next = s
-				pprevtextp = &stub.Next
-
+				ld.Ctxt.Textp = append(ld.Ctxt.Textp, stub)
 				gencallstub(1, stub, r.Sym)
 			}
 
@@ -131,7 +121,6 @@ func genplt() {
 			ld.Ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
 		}
 	}
-
 }
 
 func genaddmoduledata() {
@@ -187,13 +176,7 @@ func genaddmoduledata() {
 	// blr
 	o(0x4e800020)
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
-
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal

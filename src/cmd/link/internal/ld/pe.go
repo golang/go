@@ -831,7 +831,7 @@ func peemitreloc(text, data, ctors *IMAGE_SECTION_HEADER) {
 	Lputl(0)
 	Wputl(0)
 
-	n := perelocsect(Segtext.Sect, list2slice(Ctxt.Textp)) + 1
+	n := perelocsect(Segtext.Sect, Ctxt.Textp) + 1
 	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
 		n += perelocsect(sect, datap)
 	}

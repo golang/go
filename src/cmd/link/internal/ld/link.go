@@ -178,8 +178,7 @@ type Link struct {
 	Diag       func(string, ...interface{})
 	Cursym     *LSym
 	Version    int
-	Textp      *LSym
-	Etextp     *LSym
+	Textp      []*LSym
 	Nhistfile  int32
 	Filesyms   *LSym
 	Moduledata *LSym

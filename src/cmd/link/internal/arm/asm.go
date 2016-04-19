@@ -95,12 +95,7 @@ func gentext() {
 	rel.Type = obj.R_PCREL
 	rel.Add = 4
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal

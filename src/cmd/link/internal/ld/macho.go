@@ -852,7 +852,7 @@ func Machoemitreloc() {
 		Cput(0)
 	}
 
-	machorelocsect(Segtext.Sect, list2slice(Ctxt.Textp))
+	machorelocsect(Segtext.Sect, Ctxt.Textp)
 	for sect := Segtext.Sect.Next; sect != nil; sect = sect.Next {
 		machorelocsect(sect, datap)
 	}

@@ -648,7 +648,7 @@ func reloc() {
 	}
 	Bso.Flush()
 
-	for s := Ctxt.Textp; s != nil; s = s.Next {
+	for _, s := range Ctxt.Textp {
 		relocsym(s)
 	}
 	for _, sym := range datap {
@@ -724,7 +724,7 @@ func dynreloc(data *[obj.SXREF][]*LSym) {
 	}
 	Bso.Flush()
 
-	for s := Ctxt.Textp; s != nil; s = s.Next {
+	for _, s := range Ctxt.Textp {
 		dynrelocsym(s)
 	}
 	for _, syms := range data {
@@ -791,7 +791,7 @@ func Codeblk(addr int64, size int64) {
 		fmt.Fprintf(Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blk(Ctxt.Textp, addr, size)
+	blkSlice(Ctxt.Textp, addr, size)
 
 	/* again for printing */
 	if Debug['a'] == 0 {
@@ -799,7 +799,7 @@ func Codeblk(addr int64, size int64) {
 	}
 
 	var sym *LSym
-	for sym = Ctxt.Textp; sym != nil; sym = sym.Next {
+	for _, sym = range Ctxt.Textp {
 		if !sym.Attr.Reachable() {
 			continue
 		}
@@ -1893,8 +1893,9 @@ func textbuildid() {
 	sym.P = []byte(data)
 	sym.Size = int64(len(sym.P))
 
-	sym.Next = Ctxt.Textp
-	Ctxt.Textp = sym
+	Ctxt.Textp = append(Ctxt.Textp, nil)
+	copy(Ctxt.Textp[1:], Ctxt.Textp)
+	Ctxt.Textp[0] = sym
 }
 
 // assign addresses to text
@@ -1914,7 +1915,7 @@ func textaddress() {
 	}
 	va := uint64(INITTEXT)
 	sect.Vaddr = va
-	for sym := Ctxt.Textp; sym != nil; sym = sym.Next {
+	for _, sym := range Ctxt.Textp {
 		sym.Sect = sect
 		if sym.Type&obj.SSUB != 0 {
 			continue

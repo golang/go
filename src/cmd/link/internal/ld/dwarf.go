@@ -1432,7 +1432,7 @@ func writelines(prev *LSym) *LSym {
 
 	lang := DW_LANG_Go
 
-	s := Ctxt.Textp
+	s := Ctxt.Textp[0]
 
 	dwinfo = newdie(&dwroot, DW_ABRV_COMPUNIT, "go", 0)
 	newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT, int64(lang), 0)
@@ -1502,8 +1502,8 @@ func writelines(prev *LSym) *LSym {
 
 	var pcfile Pciter
 	var pcline Pciter
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
-		s = Ctxt.Cursym
+	for _, Ctxt.Cursym = range Ctxt.Textp {
+		s := Ctxt.Cursym
 
 		dwfunc := newdie(dwinfo, DW_ABRV_FUNCTION, s.Name, int(s.Version))
 		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s.Value, s)
@@ -1696,7 +1696,7 @@ func writeframes(prev *LSym) *LSym {
 
 	var deltaBuf []byte
 	var pcsp Pciter
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+	for _, Ctxt.Cursym = range Ctxt.Textp {
 		s := Ctxt.Cursym
 		if s.FuncInfo == nil {
 			continue

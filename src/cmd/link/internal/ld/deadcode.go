@@ -119,25 +119,13 @@ func deadcode(ctxt *Link) {
 	}
 
 	// Remove dead text but keep file information (z symbols).
-	var last *LSym
-	for s := ctxt.Textp; s != nil; s = s.Next {
-		if !s.Attr.Reachable() {
-			continue
+	textp := make([]*LSym, 0, len(ctxt.Textp))
+	for _, s := range ctxt.Textp {
+		if s.Attr.Reachable() {
+			textp = append(textp, s)
 		}
-		if last == nil {
-			ctxt.Textp = s
-		} else {
-			last.Next = s
-		}
-		last = s
 	}
-	if last == nil {
-		ctxt.Textp = nil
-		ctxt.Etextp = nil
-	} else {
-		last.Next = nil
-		ctxt.Etextp = last
-	}
+	ctxt.Textp = textp
 }
 
 var markextra = []string{

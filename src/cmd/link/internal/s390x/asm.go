@@ -90,12 +90,7 @@ func gentext() {
 	// undef (for debugging)
 	ld.Adduint32(ld.Ctxt, initfunc, 0)
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Attr |= ld.AttrReachable
