@@ -70,10 +70,12 @@ const runtimeimport = "" +
 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
 	"func @\"\".mapaccess1_fast64 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
 	"func @\"\".mapaccess1_faststr (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
+	"func @\"\".mapaccess1_fat (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any, @\"\".zero·5 *byte) (@\"\".val·1 *any)\n" +
 	"func @\"\".mapaccess2 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 *any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
 	"func @\"\".mapaccess2_fast32 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
 	"func @\"\".mapaccess2_fast64 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
 	"func @\"\".mapaccess2_faststr (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
+	"func @\"\".mapaccess2_fat (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 *any, @\"\".zero·6 *byte) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
 	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any, @\"\".val·4 *any)\n" +
 	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *any)\n" +
 	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any)\n" +

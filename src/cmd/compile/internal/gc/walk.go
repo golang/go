@@ -864,8 +864,14 @@ opswitch:
 		//   a = *var
 		a := n.List.First()
 
-		fn := mapfn(p, t)
-		r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
+		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
+			fn := mapfn(p, t)
+			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
+		} else {
+			fn := mapfn("mapaccess2_fat", t)
+			z := zeroaddr(w)
+			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key, z)
+		}
 
 		// mapaccess2* returns a typed bool, but due to spec changes,
 		// the boolean result of i.(T) is now untyped so we make it the
@@ -1222,7 +1228,13 @@ opswitch:
 			p = "mapaccess1"
 		}
 
-		n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
+		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
+			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
+		} else {
+			p = "mapaccess1_fat"
+			z := zeroaddr(w)
+			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key, z)
+		}
 		n = Nod(OIND, n, nil)
 		n.Type = t.Val()
 		n.Typecheck = 1

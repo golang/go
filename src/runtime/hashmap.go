@@ -236,9 +236,6 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("need padding in bucket (value)")
 	}
 
-	// make sure zeroptr is large enough
-	mapzero(t.elem)
-
 	// find size parameter which will hold the requested # of elements
 	B := uint8(0)
 	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
@@ -283,7 +280,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		msanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
+		return unsafe.Pointer(&zeroVal[0])
 	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map read and map write")
@@ -321,7 +318,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
+			return unsafe.Pointer(&zeroVal[0])
 		}
 	}
 }
@@ -337,7 +334,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		msanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
+		return unsafe.Pointer(&zeroVal[0]), false
 	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map read and map write")
@@ -375,7 +372,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
+			return unsafe.Pointer(&zeroVal[0]), false
 		}
 	}
 }
@@ -424,6 +421,22 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 			return nil, nil
 		}
 	}
+}
+
+func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointer {
+	v := mapaccess1(t, h, key)
+	if v == unsafe.Pointer(&zeroVal[0]) {
+		return zero
+	}
+	return v
+}
+
+func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
+	v := mapaccess1(t, h, key)
+	if v == unsafe.Pointer(&zeroVal[0]) {
+		return zero, false
+	}
+	return v, true
 }
 
 func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
@@ -1044,39 +1057,5 @@ func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)
 }
 
-var zerolock mutex
-
-const initialZeroSize = 1024
-
-var zeroinitial [initialZeroSize]byte
-
-// All accesses to zeroptr and zerosize must be atomic so that they
-// can be accessed without locks in the common case.
-var zeroptr unsafe.Pointer = unsafe.Pointer(&zeroinitial)
-var zerosize uintptr = initialZeroSize
-
-// mapzero ensures that zeroptr points to a buffer large enough to
-// serve as the zero value for t.
-func mapzero(t *_type) {
-	// Is the type small enough for existing buffer?
-	cursize := uintptr(atomic.Loadp(unsafe.Pointer(&zerosize)))
-	if t.size <= cursize {
-		return
-	}
-
-	// Allocate a new buffer.
-	lock(&zerolock)
-	cursize = uintptr(atomic.Loadp(unsafe.Pointer(&zerosize)))
-	if cursize < t.size {
-		for cursize < t.size {
-			cursize *= 2
-			if cursize == 0 {
-				// need >2GB zero on 32-bit machine
-				throw("map element too large")
-			}
-		}
-		atomic.StorepNoWB(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
-		atomic.StorepNoWB(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
-	}
-	unlock(&zerolock)
-}
+const maxZero = 1024 // must match value in ../cmd/compile/internal/gc/walk.go
+var zeroVal [maxZero]byte
