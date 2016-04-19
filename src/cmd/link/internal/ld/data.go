@@ -1131,19 +1131,6 @@ func aligndatsize(datsize int64, s *LSym) int64 {
 	return Rnd(datsize, int64(symalign(s)))
 }
 
-// maxalign returns the maximum required alignment for
-// the slice of symbols syms
-func maxalign(syms []*LSym) int32 {
-	var max int32
-	for _, sym := range syms {
-		align := symalign(sym)
-		if max < align {
-			max = align
-		}
-	}
-	return max
-}
-
 const debugGCProg = false
 
 type GCProg struct {
@@ -1225,18 +1212,12 @@ func (d bySizeAndName) Less(i, j int) bool {
 	return s1.name < s2.name
 }
 
-func growdatsize(datsizep *int64, s *LSym) {
-	datsize := *datsizep
-	const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
-	switch {
-	case s.Size < 0:
-		Diag("%s: negative size (%d bytes)", s.Name, s.Size)
-	case s.Size > cutoff:
-		Diag("%s: symbol too large (%d bytes)", s.Name, s.Size)
-	case datsize <= cutoff && datsize+s.Size > cutoff:
-		Diag("%s: too much data (over %d bytes)", s.Name, cutoff)
+const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+
+func checkdatsize(datsize int64, symn int) {
+	if datsize > cutoff {
+		Diag("too much data in section %v (over %d bytes)", symn, cutoff)
 	}
-	*datsizep = datsize + s.Size
 }
 
 func list2slice(s *LSym) []*LSym {
@@ -1327,12 +1308,13 @@ func dodata() {
 	}
 
 	// Sort symbols.
+	var dataMaxAlign [obj.SXREF]int32
 	var wg sync.WaitGroup
 	for symn := range data {
 		symn := symn
 		wg.Add(1)
 		go func() {
-			data[symn] = dodataSect(symn, data[symn])
+			data[symn], dataMaxAlign[symn] = dodataSect(symn, data[symn])
 			wg.Done()
 		}()
 	}
@@ -1360,15 +1342,16 @@ func dodata() {
 			s.Sect = sect
 			s.Type = obj.SDATA
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
-			growdatsize(&datsize, s)
+			datsize += s.Size
 			sect.Length = uint64(datsize) - sect.Vaddr
 		}
+		checkdatsize(datsize, symn)
 	}
 
 	// .got (and .toc on ppc64)
 	if len(data[obj.SELFGOT]) > 0 {
 		sect := addsection(&Segdata, ".got", 06)
-		sect.Align = maxalign(data[obj.SELFGOT])
+		sect.Align = dataMaxAlign[obj.SELFGOT]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
 		var toc *LSym
@@ -1389,15 +1372,15 @@ func dodata() {
 				toc.Value = 0x8000
 			}
 
-			growdatsize(&datsize, s)
+			datsize += s.Size
 		}
+		checkdatsize(datsize, obj.SELFGOT)
 		sect.Length = uint64(datsize) - sect.Vaddr
 	}
 
 	/* pointer-free data */
 	sect := addsection(&Segdata, ".noptrdata", 06)
-
-	sect.Align = maxalign(data[obj.SNOPTRDATA])
+	sect.Align = dataMaxAlign[obj.SNOPTRDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.noptrdata", 0).Sect = sect
@@ -1407,8 +1390,9 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SDATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.SNOPTRDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	hasinitarr := Linkshared
@@ -1420,21 +1404,22 @@ func dodata() {
 	}
 	if hasinitarr {
 		sect := addsection(&Segdata, ".init_array", 06)
-		sect.Align = maxalign(data[obj.SINITARR])
+		sect.Align = dataMaxAlign[obj.SINITARR]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
 		for _, s := range data[obj.SINITARR] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
-			growdatsize(&datsize, s)
+			datsize += s.Size
 		}
 		sect.Length = uint64(datsize) - sect.Vaddr
+		checkdatsize(datsize, obj.SINITARR)
 	}
 
 	/* data */
 	sect = addsection(&Segdata, ".data", 06)
-	sect.Align = maxalign(data[obj.SDATA])
+	sect.Align = dataMaxAlign[obj.SDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.data", 0).Sect = sect
@@ -1447,14 +1432,15 @@ func dodata() {
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		gc.AddSym(s)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.SDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 	gc.End(int64(sect.Length))
 
 	/* bss */
 	sect = addsection(&Segdata, ".bss", 06)
-	sect.Align = maxalign(data[obj.SBSS])
+	sect.Align = dataMaxAlign[obj.SBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.bss", 0).Sect = sect
@@ -1466,15 +1452,15 @@ func dodata() {
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
 		gc.AddSym(s)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.SBSS)
 	sect.Length = uint64(datsize) - sect.Vaddr
 	gc.End(int64(sect.Length))
 
 	/* pointer-free bss */
 	sect = addsection(&Segdata, ".noptrbss", 06)
-
-	sect.Align = maxalign(data[obj.SNOPTRBSS])
+	sect.Align = dataMaxAlign[obj.SNOPTRBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.noptrbss", 0).Sect = sect
@@ -1483,16 +1469,12 @@ func dodata() {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
 
 	sect.Length = uint64(datsize) - sect.Vaddr
 	Linklookup(Ctxt, "runtime.end", 0).Sect = sect
-
-	// The compiler uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
-	if datsize != int64(uint32(datsize)) {
-		Diag("data or bss segment too large")
-	}
+	checkdatsize(datsize, obj.SNOPTRBSS)
 
 	if len(data[obj.STLSBSS]) > 0 {
 		var sect *Section
@@ -1507,8 +1489,9 @@ func dodata() {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = datsize
-			growdatsize(&datsize, s)
+			datsize += s.Size
 		}
+		checkdatsize(datsize, obj.STLSBSS)
 
 		if sect != nil {
 			sect.Length = uint64(datsize)
@@ -1546,8 +1529,9 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 		sect.Length = uint64(datsize) - sect.Vaddr
+		checkdatsize(datsize, obj.SELFRXSECT)
 	}
 
 	/* read-only data */
@@ -1571,7 +1555,7 @@ func dodata() {
 		obj.SFUNCTAB,
 	}
 	for _, symn := range roSects {
-		align := maxalign(data[symn])
+		align := dataMaxAlign[symn]
 		if sect.Align < align {
 			sect.Align = align
 		}
@@ -1583,8 +1567,9 @@ func dodata() {
 			s.Sect = sect
 			s.Type = obj.SRODATA
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
-			growdatsize(&datsize, s)
+			datsize += s.Size
 		}
+		checkdatsize(datsize, symn)
 	}
 	sect.Length = uint64(datsize) - sect.Vaddr
 
@@ -1621,7 +1606,7 @@ func dodata() {
 			obj.SFUNCTABRELRO,
 		}
 		for _, symn := range relroSects {
-			align := maxalign(data[symn])
+			align := dataMaxAlign[symn]
 			if sect.Align < align {
 				sect.Align = align
 			}
@@ -1636,8 +1621,9 @@ func dodata() {
 				s.Sect = sect
 				s.Type = obj.SRODATA
 				s.Value = int64(uint64(datsize) - sect.Vaddr)
-				growdatsize(&datsize, s)
+				datsize += s.Size
 			}
+			checkdatsize(datsize, symn)
 		}
 
 		sect.Length = uint64(datsize) - sect.Vaddr
@@ -1646,7 +1632,7 @@ func dodata() {
 
 	/* typelink */
 	sect = addsection(segro, relro_prefix+".typelink", relro_perms)
-	sect.Align = maxalign(data[obj.STYPELINK])
+	sect.Align = dataMaxAlign[obj.STYPELINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.typelink", 0).Sect = sect
@@ -1656,14 +1642,14 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.STYPELINK)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* itablink */
 	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
-
-	sect.Align = maxalign(data[obj.SITABLINK])
+	sect.Align = dataMaxAlign[obj.SITABLINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.itablink", 0).Sect = sect
@@ -1673,14 +1659,14 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.SITABLINK)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gosymtab */
 	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
-
-	sect.Align = maxalign(data[obj.SSYMTAB])
+	sect.Align = dataMaxAlign[obj.SSYMTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.symtab", 0).Sect = sect
@@ -1690,14 +1676,14 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.SSYMTAB)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gopclntab */
 	sect = addsection(segro, relro_prefix+".gopclntab", relro_perms)
-
-	sect.Align = maxalign(data[obj.SPCLNTAB])
+	sect.Align = dataMaxAlign[obj.SPCLNTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	Linklookup(Ctxt, "runtime.pclntab", 0).Sect = sect
@@ -1707,8 +1693,9 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 	}
+	checkdatsize(datsize, obj.SRODATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* read-only ELF, Mach-O sections */
@@ -1720,9 +1707,10 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 		sect.Length = uint64(datsize) - sect.Vaddr
 	}
+	checkdatsize(datsize, obj.SELFROSECT)
 
 	for _, s := range data[obj.SMACHOPLT] {
 		sect = addsection(segro, s.Name, 04)
@@ -1732,9 +1720,10 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 		sect.Length = uint64(datsize) - sect.Vaddr
 	}
+	checkdatsize(datsize, obj.SMACHOPLT)
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if datsize != int64(uint32(datsize)) {
@@ -1756,9 +1745,10 @@ func dodata() {
 		s.Sect = sect
 		s.Type = obj.SRODATA
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		growdatsize(&datsize, s)
+		datsize += s.Size
 		sect.Length = uint64(datsize) - sect.Vaddr
 	}
+	checkdatsize(datsize, obj.SDWARFSECT)
 
 	if s != nil {
 		sect = addsection(&Segdwarf, ".debug_info", 04)
@@ -1770,14 +1760,10 @@ func dodata() {
 			s.Type = obj.SRODATA
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
 			s.Attr |= AttrLocal
-			growdatsize(&datsize, s)
+			datsize += s.Size
 		}
 		sect.Length = uint64(datsize) - sect.Vaddr
-	}
-
-	// The compiler uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
-	if datsize != int64(uint32(datsize)) {
-		Diag("dwarf segment too large")
+		checkdatsize(datsize, obj.SDWARFINFO)
 	}
 
 	/* number the sections */
@@ -1801,7 +1787,7 @@ func dodata() {
 	}
 }
 
-func dodataSect(symn int, syms []*LSym) []*LSym {
+func dodataSect(symn int, syms []*LSym) (result []*LSym, maxAlign int32) {
 	if HEADTYPE == obj.Hdarwin {
 		// Some symbols may no longer belong in syms
 		// due to movement in machosymorder.
@@ -1820,8 +1806,13 @@ func dodataSect(symn int, syms []*LSym) []*LSym {
 			log.Fatalf("symbol %s listed multiple times", s.Name)
 		}
 		s.Attr |= AttrOnList
-		if int64(len(s.P)) > s.Size {
+		switch {
+		case s.Size < int64(len(s.P)):
 			Diag("%s: initialize bounds (%d < %d)", s.Name, s.Size, len(s.P))
+		case s.Size < 0:
+			Diag("%s: negative size (%d bytes)", s.Name, s.Size)
+		case s.Size > cutoff:
+			Diag("%s: symbol too large (%d bytes)", s.Name, s.Size)
 		}
 
 		symsSort[i] = dataSortKey{
@@ -1848,6 +1839,10 @@ func dodataSect(symn int, syms []*LSym) []*LSym {
 
 	for i, symSort := range symsSort {
 		syms[i] = symSort.lsym
+		align := symalign(symSort.lsym)
+		if maxAlign < align {
+			maxAlign = align
+		}
 	}
 
 	if Iself && symn == obj.SELFROSECT {
@@ -1876,7 +1871,7 @@ func dodataSect(symn int, syms []*LSym) []*LSym {
 		}
 	}
 
-	return syms
+	return syms, maxAlign
 }
 
 // Add buildid to beginning of text segment, on non-ELF systems.
