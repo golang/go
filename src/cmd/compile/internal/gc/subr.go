@@ -1328,6 +1328,11 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		a.Right = r
 		a = walkexpr(a, init)
 		return a
+
+	case OSTRUCTLIT, OARRAYLIT:
+		if isStaticCompositeLiteral(n) {
+			return n
+		}
 	}
 
 	// make a copy; must not be used as an lvalue
