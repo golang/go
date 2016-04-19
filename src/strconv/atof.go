@@ -244,7 +244,9 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, ok bool) {
 		return
 	}
 
-	exp = dp - ndMant
+	if mantissa != 0 {
+		exp = dp - ndMant
+	}
 	ok = true
 	return
 
