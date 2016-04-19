@@ -137,6 +137,11 @@ func Main() {
 	typepkg = mkpkg("type")
 	typepkg.Name = "type"
 
+	// pseudo-package used for map zero values
+	mappkg = mkpkg("go.map")
+	mappkg.Name = "go.map"
+	mappkg.Prefix = "go.map"
+
 	goroot = obj.Getgoroot()
 	goos = obj.Getgoos()
 

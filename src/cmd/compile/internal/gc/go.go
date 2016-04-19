@@ -175,6 +175,9 @@ var unsafepkg *Pkg // package unsafe
 
 var trackpkg *Pkg // fake package for field tracking
 
+var mappkg *Pkg // fake package for map zero value
+var zerosize int64
+
 var Tptr EType // either TPTR32 or TPTR64
 
 var myimportpath string

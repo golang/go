@@ -1689,3 +1689,27 @@ func (p *GCProg) emit(t *Type, offset int64) {
 		}
 	}
 }
+
+// zeroaddr returns the address of a symbol with at least
+// size bytes of zeros.
+func zeroaddr(size int64) *Node {
+	if size >= 1<<31 {
+		Fatalf("map value too big %d", size)
+	}
+	if zerosize < size {
+		zerosize = size
+	}
+	s := Pkglookup("zero", mappkg)
+	if s.Def == nil {
+		x := newname(s)
+		x.Type = Types[TUINT8]
+		x.Class = PEXTERN
+		x.Typecheck = 1
+		s.Def = x
+	}
+	z := Nod(OADDR, s.Def, nil)
+	z.Type = Ptrto(Types[TUINT8])
+	z.Addable = true
+	z.Typecheck = 1
+	return z
+}

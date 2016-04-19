@@ -87,6 +87,11 @@ func dumpobj() {
 	dumpglobls()
 	externdcl = tmp
 
+	if zerosize > 0 {
+		zero := Pkglookup("zero", mappkg)
+		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+	}
+
 	dumpdata()
 	obj.Writeobjdirect(Ctxt, bout.Writer)
 
