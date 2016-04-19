@@ -55,7 +55,12 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 		panic(errorString("makeslice: cap out of range"))
 	}
 
-	p := newarray(t.elem, uintptr(cap))
+	et := t.elem
+	var flags uint32
+	if et.kind&kindNoPointers != 0 {
+		flags = flagNoScan
+	}
+	p := mallocgc(et.size*uintptr(cap), et, flags)
 	return slice{p, len, cap}
 }
 
@@ -130,7 +135,7 @@ func growslice(t *slicetype, old slice, cap int) slice {
 		memclr(add(p, lenmem), capmem-lenmem)
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
-		p = newarray(et, uintptr(newcap))
+		p = mallocgc(capmem, et, 0)
 		if !writeBarrier.enabled {
 			memmove(p, old.array, lenmem)
 		} else {
