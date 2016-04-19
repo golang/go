@@ -37,14 +37,14 @@ func maxSliceCap(elemsize uintptr) uintptr {
 }
 
 // TODO: take uintptrs instead of int64s?
-func makeslice(t *slicetype, len64, cap64 int64) slice {
+func makeslice(et *_type, len64, cap64 int64) slice {
 	// NOTE: The len > maxElements check here is not strictly necessary,
 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
 	// but since the cap is only being supplied implicitly, saying len is clearer.
 	// See issue 4085.
 
-	maxElements := maxSliceCap(t.elem.size)
+	maxElements := maxSliceCap(et.size)
 	len := int(len64)
 	if len64 < 0 || int64(len) != len64 || uintptr(len) > maxElements {
 		panic(errorString("makeslice: len out of range"))
@@ -55,7 +55,6 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 		panic(errorString("makeslice: cap out of range"))
 	}
 
-	et := t.elem
 	var flags uint32
 	if et.kind&kindNoPointers != 0 {
 		flags = flagNoScan
@@ -65,7 +64,7 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 }
 
 // growslice handles slice growth during append.
-// It is passed the slice type, the old slice, and the desired new minimum capacity,
+// It is passed the slice element type, the old slice, and the desired new minimum capacity,
 // and it returns a new slice with at least that capacity, with the old data
 // copied into it.
 // The new slice's length is set to the old slice's length,
@@ -74,16 +73,15 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 // to calculate where to write new values during an append.
 // TODO: When the old backend is gone, reconsider this decision.
 // The SSA backend might prefer the new length or to return only ptr/cap and save stack space.
-func growslice(t *slicetype, old slice, cap int) slice {
+func growslice(et *_type, old slice, cap int) slice {
 	if raceenabled {
-		callerpc := getcallerpc(unsafe.Pointer(&t))
-		racereadrangepc(old.array, uintptr(old.len*int(t.elem.size)), callerpc, funcPC(growslice))
+		callerpc := getcallerpc(unsafe.Pointer(&et))
+		racereadrangepc(old.array, uintptr(old.len*int(et.size)), callerpc, funcPC(growslice))
 	}
 	if msanenabled {
-		msanread(old.array, uintptr(old.len*int(t.elem.size)))
+		msanread(old.array, uintptr(old.len*int(et.size)))
 	}
 
-	et := t.elem
 	if et.size == 0 {
 		if cap < old.cap {
 			panic(errorString("growslice: cap out of range"))

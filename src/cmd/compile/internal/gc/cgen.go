@@ -2876,7 +2876,7 @@ func cgen_append(n, res *Node) {
 	arg.Addable = true
 	arg.Xoffset = Ctxt.FixedFrameSize()
 	arg.Type = Ptrto(Types[TUINT8])
-	Cgen(typename(res.Type), &arg)
+	Cgen(typename(res.Type.Elem()), &arg)
 	arg.Xoffset += int64(Widthptr)
 
 	arg.Type = Types[Tptr]

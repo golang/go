@@ -1420,11 +1420,11 @@ opswitch:
 			r = walkexpr(r, init)
 			n = r
 		} else {
-			// makeslice(t *Type, nel int64, max int64) (ary []any)
+			// makeslice(et *Type, nel int64, max int64) (ary []any)
 			fn := syslook("makeslice")
 
 			fn = substArgTypes(fn, t.Elem()) // any-1
-			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
+			n = mkcall1(fn, n.Type, init, typename(t.Elem()), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
 		}
 
 	case ORUNESTR:
@@ -2799,7 +2799,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 	fn = substArgTypes(fn, s.Type.Elem(), s.Type.Elem())
 
 	// s = growslice(T, s, n)
-	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nn)))
+	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type.Elem()), s, nn)))
 	l = append(l, nif)
 
 	// s = s[:n]
@@ -2929,7 +2929,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	fn = substArgTypes(fn, ns.Type.Elem(), ns.Type.Elem())
 
 	nx.Nbody.Set1(Nod(OAS, ns,
-		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns,
+		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type.Elem()), ns,
 			Nod(OADD, Nod(OLEN, ns, nil), na))))
 
 	l = append(l, nx)
