@@ -12,11 +12,6 @@ import (
 	"unsafe"
 )
 
-var (
-	lookupPort = oldLookupPort
-	lookupIP   = oldLookupIP
-)
-
 func getprotobyname(name string) (proto int, err error) {
 	p, err := syscall.GetProtoByName(name)
 	if err != nil {
@@ -71,61 +66,7 @@ func lookupHost(ctx context.Context, name string) ([]string, error) {
 	return addrs, nil
 }
 
-func gethostbyname(name string) (addrs []IPAddr, err error) {
-	// caller already acquired thread
-	h, err := syscall.GetHostByName(name)
-	if err != nil {
-		return nil, os.NewSyscallError("gethostbyname", err)
-	}
-	switch h.AddrType {
-	case syscall.AF_INET:
-		i := 0
-		addrs = make([]IPAddr, 100) // plenty of room to grow
-		for p := (*[100](*[4]byte))(unsafe.Pointer(h.AddrList)); i < cap(addrs) && p[i] != nil; i++ {
-			addrs[i] = IPAddr{IP: IPv4(p[i][0], p[i][1], p[i][2], p[i][3])}
-		}
-		addrs = addrs[0:i]
-	default: // TODO(vcc): Implement non IPv4 address lookups.
-		return nil, syscall.EWINDOWS
-	}
-	return addrs, nil
-}
-
-func oldLookupIP(ctx context.Context, name string) ([]IPAddr, error) {
-	// GetHostByName return value is stored in thread local storage.
-	// Start new os thread before the call to prevent races.
-	type ret struct {
-		addrs []IPAddr
-		err   error
-	}
-	ch := make(chan ret, 1)
-	go func() {
-		acquireThread()
-		defer releaseThread()
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		addrs, err := gethostbyname(name)
-		ch <- ret{addrs: addrs, err: err}
-	}()
-	select {
-	case r := <-ch:
-		if r.err != nil {
-			r.err = &DNSError{Err: r.err.Error(), Name: name}
-		}
-		return r.addrs, r.err
-	case <-ctx.Done():
-		// TODO(bradfitz,brainman): cancel the ongoing
-		// gethostbyname?  For now we just let it finish and
-		// write to the buffered channel.
-		return nil, &DNSError{
-			Name:      name,
-			Err:       ctx.Err().Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
-	}
-}
-
-func newLookupIP(ctx context.Context, name string) ([]IPAddr, error) {
+func lookupIP(ctx context.Context, name string) ([]IPAddr, error) {
 	// TODO(bradfitz,brainman): use ctx?
 
 	type ret struct {
@@ -184,53 +125,7 @@ func newLookupIP(ctx context.Context, name string) ([]IPAddr, error) {
 	}
 }
 
-func getservbyname(network, service string) (int, error) {
-	acquireThread()
-	defer releaseThread()
-	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
-	}
-	s, err := syscall.GetServByName(service, network)
-	if err != nil {
-		return 0, os.NewSyscallError("getservbyname", err)
-	}
-	return int(syscall.Ntohs(s.Port)), nil
-}
-
-func oldLookupPort(ctx context.Context, network, service string) (int, error) {
-	// GetServByName return value is stored in thread local storage.
-	// Start new os thread before the call to prevent races.
-	type result struct {
-		port int
-		err  error
-	}
-	ch := make(chan result) // unbuffered
-	go func() {
-		acquireThread()
-		defer releaseThread()
-		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		port, err := getservbyname(network, service)
-		select {
-		case ch <- result{port: port, err: err}:
-		case <-ctx.Done():
-		}
-	}()
-	select {
-	case r := <-ch:
-		if r.err != nil {
-			r.err = &DNSError{Err: r.err.Error(), Name: network + "/" + service}
-		}
-		return r.port, r.err
-	case <-ctx.Done():
-		return 0, mapErr(ctx.Err())
-	}
-}
-
-func newLookupPort(ctx context.Context, network, service string) (int, error) {
+func lookupPort(ctx context.Context, network, service string) (int, error) {
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()

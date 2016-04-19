@@ -42,11 +42,6 @@ func sysInit() {
 		initErr = os.NewSyscallError("wsastartup", e)
 	}
 	canCancelIO = syscall.LoadCancelIoEx() == nil
-	if syscall.LoadGetAddrInfo() == nil {
-		lookupPort = newLookupPort
-		lookupIP = newLookupIP
-	}
-
 	hasLoadSetFileCompletionNotificationModes = syscall.LoadSetFileCompletionNotificationModes() == nil
 	if hasLoadSetFileCompletionNotificationModes {
 		// It's not safe to use FILE_SKIP_COMPLETION_PORT_ON_SUCCESS if non IFS providers are installed:
