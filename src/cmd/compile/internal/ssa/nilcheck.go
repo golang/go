@@ -4,8 +4,6 @@
 
 package ssa
 
-// TODO: return value from newobject/newarray is non-nil.
-
 // nilcheckelim eliminates unnecessary nil checks.
 func nilcheckelim(f *Func) {
 	// A nil check is redundant if the same nil check was successful in a

@@ -193,3 +193,24 @@ func f4(x *[10]int) {
 	x = y
 	_ = &x[9] // ERROR "removed repeated nil check"
 }
+
+func m1(m map[int][80]byte) byte {
+	v := m[3] // ERROR "removed nil check"
+	return v[5]
+}
+func m2(m map[int][800]byte) byte {
+	v := m[3] // ERROR "removed nil check"
+	return v[5]
+}
+func m3(m map[int][80]byte) (byte, bool) {
+	v, ok := m[3] // ERROR "removed nil check"
+	return v[5], ok
+}
+func m4(m map[int][800]byte) (byte, bool) {
+	v, ok := m[3] // ERROR "removed nil check"
+	return v[5], ok
+}
+func p1() byte {
+	p := new([100]byte)
+	return p[5] // ERROR "removed nil check"
+}

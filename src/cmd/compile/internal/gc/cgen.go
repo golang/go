@@ -978,7 +978,11 @@ func Agenr(n *Node, a *Node, res *Node) {
 
 	case OIND:
 		Cgenr(n.Left, a, res)
-		Cgen_checknil(a)
+		if !n.Left.NonNil {
+			Cgen_checknil(a)
+		} else if Debug_checknil != 0 && n.Lineno > 1 {
+			Warnl(n.Lineno, "removed nil check")
+		}
 
 	case OINDEX:
 		if Ctxt.Arch.Family == sys.ARM {
@@ -1587,7 +1591,11 @@ func Agen(n *Node, res *Node) {
 
 	case OIND:
 		Cgen(nl, res)
-		Cgen_checknil(res)
+		if !nl.NonNil {
+			Cgen_checknil(res)
+		} else if Debug_checknil != 0 && n.Lineno > 1 {
+			Warnl(n.Lineno, "removed nil check")
+		}
 
 	case ODOT:
 		Agen(nl, res)
@@ -1597,7 +1605,11 @@ func Agen(n *Node, res *Node) {
 
 	case ODOTPTR:
 		Cgen(nl, res)
-		Cgen_checknil(res)
+		if !nl.NonNil {
+			Cgen_checknil(res)
+		} else if Debug_checknil != 0 && n.Lineno > 1 {
+			Warnl(n.Lineno, "removed nil check")
+		}
 		if n.Xoffset != 0 {
 			addOffset(res, n.Xoffset)
 		}
@@ -1658,7 +1670,11 @@ func Igen(n *Node, a *Node, res *Node) {
 
 	case ODOTPTR:
 		Cgenr(n.Left, a, res)
-		Cgen_checknil(a)
+		if !n.Left.NonNil {
+			Cgen_checknil(a)
+		} else if Debug_checknil != 0 && n.Lineno > 1 {
+			Warnl(n.Lineno, "removed nil check")
+		}
 		a.Op = OINDREG
 		a.Xoffset += n.Xoffset
 		a.Type = n.Type
