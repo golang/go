@@ -21,7 +21,14 @@ type InternalExample struct {
 	Unordered bool
 }
 
+// An internal function but exported because it is cross-package; part of the implementation
+// of the "go test" command.
 func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
+	_, ok = runExamples(matchString, examples)
+	return ok
+}
+
+func runExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ran, ok bool) {
 	ok = true
 
 	var eg InternalExample
@@ -35,12 +42,13 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 		if !matched {
 			continue
 		}
+		ran = true
 		if !runExample(eg) {
 			ok = false
 		}
 	}
 
-	return
+	return ran, ok
 }
 
 func sortLines(output string) string {

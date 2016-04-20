@@ -56,7 +56,6 @@ type B struct {
 	missingBytes     bool // one of the subbenchmarks does not have bytes set.
 	timerOn          bool
 	showAllocResult  bool
-	hasSub           bool
 	result           BenchmarkResult
 	parallelism      int // RunParallel creates parallelism*GOMAXPROCS goroutines
 	// The initial states of memStats.Mallocs and memStats.TotalAlloc.
@@ -358,10 +357,10 @@ type benchContext struct {
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
-	runBenchmarksInternal(matchString, benchmarks)
+	runBenchmarks(matchString, benchmarks)
 }
 
-func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
+func runBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
 		return true

@@ -3020,3 +3020,100 @@ func TestGoEnv(t *testing.T) {
 	tg.run("env", "CGO_CFLAGS")
 	tg.grepStdout("^-foobar$", "CGO_CFLAGS not honored")
 }
+
+const (
+	noMatchesPattern = `(?m)^ok.*\[no tests to run\]`
+	okPattern        = `(?m)^ok`
+)
+
+func TestMatchesNoTests(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_test.go")
+	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+}
+
+func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.runFail("test", "-run", "ThisWillNotMatch", "syntaxerror")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth("FAIL", "go test did not say FAIL")
+}
+
+func TestMatchesNoBenchmarks(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
+	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+}
+
+func TestMatchesOnlyExampleIsOK(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "Example", "testdata/example1_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth(okPattern, "go test did not say ok")
+}
+
+func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-bench", ".", "testdata/standalone_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth(okPattern, "go test did not say ok")
+}
+
+func TestMatchesOnlyTestIsOK(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "Test", "testdata/standalone_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth(okPattern, "go test did not say ok")
+}
+
+func TestMatchesNoTestsWithSubtests(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_sub_test.go")
+	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+}
+
+func TestMatchesNoSubtestsMatch(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "Test/ThisWillNotMatch", "testdata/standalone_sub_test.go")
+	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+}
+
+func TestMatchesNoSubtestsDoesNotOverrideFailure(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.runFail("test", "-run", "TestThatFails/ThisWillNotMatch", "testdata/standalone_fail_sub_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth("FAIL", "go test did not say FAIL")
+}
+
+func TestMatchesOnlySubtestIsOK(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "Test/Sub", "testdata/standalone_sub_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth(okPattern, "go test did not say ok")
+}
+
+func TestMatchesNoSubtestsParallel(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "Test/Sub/ThisWillNotMatch", "testdata/standalone_parallel_sub_test.go")
+	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
+}
+
+func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-run", "Test/Sub/Nested", "testdata/standalone_parallel_sub_test.go")
+	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
+	tg.grepBoth(okPattern, "go test did not say ok")
+}

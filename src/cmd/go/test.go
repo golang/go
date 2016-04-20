@@ -13,6 +13,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -1085,6 +1086,8 @@ func declareCoverVars(importPath string, files ...string) map[string]*CoverVar {
 	return coverVars
 }
 
+var noTestsToRun = []byte("\ntesting: warning: no tests to run\n")
+
 // runTest is the action for running a test binary.
 func (b *builder) runTest(a *action) error {
 	args := stringList(findExecCmd(), a.deps[0].target, testArgs)
@@ -1110,8 +1113,12 @@ func (b *builder) runTest(a *action) error {
 	cmd.Env = envForDir(cmd.Dir, origEnv)
 	var buf bytes.Buffer
 	if testStreamOutput {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		// The only way to keep the ordering of the messages and still
+		// intercept its contents. os/exec will share the same Pipe for
+		// both Stdout and Stderr when running the test program.
+		mw := io.MultiWriter(os.Stdout, &buf)
+		cmd.Stdout = mw
+		cmd.Stderr = mw
 	} else {
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
@@ -1175,16 +1182,22 @@ func (b *builder) runTest(a *action) error {
 	out := buf.Bytes()
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
 	if err == nil {
-		if testShowPass {
+		norun := ""
+		if testShowPass && !testStreamOutput {
 			a.testOutput.Write(out)
 		}
-		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s\n", a.p.ImportPath, t, coveragePercentage(out))
+		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {
+			norun = " [no tests to run]"
+		}
+		fmt.Fprintf(a.testOutput, "ok  \t%s\t%s%s%s\n", a.p.ImportPath, t, coveragePercentage(out), norun)
 		return nil
 	}
 
 	setExitStatus(1)
 	if len(out) > 0 {
-		a.testOutput.Write(out)
+		if !testStreamOutput {
+			a.testOutput.Write(out)
+		}
 		// assume printing the test binary's exit status is superfluous
 	} else {
 		fmt.Fprintf(a.testOutput, "%s\n", err)
