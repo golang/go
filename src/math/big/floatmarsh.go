@@ -15,13 +15,29 @@ import (
 const floatGobVersion byte = 1
 
 // GobEncode implements the gob.GobEncoder interface.
+// The Float value and all its attributes (precision,
+// rounding mode, accuracy) are marshalled.
 func (x *Float) GobEncode() ([]byte, error) {
 	if x == nil {
 		return nil, nil
 	}
+
+	// determine max. space (bytes) required for encoding
 	sz := 1 + 1 + 4 // version + mode|acc|form|neg (3+2+2+1bit) + prec
+	n := 0          // number of mantissa words
 	if x.form == finite {
-		sz += 4 + int((x.prec+(_W-1))/_W)*_S // exp + mant
+		// add space for mantissa and exponent
+		n = int((x.prec + (_W - 1)) / _W) // required mantissa length in words for given precision
+		// actual mantissa slice could be shorter (trailing 0's) or longer (unused bits):
+		// - if shorter, only encode the words present
+		// - if longer, cut off unused words when encoding in bytes
+		//   (in practice, this should never happen since rounding
+		//   takes care of it, but be safe and do it always)
+		if len(x.mant) < n {
+			n = len(x.mant)
+		}
+		// len(x.mant) >= n
+		sz += 4 + n*_S // exp + mant
 	}
 	buf := make([]byte, sz)
 
@@ -32,14 +48,19 @@ func (x *Float) GobEncode() ([]byte, error) {
 	}
 	buf[1] = b
 	binary.BigEndian.PutUint32(buf[2:], x.prec)
+
 	if x.form == finite {
 		binary.BigEndian.PutUint32(buf[6:], uint32(x.exp))
-		x.mant.bytes(buf[10:])
+		x.mant[len(x.mant)-n:].bytes(buf[10:]) // cut off unused trailing words
 	}
+
 	return buf, nil
 }
 
 // GobDecode implements the gob.GobDecoder interface.
+// The result is rounded per the precision and rounding mode of
+// z unless z's precision is 0, in which case z is set exactly
+// to the decoded value.
 func (z *Float) GobDecode(buf []byte) error {
 	if len(buf) == 0 {
 		// Other side sent a nil or default value.
@@ -51,13 +72,14 @@ func (z *Float) GobDecode(buf []byte) error {
 		return fmt.Errorf("Float.GobDecode: encoding version %d not supported", buf[0])
 	}
 
+	oldPrec := z.prec
+	oldMode := z.mode
+
 	b := buf[1]
 	z.mode = RoundingMode((b >> 5) & 7)
 	z.acc = Accuracy((b>>3)&3) - 1
 	z.form = form((b >> 1) & 3)
 	z.neg = b&1 != 0
-
-	oldPrec := uint(z.prec)
 	z.prec = binary.BigEndian.Uint32(buf[2:])
 
 	if z.form == finite {
@@ -66,8 +88,10 @@ func (z *Float) GobDecode(buf []byte) error {
 	}
 
 	if oldPrec != 0 {
-		z.SetPrec(oldPrec)
+		z.mode = oldMode
+		z.SetPrec(uint(oldPrec))
 	}
+
 	return nil
 }
 
