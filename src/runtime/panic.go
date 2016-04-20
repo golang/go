@@ -205,7 +205,7 @@ func newdefer(siz int32) *_defer {
 	if d == nil {
 		// Allocate new defer+args.
 		total := roundupsize(totaldefersize(uintptr(siz)))
-		d = (*_defer)(mallocgc(total, deferType, 0))
+		d = (*_defer)(mallocgc(total, deferType, true))
 	}
 	d.siz = siz
 	gp := mp.curg
