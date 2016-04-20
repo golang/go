@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 )
 
 // A File represents an open PE file.
@@ -172,12 +171,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		if err := binary.Read(sr, binary.LittleEndian, sh); err != nil {
 			return nil, err
 		}
-		var name string
-		if sh.Name[0] == '\x2F' {
-			si, _ := strconv.Atoi(cstring(sh.Name[1:]))
-			name, _ = getString(ss, si)
-		} else {
-			name = cstring(sh.Name[0:])
+		name, err := sh.fullName(f.StringTable)
+		if err != nil {
+			return nil, err
 		}
 		s := new(Section)
 		s.SectionHeader = SectionHeader{
