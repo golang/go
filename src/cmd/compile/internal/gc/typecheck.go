@@ -3557,7 +3557,7 @@ func copytype(n *Node, t *Type) {
 
 	if embedlineno != 0 {
 		lineno = embedlineno
-		if t.IsPtr() {
+		if t.IsPtr() || t.IsUnsafePtr() {
 			Yyerror("embedded type cannot be a pointer")
 		}
 	}
