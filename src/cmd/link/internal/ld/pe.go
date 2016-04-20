@@ -784,8 +784,6 @@ func perelocsect(sect *Section, first *LSym) int {
 	}
 
 	eaddr := int32(sect.Vaddr + sect.Length)
-	var r *Reloc
-	var ri int
 	for ; sym != nil; sym = sym.Next {
 		if !sym.Attr.Reachable() {
 			continue
@@ -795,8 +793,8 @@ func perelocsect(sect *Section, first *LSym) int {
 		}
 		Ctxt.Cursym = sym
 
-		for ri = 0; ri < len(sym.R); ri++ {
-			r = &sym.R[ri]
+		for ri := 0; ri < len(sym.R); ri++ {
+			r := &sym.R[ri]
 			if r.Done != 0 {
 				continue
 			}
