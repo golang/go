@@ -2403,27 +2403,6 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (Eq8 x (ConstBool <t> [c]))
-	// cond: x.Op != OpConstBool
-	// result: (Eq8 (ConstBool <t> [c]) x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConstBool {
-			break
-		}
-		t := v_1.Type
-		c := v_1.AuxInt
-		if !(x.Op != OpConstBool) {
-			break
-		}
-		v.reset(OpEq8)
-		v0 := b.NewValue0(v.Line, OpConstBool, t)
-		v0.AuxInt = c
-		v.AddArg(v0)
-		v.AddArg(x)
-		return true
-	}
 	// match: (Eq8  (Const8  [c]) (Const8  [d]))
 	// cond:
 	// result: (ConstBool [b2i(c == d)])
@@ -5762,27 +5741,6 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
 		}
 		v.reset(OpNeq8)
 		v0 := b.NewValue0(v.Line, OpConst8, t)
-		v0.AuxInt = c
-		v.AddArg(v0)
-		v.AddArg(x)
-		return true
-	}
-	// match: (Neq8 x (ConstBool <t> [c]))
-	// cond: x.Op != OpConstBool
-	// result: (Neq8 (ConstBool <t> [c]) x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConstBool {
-			break
-		}
-		t := v_1.Type
-		c := v_1.AuxInt
-		if !(x.Op != OpConstBool) {
-			break
-		}
-		v.reset(OpNeq8)
-		v0 := b.NewValue0(v.Line, OpConstBool, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)

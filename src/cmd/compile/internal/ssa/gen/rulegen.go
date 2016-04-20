@@ -52,12 +52,12 @@ var (
 )
 
 type Rule struct {
-	rule   string
-	lineno int
+	rule string
+	loc  string // file name & line number
 }
 
 func (r Rule) String() string {
-	return fmt.Sprintf("rule %q at line %d", r.rule, r.lineno)
+	return fmt.Sprintf("rule %q at %s", r.rule, r.loc)
 }
 
 // parse returns the matching part of the rule, additional conditions, and the result.
@@ -117,10 +117,11 @@ func genRules(arch arch) {
 		if op[len(op)-1] == ')' {
 			op = op[:len(op)-1] // rule has only opcode, e.g. (ConstNil) -> ...
 		}
+		loc := fmt.Sprintf("%s.rules:%d", arch.name, lineno)
 		if isBlock(op, arch) {
-			blockrules[op] = append(blockrules[op], Rule{rule: rule, lineno: lineno})
+			blockrules[op] = append(blockrules[op], Rule{rule: rule, loc: loc})
 		} else {
-			oprules[op] = append(oprules[op], Rule{rule: rule, lineno: lineno})
+			oprules[op] = append(oprules[op], Rule{rule: rule, loc: loc})
 		}
 		rule = ""
 	}
@@ -128,7 +129,7 @@ func genRules(arch arch) {
 		log.Fatalf("scanner failed: %v\n", err)
 	}
 	if unbalanced(rule) {
-		log.Fatalf("unbalanced rule at line %d: %v\n", lineno, rule)
+		log.Fatalf("%s.rules:%d: unbalanced rule: %v\n", arch.name, lineno, rule)
 	}
 
 	// Order all the ops.
@@ -174,15 +175,15 @@ func genRules(arch arch) {
 			fmt.Fprintf(w, "// result: %s\n", result)
 
 			fmt.Fprintf(w, "for {\n")
-			genMatch(w, arch, match)
+			genMatch(w, arch, match, rule.loc)
 
 			if cond != "" {
 				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
 			}
 
-			genResult(w, arch, result)
+			genResult(w, arch, result, rule.loc)
 			if *genLog {
-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s.rules:%d\")\n", arch.name, rule.lineno)
+				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
 			}
 			fmt.Fprintf(w, "return true\n")
 
@@ -217,7 +218,7 @@ func genRules(arch arch) {
 			if s[1] != "nil" {
 				fmt.Fprintf(w, "v := b.Control\n")
 				if strings.Contains(s[1], "(") {
-					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false)
+					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false, rule.loc)
 				} else {
 					fmt.Fprintf(w, "%s := b.Control\n", s[1])
 				}
@@ -266,7 +267,7 @@ func genRules(arch arch) {
 			if t[1] == "nil" {
 				fmt.Fprintf(w, "b.SetControl(nil)\n")
 			} else {
-				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false))
+				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false, rule.loc))
 			}
 			if len(newsuccs) < len(succs) {
 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
@@ -289,7 +290,7 @@ func genRules(arch arch) {
 			}
 
 			if *genLog {
-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s.rules:%d\")\n", arch.name, rule.lineno)
+				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
 			}
 			fmt.Fprintf(w, "return true\n")
 
@@ -315,11 +316,11 @@ func genRules(arch arch) {
 	}
 }
 
-func genMatch(w io.Writer, arch arch, match string) {
-	genMatch0(w, arch, match, "v", map[string]struct{}{}, true)
+func genMatch(w io.Writer, arch arch, match string, loc string) {
+	genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
 }
 
-func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool) {
+func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
 		panic("non-compound expr in genMatch0: " + match)
 	}
@@ -327,6 +328,24 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 	// split body up into regions. Split by spaces/tabs, except those
 	// contained in () or {}.
 	s := split(match[1 : len(match)-1]) // remove parens, then split
+
+	// Find op record
+	var op opData
+	for _, x := range genericOps {
+		if x.name == s[0] {
+			op = x
+			break
+		}
+	}
+	for _, x := range arch.ops {
+		if x.name == s[0] {
+			op = x
+			break
+		}
+	}
+	if op.name == "" {
+		log.Fatalf("%s: unknown op %s", loc, s[0])
+	}
 
 	// check op
 	if !top {
@@ -354,6 +373,11 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			}
 		} else if a[0] == '[' {
 			// auxint restriction
+			switch op.aux {
+			case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
+			default:
+				log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+			}
 			x := a[1 : len(a)-1] // remove []
 			if !isVariable(x) {
 				// code
@@ -368,7 +392,12 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 				}
 			}
 		} else if a[0] == '{' {
-			// auxint restriction
+			// aux restriction
+			switch op.aux {
+			case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
+			default:
+				log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+			}
 			x := a[1 : len(a)-1] // remove {}
 			if !isVariable(x) {
 				// code
@@ -412,30 +441,18 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 				argname = fmt.Sprintf("%s_%d", v, argnum)
 			}
 			fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, argnum)
-			genMatch0(w, arch, a, argname, m, false)
+			genMatch0(w, arch, a, argname, m, false, loc)
 			argnum++
 		}
 	}
-
-	variableLength := false
-	for _, op := range genericOps {
-		if op.name == s[0] && op.argLength == -1 {
-			variableLength = true
-			break
-		}
-	}
-	for _, op := range arch.ops {
-		if op.name == s[0] && op.argLength == -1 {
-			variableLength = true
-			break
-		}
-	}
-	if variableLength {
+	if op.argLength == -1 {
 		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, argnum)
+	} else if int(op.argLength) != argnum {
+		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
 	}
 }
 
-func genResult(w io.Writer, arch arch, result string) {
+func genResult(w io.Writer, arch arch, result string, loc string) {
 	move := false
 	if result[0] == '@' {
 		// parse @block directive
@@ -444,9 +461,9 @@ func genResult(w io.Writer, arch arch, result string) {
 		result = s[1]
 		move = true
 	}
-	genResult0(w, arch, result, new(int), true, move)
+	genResult0(w, arch, result, new(int), true, move, loc)
 }
-func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool) string {
+func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool, loc string) string {
 	// TODO: when generating a constant result, use f.constVal to avoid
 	// introducing copies just to clean them up again.
 	if result[0] != '(' {
@@ -463,6 +480,24 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 	}
 
 	s := split(result[1 : len(result)-1]) // remove parens, then split
+
+	// Find op record
+	var op opData
+	for _, x := range genericOps {
+		if x.name == s[0] {
+			op = x
+			break
+		}
+	}
+	for _, x := range arch.ops {
+		if x.name == s[0] {
+			op = x
+			break
+		}
+	}
+	if op.name == "" {
+		log.Fatalf("%s: unknown op %s", loc, s[0])
+	}
 
 	// Find the type of the variable.
 	var opType string
@@ -512,22 +547,37 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
 		}
 	}
+	argnum := 0
 	for _, a := range s[1:] {
 		if a[0] == '<' {
 			// type restriction, handled above
 		} else if a[0] == '[' {
 			// auxint restriction
+			switch op.aux {
+			case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
+			default:
+				log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+			}
 			x := a[1 : len(a)-1] // remove []
 			fmt.Fprintf(w, "%s.AuxInt = %s\n", v, x)
 		} else if a[0] == '{' {
 			// aux restriction
+			switch op.aux {
+			case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
+			default:
+				log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+			}
 			x := a[1 : len(a)-1] // remove {}
 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
 		} else {
 			// regular argument (sexpr or variable)
-			x := genResult0(w, arch, a, alloc, false, move)
+			x := genResult0(w, arch, a, alloc, false, move, loc)
 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
+			argnum++
 		}
+	}
+	if op.argLength != -1 && int(op.argLength) != argnum {
+		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
 	}
 
 	return v

@@ -193,6 +193,8 @@ func checkFunc(f *Func) {
 				canHaveAuxInt = true
 			case auxInt64, auxFloat64:
 				canHaveAuxInt = true
+			case auxInt128:
+				// AuxInt must be zero, so leave canHaveAuxInt set to false.
 			case auxFloat32:
 				canHaveAuxInt = true
 				if !isExactFloat32(v) {
@@ -201,6 +203,12 @@ func checkFunc(f *Func) {
 			case auxString, auxSym:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff:
+				canHaveAuxInt = true
+				canHaveAux = true
+			case auxSymInt32:
+				if v.AuxInt != int64(int32(v.AuxInt)) {
+					f.Fatalf("bad int32 AuxInt value for %v", v)
+				}
 				canHaveAuxInt = true
 				canHaveAux = true
 			default:
