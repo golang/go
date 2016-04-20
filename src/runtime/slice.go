@@ -43,7 +43,6 @@ func makeslice(et *_type, len64, cap64 int64) slice {
 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
 	// but since the cap is only being supplied implicitly, saying len is clearer.
 	// See issue 4085.
-
 	maxElements := maxSliceCap(et.size)
 	len := int(len64)
 	if len64 < 0 || int64(len) != len64 || uintptr(len) > maxElements {
@@ -55,11 +54,7 @@ func makeslice(et *_type, len64, cap64 int64) slice {
 		panic(errorString("makeslice: cap out of range"))
 	}
 
-	var flags uint32
-	if et.kind&kindNoPointers != 0 {
-		flags = flagNoScan
-	}
-	p := mallocgc(et.size*uintptr(cap), et, flags)
+	p := mallocgc(et.size*uintptr(cap), et, true)
 	return slice{p, len, cap}
 }
 
@@ -128,12 +123,12 @@ func growslice(et *_type, old slice, cap int) slice {
 
 	var p unsafe.Pointer
 	if et.kind&kindNoPointers != 0 {
-		p = rawmem(capmem)
+		p = mallocgc(capmem, nil, false)
 		memmove(p, old.array, lenmem)
 		memclr(add(p, lenmem), capmem-lenmem)
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
-		p = mallocgc(capmem, et, 0)
+		p = mallocgc(capmem, et, true)
 		if !writeBarrier.enabled {
 			memmove(p, old.array, lenmem)
 		} else {
