@@ -886,6 +886,7 @@ opswitch:
 		if !isblank(a) {
 			var_ := temp(Ptrto(t.Val()))
 			var_.Typecheck = 1
+			var_.NonNil = true // mapaccess always returns a non-nil pointer
 			n.List.SetIndex(0, var_)
 			n = walkexpr(n, init)
 			init.Append(n)
@@ -894,8 +895,6 @@ opswitch:
 
 		n = typecheck(n, Etop)
 		n = walkexpr(n, init)
-
-		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
 
 	case ODELETE:
 		init.AppendNodes(&n.Ninit)
@@ -1224,7 +1223,6 @@ opswitch:
 			// standard version takes key by reference.
 			// orderexpr made sure key is addressable.
 			key = Nod(OADDR, n.Right, nil)
-
 			p = "mapaccess1"
 		}
 
@@ -1235,6 +1233,7 @@ opswitch:
 			z := zeroaddr(w)
 			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key, z)
 		}
+		n.NonNil = true // mapaccess always returns a non-nil pointer
 		n = Nod(OIND, n, nil)
 		n.Type = t.Val()
 		n.Typecheck = 1
@@ -2015,7 +2014,9 @@ func callnew(t *Type) *Node {
 	dowidth(t)
 	fn := syslook("newobject")
 	fn = substArgTypes(fn, t)
-	return mkcall1(fn, Ptrto(t), nil, typename(t))
+	v := mkcall1(fn, Ptrto(t), nil, typename(t))
+	v.NonNil = true
+	return v
 }
 
 func iscallret(n *Node) bool {
