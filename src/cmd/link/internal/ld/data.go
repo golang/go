@@ -665,11 +665,9 @@ func dynrelocsym(s *LSym) {
 		if s == rel {
 			return
 		}
-		var r *Reloc
-		var targ *LSym
 		for ri := 0; ri < len(s.R); ri++ {
-			r = &s.R[ri]
-			targ = r.Sym
+			r := &s.R[ri]
+			targ := r.Sym
 			if targ == nil {
 				continue
 			}
@@ -704,9 +702,8 @@ func dynrelocsym(s *LSym) {
 		return
 	}
 
-	var r *Reloc
 	for ri := 0; ri < len(s.R); ri++ {
-		r = &s.R[ri]
+		r := &s.R[ri]
 		if r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT || r.Type >= 256 {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				Diag("internal inconsistency: dynamic symbol %s is not reachable.", r.Sym.Name)
@@ -748,7 +745,6 @@ func blk(start *LSym, addr int64, size int64) {
 	}
 
 	eaddr := addr + size
-	var p []byte
 	for ; sym != nil; sym = sym.Next {
 		if sym.Type&obj.SSUB != 0 {
 			continue
@@ -766,8 +762,7 @@ func blk(start *LSym, addr int64, size int64) {
 			strnput("", int(sym.Value-addr))
 			addr = sym.Value
 		}
-		p = sym.P
-		Cwrite(p)
+		Cwrite(sym.P)
 		addr += int64(len(sym.P))
 		if addr < sym.Value+sym.Size {
 			strnput("", int(sym.Value+sym.Size-addr))
@@ -874,12 +869,6 @@ func Datblk(addr int64, size int64) {
 	}
 
 	eaddr := addr + size
-	var ep []byte
-	var i int64
-	var p []byte
-	var r *Reloc
-	var rsname string
-	var typ string
 	for ; sym != nil; sym = sym.Next {
 		if sym.Value >= eaddr {
 			break
@@ -889,15 +878,12 @@ func Datblk(addr int64, size int64) {
 			addr = sym.Value
 		}
 
-		fmt.Fprintf(Bso, "%s\n\t%.8x|", sym.Name, uint(addr))
-		p = sym.P
-		ep = p[len(sym.P):]
-		for -cap(p) < -cap(ep) {
-			if -cap(p) > -cap(sym.P) && (-cap(p)+cap(sym.P))%16 == 0 {
-				fmt.Fprintf(Bso, "\n\t%.8x|", uint(addr+int64(-cap(p)+cap(sym.P))))
+		fmt.Fprintf(Bso, "%s\n\t%.8x|", sym.Name, uint64(addr))
+		for i, b := range sym.P {
+			if i > 0 && i%16 == 0 {
+				fmt.Fprintf(Bso, "\n\t%.8x|", uint64(addr)+uint64(i))
 			}
-			fmt.Fprintf(Bso, " %.2x", p[0])
-			p = p[1:]
+			fmt.Fprintf(Bso, " %.2x", b)
 		}
 
 		addr += int64(len(sym.P))
@@ -906,27 +892,24 @@ func Datblk(addr int64, size int64) {
 		}
 		fmt.Fprintf(Bso, "\n")
 
-		if Linkmode == LinkExternal {
-			for i = 0; i < int64(len(sym.R)); i++ {
-				r = &sym.R[i]
-				rsname = ""
-				if r.Sym != nil {
-					rsname = r.Sym.Name
-				}
-				typ = "?"
-				switch r.Type {
-				case obj.R_ADDR:
-					typ = "addr"
-
-				case obj.R_PCREL:
-					typ = "pcrel"
-
-				case obj.R_CALL:
-					typ = "call"
-				}
-
-				fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
+		if Linkmode != LinkExternal {
+			continue
+		}
+		for _, r := range sym.R {
+			rsname := ""
+			if r.Sym != nil {
+				rsname = r.Sym.Name
 			}
+			typ := "?"
+			switch r.Type {
+			case obj.R_ADDR:
+				typ = "addr"
+			case obj.R_PCREL:
+				typ = "pcrel"
+			case obj.R_CALL:
+				typ = "call"
+			}
+			fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
 		}
 	}
 
