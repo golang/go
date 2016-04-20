@@ -90,7 +90,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			break
 		}
 	}
-	// remove clobbered copies
+	// remove clobbered values
 	for _, b := range f.Blocks {
 		j := 0
 		for i, v := range b.Values {
@@ -366,4 +366,14 @@ found:
 
 	}
 	return nil // too far away
+}
+
+// clobber invalidates v.  Returns true.
+// clobber is used by rewrite rules to:
+//   A) make sure v is really dead and never used again.
+//   B) decrement use counts of v's args.
+func clobber(v *Value) bool {
+	v.reset(OpInvalid)
+	// Note: leave v.Block intact.  The Block field is used after clobber.
+	return true
 }

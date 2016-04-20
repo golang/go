@@ -689,18 +689,18 @@
 // Make sure we don't combine these ops if the load has another use.
 // This prevents a single load from being split into multiple loads
 // which then might return different values.  See test/atomicload.go.
-(MOVBQSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
-(MOVBQZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
-(MOVWQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
-(MOVWQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
-(MOVLQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
-(MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+(MOVBQSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVWQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+(MOVLQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+(MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
 
-(MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
-(MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
-(MOVWQZX x:(MOVWloadidx2 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVWloadidx2 <v.Type> [off] {sym} ptr idx mem)
-(MOVLQZX x:(MOVLloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVLloadidx1 <v.Type> [off] {sym} ptr idx mem)
-(MOVLQZX x:(MOVLloadidx4 [off] {sym} ptr idx mem)) && x.Uses == 1 -> @x.Block (MOVLloadidx4 <v.Type> [off] {sym} ptr idx mem)
+(MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
+(MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
+(MOVWQZX x:(MOVWloadidx2 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx2 <v.Type> [off] {sym} ptr idx mem)
+(MOVLQZX x:(MOVLloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLloadidx1 <v.Type> [off] {sym} ptr idx mem)
+(MOVLQZX x:(MOVLloadidx4 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLloadidx4 <v.Type> [off] {sym} ptr idx mem)
 
 // replace load from same location as preceding store with copy
 (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
@@ -1368,40 +1368,296 @@
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.
-(ORW               x0:(MOVBload [i]   {s} p mem)
-    (SHLWconst [8] x1:(MOVBload [i+1] {s} p mem))) && x0.Uses == 1 && x1.Uses == 1 && mergePoint(b,x0,x1) != nil -> @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
+(ORW                  x0:(MOVBload [i]   {s} p mem)
+    s0:(SHLWconst [8] x1:(MOVBload [i+1] {s} p mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && s0.Uses == 1
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(s0)
+  -> @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
 
-(ORL (ORL (ORL
-                    x0:(MOVBload [i]   {s} p mem)
-    (SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))
-    (SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))
-    (SHLLconst [24] x3:(MOVBload [i+3] {s} p mem))) && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && mergePoint(b,x0,x1,x2,x3) != nil -> @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
+(ORL o0:(ORL o1:(ORL
+                       x0:(MOVBload [i]   {s} p mem)
+    s0:(SHLLconst [8]  x1:(MOVBload [i+1] {s} p mem)))
+    s1:(SHLLconst [16] x2:(MOVBload [i+2] {s} p mem)))
+    s2:(SHLLconst [24] x3:(MOVBload [i+3] {s} p mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && s0.Uses == 1
+  && s1.Uses == 1
+  && s2.Uses == 1
+  && o0.Uses == 1
+  && o1.Uses == 1
+  && mergePoint(b,x0,x1,x2,x3) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(x2)
+  && clobber(x3)
+  && clobber(s0)
+  && clobber(s1)
+  && clobber(s2)
+  && clobber(o0)
+  && clobber(o1)
+  -> @mergePoint(b,x0,x1,x2,x3) (MOVLload [i] {s} p mem)
 
-(ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
-                    x0:(MOVBload [i]   {s} p mem)
-    (SHLQconst [8]  x1:(MOVBload [i+1] {s} p mem)))
-    (SHLQconst [16] x2:(MOVBload [i+2] {s} p mem)))
-    (SHLQconst [24] x3:(MOVBload [i+3] {s} p mem)))
-    (SHLQconst [32] x4:(MOVBload [i+4] {s} p mem)))
-    (SHLQconst [40] x5:(MOVBload [i+5] {s} p mem)))
-    (SHLQconst [48] x6:(MOVBload [i+6] {s} p mem)))
-    (SHLQconst [56] x7:(MOVBload [i+7] {s} p mem))) && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVQload [i] {s} p mem)
+(ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ
+                       x0:(MOVBload [i]   {s} p mem)
+    s0:(SHLQconst [8]  x1:(MOVBload [i+1] {s} p mem)))
+    s1:(SHLQconst [16] x2:(MOVBload [i+2] {s} p mem)))
+    s2:(SHLQconst [24] x3:(MOVBload [i+3] {s} p mem)))
+    s3:(SHLQconst [32] x4:(MOVBload [i+4] {s} p mem)))
+    s4:(SHLQconst [40] x5:(MOVBload [i+5] {s} p mem)))
+    s5:(SHLQconst [48] x6:(MOVBload [i+6] {s} p mem)))
+    s6:(SHLQconst [56] x7:(MOVBload [i+7] {s} p mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && x4.Uses == 1
+  && x5.Uses == 1
+  && x6.Uses == 1
+  && x7.Uses == 1
+  && s0.Uses == 1
+  && s1.Uses == 1
+  && s2.Uses == 1
+  && s3.Uses == 1
+  && s4.Uses == 1
+  && s5.Uses == 1
+  && s6.Uses == 1
+  && o0.Uses == 1
+  && o1.Uses == 1
+  && o2.Uses == 1
+  && o3.Uses == 1
+  && o4.Uses == 1
+  && o5.Uses == 1
+  && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(x2)
+  && clobber(x3)
+  && clobber(x4)
+  && clobber(x5)
+  && clobber(x6)
+  && clobber(x7)
+  && clobber(s0)
+  && clobber(s1)
+  && clobber(s2)
+  && clobber(s3)
+  && clobber(s4)
+  && clobber(s5)
+  && clobber(s6)
+  && clobber(o0)
+  && clobber(o1)
+  && clobber(o2)
+  && clobber(o3)
+  && clobber(o4)
+  && clobber(o5)
+  -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVQload [i] {s} p mem)
 
-(ORW               x0:(MOVBloadidx1 [i]   {s} p idx mem)
-    (SHLWconst [8] x1:(MOVBloadidx1 [i+1] {s} p idx mem))) && x0.Uses == 1 && x1.Uses == 1 && mergePoint(b,x0,x1) != nil -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
+(ORW                  x0:(MOVBloadidx1 [i]   {s} p idx mem)
+    s0:(SHLWconst [8] x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && s0.Uses == 1
+  && mergePoint(b,x0,x1) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(s0)
+  -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i] {s} p idx mem)
 
-(ORL (ORL (ORL
-                    x0:(MOVBloadidx1 [i]   {s} p idx mem)
-    (SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
-    (SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
-    (SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem))) && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && mergePoint(b,x0,x1,x2,x3) != nil -> @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
+(ORL o0:(ORL o1:(ORL
+                       x0:(MOVBloadidx1 [i]   {s} p idx mem)
+    s0:(SHLLconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+    s1:(SHLLconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
+    s2:(SHLLconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && s0.Uses == 1
+  && s1.Uses == 1
+  && s2.Uses == 1
+  && o0.Uses == 1
+  && o1.Uses == 1
+  && mergePoint(b,x0,x1,x2,x3) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(x2)
+  && clobber(x3)
+  && clobber(s0)
+  && clobber(s1)
+  && clobber(s2)
+  && clobber(o0)
+  && clobber(o1)
+  -> @mergePoint(b,x0,x1,x2,x3) (MOVLloadidx1 <v.Type> [i] {s} p idx mem)
 
-(ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
-                    x0:(MOVBloadidx1 [i]   {s} p idx mem)
-    (SHLQconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
-    (SHLQconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
-    (SHLQconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
-    (SHLQconst [32] x4:(MOVBloadidx1 [i+4] {s} p idx mem)))
-    (SHLQconst [40] x5:(MOVBloadidx1 [i+5] {s} p idx mem)))
-    (SHLQconst [48] x6:(MOVBloadidx1 [i+6] {s} p idx mem)))
-    (SHLQconst [56] x7:(MOVBloadidx1 [i+7] {s} p idx mem))) && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1 && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVQloadidx1 <v.Type> [i] {s} p idx mem)
+(ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ
+                       x0:(MOVBloadidx1 [i]   {s} p idx mem)
+    s0:(SHLQconst [8]  x1:(MOVBloadidx1 [i+1] {s} p idx mem)))
+    s1:(SHLQconst [16] x2:(MOVBloadidx1 [i+2] {s} p idx mem)))
+    s2:(SHLQconst [24] x3:(MOVBloadidx1 [i+3] {s} p idx mem)))
+    s3:(SHLQconst [32] x4:(MOVBloadidx1 [i+4] {s} p idx mem)))
+    s4:(SHLQconst [40] x5:(MOVBloadidx1 [i+5] {s} p idx mem)))
+    s5:(SHLQconst [48] x6:(MOVBloadidx1 [i+6] {s} p idx mem)))
+    s6:(SHLQconst [56] x7:(MOVBloadidx1 [i+7] {s} p idx mem)))
+  && x0.Uses == 1
+  && x1.Uses == 1
+  && x2.Uses == 1
+  && x3.Uses == 1
+  && x4.Uses == 1
+  && x5.Uses == 1
+  && x6.Uses == 1
+  && x7.Uses == 1
+  && s0.Uses == 1
+  && s1.Uses == 1
+  && s2.Uses == 1
+  && s3.Uses == 1
+  && s4.Uses == 1
+  && s5.Uses == 1
+  && s6.Uses == 1
+  && o0.Uses == 1
+  && o1.Uses == 1
+  && o2.Uses == 1
+  && o3.Uses == 1
+  && o4.Uses == 1
+  && o5.Uses == 1
+  && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
+  && clobber(x0)
+  && clobber(x1)
+  && clobber(x2)
+  && clobber(x3)
+  && clobber(x4)
+  && clobber(x5)
+  && clobber(x6)
+  && clobber(x7)
+  && clobber(s0)
+  && clobber(s1)
+  && clobber(s2)
+  && clobber(s3)
+  && clobber(s4)
+  && clobber(s5)
+  && clobber(s6)
+  && clobber(o0)
+  && clobber(o1)
+  && clobber(o2)
+  && clobber(o3)
+  && clobber(o4)
+  && clobber(o5)
+  -> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVQloadidx1 <v.Type> [i] {s} p idx mem)
+
+// Combine constant stores into larger (unaligned) stores.
+(MOVBstoreconst [c] {s} p x:(MOVBstoreconst [a] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 1 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVWstoreconst [makeValAndOff(ValAndOff(a).Val()&0xff | ValAndOff(c).Val()<<8, ValAndOff(a).Off())] {s} p mem)
+(MOVWstoreconst [c] {s} p x:(MOVWstoreconst [a] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVLstoreconst [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p mem)
+(MOVLstoreconst [c] {s} p x:(MOVLstoreconst [a] {s} p mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 4 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVQstore [ValAndOff(a).Off()] {s} p (MOVQconst [ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32]) mem)
+
+(MOVBstoreconstidx1 [c] {s} p i x:(MOVBstoreconstidx1 [a] {s} p i mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 1 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVWstoreconstidx1 [makeValAndOff(ValAndOff(a).Val()&0xff | ValAndOff(c).Val()<<8, ValAndOff(a).Off())] {s} p i mem)
+(MOVWstoreconstidx1 [c] {s} p i x:(MOVWstoreconstidx1 [a] {s} p i mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVLstoreconstidx1 [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p i mem)
+(MOVLstoreconstidx1 [c] {s} p i x:(MOVLstoreconstidx1 [a] {s} p i mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 4 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVQstoreidx1 [ValAndOff(a).Off()] {s} p i (MOVQconst [ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32]) mem)
+
+(MOVWstoreconstidx2 [c] {s} p i x:(MOVWstoreconstidx2 [a] {s} p i mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 2 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVLstoreconstidx1 [makeValAndOff(ValAndOff(a).Val()&0xffff | ValAndOff(c).Val()<<16, ValAndOff(a).Off())] {s} p (SHLQconst <i.Type> [1] i) mem)
+(MOVLstoreconstidx4 [c] {s} p i x:(MOVLstoreconstidx4 [a] {s} p i mem))
+  && x.Uses == 1
+  && ValAndOff(a).Off() + 4 == ValAndOff(c).Off()
+  && clobber(x)
+  -> (MOVQstoreidx1 [ValAndOff(a).Off()] {s} p (SHLQconst <i.Type> [2] i) (MOVQconst [ValAndOff(a).Val()&0xffffffff | ValAndOff(c).Val()<<32]) mem)
+
+// Combine stores into larger (unaligned) stores.
+(MOVBstore [i] {s} p (SHRQconst [8] w) x:(MOVBstore [i-1] {s} p w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstore [i-1] {s} p w mem)
+(MOVBstore [i] {s} p (SHRQconst [j] w) x:(MOVBstore [i-1] {s} p w0:(SHRQconst [j-8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstore [i-1] {s} p w0 mem)
+(MOVWstore [i] {s} p (SHRQconst [16] w) x:(MOVWstore [i-2] {s} p w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVLstore [i-2] {s} p w mem)
+(MOVWstore [i] {s} p (SHRQconst [j] w) x:(MOVWstore [i-2] {s} p w0:(SHRQconst [j-16] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVLstore [i-2] {s} p w0 mem)
+(MOVLstore [i] {s} p (SHRQconst [32] w) x:(MOVLstore [i-4] {s} p w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVQstore [i-4] {s} p w mem)
+(MOVLstore [i] {s} p (SHRQconst [j] w) x:(MOVLstore [i-4] {s} p w0:(SHRQconst [j-32] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVQstore [i-4] {s} p w0 mem)
+
+(MOVBstoreidx1 [i] {s} p idx (SHRQconst [8] w) x:(MOVBstoreidx1 [i-1] {s} p idx w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstoreidx1 [i-1] {s} p idx w mem)
+(MOVBstoreidx1 [i] {s} p idx (SHRQconst [j] w) x:(MOVBstoreidx1 [i-1] {s} p idx w0:(SHRQconst [j-8] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVWstoreidx1 [i-1] {s} p idx w0 mem)
+(MOVWstoreidx1 [i] {s} p idx (SHRQconst [16] w) x:(MOVWstoreidx1 [i-2] {s} p idx w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVLstoreidx1 [i-2] {s} p idx w mem)
+(MOVWstoreidx1 [i] {s} p idx (SHRQconst [j] w) x:(MOVWstoreidx1 [i-2] {s} p idx w0:(SHRQconst [j-16] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVLstoreidx1 [i-2] {s} p idx w0 mem)
+(MOVLstoreidx1 [i] {s} p idx (SHRQconst [32] w) x:(MOVLstoreidx1 [i-4] {s} p idx w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVQstoreidx1 [i-4] {s} p idx w mem)
+(MOVLstoreidx1 [i] {s} p idx (SHRQconst [j] w) x:(MOVLstoreidx1 [i-4] {s} p idx w0:(SHRQconst [j-32] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVQstoreidx1 [i-4] {s} p idx w0 mem)
+
+(MOVWstoreidx2 [i] {s} p idx (SHRQconst [16] w) x:(MOVWstoreidx2 [i-2] {s} p idx w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVLstoreidx1 [i-2] {s} p (SHLQconst <idx.Type> [1] idx) w mem)
+(MOVWstoreidx2 [i] {s} p idx (SHRQconst [j] w) x:(MOVWstoreidx2 [i-2] {s} p idx w0:(SHRQconst [j-16] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVLstoreidx1 [i-2] {s} p (SHLQconst <idx.Type> [1] idx) w0 mem)
+(MOVLstoreidx4 [i] {s} p idx (SHRQconst [32] w) x:(MOVLstoreidx4 [i-4] {s} p idx w mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVQstoreidx1 [i-4] {s} p (SHLQconst <idx.Type> [2] idx) w mem)
+(MOVLstoreidx4 [i] {s} p idx (SHRQconst [j] w) x:(MOVLstoreidx4 [i-4] {s} p idx w0:(SHRQconst [j-32] w) mem))
+  && x.Uses == 1
+  && clobber(x)
+  -> (MOVQstoreidx1 [i-4] {s} p (SHLQconst <idx.Type> [2] idx) w0 mem)
