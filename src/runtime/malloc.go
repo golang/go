@@ -770,16 +770,16 @@ func reflect_unsafe_New(typ *_type) unsafe.Pointer {
 	return newobject(typ)
 }
 
-// implementation of make builtin for slices
-func newarray(typ *_type, n uintptr) unsafe.Pointer {
-	if int(n) < 0 || n > maxSliceCap(typ.size) {
+// newarray allocates an array of n elements of type typ.
+func newarray(typ *_type, n int) unsafe.Pointer {
+	if n < 0 || uintptr(n) > maxSliceCap(typ.size) {
 		panic(plainError("runtime: allocation size out of range"))
 	}
-	return mallocgc(typ.size*n, typ, true)
+	return mallocgc(typ.size*uintptr(n), typ, true)
 }
 
 //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
-func reflect_unsafe_NewArray(typ *_type, n uintptr) unsafe.Pointer {
+func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 	return newarray(typ, n)
 }
 

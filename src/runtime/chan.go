@@ -84,7 +84,7 @@ func makechan(t *chantype, size int64) *hchan {
 		}
 	} else {
 		c = new(hchan)
-		c.buf = newarray(elem, uintptr(size))
+		c.buf = newarray(elem, int(size))
 	}
 	c.elemsize = uint16(elem.size)
 	c.elemtype = elem
