@@ -158,16 +158,12 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 
 	newval := int32(-1)
 	var out Pcdata
-
-	var dv int32
 	var it Pciter
-	var oldval int32
-	var v uint32
-	var val int32
 	for pciterinit(ctxt, &it, d); it.done == 0; pciternext(&it) {
 		// value delta
-		oldval = it.value
+		oldval := it.value
 
+		var val int32
 		if oldval == -1 {
 			val = -1
 		} else {
@@ -177,9 +173,9 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 			val = int32(files[oldval].Value)
 		}
 
-		dv = val - newval
+		dv := val - newval
 		newval = val
-		v = (uint32(dv) << 1) ^ uint32(dv>>31)
+		v := (uint32(dv) << 1) ^ uint32(dv>>31)
 		addvarint(&out, v)
 
 		// pc delta
@@ -250,18 +246,12 @@ func pclntab() {
 
 	nfunc = 0
 	var last *LSym
-	var end int32
-	var funcstart int32
-	var i int32
-	var it Pciter
-	var off int32
-	var pcln *FuncInfo
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		last = Ctxt.Cursym
 		if container(Ctxt.Cursym) != 0 {
 			continue
 		}
-		pcln = Ctxt.Cursym.FuncInfo
+		pcln := Ctxt.Cursym.FuncInfo
 		if pcln == nil {
 			pcln = &pclntab_zpcln
 		}
@@ -270,16 +260,16 @@ func pclntab() {
 			pclntabFirstFunc = Ctxt.Cursym
 		}
 
-		funcstart = int32(len(ftab.P))
+		funcstart := int32(len(ftab.P))
 		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
 
 		setaddr(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), Ctxt.Cursym)
 		setuintxx(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
 
 		// fixed size of struct, checked below
-		off = funcstart
+		off := funcstart
 
-		end = funcstart + int32(SysArch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(SysArch.PtrSize)
+		end := funcstart + int32(SysArch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(SysArch.PtrSize)
 		if len(pcln.Funcdata) > 0 && (end&int32(SysArch.PtrSize-1) != 0) {
 			end += 4
 		}
@@ -310,6 +300,7 @@ func pclntab() {
 			renumberfiles(Ctxt, pcln.File, &pcln.Pcfile)
 			if false {
 				// Sanity check the new numbering
+				var it Pciter
 				for pciterinit(Ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
 					if it.value < 1 || it.value > Ctxt.Nhistfile {
 						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, Ctxt.Nhistfile)
@@ -326,7 +317,7 @@ func pclntab() {
 		off = addpctab(ftab, off, &pcln.Pcline)
 		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Pcdata))))
 		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Funcdata))))
-		for i = 0; i < int32(len(pcln.Pcdata)); i++ {
+		for i := 0; i < len(pcln.Pcdata); i++ {
 			off = addpctab(ftab, off, &pcln.Pcdata[i])
 		}
 
@@ -336,7 +327,7 @@ func pclntab() {
 			if off&int32(SysArch.PtrSize-1) != 0 {
 				off += 4
 			}
-			for i = 0; i < int32(len(pcln.Funcdata)); i++ {
+			for i := 0; i < len(pcln.Funcdata); i++ {
 				if pcln.Funcdata[i] == nil {
 					setuintxx(Ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(SysArch.PtrSize))
 				} else {
