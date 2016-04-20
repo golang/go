@@ -39,14 +39,6 @@ import (
 )
 
 func genplt() {
-	var s *ld.LSym
-	var stub *ld.LSym
-	var pprevtextp **ld.LSym
-	var r *ld.Reloc
-	var n string
-	var o1 uint32
-	var i int
-
 	// The ppc64 ABI PLT has similar concepts to other
 	// architectures, but is laid out quite differently. When we
 	// see an R_PPC64_REL24 relocation to a dynamic symbol
@@ -95,11 +87,11 @@ func genplt() {
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
-	pprevtextp = &ld.Ctxt.Textp
+	pprevtextp := &ld.Ctxt.Textp
 
-	for s = *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
-		for i = range s.R {
-			r = &s.R[i]
+	for s := *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
+		for i := range s.R {
+			r := &s.R[i]
 			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != obj.SDYNIMPORT {
 				continue
 			}
@@ -109,9 +101,9 @@ func genplt() {
 			addpltsym(ld.Ctxt, r.Sym)
 
 			// Generate call stub
-			n = fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
+			n := fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
 
-			stub = ld.Linklookup(ld.Ctxt, n, 0)
+			stub := ld.Linklookup(ld.Ctxt, n, 0)
 			if s.Attr.Reachable() {
 				stub.Attr |= ld.AttrReachable
 			}
@@ -135,7 +127,7 @@ func genplt() {
 
 			// Restore TOC after bl. The compiler put a
 			// nop here for us to overwrite.
-			o1 = 0xe8410018 // ld r2,24(r1)
+			const o1 = 0xe8410018 // ld r2,24(r1)
 			ld.Ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
 		}
 	}
