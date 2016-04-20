@@ -1863,16 +1863,16 @@ func dodataSect(symn int, syms []*LSym) []*LSym {
 			}
 		}
 		if reli >= 0 && plti >= 0 && plti != reli+1 {
-			newSyms := make([]*LSym, 0, len(syms))
-			plt := syms[plti]
-			newSyms = append(newSyms, syms[:reli+1]...)
-			newSyms = append(newSyms, plt)
-			newSyms = append(newSyms, syms[reli+1:plti]...)
-			newSyms = append(newSyms, syms[plti+1:]...)
-			if len(newSyms) != len(syms) {
-				Diag("plt move failed: len %d/%d", len(newSyms), len(syms))
+			var first, second int
+			if plti > reli {
+				first, second = reli, plti
+			} else {
+				first, second = plti, reli
 			}
-			syms = newSyms
+			rel, plt := syms[reli], syms[plti]
+			copy(syms[first+2:], syms[first+1:second])
+			syms[first+0] = rel
+			syms[first+1] = plt
 		}
 	}
 
