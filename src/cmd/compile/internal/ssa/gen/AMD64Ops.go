@@ -439,7 +439,7 @@ func init() {
 				clobbers: buildReg("DI FLAGS"),
 			},
 		},
-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", rematerializeable: true},
+		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
 
 		// arg0 = address of memory to zero
 		// arg1 = # of 8-byte words to zero
