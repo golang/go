@@ -246,7 +246,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	// If hint is large zeroing this memory could take a while.
 	buckets := bucket
 	if B != 0 {
-		buckets = newarray(t.bucket, uintptr(1)<<B)
+		buckets = newarray(t.bucket, 1<<B)
 	}
 
 	// initialize Hmap
@@ -821,7 +821,7 @@ func hashGrow(t *maptype, h *hmap) {
 		throw("evacuation not done in time")
 	}
 	oldbuckets := h.buckets
-	newbuckets := newarray(t.bucket, uintptr(1)<<(h.B+1))
+	newbuckets := newarray(t.bucket, 1<<(h.B+1))
 	flags := h.flags &^ (iterator | oldIterator)
 	if h.flags&iterator != 0 {
 		flags |= oldIterator
