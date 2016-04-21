@@ -476,7 +476,7 @@ func (d Duration) String() string {
 		w--
 		switch {
 		case u == 0:
-			return "0"
+			return "0s"
 		case u < uint64(Microsecond):
 			// print nanoseconds
 			prec = 0
