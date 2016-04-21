@@ -254,6 +254,12 @@ In summary, a gob stream looks like
 where * signifies zero or more repetitions and the type id of a value must
 be predefined or be defined before the value in the stream.
 
+Compatibility: Any future changes to the package will endeavor to maintain
+compatibility with streams encoded using previous versions.  That is, any released
+version of this package should be able to decode data written with any previously
+released version, subject to issues such as security fixes. See the Go compatibility
+document for background: https://golang.org/doc/go1compat
+
 See "Gobs of data" for a design discussion of the gob wire format:
 https://blog.golang.org/gobs-of-data
 */
