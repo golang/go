@@ -10,9 +10,8 @@ import (
 	"io"
 )
 
-// TODO(brainman): return error from cstring and see what errors we get and what to do about it
-
-// cstring converts ASCII byte sequence b to string. It stops once it finds 0.
+// cstring converts ASCII byte sequence b to string.
+// It stops once it finds 0 or reaches end of b.
 func cstring(b []byte) string {
 	var i int
 	for i = 0; i < len(b) && b[i] != 0; i++ {
