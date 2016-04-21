@@ -667,6 +667,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Offset = v.AuxInt
 
 	case ssa.OpCopy, ssa.OpAMD64MOVQconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
+		if v.Type.IsMemory() {
+			return
+		}
 		x := gc.SSARegNum(v.Args[0])
 		y := gc.SSARegNum(v)
 		if x != y {
