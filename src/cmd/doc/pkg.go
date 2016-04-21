@@ -268,7 +268,7 @@ func (pkg *Package) packageDoc() {
 	pkg.newlines(2) // Guarantee blank line before the components.
 	pkg.valueSummary(pkg.doc.Consts)
 	pkg.valueSummary(pkg.doc.Vars)
-	pkg.funcSummary(pkg.doc.Funcs)
+	pkg.funcSummary(pkg.doc.Funcs, false)
 	pkg.typeSummary()
 	pkg.bugs()
 }
@@ -308,24 +308,44 @@ func (pkg *Package) valueSummary(values []*doc.Value) {
 	}
 }
 
-// funcSummary prints a one-line summary for each function.
-func (pkg *Package) funcSummary(funcs []*doc.Func) {
+// funcSummary prints a one-line summary for each function. Constructors
+// are printed by typeSummary, below, and so can be suppressed here.
+func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
+	// First, identify the constructors. Don't bother figuring out if they're exported.
+	var isConstructor map[*doc.Func]bool
+	if !showConstructors {
+		isConstructor = make(map[*doc.Func]bool)
+		for _, typ := range pkg.doc.Types {
+			for _, constructor := range typ.Funcs {
+				isConstructor[constructor] = true
+			}
+		}
+	}
 	for _, fun := range funcs {
 		decl := fun.Decl
 		// Exported functions only. The go/doc package does not include methods here.
 		if isExported(fun.Name) {
-			pkg.oneLineFunc(decl)
+			if !isConstructor[fun] {
+				pkg.oneLineFunc(decl)
+			}
 		}
 	}
 }
 
-// typeSummary prints a one-line summary for each type.
+// typeSummary prints a one-line summary for each type, followed by its constructors.
 func (pkg *Package) typeSummary() {
 	for _, typ := range pkg.doc.Types {
 		for _, spec := range typ.Decl.Specs {
 			typeSpec := spec.(*ast.TypeSpec) // Must succeed.
 			if isExported(typeSpec.Name.Name) {
 				pkg.oneLineTypeDecl(typeSpec)
+				// Now print the constructors.
+				for _, constructor := range typ.Funcs {
+					if isExported(constructor.Name) {
+						pkg.Printf(indent)
+						pkg.oneLineFunc(constructor.Decl)
+					}
+				}
 			}
 		}
 	}
@@ -453,8 +473,8 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 		}
 		pkg.valueSummary(typ.Consts)
 		pkg.valueSummary(typ.Vars)
-		pkg.funcSummary(typ.Funcs)
-		pkg.funcSummary(typ.Methods)
+		pkg.funcSummary(typ.Funcs, true)
+		pkg.funcSummary(typ.Methods, true)
 		found = true
 	}
 	if !found {
