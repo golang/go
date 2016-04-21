@@ -190,7 +190,7 @@ func cse(f *Func) {
 		}
 	}
 	if f.pass.stats > 0 {
-		f.logStat("CSE REWRITES", rewrites)
+		f.LogStat("CSE REWRITES", rewrites)
 	}
 }
 
@@ -313,7 +313,7 @@ func (sv sortvalues) Less(i, j int) bool {
 
 type sortbyentry struct {
 	a    []*Value // array of values
-	sdom sparseTree
+	sdom SparseTree
 }
 
 func (sv sortbyentry) Len() int      { return len(sv.a) }

@@ -32,7 +32,7 @@ type loop struct {
 }
 
 // outerinner records that outer contains inner
-func (sdom sparseTree) outerinner(outer, inner *loop) {
+func (sdom SparseTree) outerinner(outer, inner *loop) {
 	oldouter := inner.outer
 	if oldouter == nil || sdom.isAncestorEq(oldouter.header, outer.header) {
 		inner.outer = outer
@@ -59,7 +59,7 @@ type loopnest struct {
 	f     *Func
 	b2l   []*loop
 	po    []*Block
-	sdom  sparseTree
+	sdom  SparseTree
 	loops []*loop
 
 	// Record which of the lazily initialized fields have actually been initialized.
@@ -238,7 +238,7 @@ func (l *loop) LongString() string {
 // containing block b; the header must dominate b.  loop itself
 // is assumed to not be that loop. For acceptable performance,
 // we're relying on loop nests to not be terribly deep.
-func (l *loop) nearestOuterLoop(sdom sparseTree, b *Block) *loop {
+func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
 	var o *loop
 	for o = l.outer; o != nil && !sdom.isAncestorEq(o.header, b); o = o.outer {
 	}
@@ -335,7 +335,7 @@ func loopnestfor(f *Func) *loopnest {
 				inner++
 			}
 
-			f.logStat("loopstats:",
+			f.LogStat("loopstats:",
 				l.depth, "depth", x, "exits",
 				inner, "is_inner", cf, "is_callfree", l.nBlocks, "n_blocks")
 		}

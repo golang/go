@@ -316,7 +316,7 @@ func checkFunc(f *Func) {
 }
 
 // domCheck reports whether x dominates y (including x==y).
-func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
+func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
 	if !sdom.isAncestorEq(f.Entry, y) {
 		// unreachable - ignore
 		return true
