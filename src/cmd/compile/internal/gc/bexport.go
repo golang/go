@@ -1191,12 +1191,15 @@ func (p *exporter) expr(n *Node) {
 	case OSLICE, OSLICESTR, OSLICEARR:
 		p.op(OSLICE)
 		p.expr(n.Left)
-		p.expr(n.Right)
+		low, high, _ := n.SliceBounds()
+		p.exprsOrNil(low, high)
 
 	case OSLICE3, OSLICE3ARR:
 		p.op(OSLICE3)
 		p.expr(n.Left)
-		p.expr(n.Right)
+		low, high, max := n.SliceBounds()
+		p.exprsOrNil(low, high)
+		p.expr(max)
 
 	case OCOPY, OCOMPLEX:
 		p.op(op)

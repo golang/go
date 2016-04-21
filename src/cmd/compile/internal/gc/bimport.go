@@ -822,8 +822,18 @@ func (p *importer) node() *Node {
 	// case OINDEX, OINDEXMAP, OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
 	// 	unreachable - mapped to cases below by exporter
 
-	case OINDEX, OSLICE, OSLICE3:
+	case OINDEX:
 		return Nod(op, p.expr(), p.expr())
+
+	case OSLICE, OSLICE3:
+		n := Nod(op, p.expr(), nil)
+		low, high := p.exprsOrNil()
+		var max *Node
+		if n.Op.IsSlice3() {
+			max = p.expr()
+		}
+		n.SetSliceBounds(low, high, max)
+		return n
 
 	case OCOPY, OCOMPLEX:
 		n := builtinCall(op)

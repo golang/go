@@ -1024,6 +1024,68 @@ func Is64(t *Type) bool {
 	return false
 }
 
+// SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
+// n must be a slice expression. max is nil if n is a simple slice expression.
+func (n *Node) SliceBounds() (low, high, max *Node) {
+	switch n.Op {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		if n.Right == nil {
+			return nil, nil, nil
+		}
+		if n.Right.Op != OKEY {
+			Fatalf("SliceBounds right %s", opnames[n.Right.Op])
+		}
+		return n.Right.Left, n.Right.Right, nil
+	case OSLICE3, OSLICE3ARR:
+		if n.Right.Op != OKEY || n.Right.Right.Op != OKEY {
+			Fatalf("SliceBounds right %s %s", opnames[n.Right.Op], opnames[n.Right.Right.Op])
+		}
+		return n.Right.Left, n.Right.Right.Left, n.Right.Right.Right
+	}
+	Fatalf("SliceBounds op %s: %v", n.Op, n)
+	return nil, nil, nil
+}
+
+// SetSliceBounds sets n's slice bounds, where n is a slice expression.
+// n must be a slice expression. If max is non-nil, n must be a full slice expression.
+func (n *Node) SetSliceBounds(low, high, max *Node) {
+	switch n.Op {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		if max != nil {
+			Fatalf("SetSliceBounds %s given three bounds", n.Op)
+		}
+		if n.Right == nil {
+			n.Right = Nod(OKEY, low, high)
+			return
+		}
+		n.Right.Left = low
+		n.Right.Right = high
+		return
+	case OSLICE3, OSLICE3ARR:
+		if n.Right == nil {
+			n.Right = Nod(OKEY, low, Nod(OKEY, high, max))
+		}
+		n.Right.Left = low
+		n.Right.Right.Left = high
+		n.Right.Right.Right = max
+		return
+	}
+	Fatalf("SetSliceBounds op %s: %v", n.Op, n)
+}
+
+// IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
+// o must be a slicing op.
+func (o Op) IsSlice3() bool {
+	switch o {
+	case OSLICE, OSLICEARR, OSLICESTR:
+		return false
+	case OSLICE3, OSLICE3ARR:
+		return true
+	}
+	Fatalf("IsSlice3 op %v", o)
+	return false
+}
+
 // Is a conversion between t1 and t2 a no-op?
 func Noconv(t1 *Type, t2 *Type) bool {
 	e1 := Simtype[t1.Etype]

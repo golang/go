@@ -3106,15 +3106,7 @@ func cgen_slice(n, res *Node, wb bool) {
 		x.Xoffset -= 2 * int64(Widthptr)
 	}
 
-	var x1, x2, x3 *Node // unevaluated index arguments
-	x1 = n.Right.Left
-	switch n.Op {
-	default:
-		x2 = n.Right.Right
-	case OSLICE3, OSLICE3ARR:
-		x2 = n.Right.Right.Left
-		x3 = n.Right.Right.Right
-	}
+	x1, x2, x3 := n.SliceBounds() // unevaluated index arguments
 
 	// load computes src into targ, but if src refers to the len or cap of n.Left,
 	// load copies those from xlen, xcap, loading xlen if needed.

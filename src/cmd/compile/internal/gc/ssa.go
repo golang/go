@@ -736,14 +736,7 @@ func (s *state) stmt(n *Node) {
 		if rhs != nil && (rhs.Op == OSLICE || rhs.Op == OSLICE3 || rhs.Op == OSLICESTR) && samesafeexpr(rhs.Left, n.Left) {
 			// We're assigning a slicing operation back to its source.
 			// Don't write back fields we aren't changing. See issue #14855.
-			i := rhs.Right.Left
-			var j, k *Node
-			if rhs.Op == OSLICE3 {
-				j = rhs.Right.Right.Left
-				k = rhs.Right.Right.Right
-			} else {
-				j = rhs.Right.Right
-			}
+			i, j, k := rhs.SliceBounds()
 			if i != nil && (i.Op == OLITERAL && i.Val().Ctype() == CTINT && i.Int64() == 0) {
 				// [0:...] is the same as [:...]
 				i = nil
@@ -2038,38 +2031,34 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
 
-	case OSLICE, OSLICEARR:
+	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR:
 		v := s.expr(n.Left)
-		var i, j *ssa.Value
-		if n.Right.Left != nil {
-			i = s.extendIndex(s.expr(n.Right.Left))
+		var i, j, k *ssa.Value
+		low, high, max := n.SliceBounds()
+		if low != nil {
+			i = s.extendIndex(s.expr(low))
 		}
-		if n.Right.Right != nil {
-			j = s.extendIndex(s.expr(n.Right.Right))
+		if high != nil {
+			j = s.extendIndex(s.expr(high))
 		}
-		p, l, c := s.slice(n.Left.Type, v, i, j, nil)
+		if max != nil {
+			k = s.extendIndex(s.expr(max))
+		}
+		p, l, c := s.slice(n.Left.Type, v, i, j, k)
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
+
 	case OSLICESTR:
 		v := s.expr(n.Left)
 		var i, j *ssa.Value
-		if n.Right.Left != nil {
-			i = s.extendIndex(s.expr(n.Right.Left))
+		low, high, _ := n.SliceBounds()
+		if low != nil {
+			i = s.extendIndex(s.expr(low))
 		}
-		if n.Right.Right != nil {
-			j = s.extendIndex(s.expr(n.Right.Right))
+		if high != nil {
+			j = s.extendIndex(s.expr(high))
 		}
 		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
-	case OSLICE3, OSLICE3ARR:
-		v := s.expr(n.Left)
-		var i *ssa.Value
-		if n.Right.Left != nil {
-			i = s.extendIndex(s.expr(n.Right.Left))
-		}
-		j := s.extendIndex(s.expr(n.Right.Right.Left))
-		k := s.extendIndex(s.expr(n.Right.Right.Right))
-		p, l, c := s.slice(n.Left.Type, v, i, j, k)
-		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OCALLFUNC:
 		if isIntrinsicCall1(n) {

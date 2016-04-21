@@ -1123,24 +1123,16 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
-	case OSLICE, OSLICEARR, OSLICESTR:
+	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
 		n.Left = orderexpr(n.Left, order, nil)
-		n.Right.Left = orderexpr(n.Right.Left, order, nil)
-		n.Right.Left = ordercheapexpr(n.Right.Left, order)
-		n.Right.Right = orderexpr(n.Right.Right, order, nil)
-		n.Right.Right = ordercheapexpr(n.Right.Right, order)
-		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
-			n = ordercopyexpr(n, n.Type, order, 0)
-		}
-
-	case OSLICE3, OSLICE3ARR:
-		n.Left = orderexpr(n.Left, order, nil)
-		n.Right.Left = orderexpr(n.Right.Left, order, nil)
-		n.Right.Left = ordercheapexpr(n.Right.Left, order)
-		n.Right.Right.Left = orderexpr(n.Right.Right.Left, order, nil)
-		n.Right.Right.Left = ordercheapexpr(n.Right.Right.Left, order)
-		n.Right.Right.Right = orderexpr(n.Right.Right.Right, order, nil)
-		n.Right.Right.Right = ordercheapexpr(n.Right.Right.Right, order)
+		low, high, max := n.SliceBounds()
+		low = orderexpr(low, order, nil)
+		low = ordercheapexpr(low, order)
+		high = orderexpr(high, order, nil)
+		high = ordercheapexpr(high, order)
+		max = orderexpr(max, order, nil)
+		max = ordercheapexpr(max, order)
+		n.SetSliceBounds(low, high, max)
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}

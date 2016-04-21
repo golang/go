@@ -1312,17 +1312,29 @@ func exprfmt(n *Node, prec int) string {
 		f += fmt.Sprintf(".(%v)", n.Type)
 		return f
 
-	case OINDEX,
-		OINDEXMAP,
-		OSLICE,
-		OSLICESTR,
-		OSLICEARR,
-		OSLICE3,
-		OSLICE3ARR:
-		var f string
-		f += exprfmt(n.Left, nprec)
-		f += fmt.Sprintf("[%v]", n.Right)
-		return f
+	case OINDEX, OINDEXMAP:
+		return fmt.Sprintf("%s[%v]", exprfmt(n.Left, nprec), n.Right)
+
+	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
+		var buf bytes.Buffer
+		buf.WriteString(exprfmt(n.Left, nprec))
+		buf.WriteString("[")
+		low, high, max := n.SliceBounds()
+		if low != nil {
+			buf.WriteString(low.String())
+		}
+		buf.WriteString(":")
+		if high != nil {
+			buf.WriteString(high.String())
+		}
+		if n.Op.IsSlice3() {
+			buf.WriteString(":")
+			if max != nil {
+				buf.WriteString(max.String())
+			}
+		}
+		buf.WriteString("]")
+		return buf.String()
 
 	case OCOPY, OCOMPLEX:
 		return fmt.Sprintf("%v(%v, %v)", Oconv(n.Op, FmtSharp), n.Left, n.Right)
