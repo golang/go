@@ -499,8 +499,8 @@ func symtab() {
 	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
 	// The filetab slice
 	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
-	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile)+1)
-	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile)+1)
+	adduint(Ctxt, moduledata, uint64(len(Ctxt.Filesyms))+1)
+	adduint(Ctxt, moduledata, uint64(len(Ctxt.Filesyms))+1)
 	// findfunctab
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.findfunctab", 0))
 	// minpc, maxpc

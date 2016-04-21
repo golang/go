@@ -179,8 +179,7 @@ type Link struct {
 	Cursym     *LSym
 	Version    int
 	Textp      []*LSym
-	Nhistfile  int32
-	Filesyms   *LSym
+	Filesyms   []*LSym
 	Moduledata *LSym
 	LSymBatch  []LSym
 }

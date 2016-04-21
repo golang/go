@@ -1469,14 +1469,8 @@ func writelines(prev *LSym) *LSym {
 	Adduint8(Ctxt, ls, 1)              // standard_opcode_lengths[9]
 	Adduint8(Ctxt, ls, 0)              // include_directories  (empty)
 
-	files := make([]*LSym, Ctxt.Nhistfile)
-
-	for f := Ctxt.Filesyms; f != nil; f = f.Next {
-		files[f.Value-1] = f
-	}
-
-	for i := 0; int32(i) < Ctxt.Nhistfile; i++ {
-		Addstring(ls, files[i].Name)
+	for _, f := range Ctxt.Filesyms {
+		Addstring(ls, f.Name)
 		Adduint8(Ctxt, ls, 0)
 		Adduint8(Ctxt, ls, 0)
 		Adduint8(Ctxt, ls, 0)
