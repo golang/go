@@ -663,7 +663,7 @@ func (ctxt *Link) reloc() {
 	for _, sym := range datap {
 		relocsym(ctxt, sym)
 	}
-	for s := dwarfp; s != nil; s = s.Next {
+	for _, s := range dwarfp {
 		relocsym(ctxt, s)
 	}
 }
@@ -746,55 +746,6 @@ func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
 	}
 }
 
-func blk(ctxt *Link, start *Symbol, addr int64, size int64) {
-	var sym *Symbol
-
-	for sym = start; sym != nil; sym = sym.Next {
-		if sym.Type&obj.SSUB == 0 && sym.Value >= addr {
-			break
-		}
-	}
-
-	eaddr := addr + size
-	for ; sym != nil; sym = sym.Next {
-		if sym.Type&obj.SSUB != 0 {
-			continue
-		}
-		if sym.Value >= eaddr {
-			break
-		}
-		ctxt.Cursym = sym
-		if sym.Value < addr {
-			ctxt.Diag("phase error: addr=%#x but sym=%#x type=%d", addr, sym.Value, sym.Type)
-			errorexit()
-		}
-
-		if addr < sym.Value {
-			strnput("", int(sym.Value-addr))
-			addr = sym.Value
-		}
-		Cwrite(sym.P)
-		addr += int64(len(sym.P))
-		if addr < sym.Value+sym.Size {
-			strnput("", int(sym.Value+sym.Size-addr))
-			addr = sym.Value + sym.Size
-		}
-		if addr != sym.Value+sym.Size {
-			ctxt.Diag("phase error: addr=%#x value+size=%#x", addr, sym.Value+sym.Size)
-			errorexit()
-		}
-
-		if sym.Value+sym.Size >= eaddr {
-			break
-		}
-	}
-
-	if addr < eaddr {
-		strnput("", int(eaddr-addr))
-	}
-	Cflush()
-}
-
 func Codeblk(ctxt *Link, addr int64, size int64) {
 	CodeblkPad(ctxt, addr, size, zeros[:])
 }
@@ -803,7 +754,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blkSlice(ctxt, ctxt.Textp, addr, size, pad)
+	blk(ctxt, ctxt.Textp, addr, size, pad)
 
 	/* again for printing */
 	if Debug['a'] == 0 {
@@ -864,10 +815,7 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	ctxt.Bso.Flush()
 }
 
-// blkSlice is a variant of blk that processes slices.
-// After text symbols are converted from a linked list to a slice,
-// delete blk and give this function its name.
-func blkSlice(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
+func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 	for i, s := range syms {
 		if s.Type&obj.SSUB == 0 && s.Value >= addr {
 			syms = syms[i:]
@@ -918,7 +866,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blkSlice(ctxt, datap, addr, size, zeros[:])
+	blk(ctxt, datap, addr, size, zeros[:])
 
 	/* again for printing */
 	if Debug['a'] == 0 {
@@ -989,7 +937,7 @@ func Dwarfblk(ctxt *Link, addr int64, size int64) {
 		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blk(ctxt, dwarfp, addr, size)
+	blk(ctxt, dwarfp, addr, size, zeros[:])
 }
 
 var zeros [512]byte
@@ -1239,14 +1187,6 @@ func checkdatsize(ctxt *Link, datsize int64, symn int) {
 	if datsize > cutoff {
 		ctxt.Diag("too much data in section %v (over %d bytes)", symn, cutoff)
 	}
-}
-
-func list2slice(s *Symbol) []*Symbol {
-	var syms []*Symbol
-	for ; s != nil; s = s.Next {
-		syms = append(syms, s)
-	}
-	return syms
 }
 
 // datap is a collection of reachable data symbols in address order.
@@ -1758,7 +1698,11 @@ func (ctxt *Link) dodata() {
 	dwarfgeneratedebugsyms(ctxt)
 
 	var s *Symbol
-	for s = dwarfp; s != nil && s.Type == obj.SDWARFSECT; s = s.Next {
+	var i int
+	for i, s = range dwarfp {
+		if s.Type != obj.SDWARFSECT {
+			break
+		}
 		sect = addsection(&Segdwarf, s.Name, 04)
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))
@@ -1771,12 +1715,15 @@ func (ctxt *Link) dodata() {
 	}
 	checkdatsize(ctxt, datsize, obj.SDWARFSECT)
 
-	if s != nil {
+	if i < len(dwarfp) {
 		sect = addsection(&Segdwarf, ".debug_info", 04)
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		for ; s != nil && s.Type == obj.SDWARFINFO; s = s.Next {
+		for _, s := range dwarfp[i:] {
+			if s.Type != obj.SDWARFINFO {
+				break
+			}
 			s.Sect = sect
 			s.Type = obj.SRODATA
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -2095,7 +2042,7 @@ func (ctxt *Link) address() {
 		}
 	}
 
-	for sym := dwarfp; sym != nil; sym = sym.Next {
+	for _, sym := range dwarfp {
 		ctxt.Cursym = sym
 		if sym.Sect != nil {
 			sym.Value += int64(sym.Sect.Vaddr)
