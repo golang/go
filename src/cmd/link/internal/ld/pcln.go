@@ -147,12 +147,10 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 	for i := 0; i < len(files); i++ {
 		f = files[i]
 		if f.Type != obj.SFILEPATH {
-			ctxt.Nhistfile++
-			f.Value = int64(ctxt.Nhistfile)
+			ctxt.Filesyms = append(ctxt.Filesyms, f)
+			f.Value = int64(len(ctxt.Filesyms))
 			f.Type = obj.SFILEPATH
-			f.Next = ctxt.Filesyms
 			f.Name = expandGoroot(f.Name)
-			ctxt.Filesyms = f
 		}
 	}
 
@@ -302,8 +300,8 @@ func pclntab() {
 				// Sanity check the new numbering
 				var it Pciter
 				for pciterinit(Ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
-					if it.value < 1 || it.value > Ctxt.Nhistfile {
-						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, Ctxt.Nhistfile)
+					if it.value < 1 || it.value > int32(len(Ctxt.Filesyms)) {
+						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(Ctxt.Filesyms))
 						errorexit()
 					}
 				}
@@ -360,9 +358,10 @@ func pclntab() {
 	pclntabFiletabOffset = start
 	setuint32(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint32(start))
 
-	Symgrow(Ctxt, ftab, int64(start)+(int64(Ctxt.Nhistfile)+1)*4)
-	setuint32(Ctxt, ftab, int64(start), uint32(Ctxt.Nhistfile))
-	for s := Ctxt.Filesyms; s != nil; s = s.Next {
+	Symgrow(Ctxt, ftab, int64(start)+(int64(len(Ctxt.Filesyms))+1)*4)
+	setuint32(Ctxt, ftab, int64(start), uint32(len(Ctxt.Filesyms)))
+	for i := len(Ctxt.Filesyms) - 1; i >= 0; i-- {
+		s := Ctxt.Filesyms[i]
 		setuint32(Ctxt, ftab, int64(start)+s.Value*4, uint32(ftabaddstring(ftab, s.Name)))
 	}
 
