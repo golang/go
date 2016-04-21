@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 19, 2016",
+	"Subtitle": "Version of April 21, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -3326,8 +3326,8 @@ var s uint = 33
 var i = 1&lt;&lt;s           // 1 has type int
 var j int32 = 1&lt;&lt;s     // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)   // 1 has type uint64; k == 1&lt;&lt;33
-var m int = 1.0&lt;&lt;s     // 1.0 has type int
-var n = 1.0&lt;&lt;s != i    // 1.0 has type int; n == false if ints are 32bits in size
+var m int = 1.0&lt;&lt;s     // 1.0 has type int; m == 0 if ints are 32bits in size
+var n = 1.0&lt;&lt;s == j    // 1.0 has type int32; n == true
 var o = 1&lt;&lt;s == 2&lt;&lt;s   // 1 and 2 have type int; o == true if ints are 32bits in size
 var p = 1&lt;&lt;s == 1&lt;&lt;33  // illegal if ints are 32bits in size: 1 has type int, but 1&lt;&lt;33 overflows int
 var u = 1.0&lt;&lt;s         // illegal: 1.0 has type float64, cannot shift
