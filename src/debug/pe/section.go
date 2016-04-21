@@ -5,6 +5,8 @@
 package pe
 
 import (
+	"encoding/binary"
+	"fmt"
 	"io"
 	"strconv"
 )
@@ -37,6 +39,30 @@ func (sh *SectionHeader32) fullName(st StringTable) (string, error) {
 	return st.String(uint32(i))
 }
 
+// Reloc represents a PE COFF relocation.
+// Each section contains its own relocation list.
+type Reloc struct {
+	VirtualAddress   uint32
+	SymbolTableIndex uint32
+	Type             uint16
+}
+
+func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
+	if sh.NumberOfRelocations <= 0 {
+		return nil, nil
+	}
+	_, err := r.Seek(int64(sh.PointerToRelocations), io.SeekStart)
+	if err != nil {
+		return nil, fmt.Errorf("fail to seek to %q section relocations: %v", sh.Name, err)
+	}
+	relocs := make([]Reloc, sh.NumberOfRelocations)
+	err = binary.Read(r, binary.LittleEndian, relocs)
+	if err != nil {
+		return nil, fmt.Errorf("fail to read section relocations: %v", err)
+	}
+	return relocs, nil
+}
+
 // SectionHeader is similar to SectionHeader32 with Name
 // field replaced by Go string.
 type SectionHeader struct {
@@ -55,6 +81,7 @@ type SectionHeader struct {
 // Section provides access to PE COFF section.
 type Section struct {
 	SectionHeader
+	Relocs []Reloc
 
 	// Embed ReaderAt for ReadAt method.
 	// Do not embed SectionReader directly

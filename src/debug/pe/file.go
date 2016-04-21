@@ -192,6 +192,14 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		s.ReaderAt = s.sr
 		f.Sections[i] = s
 	}
+	for i := range f.Sections {
+		var err error
+		f.Sections[i].Relocs, err = readRelocs(&f.Sections[i].SectionHeader, sr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return f, nil
 }
 
