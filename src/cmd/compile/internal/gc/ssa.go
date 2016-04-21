@@ -218,8 +218,16 @@ func buildssa(fn *Node) *ssa.Func {
 		return nil
 	}
 
+	prelinkNumvars := s.f.NumValues()
+	sparseDefState := s.locatePotentialPhiFunctions(fn)
+
 	// Link up variable uses to variable definitions
-	s.linkForwardReferences()
+	s.linkForwardReferences(sparseDefState)
+
+	if ssa.BuildStats > 0 {
+		s.f.LogStat("build", s.f.NumBlocks(), "blocks", prelinkNumvars, "vars_before",
+			s.f.NumValues(), "vars_after", prelinkNumvars*s.f.NumBlocks(), "ssa_phi_loc_cutoff_score")
+	}
 
 	// Don't carry reference this around longer than necessary
 	s.exitCode = Nodes{}
@@ -3741,7 +3749,8 @@ func (s *state) mem() *ssa.Value {
 	return s.variable(&memVar, ssa.TypeMem)
 }
 
-func (s *state) linkForwardReferences() {
+func (s *state) linkForwardReferences(dm *sparseDefState) {
+
 	// Build SSA graph. Each variable on its first use in a basic block
 	// leaves a FwdRef in that block representing the incoming value
 	// of that variable. This function links that ref up with possible definitions,
@@ -3756,13 +3765,13 @@ func (s *state) linkForwardReferences() {
 	for len(s.fwdRefs) > 0 {
 		v := s.fwdRefs[len(s.fwdRefs)-1]
 		s.fwdRefs = s.fwdRefs[:len(s.fwdRefs)-1]
-		s.resolveFwdRef(v)
+		s.resolveFwdRef(v, dm)
 	}
 }
 
 // resolveFwdRef modifies v to be the variable's value at the start of its block.
 // v must be a FwdRef op.
-func (s *state) resolveFwdRef(v *ssa.Value) {
+func (s *state) resolveFwdRef(v *ssa.Value, dm *sparseDefState) {
 	b := v.Block
 	name := v.Aux.(*Node)
 	v.Aux = nil
@@ -3801,6 +3810,7 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 	args := argstore[:0]
 	for _, e := range b.Preds {
 		p := e.Block()
+		p = dm.FindBetterDefiningBlock(name, p) // try sparse improvement on p
 		args = append(args, s.lookupVarOutgoing(p, v.Type, name, v.Line))
 	}
 

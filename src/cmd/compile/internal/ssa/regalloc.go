@@ -1529,7 +1529,7 @@ sinking:
 	}
 
 	if f.pass.stats > 0 {
-		f.logStat("spills_info",
+		f.LogStat("spills_info",
 			nSpills, "spills", nSpillsInner, "inner_spills_remaining", nSpillsSunk, "inner_spills_sunk", nSpillsSunkUnused, "inner_spills_unused", nSpillsNotSunkLateUse, "inner_spills_shuffled", nSpillsChanged, "inner_spills_changed")
 	}
 }

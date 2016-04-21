@@ -9,22 +9,24 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	arch         string                     // "amd64", etc.
-	IntSize      int64                      // 4 or 8
-	PtrSize      int64                      // 4 or 8
-	lowerBlock   func(*Block) bool          // lowering function
-	lowerValue   func(*Value, *Config) bool // lowering function
-	registers    []Register                 // machine registers
-	fe           Frontend                   // callbacks into compiler frontend
-	HTML         *HTMLWriter                // html writer, for debugging
-	ctxt         *obj.Link                  // Generic arch information
-	optimize     bool                       // Do optimization
-	noDuffDevice bool                       // Don't use Duff's device
-	curFunc      *Func
+	arch            string                     // "amd64", etc.
+	IntSize         int64                      // 4 or 8
+	PtrSize         int64                      // 4 or 8
+	lowerBlock      func(*Block) bool          // lowering function
+	lowerValue      func(*Value, *Config) bool // lowering function
+	registers       []Register                 // machine registers
+	fe              Frontend                   // callbacks into compiler frontend
+	HTML            *HTMLWriter                // html writer, for debugging
+	ctxt            *obj.Link                  // Generic arch information
+	optimize        bool                       // Do optimization
+	noDuffDevice    bool                       // Don't use Duff's device
+	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
+	curFunc         *Func
 
 	// TODO: more stuff. Compiler flags of interest, ...
 
@@ -159,10 +161,27 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 
 	c.logfiles = make(map[string]*os.File)
 
+	// cutoff is compared with product of numblocks and numvalues,
+	// if product is smaller than cutoff, use old non-sparse method.
+	// cutoff == 0 implies all sparse.
+	// cutoff == -1 implies none sparse.
+	// Good cutoff values seem to be O(million) depending on constant factor cost of sparse.
+	// TODO: get this from a flag, not an environment variable
+	c.sparsePhiCutoff = 2500000 // 0 for testing. // 2500000 determined with crude experiments w/ make.bash
+	ev := os.Getenv("GO_SSA_PHI_LOC_CUTOFF")
+	if ev != "" {
+		v, err := strconv.ParseInt(ev, 10, 64)
+		if err != nil {
+			fe.Fatalf(0, "Environment variable GO_SSA_PHI_LOC_CUTOFF (value '%s') did not parse as a number", ev)
+		}
+		c.sparsePhiCutoff = uint64(v) // convert -1 to maxint, for never use sparse
+	}
+
 	return c
 }
 
-func (c *Config) Frontend() Frontend { return c.fe }
+func (c *Config) Frontend() Frontend      { return c.fe }
+func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
 
 // NewFunc returns a new, empty function object.
 // Caller must call f.Free() before calling NewFunc again.
@@ -258,4 +277,8 @@ func (c *Config) DebugHashMatch(evname, name string) bool {
 		}
 	}
 	return false
+}
+
+func (c *Config) DebugNameMatch(evname, name string) bool {
+	return os.Getenv(evname) == name
 }
