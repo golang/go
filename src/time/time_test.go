@@ -533,7 +533,7 @@ var durationTests = []struct {
 	str string
 	d   Duration
 }{
-	{"0", 0},
+	{"0s", 0},
 	{"1ns", 1 * Nanosecond},
 	{"1.1µs", 1100 * Nanosecond},
 	{"2.2ms", 2200 * Microsecond},
