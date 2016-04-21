@@ -798,19 +798,20 @@ func Codeblk(addr int64, size int64) {
 		return
 	}
 
-	var sym *LSym
-	for _, sym = range Ctxt.Textp {
+	syms := Ctxt.Textp
+	for i, sym := range syms {
 		if !sym.Attr.Reachable() {
 			continue
 		}
 		if sym.Value >= addr {
+			syms = syms[i:]
 			break
 		}
 	}
 
 	eaddr := addr + size
 	var q []byte
-	for ; sym != nil; sym = sym.Next {
+	for _, sym := range syms {
 		if !sym.Attr.Reachable() {
 			continue
 		}
