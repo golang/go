@@ -1648,6 +1648,7 @@ var optab =
 	{AROUNDSS, yaes2, Pq, [23]uint8{0x3a, 0x0a, 0}},
 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
+	{APCMPESTRI, yxshuf, Pq, [23]uint8{0x3a, 0x61, 0}},
 
 	{AANDNL, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF2}},
 	{AANDNQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF2}},
