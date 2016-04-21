@@ -1540,9 +1540,9 @@ func (s *regAllocState) isLoopSpillCandidate(loop *loop, v *Value) bool {
 	return s.values[v.ID].needReg && !s.values[v.ID].spillUsed && s.loopnest.b2l[v.Block.ID] == loop
 }
 
-// lateSpillUse notes a late (after stack allocation) use of spill c
+// lateSpillUse notes a late (after stack allocation) use of the spill of value with ID vid.
 // This will inhibit spill sinking.
-func (s *regAllocState) lateSpillUse(c *Value) {
+func (s *regAllocState) lateSpillUse(vid ID) {
 	// TODO investigate why this is necessary.
 	// It appears that an outside-the-loop use of
 	// an otherwise sinkable spill makes the spill
@@ -1551,10 +1551,7 @@ func (s *regAllocState) lateSpillUse(c *Value) {
 	// true when isLoopSpillCandidate was called, yet
 	// it was shuffled).  Such shuffling cuts the amount
 	// of spill sinking by more than half (in make.bash)
-	v := s.orig[c.ID]
-	if v != nil {
-		s.values[v.ID].spillUsedShuffle = true
-	}
+	s.values[vid].spillUsedShuffle = true
 }
 
 // shuffle fixes up all the merge edges (those going into blocks of indegree > 1).
@@ -1729,7 +1726,7 @@ func (e *edgeState) process() {
 		if _, isReg := loc.(*Register); isReg {
 			c = e.p.NewValue1(c.Line, OpCopy, c.Type, c)
 		} else {
-			e.s.lateSpillUse(c)
+			e.s.lateSpillUse(vid)
 			c = e.p.NewValue1(c.Line, OpLoadReg, c.Type, c)
 		}
 		e.set(r, vid, c, false)
@@ -1818,7 +1815,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 			}
 		} else {
 			if dstReg {
-				e.s.lateSpillUse(c)
+				e.s.lateSpillUse(vid)
 				x = e.p.NewValue1(c.Line, OpLoadReg, c.Type, c)
 			} else {
 				// mem->mem. Use temp register.
@@ -1836,7 +1833,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 				e.erase(loc)
 
 				r := e.findRegFor(c.Type)
-				e.s.lateSpillUse(c)
+				e.s.lateSpillUse(vid)
 				t := e.p.NewValue1(c.Line, OpLoadReg, c.Type, c)
 				e.set(r, vid, t, false)
 				x = e.p.NewValue1(c.Line, OpStoreReg, loc.(LocalSlot).Type, t)
