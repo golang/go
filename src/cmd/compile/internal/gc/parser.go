@@ -1408,20 +1408,17 @@ loop:
 				}
 				x = Nod(OINDEX, x, i)
 			case 1:
-				i := index[0]
-				j := index[1]
-				x = Nod(OSLICE, x, Nod(OKEY, i, j))
+				x = Nod(OSLICE, x, nil)
+				x.SetSliceBounds(index[0], index[1], nil)
 			case 2:
-				i := index[0]
-				j := index[1]
-				k := index[2]
-				if j == nil {
+				if index[1] == nil {
 					Yyerror("middle index required in 3-index slice")
 				}
-				if k == nil {
+				if index[2] == nil {
 					Yyerror("final index required in 3-index slice")
 				}
-				x = Nod(OSLICE3, x, Nod(OKEY, i, Nod(OKEY, j, k)))
+				x = Nod(OSLICE3, x, nil)
+				x.SetSliceBounds(index[0], index[1], index[2])
 
 			default:
 				panic("unreachable")

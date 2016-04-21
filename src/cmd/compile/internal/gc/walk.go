@@ -1241,35 +1241,28 @@ opswitch:
 	case ORECV:
 		Fatalf("walkexpr ORECV") // should see inside OAS only
 
-	case OSLICE, OSLICEARR, OSLICESTR:
+	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
 		n.Left = walkexpr(n.Left, init)
-		n.Right.Left = walkexpr(n.Right.Left, init)
-		if n.Right.Left != nil && iszero(n.Right.Left) {
-			// Reduce x[0:j] to x[:j].
-			n.Right.Left = nil
+		low, high, max := n.SliceBounds()
+		low = walkexpr(low, init)
+		if low != nil && iszero(low) {
+			// Reduce x[0:j] to x[:j] and x[0:j:k] to x[:j:k].
+			low = nil
 		}
-		n.Right.Right = walkexpr(n.Right.Right, init)
-		n = reduceSlice(n)
-
-	case OSLICE3, OSLICE3ARR:
-		n.Left = walkexpr(n.Left, init)
-		n.Right.Left = walkexpr(n.Right.Left, init)
-		if n.Right.Left != nil && iszero(n.Right.Left) {
-			// Reduce x[0:j:k] to x[:j:k].
-			n.Right.Left = nil
-		}
-		n.Right.Right.Left = walkexpr(n.Right.Right.Left, init)
-		n.Right.Right.Right = walkexpr(n.Right.Right.Right, init)
-
-		r := n.Right.Right.Right
-		if r != nil && r.Op == OCAP && samesafeexpr(n.Left, r.Left) {
-			// Reduce x[i:j:cap(x)] to x[i:j].
-			n.Right.Right = n.Right.Right.Left
-			if n.Op == OSLICE3 {
-				n.Op = OSLICE
-			} else {
-				n.Op = OSLICEARR
+		high = walkexpr(high, init)
+		max = walkexpr(max, init)
+		n.SetSliceBounds(low, high, max)
+		if n.Op.IsSlice3() {
+			if max != nil && max.Op == OCAP && samesafeexpr(n.Left, max.Left) {
+				// Reduce x[i:j:cap(x)] to x[i:j].
+				if n.Op == OSLICE3 {
+					n.Op = OSLICE
+				} else {
+					n.Op = OSLICEARR
+				}
+				n = reduceSlice(n)
 			}
+		} else {
 			n = reduceSlice(n)
 		}
 
@@ -1425,8 +1418,9 @@ opswitch:
 			a := Nod(OAS, var_, nil) // zero temp
 			a = typecheck(a, Etop)
 			init.Append(a)
-			r := Nod(OSLICE, var_, Nod(OKEY, nil, l)) // arr[:l]
-			r = conv(r, n.Type)                       // in case n.Type is named.
+			r := Nod(OSLICE, var_, nil) // arr[:l]
+			r.SetSliceBounds(nil, l, nil)
+			r = conv(r, n.Type) // in case n.Type is named.
 			r = typecheck(r, Erv)
 			r = walkexpr(r, init)
 			n = r
@@ -1596,13 +1590,15 @@ opswitch:
 	return n
 }
 
+// TODO(josharian): combine this with its caller and simplify
 func reduceSlice(n *Node) *Node {
-	r := n.Right.Right
-	if r != nil && r.Op == OLEN && samesafeexpr(n.Left, r.Left) {
+	low, high, max := n.SliceBounds()
+	if high != nil && high.Op == OLEN && samesafeexpr(n.Left, high.Left) {
 		// Reduce x[i:len(x)] to x[i:].
-		n.Right.Right = nil
+		high = nil
 	}
-	if (n.Op == OSLICE || n.Op == OSLICESTR) && n.Right.Left == nil && n.Right.Right == nil {
+	n.SetSliceBounds(low, high, max)
+	if (n.Op == OSLICE || n.Op == OSLICESTR) && low == nil && high == nil {
 		// Reduce x[:] to x.
 		if Debug_slice > 0 {
 			Warn("slice: omit slice operation")
@@ -2816,14 +2812,15 @@ func appendslice(n *Node, init *Nodes) *Node {
 	l = append(l, nif)
 
 	// s = s[:n]
-	nt := Nod(OSLICE, s, Nod(OKEY, nil, nn))
+	nt := Nod(OSLICE, s, nil)
+	nt.SetSliceBounds(nil, nn, nil)
 	nt.Etype = 1
 	l = append(l, Nod(OAS, s, nt))
 
 	if haspointers(l1.Type.Elem()) {
 		// copy(s[len(l1):], l2)
-		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
-
+		nptr1 := Nod(OSLICE, s, nil)
+		nptr1.SetSliceBounds(Nod(OLEN, l1, nil), nil, nil)
 		nptr1.Etype = 1
 		nptr2 := l2
 		fn := syslook("typedslicecopy")
@@ -2835,8 +2832,8 @@ func appendslice(n *Node, init *Nodes) *Node {
 	} else if instrumenting {
 		// rely on runtime to instrument copy.
 		// copy(s[len(l1):], l2)
-		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
-
+		nptr1 := Nod(OSLICE, s, nil)
+		nptr1.SetSliceBounds(Nod(OLEN, l1, nil), nil, nil)
 		nptr1.Etype = 1
 		nptr2 := l2
 		var fn *Node
@@ -2950,7 +2947,8 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	nn := temp(Types[TINT])
 	l = append(l, Nod(OAS, nn, Nod(OLEN, ns, nil))) // n = len(s)
 
-	nx = Nod(OSLICE, ns, Nod(OKEY, nil, Nod(OADD, nn, na))) // ...s[:n+argc]
+	nx = Nod(OSLICE, ns, nil) // ...s[:n+argc]
+	nx.SetSliceBounds(nil, Nod(OADD, nn, na), nil)
 	nx.Etype = 1
 	l = append(l, Nod(OAS, ns, nx)) // s = s[:n+argc]
 

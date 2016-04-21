@@ -727,7 +727,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		arraylit(ctxt, 2, n, vstat, init)
 
 		// copy static to slice
-		a := Nod(OSLICE, vstat, Nod(OKEY, nil, nil))
+		a := Nod(OSLICE, vstat, nil)
 
 		a = Nod(OAS, var_, a)
 		a = typecheck(a, Etop)
@@ -851,7 +851,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	// make slice out of heap (6)
-	a = Nod(OAS, var_, Nod(OSLICE, vauto, Nod(OKEY, nil, nil)))
+	a = Nod(OAS, var_, Nod(OSLICE, vauto, nil))
 
 	a = typecheck(a, Etop)
 	a = orderstmtinplace(a)
@@ -1391,7 +1391,8 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		fallthrough
 
 	case OSLICEARR:
-		if nr.Right.Op != OKEY || nr.Right.Left != nil || nr.Right.Right != nil {
+		low, high, _ := nr.SliceBounds()
+		if low != nil || high != nil {
 			return false
 		}
 		nr = nr.Left

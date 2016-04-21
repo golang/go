@@ -307,7 +307,11 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		instrumentnode(&n.Left, init, 0, 0)
-		instrumentnode(&n.Right, init, 0, 0)
+		low, high, max := n.SliceBounds()
+		instrumentnode(&low, init, 0, 0)
+		instrumentnode(&high, init, 0, 0)
+		instrumentnode(&max, init, 0, 0)
+		n.SetSliceBounds(low, high, max)
 		goto ret
 
 	case OKEY:

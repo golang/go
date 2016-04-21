@@ -1105,14 +1105,19 @@ OpSwitch:
 		n.Type = nil
 		break OpSwitch
 
-	case OSLICE:
+	case OSLICE, OSLICE3:
 		ok |= Erv
 		n.Left = typecheck(n.Left, top)
-		n.Right.Left = typecheck(n.Right.Left, Erv)
-		n.Right.Right = typecheck(n.Right.Right, Erv)
+		low, high, max := n.SliceBounds()
+		hasmax := n.Op.IsSlice3()
+		low = typecheck(low, Erv)
+		high = typecheck(high, Erv)
+		max = typecheck(max, Erv)
 		n.Left = defaultlit(n.Left, nil)
-		n.Right.Left = indexlit(n.Right.Left)
-		n.Right.Right = indexlit(n.Right.Right)
+		low = indexlit(low)
+		high = indexlit(high)
+		max = indexlit(max)
+		n.SetSliceBounds(low, high, max)
 		l := n.Left
 		if l.Type.IsArray() {
 			if !islvalue(n.Left) {
@@ -1134,78 +1139,22 @@ OpSwitch:
 		}
 		var tp *Type
 		if t.IsString() {
+			if hasmax {
+				Yyerror("invalid operation %v (3-index slice of string)", n)
+				n.Type = nil
+				return n
+			}
 			n.Type = t
 			n.Op = OSLICESTR
 		} else if t.IsPtr() && t.Elem().IsArray() {
 			tp = t.Elem()
 			n.Type = typSlice(tp.Elem())
 			dowidth(n.Type)
-			n.Op = OSLICEARR
-		} else if t.IsSlice() {
-			n.Type = t
-		} else {
-			Yyerror("cannot slice %v (type %v)", l, t)
-			n.Type = nil
-			return n
-		}
-
-		lo := n.Right.Left
-		if lo != nil && !checksliceindex(l, lo, tp) {
-			n.Type = nil
-			return n
-		}
-		hi := n.Right.Right
-		if hi != nil && !checksliceindex(l, hi, tp) {
-			n.Type = nil
-			return n
-		}
-		if !checksliceconst(lo, hi) {
-			n.Type = nil
-			return n
-		}
-		break OpSwitch
-
-	case OSLICE3:
-		ok |= Erv
-		n.Left = typecheck(n.Left, top)
-		n.Right.Left = typecheck(n.Right.Left, Erv)
-		n.Right.Right.Left = typecheck(n.Right.Right.Left, Erv)
-		n.Right.Right.Right = typecheck(n.Right.Right.Right, Erv)
-		n.Left = defaultlit(n.Left, nil)
-		n.Right.Left = indexlit(n.Right.Left)
-		n.Right.Right.Left = indexlit(n.Right.Right.Left)
-		n.Right.Right.Right = indexlit(n.Right.Right.Right)
-		l := n.Left
-		if l.Type.IsArray() {
-			if !islvalue(n.Left) {
-				Yyerror("invalid operation %v (slice of unaddressable value)", n)
-				n.Type = nil
-				return n
+			if hasmax {
+				n.Op = OSLICE3ARR
+			} else {
+				n.Op = OSLICEARR
 			}
-
-			n.Left = Nod(OADDR, n.Left, nil)
-			n.Left.Implicit = true
-			n.Left = typecheck(n.Left, Erv)
-			l = n.Left
-		}
-
-		t := l.Type
-		if t == nil {
-			n.Type = nil
-			return n
-		}
-		if t.IsString() {
-			Yyerror("invalid operation %v (3-index slice of string)", n)
-			n.Type = nil
-			return n
-		}
-
-		var tp *Type
-		if t.IsPtr() && t.Elem().IsArray() {
-			tp = t.Elem()
-			n.Type = typSlice(tp.Elem())
-			dowidth(n.Type)
-			n.Op = OSLICE3ARR
 		} else if t.IsSlice() {
 			n.Type = t
 		} else {
@@ -1214,22 +1163,19 @@ OpSwitch:
 			return n
 		}
 
-		lo := n.Right.Left
-		if lo != nil && !checksliceindex(l, lo, tp) {
+		if low != nil && !checksliceindex(l, low, tp) {
 			n.Type = nil
 			return n
 		}
-		mid := n.Right.Right.Left
-		if mid != nil && !checksliceindex(l, mid, tp) {
+		if high != nil && !checksliceindex(l, high, tp) {
 			n.Type = nil
 			return n
 		}
-		hi := n.Right.Right.Right
-		if hi != nil && !checksliceindex(l, hi, tp) {
+		if max != nil && !checksliceindex(l, max, tp) {
 			n.Type = nil
 			return n
 		}
-		if !checksliceconst(lo, hi) || !checksliceconst(lo, mid) || !checksliceconst(mid, hi) {
+		if !checksliceconst(low, high) || !checksliceconst(low, max) || !checksliceconst(high, max) {
 			n.Type = nil
 			return n
 		}

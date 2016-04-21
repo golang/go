@@ -754,7 +754,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			vararrtype := typArray(varargtype.Elem(), int64(varargcount))
 			as.Right = Nod(OCOMPLIT, nil, typenod(vararrtype))
 			as.Right.List.Set(varargs)
-			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
+			as.Right = Nod(OSLICE, as.Right, nil)
 		}
 
 		as = typecheck(as, Etop)
