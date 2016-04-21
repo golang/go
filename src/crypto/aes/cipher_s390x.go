@@ -82,3 +82,9 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	// The decrypt function code is equal to the function code + 128.
 	cryptBlocks(c.function+128, &c.key[0], &dst[0], &src[0], BlockSize)
 }
+
+// expandKey is used by BenchmarkExpand. cipher message (KM) does not need key
+// expansion so there is no assembly equivalent.
+func expandKey(key []byte, enc, dec []uint32) {
+	expandKeyGo(key, enc, dec)
+}

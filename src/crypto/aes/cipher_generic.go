@@ -18,3 +18,9 @@ import (
 func newCipher(key []byte) (cipher.Block, error) {
 	return newCipherGeneric(key)
 }
+
+// expandKey is used by BenchmarkExpand and should
+// call an assembly implementation if one is available.
+func expandKey(key []byte, enc, dec []uint32) {
+	expandKeyGo(key, enc, dec)
+}

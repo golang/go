@@ -64,3 +64,20 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	}
 	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])
 }
+
+// expandKey is used by BenchmarkExpand to ensure that the asm implementation
+// of key expansion is used for the benchmark when it is available.
+func expandKey(key []byte, enc, dec []uint32) {
+	if useAsm {
+		rounds := 10 // rounds needed for AES128
+		switch len(key) {
+		case 192 / 8:
+			rounds = 12
+		case 256 / 8:
+			rounds = 14
+		}
+		expandKeyAsm(rounds, &key[0], &enc[0], &dec[0])
+	} else {
+		expandKeyGo(key, enc, dec)
+	}
+}
