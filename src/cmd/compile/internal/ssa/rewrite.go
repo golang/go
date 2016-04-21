@@ -40,6 +40,8 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			curb = nil
 			for _, v := range b.Values {
+				change = phielimValue(v) || change
+
 				// Eliminate copy inputs.
 				// If any copy input becomes unused, mark it
 				// as invalid and discard its argument. Repeat
