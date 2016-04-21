@@ -19,7 +19,8 @@ type File struct {
 	FileHeader
 	OptionalHeader interface{} // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
-	Symbols        []*Symbol
+	Symbols        []*Symbol    // COFF symbols with auxiliary symbol records removed
+	COFFSymbols    []COFFSymbol // all COFF symbols (including auxiliary symbol records)
 	StringTable    StringTable
 
 	closer io.Closer
@@ -94,48 +95,14 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 
-	var ss []byte
-	if f.FileHeader.NumberOfSymbols > 0 {
-		// Get COFF string table, which is located at the end of the COFF symbol table.
-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), io.SeekStart)
-		var l uint32
-		if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
-			return nil, err
-		}
-		ss = make([]byte, l)
-		if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols)); err != nil {
-			return nil, err
-		}
-
-		// Process COFF symbol table.
-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), io.SeekStart)
-		aux := uint8(0)
-		for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
-			cs := new(COFFSymbol)
-			if err := binary.Read(sr, binary.LittleEndian, cs); err != nil {
-				return nil, err
-			}
-			if aux > 0 {
-				aux--
-				continue
-			}
-			var name string
-			if cs.Name[0] == 0 && cs.Name[1] == 0 && cs.Name[2] == 0 && cs.Name[3] == 0 {
-				si := int(binary.LittleEndian.Uint32(cs.Name[4:]))
-				name, _ = getString(ss, si)
-			} else {
-				name = cstring(cs.Name[:])
-			}
-			aux = cs.NumberOfAuxSymbols
-			s := &Symbol{
-				Name:          name,
-				Value:         cs.Value,
-				SectionNumber: cs.SectionNumber,
-				Type:          cs.Type,
-				StorageClass:  cs.StorageClass,
-			}
-			f.Symbols = append(f.Symbols, s)
-		}
+	// Read symbol table.
+	f.COFFSymbols, err = readCOFFSymbols(&f.FileHeader, sr)
+	if err != nil {
+		return nil, err
+	}
+	f.Symbols, err = removeAuxSymbols(f.COFFSymbols, f.StringTable)
+	if err != nil {
+		return nil, err
 	}
 
 	// Read optional header.

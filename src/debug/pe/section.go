@@ -39,6 +39,8 @@ func (sh *SectionHeader32) fullName(st StringTable) (string, error) {
 	return st.String(uint32(i))
 }
 
+// TODO(brainman): copy all IMAGE_REL_* consts from ldpe.go here
+
 // Reloc represents a PE COFF relocation.
 // Each section contains its own relocation list.
 type Reloc struct {
