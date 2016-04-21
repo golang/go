@@ -79,7 +79,7 @@ var linesec *Symbol
 
 var gdbscript string
 
-var dwarfp *Symbol
+var dwarfp []*Symbol
 
 func writeabbrev(ctxt *Link, syms []*Symbol) []*Symbol {
 	s := Linklookup(ctxt, ".debug_abbrev", 0)
@@ -1476,11 +1476,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	syms = writearanges(ctxt, syms)
 	syms = writegdbscript(ctxt, syms)
 	syms = append(syms, infosyms...)
-	dwarfp = syms[0]
-	for i := 1; i < len(syms); i++ {
-		syms[i-1].Next = syms[i]
-	}
-	syms[len(syms)-1].Next = nil
+	dwarfp = syms
 }
 
 /*

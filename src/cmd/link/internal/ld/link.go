@@ -57,7 +57,6 @@ type Symbol struct {
 	// is not set for symbols defined by the packages being linked or by symbols
 	// read by ldelf (and so is left as elf.STT_NOTYPE).
 	ElfType     elf.SymType
-	Next        *Symbol
 	Sub         *Symbol
 	Outer       *Symbol
 	Gotype      *Symbol
