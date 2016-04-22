@@ -248,9 +248,15 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 	}
 
 	(*budget)--
-	// TODO(mdempsky): Hack to appease toolstash; remove.
-	if n.Op == OSTRUCTKEY {
+	// TODO(mdempsky/josharian): Hacks to appease toolstash; remove.
+	// See issue 17566 and CL 31674 for discussion.
+	switch n.Op {
+	case OSTRUCTKEY:
 		(*budget)--
+	case OSLICE, OSLICEARR, OSLICESTR:
+		(*budget)--
+	case OSLICE3, OSLICE3ARR:
+		*budget -= 2
 	}
 
 	return *budget < 0 || ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
@@ -428,7 +434,7 @@ func inlnode(n *Node) *Node {
 	default:
 		s := n.List.Slice()
 		for i1, n1 := range s {
-			if n1.Op == OINLCALL {
+			if n1 != nil && n1.Op == OINLCALL {
 				s[i1] = inlconv2expr(s[i1])
 			}
 		}
