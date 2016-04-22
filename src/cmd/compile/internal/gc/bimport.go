@@ -30,8 +30,9 @@ type importer struct {
 	funcList []*Node // nil entry means already declared
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	debugFormat bool
@@ -54,6 +55,8 @@ func Import(in *bufio.Reader) {
 	default:
 		Fatalf("importer: invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.posInfoFormat = p.bool()
 
 	// --- generic export data ---
 
@@ -279,6 +282,10 @@ func (p *importer) obj(tag int) {
 }
 
 func (p *importer) pos() {
+	if !p.posInfoFormat {
+		return
+	}
+
 	file := p.prevFile
 	line := p.prevLine
 

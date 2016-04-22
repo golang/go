@@ -112,6 +112,14 @@ import (
 // (suspected) format errors, and whenever a change is made to the format.
 const debugFormat = false // default: false
 
+// If posInfoFormat is set, position information (file, lineno) is written
+// for each exported object, including methods and struct fields. Currently
+// disabled because it may lead to different object files depending on which
+// directory they are built under, which causes tests checking for hermetic
+// builds to fail (e.g. TestCgoConsistentResults for cmd/go).
+// TODO(gri) determine what to do here.
+const posInfoFormat = false
+
 // TODO(gri) remove eventually
 const forceNewExport = false // force new export format - DO NOT SUBMIT with this flag set
 
@@ -159,6 +167,9 @@ func export(out *bufio.Writer, trace bool) int {
 		format = 'd'
 	}
 	p.rawByte(format)
+
+	// posInfo exported or not?
+	p.bool(posInfoFormat)
 
 	// --- generic export data ---
 
@@ -493,6 +504,10 @@ func (p *exporter) obj(sym *Sym) {
 }
 
 func (p *exporter) pos(n *Node) {
+	if !posInfoFormat {
+		return
+	}
+
 	var file string
 	var line int
 	if n != nil {

@@ -27,8 +27,9 @@ type importer struct {
 	typList []types.Type     // in order of appearance
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	debugFormat bool
@@ -56,6 +57,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	default:
 		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.posInfoFormat = p.int() != 0
 
 	// --- generic export data ---
 
@@ -194,6 +197,10 @@ func (p *importer) obj(tag int) {
 }
 
 func (p *importer) pos() {
+	if !p.posInfoFormat {
+		return
+	}
+
 	file := p.prevFile
 	line := p.prevLine
 
