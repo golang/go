@@ -26,6 +26,7 @@ package ssa
 func phiopt(f *Func) {
 	for _, b := range f.Blocks {
 		if len(b.Preds) != 2 || len(b.Values) == 0 {
+			// TODO: handle more than 2 predecessors, e.g. a || b || c.
 			continue
 		}
 
@@ -84,6 +85,22 @@ func phiopt(f *Func) {
 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
 				if tmp := v.Args[1-reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
 					v.reset(OpOr8)
+					v.SetArgs2(b0.Control, tmp)
+					if f.pass.debug > 0 {
+						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+					}
+					continue
+				}
+			}
+
+			// Replaces
+			//   if a { x = value } else { x = false } with x = a && value.
+			// Requires that value dominates x, meaning that regardless of a,
+			// value is always computed. This guarantees that the side effects
+			// of value are not seen if a is false.
+			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
+				if tmp := v.Args[reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
+					v.reset(OpAnd8)
 					v.SetArgs2(b0.Control, tmp)
 					if f.pass.debug > 0 {
 						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
