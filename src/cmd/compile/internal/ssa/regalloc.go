@@ -941,11 +941,28 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.advanceUses(v)
 				continue
 			}
+			if v.Op == OpKeepAlive {
+				// Make sure the argument to v is still live here.
+				s.advanceUses(v)
+				vi := &s.values[v.Args[0].ID]
+				if vi.spillUsed {
+					// Use the spill location.
+					v.SetArg(0, vi.spill)
+					b.Values = append(b.Values, v)
+				} else {
+					// No need to keep unspilled values live.
+					// These are typically rematerializeable constants like nil,
+					// or values of a variable that were modified since the last call.
+					v.Args[0].Uses--
+				}
+				continue
+			}
 			regspec := opcodeTable[v.Op].reg
 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
 				// No register allocation required (or none specified yet)
 				s.freeRegs(regspec.clobbers)
 				b.Values = append(b.Values, v)
+				s.advanceUses(v)
 				continue
 			}
 

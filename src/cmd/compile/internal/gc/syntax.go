@@ -68,11 +68,37 @@ type Node struct {
 	Used      bool
 	Isddd     bool // is the argument variadic
 	Implicit  bool
-	Addrtaken bool // address taken, even if not moved to heap
-	Assigned  bool // is the variable ever assigned to
-	Likely    int8 // likeliness of if statement
-	Hasbreak  bool // has break statement
-	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
+	Addrtaken bool  // address taken, even if not moved to heap
+	Assigned  bool  // is the variable ever assigned to
+	Likely    int8  // likeliness of if statement
+	hasVal    int8  // +1 for Val, -1 for Opt, 0 for not yet set
+	flags     uint8 // TODO: store more bool fields in this flag field
+}
+
+const (
+	hasBreak = 1 << iota
+	notLiveAtEnd
+)
+
+func (n *Node) HasBreak() bool {
+	return n.flags&hasBreak != 0
+}
+func (n *Node) SetHasBreak(b bool) {
+	if b {
+		n.flags |= hasBreak
+	} else {
+		n.flags &^= hasBreak
+	}
+}
+func (n *Node) NotLiveAtEnd() bool {
+	return n.flags&notLiveAtEnd != 0
+}
+func (n *Node) SetNotLiveAtEnd(b bool) {
+	if b {
+		n.flags |= notLiveAtEnd
+	} else {
+		n.flags &^= notLiveAtEnd
+	}
 }
 
 // Val returns the Val for the node.
