@@ -1013,7 +1013,7 @@ func (p *importer) node() *Node {
 		return nil
 
 	default:
-		Fatalf("importer: %s (%d) node not yet supported", opnames[op], op)
+		Fatalf("importer: %s (%d) node not yet supported", op, op)
 		panic("unreachable") // satisfy compiler
 	}
 }

@@ -969,7 +969,7 @@ func (s *state) stmt(n *Node) {
 		s.nilCheck(p)
 
 	default:
-		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
+		s.Unimplementedf("unhandled stmt %s", n.Op)
 	}
 }
 
@@ -1247,7 +1247,7 @@ func (s *state) ssaOp(op Op, t *Type) ssa.Op {
 	etype := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
-		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(etype))
+		s.Unimplementedf("unhandled binary op %s %s", op, Econv(etype))
 	}
 	return x
 }
@@ -1405,7 +1405,7 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
 	etype2 := s.concreteEtype(u)
 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
 	if !ok {
-		s.Unimplementedf("unhandled shift op %s etype=%s/%s", opnames[op], Econv(etype1), Econv(etype2))
+		s.Unimplementedf("unhandled shift op %s etype=%s/%s", op, Econv(etype1), Econv(etype2))
 	}
 	return x
 }
@@ -1414,7 +1414,7 @@ func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
 	etype1 := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype1}]
 	if !ok {
-		s.Unimplementedf("unhandled rotate op %s etype=%s", opnames[op], Econv(etype1))
+		s.Unimplementedf("unhandled rotate op %s etype=%s", op, Econv(etype1))
 	}
 	return x
 }
@@ -1729,7 +1729,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			case ONE:
 				return s.newValue1(ssa.OpNot, Types[TBOOL], c)
 			default:
-				s.Fatalf("ordered complex compare %s", opnames[n.Op])
+				s.Fatalf("ordered complex compare %s", n.Op)
 			}
 		}
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
@@ -2088,7 +2088,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.append(n, false)
 
 	default:
-		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
+		s.Unimplementedf("unhandled expr %s", n.Op)
 		return nil
 	}
 }
@@ -2632,7 +2632,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	case sym != nil:
 		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym, s.mem())
 	default:
-		Fatalf("bad call type %s %v", opnames[n.Op], n)
+		Fatalf("bad call type %s %v", n.Op, n)
 	}
 	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 
