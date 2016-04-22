@@ -615,7 +615,7 @@ func cplxsubtype(et EType) EType {
 		return TFLOAT64
 	}
 
-	Fatalf("cplxsubtype: %v\n", Econv(et))
+	Fatalf("cplxsubtype: %v\n", et)
 	return 0
 }
 
