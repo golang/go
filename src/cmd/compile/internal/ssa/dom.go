@@ -5,11 +5,13 @@
 package ssa
 
 // mark values
+type markKind uint8
+
 const (
-	notFound    = 0 // block has not been discovered yet
-	notExplored = 1 // discovered and in queue, outedges not processed yet
-	explored    = 2 // discovered and in queue, outedges processed
-	done        = 3 // all done, in output ordering
+	notFound    markKind = 0 // block has not been discovered yet
+	notExplored markKind = 1 // discovered and in queue, outedges not processed yet
+	explored    markKind = 2 // discovered and in queue, outedges processed
+	done        markKind = 3 // all done, in output ordering
 )
 
 // This file contains code to compute the dominator tree
@@ -18,7 +20,7 @@ const (
 // postorder computes a postorder traversal ordering for the
 // basic blocks in f. Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
-	mark := make([]byte, f.NumBlocks())
+	mark := make([]markKind, f.NumBlocks())
 
 	// result ordering
 	var order []*Block
@@ -96,7 +98,7 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g, h [
 // dfs performs a depth first search over the blocks starting at the set of
 // blocks in the entries list (in arbitrary order). dfnum contains a mapping
 // from block id to an int indicating the order the block was reached or
-// notFound if the block was not reached.  order contains a mapping from dfnum
+// 0 if the block was not reached.  order contains a mapping from dfnum
 // to block.
 func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent []ID) (fromID []*Block) {
 	maxBlockID := entries[0].Func.NumBlocks()
@@ -114,7 +116,7 @@ func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent [
 	n := ID(0)
 	s := make([]*Block, 0, 256)
 	for _, entry := range entries {
-		if dfnum[entry.ID] != notFound {
+		if dfnum[entry.ID] != 0 {
 			continue // already found from a previous entry
 		}
 		s = append(s, entry)
@@ -122,18 +124,19 @@ func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent [
 		for len(s) > 0 {
 			node := s[len(s)-1]
 			s = s[:len(s)-1]
-
-			n++
-			for _, w := range succFn(node) {
-				// if it has a dfnum, we've already visited it
-				if dfnum[w.ID] == notFound {
-					s = append(s, w)
-					parent[w.ID] = node.ID
-					dfnum[w.ID] = notExplored
-				}
+			if dfnum[node.ID] != 0 {
+				continue // already found from a previous entry
 			}
+			n++
 			dfnum[node.ID] = n
 			order[n] = node.ID
+			for _, w := range succFn(node) {
+				// if it has a dfnum, we've already visited it
+				if dfnum[w.ID] == 0 {
+					s = append(s, w)
+					parent[w.ID] = node.ID // keep overwriting this till it is visited.
+				}
+			}
 		}
 	}
 
@@ -154,8 +157,6 @@ func dominators(f *Func) []*Block {
 
 // postDominators computes the post-dominator tree for f.
 func postDominators(f *Func) []*Block {
-	preds := func(b *Block) []*Block { return b.Preds }
-	succs := func(b *Block) []*Block { return b.Succs }
 
 	if len(f.Blocks) == 0 {
 		return nil
@@ -169,6 +170,10 @@ func postDominators(f *Func) []*Block {
 			exits = append(exits, b)
 		}
 	}
+
+	// TODO: postdominators is not really right, and it's not used yet
+	preds := func(b *Block) []*Block { return b.Preds }
+	succs := func(b *Block) []*Block { return b.Succs }
 
 	// infinite loop with no exit
 	if exits == nil {
@@ -214,7 +219,7 @@ func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linked
 			continue
 		}
 
-		if dfnum[w] == notFound {
+		if dfnum[w] == 0 {
 			// skip unreachable node
 			continue
 		}
@@ -236,7 +241,7 @@ func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linked
 		var sp ID
 		// calculate the semidominator of w
 		for _, v := range predFn(fromID[w]) {
-			if dfnum[v.ID] == notFound {
+			if dfnum[v.ID] == 0 {
 				// skip unreachable predecessor
 				continue
 			}
