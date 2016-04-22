@@ -3153,8 +3153,6 @@ func islvalue(n *Node) bool {
 			return false
 		}
 		fallthrough
-
-		// fall through
 	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
 		return true
 
@@ -3858,11 +3856,8 @@ func markbreak(n *Node, implicit *Node) {
 		ORANGE:
 		implicit = n
 		fallthrough
-
-		// fall through
 	default:
 		markbreak(n.Left, implicit)
-
 		markbreak(n.Right, implicit)
 		markbreaklist(n.Ninit, implicit)
 		markbreaklist(n.Nbody, implicit)

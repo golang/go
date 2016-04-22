@@ -58,8 +58,6 @@ func anyinit(n []*Node) bool {
 				break
 			}
 			fallthrough
-
-			// fall through
 		default:
 			return true
 		}

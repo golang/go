@@ -342,8 +342,6 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 			return true
 		}
 		fallthrough
-
-		// fall through
 	case OSTRUCTLIT:
 		p := initplans[r]
 
@@ -1332,8 +1330,6 @@ func iszero(n *Node) bool {
 			break
 		}
 		fallthrough
-
-		// fall through
 	case OSTRUCTLIT:
 		for _, n1 := range n.List.Slice() {
 			if !iszero(n1.Right) {
