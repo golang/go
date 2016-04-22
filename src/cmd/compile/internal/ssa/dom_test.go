@@ -420,3 +420,48 @@ func TestInfiniteLoop(t *testing.T) {
 	postDoms := map[string]string{}
 	verifyDominators(t, fun, postDominators, postDoms)
 }
+
+func TestDomTricky(t *testing.T) {
+	doms := map[string]string{
+		"4":  "1",
+		"2":  "4",
+		"5":  "4",
+		"11": "4",
+		"15": "4", // the incorrect answer is "5"
+		"10": "15",
+		"19": "15",
+	}
+
+	if4 := [2]string{"2", "5"}
+	if5 := [2]string{"15", "11"}
+	if15 := [2]string{"19", "10"}
+
+	for i := 0; i < 8; i++ {
+		a := 1 & i
+		b := 1 & i >> 1
+		c := 1 & i >> 2
+
+		fun := Fun(testConfig(t), "1",
+			Bloc("1",
+				Valu("mem", OpInitMem, TypeMem, 0, nil),
+				Valu("p", OpConstBool, TypeBool, 1, nil),
+				Goto("4")),
+			Bloc("2",
+				Goto("11")),
+			Bloc("4",
+				If("p", if4[a], if4[1-a])), // 2, 5
+			Bloc("5",
+				If("p", if5[b], if5[1-b])), //15, 11
+			Bloc("10",
+				Exit("mem")),
+			Bloc("11",
+				Goto("15")),
+			Bloc("15",
+				If("p", if15[c], if15[1-c])), //19, 10
+			Bloc("19",
+				Goto("10")))
+		CheckFunc(fun.f)
+		verifyDominators(t, fun, dominators, doms)
+		verifyDominators(t, fun, dominatorsSimple, doms)
+	}
+}
