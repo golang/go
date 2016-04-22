@@ -845,7 +845,7 @@ func (t *Type) Alignment() int64 {
 }
 
 func (t *Type) SimpleString() string {
-	return Econv(t.Etype)
+	return t.Etype.String()
 }
 
 // Compare compares types for purposes of the SSA back

@@ -586,7 +586,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 
 	if fmtmode == FDbg {
 		fmtmode = 0
-		str := Econv(t.Etype) + "-" + typefmt(t, flag)
+		str := t.Etype.String() + "-" + typefmt(t, flag)
 		fmtmode = FDbg
 		return str
 	}
@@ -748,18 +748,18 @@ func typefmt(t *Type, flag FmtFlag) string {
 		if fmtmode == FExp {
 			Fatalf("cannot use TDDDFIELD with old exporter")
 		}
-		return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.DDDField())
+		return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
 
 	case Txxx:
 		return "Txxx"
 	}
 
 	if fmtmode == FExp {
-		Fatalf("missing %v case during export", Econv(t.Etype))
+		Fatalf("missing %v case during export", t.Etype)
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
-	return fmt.Sprintf("%v <%v> %v", Econv(t.Etype), t.Sym, t.Elem())
+	return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.Elem())
 }
 
 // Statements which may be rendered with a simplestmt as init.
