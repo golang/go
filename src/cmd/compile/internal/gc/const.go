@@ -226,16 +226,13 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 	case OCOMPLEX:
 		if n.Type.Etype == TIDEAL {
 			switch t.Etype {
-			// If trying to convert to non-complex type,
-			// leave as complex128 and let typechecker complain.
 			default:
+				// If trying to convert to non-complex type,
+				// leave as complex128 and let typechecker complain.
 				t = Types[TCOMPLEX128]
 				fallthrough
-
-				//fallthrough
 			case TCOMPLEX128:
 				n.Type = t
-
 				n.Left = convlit(n.Left, Types[TFLOAT64])
 				n.Right = convlit(n.Right, Types[TFLOAT64])
 
@@ -711,8 +708,6 @@ func evconst(n *Node) {
 				break
 			}
 			fallthrough
-
-			// fall through
 		case OCONV_ | CTINT_,
 			OCONV_ | CTRUNE_,
 			OCONV_ | CTFLT_,
