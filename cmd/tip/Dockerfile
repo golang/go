@@ -1,4 +1,4 @@
-FROM golang:1.5
+FROM golang:1.6
 
 RUN apt-get update && apt-get install --no-install-recommends -y -q build-essential git
 
@@ -10,4 +10,4 @@ ADD . /go/src/tip
 RUN go install tip
 ENTRYPOINT ["/go/bin/tip"]
 # Kubernetes expects us to listen on port 8080
-EXPOSE 8080 
+EXPOSE 8080

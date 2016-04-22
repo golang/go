@@ -44,7 +44,7 @@ func main() {
 
 	p := &Proxy{builder: b}
 	go p.run()
-	http.Handle("/", p)
+	http.Handle("/", httpsOnlyHandler{p})
 	http.HandleFunc("/_ah/health", p.serveHealthCheck)
 
 	log.Print("Starting up")
@@ -322,4 +322,20 @@ func getOK(url string) (body []byte, err error) {
 		return nil, errors.New(res.Status)
 	}
 	return body, nil
+}
+
+// httpsOnlyHandler redirects requests to "http://example.com/foo?bar"
+// to "https://example.com/foo?bar"
+type httpsOnlyHandler struct {
+	h http.Handler
+}
+
+func (h httpsOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-Appengine-Https") == "off" {
+		r.URL.Scheme = "https"
+		r.URL.Host = r.Host
+		http.Redirect(w, r, r.URL.String(), http.StatusFound)
+		return
+	}
+	h.h.ServeHTTP(w, r)
 }
