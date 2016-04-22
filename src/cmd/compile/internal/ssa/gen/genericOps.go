@@ -382,9 +382,9 @@ var genericOps = []opData{
 	{name: "ComplexImag", argLength: 1}, // imag(arg0)
 
 	// Strings
-	{name: "StringMake", argLength: 2}, // arg0=ptr, arg1=len
-	{name: "StringPtr", argLength: 1},  // ptr(arg0)
-	{name: "StringLen", argLength: 1},  // len(arg0)
+	{name: "StringMake", argLength: 2},                // arg0=ptr, arg1=len
+	{name: "StringPtr", argLength: 1, typ: "BytePtr"}, // ptr(arg0)
+	{name: "StringLen", argLength: 1, typ: "Int"},     // len(arg0)
 
 	// Interfaces
 	{name: "IMake", argLength: 2},                // arg0=itab, arg1=data
@@ -407,7 +407,7 @@ var genericOps = []opData{
 	{name: "LoadReg", argLength: 1},
 
 	// Used during ssa construction. Like Copy, but the arg has not been specified yet.
-	{name: "FwdRef"},
+	{name: "FwdRef", aux: "Sym"},
 
 	// Unknown value. Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
@@ -415,6 +415,7 @@ var genericOps = []opData{
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
 	{name: "VarLive", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "KeepAlive", argLength: 2, typ: "Mem"},          // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 }
 
 //     kind           control    successors       implicit exit

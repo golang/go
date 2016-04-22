@@ -569,7 +569,9 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		for i, node := range vars {
 			switch node.Class &^ PHEAP {
 			case PPARAM:
-				bvset(uevar, int32(i))
+				if !node.NotLiveAtEnd() {
+					bvset(uevar, int32(i))
+				}
 
 				// If the result had its address taken, it is being tracked
 			// by the avarinit code, which does not use uevar.
@@ -979,23 +981,6 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 			xoffset = node.Xoffset
 			onebitwalktype1(node.Type, &xoffset, args)
 		}
-	}
-
-	// The node list only contains declared names.
-	// If the receiver or arguments are unnamed, they will be omitted
-	// from the list above. Preserve those values - even though they are unused -
-	// in order to keep their addresses live for use in stack traces.
-	thisargtype := lv.fn.Type.Recvs()
-
-	if thisargtype != nil {
-		xoffset = 0
-		onebitwalktype1(thisargtype, &xoffset, args)
-	}
-
-	inargtype := lv.fn.Type.Params()
-	if inargtype != nil {
-		xoffset = 0
-		onebitwalktype1(inargtype, &xoffset, args)
 	}
 }
 
