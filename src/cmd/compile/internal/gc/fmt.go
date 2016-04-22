@@ -334,15 +334,16 @@ func Jconv(n *Node, flag FmtFlag) string {
 
 // Fmt "%V": Values
 func Vconv(v Val, flag FmtFlag) string {
-	switch v.Ctype() {
-	case CTINT:
-		if (flag&FmtSharp != 0) || fmtmode == FExp {
-			return Bconv(v.U.(*Mpint), FmtSharp)
+	switch u := v.U.(type) {
+	case *Mpint:
+		if !u.Rune {
+			if (flag&FmtSharp != 0) || fmtmode == FExp {
+				return Bconv(u, FmtSharp)
+			}
+			return Bconv(u, 0)
 		}
-		return Bconv(v.U.(*Mpint), 0)
 
-	case CTRUNE:
-		x := v.U.(*Mpint).Int64()
+		x := u.Int64()
 		if ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'' {
 			return fmt.Sprintf("'%c'", int(x))
 		}
@@ -352,39 +353,39 @@ func Vconv(v Val, flag FmtFlag) string {
 		if 0 <= x && x <= utf8.MaxRune {
 			return fmt.Sprintf("'\\U%08x'", uint64(x))
 		}
-		return fmt.Sprintf("('\\x00' + %v)", v.U.(*Mpint))
+		return fmt.Sprintf("('\\x00' + %v)", u)
 
-	case CTFLT:
+	case *Mpflt:
 		if (flag&FmtSharp != 0) || fmtmode == FExp {
-			return Fconv(v.U.(*Mpflt), 0)
+			return Fconv(u, 0)
 		}
-		return Fconv(v.U.(*Mpflt), FmtSharp)
+		return Fconv(u, FmtSharp)
 
-	case CTCPLX:
+	case *Mpcplx:
 		if (flag&FmtSharp != 0) || fmtmode == FExp {
-			return fmt.Sprintf("(%v+%vi)", &v.U.(*Mpcplx).Real, &v.U.(*Mpcplx).Imag)
+			return fmt.Sprintf("(%v+%vi)", &u.Real, &u.Imag)
 		}
 		if v.U.(*Mpcplx).Real.CmpFloat64(0) == 0 {
-			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
+			return fmt.Sprintf("%vi", Fconv(&u.Imag, FmtSharp))
 		}
 		if v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
-			return Fconv(&v.U.(*Mpcplx).Real, FmtSharp)
+			return Fconv(&u.Real, FmtSharp)
 		}
 		if v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0 {
-			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
+			return fmt.Sprintf("(%v%vi)", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp))
 		}
-		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
+		return fmt.Sprintf("(%v+%vi)", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp))
 
-	case CTSTR:
-		return strconv.Quote(v.U.(string))
+	case string:
+		return strconv.Quote(u)
 
-	case CTBOOL:
-		if v.U.(bool) {
+	case bool:
+		if u {
 			return "true"
 		}
 		return "false"
 
-	case CTNIL:
+	case *NilVal:
 		return "nil"
 	}
 

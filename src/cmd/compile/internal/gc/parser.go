@@ -3246,17 +3246,14 @@ func (p *parser) hidden_literal() *Node {
 		if p.tok == LLITERAL {
 			ss := nodlit(p.val)
 			p.next()
-			switch ss.Val().Ctype() {
-			case CTINT, CTRUNE:
-				ss.Val().U.(*Mpint).Neg()
-				break
-			case CTFLT:
-				ss.Val().U.(*Mpflt).Neg()
-				break
-			case CTCPLX:
-				ss.Val().U.(*Mpcplx).Real.Neg()
-				ss.Val().U.(*Mpcplx).Imag.Neg()
-				break
+			switch u := ss.Val().U.(type) {
+			case *Mpint:
+				u.Neg()
+			case *Mpflt:
+				u.Neg()
+			case *Mpcplx:
+				u.Real.Neg()
+				u.Imag.Neg()
 			default:
 				Yyerror("bad negated constant")
 			}

@@ -1448,9 +1448,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 		addr := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 	case OLITERAL:
-		switch n.Val().Ctype() {
-		case CTINT:
-			i := n.Int64()
+		switch u := n.Val().U.(type) {
+		case *Mpint:
+			i := u.Int64()
 			switch n.Type.Size() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))
@@ -1464,13 +1464,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.Fatalf("bad integer size %d", n.Type.Size())
 				return nil
 			}
-		case CTSTR:
-			if n.Val().U == "" {
+		case string:
+			if u == "" {
 				return s.constEmptyString(n.Type)
 			}
-			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
-		case CTBOOL:
-			v := s.constBool(n.Val().U.(bool))
+			return s.entryNewValue0A(ssa.OpConstString, n.Type, u)
+		case bool:
+			v := s.constBool(u)
 			// For some reason the frontend gets the line numbers of
 			// CTBOOL literals totally wrong. Fix it here by grabbing
 			// the line number of the enclosing AST node.
@@ -1478,7 +1478,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				v.Line = s.line[len(s.line)-2]
 			}
 			return v
-		case CTNIL:
+		case *NilVal:
 			t := n.Type
 			switch {
 			case t.IsSlice():
@@ -1488,36 +1488,30 @@ func (s *state) expr(n *Node) *ssa.Value {
 			default:
 				return s.constNil(t)
 			}
-		case CTFLT:
-			f := n.Val().U.(*Mpflt)
+		case *Mpflt:
 			switch n.Type.Size() {
 			case 4:
-				return s.constFloat32(n.Type, f.Float32())
+				return s.constFloat32(n.Type, u.Float32())
 			case 8:
-				return s.constFloat64(n.Type, f.Float64())
+				return s.constFloat64(n.Type, u.Float64())
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil
 			}
-		case CTCPLX:
-			c := n.Val().U.(*Mpcplx)
-			r := &c.Real
-			i := &c.Imag
+		case *Mpcplx:
+			r := &u.Real
+			i := &u.Imag
 			switch n.Type.Size() {
 			case 8:
-				{
-					pt := Types[TFLOAT32]
-					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat32(pt, r.Float32()),
-						s.constFloat32(pt, i.Float32()))
-				}
+				pt := Types[TFLOAT32]
+				return s.newValue2(ssa.OpComplexMake, n.Type,
+					s.constFloat32(pt, r.Float32()),
+					s.constFloat32(pt, i.Float32()))
 			case 16:
-				{
-					pt := Types[TFLOAT64]
-					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat64(pt, r.Float64()),
-						s.constFloat64(pt, i.Float64()))
-				}
+				pt := Types[TFLOAT64]
+				return s.newValue2(ssa.OpComplexMake, n.Type,
+					s.constFloat64(pt, r.Float64()),
+					s.constFloat64(pt, i.Float64()))
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil

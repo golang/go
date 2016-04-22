@@ -1309,28 +1309,22 @@ func addvalue(p *InitPlan, xoffset int64, n *Node) {
 func iszero(n *Node) bool {
 	switch n.Op {
 	case OLITERAL:
-		switch n.Val().Ctype() {
+		switch u := n.Val().U.(type) {
 		default:
 			Dump("unexpected literal", n)
 			Fatalf("iszero")
-
-		case CTNIL:
+		case *NilVal:
 			return true
-
-		case CTSTR:
-			return n.Val().U.(string) == ""
-
-		case CTBOOL:
-			return !n.Val().U.(bool)
-
-		case CTINT, CTRUNE:
-			return n.Val().U.(*Mpint).CmpInt64(0) == 0
-
-		case CTFLT:
-			return n.Val().U.(*Mpflt).CmpFloat64(0) == 0
-
-		case CTCPLX:
-			return n.Val().U.(*Mpcplx).Real.CmpFloat64(0) == 0 && n.Val().U.(*Mpcplx).Imag.CmpFloat64(0) == 0
+		case string:
+			return u == ""
+		case bool:
+			return !u
+		case *Mpint:
+			return u.CmpInt64(0) == 0
+		case *Mpflt:
+			return u.CmpFloat64(0) == 0
+		case *Mpcplx:
+			return u.Real.CmpFloat64(0) == 0 && u.Imag.CmpFloat64(0) == 0
 		}
 
 	case OARRAYLIT:
