@@ -1020,20 +1020,17 @@ func (n *Node) IsMethod() bool {
 // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
 // n must be a slice expression. max is nil if n is a simple slice expression.
 func (n *Node) SliceBounds() (low, high, max *Node) {
+	if n.List.Len() == 0 {
+		return nil, nil, nil
+	}
+
 	switch n.Op {
 	case OSLICE, OSLICEARR, OSLICESTR:
-		if n.Right == nil {
-			return nil, nil, nil
-		}
-		if n.Right.Op != OKEY {
-			Fatalf("SliceBounds right %s", opnames[n.Right.Op])
-		}
-		return n.Right.Left, n.Right.Right, nil
+		s := n.List.Slice()
+		return s[0], s[1], nil
 	case OSLICE3, OSLICE3ARR:
-		if n.Right.Op != OKEY || n.Right.Right.Op != OKEY {
-			Fatalf("SliceBounds right %s %s", opnames[n.Right.Op], opnames[n.Right.Right.Op])
-		}
-		return n.Right.Left, n.Right.Right.Left, n.Right.Right.Right
+		s := n.List.Slice()
+		return s[0], s[1], s[2]
 	}
 	Fatalf("SliceBounds op %v: %v", n.Op, n)
 	return nil, nil, nil
@@ -1047,20 +1044,29 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 		if max != nil {
 			Fatalf("SetSliceBounds %v given three bounds", n.Op)
 		}
-		if n.Right == nil {
-			n.Right = nod(OKEY, low, high)
+		s := n.List.Slice()
+		if s == nil {
+			if low == nil && high == nil {
+				return
+			}
+			n.List.Set([]*Node{low, high})
 			return
 		}
-		n.Right.Left = low
-		n.Right.Right = high
+		s[0] = low
+		s[1] = high
 		return
 	case OSLICE3, OSLICE3ARR:
-		if n.Right == nil {
-			n.Right = nod(OKEY, low, nod(OKEY, high, max))
+		s := n.List.Slice()
+		if s == nil {
+			if low == nil && high == nil && max == nil {
+				return
+			}
+			n.List.Set([]*Node{low, high, max})
+			return
 		}
-		n.Right.Left = low
-		n.Right.Right.Left = high
-		n.Right.Right.Right = max
+		s[0] = low
+		s[1] = high
+		s[2] = max
 		return
 	}
 	Fatalf("SetSliceBounds op %v: %v", n.Op, n)

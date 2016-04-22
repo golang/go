@@ -409,11 +409,11 @@ const (
 	OPRINTN    // println(List)
 	OPAREN     // (Left)
 	OSEND      // Left <- Right
-	OSLICE     // Left[Right.Left : Right.Right] (Left is untypechecked or slice; Right.Op==OKEY)
-	OSLICEARR  // Left[Right.Left : Right.Right] (Left is array)
-	OSLICESTR  // Left[Right.Left : Right.Right] (Left is string)
-	OSLICE3    // Left[R.Left : R.R.Left : R.R.R] (R=Right; Left is untypedchecked or slice; R.Op and R.R.Op==OKEY)
-	OSLICE3ARR // Left[R.Left : R.R.Left : R.R.R] (R=Right; Left is array; R.Op and R.R.Op==OKEY)
+	OSLICE     // Left[List[0] : List[1]] (Left is untypechecked or slice)
+	OSLICEARR  // Left[List[0] : List[1]] (Left is array)
+	OSLICESTR  // Left[List[0] : List[1]] (Left is string)
+	OSLICE3    // Left[List[0] : List[1] : List[2]] (Left is untypedchecked or slice)
+	OSLICE3ARR // Left[List[0] : List[1] : List[2]] (Left is array)
 	ORECOVER   // recover()
 	ORECV      // <-Left
 	ORUNESTR   // Type(Left) (Type is string, Left is rune)
