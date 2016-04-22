@@ -53,22 +53,55 @@ func f4(a, b bool) bool {
 }
 
 //go:noinline
-func f5(a int, b bool) bool {
-	x := b
+func f5or(a int, b bool) bool {
+	var x bool
 	if a == 0 {
 		x = true
+	} else {
+		x = b
 	}
 	return x // ERROR "converted OpPhi to Or8$"
 }
 
 //go:noinline
-func f6(a int, b bool) bool {
+func f5and(a int, b bool) bool {
+	var x bool
+	if a == 0 {
+		x = b
+	} else {
+		x = false
+	}
+	return x // ERROR "converted OpPhi to And8$"
+}
+
+//go:noinline
+func f6or(a int, b bool) bool {
 	x := b
 	if a == 0 {
-		// f6 has side effects so the OpPhi should not be converted.
-		x = f6(a, b)
+		// f6or has side effects so the OpPhi should not be converted.
+		x = f6or(a, b)
 	}
 	return x
+}
+
+//go:noinline
+func f6and(a int, b bool) bool {
+	x := b
+	if a == 0 {
+		// f6and has side effects so the OpPhi should not be converted.
+		x = f6and(a, b)
+	}
+	return x
+}
+
+//go:noinline
+func f7or(a bool, b bool) bool {
+	return a || b // ERROR "converted OpPhi to Or8$"
+}
+
+//go:noinline
+func f7and(a bool, b bool) bool {
+	return a && b // ERROR "converted OpPhi to And8$"
 }
 
 func main() {
