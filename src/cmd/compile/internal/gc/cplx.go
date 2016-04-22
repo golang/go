@@ -89,8 +89,9 @@ func subnode(nr *Node, ni *Node, nc *Node) {
 	t := Types[tc]
 
 	if nc.Op == OLITERAL {
-		nodfconst(nr, t, &nc.Val().U.(*Mpcplx).Real)
-		nodfconst(ni, t, &nc.Val().U.(*Mpcplx).Imag)
+		u := nc.Val().U.(*Mpcplx)
+		nodfconst(nr, t, &u.Real)
+		nodfconst(ni, t, &u.Imag)
 		return
 	}
 

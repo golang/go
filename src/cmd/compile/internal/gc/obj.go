@@ -342,20 +342,23 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 	switch nr.Op {
 	case OLITERAL:
-		switch nr.Val().Ctype() {
-		case CTCPLX:
-			gdatacomplex(nam, nr.Val().U.(*Mpcplx))
+		switch u := nr.Val().U.(type) {
+		case *Mpcplx:
+			gdatacomplex(nam, u)
 
-		case CTSTR:
-			gdatastring(nam, nr.Val().U.(string))
+		case string:
+			gdatastring(nam, u)
 
-		case CTINT, CTRUNE, CTBOOL:
-			i, _ := nr.IntLiteral()
+		case bool:
+			i := int64(obj.Bool2int(u))
 			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, i)
 
-		case CTFLT:
+		case *Mpint:
+			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, u.Int64())
+
+		case *Mpflt:
 			s := Linksym(nam.Sym)
-			f := nr.Val().U.(*Mpflt).Float64()
+			f := u.Float64()
 			switch nam.Type.Etype {
 			case TFLOAT32:
 				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))

@@ -755,17 +755,13 @@ func structfield(n *Node) *Field {
 		f.Broke = true
 	}
 
-	switch n.Val().Ctype() {
-	case CTSTR:
-		f.Note = new(string)
-		*f.Note = n.Val().U.(string)
-
+	switch u := n.Val().U.(type) {
+	case string:
+		f.Note = &u
 	default:
 		Yyerror("field annotation must be string")
-		fallthrough
-
-	case CTxxx:
-		f.Note = nil
+	case nil:
+		// noop
 	}
 
 	if n.Left != nil && n.Left.Op == ONAME {

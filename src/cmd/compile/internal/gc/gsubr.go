@@ -430,28 +430,28 @@ func Naddr(a *obj.Addr, n *Node) {
 		if Thearch.LinkArch.Family == sys.I386 {
 			a.Width = 0
 		}
-		switch n.Val().Ctype() {
+		switch u := n.Val().U.(type) {
 		default:
 			Fatalf("naddr: const %v", Tconv(n.Type, FmtLong))
 
-		case CTFLT:
+		case *Mpflt:
 			a.Type = obj.TYPE_FCONST
-			a.Val = n.Val().U.(*Mpflt).Float64()
+			a.Val = u.Float64()
 
-		case CTINT, CTRUNE:
+		case *Mpint:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = n.Int64()
+			a.Offset = u.Int64()
 
-		case CTSTR:
-			datagostring(n.Val().U.(string), a)
+		case string:
+			datagostring(u, a)
 
-		case CTBOOL:
+		case bool:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(obj.Bool2int(n.Val().U.(bool)))
+			a.Offset = int64(obj.Bool2int(u))
 
-		case CTNIL:
+		case *NilVal:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
 			a.Offset = 0

@@ -378,22 +378,22 @@ bad:
 }
 
 func copyval(v Val) Val {
-	switch v.Ctype() {
-	case CTINT, CTRUNE:
+	switch u := v.U.(type) {
+	case *Mpint:
 		i := new(Mpint)
-		i.Set(v.U.(*Mpint))
-		i.Rune = v.U.(*Mpint).Rune
+		i.Set(u)
+		i.Rune = u.Rune
 		v.U = i
 
-	case CTFLT:
+	case *Mpflt:
 		f := newMpflt()
-		f.Set(v.U.(*Mpflt))
+		f.Set(u)
 		v.U = f
 
-	case CTCPLX:
+	case *Mpcplx:
 		c := new(Mpcplx)
-		c.Real.Set(&v.U.(*Mpcplx).Real)
-		c.Imag.Set(&v.U.(*Mpcplx).Imag)
+		c.Real.Set(&u.Real)
+		c.Imag.Set(&u.Imag)
 		v.U = c
 	}
 
@@ -401,16 +401,16 @@ func copyval(v Val) Val {
 }
 
 func tocplx(v Val) Val {
-	switch v.Ctype() {
-	case CTINT, CTRUNE:
+	switch u := v.U.(type) {
+	case *Mpint:
 		c := new(Mpcplx)
-		c.Real.SetInt(v.U.(*Mpint))
+		c.Real.SetInt(u)
 		c.Imag.SetFloat64(0.0)
 		v.U = c
 
-	case CTFLT:
+	case *Mpflt:
 		c := new(Mpcplx)
-		c.Real.Set(v.U.(*Mpflt))
+		c.Real.Set(u)
 		c.Imag.SetFloat64(0.0)
 		v.U = c
 	}
@@ -419,17 +419,17 @@ func tocplx(v Val) Val {
 }
 
 func toflt(v Val) Val {
-	switch v.Ctype() {
-	case CTINT, CTRUNE:
+	switch u := v.U.(type) {
+	case *Mpint:
 		f := newMpflt()
-		f.SetInt(v.U.(*Mpint))
+		f.SetInt(u)
 		v.U = f
 
-	case CTCPLX:
+	case *Mpcplx:
 		f := newMpflt()
-		f.Set(&v.U.(*Mpcplx).Real)
-		if v.U.(*Mpcplx).Imag.CmpFloat64(0) != 0 {
-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
+		f.Set(&u.Real)
+		if u.Imag.CmpFloat64(0) != 0 {
+			Yyerror("constant %v%vi truncated to real", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		v.U = f
 	}
@@ -438,31 +438,33 @@ func toflt(v Val) Val {
 }
 
 func toint(v Val) Val {
-	switch v.Ctype() {
-	case CTRUNE:
-		i := new(Mpint)
-		i.Set(v.U.(*Mpint))
-		v.U = i
+	switch u := v.U.(type) {
+	case *Mpint:
+		if u.Rune {
+			i := new(Mpint)
+			i.Set(u)
+			v.U = i
+		}
 
-	case CTFLT:
+	case *Mpflt:
 		i := new(Mpint)
-		if f := v.U.(*Mpflt); i.SetFloat(f) < 0 {
+		if i.SetFloat(u) < 0 {
 			msg := "constant %v truncated to integer"
 			// provide better error message if SetFloat failed because f was too large
-			if f.Val.IsInt() {
+			if u.Val.IsInt() {
 				msg = "constant %v overflows integer"
 			}
-			Yyerror(msg, Fconv(f, FmtSharp))
+			Yyerror(msg, Fconv(u, FmtSharp))
 		}
 		v.U = i
 
-	case CTCPLX:
+	case *Mpcplx:
 		i := new(Mpint)
-		if i.SetFloat(&v.U.(*Mpcplx).Real) < 0 {
-			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
+		if i.SetFloat(&u.Real) < 0 {
+			Yyerror("constant %v%vi truncated to integer", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
 		}
-		if v.U.(*Mpcplx).Imag.CmpFloat64(0) != 0 {
-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
+		if u.Imag.CmpFloat64(0) != 0 {
+			Yyerror("constant %v%vi truncated to real", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		v.U = i
 	}
@@ -471,30 +473,25 @@ func toint(v Val) Val {
 }
 
 func doesoverflow(v Val, t *Type) bool {
-	switch v.Ctype() {
-	case CTINT, CTRUNE:
+	switch u := v.U.(type) {
+	case *Mpint:
 		if !t.IsInteger() {
 			Fatalf("overflow: %v integer constant", t)
 		}
-		if v.U.(*Mpint).Cmp(Minintval[t.Etype]) < 0 || v.U.(*Mpint).Cmp(Maxintval[t.Etype]) > 0 {
-			return true
-		}
+		return u.Cmp(Minintval[t.Etype]) < 0 || u.Cmp(Maxintval[t.Etype]) > 0
 
-	case CTFLT:
+	case *Mpflt:
 		if !t.IsFloat() {
 			Fatalf("overflow: %v floating-point constant", t)
 		}
-		if v.U.(*Mpflt).Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpflt).Cmp(maxfltval[t.Etype]) >= 0 {
-			return true
-		}
+		return u.Cmp(minfltval[t.Etype]) <= 0 || u.Cmp(maxfltval[t.Etype]) >= 0
 
-	case CTCPLX:
+	case *Mpcplx:
 		if !t.IsComplex() {
 			Fatalf("overflow: %v complex constant", t)
 		}
-		if v.U.(*Mpcplx).Real.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Real.Cmp(maxfltval[t.Etype]) >= 0 || v.U.(*Mpcplx).Imag.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Imag.Cmp(maxfltval[t.Etype]) >= 0 {
-			return true
-		}
+		return u.Real.Cmp(minfltval[t.Etype]) <= 0 || u.Real.Cmp(maxfltval[t.Etype]) >= 0 ||
+			u.Imag.Cmp(minfltval[t.Etype]) <= 0 || u.Imag.Cmp(maxfltval[t.Etype]) >= 0
 	}
 
 	return false
@@ -518,21 +515,16 @@ func overflow(v Val, t *Type) {
 }
 
 func tostr(v Val) Val {
-	switch v.Ctype() {
-	case CTINT, CTRUNE:
+	switch u := v.U.(type) {
+	case *Mpint:
 		var i int64 = 0xFFFD
-		if u := v.U.(*Mpint); u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
+		if u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
 			i = u.Int64()
 		}
-		v = Val{}
 		v.U = string(i)
 
-	case CTFLT:
-		Yyerror("no float -> string")
-		fallthrough
-
-	case CTNIL:
-		v = Val{}
+	case *NilVal:
+		// Can happen because of string([]byte(nil)).
 		v.U = ""
 	}
 
