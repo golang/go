@@ -686,7 +686,7 @@ var kinds = []int{
 	TCHAN:       obj.KindChan,
 	TMAP:        obj.KindMap,
 	TARRAY:      obj.KindArray,
-	TSLICE:      obj.KindArray,
+	TSLICE:      obj.KindSlice,
 	TFUNC:       obj.KindFunc,
 	TCOMPLEX64:  obj.KindComplex64,
 	TCOMPLEX128: obj.KindComplex128,
@@ -887,9 +887,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = duint8(s, ot, t.Align) // fieldAlign
 
 	i = kinds[t.Etype]
-	if t.IsSlice() {
-		i = obj.KindSlice
-	}
 	if !haspointers(t) {
 		i |= obj.KindNoPointers
 	}
