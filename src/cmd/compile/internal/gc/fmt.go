@@ -453,6 +453,10 @@ func (e EType) String() string {
 	return Econv(e)
 }
 
+func (o Op) String() string {
+	return Oconv(o, 0)
+}
+
 // Fmt "%S": syms
 func symfmt(s *Sym, flag FmtFlag) string {
 	if s.Pkg != nil && flag&FmtShort == 0 {

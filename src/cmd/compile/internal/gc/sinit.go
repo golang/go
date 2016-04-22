@@ -1033,7 +1033,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	t := n.Type
 	switch n.Op {
 	default:
-		Fatalf("anylit: not lit, op=%v node=%v", opnames[n.Op], n)
+		Fatalf("anylit: not lit, op=%v node=%v", n.Op, n)
 
 	case OPTRLIT:
 		if !t.IsPtr() {

@@ -334,7 +334,7 @@ func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 
 func gdata(nam *Node, nr *Node, wid int) {
 	if nam.Op != ONAME {
-		Fatalf("gdata nam op %v", opnames[nam.Op])
+		Fatalf("gdata nam op %v", nam.Op)
 	}
 	if nam.Sym == nil {
 		Fatalf("gdata nil nam sym")
@@ -372,7 +372,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 	case OADDR:
 		if nr.Left.Op != ONAME {
-			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
+			Fatalf("gdata ADDR left op %s", nr.Left.Op)
 		}
 		to := nr.Left
 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
@@ -384,7 +384,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
 
 	default:
-		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
+		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)
 	}
 }
 
