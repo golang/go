@@ -133,7 +133,7 @@ func order1007(m map[int][]*Event) (events []*Event, err error) {
 			ev.Ts = ts
 		}
 	}
-	sort.Sort(eventList(events))
+	sort.Stable(eventList(events))
 
 	return
 }
