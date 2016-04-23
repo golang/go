@@ -377,3 +377,15 @@ func TestRawBytesAllocs(t *testing.T) {
 		t.Fatalf("allocs = %v; want max 1", n)
 	}
 }
+
+// https://github.com/golang/go/issues/13905
+func TestUserDefinedBytes(t *testing.T) {
+	type userDefinedBytes []byte
+	var u userDefinedBytes
+	v := []byte("foo")
+
+	convertAssign(&u, v)
+	if &u[0] == &v[0] {
+		t.Fatal("userDefinedBytes got potentially dirty driver memory")
+	}
+}
