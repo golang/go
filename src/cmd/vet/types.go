@@ -85,29 +85,6 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	return err
 }
 
-// isStruct reports whether the composite literal c is a struct.
-// If it is not (probably a struct), it returns a printable form of the type.
-func (pkg *Package) isStruct(c *ast.CompositeLit) (bool, string) {
-	// Check that the CompositeLit's type is a slice or array (which needs no field keys), if possible.
-	typ := pkg.types[c].Type
-	// If it's a named type, pull out the underlying type. If it's not, the Underlying
-	// method returns the type itself.
-	actual := typ
-	if actual != nil {
-		actual = actual.Underlying()
-	}
-	if actual == nil {
-		// No type information available. Assume true, so we do the check.
-		return true, ""
-	}
-	switch actual.(type) {
-	case *types.Struct:
-		return true, typ.String()
-	default:
-		return false, ""
-	}
-}
-
 // matchArgType reports an error if printf verb t is not appropriate
 // for operand arg.
 //
