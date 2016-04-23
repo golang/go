@@ -196,6 +196,13 @@ func (d *deadcodepass) mark(s, parent *LSym) {
 	if s.Attr.ReflectMethod() {
 		d.reflectMethod = true
 	}
+	if flag_dumpdep {
+		p := "_"
+		if parent != nil {
+			p = parent.Name
+		}
+		fmt.Printf("%s -> %s\n", p, s.Name)
+	}
 	s.Attr |= AttrReachable
 	s.Reachparent = parent
 	d.markQueue = append(d.markQueue, s)

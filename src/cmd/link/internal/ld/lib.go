@@ -196,6 +196,7 @@ var (
 	Funcalign          int
 	iscgo              bool
 	elfglobalsymndx    int
+	flag_dumpdep       bool
 	flag_installsuffix string
 	flag_race          int
 	flag_msan          int
