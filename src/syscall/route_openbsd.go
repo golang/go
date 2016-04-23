@@ -28,6 +28,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
 
 // InterfaceAnnounceMessage represents a routing message containing
 // network interface arrival and departure information.
+//
+// Deprecated: Use golang.org/x/net/route instead.
 type InterfaceAnnounceMessage struct {
 	Header IfAnnounceMsghdr
 }
