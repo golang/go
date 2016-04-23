@@ -86,7 +86,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
 	return newFD(comp[1], name, ctl, nil, laddr, nil)
 }
 
-func newFileConn(f *os.File) (c Conn, err error) {
+func fileConn(f *os.File) (Conn, error) {
 	fd, err := newFileFD(f)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func newFileConn(f *os.File) (c Conn, err error) {
 	return nil, syscall.EPLAN9
 }
 
-func newFileListener(f *os.File) (l Listener, err error) {
+func fileListener(f *os.File) (Listener, error) {
 	fd, err := newFileFD(f)
 	if err != nil {
 		return nil, err
@@ -132,26 +132,6 @@ func newFileListener(f *os.File) (l Listener, err error) {
 	return &TCPListener{fd}, nil
 }
 
-// FileConn returns a copy of the network connection corresponding to
-// the open file f.  It is the caller's responsibility to close f when
-// finished.  Closing c does not affect f, and closing f does not
-// affect c.
-func FileConn(f *os.File) (c Conn, err error) {
-	return newFileConn(f)
-}
-
-// FileListener returns a copy of the network listener corresponding
-// to the open file f.  It is the caller's responsibility to close l
-// when finished.  Closing l does not affect f, and closing f does not
-// affect l.
-func FileListener(f *os.File) (l Listener, err error) {
-	return newFileListener(f)
-}
-
-// FilePacketConn returns a copy of the packet network connection
-// corresponding to the open file f.  It is the caller's
-// responsibility to close f when finished.  Closing c does not affect
-// f, and closing f does not affect c.
-func FilePacketConn(f *os.File) (c PacketConn, err error) {
+func filePacketConn(f *os.File) (PacketConn, error) {
 	return nil, syscall.EPLAN9
 }

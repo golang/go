@@ -44,8 +44,16 @@ func (s *Slice) Line() int {
 }
 
 func (s *Slice) Col() int {
-	// Col is only called when defining a macro, which can't reach here.
-	panic("cannot happen: slice col")
+	// TODO: Col is only called when defining a macro and all it cares about is increasing
+	// position to discover whether there is a blank before the parenthesis.
+	// We only get here if defining a macro inside a macro.
+	// This imperfect implementation means we cannot tell the difference between
+	//	#define A #define B(x) x
+	// and
+	//	#define A #define B (x) x
+	// The first has definition of B has an argument, the second doesn't. Because we let
+	// text/scanner strip the blanks for us, this is extremely rare, hard to fix, and not worth it.
+	return s.pos
 }
 
 func (s *Slice) SetPos(line int, file string) {

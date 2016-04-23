@@ -1,8 +1,12 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This input was created by taking the instruction productions in
 // the old assembler's (9a's) grammar and hand-writing complete
 // instructions for each rule, to guarantee we cover the same space.
 
-TEXT foo(SB),0,$0
+TEXT foo(SB),7,$0
 
 //inst:
 //
@@ -26,7 +30,7 @@ TEXT foo(SB),0,$0
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	MOVW	(R1), R2
-	MOVW	(R1+R2), R3
+	MOVW	(R1+R2), R3 // MOVW (R1)(R2*1), R3
 
 //	LMOVB rreg ',' rreg
 //	{
@@ -46,7 +50,7 @@ TEXT foo(SB),0,$0
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	MOVB	(R1), R2
-	MOVB	(R1+R2), R3
+	MOVB	(R1+R2), R3 // MOVB (R1)(R2*1), R3
 
 //
 // load floats
@@ -68,7 +72,7 @@ TEXT foo(SB),0,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	FMOVD	$0.1, F2
+	FMOVD	$0.1, F2 // FMOVD $(0.10000000000000001), F2
 
 //	LFMOV freg ',' freg
 //	{
@@ -104,7 +108,7 @@ TEXT foo(SB),0,$0
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	MOVW	R1, (R1)
-	MOVW	R1, (R2+R3)
+	MOVW	R1, (R2+R3) // MOVW R1, (R2)(R3*1)
 
 //	LMOVB rreg ',' addr
 //	{
@@ -118,7 +122,7 @@ TEXT foo(SB),0,$0
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	MOVB	R1, (R1)
-	MOVB	R1, (R2+R3)
+	MOVB	R1, (R2+R3) // MOVB R1, (R2)(R3*1)
 //
 // store floats
 //
@@ -271,7 +275,7 @@ TEXT foo(SB),0,$0
 //	{
 //		outcode(int($1), &$2, 0, &$2);
 //	}
-	SUBME	R1
+	SUBME	R1 // SUBME R1, R1
 
 //
 // multiply-accumulate
@@ -376,22 +380,29 @@ TEXT foo(SB),0,$0
 //	{
 //		outcode(int($1), &nullgen, 0, &$2);
 //	}
+	BEQ	CR1, 2(PC)
 label0:
-	BR	1(PC)
-	BR	label0+0
+	BR	1(PC) // JMP 1(PC)
+	BEQ	CR1, 2(PC)
+	BR	label0+0 // JMP 62
 
 //	LBRA addr
 //	{
 //		outcode(int($1), &nullgen, 0, &$2);
 //	}
-	BR	4(R1)
-	BR	foo+0(SB)
+	BEQ	CR1, 2(PC)
+	BR	LR // JMP LR
+	BEQ	CR1, 2(PC)
+//	BR	0(R1)	// TODO should work
+	BEQ	CR1, 2(PC)
+	BR	foo+0(SB) // JMP foo(SB)
 
 //	LBRA '(' xlreg ')'
 //	{
 //		outcode(int($1), &nullgen, 0, &$3);
 //	}
-	BR	(CTR)
+	BEQ	CR1, 2(PC)
+	BR	(CTR) // JMP CTR
 
 //	LBRA ',' rel  // asm doesn't support the leading comma
 //	{
@@ -411,7 +422,7 @@ label0:
 //	}
 label1:
 	BEQ	CR1, 1(PC)
-	BEQ	CR1, label1
+	BEQ	CR1, label1 // BEQ CR1, 72
 
 //	LBRA creg ',' addr // TODO DOES NOT WORK in 9a
 //	{
@@ -437,7 +448,7 @@ label1:
 //	{
 //		outcode(int($1), &nullgen, int($2), &$5);
 //	}
-	BC	4, (CTR)
+//	BC	4, (CTR)	// TODO - should work
 
 //	LBRA con ',' con ',' rel
 //	{
@@ -447,7 +458,7 @@ label1:
 //		g.Offset = $2;
 //		outcode(int($1), &g, int(REG_R0+$4), &$6);
 //	}
-	BC	3, 4, label1
+//	BC	3, 4, label1 // TODO - should work
 
 //	LBRA con ',' con ',' addr // TODO mystery
 //	{
@@ -467,7 +478,7 @@ label1:
 //		g.Offset = $2;
 //		outcode(int($1), &g, int(REG_R0+$4), &$7);
 //	}
-	BC	3, 3, (LR)
+	BC	3, 3, (LR) // BC $3, R3, LR
 
 //
 // conditional trap // TODO NOT DEFINED
@@ -527,7 +538,7 @@ label1:
 //	{
 //		outcode(int($1), &$2, int($6.Reg), &$4);
 //	}
-	FCMPU	F1, F2, CR0
+//	FCMPU	F1, F2, CR0
 
 //
 // CMP
@@ -548,13 +559,13 @@ label1:
 //	{
 //		outcode(int($1), &$2, int($6.Reg), &$4);
 //	}
-	CMP	R1, R2, CR0
+	CMP	R1, R2, CR0 // CMP R1, CR0, R2
 
 //	LCMP rreg ',' imm ',' creg
 //	{
 //		outcode(int($1), &$2, int($6.Reg), &$4);
 //	}
-	CMP	R1, $4, CR0
+	CMP	R1, $4, CR0 // CMP R1, CR0, $4
 
 //
 // rotate and mask
@@ -563,25 +574,25 @@ label1:
 //	{
 //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
 //	}
-	RLDC $4, R1, $5, R2
+	RLDC $4, R1, $16, R2
 
 //	LRLWM  imm ',' rreg ',' mask ',' rreg
 //	{
 //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
 //	}
-	RLDC $26, R1, 4, 5, R2
+	RLDC $26, R1, 4, 5, R2 // RLDC $26, R1, $201326592, R2
 
 //	LRLWM  rreg ',' rreg ',' imm ',' rreg
 //	{
 //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
 //	}
-	RLDC	R1, R2, $4, R3
+	RLDCL	R1, R2, $7, R3
 
 //	LRLWM  rreg ',' rreg ',' mask ',' rreg
 //	{
 //		outgcode(int($1), &$2, int($4.Reg), &$6, &$8);
 //	}
-	RLWMI	R1, R2, 4, 5, R3
+	RLWMI	R1, R2, 4, 5, R3 // RLWMI	R1, R2, $201326592, R3
 
 //
 // load/store multiple
@@ -590,14 +601,14 @@ label1:
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVMW	foo+0(SB), R2
+//	MOVMW	foo+0(SB), R2 // TODO TLS broke this!
 	MOVMW	4(R1), R2
 
 //	LMOVMW rreg ',' addr
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVMW	R1, foo+0(SB)
+//	MOVMW	R1, foo+0(SB) // TODO TLS broke this!
 	MOVMW	R1, 4(R2)
 
 //
@@ -609,49 +620,49 @@ label1:
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	LSW	(R1), R2
-	LSW	(R1+R2), R3
+	LSW	(R1+R2), R3 // LSW	(R1)(R2*1), R3
 
 //	LXLD regaddr ',' imm ',' rreg
 //	{
 //		outgcode(int($1), &$2, 0, &$4, &$6);
 //	}
 	LSW	(R1), $1, R2
-	LSW	(R1+R2), $1, R3
+	LSW	(R1+R2), $1, R3 // LSW	(R1)(R2*1), $1, R3
 
 //	LXST rreg ',' regaddr
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	STSW	R1, (R2)
-	STSW	R1, (R2+R3)
+	STSW	R1, (R2+R3) // STSW	R1, (R2)(R3*1)
 
 //	LXST rreg ',' imm ',' regaddr
 //	{
 //		outgcode(int($1), &$2, 0, &$4, &$6);
 //	}
 	STSW	R1, $1, (R2)
-	STSW	R1, $1, (R2+R3)
+	STSW	R1, $1, (R2+R3) // STSW	R1, $1, (R2)(R3*1)
 
 //	LXMV regaddr ',' rreg
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	MOVHBR	(R1), R2
-	MOVHBR	(R1+R2), R3
+	MOVHBR	(R1+R2), R3 // MOVHBR	(R1)(R2*1), R3
 
 //	LXMV rreg ',' regaddr
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
 	MOVHBR	R1, (R2)
-	MOVHBR	R1, (R2+R3)
+	MOVHBR	R1, (R2+R3) // MOVHBR	R1, (R2)(R3*1)
 
 //	LXOP regaddr
 //	{
 //		outcode(int($1), &$2, 0, &nullgen);
 //	}
 	DCBF	(R1)
-	DCBF	(R1+R2)
+	DCBF	(R1+R2) // DCBF	(R1)(R2*1)
 
 //
 // NOP
@@ -692,13 +703,23 @@ label1:
 //	}
 	NOP	$4
 
-// RETURN
+// RET
 //
 //	LRETRN	comma // asm doesn't support the trailing comma.
 //	{
 //		outcode(int($1), &nullgen, 0, &nullgen);
 //	}
-	RETURN
+	BEQ	2(PC)
+	RET
+
+// More BR/BL cases, and canonical names JMP, CALL.
+
+	BEQ	2(PC)
+	BR	foo(SB) // JMP foo(SB)
+	BL	foo(SB) //  CALL foo(SB)
+	BEQ	2(PC)
+	JMP	foo(SB)
+	CALL	foo(SB)
 
 // END
 //

@@ -15,11 +15,6 @@ import (
 // ErrClosedPipe is the error used for read or write operations on a closed pipe.
 var ErrClosedPipe = errors.New("io: read/write on closed pipe")
 
-type pipeResult struct {
-	n   int
-	err error
-}
-
 // A pipe is the shared pipe structure underlying PipeReader and PipeWriter.
 type pipe struct {
 	rl    sync.Mutex // gates readers one at a time
@@ -168,7 +163,10 @@ func (w *PipeWriter) Close() error {
 }
 
 // CloseWithError closes the writer; subsequent reads from the
-// read half of the pipe will return no bytes and the error err.
+// read half of the pipe will return no bytes and the error err,
+// or EOF if err is nil.
+//
+// CloseWithError always returns nil.
 func (w *PipeWriter) CloseWithError(err error) error {
 	w.p.wclose(err)
 	return nil

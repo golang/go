@@ -218,6 +218,81 @@ func TestNonblockRecvRace(t *testing.T) {
 	}
 }
 
+// This test checks that select acts on the state of the channels at one
+// moment in the execution, not over a smeared time window.
+// In the test, one goroutine does:
+//	create c1, c2
+//	make c1 ready for receiving
+//	create second goroutine
+//	make c2 ready for receiving
+//	make c1 no longer ready for receiving (if possible)
+// The second goroutine does a non-blocking select receiving from c1 and c2.
+// From the time the second goroutine is created, at least one of c1 and c2
+// is always ready for receiving, so the select in the second goroutine must
+// always receive from one or the other. It must never execute the default case.
+func TestNonblockSelectRace(t *testing.T) {
+	n := 100000
+	if testing.Short() {
+		n = 1000
+	}
+	done := make(chan bool, 1)
+	for i := 0; i < n; i++ {
+		c1 := make(chan int, 1)
+		c2 := make(chan int, 1)
+		c1 <- 1
+		go func() {
+			select {
+			case <-c1:
+			case <-c2:
+			default:
+				done <- false
+				return
+			}
+			done <- true
+		}()
+		c2 <- 1
+		select {
+		case <-c1:
+		default:
+		}
+		if !<-done {
+			t.Fatal("no chan is ready")
+		}
+	}
+}
+
+// Same as TestNonblockSelectRace, but close(c2) replaces c2 <- 1.
+func TestNonblockSelectRace2(t *testing.T) {
+	n := 100000
+	if testing.Short() {
+		n = 1000
+	}
+	done := make(chan bool, 1)
+	for i := 0; i < n; i++ {
+		c1 := make(chan int, 1)
+		c2 := make(chan int)
+		c1 <- 1
+		go func() {
+			select {
+			case <-c1:
+			case <-c2:
+			default:
+				done <- false
+				return
+			}
+			done <- true
+		}()
+		close(c2)
+		select {
+		case <-c1:
+		default:
+		}
+		if !<-done {
+			t.Fatal("no chan is ready")
+		}
+	}
+}
+
 func TestSelfSelect(t *testing.T) {
 	// Ensure that send/recv on the same chan in select
 	// does not crash nor deadlock.
@@ -453,7 +528,7 @@ func TestMultiConsumer(t *testing.T) {
 func TestShrinkStackDuringBlockedSend(t *testing.T) {
 	// make sure that channel operations still work when we are
 	// blocked on a channel send and we shrink the stack.
-	// NOTE: this test probably won't fail unless stack.c:StackDebug
+	// NOTE: this test probably won't fail unless stack1.go:stackDebug
 	// is set to >= 1.
 	const n = 10
 	c := make(chan int)
@@ -498,7 +573,7 @@ func TestSelectDuplicateChannel(t *testing.T) {
 		}
 		e <- 9
 	}()
-	time.Sleep(time.Millisecond) // make sure goroutine A gets qeueued first on c
+	time.Sleep(time.Millisecond) // make sure goroutine A gets queued first on c
 
 	// goroutine B
 	go func() {
@@ -509,6 +584,67 @@ func TestSelectDuplicateChannel(t *testing.T) {
 	d <- 7 // wake up A, it dequeues itself from c.  This operation used to corrupt c.recvq.
 	<-e    // A tells us it's done
 	c <- 8 // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
+}
+
+var selectSink interface{}
+
+func TestSelectStackAdjust(t *testing.T) {
+	// Test that channel receive slots that contain local stack
+	// pointers are adjusted correctly by stack shrinking.
+	c := make(chan *int)
+	d := make(chan *int)
+	ready := make(chan bool)
+	go func() {
+		// Temporarily grow the stack to 10K.
+		stackGrowthRecursive((10 << 10) / (128 * 8))
+
+		// We're ready to trigger GC and stack shrink.
+		ready <- true
+
+		val := 42
+		var cx *int
+		cx = &val
+		// Receive from d. cx won't be affected.
+		select {
+		case cx = <-c:
+		case <-d:
+		}
+
+		// Check that pointer in cx was adjusted correctly.
+		if cx != &val {
+			t.Error("cx no longer points to val")
+		} else if val != 42 {
+			t.Error("val changed")
+		} else {
+			*cx = 43
+			if val != 43 {
+				t.Error("changing *cx failed to change val")
+			}
+		}
+		ready <- true
+	}()
+
+	// Let the goroutine get into the select.
+	<-ready
+	time.Sleep(10 * time.Millisecond)
+
+	// Force concurrent GC a few times.
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for i := 0; i < 100; i++ {
+		selectSink = new([1 << 20]byte)
+		runtime.ReadMemStats(&after)
+		if after.NumGC-before.NumGC >= 2 {
+			goto done
+		}
+	}
+	t.Fatal("failed to trigger concurrent GC")
+done:
+	selectSink = nil
+
+	// Wake select.
+	d <- nil
+	<-ready
 }
 
 func BenchmarkChanNonblocking(b *testing.B) {
@@ -641,7 +777,7 @@ func BenchmarkChanContended(b *testing.B) {
 	})
 }
 
-func BenchmarkChanSync(b *testing.B) {
+func benchmarkChanSync(b *testing.B, work int) {
 	const CallsPerSched = 1000
 	procs := 2
 	N := int32(b.N / CallsPerSched / procs * procs)
@@ -657,10 +793,14 @@ func BenchmarkChanSync(b *testing.B) {
 				for g := 0; g < CallsPerSched; g++ {
 					if i%2 == 0 {
 						<-myc
+						localWork(work)
 						myc <- 0
+						localWork(work)
 					} else {
 						myc <- 0
+						localWork(work)
 						<-myc
+						localWork(work)
 					}
 				}
 			}
@@ -670,6 +810,14 @@ func BenchmarkChanSync(b *testing.B) {
 	for p := 0; p < procs; p++ {
 		<-c
 	}
+}
+
+func BenchmarkChanSync(b *testing.B) {
+	benchmarkChanSync(b, 0)
+}
+
+func BenchmarkChanSyncWork(b *testing.B) {
+	benchmarkChanSync(b, 1000)
 }
 
 func benchmarkChanProdCons(b *testing.B, chanSize, localWork int) {
@@ -823,6 +971,8 @@ func BenchmarkChanPopular(b *testing.B) {
 	const n = 1000
 	c := make(chan bool)
 	var a []chan bool
+	var wg sync.WaitGroup
+	wg.Add(n)
 	for j := 0; j < n; j++ {
 		d := make(chan bool)
 		a = append(a, d)
@@ -833,11 +983,28 @@ func BenchmarkChanPopular(b *testing.B) {
 				case <-d:
 				}
 			}
+			wg.Done()
 		}()
 	}
 	for i := 0; i < b.N; i++ {
 		for _, d := range a {
 			d <- true
 		}
+	}
+	wg.Wait()
+}
+
+var (
+	alwaysFalse = false
+	workSink    = 0
+)
+
+func localWork(w int) {
+	foo := 0
+	for i := 0; i < w; i++ {
+		foo /= (foo + 1)
+	}
+	if alwaysFalse {
+		workSink += foo
 	}
 }

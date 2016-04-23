@@ -28,7 +28,7 @@ func main() {
 	a := new(arg)
 
 	// Generate each test as a separate function to avoid
-	// hitting the 6g optimizer with one enormous function.
+	// hitting the gc optimizer with one enormous function.
 	// If we name all the functions init we don't have to
 	// maintain a list of which ones to run.
 	do := func(t *template.Template) {

@@ -63,8 +63,8 @@ func ReadFile(filename string) ([]byte, error) {
 		}
 	}
 	// As initial capacity for readAll, use n + a little extra in case Size is zero,
-	// and to avoid another allocation after Read has filled the buffer.  The readAll
-	// call will read into its allocated internal buffer cheaply.  If the size was
+	// and to avoid another allocation after Read has filled the buffer. The readAll
+	// call will read into its allocated internal buffer cheaply. If the size was
 	// wrong, we'll either waste some space off the end or reallocate as needed, but
 	// in the overwhelmingly common case we'll get it just right.
 	return readAll(f, n+bytes.MinRead)
@@ -96,7 +96,7 @@ func (f byName) Less(i, j int) bool { return f[i].Name() < f[j].Name() }
 func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
 
 // ReadDir reads the directory named by dirname and returns
-// a list of sorted directory entries.
+// a list of directory entries sorted by filename.
 func ReadDir(dirname string) ([]os.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {

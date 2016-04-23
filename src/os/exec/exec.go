@@ -5,6 +5,10 @@
 // Package exec runs external commands. It wraps os.StartProcess to make it
 // easier to remap stdin and stdout, connect I/O with pipes, and do other
 // adjustments.
+//
+// Note that the examples in this package assume a Unix system.
+// They may not run on Windows, and they do not run in the Go Playground
+// used by golang.org and godoc.org.
 package exec
 
 import (
@@ -32,6 +36,9 @@ func (e *Error) Error() string {
 }
 
 // Cmd represents an external command being prepared or run.
+//
+// A Cmd cannot be reused after calling its Run, Output or CombinedOutput
+// methods.
 type Cmd struct {
 	// Path is the path of the command to run.
 	//
@@ -80,8 +87,8 @@ type Cmd struct {
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
 	//
-	// BUG: on OS X 10.6, child processes may sometimes inherit unwanted fds.
-	// http://golang.org/issue/2603
+	// BUG(rsc): On OS X 10.6, child processes may sometimes inherit unwanted fds.
+	// https://golang.org/issue/2603
 	ExtraFiles []*os.File
 
 	// SysProcAttr holds optional, operating system-specific attributes.
@@ -154,6 +161,11 @@ func (c *Cmd) argv() []string {
 	return []string{c.Path}
 }
 
+// skipStdinCopyError optionally specifies a function which reports
+// whether the provided the stdin copy error should be ignored.
+// It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
+var skipStdinCopyError func(error) bool
+
 func (c *Cmd) stdin() (f *os.File, err error) {
 	if c.Stdin == nil {
 		f, err = os.Open(os.DevNull)
@@ -177,6 +189,9 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
+		if skip := skipStdinCopyError; skip != nil && skip(err) {
+			err = nil
+		}
 		if err1 := pw.Close(); err == nil {
 			err = err1
 		}
@@ -219,6 +234,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
 	c.closeAfterWait = append(c.closeAfterWait, pr)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(w, pr)
+		pr.Close() // in case io.Copy stopped due to write error
 		return err
 	})
 	return pw, nil
@@ -335,6 +351,18 @@ func (c *Cmd) Start() error {
 // An ExitError reports an unsuccessful exit by a command.
 type ExitError struct {
 	*os.ProcessState
+
+	// Stderr holds a subset of the standard error output from the
+	// Cmd.Output method if standard error was not otherwise being
+	// collected.
+	//
+	// If the error output is long, Stderr may contain only a prefix
+	// and suffix of the output, with the middle replaced with
+	// text about the number of omitted bytes.
+	//
+	// Stderr is provided for debugging, for inclusion in error messages.
+	// Users with other needs should redirect Cmd.Stderr as needed.
+	Stderr []byte
 }
 
 func (e *ExitError) Error() string {
@@ -351,6 +379,10 @@ func (e *ExitError) Error() string {
 // If the command fails to run or doesn't complete successfully, the
 // error is of type *ExitError. Other error types may be
 // returned for I/O problems.
+//
+// If c.Stdin is not an *os.File, Wait also waits for the I/O loop
+// copying from c.Stdin into the process's standard input
+// to complete.
 //
 // Wait releases any resources associated with the Cmd.
 func (c *Cmd) Wait() error {
@@ -376,21 +408,34 @@ func (c *Cmd) Wait() error {
 	if err != nil {
 		return err
 	} else if !state.Success() {
-		return &ExitError{state}
+		return &ExitError{ProcessState: state}
 	}
 
 	return copyError
 }
 
 // Output runs the command and returns its standard output.
+// Any returned error will usually be of type *ExitError.
+// If c.Stderr was nil, Output populates ExitError.Stderr.
 func (c *Cmd) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("exec: Stdout already set")
 	}
-	var b bytes.Buffer
-	c.Stdout = &b
+	var stdout bytes.Buffer
+	c.Stdout = &stdout
+
+	captureErr := c.Stderr == nil
+	if captureErr {
+		c.Stderr = &prefixSuffixSaver{N: 32 << 10}
+	}
+
 	err := c.Run()
-	return b.Bytes(), err
+	if err != nil && captureErr {
+		if ee, ok := err.(*ExitError); ok {
+			ee.Stderr = c.Stderr.(*prefixSuffixSaver).Bytes()
+		}
+	}
+	return stdout.Bytes(), err
 }
 
 // CombinedOutput runs the command and returns its combined standard
@@ -497,4 +542,81 @@ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 	c.closeAfterStart = append(c.closeAfterStart, pw)
 	c.closeAfterWait = append(c.closeAfterWait, pr)
 	return pr, nil
+}
+
+// prefixSuffixSaver is an io.Writer which retains the first N bytes
+// and the last N bytes written to it. The Bytes() methods reconstructs
+// it with a pretty error message.
+type prefixSuffixSaver struct {
+	N         int // max size of prefix or suffix
+	prefix    []byte
+	suffix    []byte // ring buffer once len(suffix) == N
+	suffixOff int    // offset to write into suffix
+	skipped   int64
+
+	// TODO(bradfitz): we could keep one large []byte and use part of it for
+	// the prefix, reserve space for the '... Omitting N bytes ...' message,
+	// then the ring buffer suffix, and just rearrange the ring buffer
+	// suffix when Bytes() is called, but it doesn't seem worth it for
+	// now just for error messages. It's only ~64KB anyway.
+}
+
+func (w *prefixSuffixSaver) Write(p []byte) (n int, err error) {
+	lenp := len(p)
+	p = w.fill(&w.prefix, p)
+
+	// Only keep the last w.N bytes of suffix data.
+	if overage := len(p) - w.N; overage > 0 {
+		p = p[overage:]
+		w.skipped += int64(overage)
+	}
+	p = w.fill(&w.suffix, p)
+
+	// w.suffix is full now if p is non-empty. Overwrite it in a circle.
+	for len(p) > 0 { // 0, 1, or 2 iterations.
+		n := copy(w.suffix[w.suffixOff:], p)
+		p = p[n:]
+		w.skipped += int64(n)
+		w.suffixOff += n
+		if w.suffixOff == w.N {
+			w.suffixOff = 0
+		}
+	}
+	return lenp, nil
+}
+
+// fill appends up to len(p) bytes of p to *dst, such that *dst does not
+// grow larger than w.N. It returns the un-appended suffix of p.
+func (w *prefixSuffixSaver) fill(dst *[]byte, p []byte) (pRemain []byte) {
+	if remain := w.N - len(*dst); remain > 0 {
+		add := minInt(len(p), remain)
+		*dst = append(*dst, p[:add]...)
+		p = p[add:]
+	}
+	return p
+}
+
+func (w *prefixSuffixSaver) Bytes() []byte {
+	if w.suffix == nil {
+		return w.prefix
+	}
+	if w.skipped == 0 {
+		return append(w.prefix, w.suffix...)
+	}
+	var buf bytes.Buffer
+	buf.Grow(len(w.prefix) + len(w.suffix) + 50)
+	buf.Write(w.prefix)
+	buf.WriteString("\n... omitting ")
+	buf.WriteString(strconv.FormatInt(w.skipped, 10))
+	buf.WriteString(" bytes ...\n")
+	buf.Write(w.suffix[w.suffixOff:])
+	buf.Write(w.suffix[:w.suffixOff])
+	return buf.Bytes()
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

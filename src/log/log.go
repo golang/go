@@ -32,17 +32,18 @@ const (
 	//	2009/01/23 01:23:23 message
 	// while flags Ldate | Ltime | Lmicroseconds | Llongfile produce,
 	//	2009/01/23 01:23:23.123123 /a/b/c/d.go:23: message
-	Ldate         = 1 << iota     // the date: 2009/01/23
-	Ltime                         // the time: 01:23:23
+	Ldate         = 1 << iota     // the date in the local time zone: 2009/01/23
+	Ltime                         // the time in the local time zone: 01:23:23
 	Lmicroseconds                 // microsecond resolution: 01:23:23.123123.  assumes Ltime.
 	Llongfile                     // full file name and line number: /a/b/c/d.go:23
 	Lshortfile                    // final file name element and line number: d.go:23. overrides Llongfile
+	LUTC                          // if Ldate or Ltime is set, use UTC rather than the local time zone
 	LstdFlags     = Ldate | Ltime // initial values for the standard logger
 )
 
 // A Logger represents an active logging object that generates lines of
-// output to an io.Writer.  Each logging operation makes a single call to
-// the Writer's Write method.  A Logger can be used simultaneously from
+// output to an io.Writer. Each logging operation makes a single call to
+// the Writer's Write method. A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
 	mu     sync.Mutex // ensures atomic writes; protects the following fields
@@ -52,7 +53,7 @@ type Logger struct {
 	buf    []byte     // for accumulating text to write
 }
 
-// New creates a new Logger.   The out variable sets the
+// New creates a new Logger. The out variable sets the
 // destination to which log data will be written.
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
@@ -88,6 +89,9 @@ func itoa(buf *[]byte, i int, wid int) {
 
 func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	*buf = append(*buf, l.prefix...)
+	if l.flag&LUTC != 0 {
+		t = t.UTC()
+	}
 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
 		if l.flag&Ldate != 0 {
 			year, month, day := t.Date()
@@ -130,10 +134,10 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 	}
 }
 
-// Output writes the output for a logging event.  The string s contains
+// Output writes the output for a logging event. The string s contains
 // the text to print after the prefix specified by the flags of the
-// Logger.  A newline is appended if the last character of s is not
-// already a newline.  Calldepth is used to recover the PC and is
+// Logger. A newline is appended if the last character of s is not
+// already a newline. Calldepth is used to recover the PC and is
 // provided for generality, although at the moment on all pre-defined
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
@@ -156,7 +160,7 @@ func (l *Logger) Output(calldepth int, s string) error {
 	l.buf = l.buf[:0]
 	l.formatHeader(&l.buf, now, file, line)
 	l.buf = append(l.buf, s...)
-	if len(s) > 0 && s[len(s)-1] != '\n' {
+	if len(s) == 0 || s[len(s)-1] != '\n' {
 		l.buf = append(l.buf, '\n')
 	}
 	_, err := l.out.Write(l.buf)
@@ -330,10 +334,10 @@ func Panicln(v ...interface{}) {
 	panic(s)
 }
 
-// Output writes the output for a logging event.  The string s contains
+// Output writes the output for a logging event. The string s contains
 // the text to print after the prefix specified by the flags of the
-// Logger.  A newline is appended if the last character of s is not
-// already a newline.  Calldepth is the count of the number of
+// Logger. A newline is appended if the last character of s is not
+// already a newline. Calldepth is the count of the number of
 // frames to skip when computing the file name and line number
 // if Llongfile or Lshortfile is set; a value of 1 will print the details
 // for the caller of Output.

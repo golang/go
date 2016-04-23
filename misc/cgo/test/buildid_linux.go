@@ -22,7 +22,7 @@ func testBuildID(t *testing.T) {
 		if os.IsNotExist(err) {
 			t.Skip("no /proc/self/exe")
 		}
-		t.Fatalf("opening /proc/self/exe: ", err)
+		t.Fatal("opening /proc/self/exe: ", err)
 	}
 	defer f.Close()
 

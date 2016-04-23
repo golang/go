@@ -12,33 +12,74 @@ import (
 )
 
 var (
-	mimeLock       sync.RWMutex
-	mimeTypesLower = map[string]string{
-		".css":  "text/css; charset=utf-8",
-		".gif":  "image/gif",
-		".htm":  "text/html; charset=utf-8",
-		".html": "text/html; charset=utf-8",
-		".jpg":  "image/jpeg",
-		".js":   "application/x-javascript",
-		".pdf":  "application/pdf",
-		".png":  "image/png",
-		".xml":  "text/xml; charset=utf-8",
-	}
-	mimeTypes = clone(mimeTypesLower)
+	mimeLock       sync.RWMutex      // guards following 3 maps
+	mimeTypes      map[string]string // ".Z" => "application/x-compress"
+	mimeTypesLower map[string]string // ".z" => "application/x-compress"
+
+	// extensions maps from MIME type to list of lowercase file
+	// extensions: "image/jpeg" => [".jpg", ".jpeg"]
+	extensions map[string][]string
 )
+
+// setMimeTypes is used by initMime's non-test path, and by tests.
+// The two maps must not be the same, or nil.
+func setMimeTypes(lowerExt, mixExt map[string]string) {
+	if lowerExt == nil || mixExt == nil {
+		panic("nil map")
+	}
+	mimeTypesLower = lowerExt
+	mimeTypes = mixExt
+	extensions = invert(lowerExt)
+}
+
+var builtinTypesLower = map[string]string{
+	".css":  "text/css; charset=utf-8",
+	".gif":  "image/gif",
+	".htm":  "text/html; charset=utf-8",
+	".html": "text/html; charset=utf-8",
+	".jpg":  "image/jpeg",
+	".js":   "application/x-javascript",
+	".pdf":  "application/pdf",
+	".png":  "image/png",
+	".svg":  "image/svg+xml",
+	".xml":  "text/xml; charset=utf-8",
+}
 
 func clone(m map[string]string) map[string]string {
 	m2 := make(map[string]string, len(m))
 	for k, v := range m {
 		m2[k] = v
 		if strings.ToLower(k) != k {
-			panic("keys in mimeTypesLower must be lowercase")
+			panic("keys in builtinTypesLower must be lowercase")
 		}
 	}
 	return m2
 }
 
+func invert(m map[string]string) map[string][]string {
+	m2 := make(map[string][]string, len(m))
+	for k, v := range m {
+		justType, _, err := ParseMediaType(v)
+		if err != nil {
+			panic(err)
+		}
+		m2[justType] = append(m2[justType], k)
+	}
+	return m2
+}
+
 var once sync.Once // guards initMime
+
+var testInitMime, osInitMime func()
+
+func initMime() {
+	if fn := testInitMime; fn != nil {
+		fn()
+	} else {
+		setMimeTypes(builtinTypesLower, clone(builtinTypesLower))
+		osInitMime()
+	}
+}
 
 // TypeByExtension returns the MIME type associated with the file extension ext.
 // The extension ext should begin with a leading dot, as in ".html".
@@ -63,8 +104,7 @@ func TypeByExtension(ext string) string {
 	defer mimeLock.RUnlock()
 
 	// Case-sensitive lookup.
-	v := mimeTypes[ext]
-	if v != "" {
+	if v := mimeTypes[ext]; v != "" {
 		return v
 	}
 
@@ -91,19 +131,39 @@ func TypeByExtension(ext string) string {
 	return mimeTypesLower[string(lower)]
 }
 
+// ExtensionsByType returns the extensions known to be associated with the MIME
+// type typ. The returned extensions will each begin with a leading dot, as in
+// ".html". When typ has no associated extensions, ExtensionsByType returns an
+// nil slice.
+func ExtensionsByType(typ string) ([]string, error) {
+	justType, _, err := ParseMediaType(typ)
+	if err != nil {
+		return nil, err
+	}
+
+	once.Do(initMime)
+	mimeLock.RLock()
+	defer mimeLock.RUnlock()
+	s, ok := extensions[justType]
+	if !ok {
+		return nil, nil
+	}
+	return append([]string{}, s...), nil
+}
+
 // AddExtensionType sets the MIME type associated with
 // the extension ext to typ. The extension should begin with
 // a leading dot, as in ".html".
 func AddExtensionType(ext, typ string) error {
 	if !strings.HasPrefix(ext, ".") {
-		return fmt.Errorf(`mime: extension %q misses dot`, ext)
+		return fmt.Errorf("mime: extension %q missing leading dot", ext)
 	}
 	once.Do(initMime)
 	return setExtensionType(ext, typ)
 }
 
 func setExtensionType(extension, mimeType string) error {
-	_, param, err := ParseMediaType(mimeType)
+	justType, param, err := ParseMediaType(mimeType)
 	if err != nil {
 		return err
 	}
@@ -114,8 +174,14 @@ func setExtensionType(extension, mimeType string) error {
 	extLower := strings.ToLower(extension)
 
 	mimeLock.Lock()
+	defer mimeLock.Unlock()
 	mimeTypes[extension] = mimeType
 	mimeTypesLower[extLower] = mimeType
-	mimeLock.Unlock()
+	for _, v := range extensions[justType] {
+		if v == extLower {
+			return nil
+		}
+	}
+	extensions[justType] = append(extensions[justType], extLower)
 	return nil
 }

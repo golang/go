@@ -1,6 +1,3 @@
-// skip
-// TODO(rsc): Reenable. See issue 9968.
-
 // errorcheck
 
 // Copyright 2011 The Go Authors.  All rights reserved.
@@ -12,7 +9,7 @@
 package main
 import "runtime"
 
-func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|named/anonymous mix|undefined identifier"
+func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|mixed named and unnamed|undefined identifier"
 	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
 }
 

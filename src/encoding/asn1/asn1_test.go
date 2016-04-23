@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -52,10 +53,12 @@ var int64TestData = []int64Test{
 	{[]byte{0x01, 0x00}, true, 256},
 	{[]byte{0x80}, true, -128},
 	{[]byte{0xff, 0x7f}, true, -129},
-	{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
 	{[]byte{0xff}, true, -1},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{}, false, 0},
+	{[]byte{0x00, 0x7f}, false, 0},
+	{[]byte{0xff, 0xf0}, false, 0},
 }
 
 func TestParseInt64(t *testing.T) {
@@ -83,10 +86,12 @@ var int32TestData = []int32Test{
 	{[]byte{0x01, 0x00}, true, 256},
 	{[]byte{0x80}, true, -128},
 	{[]byte{0xff, 0x7f}, true, -129},
-	{[]byte{0xff, 0xff, 0xff, 0xff}, true, -1},
 	{[]byte{0xff}, true, -1},
 	{[]byte{0x80, 0x00, 0x00, 0x00}, true, -2147483648},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{}, false, 0},
+	{[]byte{0x00, 0x7f}, false, 0},
+	{[]byte{0xff, 0xf0}, false, 0},
 }
 
 func TestParseInt32(t *testing.T) {
@@ -103,27 +108,36 @@ func TestParseInt32(t *testing.T) {
 
 var bigIntTests = []struct {
 	in     []byte
+	ok     bool
 	base10 string
 }{
-	{[]byte{0xff}, "-1"},
-	{[]byte{0x00}, "0"},
-	{[]byte{0x01}, "1"},
-	{[]byte{0x00, 0xff}, "255"},
-	{[]byte{0xff, 0x00}, "-256"},
-	{[]byte{0x01, 0x00}, "256"},
+	{[]byte{0xff}, true, "-1"},
+	{[]byte{0x00}, true, "0"},
+	{[]byte{0x01}, true, "1"},
+	{[]byte{0x00, 0xff}, true, "255"},
+	{[]byte{0xff, 0x00}, true, "-256"},
+	{[]byte{0x01, 0x00}, true, "256"},
+	{[]byte{}, false, ""},
+	{[]byte{0x00, 0x7f}, false, ""},
+	{[]byte{0xff, 0xf0}, false, ""},
 }
 
 func TestParseBigInt(t *testing.T) {
 	for i, test := range bigIntTests {
-		ret := parseBigInt(test.in)
-		if ret.String() != test.base10 {
-			t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+		ret, err := parseBigInt(test.in)
+		if (err == nil) != test.ok {
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
-		fw := newForkableWriter()
-		marshalBigInt(fw, ret)
-		result := fw.Bytes()
-		if !bytes.Equal(result, test.in) {
-			t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+		if test.ok {
+			if ret.String() != test.base10 {
+				t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+			}
+			fw := newForkableWriter()
+			marshalBigInt(fw, ret)
+			result := fw.Bytes()
+			if !bytes.Equal(result, test.in) {
+				t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+			}
 		}
 	}
 }
@@ -258,6 +272,24 @@ var utcTestData = []timeTest{
 	{"91050633444aZ", false, time.Time{}},
 	{"910506334461Z", false, time.Time{}},
 	{"910506334400Za", false, time.Time{}},
+	/* These are invalid times. However, the time package normalises times
+	 * and they were accepted in some versions. See #11134. */
+	{"000100000000Z", false, time.Time{}},
+	{"101302030405Z", false, time.Time{}},
+	{"100002030405Z", false, time.Time{}},
+	{"100100030405Z", false, time.Time{}},
+	{"100132030405Z", false, time.Time{}},
+	{"100231030405Z", false, time.Time{}},
+	{"100102240405Z", false, time.Time{}},
+	{"100102036005Z", false, time.Time{}},
+	{"100102030460Z", false, time.Time{}},
+	{"-100102030410Z", false, time.Time{}},
+	{"10-0102030410Z", false, time.Time{}},
+	{"10-0002030410Z", false, time.Time{}},
+	{"1001-02030410Z", false, time.Time{}},
+	{"100102-030410Z", false, time.Time{}},
+	{"10010203-0410Z", false, time.Time{}},
+	{"1001020304-10Z", false, time.Time{}},
 }
 
 func TestUTCTime(t *testing.T) {
@@ -287,6 +319,24 @@ var generalizedTimeTestData = []timeTest{
 	{"20100102030405", false, time.Time{}},
 	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
 	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
+	/* These are invalid times. However, the time package normalises times
+	 * and they were accepted in some versions. See #11134. */
+	{"00000100000000Z", false, time.Time{}},
+	{"20101302030405Z", false, time.Time{}},
+	{"20100002030405Z", false, time.Time{}},
+	{"20100100030405Z", false, time.Time{}},
+	{"20100132030405Z", false, time.Time{}},
+	{"20100231030405Z", false, time.Time{}},
+	{"20100102240405Z", false, time.Time{}},
+	{"20100102036005Z", false, time.Time{}},
+	{"20100102030460Z", false, time.Time{}},
+	{"-20100102030410Z", false, time.Time{}},
+	{"2010-0102030410Z", false, time.Time{}},
+	{"2010-0002030410Z", false, time.Time{}},
+	{"201001-02030410Z", false, time.Time{}},
+	{"20100102-030410Z", false, time.Time{}},
+	{"2010010203-0410Z", false, time.Time{}},
+	{"201001020304-10Z", false, time.Time{}},
 }
 
 func TestGeneralizedTime(t *testing.T) {
@@ -297,7 +347,7 @@ func TestGeneralizedTime(t *testing.T) {
 		}
 		if err == nil {
 			if !reflect.DeepEqual(test.out, ret) {
-				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
+				t.Errorf("#%d: Bad result: %q → %v (expected %v)", i, test.in, ret, test.out)
 			}
 		}
 	}
@@ -314,20 +364,26 @@ var tagAndLengthData = []tagAndLengthTest{
 	{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true}},
 	{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false}},
 	{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true}},
-	{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
+	{[]byte{0x1f, 0x1f, 0x00}, true, tagAndLength{0, 31, 0, false}},
 	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
 	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
-	{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false}},
+	{[]byte{0x00, 0x81, 0x80}, true, tagAndLength{0, 0, 128, false}},
 	{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false}},
 	{[]byte{0x00, 0x83, 0x01, 0x00}, false, tagAndLength{}},
 	{[]byte{0x1f, 0x85}, false, tagAndLength{}},
 	{[]byte{0x30, 0x80}, false, tagAndLength{}},
 	// Superfluous zeros in the length should be an error.
-	{[]byte{0xa0, 0x82, 0x00, 0x01}, false, tagAndLength{}},
+	{[]byte{0xa0, 0x82, 0x00, 0xff}, false, tagAndLength{}},
 	// Lengths up to the maximum size of an int should work.
 	{[]byte{0xa0, 0x84, 0x7f, 0xff, 0xff, 0xff}, true, tagAndLength{2, 0, 0x7fffffff, true}},
 	// Lengths that would overflow an int should be rejected.
 	{[]byte{0xa0, 0x84, 0x80, 0x00, 0x00, 0x00}, false, tagAndLength{}},
+	// Long length form may not be used for lengths that fit in short form.
+	{[]byte{0xa0, 0x81, 0x7f}, false, tagAndLength{}},
+	// Tag numbers which would overflow int32 are rejected. (The value below is 2^31.)
+	{[]byte{0x1f, 0x88, 0x80, 0x80, 0x80, 0x00, 0x00}, false, tagAndLength{}},
+	// Long tag number form may not be used for tags that fit in short form.
+	{[]byte{0x1f, 0x1e, 0x00}, false, tagAndLength{}},
 }
 
 func TestParseTagAndLength(t *testing.T) {
@@ -357,8 +413,10 @@ func newBool(b bool) *bool { return &b }
 
 var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
 	{"", fieldParameters{}},
-	{"ia5", fieldParameters{stringType: tagIA5String}},
-	{"printable", fieldParameters{stringType: tagPrintableString}},
+	{"ia5", fieldParameters{stringType: TagIA5String}},
+	{"generalized", fieldParameters{timeType: TagGeneralizedTime}},
+	{"utc", fieldParameters{timeType: TagUTCTime}},
+	{"printable", fieldParameters{stringType: TagPrintableString}},
 	{"optional", fieldParameters{optional: true}},
 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
 	{"application", fieldParameters{application: true, tag: new(int)}},
@@ -366,7 +424,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
 	{"tag:17", fieldParameters{tag: newInt(17)}},
 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, false, false}},
+	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false}},
 	{"set", fieldParameters{set: true}},
 }
 
@@ -863,5 +921,53 @@ func TestImplicitTaggedTime(t *testing.T) {
 	}
 	if expected := time.Date(1991, 05, 06, 16, 45, 40, 0, time.UTC); !result.Time.Equal(expected) {
 		t.Errorf("Wrong result. Got %v, want %v", result.Time, expected)
+	}
+}
+
+type truncatedExplicitTagTest struct {
+	Test int `asn1:"explicit,tag:0"`
+}
+
+func TestTruncatedExplicitTag(t *testing.T) {
+	// This crashed Unmarshal in the past. See #11154.
+	der := []byte{
+		0x30, // SEQUENCE
+		0x02, // two bytes long
+		0xa0, // context-specific, tag 0
+		0x30, // 48 bytes long
+	}
+
+	var result truncatedExplicitTagTest
+	if _, err := Unmarshal(der, &result); err == nil {
+		t.Error("Unmarshal returned without error")
+	}
+}
+
+type invalidUTF8Test struct {
+	Str string `asn1:"utf8"`
+}
+
+func TestUnmarshalInvalidUTF8(t *testing.T) {
+	data := []byte("0\x05\f\x03a\xc9c")
+	var result invalidUTF8Test
+	_, err := Unmarshal(data, &result)
+
+	const expectedSubstring = "UTF"
+	if err == nil {
+		t.Fatal("Successfully unmarshaled invalid UTF-8 data")
+	} else if !strings.Contains(err.Error(), expectedSubstring) {
+		t.Fatalf("Expected error to mention %q but error was %q", expectedSubstring, err.Error())
+	}
+}
+
+func TestMarshalNilValue(t *testing.T) {
+	nilValueTestData := []interface{}{
+		nil,
+		struct{ v interface{} }{},
+	}
+	for i, test := range nilValueTestData {
+		if _, err := Marshal(test); err == nil {
+			t.Fatalf("#%d: successfully marshaled nil value", i)
+		}
 	}
 }

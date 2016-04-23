@@ -1,5 +1,3 @@
-// skip
-
 // runoutput ./rotate.go
 
 // Copyright 2013 The Go Authors.  All rights reserved.

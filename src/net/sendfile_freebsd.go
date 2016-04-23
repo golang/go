@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -53,7 +53,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	// use the current position of the file -- if you pass it offset 0, it starts
 	// from offset 0. There's no way to tell it "start from current position", so
 	// we have to manage that explicitly.
-	pos, err := f.Seek(0, os.SEEK_CUR)
+	pos, err := f.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return 0, err, false
 	}
@@ -81,7 +81,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			break
 		}
 		if err1 == syscall.EAGAIN {
-			if err1 = c.pd.WaitWrite(); err1 == nil {
+			if err1 = c.pd.waitWrite(); err1 == nil {
 				continue
 			}
 		}
@@ -91,13 +91,16 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		if err1 != nil {
 			// This includes syscall.ENOSYS (no kernel
 			// support) and syscall.EINVAL (fd types which
-			// don't implement sendfile together)
-			err = &OpError{"sendfile", c.net, c.raddr, err1}
+			// don't implement sendfile)
+			err = err1
 			break
 		}
 	}
 	if lr != nil {
 		lr.N = remain
+	}
+	if err != nil {
+		err = os.NewSyscallError("sendfile", err)
 	}
 	return written, err, written > 0
 }

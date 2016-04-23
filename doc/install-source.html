@@ -26,21 +26,21 @@ packages, though, read on.
 <p>
 There are two official Go compiler tool chains.
 This document focuses on the <code>gc</code> Go
-compiler and tools (<code>6g</code>, <code>8g</code> etc.).
+compiler and tools.
 For information on how to work on <code>gccgo</code>, a more traditional
 compiler using the GCC back end, see
 <a href="/doc/install/gccgo">Setting up and using gccgo</a>.
 </p>
 
 <p>
-The Go compilers support three instruction sets.
+The Go compilers support five instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
 
 <dl>
 <dt>
-	<code>amd64</code> (a.k.a. <code>x86-64</code>); <code>6g,6l,6c,6a</code>
+	<code>amd64</code> (also known as <code>x86-64</code>)
 </dt>
 <dd>
 	A mature implementation. The compiler has an effective
@@ -48,16 +48,34 @@ architectures.
 	<code>gccgo</code> can do noticeably better sometimes).
 </dd>
 <dt>
-	<code>386</code> (a.k.a. <code>x86</code> or <code>x86-32</code>); <code>8g,8l,8c,8a</code>
+	<code>386</code> (<code>x86</code> or <code>x86-32</code>)
 </dt>
 <dd>
 	Comparable to the <code>amd64</code> port.
 </dd>
 <dt>
-	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
+	<code>arm</code> (<code>ARM</code>)
 </dt>
 <dd>
-	Supports Linux, FreeBSD and NetBSD binaries. Less widely used than the other ports.
+	Supports Linux, FreeBSD, NetBSD and Darwin binaries. Less widely used than the other ports.
+</dd>
+<dt>
+	<code>arm64</code> (<code>AArch64</code>)
+</dt>
+<dd>
+	Supports Linux and Darwin binaries. New in 1.5 and not as well excercised as other ports.
+</dd>
+<dt>
+	<code>ppc64, ppc64le</code> (64-bit PowerPC big- and little-endian)
+</dt>
+<dd>
+	Supports Linux binaries. New in 1.5 and not as well excercised as other ports.
+</dd>
+<dt>
+	<code>mips64, mips64le</code> (64-bit MIPS big- and little-endian)
+</dt>
+<dd>
+	Supports Linux binaries. New in 1.6 and not as well excercised as other ports.
 </dd>
 </dl>
 
@@ -74,6 +92,17 @@ OS X (Darwin), Plan 9, Solaris and Windows operating systems.
 The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
+
+<p>
+See the main installation page for the <a href="/doc/install#requirements">overall system requirements</a>.
+The following additional constraints apply to systems that can be built only from source:
+</p>
+
+<ul>
+<li>For Linux on PowerPC 64-bit, the minimum supported kernel version is 2.6.37, meaning that
+Go does not support CentOS 6 on these systems.
+</li>
+</ul>
 
 </div>
 
@@ -98,6 +127,39 @@ Download the zip or tarball of Go 1.4 for your platform and extract it to
 location).
 </p>
 
+<p>
+If you want to install Go 1.5 on a system that is not supported by Go 1.4 (such
+as <code>linux/ppc64</code> and <code>linux/mips64le</code>) you can either use
+<a href="/src/bootstrap.bash">bootstrap.bash</a> on a system that can bootstrap Go
+1.5 normally, or bootstrap with gccgo 5.
+</p>
+
+<p>
+When run as (for example)
+</p>
+
+<pre>
+$ GOOS=linux GOARCH=ppc64 ./bootstrap.bash
+</pre>
+
+<p>
+<code>bootstrap.bash</code> cross-compiles a toolchain for that <code>GOOS/GOARCH</code>
+combination, leaving the resulting tree in <code>../../go-${GOOS}-${GOARCH}-bootstrap</code>.
+That tree can be copied to a machine of the given target type
+and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
+</p>
+
+<p>
+To use gccgo, you need to arrange for <code>$GOROOT_BOOTSTRAP/bin/go</code> to be
+the go tool that comes as part of gccgo 5. For example on Ubuntu Vivid:
+</p>
+
+<pre>
+$ sudo apt-get install gccgo-5
+$ sudo update-alternatives --set go /usr/bin/go-5
+$ GOROOT_BOOTSTRAP=/usr ./make.bash
+</pre>
+
 <h2 id="git">Install Git, if needed</h2>
 
 <p>
@@ -111,19 +173,39 @@ follow the instructions on the
 <a href="http://git-scm.com/downloads">Git downloads</a> page.
 </p>
 
+<h2 id="ccompiler">(Optional) Install a C compiler</h2>
+
+<p>
+To build a Go installation
+with <code><a href="/cmd/cgo">cgo</a></code> support, which permits Go
+programs to import C libraries, a C compiler such as <code>gcc</code>
+or <code>clang</code> must be installed first. Do this using whatever
+installation method is standard on the system.
+</p>
+
+<p>
+To build without <code>cgo</code>, set the environment variable
+<code>CGO_ENABLED=0</code> before running <code>all.bash</code> or
+<code>make.bash</code>.
+</p>
 
 <h2 id="fetch">Fetch the repository</h2>
 
 <p>Go will install to a directory named <code>go</code>.
 Change to the directory that will be its parent
 and make sure the <code>go</code> directory does not exist.
-Then clone the repository and check out the latest release tag:</p>
+Then clone the repository and check out the latest release tag
+(<code class="versionTag">go1.6</code>, for example):</p>
 
 <pre>
 $ git clone https://go.googlesource.com/go
 $ cd go
-$ git checkout go1.4
+$ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></span>
 </pre>
+
+<p class="whereTag">
+Where <code>&lt;tag&gt;</code> is the version string of the release.
+</p>
 
 <h2 id="head">(Optional) Switch to the master branch</h2>
 
@@ -144,7 +226,7 @@ To build the Go distribution, run
 </p>
 
 <pre>
-$ cd go/src
+$ cd src
 $ ./all.bash
 </pre>
 
@@ -301,7 +383,7 @@ New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 Each announcement mentions the latest release tag, for instance,
-<code>go1.4</code>.
+<code class="versionTag">go1.6</code>.
 </p>
 
 <p>
@@ -311,11 +393,13 @@ To update an existing tree to the latest release, you can run:
 <pre>
 $ cd go/src
 $ git fetch
-$ git checkout <i>&lt;tag&gt;</i>
+$ git checkout <span class="versionTag"><i>&lt;tag&gt;</i></psan>
 $ ./all.bash
 </pre>
 
+<p class="whereTag">
 Where <code>&lt;tag&gt;</code> is the version string of the release.
+</p>
 
 
 <h2 id="environment">Optional environment variables</h2>
@@ -354,16 +438,21 @@ These default to the values of <code>$GOHOSTOS</code> and
 
 <p>
 Choices for <code>$GOOS</code> are
-<code>darwin</code> (Mac OS X 10.6 and above), <code>dragonfly</code>, <code>freebsd</code>,
-<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>, 
+<code>darwin</code> (Mac OS X 10.7 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+<code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
 <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
 Choices for <code>$GOARCH</code> are
 <code>amd64</code> (64-bit x86, the most mature port),
-<code>386</code> (32-bit x86), and <code>arm</code> (32-bit ARM).
+<code>386</code> (32-bit x86), <code>arm</code> (32-bit ARM), <code>arm64</code> (64-bit ARM),
+<code>ppc64le</code> (PowerPC 64-bit, little-endian), <code>ppc64</code> (PowerPC 64-bit, big-endian),
+<code>mips64le</code> (MIPS 64-bit, little-endian), and <code>mips64</code> (MIPS 64-bit, big-endian).
 The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <table cellpadding="0">
 <tr>
 <th width="50"></th><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th>
+</tr>
+<tr>
+<td></td><td><code>android</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
 <td></td><td><code>darwin</code></td> <td><code>386</code></td>
@@ -372,7 +461,10 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
 </tr>
 <tr>
-<td></td><td><code>dragonfly</code></td> <td><code>386</code></td>
+<td></td><td><code>darwin</code></td> <td><code>arm</code></td>
+</tr>
+<tr>
+<td></td><td><code>darwin</code></td> <td><code>arm64</code></td>
 </tr>
 <tr>
 <td></td><td><code>dragonfly</code></td> <td><code>amd64</code></td>
@@ -396,6 +488,21 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>linux</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
+<td></td><td><code>linux</code></td> <td><code>arm64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>ppc64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>ppc64le</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>mips64</code></td>
+</tr>
+<tr>
+<td></td><td><code>linux</code></td> <td><code>mips64le</code></td>
+</tr>
+<tr>
 <td></td><td><code>netbsd</code></td> <td><code>386</code></td>
 </tr>
 <tr>
@@ -409,6 +516,9 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 </tr>
 <tr>
 <td></td><td><code>openbsd</code></td> <td><code>amd64</code></td>
+</tr>
+<tr>
+<td></td><td><code>openbsd</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
 <td></td><td><code>plan9</code></td> <td><code>386</code></td>
@@ -426,6 +536,7 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>windows</code></td> <td><code>amd64</code></td>
 </tr>
 </table>
+<br>
 
 <li><code>$GOHOSTOS</code> and <code>$GOHOSTARCH</code>
 <p>
@@ -455,7 +566,7 @@ installs all commands there.
 <li><code>$GO386</code> (for <code>386</code> only, default is auto-detected
 if built on either <code>386</code> or <code>amd64</code>, <code>387</code> otherwise)
 <p>
-This controls the code generated by 8g to use either the 387 floating-point unit
+This controls the code generated by gc to use either the 387 floating-point unit
 (set to <code>387</code>) or SSE2 instructions (set to <code>sse2</code>) for
 floating point computations.
 </p>

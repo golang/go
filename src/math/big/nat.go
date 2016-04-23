@@ -2,33 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package big implements multi-precision arithmetic (big numbers).
-// The following numeric types are supported:
-//
-//   Int    signed integers
-//   Rat    rational numbers
-//   Float  floating-point numbers
-//
-// Methods are typically of the form:
-//
-//   func (z *T) Unary(x *T) *T        // z = op x
-//   func (z *T) Binary(x, y *T) *T    // z = x op y
-//   func (x *T) M() T1                // v = x.M()
-//
-// with T one of Int, Rat, or Float. For unary and binary operations, the
-// result is the receiver (usually named z in that case); if it is one of
-// the operands x or y it may be overwritten (and its memory reused).
-// To enable chaining of operations, the result is also returned. Methods
-// returning a result other than *Int, *Rat, or *Float take an operand as
-// the receiver (usually named x in that case).
-//
+// This file implements unsigned multi-precision integers (natural
+// numbers). They are the building blocks for the implementation
+// of signed integers, rationals, and floating-point numbers.
+
 package big
 
-// This file contains operations on unsigned multi-precision integers.
-// These are the building blocks for the operations on signed integers
-// and rationals.
-
-import "math/rand"
+import (
+	"math/rand"
+	"sync"
+)
 
 // An unsigned integer x of the form
 //
@@ -216,6 +199,47 @@ func basicMul(z, x, y nat) {
 	}
 }
 
+// montgomery computes z mod m = x*y*2**(-n*_W) mod m,
+// assuming k = -1/m mod 2**_W.
+// z is used for storing the result which is returned;
+// z must not alias x, y or m.
+// See Gueron, "Efficient Software Implementations of Modular Exponentiation".
+// https://eprint.iacr.org/2011/239.pdf
+// In the terminology of that paper, this is an "Almost Montgomery Multiplication":
+// x and y are required to satisfy 0 <= z < 2**(n*_W) and then the result
+// z is guaranteed to satisfy 0 <= z < 2**(n*_W), but it may not be < m.
+func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
+	// This code assumes x, y, m are all the same length, n.
+	// (required by addMulVVW and the for loop).
+	// It also assumes that x, y are already reduced mod m,
+	// or else the result will not be properly reduced.
+	if len(x) != n || len(y) != n || len(m) != n {
+		panic("math/big: mismatched montgomery number lengths")
+	}
+	z = z.make(n)
+	z.clear()
+	var c Word
+	for i := 0; i < n; i++ {
+		d := y[i]
+		c2 := addMulVVW(z, x, d)
+		t := z[0] * k
+		c3 := addMulVVW(z, m, t)
+		copy(z, z[1:])
+		cx := c + c2
+		cy := cx + c3
+		z[n-1] = cy
+		if cx < c2 || cy < c3 {
+			c = 1
+		} else {
+			c = 0
+		}
+	}
+	if c != 0 {
+		subVV(z, z, m)
+	}
+	return z
+}
+
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
 // Factored out for readability - do not use outside karatsuba.
 func karatsubaAdd(z, x nat, n int) {
@@ -335,7 +359,7 @@ func karatsuba(z, x, y nat) {
 	}
 }
 
-// alias returns true if x and y share the same base array.
+// alias reports whether x and y share the same base array.
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
@@ -518,6 +542,21 @@ func (z nat) div(z2, u, v nat) (q, r nat) {
 	return
 }
 
+// getNat returns a nat of len n. The contents may not be zero.
+func getNat(n int) nat {
+	var z nat
+	if v := natPool.Get(); v != nil {
+		z = v.(nat)
+	}
+	return z.make(n)
+}
+
+func putNat(x nat) {
+	natPool.Put(x)
+}
+
+var natPool sync.Pool
+
 // q = (uIn-r)/v, with 0 <= r < y
 // Uses z as storage for q, and u as storage for r if possible.
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
@@ -536,7 +575,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	}
 	q = z.make(m + 1)
 
-	qhatv := make(nat, n+1)
+	qhatv := getNat(n + 1)
 	if alias(u, uIn) || alias(u, v) {
 		u = nil // u is an alias for uIn or v - cannot reuse
 	}
@@ -544,10 +583,11 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	u.clear() // TODO(gri) no need to clear if we allocated a new u
 
 	// D1.
-	shift := leadingZeros(v[n-1])
+	var v1 nat
+	shift := nlz(v[n-1])
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
-		v1 := make(nat, n)
+		v1 = getNat(n)
 		shlVU(v1, v, shift)
 		v = v1
 	}
@@ -588,6 +628,10 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 
 		q[j] = qhat
 	}
+	if v1 != nil {
+		putNat(v1)
+	}
+	putNat(qhatv)
 
 	q = q.norm()
 	shrVU(u, u, shift)
@@ -626,7 +670,7 @@ func trailingZeroBits(x Word) uint {
 	// x & -x leaves only the right-most bit set in the word. Let k be the
 	// index of that bit. Since only a single bit is set, the value is two
 	// to the power of k. Multiplying by a power of two is equivalent to
-	// left shifting, in this case by k bits.  The de Bruijn constant is
+	// left shifting, in this case by k bits. The de Bruijn constant is
 	// such that all six bit, consecutive substrings are distinct.
 	// Therefore, if we have a left shifted version of this constant we can
 	// find by how many bits it was shifted by looking at which six bit
@@ -819,7 +863,7 @@ func (z nat) xor(x, y nat) nat {
 	return z.norm()
 }
 
-// greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
+// greaterThan reports whether (x1<<_W + x2) > (y1<<_W + y2)
 func greaterThan(x1, x2, y1, y2 Word) bool {
 	return x1 > y1 || x1 == y1 && x2 > y2
 }
@@ -888,6 +932,13 @@ func (z nat) expNN(x, y, m nat) nat {
 	}
 	// y > 0
 
+	// x**1 mod m == x mod m
+	if len(y) == 1 && y[0] == 1 && len(m) != 0 {
+		_, z = z.div(z, x, m)
+		return z
+	}
+	// y > 1
+
 	if len(m) != 0 {
 		// We likely end up being as long as the modulus.
 		z = z.make(len(m))
@@ -898,13 +949,16 @@ func (z nat) expNN(x, y, m nat) nat {
 	// 4-bit, windowed exponentiation. This involves precomputing 14 values
 	// (x^2...x^15) but then reduces the number of multiply-reduces by a
 	// third. Even for a 32-bit exponent, this reduces the number of
-	// operations.
+	// operations. Uses Montgomery method for odd moduli.
 	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
+		if m[0]&1 == 1 {
+			return z.expNNMontgomery(x, y, m)
+		}
 		return z.expNNWindowed(x, y, m)
 	}
 
 	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
-	shift := leadingZeros(v) + 1
+	shift := nlz(v) + 1
 	v <<= shift
 	var q nat
 
@@ -987,7 +1041,7 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 		for j := 0; j < _W; j += n {
 			if i != len(y)-1 || j != 0 {
 				// Unrolled loop for significant performance
-				// gain.  Use go test -bench=".*" in crypto/rsa
+				// gain. Use go test -bench=".*" in crypto/rsa
 				// to check performance before making changes.
 				zz = zz.mul(z, z)
 				zz, z = z, zz
@@ -1022,9 +1076,105 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 	return z.norm()
 }
 
-// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
-// If it returns true, n is prime with probability 1 - 1/4^reps.
-// If it returns false, n is not prime.
+// expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
+// Uses Montgomery representation.
+func (z nat) expNNMontgomery(x, y, m nat) nat {
+	numWords := len(m)
+
+	// We want the lengths of x and m to be equal.
+	// It is OK if x >= m as long as len(x) == len(m).
+	if len(x) > numWords {
+		_, x = nat(nil).div(nil, x, m)
+		// Note: now len(x) <= numWords, not guaranteed ==.
+	}
+	if len(x) < numWords {
+		rr := make(nat, numWords)
+		copy(rr, x)
+		x = rr
+	}
+
+	// Ideally the precomputations would be performed outside, and reused
+	// k0 = -m**-1 mod 2**_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+	// Iteration for Multiplicative Inverses Modulo Prime Powers".
+	k0 := 2 - m[0]
+	t := m[0] - 1
+	for i := 1; i < _W; i <<= 1 {
+		t *= t
+		k0 *= (t + 1)
+	}
+	k0 = -k0
+
+	// RR = 2**(2*_W*len(m)) mod m
+	RR := nat(nil).setWord(1)
+	zz := nat(nil).shl(RR, uint(2*numWords*_W))
+	_, RR = RR.div(RR, zz, m)
+	if len(RR) < numWords {
+		zz = zz.make(numWords)
+		copy(zz, RR)
+		RR = zz
+	}
+	// one = 1, with equal length to that of m
+	one := make(nat, numWords)
+	one[0] = 1
+
+	const n = 4
+	// powers[i] contains x^i
+	var powers [1 << n]nat
+	powers[0] = powers[0].montgomery(one, RR, m, k0, numWords)
+	powers[1] = powers[1].montgomery(x, RR, m, k0, numWords)
+	for i := 2; i < 1<<n; i++ {
+		powers[i] = powers[i].montgomery(powers[i-1], powers[1], m, k0, numWords)
+	}
+
+	// initialize z = 1 (Montgomery 1)
+	z = z.make(numWords)
+	copy(z, powers[0])
+
+	zz = zz.make(numWords)
+
+	// same windowed exponent, but with Montgomery multiplications
+	for i := len(y) - 1; i >= 0; i-- {
+		yi := y[i]
+		for j := 0; j < _W; j += n {
+			if i != len(y)-1 || j != 0 {
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+			}
+			zz = zz.montgomery(z, powers[yi>>(_W-n)], m, k0, numWords)
+			z, zz = zz, z
+			yi <<= n
+		}
+	}
+	// convert to regular number
+	zz = zz.montgomery(z, one, m, k0, numWords)
+
+	// One last reduction, just in case.
+	// See golang.org/issue/13907.
+	if zz.cmp(m) >= 0 {
+		// Common case is m has high bit set; in that case,
+		// since zz is the same length as m, there can be just
+		// one multiple of m to remove. Just subtract.
+		// We think that the subtract should be sufficient in general,
+		// so do that unconditionally, but double-check,
+		// in case our beliefs are wrong.
+		// The div is not expected to be reached.
+		zz = zz.sub(zz, m)
+		if zz.cmp(m) >= 0 {
+			_, zz = nat(nil).div(nil, zz, m)
+		}
+	}
+
+	return zz.norm()
+}
+
+// probablyPrime performs n Miller-Rabin tests to check whether x is prime.
+// If x is prime, it returns true.
+// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
+//
+// It is not suitable for judging primes that an adversary may have crafted
+// to fool this test.
 func (n nat) probablyPrime(reps int) bool {
 	if len(n) == 0 {
 		return false

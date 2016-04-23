@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_linux.go
 
+// +build ppc64,linux
+
 package syscall
 
 const (
@@ -549,7 +551,7 @@ type Sysinfo_t struct {
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
-	X_f       [0]byte
+	X_f       [0]uint8
 	Pad_cgo_1 [4]byte
 }
 
@@ -572,13 +574,16 @@ type Ustat_t struct {
 }
 
 type EpollEvent struct {
-	Events uint32
-	Fd     int32
-	Pad    int32
+	Events  uint32
+	X_padFd int32
+	Fd      int32
+	Pad     int32
 }
 
 const (
-	_AT_FDCWD = -0x64
+	_AT_FDCWD            = -0x64
+	_AT_REMOVEDIR        = 0x200
+	_AT_SYMLINK_NOFOLLOW = 0x100
 )
 
 type Termios struct {

@@ -88,7 +88,7 @@ func TestMatch(t *testing.T) {
 		pattern := tt.pattern
 		s := tt.s
 		if runtime.GOOS == "windows" {
-			if strings.Index(pattern, "\\") >= 0 {
+			if strings.Contains(pattern, "\\") {
 				// no escape allowed on windows.
 				continue
 			}
@@ -167,7 +167,7 @@ var globSymlinkTests = []struct {
 
 func TestGlobSymlink(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "android", "nacl", "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "windows":
 		if !supportsSymlinks {

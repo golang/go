@@ -1,10 +1,12 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
 import "unsafe"
+
+type mOS struct{}
 
 //go:noescape
 func thr_new(param *thrparam, size int32)
@@ -16,7 +18,7 @@ func sigaltstack(new, old *stackt)
 func sigaction(sig int32, new, old *sigactiont)
 
 //go:noescape
-func sigprocmask(new, old *sigset)
+func sigprocmask(how int32, new, old *sigset)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)

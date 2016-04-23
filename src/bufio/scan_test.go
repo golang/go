@@ -264,10 +264,6 @@ func testNoNewline(text string, lines []string, t *testing.T) {
 	}
 }
 
-var noNewlineLines = []string{
-	"abcdefghijklmn\nopqrstuvwxyz",
-}
-
 // Test that the line splitter handles a final line without a newline.
 func TestScanLineNoNewline(t *testing.T) {
 	const text = "abcdefghijklmn\nopqrstuvwxyz"
@@ -351,7 +347,7 @@ func TestSplitError(t *testing.T) {
 // Test that an EOF is overridden by a user-generated scan error.
 func TestErrAtEOF(t *testing.T) {
 	s := NewScanner(strings.NewReader("1 2 33"))
-	// This spitter will fail on last entry, after s.err==EOF.
+	// This splitter will fail on last entry, after s.err==EOF.
 	split := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		advance, token, err = ScanWords(data, atEOF)
 		if len(token) > 1 {
@@ -429,31 +425,35 @@ func commaSplit(data []byte, atEOF bool) (advance int, token []byte, err error) 
 			return i + 1, data[:i], nil
 		}
 	}
-	if !atEOF {
-		return 0, nil, nil
-	}
-	return 0, data, nil
+	return 0, data, ErrFinalToken
 }
 
-func TestEmptyTokens(t *testing.T) {
-	s := NewScanner(strings.NewReader("1,2,3,"))
-	values := []string{"1", "2", "3", ""}
+func testEmptyTokens(t *testing.T, text string, values []string) {
+	s := NewScanner(strings.NewReader(text))
 	s.Split(commaSplit)
 	var i int
-	for i = 0; i < len(values); i++ {
-		if !s.Scan() {
-			break
+	for i = 0; s.Scan(); i++ {
+		if i >= len(values) {
+			t.Fatalf("got %d fields, expected %d", i+1, len(values))
 		}
 		if s.Text() != values[i] {
 			t.Errorf("%d: expected %q got %q", i, values[i], s.Text())
 		}
 	}
 	if i != len(values) {
-		t.Errorf("got %d fields, expected %d", i, len(values))
+		t.Fatalf("got %d fields, expected %d", i, len(values))
 	}
 	if err := s.Err(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestEmptyTokens(t *testing.T) {
+	testEmptyTokens(t, "1,2,3,", []string{"1", "2", "3", ""})
+}
+
+func TestWithNoEmptyTokens(t *testing.T) {
+	testEmptyTokens(t, "1,2,3", []string{"1", "2", "3"})
 }
 
 func loopAtEOFSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
@@ -520,5 +520,21 @@ func TestEmptyLinesOK(t *testing.T) {
 	}
 	if c != 0 {
 		t.Fatalf("stopped with %d left to process", c)
+	}
+}
+
+// Make sure we can read a huge token if a big enough buffer is provided.
+func TestHugeBuffer(t *testing.T) {
+	text := strings.Repeat("x", 2*MaxScanTokenSize)
+	s := NewScanner(strings.NewReader(text + "\n"))
+	s.Buffer(make([]byte, 100), 3*MaxScanTokenSize)
+	for s.Scan() {
+		token := s.Text()
+		if token != text {
+			t.Errorf("scan got incorrect token of length %d", len(token))
+		}
+	}
+	if s.Err() != nil {
+		t.Fatal("after scan:", s.Err())
 	}
 }

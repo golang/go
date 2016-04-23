@@ -81,8 +81,8 @@ type FileHeader struct {
 	ModifiedTime       uint16 // MS-DOS time
 	ModifiedDate       uint16 // MS-DOS date
 	CRC32              uint32
-	CompressedSize     uint32 // deprecated; use CompressedSize64
-	UncompressedSize   uint32 // deprecated; use UncompressedSize64
+	CompressedSize     uint32 // Deprecated: Use CompressedSize64 instead.
+	UncompressedSize   uint32 // Deprecated: Use UncompressedSize64 instead.
 	CompressedSize64   uint64
 	UncompressedSize64 uint64
 	Extra              []byte
@@ -233,9 +233,9 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
 	}
 }
 
-// isZip64 returns true if the file size exceeds the 32 bit limit
+// isZip64 reports whether the file size exceeds the 32 bit limit
 func (fh *FileHeader) isZip64() bool {
-	return fh.CompressedSize64 > uint32max || fh.UncompressedSize64 > uint32max
+	return fh.CompressedSize64 >= uint32max || fh.UncompressedSize64 >= uint32max
 }
 
 func msdosModeToFileMode(m uint32) (mode os.FileMode) {

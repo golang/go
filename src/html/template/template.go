@@ -17,7 +17,7 @@ import (
 // Template is a specialized Template from "text/template" that produces a safe
 // HTML document fragment.
 type Template struct {
-	// Sticky error if escaping fails.
+	// Sticky error if escaping fails, or escapeOK if succeeded.
 	escapeErr error
 	// We could embed the text/template field, but it's safer not to because
 	// we need to keep our version of the name space and the underlying
@@ -51,11 +51,37 @@ func (t *Template) Templates() []*Template {
 	return m
 }
 
+// Option sets options for the template. Options are described by
+// strings, either a simple string or "key=value". There can be at
+// most one equals sign in an option string. If the option string
+// is unrecognized or otherwise invalid, Option panics.
+//
+// Known options:
+//
+// missingkey: Control the behavior during execution if a map is
+// indexed with a key that is not present in the map.
+//	"missingkey=default" or "missingkey=invalid"
+//		The default behavior: Do nothing and continue execution.
+//		If printed, the result of the index operation is the string
+//		"<no value>".
+//	"missingkey=zero"
+//		The operation returns the zero value for the map type's element.
+//	"missingkey=error"
+//		Execution stops immediately with an error.
+//
+func (t *Template) Option(opt ...string) *Template {
+	t.text.Option(opt...)
+	return t
+}
+
 // escape escapes all associated templates.
 func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.escapeErr == nil {
+		if t.Tree == nil {
+			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
+		}
 		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
 			return err
 		}
@@ -117,6 +143,13 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 	return tmpl, err
 }
 
+// DefinedTemplates returns a string listing the defined templates,
+// prefixed by the string "; defined templates are: ". If there are none,
+// it returns the empty string. Used to generate an error message.
+func (t *Template) DefinedTemplates() string {
+	return t.text.DefinedTemplates()
+}
+
 // Parse parses a string into a template. Nested template definitions
 // will be associated with the top-level template t. Parse may be
 // called multiple times to parse definitions of templates to associate
@@ -143,6 +176,8 @@ func (t *Template) Parse(src string) (*Template, error) {
 		tmpl := t.set[name]
 		if tmpl == nil {
 			tmpl = t.new(name)
+		} else if tmpl.escapeErr != nil {
+			return nil, fmt.Errorf("html/template: cannot redefine %q after it has executed", name)
 		}
 		// Restore our record of this text/template to its unescaped original state.
 		tmpl.escapeErr = nil
@@ -202,6 +237,7 @@ func (t *Template) Clone() (*Template, error) {
 			set: make(map[string]*Template),
 		},
 	}
+	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
 		name := x.Name()
 		src := t.set[name]
@@ -310,6 +346,11 @@ func Must(t *Template, err error) *Template {
 // the named files. The returned template's name will have the (base) name and
 // (parsed) contents of the first file. There must be at least one file.
 // If an error occurs, parsing stops and the returned *Template is nil.
+//
+// When parsing multiple files with the same name in different directories,
+// the last one mentioned will be the one that results.
+// For instance, ParseFiles("a/foo", "b/foo") stores "b/foo" as the template
+// named "foo", while "a/foo" is unavailable.
 func ParseFiles(filenames ...string) (*Template, error) {
 	return parseFiles(nil, filenames...)
 }
@@ -317,6 +358,9 @@ func ParseFiles(filenames ...string) (*Template, error) {
 // ParseFiles parses the named files and associates the resulting templates with
 // t. If an error occurs, parsing stops and the returned template is nil;
 // otherwise it is t. There must be at least one file.
+//
+// When parsing multiple files with the same name in different directories,
+// the last one mentioned will be the one that results.
 func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 	return parseFiles(t, filenames...)
 }
@@ -363,6 +407,9 @@ func parseFiles(t *Template, filenames ...string) (*Template, error) {
 // returned template will have the (base) name and (parsed) contents of the
 // first file matched by the pattern. ParseGlob is equivalent to calling
 // ParseFiles with the list of files matched by the pattern.
+//
+// When parsing multiple files with the same name in different directories,
+// the last one mentioned will be the one that results.
 func ParseGlob(pattern string) (*Template, error) {
 	return parseGlob(nil, pattern)
 }
@@ -372,6 +419,9 @@ func ParseGlob(pattern string) (*Template, error) {
 // processed by filepath.Glob and must match at least one file. ParseGlob is
 // equivalent to calling t.ParseFiles with the list of files matched by the
 // pattern.
+//
+// When parsing multiple files with the same name in different directories,
+// the last one mentioned will be the one that results.
 func (t *Template) ParseGlob(pattern string) (*Template, error) {
 	return parseGlob(t, pattern)
 }
@@ -386,4 +436,11 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 		return nil, fmt.Errorf("html/template: pattern matches no files: %#q", pattern)
 	}
 	return parseFiles(t, filenames...)
+}
+
+// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value. This is the definition of
+// truth used by if and other such actions.
+func IsTrue(val interface{}) (truth, ok bool) {
+	return template.IsTrue(val)
 }

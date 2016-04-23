@@ -7,8 +7,10 @@ package json
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"image"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,16 +69,20 @@ type ustruct struct {
 }
 
 type unmarshalerText struct {
-	T bool
+	A, B string
 }
 
 // needed for re-marshaling tests
-func (u *unmarshalerText) MarshalText() ([]byte, error) {
-	return []byte(""), nil
+func (u unmarshalerText) MarshalText() ([]byte, error) {
+	return []byte(u.A + ":" + u.B), nil
 }
 
 func (u *unmarshalerText) UnmarshalText(b []byte) error {
-	*u = unmarshalerText{true} // All we need to see that UnmarshalText is called.
+	pos := bytes.Index(b, []byte(":"))
+	if pos == -1 {
+		return errors.New("missing separator")
+	}
+	u.A, u.B = string(b[:pos]), string(b[pos+1:])
 	return nil
 }
 
@@ -94,12 +100,16 @@ var (
 	umslicep = new([]unmarshaler)
 	umstruct = ustruct{unmarshaler{true}}
 
-	um0T, um1T unmarshalerText // target2 of unmarshaling
-	umpT       = &um1T
-	umtrueT    = unmarshalerText{true}
-	umsliceT   = []unmarshalerText{{true}}
-	umslicepT  = new([]unmarshalerText)
-	umstructT  = ustructText{unmarshalerText{true}}
+	um0T, um1T   unmarshalerText // target2 of unmarshaling
+	umpType      = &um1T
+	umtrueXY     = unmarshalerText{"x", "y"}
+	umsliceXY    = []unmarshalerText{{"x", "y"}}
+	umslicepType = new([]unmarshalerText)
+	umstructType = new(ustructText)
+	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
+
+	ummapType = map[unmarshalerText]bool{}
+	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
 )
 
 // Test data structures for anonymous fields.
@@ -117,6 +127,7 @@ type Top struct {
 	Loop
 	Embed0p // has Point with X, Y, used
 	Embed0q // has Point with Z, used
+	embed   // contains exported field
 }
 
 type Embed0 struct {
@@ -145,6 +156,10 @@ type Embed0p struct {
 
 type Embed0q struct {
 	Point
+}
+
+type embed struct {
+	Q int
 }
 
 type Loop struct {
@@ -215,6 +230,9 @@ type XYZ struct {
 	Y interface{}
 	Z interface{}
 }
+
+func sliceAddr(x []int) *[]int                 { return &x }
+func mapAddr(x map[string]int) *map[string]int { return &x }
 
 var unmarshalTests = []unmarshalTest{
 	// basic types
@@ -293,14 +311,25 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"T":false}`, ptr: &ump, out: &umtrue},
 	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
 	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
-	{in: `{"M":{"T":false}}`, ptr: &umstruct, out: umstruct},
+	{in: `{"M":{"T":"x:y"}}`, ptr: &umstruct, out: umstruct},
 
 	// UnmarshalText interface test
-	{in: `"X"`, ptr: &um0T, out: umtrueT}, // use "false" so test will fail if custom unmarshaler is not called
-	{in: `"X"`, ptr: &umpT, out: &umtrueT},
-	{in: `["X"]`, ptr: &umsliceT, out: umsliceT},
-	{in: `["X"]`, ptr: &umslicepT, out: &umsliceT},
-	{in: `{"M":"X"}`, ptr: &umstructT, out: umstructT},
+	{in: `"x:y"`, ptr: &um0T, out: umtrueXY},
+	{in: `"x:y"`, ptr: &umpType, out: &umtrueXY},
+	{in: `["x:y"]`, ptr: &umsliceXY, out: umsliceXY},
+	{in: `["x:y"]`, ptr: &umslicepType, out: &umsliceXY},
+	{in: `{"M":"x:y"}`, ptr: umstructType, out: umstructXY},
+
+	// Map keys can be encoding.TextUnmarshalers
+	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
+	// If multiple values for the same key exists, only the most recent value is used.
+	{in: `{"x:y":false,"x:y":true}`, ptr: &ummapType, out: ummapXY},
+
+	// Overwriting of data.
+	// This is different from package xml, but it's what we've always done.
+	// Now documented and tested.
+	{in: `[2]`, ptr: sliceAddr([]int{1}), out: []int{2}},
+	{in: `{"key": 2}`, ptr: mapAddr(map[string]int{"old": 0, "key": 1}), out: map[string]int{"key": 2}},
 
 	{
 		in: `{
@@ -321,7 +350,8 @@ var unmarshalTests = []unmarshalTest{
 			"Loop2": 14,
 			"X": 15,
 			"Y": 16,
-			"Z": 17
+			"Z": 17,
+			"Q": 18
 		}`,
 		ptr: new(Top),
 		out: Top{
@@ -350,6 +380,9 @@ var unmarshalTests = []unmarshalTest{
 			},
 			Embed0q: Embed0q{
 				Point: Point{Z: 17},
+			},
+			embed: embed{
+				Q: 18,
 			},
 		},
 	},
@@ -407,11 +440,23 @@ var unmarshalTests = []unmarshalTest{
 		out: "hello\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdworld",
 	},
 
-	// issue 8305
+	// Used to be issue 8305, but time.Time implements encoding.TextUnmarshaler so this works now.
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
 		ptr: &map[time.Time]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[time.Time]string{}), 1},
+		out: map[time.Time]string{time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC): "hello world"},
+	},
+
+	// issue 8305
+	{
+		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
+		ptr: &map[Point]string{},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[Point]string{}), 1},
+	},
+	{
+		in:  `{"asdf": "hello world"}`,
+		ptr: &map[unmarshaler]string{},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1},
 	},
 }
 
@@ -497,12 +542,15 @@ func TestMarshalEmbeds(t *testing.T) {
 		Embed0q: Embed0q{
 			Point: Point{Z: 17},
 		},
+		embed: embed{
+			Q: 18,
+		},
 	}
 	b, err := Marshal(top)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17}"
+	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17,\"Q\":18}"
 	if string(b) != want {
 		t.Errorf("Wrong marshal result.\n got: %q\nwant: %q", b, want)
 	}
@@ -706,7 +754,7 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 }
 
 func noSpace(c rune) rune {
-	if isSpace(c) {
+	if isSpace(byte(c)) { //only used for ascii
 		return -1
 	}
 	return c
@@ -1196,18 +1244,60 @@ func TestStringKind(t *testing.T) {
 
 	data, err := Marshal(m1)
 	if err != nil {
-		t.Errorf("Unexpected error marshalling: %v", err)
+		t.Errorf("Unexpected error marshaling: %v", err)
 	}
 
 	err = Unmarshal(data, &m2)
 	if err != nil {
-		t.Errorf("Unexpected error unmarshalling: %v", err)
+		t.Errorf("Unexpected error unmarshaling: %v", err)
 	}
 
 	if !reflect.DeepEqual(m1, m2) {
 		t.Error("Items should be equal after encoding and then decoding")
 	}
+}
 
+// Custom types with []byte as underlying type could not be marshalled
+// and then unmarshalled.
+// Issue 8962.
+func TestByteKind(t *testing.T) {
+	type byteKind []byte
+
+	a := byteKind("hello")
+
+	data, err := Marshal(a)
+	if err != nil {
+		t.Error(err)
+	}
+	var b byteKind
+	err = Unmarshal(data, &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, b) {
+		t.Errorf("expected %v == %v", a, b)
+	}
+}
+
+// The fix for issue 8962 introduced a regression.
+// Issue 12921.
+func TestSliceOfCustomByte(t *testing.T) {
+	type Uint8 uint8
+
+	a := []Uint8("hello")
+
+	data, err := Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b []Uint8
+	err = Unmarshal(data, &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("expected %v == %v", a, b)
+	}
 }
 
 var decodeTypeErrorTests = []struct {
@@ -1370,5 +1460,53 @@ func TestInvalidUnmarshal(t *testing.T) {
 		if got := err.Error(); got != tt.want {
 			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
 		}
+	}
+}
+
+var invalidUnmarshalTextTests = []struct {
+	v    interface{}
+	want string
+}{
+	{nil, "json: Unmarshal(nil)"},
+	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
+	{(*int)(nil), "json: Unmarshal(nil *int)"},
+	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+}
+
+func TestInvalidUnmarshalText(t *testing.T) {
+	buf := []byte(`123`)
+	for _, tt := range invalidUnmarshalTextTests {
+		err := Unmarshal(buf, tt.v)
+		if err == nil {
+			t.Errorf("Unmarshal expecting error, got nil")
+			continue
+		}
+		if got := err.Error(); got != tt.want {
+			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
+		}
+	}
+}
+
+// Test that string option is ignored for invalid types.
+// Issue 9812.
+func TestInvalidStringOption(t *testing.T) {
+	num := 0
+	item := struct {
+		T time.Time         `json:",string"`
+		M map[string]string `json:",string"`
+		S []string          `json:",string"`
+		A [1]string         `json:",string"`
+		I interface{}       `json:",string"`
+		P *int              `json:",string"`
+	}{M: make(map[string]string), S: make([]string, 0), I: num, P: &num}
+
+	data, err := Marshal(item)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	err = Unmarshal(data, &item)
+	if err != nil {
+		t.Fatalf("Unmarshal: %v", err)
 	}
 }

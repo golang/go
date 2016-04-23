@@ -8,14 +8,25 @@ import "unsafe"
 
 // Per-thread (in Go, per-P) cache for small objects.
 // No locking needed because it is per-thread (per-P).
+//
+// mcaches are allocated from non-GC'd memory, so any heap pointers
+// must be specially handled.
 type mcache struct {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	next_sample      int32  // trigger heap sample after allocating this many bytes
-	local_cachealloc intptr // bytes allocated (or freed) from cache since last lock of heap
+	next_sample int32   // trigger heap sample after allocating this many bytes
+	local_scan  uintptr // bytes of scannable heap allocated
+
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
-	tiny             unsafe.Pointer
+
+	// tiny points to the beginning of the current tiny block, or
+	// nil if there is no current tiny block.
+	//
+	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
+	// we handle it by clearing it in releaseAll during mark
+	// termination.
+	tiny             uintptr
 	tinyoffset       uintptr
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
@@ -23,8 +34,6 @@ type mcache struct {
 	alloc [_NumSizeClasses]*mspan // spans to allocate from
 
 	stackcache [_NumStackOrders]stackfreelist
-
-	sudogcache *sudog
 
 	// Local allocator stats, flushed during GC.
 	local_nlookup    uintptr                  // number of pointer lookups
@@ -64,28 +73,19 @@ var emptymspan mspan
 
 func allocmcache() *mcache {
 	lock(&mheap_.lock)
-	c := (*mcache)(fixAlloc_Alloc(&mheap_.cachealloc))
+	c := (*mcache)(mheap_.cachealloc.alloc())
 	unlock(&mheap_.lock)
 	memclr(unsafe.Pointer(c), unsafe.Sizeof(*c))
 	for i := 0; i < _NumSizeClasses; i++ {
 		c.alloc[i] = &emptymspan
 	}
-
-	// Set first allocation sample size.
-	rate := MemProfileRate
-	if rate > 0x3fffffff { // make 2*rate not overflow
-		rate = 0x3fffffff
-	}
-	if rate != 0 {
-		c.next_sample = int32(int(fastrand1()) % (2 * rate))
-	}
-
+	c.next_sample = nextSample()
 	return c
 }
 
 func freemcache(c *mcache) {
 	systemstack(func() {
-		mCache_ReleaseAll(c)
+		c.releaseAll()
 		stackcache_clear(c)
 
 		// NOTE(rsc,rlh): If gcworkbuffree comes back, we need to coordinate
@@ -95,14 +95,14 @@ func freemcache(c *mcache) {
 
 		lock(&mheap_.lock)
 		purgecachedstats(c)
-		fixAlloc_Free(&mheap_.cachealloc, unsafe.Pointer(c))
+		mheap_.cachealloc.free(unsafe.Pointer(c))
 		unlock(&mheap_.lock)
 	})
 }
 
 // Gets a span that has a free object in it and assigns it
-// to be the cached span for the given sizeclass.  Returns this span.
-func mCache_Refill(c *mcache, sizeclass int32) *mspan {
+// to be the cached span for the given sizeclass. Returns this span.
+func (c *mcache) refill(sizeclass int32) *mspan {
 	_g_ := getg()
 
 	_g_.m.locks++
@@ -116,7 +116,7 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
 	}
 
 	// Get a new cached span from the central lists.
-	s = mCentral_CacheSpan(&mheap_.central[sizeclass].mcentral)
+	s = mheap_.central[sizeclass].mcentral.cacheSpan()
 	if s == nil {
 		throw("out of memory")
 	}
@@ -129,12 +129,15 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
 	return s
 }
 
-func mCache_ReleaseAll(c *mcache) {
+func (c *mcache) releaseAll() {
 	for i := 0; i < _NumSizeClasses; i++ {
 		s := c.alloc[i]
 		if s != &emptymspan {
-			mCentral_UncacheSpan(&mheap_.central[i].mcentral, s)
+			mheap_.central[i].mcentral.uncacheSpan(s)
 			c.alloc[i] = &emptymspan
 		}
 	}
+	// Clear tinyalloc pool.
+	c.tiny = 0
+	c.tinyoffset = 0
 }

@@ -4,9 +4,17 @@
 
 package x509
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func TestSystemRoots(t *testing.T) {
+	switch runtime.GOARCH {
+	case "arm", "arm64":
+		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
+	}
+
 	sysRoots := systemRootsPool()         // actual system roots
 	execRoots, err := execSecurityRoots() // non-cgo roots
 
@@ -49,6 +57,6 @@ func TestSystemRoots(t *testing.T) {
 	}
 
 	if have < want {
-		t.Errorf("insufficent overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
+		t.Errorf("insufficient overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
 	}
 }

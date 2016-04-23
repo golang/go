@@ -24,9 +24,9 @@
 #define	SYS_kill           37
 #define	SYS_getpid         20
 #define	SYS___pthread_kill 328
+#define	SYS_pthread_sigmask 329
 #define	SYS_setitimer      83
 #define	SYS___sysctl       202
-#define	SYS_sigprocmask    48
 #define	SYS_sigaction      46
 #define	SYS_sigreturn      184
 #define	SYS_select         93
@@ -48,13 +48,15 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVW	perm+8(FP), R2
 	MOVW	$SYS_open, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0
 	MOVW	$SYS_close, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -64,6 +66,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_write, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -73,6 +76,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVW	n+8(FP), R2
 	MOVW	$SYS_read, R12
 	SWI	$0x80
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -93,7 +97,12 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
 
-TEXT runtime·raise(SB),NOSPLIT,$24
+TEXT runtime·raise(SB),NOSPLIT,$0
+	// Ideally we'd send the signal to the current thread,
+	// not the whole process, but that's too hard on OS X.
+	JMP	runtime·raiseproc(SB)
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
@@ -185,6 +194,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVW	R1, ret_hi+4(FP)
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
 // Sigtramp's job is to call the actual signal handler.
 // It is called with the following arguments on the stack:
 //	 LR  	"return address" - ignored
@@ -240,7 +261,7 @@ cont:
 	MOVW    R1, 24(R6)
 
 	// switch stack and g
-	MOVW	R6, R13 // sigtramp can not re-entrant, so no need to back up R13.
+	MOVW	R6, R13 // sigtramp is not re-entrant, so no need to back up R13.
 	MOVW	R5, g
 
 	BL	(R0)
@@ -259,7 +280,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVW	sig+0(FP), R0
 	MOVW	new+4(FP), R1
 	MOVW	old+8(FP), R2
-	MOVW	$SYS_sigprocmask, R12
+	MOVW	$SYS_pthread_sigmask, R12
 	SWI	$0x80
 	BL.CS	notok<>(SB)
 	RET
@@ -274,10 +295,7 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 
 TEXT runtime·usleep(SB),NOSPLIT,$12
 	MOVW	usec+0(FP), R0
-	MOVW	R0, R1
-	MOVW	$1000000, R2
-	DIV     R2, R0
-	MOD     R2, R1
+	CALL	runtime·usplitR0(SB)
 	MOVW	R0, a-12(SP)
 	MOVW	R1, b-8(SP)
 
@@ -291,11 +309,8 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	SWI	$0x80
 	RET
 
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B	runtime·armcas(SB)
-
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
 
 TEXT runtime·sysctl(SB),NOSPLIT,$0
 	MOVW	mib+0(FP), R0
@@ -316,26 +331,25 @@ sysctl_ret:
 	RET
 
 // Thread related functions
-// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
+// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
-	MOVW    fn+12(FP), R0   // "func"
-	MOVW    mm+4(FP), R1 // "arg"
-	MOVW    stk+0(FP), R2 // stack
-	MOVW    gg+8(FP), R3 // "pthread"
+	MOVW    fn+8(FP),    R0 // "func"
+	MOVW    arg+4(FP),   R1 // "arg"
+	MOVW    stk+0(FP),   R2 // stack
 	MOVW	$0x01000000, R4	// flags = PTHREAD_START_CUSTOM
-	MOVW	$0, R5	// paranoia
+	MOVW	$0,          R5 // paranoia
 	MOVW	$SYS_bsdthread_create, R12
 	SWI	$0x80
 	BCC		create_ret
 	RSB 	$0, R0, R0
-	MOVW	R0, ret+16(FP)
+	MOVW	R0, ret+12(FP)
 	RET
 create_ret:
 	MOVW	$0, R0
-	MOVW	R0, ret+16(FP)
+	MOVW	R0, ret+12(FP)
 	RET
 
 // The thread that bsdthread_create creates starts executing here,

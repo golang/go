@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,11 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 var Fadd64 = fadd64
 var Fsub64 = fsub64
@@ -17,10 +21,16 @@ var F32to64 = f32to64
 var Fcmp64 = fcmp64
 var Fintto64 = fintto64
 var F64toint = f64toint
+var Sqrt = sqrt
 
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
+var Xadduintptr = atomic.Xadduintptr
+
+var FuncPC = funcPC
+
+var Fastlog2 = fastlog2
 
 type LFNode struct {
 	Next    uint64
@@ -35,59 +45,76 @@ func LFStackPop(head *uint64) *LFNode {
 	return (*LFNode)(unsafe.Pointer(lfstackpop(head)))
 }
 
-type ParFor struct {
-	body   func(*ParFor, uint32)
-	done   uint32
-	Nthr   uint32
-	thrseq uint32
-	Cnt    uint32
-	wait   bool
-}
-
-func NewParFor(nthrmax uint32) *ParFor {
-	var desc *ParFor
-	systemstack(func() {
-		desc = (*ParFor)(unsafe.Pointer(parforalloc(nthrmax)))
-	})
-	return desc
-}
-
-func ParForSetup(desc *ParFor, nthr, n uint32, wait bool, body func(*ParFor, uint32)) {
-	systemstack(func() {
-		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, wait,
-			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
-	})
-}
-
-func ParForDo(desc *ParFor) {
-	systemstack(func() {
-		parfordo((*parfor)(unsafe.Pointer(desc)))
-	})
-}
-
-func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
-	desc1 := (*parfor)(unsafe.Pointer(desc))
-	pos := desc1.thr[tid].pos
-	return uint32(pos), uint32(pos >> 32)
-}
-
 func GCMask(x interface{}) (ret []byte) {
-	e := (*eface)(unsafe.Pointer(&x))
-	s := (*slice)(unsafe.Pointer(&ret))
 	systemstack(func() {
-		var len uintptr
-		getgcmask(e.data, e._type, &s.array, &len)
-		s.len = uint(len)
-		s.cap = s.len
+		ret = getgcmask(x)
 	})
 	return
 }
 
 func RunSchedLocalQueueTest() {
-	systemstack(testSchedLocalQueue)
+	_p_ := new(p)
+	gs := make([]g, len(_p_.runq))
+	for i := 0; i < len(_p_.runq); i++ {
+		if g, _ := runqget(_p_); g != nil {
+			throw("runq is not empty initially")
+		}
+		for j := 0; j < i; j++ {
+			runqput(_p_, &gs[i], false)
+		}
+		for j := 0; j < i; j++ {
+			if g, _ := runqget(_p_); g != &gs[i] {
+				print("bad element at iter ", i, "/", j, "\n")
+				throw("bad element")
+			}
+		}
+		if g, _ := runqget(_p_); g != nil {
+			throw("runq is not empty afterwards")
+		}
+	}
 }
+
 func RunSchedLocalQueueStealTest() {
-	systemstack(testSchedLocalQueueSteal)
+	p1 := new(p)
+	p2 := new(p)
+	gs := make([]g, len(p1.runq))
+	for i := 0; i < len(p1.runq); i++ {
+		for j := 0; j < i; j++ {
+			gs[j].sig = 0
+			runqput(p1, &gs[j], false)
+		}
+		gp := runqsteal(p2, p1, true)
+		s := 0
+		if gp != nil {
+			s++
+			gp.sig++
+		}
+		for {
+			gp, _ = runqget(p2)
+			if gp == nil {
+				break
+			}
+			s++
+			gp.sig++
+		}
+		for {
+			gp, _ = runqget(p1)
+			if gp == nil {
+				break
+			}
+			gp.sig++
+		}
+		for j := 0; j < i; j++ {
+			if gs[j].sig != 1 {
+				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
+				throw("bad element")
+			}
+		}
+		if s != i/2 && s != i/2+1 {
+			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
+			throw("bad steal")
+		}
+	}
 }
 
 var StringHash = stringHash
@@ -100,11 +127,6 @@ var MemclrBytes = memclrBytes
 
 var HashLoad = &hashLoad
 
-// For testing.
-func GogoBytes() int32 {
-	return _RuntimeGogoBytes
-}
-
 // entry point for testing
 func GostringW(w []uint16) (s string) {
 	systemstack(func() {
@@ -116,4 +138,77 @@ func GostringW(w []uint16) (s string) {
 var Gostringnocopy = gostringnocopy
 var Maxstring = &maxstring
 
-type Uintreg uintreg
+type Uintreg sys.Uintreg
+
+var Open = open
+var Close = closefd
+var Read = read
+var Write = write
+
+func Envs() []string     { return envs }
+func SetEnvs(e []string) { envs = e }
+
+var BigEndian = sys.BigEndian
+
+// For benchmarking.
+
+func BenchSetType(n int, x interface{}) {
+	e := *efaceOf(&x)
+	t := e._type
+	var size uintptr
+	var p unsafe.Pointer
+	switch t.kind & kindMask {
+	case kindPtr:
+		t = (*ptrtype)(unsafe.Pointer(t)).elem
+		size = t.size
+		p = e.data
+	case kindSlice:
+		slice := *(*struct {
+			ptr      unsafe.Pointer
+			len, cap uintptr
+		})(e.data)
+		t = (*slicetype)(unsafe.Pointer(t)).elem
+		size = t.size * slice.len
+		p = slice.ptr
+	}
+	allocSize := roundupsize(size)
+	systemstack(func() {
+		for i := 0; i < n; i++ {
+			heapBitsSetType(uintptr(p), allocSize, size, t)
+		}
+	})
+}
+
+const PtrSize = sys.PtrSize
+
+var TestingAssertE2I2GC = &testingAssertE2I2GC
+var TestingAssertE2T2GC = &testingAssertE2T2GC
+
+var ForceGCPeriod = &forcegcperiod
+
+// SetTracebackEnv is like runtime/debug.SetTraceback, but it raises
+// the "environment" traceback level, so later calls to
+// debug.SetTraceback (e.g., from testing timeouts) can't lower it.
+func SetTracebackEnv(level string) {
+	setTraceback(level)
+	traceback_env = traceback_cache
+}
+
+var ReadUnaligned32 = readUnaligned32
+var ReadUnaligned64 = readUnaligned64
+
+func CountPagesInUse() (pagesInUse, counted uintptr) {
+	stopTheWorld("CountPagesInUse")
+
+	pagesInUse = uintptr(mheap_.pagesInUse)
+
+	for _, s := range h_allspans {
+		if s.state == mSpanInUse {
+			counted += s.npages
+		}
+	}
+
+	startTheWorld()
+
+	return
+}

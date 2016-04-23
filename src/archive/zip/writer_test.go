@@ -87,6 +87,41 @@ func TestWriter(t *testing.T) {
 	}
 }
 
+func TestWriterOffset(t *testing.T) {
+	largeData := make([]byte, 1<<17)
+	for i := range largeData {
+		largeData[i] = byte(rand.Int())
+	}
+	writeTests[1].Data = largeData
+	defer func() {
+		writeTests[1].Data = nil
+	}()
+
+	// write a zip file
+	buf := new(bytes.Buffer)
+	existingData := []byte{1, 2, 3, 1, 2, 3, 1, 2, 3}
+	n, _ := buf.Write(existingData)
+	w := NewWriter(buf)
+	w.SetOffset(int64(n))
+
+	for _, wt := range writeTests {
+		testCreate(t, w, &wt)
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// read it back
+	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, wt := range writeTests {
+		testReadFile(t, r.File[i], &wt)
+	}
+}
+
 func TestWriterFlush(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewWriter(struct{ io.Writer }{&buf})

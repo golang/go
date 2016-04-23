@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -55,13 +55,13 @@ func (p *pipe) RemoteAddr() Addr {
 }
 
 func (p *pipe) SetDeadline(t time.Time) error {
-	return errors.New("net.Pipe does not support deadlines")
+	return &OpError{Op: "set", Net: "pipe", Source: nil, Addr: nil, Err: errors.New("deadline not supported")}
 }
 
 func (p *pipe) SetReadDeadline(t time.Time) error {
-	return errors.New("net.Pipe does not support deadlines")
+	return &OpError{Op: "set", Net: "pipe", Source: nil, Addr: nil, Err: errors.New("deadline not supported")}
 }
 
 func (p *pipe) SetWriteDeadline(t time.Time) error {
-	return errors.New("net.Pipe does not support deadlines")
+	return &OpError{Op: "set", Net: "pipe", Source: nil, Addr: nil, Err: errors.New("deadline not supported")}
 }

@@ -5,7 +5,7 @@
 package cgotest
 
 // Test that cgo reserves enough stack space during cgo call.
-// See http://golang.org/issue/3945 for details.
+// See https://golang.org/issue/3945 for details.
 
 // #include <stdio.h>
 //

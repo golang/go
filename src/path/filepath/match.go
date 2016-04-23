@@ -16,7 +16,7 @@ import (
 // ErrBadPattern indicates a globbing pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
-// Match returns true if name matches the shell file name pattern.
+// Match reports whether name matches the shell file name pattern.
 // The pattern syntax is:
 //
 //	pattern:
@@ -49,7 +49,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return strings.Index(name, string(Separator)) < 0, nil
+			return !strings.Contains(name, string(Separator)), nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)
@@ -301,9 +301,9 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 	return
 }
 
-// hasMeta returns true if path contains any of the magic characters
+// hasMeta reports whether path contains any of the magic characters
 // recognized by Match.
 func hasMeta(path string) bool {
 	// TODO(niemeyer): Should other magic characters be added here?
-	return strings.IndexAny(path, "*?[") >= 0
+	return strings.ContainsAny(path, "*?[")
 }

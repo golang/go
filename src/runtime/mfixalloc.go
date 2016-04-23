@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Fixed-size object allocator.  Returned memory is not zeroed.
+// Fixed-size object allocator. Returned memory is not zeroed.
 //
-// See malloc.h for overview.
+// See malloc.go for overview.
 
 package runtime
 
@@ -20,18 +20,18 @@ import "unsafe"
 // smashed by freeing and reallocating.
 type fixalloc struct {
 	size   uintptr
-	first  unsafe.Pointer // go func(unsafe.pointer, unsafe.pointer); f(arg, p) called first time p is returned
+	first  func(arg, p unsafe.Pointer) // called first time p is returned
 	arg    unsafe.Pointer
 	list   *mlink
-	chunk  *byte
+	chunk  unsafe.Pointer
 	nchunk uint32
 	inuse  uintptr // in-use bytes now
 	stat   *uint64
 }
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
-// Since assignments to mlink.next will result in a write barrier being preformed
-// this can not be used by some of the internal GC structures. For example when
+// Since assignments to mlink.next will result in a write barrier being performed
+// this cannot be used by some of the internal GC structures. For example when
 // the sweeper is placing an unmarked object on the free list it does not want the
 // write barrier to be called since that could result in the object being reachable.
 type mlink struct {
@@ -40,9 +40,9 @@ type mlink struct {
 
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
-func fixAlloc_Init(f *fixalloc, size uintptr, first func(unsafe.Pointer, unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
+func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
 	f.size = size
-	f.first = *(*unsafe.Pointer)(unsafe.Pointer(&first))
+	f.first = first
 	f.arg = arg
 	f.list = nil
 	f.chunk = nil
@@ -51,7 +51,7 @@ func fixAlloc_Init(f *fixalloc, size uintptr, first func(unsafe.Pointer, unsafe.
 	f.stat = stat
 }
 
-func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
+func (f *fixalloc) alloc() unsafe.Pointer {
 	if f.size == 0 {
 		print("runtime: use of FixAlloc_Alloc before FixAlloc_Init\n")
 		throw("runtime: internal error")
@@ -64,22 +64,21 @@ func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
 		return v
 	}
 	if uintptr(f.nchunk) < f.size {
-		f.chunk = (*uint8)(persistentalloc(_FixAllocChunk, 0, f.stat))
+		f.chunk = persistentalloc(_FixAllocChunk, 0, f.stat)
 		f.nchunk = _FixAllocChunk
 	}
 
-	v := (unsafe.Pointer)(f.chunk)
+	v := f.chunk
 	if f.first != nil {
-		fn := *(*func(unsafe.Pointer, unsafe.Pointer))(unsafe.Pointer(&f.first))
-		fn(f.arg, v)
+		f.first(f.arg, v)
 	}
-	f.chunk = (*byte)(add(unsafe.Pointer(f.chunk), f.size))
+	f.chunk = add(f.chunk, f.size)
 	f.nchunk -= uint32(f.size)
 	f.inuse += f.size
 	return v
 }
 
-func fixAlloc_Free(f *fixalloc, p unsafe.Pointer) {
+func (f *fixalloc) free(p unsafe.Pointer) {
 	f.inuse -= f.size
 	v := (*mlink)(p)
 	v.next = f.list

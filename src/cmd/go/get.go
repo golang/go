@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,7 +16,7 @@ import (
 )
 
 var cmdGet = &Command{
-	UsageLine: "get [-d] [-f] [-fix] [-t] [-u] [build flags] [packages]",
+	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
 Get downloads and installs the packages named by the import paths,
@@ -33,6 +33,9 @@ of the original.
 The -fix flag instructs get to run the fix tool on the downloaded packages
 before resolving dependencies or building the code.
 
+The -insecure flag permits fetching from repositories and resolving
+custom domains using insecure schemes such as HTTP. Use with caution.
+
 The -t flag instructs get to also download the packages required to build
 the tests for the specified packages.
 
@@ -42,11 +45,21 @@ missing packages but does not use it to look for updates to existing packages.
 
 Get also accepts build flags to control the installation. See 'go help build'.
 
+When checking out a new package, get creates the target directory
+GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+get uses the first one. See 'go help gopath'.
+
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important
 rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
+
+Unless vendoring support is disabled (see 'go help gopath'),
+when go get checks out or updates a Git repository,
+it also updates any git submodules referenced by the repository.
+
+Get never checks out or updates code stored in vendor directories.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -62,6 +75,7 @@ var getF = cmdGet.Flag.Bool("f", false, "")
 var getT = cmdGet.Flag.Bool("t", false, "")
 var getU = cmdGet.Flag.Bool("u", false, "")
 var getFix = cmdGet.Flag.Bool("fix", false, "")
+var getInsecure = cmdGet.Flag.Bool("insecure", false, "")
 
 func init() {
 	addBuildFlags(cmdGet)
@@ -73,10 +87,24 @@ func runGet(cmd *Command, args []string) {
 		fatalf("go get: cannot use -f flag without -u")
 	}
 
+	// Disable any prompting for passwords by Git.
+	// Only has an effect for 2.3.0 or later, but avoiding
+	// the prompt in earlier versions is just too hard.
+	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
+	// prompting.
+	// See golang.org/issue/9341 and golang.org/issue/12706.
+	if os.Getenv("GIT_TERMINAL_PROMPT") == "" {
+		os.Setenv("GIT_TERMINAL_PROMPT", "0")
+	}
+
 	// Phase 1.  Download/update.
 	var stk importStack
+	mode := 0
+	if *getT {
+		mode |= getTestDeps
+	}
 	for _, arg := range downloadPaths(args) {
-		download(arg, &stk, *getT)
+		download(arg, nil, &stk, mode)
 	}
 	exitIfErrors()
 
@@ -84,20 +112,29 @@ func runGet(cmd *Command, args []string) {
 
 	// Code we downloaded and all code that depends on it
 	// needs to be evicted from the package cache so that
-	// the information will be recomputed.  Instead of keeping
+	// the information will be recomputed. Instead of keeping
 	// track of the reverse dependency information, evict
 	// everything.
 	for name := range packageCache {
 		delete(packageCache, name)
 	}
 
+	// In order to rebuild packages information completely,
+	// we need to clear commands cache. Command packages are
+	// referring to evicted packages from the package cache.
+	// This leads to duplicated loads of the standard packages.
+	for name := range cmdCache {
+		delete(cmdCache, name)
+	}
+
 	args = importPaths(args)
+	packagesForBuild(args)
 
 	// Phase 3.  Install.
 	if *getD {
 		// Download only.
 		// Check delayed until now so that importPaths
-		// has a chance to print errors.
+		// and packagesForBuild have a chance to print errors.
 		return
 	}
 
@@ -105,7 +142,7 @@ func runGet(cmd *Command, args []string) {
 }
 
 // downloadPaths prepares the list of paths to pass to download.
-// It expands ... patterns that can be expanded.  If there is no match
+// It expands ... patterns that can be expanded. If there is no match
 // for a particular pattern, downloadPaths leaves it in the result list,
 // in the hope that we can figure out the repository from the
 // initial ...-free prefix.
@@ -116,7 +153,7 @@ func downloadPaths(args []string) []string {
 		if strings.Contains(a, "...") {
 			var expand []string
 			// Use matchPackagesInFS to avoid printing
-			// warnings.  They will be printed by the
+			// warnings. They will be printed by the
 			// eventual call to importPaths instead.
 			if build.IsLocalImport(a) {
 				expand = matchPackagesInFS(a)
@@ -148,12 +185,29 @@ var downloadRootCache = map[string]bool{}
 
 // download runs the download half of the get command
 // for the package named by the argument.
-func download(arg string, stk *importStack, getTestDeps bool) {
-	p := loadPackage(arg, stk)
+func download(arg string, parent *Package, stk *importStack, mode int) {
+	load := func(path string, mode int) *Package {
+		if parent == nil {
+			return loadPackage(path, stk)
+		}
+		return loadImport(path, parent.Dir, parent, stk, nil, mode)
+	}
+
+	p := load(arg, mode)
 	if p.Error != nil && p.Error.hard {
 		errorf("%s", p.Error)
 		return
 	}
+
+	// loadPackage inferred the canonical ImportPath from arg.
+	// Use that in the following to prevent hysteresis effects
+	// in e.g. downloadCache and packageCache.
+	// This allows invocations such as:
+	//   mkdir -p $GOPATH/src/github.com/user
+	//   cd $GOPATH/src/github.com/user
+	//   go get ./foo
+	// see: golang.org/issue/9767
+	arg = p.ImportPath
 
 	// There's nothing to do if this is a package in the standard library.
 	if p.Standard {
@@ -163,7 +217,7 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 	// Only process each package once.
 	// (Unless we're fetching test dependencies for this package,
 	// in which case we want to process it again.)
-	if downloadCache[arg] && !getTestDeps {
+	if downloadCache[arg] && mode&getTestDeps == 0 {
 		return
 	}
 	downloadCache[arg] = true
@@ -175,13 +229,14 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
-		stk.push(p.ImportPath)
+		stk.push(arg)
 		err := downloadPackage(p)
 		if err != nil {
 			errorf("%s", &PackageError{ImportStack: stk.copy(), Err: err.Error()})
 			stk.pop()
 			return
 		}
+		stk.pop()
 
 		args := []string{arg}
 		// If the argument has a wildcard in it, re-evaluate the wildcard.
@@ -208,9 +263,10 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 
 		pkgs = pkgs[:0]
 		for _, arg := range args {
-			stk.push(arg)
-			p := loadPackage(arg, stk)
-			stk.pop()
+			// Note: load calls loadPackage or loadImport,
+			// which push arg onto stk already.
+			// Do not push here too, or else stk will say arg imports arg.
+			p := load(arg, mode)
 			if p.Error != nil {
 				errorf("%s", p.Error)
 				continue
@@ -240,18 +296,31 @@ func download(arg string, stk *importStack, getTestDeps bool) {
 		}
 
 		// Process dependencies, now that we know what they are.
-		for _, dep := range p.deps {
+		for _, path := range p.Imports {
+			if path == "C" {
+				continue
+			}
 			// Don't get test dependencies recursively.
-			download(dep.ImportPath, stk, false)
+			// Imports is already vendor-expanded.
+			download(path, p, stk, 0)
 		}
-		if getTestDeps {
+		if mode&getTestDeps != 0 {
 			// Process test dependencies when -t is specified.
 			// (Don't get test dependencies for test dependencies.)
+			// We pass useVendor here because p.load does not
+			// vendor-expand TestImports and XTestImports.
+			// The call to loadImport inside download needs to do that.
 			for _, path := range p.TestImports {
-				download(path, stk, false)
+				if path == "C" {
+					continue
+				}
+				download(path, p, stk, useVendor)
 			}
 			for _, path := range p.XTestImports {
-				download(path, stk, false)
+				if path == "C" {
+					continue
+				}
+				download(path, p, stk, useVendor)
 			}
 		}
 
@@ -269,19 +338,30 @@ func downloadPackage(p *Package) error {
 		repo, rootPath string
 		err            error
 	)
+
+	security := secure
+	if *getInsecure {
+		security = insecure
+	}
+
 	if p.build.SrcRoot != "" {
-		// Directory exists.  Look for checkout along path to src.
-		vcs, rootPath, err = vcsForDir(p)
+		// Directory exists. Look for checkout along path to src.
+		vcs, rootPath, err = vcsFromDir(p.Dir, p.build.SrcRoot)
 		if err != nil {
 			return err
 		}
 		repo = "<local>" // should be unused; make distinctive
 
 		// Double-check where it came from.
-		if *getU && vcs.remoteRepo != nil && !*getF {
-			dir := filepath.Join(p.build.SrcRoot, rootPath)
-			if remote, err := vcs.remoteRepo(vcs, dir); err == nil {
-				if rr, err := repoRootForImportPath(p.ImportPath); err == nil {
+		if *getU && vcs.remoteRepo != nil {
+			dir := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
+			remote, err := vcs.remoteRepo(vcs, dir)
+			if err != nil {
+				return err
+			}
+			repo = remote
+			if !*getF {
+				if rr, err := repoRootForImportPath(p.ImportPath, security); err == nil {
 					repo := rr.repo
 					if rr.vcs.resolveRepo != nil {
 						resolved, err := rr.vcs.resolveRepo(rr.vcs, dir, repo)
@@ -289,7 +369,7 @@ func downloadPackage(p *Package) error {
 							repo = resolved
 						}
 					}
-					if remote != repo {
+					if remote != repo && p.ImportComment != "" {
 						return fmt.Errorf("%s is a custom import path for %s, but %s is checked out from %s", rr.root, repo, dir, remote)
 					}
 				}
@@ -298,15 +378,18 @@ func downloadPackage(p *Package) error {
 	} else {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.
-		rr, err := repoRootForImportPath(p.ImportPath)
+		rr, err := repoRootForImportPath(p.ImportPath, security)
 		if err != nil {
 			return err
 		}
 		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
 	}
+	if !vcs.isSecure(repo) && !*getInsecure {
+		return fmt.Errorf("cannot download, %v uses insecure protocol", repo)
+	}
 
 	if p.build.SrcRoot == "" {
-		// Package not found.  Put in first directory of $GOPATH.
+		// Package not found. Put in first directory of $GOPATH.
 		list := filepath.SplitList(buildContext.GOPATH)
 		if len(list) == 0 {
 			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: go help gopath")
@@ -318,7 +401,7 @@ func downloadPackage(p *Package) error {
 		p.build.SrcRoot = filepath.Join(list[0], "src")
 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
-	root := filepath.Join(p.build.SrcRoot, rootPath)
+	root := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
 	// If we've considered this repository already, don't do it again.
 	if downloadRootCache[root] {
 		return nil
@@ -337,7 +420,7 @@ func downloadPackage(p *Package) error {
 		return fmt.Errorf("%s exists but is not a directory", meta)
 	}
 	if err != nil {
-		// Metadata directory does not exist.  Prepare to checkout new copy.
+		// Metadata directory does not exist. Prepare to checkout new copy.
 		// Some version control tools require the target directory not to exist.
 		// We require that too, just to avoid stepping on existing work.
 		if _, err := os.Stat(root); err == nil {

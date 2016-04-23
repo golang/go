@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -67,10 +67,6 @@ func tool(toolName string) string {
 }
 
 func isInGoToolsRepo(toolName string) bool {
-	switch toolName {
-	case "cover", "vet":
-		return true
-	}
 	return false
 }
 
@@ -102,6 +98,7 @@ func runTool(cmd *Command, args []string) {
 		fmt.Printf("%s\n", cmd)
 		return
 	}
+	args[0] = toolPath // in case the tool wants to re-exec itself, e.g. cmd/dist
 	toolCmd := &exec.Cmd{
 		Path:   toolPath,
 		Args:   args,

@@ -98,13 +98,20 @@ func TestReader(t *testing.T) {
 		defer rc.Close()
 		b.Reset()
 		n, err := io.Copy(&b, rc)
+		s := b.String()
 		if err != nil {
 			if err != tt.err {
 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
 			}
+			if err == io.ErrUnexpectedEOF {
+				// Even if the input is truncated, we should still return the
+				// partial decoded result.
+				if n == 0 || !strings.HasPrefix(tt.raw, s) {
+					t.Errorf("got %d bytes (%q), want a non-empty prefix of %q", n, s, tt.raw)
+				}
+			}
 			continue
 		}
-		s := b.String()
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
 		}

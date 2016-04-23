@@ -7,9 +7,13 @@ package os
 import "time"
 
 // FindProcess looks for a running process by its pid.
+//
 // The Process it returns can be used to obtain information
 // about the underlying operating system process.
-func FindProcess(pid int) (p *Process, err error) {
+//
+// On Unix systems, FindProcess always succeeds and returns a Process
+// for the given pid, regardless of whether the process exists.
+func FindProcess(pid int) (*Process, error) {
 	return findProcess(pid)
 }
 
@@ -73,14 +77,14 @@ func (p *ProcessState) Success() bool {
 }
 
 // Sys returns system-dependent exit information about
-// the process.  Convert it to the appropriate underlying
+// the process. Convert it to the appropriate underlying
 // type, such as syscall.WaitStatus on Unix, to access its contents.
 func (p *ProcessState) Sys() interface{} {
 	return p.sys()
 }
 
 // SysUsage returns system-dependent resource usage information about
-// the exited process.  Convert it to the appropriate underlying
+// the exited process. Convert it to the appropriate underlying
 // type, such as *syscall.Rusage on Unix, to access its contents.
 // (On Unix, *syscall.Rusage matches struct rusage as defined in the
 // getrusage(2) manual page.)
@@ -108,7 +112,7 @@ func Hostname() (name string, err error) {
 // nil error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
-func (f *File) Readdir(n int) (fi []FileInfo, err error) {
+func (f *File) Readdir(n int) ([]FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}

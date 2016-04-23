@@ -7,6 +7,7 @@ package flate
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -79,6 +80,32 @@ func largeDataChunk() []byte {
 	return result
 }
 
+func TestBulkHash4(t *testing.T) {
+	for _, x := range deflateTests {
+		y := x.out
+		if len(y) < minMatchLength {
+			continue
+		}
+		y = append(y, y...)
+		for j := 4; j < len(y); j++ {
+			y := y[:j]
+			dst := make([]uint32, len(y)-minMatchLength+1)
+			for i := range dst {
+				dst[i] = uint32(i + 100)
+			}
+			bulkHash4(y, dst)
+			for i, got := range dst {
+				want := hash4(y[i:])
+				if got != want && got == uint32(i)+100 {
+					t.Errorf("Len:%d Index:%d, want 0x%08x but not modified", len(y), i, want)
+				} else if got != want {
+					t.Errorf("Len:%d Index:%d, got 0x%08x want:0x%08x", len(y), i, got, want)
+				}
+			}
+		}
+	}
+}
+
 func TestDeflate(t *testing.T) {
 	for _, h := range deflateTests {
 		var buf bytes.Buffer
@@ -90,7 +117,7 @@ func TestDeflate(t *testing.T) {
 		w.Write(h.in)
 		w.Close()
 		if !bytes.Equal(buf.Bytes(), h.out) {
-			t.Errorf("Deflate(%d, %x) = %x, want %x", h.level, h.in, buf.Bytes(), h.out)
+			t.Errorf("Deflate(%d, %x) = \n%#v, want \n%#v", h.level, h.in, buf.Bytes(), h.out)
 		}
 	}
 }
@@ -246,7 +273,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 		// not necessarily the case: the write Flush may emit
 		// some extra framing bits that are not necessary
 		// to process to obtain the first half of the uncompressed
-		// data.  The test ran correctly most of the time, because
+		// data. The test ran correctly most of the time, because
 		// the background goroutine had usually read even
 		// those extra bits by now, but it's not a useful thing to
 		// check.
@@ -288,6 +315,9 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 		t.Errorf("level: %d, len(compress(data)) = %d > limit = %d", level, buffer.Len(), limit)
 		return
 	}
+	if limit > 0 {
+		t.Logf("level: %d, size:%.2f%%, %d b\n", level, float64(buffer.Len()*100)/float64(limit), buffer.Len())
+	}
 	r := NewReader(&buffer)
 	out, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -302,15 +332,17 @@ func testToFromWithLevelAndLimit(t *testing.T, level int, input []byte, name str
 	testSync(t, level, input, name)
 }
 
-func testToFromWithLimit(t *testing.T, input []byte, name string, limit [10]int) {
+func testToFromWithLimit(t *testing.T, input []byte, name string, limit [11]int) {
 	for i := 0; i < 10; i++ {
 		testToFromWithLevelAndLimit(t, i, input, name, limit[i])
 	}
+	// Test HuffmanCompression
+	testToFromWithLevelAndLimit(t, -2, input, name, limit[10])
 }
 
 func TestDeflateInflate(t *testing.T) {
 	for i, h := range deflateInflateTests {
-		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [10]int{})
+		testToFromWithLimit(t, h.in, fmt.Sprintf("#%d", i), [11]int{})
 	}
 }
 
@@ -326,23 +358,26 @@ func TestReverseBits(t *testing.T) {
 type deflateInflateStringTest struct {
 	filename string
 	label    string
-	limit    [10]int
+	limit    [11]int
 }
 
 var deflateInflateStringTests = []deflateInflateStringTest{
 	{
 		"../testdata/e.txt",
 		"2.718281828...",
-		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790},
+		[...]int{100018, 50650, 50960, 51150, 50930, 50790, 50790, 50790, 50790, 50790, 43683},
 	},
 	{
 		"../testdata/Mark.Twain-Tom.Sawyer.txt",
 		"Mark.Twain-Tom.Sawyer",
-		[...]int{407330, 187598, 180361, 172974, 169160, 163476, 160936, 160506, 160295, 160295},
+		[...]int{407330, 187598, 180361, 172974, 169160, 163476, 160936, 160506, 160295, 160295, 233460},
 	},
 }
 
 func TestDeflateInflateString(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
 	for _, test := range deflateInflateStringTests {
 		gold, err := ioutil.ReadFile(test.filename)
 		if err != nil {
@@ -407,7 +442,7 @@ func TestWriterDict(t *testing.T) {
 	}
 }
 
-// See http://golang.org/issue/2508
+// See https://golang.org/issue/2508
 func TestRegression2508(t *testing.T) {
 	if testing.Short() {
 		t.Logf("test disabled with -short")
@@ -436,7 +471,11 @@ func TestWriterReset(t *testing.T) {
 			t.Fatalf("NewWriter: %v", err)
 		}
 		buf := []byte("hello world")
-		for i := 0; i < 1024; i++ {
+		n := 1024
+		if testing.Short() {
+			n = 10
+		}
+		for i := 0; i < n; i++ {
 			w.Write(buf)
 		}
 		w.Reset(ioutil.Discard)
@@ -449,6 +488,17 @@ func TestWriterReset(t *testing.T) {
 		// DeepEqual doesn't compare functions.
 		w.d.fill, wref.d.fill = nil, nil
 		w.d.step, wref.d.step = nil, nil
+		w.d.bulkHasher, wref.d.bulkHasher = nil, nil
+		// hashMatch is always overwritten when used.
+		copy(w.d.hashMatch[:], wref.d.hashMatch[:])
+		if len(w.d.tokens) != 0 {
+			t.Errorf("level %d Writer not reset after Reset. %d tokens were present", level, len(w.d.tokens))
+		}
+		// As long as the length is 0, we don't care about the content.
+		w.d.tokens = wref.d.tokens
+
+		// We don't care if there are values in the window, as long as it is at d.index is 0
+		w.d.window = wref.d.window
 		if !reflect.DeepEqual(w, wref) {
 			t.Errorf("level %d Writer not reset after Reset", level)
 		}
@@ -473,7 +523,7 @@ func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error))
 		w.Write(b)
 	}
 	w.Close()
-	out1 := buf.String()
+	out1 := buf.Bytes()
 
 	buf2 := new(bytes.Buffer)
 	w.Reset(buf2)
@@ -481,10 +531,23 @@ func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error))
 		w.Write(b)
 	}
 	w.Close()
-	out2 := buf2.String()
+	out2 := buf2.Bytes()
 
-	if out1 != out2 {
-		t.Errorf("got %q, expected %q", out2, out1)
+	if len(out1) != len(out2) {
+		t.Errorf("got %d, expected %d bytes", len(out2), len(out1))
+		return
+	}
+	if !bytes.Equal(out1, out2) {
+		mm := 0
+		for i, b := range out1[:len(out2)] {
+			if b != out2[i] {
+				t.Errorf("mismatch index %d: %#02x, expected %#02x", i, out2[i], b)
+			}
+			mm++
+			if mm == 10 {
+				t.Fatal("Stopping")
+			}
+		}
 	}
 	t.Logf("got %d bytes", len(out1))
 }

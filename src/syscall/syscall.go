@@ -3,10 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // Package syscall contains an interface to the low-level operating system
-// primitives.  The details vary depending on the underlying system, and
+// primitives. The details vary depending on the underlying system, and
 // by default, godoc will display the syscall documentation for the current
-// system.  If you want godoc to display syscall documentation for another
-// system, set $GOOS and $GOARCH to the desired system.  For example, if
+// system. If you want godoc to display syscall documentation for another
+// system, set $GOOS and $GOARCH to the desired system. For example, if
 // you want to view documentation for freebsd/arm on linux/amd64, set $GOOS
 // to freebsd and $GOARCH to arm.
 // The primary use of syscall is inside other packages that provide a more
@@ -28,9 +28,11 @@ package syscall
 
 import "unsafe"
 
-// StringByteSlice is deprecated. Use ByteSliceFromString instead.
+// StringByteSlice converts a string to a NUL-terminated []byte,
 // If s contains a NUL byte this function panics instead of
 // returning an error.
+//
+// Deprecated: Use ByteSliceFromString instead.
 func StringByteSlice(s string) []byte {
 	a, err := ByteSliceFromString(s)
 	if err != nil {
@@ -53,9 +55,11 @@ func ByteSliceFromString(s string) ([]byte, error) {
 	return a, nil
 }
 
-// StringBytePtr is deprecated. Use BytePtrFromString instead.
-// If s contains a NUL byte this function panics instead of
-// returning an error.
+// StringBytePtr returns a pointer to a NUL-terminated array of bytes.
+// If s contains a NUL byte this function panics instead of returning
+// an error.
+//
+// Deprecated: Use BytePtrFromString instead.
 func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
 
 // BytePtrFromString returns a pointer to a NUL-terminated array of
@@ -91,5 +95,8 @@ func (tv *Timeval) Nano() int64 {
 
 // use is a no-op, but the compiler cannot see that it is.
 // Calling use(p) ensures that p is kept live until that point.
+// This was needed until Go 1.6 to call syscall.Syscall correctly.
+// As of Go 1.6 the compiler handles that case automatically.
+// The uses and definition of use can be removed early in the Go 1.7 cycle.
 //go:noescape
 func use(p unsafe.Pointer)

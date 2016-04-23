@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -65,6 +66,11 @@ func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
 	// it by hand.
 	message := b.Bytes()
 	messageLen := len(message) - maxLength
+	// Length cannot be bigger than the decoder can handle.
+	if messageLen >= tooBig {
+		enc.setError(errors.New("gob: encoder: message too big"))
+		return
+	}
 	// Encode the length.
 	enc.countState.b.Reset()
 	enc.countState.encodeUint(uint64(messageLen))
@@ -185,7 +191,7 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
 			return
 		}
 		// If the type info has still not been transmitted, it means we have
-		// a singleton basic type (int, []byte etc.) at top level.  We don't
+		// a singleton basic type (int, []byte etc.) at top level. We don't
 		// need to send the type info but we do need to update enc.sent.
 		if !sent {
 			info, err := getTypeInfo(ut)

@@ -10,17 +10,31 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+// Most linux systems use glibc's dynamic linker, which puts the
+// __kernel_vsyscall vdso helper at 0x10(GS) for easy access from position
+// independent code and setldt in runtime does the same in the statically
+// linked case. However, systems that use alternative libc such as Android's
+// bionic and musl, do not save the helper anywhere, and so the only way to
+// invoke a syscall from position independent code is boring old int $0x80
+// (which is also what syscall wrappers in bionic/musl use).
+//
+// The benchmarks also showed that using int $0x80 is as fast as calling
+// *%gs:0x10 except on AMD Opteron. See https://golang.org/cl/19833
+// for the benchmark program and raw data.
+//#define INVOKE_SYSCALL	CALL	0x10(GS) // non-portable
+#define INVOKE_SYSCALL	INT	$0x80
+
 TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$252, AX	// syscall number
 	MOVL	code+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	INT $3	// not reached
 	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVL	$1, AX	// exit - exit the current os thread
 	MOVL	code+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	INT $3	// not reached
 	RET
 
@@ -29,14 +43,20 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	name+0(FP), BX
 	MOVL	mode+4(FP), CX
 	MOVL	perm+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
 	MOVL	fd+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -45,7 +65,10 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -54,7 +77,10 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
+	CMPL	AX, $0xfffff001
+	JLS	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -62,7 +88,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$0
 	MOVL	$191, AX		// syscall - ugetrlimit
 	MOVL	kind+0(FP), BX
 	MOVL	limit+4(FP), CX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -81,25 +107,31 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	MOVL	$0, DX
 	MOVL	$0, SI
 	LEAL	0(SP), DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
+	RET
+
+TEXT runtime·gettid(SB),NOSPLIT,$0-4
+	MOVL	$224, AX	// syscall - gettid
+	INVOKE_SYSCALL
+	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$224, AX	// syscall - gettid
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, BX	// arg 1 tid
 	MOVL	sig+0(FP), CX	// arg 2 signal
 	MOVL	$238, AX	// syscall - tkill
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	MOVL	$20, AX	// syscall - getpid
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, BX	// arg 1 pid
 	MOVL	sig+0(FP), CX	// arg 2 signal
 	MOVL	$37, AX	// syscall - kill
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0-12
@@ -107,7 +139,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	mode+0(FP), BX
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-16
@@ -115,7 +147,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	addr+0(FP), BX
 	MOVL	n+4(FP), CX
 	MOVL	dst+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -125,7 +157,7 @@ TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$0, BX		// CLOCK_REALTIME
 	LEAL	8(SP), CX
 	MOVL	$0, DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// nsec
 
@@ -142,7 +174,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$1, BX		// CLOCK_MONOTONIC
 	LEAL	8(SP), CX
 	MOVL	$0, DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// nsec
 
@@ -163,7 +195,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	MOVL	size+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT $3
@@ -175,55 +207,40 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	MOVL	size+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$44
-	get_tls(CX)
-
-	// check that g exists
-	MOVL	g(CX), DI
-	CMPL	DI, $0
-	JNE	6(PC)
-	MOVL	sig+0(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+	MOVL	sig+4(FP), AX
+	MOVL	AX, 0(SP)
+	MOVL	info+8(FP), AX
+	MOVL	AX, 4(SP)
+	MOVL	ctx+12(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	fn+0(FP), AX
 	CALL	AX
 	RET
 
-	// save g
-	MOVL	DI, 20(SP)
-
-	// g = m->gsignal
-	MOVL	g_m(DI), BX
-	MOVL	m_gsignal(BX), BX
-	MOVL	BX, g(CX)
-
-	// copy arguments for call to sighandler
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	sig+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	DI, 12(SP)
-
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(CX)
-	MOVL	20(SP), BX
-	MOVL	BX, g(CX)
-
+	CALL	runtime·sigtrampgo(SB)
 	RET
+
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	JMP	runtime·sigtramp(SB)
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	MOVL	$173, AX	// rt_sigreturn
 	// Sigreturn expects same SP as signal handler,
-	// so cannot CALL *runtime._vsdo(SB) here.
+	// so cannot CALL 0x10(GS) here.
 	INT	$0x80
-	INT $3	// not reached
+	INT	$3	// not reached
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -235,7 +252,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	fd+16(FP), DI
 	MOVL	off+20(FP), BP
 	SHRL	$12, BP
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	3(PC)
 	NOTL	AX
@@ -247,7 +264,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVL	$91, AX	// munmap
 	MOVL	addr+0(FP), BX
 	MOVL	n+4(FP), CX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT $3
@@ -258,7 +275,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	addr+0(FP), BX
 	MOVL	n+4(FP), CX
 	MOVL	flags+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	// ignore failure - maybe pages are locked
 	RET
 
@@ -272,32 +289,31 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVL	ts+12(FP), SI
 	MOVL	addr2+16(FP), DI
 	MOVL	val3+20(FP), BP
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+24(FP)
 	RET
 
 // int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$120, AX	// clone
-	MOVL	flags+4(SP), BX
-	MOVL	stack+8(SP), CX
+	MOVL	flags+0(FP), BX
+	MOVL	stack+4(FP), CX
 	MOVL	$0, DX	// parent tid ptr
 	MOVL	$0, DI	// child tid ptr
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	SUBL	$16, CX
-	MOVL	mm+12(SP), SI
+	MOVL	mm+8(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+16(SP), SI
+	MOVL	gg+12(FP), SI
 	MOVL	SI, 4(CX)
-	MOVL	fn+20(SP), SI
+	MOVL	fn+16(FP), SI
 	MOVL	SI, 8(CX)
 	MOVL	$1234, 12(CX)
 
-	// cannot use CALL *runtime·_vdso(SB) here, because
-	// the stack changes during the system call (after
-	// CALL *runtime·_vdso(SB), the child is still using
-	// the parent's stack when executing its RET instruction).
+	// cannot use CALL 0x10(GS) here, because the stack changes during the
+	// system call (after CALL 0x10(GS), the child is still using the
+	// parent's stack when executing its RET instruction).
 	INT	$0x80
 
 	// In parent, return.
@@ -307,26 +323,29 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	RET
 
 	// Paranoia: check that SP is as we expect.
-	MOVL	mm+8(FP), BP
+	MOVL	12(SP), BP
 	CMPL	BP, $1234
 	JEQ	2(PC)
 	INT	$3
 
 	// Initialize AX to Linux tid
 	MOVL	$224, AX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 
-	// In child on new stack.  Reload registers (paranoia).
-	MOVL	0(SP), BX	// m
-	MOVL	flags+0(FP), DX	// g
-	MOVL	stk+4(FP), SI	// fn
+	MOVL	0(SP), BX	    // m
+	MOVL	4(SP), DX	    // g
+	MOVL	8(SP), SI	    // fn
+
+	CMPL	BX, $0
+	JEQ	nog
+	CMPL	DX, $0
+	JEQ	nog
 
 	MOVL	AX, m_procid(BX)	// save tid as m->procid
 
 	// set up ldt 7+id to point at m->tls.
-	// newosproc left the id in tls[0].
 	LEAL	m_tls(BX), BP
-	MOVL	0(BP), DI
+	MOVL	m_id(BX), DI
 	ADDL	$7, DI	// m0 is LDT#7. count up.
 	// setldt(tls#, &tls, sizeof tls)
 	PUSHAL	// save registers
@@ -339,7 +358,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	POPL	AX
 	POPAL
 
-	// Now segment is established.  Initialize m, g.
+	// Now segment is established. Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
 	MOVL	BX, g_m(DX)
@@ -353,6 +372,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	CALL	runtime·emptyfunc(SB)
 	POPAL
 
+nog:
 	CALL	SI	// fn()
 	CALL	runtime·exit1(SB)
 	MOVL	$0x1234, 0x1005
@@ -361,7 +381,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
 	MOVL	new+4(SP), BX
 	MOVL	old+8(SP), CX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT	$3
@@ -389,57 +409,86 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 #define SEG_NOT_PRESENT 0x20
 #define USEABLE 0x40
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$32
-	MOVL	entry+0(FP), BX	// entry
-	MOVL	address+4(FP), CX	// base address
+// `-1` means the kernel will pick a TLS entry on the first setldt call,
+// which happens during runtime init, and that we'll store back the saved
+// entry and reuse that on subsequent calls when creating new threads.
+DATA  runtime·tls_entry_number+0(SB)/4, $-1
+GLOBL runtime·tls_entry_number(SB), NOPTR, $4
 
+// setldt(int entry, int address, int limit)
+// We use set_thread_area, which mucks with the GDT, instead of modify_ldt,
+// which would modify the LDT, but is disabled on some kernels.
+// The name, setldt, is a misnomer, although we leave this name as it is for
+// the compatibility with other platforms.
+TEXT runtime·setldt(SB),NOSPLIT,$32
+	MOVL	address+4(FP), DX	// base address
+
+#ifdef GOOS_android
+	/*
+	 * Same as in sys_darwin_386.s:/ugliness, different constant.
+	 * address currently holds m->tls, which must be %gs:0xf8.
+	 * See cgo/gcc_android_386.c for the derivation of the constant.
+	 */
+	SUBL	$0xf8, DX
+	MOVL	DX, 0(DX)
+#else
 	/*
 	 * When linking against the system libraries,
 	 * we use its pthread_create and let it set up %gs
 	 * for us.  When we do that, the private storage
-	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
+	 * we get is not at 0(GS), but -4(GS).
 	 * To insulate the rest of the tool chain from this
-	 * ugliness, 8l rewrites 0(TLS) into -8(GS) for us.
+	 * ugliness, 8l rewrites 0(TLS) into -4(GS) for us.
 	 * To accommodate that rewrite, we translate
 	 * the address here and bump the limit to 0xffffffff (no limit)
-	 * so that -8(GS) maps to 0(address).
-	 * Also, the final 0(GS) (current 8(CX)) has to point
+	 * so that -4(GS) maps to 0(address).
+	 * Also, the final 0(GS) (current 4(DX)) has to point
 	 * to itself, to mimic ELF.
 	 */
-	ADDL	$0x8, CX	// address
-	MOVL	CX, 0(CX)
+	ADDL	$0x4, DX	// address
+	MOVL	DX, 0(DX)
+#endif
+
+	// get entry number
+	MOVL	runtime·tls_entry_number(SB), CX
 
 	// set up user_desc
 	LEAL	16(SP), AX	// struct user_desc
-	MOVL	BX, 0(AX)
-	MOVL	CX, 4(AX)
-	MOVL	$0xfffff, 8(AX)
+	MOVL	CX, 0(AX)	// unsigned int entry_number
+	MOVL	DX, 4(AX)	// unsigned long base_addr
+	MOVL	$0xfffff, 8(AX)	// unsigned int limit
 	MOVL	$(SEG_32BIT|LIMIT_IN_PAGES|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
 
-	// call modify_ldt
-	MOVL	$1, BX	// func = 1 (write)
-	MOVL	AX, CX	// user_desc
-	MOVL	$16, DX	// sizeof(user_desc)
-	MOVL	$123, AX	// syscall - modify_ldt
-	CALL	*runtime·_vdso(SB)
+	// call set_thread_area
+	MOVL	AX, BX	// user_desc
+	MOVL	$243, AX	// syscall - set_thread_area
+	// We can't call this via 0x10(GS) because this is called from setldt0 to set that up.
+	INT     $0x80
 
 	// breakpoint on error
 	CMPL AX, $0xfffff001
 	JLS 2(PC)
 	INT $3
 
-	// compute segment selector - (entry*8+7)
-	MOVL	entry+0(FP), AX
+	// read allocated entry number back out of user_desc
+	LEAL	16(SP), AX	// get our user_desc back
+	MOVL	0(AX), AX
+
+	// store entry number if the kernel allocated it
+	CMPL	CX, $-1
+	JNE	2(PC)
+	MOVL	AX, runtime·tls_entry_number(SB)
+
+	// compute segment selector - (entry*8+3)
 	SHLL	$3, AX
-	ADDL	$7, AX
+	ADDL	$3, AX
 	MOVW	AX, GS
 
 	RET
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$158, AX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	RET
 
 TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
@@ -447,7 +496,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	pid+0(FP), BX
 	MOVL	len+4(FP), CX
 	MOVL	buf+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -455,7 +504,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVL    $254, AX
 	MOVL	size+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -463,7 +512,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
 TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL    $329, AX
 	MOVL	flags+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -474,7 +523,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	op+4(FP), CX
 	MOVL	fd+8(FP), DX
 	MOVL	ev+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -485,7 +534,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVL	ev+4(FP), CX
 	MOVL	nev+8(FP), DX
 	MOVL	timeout+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -495,5 +544,36 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX  // fd
 	MOVL	$2, CX  // F_SETFD
 	MOVL	$1, DX  // FD_CLOEXEC
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
+	RET
+
+// int access(const char *name, int mode)
+TEXT runtime·access(SB),NOSPLIT,$0
+	MOVL	$33, AX  // syscall - access
+	MOVL	name+0(FP), BX
+	MOVL	mode+4(FP), CX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+8(FP)
+	RET
+
+// int connect(int fd, const struct sockaddr *addr, socklen_t addrlen)
+TEXT runtime·connect(SB),NOSPLIT,$0-16
+	// connect is implemented as socketcall(NR_socket, 3, *(rest of args))
+	// stack already should have fd, addr, addrlen.
+	MOVL	$102, AX  // syscall - socketcall
+	MOVL	$3, BX  // connect
+	LEAL	fd+0(FP), CX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+12(FP)
+	RET
+
+// int socket(int domain, int type, int protocol)
+TEXT runtime·socket(SB),NOSPLIT,$0-16
+	// socket is implemented as socketcall(NR_socket, 1, *(rest of args))
+	// stack already should have domain, type, protocol.
+	MOVL	$102, AX  // syscall - socketcall
+	MOVL	$1, BX  // socket
+	LEAL	domain+0(FP), CX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+12(FP)
 	RET

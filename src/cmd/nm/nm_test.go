@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -55,10 +56,7 @@ func checkSymbols(t *testing.T, nmoutput []byte) {
 }
 
 func TestNM(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveGoBuild(t)
 
 	tmpDir, err := ioutil.TempDir("", "TestNM")
 	if err != nil {

@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -23,26 +23,41 @@ import (
 // which are commands, and entries beginning with internal/, which are
 // packages supporting the commands.
 var bootstrapDirs = []string{
-	"5a",
-	"5g",
-	"6a",
-	"6g",
-	"8a",
-	"8g",
-	"9a",
-	"9g",
 	"asm",
 	"asm/internal/arch",
 	"asm/internal/asm",
 	"asm/internal/flags",
 	"asm/internal/lex",
-	"internal/asm",
-	"internal/gc",
+	"compile",
+	"compile/internal/amd64",
+	"compile/internal/arm",
+	"compile/internal/arm64",
+	"compile/internal/big",
+	"compile/internal/gc",
+	"compile/internal/mips64",
+	"compile/internal/ppc64",
+	"compile/internal/ssa",
+	"compile/internal/x86",
+	"compile/internal/s390x",
+	"internal/bio",
+	"internal/gcprog",
 	"internal/obj",
 	"internal/obj/arm",
-	"internal/obj/i386",
+	"internal/obj/arm64",
+	"internal/obj/mips",
 	"internal/obj/ppc64",
+	"internal/obj/s390x",
 	"internal/obj/x86",
+	"internal/sys",
+	"link",
+	"link/internal/amd64",
+	"link/internal/arm",
+	"link/internal/arm64",
+	"link/internal/ld",
+	"link/internal/mips64",
+	"link/internal/ppc64",
+	"link/internal/s390x",
+	"link/internal/x86",
 }
 
 func bootstrapBuildTools() {
@@ -101,13 +116,15 @@ func bootstrapBuildTools() {
 	os.Setenv("GOARCH", "")
 	os.Setenv("GOHOSTARCH", "")
 
-	// Run Go 1.4 to build binaries.
-	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-v", "bootstrap/...")
+	// Run Go 1.4 to build binaries. Use -gcflags=-l to disable inlining to
+	// workaround bugs in Go 1.4's compiler. See discussion thread:
+	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
+	run(workspace, ShowOutput|CheckExit, pathf("%s/bin/go", goroot_bootstrap), "install", "-gcflags=-l", "-v", "bootstrap/...")
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
 		if !strings.Contains(name, "/") {
-			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), 1)
+			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), writeExec)
 		}
 	}
 
@@ -132,7 +149,7 @@ func bootstrapFixImports(text, srcFile string) string {
 		}
 	}
 
-	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n" + lines[0]
+	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
 
 	return strings.Join(lines, "")
 }

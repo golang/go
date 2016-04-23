@@ -44,20 +44,18 @@ const (
 	StatusRequestedRangeNotSatisfiable = 416
 	StatusExpectationFailed            = 417
 	StatusTeapot                       = 418
+	StatusPreconditionRequired         = 428
+	StatusTooManyRequests              = 429
+	StatusRequestHeaderFieldsTooLarge  = 431
+	StatusUnavailableForLegalReasons   = 451
 
-	StatusInternalServerError     = 500
-	StatusNotImplemented          = 501
-	StatusBadGateway              = 502
-	StatusServiceUnavailable      = 503
-	StatusGatewayTimeout          = 504
-	StatusHTTPVersionNotSupported = 505
-
-	// New HTTP status codes from RFC 6585. Not exported yet in Go 1.1.
-	// See discussion at https://codereview.appspot.com/7678043/
-	statusPreconditionRequired          = 428
-	statusTooManyRequests               = 429
-	statusRequestHeaderFieldsTooLarge   = 431
-	statusNetworkAuthenticationRequired = 511
+	StatusInternalServerError           = 500
+	StatusNotImplemented                = 501
+	StatusBadGateway                    = 502
+	StatusServiceUnavailable            = 503
+	StatusGatewayTimeout                = 504
+	StatusHTTPVersionNotSupported       = 505
+	StatusNetworkAuthenticationRequired = 511
 )
 
 var statusText = map[int]string{
@@ -99,18 +97,18 @@ var statusText = map[int]string{
 	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
 	StatusExpectationFailed:            "Expectation Failed",
 	StatusTeapot:                       "I'm a teapot",
+	StatusPreconditionRequired:         "Precondition Required",
+	StatusTooManyRequests:              "Too Many Requests",
+	StatusRequestHeaderFieldsTooLarge:  "Request Header Fields Too Large",
+	StatusUnavailableForLegalReasons:   "Unavailable For Legal Reasons",
 
-	StatusInternalServerError:     "Internal Server Error",
-	StatusNotImplemented:          "Not Implemented",
-	StatusBadGateway:              "Bad Gateway",
-	StatusServiceUnavailable:      "Service Unavailable",
-	StatusGatewayTimeout:          "Gateway Timeout",
-	StatusHTTPVersionNotSupported: "HTTP Version Not Supported",
-
-	statusPreconditionRequired:          "Precondition Required",
-	statusTooManyRequests:               "Too Many Requests",
-	statusRequestHeaderFieldsTooLarge:   "Request Header Fields Too Large",
-	statusNetworkAuthenticationRequired: "Network Authentication Required",
+	StatusInternalServerError:           "Internal Server Error",
+	StatusNotImplemented:                "Not Implemented",
+	StatusBadGateway:                    "Bad Gateway",
+	StatusServiceUnavailable:            "Service Unavailable",
+	StatusGatewayTimeout:                "Gateway Timeout",
+	StatusHTTPVersionNotSupported:       "HTTP Version Not Supported",
+	StatusNetworkAuthenticationRequired: "Network Authentication Required",
 }
 
 // StatusText returns a text for the HTTP status code. It returns the empty

@@ -1,6 +1,3 @@
-// skip
-// TODO(rsc): Reenable. See issue 9968.
-
 // errorcheck
 
 // Copyright 2012 The Go Authors.  All rights reserved.

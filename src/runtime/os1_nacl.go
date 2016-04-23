@@ -1,10 +1,12 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime
 
 import "unsafe"
+
+type sigset struct{}
 
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
@@ -15,8 +17,20 @@ func mpreinit(mp *m) {
 
 func sigtramp()
 
+//go:nosplit
+func msigsave(mp *m) {
+}
+
+//go:nosplit
+func msigrestore(sigmask sigset) {
+}
+
+//go:nosplit
+func sigblock() {
+}
+
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, can not allocate memory.
+// Called on the new thread, cannot allocate memory.
 func minit() {
 	_g_ := getg()
 
@@ -46,17 +60,14 @@ func crash() {
 	*(*int32)(nil) = 0
 }
 
-//go:nosplit
-func getRandomData(r []byte) {
-	// TODO: does nacl have a random source we can use?
-	extendRandom(r, 0)
-}
+//go:noescape
+func getRandomData([]byte)
 
 func goenvs() {
 	goenvs_unix()
 }
 
-func initsig() {
+func initsig(preinit bool) {
 }
 
 //go:nosplit
@@ -70,11 +81,12 @@ func usleep(us uint32) {
 
 func mstart_nacl()
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
-	tls := (*[3]unsafe.Pointer)(unsafe.Pointer(&mp.tls))
-	tls[0] = unsafe.Pointer(mp.g0)
-	tls[1] = unsafe.Pointer(mp)
-	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&tls[2]), nil)
+	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
+	mp.tls[1] = uintptr(unsafe.Pointer(mp))
+	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&mp.tls[2]), nil)
 	if ret < 0 {
 		print("nacl_thread_create: error ", -ret, "\n")
 		throw("newosproc")
@@ -82,8 +94,10 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	var cond uintptr
+func semacreate(mp *m) {
+	if mp.waitsema != 0 {
+		return
+	}
 	systemstack(func() {
 		mu := nacl_mutex_create(0)
 		if mu < 0 {
@@ -92,14 +106,12 @@ func semacreate() uintptr {
 		}
 		c := nacl_cond_create(0)
 		if c < 0 {
-			print("nacl_cond_create: error ", -cond, "\n")
+			print("nacl_cond_create: error ", -c, "\n")
 			throw("semacreate")
 		}
-		cond = uintptr(c)
-		_g_ := getg()
-		_g_.m.waitsemalock = uint32(mu)
+		mp.waitsema = c
+		mp.waitsemalock = mu
 	})
-	return cond
 }
 
 //go:nosplit
@@ -108,13 +120,13 @@ func semasleep(ns int64) int32 {
 
 	systemstack(func() {
 		_g_ := getg()
-		if nacl_mutex_lock(int32(_g_.m.waitsemalock)) < 0 {
+		if nacl_mutex_lock(_g_.m.waitsemalock) < 0 {
 			throw("semasleep")
 		}
 
 		for _g_.m.waitsemacount == 0 {
 			if ns < 0 {
-				if nacl_cond_wait(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock)) < 0 {
+				if nacl_cond_wait(_g_.m.waitsema, _g_.m.waitsemalock) < 0 {
 					throw("semasleep")
 				}
 			} else {
@@ -122,9 +134,9 @@ func semasleep(ns int64) int32 {
 				end := ns + nanotime()
 				ts.tv_sec = end / 1e9
 				ts.tv_nsec = int32(end % 1e9)
-				r := nacl_cond_timed_wait_abs(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock), &ts)
+				r := nacl_cond_timed_wait_abs(_g_.m.waitsema, _g_.m.waitsemalock, &ts)
 				if r == -_ETIMEDOUT {
-					nacl_mutex_unlock(int32(_g_.m.waitsemalock))
+					nacl_mutex_unlock(_g_.m.waitsemalock)
 					ret = -1
 					return
 				}
@@ -135,7 +147,7 @@ func semasleep(ns int64) int32 {
 		}
 
 		_g_.m.waitsemacount = 0
-		nacl_mutex_unlock(int32(_g_.m.waitsemalock))
+		nacl_mutex_unlock(_g_.m.waitsemalock)
 		ret = 0
 	})
 	return ret
@@ -144,15 +156,15 @@ func semasleep(ns int64) int32 {
 //go:nosplit
 func semawakeup(mp *m) {
 	systemstack(func() {
-		if nacl_mutex_lock(int32(mp.waitsemalock)) < 0 {
+		if nacl_mutex_lock(mp.waitsemalock) < 0 {
 			throw("semawakeup")
 		}
 		if mp.waitsemacount != 0 {
 			throw("semawakeup")
 		}
 		mp.waitsemacount = 1
-		nacl_cond_signal(int32(mp.waitsema))
-		nacl_mutex_unlock(int32(mp.waitsemalock))
+		nacl_cond_signal(mp.waitsema)
+		nacl_mutex_unlock(mp.waitsemalock)
 	})
 }
 
@@ -160,7 +172,23 @@ func memlimit() uintptr {
 	return 0
 }
 
-// This runs on a foreign stack, without an m or a g.  No stack split.
+// This runs on a foreign stack, without an m or a g. No stack split.
+//go:nosplit
+//go:norace
+//go:nowritebarrierrec
+func badsignal(sig uintptr) {
+	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+}
+
+func badsignalgo(sig uintptr) {
+	if !sigsend(uint32(sig)) {
+		// A foreign thread received the signal sig, and the
+		// Go code does not want to handle it.
+		raisebadsignal(int32(sig))
+	}
+}
+
+// This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 func badsignal2() {
 	write(2, unsafe.Pointer(&badsignal1[0]), int32(len(badsignal1)))
@@ -168,6 +196,10 @@ func badsignal2() {
 }
 
 var badsignal1 = []byte("runtime: signal received on thread not created by Go.\n")
+
+func raisebadsignal(sig int32) {
+	badsignal2()
+}
 
 func madvise(addr unsafe.Pointer, n uintptr, flags int32) {}
 func munmap(addr unsafe.Pointer, n uintptr)               {}

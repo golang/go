@@ -52,9 +52,9 @@ tail:
 		h = rotl_15(h*m1) * m2
 	default:
 		v1 := h
-		v2 := uint32(hashkey[1])
-		v3 := uint32(hashkey[2])
-		v4 := uint32(hashkey[3])
+		v2 := uint32(seed * hashkey[1])
+		v3 := uint32(seed * hashkey[2])
+		v4 := uint32(seed * hashkey[3])
 		for s >= 16 {
 			v1 ^= readUnaligned32(p)
 			v1 = rotl_15(v1*m1) * m2

@@ -33,8 +33,11 @@ var _ = log.Printf
 //   INSERT|<tablename>|col=val,col2=val2,col3=?
 //   SELECT|<tablename>|projectcol1,projectcol2|filtercol=?,filtercol2=?
 //
+// Any of these can be preceded by PANIC|<method>|, to cause the
+// named method on fakeStmt to panic.
+//
 // When opening a fakeDriver's database, it starts empty with no
-// tables.  All tables and data are stored in memory only.
+// tables. All tables and data are stored in memory only.
 type fakeDriver struct {
 	mu         sync.Mutex // guards 3 following fields
 	openCount  int        // conn opens
@@ -48,7 +51,6 @@ type fakeDB struct {
 	name string
 
 	mu      sync.Mutex
-	free    []*fakeConn
 	tables  map[string]*table
 	badConn bool
 }
@@ -73,12 +75,6 @@ type row struct {
 	cols []interface{} // must be same size as its table colname + coltype
 }
 
-func (r *row) clone() *row {
-	nrow := &row{cols: make([]interface{}, len(r.cols))}
-	copy(nrow.cols, r.cols)
-	return nrow
-}
-
 type fakeConn struct {
 	db *fakeDB // where to return ourselves to
 
@@ -89,7 +85,10 @@ type fakeConn struct {
 	stmtsMade   int
 	stmtsClosed int
 	numPrepare  int
-	bad         bool
+
+	// bad connection tests; see isBad()
+	bad       bool
+	stickyBad bool
 }
 
 func (c *fakeConn) incrStat(v *int) {
@@ -108,6 +107,7 @@ type fakeStmt struct {
 
 	cmd   string
 	table string
+	panic string
 
 	closed bool
 
@@ -150,12 +150,32 @@ func TestDrivers(t *testing.T) {
 	}
 }
 
+// hook to simulate connection failures
+var hookOpenErr struct {
+	sync.Mutex
+	fn func() error
+}
+
+func setHookOpenErr(fn func() error) {
+	hookOpenErr.Lock()
+	defer hookOpenErr.Unlock()
+	hookOpenErr.fn = fn
+}
+
 // Supports dsn forms:
 //    <dbname>
 //    <dbname>;<opts>  (only currently supported option is `badConn`,
 //                      which causes driver.ErrBadConn to be returned on
 //                      every other conn.Begin())
 func (d *fakeDriver) Open(dsn string) (driver.Conn, error) {
+	hookOpenErr.Lock()
+	fn := hookOpenErr.fn
+	hookOpenErr.Unlock()
+	if fn != nil {
+		if err := fn(); err != nil {
+			return nil, err
+		}
+	}
 	parts := strings.Split(dsn, ";")
 	if len(parts) < 1 {
 		return nil, errors.New("fakedb: no database name")
@@ -243,13 +263,15 @@ func (db *fakeDB) columnType(table, column string) (typ string, ok bool) {
 }
 
 func (c *fakeConn) isBad() bool {
-	// if not simulating bad conn, do nothing
-	if !c.bad {
+	if c.stickyBad {
+		return true
+	} else if c.bad {
+		// alternate between bad conn and not bad conn
+		c.db.badConn = !c.db.badConn
+		return c.db.badConn
+	} else {
 		return false
 	}
-	// alternate between bad conn and not bad conn
-	c.db.badConn = !c.db.badConn
-	return c.db.badConn
 }
 
 func (c *fakeConn) Begin() (driver.Tx, error) {
@@ -466,7 +488,7 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 		panic("nil c.db; conn = " + fmt.Sprintf("%#v", c))
 	}
 
-	if hookPrepareBadConn != nil && hookPrepareBadConn() {
+	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
 		return nil, driver.ErrBadConn
 	}
 
@@ -474,9 +496,15 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 	if len(parts) < 1 {
 		return nil, errf("empty query")
 	}
+	stmt := &fakeStmt{q: query, c: c}
+	if len(parts) >= 3 && parts[0] == "PANIC" {
+		stmt.panic = parts[1]
+		parts = parts[2:]
+	}
 	cmd := parts[0]
+	stmt.cmd = cmd
 	parts = parts[1:]
-	stmt := &fakeStmt{q: query, c: c, cmd: cmd}
+
 	c.incrStat(&c.stmtsMade)
 	switch cmd {
 	case "WIPE":
@@ -499,6 +527,9 @@ func (c *fakeConn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
+	if s.panic == "ColumnConverter" {
+		panic(s.panic)
+	}
 	if len(s.placeholderConverter) == 0 {
 		return driver.DefaultParameterConverter
 	}
@@ -506,6 +537,9 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
 }
 
 func (s *fakeStmt) Close() error {
+	if s.panic == "Close" {
+		panic(s.panic)
+	}
 	if s.c == nil {
 		panic("nil conn in fakeStmt.Close")
 	}
@@ -525,11 +559,14 @@ var errClosed = errors.New("fakedb: statement has been closed")
 var hookExecBadConn func() bool
 
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
+	if s.panic == "Exec" {
+		panic(s.panic)
+	}
 	if s.closed {
 		return nil, errClosed
 	}
 
-	if hookExecBadConn != nil && hookExecBadConn() {
+	if s.c.stickyBad || (hookExecBadConn != nil && hookExecBadConn()) {
 		return nil, driver.ErrBadConn
 	}
 
@@ -609,11 +646,14 @@ func (s *fakeStmt) execInsert(args []driver.Value, doInsert bool) (driver.Result
 var hookQueryBadConn func() bool
 
 func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
+	if s.panic == "Query" {
+		panic(s.panic)
+	}
 	if s.closed {
 		return nil, errClosed
 	}
 
-	if hookQueryBadConn != nil && hookQueryBadConn() {
+	if s.c.stickyBad || (hookQueryBadConn != nil && hookQueryBadConn()) {
 		return nil, driver.ErrBadConn
 	}
 
@@ -658,7 +698,7 @@ func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 rows:
 	for _, trow := range t.rows {
 		// Process the where clause, skipping non-match rows. This is lazy
-		// and just uses fmt.Sprintf("%v") to test equality.  Good enough
+		// and just uses fmt.Sprintf("%v") to test equality. Good enough
 		// for test code.
 		for widx, wcol := range s.whereCol {
 			idx := t.columnIndex(wcol)
@@ -691,16 +731,31 @@ rows:
 }
 
 func (s *fakeStmt) NumInput() int {
+	if s.panic == "NumInput" {
+		panic(s.panic)
+	}
 	return s.placeholders
 }
 
+// hook to simulate broken connections
+var hookCommitBadConn func() bool
+
 func (tx *fakeTx) Commit() error {
 	tx.c.currTx = nil
+	if hookCommitBadConn != nil && hookCommitBadConn() {
+		return driver.ErrBadConn
+	}
 	return nil
 }
 
+// hook to simulate broken connections
+var hookRollbackBadConn func() bool
+
 func (tx *fakeTx) Rollback() error {
 	tx.c.currTx = nil
+	if hookRollbackBadConn != nil && hookRollbackBadConn() {
+		return driver.ErrBadConn
+	}
 	return nil
 }
 

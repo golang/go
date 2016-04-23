@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,20 +8,23 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/race"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
 )
 
-//go:generate go run mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go
+//go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
 
 type Handle uintptr
 
 const InvalidHandle = ^Handle(0)
 
-// StringToUTF16 is deprecated. Use UTF16FromString instead.
-// If s contains a NUL byte this function panics instead of
-// returning an error.
+// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
+// with a terminating NUL added. If s contains a NUL byte this
+// function panics instead of returning an error.
+//
+// Deprecated: Use UTF16FromString instead.
 func StringToUTF16(s string) []uint16 {
 	a, err := UTF16FromString(s)
 	if err != nil {
@@ -54,9 +57,12 @@ func UTF16ToString(s []uint16) string {
 	return string(utf16.Decode(s))
 }
 
-// StringToUTF16Ptr is deprecated. Use UTF16PtrFromString instead.
+// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
+// the UTF-8 string s, with a terminating NUL added. If s
 // If s contains a NUL byte this function panics instead of
 // returning an error.
+//
+// Deprecated: Use UTF16PtrFromString instead.
 func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 
 // UTF16PtrFromString returns pointer to the UTF-16 encoding of
@@ -77,6 +83,14 @@ type Errno uintptr
 
 func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
 
+// FormatMessage is deprecated (msgsrc should be uintptr, not uint32, but can
+// not be changed due to the Go 1 compatibility guarantee).
+//
+// Deprecated: Use FormatMessage from golang.org/x/sys/windows instead.
+func FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) {
+	return formatMessage(flags, uintptr(msgsrc), msgid, langid, buf, args)
+}
+
 func (e Errno) Error() string {
 	// deal with special go errors
 	idx := int(e - APPLICATION_ERROR)
@@ -86,9 +100,9 @@ func (e Errno) Error() string {
 	// ask windows for the remaining errors
 	var flags uint32 = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_IGNORE_INSERTS
 	b := make([]uint16, 300)
-	n, err := FormatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
+	n, err := formatMessage(flags, 0, uint32(e), langid(LANG_ENGLISH, SUBLANG_ENGLISH_US), b, nil)
 	if err != nil {
-		n, err = FormatMessage(flags, 0, uint32(e), 0, b, nil)
+		n, err = formatMessage(flags, 0, uint32(e), 0, b, nil)
 		if err != nil {
 			return "winapi error #" + itoa(int(e))
 		}
@@ -107,7 +121,7 @@ func (e Errno) Timeout() bool {
 	return e == EAGAIN || e == EWOULDBLOCK || e == ETIMEDOUT
 }
 
-// Implemented in asm_windows.s
+// Implemented in runtime/syscall_windows.go.
 func compileCallback(fn interface{}, cleanstack bool) uintptr
 
 // Converts a Go function to a function pointer conforming
@@ -131,7 +145,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	FreeLibrary(handle Handle) (err error)
 //sys	GetProcAddress(module Handle, procname string) (proc uintptr, err error)
 //sys	GetVersion() (ver uint32, err error)
-//sys	FormatMessage(flags uint32, msgsrc uint32, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
+//sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
 //sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
 //sys	ReadFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
@@ -291,26 +305,32 @@ func Read(fd Handle, p []byte) (n int, err error) {
 		}
 		return 0, e
 	}
-	if raceenabled {
+	if race.Enabled {
 		if done > 0 {
-			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
+			race.WriteRange(unsafe.Pointer(&p[0]), int(done))
 		}
-		raceAcquire(unsafe.Pointer(&ioSync))
+		race.Acquire(unsafe.Pointer(&ioSync))
+	}
+	if msanenabled && done > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), int(done))
 	}
 	return int(done), nil
 }
 
 func Write(fd Handle, p []byte) (n int, err error) {
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
 	var done uint32
 	e := WriteFile(fd, p, &done, nil)
 	if e != nil {
 		return 0, e
 	}
-	if raceenabled && done > 0 {
-		raceReadRange(unsafe.Pointer(&p[0]), int(done))
+	if race.Enabled && done > 0 {
+		race.ReadRange(unsafe.Pointer(&p[0]), int(done))
+	}
+	if msanenabled && done > 0 {
+		msanRead(unsafe.Pointer(&p[0]), int(done))
 	}
 	return int(done), nil
 }

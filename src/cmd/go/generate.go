@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,16 +13,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 var cmdGenerate = &Command{
 	Run:       runGenerate,
-	UsageLine: "generate [-run regexp] [file.go... | packages]",
+	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
 	Short:     "generate Go files by processing source",
 	Long: `
 Generate runs commands described by directives within existing
@@ -62,8 +61,12 @@ Go generate sets several variables when it runs the generator:
 		The execution operating system (linux, windows, etc.)
 	$GOFILE
 		The base name of the file.
+	$GOLINE
+		The line number of the directive in the source file.
 	$GOPACKAGE
 		The name of the package of the file containing the directive.
+	$DOLLAR
+		A dollar sign.
 
 Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command
@@ -106,21 +109,27 @@ The generator is run in the package's source directory.
 Go generate accepts one specific flag:
 
 	-run=""
-		TODO: This flag is unimplemented.
-		if non-empty, specifies a regular expression to
-		select directives whose command matches the expression.
+		if non-empty, specifies a regular expression to select
+		directives whose full original source text (excluding
+		any trailing spaces and final newline) matches the
+		expression.
 
-It also accepts the standard build flags -v, -n, and -x.
+It also accepts the standard build flags including -v, -n, and -x.
 The -v flag prints the names of packages and files as they are
 processed.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
 
+For more about build flags, see 'go help build'.
+
 For more about specifying packages, see 'go help packages'.
 	`,
 }
 
-var generateRunFlag string // generate -run flag
+var (
+	generateRunFlag string         // generate -run flag
+	generateRunRE   *regexp.Regexp // compiled expression for -run
+)
 
 func init() {
 	addBuildFlags(cmdGenerate)
@@ -128,6 +137,13 @@ func init() {
 }
 
 func runGenerate(cmd *Command, args []string) {
+	if generateRunFlag != "" {
+		var err error
+		generateRunRE, err = regexp.Compile(generateRunFlag)
+		if err != nil {
+			log.Fatalf("generate: %s", err)
+		}
+	}
 	// Even if the arguments are .go files, this loop suffices.
 	for _, pkg := range packages(args) {
 		for _, file := range pkg.gofiles {
@@ -163,7 +179,8 @@ type Generator struct {
 	file     string // base name of file.
 	pkg      string
 	commands map[string][]string
-	lineNum  int
+	lineNum  int // current line number.
+	env      []string
 }
 
 // run runs the generators in the current file.
@@ -221,7 +238,13 @@ func (g *Generator) run() (ok bool) {
 		if !isGoGenerate(buf) {
 			continue
 		}
+		if generateRunFlag != "" {
+			if !generateRunRE.Match(bytes.TrimSpace(buf)) {
+				continue
+			}
+		}
 
+		g.setEnv()
 		words := g.split(string(buf))
 		if len(words) == 0 {
 			g.errorf("no arguments to directive")
@@ -247,6 +270,19 @@ func (g *Generator) run() (ok bool) {
 
 func isGoGenerate(buf []byte) bool {
 	return bytes.HasPrefix(buf, []byte("//go:generate ")) || bytes.HasPrefix(buf, []byte("//go:generate\t"))
+}
+
+// setEnv sets the extra environment variables used when executing a
+// single go:generate command.
+func (g *Generator) setEnv() {
+	g.env = []string{
+		"GOARCH=" + runtime.GOARCH,
+		"GOOS=" + runtime.GOOS,
+		"GOFILE=" + g.file,
+		"GOLINE=" + strconv.Itoa(g.lineNum),
+		"GOPACKAGE=" + g.pkg,
+		"DOLLAR=" + "$",
+	}
 }
 
 // split breaks the line into words, evaluating quoted
@@ -306,7 +342,7 @@ Words:
 	}
 	// Substitute environment variables.
 	for i, word := range words {
-		words[i] = g.expandEnv(word)
+		words[i] = os.Expand(word, g.expandVar)
 	}
 	return words
 }
@@ -322,49 +358,16 @@ func (g *Generator) errorf(format string, args ...interface{}) {
 	panic(stop)
 }
 
-// expandEnv expands any $XXX invocations in word.
-func (g *Generator) expandEnv(word string) string {
-	if !strings.ContainsRune(word, '$') {
-		return word
-	}
-	var buf bytes.Buffer
-	var w int
-	var r rune
-	for i := 0; i < len(word); i += w {
-		r, w = utf8.DecodeRuneInString(word[i:])
-		if r != '$' {
-			buf.WriteRune(r)
-			continue
+// expandVar expands the $XXX invocation in word. It is called
+// by os.Expand.
+func (g *Generator) expandVar(word string) string {
+	w := word + "="
+	for _, e := range g.env {
+		if strings.HasPrefix(e, w) {
+			return e[len(w):]
 		}
-		w += g.identLength(word[i+w:])
-		envVar := word[i+1 : i+w]
-		var sub string
-		switch envVar {
-		case "GOARCH":
-			sub = runtime.GOARCH
-		case "GOOS":
-			sub = runtime.GOOS
-		case "GOFILE":
-			sub = g.file
-		case "GOPACKAGE":
-			sub = g.pkg
-		default:
-			sub = os.Getenv(envVar)
-		}
-		buf.WriteString(sub)
 	}
-	return buf.String()
-}
-
-// identLength returns the length of the identifier beginning the string.
-func (g *Generator) identLength(word string) int {
-	for i, r := range word {
-		if r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) {
-			continue
-		}
-		return i
-	}
-	return len(word)
+	return os.Getenv(word)
 }
 
 // setShorthand installs a new shorthand as defined by a -command directive.
@@ -389,13 +392,7 @@ func (g *Generator) exec(words []string) {
 	cmd.Stderr = os.Stderr
 	// Run the command in the package directory.
 	cmd.Dir = g.dir
-	env := []string{
-		"GOARCH=" + runtime.GOARCH,
-		"GOOS=" + runtime.GOOS,
-		"GOFILE=" + g.file,
-		"GOPACKAGE=" + g.pkg,
-	}
-	cmd.Env = mergeEnvLists(env, os.Environ())
+	cmd.Env = mergeEnvLists(g.env, origEnv)
 	err := cmd.Run()
 	if err != nil {
 		g.errorf("running %q: %s", words[0], err)

@@ -18,7 +18,18 @@ import (
 func TestRouteRIB(t *testing.T) {
 	for _, facility := range []int{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
 		for _, param := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
-			b, err := syscall.RouteRIB(facility, param)
+			var err error
+			var b []byte
+			// The VM allocator wrapper functions can
+			// return ENOMEM easily.
+			for i := 0; i < 3; i++ {
+				b, err = syscall.RouteRIB(facility, param)
+				if err != nil {
+					time.Sleep(5 * time.Millisecond)
+					continue
+				}
+				break
+			}
 			if err != nil {
 				t.Error(facility, param, err)
 				continue
@@ -108,6 +119,41 @@ func TestRouteMonitor(t *testing.T) {
 	<-tmo
 }
 
+var parseInterfaceMessageTests = []*syscall.InterfaceMessage{
+	// with link-layer address
+	{
+		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
+		Data: []uint8{
+			0x11, 0x12, 0x2, 0x0, 0x6, 0x3, 0x6, 0x0,
+			0x77, 0x6d, 0x31, 0x01, 0x23, 0x45, 0xab, 0xcd,
+			0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		},
+	},
+	// without link-layer address
+	{
+		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
+		Data: []uint8{
+			0xe, 0x12, 0x4, 0x0, 0xf5, 0x6, 0x0, 0x0,
+			0x70, 0x66, 0x6c, 0x6f, 0x67, 0x30, 0x0, 0x0,
+		},
+	},
+	// no data
+	{
+		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
+		Data: []uint8{
+			0x8, 0xa, 0xb, 0xc, 0xd, 0x0, 0x0, 0x0,
+		},
+	},
+}
+
+func TestParseInterfaceMessage(t *testing.T) {
+	for i, tt := range parseInterfaceMessageTests {
+		if _, err := syscall.ParseRoutingSockaddr(tt); err != nil {
+			t.Errorf("#%d: %v", i, err)
+		}
+	}
+}
+
 type addrFamily byte
 
 func (f addrFamily) String() string {
@@ -185,9 +231,26 @@ func (sas sockaddrs) String() string {
 
 func (sas sockaddrs) match(flags addrFlags) error {
 	var f addrFlags
+	family := syscall.AF_UNSPEC
 	for i := range sas {
 		if sas[i] != nil {
 			f |= 1 << uint(i)
+		}
+		switch sas[i].(type) {
+		case *syscall.SockaddrInet4:
+			if family == syscall.AF_UNSPEC {
+				family = syscall.AF_INET
+			}
+			if family != syscall.AF_INET {
+				return fmt.Errorf("got %v; want %v", sockaddrs(sas), family)
+			}
+		case *syscall.SockaddrInet6:
+			if family == syscall.AF_UNSPEC {
+				family = syscall.AF_INET6
+			}
+			if family != syscall.AF_INET6 {
+				return fmt.Errorf("got %v; want %v", sockaddrs(sas), family)
+			}
 		}
 	}
 	if f != flags {

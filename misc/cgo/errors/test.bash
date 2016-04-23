@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Copyright 2013 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -9,6 +11,12 @@ check() {
 		echo 1>&2 misc/cgo/errors/test.bash: BUG: cannot find ERROR HERE in $file
 		exit 1
 	fi
+	expect $file $file:$line:
+}
+
+expect() {
+	file=$1
+	shift
 	if go build $file >errs 2>&1; then
 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
 		exit 1
@@ -17,11 +25,13 @@ check() {
 		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
 		exit 1
 	fi
-	if ! fgrep $file:$line: errs >/dev/null 2>&1; then
-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error on line $line but saw:
-		cat 1>&2 errs
-		exit 1
-	fi
+	for error; do
+		if ! fgrep $error errs >/dev/null 2>&1; then
+			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output to contain \"$error\" but saw:
+			cat 1>&2 errs
+			exit 1
+		fi
+	done
 }
 
 check err1.go
@@ -29,6 +39,15 @@ check err2.go
 check err3.go
 check issue7757.go
 check issue8442.go
+check issue11097a.go
+check issue11097b.go
+expect issue13129.go C.ushort
+check issue13423.go
+expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
+
+if ! go run ptr.go; then
+	exit 1
+fi
 
 rm -rf errs _obj
 exit 0

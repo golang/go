@@ -6,6 +6,7 @@ package httptest
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 )
@@ -34,6 +35,45 @@ func TestRecorder(t *testing.T) {
 		return func(rec *ResponseRecorder) error {
 			if rec.Flushed != want {
 				return fmt.Errorf("Flushed = %v; want %v", rec.Flushed, want)
+			}
+			return nil
+		}
+	}
+	hasHeader := func(key, want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			if got := rec.HeaderMap.Get(key); got != want {
+				return fmt.Errorf("header %s = %q; want %q", key, got, want)
+			}
+			return nil
+		}
+	}
+	hasNotHeaders := func(keys ...string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			for _, k := range keys {
+				_, ok := rec.HeaderMap[http.CanonicalHeaderKey(k)]
+				if ok {
+					return fmt.Errorf("unexpected header %s", k)
+				}
+			}
+			return nil
+		}
+	}
+	hasTrailer := func(key, want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			if got := rec.Trailers().Get(key); got != want {
+				return fmt.Errorf("trailer %s = %q; want %q", key, got, want)
+			}
+			return nil
+		}
+	}
+	hasNotTrailers := func(keys ...string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			trailers := rec.Trailers()
+			for _, k := range keys {
+				_, ok := trailers[http.CanonicalHeaderKey(k)]
+				if ok {
+					return fmt.Errorf("unexpected trailer %s", k)
+				}
 			}
 			return nil
 		}
@@ -68,12 +108,91 @@ func TestRecorder(t *testing.T) {
 			check(hasStatus(200), hasContents("hi first"), hasFlush(false)),
 		},
 		{
+			"write string",
+			func(w http.ResponseWriter, r *http.Request) {
+				io.WriteString(w, "hi first")
+			},
+			check(
+				hasStatus(200),
+				hasContents("hi first"),
+				hasFlush(false),
+				hasHeader("Content-Type", "text/plain; charset=utf-8"),
+			),
+		},
+		{
 			"flush",
 			func(w http.ResponseWriter, r *http.Request) {
 				w.(http.Flusher).Flush() // also sends a 200
 				w.WriteHeader(201)
 			},
 			check(hasStatus(200), hasFlush(true)),
+		},
+		{
+			"Content-Type detection",
+			func(w http.ResponseWriter, r *http.Request) {
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
+		},
+		{
+			"no Content-Type detection with Transfer-Encoding",
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Transfer-Encoding", "some encoding")
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "")), // no header
+		},
+		{
+			"no Content-Type detection if set explicitly",
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "some/type")
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "some/type")),
+		},
+		{
+			"Content-Type detection doesn't crash if HeaderMap is nil",
+			func(w http.ResponseWriter, r *http.Request) {
+				// Act as if the user wrote new(httptest.ResponseRecorder)
+				// rather than using NewRecorder (which initializes
+				// HeaderMap)
+				w.(*ResponseRecorder).HeaderMap = nil
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
+		},
+		{
+			"Header is not changed after write",
+			func(w http.ResponseWriter, r *http.Request) {
+				hdr := w.Header()
+				hdr.Set("Key", "correct")
+				w.WriteHeader(200)
+				hdr.Set("Key", "incorrect")
+			},
+			check(hasHeader("Key", "correct")),
+		},
+		{
+			"Trailer headers are correctly recorded",
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Non-Trailer", "correct")
+				w.Header().Set("Trailer", "Trailer-A")
+				w.Header().Add("Trailer", "Trailer-B")
+				w.Header().Add("Trailer", "Trailer-C")
+				io.WriteString(w, "<html>")
+				w.Header().Set("Non-Trailer", "incorrect")
+				w.Header().Set("Trailer-A", "valuea")
+				w.Header().Set("Trailer-C", "valuec")
+				w.Header().Set("Trailer-NotDeclared", "should be omitted")
+			},
+			check(
+				hasStatus(200),
+				hasHeader("Content-Type", "text/html; charset=utf-8"),
+				hasHeader("Non-Trailer", "correct"),
+				hasNotHeaders("Trailer-A", "Trailer-B", "Trailer-C", "Trailer-NotDeclared"),
+				hasTrailer("Trailer-A", "valuea"),
+				hasTrailer("Trailer-C", "valuec"),
+				hasNotTrailers("Non-Trailer", "Trailer-B", "Trailer-NotDeclared"),
+			),
 		},
 	}
 	r, _ := http.NewRequest("GET", "http://foo.com/", nil)

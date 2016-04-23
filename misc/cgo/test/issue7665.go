@@ -19,7 +19,7 @@ var bad7665 unsafe.Pointer = C.f7665
 var good7665 uintptr = uintptr(C.f7665)
 
 func test7665(t *testing.T) {
-	if bad7665 == nil || bad7665 != unsafe.Pointer(good7665) {
+	if bad7665 == nil || uintptr(bad7665) != good7665 {
 		t.Errorf("ptrs = %p, %#x, want same non-nil pointer", bad7665, good7665)
 	}
 }

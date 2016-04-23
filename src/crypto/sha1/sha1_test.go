@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// SHA1 hash algorithm.  See RFC 3174.
+// SHA1 hash algorithm. See RFC 3174.
 
 package sha1
 
@@ -91,7 +91,7 @@ func TestBlockSize(t *testing.T) {
 	}
 }
 
-// Tests that blockGeneric (pure Go) and block (in assembly for amd64, 386, arm) match.
+// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
 func TestBlockGeneric(t *testing.T) {
 	gen, asm := New().(*digest), New().(*digest)
 	buf := make([]byte, BlockSize*20) // arbitrary factor

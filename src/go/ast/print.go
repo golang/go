@@ -36,8 +36,11 @@ func NotNilFilter(_ string, v reflect.Value) bool {
 // struct fields for which f(fieldname, fieldvalue) is true are
 // printed; all others are filtered from the output. Unexported
 // struct fields are never printed.
-//
-func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
+func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) error {
+	return fprint(w, fset, x, f)
+}
+
+func fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
 	// setup printer
 	p := printer{
 		output: w,

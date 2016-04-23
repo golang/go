@@ -1,0 +1,32 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+(Add32 x y) -> (ADD x y)
+
+(Const32 [val]) -> (MOVWconst [val])
+
+(Less32 x y) -> (LessThan (CMP x y))
+
+(OffPtr [off] ptr) -> (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
+
+(Addr {sym} base) -> (ADDconst {sym} base)
+
+(Load <t> ptr mem) && is32BitInt(t) -> (MOVWload ptr mem)
+(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
+
+(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+
+// Absorb LessThan into blocks.
+(If (LessThan cc) yes no) -> (LT cc yes no)
+
+
+
+// Optimizations
+
+(ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
+(ADD x (MOVWconst [c])) -> (ADDconst [c] x)
+(MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+  (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)

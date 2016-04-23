@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,9 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"internal/trace"
+	"log"
 	"net/http"
-	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -43,33 +44,103 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// See https://github.com/catapult-project/catapult/blob/master/tracing/docs/embedding-trace-viewer.md
+// This is almost verbatim copy of:
+// https://github.com/catapult-project/catapult/blob/master/tracing/bin/index.html
+// on revision 623a005a3ffa9de13c4b92bc72290e7bcd1ca591.
 var templTrace = `
 <html>
-	<head>
-		<link href="/trace_viewer_html" rel="import">
-		<script>
-			document.addEventListener("DOMContentLoaded", function(event) {
-				var viewer = new tv.TraceViewer('/jsontrace{{PARAMS}}');
-				document.body.appendChild(viewer);
-			});
-		</script>
-	</head>
-	<body>
-	</body>
+<head>
+<link href="/trace_viewer_html" rel="import">
+<script>
+(function() {
+  var viewer;
+  var url;
+  var model;
+
+  function load() {
+    var req = new XMLHttpRequest();
+    var is_binary = /[.]gz$/.test(url) || /[.]zip$/.test(url);
+    req.overrideMimeType('text/plain; charset=x-user-defined');
+    req.open('GET', url, true);
+    if (is_binary)
+      req.responseType = 'arraybuffer';
+
+    req.onreadystatechange = function(event) {
+      if (req.readyState !== 4)
+        return;
+
+      window.setTimeout(function() {
+        if (req.status === 200)
+          onResult(is_binary ? req.response : req.responseText);
+        else
+          onResultFail(req.status);
+      }, 0);
+    };
+    req.send(null);
+  }
+
+  function onResultFail(err) {
+    var overlay = new tr.ui.b.Overlay();
+    overlay.textContent = err + ': ' + url + ' could not be loaded';
+    overlay.title = 'Failed to fetch data';
+    overlay.visible = true;
+  }
+
+  function onResult(result) {
+    model = new tr.Model();
+    var i = new tr.importer.Import(model);
+    var p = i.importTracesWithProgressDialog([result]);
+    p.then(onModelLoaded, onImportFail);
+  }
+
+  function onModelLoaded() {
+    viewer.model = model;
+    viewer.viewTitle = "trace";
+  }
+
+  function onImportFail() {
+    var overlay = new tr.ui.b.Overlay();
+    overlay.textContent = tr.b.normalizeException(err).message;
+    overlay.title = 'Import error';
+    overlay.visible = true;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var container = document.createElement('track-view-container');
+    container.id = 'track_view_container';
+
+    viewer = document.createElement('tr-ui-timeline-view');
+    viewer.track_view_container = container;
+    viewer.appendChild(container);
+
+    viewer.id = 'trace-viewer';
+    viewer.globalMode = true;
+    document.body.appendChild(viewer);
+
+    url = '/jsontrace{{PARAMS}}';
+    load();
+  });
+}());
+</script>
+</head>
+<body>
+</body>
 </html>
 `
 
 // httpTraceViewerHTML serves static part of trace-viewer.
 // This URL is queried from templTrace HTML.
 func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(os.Getenv("GOROOT"), "misc", "trace", "trace_viewer_lean.html"))
+	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_lean.html"))
 }
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+	// This is an AJAX handler, so instead of http.Error we use log.Printf to log errors.
 	events, err := parseEvents()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("failed to parse trace: %v", err)
 		return
 	}
 
@@ -81,7 +152,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 	if goids := r.FormValue("goid"); goids != "" {
 		goid, err := strconv.ParseUint(goids, 10, 64)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to parse goid parameter '%v': %v", goids, err), http.StatusInternalServerError)
+			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
 			return
 		}
 		analyzeGoroutines(events)
@@ -90,12 +161,12 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		params.startTime = g.StartTime
 		params.endTime = g.EndTime
 		params.maing = goid
-		params.gs = relatedGoroutines(events, goid)
+		params.gs = trace.RelatedGoroutines(events, goid)
 	}
 
 	err = json.NewEncoder(w).Encode(generateTrace(params))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to serialize trace: %v", err), http.StatusInternalServerError)
+		log.Printf("failed to serialize trace: %v", err)
 		return
 	}
 }
@@ -130,16 +201,17 @@ type frameNode struct {
 }
 
 type ViewerData struct {
-	Events []*ViewerEvent         `json:"traceEvents"`
-	Frames map[string]ViewerFrame `json:"stackFrames"`
+	Events   []*ViewerEvent         `json:"traceEvents"`
+	Frames   map[string]ViewerFrame `json:"stackFrames"`
+	TimeUnit string                 `json:"displayTimeUnit"`
 }
 
 type ViewerEvent struct {
 	Name     string      `json:"name,omitempty"`
 	Phase    string      `json:"ph"`
 	Scope    string      `json:"s,omitempty"`
-	Time     int64       `json:"ts"`
-	Dur      int64       `json:"dur,omitempty"`
+	Time     float64     `json:"ts"`
+	Dur      float64     `json:"dur,omitempty"`
 	Pid      uint64      `json:"pid"`
 	Tid      uint64      `json:"tid"`
 	ID       uint64      `json:"id,omitempty"`
@@ -172,6 +244,7 @@ func generateTrace(params *traceParams) ViewerData {
 	ctx := &traceContext{traceParams: params}
 	ctx.frameTree.children = make(map[uint64]frameNode)
 	ctx.data.Frames = make(map[string]ViewerFrame)
+	ctx.data.TimeUnit = "ns"
 	maxProc := 0
 	gnames := make(map[uint64]string)
 	for _, ev := range ctx.events {
@@ -300,6 +373,7 @@ func generateTrace(params *traceParams) ViewerData {
 	if !ctx.gtrace {
 		for i := 0; i <= maxProc; i++ {
 			ctx.emit(&ViewerEvent{Name: "thread_name", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &NameArg{fmt.Sprintf("Proc %v", i)}})
+			ctx.emit(&ViewerEvent{Name: "thread_sort_index", Phase: "M", Pid: 0, Tid: uint64(i), Arg: &SortIndexArg{i}})
 		}
 	}
 
@@ -321,16 +395,9 @@ func (ctx *traceContext) emit(e *ViewerEvent) {
 	ctx.data.Events = append(ctx.data.Events, e)
 }
 
-func (ctx *traceContext) time(ev *trace.Event) int64 {
-	if ev.Ts < ctx.startTime || ev.Ts > ctx.endTime {
-		fmt.Printf("ts=%v startTime=%v endTime\n", ev.Ts, ctx.startTime, ctx.endTime)
-		panic("timestamp is outside of trace range")
-	}
-	// NOTE: trace viewer wants timestamps in microseconds and it does not
-	// handle fractional timestamps (rounds them). We give it timestamps
-	// in nanoseconds to avoid rounding. See:
-	// https://github.com/google/trace-viewer/issues/624
-	return ev.Ts - ctx.startTime
+func (ctx *traceContext) time(ev *trace.Event) float64 {
+	// Trace viewer wants timestamps in microseconds.
+	return float64(ev.Ts-ctx.startTime) / 1000
 }
 
 func (ctx *traceContext) proc(ev *trace.Event) uint64 {
@@ -343,12 +410,12 @@ func (ctx *traceContext) proc(ev *trace.Event) uint64 {
 
 func (ctx *traceContext) emitSlice(ev *trace.Event, name string) {
 	ctx.emit(&ViewerEvent{
-		Name:  name,
-		Phase: "X",
-		Time:  ctx.time(ev),
-		Dur:   ctx.time(ev.Link) - ctx.time(ev),
-		Tid:   ctx.proc(ev),
-		//Stack: ctx.stack(ev.Stk),
+		Name:     name,
+		Phase:    "X",
+		Time:     ctx.time(ev),
+		Dur:      ctx.time(ev.Link) - ctx.time(ev),
+		Tid:      ctx.proc(ev),
+		Stack:    ctx.stack(ev.Stk),
 		EndStack: ctx.stack(ev.Link.Stk),
 	})
 }
@@ -391,7 +458,14 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
 }
 
 func (ctx *traceContext) emitInstant(ev *trace.Event, name string) {
-	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk)})
+	var arg interface{}
+	if ev.Type == trace.EvProcStart {
+		type Arg struct {
+			ThreadID uint64
+		}
+		arg = &Arg{ev.Args[0]}
+	}
+	ctx.emit(&ViewerEvent{Name: name, Phase: "I", Scope: "t", Time: ctx.time(ev), Tid: ctx.proc(ev), Stack: ctx.stack(ev.Stk), Arg: arg})
 }
 
 func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
@@ -402,6 +476,12 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
 	}
 	if ctx.gtrace && (!ctx.gs[ev.Link.G] || ev.Link.Ts < ctx.startTime || ev.Link.Ts > ctx.endTime) {
 		return
+	}
+
+	if ev.P == trace.NetpollP || ev.P == trace.TimerP || ev.P == trace.SyscallP {
+		// Trace-viewer discards arrows if they don't start/end inside of a slice or instant.
+		// So emit a fake instant at the start of the arrow.
+		ctx.emitInstant(&trace.Event{P: ev.P, Ts: ev.Ts}, "unblock")
 	}
 
 	ctx.arrowSeq++

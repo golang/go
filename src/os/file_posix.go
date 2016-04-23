@@ -28,14 +28,6 @@ func Readlink(name string) (string, error) {
 	}
 }
 
-func rename(oldname, newname string) error {
-	e := syscall.Rename(oldname, newname)
-	if e != nil {
-		return &LinkError{"rename", oldname, newname, e}
-	}
-	return nil
-}
-
 // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
 func syscallMode(i FileMode) (o uint32) {
 	o |= uint32(i.Perm())
@@ -122,7 +114,7 @@ func (f *File) Truncate(size int64) error {
 // Sync commits the current contents of the file to stable storage.
 // Typically, this means flushing the file system's in-memory copy
 // of recently written data to disk.
-func (f *File) Sync() (err error) {
+func (f *File) Sync() error {
 	if f == nil {
 		return ErrInvalid
 	}

@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 // Test that fields hide promoted methods.
-// http://golang.org/issue/4365
+// https://golang.org/issue/4365
 
 package main
 

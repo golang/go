@@ -14,6 +14,10 @@ package syscall
 
 import "unsafe"
 
+// Implemented in asm_solaris_amd64.s.
+func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
 type SockaddrDatalink struct {
 	Family uint16
 	Index  uint16
@@ -35,7 +39,7 @@ func clen(n []byte) int {
 }
 
 // ParseDirent parses up to max directory entries in buf,
-// appending the names to names.  It returns the number
+// appending the names to names. It returns the number
 // bytes consumed from buf, the number of entries added
 // to names, and the new names slice.
 func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
@@ -138,12 +142,23 @@ func Getsockname(fd int) (sa Sockaddr, err error) {
 	return anyToSockaddr(&rsa)
 }
 
-// The const provides a compile-time constant so clients
-// can adjust to whether there is a working Getwd and avoid
-// even linking this function into the binary.  See ../os/getwd.go.
-const ImplementsGetwd = false
+const ImplementsGetwd = true
 
-func Getwd() (string, error) { return "", ENOTSUP }
+//sys	Getcwd(buf []byte) (n int, err error)
+
+func Getwd() (wd string, err error) {
+	var buf [PathMax]byte
+	// Getcwd will return an error if it failed for any reason.
+	_, err = Getcwd(buf[0:])
+	if err != nil {
+		return "", err
+	}
+	n := clen(buf[:])
+	if n < 1 {
+		return "", EINVAL
+	}
+	return string(buf[:n]), nil
+}
 
 /*
  * Wrapped
@@ -161,7 +176,7 @@ func Getgroups() (gids []int, err error) {
 		return nil, nil
 	}
 
-	// Sanity check group count.  Max is 16 on BSD.
+	// Sanity check group count. Max is 16 on BSD.
 	if n < 0 || n > 1000 {
 		return nil, EINVAL
 	}
@@ -283,7 +298,7 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 
 // FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
 func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
-	_, _, e1 := sysvicall6(procfcntl.Addr(), 3, uintptr(fd), uintptr(cmd), uintptr(unsafe.Pointer(lk)), 0, 0, 0)
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_fcntl)), 3, uintptr(fd), uintptr(cmd), uintptr(unsafe.Pointer(lk)), 0, 0, 0)
 	if e1 != 0 {
 		return e1
 	}
@@ -469,6 +484,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 //sys	Rename(from string, to string) (err error)
 //sys	Rmdir(path string) (err error)
 //sys	Seek(fd int, offset int64, whence int) (newoffset int64, err error) = lseek
+//sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = libsendfile.sendfile
 //sysnb	Setegid(egid int) (err error)
 //sysnb	Seteuid(euid int) (err error)
 //sysnb	Setgid(gid int) (err error)
@@ -505,7 +521,7 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.recvmsg
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := sysvicall6(procread.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_read)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = e1
@@ -514,7 +530,7 @@ func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
 }
 
 func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
-	r0, _, e1 := sysvicall6(procwrite.Addr(), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_write)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
 	n = int(r0)
 	if e1 != 0 {
 		err = e1

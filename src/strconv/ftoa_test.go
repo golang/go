@@ -18,7 +18,7 @@ type ftoaTest struct {
 	s    string
 }
 
-func fdiv(a, b float64) float64 { return a / b } // keep compiler in the dark
+func fdiv(a, b float64) float64 { return a / b }
 
 const (
 	below1e23 = 99999999999999974834176
@@ -94,8 +94,8 @@ var ftoatests = []ftoaTest{
 	{above1e23, 'f', -1, "100000000000000010000000"},
 	{above1e23, 'g', -1, "1.0000000000000001e+23"},
 
-	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},
-	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"},
+	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
+	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
 
 	{32, 'g', -1, "32"},
 	{32, 'g', 0, "3e+01"},
@@ -227,6 +227,7 @@ func BenchmarkAppendFloatNegExp(b *testing.B)  { benchmarkAppendFloat(b, -5.11e-
 func BenchmarkAppendFloatBig(b *testing.B) {
 	benchmarkAppendFloat(b, 123456789123456789123456789, 'g', -1, 64)
 }
+func BenchmarkAppendFloatBinaryExp(b *testing.B) { benchmarkAppendFloat(b, -1, 'b', -1, 64) }
 
 func BenchmarkAppendFloat32Integer(b *testing.B)       { benchmarkAppendFloat(b, 33909, 'g', -1, 32) }
 func BenchmarkAppendFloat32ExactFraction(b *testing.B) { benchmarkAppendFloat(b, 3.375, 'g', -1, 32) }

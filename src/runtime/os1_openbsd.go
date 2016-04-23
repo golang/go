@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	_ESRCH       = 3
@@ -19,8 +22,12 @@ const (
 	_CLOCK_MONOTONIC = 3
 )
 
-var sigset_none = uint32(0)
-var sigset_all = ^sigset_none
+type sigset uint32
+
+const (
+	sigset_none = sigset(0)
+	sigset_all  = ^sigset(0)
+)
 
 // From OpenBSD's <sys/sysctl.h>
 const (
@@ -42,8 +49,7 @@ func getncpu() int32 {
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	return 1
+func semacreate(mp *m) {
 }
 
 //go:nosplit
@@ -62,25 +68,22 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		// spin-mutex lock
-		for {
-			if xchg(&_g_.m.waitsemalock, 1) == 0 {
-				break
+		v := atomic.Load(&_g_.m.waitsemacount)
+		if v > 0 {
+			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
+				return 0 // semaphore acquired
 			}
-			osyield()
+			continue
 		}
 
-		if _g_.m.waitsemacount != 0 {
-			// semaphore is available.
-			_g_.m.waitsemacount--
-			// spin-mutex unlock
-			atomicstore(&_g_.m.waitsemalock, 0)
-			return 0 // semaphore acquired
-		}
-
-		// sleep until semaphore != 0 or timeout.
-		// thrsleep unlocks m.waitsemalock.
-		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, uintptr(unsafe.Pointer(&_g_.m.waitsemalock)), (*int32)(unsafe.Pointer(&_g_.m.waitsemacount)))
+		// Sleep until woken by semawakeup or timeout; or abort if waitsemacount != 0.
+		//
+		// From OpenBSD's __thrsleep(2) manual:
+		// "The abort argument, if not NULL, points to an int that will
+		// be examined [...] immediately before blocking. If that int
+		// is non-zero then __thrsleep() will immediately return EINTR
+		// without blocking."
+		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &_g_.m.waitsemacount)
 		if ret == _EWOULDBLOCK {
 			return -1
 		}
@@ -89,14 +92,7 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	// spin-mutex lock
-	for {
-		if xchg(&mp.waitsemalock, 1) == 0 {
-			break
-		}
-		osyield()
-	}
-	mp.waitsemacount++
+	atomic.Xadd(&mp.waitsemacount, 1)
 	ret := thrwakeup(uintptr(unsafe.Pointer(&mp.waitsemacount)), 1)
 	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.
@@ -104,16 +100,14 @@ func semawakeup(mp *m) {
 			print("thrwakeup addr=", &mp.waitsemacount, " sem=", mp.waitsemacount, " ret=", ret, "\n")
 		})
 	}
-	// spin-mutex unlock
-	atomicstore(&mp.waitsemalock, 0)
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
-
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
@@ -127,9 +121,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -_ENOTSUP {
-			print("runtime: is kern.rthreads disabled?\n")
-		}
 		throw("runtime.newosproc")
 	}
 }
@@ -144,7 +135,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
 func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -159,6 +150,21 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+//go:nosplit
+func msigsave(mp *m) {
+	mp.sigmask = sigprocmask(_SIG_BLOCK, 0)
+}
+
+//go:nosplit
+func msigrestore(sigmask sigset) {
+	sigprocmask(_SIG_SETMASK, sigmask)
+}
+
+//go:nosplit
+func sigblock() {
+	sigprocmask(_SIG_SETMASK, sigset_all)
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -168,13 +174,38 @@ func minit() {
 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
 
 	// Initialize signal handling
-	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
-	sigprocmask(_SIG_SETMASK, sigset_none)
+	var st stackt
+	sigaltstack(nil, &st)
+	if st.ss_flags&_SS_DISABLE != 0 {
+		signalstack(&_g_.m.gsignal.stack)
+		_g_.m.newSigstack = true
+	} else {
+		// Use existing signal stack.
+		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+		_g_.m.gsignal.stack.lo = stsp
+		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+		_g_.m.gsignal.stackAlloc = st.ss_size
+		_g_.m.newSigstack = false
+	}
+
+	// restore signal mask from m.sigmask and unblock essential signals
+	nmask := _g_.m.sigmask
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			nmask &^= 1 << (uint32(i) - 1)
+		}
+	}
+	sigprocmask(_SIG_SETMASK, nmask)
 }
 
 // Called from dropm to undo the effect of an minit.
+//go:nosplit
 func unminit() {
-	signalstack(nil, 0)
+	if getg().m.newSigstack {
+		signalstack(nil)
+	}
 }
 
 func memlimit() uintptr {
@@ -189,13 +220,15 @@ type sigactiont struct {
 	sa_flags     int32
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsig(i int32, fn uintptr, restart bool) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
 	if restart {
 		sa.sa_flags |= _SA_RESTART
 	}
-	sa.sa_mask = sigset_all
+	sa.sa_mask = uint32(sigset_all)
 	if fn == funcPC(sighandler) {
 		fn = funcPC(sigtramp)
 	}
@@ -203,10 +236,14 @@ func setsig(i int32, fn uintptr, restart bool) {
 	sigaction(i, &sa, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsigstack(i int32) {
 	throw("setsigstack")
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func getsig(i int32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
@@ -216,18 +253,26 @@ func getsig(i int32) uintptr {
 	return sa.sa_sigaction
 }
 
-func signalstack(p *byte, n int32) {
+//go:nosplit
+func signalstack(s *stack) {
 	var st stackt
-
-	st.ss_sp = uintptr(unsafe.Pointer(p))
-	st.ss_size = uintptr(n)
-	st.ss_flags = 0
-	if p == nil {
+	if s == nil {
 		st.ss_flags = _SS_DISABLE
+	} else {
+		st.ss_sp = s.lo
+		st.ss_size = s.hi - s.lo
+		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	sigprocmask(_SIG_SETMASK, sigset_none)
+//go:nosplit
+//go:nowritebarrierrec
+func updatesigmask(m sigmask) {
+	sigprocmask(_SIG_SETMASK, sigset(m[0]))
+}
+
+func unblocksig(sig int32) {
+	mask := sigset(1) << (uint32(sig) - 1)
+	sigprocmask(_SIG_UNBLOCK, mask)
 }

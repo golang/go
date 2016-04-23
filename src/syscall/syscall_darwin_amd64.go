@@ -28,7 +28,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sysnb	gettimeofday(tp *Timeval) (sec int64, usec int32, err error)
 func Gettimeofday(tv *Timeval) (err error) {
 	// The tv passed to gettimeofday must be non-nil
-	// but is otherwise unused.  The answers come back
+	// but is otherwise unused. The answers come back
 	// in the two registers.
 	sec, usec, err := gettimeofday(tv)
 	tv.Sec = sec
@@ -67,4 +67,4 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return
 }
 
-func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) // sic
+func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

@@ -13,7 +13,7 @@ func isSlash(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) (b bool) {
 	l := volumeNameLen(path)
 	if l == 0 {
@@ -120,6 +120,11 @@ func join(elem []string) string {
 
 // joinNonEmpty is like join, but it assumes that the first element is non-empty.
 func joinNonEmpty(elem []string) string {
+	if len(elem[0]) == 2 && elem[0][1] == ':' {
+		// First element is drive letter without terminating slash.
+		// Keep path relative to current directory on that drive.
+		return Clean(elem[0] + strings.Join(elem[1:], string(Separator)))
+	}
 	// The following logic prevents Join from inadvertently creating a
 	// UNC path on Windows. Unless the first element is a UNC path, Join
 	// shouldn't create a UNC path. See golang.org/issue/9167.
@@ -141,7 +146,11 @@ func joinNonEmpty(elem []string) string {
 	return head + string(Separator) + tail
 }
 
-// isUNC returns true if path is a UNC path.
+// isUNC reports whether path is a UNC path.
 func isUNC(path string) bool {
 	return volumeNameLen(path) > 2
+}
+
+func sameWord(a, b string) bool {
+	return strings.EqualFold(a, b)
 }

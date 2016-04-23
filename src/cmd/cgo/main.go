@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 
 // TODO(rsc):
 //	Emit correct line number annotations.
-//	Make 6g understand the annotations.
+//	Make gc understand the annotations.
 
 package main
 
@@ -33,6 +33,7 @@ type Package struct {
 	PtrSize     int64
 	IntSize     int64
 	GccOptions  []string
+	GccIsClang  bool
 	CgoFlags    map[string][]string // #cgo flags (CFLAGS, LDFLAGS)
 	Written     map[string]bool
 	Name        map[string]*Name // accumulated Name from Files
@@ -41,6 +42,7 @@ type Package struct {
 	GoFiles     []string // list of Go files
 	GccFiles    []string // list of gcc output files
 	Preamble    string   // collected preamble for _cgo_export.h
+	CgoChecks   []string // see unsafeCheckPointerName
 }
 
 // A File collects information about a single Go input file.
@@ -50,6 +52,7 @@ type File struct {
 	Package  string              // Package name
 	Preamble string              // C preamble (doc comment on import "C")
 	Ref      []*Ref              // all references to C.xxx in AST
+	Calls    []*ast.CallExpr     // all calls to C.xxx in AST
 	ExpFunc  []*ExpFunc          // exported functions for this file
 	Name     map[string]*Name    // map from Go name to Name
 }
@@ -87,7 +90,7 @@ type Name struct {
 	Const    string // constant definition
 }
 
-// IsVar returns true if Kind is either "var" or "fpvar"
+// IsVar reports whether Kind is either "var" or "fpvar"
 func (n *Name) IsVar() bool {
 	return n.Kind == "var" || n.Kind == "fpvar"
 }
@@ -98,6 +101,7 @@ func (n *Name) IsVar() bool {
 type ExpFunc struct {
 	Func    *ast.FuncDecl
 	ExpName string // name to use from C
+	Doc     string
 }
 
 // A TypeRepr contains the string representation of a type.
@@ -130,23 +134,29 @@ func usage() {
 }
 
 var ptrSizeMap = map[string]int64{
-	"386":     4,
-	"amd64":   8,
-	"arm":     4,
-	"ppc64":   8,
-	"ppc64le": 8,
-	"s390":    4,
-	"s390x":   8,
+	"386":      4,
+	"amd64":    8,
+	"arm":      4,
+	"arm64":    8,
+	"mips64":   8,
+	"mips64le": 8,
+	"ppc64":    8,
+	"ppc64le":  8,
+	"s390":     4,
+	"s390x":    8,
 }
 
 var intSizeMap = map[string]int64{
-	"386":     4,
-	"amd64":   8,
-	"arm":     4,
-	"ppc64":   8,
-	"ppc64le": 8,
-	"s390":    4,
-	"s390x":   4,
+	"386":      4,
+	"amd64":    8,
+	"arm":      4,
+	"arm64":    8,
+	"mips64":   8,
+	"mips64le": 8,
+	"ppc64":    8,
+	"ppc64le":  8,
+	"s390":     4,
+	"s390x":    8,
 }
 
 var cPrefix string
@@ -158,11 +168,14 @@ var dynout = flag.String("dynout", "", "write -dynimport output to this file")
 var dynpackage = flag.String("dynpackage", "main", "set Go package for -dynimport output")
 var dynlinker = flag.Bool("dynlinker", false, "record dynamic linker information in -dynimport mode")
 
-// These flags are for bootstrapping a new Go implementation,
+// This flag is for bootstrapping a new Go implementation,
 // to generate Go types that match the data layout and
 // constant values used in the host's C libraries and system calls.
 var godefs = flag.Bool("godefs", false, "for bootstrap: write Go definitions for C file to standard output")
+
 var objDir = flag.String("objdir", "", "object directory")
+var importPath = flag.String("importpath", "", "import path of package being built (for comments in generated files)")
+var exportHeader = flag.String("exportheader", "", "where to write export header if any exported functions")
 
 var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
@@ -177,9 +190,9 @@ func main() {
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command
-		// built into the cgo binary.  It scans a gcc-produced executable
+		// built into the cgo binary. It scans a gcc-produced executable
 		// and dumps information about the imported symbols and the
-		// imported libraries.  The 'go build' rules for cgo prepare an
+		// imported libraries. The 'go build' rules for cgo prepare an
 		// appropriate executable and then use its import information
 		// instead of needing to make the linkers duplicate all the
 		// specialized knowledge gcc has about where to look for imported
@@ -272,11 +285,7 @@ func main() {
 		if nerrors > 0 {
 			os.Exit(2)
 		}
-		pkg := f.Package
-		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
-			pkg = filepath.Join(dir, pkg)
-		}
-		p.PackagePath = pkg
+		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
 			os.Stdout.WriteString(p.godefs(f, input))

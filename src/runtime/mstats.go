@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,13 +6,17 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Statistics.
-// Shared with Go: if you edit this structure, also edit type MemStats in mem.go.
+// If you edit this structure, also edit type MemStats below.
 type mstats struct {
 	// General statistics.
-	alloc       uint64 // bytes allocated and still in use
+	alloc       uint64 // bytes allocated and not yet freed
 	total_alloc uint64 // bytes allocated (even if freed)
 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
 	nlookup     uint64 // number of pointer lookups
@@ -21,7 +25,7 @@ type mstats struct {
 
 	// Statistics about malloc heap.
 	// protected by mheap.lock
-	heap_alloc    uint64 // bytes allocated and still in use
+	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      uint64 // bytes obtained from system
 	heap_idle     uint64 // bytes in idle spans
 	heap_inuse    uint64 // bytes in non-idle spans
@@ -42,14 +46,15 @@ type mstats struct {
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
-	next_gc        uint64 // next gc (in heap_alloc time)
-	last_gc        uint64 // last gc (in absolute time)
-	pause_total_ns uint64
-	pause_ns       [256]uint64 // circular buffer of recent gc pause lengths
-	pause_end      [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
-	numgc          uint32
-	enablegc       bool
-	debuggc        bool
+	next_gc         uint64 // next gc (in heap_live time)
+	last_gc         uint64 // last gc (in absolute time)
+	pause_total_ns  uint64
+	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
+	pause_end       [256]uint64 // circular buffer of recent gc end times (nanoseconds since 1970)
+	numgc           uint32
+	gc_cpu_fraction float64 // fraction of CPU time used by GC
+	enablegc        bool
+	debuggc         bool
 
 	// Statistics about allocation size classes.
 
@@ -59,18 +64,58 @@ type mstats struct {
 		nfree   uint64
 	}
 
+	// Statistics below here are not exported to Go directly.
+
 	tinyallocs uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+
+	// heap_live is the number of bytes considered live by the GC.
+	// That is: retained by the most recent GC plus allocated
+	// since then. heap_live <= heap_alloc, since heap_alloc
+	// includes unmarked objects that have not yet been swept (and
+	// hence goes up as we allocate and down as we sweep) while
+	// heap_live excludes these objects (and hence only goes up
+	// between GCs).
+	//
+	// This is updated atomically without locking. To reduce
+	// contention, this is updated only when obtaining a span from
+	// an mcentral and at this point it counts all of the
+	// unallocated slots in that span (which will be allocated
+	// before that mcache obtains another span from that
+	// mcentral). Hence, it slightly overestimates the "true" live
+	// heap size. It's better to overestimate than to
+	// underestimate because 1) this triggers the GC earlier than
+	// necessary rather than potentially too late and 2) this
+	// leads to a conservative GC rate rather than a GC rate that
+	// is potentially too low.
+	//
+	// Whenever this is updated, call traceHeapAlloc() and
+	// gcController.revise().
+	heap_live uint64
+
+	// heap_scan is the number of bytes of "scannable" heap. This
+	// is the live heap (as counted by heap_live), but omitting
+	// no-scan objects and no-scan tails of objects.
+	//
+	// Whenever this is updated, call gcController.revise().
+	heap_scan uint64
+
+	// heap_marked is the number of bytes marked by the previous
+	// GC. After mark termination, heap_live == heap_marked, but
+	// unlike heap_live, heap_marked does not change until the
+	// next mark termination.
+	heap_marked uint64
+
+	// heap_reachable is an estimate of the reachable heap bytes
+	// at the end of the previous GC.
+	heap_reachable uint64
 }
 
 var memstats mstats
 
-// Note: the MemStats struct should be kept in sync with
-// struct MStats in malloc.h
-
 // A MemStats records statistics about the memory allocator.
 type MemStats struct {
 	// General statistics.
-	Alloc      uint64 // bytes allocated and still in use
+	Alloc      uint64 // bytes allocated and not yet freed
 	TotalAlloc uint64 // bytes allocated (even if freed)
 	Sys        uint64 // bytes obtained from system (sum of XxxSys below)
 	Lookups    uint64 // number of pointer lookups
@@ -78,7 +123,7 @@ type MemStats struct {
 	Frees      uint64 // number of frees
 
 	// Main allocation heap statistics.
-	HeapAlloc    uint64 // bytes allocated and still in use
+	HeapAlloc    uint64 // bytes allocated and not yet freed (same as Alloc above)
 	HeapSys      uint64 // bytes obtained from system
 	HeapIdle     uint64 // bytes in idle spans
 	HeapInuse    uint64 // bytes in non-idle span
@@ -99,14 +144,15 @@ type MemStats struct {
 	OtherSys    uint64 // other system allocations
 
 	// Garbage collector statistics.
-	NextGC       uint64 // next collection will happen when HeapAlloc ≥ this amount
-	LastGC       uint64 // end time of last collection (nanoseconds since 1970)
-	PauseTotalNs uint64
-	PauseNs      [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
-	PauseEnd     [256]uint64 // circular buffer of recent GC pause end times
-	NumGC        uint32
-	EnableGC     bool
-	DebugGC      bool
+	NextGC        uint64 // next collection will happen when HeapAlloc ≥ this amount
+	LastGC        uint64 // end time of last collection (nanoseconds since 1970)
+	PauseTotalNs  uint64
+	PauseNs       [256]uint64 // circular buffer of recent GC pause durations, most recent at [(NumGC+255)%256]
+	PauseEnd      [256]uint64 // circular buffer of recent GC pause end times
+	NumGC         uint32
+	GCCPUFraction float64 // fraction of CPU time used by GC
+	EnableGC      bool
+	DebugGC       bool
 
 	// Per-size allocation statistics.
 	// 61 is NumSizeClasses in the C code.
@@ -119,7 +165,7 @@ type MemStats struct {
 
 // Size of the trailing by_size array differs between Go and C,
 // and all data after by_size is local to runtime, not exported.
-// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+// NumSizeClasses was changed, but we cannot change Go struct because of backward compatibility.
 // sizeof_C_MStats is what C thinks about size of Go struct.
 var sizeof_C_MStats = unsafe.Offsetof(memstats.by_size) + 61*unsafe.Sizeof(memstats.by_size[0])
 
@@ -133,35 +179,24 @@ func init() {
 
 // ReadMemStats populates m with memory allocator statistics.
 func ReadMemStats(m *MemStats) {
-	// Have to acquire worldsema to stop the world,
-	// because stoptheworld can only be used by
-	// one goroutine at a time, and there might be
-	// a pending garbage collection already calling it.
-	semacquire(&worldsema, false)
-	gp := getg()
-	gp.m.preemptoff = "read mem stats"
-	systemstack(stoptheworld)
+	stopTheWorld("read mem stats")
 
 	systemstack(func() {
 		readmemstats_m(m)
 	})
 
-	gp.m.preemptoff = ""
-	gp.m.locks++
-	semrelease(&worldsema)
-	systemstack(starttheworld)
-	gp.m.locks--
+	startTheWorld()
 }
 
 func readmemstats_m(stats *MemStats) {
 	updatememstats(nil)
 
 	// Size of the trailing by_size array differs between Go and C,
-	// NumSizeClasses was changed, but we can not change Go struct because of backward compatibility.
+	// NumSizeClasses was changed, but we cannot change Go struct because of backward compatibility.
 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
 
 	// Stack numbers are part of the heap numbers, separate those out for user consumption
-	stats.StackSys = stats.StackInuse
+	stats.StackSys += stats.StackInuse
 	stats.HeapInuse -= stats.StackInuse
 	stats.HeapSys -= stats.StackInuse
 }
@@ -274,13 +309,13 @@ func updatememstats(stats *gcstats) {
 		memstats.nfree += mheap_.nsmallfree[i]
 		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
 		memstats.by_size[i].nmalloc += mheap_.nsmallfree[i]
-		smallfree += uint64(mheap_.nsmallfree[i]) * uint64(class_to_size[i])
+		smallfree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
 	}
 	memstats.nfree += memstats.tinyallocs
 	memstats.nmalloc += memstats.nfree
 
 	// Calculate derived stats.
-	memstats.total_alloc = uint64(memstats.alloc) + uint64(mheap_.largefree) + smallfree
+	memstats.total_alloc = memstats.alloc + mheap_.largefree + smallfree
 	memstats.heap_alloc = memstats.alloc
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }
@@ -311,7 +346,7 @@ func flushallmcaches() {
 		if c == nil {
 			continue
 		}
-		mCache_ReleaseAll(c)
+		c.releaseAll()
 		stackcache_clear(c)
 	}
 }
@@ -320,11 +355,8 @@ func flushallmcaches() {
 func purgecachedstats(c *mcache) {
 	// Protected by either heap or GC lock.
 	h := &mheap_
-	memstats.heap_alloc += uint64(c.local_cachealloc)
-	c.local_cachealloc = 0
-	if trace.enabled {
-		traceHeapAlloc()
-	}
+	memstats.heap_scan += uint64(c.local_scan)
+	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)
 	c.local_tinyallocs = 0
 	memstats.nlookup += uint64(c.local_nlookup)
@@ -336,5 +368,43 @@ func purgecachedstats(c *mcache) {
 	for i := 0; i < len(c.local_nsmallfree); i++ {
 		h.nsmallfree[i] += uint64(c.local_nsmallfree[i])
 		c.local_nsmallfree[i] = 0
+	}
+}
+
+// Atomically increases a given *system* memory stat. We are counting on this
+// stat never overflowing a uintptr, so this function must only be used for
+// system memory stats.
+//
+// The current implementation for little endian architectures is based on
+// xadduintptr(), which is less than ideal: xadd64() should really be used.
+// Using xadduintptr() is a stop-gap solution until arm supports xadd64() that
+// doesn't use locks.  (Locks are a problem as they require a valid G, which
+// restricts their useability.)
+//
+// A side-effect of using xadduintptr() is that we need to check for
+// overflow errors.
+//go:nosplit
+func mSysStatInc(sysStat *uint64, n uintptr) {
+	if sys.BigEndian != 0 {
+		atomic.Xadd64(sysStat, int64(n))
+		return
+	}
+	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
+		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
+		exit(2)
+	}
+}
+
+// Atomically decreases a given *system* memory stat. Same comments as
+// mSysStatInc apply.
+//go:nosplit
+func mSysStatDec(sysStat *uint64, n uintptr) {
+	if sys.BigEndian != 0 {
+		atomic.Xadd64(sysStat, -int64(n))
+		return
+	}
+	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
+		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
+		exit(2)
 	}
 }

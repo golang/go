@@ -134,3 +134,58 @@ func BenchmarkMutexWork(b *testing.B) {
 func BenchmarkMutexWorkSlack(b *testing.B) {
 	benchmarkMutex(b, true, true)
 }
+
+func BenchmarkMutexNoSpin(b *testing.B) {
+	// This benchmark models a situation where spinning in the mutex should be
+	// non-profitable and allows to confirm that spinning does not do harm.
+	// To achieve this we create excess of goroutines most of which do local work.
+	// These goroutines yield during local work, so that switching from
+	// a blocked goroutine to other goroutines is profitable.
+	// As a matter of fact, this benchmark still triggers some spinning in the mutex.
+	var m Mutex
+	var acc0, acc1 uint64
+	b.SetParallelism(4)
+	b.RunParallel(func(pb *testing.PB) {
+		c := make(chan bool)
+		var data [4 << 10]uint64
+		for i := 0; pb.Next(); i++ {
+			if i%4 == 0 {
+				m.Lock()
+				acc0 -= 100
+				acc1 += 100
+				m.Unlock()
+			} else {
+				for i := 0; i < len(data); i += 4 {
+					data[i]++
+				}
+				// Elaborate way to say runtime.Gosched
+				// that does not put the goroutine onto global runq.
+				go func() {
+					c <- true
+				}()
+				<-c
+			}
+		}
+	})
+}
+
+func BenchmarkMutexSpin(b *testing.B) {
+	// This benchmark models a situation where spinning in the mutex should be
+	// profitable. To achieve this we create a goroutine per-proc.
+	// These goroutines access considerable amount of local data so that
+	// unnecessary rescheduling is penalized by cache misses.
+	var m Mutex
+	var acc0, acc1 uint64
+	b.RunParallel(func(pb *testing.PB) {
+		var data [16 << 10]uint64
+		for i := 0; pb.Next(); i++ {
+			m.Lock()
+			acc0 -= 100
+			acc1 += 100
+			m.Unlock()
+			for i := 0; i < len(data); i += 4 {
+				data[i]++
+			}
+		}
+	})
+}

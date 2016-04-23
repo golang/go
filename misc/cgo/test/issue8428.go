@@ -20,6 +20,7 @@ struct issue8428two {
 	void *p;
 	char b;
 	char rest[0];
+	char pad;
 };
 
 struct issue8428three {
@@ -34,8 +35,10 @@ import "C"
 import "unsafe"
 
 var _ = C.struct_issue8428one{
-	b:    C.char(0),
-	rest: [0]C.char{},
+	b: C.char(0),
+	// The trailing rest field is not available in cgo.
+	// See issue 11925.
+	// rest: [0]C.char{},
 }
 
 var _ = C.struct_issue8428two{

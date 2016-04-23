@@ -5,6 +5,7 @@
 package lzw
 
 import (
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,6 +14,7 @@ import (
 )
 
 var filenames = []string{
+	"../testdata/gettysburg.txt",
 	"../testdata/e.txt",
 	"../testdata/pi.txt",
 }
@@ -89,9 +91,15 @@ func TestWriter(t *testing.T) {
 	for _, filename := range filenames {
 		for _, order := range [...]Order{LSB, MSB} {
 			// The test data "2.71828 etcetera" is ASCII text requiring at least 6 bits.
-			for _, litWidth := range [...]int{6, 7, 8} {
+			for litWidth := 6; litWidth <= 8; litWidth++ {
+				if filename == "../testdata/gettysburg.txt" && litWidth == 6 {
+					continue
+				}
 				testFile(t, filename, order, litWidth)
 			}
+		}
+		if testing.Short() && testenv.Builder() == "" {
+			break
 		}
 	}
 }
@@ -101,6 +109,16 @@ func TestWriterReturnValues(t *testing.T) {
 	n, err := w.Write([]byte("asdf"))
 	if n != 4 || err != nil {
 		t.Errorf("got %d, %v, want 4, nil", n, err)
+	}
+}
+
+func TestSmallLitWidth(t *testing.T) {
+	w := NewWriter(ioutil.Discard, LSB, 2)
+	if _, err := w.Write([]byte{0x03}); err != nil {
+		t.Fatalf("write a byte < 1<<2: %v", err)
+	}
+	if _, err := w.Write([]byte{0x04}); err == nil {
+		t.Fatal("write a byte >= 1<<2: got nil error, want non-nil")
 	}
 }
 

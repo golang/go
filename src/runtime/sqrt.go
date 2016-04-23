@@ -3,14 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Copy of math/sqrt.go, here for use by ARM softfloat.
+// Modified to not use any floating point arithmetic so
+// that we don't clobber any floating-point registers
+// while emulating the sqrt instruction.
 
 package runtime
 
-import "unsafe"
-
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -89,25 +90,34 @@ const (
 	float64Mask  = 0x7FF
 	float64Shift = 64 - 11 - 1
 	float64Bias  = 1023
+	float64NaN   = 0x7FF8000000000001
+	float64Inf   = 0x7FF0000000000000
 	maxFloat64   = 1.797693134862315708145274237317043567981e+308 // 2**1023 * (2**53 - 1) / 2**52
 )
 
-func float64bits(f float64) uint64     { return *(*uint64)(unsafe.Pointer(&f)) }
-func float64frombits(b uint64) float64 { return *(*float64)(unsafe.Pointer(&b)) }
+// isnanu returns whether ix represents a NaN floating point number.
+func isnanu(ix uint64) bool {
+	exp := (ix >> float64Shift) & float64Mask
+	sig := ix << (64 - float64Shift) >> (64 - float64Shift)
+	return exp == float64Mask && sig != 0
+}
 
-func sqrt(x float64) float64 {
+func sqrt(ix uint64) uint64 {
 	// special cases
 	switch {
-	case x == 0 || x != x || x > maxFloat64:
-		return x
-	case x < 0:
-		return nan()
+	case ix == 0 || ix == 1<<63: // x == 0
+		return ix
+	case isnanu(ix): // x != x
+		return ix
+	case ix&(1<<63) != 0: // x < 0
+		return float64NaN
+	case ix == float64Inf: // x > MaxFloat
+		return ix
 	}
-	ix := float64bits(x)
 	// normalize x
 	exp := int((ix >> float64Shift) & float64Mask)
 	if exp == 0 { // subnormal x
-		for ix&1<<float64Shift == 0 {
+		for ix&(1<<float64Shift) == 0 {
 			ix <<= 1
 			exp--
 		}
@@ -139,5 +149,5 @@ func sqrt(x float64) float64 {
 		q += q & 1 // round according to extra bit
 	}
 	ix = q>>1 + uint64(exp-1+float64Bias)<<float64Shift // significand + biased exponent
-	return float64frombits(ix)
+	return ix
 }

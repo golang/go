@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -159,14 +159,28 @@ call:
 ret:
 	RET
 
+// func runtime·racefuncenterfp(fp uintptr)
+// Called from instrumented code.
+// Like racefuncenter but passes FP, not PC
+TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
+	MOVQ	fp+0(FP), R11
+	MOVQ	-8(R11), R11
+	JMP	racefuncenter<>(SB)
+
 // func runtime·racefuncenter(pc uintptr)
 // Called from instrumented code.
 TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+	MOVQ	callpc+0(FP), R11
+	JMP	racefuncenter<>(SB)
+
+// Common code for racefuncenter/racefuncenterfp
+// R11 = caller's return address
+TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 	MOVQ	DX, R15		// save function entry context (for closures)
 	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
-	MOVQ	callpc+0(FP), RARG1
+	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
 	MOVQ	$__tsan_func_enter(SB), AX
 	// racecall<> preserves R15

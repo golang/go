@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,11 +14,11 @@ import (
 func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, ifi.Index)
 	if err != nil {
-		return nil, os.NewSyscallError("route rib", err)
+		return nil, os.NewSyscallError("routerib", err)
 	}
 	msgs, err := syscall.ParseRoutingMessage(tab)
 	if err != nil {
-		return nil, os.NewSyscallError("route message", err)
+		return nil, os.NewSyscallError("parseroutingmessage", err)
 	}
 	var ifmat []Addr
 	for _, m := range msgs {
@@ -41,7 +41,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) (*IPAddr, error) {
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
-		return nil, os.NewSyscallError("route sockaddr", err)
+		return nil, os.NewSyscallError("parseroutingsockaddr", err)
 	}
 	switch sa := sas[syscall.RTAX_IFA].(type) {
 	case *syscall.SockaddrInet4:
@@ -49,7 +49,7 @@ func newMulticastAddr(ifi *Interface, m *syscall.InterfaceMulticastAddrMessage) 
 	case *syscall.SockaddrInet6:
 		ifma := IPAddr{IP: make(IP, IPv6len)}
 		copy(ifma.IP, sa.Addr[:])
-		// NOTE: KAME based IPv6 protcol stack usually embeds
+		// NOTE: KAME based IPv6 protocol stack usually embeds
 		// the interface index in the interface-local or
 		// link-local address as the kernel-internal form.
 		if ifma.IP.IsInterfaceLocalMulticast() || ifma.IP.IsLinkLocalMulticast() {

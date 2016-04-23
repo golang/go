@@ -56,6 +56,9 @@ func (r *request) parseParams() {
 			return
 		}
 		text = text[n:]
+		if int(keyLen)+int(valLen) > len(text) {
+			return
+		}
 		key := readString(text, keyLen)
 		text = text[keyLen:]
 		val := readString(text, valLen)
@@ -289,6 +292,8 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
 }
 
 func (c *child) cleanUp() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, req := range c.requests {
 		if req.pw != nil {
 			// race with call to Close in c.serveRequest doesn't matter because

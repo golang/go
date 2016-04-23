@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -34,9 +34,31 @@ func (c *sigctxt) cs() uint64      { return c.regs().cs }
 func (c *sigctxt) fs() uint64      { return c.regs().fs }
 func (c *sigctxt) gs() uint64      { return c.regs().gs }
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
-func (c *sigctxt) sigaddr() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
+func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 
 func (c *sigctxt) set_rip(x uint64)     { c.regs().rip = x }
 func (c *sigctxt) set_rsp(x uint64)     { c.regs().rsp = x }
 func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
-func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x))) }
+func (c *sigctxt) set_sigaddr(x uint64) { c.info.si_addr = x }
+
+func (c *sigctxt) fixsigcode(sig uint32) {
+	switch sig {
+	case _SIGTRAP:
+		// OS X sets c.sigcode() == TRAP_BRKPT unconditionally for all SIGTRAPs,
+		// leaving no way to distinguish a breakpoint-induced SIGTRAP
+		// from an asynchronous signal SIGTRAP.
+		// They all look breakpoint-induced by default.
+		// Try looking at the code to see if it's a breakpoint.
+		// The assumption is that we're very unlikely to get an
+		// asynchronous SIGTRAP at just the moment that the
+		// PC started to point at unmapped memory.
+		pc := uintptr(c.rip())
+		// OS X will leave the pc just after the INT 3 instruction.
+		// INT 3 is usually 1 byte, but there is a 2-byte form.
+		code := (*[2]byte)(unsafe.Pointer(pc - 2))
+		if code[1] != 0xCC && (code[0] != 0xCD || code[1] != 3) {
+			// SIGTRAP on something other than INT 3.
+			c.set_sigcode(_SI_USER)
+		}
+	}
+}

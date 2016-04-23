@@ -8,6 +8,7 @@ package cgi
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -487,12 +489,53 @@ func TestEnvOverride(t *testing.T) {
 		Args: []string{cgifile},
 		Env: []string{
 			"SCRIPT_FILENAME=" + cgifile,
-			"REQUEST_URI=/foo/bar"},
+			"REQUEST_URI=/foo/bar",
+			"PATH=/wibble"},
 	}
 	expectedMap := map[string]string{
 		"cwd": cwd,
 		"env-SCRIPT_FILENAME": cgifile,
 		"env-REQUEST_URI":     "/foo/bar",
+		"env-PATH":            "/wibble",
 	}
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
+
+func TestHandlerStderr(t *testing.T) {
+	check(t)
+	var stderr bytes.Buffer
+	h := &Handler{
+		Path:   "testdata/test.cgi",
+		Root:   "/test.cgi",
+		Stderr: &stderr,
+	}
+
+	rw := httptest.NewRecorder()
+	req := newRequest("GET /test.cgi?writestderr=1 HTTP/1.0\nHost: example.com\n\n")
+	h.ServeHTTP(rw, req)
+	if got, want := stderr.String(), "Hello, stderr!\n"; got != want {
+		t.Errorf("Stderr = %q; want %q", got, want)
+	}
+}
+
+func TestRemoveLeadingDuplicates(t *testing.T) {
+	tests := []struct {
+		env  []string
+		want []string
+	}{
+		{
+			env:  []string{"a=b", "b=c", "a=b2"},
+			want: []string{"b=c", "a=b2"},
+		},
+		{
+			env:  []string{"a=b", "b=c", "d", "e=f"},
+			want: []string{"a=b", "b=c", "d", "e=f"},
+		},
+	}
+	for _, tt := range tests {
+		got := removeLeadingDuplicates(tt.env)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("removeLeadingDuplicates(%q) = %q; want %q", tt.env, got, tt.want)
+		}
+	}
 }

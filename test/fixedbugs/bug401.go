@@ -9,9 +9,8 @@ package main
 
 type T struct{}
 
+//go:noinline
 func (T) cplx() complex128 {
-	for false {
-	} // avoid inlining
 	return complex(1, 0)
 }
 

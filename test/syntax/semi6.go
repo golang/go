@@ -7,7 +7,5 @@
 package main
 
 type T	// ERROR "unexpected semicolon or newline in type declaration"
-{
-
-
-
+// line below uncommented to avoid follow-up error
+// {

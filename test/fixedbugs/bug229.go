@@ -14,7 +14,7 @@ func main() {
 	// make sure error mentions that
 	// name is unexported, not just "name not found".
 
-	t.name = nil	// ERROR "unexported"
+	t.common.name = nil	// ERROR "unexported"
 	
 	println(testing.anyLowercaseName("asdf"))	// ERROR "unexported" "undefined: testing.anyLowercaseName"
 }

@@ -307,3 +307,22 @@ func BenchmarkSmallKeyMap(b *testing.B) {
 		_ = m[5]
 	}
 }
+
+type ComplexAlgKey struct {
+	a, b, c int64
+	_       int
+	d       int32
+	_       int
+	e       string
+	_       int
+	f, g, h int64
+}
+
+func BenchmarkComplexAlgMap(b *testing.B) {
+	m := make(map[ComplexAlgKey]bool)
+	var k ComplexAlgKey
+	m[k] = true
+	for i := 0; i < b.N; i++ {
+		_ = m[k]
+	}
+}

@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -77,10 +77,10 @@ func UnixRights(fds ...int) []byte {
 	h.Level = SOL_SOCKET
 	h.Type = SCM_RIGHTS
 	h.SetLen(CmsgLen(datalen))
-	data := uintptr(cmsgData(h))
+	data := cmsgData(h)
 	for _, fd := range fds {
-		*(*int32)(unsafe.Pointer(data)) = int32(fd)
-		data += 4
+		*(*int32)(data) = int32(fd)
+		data = unsafe.Pointer(uintptr(data) + 4)
 	}
 	return b
 }

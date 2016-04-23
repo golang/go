@@ -256,7 +256,7 @@ var uint64pow10 = [...]uint64{
 }
 
 // AssignDecimal sets f to an approximate value mantissa*10^exp. It
-// returns true if the value represented by f is guaranteed to be the
+// reports whether the value represented by f is guaranteed to be the
 // best approximation of d after being rounded to a float64 or
 // float32 depending on flt.
 func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc bool, flt *floatInfo) (ok bool) {
@@ -311,9 +311,9 @@ func (f *extFloat) AssignDecimal(mantissa uint64, exp10 int, neg bool, trunc boo
 	var extrabits uint
 	if f.exp <= denormalExp {
 		// f.mant * 2^f.exp is smaller than 2^(flt.bias+1).
-		extrabits = uint(63 - flt.mantbits + 1 + uint(denormalExp-f.exp))
+		extrabits = 63 - flt.mantbits + 1 + uint(denormalExp-f.exp)
 	} else {
-		extrabits = uint(63 - flt.mantbits)
+		extrabits = 63 - flt.mantbits
 	}
 
 	halfway := uint64(1) << (extrabits - 1)

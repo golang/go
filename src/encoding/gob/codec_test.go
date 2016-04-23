@@ -88,7 +88,6 @@ func verifyInt(i int64, t *testing.T) {
 	encState := newEncoderState(b)
 	encState.encodeInt(i)
 	decState := newDecodeState(newDecBuffer(b.Bytes()))
-	decState.buf = make([]byte, 8)
 	j := decState.decodeInt()
 	if i != j {
 		t.Errorf("Encode/Decode: sent %#x received %#x", uint64(i), uint64(j))
@@ -127,7 +126,6 @@ var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 func newDecodeState(buf *decBuffer) *decoderState {
 	d := new(decoderState)
 	d.b = buf
-	d.buf = make([]byte, uint64Size)
 	return d
 }
 
@@ -972,7 +970,7 @@ func TestBadRecursiveType(t *testing.T) {
 	err := NewEncoder(b).Encode(&rec)
 	if err == nil {
 		t.Error("expected error; got none")
-	} else if strings.Index(err.Error(), "recursive") < 0 {
+	} else if !strings.Contains(err.Error(), "recursive") {
 		t.Error("expected recursive type error; got", err)
 	}
 	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.
@@ -1470,6 +1468,25 @@ func TestFuzzOneByte(t *testing.T) {
 				err := NewDecoder(bytes.NewReader(b)).Decode(&e)
 				_ = err
 			}()
+		}
+	}
+}
+
+// Don't crash, just give error with invalid type id.
+// Issue 9649.
+func TestErrorInvalidTypeId(t *testing.T) {
+	data := []byte{0x01, 0x00, 0x01, 0x00}
+	d := NewDecoder(bytes.NewReader(data))
+	// When running d.Decode(&foo) the first time the decoder stops
+	// after []byte{0x01, 0x00} and reports an errBadType. Running
+	// d.Decode(&foo) again on exactly the same input sequence should
+	// give another errBadType, but instead caused a panic because
+	// decoderMap wasn't cleaned up properly after the first error.
+	for i := 0; i < 2; i++ {
+		var foo struct{}
+		err := d.Decode(&foo)
+		if err != errBadType {
+			t.Fatalf("decode: expected %s, got %s", errBadType, err)
 		}
 	}
 }

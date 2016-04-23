@@ -22,7 +22,7 @@ import (
 // the subsequent tests fail.
 func TestZoneData(t *testing.T) {
 	lt := Now()
-	// PST is 8 hours west, PDT is 7 hours west.  We could use the name but it's not unique.
+	// PST is 8 hours west, PDT is 7 hours west. We could use the name but it's not unique.
 	if name, off := lt.Zone(); off != -8*60*60 && off != -7*60*60 {
 		t.Errorf("Unable to find US Pacific time zone data for testing; time zone is %q offset %d", name, off)
 		t.Error("Likely problem: the time zone files have not been installed.")
@@ -533,7 +533,7 @@ var durationTests = []struct {
 	str string
 	d   Duration
 }{
-	{"0", 0},
+	{"0s", 0},
 	{"1ns", 1 * Nanosecond},
 	{"1.1µs", 1100 * Nanosecond},
 	{"2.2ms", 2200 * Microsecond},
@@ -830,7 +830,7 @@ var parseDurationTests = []struct {
 	{"39h9m14.425s", true, 39*Hour + 9*Minute + 14*Second + 425*Millisecond},
 	// large value
 	{"52763797000ns", true, 52763797000 * Nanosecond},
-	// more than 9 digits after decimal point, see http://golang.org/issue/6617
+	// more than 9 digits after decimal point, see https://golang.org/issue/6617
 	{"0.3333333333333333333h", true, 20 * Minute},
 	// 9007199254740993 = 1<<53+1 cannot be stored precisely in a float64
 	{"9007199254740993ns", true, (1<<53 + 1) * Nanosecond},
@@ -1057,6 +1057,20 @@ func BenchmarkFormatNow(b *testing.B) {
 	t := Now()
 	for i := 0; i < b.N; i++ {
 		t.Format("Mon Jan  2 15:04:05 2006")
+	}
+}
+
+func BenchmarkMarshalJSON(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalJSON()
+	}
+}
+
+func BenchmarkMarshalText(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalText()
 	}
 }
 

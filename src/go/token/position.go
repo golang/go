@@ -24,7 +24,7 @@ type Position struct {
 	Column   int    // column number, starting at 1 (byte count)
 }
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 // String returns a string in one of several forms:
@@ -77,7 +77,7 @@ type Pos int
 //
 const NoPos Pos = 0
 
-// IsValid returns true if the position is valid.
+// IsValid reports whether the position is valid.
 func (p Pos) IsValid() bool {
 	return p != NoPos
 }
@@ -157,7 +157,7 @@ func (f *File) MergeLine(line int) {
 	f.lines = f.lines[:len(f.lines)-1]
 }
 
-// SetLines sets the line offsets for a file and returns true if successful.
+// SetLines sets the line offsets for a file and reports whether it succeeded.
 // The line offsets are the offsets of the first character of each line;
 // for instance for the content "ab\nc\n" the line offsets are {0, 3}.
 // An empty file has an empty line offset table.

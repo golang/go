@@ -20,7 +20,11 @@ import (
 // a Content-Disposition of "form-data".
 // It stores up to maxMemory bytes of the file parts in memory
 // and the remainder on disk in temporary files.
-func (r *Reader) ReadForm(maxMemory int64) (f *Form, err error) {
+func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
+	return r.readForm(maxMemory)
+}
+
+func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	form := &Form{make(map[string][]string), make(map[string][]*FileHeader)}
 	defer func() {
 		if err != nil {

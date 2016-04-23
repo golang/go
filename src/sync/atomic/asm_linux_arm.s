@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -116,7 +116,7 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
 	RET
 
 TEXT ·generalCAS64(SB),NOSPLIT,$0-21
-	B  	runtime·cas64(SB)
+	B  	runtime∕internal∕atomic·Cas64(SB)
 
 GLOBL armCAS64(SB), NOPTR, $4
 

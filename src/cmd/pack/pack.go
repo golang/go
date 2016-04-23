@@ -40,7 +40,7 @@ For compatibility with old Go build environments the op string grc is
 accepted as a synonym for c.
 
 For more information, run
-	godoc cmd/pack`
+	go doc cmd/pack`
 
 func usage() {
 	fmt.Fprintln(os.Stderr, usageMessage)

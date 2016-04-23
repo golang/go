@@ -26,8 +26,9 @@ type Example struct {
 	Play        *ast.File // a whole program version of the example
 	Comments    []*ast.CommentGroup
 	Output      string // expected output
-	EmptyOutput bool   // expect empty output
-	Order       int    // original source code order
+	Unordered   bool
+	EmptyOutput bool // expect empty output
+	Order       int  // original source code order
 }
 
 // Examples returns the examples found in the files, sorted by Name field.
@@ -71,7 +72,7 @@ func Examples(files ...*ast.File) []*Example {
 			if f.Doc != nil {
 				doc = f.Doc.Text()
 			}
-			output, hasOutput := exampleOutput(f.Body, file.Comments)
+			output, unordered, hasOutput := exampleOutput(f.Body, file.Comments)
 			flist = append(flist, &Example{
 				Name:        name[len("Example"):],
 				Doc:         doc,
@@ -79,6 +80,7 @@ func Examples(files ...*ast.File) []*Example {
 				Play:        playExample(file, f.Body),
 				Comments:    file.Comments,
 				Output:      output,
+				Unordered:   unordered,
 				EmptyOutput: output == "" && hasOutput,
 				Order:       len(flist),
 			})
@@ -96,24 +98,27 @@ func Examples(files ...*ast.File) []*Example {
 	return list
 }
 
-var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
+var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*(unordered )?output:`)
 
 // Extracts the expected output and whether there was a valid output comment
-func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, ok bool) {
+func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) (output string, unordered, ok bool) {
 	if _, last := lastComment(b, comments); last != nil {
 		// test that it begins with the correct prefix
 		text := last.Text()
-		if loc := outputPrefix.FindStringIndex(text); loc != nil {
+		if loc := outputPrefix.FindStringSubmatchIndex(text); loc != nil {
+			if loc[2] != -1 {
+				unordered = true
+			}
 			text = text[loc[1]:]
 			// Strip zero or more spaces followed by \n or a single space.
 			text = strings.TrimLeft(text, " ")
 			if len(text) > 0 && text[0] == '\n' {
 				text = text[1:]
 			}
-			return text, true
+			return text, unordered, true
 		}
 	}
-	return "", false // no suitable comment found
+	return "", false, false // no suitable comment found
 }
 
 // isTest tells whether name looks like a test, example, or benchmark.
@@ -255,7 +260,8 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
 		}
 	}
 
-	// Strip "Output:" comment and adjust body end position.
+	// Strip the "Output:" or "Unordered output:" comment and adjust body
+	// end position.
 	body, comments = stripOutputComment(body, comments)
 
 	// Synthesize import declaration.
@@ -318,10 +324,10 @@ func playExampleFile(file *ast.File) *ast.File {
 	return &f
 }
 
-// stripOutputComment finds and removes an "Output:" comment from body
-// and comments, and adjusts the body block's end position.
+// stripOutputComment finds and removes the "Output:" or "Unordered output:"
+// comment from body and comments, and adjusts the body block's end position.
 func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
-	// Do nothing if no "Output:" comment found.
+	// Do nothing if there is no "Output:" or "Unordered output:" comment.
 	i, last := lastComment(body, comments)
 	if last == nil || !outputPrefix.MatchString(last.Text()) {
 		return body, comments

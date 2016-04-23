@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Integrated network poller (platform-independent part).
 // A particular implementation (epoll/kqueue) must define the following functions:
@@ -46,7 +49,7 @@ type pollDesc struct {
 	// in a lock-free way by all operations.
 	// NOTE(dvyukov): the following code uses uintptr to store *g (rg/wg),
 	// that will blow up when GC starts moving objects.
-	lock    mutex // protectes the following fields
+	lock    mutex // protects the following fields
 	fd      uintptr
 	closing bool
 	seq     uintptr // protects from stale timers and ready notifications
@@ -77,11 +80,11 @@ var (
 //go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
 func net_runtime_pollServerInit() {
 	netpollinit()
-	atomicstore(&netpollInited, 1)
+	atomic.Store(&netpollInited, 1)
 }
 
 func netpollinited() bool {
-	return atomicload(&netpollInited) != 0
+	return atomic.Load(&netpollInited) != 0
 }
 
 //go:linkname net_runtime_pollOpen net.runtime_pollOpen
@@ -119,7 +122,7 @@ func net_runtime_pollClose(pd *pollDesc) {
 	if pd.rg != 0 && pd.rg != pdReady {
 		throw("netpollClose: blocked read on closing descriptor")
 	}
-	netpollclose(uintptr(pd.fd))
+	netpollclose(pd.fd)
 	pollcache.free(pd)
 }
 
@@ -237,10 +240,10 @@ func net_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg)
+		goready(rg, 3)
 	}
 	if wg != nil {
-		goready(wg)
+		goready(wg, 3)
 	}
 }
 
@@ -266,28 +269,30 @@ func net_runtime_pollUnblock(pd *pollDesc) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg)
+		goready(rg, 3)
 	}
 	if wg != nil {
-		goready(wg)
+		goready(wg, 3)
 	}
 }
 
 // make pd ready, newly runnable goroutines (if any) are returned in rg/wg
-func netpollready(gpp **g, pd *pollDesc, mode int32) {
-	var rg, wg *g
+// May run during STW, so write barriers are not allowed.
+//go:nowritebarrier
+func netpollready(gpp *guintptr, pd *pollDesc, mode int32) {
+	var rg, wg guintptr
 	if mode == 'r' || mode == 'r'+'w' {
-		rg = netpollunblock(pd, 'r', true)
+		rg.set(netpollunblock(pd, 'r', true))
 	}
 	if mode == 'w' || mode == 'r'+'w' {
-		wg = netpollunblock(pd, 'w', true)
+		wg.set(netpollunblock(pd, 'w', true))
 	}
-	if rg != nil {
-		rg.schedlink = *gpp
+	if rg != 0 {
+		rg.ptr().schedlink = *gpp
 		*gpp = rg
 	}
-	if wg != nil {
-		wg.schedlink = *gpp
+	if wg != 0 {
+		wg.ptr().schedlink = *gpp
 		*gpp = wg
 	}
 }
@@ -303,7 +308,7 @@ func netpollcheckerr(pd *pollDesc, mode int32) int {
 }
 
 func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
-	return casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
+	return atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
 }
 
 // returns true if IO is ready, or false if timedout or closed
@@ -324,7 +329,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 		if old != 0 {
 			throw("netpollblock: double wait")
 		}
-		if casuintptr(gpp, 0, pdWait) {
+		if atomic.Casuintptr(gpp, 0, pdWait) {
 			break
 		}
 	}
@@ -333,10 +338,10 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, membarrier, load of rg/wg
 	if waitio || netpollcheckerr(pd, mode) == 0 {
-		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet)
+		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
 	}
 	// be careful to not lose concurrent READY notification
-	old := xchguintptr(gpp, 0)
+	old := atomic.Xchguintptr(gpp, 0)
 	if old > pdWait {
 		throw("netpollblock: corrupted state")
 	}
@@ -363,7 +368,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 		if ioready {
 			new = pdReady
 		}
-		if casuintptr(gpp, old, new) {
+		if atomic.Casuintptr(gpp, old, new) {
 			if old == pdReady || old == pdWait {
 				old = 0
 			}
@@ -401,10 +406,10 @@ func netpolldeadlineimpl(pd *pollDesc, seq uintptr, read, write bool) {
 	}
 	unlock(&pd.lock)
 	if rg != nil {
-		goready(rg)
+		goready(rg, 0)
 	}
 	if wg != nil {
-		goready(wg)
+		goready(wg, 0)
 	}
 }
 

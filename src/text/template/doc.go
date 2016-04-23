@@ -18,7 +18,7 @@ structure as execution proceeds.
 The input text for a template is UTF-8-encoded text in any format.
 "Actions"--data evaluations or control structures--are delimited by
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
-Actions may not span newlines, although comments can.
+Except for raw strings, actions may not span newlines, although comments can.
 
 Once parsed, a template may be executed safely in parallel.
 
@@ -36,10 +36,35 @@ Here is a trivial example that prints "17 items are made of wool".
 
 More intricate examples appear below.
 
+Text and spaces
+
+By default, all text between actions is copied verbatim when the template is
+executed. For example, the string " items are made of " in the example above appears
+on standard output when the program is run.
+
+However, to aid in formatting template source code, if an action's left delimiter
+(by default "{{") is followed immediately by a minus sign and ASCII space character
+("{{- "), all trailing white space is trimmed from the immediately preceding text.
+Similarly, if the right delimiter ("}}") is preceded by a space and minus sign
+(" -}}"), all leading white space is trimmed from the immediately following text.
+In these trim markers, the ASCII space must be present; "{{-3}}" parses as an
+action containing the number -3.
+
+For instance, when executing the template whose source is
+
+	"{{23 -}} < {{- 45}}"
+
+the generated output would be
+
+	"23<45"
+
+For this trimming, the definition of white space characters is the same as in Go:
+space, horizontal tab, carriage return, and newline.
+
 Actions
 
 Here is the list of actions. "Arguments" and "pipelines" are evaluations of
-data, defined in detail below.
+data, defined in detail in the corresponding sections that follow.
 
 */
 //	{{/* a comment */}}
@@ -90,6 +115,14 @@ data, defined in detail below.
 		The template with the specified name is executed with dot set
 		to the value of the pipeline.
 
+	{{block "name" pipeline}} T1 {{end}}
+		A block is shorthand for defining a template
+			{{define "name"}} T1 {{end}}
+		and then executing it in place
+			{{template "name" .}}
+		The typical use is to define a set of root templates that are
+		then customized by redefining the block templates within.
+
 	{{with pipeline}} T1 {{end}}
 		If the value of the pipeline is empty, no output is generated;
 		otherwise, dot is set to the value of the pipeline and T1 is
@@ -106,7 +139,7 @@ An argument is a simple value, denoted by one of the following.
 
 	- A boolean, string, character, integer, floating-point, imaginary
 	  or complex constant in Go syntax. These behave like Go's untyped
-	  constants, although raw strings may not span newlines.
+	  constants.
 	- The keyword nil, representing an untyped Go nil.
 	- The character '.' (period):
 		.
@@ -167,6 +200,8 @@ field of a struct, the function is not invoked automatically, but it
 can be used as a truth value for an if action and the like. To invoke
 it, use the call function, defined below.
 
+Pipelines
+
 A pipeline is a possibly chained sequence of "commands". A command is a simple
 value (argument) or a function or method call, possibly with multiple arguments:
 
@@ -183,8 +218,6 @@ value (argument) or a function or method call, possibly with multiple arguments:
 		with the name:
 			function(Argument1, etc.)
 		Functions and function names are described below.
-
-Pipelines
 
 A pipeline may be "chained" by separating a sequence of commands with pipeline
 characters '|'. In a chained pipeline, the result of the each command is

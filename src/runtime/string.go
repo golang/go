@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -83,8 +84,11 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
 	if raceenabled && l > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			uintptr(l),
-			getcallerpc(unsafe.Pointer(&b)),
+			getcallerpc(unsafe.Pointer(&buf)),
 			funcPC(slicebytetostring))
+	}
+	if msanenabled && l > 0 {
+		msanread(unsafe.Pointer(&b[0]), uintptr(l))
 	}
 	s, c := rawstringtmp(buf, l)
 	copy(c, b)
@@ -94,7 +98,7 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
 // stringDataOnStack reports whether the string's data is
 // stored on the current goroutine's stack.
 func stringDataOnStack(s string) bool {
-	ptr := uintptr((*stringStruct)(unsafe.Pointer(&s)).str)
+	ptr := uintptr(stringStructOf(&s).str)
 	stk := getg().stack
 	return stk.lo <= ptr && ptr < stk.hi
 }
@@ -126,13 +130,16 @@ func slicebytetostringtmp(b []byte) string {
 			getcallerpc(unsafe.Pointer(&b)),
 			funcPC(slicebytetostringtmp))
 	}
+	if msanenabled && len(b) > 0 {
+		msanread(unsafe.Pointer(&b[0]), uintptr(len(b)))
+	}
 	return *(*string)(unsafe.Pointer(&b))
 }
 
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 	var b []byte
 	if buf != nil && len(s) <= len(buf) {
-		b = buf[:len(s)]
+		b = buf[:len(s):len(s)]
 	} else {
 		b = rawbyteslice(len(s))
 	}
@@ -147,8 +154,8 @@ func stringtoslicebytetmp(s string) []byte {
 	// The only such case today is:
 	// for i, c := range []byte(str)
 
-	str := (*stringStruct)(unsafe.Pointer(&s))
-	ret := slice{array: (*byte)(str.str), len: uint(str.len), cap: uint(str.len)}
+	str := stringStructOf(&s)
+	ret := slice{array: str.str, len: str.len, cap: str.len}
 	return *(*[]byte)(unsafe.Pointer(&ret))
 }
 
@@ -164,7 +171,7 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	}
 	var a []rune
 	if buf != nil && n <= len(buf) {
-		a = buf[:n]
+		a = buf[:n:n]
 	} else {
 		a = rawruneslice(n)
 	}
@@ -182,8 +189,11 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 	if raceenabled && len(a) > 0 {
 		racereadrangepc(unsafe.Pointer(&a[0]),
 			uintptr(len(a))*unsafe.Sizeof(a[0]),
-			getcallerpc(unsafe.Pointer(&a)),
+			getcallerpc(unsafe.Pointer(&buf)),
 			funcPC(slicerunetostring))
+	}
+	if msanenabled && len(a) > 0 {
+		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
 	}
 	var dum [4]byte
 	size1 := 0
@@ -207,6 +217,16 @@ type stringStruct struct {
 	len int
 }
 
+// Variant with *byte pointer type for DWARF debugging.
+type stringStructDWARF struct {
+	str *byte
+	len int
+}
+
+func stringStructOf(sp *string) *stringStruct {
+	return (*stringStruct)(unsafe.Pointer(sp))
+}
+
 func intstring(buf *[4]byte, v int64) string {
 	var s string
 	var b []byte
@@ -215,6 +235,9 @@ func intstring(buf *[4]byte, v int64) string {
 		s = slicebytetostringtmp(b)
 	} else {
 		s, b = rawstring(4)
+	}
+	if int64(rune(v)) != v {
+		v = runeerror
 	}
 	n := runetochar(b, rune(v))
 	return s[:n]
@@ -261,18 +284,16 @@ func stringiter2(s string, k int) (int, rune) {
 // The storage is not zeroed. Callers should use
 // b to set the string contents and then drop b.
 func rawstring(size int) (s string, b []byte) {
-	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
+	p := mallocgc(uintptr(size), nil, false)
 
-	(*stringStruct)(unsafe.Pointer(&s)).str = p
-	(*stringStruct)(unsafe.Pointer(&s)).len = size
+	stringStructOf(&s).str = p
+	stringStructOf(&s).len = size
 
-	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
-	(*slice)(unsafe.Pointer(&b)).len = uint(size)
-	(*slice)(unsafe.Pointer(&b)).cap = uint(size)
+	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
 
 	for {
 		ms := maxstring
-		if uintptr(size) <= uintptr(ms) || casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
+		if uintptr(size) <= ms || atomic.Casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), ms, uintptr(size)) {
 			return
 		}
 	}
@@ -281,14 +302,12 @@ func rawstring(size int) (s string, b []byte) {
 // rawbyteslice allocates a new byte slice. The byte slice is not zeroed.
 func rawbyteslice(size int) (b []byte) {
 	cap := roundupsize(uintptr(size))
-	p := mallocgc(cap, nil, flagNoScan|flagNoZero)
+	p := mallocgc(cap, nil, false)
 	if cap != uintptr(size) {
 		memclr(add(p, uintptr(size)), cap-uintptr(size))
 	}
 
-	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
-	(*slice)(unsafe.Pointer(&b)).len = uint(size)
-	(*slice)(unsafe.Pointer(&b)).cap = uint(cap)
+	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(cap)}
 	return
 }
 
@@ -298,14 +317,12 @@ func rawruneslice(size int) (b []rune) {
 		throw("out of memory")
 	}
 	mem := roundupsize(uintptr(size) * 4)
-	p := mallocgc(mem, nil, flagNoScan|flagNoZero)
+	p := mallocgc(mem, nil, false)
 	if mem != uintptr(size)*4 {
 		memclr(add(p, uintptr(size)*4), mem-uintptr(size)*4)
 	}
 
-	(*slice)(unsafe.Pointer(&b)).array = (*uint8)(p)
-	(*slice)(unsafe.Pointer(&b)).len = uint(size)
-	(*slice)(unsafe.Pointer(&b)).cap = uint(mem / 4)
+	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, int(mem / 4)}
 	return
 }
 
@@ -365,4 +382,64 @@ func atoi(s string) int {
 		s = s[1:]
 	}
 	return n
+}
+
+//go:nosplit
+func findnull(s *byte) int {
+	if s == nil {
+		return 0
+	}
+	p := (*[_MaxMem/2 - 1]byte)(unsafe.Pointer(s))
+	l := 0
+	for p[l] != 0 {
+		l++
+	}
+	return l
+}
+
+func findnullw(s *uint16) int {
+	if s == nil {
+		return 0
+	}
+	p := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(s))
+	l := 0
+	for p[l] != 0 {
+		l++
+	}
+	return l
+}
+
+var maxstring uintptr = 256 // a hint for print
+
+//go:nosplit
+func gostringnocopy(str *byte) string {
+	ss := stringStruct{str: unsafe.Pointer(str), len: findnull(str)}
+	s := *(*string)(unsafe.Pointer(&ss))
+	for {
+		ms := maxstring
+		if uintptr(len(s)) <= ms || atomic.Casuintptr(&maxstring, ms, uintptr(len(s))) {
+			break
+		}
+	}
+	return s
+}
+
+func gostringw(strw *uint16) string {
+	var buf [8]byte
+	str := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(strw))
+	n1 := 0
+	for i := 0; str[i] != 0; i++ {
+		n1 += runetochar(buf[:], rune(str[i]))
+	}
+	s, b := rawstring(n1 + 4)
+	n2 := 0
+	for i := 0; str[i] != 0; i++ {
+		// check for race
+		if n2 >= n1 {
+			break
+		}
+		n2 += runetochar(b[n2:], rune(str[i]))
+	}
+	b[n2] = 0 // for luck
+	return s[:n2]
 }

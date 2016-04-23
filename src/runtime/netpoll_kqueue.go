@@ -17,8 +17,7 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
 func closeonexec(fd int32)
 
 var (
-	kq             int32 = -1
-	netpolllasterr int32
+	kq int32 = -1
 )
 
 func netpollinit() {
@@ -32,7 +31,7 @@ func netpollinit() {
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
-	// for the whole fd lifetime.  The notifications are automatically unregistered
+	// for the whole fd lifetime. The notifications are automatically unregistered
 	// when fd is closed.
 	var ev [2]keventt
 	*(*uintptr)(unsafe.Pointer(&ev[0].ident)) = fd
@@ -62,9 +61,9 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // Polls for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) (gp *g) {
+func netpoll(block bool) *g {
 	if kq == -1 {
-		return
+		return nil
 	}
 	var tp *timespec
 	var ts timespec
@@ -75,12 +74,13 @@ func netpoll(block bool) (gp *g) {
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR && n != netpolllasterr {
-			netpolllasterr = n
+		if n != -_EINTR {
 			println("runtime: kevent on fd", kq, "failed with", -n)
+			throw("kevent failed")
 		}
 		goto retry
 	}
+	var gp guintptr
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 		var mode int32
@@ -91,11 +91,11 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			netpollready((**g)(noescape(unsafe.Pointer(&gp))), (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
+			netpollready(&gp, (*pollDesc)(unsafe.Pointer(ev.udata)), mode)
 		}
 	}
-	if block && gp == nil {
+	if block && gp == 0 {
 		goto retry
 	}
-	return gp
+	return gp.ptr()
 }

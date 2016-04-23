@@ -29,12 +29,14 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW mode+4(FP), R1
 	MOVW perm+8(FP), R2
 	SWI $0xa00005
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVW fd+0(FP), R0
 	SWI $0xa00006
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -43,6 +45,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW p+4(FP), R1
 	MOVW n+8(FP), R2
 	SWI $0xa00003
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -51,6 +54,7 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVW	p+4(FP), R1	// arg 2 - buf
 	MOVW	n+8(FP), R2	// arg 3 - nbyte
 	SWI $0xa00004	// sys_write
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -100,15 +104,12 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
-	MOVW R0, R2
-	MOVW $1000000, R1
-	DIV R1, R0
+	CALL runtime·usplitR0(SB)
 	// 0(R13) is the saved LR, don't use it
 	MOVW R0, 4(R13) // tv_sec.low
 	MOVW $0, R0
 	MOVW R0, 8(R13) // tv_sec.high
-	MOD R1, R2
-	MOVW $1000, R1
+	MOVW $1000, R2
 	MUL R1, R2
 	MOVW R2, 12(R13) // tv_nsec
 
@@ -121,6 +122,12 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	SWI $0xa00137	// sys__lwp_self, the returned R0 is arg 1
 	MOVW	sig+0(FP), R1	// arg 2 - signal
 	SWI $0xa0013e	// sys__lwp_kill
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	SWI $0xa00014	// sys_getpid, the returned R0 is arg 1
+	MOVW	sig+0(FP), R1	// arg 2 - signal
+	SWI $0xa00025	// sys_kill
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
@@ -206,7 +213,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -215,30 +234,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	CMP 	$0, R0
 	BL.NE	runtime·load_g(SB)
 
-	CMP $0, g
-	BNE 4(PC)
-	// signal number is already prepared in 4(R13)
-	MOVW $runtime·badsignal(SB), R11
-	BL (R11)
-	RET
-
-	// save g
-	MOVW g, R4
-	MOVW g, 20(R13)
-
-	// g = m->signal
-	MOVW g_m(g), R8
-	MOVW m_gsignal(R8), g
-
-	// R0 is already saved
-	MOVW R1, 8(R13) // info
-	MOVW R2, 12(R13) // context
-	MOVW R4, 16(R13) // gp
-
-	BL runtime·sighandler(SB)
-
-	// restore g
-	MOVW 20(R13), g
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·sigtrampgo(SB)
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$12
@@ -331,19 +329,9 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SWI $0xa0005c	// sys_fcntl
 	RET
 
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
-
-// TODO(minux): this is only valid for ARMv6+
-// bool armcas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B runtime·armcas(SB)
+// TODO: this is only valid for ARMv7+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
 
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	MOVM.WP [R1, R2, R3, R12], (R13)

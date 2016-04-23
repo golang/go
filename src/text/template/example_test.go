@@ -7,6 +7,7 @@ package template_test
 import (
 	"log"
 	"os"
+	"strings"
 	"text/template"
 )
 
@@ -15,9 +16,12 @@ func ExampleTemplate() {
 	const letter = `
 Dear {{.Name}},
 {{if .Attended}}
-It was a pleasure to see you at the wedding.{{else}}
-It is a shame you couldn't make it to the wedding.{{end}}
-{{with .Gift}}Thank you for the lovely {{.}}.
+It was a pleasure to see you at the wedding.
+{{- else}}
+It is a shame you couldn't make it to the wedding.
+{{- end}}
+{{with .Gift -}}
+Thank you for the lovely {{.}}.
 {{end}}
 Best wishes,
 Josie
@@ -68,4 +72,39 @@ Josie
 	//
 	// Best wishes,
 	// Josie
+}
+
+// The following example is duplicated in html/template; keep them in sync.
+
+func ExampleTemplate_block() {
+	const (
+		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
+		overlay = `{{define "list"}} {{join . ", "}}{{end}} `
+	)
+	var (
+		funcs     = template.FuncMap{"join": strings.Join}
+		guardians = []string{"Gamora", "Groot", "Nebula", "Rocket", "Star-Lord"}
+	)
+	masterTmpl, err := template.New("master").Funcs(funcs).Parse(master)
+	if err != nil {
+		log.Fatal(err)
+	}
+	overlayTmpl, err := template.Must(masterTmpl.Clone()).Parse(overlay)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := masterTmpl.Execute(os.Stdout, guardians); err != nil {
+		log.Fatal(err)
+	}
+	if err := overlayTmpl.Execute(os.Stdout, guardians); err != nil {
+		log.Fatal(err)
+	}
+	// Output:
+	// Names:
+	// - Gamora
+	// - Groot
+	// - Nebula
+	// - Rocket
+	// - Star-Lord
+	// Names: Gamora, Groot, Nebula, Rocket, Star-Lord
 }

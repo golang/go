@@ -30,7 +30,7 @@ type pollDesc struct {
 
 var serverInit sync.Once
 
-func (pd *pollDesc) Init(fd *netFD) error {
+func (pd *pollDesc) init(fd *netFD) error {
 	serverInit.Do(runtime_pollServerInit)
 	ctx, errno := runtime_pollOpen(uintptr(fd.sysfd))
 	if errno != 0 {
@@ -40,7 +40,7 @@ func (pd *pollDesc) Init(fd *netFD) error {
 	return nil
 }
 
-func (pd *pollDesc) Close() {
+func (pd *pollDesc) close() {
 	if pd.runtimeCtx == 0 {
 		return
 	}
@@ -49,49 +49,49 @@ func (pd *pollDesc) Close() {
 }
 
 // Evict evicts fd from the pending list, unblocking any I/O running on fd.
-func (pd *pollDesc) Evict() {
+func (pd *pollDesc) evict() {
 	if pd.runtimeCtx == 0 {
 		return
 	}
 	runtime_pollUnblock(pd.runtimeCtx)
 }
 
-func (pd *pollDesc) Prepare(mode int) error {
+func (pd *pollDesc) prepare(mode int) error {
 	res := runtime_pollReset(pd.runtimeCtx, mode)
 	return convertErr(res)
 }
 
-func (pd *pollDesc) PrepareRead() error {
-	return pd.Prepare('r')
+func (pd *pollDesc) prepareRead() error {
+	return pd.prepare('r')
 }
 
-func (pd *pollDesc) PrepareWrite() error {
-	return pd.Prepare('w')
+func (pd *pollDesc) prepareWrite() error {
+	return pd.prepare('w')
 }
 
-func (pd *pollDesc) Wait(mode int) error {
+func (pd *pollDesc) wait(mode int) error {
 	res := runtime_pollWait(pd.runtimeCtx, mode)
 	return convertErr(res)
 }
 
-func (pd *pollDesc) WaitRead() error {
-	return pd.Wait('r')
+func (pd *pollDesc) waitRead() error {
+	return pd.wait('r')
 }
 
-func (pd *pollDesc) WaitWrite() error {
-	return pd.Wait('w')
+func (pd *pollDesc) waitWrite() error {
+	return pd.wait('w')
 }
 
-func (pd *pollDesc) WaitCanceled(mode int) {
+func (pd *pollDesc) waitCanceled(mode int) {
 	runtime_pollWaitCanceled(pd.runtimeCtx, mode)
 }
 
-func (pd *pollDesc) WaitCanceledRead() {
-	pd.WaitCanceled('r')
+func (pd *pollDesc) waitCanceledRead() {
+	pd.waitCanceled('r')
 }
 
-func (pd *pollDesc) WaitCanceledWrite() {
-	pd.WaitCanceled('w')
+func (pd *pollDesc) waitCanceledWrite() {
+	pd.waitCanceled('w')
 }
 
 func convertErr(res int) error {
@@ -120,7 +120,13 @@ func (fd *netFD) setWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
-	d := runtimeNano() + int64(t.Sub(time.Now()))
+	diff := int64(t.Sub(time.Now()))
+	d := runtimeNano() + diff
+	if d <= 0 && diff > 0 {
+		// If the user has a deadline in the future, but the delay calculation
+		// overflows, then set the deadline to the maximum possible value.
+		d = 1<<63 - 1
+	}
 	if t.IsZero() {
 		d = 0
 	}
