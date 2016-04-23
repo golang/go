@@ -6,7 +6,6 @@ package net
 
 import (
 	"fmt"
-	"internal/testenv"
 	"reflect"
 	"runtime"
 	"testing"
@@ -50,11 +49,6 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 }
 
 func TestInterfaces(t *testing.T) {
-	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
-		// 100% flaky on FreeBSD 11-CURRENT and above.
-		testenv.SkipFlaky(t, 7849)
-	}
-
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -79,11 +73,6 @@ func TestInterfaces(t *testing.T) {
 }
 
 func TestInterfaceAddrs(t *testing.T) {
-	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
-		// 100% flaky on FreeBSD 11-CURRENT and above.
-		testenv.SkipFlaky(t, 7849)
-	}
-
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -103,11 +92,6 @@ func TestInterfaceAddrs(t *testing.T) {
 }
 
 func TestInterfaceUnicastAddrs(t *testing.T) {
-	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
-		// 100% flaky on FreeBSD 11-CURRENT and above.
-		testenv.SkipFlaky(t, 7849)
-	}
-
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -135,11 +119,6 @@ func TestInterfaceUnicastAddrs(t *testing.T) {
 }
 
 func TestInterfaceMulticastAddrs(t *testing.T) {
-	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
-		// 100% flaky on FreeBSD 11-CURRENT and above.
-		testenv.SkipFlaky(t, 7849)
-	}
-
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
