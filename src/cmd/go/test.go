@@ -233,7 +233,6 @@ const testFlag2 = `
 
 	-trace trace.out
 	    Write an execution trace to the specified file before exiting.
-	    Writes test binary as -c would.
 
 	-v
 	    Verbose output: log all tests as they are run. Also print all

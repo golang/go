@@ -14,7 +14,7 @@ Example usage:
 Generate a trace file with 'go test':
 	go test -trace trace.out pkg
 View the trace in a web browser:
-	go tool trace pkg.test trace.out
+	go tool trace trace.out
 */
 package main
 
@@ -37,7 +37,9 @@ Given a trace file produced by 'go test':
 	go test -trace=trace.out pkg
 
 Open a web browser displaying trace:
-	go tool trace [flags] pkg.test trace.out
+	go tool trace [flags] [pkg.test] trace.out
+[pkg.test] argument is required for traces produced by Go 1.6 and below.
+Go 1.7 does not require the binary argument.
 
 Flags:
 	-http=addr: HTTP service address (e.g., ':6060')
@@ -58,12 +60,17 @@ func main() {
 	}
 	flag.Parse()
 
-	// Usage information when no arguments.
-	if flag.NArg() != 2 {
+	// Go 1.7 traces embed symbol info and does not require the binary.
+	// But we optionally accept binary as first arg for Go 1.5 traces.
+	switch flag.NArg() {
+	case 1:
+		traceFile = flag.Arg(0)
+	case 2:
+		programBinary = flag.Arg(0)
+		traceFile = flag.Arg(1)
+	default:
 		flag.Usage()
 	}
-	programBinary = flag.Arg(0)
-	traceFile = flag.Arg(1)
 
 	ln, err := net.Listen("tcp", *httpFlag)
 	if err != nil {
@@ -91,7 +98,7 @@ var loader struct {
 
 func parseEvents() ([]*trace.Event, error) {
 	loader.once.Do(func() {
-		tracef, err := os.Open(flag.Arg(1))
+		tracef, err := os.Open(traceFile)
 		if err != nil {
 			loader.err = fmt.Errorf("failed to open trace file: %v", err)
 			return
