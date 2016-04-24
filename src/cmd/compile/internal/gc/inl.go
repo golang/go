@@ -100,7 +100,7 @@ func caninl(fn *Node) {
 	}
 
 	// If fn has no body (is defined outside of Go), cannot inline it.
-	if len(fn.Nbody.Slice()) == 0 {
+	if fn.Nbody.Len() == 0 {
 		return
 	}
 
@@ -173,12 +173,12 @@ func ishairy(n *Node, budget *int) bool {
 	switch n.Op {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 {
+		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 {
 			*budget -= int(n.Left.Func.InlCost)
 			break
 		}
 		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
-			if n.Left.Sym.Def != nil && len(n.Left.Sym.Def.Func.Inl.Slice()) != 0 {
+			if n.Left.Sym.Def != nil && n.Left.Sym.Def.Func.Inl.Len() != 0 {
 				*budget -= int(n.Left.Sym.Def.Func.InlCost)
 				break
 			}
@@ -195,7 +195,7 @@ func ishairy(n *Node, budget *int) bool {
 		if n.Left.Type.Nname() == nil {
 			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
 		}
-		if len(n.Left.Type.Nname().Func.Inl.Slice()) != 0 {
+		if n.Left.Type.Nname().Func.Inl.Len() != 0 {
 			*budget -= int(n.Left.Type.Nname().Func.InlCost)
 			break
 		}
@@ -453,7 +453,7 @@ func inlnode(n *Node) *Node {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
 		}
-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 && !isIntrinsicCall1(n) { // normal case
+		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall1(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd)
 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if n.Left.Sym.Def != nil {
@@ -520,7 +520,7 @@ var inlgen int
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
 func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	// For variadic fn.
-	if len(fn.Func.Inl.Slice()) == 0 {
+	if fn.Func.Inl.Len() == 0 {
 		return n
 	}
 

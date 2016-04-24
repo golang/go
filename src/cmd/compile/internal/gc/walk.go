@@ -70,7 +70,7 @@ func walk(fn *Node) {
 	}
 
 	heapmoves()
-	if Debug['W'] != 0 && len(Curfn.Func.Enter.Slice()) > 0 {
+	if Debug['W'] != 0 && Curfn.Func.Enter.Len() > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
 		dumplist(s, Curfn.Func.Enter)
 	}

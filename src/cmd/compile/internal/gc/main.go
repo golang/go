@@ -412,7 +412,7 @@ func Main() {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if len(n.Func.Inl.Slice()) != 0 {
+			if n.Func.Inl.Len() != 0 {
 				saveerrors()
 				typecheckinl(n)
 			}

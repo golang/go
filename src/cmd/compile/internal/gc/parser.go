@@ -2906,7 +2906,7 @@ func (p *parser) hidden_import() {
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", importpkg.Path, s2)
-			if Debug['m'] > 2 && len(s2.Func.Inl.Slice()) != 0 {
+			if Debug['m'] > 2 && s2.Func.Inl.Len() != 0 {
 				fmt.Printf("inl body:%v\n", s2.Func.Inl)
 			}
 		}

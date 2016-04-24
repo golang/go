@@ -1196,7 +1196,7 @@ func exprfmt(n *Node, prec int) string {
 		if fmtmode == FErr {
 			return "func literal"
 		}
-		if len(n.Nbody.Slice()) != 0 {
+		if n.Nbody.Len() != 0 {
 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
 		}
 		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
@@ -1577,7 +1577,7 @@ func nodedump(n *Node, flag FmtFlag) string {
 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(n.Op, 0), n.Rlist)
 		}
 
-		if len(n.Nbody.Slice()) != 0 {
+		if n.Nbody.Len() != 0 {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-body%v", Oconv(n.Op, 0), n.Nbody)
 		}
