@@ -332,6 +332,12 @@ func (f *Fields) Slice() []*Field {
 	return *f.s
 }
 
+// Index returns the i'th element of Fields.
+// It panics if f does not have at least i+1 elements.
+func (f *Fields) Index(i int) *Field {
+	return (*f.s)[i]
+}
+
 // Set sets f to a slice.
 // This takes ownership of the slice.
 func (f *Fields) Set(s []*Field) {
