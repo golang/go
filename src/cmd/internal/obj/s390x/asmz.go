@@ -142,14 +142,6 @@ var optab = []Optab{
 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
 	Optab{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
 	Optab{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
-	Optab{AADDC, C_REG, C_REG, C_NONE, C_REG, 2, 0},
-	Optab{AADDC, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
-	Optab{AADDC, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
-	Optab{AADDC, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
-	Optab{AMULLW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
-	Optab{AMULLW, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
-	Optab{AMULLW, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
-	Optab{AMULLW, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
 	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
 	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
 	Optab{ASUBC, C_REG, C_REG, C_NONE, C_REG, 10, 0},
@@ -792,9 +784,12 @@ func buildop(ctxt *obj.Link) {
 		// opset() aliases optab ranges for similar instructions, to reduce the number of optabs in the array.
 		// oprange[] is used by oplook() to find the Optab entry that applies to a given Prog.
 		switch r {
+		case AADD:
+			opset(AADDC, r)
+			opset(AMULLD, r)
+			opset(AMULLW, r)
 		case ADIVW:
 			opset(AADDE, r)
-			opset(AMULLD, r)
 			opset(ADIVD, r)
 			opset(ADIVDU, r)
 			opset(ADIVWU, r)
@@ -2935,11 +2930,15 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
 			}
 			zRIL(_a, op_ALGFI, uint32(p.To.Reg), uint32(v), asm)
-		case AMULLW:
+		case AMULLW, AMULLD:
 			if r != p.To.Reg {
 				zRRE(op_LGR, uint32(p.To.Reg), uint32(r), asm)
 			}
-			zRIL(_a, op_MSGFI, uint32(p.To.Reg), uint32(v), asm)
+			if int64(int16(v)) == v {
+				zRI(op_MGHI, uint32(p.To.Reg), uint32(v), asm)
+			} else {
+				zRIL(_a, op_MSGFI, uint32(p.To.Reg), uint32(v), asm)
+			}
 		}
 
 	case 23: // logical op $constant [reg] reg
