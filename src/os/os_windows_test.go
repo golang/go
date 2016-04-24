@@ -723,3 +723,137 @@ func TestStatPagefile(t *testing.T) {
 	}
 	t.Fatal(err)
 }
+
+// syscallCommandLineToArgv calls syscall.CommandLineToArgv
+// and converts returned result into []string.
+func syscallCommandLineToArgv(cmd string) ([]string, error) {
+	var argc int32
+	argv, err := syscall.CommandLineToArgv(&syscall.StringToUTF16(cmd)[0], &argc)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
+
+	var args []string
+	for _, v := range (*argv)[:argc] {
+		args = append(args, syscall.UTF16ToString((*v)[:]))
+	}
+	return args, nil
+}
+
+// compareCommandLineToArgvWithSyscall ensures that
+// os.CommandLineToArgv(cmd) and syscall.CommandLineToArgv(cmd)
+// return the same result.
+func compareCommandLineToArgvWithSyscall(t *testing.T, cmd string) {
+	syscallArgs, err := syscallCommandLineToArgv(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := os.CommandLineToArgv(cmd)
+	if want, have := fmt.Sprintf("%q", syscallArgs), fmt.Sprintf("%q", args); want != have {
+		t.Errorf("testing os.commandLineToArgv(%q) failed: have %q want %q", cmd, args, syscallArgs)
+		return
+	}
+}
+
+func TestCmdArgs(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestCmdArgs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	const prog = `
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	fmt.Printf("%q", os.Args)
+}
+`
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte(prog), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "main.exe")
+	cmd := osexec.Command("go", "build", "-o", exe, src)
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building main.exe failed: %v\n%s", err, out)
+	}
+
+	var cmds = []string{
+		``,
+		` a b c`,
+		` "`,
+		` ""`,
+		` """`,
+		` "" a`,
+		` "123"`,
+		` \"123\"`,
+		` \"123 456\"`,
+		` \\"`,
+		` \\\"`,
+		` \\\\\"`,
+		` \\\"x`,
+		` """"\""\\\"`,
+		` abc`,
+		` \\\\\""x"""y z`,
+		"\tb\t\"x\ty\"",
+		` "Брад" d e`,
+		// examples from https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+		` "abc" d e`,
+		` a\\b d"e f"g h`,
+		` a\\\"b c d`,
+		` a\\\\"b c" d e`,
+		// http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV
+		// from 5.4  Examples
+		` CallMeIshmael`,
+		` "Call Me Ishmael"`,
+		` Cal"l Me I"shmael`,
+		` CallMe\"Ishmael`,
+		` "CallMe\"Ishmael"`,
+		` "Call Me Ishmael\\"`,
+		` "CallMe\\\"Ishmael"`,
+		` a\\\b`,
+		` "a\\\b"`,
+		// from 5.5  Some Common Tasks
+		` "\"Call Me Ishmael\""`,
+		` "C:\TEST A\\"`,
+		` "\"C:\TEST A\\\""`,
+		// from 5.6  The Microsoft Examples Explained
+		` "a b c"  d  e`,
+		` "ab\"c"  "\\"  d`,
+		` a\\\b d"e f"g h`,
+		` a\\\"b c d`,
+		` a\\\\"b c" d e`,
+		// from 5.7  Double Double Quote Examples (pre 2008)
+		` "a b c""`,
+		` """CallMeIshmael"""  b  c`,
+		` """Call Me Ishmael"""`,
+		` """"Call Me Ishmael"" b c`,
+	}
+	for _, cmd := range cmds {
+		compareCommandLineToArgvWithSyscall(t, "test"+cmd)
+		compareCommandLineToArgvWithSyscall(t, `"cmd line"`+cmd)
+		compareCommandLineToArgvWithSyscall(t, exe+cmd)
+
+		// test both syscall.EscapeArg and os.commandLineToArgv
+		args := os.CommandLineToArgv(exe + cmd)
+		out, err := osexec.Command(args[0], args[1:]...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("runing %q failed: %v\n%v", args, err, string(out))
+		}
+		if want, have := fmt.Sprintf("%q", args), string(out); want != have {
+			t.Errorf("wrong output of executing %q: have %q want %q", args, have, want)
+			continue
+		}
+	}
+}
