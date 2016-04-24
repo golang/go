@@ -2748,8 +2748,7 @@ func addstr(n *Node, init *Nodes) *Node {
 			prealloc[slice] = prealloc[n]
 		}
 		slice.List.Set(args[1:]) // skip buf arg
-		args = []*Node{buf}
-		args = append(args, slice)
+		args = []*Node{buf, slice}
 		slice.Esc = EscNone
 	}
 

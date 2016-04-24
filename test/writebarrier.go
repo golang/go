@@ -182,3 +182,17 @@ func f18(p *T18, x *[]int) {
 	p.s = p.s[8:9]   // ERROR "write barrier"
 	*x = (*x)[3:5]   // ERROR "write barrier"
 }
+
+func f19(x, y *int, i int) int {
+	// Constructing a temporary slice on the stack should not
+	// require any write barriers. See issue 14263.
+	a := []*int{x, y} // no barrier
+	return *a[i]
+}
+
+func f20(x, y *int, i int) []*int {
+	// ... but if that temporary slice escapes, then the
+	// write barriers are necessary.
+	a := []*int{x, y} // ERROR "write barrier"
+	return a
+}

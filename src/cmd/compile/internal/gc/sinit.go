@@ -745,15 +745,15 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	//	var vauto *[...]t = new([...]t)
 	// 4. copy the static array to the auto array
 	//	*vauto = vstat
-	// 5. assign slice of allocated heap to var
-	//	var = [0:]*auto
-	// 6. for each dynamic part assign to the slice
-	//	var[i] = dynamic part
+	// 5. for each dynamic part assign to the array
+	//	vauto[i] = dynamic part
+	// 6. assign slice of allocated heap to var
+	//	var = vauto[:]
 	//
 	// an optimization is done if there is no constant part
 	//	3. var vauto *[...]t = new([...]t)
-	//	5. var = [0:]*auto
-	//	6. var[i] = dynamic part
+	//	5. vauto[i] = dynamic part
+	//	6. var = vauto[:]
 
 	// if the literal contains constants,
 	// make static initialized array (1),(2)
@@ -811,21 +811,14 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		init.Append(a)
 	}
 
-	// make slice out of heap (5)
-	a = Nod(OAS, var_, Nod(OSLICE, vauto, Nod(OKEY, nil, nil)))
-
-	a = typecheck(a, Etop)
-	a = orderstmtinplace(a)
-	a = walkstmt(a)
-	init.Append(a)
-	// put dynamics into slice (6)
+	// put dynamics into array (5)
 	for _, r := range n.List.Slice() {
 		if r.Op != OKEY {
 			Fatalf("slicelit: rhs not OKEY: %v", r)
 		}
 		index := r.Left
 		value := r.Right
-		a := Nod(OINDEX, var_, index)
+		a := Nod(OINDEX, vauto, index)
 		a.Bounded = true
 
 		// TODO need to check bounds?
@@ -847,7 +840,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 			continue
 		}
 
-		// build list of var[c] = expr
+		// build list of vauto[c] = expr
 		setlineno(value)
 		a = Nod(OAS, a, value)
 
@@ -856,6 +849,14 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		a = walkstmt(a)
 		init.Append(a)
 	}
+
+	// make slice out of heap (6)
+	a = Nod(OAS, var_, Nod(OSLICE, vauto, Nod(OKEY, nil, nil)))
+
+	a = typecheck(a, Etop)
+	a = orderstmtinplace(a)
+	a = walkstmt(a)
+	init.Append(a)
 }
 
 func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
