@@ -237,9 +237,14 @@ var genericOps = []opData{
 	{name: "Geq32F", argLength: 2},
 	{name: "Geq64F", argLength: 2},
 
-	// 1-input ops
-	{name: "Not", argLength: 1}, // !arg0, boolean
+	// boolean ops
+	{name: "AndB", argLength: 2}, // arg0 && arg1 (not shortcircuited)
+	{name: "OrB", argLength: 2},  // arg0 || arg1 (not shortcircuited)
+	{name: "EqB", argLength: 2},  // arg0 == arg1
+	{name: "NeqB", argLength: 2}, // arg0 != arg1
+	{name: "Not", argLength: 1},  // !arg0, boolean
 
+	// 1-input ops
 	{name: "Neg8", argLength: 1}, // -arg0
 	{name: "Neg16", argLength: 1},
 	{name: "Neg32", argLength: 1},

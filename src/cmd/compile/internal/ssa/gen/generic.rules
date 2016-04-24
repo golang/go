@@ -114,7 +114,7 @@
 (Lsh16x16 (Rsh16Ux16 (Lsh16x16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && uint16(c1) >= uint16(c2) && uint16(c3) >= uint16(c2) ->  (Lsh16x16 x (Const16 <config.fe.TypeUInt16()> [int64(int16(c1-c2+c3))]))
 (Lsh8x8 (Rsh8Ux8 (Lsh8x8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && uint8(c1) >= uint8(c2) && uint8(c3) >= uint8(c2) ->  (Lsh8x8 x (Const8 <config.fe.TypeUInt8()> [int64(int8(c1-c2+c3))]))
 
-// Fold IsInBounds when the range of the index cannot exceed the limt.
+// Fold IsInBounds when the range of the index cannot exceed the limit.
 (IsInBounds (ZeroExt8to32 _) (Const32 [c])) && (1 << 8) <= c -> (ConstBool [1])
 (IsInBounds (ZeroExt8to64 _) (Const64 [c])) && (1 << 8) <= c -> (ConstBool [1])
 (IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= c -> (ConstBool [1])
@@ -141,17 +141,17 @@
 (Eq32 x x) -> (ConstBool [1])
 (Eq16 x x) -> (ConstBool [1])
 (Eq8 x x) -> (ConstBool [1])
-(Eq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c == d)])
-(Eq8 (ConstBool [0]) x) -> (Not x)
-(Eq8 (ConstBool [1]) x) -> x
+(EqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c == d)])
+(EqB (ConstBool [0]) x) -> (Not x)
+(EqB (ConstBool [1]) x) -> x
 
 (Neq64 x x) -> (ConstBool [0])
 (Neq32 x x) -> (ConstBool [0])
 (Neq16 x x) -> (ConstBool [0])
 (Neq8 x x) -> (ConstBool [0])
-(Neq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
-(Neq8 (ConstBool [0]) x) -> x
-(Neq8 (ConstBool [1]) x) -> (Not x)
+(NeqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
+(NeqB (ConstBool [0]) x) -> x
+(NeqB (ConstBool [1]) x) -> (Not x)
 
 (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
 (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [int64(int32(c-d))]) x)
@@ -168,13 +168,11 @@
 (Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
 (Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
 (Eq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Eq8 (Const8 <t> [c]) x)
-(Eq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Eq8 (ConstBool <t> [c]) x)
 
 (Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
 (Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
 (Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
 (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
-(Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
 
 // AddPtr is not canonicalized because nilcheck ptr checks the first argument to be non-nil.
 (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)

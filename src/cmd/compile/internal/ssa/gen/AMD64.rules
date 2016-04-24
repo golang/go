@@ -281,6 +281,7 @@
 (Eq32 x y) -> (SETEQ (CMPL x y))
 (Eq16 x y) -> (SETEQ (CMPW x y))
 (Eq8 x y) -> (SETEQ (CMPB x y))
+(EqB x y) -> (SETEQ (CMPB x y))
 (EqPtr x y) -> (SETEQ (CMPQ x y))
 (Eq64F x y) -> (SETEQF (UCOMISD x y))
 (Eq32F x y) -> (SETEQF (UCOMISS x y))
@@ -289,6 +290,7 @@
 (Neq32 x y) -> (SETNE (CMPL x y))
 (Neq16 x y) -> (SETNE (CMPW x y))
 (Neq8 x y) -> (SETNE (CMPB x y))
+(NeqB x y) -> (SETNE (CMPB x y))
 (NeqPtr x y) -> (SETNE (CMPQ x y))
 (Neq64F x y) -> (SETNEF (UCOMISD x y))
 (Neq32F x y) -> (SETNEF (UCOMISS x y))
@@ -366,6 +368,8 @@
 (Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
 	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
 
+(AndB x y) -> (ANDL x y)
+(OrB x y) -> (ORL x y)
 (Not x) -> (XORLconst [1] x)
 
 (OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)

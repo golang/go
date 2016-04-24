@@ -84,7 +84,7 @@ func phiopt(f *Func) {
 			// of value are not seen if a is false.
 			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
 				if tmp := v.Args[1-reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
-					v.reset(OpOr8)
+					v.reset(OpOrB)
 					v.SetArgs2(b0.Control, tmp)
 					if f.pass.debug > 0 {
 						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
@@ -100,7 +100,7 @@ func phiopt(f *Func) {
 			// of value are not seen if a is false.
 			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
 				if tmp := v.Args[reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
-					v.reset(OpAnd8)
+					v.reset(OpAndB)
 					v.SetArgs2(b0.Control, tmp)
 					if f.pass.debug > 0 {
 						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
