@@ -8,7 +8,6 @@ package pe
 import (
 	"debug/dwarf"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -58,6 +57,8 @@ var (
 	sizeofOptionalHeader64 = uint16(binary.Size(OptionalHeader64{}))
 )
 
+// TODO(brainman): add Load function, as a replacement for NewFile, that does not call removeAuxSymbols (for performance)
+
 // NewFile creates a new File for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
@@ -73,7 +74,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		var sign [4]byte
 		r.ReadAt(sign[:], signoff)
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
-			return nil, errors.New("Invalid PE File Format.")
+			return nil, fmt.Errorf("Invalid PE COFF file signature of %v.", sign)
 		}
 		base = signoff + 4
 	} else {
@@ -83,8 +84,10 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
-	if f.FileHeader.Machine != IMAGE_FILE_MACHINE_UNKNOWN && f.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 && f.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 {
-		return nil, errors.New("Invalid PE File Format.")
+	switch f.FileHeader.Machine {
+	case IMAGE_FILE_MACHINE_UNKNOWN, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386:
+	default:
+		return nil, fmt.Errorf("Unrecognised COFF file header machine value of 0x%x.", f.FileHeader.Machine)
 	}
 
 	var err error
