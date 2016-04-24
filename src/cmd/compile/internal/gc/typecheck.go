@@ -3953,7 +3953,7 @@ func (n *Node) isterminating() bool {
 }
 
 func checkreturn(fn *Node) {
-	if fn.Type.Results().NumFields() != 0 && len(fn.Nbody.Slice()) != 0 {
+	if fn.Type.Results().NumFields() != 0 && fn.Nbody.Len() != 0 {
 		markbreaklist(fn.Nbody, nil)
 		if !fn.Nbody.isterminating() {
 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")

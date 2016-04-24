@@ -271,7 +271,7 @@ func (p *importer) obj(tag int) {
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", importpkg.Path, n)
-			if Debug['m'] > 2 && len(n.Func.Inl.Slice()) != 0 {
+			if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
 				fmt.Printf("inl body: %v\n", n.Func.Inl)
 			}
 		}
@@ -368,7 +368,7 @@ func (p *importer) typ() *Type {
 
 			if Debug['E'] > 0 {
 				fmt.Printf("import [%q] meth %v \n", importpkg.Path, n)
-				if Debug['m'] > 2 && len(n.Func.Inl.Slice()) != 0 {
+				if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
 					fmt.Printf("inl body: %v\n", n.Func.Inl)
 				}
 			}

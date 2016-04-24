@@ -522,7 +522,7 @@ func escfunc(e *EscState, func_ *Node) {
 			if ln.Type != nil && !haspointers(ln.Type) {
 				break
 			}
-			if len(Curfn.Nbody.Slice()) == 0 && !Curfn.Noescape {
+			if Curfn.Nbody.Len() == 0 && !Curfn.Noescape {
 				ln.Esc = EscHeap
 			} else {
 				ln.Esc = EscNone // prime for escflood later
@@ -1469,7 +1469,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	nE := e.nodeEscState(n)
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, FmtShort))
 		}
@@ -1969,7 +1969,7 @@ func esctag(e *EscState, func_ *Node) {
 
 	// External functions are assumed unsafe,
 	// unless //go:noescape is given before the declaration.
-	if len(func_.Nbody.Slice()) == 0 {
+	if func_.Nbody.Len() == 0 {
 		if func_.Noescape {
 			for _, t := range func_.Type.Params().Fields().Slice() {
 				if haspointers(t.Type) {

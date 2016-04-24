@@ -363,7 +363,7 @@ func compile(fn *Node) {
 	Curfn = fn
 	dowidth(Curfn.Type)
 
-	if len(fn.Nbody.Slice()) == 0 {
+	if fn.Nbody.Len() == 0 {
 		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
 			return
