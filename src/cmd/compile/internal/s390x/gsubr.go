@@ -54,7 +54,7 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
 
-	if as != s390x.AMOVD && (c < -s390x.BIG || c > s390x.BIG) || n2.Op != gc.OREGISTER || as == s390x.AMULLD {
+	if as != s390x.AMOVD && (c < -s390x.BIG || c > s390x.BIG) || n2.Op != gc.OREGISTER {
 		// cannot have more than 16-bit of immediate in ADD, etc.
 		// instead, MOV into register first.
 		var ntmp gc.Node
@@ -562,11 +562,6 @@ func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	switch as {
 	// Bad things the front end has done to us. Crash to find call stack.
-	case s390x.AMULLD:
-		if p.From.Type == obj.TYPE_CONST {
-			gc.Debug['h'] = 1
-			gc.Fatalf("bad inst: %v", p)
-		}
 	case s390x.ACMP, s390x.ACMPU:
 		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
 			gc.Debug['h'] = 1
