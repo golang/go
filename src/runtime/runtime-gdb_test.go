@@ -121,21 +121,11 @@ func TestGdbPython(t *testing.T) {
 		"-ex", "print strvar",
 		"-ex", "echo END\n",
 		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
+		"-ex", "echo BEGIN goroutine 2 bt\n",
+		"-ex", "goroutine 2 bt",
+		"-ex", "echo END\n",
+		filepath.Join(dir, "a.exe"),
 	}
-
-	// without framepointer, gdb cannot backtrace our non-standard
-	// stack frames on RISC architectures.
-	canBackTrace := false
-	switch runtime.GOARCH {
-	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64", "mips64", "mips64le", "s390x":
-		canBackTrace = true
-		args = append(args,
-			"-ex", "echo BEGIN goroutine 2 bt\n",
-			"-ex", "goroutine 2 bt",
-			"-ex", "echo END\n")
-	}
-
-	args = append(args, filepath.Join(dir, "a.exe"))
 	got, _ := exec.Command("gdb", args...).CombinedOutput()
 
 	firstLine := bytes.SplitN(got, []byte("\n"), 2)[0]
@@ -179,10 +169,8 @@ func TestGdbPython(t *testing.T) {
 	}
 
 	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)
-	if bl := blocks["goroutine 2 bt"]; canBackTrace && !btGoroutineRe.MatchString(bl) {
+	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
-	} else if !canBackTrace {
-		t.Logf("gdb cannot backtrace for GOARCH=%s, skipped goroutine backtrace test", runtime.GOARCH)
 	}
 }
 
