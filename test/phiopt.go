@@ -49,7 +49,7 @@ func f3(a, b int) bool {
 
 //go:noinline
 func f4(a, b bool) bool {
-	return a || b // ERROR "converted OpPhi to Or8$"
+	return a || b // ERROR "converted OpPhi to OrB$"
 }
 
 //go:noinline
@@ -60,7 +60,7 @@ func f5or(a int, b bool) bool {
 	} else {
 		x = b
 	}
-	return x // ERROR "converted OpPhi to Or8$"
+	return x // ERROR "converted OpPhi to OrB$"
 }
 
 //go:noinline
@@ -71,7 +71,7 @@ func f5and(a int, b bool) bool {
 	} else {
 		x = false
 	}
-	return x // ERROR "converted OpPhi to And8$"
+	return x // ERROR "converted OpPhi to AndB$"
 }
 
 //go:noinline
@@ -96,12 +96,12 @@ func f6and(a int, b bool) bool {
 
 //go:noinline
 func f7or(a bool, b bool) bool {
-	return a || b // ERROR "converted OpPhi to Or8$"
+	return a || b // ERROR "converted OpPhi to OrB$"
 }
 
 //go:noinline
 func f7and(a bool, b bool) bool {
-	return a && b // ERROR "converted OpPhi to And8$"
+	return a && b // ERROR "converted OpPhi to AndB$"
 }
 
 func main() {

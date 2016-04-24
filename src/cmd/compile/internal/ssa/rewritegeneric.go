@@ -66,6 +66,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpEq64(v, config)
 	case OpEq8:
 		return rewriteValuegeneric_OpEq8(v, config)
+	case OpEqB:
+		return rewriteValuegeneric_OpEqB(v, config)
 	case OpEqInter:
 		return rewriteValuegeneric_OpEqInter(v, config)
 	case OpEqPtr:
@@ -218,6 +220,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpNeq64(v, config)
 	case OpNeq8:
 		return rewriteValuegeneric_OpNeq8(v, config)
+	case OpNeqB:
+		return rewriteValuegeneric_OpNeqB(v, config)
 	case OpNeqInter:
 		return rewriteValuegeneric_OpNeqInter(v, config)
 	case OpNeqPtr:
@@ -2348,57 +2352,6 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
 		v.AuxInt = 1
 		return true
 	}
-	// match: (Eq8 (ConstBool [c]) (ConstBool [d]))
-	// cond:
-	// result: (ConstBool [b2i(c == d)])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpConstBool {
-			break
-		}
-		c := v_0.AuxInt
-		v_1 := v.Args[1]
-		if v_1.Op != OpConstBool {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(c == d)
-		return true
-	}
-	// match: (Eq8 (ConstBool [0]) x)
-	// cond:
-	// result: (Not x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpConstBool {
-			break
-		}
-		if v_0.AuxInt != 0 {
-			break
-		}
-		x := v.Args[1]
-		v.reset(OpNot)
-		v.AddArg(x)
-		return true
-	}
-	// match: (Eq8 (ConstBool [1]) x)
-	// cond:
-	// result: x
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpConstBool {
-			break
-		}
-		if v_0.AuxInt != 1 {
-			break
-		}
-		x := v.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
 	// match: (Eq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x))
 	// cond:
 	// result: (Eq8 (Const8 <t> [int64(int8(c-d))]) x)
@@ -2487,6 +2440,62 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
 		d := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c == d)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpEqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqB (ConstBool [c]) (ConstBool [d]))
+	// cond:
+	// result: (ConstBool [b2i(c == d)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		c := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		d := v_1.AuxInt
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(c == d)
+		return true
+	}
+	// match: (EqB (ConstBool [0]) x)
+	// cond:
+	// result: (Not x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpNot)
+		v.AddArg(x)
+		return true
+	}
+	// match: (EqB (ConstBool [1]) x)
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -5707,57 +5716,6 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		return true
 	}
-	// match: (Neq8 (ConstBool [c]) (ConstBool [d]))
-	// cond:
-	// result: (ConstBool [b2i(c != d)])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpConstBool {
-			break
-		}
-		c := v_0.AuxInt
-		v_1 := v.Args[1]
-		if v_1.Op != OpConstBool {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(c != d)
-		return true
-	}
-	// match: (Neq8 (ConstBool [0]) x)
-	// cond:
-	// result: x
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpConstBool {
-			break
-		}
-		if v_0.AuxInt != 0 {
-			break
-		}
-		x := v.Args[1]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (Neq8 (ConstBool [1]) x)
-	// cond:
-	// result: (Not x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpConstBool {
-			break
-		}
-		if v_0.AuxInt != 1 {
-			break
-		}
-		x := v.Args[1]
-		v.reset(OpNot)
-		v.AddArg(x)
-		return true
-	}
 	// match: (Neq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x))
 	// cond:
 	// result: (Neq8 (Const8 <t> [int64(int8(c-d))]) x)
@@ -5846,6 +5804,62 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
 		d := v_1.AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(c != d)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpNeqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
+	// cond:
+	// result: (ConstBool [b2i(c != d)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		c := v_0.AuxInt
+		v_1 := v.Args[1]
+		if v_1.Op != OpConstBool {
+			break
+		}
+		d := v_1.AuxInt
+		v.reset(OpConstBool)
+		v.AuxInt = b2i(c != d)
+		return true
+	}
+	// match: (NeqB (ConstBool [0]) x)
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (NeqB (ConstBool [1]) x)
+	// cond:
+	// result: (Not x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConstBool {
+			break
+		}
+		if v_0.AuxInt != 1 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpNot)
+		v.AddArg(x)
 		return true
 	}
 	return false

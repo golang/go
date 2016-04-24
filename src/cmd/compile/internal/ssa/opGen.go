@@ -503,6 +503,10 @@ const (
 	OpGeq64U
 	OpGeq32F
 	OpGeq64F
+	OpAndB
+	OpOrB
+	OpEqB
+	OpNeqB
 	OpNot
 	OpNeg8
 	OpNeg16
@@ -4770,6 +4774,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Geq64F",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AndB",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OrB",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "EqB",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "NeqB",
 		argLen:  2,
 		generic: true,
 	},

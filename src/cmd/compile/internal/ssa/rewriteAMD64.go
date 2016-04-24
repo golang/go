@@ -48,6 +48,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpAnd64(v, config)
 	case OpAnd8:
 		return rewriteValueAMD64_OpAnd8(v, config)
+	case OpAndB:
+		return rewriteValueAMD64_OpAndB(v, config)
 	case OpAvg64u:
 		return rewriteValueAMD64_OpAvg64u(v, config)
 	case OpBswap32:
@@ -164,6 +166,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpEq64F(v, config)
 	case OpEq8:
 		return rewriteValueAMD64_OpEq8(v, config)
+	case OpEqB:
+		return rewriteValueAMD64_OpEqB(v, config)
 	case OpEqPtr:
 		return rewriteValueAMD64_OpEqPtr(v, config)
 	case OpGeq16:
@@ -512,6 +516,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpNeq64F(v, config)
 	case OpNeq8:
 		return rewriteValueAMD64_OpNeq8(v, config)
+	case OpNeqB:
+		return rewriteValueAMD64_OpNeqB(v, config)
 	case OpNeqPtr:
 		return rewriteValueAMD64_OpNeqPtr(v, config)
 	case OpNilCheck:
@@ -536,6 +542,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpOr64(v, config)
 	case OpOr8:
 		return rewriteValueAMD64_OpOr8(v, config)
+	case OpOrB:
+		return rewriteValueAMD64_OpOrB(v, config)
 	case OpRsh16Ux16:
 		return rewriteValueAMD64_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -1697,6 +1705,22 @@ func rewriteValueAMD64_OpAnd8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (And8 x y)
+	// cond:
+	// result: (ANDL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64ANDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAndB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AndB x y)
 	// cond:
 	// result: (ANDL x y)
 	for {
@@ -3546,6 +3570,24 @@ func rewriteValueAMD64_OpEq8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq8 x y)
+	// cond:
+	// result: (SETEQ (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpEqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqB x y)
 	// cond:
 	// result: (SETEQ (CMPB x y))
 	for {
@@ -12820,6 +12862,24 @@ func rewriteValueAMD64_OpNeq8(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpNeqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqB x y)
+	// cond:
+	// result: (SETNE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64SETNE)
+		v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpNeqPtr(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -13902,6 +13962,22 @@ func rewriteValueAMD64_OpOr8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Or8 x y)
+	// cond:
+	// result: (ORL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64ORL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpOrB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (OrB x y)
 	// cond:
 	// result: (ORL x y)
 	for {
