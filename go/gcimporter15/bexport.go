@@ -37,6 +37,14 @@ import (
 // (suspected) format errors, and whenever a change is made to the format.
 const debugFormat = false // default: false
 
+// If posInfoFormat is set, position information (file, lineno) is written
+// for each exported object, including methods and struct fields. Currently
+// disabled because it may lead to different object files depending on which
+// directory they are built under, which causes tests checking for hermetic
+// builds to fail (e.g. TestCgoConsistentResults for cmd/go).
+// TODO(gri) determine what to do here.
+const posInfoFormat = false
+
 // If trace is set, debugging output is printed to std out.
 const trace = false // default: false
 
@@ -76,6 +84,9 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 		format = 'd'
 	}
 	p.rawByte(format)
+
+	// posInfo exported or not?
+	p.bool(posInfoFormat)
 
 	// --- generic export data ---
 
@@ -200,6 +211,10 @@ func (p *exporter) obj(obj types.Object) {
 }
 
 func (p *exporter) pos(obj types.Object) {
+	if !posInfoFormat {
+		return
+	}
+
 	var file string
 	var line int
 	if p.fset != nil {
@@ -561,6 +576,20 @@ func valueToRat(x constant.Value) *big.Rat {
 		bytes[i], bytes[len(bytes)-1-i] = bytes[len(bytes)-1-i], bytes[i]
 	}
 	return new(big.Rat).SetInt(new(big.Int).SetBytes(bytes))
+}
+
+func (p *exporter) bool(b bool) bool {
+	if trace {
+		p.tracef("[")
+		defer p.tracef("= %v] ", b)
+	}
+
+	x := 0
+	if b {
+		x = 1
+	}
+	p.int(x)
+	return b
 }
 
 // ----------------------------------------------------------------------------

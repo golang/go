@@ -6,10 +6,6 @@
 
 // This file is a copy of $GOROOT/src/go/internal/gcimporter/bimport.go, tagged for go1.5.
 
-// Copyright 2015 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package gcimporter
 
 import (
@@ -35,8 +31,9 @@ type importer struct {
 	typList []types.Type     // in order of appearance
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	debugFormat bool
@@ -64,6 +61,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	default:
 		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.posInfoFormat = p.int() != 0
 
 	// --- generic export data ---
 
@@ -202,6 +201,10 @@ func (p *importer) obj(tag int) {
 }
 
 func (p *importer) pos() {
+	if !p.posInfoFormat {
+		return
+	}
+
 	file := p.prevFile
 	line := p.prevLine
 
