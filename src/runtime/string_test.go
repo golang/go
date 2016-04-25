@@ -238,17 +238,35 @@ func TestRangeStringCast(t *testing.T) {
 	}
 }
 
+func isZeroed(b []byte) bool {
+	for _, x := range b {
+		if x != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func isZeroedR(r []rune) bool {
+	for _, x := range r {
+		if x != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestString2Slice(t *testing.T) {
 	// Make sure we don't return slices that expose
 	// an unzeroed section of stack-allocated temp buf
 	// between len and cap. See issue 14232.
 	s := "foož"
 	b := ([]byte)(s)
-	if cap(b) != 5 {
-		t.Errorf("want cap of 5, got %d", cap(b))
+	if !isZeroed(b[len(b):cap(b)]) {
+		t.Errorf("extra bytes not zeroed")
 	}
 	r := ([]rune)(s)
-	if cap(r) != 4 {
-		t.Errorf("want cap of 4, got %d", cap(r))
+	if !isZeroedR(r[len(r):cap(r)]) {
+		t.Errorf("extra runes not zeroed")
 	}
 }
