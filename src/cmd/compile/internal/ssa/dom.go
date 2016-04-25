@@ -20,6 +20,9 @@ const (
 // postorder computes a postorder traversal ordering for the
 // basic blocks in f. Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
+	return postorderWithNumbering(f, []int{})
+}
+func postorderWithNumbering(f *Func, ponums []int) []*Block {
 	mark := make([]markKind, f.NumBlocks())
 
 	// result ordering
@@ -36,6 +39,9 @@ func postorder(f *Func) []*Block {
 			// Children have all been visited. Pop & output block.
 			s = s[:len(s)-1]
 			mark[b.ID] = done
+			if len(ponums) > 0 {
+				ponums[b.ID] = len(order)
+			}
 			order = append(order, b)
 		case notExplored:
 			// Children have not been visited yet. Mark as explored
@@ -56,14 +62,14 @@ func postorder(f *Func) []*Block {
 
 type linkedBlocks func(*Block) []*Block
 
-const nscratchslices = 8
+const nscratchslices = 7
 
 // experimentally, functions with 512 or fewer blocks account
 // for 75% of memory (size) allocation for dominator computation
 // in make.bash.
 const minscratchblocks = 512
 
-func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g, h []ID) {
+func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID) {
 	tot := maxBlockID * nscratchslices
 	scratch := cfg.domblockstore
 	if len(scratch) < tot {
@@ -90,216 +96,143 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g, h [
 	e = scratch[4*maxBlockID : 5*maxBlockID]
 	f = scratch[5*maxBlockID : 6*maxBlockID]
 	g = scratch[6*maxBlockID : 7*maxBlockID]
-	h = scratch[7*maxBlockID : 8*maxBlockID]
 
 	return
 }
 
-// dfs performs a depth first search over the blocks starting at the set of
-// blocks in the entries list (in arbitrary order). dfnum contains a mapping
-// from block id to an int indicating the order the block was reached or
-// 0 if the block was not reached.  order contains a mapping from dfnum
-// to block.
-func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent []ID) (fromID []*Block) {
-	maxBlockID := entries[0].Func.NumBlocks()
-
-	fromID = make([]*Block, maxBlockID)
-
-	for _, entry := range entries[0].Func.Blocks {
-		eid := entry.ID
-		if fromID[eid] != nil {
-			panic("Colliding entry IDs")
-		}
-		fromID[eid] = entry
-	}
-
-	n := ID(0)
-	s := make([]*Block, 0, 256)
-	for _, entry := range entries {
-		if dfnum[entry.ID] != 0 {
-			continue // already found from a previous entry
-		}
-		s = append(s, entry)
-		parent[entry.ID] = entry.ID
-		for len(s) > 0 {
-			node := s[len(s)-1]
-			s = s[:len(s)-1]
-			if dfnum[node.ID] != 0 {
-				continue // already found from a previous entry
-			}
-			n++
-			dfnum[node.ID] = n
-			order[n] = node.ID
-			for _, w := range succFn(node) {
-				// if it has a dfnum, we've already visited it
-				if dfnum[w.ID] == 0 {
-					s = append(s, w)
-					parent[w.ID] = node.ID // keep overwriting this till it is visited.
-				}
-			}
-		}
-	}
-
-	return
-}
-
-// dominators computes the dominator tree for f. It returns a slice
-// which maps block ID to the immediate dominator of that block.
-// Unreachable blocks map to nil. The entry block maps to nil.
 func dominators(f *Func) []*Block {
 	preds := func(b *Block) []*Block { return b.Preds }
 	succs := func(b *Block) []*Block { return b.Succs }
 
 	//TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
-	return f.dominatorsLT([]*Block{f.Entry}, preds, succs)
+	return f.dominatorsLTOrig(f.Entry, preds, succs)
 }
 
-// postDominators computes the post-dominator tree for f.
-func postDominators(f *Func) []*Block {
-
-	if len(f.Blocks) == 0 {
-		return nil
-	}
-
-	// find the exit blocks
-	var exits []*Block
-	for _, b := range f.Blocks {
-		switch b.Kind {
-		case BlockExit, BlockRet, BlockRetJmp, BlockCall, BlockCheck:
-			exits = append(exits, b)
-		}
-	}
-
-	// TODO: postdominators is not really right, and it's not used yet
-	preds := func(b *Block) []*Block { return b.Preds }
-	succs := func(b *Block) []*Block { return b.Succs }
-
-	// infinite loop with no exit
-	if exits == nil {
-		return make([]*Block, f.NumBlocks())
-	}
-	return f.dominatorsLT(exits, succs, preds)
-}
-
-// dominatorsLt runs Lengauer-Tarjan to compute a dominator tree starting at
+// dominatorsLTOrig runs Lengauer-Tarjan to compute a dominator tree starting at
 // entry and using predFn/succFn to find predecessors/successors to allow
 // computing both dominator and post-dominator trees.
-func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
-	// Based on Lengauer-Tarjan from Modern Compiler Implementation in C -
-	// Appel with optimizations from Finding Dominators in Practice -
-	// Georgiadis
+func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
+	// Adapted directly from the original TOPLAS article's "simple" algorithm
 
-	maxBlockID := entries[0].Func.NumBlocks()
+	maxBlockID := entry.Func.NumBlocks()
+	semi, vertex, label, parent, ancestor, bucketHead, bucketLink := f.Config.scratchBlocksForDom(maxBlockID)
 
-	dfnum, vertex, parent, semi, samedom, ancestor, best, bucket := f.Config.scratchBlocksForDom(maxBlockID)
-
-	// dfnum := make([]ID, maxBlockID) // conceptually int32, but punning for allocation purposes.
-	// vertex := make([]ID, maxBlockID)
-	// parent := make([]ID, maxBlockID)
-
-	// semi := make([]ID, maxBlockID)
-	// samedom := make([]ID, maxBlockID)
-	// ancestor := make([]ID, maxBlockID)
-	// best := make([]ID, maxBlockID)
-	// bucket := make([]ID, maxBlockID)
+	// This version uses integers for most of the computation,
+	// to make the work arrays smaller and pointer-free.
+	// fromID translates from ID to *Block where that is needed.
+	fromID := make([]*Block, maxBlockID)
+	for _, v := range f.Blocks {
+		fromID[v.ID] = v
+	}
+	idom := make([]*Block, maxBlockID)
 
 	// Step 1. Carry out a depth first search of the problem graph. Number
 	// the vertices from 1 to n as they are reached during the search.
-	fromID := f.dfs(entries, succFn, dfnum, vertex, parent)
+	n := f.dfsOrig(entry, succFn, semi, vertex, label, parent)
 
-	idom := make([]*Block, maxBlockID)
-
-	// Step 2. Compute the semidominators of all vertices by applying
-	// Theorem 4.  Carry out the computation vertex by vertex in decreasing
-	// order by number.
-	for i := maxBlockID - 1; i > 0; i-- {
+	for i := n; i >= 2; i-- {
 		w := vertex[i]
-		if w == 0 {
-			continue
-		}
 
-		if dfnum[w] == 0 {
-			// skip unreachable node
-			continue
-		}
-
-		// Step 3. Implicitly define the immediate dominator of each
-		// vertex by applying Corollary 1. (reordered)
-		for v := bucket[w]; v != 0; v = bucket[v] {
-			u := eval(v, ancestor, semi, dfnum, best)
-			if semi[u] == semi[v] {
-				idom[v] = fromID[w] // true dominator
-			} else {
-				samedom[v] = u // v has same dominator as u
-			}
-		}
-
-		p := parent[w]
-		s := p // semidominator
-
-		var sp ID
-		// calculate the semidominator of w
+		// step2 in TOPLAS paper
 		for _, v := range predFn(fromID[w]) {
-			if dfnum[v.ID] == 0 {
+			if semi[v.ID] == 0 {
 				// skip unreachable predecessor
+				// not in original, but we're using existing pred instead of building one.
 				continue
 			}
+			u := evalOrig(v.ID, ancestor, semi, label)
+			if semi[u] < semi[w] {
+				semi[w] = semi[u]
+			}
+		}
 
-			if dfnum[v.ID] <= dfnum[w] {
-				sp = v.ID
+		// add w to bucket[vertex[semi[w]]]
+		// implement bucket as a linked list implemented
+		// in a pair of arrays.
+		vsw := vertex[semi[w]]
+		bucketLink[w] = bucketHead[vsw]
+		bucketHead[vsw] = w
+
+		linkOrig(parent[w], w, ancestor)
+
+		// step3 in TOPLAS paper
+		for v := bucketHead[parent[w]]; v != 0; v = bucketLink[v] {
+			u := evalOrig(v, ancestor, semi, label)
+			if semi[u] < semi[v] {
+				idom[v] = fromID[u]
 			} else {
-				sp = semi[eval(v.ID, ancestor, semi, dfnum, best)]
-			}
-
-			if dfnum[sp] < dfnum[s] {
-				s = sp
+				idom[v] = fromID[parent[w]]
 			}
 		}
-
-		// link
-		ancestor[w] = p
-		best[w] = w
-
-		semi[w] = s
-		if semi[s] != parent[s] {
-			bucket[w] = bucket[s]
-			bucket[s] = w
-		}
 	}
-
-	// Final pass of step 3
-	for v := bucket[0]; v != 0; v = bucket[v] {
-		idom[v] = fromID[bucket[0]]
-	}
-
-	// Step 4. Explicitly define the immediate dominator of each vertex,
-	// carrying out the computation vertex by vertex in increasing order by
-	// number.
-	for i := 1; i < maxBlockID-1; i++ {
+	// step 4 in toplas paper
+	for i := ID(2); i <= n; i++ {
 		w := vertex[i]
-		if w == 0 {
-			continue
-		}
-		// w has the same dominator as samedom[w]
-		if samedom[w] != 0 {
-			idom[w] = idom[samedom[w]]
+		if idom[w].ID != vertex[semi[w]] {
+			idom[w] = idom[idom[w].ID]
 		}
 	}
+
 	return idom
 }
 
-// eval function from LT paper with path compression
-func eval(v ID, ancestor []ID, semi []ID, dfnum []ID, best []ID) ID {
-	a := ancestor[v]
-	if ancestor[a] != 0 {
-		bid := eval(a, ancestor, semi, dfnum, best)
-		ancestor[v] = ancestor[a]
-		if dfnum[semi[bid]] < dfnum[semi[best[v]]] {
-			best[v] = bid
+// dfs performs a depth first search over the blocks starting at entry block
+// (in arbitrary order).  This is a de-recursed version of dfs from the
+// original Tarjan-Lengauer TOPLAS article.  It's important to return the
+// same values for parent as the original algorithm.
+func (f *Func) dfsOrig(entry *Block, succFn linkedBlocks, semi, vertex, label, parent []ID) ID {
+	n := ID(0)
+	s := make([]*Block, 0, 256)
+	s = append(s, entry)
+
+	for len(s) > 0 {
+		v := s[len(s)-1]
+		s = s[:len(s)-1]
+		// recursing on v
+
+		if semi[v.ID] != 0 {
+			continue // already visited
+		}
+		n++
+		semi[v.ID] = n
+		vertex[n] = v.ID
+		label[v.ID] = v.ID
+		// ancestor[v] already zero
+		for _, w := range succFn(v) {
+			// if it has a dfnum, we've already visited it
+			if semi[w.ID] == 0 {
+				// yes, w can be pushed multiple times.
+				s = append(s, w)
+				parent[w.ID] = v.ID // keep overwriting this till it is visited.
+			}
 		}
 	}
-	return best[v]
+	return n
+}
+
+// compressOrig is the "simple" compress function from LT paper
+func compressOrig(v ID, ancestor, semi, label []ID) {
+	if ancestor[ancestor[v]] != 0 {
+		compressOrig(ancestor[v], ancestor, semi, label)
+		if semi[label[ancestor[v]]] < semi[label[v]] {
+			label[v] = label[ancestor[v]]
+		}
+		ancestor[v] = ancestor[ancestor[v]]
+	}
+}
+
+// evalOrig is the "simple" eval function from LT paper
+func evalOrig(v ID, ancestor, semi, label []ID) ID {
+	if ancestor[v] == 0 {
+		return v
+	}
+	compressOrig(v, ancestor, semi, label)
+	return label[v]
+}
+
+func linkOrig(v, w ID, ancestor []ID) {
+	ancestor[w] = v
 }
 
 // dominators computes the dominator tree for f. It returns a slice
