@@ -512,7 +512,8 @@ func runTest(cmd *Command, args []string) {
 				continue
 			}
 			p.Stale = true // rebuild
-			p.fake = true  // do not warn about rebuild
+			p.StaleReason = "rebuild for coverage"
+			p.fake = true // do not warn about rebuild
 			p.coverMode = testCoverMode
 			var coverFiles []string
 			coverFiles = append(coverFiles, p.GoFiles...)
@@ -749,6 +750,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		ptest.fake = true
 		ptest.forceLibrary = true
 		ptest.Stale = true
+		ptest.StaleReason = "rebuild for test"
 		ptest.build = new(build.Package)
 		*ptest.build = *p.build
 		m := map[string][]token.Position{}
@@ -1027,6 +1029,7 @@ func recompileForTest(pmain, preal, ptest *Package, testDir string) {
 				p.target = ""
 				p.fake = true
 				p.Stale = true
+				p.StaleReason = "depends on package being tested"
 			}
 		}
 
