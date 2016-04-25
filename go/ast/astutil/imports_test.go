@@ -925,6 +925,270 @@ import y "fmt"
 import y "fmt"
 `,
 	},
+	// Issue #15432
+	{
+		name: "import.19",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+
+	// Some comment.
+	"io"
+)`,
+		out: `package main
+
+// Some comment.
+import "io"
+`,
+	},
+	{
+		name: "import.20",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+
+	// Some
+	// comment.
+	"io"
+)`,
+		out: `package main
+
+// Some
+// comment.
+import "io"
+`,
+	},
+	{
+		name: "import.21",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+
+	/*
+		Some
+		comment.
+	*/
+	"io"
+)`,
+		out: `package main
+
+/*
+	Some
+	comment.
+*/
+import "io"
+`,
+	},
+	{
+		name: "import.22",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	/* Some */
+	// comment.
+	"io"
+	"fmt"
+)`,
+		out: `package main
+
+/* Some */
+// comment.
+import "io"
+`,
+	},
+	{
+		name: "import.23",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	// comment 1
+	"fmt"
+	// comment 2
+	"io"
+)`,
+		out: `package main
+
+// comment 2
+import "io"
+`,
+	},
+	{
+		name: "import.24",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt" // comment 1
+	"io" // comment 2
+)`,
+		out: `package main
+
+import "io" // comment 2
+`,
+	},
+	{
+		name: "import.25",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+	/* comment */ "io"
+)`,
+		out: `package main
+
+import /* comment */ "io"
+`,
+	},
+	{
+		name: "import.26",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt"
+	"io" /* comment */
+)`,
+		out: `package main
+
+import "io" /* comment */
+`,
+	},
+	{
+		name: "import.27",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"fmt" /* comment */
+	"io"
+)`,
+		out: `package main
+
+import "io"
+`,
+	},
+	{
+		name: "import.28",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	/* comment */  "fmt"
+	"io"
+)`,
+		out: `package main
+
+import "io"
+`,
+	},
+	{
+		name: "import.29",
+		pkg:  "fmt",
+		in: `package main
+
+// comment 1
+import (
+	"fmt"
+	"io" // comment 2
+)`,
+		out: `package main
+
+// comment 1
+import "io" // comment 2
+`,
+	},
+	{
+		name: "import.30",
+		pkg:  "fmt",
+		in: `package main
+
+// comment 1
+import (
+	"fmt" // comment 2
+	"io"
+)`,
+		out: `package main
+
+// comment 1
+import "io"
+`,
+	},
+	{
+		name: "import.31",
+		pkg:  "fmt",
+		in: `package main
+
+// comment 1
+import (
+	"fmt"
+	/* comment 2 */ "io"
+)`,
+		out: `package main
+
+// comment 1
+import /* comment 2 */ "io"
+`,
+	},
+	{
+		name:       "import.32",
+		pkg:        "fmt",
+		renamedPkg: "f",
+		in: `package main
+
+// comment 1
+import (
+	f "fmt"
+	/* comment 2 */ i "io"
+)`,
+		out: `package main
+
+// comment 1
+import /* comment 2 */ i "io"
+`,
+	},
+	{
+		name:       "import.33",
+		pkg:        "fmt",
+		renamedPkg: "f",
+		in: `package main
+
+// comment 1
+import (
+	/* comment 2 */ f "fmt"
+	i "io"
+)`,
+		out: `package main
+
+// comment 1
+import i "io"
+`,
+	},
+	{
+		name:       "import.34",
+		pkg:        "fmt",
+		renamedPkg: "f",
+		in: `package main
+
+// comment 1
+import (
+	f "fmt" /* comment 2 */
+	i "io"
+)`,
+		out: `package main
+
+// comment 1
+import i "io"
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {

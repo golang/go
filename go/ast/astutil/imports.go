@@ -180,6 +180,7 @@ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) 
 // DeleteNamedImport deletes the import with the given name and path from the file f, if present.
 func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (deleted bool) {
 	var delspecs []*ast.ImportSpec
+	var delcomments []*ast.CommentGroup
 
 	// Find the import nodes that import path, if any.
 	for i := 0; i < len(f.Decls); i++ {
@@ -216,7 +217,35 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 				i--
 				break
 			} else if len(gen.Specs) == 1 {
+				if impspec.Doc != nil {
+					delcomments = append(delcomments, impspec.Doc)
+				}
+				if impspec.Comment != nil {
+					delcomments = append(delcomments, impspec.Comment)
+				}
+				for _, cg := range f.Comments {
+					// Found comment on the same line as the import spec.
+					if cg.End() < impspec.Pos() && fset.Position(cg.End()).Line == fset.Position(impspec.Pos()).Line {
+						delcomments = append(delcomments, cg)
+						break
+					}
+				}
+
 				gen.Lparen = token.NoPos // drop parens
+				spec := gen.Specs[0].(*ast.ImportSpec)
+				if spec.Doc != nil {
+					// Move the documentation above the import statement.
+					gen.TokPos = spec.Doc.End() + 1
+				}
+
+				for _, cg := range f.Comments {
+					if cg.End() < spec.Pos() && fset.Position(cg.End()).Line == fset.Position(spec.Pos()).Line {
+						for fset.Position(gen.TokPos).Line != fset.Position(spec.Pos()).Line {
+							fset.File(gen.TokPos).MergeLine(fset.Position(gen.TokPos).Line)
+						}
+						break
+					}
+				}
 			}
 			if j > 0 {
 				lastImpspec := gen.Specs[j-1].(*ast.ImportSpec)
@@ -238,7 +267,7 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 		}
 	}
 
-	// Delete them from f.Imports.
+	// Delete imports from f.Imports.
 	for i := 0; i < len(f.Imports); i++ {
 		imp := f.Imports[i]
 		for j, del := range delspecs {
@@ -247,6 +276,21 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
 				f.Imports = f.Imports[:len(f.Imports)-1]
 				copy(delspecs[j:], delspecs[j+1:])
 				delspecs = delspecs[:len(delspecs)-1]
+				i--
+				break
+			}
+		}
+	}
+
+	// Delete comments from f.Comments.
+	for i := 0; i < len(f.Comments); i++ {
+		cg := f.Comments[i]
+		for j, del := range delcomments {
+			if cg == del {
+				copy(f.Comments[i:], f.Comments[i+1:])
+				f.Comments = f.Comments[:len(f.Comments)-1]
+				copy(delcomments[j:], delcomments[j+1:])
+				delcomments = delcomments[:len(delcomments)-1]
 				i--
 				break
 			}
