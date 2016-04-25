@@ -59,6 +59,9 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
 	arm64.ALSR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AASR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.ACMP & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead},
+	arm64.AADC & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite | gc.UseCarry},
+	arm64.AROR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm64.AADDS & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite | gc.SetCarry},
 
 	// Floating point.
 	arm64.AFADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},

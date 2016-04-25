@@ -29,6 +29,8 @@ func Main() {
 
 	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Cgen_hmul = cgen_hmul
+	gc.Thearch.AddSetCarry = AddSetCarry
+	gc.Thearch.RightShiftWithCarry = RightShiftWithCarry
 	gc.Thearch.Cgen_shift = cgen_shift
 	gc.Thearch.Clearfat = clearfat
 	gc.Thearch.Defframe = defframe

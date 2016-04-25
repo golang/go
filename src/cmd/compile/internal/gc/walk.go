@@ -3424,7 +3424,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
 
 	// TODO(minux)
-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM64, sys.PPC64) {
+	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
 		return n
 	}
 
@@ -3483,6 +3483,16 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			n2 := Nod(OMUL, n1, nr)
 			n = Nod(OSUB, nl, n2)
 			goto ret
+		}
+
+		// TODO(zhongwei) Test shows that TUINT8, TINT8, TUINT16 and TINT16's "quick division" method
+		// on current arm64 backend is slower than hardware div instruction on ARM64 due to unnecessary
+		// data movement between registers. It could be enabled when generated code is good enough.
+		if Thearch.LinkArch.Family == sys.ARM64 {
+			switch Simtype[nl.Type.Etype] {
+			case TUINT8, TINT8, TUINT16, TINT16:
+				return n
+			}
 		}
 
 		switch Simtype[nl.Type.Etype] {
