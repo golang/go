@@ -3807,7 +3807,7 @@ func usefield(n *Node) {
 	if field == nil {
 		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Sym)
 	}
-	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
+	if !strings.Contains(field.Note, "go:\"track\"") {
 		return
 	}
 

@@ -720,18 +720,7 @@ func (p *exporter) field(f *Field) {
 	p.pos(f.Sym.Def)
 	p.fieldName(f.Sym, f)
 	p.typ(f.Type)
-	// TODO(gri) Do we care that a non-present tag cannot be distinguished
-	// from a present but empty ta string? (reflect doesn't seem to make
-	// a difference). Investigate.
-	p.note(f.Note)
-}
-
-func (p *exporter) note(n *string) {
-	var s string
-	if n != nil {
-		s = *n
-	}
-	p.string(s)
+	p.string(f.Note)
 }
 
 func (p *exporter) methodList(t *Type) {
@@ -847,7 +836,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
 	// (Not having escape info causes tests to fail, e.g. runtime GCInfoTest)
-	p.note(q.Note)
+	p.string(q.Note)
 }
 
 func parName(f *Field, numbered bool) string {

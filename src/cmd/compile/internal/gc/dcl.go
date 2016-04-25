@@ -757,7 +757,7 @@ func structfield(n *Node) *Field {
 
 	switch u := n.Val().U.(type) {
 	case string:
-		f.Note = &u
+		f.Note = u
 	default:
 		Yyerror("field annotation must be string")
 	case nil:

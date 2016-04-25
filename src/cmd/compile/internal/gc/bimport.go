@@ -457,7 +457,7 @@ func (p *importer) field() *Node {
 	p.pos()
 	sym := p.fieldName()
 	typ := p.typ()
-	note := p.note()
+	note := p.string()
 
 	var n *Node
 	if sym.Name != "" {
@@ -475,16 +475,9 @@ func (p *importer) field() *Node {
 		n = embedded(s, pkg)
 		n.Right = typenod(typ)
 	}
-	n.SetVal(note)
+	n.SetVal(Val{U: note})
 
 	return n
-}
-
-func (p *importer) note() (v Val) {
-	if s := p.string(); s != "" {
-		v.U = s
-	}
-	return
 }
 
 // parser.go:hidden_interfacedcl_list
@@ -572,7 +565,7 @@ func (p *importer) param(named bool) *Node {
 
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
-	n.SetVal(p.note())
+	n.SetVal(Val{U: p.string()})
 
 	return n
 }

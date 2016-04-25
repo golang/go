@@ -373,7 +373,7 @@ func ordercall(n *Node, order *Order) {
 			if t == nil {
 				break
 			}
-			if t.Note != nil && *t.Note == unsafeUintptrTag {
+			if t.Note == unsafeUintptrTag {
 				xp := n.List.Addr(i)
 				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
 					xp = &(*xp).Left
