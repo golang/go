@@ -39,6 +39,7 @@ type Package struct {
 	Goroot        bool   `json:",omitempty"` // is this package found in the Go root?
 	Standard      bool   `json:",omitempty"` // is this package part of the standard Go library?
 	Stale         bool   `json:",omitempty"` // would 'go install' do anything for this package?
+	StaleReason   string `json:",omitempty"` // why is Stale true?
 	Root          string `json:",omitempty"` // Go root or Go path dir containing this package
 	ConflictDir   string `json:",omitempty"` // Dir is hidden by this other directory
 
@@ -1085,7 +1086,7 @@ func packageList(roots []*Package) []*Package {
 // at the named pkgs (command-line arguments).
 func computeStale(pkgs ...*Package) {
 	for _, p := range packageList(pkgs) {
-		p.Stale = isStale(p)
+		p.Stale, p.StaleReason = isStale(p)
 	}
 }
 
@@ -1356,14 +1357,15 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 // standard library, even in release versions. This makes
 // 'go build -tags netgo' work, among other things.
 
-// isStale reports whether package p needs to be rebuilt.
-func isStale(p *Package) bool {
+// isStale reports whether package p needs to be rebuilt,
+// along with the reason why.
+func isStale(p *Package) (bool, string) {
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		// fake, builtin package
-		return false
+		return false, "builtin package"
 	}
 	if p.Error != nil {
-		return true
+		return true, "errors loading package"
 	}
 
 	// A package without Go sources means we only found
@@ -1373,23 +1375,26 @@ func isStale(p *Package) bool {
 	// only useful with the specific version of the toolchain that
 	// created them.
 	if len(p.gofiles) == 0 && !p.usesSwig() {
-		return false
+		return false, "no source files"
 	}
 
 	// If the -a flag is given, rebuild everything.
 	if buildA {
-		return true
+		return true, "build -a flag in use"
 	}
 
 	// If there's no install target or it's already marked stale, we have to rebuild.
-	if p.target == "" || p.Stale {
-		return true
+	if p.target == "" {
+		return true, "no install target"
+	}
+	if p.Stale {
+		return true, p.StaleReason
 	}
 
 	// Package is stale if completely unbuilt.
 	fi, err := os.Stat(p.target)
 	if err != nil {
-		return true
+		return true, "cannot stat install target"
 	}
 
 	// Package is stale if the expected build ID differs from the
@@ -1402,13 +1407,13 @@ func isStale(p *Package) bool {
 	// See issue 8290 and issue 10702.
 	targetBuildID, err := readBuildID(p)
 	if err == nil && targetBuildID != p.buildID {
-		return true
+		return true, "build ID mismatch"
 	}
 
 	// Package is stale if a dependency is.
 	for _, p1 := range p.deps {
 		if p1.Stale {
-			return true
+			return true, "stale dependency"
 		}
 	}
 
@@ -1431,7 +1436,7 @@ func isStale(p *Package) bool {
 	// install is to run make.bash, which will remove the old package archives
 	// before rebuilding.)
 	if p.Standard && isGoRelease {
-		return false
+		return false, "standard package in Go release distribution"
 	}
 
 	// Time-based staleness.
@@ -1446,7 +1451,7 @@ func isStale(p *Package) bool {
 	// Package is stale if a dependency is, or if a dependency is newer.
 	for _, p1 := range p.deps {
 		if p1.target != "" && olderThan(p1.target) {
-			return true
+			return true, "newer dependency"
 		}
 	}
 
@@ -1465,10 +1470,10 @@ func isStale(p *Package) bool {
 	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != goroot {
 		if olderThan(buildToolchain.compiler()) {
-			return true
+			return true, "newer compiler"
 		}
 		if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
-			return true
+			return true, "newer linker"
 		}
 	}
 
@@ -1513,11 +1518,11 @@ func isStale(p *Package) bool {
 	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
-			return true
+			return true, "newer source file"
 		}
 	}
 
-	return false
+	return false, ""
 }
 
 // computeBuildID computes the build ID for p, leaving it in p.buildID.

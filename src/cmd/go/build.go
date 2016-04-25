@@ -465,6 +465,7 @@ func runBuild(cmd *Command, args []string) {
 		p := pkgs[0]
 		p.target = *buildO
 		p.Stale = true // must build - not up to date
+		p.StaleReason = "build -o flag in use"
 		a := b.action(modeInstall, depMode, p)
 		b.do(a)
 		return
@@ -836,6 +837,7 @@ func goFilesPackage(gofiles []string) *Package {
 
 	pkg.Target = pkg.target
 	pkg.Stale = true
+	pkg.StaleReason = "files named on command line"
 
 	computeStale(pkg)
 	return pkg

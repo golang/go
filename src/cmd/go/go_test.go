@@ -524,31 +524,42 @@ func (tg *testgoData) wantArchive(path string) {
 	}
 }
 
-// isStale returns whether pkg is stale.
-func (tg *testgoData) isStale(pkg string) bool {
-	tg.run("list", "-f", "{{.Stale}}", pkg)
-	switch v := strings.TrimSpace(tg.getStdout()); v {
-	case "true":
-		return true
-	case "false":
-		return false
-	default:
-		tg.t.Fatalf("unexpected output checking staleness of package %v: %v", pkg, v)
-		panic("unreachable")
+// isStale reports whether pkg is stale, and why
+func (tg *testgoData) isStale(pkg string) (bool, string) {
+	tg.run("list", "-f", "{{.Stale}}:{{.StaleReason}}", pkg)
+	v := strings.TrimSpace(tg.getStdout())
+	f := strings.SplitN(v, ":", 2)
+	if len(f) == 2 {
+		switch f[0] {
+		case "true":
+			return true, f[1]
+		case "false":
+			return false, f[1]
+		}
 	}
+	tg.t.Fatalf("unexpected output checking staleness of package %v: %v", pkg, v)
+	panic("unreachable")
 }
 
 // wantStale fails with msg if pkg is not stale.
-func (tg *testgoData) wantStale(pkg, msg string) {
-	if !tg.isStale(pkg) {
+func (tg *testgoData) wantStale(pkg, reason, msg string) {
+	stale, why := tg.isStale(pkg)
+	if !stale {
 		tg.t.Fatal(msg)
+	}
+	if reason == "" && why != "" || !strings.Contains(why, reason) {
+		tg.t.Errorf("wrong reason for Stale=true: %q, want %q", why, reason)
 	}
 }
 
 // wantNotStale fails with msg if pkg is stale.
-func (tg *testgoData) wantNotStale(pkg, msg string) {
-	if tg.isStale(pkg) {
+func (tg *testgoData) wantNotStale(pkg, reason, msg string) {
+	stale, why := tg.isStale(pkg)
+	if stale {
 		tg.t.Fatal(msg)
+	}
+	if reason == "" && why != "" || !strings.Contains(why, reason) {
+		tg.t.Errorf("wrong reason for Stale=false: %q, want %q", why, reason)
 	}
 }
 
@@ -708,7 +719,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.tempFile("d1/src/p1/p1.go", `package p1`)
 	tg.setenv("GOPATH", tg.path("d1"))
 	tg.run("install", "-a", "p1")
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly")
 	tg.sleep()
 
 	// Changing mtime and content of runtime/internal/sys/sys.go
@@ -717,28 +728,28 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
 	restore := addNL(sys)
 	defer restore()
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after updating runtime/internal/sys/sys.go")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after updating runtime/internal/sys/sys.go")
 	restore()
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after restoring runtime/internal/sys/sys.go")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after restoring runtime/internal/sys/sys.go")
 
 	// But changing runtime/internal/sys/zversion.go should have an effect:
 	// that's how we tell when we flip from one release to another.
 	zversion := runtime.GOROOT() + "/src/runtime/internal/sys/zversion.go"
 	restore = addNL(zversion)
 	defer restore()
-	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing to new release")
+	tg.wantStale("p1", "build ID mismatch", "./testgo list claims p1 is NOT stale, incorrectly, after changing to new release")
 	restore()
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
 	addNL(zversion)
-	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing again to new release")
+	tg.wantStale("p1", "build ID mismatch", "./testgo list claims p1 is NOT stale, incorrectly, after changing again to new release")
 	tg.run("install", "p1")
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale after building with new release")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with new release")
 
 	// Restore to "old" release.
 	restore()
-	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing to old release after new build")
+	tg.wantStale("p1", "build ID mismatch", "./testgo list claims p1 is NOT stale, incorrectly, after changing to old release after new build")
 	tg.run("install", "p1")
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale after building with old release")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 
 	// Everything is out of date. Rebuild to leave things in a better state.
 	tg.run("install", "std")
@@ -821,8 +832,8 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", tg.path("d1")+sep+tg.path("d2"))
 	tg.run("install", "p1")
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly")
-	tg.wantNotStale("p2", "./testgo list claims p2 is stale, incorrectly")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale, incorrectly")
+	tg.wantNotStale("p2", "", "./testgo list claims p2 is stale, incorrectly")
 	tg.sleep()
 	if f, err := os.OpenFile(tg.path("d2/src/p2/p2.go"), os.O_WRONLY|os.O_APPEND, 0); err != nil {
 		t.Fatal(err)
@@ -831,12 +842,12 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	} else {
 		tg.must(f.Close())
 	}
-	tg.wantStale("p2", "./testgo list claims p2 is NOT stale, incorrectly")
-	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly")
+	tg.wantStale("p2", "newer source file", "./testgo list claims p2 is NOT stale, incorrectly")
+	tg.wantStale("p1", "stale dependency", "./testgo list claims p1 is NOT stale, incorrectly")
 
 	tg.run("install", "p1")
-	tg.wantNotStale("p2", "./testgo list claims p2 is stale after reinstall, incorrectly")
-	tg.wantNotStale("p1", "./testgo list claims p1 is stale after reinstall, incorrectly")
+	tg.wantNotStale("p2", "", "./testgo list claims p2 is stale after reinstall, incorrectly")
+	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after reinstall, incorrectly")
 }
 
 func TestGoInstallDetectsRemovedFiles(t *testing.T) {
@@ -850,13 +861,13 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 		package mypkg`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("install", "mypkg")
-	tg.wantNotStale("mypkg", "./testgo list mypkg claims mypkg is stale, incorrectly")
+	tg.wantNotStale("mypkg", "", "./testgo list mypkg claims mypkg is stale, incorrectly")
 	// z.go was not part of the build; removing it is okay.
 	tg.must(os.Remove(tg.path("src/mypkg/z.go")))
-	tg.wantNotStale("mypkg", "./testgo list mypkg claims mypkg is stale after removing z.go; should not be stale")
+	tg.wantNotStale("mypkg", "", "./testgo list mypkg claims mypkg is stale after removing z.go; should not be stale")
 	// y.go was part of the package; removing it should be detected.
 	tg.must(os.Remove(tg.path("src/mypkg/y.go")))
-	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
+	tg.wantStale("mypkg", "build ID mismatch", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
 }
 
 func TestWildcardMatchesSyntaxErrorDirs(t *testing.T) {
@@ -919,13 +930,13 @@ func TestGoInstallDetectsRemovedFilesInPackageMain(t *testing.T) {
 		package main`)
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("install", "mycmd")
-	tg.wantNotStale("mycmd", "./testgo list mypkg claims mycmd is stale, incorrectly")
+	tg.wantNotStale("mycmd", "", "./testgo list mypkg claims mycmd is stale, incorrectly")
 	// z.go was not part of the build; removing it is okay.
 	tg.must(os.Remove(tg.path("src/mycmd/z.go")))
-	tg.wantNotStale("mycmd", "./testgo list mycmd claims mycmd is stale after removing z.go; should not be stale")
+	tg.wantNotStale("mycmd", "", "./testgo list mycmd claims mycmd is stale after removing z.go; should not be stale")
 	// y.go was part of the package; removing it should be detected.
 	tg.must(os.Remove(tg.path("src/mycmd/y.go")))
-	tg.wantStale("mycmd", "./testgo list mycmd claims mycmd is NOT stale after removing y.go; should be stale")
+	tg.wantStale("mycmd", "build ID mismatch", "./testgo list mycmd claims mycmd is NOT stale after removing y.go; should be stale")
 }
 
 func testLocalRun(tg *testgoData, exepath, local, match string) {
@@ -1317,7 +1328,7 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.sleep()
 	tg.run("test", "main_test")
 	tg.run("install", "main_test")
-	tg.wantNotStale("main_test", "after go install, main listed as stale")
+	tg.wantNotStale("main_test", "", "after go install, main listed as stale")
 	tg.run("test", "main_test")
 }
 
@@ -1327,9 +1338,9 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	defer tg.cleanup()
 	goroot := runtime.GOROOT()
 	tg.setenv("GOROOT", goroot+"/")
-	tg.wantNotStale("runtime", "with trailing slash in GOROOT, runtime listed as stale")
-	tg.wantNotStale("os", "with trailing slash in GOROOT, os listed as stale")
-	tg.wantNotStale("io", "with trailing slash in GOROOT, io listed as stale")
+	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
 }
 
 // With $GOBIN set, binaries get installed to $GOBIN.
