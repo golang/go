@@ -139,4 +139,26 @@
 // Using GOOS=android matches build tags and files as for GOOS=linux
 // in addition to android tags and files.
 //
+// Binary-Only Packages
+//
+// It is possible to distribute packages in binary form without including the
+// source code used for compiling the package. To do this, the package must
+// be distributed with a source file not excluded by build constraints and
+// containing a "//go:binary-only-package" comment.
+// Like a build constraint, this comment must appear near the top of the file,
+// preceded only by blank lines and other line comments and with a blank line
+// following the comment, to separate it from the package documentation.
+// Unlike build constraints, this comment is only recognized in non-test
+// Go source files.
+//
+// The minimal source code for a binary-only package is therefore:
+//
+//	//go:binary-only-package
+//
+//	package mypkg
+//
+// The source code may include additional Go code. That code is never compiled
+// but will be processed by tools like godoc and might be useful as end-user
+// documentation.
+//
 package build

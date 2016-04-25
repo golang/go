@@ -1323,6 +1323,13 @@ func (b *builder) do(root *action) {
 
 // build is the action for building a single package or command.
 func (b *builder) build(a *action) (err error) {
+	// Return an error for binary-only package.
+	// We only reach this if isStale believes the binary form is
+	// either not present or not usable.
+	if a.p.BinaryOnly {
+		return fmt.Errorf("missing or invalid package binary for binary-only package %s", a.p.ImportPath)
+	}
+
 	// Return an error if the package has CXX files but it's not using
 	// cgo nor SWIG, since the CXX files can only be processed by cgo
 	// and SWIG.
@@ -1340,6 +1347,7 @@ func (b *builder) build(a *action) (err error) {
 		return fmt.Errorf("can't build package %s because it contains Fortran files (%s) but it's not using cgo nor SWIG",
 			a.p.ImportPath, strings.Join(a.p.FFiles, ","))
 	}
+
 	defer func() {
 		if err != nil && err != errPrintedOutput {
 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
