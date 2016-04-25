@@ -204,6 +204,12 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 				}
 				continue
 			}
+			// libresolv continues to the next server when it receives
+			// an invalid referral response. See golang.org/issue/15434.
+			if msg.rcode == dnsRcodeSuccess && !msg.authoritative && !msg.recursion_available && len(msg.answer) == 0 && len(msg.extra) == 0 {
+				lastErr = &DNSError{Err: "lame referral", Name: name, Server: server}
+				continue
+			}
 			cname, rrs, err := answer(name, server, msg, qtype)
 			// If answer errored for rcodes dnsRcodeSuccess or dnsRcodeNameError,
 			// it means the response in msg was not useful and trying another

@@ -20,6 +20,9 @@ import (
 	"time"
 )
 
+// Test address from 192.0.2.0/24 block, reserved by RFC 5737 for documentation.
+const TestAddr uint32 = 0xc0000201
+
 var dnsTransportFallbackTests = []struct {
 	server  string
 	name    string
@@ -494,10 +497,10 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := &fakeDNSConn{}
+	d := &fakeDNSDialer{}
 	testHookDNSDialer = func() dnsDialer { return d }
 
-	d.rh = func(q *dnsMsg) (*dnsMsg, error) {
+	d.rh = func(s string, q *dnsMsg) (*dnsMsg, error) {
 		r := &dnsMsg{
 			dnsMsgHdr: dnsMsgHdr{
 				id: q.id,
@@ -522,6 +525,68 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 	want := &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}
 	if err, ok := err.(*DNSError); !ok || err.Name != want.Name || err.Err != want.Err {
 		t.Errorf("got %v; want %v", err, want)
+	}
+}
+
+// Issue 15434. If a name server gives a lame referral, continue to the next.
+func TestIgnoreLameReferrals(t *testing.T) {
+	origTestHookDNSDialer := testHookDNSDialer
+	defer func() { testHookDNSDialer = origTestHookDNSDialer }()
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	if err := conf.writeAndUpdate([]string{"nameserver 192.0.2.1", "nameserver 192.0.2.2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	d := &fakeDNSDialer{}
+	testHookDNSDialer = func() dnsDialer { return d }
+
+	d.rh = func(s string, q *dnsMsg) (*dnsMsg, error) {
+		t.Log(s, q)
+		r := &dnsMsg{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       q.id,
+				response: true,
+			},
+			question: q.question,
+		}
+
+		if s == "192.0.2.2:53" {
+			r.recursion_available = true
+			if q.question[0].Qtype == dnsTypeA {
+				r.answer = []dnsRR{
+					&dnsRR_A{
+						Hdr: dnsRR_Header{
+							Name:     q.question[0].Name,
+							Rrtype:   dnsTypeA,
+							Class:    dnsClassINET,
+							Rdlength: 4,
+						},
+						A: TestAddr,
+					},
+				}
+			}
+		}
+
+		return r, nil
+	}
+
+	addrs, err := goLookupIP(context.Background(), "www.golang.org")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := len(addrs); got != 1 {
+		t.Fatal("got %d addresses, want 1", got)
+	}
+
+	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
+		t.Fatal("got address %v, want %v", got, want)
 	}
 }
 
@@ -566,13 +631,18 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 	}
 }
 
-type fakeDNSConn struct {
+type fakeDNSDialer struct {
 	// reply handler
-	rh func(*dnsMsg) (*dnsMsg, error)
+	rh func(s string, q *dnsMsg) (*dnsMsg, error)
 }
 
-func (f *fakeDNSConn) dialDNS(_ context.Context, n, s string) (dnsConn, error) {
-	return f, nil
+func (f *fakeDNSDialer) dialDNS(_ context.Context, n, s string) (dnsConn, error) {
+	return &fakeDNSConn{f.rh, s}, nil
+}
+
+type fakeDNSConn struct {
+	rh func(s string, q *dnsMsg) (*dnsMsg, error)
+	s  string
 }
 
 func (f *fakeDNSConn) Close() error {
@@ -584,13 +654,11 @@ func (f *fakeDNSConn) SetDeadline(time.Time) error {
 }
 
 func (f *fakeDNSConn) dnsRoundTrip(q *dnsMsg) (*dnsMsg, error) {
-	return f.rh(q)
+	return f.rh(f.s, q)
 }
 
 // UDP round-tripper algorithm should ignore invalid DNS responses (issue 13281).
 func TestIgnoreDNSForgeries(t *testing.T) {
-	const TestAddr uint32 = 0x80420001
-
 	c, s := Pipe()
 	go func() {
 		b := make([]byte, 512)
