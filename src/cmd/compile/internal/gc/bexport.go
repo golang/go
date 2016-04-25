@@ -123,6 +123,13 @@ const posInfoFormat = false
 // TODO(gri) remove eventually
 const forceNewExport = false // force new export format - DO NOT SUBMIT with this flag set
 
+// forceNumberedParams keeps parameter numbering in exported parameter names
+// even where we don't really need it (because the parameter names are not used
+// elsewhere). Leave it enabled for now to remove this difference in generated
+// object files so we can more easily compare old and new format.
+// TODO(gri) remove once we switched to new format
+const forceNumberedParams = true
+
 const exportVersion = "v0"
 
 // exportInlined enables the export of inlined function bodies and related
@@ -875,7 +882,7 @@ func parName(f *Field, numbered bool) string {
 	// Functions that can be inlined use numbered parameters so we can distingish them
 	// from other names in their context after inlining (i.e., the parameter numbering
 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
-	if numbered {
+	if forceNumberedParams || numbered {
 		if !strings.Contains(name, "·") && f.Nname != nil && f.Nname.Name != nil && f.Nname.Name.Vargen > 0 {
 			name = fmt.Sprintf("%s·%d", name, f.Nname.Name.Vargen) // append Vargen
 		}
