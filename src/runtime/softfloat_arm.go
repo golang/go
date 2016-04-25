@@ -168,14 +168,15 @@ execute:
 		}
 		return 1
 	}
-	if i == 0xe08bb00d {
-		// add sp to r11.
-		// might be part of a large stack offset address
+	if i&0xfffffff0 == 0xe08bb000 {
+		r := i & 0xf
+		// add r to r11.
+		// might be part of a large offset address calculation
 		// (or might not, but again no harm done).
-		regs[11] += regs[13]
+		regs[11] += regs[r]
 
 		if fptrace > 0 {
-			print("*** cpu R[11] += R[13] ", hex(regs[11]), "\n")
+			print("*** cpu R[11] += R[", r, "] ", hex(regs[11]), "\n")
 		}
 		return 1
 	}
