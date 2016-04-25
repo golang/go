@@ -113,12 +113,8 @@ import (
 const debugFormat = false // default: false
 
 // If posInfoFormat is set, position information (file, lineno) is written
-// for each exported object, including methods and struct fields. Currently
-// disabled because it may lead to different object files depending on which
-// directory they are built under, which causes tests checking for hermetic
-// builds to fail (e.g. TestCgoConsistentResults for cmd/go).
-// TODO(gri) determine what to do here.
-const posInfoFormat = false
+// for each exported object, including methods and struct fields.
+const posInfoFormat = true // default: true
 
 // TODO(gri) remove eventually
 const forceNewExport = false // force new export format - do NOT submit with this flag set
@@ -517,7 +513,7 @@ func (p *exporter) pos(n *Node) {
 	var file string
 	var line int
 	if n != nil {
-		file, line = Ctxt.LineHist.FileLine(int(n.Lineno))
+		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno))
 	}
 
 	if file == p.prevFile && line != p.prevLine {
