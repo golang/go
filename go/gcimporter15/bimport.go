@@ -15,6 +15,7 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -507,6 +508,9 @@ func (p *importer) param(named bool) (*types.Var, bool) {
 		name = p.string()
 		if name == "" {
 			panic("expected named parameter")
+		}
+		if i := strings.Index(name, "·"); i > 0 {
+			name = name[:i] // cut off gc-specific parameter numbering
 		}
 		pkg = p.pkg()
 	}
