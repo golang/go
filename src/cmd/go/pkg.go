@@ -42,6 +42,7 @@ type Package struct {
 	StaleReason   string `json:",omitempty"` // why is Stale true?
 	Root          string `json:",omitempty"` // Go root or Go path dir containing this package
 	ConflictDir   string `json:",omitempty"` // Dir is hidden by this other directory
+	BinaryOnly    bool   `json:",omitempty"` // package cannot be recompiled
 
 	// Source files
 	GoFiles        []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -153,6 +154,8 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.Doc = pp.Doc
 	p.Root = pp.Root
 	p.ConflictDir = pp.ConflictDir
+	p.BinaryOnly = pp.BinaryOnly
+
 	// TODO? Target
 	p.Goroot = pp.Goroot
 	p.Standard = p.Goroot && p.ImportPath != "" && isStandardImportPath(p.ImportPath)
@@ -1046,7 +1049,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		}
 	}
 
-	computeBuildID(p)
+	if p.BinaryOnly {
+		// For binary-only package, use build ID from supplied package binary.
+		buildID, err := readBuildID(p)
+		if err == nil {
+			p.buildID = buildID
+		}
+	} else {
+		computeBuildID(p)
+	}
 	return p
 }
 
@@ -1367,15 +1378,24 @@ func isStale(p *Package) (bool, string) {
 	if p.Error != nil {
 		return true, "errors loading package"
 	}
+	if p.Stale {
+		return true, p.StaleReason
+	}
 
-	// A package without Go sources means we only found
-	// the installed .a file. Since we don't know how to rebuild
-	// it, it can't be stale, even if -a is set. This enables binary-only
-	// distributions of Go packages, although such binaries are
-	// only useful with the specific version of the toolchain that
-	// created them.
-	if len(p.gofiles) == 0 && !p.usesSwig() {
-		return false, "no source files"
+	// If this is a package with no source code, it cannot be rebuilt.
+	// If the binary is missing, we mark the package stale so that
+	// if a rebuild is needed, that rebuild attempt will produce a useful error.
+	// (Some commands, such as 'go list', do not attempt to rebuild.)
+	if p.BinaryOnly {
+		if p.target == "" {
+			// Fail if a build is attempted.
+			return true, "no source code for package, but no install target"
+		}
+		if _, err := os.Stat(p.target); err != nil {
+			// Fail if a build is attempted.
+			return true, "no source code for package, but cannot access install target: " + err.Error()
+		}
+		return false, "no source code for package"
 	}
 
 	// If the -a flag is given, rebuild everything.
@@ -1383,12 +1403,9 @@ func isStale(p *Package) (bool, string) {
 		return true, "build -a flag in use"
 	}
 
-	// If there's no install target or it's already marked stale, we have to rebuild.
+	// If there's no install target, we have to rebuild.
 	if p.target == "" {
 		return true, "no install target"
-	}
-	if p.Stale {
-		return true, p.StaleReason
 	}
 
 	// Package is stale if completely unbuilt.

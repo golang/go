@@ -2808,3 +2808,71 @@ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
 	tg.grepBothNot("^ok", "test passed unexpectedly")
 	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
 }
+
+func TestBinaryOnlyPackages(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.tempFile("src/p1/p1.go", `//go:binary-only-package
+
+		package p1
+	`)
+	tg.wantStale("p1", "cannot access install target", "p1 is binary-only but has no binary, should be stale")
+	tg.runFail("install", "p1")
+	tg.grepStderr("missing or invalid package binary", "did not report attempt to compile binary-only package")
+
+	tg.tempFile("src/p1/p1.go", `
+		package p1
+		import "fmt"
+		func F(b bool) { fmt.Printf("hello from p1\n"); if b { F(false) } }
+	`)
+	tg.run("install", "p1")
+	os.Remove(tg.path("src/p1/p1.go"))
+	tg.mustNotExist(tg.path("src/p1/p1.go"))
+
+	tg.tempFile("src/p2/p2.go", `
+		package p2
+		import "p1"
+		func F() { p1.F(true) }
+	`)
+	tg.runFail("install", "p2")
+	tg.grepStderr("no buildable Go source files", "did not complain about missing sources")
+
+	tg.tempFile("src/p1/missing.go", `//go:binary-only-package
+	
+		package p1
+		func G()
+	`)
+	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (first)")
+	tg.run("install", "-x", "p1") // no-op, up to date
+	tg.grepBothNot("/compile", "should not have run compiler")
+	tg.run("install", "p2") // does not rebuild p1 (or else p2 will fail)
+	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
+
+	// changes to the non-source-code do not matter,
+	// and only one file needs the special comment.
+	tg.tempFile("src/p1/missing2.go", `
+		package p1
+		func H()
+	`)
+	tg.wantNotStale("p1", "no source code", "should NOT want to rebuild p1 (second)")
+	tg.wantNotStale("p2", "", "should NOT want to rebuild p2")
+
+	tg.tempFile("src/p3/p3.go", `
+		package main
+		import (
+			"p1"
+			"p2"
+		)
+		func main() {
+			p1.F(false)
+			p2.F()
+		}
+	`)
+	tg.run("install", "p3")
+
+	tg.run("run", tg.path("src/p3/p3.go"))
+	tg.grepStdout("hello from p1", "did not see message from p1")
+}

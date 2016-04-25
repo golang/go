@@ -151,7 +151,7 @@ func TestShouldBuild(t *testing.T) {
 
 	ctx := &Context{BuildTags: []string{"tag1"}}
 	m := map[string]bool{}
-	if !ctx.shouldBuild([]byte(file1), m) {
+	if !ctx.shouldBuild([]byte(file1), m, nil) {
 		t.Errorf("shouldBuild(file1) = false, want true")
 	}
 	if !reflect.DeepEqual(m, want1) {
@@ -159,7 +159,7 @@ func TestShouldBuild(t *testing.T) {
 	}
 
 	m = map[string]bool{}
-	if ctx.shouldBuild([]byte(file2), m) {
+	if ctx.shouldBuild([]byte(file2), m, nil) {
 		t.Errorf("shouldBuild(file2) = true, want false")
 	}
 	if !reflect.DeepEqual(m, want2) {
@@ -168,7 +168,7 @@ func TestShouldBuild(t *testing.T) {
 
 	m = map[string]bool{}
 	ctx = &Context{BuildTags: nil}
-	if !ctx.shouldBuild([]byte(file3), m) {
+	if !ctx.shouldBuild([]byte(file3), m, nil) {
 		t.Errorf("shouldBuild(file3) = false, want true")
 	}
 	if !reflect.DeepEqual(m, want3) {

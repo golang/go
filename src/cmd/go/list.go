@@ -43,6 +43,8 @@ syntax of package template.  The default output is equivalent to -f
         Stale         bool   // would 'go install' do anything for this package?
         StaleReason   string // explanation for Stale==true
         Root          string // Go root or Go path dir containing this package
+        ConflictDir   string // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool   // binary-only package: cannot be recompiled from sources
 
         // Source files
         GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
