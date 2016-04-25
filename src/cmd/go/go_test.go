@@ -2360,6 +2360,8 @@ func TestIssue4210(t *testing.T) {
 func TestGoGetInsecure(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
+	t.Skip("golang.org/issue/15410")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.makeTempdir()
