@@ -378,23 +378,25 @@ type Arch struct {
 	MAXWIDTH     int64
 	ReservedRegs []int
 
-	AddIndex     func(*Node, int64, *Node) bool // optional
-	Betypeinit   func()
-	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
-	Cgen64       func(*Node, *Node)                // only on 32-bit systems
-	Cgenindex    func(*Node, *Node, bool) *obj.Prog
-	Cgen_bmul    func(Op, *Node, *Node, *Node) bool
-	Cgen_float   func(*Node, *Node) // optional
-	Cgen_hmul    func(*Node, *Node, *Node)
-	Cgen_shift   func(Op, bool, *Node, *Node, *Node)
-	Clearfat     func(*Node)
-	Cmp64        func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
-	Defframe     func(*obj.Prog)
-	Dodiv        func(Op, *Node, *Node, *Node)
-	Excise       func(*Flow)
-	Expandchecks func(*obj.Prog)
-	Getg         func(*Node)
-	Gins         func(obj.As, *Node, *Node) *obj.Prog
+	AddIndex            func(*Node, int64, *Node) bool // optional
+	Betypeinit          func()
+	Bgen_float          func(*Node, bool, int, *obj.Prog) // optional
+	Cgen64              func(*Node, *Node)                // only on 32-bit systems
+	Cgenindex           func(*Node, *Node, bool) *obj.Prog
+	Cgen_bmul           func(Op, *Node, *Node, *Node) bool
+	Cgen_float          func(*Node, *Node) // optional
+	Cgen_hmul           func(*Node, *Node, *Node)
+	RightShiftWithCarry func(*Node, uint, *Node)  // only on systems without RROTC instruction
+	AddSetCarry         func(*Node, *Node, *Node) // only on systems when ADD does not update carry flag
+	Cgen_shift          func(Op, bool, *Node, *Node, *Node)
+	Clearfat            func(*Node)
+	Cmp64               func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
+	Defframe            func(*obj.Prog)
+	Dodiv               func(Op, *Node, *Node, *Node)
+	Excise              func(*Flow)
+	Expandchecks        func(*obj.Prog)
+	Getg                func(*Node)
+	Gins                func(obj.As, *Node, *Node) *obj.Prog
 
 	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
 	// The returned prog should be Patch'ed with the jump target.

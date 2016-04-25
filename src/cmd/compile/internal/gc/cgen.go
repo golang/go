@@ -2642,9 +2642,9 @@ func cgen_ret(n *Node) {
 // signed and unsigned high multiplication (OHMUL).
 func hasHMUL64() bool {
 	switch Ctxt.Arch.Family {
-	case sys.AMD64, sys.S390X:
+	case sys.AMD64, sys.S390X, sys.ARM64:
 		return true
-	case sys.ARM, sys.ARM64, sys.I386, sys.MIPS64, sys.PPC64:
+	case sys.ARM, sys.I386, sys.MIPS64, sys.PPC64:
 		return false
 	}
 	Fatalf("unknown architecture")
@@ -2658,6 +2658,28 @@ func hasRROTC64() bool {
 	case sys.AMD64:
 		return true
 	case sys.ARM, sys.ARM64, sys.I386, sys.MIPS64, sys.PPC64, sys.S390X:
+		return false
+	}
+	Fatalf("unknown architecture")
+	return false
+}
+
+func hasRightShiftWithCarry() bool {
+	switch Ctxt.Arch.Family {
+	case sys.ARM64:
+		return true
+	case sys.AMD64, sys.ARM, sys.I386, sys.MIPS64, sys.PPC64, sys.S390X:
+		return false
+	}
+	Fatalf("unknown architecture")
+	return false
+}
+
+func hasAddSetCarry() bool {
+	switch Ctxt.Arch.Family {
+	case sys.ARM64:
+		return true
+	case sys.AMD64, sys.ARM, sys.I386, sys.MIPS64, sys.PPC64, sys.S390X:
 		return false
 	}
 	Fatalf("unknown architecture")
@@ -2699,8 +2721,9 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 		// the MSB. For now this needs the RROTC instruction.
 		// TODO(mundaym): Hacker's Delight 2nd ed. chapter 10 proposes
 		// an alternative sequence of instructions for architectures
-		// that do not have a shift right with carry instruction.
-		if m.Ua != 0 && !hasRROTC64() {
+		// (TODO: MIPS64, PPC64, S390X) that do not have a shift
+		// right with carry instruction.
+		if m.Ua != 0 && !hasRROTC64() && !hasRightShiftWithCarry() {
 			goto longdiv
 		}
 		if op == OMOD {
@@ -2717,12 +2740,20 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 
 		if m.Ua != 0 {
 			// Need to add numerator accounting for overflow.
-			Thearch.Gins(Thearch.Optoas(OADD, nl.Type), &n1, &n3)
+			if hasAddSetCarry() {
+				Thearch.AddSetCarry(&n1, &n3, &n3)
+			} else {
+				Thearch.Gins(Thearch.Optoas(OADD, nl.Type), &n1, &n3)
+			}
 
-			Nodconst(&n2, nl.Type, 1)
-			Thearch.Gins(Thearch.Optoas(ORROTC, nl.Type), &n2, &n3)
-			Nodconst(&n2, nl.Type, int64(m.S)-1)
-			Thearch.Gins(Thearch.Optoas(ORSH, nl.Type), &n2, &n3)
+			if !hasRROTC64() {
+				Thearch.RightShiftWithCarry(&n3, uint(m.S), &n3)
+			} else {
+				Nodconst(&n2, nl.Type, 1)
+				Thearch.Gins(Thearch.Optoas(ORROTC, nl.Type), &n2, &n3)
+				Nodconst(&n2, nl.Type, int64(m.S)-1)
+				Thearch.Gins(Thearch.Optoas(ORSH, nl.Type), &n2, &n3)
+			}
 		} else {
 			Nodconst(&n2, nl.Type, int64(m.S))
 			Thearch.Gins(Thearch.Optoas(ORSH, nl.Type), &n2, &n3) // shift dx

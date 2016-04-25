@@ -890,18 +890,6 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 		ORSH_ | gc.TINT64:
 		a = arm64.AASR
 
-		// TODO(minux): handle rotates
-	//case CASE(ORROTC, TINT8):
-	//case CASE(ORROTC, TUINT8):
-	//case CASE(ORROTC, TINT16):
-	//case CASE(ORROTC, TUINT16):
-	//case CASE(ORROTC, TINT32):
-	//case CASE(ORROTC, TUINT32):
-	//case CASE(ORROTC, TINT64):
-	//case CASE(ORROTC, TUINT64):
-	//	a = 0//??? RLDC??
-	//	break;
-
 	case OHMUL_ | gc.TINT64:
 		a = arm64.ASMULH
 
