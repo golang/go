@@ -1181,7 +1181,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 
 // mktag returns the string representation for an escape analysis tag.
-func mktag(mask int) *string {
+func mktag(mask int) string {
 	switch mask & EscMask {
 	case EscNone, EscReturn:
 		break
@@ -1191,22 +1191,22 @@ func mktag(mask int) *string {
 	}
 
 	if mask < len(tags) && tags[mask] != "" {
-		return &tags[mask]
+		return tags[mask]
 	}
 
 	s := fmt.Sprintf("esc:0x%x", mask)
 	if mask < len(tags) {
 		tags[mask] = s
 	}
-	return &s
+	return s
 }
 
 // parsetag decodes an escape analysis tag and returns the esc value.
-func parsetag(note *string) uint16 {
-	if note == nil || !strings.HasPrefix(*note, "esc:") {
+func parsetag(note string) uint16 {
+	if !strings.HasPrefix(note, "esc:") {
 		return EscUnknown
 	}
-	n, _ := strconv.ParseInt((*note)[4:], 0, 0)
+	n, _ := strconv.ParseInt(note[4:], 0, 0)
 	em := uint16(n)
 	if em == 0 {
 		return EscNone
@@ -1268,7 +1268,7 @@ func describeEscape(em uint16) string {
 
 // escassignfromtag models the input-to-output assignment flow of one of a function
 // calls arguments, where the flow is encoded in "note".
-func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
+func escassignfromtag(e *EscState, note string, dsts Nodes, src *Node) uint16 {
 	em := parsetag(note)
 	if src.Op == OLITERAL {
 		return em
@@ -1997,7 +1997,7 @@ func esctag(e *EscState, func_ *Node) {
 					}
 					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name)
 				}
-				t.Note = &unsafeUintptrTag
+				t.Note = unsafeUintptrTag
 			}
 		}
 

@@ -1700,8 +1700,8 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	// (The escape analysis tags do not apply to func vars.)
 	// But it must not suppress struct field tags.
 	// See golang.org/issue/13777 and golang.org/issue/14331.
-	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != nil {
-		str += " " + strconv.Quote(*f.Note)
+	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != "" {
+		str += " " + strconv.Quote(f.Note)
 	}
 
 	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {

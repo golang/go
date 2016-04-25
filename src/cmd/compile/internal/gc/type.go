@@ -300,7 +300,7 @@ type Field struct {
 	// or interface Type.
 	Offset int64
 
-	Note *string // literal string annotation
+	Note string // literal string annotation
 }
 
 // End returns the offset of the first byte immediately after this field.
@@ -1003,15 +1003,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 				return cmpForNe(t1.Embedded < x1.Embedded)
 			}
 			if t1.Note != x1.Note {
-				if t1.Note == nil {
-					return ssa.CMPlt
-				}
-				if x1.Note == nil {
-					return ssa.CMPgt
-				}
-				if *t1.Note != *x1.Note {
-					return cmpForNe(*t1.Note < *x1.Note)
-				}
+				return cmpForNe(t1.Note < x1.Note)
 			}
 			if c := t1.Sym.cmpsym(x1.Sym); c != ssa.CMPeq {
 				return c

@@ -619,10 +619,6 @@ func cplxsubtype(et EType) EType {
 	return 0
 }
 
-func eqnote(a, b *string) bool {
-	return a == b || a != nil && b != nil && *a == *b
-}
-
 // Eqtype reports whether t1 and t2 are identical, following the spec rules.
 //
 // Any cyclic type must go through a named type, and if one is
@@ -670,7 +666,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		t1, i1 := IterFields(t1)
 		t2, i2 := IterFields(t2)
 		for ; t1 != nil && t2 != nil; t1, t2 = i1.Next(), i2.Next() {
-			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || !eqnote(t1.Note, t2.Note) {
+			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || t1.Note != t2.Note {
 				return false
 			}
 		}

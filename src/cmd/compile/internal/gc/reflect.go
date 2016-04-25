@@ -501,14 +501,11 @@ func isExportedField(ft *Field) bool {
 
 // dnameField dumps a reflect.name for a struct field.
 func dnameField(s *Sym, ot int, ft *Field) int {
-	var name, tag string
+	var name string
 	if ft.Sym != nil && ft.Embedded == 0 {
 		name = ft.Sym.Name
 	}
-	if ft.Note != nil {
-		tag = *ft.Note
-	}
-	nsym := dname(name, tag, nil, isExportedField(ft))
+	nsym := dname(name, ft.Note, nil, isExportedField(ft))
 	return dsymptrLSym(Linksym(s), ot, nsym, 0)
 }
 
