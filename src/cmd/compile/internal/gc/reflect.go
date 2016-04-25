@@ -1391,6 +1391,11 @@ func dumptypestructs() {
 	}
 
 	// generate import strings for imported packages
+	if forceObjFileStability {
+		// Sorting the packages is not necessary but to compare binaries created
+		// using textual and binary format we sort by path to reduce differences.
+		sort.Sort(pkgByPath(pkgs))
+	}
 	for _, p := range pkgs {
 		if p.Direct {
 			dimportpath(p)
@@ -1428,6 +1433,12 @@ func dumptypestructs() {
 		dimportpath(mkpkg("main"))
 	}
 }
+
+type pkgByPath []*Pkg
+
+func (a pkgByPath) Len() int           { return len(a) }
+func (a pkgByPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
+func (a pkgByPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func dalgsym(t *Type) *Sym {
 	var s *Sym
