@@ -145,7 +145,16 @@ func Import(in *bufio.Reader) {
 		if f := p.funcList[i]; f != nil {
 			// function not yet imported - read body and set it
 			funchdr(f)
-			f.Func.Inl.Set(p.stmtList())
+			body := p.stmtList()
+			if body == nil {
+				// Make sure empty body is not interpreted as
+				// no inlineable body (see also parser.fnbody)
+				// (not doing so can cause significant performance
+				// degradation due to unnecessary calls to empty
+				// functions).
+				body = []*Node{Nod(OEMPTY, nil, nil)}
+			}
+			f.Func.Inl.Set(body)
 			funcbody(f)
 		} else {
 			// function already imported - read body but discard declarations
