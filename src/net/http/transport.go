@@ -1893,5 +1893,6 @@ func cloneTLSClientConfig(cfg *tls.Config) *tls.Config {
 		MinVersion:               cfg.MinVersion,
 		MaxVersion:               cfg.MaxVersion,
 		CurvePreferences:         cfg.CurvePreferences,
+		Renegotiation:            cfg.Renegotiation,
 	}
 }
