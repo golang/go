@@ -42,10 +42,10 @@ var deflateTests = []*deflateTest{
 	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 0,
 		[]byte{0, 8, 0, 247, 255, 17, 17, 17, 17, 17, 17, 17, 17, 1, 0, 0, 255, 255},
 	},
-	{[]byte{}, 1, []byte{1, 0, 0, 255, 255}},
-	{[]byte{0x11}, 1, []byte{18, 4, 4, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x12}, 1, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
-	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 1, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
+	{[]byte{}, 2, []byte{1, 0, 0, 255, 255}},
+	{[]byte{0x11}, 2, []byte{18, 4, 4, 0, 0, 255, 255}},
+	{[]byte{0x11, 0x12}, 2, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
+	{[]byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}, 2, []byte{18, 132, 2, 64, 0, 0, 0, 255, 255}},
 	{[]byte{}, 9, []byte{1, 0, 0, 255, 255}},
 	{[]byte{0x11}, 9, []byte{18, 4, 4, 0, 0, 255, 255}},
 	{[]byte{0x11, 0x12}, 9, []byte{18, 20, 2, 4, 0, 0, 255, 255}},
@@ -550,4 +550,84 @@ func testResetOutput(t *testing.T, newWriter func(w io.Writer) (*Writer, error))
 		}
 	}
 	t.Logf("got %d bytes", len(out1))
+}
+
+// TestBestSpeed tests that round-tripping through deflate and then inflate
+// recovers the original input. The Write sizes are near the thresholds in the
+// compressor.encSpeed method (0, 16, 128), as well as near maxStoreBlockSize
+// (65535).
+func TestBestSpeed(t *testing.T) {
+	abc := make([]byte, 128)
+	for i := range abc {
+		abc[i] = byte(i)
+	}
+	abcabc := bytes.Repeat(abc, 131072/len(abc))
+	var want []byte
+
+	testCases := [][]int{
+		{65536, 0},
+		{65536, 1},
+		{65536, 1, 256},
+		{65536, 1, 65536},
+		{65536, 14},
+		{65536, 15},
+		{65536, 16},
+		{65536, 16, 256},
+		{65536, 16, 65536},
+		{65536, 127},
+		{65536, 128},
+		{65536, 128, 256},
+		{65536, 128, 65536},
+		{65536, 129},
+		{65536, 65536, 256},
+		{65536, 65536, 65536},
+	}
+
+	for i, tc := range testCases {
+		for _, firstN := range []int{1, 65534, 65535, 65536, 65537, 131072} {
+			tc[0] = firstN
+		outer:
+			for _, flush := range []bool{false, true} {
+				buf := new(bytes.Buffer)
+				want = want[:0]
+
+				w, err := NewWriter(buf, BestSpeed)
+				if err != nil {
+					t.Errorf("i=%d, firstN=%d, flush=%t: NewWriter: %v", i, firstN, flush, err)
+					continue
+				}
+				for _, n := range tc {
+					want = append(want, abcabc[:n]...)
+					if _, err := w.Write(abcabc[:n]); err != nil {
+						t.Errorf("i=%d, firstN=%d, flush=%t: Write: %v", i, firstN, flush, err)
+						continue outer
+					}
+					if !flush {
+						continue
+					}
+					if err := w.Flush(); err != nil {
+						t.Errorf("i=%d, firstN=%d, flush=%t: Flush: %v", i, firstN, flush, err)
+						continue outer
+					}
+				}
+				if err := w.Close(); err != nil {
+					t.Errorf("i=%d, firstN=%d, flush=%t: Close: %v", i, firstN, flush, err)
+					continue
+				}
+
+				r := NewReader(buf)
+				got, err := ioutil.ReadAll(r)
+				if err != nil {
+					t.Errorf("i=%d, firstN=%d, flush=%t: ReadAll: %v", i, firstN, flush, err)
+					continue
+				}
+				r.Close()
+
+				if !bytes.Equal(got, want) {
+					t.Errorf("i=%d, firstN=%d, flush=%t: corruption during deflate-then-inflate", i, firstN, flush)
+					continue
+				}
+			}
+		}
+	}
 }
