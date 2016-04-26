@@ -755,7 +755,7 @@ func (l *lexer) number(c rune) {
 	}
 
 done:
-	litbuf = "literal " + str
+	litbuf = "" // lazily initialized in (*parser).syntax_error
 	l.nlsemi = true
 	l.tok = LLITERAL
 }
