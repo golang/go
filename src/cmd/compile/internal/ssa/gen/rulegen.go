@@ -91,6 +91,7 @@ func genRules(arch arch) {
 	scanner := bufio.NewScanner(text)
 	rule := ""
 	var lineno int
+	var ruleLineno int // line number of "->"
 	for scanner.Scan() {
 		lineno++
 		line := scanner.Text()
@@ -107,6 +108,9 @@ func genRules(arch arch) {
 		if !strings.Contains(rule, "->") {
 			continue
 		}
+		if ruleLineno == 0 {
+			ruleLineno = lineno
+		}
 		if strings.HasSuffix(rule, "->") {
 			continue
 		}
@@ -117,13 +121,14 @@ func genRules(arch arch) {
 		if op[len(op)-1] == ')' {
 			op = op[:len(op)-1] // rule has only opcode, e.g. (ConstNil) -> ...
 		}
-		loc := fmt.Sprintf("%s.rules:%d", arch.name, lineno)
+		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
 		if isBlock(op, arch) {
 			blockrules[op] = append(blockrules[op], Rule{rule: rule, loc: loc})
 		} else {
 			oprules[op] = append(oprules[op], Rule{rule: rule, loc: loc})
 		}
 		rule = ""
+		ruleLineno = 0
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("scanner failed: %v\n", err)
