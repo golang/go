@@ -65,6 +65,7 @@ const DefaultMaxIdleConnsPerHost = 2
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool // user has requested to close all idle conns
+	idleCount  int
 	idleConn   map[connectMethodKey][]*persistConn
 	idleConnCh map[connectMethodKey]chan *persistConn
 
@@ -166,7 +167,7 @@ type Transport struct {
 	nextProtoOnce sync.Once
 	h2transport   *http2Transport // non-nil if http2 wired up
 
-	// TODO: tunable on global max cached connections
+	// TODO: MaxIdleConns tunable for global max cached connections (Issue 15461)
 	// TODO: tunable on timeout on cached connections
 	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
 }
@@ -613,6 +614,7 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		}
 	}
 	t.idleConn[key] = append(t.idleConn[key], pconn)
+	t.idleCount++
 	return nil
 }
 
@@ -638,13 +640,14 @@ func (t *Transport) getIdleConnCh(cm connectMethod) chan *persistConn {
 	return ch
 }
 
-func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn) {
+func (t *Transport) getIdleConn(cm connectMethod) *persistConn {
 	key := cm.key()
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
 	if t.idleConn == nil {
 		return nil
 	}
+	var pconn *persistConn
 	for {
 		pconns, ok := t.idleConn[key]
 		if !ok {
@@ -659,8 +662,44 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn) {
 			pconn = pconns[len(pconns)-1]
 			t.idleConn[key] = pconns[:len(pconns)-1]
 		}
-		if !pconn.isBroken() {
-			return
+		t.idleCount--
+		if pconn.isBroken() {
+			// There is a tiny window where this is
+			// possible, between the connecting dying and
+			// the persistConn readLoop calling
+			// Transport.removeIdleConn. Just skip it and
+			// carry on.
+			continue
+		}
+		return pconn
+	}
+}
+
+// removeIdleConn marks pconn as dead.
+func (t *Transport) removeIdleConn(pconn *persistConn) {
+	key := pconn.cacheKey
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+
+	pconns, _ := t.idleConn[key]
+	switch len(pconns) {
+	case 0:
+		// Nothing
+	case 1:
+		if pconns[0] == pconn {
+			t.idleCount--
+			delete(t.idleConn, key)
+		}
+	default:
+		// TODO(bradfitz): map into LRU element?
+		for i, v := range pconns {
+			if v != pconn {
+				continue
+			}
+			pconns[i] = pconns[len(pconns)-1]
+			t.idleConn[key] = pconns[:len(pconns)-1]
+			t.idleCount--
+			break
 		}
 	}
 }
@@ -1120,7 +1159,10 @@ func (pc *persistConn) cancelRequest() {
 
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
-	defer func() { pc.close(closeErr) }()
+	defer func() {
+		pc.close(closeErr)
+		pc.t.removeIdleConn(pc)
+	}()
 
 	tryPutIdleConn := func() bool {
 		if err := pc.t.tryPutIdleConn(pc); err != nil {
