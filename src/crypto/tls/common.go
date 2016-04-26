@@ -48,6 +48,7 @@ const (
 
 // TLS handshake message types.
 const (
+	typeHelloRequest       uint8 = 0
 	typeClientHello        uint8 = 1
 	typeServerHello        uint8 = 2
 	typeNewSessionTicket   uint8 = 4
@@ -238,6 +239,33 @@ type ClientHelloInfo struct {
 	SupportedPoints []uint8
 }
 
+// RenegotiationSupport enumerates the different levels of support for TLS
+// renegotiation. TLS renegotiation is the act of performing subsequent
+// handshakes on a connection after the first. This significantly complicates
+// the state machine and has been the source of numerous, subtle security
+// issues. Initiating a renegotiation is not supported, but support for
+// accepting renegotiation requests may be enabled.
+//
+// Even when enabled, the server may not change its identity between handshakes
+// (i.e. the leaf certificate must be the same). Additionally, concurrent
+// handshake and application data flow is not permitted so renegotiation can
+// only be used with protocols that synchronise with the renegotiation, such as
+// HTTPS.
+type RenegotiationSupport int
+
+const (
+	// RenegotiateNever disables renegotiation.
+	RenegotiateNever RenegotiationSupport = iota
+
+	// RenegotiateOnceAsClient allows a remote server to request
+	// renegotiation once per connection.
+	RenegotiateOnceAsClient
+
+	// RenegotiateFreelyAsClient allows a remote server to repeatedly
+	// request renegotiation.
+	RenegotiateFreelyAsClient
+)
+
 // A Config structure is used to configure a TLS client or server.
 // After one has been passed to a TLS function it must not be
 // modified. A Config may be reused; the tls package will also not
@@ -354,6 +382,10 @@ type Config struct {
 	// false, the size of TLS records may be adjusted in an attempt to
 	// improve latency.
 	DynamicRecordSizingDisabled bool
+
+	// Renegotiation controls what types of renegotiation are supported.
+	// The default, none, is correct for the vast majority of applications.
+	Renegotiation RenegotiationSupport
 
 	serverInitOnce sync.Once // guards calling (*Config).serverInit
 
