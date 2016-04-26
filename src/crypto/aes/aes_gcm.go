@@ -48,6 +48,9 @@ type aesCipherGCM struct {
 	aesCipherAsm
 }
 
+// Assert that aesCipherGCM implements the gcmAble interface.
+var _ gcmAble = (*aesCipherGCM)(nil)
+
 // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
 // called by crypto/cipher.NewGCM via the gcmAble interface.
 func (c *aesCipherGCM) NewGCM(nonceSize int) (cipher.AEAD, error) {
