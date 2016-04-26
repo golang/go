@@ -13,10 +13,14 @@ import "unsafe"
 //go:linkname x_cgo_panicmem x_cgo_panicmem
 var x_cgo_panicmem uintptr
 
+// use a pointer to avoid relocation of external symbol in __TEXT
+// make linker happy
+var _cgo_panicmem = &x_cgo_panicmem
+
 // TODO(crawshaw): move this into x_cgo_init, it will not run until
 // runtime has finished loading, which may be after its use.
 func init() {
-	x_cgo_panicmem = funcPC(panicmem)
+	*_cgo_panicmem = funcPC(panicmem)
 }
 
 func funcPC(f interface{}) uintptr {

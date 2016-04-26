@@ -79,6 +79,8 @@ const (
 	MACHO_X86_64_RELOC_SIGNED_2   = 7
 	MACHO_X86_64_RELOC_SIGNED_4   = 8
 	MACHO_ARM_RELOC_VANILLA       = 0
+	MACHO_ARM_RELOC_PAIR          = 1
+	MACHO_ARM_RELOC_SECTDIFF      = 2
 	MACHO_ARM_RELOC_BR24          = 5
 	MACHO_ARM64_RELOC_UNSIGNED    = 0
 	MACHO_ARM64_RELOC_BRANCH26    = 2
@@ -350,8 +352,9 @@ func machoshbits(mseg *MachoSeg, sect *Section, segname string) {
 
 	var msect *MachoSect
 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (SysArch.Family == sys.ARM64 ||
-		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive))) {
-		// Darwin external linker on arm64 and on amd64 in c-shared/c-archive buildmode
+		(SysArch.Family == sys.AMD64 && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive)) ||
+		(SysArch.Family == sys.ARM && (Buildmode == BuildmodeCShared || Buildmode == BuildmodeCArchive))) {
+		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.
 		msect = newMachoSect(mseg, buf, "__DATA")

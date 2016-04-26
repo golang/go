@@ -560,6 +560,9 @@ func relocsym(s *LSym) {
 							o += int64(uint64(Symaddr(rs)) - rs.Sect.Vaddr)
 						}
 						o -= int64(r.Off) // relative to section offset, not symbol
+					} else if SysArch.Family == sys.ARM {
+						// see ../arm/asm.go:/machoreloc1
+						o += Symaddr(rs) - int64(Ctxt.Cursym.Value) - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}
