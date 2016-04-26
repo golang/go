@@ -102,6 +102,9 @@ func (p *parser) syntax_error(msg string) {
 			tok = "name"
 		}
 	case LLITERAL:
+		if litbuf == "" {
+			litbuf = "literal " + lexbuf.String()
+		}
 		tok = litbuf
 	case LOPER:
 		tok = goopnames[p.op]
