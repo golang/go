@@ -1204,6 +1204,24 @@ func hostlink() {
 
 	argv = append(argv, ldflag...)
 
+	if flag_race != 0 {
+		// On a system where the toolchain creates position independent
+		// executables by default, tsan initialization can fail. So we pass
+		// -no-pie here, but support for that flag is quite new and we test
+		// for its support first.
+		src := filepath.Join(tmpdir, "trivial.c")
+		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+			Ctxt.Diag("WriteFile trivial.c failed: %v", err)
+		}
+		cmd := exec.Command(argv[0], "-no-pie", "trivial.c")
+		cmd.Dir = tmpdir
+		out, err := cmd.CombinedOutput()
+		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
+		if supported {
+			argv = append(argv, "-no-pie")
+		}
+	}
+
 	for _, p := range strings.Fields(extldflags) {
 		argv = append(argv, p)
 
