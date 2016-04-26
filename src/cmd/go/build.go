@@ -334,6 +334,11 @@ func buildModeInit() {
 			}
 			return p
 		}
+		switch platform {
+		case "darwin/arm":
+			codegenArg = "-shared"
+		default:
+		}
 		exeSuffix = ".a"
 		ldBuildmode = "c-archive"
 	case "c-shared":
