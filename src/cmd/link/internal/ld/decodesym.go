@@ -239,7 +239,7 @@ func decodetype_name(s *LSym, off int) string {
 	}
 
 	data := r.Sym.P
-	namelen := int(uint16(data[1]<<8) | uint16(data[2]))
+	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
 	return string(data[3 : 3+namelen])
 }
 

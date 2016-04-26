@@ -5651,6 +5651,8 @@ func TestChanAlloc(t *testing.T) {
 	// allocs < 0.5 condition will trigger and this test should be fixed.
 }
 
+type TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678 int
+
 type nameTest struct {
 	v    interface{}
 	want string
@@ -5664,6 +5666,7 @@ var nameTests = []nameTest{
 	{(func() D1)(nil), ""},
 	{(<-chan D1)(nil), ""},
 	{(chan<- D1)(nil), ""},
+	{TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678(0), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
 }
 
 func TestNames(t *testing.T) {
