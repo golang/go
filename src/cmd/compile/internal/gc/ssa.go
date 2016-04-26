@@ -1414,8 +1414,12 @@ func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
 
 // expr converts the expression n to ssa, adds it to s and returns the ssa result.
 func (s *state) expr(n *Node) *ssa.Value {
-	s.pushLine(n.Lineno)
-	defer s.popLine()
+	if !(n.Op == ONAME || n.Op == OLITERAL && n.Sym != nil) {
+		// ONAMEs and named OLITERALs have the line number
+		// of the decl, not the use. See issue 14742.
+		s.pushLine(n.Lineno)
+		defer s.popLine()
+	}
 
 	s.stmtList(n.Ninit)
 	switch n.Op {
@@ -1463,14 +1467,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.entryNewValue0A(ssa.OpConstString, n.Type, u)
 		case bool:
-			v := s.constBool(u)
-			// For some reason the frontend gets the line numbers of
-			// CTBOOL literals totally wrong. Fix it here by grabbing
-			// the line number of the enclosing AST node.
-			if len(s.line) >= 2 {
-				v.Line = s.line[len(s.line)-2]
-			}
-			return v
+			return s.constBool(u)
 		case *NilVal:
 			t := n.Type
 			switch {
