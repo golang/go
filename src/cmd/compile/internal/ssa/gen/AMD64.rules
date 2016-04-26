@@ -3,137 +3,134 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add64 x y) -> (ADDQ x y)
-(AddPtr x y) -> (ADDQ x y)
-(Add32 x y) -> (ADDL x y)
-(Add16 x y) -> (ADDL x y)
-(Add8 x y) -> (ADDL x y)
+(Add64  x y) -> (ADDQ  x y)
+(AddPtr x y) -> (ADDQ  x y)
+(Add32  x y) -> (ADDL  x y)
+(Add16  x y) -> (ADDL  x y)
+(Add8   x y) -> (ADDL  x y)
 (Add32F x y) -> (ADDSS x y)
 (Add64F x y) -> (ADDSD x y)
 
-(Sub64 x y) -> (SUBQ x y)
-(SubPtr x y) -> (SUBQ x y)
-(Sub32 x y) -> (SUBL x y)
-(Sub16 x y) -> (SUBL x y)
-(Sub8 x y) -> (SUBL x y)
+(Sub64  x y) -> (SUBQ  x y)
+(SubPtr x y) -> (SUBQ  x y)
+(Sub32  x y) -> (SUBL  x y)
+(Sub16  x y) -> (SUBL  x y)
+(Sub8   x y) -> (SUBL  x y)
 (Sub32F x y) -> (SUBSS x y)
 (Sub64F x y) -> (SUBSD x y)
 
-(Mul64 x y) -> (MULQ x y)
-(Mul32 x y) -> (MULL x y)
-(Mul16 x y) -> (MULL x y)
-(Mul8 x y) -> (MULL x y)
+(Mul64  x y) -> (MULQ  x y)
+(Mul32  x y) -> (MULL  x y)
+(Mul16  x y) -> (MULL  x y)
+(Mul8   x y) -> (MULL  x y)
 (Mul32F x y) -> (MULSS x y)
 (Mul64F x y) -> (MULSD x y)
 
 (Div32F x y) -> (DIVSS x y)
 (Div64F x y) -> (DIVSD x y)
 
-(Div64 x y) -> (DIVQ x y)
+(Div64  x y) -> (DIVQ  x y)
 (Div64u x y) -> (DIVQU x y)
-(Div32 x y) -> (DIVL x y)
+(Div32  x y) -> (DIVL  x y)
 (Div32u x y) -> (DIVLU x y)
-(Div16 x y) -> (DIVW x y)
+(Div16  x y) -> (DIVW  x y)
 (Div16u x y) -> (DIVWU x y)
-(Div8 x y) ->  (DIVW (SignExt8to16 x) (SignExt8to16 y))
-(Div8u x y) ->  (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+(Div8   x y) -> (DIVW  (SignExt8to16 x) (SignExt8to16 y))
+(Div8u  x y) -> (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 
-(Hmul64 x y) -> (HMULQ x y)
+(Hmul64  x y) -> (HMULQ  x y)
 (Hmul64u x y) -> (HMULQU x y)
-(Hmul32 x y) -> (HMULL x y)
+(Hmul32  x y) -> (HMULL  x y)
 (Hmul32u x y) -> (HMULLU x y)
-(Hmul16 x y) -> (HMULW x y)
+(Hmul16  x y) -> (HMULW  x y)
 (Hmul16u x y) -> (HMULWU x y)
-(Hmul8 x y) ->  (HMULB x y)
-(Hmul8u x y) ->  (HMULBU x y)
+(Hmul8   x y) -> (HMULB  x y)
+(Hmul8u  x y) -> (HMULBU x y)
 
 (Avg64u x y) -> (AVGQU x y)
 
-(Mod64 x y) -> (MODQ x y)
+(Mod64  x y) -> (MODQ  x y)
 (Mod64u x y) -> (MODQU x y)
-(Mod32 x y) -> (MODL x y)
+(Mod32  x y) -> (MODL  x y)
 (Mod32u x y) -> (MODLU x y)
-(Mod16 x y) -> (MODW x y)
+(Mod16  x y) -> (MODW  x y)
 (Mod16u x y) -> (MODWU x y)
-(Mod8 x y) ->  (MODW (SignExt8to16 x) (SignExt8to16 y))
-(Mod8u x y) ->  (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+(Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
+(Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 
 (And64 x y) -> (ANDQ x y)
 (And32 x y) -> (ANDL x y)
 (And16 x y) -> (ANDL x y)
-(And8 x y) -> (ANDL x y)
+(And8  x y) -> (ANDL x y)
 
 (Or64 x y) -> (ORQ x y)
 (Or32 x y) -> (ORL x y)
 (Or16 x y) -> (ORL x y)
-(Or8 x y) -> (ORL x y)
+(Or8  x y) -> (ORL x y)
 
 (Xor64 x y) -> (XORQ x y)
 (Xor32 x y) -> (XORL x y)
 (Xor16 x y) -> (XORL x y)
-(Xor8 x y) -> (XORL x y)
+(Xor8  x y) -> (XORL x y)
 
-(Neg64 x) -> (NEGQ x)
-(Neg32 x) -> (NEGL x)
-(Neg16 x) -> (NEGL x)
-(Neg8 x) -> (NEGL x)
+(Neg64  x) -> (NEGQ x)
+(Neg32  x) -> (NEGL x)
+(Neg16  x) -> (NEGL x)
+(Neg8   x) -> (NEGL x)
 (Neg32F x) -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
 (Neg64F x) -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
 
 (Com64 x) -> (NOTQ x)
 (Com32 x) -> (NOTL x)
 (Com16 x) -> (NOTL x)
-(Com8 x) -> (NOTL x)
+(Com8  x) -> (NOTL x)
 
-// CMPQconst 0 below is redundant because BSF sets Z but how to remove?
+// Lowering boolean ops
+(AndB x y) -> (ANDL x y)
+(OrB x y) -> (ORL x y)
+(Not x) -> (XORLconst [1] x)
+
+// Lowering pointer arithmetic
+(OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
+(OffPtr [off] ptr) -> (ADDQ (MOVQconst [off]) ptr)
+
+// Lowering other arithmetic
+// TODO: CMPQconst 0 below is redundant because BSF sets Z but how to remove?
 (Ctz64 <t> x) -> (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
 (Ctz32 <t> x) -> (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
 (Ctz16 <t> x) -> (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
-
-(CMOVQEQconst x (InvertFlags y) [c]) -> (CMOVQNEconst x y [c])
-(CMOVLEQconst x (InvertFlags y) [c]) -> (CMOVLNEconst x y [c])
-(CMOVWEQconst x (InvertFlags y) [c]) -> (CMOVWNEconst x y [c])
-
-(CMOVQEQconst _ (FlagEQ) [c]) -> (Const64 [c])
-(CMOVLEQconst _ (FlagEQ) [c]) -> (Const32 [c])
-(CMOVWEQconst _ (FlagEQ) [c]) -> (Const16 [c])
-
-(CMOVQEQconst x (FlagLT_ULT)) -> x
-(CMOVLEQconst x (FlagLT_ULT)) -> x
-(CMOVWEQconst x (FlagLT_ULT)) -> x
-
-(CMOVQEQconst x (FlagLT_UGT)) -> x
-(CMOVLEQconst x (FlagLT_UGT)) -> x
-(CMOVWEQconst x (FlagLT_UGT)) -> x
-
-(CMOVQEQconst x (FlagGT_ULT)) -> x
-(CMOVLEQconst x (FlagGT_ULT)) -> x
-(CMOVWEQconst x (FlagGT_ULT)) -> x
-
-(CMOVQEQconst x (FlagGT_UGT)) -> x
-(CMOVLEQconst x (FlagGT_UGT)) -> x
-(CMOVWEQconst x (FlagGT_UGT)) -> x
 
 (Bswap64 x) -> (BSWAPQ x)
 (Bswap32 x) -> (BSWAPL x)
 
 (Sqrt x) -> (SQRTSD x)
 
+// Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
-(SignExt8to16 x) -> (MOVBQSX x)
-(SignExt8to32 x) -> (MOVBQSX x)
-(SignExt8to64 x) -> (MOVBQSX x)
+(SignExt8to16  x) -> (MOVBQSX x)
+(SignExt8to32  x) -> (MOVBQSX x)
+(SignExt8to64  x) -> (MOVBQSX x)
 (SignExt16to32 x) -> (MOVWQSX x)
 (SignExt16to64 x) -> (MOVWQSX x)
 (SignExt32to64 x) -> (MOVLQSX x)
 
-(ZeroExt8to16 x) -> (MOVBQZX x)
-(ZeroExt8to32 x) -> (MOVBQZX x)
-(ZeroExt8to64 x) -> (MOVBQZX x)
+(ZeroExt8to16  x) -> (MOVBQZX x)
+(ZeroExt8to32  x) -> (MOVBQZX x)
+(ZeroExt8to64  x) -> (MOVBQZX x)
 (ZeroExt16to32 x) -> (MOVWQZX x)
 (ZeroExt16to64 x) -> (MOVWQZX x)
 (ZeroExt32to64 x) -> (MOVLQZX x)
 
+// Lowering truncation
+// Because we ignore high parts of registers, truncates are just copies.
+(Trunc16to8  x) -> x
+(Trunc32to8  x) -> x
+(Trunc32to16 x) -> x
+(Trunc64to8  x) -> x
+(Trunc64to16 x) -> x
+(Trunc64to32 x) -> x
+
+// Lowering float <-> int
 (Cvt32to32F x) -> (CVTSL2SS x)
 (Cvt32to64F x) -> (CVTSL2SD x)
 (Cvt64to32F x) -> (CVTSQ2SS x)
@@ -147,90 +144,81 @@
 (Cvt32Fto64F x) -> (CVTSS2SD x)
 (Cvt64Fto32F x) -> (CVTSD2SS x)
 
-// Because we ignore high parts of registers, truncates are just copies.
-(Trunc16to8 x) -> x
-(Trunc32to8 x) -> x
-(Trunc32to16 x) -> x
-(Trunc64to8 x) -> x
-(Trunc64to16 x) -> x
-(Trunc64to32 x) -> x
-
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
-// Note: for small shifts we generate 32 bits of mask even when we don't need it all.
 (Lsh64x64 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
 (Lsh64x32 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
 (Lsh64x16 <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
-(Lsh64x8 <t> x y)  -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+(Lsh64x8  <t> x y) -> (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
 
 (Lsh32x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
 (Lsh32x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
 (Lsh32x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh32x8 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Lsh32x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
 
 (Lsh16x64 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
 (Lsh16x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
 (Lsh16x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh16x8 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Lsh16x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
 
 (Lsh8x64 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
 (Lsh8x32 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
 (Lsh8x16 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh8x8 <t> x y)   -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Lsh8x8  <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
 
 (Lrot64 <t> x [c]) -> (ROLQconst <t> [c&63] x)
 (Lrot32 <t> x [c]) -> (ROLLconst <t> [c&31] x)
 (Lrot16 <t> x [c]) -> (ROLWconst <t> [c&15] x)
-(Lrot8 <t> x [c])  -> (ROLBconst <t> [c&7] x)
+(Lrot8  <t> x [c]) -> (ROLBconst <t> [c&7] x)
 
 (Rsh64Ux64 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst y [64])))
 (Rsh64Ux32 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst y [64])))
 (Rsh64Ux16 <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst y [64])))
-(Rsh64Ux8 <t> x y)  -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
+(Rsh64Ux8  <t> x y) -> (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst y [64])))
 
 (Rsh32Ux64 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst y [32])))
 (Rsh32Ux32 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
 (Rsh32Ux16 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Rsh32Ux8 <t> x y)  -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Rsh32Ux8  <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
 
 (Rsh16Ux64 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst y [16])))
 (Rsh16Ux32 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
 (Rsh16Ux16 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
-(Rsh16Ux8 <t> x y)  -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
+(Rsh16Ux8  <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
 
 (Rsh8Ux64 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst y [8])))
 (Rsh8Ux32 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
 (Rsh8Ux16 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
-(Rsh8Ux8 <t> x y)   -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
+(Rsh8Ux8  <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
 
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
 // We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
-// Note: for small shift widths we generate 32 bits of mask even when we don't need it all.
 (Rsh64x64 <t> x y) -> (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [64])))))
 (Rsh64x32 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [64])))))
 (Rsh64x16 <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [64])))))
-(Rsh64x8 <t> x y)  -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [64])))))
+(Rsh64x8  <t> x y) -> (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [64])))))
 
 (Rsh32x64 <t> x y) -> (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [32])))))
 (Rsh32x32 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
 (Rsh32x16 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
-(Rsh32x8 <t> x y)  -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
+(Rsh32x8  <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
 
 (Rsh16x64 <t> x y) -> (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [16])))))
 (Rsh16x32 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
 (Rsh16x16 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
-(Rsh16x8 <t> x y)  -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
+(Rsh16x8  <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
 
 (Rsh8x64 <t> x y)  -> (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst y [8])))))
 (Rsh8x32 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
 (Rsh8x16 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
-(Rsh8x8 <t> x y)   -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
+(Rsh8x8  <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
 
-(Less64 x y) -> (SETL (CMPQ x y))
-(Less32 x y) -> (SETL (CMPL x y))
-(Less16 x y) -> (SETL (CMPW x y))
-(Less8  x y) -> (SETL (CMPB x y))
+// Lowering comparisons
+(Less64  x y) -> (SETL (CMPQ x y))
+(Less32  x y) -> (SETL (CMPL x y))
+(Less16  x y) -> (SETL (CMPW x y))
+(Less8   x y) -> (SETL (CMPB x y))
 (Less64U x y) -> (SETB (CMPQ x y))
 (Less32U x y) -> (SETB (CMPL x y))
 (Less16U x y) -> (SETB (CMPW x y))
@@ -239,10 +227,10 @@
 (Less64F x y) -> (SETGF (UCOMISD y x))
 (Less32F x y) -> (SETGF (UCOMISS y x))
 
-(Leq64 x y) -> (SETLE (CMPQ x y))
-(Leq32 x y) -> (SETLE (CMPL x y))
-(Leq16 x y) -> (SETLE (CMPW x y))
-(Leq8  x y) -> (SETLE (CMPB x y))
+(Leq64  x y) -> (SETLE (CMPQ x y))
+(Leq32  x y) -> (SETLE (CMPL x y))
+(Leq16  x y) -> (SETLE (CMPW x y))
+(Leq8   x y) -> (SETLE (CMPB x y))
 (Leq64U x y) -> (SETBE (CMPQ x y))
 (Leq32U x y) -> (SETBE (CMPL x y))
 (Leq16U x y) -> (SETBE (CMPW x y))
@@ -251,10 +239,10 @@
 (Leq64F x y) -> (SETGEF (UCOMISD y x))
 (Leq32F x y) -> (SETGEF (UCOMISS y x))
 
-(Greater64 x y) -> (SETG (CMPQ x y))
-(Greater32 x y) -> (SETG (CMPL x y))
-(Greater16 x y) -> (SETG (CMPW x y))
-(Greater8  x y) -> (SETG (CMPB x y))
+(Greater64  x y) -> (SETG (CMPQ x y))
+(Greater32  x y) -> (SETG (CMPL x y))
+(Greater16  x y) -> (SETG (CMPW x y))
+(Greater8   x y) -> (SETG (CMPB x y))
 (Greater64U x y) -> (SETA (CMPQ x y))
 (Greater32U x y) -> (SETA (CMPL x y))
 (Greater16U x y) -> (SETA (CMPW x y))
@@ -264,10 +252,10 @@
 (Greater64F x y) -> (SETGF (UCOMISD x y))
 (Greater32F x y) -> (SETGF (UCOMISS x y))
 
-(Geq64 x y) -> (SETGE (CMPQ x y))
-(Geq32 x y) -> (SETGE (CMPL x y))
-(Geq16 x y) -> (SETGE (CMPW x y))
-(Geq8  x y) -> (SETGE (CMPB x y))
+(Geq64  x y) -> (SETGE (CMPQ x y))
+(Geq32  x y) -> (SETGE (CMPL x y))
+(Geq16  x y) -> (SETGE (CMPW x y))
+(Geq8   x y) -> (SETGE (CMPB x y))
 (Geq64U x y) -> (SETAE (CMPQ x y))
 (Geq32U x y) -> (SETAE (CMPL x y))
 (Geq16U x y) -> (SETAE (CMPW x y))
@@ -277,24 +265,25 @@
 (Geq64F x y) -> (SETGEF (UCOMISD x y))
 (Geq32F x y) -> (SETGEF (UCOMISS x y))
 
-(Eq64 x y) -> (SETEQ (CMPQ x y))
-(Eq32 x y) -> (SETEQ (CMPL x y))
-(Eq16 x y) -> (SETEQ (CMPW x y))
-(Eq8 x y) -> (SETEQ (CMPB x y))
-(EqB x y) -> (SETEQ (CMPB x y))
+(Eq64  x y) -> (SETEQ (CMPQ x y))
+(Eq32  x y) -> (SETEQ (CMPL x y))
+(Eq16  x y) -> (SETEQ (CMPW x y))
+(Eq8   x y) -> (SETEQ (CMPB x y))
+(EqB   x y) -> (SETEQ (CMPB x y))
 (EqPtr x y) -> (SETEQ (CMPQ x y))
 (Eq64F x y) -> (SETEQF (UCOMISD x y))
 (Eq32F x y) -> (SETEQF (UCOMISS x y))
 
-(Neq64 x y) -> (SETNE (CMPQ x y))
-(Neq32 x y) -> (SETNE (CMPL x y))
-(Neq16 x y) -> (SETNE (CMPW x y))
-(Neq8 x y) -> (SETNE (CMPB x y))
-(NeqB x y) -> (SETNE (CMPB x y))
+(Neq64  x y) -> (SETNE (CMPQ x y))
+(Neq32  x y) -> (SETNE (CMPL x y))
+(Neq16  x y) -> (SETNE (CMPW x y))
+(Neq8   x y) -> (SETNE (CMPB x y))
+(NeqB   x y) -> (SETNE (CMPB x y))
 (NeqPtr x y) -> (SETNE (CMPQ x y))
 (Neq64F x y) -> (SETNEF (UCOMISD x y))
 (Neq32F x y) -> (SETNEF (UCOMISS x y))
 
+// Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
@@ -302,6 +291,7 @@
 (Load <t> ptr mem) && is32BitFloat(t) -> (MOVSSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) -> (MOVSDload ptr mem)
 
+// Lowering stores
 // These more-specific FP versions of Store pattern should come first.
 (Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVSDstore ptr val mem)
 (Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVSSstore ptr val mem)
@@ -311,19 +301,7 @@
 (Store [2] ptr val mem) -> (MOVWstore ptr val mem)
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 
-// We want this to stick out so the to/from ptr conversion is obvious
-(Convert <t> x mem) -> (MOVQconvert <t> x mem)
-
-// checks
-(IsNonNil p) -> (SETNE (TESTQ p p))
-(IsInBounds idx len) -> (SETB (CMPQ idx len))
-(IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
-(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
-
-(GetG mem) -> (LoweredGetG mem)
-(GetClosurePtr) -> (LoweredGetClosurePtr)
-
-// Small moves
+// Lowering moves
 (Move [0] _ _ mem) -> mem
 (Move [1] dst src mem) -> (MOVBstore dst (MOVBload src mem) mem)
 (Move [2] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
@@ -368,24 +346,81 @@
 (Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
 	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
 
-(AndB x y) -> (ANDL x y)
-(OrB x y) -> (ORL x y)
-(Not x) -> (XORLconst [1] x)
+// Lowering Zero instructions
+(Zero [0] _ mem) -> mem
+(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+(Zero [2] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+(Zero [4] destptr mem) -> (MOVLstoreconst [0] destptr mem)
+(Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
 
-(OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
-(OffPtr [off] ptr) -> (ADDQ (MOVQconst [off]) ptr)
+(Zero [3] destptr mem) ->
+	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+		(MOVWstoreconst [0] destptr mem))
+(Zero [5] destptr mem) ->
+	(MOVBstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [0] destptr mem))
+(Zero [6] destptr mem) ->
+	(MOVWstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [0] destptr mem))
+(Zero [7] destptr mem) ->
+	(MOVLstoreconst [makeValAndOff(0,3)] destptr
+		(MOVLstoreconst [0] destptr mem))
 
-(Const8 [val]) -> (MOVLconst [val])
-(Const16 [val]) -> (MOVLconst [val])
-(Const32 [val]) -> (MOVLconst [val])
-(Const64 [val]) -> (MOVQconst [val])
+// Strip off any fractional word zeroing.
+(Zero [size] destptr mem) && size%8 != 0 && size > 8 ->
+	(Zero [size-size%8] (ADDQconst destptr [size%8])
+		(MOVQstoreconst [0] destptr mem))
+
+// Zero small numbers of words directly.
+(Zero [16] destptr mem) ->
+	(MOVQstoreconst [makeValAndOff(0,8)] destptr
+		(MOVQstoreconst [0] destptr mem))
+(Zero [24] destptr mem) ->
+	(MOVQstoreconst [makeValAndOff(0,16)] destptr
+		(MOVQstoreconst [makeValAndOff(0,8)] destptr
+			(MOVQstoreconst [0] destptr mem)))
+(Zero [32] destptr mem) ->
+	(MOVQstoreconst [makeValAndOff(0,24)] destptr
+		(MOVQstoreconst [makeValAndOff(0,16)] destptr
+			(MOVQstoreconst [makeValAndOff(0,8)] destptr
+				(MOVQstoreconst [0] destptr mem))))
+
+// Medium zeroing uses a duff device.
+(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
+	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
+	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
+
+// Large zeroing uses REP STOSQ.
+(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
+	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
+
+// Lowering constants
+(Const8   [val]) -> (MOVLconst [val])
+(Const16  [val]) -> (MOVLconst [val])
+(Const32  [val]) -> (MOVLconst [val])
+(Const64  [val]) -> (MOVQconst [val])
 (Const32F [val]) -> (MOVSSconst [val])
 (Const64F [val]) -> (MOVSDconst [val])
 (ConstNil) -> (MOVQconst [0])
 (ConstBool [b]) -> (MOVLconst [b])
 
-(Addr {sym} base) -> (LEAQ {sym} base)
+// Lowering calls
+(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
+// Miscellaneous
+(Convert <t> x mem) -> (MOVQconvert <t> x mem)
+(IsNonNil p) -> (SETNE (TESTQ p p))
+(IsInBounds idx len) -> (SETB (CMPQ idx len))
+(IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
+(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+(GetG mem) -> (LoweredGetG mem)
+(GetClosurePtr) -> (LoweredGetClosurePtr)
+(Addr {sym} base) -> (LEAQ {sym} base)
 (ITab (Load ptr mem)) -> (MOVQload ptr mem)
 
 // block rewrites
@@ -408,6 +443,13 @@
 
 (If cond yes no) -> (NE (TESTB cond cond) yes no)
 
+// ***************************
+// Above: lowering rules
+// Below: optimizations
+// ***************************
+// TODO: Should the optimizations be a separate pass?
+
+// Fold boolean tests into blocks
 (NE (TESTB (SETL  cmp) (SETL  cmp)) yes no) -> (LT  cmp yes no)
 (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no) -> (LE  cmp yes no)
 (NE (TESTB (SETG  cmp) (SETG  cmp)) yes no) -> (GT  cmp yes no)
@@ -428,15 +470,6 @@
 // Disabled because it interferes with the pattern match above and makes worse code.
 // (SETNEF x) -> (ORQ (SETNE <config.Frontend().TypeInt8()> x) (SETNAN <config.Frontend().TypeInt8()> x))
 // (SETEQF x) -> (ANDQ (SETEQ <config.Frontend().TypeInt8()> x) (SETORD <config.Frontend().TypeInt8()> x))
-
-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
-(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
-(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
-(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
-(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
-
-// Rules below here apply some simple optimizations after lowering.
-// TODO: Should this be a separate pass?
 
 // fold constants into instructions
 (ADDQ x (MOVQconst [c])) && is32Bit(c) -> (ADDQconst [c] x)
@@ -831,7 +864,6 @@
 (MOVLstoreconst [x] {sym} (ADDQ ptr idx) mem) -> (MOVLstoreconstidx1 [x] {sym} ptr idx mem)
 (MOVQstoreconst [x] {sym} (ADDQ ptr idx) mem) -> (MOVQstoreconstidx1 [x] {sym} ptr idx mem)
 
-
 // combine SHLQ into indexed loads and stores
 (MOVWloadidx1 [c] {sym} ptr (SHLQconst [1] idx) mem) -> (MOVWloadidx2 [c] {sym} ptr idx mem)
 (MOVLloadidx1 [c] {sym} ptr (SHLQconst [2] idx) mem) -> (MOVLloadidx4 [c] {sym} ptr idx mem)
@@ -951,55 +983,6 @@
       (LEAQ4 [off1+off2] {mergeSym(sym1,sym2)} x y)
 (LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
       (LEAQ8 [off1+off2] {mergeSym(sym1,sym2)} x y)
-
-// lower Zero instructions with word sizes
-(Zero [0] _ mem) -> mem
-(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
-(Zero [2] destptr mem) -> (MOVWstoreconst [0] destptr mem)
-(Zero [4] destptr mem) -> (MOVLstoreconst [0] destptr mem)
-(Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
-
-(Zero [3] destptr mem) ->
-	(MOVBstoreconst [makeValAndOff(0,2)] destptr
-		(MOVWstoreconst [0] destptr mem))
-(Zero [5] destptr mem) ->
-	(MOVBstoreconst [makeValAndOff(0,4)] destptr
-		(MOVLstoreconst [0] destptr mem))
-(Zero [6] destptr mem) ->
-	(MOVWstoreconst [makeValAndOff(0,4)] destptr
-		(MOVLstoreconst [0] destptr mem))
-(Zero [7] destptr mem) ->
-	(MOVLstoreconst [makeValAndOff(0,3)] destptr
-		(MOVLstoreconst [0] destptr mem))
-
-// Strip off any fractional word zeroing.
-(Zero [size] destptr mem) && size%8 != 0 && size > 8 ->
-	(Zero [size-size%8] (ADDQconst destptr [size%8])
-		(MOVQstoreconst [0] destptr mem))
-
-// Zero small numbers of words directly.
-(Zero [16] destptr mem) ->
-	(MOVQstoreconst [makeValAndOff(0,8)] destptr
-		(MOVQstoreconst [0] destptr mem))
-(Zero [24] destptr mem) ->
-	(MOVQstoreconst [makeValAndOff(0,16)] destptr
-		(MOVQstoreconst [makeValAndOff(0,8)] destptr
-			(MOVQstoreconst [0] destptr mem)))
-(Zero [32] destptr mem) ->
-	(MOVQstoreconst [makeValAndOff(0,24)] destptr
-		(MOVQstoreconst [makeValAndOff(0,16)] destptr
-			(MOVQstoreconst [makeValAndOff(0,8)] destptr
-				(MOVQstoreconst [0] destptr mem))))
-
-// Medium zeroing uses a duff device.
-(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
-	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
-(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
-
-// Large zeroing uses REP STOSQ.
-(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
-	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
@@ -1261,6 +1244,31 @@
 (CMPLconst x [0]) -> (TESTL x x)
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
+
+// Optimizing conditional moves
+(CMOVQEQconst x (InvertFlags y) [c]) -> (CMOVQNEconst x y [c])
+(CMOVLEQconst x (InvertFlags y) [c]) -> (CMOVLNEconst x y [c])
+(CMOVWEQconst x (InvertFlags y) [c]) -> (CMOVWNEconst x y [c])
+
+(CMOVQEQconst _ (FlagEQ) [c]) -> (Const64 [c])
+(CMOVLEQconst _ (FlagEQ) [c]) -> (Const32 [c])
+(CMOVWEQconst _ (FlagEQ) [c]) -> (Const16 [c])
+
+(CMOVQEQconst x (FlagLT_ULT)) -> x
+(CMOVLEQconst x (FlagLT_ULT)) -> x
+(CMOVWEQconst x (FlagLT_ULT)) -> x
+
+(CMOVQEQconst x (FlagLT_UGT)) -> x
+(CMOVLEQconst x (FlagLT_UGT)) -> x
+(CMOVWEQconst x (FlagLT_UGT)) -> x
+
+(CMOVQEQconst x (FlagGT_ULT)) -> x
+(CMOVLEQconst x (FlagGT_ULT)) -> x
+(CMOVWEQconst x (FlagGT_ULT)) -> x
+
+(CMOVQEQconst x (FlagGT_UGT)) -> x
+(CMOVLEQconst x (FlagGT_UGT)) -> x
+(CMOVWEQconst x (FlagGT_UGT)) -> x
 
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
