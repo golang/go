@@ -569,22 +569,24 @@ g0:
 	MOVW	R3, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
 	MOVD	$fn+0(FP), R3
 	MOVD	R3, FIXED_FRAME+0(R1)
 	MOVD	frame+8(FP), R3
 	MOVD	R3, FIXED_FRAME+8(R1)
 	MOVD	framesize+16(FP), R3
 	MOVD	R3, FIXED_FRAME+16(R1)
+	MOVD	ctxt+24(FP), R3
+	MOVD	R3, FIXED_FRAME+24(R1)
 	MOVD	$runtime·cgocallback_gofunc(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
 TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
 	NO_LOCAL_POINTERS
@@ -654,12 +656,15 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, -16(SP) and -8(SP) are unused.
+	// In the new goroutine, -8(SP) is unused (where SP refers to
+	// m->curg's SP while we're setting it up, before we've adjusted it).
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -(FIXED_FRAME+16)(R4)
+	MOVD	R5, -(FIXED_FRAME+8)(R4)
+	MOVD	ctxt+24(FP), R1
+	MOVD	R1, -(FIXED_FRAME+16)(R4)
 	MOVD	$-(FIXED_FRAME+16)(R4), R1
 	BL	runtime·cgocallbackg(SB)
 

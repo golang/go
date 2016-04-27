@@ -221,3 +221,14 @@ func TestCgoCrashTraceback(t *testing.T) {
 		}
 	}
 }
+
+func TestCgoTracebackContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("test does not work on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	got := runTestProg(t, "testprogcgo", "TracebackContext")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}

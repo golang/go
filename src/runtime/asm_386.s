@@ -612,23 +612,25 @@ noswitch:
 	MOVL	AX, ret+8(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
+TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
 	LEAL	fn+0(FP), AX
 	MOVL	AX, 0(SP)
 	MOVL	frame+4(FP), AX
 	MOVL	AX, 4(SP)
 	MOVL	framesize+8(FP), AX
 	MOVL	AX, 8(SP)
+	MOVL	ctxt+12(FP), AX
+	MOVL	AX, 12(SP)
 	MOVL	$runtime·cgocallback_gofunc(SB), AX
 	CALL	AX
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-12
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$12-16
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -696,17 +698,19 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, 0(SP) holds the saved oldm (DX) register.
-	// 4(SP) and 8(SP) are unused.
+	// In the new goroutine, 4(SP) holds the saved oldm (DX) register.
+	// 8(SP) is unused.
 	MOVL	m_curg(BP), SI
 	MOVL	SI, g(CX)
 	MOVL	(g_sched+gobuf_sp)(SI), DI // prepare stack as DI
 	MOVL	(g_sched+gobuf_pc)(SI), BP
 	MOVL	BP, -4(DI)
+	MOVL	ctxt+12(FP), CX
 	LEAL	-(4+12)(DI), SP
-	MOVL	DX, 0(SP)
+	MOVL	DX, 4(SP)
+	MOVL	CX, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVL	0(SP), DX
+	MOVL	4(SP), DX
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	get_tls(CX)
