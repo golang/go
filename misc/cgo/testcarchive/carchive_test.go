@@ -31,6 +31,7 @@ var gopathEnv []string
 var exeSuffix string
 
 var GOOS, GOARCH string
+var libgodir string
 
 func init() {
 	bin = []string{"./testp"}
@@ -84,7 +85,11 @@ func init() {
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
-	cc = append(cc, "-I", filepath.Join("pkg", GOOS+"_"+GOARCH))
+	libgodir = GOOS + "_" + GOARCH
+	if GOOS == "darwin" && GOARCH == "arm" {
+		libgodir = GOOS + "_" + GOARCH + "_shared"
+	}
+	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
 	// Build an environment with GOPATH=$(pwd)
 	env := os.Environ()
@@ -147,11 +152,7 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	libgopath := filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a")
-	if GOOS == "darwin" && GOARCH == "arm" {
-		libgopath = filepath.Join("pkg", GOOS+"_"+GOARCH+"_shared", "libgo.a")
-	}
-	compilemain(t, libgopath)
+	compilemain(t, filepath.Join("pkg", libgodir, "libgo.a"))
 
 	binArgs := append(bin, "arg1", "arg2")
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
