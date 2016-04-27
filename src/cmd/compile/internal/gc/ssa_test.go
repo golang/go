@@ -99,3 +99,7 @@ func TestUnsafe(t *testing.T) { runTest(t, "unsafe_ssa.go") }
 func TestPhi(t *testing.T) { runTest(t, "phi_ssa.go") }
 
 func TestSlice(t *testing.T) { runTest(t, "slice.go") }
+
+func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
+
+func TestDuplicateLoad(t *testing.T) { runTest(t, "dupLoad.go") }

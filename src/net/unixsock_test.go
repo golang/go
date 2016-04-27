@@ -8,6 +8,7 @@ package net
 
 import (
 	"bytes"
+	"internal/testenv"
 	"os"
 	"reflect"
 	"runtime"
@@ -19,6 +20,9 @@ import (
 func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
 	if !testableNetwork("unixgram") {
 		t.Skip("unixgram test")
+	}
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15157)
 	}
 
 	addr := testUnixAddr()

@@ -719,7 +719,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
 	gc.Naddr(&a, n)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
-			gc.Fatalf("bad in raddr: %v", gc.Oconv(n.Op, 0))
+			gc.Fatalf("bad in raddr: %v", n.Op)
 		} else {
 			gc.Fatalf("bad in raddr: <null>")
 		}
@@ -790,7 +790,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(op, 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
+		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", op, t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
 
 		/*	case CASE(OADDR, TPTR32):
 				a = ALEAL;

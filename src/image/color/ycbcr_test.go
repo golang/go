@@ -171,3 +171,47 @@ func TestPalette(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
+
+var sink uint8
+
+func BenchmarkYCbCrToRGB(b *testing.B) {
+	// YCbCrToRGB does saturating arithmetic.
+	// Low, middle, and high values can take
+	// different paths through the generated code.
+	b.Run("0", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink, sink, sink = YCbCrToRGB(0, 0, 0)
+		}
+	})
+	b.Run("128", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink, sink, sink = YCbCrToRGB(128, 128, 128)
+		}
+	})
+	b.Run("255", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink, sink, sink = YCbCrToRGB(255, 255, 255)
+		}
+	})
+}
+
+func BenchmarkRGBToYCbCr(b *testing.B) {
+	// RGBToYCbCr does saturating arithmetic.
+	// Different values can take different paths
+	// through the generated code.
+	b.Run("0", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink, sink, sink = RGBToYCbCr(0, 0, 0)
+		}
+	})
+	b.Run("Cb", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink, sink, sink = RGBToYCbCr(0, 0, 255)
+		}
+	})
+	b.Run("Cr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			sink, sink, sink = RGBToYCbCr(255, 0, 0)
+		}
+	})
+}

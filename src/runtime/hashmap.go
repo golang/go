@@ -194,7 +194,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	}
 
 	if hint < 0 || int64(int32(hint)) != hint {
-		panic("makemap: size out of range")
+		panic(plainError("makemap: size out of range"))
 		// TODO: make hint an int, then none of this nonsense
 	}
 
@@ -236,9 +236,6 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("need padding in bucket (value)")
 	}
 
-	// make sure zeroptr is large enough
-	mapzero(t.elem)
-
 	// find size parameter which will hold the requested # of elements
 	B := uint8(0)
 	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
@@ -249,7 +246,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	// If hint is large zeroing this memory could take a while.
 	buckets := bucket
 	if B != 0 {
-		buckets = newarray(t.bucket, uintptr(1)<<B)
+		buckets = newarray(t.bucket, 1<<B)
 	}
 
 	// initialize Hmap
@@ -283,7 +280,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		msanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
-		return atomic.Loadp(unsafe.Pointer(&zeroptr))
+		return unsafe.Pointer(&zeroVal[0])
 	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map read and map write")
@@ -321,7 +318,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return atomic.Loadp(unsafe.Pointer(&zeroptr))
+			return unsafe.Pointer(&zeroVal[0])
 		}
 	}
 }
@@ -337,7 +334,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		msanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
-		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
+		return unsafe.Pointer(&zeroVal[0]), false
 	}
 	if h.flags&hashWriting != 0 {
 		throw("concurrent map read and map write")
@@ -375,7 +372,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
+			return unsafe.Pointer(&zeroVal[0]), false
 		}
 	}
 }
@@ -426,9 +423,25 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	}
 }
 
+func mapaccess1_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) unsafe.Pointer {
+	v := mapaccess1(t, h, key)
+	if v == unsafe.Pointer(&zeroVal[0]) {
+		return zero
+	}
+	return v
+}
+
+func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
+	v := mapaccess1(t, h, key)
+	if v == unsafe.Pointer(&zeroVal[0]) {
+		return zero, false
+	}
+	return v, true
+}
+
 func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 	if h == nil {
-		panic("assignment to entry in nil map")
+		panic(plainError("assignment to entry in nil map"))
 	}
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
@@ -790,7 +803,9 @@ next:
 				}
 			}
 			it.bucket = bucket
-			it.bptr = b
+			if it.bptr != b { // avoid unnecessary write barrier; see issue 14921
+				it.bptr = b
+			}
 			it.i = i + 1
 			it.checkBucket = checkBucket
 			return
@@ -806,7 +821,7 @@ func hashGrow(t *maptype, h *hmap) {
 		throw("evacuation not done in time")
 	}
 	oldbuckets := h.buckets
-	newbuckets := newarray(t.bucket, uintptr(1)<<(h.B+1))
+	newbuckets := newarray(t.bucket, 1<<(h.B+1))
 	flags := h.flags &^ (iterator | oldIterator)
 	if h.flags&iterator != 0 {
 		flags |= oldIterator
@@ -1042,39 +1057,5 @@ func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)
 }
 
-var zerolock mutex
-
-const initialZeroSize = 1024
-
-var zeroinitial [initialZeroSize]byte
-
-// All accesses to zeroptr and zerosize must be atomic so that they
-// can be accessed without locks in the common case.
-var zeroptr unsafe.Pointer = unsafe.Pointer(&zeroinitial)
-var zerosize uintptr = initialZeroSize
-
-// mapzero ensures that zeroptr points to a buffer large enough to
-// serve as the zero value for t.
-func mapzero(t *_type) {
-	// Is the type small enough for existing buffer?
-	cursize := uintptr(atomic.Loadp(unsafe.Pointer(&zerosize)))
-	if t.size <= cursize {
-		return
-	}
-
-	// Allocate a new buffer.
-	lock(&zerolock)
-	cursize = uintptr(atomic.Loadp(unsafe.Pointer(&zerosize)))
-	if cursize < t.size {
-		for cursize < t.size {
-			cursize *= 2
-			if cursize == 0 {
-				// need >2GB zero on 32-bit machine
-				throw("map element too large")
-			}
-		}
-		atomic.Storep1(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
-		atomic.Storep1(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
-	}
-	unlock(&zerolock)
-}
+const maxZero = 1024 // must match value in ../cmd/compile/internal/gc/walk.go
+var zeroVal [maxZero]byte

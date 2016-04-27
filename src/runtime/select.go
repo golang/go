@@ -594,7 +594,7 @@ retc:
 sclose:
 	// send on closed channel
 	selunlock(scases, lockorder)
-	panic("send on closed channel")
+	panic(plainError("send on closed channel"))
 }
 
 func (c *hchan) sortkey() uintptr {
@@ -626,7 +626,7 @@ const (
 func reflect_rselect(cases []runtimeSelect) (chosen int, recvOK bool) {
 	// flagNoScan is safe here, because all objects are also referenced from cases.
 	size := selectsize(uintptr(len(cases)))
-	sel := (*hselect)(mallocgc(size, nil, flagNoScan))
+	sel := (*hselect)(mallocgc(size, nil, true))
 	newselect(sel, int64(size), int32(len(cases)))
 	r := new(bool)
 	for i := range cases {

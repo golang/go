@@ -11,18 +11,12 @@ import (
 )
 
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 }
 
 func Main() {
-	gc.Thearch.Thechar = '0'
-	gc.Thearch.Thestring = "mips64"
-	gc.Thearch.Thelinkarch = &mips.Linkmips64
+	gc.Thearch.LinkArch = &mips.Linkmips64
 	if obj.Getgoarch() == "mips64le" {
-		gc.Thearch.Thestring = "mips64le"
-		gc.Thearch.Thelinkarch = &mips.Linkmips64le
+		gc.Thearch.LinkArch = &mips.Linkmips64le
 	}
 	gc.Thearch.REGSP = mips.REGSP
 	gc.Thearch.REGCTXT = mips.REGCTXT

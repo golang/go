@@ -1,8 +1,8 @@
 // errorcheck -0 -d=nil
 // Fails on ppc64x because of incomplete optimization.
 // See issues 9058.
-// Same reason for mips64x.
-// +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64
+// Same reason for mips64x and s390x.
+// +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64,!s390x
 
 // Copyright 2013 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -192,4 +192,25 @@ func f4(x *[10]int) {
 	_ = &x[9] // ERROR "removed repeated nil check"
 	x = y
 	_ = &x[9] // ERROR "removed repeated nil check"
+}
+
+func m1(m map[int][80]byte) byte {
+	v := m[3] // ERROR "removed nil check"
+	return v[5]
+}
+func m2(m map[int][800]byte) byte {
+	v := m[3] // ERROR "removed nil check"
+	return v[5]
+}
+func m3(m map[int][80]byte) (byte, bool) {
+	v, ok := m[3] // ERROR "removed nil check"
+	return v[5], ok
+}
+func m4(m map[int][800]byte) (byte, bool) {
+	v, ok := m[3] // ERROR "removed nil check"
+	return v[5], ok
+}
+func p1() byte {
+	p := new([100]byte)
+	return p[5] // ERROR "removed nil check"
 }

@@ -228,6 +228,7 @@ func typeinit() {
 
 	okforcap[TARRAY] = true
 	okforcap[TCHAN] = true
+	okforcap[TSLICE] = true
 
 	okforconst[TBOOL] = true
 	okforconst[TSTRING] = true
@@ -235,6 +236,7 @@ func typeinit() {
 	okforlen[TARRAY] = true
 	okforlen[TCHAN] = true
 	okforlen[TMAP] = true
+	okforlen[TSLICE] = true
 	okforlen[TSTRING] = true
 
 	okforeq[TPTR32] = true
@@ -246,8 +248,9 @@ func typeinit() {
 	okforeq[TBOOL] = true
 	okforeq[TMAP] = true    // nil only; refined in typecheck
 	okforeq[TFUNC] = true   // nil only; refined in typecheck
-	okforeq[TARRAY] = true  // nil slice only; refined in typecheck
-	okforeq[TSTRUCT] = true // it's complicated; refined in typecheck
+	okforeq[TSLICE] = true  // nil only; refined in typecheck
+	okforeq[TARRAY] = true  // only if element type is comparable; refined in typecheck
+	okforeq[TSTRUCT] = true // only if all struct fields are comparable; refined in typecheck
 
 	okforcmp[TSTRING] = true
 
@@ -359,16 +362,16 @@ func lexinit1() {
 	// t = interface { Error() string }
 
 	rcvr := typ(TSTRUCT)
-	rcvr.Funarg = true
+	rcvr.StructType().Funarg = true
 	field := newField()
 	field.Type = Ptrto(typ(TSTRUCT))
 	rcvr.SetFields([]*Field{field})
 
 	in := typ(TSTRUCT)
-	in.Funarg = true
+	in.StructType().Funarg = true
 
 	out := typ(TSTRUCT)
-	out.Funarg = true
+	out.StructType().Funarg = true
 	field = newField()
 	field.Type = Types[TSTRING]
 	out.SetFields([]*Field{field})

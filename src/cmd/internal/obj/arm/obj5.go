@@ -32,7 +32,7 @@ package arm
 
 import (
 	"cmd/internal/obj"
-	"encoding/binary"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"math"
@@ -412,7 +412,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.As = AMOVW
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGG
-				p.From.Offset = 4 * int64(ctxt.Arch.Ptrsize) // G.panic
+				p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = REG_R1
 
@@ -708,9 +708,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	p.As = AMOVW
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
-	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 	if ctxt.Cursym.Cfunc {
-		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
@@ -1032,15 +1032,10 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkarm = obj.LinkArch{
-	ByteOrder:  binary.LittleEndian,
-	Name:       "arm",
-	Thechar:    '5',
+	Arch:       sys.ArchARM,
 	Preprocess: preprocess,
 	Assemble:   span5,
 	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
-	Minlc:      4,
-	Ptrsize:    4,
-	Regsize:    4,
 }

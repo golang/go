@@ -87,25 +87,12 @@ func (z *Writer) Reset(w io.Writer) {
 	z.init(w, z.level)
 }
 
-// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
-func put2(p []byte, v uint16) {
-	p[0] = uint8(v >> 0)
-	p[1] = uint8(v >> 8)
-}
-
-func put4(p []byte, v uint32) {
-	p[0] = uint8(v >> 0)
-	p[1] = uint8(v >> 8)
-	p[2] = uint8(v >> 16)
-	p[3] = uint8(v >> 24)
-}
-
 // writeBytes writes a length-prefixed byte slice to z.w.
 func (z *Writer) writeBytes(b []byte) error {
 	if len(b) > 0xffff {
 		return errors.New("gzip.Write: Extra data is too large")
 	}
-	put2(z.buf[:2], uint16(len(b)))
+	le.PutUint16(z.buf[:2], uint16(len(b)))
 	_, err := z.w.Write(z.buf[:2])
 	if err != nil {
 		return err
@@ -168,7 +155,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 		if z.Comment != "" {
 			z.buf[3] |= 0x10
 		}
-		put4(z.buf[4:8], uint32(z.ModTime.Unix()))
+		le.PutUint32(z.buf[4:8], uint32(z.ModTime.Unix()))
 		if z.level == BestCompression {
 			z.buf[8] = 2
 		} else if z.level == BestSpeed {
@@ -254,8 +241,8 @@ func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err
 	}
-	put4(z.buf[:4], z.digest)
-	put4(z.buf[4:8], z.size)
+	le.PutUint32(z.buf[:4], z.digest)
+	le.PutUint32(z.buf[4:8], z.size)
 	_, z.err = z.w.Write(z.buf[:8])
 	return z.err
 }

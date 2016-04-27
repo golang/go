@@ -2,7 +2,7 @@
 
 package sys
 
-const TheGoos = `freebsd`
+const GOOS = `freebsd`
 
 const GoosAndroid = 0
 const GoosDarwin = 0

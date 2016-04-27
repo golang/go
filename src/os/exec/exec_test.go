@@ -479,7 +479,7 @@ func TestExtraFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	_, err = tf.Seek(0, os.SEEK_SET)
+	_, err = tf.Seek(0, io.SeekStart)
 	if err != nil {
 		t.Fatalf("Seek: %v", err)
 	}

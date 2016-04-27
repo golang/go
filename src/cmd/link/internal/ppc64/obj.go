@@ -32,6 +32,7 @@ package ppc64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -45,21 +46,15 @@ func Main() {
 }
 
 func linkarchinit() {
-	ld.Thestring = obj.Getgoarch()
-	if ld.Thestring == "ppc64le" {
-		ld.Thelinkarch = &ld.Linkppc64le
+	if obj.Getgoarch() == "ppc64le" {
+		ld.SysArch = sys.ArchPPC64LE
 	} else {
-		ld.Thelinkarch = &ld.Linkppc64
+		ld.SysArch = sys.ArchPPC64
 	}
 
-	ld.Thearch.Thechar = thechar
-	ld.Thearch.Ptrsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Intsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
 	ld.Thearch.Funcalign = FuncAlign
 	ld.Thearch.Maxalign = MaxAlign
 	ld.Thearch.Minalign = MinAlign
-	ld.Thearch.Minlc = MINLC
 	ld.Thearch.Dwarfregsp = DWARFREGSP
 	ld.Thearch.Dwarfreglr = DWARFREGLR
 
@@ -72,7 +67,7 @@ func linkarchinit() {
 	ld.Thearch.Elfsetupplt = elfsetupplt
 	ld.Thearch.Gentext = gentext
 	ld.Thearch.Machoreloc1 = machoreloc1
-	if ld.Thelinkarch == &ld.Linkppc64le {
+	if ld.SysArch == sys.ArchPPC64LE {
 		ld.Thearch.Lput = ld.Lputl
 		ld.Thearch.Wput = ld.Wputl
 		ld.Thearch.Vput = ld.Vputl
@@ -150,7 +145,7 @@ func archinit() {
 		}
 
 	case obj.Hlinux: /* ppc64 elf */
-		if ld.Thestring == "ppc64" {
+		if ld.SysArch == sys.ArchPPC64 {
 			ld.Debug['d'] = 1 // TODO(austin): ELF ABI v1 not supported yet
 		}
 		ld.Elfinit()

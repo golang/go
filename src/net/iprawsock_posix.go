@@ -7,8 +7,8 @@
 package net
 
 import (
+	"context"
 	"syscall"
-	"time"
 )
 
 // BUG(mikio): On every POSIX platform, reads from the "ip4" network
@@ -120,8 +120,8 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error) 
 	return c.fd.writeMsg(b, oob, sa)
 }
 
-func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
-	network, proto, err := parseNetwork(netProto)
+func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+	network, proto, err := parseNetwork(ctx, netProto)
 	if err != nil {
 		return nil, err
 	}
@@ -133,15 +133,15 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 	if raddr == nil {
 		return nil, errMissingAddress
 	}
-	fd, err := internetSocket(network, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial", noCancel)
+	fd, err := internetSocket(ctx, network, laddr, raddr, syscall.SOCK_RAW, proto, "dial")
 	if err != nil {
 		return nil, err
 	}
 	return newIPConn(fd), nil
 }
 
-func listenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
-	network, proto, err := parseNetwork(netProto)
+func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
+	network, proto, err := parseNetwork(ctx, netProto)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func listenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
 	default:
 		return nil, UnknownNetworkError(netProto)
 	}
-	fd, err := internetSocket(network, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen", noCancel)
+	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_RAW, proto, "listen")
 	if err != nil {
 		return nil, err
 	}

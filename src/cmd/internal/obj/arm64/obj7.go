@@ -32,7 +32,7 @@ package arm64
 
 import (
 	"cmd/internal/obj"
-	"encoding/binary"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"math"
@@ -56,9 +56,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
-	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 	if ctxt.Cursym.Cfunc {
-		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R1
@@ -250,7 +250,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		if p.From.Type == obj.TYPE_FCONST {
 			f32 := float32(p.From.Val.(float64))
 			i32 := math.Float32bits(f32)
-			literal := fmt.Sprintf("$f32.%08x", uint32(i32))
+			literal := fmt.Sprintf("$f32.%08x", i32)
 			s := obj.Linklookup(ctxt, literal, 0)
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
@@ -263,7 +263,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	case AFMOVD:
 		if p.From.Type == obj.TYPE_FCONST {
 			i64 := math.Float64bits(p.From.Val.(float64))
-			literal := fmt.Sprintf("$f64.%016x", uint64(i64))
+			literal := fmt.Sprintf("$f64.%016x", i64)
 			s := obj.Linklookup(ctxt, literal, 0)
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
@@ -778,7 +778,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
 				q.From.Reg = REGG
-				q.From.Offset = 4 * int64(ctxt.Arch.Ptrsize) // G.panic
+				q.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R1
 
@@ -941,15 +941,10 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkarm64 = obj.LinkArch{
-	ByteOrder:  binary.LittleEndian,
-	Name:       "arm64",
-	Thechar:    '7',
+	Arch:       sys.ArchARM64,
 	Preprocess: preprocess,
 	Assemble:   span7,
 	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
-	Minlc:      4,
-	Ptrsize:    8,
-	Regsize:    8,
 }

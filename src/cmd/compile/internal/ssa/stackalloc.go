@@ -22,6 +22,13 @@ type stackAllocState struct {
 	names     []LocalSlot
 	slots     []int
 	used      []bool
+
+	nArgSlot, // Number of Values sourced to arg slot
+	nNotNeed, // Number of Values not needing a stack slot
+	nNamedSlot, // Number of Values using a named stack slot
+	nReuse, // Number of values reusing a stack slot
+	nAuto, // Number of autos allocated for stack slots.
+	nSelfInterfere int32 // Number of self-interferences
 }
 
 func newStackAllocState(f *Func) *stackAllocState {
@@ -54,6 +61,7 @@ func putStackAllocState(s *stackAllocState) {
 	s.f.Config.stackAllocState = s
 	s.f = nil
 	s.live = nil
+	s.nArgSlot, s.nNotNeed, s.nNamedSlot, s.nReuse, s.nAuto, s.nSelfInterfere = 0, 0, 0, 0, 0, 0
 }
 
 type stackValState struct {
@@ -75,6 +83,13 @@ func stackalloc(f *Func, spillLive [][]ID) [][]ID {
 	defer putStackAllocState(s)
 
 	s.stackalloc()
+	if f.pass.stats > 0 {
+		f.logStat("stack_alloc_stats",
+			s.nArgSlot, "arg_slots", s.nNotNeed, "slot_not_needed",
+			s.nNamedSlot, "named_slots", s.nAuto, "auto_slots",
+			s.nReuse, "reused_slots", s.nSelfInterfere, "self_interfering")
+	}
+
 	return s.live
 }
 
@@ -170,9 +185,11 @@ func (s *stackAllocState) stackalloc() {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !s.values[v.ID].needSlot {
+				s.nNotNeed++
 				continue
 			}
 			if v.Op == OpArg {
+				s.nArgSlot++
 				continue // already picked
 			}
 
@@ -184,18 +201,20 @@ func (s *stackAllocState) stackalloc() {
 			} else {
 				name = names[v.ID]
 			}
-			if name.N != nil && v.Type.Equal(name.Type) {
+			if name.N != nil && v.Type.Compare(name.Type) == CMPeq {
 				for _, id := range s.interfere[v.ID] {
 					h := f.getHome(id)
 					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
 						// A variable can interfere with itself.
 						// It is rare, but but it can happen.
+						s.nSelfInterfere++
 						goto noname
 					}
 				}
 				if f.pass.debug > stackDebug {
 					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
 				}
+				s.nNamedSlot++
 				f.setHome(v, name)
 				continue
 			}
@@ -217,11 +236,13 @@ func (s *stackAllocState) stackalloc() {
 			var i int
 			for i = 0; i < len(locs); i++ {
 				if !used[i] {
+					s.nReuse++
 					break
 				}
 			}
 			// If there is no unused stack slot, allocate a new one.
 			if i == len(locs) {
+				s.nAuto++
 				locs = append(locs, LocalSlot{N: f.Config.fe.Auto(v.Type), Type: v.Type, Off: 0})
 				locations[v.Type] = locs
 			}
@@ -351,7 +372,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			if s.values[v.ID].needSlot {
 				live.remove(v.ID)
 				for _, id := range live.contents() {
-					if s.values[v.ID].typ.Equal(s.values[id].typ) {
+					if s.values[v.ID].typ.Compare(s.values[id].typ) == CMPeq {
 						s.interfere[v.ID] = append(s.interfere[v.ID], id)
 						s.interfere[id] = append(s.interfere[id], v.ID)
 					}

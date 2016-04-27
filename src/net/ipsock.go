@@ -6,7 +6,9 @@
 
 package net
 
-import "time"
+import (
+	"context"
+)
 
 var (
 	// supportsIPv4 reports whether the platform supports IPv4
@@ -188,7 +190,7 @@ func JoinHostPort(host, port string) string {
 // address or a DNS name, and returns a list of internet protocol
 // family addresses. The result contains at least one address when
 // error is nil.
-func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
+func internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
 	var (
 		err        error
 		host, port string
@@ -236,7 +238,7 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 		return addrList{inetaddr(IPAddr{IP: ip, Zone: zone})}, nil
 	}
 	// Try as a DNS name.
-	ips, err := lookupIPDeadline(host, deadline)
+	ips, err := lookupIPContext(ctx, host)
 	if err != nil {
 		return nil, err
 	}
@@ -248,25 +250,4 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 		filter = ipv6only
 	}
 	return filterAddrList(filter, ips, inetaddr)
-}
-
-func zoneToString(zone int) string {
-	if zone == 0 {
-		return ""
-	}
-	if ifi, err := InterfaceByIndex(zone); err == nil {
-		return ifi.Name
-	}
-	return uitoa(uint(zone))
-}
-
-func zoneToInt(zone string) int {
-	if zone == "" {
-		return 0
-	}
-	if ifi, err := InterfaceByName(zone); err == nil {
-		return ifi.Index
-	}
-	n, _, _ := dtoi(zone, 0)
-	return n
 }

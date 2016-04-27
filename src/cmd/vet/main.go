@@ -100,7 +100,7 @@ func (ts *triState) Set(value string) error {
 func (ts *triState) String() string {
 	switch *ts {
 	case unset:
-		return "unset"
+		return "true" // An unset flag will be set by -all, so defaults to true.
 	case setTrue:
 		return "true"
 	case setFalse:
@@ -164,6 +164,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
+	fmt.Fprintf(os.Stderr, "By default, -all is set and all non-experimental checks are run.\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
 	fmt.Fprintf(os.Stderr, "\tgo doc cmd/vet\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")

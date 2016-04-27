@@ -5,8 +5,8 @@
 package net
 
 import (
+	"context"
 	"syscall"
-	"time"
 )
 
 func (c *IPConn) readFrom(b []byte) (int, *IPAddr, error) {
@@ -25,10 +25,10 @@ func (c *IPConn) writeMsg(b, oob []byte, addr *IPAddr) (n, oobn int, err error) 
 	return 0, 0, syscall.EPLAN9
 }
 
-func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
+func dialIP(ctx context.Context, netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
 	return nil, syscall.EPLAN9
 }
 
-func listenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+func listenIP(ctx context.Context, netProto string, laddr *IPAddr) (*IPConn, error) {
 	return nil, syscall.EPLAN9
 }

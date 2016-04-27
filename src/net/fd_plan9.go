@@ -32,12 +32,6 @@ func sysInit() {
 	netdir = "/net"
 }
 
-func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
-	// On plan9, use the relatively inefficient
-	// goroutine-racing implementation.
-	return dialChannel(net, ra, dialer, deadline)
-}
-
 func newFD(net, name string, ctl, data *os.File, laddr, raddr Addr) (*netFD, error) {
 	return &netFD{net: net, n: name, dir: netdir + "/" + net + "/" + name, ctl: ctl, data: data, laddr: laddr, raddr: raddr}, nil
 }
@@ -83,6 +77,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 	}
 	defer fd.readUnlock()
 	n, err = fd.data.Read(b)
+	if isHangup(err) {
+		err = io.EOF
+	}
 	if fd.net == "udp" && err == io.EOF {
 		n = 0
 		err = nil
@@ -184,4 +181,8 @@ func setReadBuffer(fd *netFD, bytes int) error {
 
 func setWriteBuffer(fd *netFD, bytes int) error {
 	return syscall.EPLAN9
+}
+
+func isHangup(err error) bool {
+	return err != nil && stringsHasSuffix(err.Error(), "Hangup")
 }

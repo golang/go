@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bufio"
+	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 	"io"
@@ -20,6 +21,17 @@ const (
 	BOM = 0xFEFF
 )
 
+// lexlineno is the line number _after_ the most recently read rune.
+// In particular, it's advanced (or rewound) as newlines are read (or unread).
+var lexlineno int32
+
+// lineno is the line number at the start of the most recently lexed token.
+var lineno int32
+
+var lexbuf bytes.Buffer
+var strbuf bytes.Buffer
+var litbuf string // LLITERAL value for use in syntax error messages
+
 func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
@@ -30,6 +42,10 @@ func isLetter(c rune) bool {
 
 func isDigit(c rune) bool {
 	return '0' <= c && c <= '9'
+}
+
+func isQuoted(s string) bool {
+	return len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"'
 }
 
 func plan9quote(s string) string {
@@ -739,7 +755,7 @@ func (l *lexer) number(c rune) {
 	}
 
 done:
-	litbuf = "literal " + str
+	litbuf = "" // lazily initialized in (*parser).syntax_error
 	l.nlsemi = true
 	l.tok = LLITERAL
 }
@@ -841,15 +857,6 @@ func internString(b []byte) string {
 	return s
 }
 
-func more(pp *string) bool {
-	p := *pp
-	for p != "" && isSpace(rune(p[0])) {
-		p = p[1:]
-	}
-	*pp = p
-	return p != ""
-}
-
 // read and interpret syntax that looks like
 // //line parse.y:15
 // as a discontinuity in sequential line numbers.
@@ -875,7 +882,7 @@ func (l *lexer) getlinepragma() rune {
 		text := strings.TrimSuffix(lexbuf.String(), "\r")
 
 		if strings.HasPrefix(text, "go:cgo_") {
-			pragcgo(text)
+			pragcgobuf += pragcgo(text)
 		}
 
 		verb := text
@@ -907,17 +914,17 @@ func (l *lexer) getlinepragma() rune {
 		case "go:noinline":
 			l.pragma |= Noinline
 		case "go:systemstack":
-			if compiling_runtime == 0 {
+			if !compiling_runtime {
 				Yyerror("//go:systemstack only allowed in runtime")
 			}
 			l.pragma |= Systemstack
 		case "go:nowritebarrier":
-			if compiling_runtime == 0 {
+			if !compiling_runtime {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
 			l.pragma |= Nowritebarrier
 		case "go:nowritebarrierrec":
-			if compiling_runtime == 0 {
+			if !compiling_runtime {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
@@ -979,139 +986,114 @@ func (l *lexer) getlinepragma() rune {
 	return c
 }
 
-func getimpsym(pp *string) string {
-	more(pp) // skip spaces
-	p := *pp
-	if p == "" || p[0] == '"' {
-		return ""
+func pragcgo(text string) string {
+	f := pragmaFields(text)
+
+	verb := f[0][3:] // skip "go:"
+	switch verb {
+	case "cgo_export_static", "cgo_export_dynamic":
+		switch {
+		case len(f) == 2 && !isQuoted(f[1]):
+			local := plan9quote(f[1])
+			return fmt.Sprintln(verb, local)
+
+		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
+			local := plan9quote(f[1])
+			remote := plan9quote(f[2])
+			return fmt.Sprintln(verb, local, remote)
+
+		default:
+			Yyerror(`usage: //go:%s local [remote]`, verb)
+		}
+	case "cgo_import_dynamic":
+		switch {
+		case len(f) == 2 && !isQuoted(f[1]):
+			local := plan9quote(f[1])
+			return fmt.Sprintln(verb, local)
+
+		case len(f) == 3 && !isQuoted(f[1]) && !isQuoted(f[2]):
+			local := plan9quote(f[1])
+			remote := plan9quote(f[2])
+			return fmt.Sprintln(verb, local, remote)
+
+		case len(f) == 4 && !isQuoted(f[1]) && !isQuoted(f[2]) && isQuoted(f[3]):
+			local := plan9quote(f[1])
+			remote := plan9quote(f[2])
+			library := plan9quote(strings.Trim(f[3], `"`))
+			return fmt.Sprintln(verb, local, remote, library)
+
+		default:
+			Yyerror(`usage: //go:cgo_import_dynamic local [remote ["library"]]`)
+		}
+	case "cgo_import_static":
+		switch {
+		case len(f) == 2 && !isQuoted(f[1]):
+			local := plan9quote(f[1])
+			return fmt.Sprintln(verb, local)
+
+		default:
+			Yyerror(`usage: //go:cgo_import_static local`)
+		}
+	case "cgo_dynamic_linker":
+		switch {
+		case len(f) == 2 && isQuoted(f[1]):
+			path := plan9quote(strings.Trim(f[1], `"`))
+			return fmt.Sprintln(verb, path)
+
+		default:
+			Yyerror(`usage: //go:cgo_dynamic_linker "path"`)
+		}
+	case "cgo_ldflag":
+		switch {
+		case len(f) == 2 && isQuoted(f[1]):
+			arg := plan9quote(strings.Trim(f[1], `"`))
+			return fmt.Sprintln(verb, arg)
+
+		default:
+			Yyerror(`usage: //go:cgo_ldflag "arg"`)
+		}
 	}
-	i := 0
-	for i < len(p) && !isSpace(rune(p[i])) && p[i] != '"' {
-		i++
-	}
-	sym := p[:i]
-	*pp = p[i:]
-	return sym
+	return ""
 }
 
-func getquoted(pp *string) (string, bool) {
-	more(pp) // skip spaces
-	p := *pp
-	if p == "" || p[0] != '"' {
-		return "", false
+// pragmaFields is similar to strings.FieldsFunc(s, isSpace)
+// but does not split when inside double quoted regions and always
+// splits before the start and after the end of a double quoted region.
+// pragmaFields does not recognize escaped quotes. If a quote in s is not
+// closed the part after the opening quote will not be returned as a field.
+func pragmaFields(s string) []string {
+	var a []string
+	inQuote := false
+	fieldStart := -1 // Set to -1 when looking for start of field.
+	for i, c := range s {
+		switch {
+		case c == '"':
+			if inQuote {
+				inQuote = false
+				a = append(a, s[fieldStart:i+1])
+				fieldStart = -1
+			} else {
+				inQuote = true
+				if fieldStart >= 0 {
+					a = append(a, s[fieldStart:i])
+				}
+				fieldStart = i
+			}
+		case !inQuote && isSpace(c):
+			if fieldStart >= 0 {
+				a = append(a, s[fieldStart:i])
+				fieldStart = -1
+			}
+		default:
+			if fieldStart == -1 {
+				fieldStart = i
+			}
+		}
 	}
-	p = p[1:]
-	i := strings.Index(p, `"`)
-	if i < 0 {
-		return "", false
+	if !inQuote && fieldStart >= 0 { // Last field might end at the end of the string.
+		a = append(a, s[fieldStart:])
 	}
-	*pp = p[i+1:]
-	return p[:i], true
-}
-
-// Copied nearly verbatim from the C compiler's #pragma parser.
-// TODO: Rewrite more cleanly once the compiler is written in Go.
-func pragcgo(text string) {
-	var q string
-
-	if i := strings.Index(text, " "); i >= 0 {
-		text, q = text[:i], text[i:]
-	}
-
-	verb := text[3:] // skip "go:"
-
-	if verb == "cgo_dynamic_linker" || verb == "dynlinker" {
-		p, ok := getquoted(&q)
-		if !ok {
-			Yyerror("usage: //go:cgo_dynamic_linker \"path\"")
-			return
-		}
-		pragcgobuf += fmt.Sprintf("cgo_dynamic_linker %v\n", plan9quote(p))
-		return
-
-	}
-
-	if verb == "dynexport" {
-		verb = "cgo_export_dynamic"
-	}
-	if verb == "cgo_export_static" || verb == "cgo_export_dynamic" {
-		local := getimpsym(&q)
-		var remote string
-		if local == "" {
-			goto err2
-		}
-		if !more(&q) {
-			pragcgobuf += fmt.Sprintf("%s %v\n", verb, plan9quote(local))
-			return
-		}
-
-		remote = getimpsym(&q)
-		if remote == "" {
-			goto err2
-		}
-		pragcgobuf += fmt.Sprintf("%s %v %v\n", verb, plan9quote(local), plan9quote(remote))
-		return
-
-	err2:
-		Yyerror("usage: //go:%s local [remote]", verb)
-		return
-	}
-
-	if verb == "cgo_import_dynamic" || verb == "dynimport" {
-		var ok bool
-		local := getimpsym(&q)
-		var p string
-		var remote string
-		if local == "" {
-			goto err3
-		}
-		if !more(&q) {
-			pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v\n", plan9quote(local))
-			return
-		}
-
-		remote = getimpsym(&q)
-		if remote == "" {
-			goto err3
-		}
-		if !more(&q) {
-			pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v %v\n", plan9quote(local), plan9quote(remote))
-			return
-		}
-
-		p, ok = getquoted(&q)
-		if !ok {
-			goto err3
-		}
-		pragcgobuf += fmt.Sprintf("cgo_import_dynamic %v %v %v\n", plan9quote(local), plan9quote(remote), plan9quote(p))
-		return
-
-	err3:
-		Yyerror("usage: //go:cgo_import_dynamic local [remote [\"library\"]]")
-		return
-	}
-
-	if verb == "cgo_import_static" {
-		local := getimpsym(&q)
-		if local == "" || more(&q) {
-			Yyerror("usage: //go:cgo_import_static local")
-			return
-		}
-		pragcgobuf += fmt.Sprintf("cgo_import_static %v\n", plan9quote(local))
-		return
-
-	}
-
-	if verb == "cgo_ldflag" {
-		p, ok := getquoted(&q)
-		if !ok {
-			Yyerror("usage: //go:cgo_ldflag \"arg\"")
-			return
-		}
-		pragcgobuf += fmt.Sprintf("cgo_ldflag %v\n", plan9quote(p))
-		return
-
-	}
+	return a
 }
 
 func (l *lexer) getr() rune {

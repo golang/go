@@ -105,14 +105,14 @@ func splitAtBytes(s string, t string) []string {
 	for i := 0; i < len(s); i++ {
 		if byteIndex(t, s[i]) >= 0 {
 			if last < i {
-				a[n] = string(s[last:i])
+				a[n] = s[last:i]
 				n++
 			}
 			last = i + 1
 		}
 	}
 	if last < len(s) {
-		a[n] = string(s[last:])
+		a[n] = s[last:]
 		n++
 	}
 	return a[0:n]

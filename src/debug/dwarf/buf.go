@@ -157,7 +157,7 @@ func (b *buf) addr() uint64 {
 	case 4:
 		return uint64(b.uint32())
 	case 8:
-		return uint64(b.uint64())
+		return b.uint64()
 	}
 	b.error("unknown address size")
 	return 0

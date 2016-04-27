@@ -36,6 +36,7 @@ type IPMask []byte
 type IPNet struct {
 	IP   IP     // network number
 	Mask IPMask // network mask
+	Zone string // IPv6 scoped addressing zone
 }
 
 // IPv4 returns the IP address (in 16-byte form) of the
@@ -252,9 +253,11 @@ func (ip IP) Mask(mask IPMask) IP {
 }
 
 // String returns the string form of the IP address ip.
-// If the address is an IPv4 address, the string representation
-// is dotted decimal ("74.125.19.99").  Otherwise the representation
-// is IPv6 ("2001:4860:0:2001::68").
+// It returns one of 4 forms:
+//   - "<nil>", if ip has length 0
+//   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
+//   - IPv6 ("2001:db9::1"), if ip is a valid IPv6 address
+//   - the hexadecimal form of ip, without punctuation, if no other cases apply
 func (ip IP) String() string {
 	p := ip
 
@@ -270,7 +273,7 @@ func (ip IP) String() string {
 			uitoa(uint(p4[3]))
 	}
 	if len(p) != IPv6len {
-		return "?"
+		return hexString(ip)
 	}
 
 	// Find longest run of zeros.
@@ -310,6 +313,14 @@ func (ip IP) String() string {
 		b = appendHex(b, (uint32(p[i])<<8)|uint32(p[i+1]))
 	}
 	return string(b)
+}
+
+func hexString(b []byte) string {
+	s := make([]byte, len(b)*2)
+	for i, tn := range b {
+		s[i*2], s[i*2+1] = hexDigit[tn>>4], hexDigit[tn&0xf]
+	}
+	return string(s)
 }
 
 // ipEmptyString is like ip.String except that it returns
@@ -426,11 +437,7 @@ func (m IPMask) String() string {
 	if len(m) == 0 {
 		return "<nil>"
 	}
-	buf := make([]byte, len(m)*2)
-	for i, b := range m {
-		buf[i*2], buf[i*2+1] = hexDigit[b>>4], hexDigit[b&0xf]
-	}
-	return string(buf)
+	return hexString(m)
 }
 
 func networkNumberAndMask(n *IPNet) (ip IP, m IPMask) {
@@ -488,11 +495,15 @@ func (n *IPNet) String() string {
 	if nn == nil || m == nil {
 		return "<nil>"
 	}
+	ip := nn.String()
+	if n.Zone != "" {
+		ip = ip + "%" + n.Zone
+	}
 	l := simpleMaskLength(m)
 	if l == -1 {
-		return nn.String() + "/" + m.String()
+		return ip + "/" + m.String()
 	}
-	return nn.String() + "/" + uitoa(uint(l))
+	return ip + "/" + uitoa(uint(l))
 }
 
 // Parse IPv4 address (d.d.d.d).
@@ -664,17 +675,18 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
+	var zone string
 	addr, mask := s[:i], s[i+1:]
 	iplen := IPv4len
 	ip := parseIPv4(addr)
 	if ip == nil {
 		iplen = IPv6len
-		ip, _ = parseIPv6(addr, false)
+		ip, zone = parseIPv6(addr, true)
 	}
 	n, i, ok := dtoi(mask, 0)
 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
 	m := CIDRMask(n, 8*iplen)
-	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+	return ip, &IPNet{IP: ip.Mask(m), Mask: m, Zone: zone}, nil
 }

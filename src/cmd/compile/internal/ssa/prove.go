@@ -445,9 +445,6 @@ var (
 // else branch of the first comparison is executed, we already know that i < len(a).
 // The code for the second panic can be removed.
 func prove(f *Func) {
-	idom := dominators(f)
-	sdom := newSparseTree(f, idom)
-
 	// current node state
 	type walkState int
 	const (
@@ -471,8 +468,8 @@ func prove(f *Func) {
 	for len(work) > 0 {
 		node := work[len(work)-1]
 		work = work[:len(work)-1]
-		parent := idom[node.block.ID]
-		branch := getBranch(sdom, parent, node.block)
+		parent := f.idom[node.block.ID]
+		branch := getBranch(f.sdom, parent, node.block)
 
 		switch node.state {
 		case descend:
@@ -491,7 +488,7 @@ func prove(f *Func) {
 				block: node.block,
 				state: simplify,
 			})
-			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
+			for s := f.sdom.Child(node.block); s != nil; s = f.sdom.Sibling(s) {
 				work = append(work, bp{
 					block: s,
 					state: descend,

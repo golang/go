@@ -93,7 +93,7 @@ func pciterinit(ctxt *Link, it *Pciter, d *Pcdata) {
 	it.value = -1
 	it.start = 1
 	it.done = 0
-	it.pcscale = uint32(ctxt.Arch.Minlc)
+	it.pcscale = uint32(ctxt.Arch.MinLC)
 	pciternext(it)
 }
 
@@ -127,8 +127,7 @@ func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
 	var start int32
 	if len(d.P) > 0 {
 		start = int32(len(ftab.P))
-		Symgrow(Ctxt, ftab, int64(start)+int64(len(d.P)))
-		copy(ftab.P[start:], d.P)
+		Addbytes(Ctxt, ftab, d.P)
 	}
 	return int32(setuint32(Ctxt, ftab, int64(off), uint32(start)))
 }
@@ -148,27 +147,21 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 	for i := 0; i < len(files); i++ {
 		f = files[i]
 		if f.Type != obj.SFILEPATH {
-			ctxt.Nhistfile++
-			f.Value = int64(ctxt.Nhistfile)
+			ctxt.Filesyms = append(ctxt.Filesyms, f)
+			f.Value = int64(len(ctxt.Filesyms))
 			f.Type = obj.SFILEPATH
-			f.Next = ctxt.Filesyms
 			f.Name = expandGoroot(f.Name)
-			ctxt.Filesyms = f
 		}
 	}
 
 	newval := int32(-1)
 	var out Pcdata
-
-	var dv int32
 	var it Pciter
-	var oldval int32
-	var v uint32
-	var val int32
 	for pciterinit(ctxt, &it, d); it.done == 0; pciternext(&it) {
 		// value delta
-		oldval = it.value
+		oldval := it.value
 
+		var val int32
 		if oldval == -1 {
 			val = -1
 		} else {
@@ -178,9 +171,9 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 			val = int32(files[oldval].Value)
 		}
 
-		dv = val - newval
+		dv := val - newval
 		newval = val
-		v = (uint32(dv) << 1) ^ uint32(int32(dv>>31))
+		v := (uint32(dv) << 1) ^ uint32(dv>>31)
 		addvarint(&out, v)
 
 		// pc delta
@@ -205,7 +198,7 @@ func container(s *LSym) int {
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
-var pclntab_zpcln Pcln
+var pclntab_zpcln FuncInfo
 
 // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
 var pclntabNfunc int32
@@ -229,40 +222,34 @@ func pclntab() {
 	nfunc := int32(0)
 
 	// Find container symbols, mark them with SCONTAINER
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
-		if Ctxt.Cursym.Outer != nil {
-			Ctxt.Cursym.Outer.Type |= obj.SCONTAINER
+	for _, s := range Ctxt.Textp {
+		if s.Outer != nil {
+			s.Outer.Type |= obj.SCONTAINER
 		}
 	}
 
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
-		if container(Ctxt.Cursym) == 0 {
+	for _, s := range Ctxt.Textp {
+		if container(s) == 0 {
 			nfunc++
 		}
 	}
 
 	pclntabNfunc = nfunc
-	Symgrow(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize)+4)
+	Symgrow(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize)+4)
 	setuint32(Ctxt, ftab, 0, 0xfffffffb)
-	setuint8(Ctxt, ftab, 6, uint8(Thearch.Minlc))
-	setuint8(Ctxt, ftab, 7, uint8(Thearch.Ptrsize))
-	setuintxx(Ctxt, ftab, 8, uint64(nfunc), int64(Thearch.Ptrsize))
-	pclntabPclntabOffset = int32(8 + Thearch.Ptrsize)
+	setuint8(Ctxt, ftab, 6, uint8(SysArch.MinLC))
+	setuint8(Ctxt, ftab, 7, uint8(SysArch.PtrSize))
+	setuintxx(Ctxt, ftab, 8, uint64(nfunc), int64(SysArch.PtrSize))
+	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
 
 	nfunc = 0
 	var last *LSym
-	var end int32
-	var funcstart int32
-	var i int32
-	var it Pciter
-	var off int32
-	var pcln *Pcln
-	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
+	for _, Ctxt.Cursym = range Ctxt.Textp {
 		last = Ctxt.Cursym
 		if container(Ctxt.Cursym) != 0 {
 			continue
 		}
-		pcln = Ctxt.Cursym.Pcln
+		pcln := Ctxt.Cursym.FuncInfo
 		if pcln == nil {
 			pcln = &pclntab_zpcln
 		}
@@ -271,17 +258,17 @@ func pclntab() {
 			pclntabFirstFunc = Ctxt.Cursym
 		}
 
-		funcstart = int32(len(ftab.P))
-		funcstart += int32(-len(ftab.P)) & (int32(Thearch.Ptrsize) - 1)
+		funcstart := int32(len(ftab.P))
+		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
 
-		setaddr(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize), Ctxt.Cursym)
-		setuintxx(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize), uint64(funcstart), int64(Thearch.Ptrsize))
+		setaddr(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), Ctxt.Cursym)
+		setuintxx(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
 
 		// fixed size of struct, checked below
-		off = funcstart
+		off := funcstart
 
-		end = funcstart + int32(Thearch.Ptrsize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(Thearch.Ptrsize)
-		if len(pcln.Funcdata) > 0 && (end&int32(Thearch.Ptrsize-1) != 0) {
+		end := funcstart + int32(SysArch.PtrSize) + 3*4 + 5*4 + int32(len(pcln.Pcdata))*4 + int32(len(pcln.Funcdata))*int32(SysArch.PtrSize)
+		if len(pcln.Funcdata) > 0 && (end&int32(SysArch.PtrSize-1) != 0) {
 			end += 4
 		}
 		Symgrow(Ctxt, ftab, int64(end))
@@ -294,7 +281,11 @@ func pclntab() {
 
 		// args int32
 		// TODO: Move into funcinfo.
-		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(Ctxt.Cursym.Args)))
+		args := uint32(0)
+		if Ctxt.Cursym.FuncInfo != nil {
+			args = uint32(Ctxt.Cursym.FuncInfo.Args)
+		}
+		off = int32(setuint32(Ctxt, ftab, int64(off), args))
 
 		// frame int32
 		// This has been removed (it was never set quite correctly anyway).
@@ -307,9 +298,10 @@ func pclntab() {
 			renumberfiles(Ctxt, pcln.File, &pcln.Pcfile)
 			if false {
 				// Sanity check the new numbering
+				var it Pciter
 				for pciterinit(Ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
-					if it.value < 1 || it.value > Ctxt.Nhistfile {
-						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, Ctxt.Nhistfile)
+					if it.value < 1 || it.value > int32(len(Ctxt.Filesyms)) {
+						Diag("bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(Ctxt.Filesyms))
 						errorexit()
 					}
 				}
@@ -323,32 +315,32 @@ func pclntab() {
 		off = addpctab(ftab, off, &pcln.Pcline)
 		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Pcdata))))
 		off = int32(setuint32(Ctxt, ftab, int64(off), uint32(len(pcln.Funcdata))))
-		for i = 0; i < int32(len(pcln.Pcdata)); i++ {
+		for i := 0; i < len(pcln.Pcdata); i++ {
 			off = addpctab(ftab, off, &pcln.Pcdata[i])
 		}
 
 		// funcdata, must be pointer-aligned and we're only int32-aligned.
 		// Missing funcdata will be 0 (nil pointer).
 		if len(pcln.Funcdata) > 0 {
-			if off&int32(Thearch.Ptrsize-1) != 0 {
+			if off&int32(SysArch.PtrSize-1) != 0 {
 				off += 4
 			}
-			for i = 0; i < int32(len(pcln.Funcdata)); i++ {
+			for i := 0; i < len(pcln.Funcdata); i++ {
 				if pcln.Funcdata[i] == nil {
-					setuintxx(Ctxt, ftab, int64(off)+int64(Thearch.Ptrsize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(Thearch.Ptrsize))
+					setuintxx(Ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(SysArch.PtrSize))
 				} else {
 					// TODO: Dedup.
 					funcdata_bytes += pcln.Funcdata[i].Size
 
-					setaddrplus(Ctxt, ftab, int64(off)+int64(Thearch.Ptrsize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
+					setaddrplus(Ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
 				}
 			}
 
-			off += int32(len(pcln.Funcdata)) * int32(Thearch.Ptrsize)
+			off += int32(len(pcln.Funcdata)) * int32(SysArch.PtrSize)
 		}
 
 		if off != end {
-			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), Thearch.Ptrsize)
+			Diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
 			errorexit()
 		}
 
@@ -357,25 +349,26 @@ func pclntab() {
 
 	pclntabLastFunc = last
 	// Final entry of table is just end pc.
-	setaddrplus(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize), last, last.Size)
+	setaddrplus(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), last, last.Size)
 
 	// Start file table.
 	start := int32(len(ftab.P))
 
-	start += int32(-len(ftab.P)) & (int32(Thearch.Ptrsize) - 1)
+	start += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
 	pclntabFiletabOffset = start
-	setuint32(Ctxt, ftab, 8+int64(Thearch.Ptrsize)+int64(nfunc)*2*int64(Thearch.Ptrsize)+int64(Thearch.Ptrsize), uint32(start))
+	setuint32(Ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint32(start))
 
-	Symgrow(Ctxt, ftab, int64(start)+(int64(Ctxt.Nhistfile)+1)*4)
-	setuint32(Ctxt, ftab, int64(start), uint32(Ctxt.Nhistfile))
-	for s := Ctxt.Filesyms; s != nil; s = s.Next {
+	Symgrow(Ctxt, ftab, int64(start)+(int64(len(Ctxt.Filesyms))+1)*4)
+	setuint32(Ctxt, ftab, int64(start), uint32(len(Ctxt.Filesyms)))
+	for i := len(Ctxt.Filesyms) - 1; i >= 0; i-- {
+		s := Ctxt.Filesyms[i]
 		setuint32(Ctxt, ftab, int64(start)+s.Value*4, uint32(ftabaddstring(ftab, s.Name)))
 	}
 
 	ftab.Size = int64(len(ftab.P))
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), int64(ftab.Size), int64(funcdata_bytes))
+		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
 	}
 }
 
@@ -407,10 +400,9 @@ func findfunctab() {
 	t.Attr |= AttrLocal
 
 	// find min and max address
-	min := Ctxt.Textp.Value
-
+	min := Ctxt.Textp[0].Value
 	max := int64(0)
-	for s := Ctxt.Textp; s != nil; s = s.Next {
+	for _, s := range Ctxt.Textp {
 		max = s.Value + s.Size
 	}
 
@@ -423,34 +415,34 @@ func findfunctab() {
 		indexes[i] = NOIDX
 	}
 	idx := int32(0)
-	var e *LSym
-	var i int32
-	var p int64
-	var q int64
-	for s := Ctxt.Textp; s != nil; s = s.Next {
+	for i, s := range Ctxt.Textp {
 		if container(s) != 0 {
 			continue
 		}
-		p = s.Value
-		e = s.Next
-		for container(e) != 0 {
-			e = e.Next
+		p := s.Value
+		var e *LSym
+		i++
+		if i < len(Ctxt.Textp) {
+			e = Ctxt.Textp[i]
 		}
+		for container(e) != 0 && i < len(Ctxt.Textp) {
+			e = Ctxt.Textp[i]
+			i++
+		}
+		q := max
 		if e != nil {
 			q = e.Value
-		} else {
-			q = max
 		}
 
 		//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
 		for ; p < q; p += SUBBUCKETSIZE {
-			i = int32((p - min) / SUBBUCKETSIZE)
+			i = int((p - min) / SUBBUCKETSIZE)
 			if indexes[i] > idx {
 				indexes[i] = idx
 			}
 		}
 
-		i = int32((q - 1 - min) / SUBBUCKETSIZE)
+		i = int((q - 1 - min) / SUBBUCKETSIZE)
 		if indexes[i] > idx {
 			indexes[i] = idx
 		}
@@ -463,15 +455,13 @@ func findfunctab() {
 	Symgrow(Ctxt, t, 4*int64(nbuckets)+int64(n))
 
 	// fill in table
-	var base int32
-	var j int32
 	for i := int32(0); i < nbuckets; i++ {
-		base = indexes[i*SUBBUCKETS]
+		base := indexes[i*SUBBUCKETS]
 		if base == NOIDX {
 			Diag("hole in findfunctab")
 		}
 		setuint32(Ctxt, t, int64(i)*(4+SUBBUCKETS), uint32(base))
-		for j = 0; j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
+		for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
 			idx = indexes[i*SUBBUCKETS+j]
 			if idx == NOIDX {
 				Diag("hole in findfunctab")

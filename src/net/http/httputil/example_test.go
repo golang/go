@@ -47,7 +47,7 @@ func ExampleDumpRequest() {
 	fmt.Printf("%s", b)
 
 	// Output:
-	// "POST / HTTP/1.1\r\nHost: www.example.org\r\nAccept-Encoding: gzip\r\nUser-Agent: Go-http-client/1.1\r\n\r\nGo is a general-purpose language designed with systems programming in mind."
+	// "POST / HTTP/1.1\r\nHost: www.example.org\r\nAccept-Encoding: gzip\r\nContent-Length: 75\r\nUser-Agent: Go-http-client/1.1\r\n\r\nGo is a general-purpose language designed with systems programming in mind."
 }
 
 func ExampleDumpRequestOut() {

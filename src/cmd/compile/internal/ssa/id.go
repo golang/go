@@ -11,7 +11,7 @@ type idAlloc struct {
 	last ID
 }
 
-// get allocates an ID and returns it.
+// get allocates an ID and returns it. IDs are always > 0.
 func (a *idAlloc) get() ID {
 	x := a.last
 	x++

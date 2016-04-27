@@ -54,14 +54,14 @@ func instrument(fn *Node) {
 		return
 	}
 
-	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
+	if !flag_race || !ispkgin(norace_inst_pkgs) {
 		instrumentlist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
 		instrumentlist(fn.Func.Exit, nil)
 	}
 
-	if flag_race != 0 {
+	if flag_race {
 		// nodpc is the PC of the caller as extracted by
 		// getcallerpc. We use -widthptr(FP) for x86.
 		// BUG: this will not work on arm.
@@ -132,7 +132,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	switch n.Op {
 	default:
-		Fatalf("instrument: unknown node type %v", Oconv(n.Op, 0))
+		Fatalf("instrument: unknown node type %v", n.Op)
 
 	case OAS, OASWB, OAS2FUNC:
 		instrumentnode(&n.Left, init, 1, 0)
@@ -164,7 +164,13 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 				var outn Nodes
 				outn.Set(out)
 				instrumentnode(&ls[i], &outn, 0, 0)
-				out = append(outn.Slice(), ls[i])
+				if ls[i].Op != OAS || ls[i].Ninit.Len() == 0 {
+					out = append(outn.Slice(), ls[i])
+				} else {
+					// Splice outn onto end of ls[i].Ninit
+					ls[i].Ninit.AppendNodes(&outn)
+					out = append(out, ls[i])
+				}
 			}
 		}
 		n.List.Set(out)
@@ -301,7 +307,11 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 
 	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
 		instrumentnode(&n.Left, init, 0, 0)
-		instrumentnode(&n.Right, init, 0, 0)
+		low, high, max := n.SliceBounds()
+		instrumentnode(&low, init, 0, 0)
+		instrumentnode(&high, init, 0, 0)
+		instrumentnode(&max, init, 0, 0)
+		n.SetSliceBounds(low, high, max)
 		goto ret
 
 	case OKEY:
@@ -364,13 +374,13 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OAS2RECV,
 		OAS2MAPR,
 		OASOP:
-		Yyerror("instrument: %v must be lowered by now", Oconv(n.Op, 0))
+		Yyerror("instrument: %v must be lowered by now", n.Op)
 
 		goto ret
 
 		// impossible nodes: only appear in backend.
 	case ORROTC, OEXTEND:
-		Yyerror("instrument: %v cannot exist now", Oconv(n.Op, 0))
+		Yyerror("instrument: %v cannot exist now", n.Op)
 		goto ret
 
 	case OGETG:
@@ -497,7 +507,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 		n = treecopy(n, 0)
 		makeaddable(n)
 		var f *Node
-		if flag_msan != 0 {
+		if flag_msan {
 			name := "msanread"
 			if wr != 0 {
 				name = "msanwrite"
@@ -509,7 +519,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
-		} else if flag_race != 0 && (t.IsStruct() || t.IsArray()) {
+		} else if flag_race && (t.IsStruct() || t.IsArray()) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
@@ -521,7 +531,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 				Fatalf("instrument: %v badwidth", t)
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
-		} else if flag_race != 0 {
+		} else if flag_race {
 			name := "raceread"
 			if wr != 0 {
 				name = "racewrite"

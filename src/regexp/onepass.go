@@ -450,7 +450,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 	for !instQueue.empty() {
 		visitQueue.clear()
 		pc := instQueue.next()
-		if !check(uint32(pc), m) {
+		if !check(pc, m) {
 			p = notOnePass
 			break
 		}

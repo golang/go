@@ -17,6 +17,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"sort"
 	"strings"
@@ -917,18 +918,17 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
 		bvset(bv, int32(*xoffset/int64(Widthptr)+1)) // pointer in second slot
 		*xoffset += t.Width
 
+	case TSLICE:
+		// struct { byte *array; uintgo len; uintgo cap; }
+		if *xoffset&int64(Widthptr-1) != 0 {
+			Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
+		}
+		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
+		*xoffset += t.Width
+
 	case TARRAY:
-		if t.IsSlice() {
-			// struct { byte *array; uintgo len; uintgo cap; }
-			if *xoffset&int64(Widthptr-1) != 0 {
-				Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
-			}
-			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
-			*xoffset += t.Width
-		} else {
-			for i := int64(0); i < t.NumElem(); i++ {
-				onebitwalktype1(t.Elem(), xoffset, bv)
-			}
+		for i := int64(0); i < t.NumElem(); i++ {
+			onebitwalktype1(t.Elem(), xoffset, bv)
 		}
 
 	case TSTRUCT:
@@ -1396,7 +1396,7 @@ func livenessepilogue(lv *Liveness) {
 						// The instruction before a call to deferreturn is always a
 						// no-op, to keep PC-specific data unambiguous.
 						prev := p.Opt.(*obj.Prog)
-						if Ctxt.Arch.Thechar == '9' {
+						if Ctxt.Arch.Family == sys.PPC64 {
 							// On ppc64 there is an additional instruction
 							// (another no-op or reload of toc pointer) before
 							// the call.

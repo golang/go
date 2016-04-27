@@ -182,3 +182,32 @@ func f18(p *T18, x *[]int) {
 	p.s = p.s[8:9]   // ERROR "write barrier"
 	*x = (*x)[3:5]   // ERROR "write barrier"
 }
+
+func f19(x, y *int, i int) int {
+	// Constructing a temporary slice on the stack should not
+	// require any write barriers. See issue 14263.
+	a := []*int{x, y} // no barrier
+	return *a[i]
+}
+
+func f20(x, y *int, i int) []*int {
+	// ... but if that temporary slice escapes, then the
+	// write barriers are necessary.
+	a := []*int{x, y} // ERROR "write barrier"
+	return a
+}
+
+var x21 *int
+var y21 struct {
+	x *int
+}
+var z21 int
+
+func f21(x *int) {
+	// Global -> heap pointer updates must have write barriers.
+	x21 = x                   // ERROR "write barrier"
+	y21.x = x                 // ERROR "write barrier"
+	x21 = &z21                // no barrier
+	y21.x = &z21              // no barrier
+	y21 = struct{ x *int }{x} // ERROR "write barrier"
+}

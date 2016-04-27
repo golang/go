@@ -36,32 +36,27 @@ If the field is a pointer to another object, that object is serialized,
 recursively. Otherwise the field is written. Non-pointer fields are all
 encoded as integer or string values.
 
-Only packages and types may be referred to more than once. When getting
-to a package or type that was not serialized before, an integer _index_
+Some objects (packages, types) may be referred to more than once. When
+reaching an object that was not serialized before, an integer _index_
 is assigned to it, starting at 0. In this case, the encoding starts
 with an integer _tag_ < 0. The tag value indicates the kind of object
-(package or type) that follows and that this is the first time that we
-see this object. If the package or tag was already serialized, the encoding
-starts with the respective package or type index >= 0. An importer can
-trivially determine if a package or type needs to be read in for the first
-time (tag < 0) and entered into the respective package or type table, or
-if the package or type was seen already (index >= 0), in which case the
-index is used to look up the object in a table.
+that follows and that this is the first time that we see this object.
+If the object was already serialized, the encoding is simply the object
+index >= 0. An importer can trivially determine if an object needs to
+be read in for the first time (tag < 0) and entered into the respective
+object table, or if the object was seen already (index >= 0), in which
+case the index is used to look up the object in a table.
 
 Before exporting or importing, the type tables are populated with the
 predeclared types (int, string, error, unsafe.Pointer, etc.). This way
 they are automatically encoded with a known and fixed type index.
 
-TODO(gri) We may consider using the same sharing for other items
-that are written out, such as strings, or possibly symbols (*Sym).
-
 Encoding format:
 
 The export data starts with a single byte indicating the encoding format
 (compact, or with debugging information), followed by a version string
-(so we can evolve the encoding if need be), the name of the imported
-package, and a string containing platform-specific information for that
-package.
+(so we can evolve the encoding if need be), and then the package object
+for the exported package (with an empty path).
 
 After this header, two lists of objects and the list of inlined function
 bodies follows.
@@ -74,11 +69,17 @@ the previously imported type pointer so that we have exactly one version
 (i.e., one pointer) for each named type (and read but discard the current
 type encoding). Unnamed types simply encode their respective fields.
 
-In the encoding, some lists start with the list length (incl. strings).
-Some lists are terminated with an end marker (usually for lists where
-we may not know the length a priori).
+In the encoding, some lists start with the list length. Some lists are
+terminated with an end marker (usually for lists where we may not know
+the length a priori).
 
-All integer values use variable-length encoding for compact representation.
+Integers use variable-length encoding for compact representation.
+
+Strings are canonicalized similar to objects that may occur multiple times:
+If the string was exported already, it is represented by its index only.
+Otherwise, the export data starts with the negative string length (negative,
+so we can distinguish from string index), followed by the string bytes.
+The empty string is mapped to index 0.
 
 The exporter and importer are completely symmetric in implementation: For
 each encoding routine there is a matching and symmetric decoding routine.
@@ -90,9 +91,9 @@ importer.
 package gc
 
 import (
+	"bufio"
 	"bytes"
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -109,12 +110,13 @@ import (
 //
 // NOTE: This flag is the first flag to enable if importing dies because of
 // (suspected) format errors, and whenever a change is made to the format.
-// Having debugFormat enabled increases the export data size massively (by
-// several factors) - avoid running with the flag enabled in general.
 const debugFormat = false // default: false
 
-// TODO(gri) remove eventually
-const forceNewExport = false // force new export format - DO NOT SUBMIT with this flag set
+// forceObjFileStability enforces additional constraints in export data
+// and other parts of the compiler to eliminate object file differences
+// only due to the choice of export format.
+// TODO(gri) disable and remove once there is only one export format again
+const forceObjFileStability = true
 
 const exportVersion = "v0"
 
@@ -126,10 +128,18 @@ const exportVersion = "v0"
 const exportInlined = true // default: true
 
 type exporter struct {
-	out      *obj.Biobuf
+	out *bufio.Writer
+
+	// object -> index maps, indexed in order of serialization
+	strIndex map[string]int
 	pkgIndex map[*Pkg]int
 	typIndex map[*Type]int
-	inlined  []*Func
+	funcList []*Func
+
+	// position encoding
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	written int // bytes written
@@ -137,13 +147,18 @@ type exporter struct {
 	trace   bool
 }
 
-// Export writes the exportlist for localpkg to out and returns the number of bytes written.
-func Export(out *obj.Biobuf, trace bool) int {
+// export writes the exportlist for localpkg to out and returns the number of bytes written.
+func export(out *bufio.Writer, trace bool) int {
 	p := exporter{
 		out:      out,
+		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
 		pkgIndex: make(map[*Pkg]int),
 		typIndex: make(map[*Type]int),
-		trace:    trace,
+		// don't emit pos info for builtin packages
+		// (not needed and avoids path name diffs in builtin.go between
+		// Windows and non-Windows machines, exposed via builtin_test.go)
+		posInfoFormat: Debug['A'] == 0,
+		trace:         trace,
 	}
 
 	// first byte indicates low-level encoding format
@@ -151,7 +166,10 @@ func Export(out *obj.Biobuf, trace bool) int {
 	if debugFormat {
 		format = 'd'
 	}
-	p.byte(format)
+	p.rawByte(format)
+
+	// posInfo exported or not?
+	p.bool(p.posInfoFormat)
 
 	// --- generic export data ---
 
@@ -184,22 +202,12 @@ func Export(out *obj.Biobuf, trace bool) int {
 		Fatalf("exporter: local package path not empty: %q", localpkg.Path)
 	}
 	p.pkg(localpkg)
-
-	// write compiler-specific flags
-	// TODO(gri) move this into the compiler-specific export data section
-	{
-		var flags string
-		if safemode != 0 {
-			flags = "safe"
-		}
-		p.string(flags)
-	}
 	if p.trace {
 		p.tracef("\n")
 	}
 
 	// export objects
-
+	//
 	// First, export all exported (package-level) objects; i.e., all objects
 	// in the current exportlist. These objects represent all information
 	// required to import this package and type-check against it; i.e., this
@@ -272,6 +280,12 @@ func Export(out *obj.Biobuf, trace bool) int {
 		}
 	}
 
+	// write compiler-specific flags
+	p.bool(safemode)
+	if p.trace {
+		p.tracef("\n")
+	}
+
 	// Phase 2: Export objects added to exportlist during phase 1.
 	// Don't use range since exportlist may grow during this phase
 	// and we want to export all remaining objects.
@@ -328,26 +342,38 @@ func Export(out *obj.Biobuf, trace bool) int {
 	// --- inlined function bodies ---
 
 	if p.trace {
-		p.tracef("\n--- inlined function bodies ---\n[ ")
+		p.tracef("\n--- inlined function bodies ---\n")
 		if p.indent != 0 {
 			Fatalf("exporter: incorrect indentation")
 		}
 	}
 
-	// write inlined function bodies
-	p.int(len(p.inlined))
+	// write inlineable function bodies
+	objcount = 0
+	for i, f := range p.funcList {
+		if f != nil {
+			// function has inlineable body:
+			// write index and body
+			if p.trace {
+				p.tracef("\n----\nfunc { %s }\n", Hconv(f.Inl, FmtSharp))
+			}
+			p.int(i)
+			p.stmtList(f.Inl)
+			if p.trace {
+				p.tracef("\n")
+			}
+			objcount++
+		}
+	}
+
+	// indicate end of list
 	if p.trace {
-		p.tracef("]\n")
+		p.tracef("\n")
 	}
-	for _, f := range p.inlined {
-		if p.trace {
-			p.tracef("\n----\nfunc { %s }\n", Hconv(f.Inl, FmtSharp))
-		}
-		p.stmtList(f.Inl)
-		if p.trace {
-			p.tracef("\n")
-		}
-	}
+	p.int(-1) // invalid index terminates list
+
+	// for self-verification only (redundant)
+	p.int(objcount)
 
 	if p.trace {
 		p.tracef("\n--- end ---\n")
@@ -413,6 +439,7 @@ func (p *exporter) obj(sym *Sym) {
 		}
 
 		p.tag(constTag)
+		p.pos(n)
 		// TODO(gri) In inlined functions, constants are used directly
 		// so they should never occur as re-exported objects. We may
 		// not need the qualified name here. See also comment above.
@@ -441,6 +468,7 @@ func (p *exporter) obj(sym *Sym) {
 		if n.Type.Etype == TFUNC && n.Class == PFUNC {
 			// function
 			p.tag(funcTag)
+			p.pos(n)
 			p.qualifiedName(sym)
 
 			sig := sym.Def.Type
@@ -449,10 +477,9 @@ func (p *exporter) obj(sym *Sym) {
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
 
-			index := -1
+			var f *Func
 			if inlineable {
-				index = len(p.inlined)
-				p.inlined = append(p.inlined, sym.Def.Func)
+				f = sym.Def.Func
 				// TODO(gri) re-examine reexportdeplist:
 				// Because we can trivially export types
 				// in-place, we don't need to collect types
@@ -460,23 +487,48 @@ func (p *exporter) obj(sym *Sym) {
 				// With an adjusted reexportdeplist used only
 				// by the binary exporter, we can also avoid
 				// the global exportlist.
-				reexportdeplist(sym.Def.Func.Inl)
+				reexportdeplist(f.Inl)
 			}
-			p.int(index)
+			p.funcList = append(p.funcList, f)
 		} else {
 			// variable
 			p.tag(varTag)
+			p.pos(n)
 			p.qualifiedName(sym)
 			p.typ(sym.Def.Type)
 		}
 
 	default:
-		Fatalf("exporter: unexpected export symbol: %v %v", Oconv(n.Op, 0), sym)
+		Fatalf("exporter: unexpected export symbol: %v %v", n.Op, sym)
 	}
 }
 
+func (p *exporter) pos(n *Node) {
+	if !p.posInfoFormat {
+		return
+	}
+
+	var file string
+	var line int
+	if n != nil {
+		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno))
+	}
+
+	if file == p.prevFile && line != p.prevLine {
+		// common case: write delta-encoded line number
+		p.int(line - p.prevLine) // != 0
+	} else {
+		// uncommon case: filename changed, or line didn't change
+		p.int(0)
+		p.string(file)
+		p.int(line)
+		p.prevFile = file
+	}
+	p.prevLine = line
+}
+
 func isInlineable(n *Node) bool {
-	if exportInlined && n != nil && n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
+	if exportInlined && n != nil && n.Func != nil && n.Func.Inl.Len() != 0 {
 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 		if Debug['l'] < 2 {
@@ -515,19 +567,20 @@ func (p *exporter) typ(t *Type) {
 	p.typIndex[t] = len(p.typIndex)
 
 	// pick off named types
-	if sym := t.Sym; sym != nil {
+	if tsym := t.Sym; tsym != nil {
 		// Predeclared types should have been found in the type map.
 		if t.Orig == t {
 			Fatalf("exporter: predeclared type missing from type map?")
 		}
-		// TODO(gri) The assertion below seems incorrect (crashes during all.bash).
-		// we expect the respective definition to point to us
-		// if sym.Def.Type != t {
-		// 	Fatalf("exporter: type definition doesn't point to us?")
-		// }
+
+		n := typenod(t)
+		if n.Type != t {
+			Fatalf("exporter: named type definition incorrectly set up")
+		}
 
 		p.tag(namedTag)
-		p.qualifiedName(sym)
+		p.pos(n)
+		p.qualifiedName(tsym)
 
 		// write underlying type
 		p.typ(t.Orig)
@@ -559,6 +612,7 @@ func (p *exporter) typ(t *Type) {
 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
 			}
 
+			p.pos(m.Sym.Def)
 			p.fieldSym(m.Sym, false)
 
 			sig := m.Type
@@ -569,13 +623,12 @@ func (p *exporter) typ(t *Type) {
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
 
-			index := -1
+			var f *Func
 			if inlineable {
-				index = len(p.inlined)
-				p.inlined = append(p.inlined, mfn.Func)
+				f = mfn.Func
 				reexportdeplist(mfn.Func.Inl)
 			}
-			p.int(index)
+			p.funcList = append(p.funcList, f)
 		}
 
 		if p.trace && len(methods) > 0 {
@@ -591,18 +644,18 @@ func (p *exporter) typ(t *Type) {
 		if t.isDDDArray() {
 			Fatalf("array bounds should be known at export time: %v", t)
 		}
-		if t.IsArray() {
-			p.tag(arrayTag)
-			p.int64(t.NumElem())
-		} else {
-			p.tag(sliceTag)
-		}
+		p.tag(arrayTag)
+		p.int64(t.NumElem())
+		p.typ(t.Elem())
+
+	case TSLICE:
+		p.tag(sliceTag)
 		p.typ(t.Elem())
 
 	case TDDDFIELD:
 		// see p.param use of TDDDFIELD
 		p.tag(dddTag)
-		p.typ(t.Wrapped())
+		p.typ(t.DDDField())
 
 	case TSTRUCT:
 		p.tag(structTag)
@@ -664,17 +717,10 @@ func (p *exporter) fieldList(t *Type) {
 }
 
 func (p *exporter) field(f *Field) {
+	p.pos(f.Sym.Def)
 	p.fieldName(f.Sym, f)
 	p.typ(f.Type)
-	p.note(f.Note)
-}
-
-func (p *exporter) note(n *string) {
-	var s string
-	if n != nil {
-		s = *n
-	}
-	p.string(s)
+	p.string(f.Note)
 }
 
 func (p *exporter) methodList(t *Type) {
@@ -693,6 +739,7 @@ func (p *exporter) methodList(t *Type) {
 }
 
 func (p *exporter) method(m *Field) {
+	p.pos(m.Sym.Def)
 	p.fieldName(m.Sym, m)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
@@ -742,7 +789,7 @@ func basetypeName(t *Type) string {
 }
 
 func (p *exporter) paramList(params *Type, numbered bool) {
-	if !params.IsStruct() || !params.Funarg {
+	if !params.IsFuncArgStruct() {
 		Fatalf("exporter: parameter list expected")
 	}
 
@@ -768,7 +815,7 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	t := q.Type
 	if q.Isddd {
 		// create a fake type to encode ... just for the p.typ call
-		t = typWrapper(TDDDFIELD, t.Elem())
+		t = typDDDField(t.Elem())
 	}
 	p.typ(t)
 	if n > 0 {
@@ -779,16 +826,17 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 		// supply the parameter package here. We need the package
 		// when the function is inlined so we can properly resolve
 		// the name.
-		// TODO(gri) should do this only once per function/method
+		// TODO(gri) This is compiler-specific. Try using importpkg
+		// here and then update the symbols if we find an inlined
+		// body only. Otherwise, the parameter name is ignored and
+		// the package doesn't matter. This would remove an int
+		// (likely 1 byte) for each named parameter.
 		p.pkg(q.Sym.Pkg)
 	}
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
 	// (Not having escape info causes tests to fail, e.g. runtime GCInfoTest)
-	//
-	// TODO(gri) The q.Note is much more verbose that necessary and
-	// adds significantly to export data size. FIX THIS.
-	p.note(q.Note)
+	p.string(q.Note)
 }
 
 func parName(f *Field, numbered bool) string {
@@ -827,7 +875,7 @@ func parName(f *Field, numbered bool) string {
 	// Functions that can be inlined use numbered parameters so we can distingish them
 	// from other names in their context after inlining (i.e., the parameter numbering
 	// is a form of parameter rewriting). See issue 4326 for an example and test case.
-	if numbered {
+	if forceObjFileStability || numbered {
 		if !strings.Contains(name, "·") && f.Nname != nil && f.Nname.Name != nil && f.Nname.Name.Vargen > 0 {
 			name = fmt.Sprintf("%s·%d", name, f.Nname.Name.Vargen) // append Vargen
 		}
@@ -1132,12 +1180,15 @@ func (p *exporter) expr(n *Node) {
 	case OSLICE, OSLICESTR, OSLICEARR:
 		p.op(OSLICE)
 		p.expr(n.Left)
-		p.expr(n.Right)
+		low, high, _ := n.SliceBounds()
+		p.exprsOrNil(low, high)
 
 	case OSLICE3, OSLICE3ARR:
 		p.op(OSLICE3)
 		p.expr(n.Left)
-		p.expr(n.Right)
+		low, high, max := n.SliceBounds()
+		p.exprsOrNil(low, high)
+		p.expr(max)
 
 	case OCOPY, OCOMPLEX:
 		p.op(op)
@@ -1215,7 +1266,7 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODCLCONST)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", opnames[n.Op])
+		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
 	}
 }
 
@@ -1262,12 +1313,11 @@ func (p *exporter) stmt(n *Node) {
 	//	unimplemented - handled by default case
 
 	case OAS, OASWB:
-		p.op(op)
 		// Don't export "v = <N>" initializing statements, hope they're always
 		// preceded by the DCL which will be re-parsed and typecheck to reproduce
 		// the "v = <N>" again.
-		// TODO(gri) if n.Right == nil, don't emit anything
-		if p.bool(n.Right != nil) {
+		if n.Right != nil {
+			p.op(OAS)
 			p.expr(n.Left)
 			p.expr(n.Right)
 		}
@@ -1280,13 +1330,11 @@ func (p *exporter) stmt(n *Node) {
 			p.expr(n.Right)
 		}
 
+	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+		fallthrough
+
 	case OAS2:
 		p.op(OAS2)
-		p.exprList(n.List)
-		p.exprList(n.Rlist)
-
-	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		p.op(op)
 		p.exprList(n.List)
 		p.exprList(n.Rlist)
 
@@ -1328,11 +1376,15 @@ func (p *exporter) stmt(n *Node) {
 		p.stmtList(n.List)
 
 	case OCASE, OXCASE:
-		p.op(op)
+		p.op(OXCASE)
 		p.stmtList(n.List)
 		p.stmtList(n.Nbody)
 
-	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
+	case OFALL:
+		op = OXFALL
+		fallthrough
+
+	case OBREAK, OCONTINUE, OGOTO, OXFALL:
 		p.op(op)
 		p.exprsOrNil(n.Left, nil)
 
@@ -1344,7 +1396,7 @@ func (p *exporter) stmt(n *Node) {
 		p.expr(n.Left)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", opnames[n.Op])
+		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
 	}
 }
 
@@ -1432,7 +1484,7 @@ func (p *exporter) bool(b bool) bool {
 func (p *exporter) op(op Op) {
 	if p.trace {
 		p.tracef("[")
-		defer p.tracef("= %s] ", opnames[op])
+		defer p.tracef("= %s] ", op)
 	}
 
 	p.int(int(op))
@@ -1488,9 +1540,17 @@ func (p *exporter) string(s string) {
 	if p.trace {
 		p.tracef("%q ", s)
 	}
-	p.rawInt64(int64(len(s)))
+	// if we saw the string before, write its index (>= 0)
+	// (the empty string is mapped to 0)
+	if i, ok := p.strIndex[s]; ok {
+		p.rawInt64(int64(i))
+		return
+	}
+	// otherwise, remember string and write its negative length and bytes
+	p.strIndex[s] = len(p.strIndex)
+	p.rawInt64(-int64(len(s)))
 	for i := 0; i < len(s); i++ {
-		p.byte(s[i])
+		p.rawByte(s[i])
 	}
 }
 
@@ -1498,7 +1558,7 @@ func (p *exporter) string(s string) {
 // it easy for a reader to detect if it is "out of sync". Used only
 // if debugFormat is set.
 func (p *exporter) marker(m byte) {
-	p.byte(m)
+	p.rawByte(m)
 	// Uncomment this for help tracking down the location
 	// of an incorrect marker when running in debugFormat.
 	// if p.trace {
@@ -1512,12 +1572,12 @@ func (p *exporter) rawInt64(x int64) {
 	var tmp [binary.MaxVarintLen64]byte
 	n := binary.PutVarint(tmp[:], x)
 	for i := 0; i < n; i++ {
-		p.byte(tmp[i])
+		p.rawByte(tmp[i])
 	}
 }
 
-// byte is the bottleneck interface to write to p.out.
-// byte escapes b as follows (any encoding does that
+// rawByte is the bottleneck interface to write to p.out.
+// rawByte escapes b as follows (any encoding does that
 // hides '$'):
 //
 //	'$'  => '|' 'S'
@@ -1525,7 +1585,8 @@ func (p *exporter) rawInt64(x int64) {
 //
 // Necessary so other tools can find the end of the
 // export data by searching for "$$".
-func (p *exporter) byte(b byte) {
+// rawByte should only be used by low-level encoders.
+func (p *exporter) rawByte(b byte) {
 	switch b {
 	case '$':
 		// write '$' as '|' 'S'
@@ -1533,10 +1594,10 @@ func (p *exporter) byte(b byte) {
 		fallthrough
 	case '|':
 		// write '|' as '|' '|'
-		obj.Bputc(p.out, '|')
+		p.out.WriteByte('|')
 		p.written++
 	}
-	obj.Bputc(p.out, b)
+	p.out.WriteByte(b)
 	p.written++
 }
 

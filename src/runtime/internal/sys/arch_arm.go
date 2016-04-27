@@ -5,7 +5,7 @@
 package sys
 
 const (
-	TheChar       = '5'
+	ArchFamily    = ARM
 	BigEndian     = 0
 	CacheLineSize = 32
 	PhysPageSize  = 65536*GoosNacl + 4096*(1-GoosNacl)

@@ -2,7 +2,7 @@
 
 package sys
 
-const TheGoarch = `s390x`
+const GOARCH = `s390x`
 
 const Goarch386 = 0
 const GoarchAmd64 = 0

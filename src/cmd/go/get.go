@@ -45,7 +45,7 @@ missing packages but does not use it to look for updates to existing packages.
 
 Get also accepts build flags to control the installation. See 'go help build'.
 
-When checking out a new package, get creates the target directory 
+When checking out a new package, get creates the target directory
 GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
 get uses the first one. See 'go help gopath'.
 
@@ -346,7 +346,7 @@ func downloadPackage(p *Package) error {
 
 	if p.build.SrcRoot != "" {
 		// Directory exists. Look for checkout along path to src.
-		vcs, rootPath, err = vcsForDir(p)
+		vcs, rootPath, err = vcsFromDir(p.Dir, p.build.SrcRoot)
 		if err != nil {
 			return err
 		}
@@ -354,7 +354,7 @@ func downloadPackage(p *Package) error {
 
 		// Double-check where it came from.
 		if *getU && vcs.remoteRepo != nil {
-			dir := filepath.Join(p.build.SrcRoot, rootPath)
+			dir := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
 			remote, err := vcs.remoteRepo(vcs, dir)
 			if err != nil {
 				return err
@@ -401,7 +401,7 @@ func downloadPackage(p *Package) error {
 		p.build.SrcRoot = filepath.Join(list[0], "src")
 		p.build.PkgRoot = filepath.Join(list[0], "pkg")
 	}
-	root := filepath.Join(p.build.SrcRoot, rootPath)
+	root := filepath.Join(p.build.SrcRoot, filepath.FromSlash(rootPath))
 	// If we've considered this repository already, don't do it again.
 	if downloadRootCache[root] {
 		return nil

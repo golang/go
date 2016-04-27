@@ -33,6 +33,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"log"
 	"strconv"
 )
@@ -55,7 +56,7 @@ var headers = []struct {
 	{"windowsgui", obj.Hwindows},
 }
 
-func linknew(arch *LinkArch) *Link {
+func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
 		Hash: []map[string]*LSym{
 			// preallocate about 2mb for hash of
@@ -98,33 +99,33 @@ func linknew(arch *LinkArch) *Link {
 		obj.Hdragonfly,
 		obj.Hsolaris:
 		if obj.Getgoos() == "android" {
-			switch ctxt.Arch.Thechar {
-			case '6':
+			switch ctxt.Arch.Family {
+			case sys.AMD64:
 				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
 				// Explained in src/runtime/cgo/gcc_android_*.c
 				ctxt.Tlsoffset = 0x1d0
-			case '8':
+			case sys.I386:
 				// Android/386 constant - offset from 0(GS) to our TLS slot.
 				ctxt.Tlsoffset = 0xf8
 			default:
-				ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+				ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 			}
 		} else {
-			ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 		}
 
 	case obj.Hnacl:
-		switch ctxt.Arch.Thechar {
+		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
 
-		case '5':
+		case sys.ARM:
 			ctxt.Tlsoffset = 0
 
-		case '6':
+		case sys.AMD64:
 			ctxt.Tlsoffset = 0
 
-		case '8':
+		case sys.I386:
 			ctxt.Tlsoffset = -8
 		}
 
@@ -133,26 +134,26 @@ func linknew(arch *LinkArch) *Link {
 		 * Explained in src/runtime/cgo/gcc_darwin_*.c.
 		 */
 	case obj.Hdarwin:
-		switch ctxt.Arch.Thechar {
+		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
-		case '5':
+		case sys.ARM:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
 
-		case '6':
+		case sys.AMD64:
 			ctxt.Tlsoffset = 0x8a0
 
-		case '7':
+		case sys.ARM64:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
 
-		case '8':
+		case sys.I386:
 			ctxt.Tlsoffset = 0x468
 		}
 	}
 
 	// On arm, record goarm.
-	if ctxt.Arch.Thechar == '5' {
+	if ctxt.Arch.Family == sys.ARM {
 		ctxt.Goarm = obj.Getgoarm()
 	}
 

@@ -83,7 +83,7 @@ func extractCAPS(desc string) string {
 	var short []rune
 	for _, c := range desc {
 		if 'A' <= c && c <= 'Z' {
-			short = append(short, rune(c))
+			short = append(short, c)
 		}
 	}
 	return string(short)

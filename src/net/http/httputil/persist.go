@@ -28,7 +28,7 @@ var errClosed = errors.New("i/o operation on closed connection")
 // Is is low-level, old, and unused by Go's current HTTP stack.
 // We should have deleted it before Go 1.
 //
-// Deprecated: use the Server in package net/http instead.
+// Deprecated: Use the Server in package net/http instead.
 type ServerConn struct {
 	mu              sync.Mutex // read-write protects the following fields
 	c               net.Conn
@@ -45,7 +45,7 @@ type ServerConn struct {
 // Is is low-level, old, and unused by Go's current HTTP stack.
 // We should have deleted it before Go 1.
 //
-// Deprecated: use the Server in package net/http instead.
+// Deprecated: Use the Server in package net/http instead.
 func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
 	if r == nil {
 		r = bufio.NewReader(c)
@@ -221,7 +221,7 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
 // Is is low-level, old, and unused by Go's current HTTP stack.
 // We should have deleted it before Go 1.
 //
-// Deprecated: use Client or Transport in package net/http instead.
+// Deprecated: Use Client or Transport in package net/http instead.
 type ClientConn struct {
 	mu              sync.Mutex // read-write protects the following fields
 	c               net.Conn
@@ -239,7 +239,7 @@ type ClientConn struct {
 // Is is low-level, old, and unused by Go's current HTTP stack.
 // We should have deleted it before Go 1.
 //
-// Deprecated: use the Client or Transport in package net/http instead.
+// Deprecated: Use the Client or Transport in package net/http instead.
 func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	if r == nil {
 		r = bufio.NewReader(c)
@@ -256,7 +256,7 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 // Is is low-level, old, and unused by Go's current HTTP stack.
 // We should have deleted it before Go 1.
 //
-// Deprecated: use the Client or Transport in package net/http instead.
+// Deprecated: Use the Client or Transport in package net/http instead.
 func NewProxyClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
 	cc := NewClientConn(c, r)
 	cc.writeReq = (*http.Request).WriteProxy

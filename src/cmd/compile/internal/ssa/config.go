@@ -103,6 +103,7 @@ type Frontend interface {
 	SplitInterface(LocalSlot) (LocalSlot, LocalSlot)
 	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
 	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
+	SplitStruct(LocalSlot, int) LocalSlot
 
 	// Line returns a string describing the given line number.
 	Line(int32) string
@@ -113,6 +114,12 @@ type Frontend interface {
 type GCNode interface {
 	Typ() Type
 	String() string
+}
+
+// GCSym is an interface that *gc.Sym implements.
+// Using *gc.Sym directly would lead to import cycles.
+type GCSym interface {
+	IsRuntimeCall(name string) bool
 }
 
 // NewConfig returns a new configuration object for the given architecture.

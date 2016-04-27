@@ -60,11 +60,11 @@ func test(sep string) {
 	}
 	outstr := string(outx)
 	if !strings.Contains(outstr, "main.b") {
-		fmt.Printf("-X linker flag did not diagnose overwrite of main.b\n")
+		fmt.Printf("-X linker flag did not diagnose overwrite of main.b:\n%s\n", outstr)
 		os.Exit(1)
 	}
 	if !strings.Contains(outstr, "main.x") {
-		fmt.Printf("-X linker flag did not diagnose overwrite of main.x\n")
+		fmt.Printf("-X linker flag did not diagnose overwrite of main.x:\n%s\n", outstr)
 		os.Exit(1)
 	}
 }

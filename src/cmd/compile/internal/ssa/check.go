@@ -162,7 +162,7 @@ func checkFunc(f *Func) {
 			// variable length args)
 			nArgs := opcodeTable[v.Op].argLen
 			if nArgs != -1 && int32(len(v.Args)) != nArgs {
-				f.Fatalf("value %v has %d args, expected %d", v.LongString(),
+				f.Fatalf("value %s has %d args, expected %d", v.LongString(),
 					len(v.Args), nArgs)
 			}
 
@@ -193,6 +193,8 @@ func checkFunc(f *Func) {
 				canHaveAuxInt = true
 			case auxInt64, auxFloat64:
 				canHaveAuxInt = true
+			case auxInt128:
+				// AuxInt must be zero, so leave canHaveAuxInt set to false.
 			case auxFloat32:
 				canHaveAuxInt = true
 				if !isExactFloat32(v) {
@@ -203,19 +205,25 @@ func checkFunc(f *Func) {
 			case auxSymOff, auxSymValAndOff:
 				canHaveAuxInt = true
 				canHaveAux = true
+			case auxSymInt32:
+				if v.AuxInt != int64(int32(v.AuxInt)) {
+					f.Fatalf("bad int32 AuxInt value for %v", v)
+				}
+				canHaveAuxInt = true
+				canHaveAux = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)
 			}
 			if !canHaveAux && v.Aux != nil {
-				f.Fatalf("value %v has an Aux value %v but shouldn't", v.LongString(), v.Aux)
+				f.Fatalf("value %s has an Aux value %v but shouldn't", v.LongString(), v.Aux)
 			}
 			if !canHaveAuxInt && v.AuxInt != 0 {
-				f.Fatalf("value %v has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
+				f.Fatalf("value %s has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
 			}
 
 			for _, arg := range v.Args {
 				if arg == nil {
-					f.Fatalf("value %v has nil arg", v.LongString())
+					f.Fatalf("value %s has nil arg", v.LongString())
 				}
 			}
 
@@ -271,7 +279,7 @@ func checkFunc(f *Func) {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
 				if !valueMark[a.ID] {
-					f.Fatalf("%v, arg %d of %v, is missing", a, i, v)
+					f.Fatalf("%v, arg %d of %s, is missing", a, i, v.LongString())
 				}
 			}
 		}
@@ -338,7 +346,7 @@ func checkFunc(f *Func) {
 
 // domCheck reports whether x dominates y (including x==y).
 func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
-	if !sdom.isAncestorEq(y, f.Entry) {
+	if !sdom.isAncestorEq(f.Entry, y) {
 		// unreachable - ignore
 		return true
 	}

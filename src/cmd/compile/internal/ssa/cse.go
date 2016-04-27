@@ -108,7 +108,7 @@ func cse(f *Func) {
 						break
 					}
 				}
-				if !equivalent || !v.Type.Equal(w.Type) {
+				if !equivalent || v.Type.Compare(w.Type) != CMPeq {
 					// w is not equivalent to v.
 					// move it to the end and shrink e.
 					e[j], e[len(e)-1] = e[len(e)-1], e[j]
@@ -131,33 +131,36 @@ func cse(f *Func) {
 		}
 	}
 
-	// Compute dominator tree
-	idom := dominators(f)
-	sdom := newSparseTree(f, idom)
+	// Dominator tree (f.sdom) is computed by the generic domtree pass.
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
-		for len(e) > 1 {
-			// Find a maximal dominant element in e
-			v := e[0]
-			for _, w := range e[1:] {
-				if sdom.isAncestorEq(w.Block, v.Block) {
-					v = w
-				}
+		sort.Sort(sortbyentry{e, f.sdom})
+		for i := 0; i < len(e)-1; i++ {
+			// e is sorted by entry value so maximal dominant element should be
+			// found first in the slice
+			v := e[i]
+			if v == nil {
+				continue
 			}
 
+			e[i] = nil
 			// Replace all elements of e which v dominates
-			for i := 0; i < len(e); {
-				w := e[i]
-				if w == v {
-					e, e[i] = e[:len(e)-1], e[len(e)-1]
-				} else if sdom.isAncestorEq(v.Block, w.Block) {
+			for j := i + 1; j < len(e); j++ {
+				w := e[j]
+				if w == nil {
+					continue
+				}
+				if f.sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
-					e, e[i] = e[:len(e)-1], e[len(e)-1]
+					e[j] = nil
 				} else {
-					i++
+					// since the blocks are assorted in ascending order by entry number
+					// once we know that we don't dominate a block we can't dominate any
+					// 'later' block
+					break
 				}
 			}
 		}
@@ -255,6 +258,14 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
 		return lt2Cmp(v.Block.ID < w.Block.ID)
 	}
 
+	switch v.Op {
+	case OpStaticCall, OpAMD64CALLstatic, OpARMCALLstatic:
+		sym := v.Aux.(GCSym)
+		if sym.IsRuntimeCall("newobject") {
+			return lt2Cmp(v.ID < w.ID)
+		}
+	}
+
 	if tc := v.Type.Compare(w.Type); tc != CMPeq {
 		return tc
 	}
@@ -301,4 +312,17 @@ func (sv sortvalues) Less(i, j int) bool {
 
 	// Sort by value ID last to keep the sort result deterministic.
 	return v.ID < w.ID
+}
+
+type sortbyentry struct {
+	a    []*Value // array of values
+	sdom sparseTree
+}
+
+func (sv sortbyentry) Len() int      { return len(sv.a) }
+func (sv sortbyentry) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+func (sv sortbyentry) Less(i, j int) bool {
+	v := sv.a[i]
+	w := sv.a[j]
+	return sv.sdom.maxdomorder(v.Block) < sv.sdom.maxdomorder(w.Block)
 }

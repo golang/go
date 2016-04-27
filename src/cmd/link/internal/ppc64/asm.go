@@ -39,14 +39,6 @@ import (
 )
 
 func genplt() {
-	var s *ld.LSym
-	var stub *ld.LSym
-	var pprevtextp **ld.LSym
-	var r *ld.Reloc
-	var n string
-	var o1 uint32
-	var i int
-
 	// The ppc64 ABI PLT has similar concepts to other
 	// architectures, but is laid out quite differently. When we
 	// see an R_PPC64_REL24 relocation to a dynamic symbol
@@ -95,11 +87,9 @@ func genplt() {
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
-	pprevtextp = &ld.Ctxt.Textp
-
-	for s = *pprevtextp; s != nil; pprevtextp, s = &s.Next, s.Next {
-		for i = range s.R {
-			r = &s.R[i]
+	for _, s := range ld.Ctxt.Textp {
+		for i := range s.R {
+			r := &s.R[i]
 			if r.Type != 256+ld.R_PPC64_REL24 || r.Sym.Type != obj.SDYNIMPORT {
 				continue
 			}
@@ -109,24 +99,16 @@ func genplt() {
 			addpltsym(ld.Ctxt, r.Sym)
 
 			// Generate call stub
-			n = fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
+			n := fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
 
-			stub = ld.Linklookup(ld.Ctxt, n, 0)
+			stub := ld.Linklookup(ld.Ctxt, n, 0)
 			if s.Attr.Reachable() {
 				stub.Attr |= ld.AttrReachable
 			}
 			if stub.Size == 0 {
 				// Need outer to resolve .TOC.
 				stub.Outer = s
-
-				// Link in to textp before s (we could
-				// do it after, but would have to skip
-				// the subsymbols)
-				*pprevtextp = stub
-
-				stub.Next = s
-				pprevtextp = &stub.Next
-
+				ld.Ctxt.Textp = append(ld.Ctxt.Textp, stub)
 				gencallstub(1, stub, r.Sym)
 			}
 
@@ -135,11 +117,10 @@ func genplt() {
 
 			// Restore TOC after bl. The compiler put a
 			// nop here for us to overwrite.
-			o1 = 0xe8410018 // ld r2,24(r1)
+			const o1 = 0xe8410018 // ld r2,24(r1)
 			ld.Ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
 		}
 	}
-
 }
 
 func genaddmoduledata() {
@@ -195,13 +176,7 @@ func genaddmoduledata() {
 	// blr
 	o(0x4e800020)
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
-
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal
@@ -263,10 +238,6 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	// Jump to the loaded pointer
 	ld.Adduint32(ld.Ctxt, stub, 0x7d8903a6) // mtctr r12
 	ld.Adduint32(ld.Ctxt, stub, 0x4e800420) // bctr
-}
-
-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	log.Fatalf("adddynrela not implemented")
 }
 
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
@@ -834,7 +805,7 @@ func ensureglinkresolver() *ld.LSym {
 
 func asmb() {
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
@@ -852,7 +823,7 @@ func asmb() {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
 
@@ -861,12 +832,15 @@ func asmb() {
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f datblk\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+
+	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ld.Dwarfblk(int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	/* output symbol table */
 	ld.Symsize = 0
@@ -876,13 +850,13 @@ func asmb() {
 	if ld.Debug['s'] == 0 {
 		// TODO: rationalize
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
-				symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 			}
 
@@ -895,16 +869,11 @@ func asmb() {
 		default:
 			if ld.Iself {
 				if ld.Debug['v'] != 0 {
-					fmt.Fprintf(&ld.Bso, "%5.2f elfsym\n", obj.Cputime())
+					fmt.Fprintf(ld.Bso, "%5.2f elfsym\n", obj.Cputime())
 				}
 				ld.Asmelfsym()
 				ld.Cflush()
 				ld.Cwrite(ld.Elfstrdat)
-
-				if ld.Debug['v'] != 0 {
-					fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
-				}
-				ld.Dwarfemitdebugsections()
 
 				if ld.Linkmode == ld.LinkExternal {
 					ld.Elfemitreloc()
@@ -919,7 +888,7 @@ func asmb() {
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {
-					ld.Cput(uint8(sym.P[i]))
+					ld.Cput(sym.P[i])
 				}
 
 				ld.Cflush()
@@ -929,7 +898,7 @@ func asmb() {
 
 	ld.Ctxt.Cursym = nil
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f header\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f header\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 	ld.Cseek(0)

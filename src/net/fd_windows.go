@@ -5,12 +5,12 @@
 package net
 
 import (
+	"context"
 	"internal/race"
 	"os"
 	"runtime"
 	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 )
 
@@ -42,11 +42,6 @@ func sysInit() {
 		initErr = os.NewSyscallError("wsastartup", e)
 	}
 	canCancelIO = syscall.LoadCancelIoEx() == nil
-	if syscall.LoadGetAddrInfo() == nil {
-		lookupPort = newLookupPort
-		lookupIP = newLookupIP
-	}
-
 	hasLoadSetFileCompletionNotificationModes = syscall.LoadSetFileCompletionNotificationModes() == nil
 	if hasLoadSetFileCompletionNotificationModes {
 		// It's not safe to use FILE_SKIP_COMPLETION_PORT_ON_SUCCESS if non IFS providers are installed:
@@ -69,22 +64,15 @@ func sysInit() {
 	}
 }
 
+// canUseConnectEx reports whether we can use the ConnectEx Windows API call
+// for the given network type.
 func canUseConnectEx(net string) bool {
 	switch net {
-	case "udp", "udp4", "udp6", "ip", "ip4", "ip6":
-		// ConnectEx windows API does not support connectionless sockets.
-		return false
+	case "tcp", "tcp4", "tcp6":
+		return true
 	}
-	return syscall.LoadConnectEx() == nil
-}
-
-func dial(net string, ra Addr, dialer func(time.Time) (Conn, error), deadline time.Time) (Conn, error) {
-	if !canUseConnectEx(net) {
-		// Use the relatively inefficient goroutine-racing
-		// implementation of DialTimeout.
-		return dialChannel(net, ra, dialer, deadline)
-	}
-	return dialer(deadline)
+	// ConnectEx windows API does not support connectionless sockets.
+	return false
 }
 
 // operation contains superset of data necessary to perform all async IO.
@@ -320,19 +308,20 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-chan struct{}) error {
+func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
 	if err := fd.init(); err != nil {
 		return err
 	}
-	if !deadline.IsZero() {
+	if deadline, ok := ctx.Deadline(); ok && !deadline.IsZero() {
 		fd.setWriteDeadline(deadline)
 		defer fd.setWriteDeadline(noDeadline)
 	}
 	if !canUseConnectEx(fd.net) {
-		return os.NewSyscallError("connect", connectFunc(fd.sysfd, ra))
+		err := connectFunc(fd.sysfd, ra)
+		return os.NewSyscallError("connect", err)
 	}
 	// ConnectEx windows API requires an unconnected, previously bound socket.
 	if la == nil {
@@ -351,30 +340,30 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 	// Call ConnectEx API.
 	o := &fd.wop
 	o.sa = ra
-	if cancel != nil {
-		done := make(chan bool)
-		defer func() {
-			// This is unbuffered; wait for the goroutine before returning.
-			done <- true
-		}()
-		go func() {
-			select {
-			case <-cancel:
-				// Force the runtime's poller to immediately give
-				// up waiting for writability.
-				fd.setWriteDeadline(aLongTimeAgo)
-				<-done
-			case <-done:
-			}
-		}()
-	}
+
+	// Wait for the goroutine converting context.Done into a write timeout
+	// to exist, otherwise our caller might cancel the context and
+	// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.
+	done := make(chan bool) // must be unbuffered
+	defer func() { done <- true }()
+	go func() {
+		select {
+		case <-ctx.Done():
+			// Force the runtime's poller to immediately give
+			// up waiting for writability.
+			fd.setWriteDeadline(aLongTimeAgo)
+			<-done
+		case <-done:
+		}
+	}()
+
 	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
 		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
 		select {
-		case <-cancel:
-			return errCanceled
+		case <-ctx.Done():
+			return mapErr(ctx.Err())
 		default:
 			if _, ok := err.(syscall.Errno); ok {
 				err = os.NewSyscallError("connectex", err)

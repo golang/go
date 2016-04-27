@@ -18,12 +18,7 @@ var (
 )
 
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 	if obj.Getgoarch() == "amd64p32" {
-		gc.Widthptr = 4
-		gc.Widthint = 4
 		addptr = x86.AADDL
 		movptr = x86.AMOVL
 		leaptr = x86.ALEAL
@@ -42,12 +37,9 @@ func Main() {
 		resvd = append(resvd, x86.REG_BP)
 	}
 
-	gc.Thearch.Thechar = '6'
-	gc.Thearch.Thestring = "amd64"
-	gc.Thearch.Thelinkarch = &x86.Linkamd64
+	gc.Thearch.LinkArch = &x86.Linkamd64
 	if obj.Getgoarch() == "amd64p32" {
-		gc.Thearch.Thestring = "amd64p32"
-		gc.Thearch.Thelinkarch = &x86.Linkamd64p32
+		gc.Thearch.LinkArch = &x86.Linkamd64p32
 	}
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT

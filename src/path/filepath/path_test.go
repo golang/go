@@ -1015,7 +1015,7 @@ func TestAbs(t *testing.T) {
 		vol := filepath.VolumeName(root)
 		var extra []string
 		for _, path := range absTests {
-			if strings.Index(path, "$") != -1 {
+			if strings.Contains(path, "$") {
 				continue
 			}
 			path = vol + path

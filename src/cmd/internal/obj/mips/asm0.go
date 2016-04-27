@@ -611,7 +611,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 
 	a1 := int(p.Optab)
 	if a1 != 0 {
-		return &optab[a1-1:][0]
+		return &optab[a1-1]
 	}
 	a1 = int(p.From.Class)
 	if a1 == 0 {
@@ -974,10 +974,6 @@ func OP_JMP(op uint32, i uint32) uint32 {
 	return op | i&0x3FFFFFF
 }
 
-func oclass(a *obj.Addr) int {
-	return int(a.Class) - 1
-}
-
 func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	o1 := uint32(0)
 	o2 := uint32(0)
@@ -1028,7 +1024,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_IRR(opirr(ctxt, p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 5: /* syscall */
-		o1 = uint32(oprrr(ctxt, p.As))
+		o1 = oprrr(ctxt, p.As)
 
 	case 6: /* beq r1,[r2],sbra */
 		v := int32(0)

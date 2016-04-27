@@ -143,6 +143,11 @@ func main() {
 		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
 
 		for _, name := range pkgNames {
+			// Vendored packages do not contribute to our
+			// public API surface.
+			if strings.HasPrefix(name, "vendor/") {
+				continue
+			}
 			// - Package "unsafe" contains special signatures requiring
 			//   extra care when printing them - ignore since it is not
 			//   going to change w/o a language change.

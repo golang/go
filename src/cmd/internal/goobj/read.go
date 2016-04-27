@@ -229,11 +229,8 @@ var (
 
 	errCorruptArchive   = errors.New("corrupt archive")
 	errTruncatedArchive = errors.New("truncated archive")
-	errNotArchive       = errors.New("unrecognized archive format")
-
-	errCorruptObject   = errors.New("corrupt object file")
-	errTruncatedObject = errors.New("truncated object file")
-	errNotObject       = errors.New("unrecognized object file format")
+	errCorruptObject    = errors.New("corrupt object file")
+	errNotObject        = errors.New("unrecognized object file format")
 )
 
 // An objReader is an object file reader.

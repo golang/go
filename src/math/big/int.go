@@ -459,11 +459,11 @@ func (z *Int) GCD(x, y, a, b *Int) *Int {
 	q := new(Int)
 	temp := new(Int)
 
+	r := new(Int)
 	for len(B.abs) > 0 {
-		r := new(Int)
 		q, r = q.QuoRem(A, B, r)
 
-		A, B = B, r
+		A, B, r = B, r, A
 
 		temp.Set(X)
 		X.Mul(X, q)

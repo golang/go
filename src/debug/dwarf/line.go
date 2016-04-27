@@ -361,7 +361,7 @@ func (r *LineReader) step(entry *LineEntry) bool {
 		// Special opcode [DWARF2 6.2.5.1, DWARF4 6.2.5.1]
 		adjustedOpcode := opcode - r.opcodeBase
 		r.advancePC(adjustedOpcode / r.lineRange)
-		lineDelta := r.lineBase + int(adjustedOpcode)%r.lineRange
+		lineDelta := r.lineBase + adjustedOpcode%r.lineRange
 		r.state.Line += lineDelta
 		goto emit
 	}

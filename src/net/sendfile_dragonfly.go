@@ -53,7 +53,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	// use the current position of the file -- if you pass it offset 0, it starts
 	// from offset 0. There's no way to tell it "start from current position", so
 	// we have to manage that explicitly.
-	pos, err := f.Seek(0, os.SEEK_CUR)
+	pos, err := f.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return 0, err, false
 	}

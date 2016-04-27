@@ -76,7 +76,7 @@ func (d *Data) parseTypes(name string, types []byte) error {
 				data:   b.bytes(int(n - (b.off - hdroff))),
 				atable: atable,
 				asize:  int(asize),
-				vers:   int(vers),
+				vers:   vers,
 				is64:   dwarf64,
 			},
 			toff: Offset(toff),
@@ -101,7 +101,7 @@ func (d *Data) sigToType(sig uint64) (Type, error) {
 
 	b := makeBuf(d, tu, tu.name, tu.off, tu.data)
 	r := &typeUnitReader{d: d, tu: tu, b: b}
-	t, err := d.readType(tu.name, r, Offset(tu.toff), make(map[Offset]Type), nil)
+	t, err := d.readType(tu.name, r, tu.toff, make(map[Offset]Type), nil)
 	if err != nil {
 		return nil, err
 	}

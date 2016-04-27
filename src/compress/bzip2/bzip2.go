@@ -75,7 +75,7 @@ func (bz2 *reader) setup(needMagic bool) error {
 	}
 
 	bz2.fileCRC = 0
-	bz2.blockSize = 100 * 1000 * (int(level) - '0')
+	bz2.blockSize = 100 * 1000 * (level - '0')
 	if bz2.blockSize > len(bz2.tt) {
 		bz2.tt = make([]uint32, bz2.blockSize)
 	}
@@ -293,7 +293,7 @@ func (bz2 *reader) readBlock() (err error) {
 		if c >= numHuffmanTrees {
 			return StructuralError("tree index too large")
 		}
-		treeIndexes[i] = uint8(mtfTreeDecoder.Decode(c))
+		treeIndexes[i] = mtfTreeDecoder.Decode(c)
 	}
 
 	// The list of symbols for the move-to-front transform is taken from
@@ -399,7 +399,7 @@ func (bz2 *reader) readBlock() (err error) {
 				return StructuralError("repeats past end of block")
 			}
 			for i := 0; i < repeat; i++ {
-				b := byte(mtf.First())
+				b := mtf.First()
 				bz2.tt[bufIndex] = uint32(b)
 				bz2.c[b]++
 				bufIndex++
@@ -420,7 +420,7 @@ func (bz2 *reader) readBlock() (err error) {
 		// it's always referenced with a run-length of 1. Thus 0
 		// doesn't need to be encoded and we have |v-1| in the next
 		// line.
-		b := byte(mtf.Decode(int(v - 1)))
+		b := mtf.Decode(int(v - 1))
 		if bufIndex >= bz2.blockSize {
 			return StructuralError("data exceeds block size")
 		}

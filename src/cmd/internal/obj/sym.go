@@ -32,6 +32,7 @@
 package obj
 
 import (
+	"cmd/internal/sys"
 	"log"
 	"os"
 	"path/filepath"
@@ -100,7 +101,7 @@ func Linknew(arch *LinkArch) *Link {
 	}
 
 	// On arm, record goarm.
-	if ctxt.Arch.Thechar == '5' {
+	if ctxt.Arch.Family == sys.ARM {
 		ctxt.Goarm = Getgoarm()
 	}
 

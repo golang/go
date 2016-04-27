@@ -31,7 +31,7 @@ func For(compiler string, lookup Lookup) types.Importer {
 		return make(gcimports)
 
 	case "gccgo":
-		if lookup == nil {
+		if lookup != nil {
 			panic("gccgo importer for custom import path lookup not yet implemented")
 		}
 

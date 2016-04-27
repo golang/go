@@ -89,8 +89,9 @@ func subnode(nr *Node, ni *Node, nc *Node) {
 	t := Types[tc]
 
 	if nc.Op == OLITERAL {
-		nodfconst(nr, t, &nc.Val().U.(*Mpcplx).Real)
-		nodfconst(ni, t, &nc.Val().U.(*Mpcplx).Imag)
+		u := nc.Val().U.(*Mpcplx)
+		nodfconst(nr, t, &u.Real)
+		nodfconst(ni, t, &u.Imag)
 		return
 	}
 
@@ -398,7 +399,7 @@ func Complexgen(n *Node, res *Node) {
 	switch n.Op {
 	default:
 		Dump("complexgen: unknown op", n)
-		Fatalf("complexgen: unknown op %v", Oconv(n.Op, 0))
+		Fatalf("complexgen: unknown op %v", n.Op)
 
 	case ODOT,
 		ODOTPTR,
@@ -457,7 +458,7 @@ func Complexgen(n *Node, res *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("complexgen: unknown op %v", Oconv(n.Op, 0))
+		Fatalf("complexgen: unknown op %v", n.Op)
 
 	case OCONV:
 		Complexmove(nl, res)

@@ -4,7 +4,6 @@
 
 // +build cgo
 // +build darwin dragonfly freebsd linux netbsd solaris
-// +build !ppc64,!ppc64le
 
 #include <pthread.h>
 #include <stdio.h>

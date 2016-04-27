@@ -23,6 +23,9 @@ func checkAtomicAssignment(f *File, node ast.Node) {
 	if len(n.Lhs) != len(n.Rhs) {
 		return
 	}
+	if len(n.Lhs) == 1 && n.Tok == token.DEFINE {
+		return
+	}
 
 	for i, right := range n.Rhs {
 		call, ok := right.(*ast.CallExpr)

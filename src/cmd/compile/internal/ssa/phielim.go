@@ -40,11 +40,7 @@ func phielimValue(v *Value) bool {
 	// are not v itself, then the phi must remain.
 	// Otherwise, we can replace it with a copy.
 	var w *Value
-	for i, x := range v.Args {
-		if b := v.Block.Preds[i]; b.Kind == BlockFirst && b.Succs[1] == v.Block {
-			// This branch is never taken so we can just eliminate it.
-			continue
-		}
+	for _, x := range v.Args {
 		if x == v {
 			continue
 		}

@@ -8,6 +8,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 )
 
@@ -217,7 +218,7 @@ func Genlist(l Nodes) {
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
-		Fatalf("cgen_proc: unknown call %v", Oconv(n.Left.Op, 0))
+		Fatalf("cgen_proc: unknown call %v", n.Left.Op)
 
 	case OCALLMETH:
 		cgen_callmeth(n.Left, proc)
@@ -245,7 +246,7 @@ func cgen_dcl(n *Node) {
 	if n.Class&PHEAP == 0 {
 		return
 	}
-	if compiling_runtime != 0 {
+	if compiling_runtime {
 		Yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
 	if prealloc[n] == nil {
@@ -1030,7 +1031,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 		// Emit vardef if needed.
 		if nl.Op == ONAME {
 			switch nl.Type.Etype {
-			case TARRAY, TSTRING, TINTER, TSTRUCT:
+			case TARRAY, TSLICE, TSTRING, TINTER, TSTRUCT:
 				Gvardef(nl)
 			}
 		}
@@ -1174,7 +1175,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		}
 		// NOTE: Assuming little endian (signed top half at offset 4).
 		// We don't have any 32-bit big-endian systems.
-		if Thearch.Thechar != '5' && Thearch.Thechar != '8' {
+		if !Thearch.LinkArch.InFamily(sys.ARM, sys.I386) {
 			Fatalf("unknown 32-bit architecture")
 		}
 		return f(Types[TUINT32], startOffset) &&
@@ -1203,13 +1204,12 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		return f(Ptrto(Types[TUINT8]), startOffset) &&
 			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
 
-	case TARRAY:
-		if t.IsSlice() {
-			return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
-				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
-				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
-		}
+	case TSLICE:
+		return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
 
+	case TARRAY:
 		// Short-circuit [1e6]struct{}.
 		if t.Elem().Width == 0 {
 			return true

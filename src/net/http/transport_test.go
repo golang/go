@@ -18,6 +18,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -434,6 +435,54 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	<-donech
 	if e, g := maxIdleConns, tr.IdleConnCountForTesting(cacheKey); e != g {
 		t.Errorf("after third response, still expected %d idle conns; got %d", e, g)
+	}
+}
+
+func TestTransportRemovesDeadIdleConnections(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, r.RemoteAddr)
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	doReq := func(name string) string {
+		// Do a POST instead of a GET to prevent the Transport's
+		// idempotent request retry logic from kicking in...
+		res, err := c.Post(ts.URL, "", nil)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if res.StatusCode != 200 {
+			t.Fatalf("%s: %v", name, res.Status)
+		}
+		defer res.Body.Close()
+		slurp, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return string(slurp)
+	}
+
+	first := doReq("first")
+	keys1 := tr.IdleConnKeysForTesting()
+
+	ts.CloseClientConnections()
+
+	var keys2 []string
+	if !waitCondition(3*time.Second, 50*time.Millisecond, func() bool {
+		keys2 = tr.IdleConnKeysForTesting()
+		return len(keys2) == 0
+	}) {
+		t.Fatalf("Transport didn't notice idle connection's death.\nbefore: %q\n after: %q\n", keys1, keys2)
+	}
+
+	second := doReq("second")
+	if first == second {
+		t.Errorf("expected a different connection between requests. got %q both times", first)
 	}
 }
 
@@ -2229,7 +2278,7 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
 // Trying to repro golang.org/issue/3514
 func TestTLSServerClosesConnection(t *testing.T) {
 	defer afterTest(t)
-	setFlaky(t, 7634)
+	testenv.SkipFlaky(t, 7634)
 
 	closedc := make(chan bool, 1)
 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {

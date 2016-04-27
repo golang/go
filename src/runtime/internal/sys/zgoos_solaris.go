@@ -2,7 +2,7 @@
 
 package sys
 
-const TheGoos = `solaris`
+const GOOS = `solaris`
 
 const GoosAndroid = 0
 const GoosDarwin = 0

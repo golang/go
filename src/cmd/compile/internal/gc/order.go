@@ -165,7 +165,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		a.Right = r
 		return typecheck(&a, Erv)
 	default:
-		Fatalf("ordersafeexpr %v", Oconv(n.Op, 0))
+		Fatalf("ordersafeexpr %v", n.Op)
 		return nil // not reached
 	}
 }
@@ -324,7 +324,7 @@ func ismulticall(l Nodes) bool {
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) []*Node {
-	if !n.Type.IsStruct() || !n.Type.Funarg {
+	if !n.Type.IsFuncArgStruct() {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Results().NumFields())
 	}
 
@@ -373,7 +373,7 @@ func ordercall(n *Node, order *Order) {
 			if t == nil {
 				break
 			}
-			if t.Note != nil && *t.Note == unsafeUintptrTag {
+			if t.Note == unsafeUintptrTag {
 				xp := n.List.Addr(i)
 				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
 					xp = &(*xp).Left
@@ -416,7 +416,7 @@ func ordercall(n *Node, order *Order) {
 func ordermapassign(n *Node, order *Order) {
 	switch n.Op {
 	default:
-		Fatalf("ordermapassign %v", Oconv(n.Op, 0))
+		Fatalf("ordermapassign %v", n.Op)
 
 	case OAS:
 		order.out = append(order.out, n)
@@ -478,7 +478,7 @@ func orderstmt(n *Node, order *Order) {
 
 	switch n.Op {
 	default:
-		Fatalf("orderstmt %v", Oconv(n.Op, 0))
+		Fatalf("orderstmt %v", n.Op)
 
 	case OVARKILL, OVARLIVE:
 		order.out = append(order.out, n)
@@ -731,7 +731,7 @@ func orderstmt(n *Node, order *Order) {
 		default:
 			Fatalf("orderstmt range %v", n.Type)
 
-		case TARRAY:
+		case TARRAY, TSLICE:
 			if n.List.Len() < 2 || isblank(n.List.Second()) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
@@ -790,7 +790,7 @@ func orderstmt(n *Node, order *Order) {
 		var r *Node
 		for _, n2 := range n.List.Slice() {
 			if n2.Op != OXCASE {
-				Fatalf("order select case %v", Oconv(n2.Op, 0))
+				Fatalf("order select case %v", n2.Op)
 			}
 			r = n2.Left
 			setlineno(n2)
@@ -803,7 +803,7 @@ func orderstmt(n *Node, order *Order) {
 			if r != nil {
 				switch r.Op {
 				default:
-					Yyerror("unknown op in select %v", Oconv(r.Op, 0))
+					Yyerror("unknown op in select %v", r.Op)
 					Dump("select case", r)
 
 				// If this is case x := <-ch or case x, y := <-ch, the case has
@@ -943,7 +943,7 @@ func orderstmt(n *Node, order *Order) {
 		n.Left = orderexpr(n.Left, order, nil)
 		for _, n4 := range n.List.Slice() {
 			if n4.Op != OXCASE {
-				Fatalf("order switch case %v", Oconv(n4.Op, 0))
+				Fatalf("order switch case %v", n4.Op)
 			}
 			orderexprlistinplace(n4.List, order)
 			orderblockNodes(&n4.Nbody)
@@ -1123,30 +1123,22 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
-	case OSLICE, OSLICEARR, OSLICESTR:
+	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
 		n.Left = orderexpr(n.Left, order, nil)
-		n.Right.Left = orderexpr(n.Right.Left, order, nil)
-		n.Right.Left = ordercheapexpr(n.Right.Left, order)
-		n.Right.Right = orderexpr(n.Right.Right, order, nil)
-		n.Right.Right = ordercheapexpr(n.Right.Right, order)
-		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
-			n = ordercopyexpr(n, n.Type, order, 0)
-		}
-
-	case OSLICE3, OSLICE3ARR:
-		n.Left = orderexpr(n.Left, order, nil)
-		n.Right.Left = orderexpr(n.Right.Left, order, nil)
-		n.Right.Left = ordercheapexpr(n.Right.Left, order)
-		n.Right.Right.Left = orderexpr(n.Right.Right.Left, order, nil)
-		n.Right.Right.Left = ordercheapexpr(n.Right.Right.Left, order)
-		n.Right.Right.Right = orderexpr(n.Right.Right.Right, order, nil)
-		n.Right.Right.Right = ordercheapexpr(n.Right.Right.Right, order)
+		low, high, max := n.SliceBounds()
+		low = orderexpr(low, order, nil)
+		low = ordercheapexpr(low, order)
+		high = orderexpr(high, order, nil)
+		high = ordercheapexpr(high, order)
+		max = orderexpr(max, order, nil)
+		max = ordercheapexpr(max, order)
+		n.SetSliceBounds(low, high, max)
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.Left) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
 	case OCLOSURE:
-		if n.Noescape && len(n.Func.Cvars.Slice()) > 0 {
+		if n.Noescape && n.Func.Cvars.Len() > 0 {
 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 

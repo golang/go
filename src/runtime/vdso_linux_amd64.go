@@ -4,10 +4,7 @@
 
 package runtime
 
-import (
-	"runtime/internal/sys"
-	"unsafe"
-)
+import "unsafe"
 
 // Look up symbols in the Linux vDSO.
 
@@ -21,9 +18,7 @@ import (
 // http://refspecs.linuxfoundation.org/LSB_3.2.0/LSB-Core-generic/LSB-Core-generic/symversion.html
 
 const (
-	_AT_RANDOM       = 25
 	_AT_SYSINFO_EHDR = 33
-	_AT_NULL         = 0 /* End of vector */
 
 	_PT_LOAD    = 1 /* Loadable program segment */
 	_PT_DYNAMIC = 2 /* Dynamic linking information */
@@ -294,37 +289,18 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
 	}
 }
 
-func sysargs(argc int32, argv **byte) {
-	n := argc + 1
-
-	// skip envp to get to ELF auxiliary vector.
-	for argv_index(argv, n) != nil {
-		n++
-	}
-
-	// skip NULL separator
-	n++
-
-	// now argv+n is auxv
-	auxv := (*[1 << 32]elf64Auxv)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
-
-	for i := 0; auxv[i].a_type != _AT_NULL; i++ {
-		av := &auxv[i]
-		switch av.a_type {
-		case _AT_SYSINFO_EHDR:
-			if av.a_val == 0 {
-				// Something went wrong
-				continue
-			}
-			var info vdso_info
-			// TODO(rsc): I don't understand why the compiler thinks info escapes
-			// when passed to the three functions below.
-			info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
-			vdso_init_from_sysinfo_ehdr(info1, (*elf64Ehdr)(unsafe.Pointer(uintptr(av.a_val))))
-			vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
-
-		case _AT_RANDOM:
-			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(av.a_val)))[:]
+func archauxv(tag, val uintptr) {
+	switch tag {
+	case _AT_SYSINFO_EHDR:
+		if val == 0 {
+			// Something went wrong
+			return
 		}
+		var info vdso_info
+		// TODO(rsc): I don't understand why the compiler thinks info escapes
+		// when passed to the three functions below.
+		info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
+		vdso_init_from_sysinfo_ehdr(info1, (*elf64Ehdr)(unsafe.Pointer(val)))
+		vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
 	}
 }

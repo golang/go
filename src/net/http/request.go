@@ -249,7 +249,7 @@ type Request struct {
 	//
 	// For server requests, this field is not applicable.
 	//
-	// Deprecated: use the Context and WithContext methods
+	// Deprecated: Use the Context and WithContext methods
 	// instead. If a Request's Cancel field and context are both
 	// set, it is undefined whether Cancel is respected.
 	Cancel <-chan struct{}
@@ -266,9 +266,13 @@ type Request struct {
 //
 // The returned context is always non-nil; it defaults to the
 // background context.
+//
+// For outgoing client requests, the context controls cancelation.
+//
+// For incoming server requests, the context is canceled when either
+// the client's connection closes, or when the ServeHTTP method
+// returns.
 func (r *Request) Context() context.Context {
-	// TODO(bradfitz): document above what Context means for server and client
-	// requests, once implemented.
 	if r.ctx != nil {
 		return r.ctx
 	}
@@ -656,6 +660,8 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	if !ok && body != nil {
 		rc = ioutil.NopCloser(body)
 	}
+	// The host's colon:port should be normalized. See Issue 14836.
+	u.Host = removeEmptyPort(u.Host)
 	req := &Request{
 		Method:     method,
 		URL:        u,
@@ -813,7 +819,7 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	}
 	req.Header = Header(mimeHeader)
 
-	// RFC2616: Must treat
+	// RFC 2616: Must treat
 	//	GET /index.html HTTP/1.1
 	//	Host: www.google.com
 	// and

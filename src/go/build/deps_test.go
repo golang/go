@@ -168,7 +168,7 @@ var pkgDeps = map[string][]string{
 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
-	"internal/testenv": {"L2", "OS", "testing"},
+	"internal/testenv": {"L2", "OS", "flag", "testing"},
 
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
@@ -215,7 +215,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":            {"L4", "compress/flate"},
 	"compress/lzw":             {"L4"},
 	"compress/zlib":            {"L4", "compress/flate"},
-	"context":                  {"errors", "fmt", "sync", "time"},
+	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
 	"database/sql/driver":      {"L4", "time"},
 	"debug/dwarf":              {"L4"},
@@ -280,7 +280,9 @@ var pkgDeps = map[string][]string{
 	// Basic networking.
 	// Because net must be used by any package that wants to
 	// do networking portably, it must have a small dependency set: just L0+basic os.
-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight", "internal/race"},
+	"net": {"L0", "CGO",
+		"context", "math/rand", "os", "sort", "syscall", "time",
+		"internal/syscall/windows", "internal/singleflight", "internal/race"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {

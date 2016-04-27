@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"sort"
 )
 
 /*
@@ -48,6 +49,15 @@ func mkzdefaultcc(dir, file string) {
 //
 // It is invoked to write go/build/zcgo.go.
 func mkzcgo(dir, file string) {
+	// sort for deterministic zcgo.go file
+	var list []string
+	for plat, hasCgo := range cgoEnabled {
+		if hasCgo {
+			list = append(list, plat)
+		}
+	}
+	sort.Strings(list)
+
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf,
@@ -56,10 +66,8 @@ func mkzcgo(dir, file string) {
 			"package build\n"+
 			"\n"+
 			"var cgoEnabled = map[string]bool{\n")
-	for plat, hasCgo := range cgoEnabled {
-		if hasCgo {
-			fmt.Fprintf(&buf, "\t%q: true,\n", plat)
-		}
+	for _, plat := range list {
+		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
 	}
 	fmt.Fprintf(&buf, "}")
 

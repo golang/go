@@ -114,7 +114,7 @@ const (
 	certTypeRSAFixedDH = 3 // A certificate containing a static DH key
 	certTypeDSSFixedDH = 4 // A certificate containing a static DH key
 
-	// See RFC4492 sections 3 and 5.5.
+	// See RFC 4492 sections 3 and 5.5.
 	certTypeECDSASign      = 64 // A certificate containing an ECDSA-capable public key, signed with ECDSA.
 	certTypeRSAFixedECDH   = 65 // A certificate containing an ECDH-capable public key, signed with RSA.
 	certTypeECDSAFixedECDH = 66 // A certificate containing an ECDH-capable public key, signed with ECDSA.
@@ -516,7 +516,7 @@ func (c *Config) getCertificate(clientHello *ClientHelloInfo) (*Certificate, err
 	}
 
 	if len(c.Certificates) == 0 {
-		return nil, errors.New("crypto/tls: no certificates configured")
+		return nil, errors.New("tls: no certificates configured")
 	}
 
 	if len(c.Certificates) == 1 || c.NameToCertificate == nil {

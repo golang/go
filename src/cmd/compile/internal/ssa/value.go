@@ -185,6 +185,7 @@ func (v *Value) resetArgs() {
 	}
 	v.argstorage[0] = nil
 	v.argstorage[1] = nil
+	v.argstorage[2] = nil
 	v.Args = v.argstorage[:0]
 }
 

@@ -17,10 +17,10 @@ func mpreinit(mp *m) {
 	// Initialize stack and goroutine for note handling.
 	mp.gsignal = malg(32 * 1024)
 	mp.gsignal.m = mp
-	mp.notesig = (*int8)(mallocgc(_ERRMAX, nil, _FlagNoScan))
+	mp.notesig = (*int8)(mallocgc(_ERRMAX, nil, true))
 	// Initialize stack for handling strings from the
 	// errstr system call, as used in package syscall.
-	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, _FlagNoScan))
+	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, true))
 }
 
 func msigsave(mp *m) {

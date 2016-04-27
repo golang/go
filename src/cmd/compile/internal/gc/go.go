@@ -5,8 +5,9 @@
 package gc
 
 import (
-	"bytes"
+	"bufio"
 	"cmd/compile/internal/ssa"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 )
 
@@ -16,48 +17,10 @@ const (
 	MaxStackVarSize = 10 * 1024 * 1024
 )
 
-type Val struct {
-	// U contains one of:
-	// bool     bool when n.ValCtype() == CTBOOL
-	// *Mpint   int when n.ValCtype() == CTINT, rune when n.ValCtype() == CTRUNE
-	// *Mpflt   float when n.ValCtype() == CTFLT
-	// *Mpcplx  pair of floats when n.ValCtype() == CTCPLX
-	// string   string when n.ValCtype() == CTSTR
-	// *Nilval  when n.ValCtype() == CTNIL
-	U interface{}
-}
-
-type NilVal struct{}
-
-func (v Val) Ctype() Ctype {
-	switch x := v.U.(type) {
-	default:
-		Fatalf("unexpected Ctype for %T", v.U)
-		panic("not reached")
-	case nil:
-		return 0
-	case *NilVal:
-		return CTNIL
-	case bool:
-		return CTBOOL
-	case *Mpint:
-		if x.Rune {
-			return CTRUNE
-		}
-		return CTINT
-	case *Mpflt:
-		return CTFLT
-	case *Mpcplx:
-		return CTCPLX
-	case string:
-		return CTSTR
-	}
-}
-
 type Pkg struct {
 	Name     string // package name, e.g. "sys"
 	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
-	Pathsym  *Sym
+	Pathsym  *obj.LSym
 	Prefix   string // escaped path for use in symbol table
 	Imported bool   // export data of this package was parsed
 	Exported bool   // import line written in export data
@@ -66,6 +29,14 @@ type Pkg struct {
 	Syms     map[string]*Sym
 }
 
+// Sym represents an object name. Most commonly, this is a Go identifier naming
+// an object declared within a package, but Syms are also used to name internal
+// synthesized objects.
+//
+// As a special exception, field and method names that are exported use the Sym
+// associated with localpkg instead of the package that declared them. This
+// allows using Sym pointer equality to test for Go identifier uniqueness when
+// handling selector expressions.
 type Sym struct {
 	Flags     SymFlags
 	Link      *Sym
@@ -111,37 +82,6 @@ const (
 	SymAlgGen
 )
 
-var dclstack *Sym
-
-// Ctype describes the constant kind of an "ideal" (untyped) constant.
-type Ctype int8
-
-const (
-	CTxxx Ctype = iota
-
-	CTINT
-	CTRUNE
-	CTFLT
-	CTCPLX
-	CTSTR
-	CTBOOL
-	CTNIL
-)
-
-// ChanDir is whether a channel can send, receive, or both.
-type ChanDir uint8
-
-func (c ChanDir) CanRecv() bool { return c&Crecv != 0 }
-func (c ChanDir) CanSend() bool { return c&Csend != 0 }
-
-const (
-	// types of channel
-	// must match ../../../../reflect/type.go:/ChanDir
-	Crecv ChanDir = 1 << 0
-	Csend ChanDir = 1 << 1
-	Cboth ChanDir = Crecv | Csend
-)
-
 // The Class of a variable/function describes the "storage class"
 // of a variable or function. During parsing, storage classes are
 // called declaration contexts.
@@ -160,30 +100,6 @@ const (
 
 	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
 )
-
-const (
-	Etop      = 1 << 1 // evaluated at statement level
-	Erv       = 1 << 2 // evaluated in value context
-	Etype     = 1 << 3
-	Ecall     = 1 << 4  // call-only expressions are ok
-	Efnstruct = 1 << 5  // multivalue function returns are ok
-	Eiota     = 1 << 6  // iota is ok
-	Easgn     = 1 << 7  // assigning to expression
-	Eindir    = 1 << 8  // indirecting through expression
-	Eaddr     = 1 << 9  // taking address of expression
-	Eproc     = 1 << 10 // inside a go statement
-	Ecomplit  = 1 << 11 // type in composite literal
-)
-
-type Sig struct {
-	name   string
-	pkg    *Pkg
-	isym   *Sym
-	tsym   *Sym
-	type_  *Type
-	mtype  *Type
-	offset int32
-}
 
 // note this is the runtime representation
 // of the compilers arrays.
@@ -212,20 +128,13 @@ var sizeof_Array int // runtime sizeof(Array)
 // } String;
 var sizeof_String int // runtime sizeof(String)
 
-// lexlineno is the line number _after_ the most recently read rune.
-// In particular, it's advanced (or rewound) as newlines are read (or unread).
-var lexlineno int32
-
-// lineno is the line number at the start of the most recently lexed token.
-var lineno int32
-
 var pragcgobuf string
 
 var infile string
 
 var outfile string
 
-var bout *obj.Biobuf
+var bout *bio.Writer
 
 var nerrors int
 
@@ -235,13 +144,9 @@ var nsyntaxerrors int
 
 var decldepth int32
 
-var safemode int
+var safemode bool
 
-var nolocalimports int
-
-var lexbuf bytes.Buffer
-var strbuf bytes.Buffer
-var litbuf string // LLITERAL value for use in syntax error messages
+var nolocalimports bool
 
 var Debug [256]int
 
@@ -266,11 +171,12 @@ var msanpkg *Pkg // package runtime/msan
 
 var typepkg *Pkg // fake package for runtime type info (headers)
 
-var typelinkpkg *Pkg // fake package for runtime type info (data)
-
 var unsafepkg *Pkg // package unsafe
 
 var trackpkg *Pkg // fake package for field tracking
+
+var mappkg *Pkg // fake package for map zero value
+var zerosize int64
 
 var Tptr EType // either TPTR32 or TPTR64
 
@@ -318,8 +224,6 @@ var maxfltval [NTYPE]*Mpflt
 
 var xtop []*Node
 
-var externdcl []*Node
-
 var exportlist []*Node
 
 var importlist []*Node // imported functions and methods with inlinable bodies
@@ -344,10 +248,6 @@ var Stksize int64 // stack size for current frame
 
 var stkptrsize int64 // prefix of stack containing pointers
 
-var blockgen int32 // max block number
-
-var block int32 // current block number
-
 var hasdefer bool // flag that curfn has defer statement
 
 var Curfn *Node
@@ -364,21 +264,21 @@ var Funcdepth int32
 
 var typecheckok bool
 
-var compiling_runtime int
+var compiling_runtime bool
 
 var compiling_wrappers int
 
-var use_writebarrier int
+var use_writebarrier bool
 
-var pure_go int
+var pure_go bool
 
 var flag_installsuffix string
 
-var flag_race int
+var flag_race bool
 
-var flag_msan int
+var flag_msan bool
 
-var flag_largemodel int
+var flag_largemodel bool
 
 // Whether we are adding any sort of code instrumentation, such as
 // when the race detector is enabled.
@@ -388,9 +288,9 @@ var debuglive int
 
 var Ctxt *obj.Link
 
-var writearchive int
+var writearchive bool
 
-var bstdout obj.Biobuf
+var bstdout *bufio.Writer
 
 var Nacl bool
 
@@ -403,34 +303,6 @@ var Pc *obj.Prog
 var nodfp *Node
 
 var Disable_checknil int
-
-type Flow struct {
-	Prog   *obj.Prog // actual instruction
-	P1     *Flow     // predecessors of this instruction: p1,
-	P2     *Flow     // and then p2 linked though p2link.
-	P2link *Flow
-	S1     *Flow // successors of this instruction (at most two: s1 and s2).
-	S2     *Flow
-	Link   *Flow // next instruction in function code
-
-	Active int32 // usable by client
-
-	Id     int32  // sequence number in flow graph
-	Rpo    int32  // reverse post ordering
-	Loop   uint16 // x5 for every loop
-	Refset bool   // diagnostic generated
-
-	Data interface{} // for use by client
-}
-
-type Graph struct {
-	Start *Flow
-	Num   int
-
-	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
-	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
-	Rpo []*Flow
-}
 
 // interface to back end
 
@@ -491,9 +363,8 @@ const (
 )
 
 type Arch struct {
-	Thechar      int
-	Thestring    string
-	Thelinkarch  *obj.LinkArch
+	LinkArch *obj.LinkArch
+
 	REGSP        int
 	REGCTXT      int
 	REGCALLX     int // BX
@@ -507,23 +378,25 @@ type Arch struct {
 	MAXWIDTH     int64
 	ReservedRegs []int
 
-	AddIndex     func(*Node, int64, *Node) bool // optional
-	Betypeinit   func()
-	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
-	Cgen64       func(*Node, *Node)                // only on 32-bit systems
-	Cgenindex    func(*Node, *Node, bool) *obj.Prog
-	Cgen_bmul    func(Op, *Node, *Node, *Node) bool
-	Cgen_float   func(*Node, *Node) // optional
-	Cgen_hmul    func(*Node, *Node, *Node)
-	Cgen_shift   func(Op, bool, *Node, *Node, *Node)
-	Clearfat     func(*Node)
-	Cmp64        func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
-	Defframe     func(*obj.Prog)
-	Dodiv        func(Op, *Node, *Node, *Node)
-	Excise       func(*Flow)
-	Expandchecks func(*obj.Prog)
-	Getg         func(*Node)
-	Gins         func(obj.As, *Node, *Node) *obj.Prog
+	AddIndex            func(*Node, int64, *Node) bool // optional
+	Betypeinit          func()
+	Bgen_float          func(*Node, bool, int, *obj.Prog) // optional
+	Cgen64              func(*Node, *Node)                // only on 32-bit systems
+	Cgenindex           func(*Node, *Node, bool) *obj.Prog
+	Cgen_bmul           func(Op, *Node, *Node, *Node) bool
+	Cgen_float          func(*Node, *Node) // optional
+	Cgen_hmul           func(*Node, *Node, *Node)
+	RightShiftWithCarry func(*Node, uint, *Node)  // only on systems without RROTC instruction
+	AddSetCarry         func(*Node, *Node, *Node) // only on systems when ADD does not update carry flag
+	Cgen_shift          func(Op, bool, *Node, *Node, *Node)
+	Clearfat            func(*Node)
+	Cmp64               func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
+	Defframe            func(*obj.Prog)
+	Dodiv               func(Op, *Node, *Node, *Node)
+	Excise              func(*Flow)
+	Expandchecks        func(*obj.Prog)
+	Getg                func(*Node)
+	Gins                func(obj.As, *Node, *Node) *obj.Prog
 
 	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
 	// The returned prog should be Patch'ed with the jump target.

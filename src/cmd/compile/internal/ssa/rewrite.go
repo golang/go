@@ -40,8 +40,43 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			curb = nil
 			for _, v := range b.Values {
-				change = copyelimValue(v) || change
 				change = phielimValue(v) || change
+
+				// Eliminate copy inputs.
+				// If any copy input becomes unused, mark it
+				// as invalid and discard its argument. Repeat
+				// recursively on the discarded argument.
+				// This phase helps remove phantom "dead copy" uses
+				// of a value so that a x.Uses==1 rule condition
+				// fires reliably.
+				for i, a := range v.Args {
+					if a.Op != OpCopy {
+						continue
+					}
+					x := a.Args[0]
+					// Rewriting can generate OpCopy loops.
+					// They are harmless (see removePredecessor),
+					// but take care to stop if we find a cycle.
+					slow := x // advances every other iteration
+					var advance bool
+					for x.Op == OpCopy {
+						x = x.Args[0]
+						if slow == x {
+							break
+						}
+						if advance {
+							slow = slow.Args[0]
+						}
+						advance = !advance
+					}
+					v.SetArg(i, x)
+					change = true
+					for a.Uses == 0 {
+						b := a.Args[0]
+						a.reset(OpInvalid)
+						a = b
+					}
+				}
 
 				// apply rewrite function
 				curv = v
@@ -52,7 +87,28 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 		}
 		if !change {
-			return
+			break
+		}
+	}
+	// remove clobbered values
+	for _, b := range f.Blocks {
+		j := 0
+		for i, v := range b.Values {
+			if v.Op == OpInvalid {
+				f.freeValue(v)
+				continue
+			}
+			if i != j {
+				b.Values[j] = v
+			}
+			j++
+		}
+		if j != len(b.Values) {
+			tail := b.Values[j:]
+			for j := range tail {
+				tail[j] = nil
+			}
+			b.Values = b.Values[:j]
 		}
 	}
 }
@@ -310,4 +366,14 @@ found:
 
 	}
 	return nil // too far away
+}
+
+// clobber invalidates v.  Returns true.
+// clobber is used by rewrite rules to:
+//   A) make sure v is really dead and never used again.
+//   B) decrement use counts of v's args.
+func clobber(v *Value) bool {
+	v.reset(OpInvalid)
+	// Note: leave v.Block intact.  The Block field is used after clobber.
+	return true
 }

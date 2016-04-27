@@ -31,9 +31,9 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"bufio"
+	"cmd/internal/sys"
 	"debug/elf"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -50,8 +50,6 @@ type LSym struct {
 	Align       int32
 	Elfsym      int32
 	LocalElfsym int32
-	Args        int32
-	Locals      int32
 	Value       int64
 	Size        int64
 	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
@@ -67,8 +65,7 @@ type LSym struct {
 	Dynimplib   string
 	Dynimpvers  string
 	Sect        *Section
-	Autom       []Auto
-	Pcln        *Pcln
+	FuncInfo    *FuncInfo
 	P           []byte
 	R           []Reloc
 }
@@ -161,13 +158,11 @@ type Shlib struct {
 }
 
 type Link struct {
-	Thechar   int32
-	Thestring string
 	Goarm     int32
 	Headtype  int
-	Arch      *LinkArch
+	Arch      *sys.Arch
 	Debugvlog int32
-	Bso       *obj.Biobuf
+	Bso       *bufio.Writer
 	Windows   int32
 	Goroot    string
 
@@ -183,10 +178,8 @@ type Link struct {
 	Diag       func(string, ...interface{})
 	Cursym     *LSym
 	Version    int
-	Textp      *LSym
-	Etextp     *LSym
-	Nhistfile  int32
-	Filesyms   *LSym
+	Textp      []*LSym
+	Filesyms   []*LSym
 	Moduledata *LSym
 	LSymBatch  []LSym
 }
@@ -196,30 +189,21 @@ type Link struct {
 // on the stack in the function prologue and so always have a pointer between
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Thechar {
-	case '6', '8':
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
 		return 0
-	case '9':
+	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
 		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.Ptrsize)
+		return int64(4 * ctxt.Arch.PtrSize)
 	default:
-		return int64(ctxt.Arch.Ptrsize)
+		return int64(ctxt.Arch.PtrSize)
 	}
 }
 
 func (l *Link) IncVersion() {
 	l.Version++
 	l.Hash = append(l.Hash, make(map[string]*LSym))
-}
-
-type LinkArch struct {
-	ByteOrder binary.ByteOrder
-	Name      string
-	Thechar   int
-	Minlc     int
-	Ptrsize   int
-	Regsize   int
 }
 
 type Library struct {
@@ -231,7 +215,10 @@ type Library struct {
 	hash   []byte
 }
 
-type Pcln struct {
+type FuncInfo struct {
+	Args        int32
+	Locals      int32
+	Autom       []Auto
 	Pcsp        Pcdata
 	Pcfile      Pcdata
 	Pcline      Pcdata

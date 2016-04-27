@@ -4,7 +4,10 @@
 
 package net
 
-import "syscall"
+import (
+	"context"
+	"syscall"
+)
 
 // UDPAddr represents the address of a UDP end point.
 type UDPAddr struct {
@@ -55,7 +58,7 @@ func ResolveUDPAddr(net, addr string) (*UDPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(net, addr, noDeadline)
+	addrs, err := internetAddrList(context.Background(), net, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +184,7 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialUDP(net, laddr, raddr, noDeadline)
+	c, err := dialUDP(context.Background(), net, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -204,7 +207,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
 	if laddr == nil {
 		laddr = &UDPAddr{}
 	}
-	c, err := listenUDP(net, laddr)
+	c, err := listenUDP(context.Background(), net, laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
@@ -231,7 +234,7 @@ func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPCon
 	if gaddr == nil || gaddr.IP == nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
 	}
-	c, err := listenMulticastUDP(network, ifi, gaddr)
+	c, err := listenMulticastUDP(context.Background(), network, ifi, gaddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
 	}

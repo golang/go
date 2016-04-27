@@ -37,7 +37,8 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if canfail {
 			return nil
 		}
-		panic(&TypeAssertionError{"", typ._string, inter.typ._string, inter.mhdr[0].name.name()})
+		name := inter.typ.nameOff(inter.mhdr[0].name)
+		panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), name.name()})
 	}
 
 	h := itabhash(inter, typ)
@@ -93,26 +94,30 @@ func additab(m *itab, locked, canfail bool) {
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
 	ni := len(inter.mhdr)
-	nt := len(x.mhdr)
+	nt := int(x.mcount)
+	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
-		iname := i.name.name()
-		itype := i._type
-		ipkg := i.name.pkgPath()
-		if ipkg == nil {
-			ipkg = inter.pkgpath
+		itype := inter.typ.typeOff(i.ityp)
+		name := inter.typ.nameOff(i.name)
+		iname := name.name()
+		ipkg := name.pkgPath()
+		if ipkg == "" {
+			ipkg = inter.pkgpath.name()
 		}
 		for ; j < nt; j++ {
-			t := &x.mhdr[j]
-			if t.mtyp == itype && t.name.name() == iname {
-				pkgPath := t.name.pkgPath()
-				if pkgPath == nil {
-					pkgPath = x.pkgpath
+			t := &xmhdr[j]
+			tname := typ.nameOff(t.name)
+			if typ.typeOff(t.mtyp) == itype && tname.name() == iname {
+				pkgPath := tname.pkgPath()
+				if pkgPath == "" {
+					pkgPath = typ.nameOff(x.pkgpath).name()
 				}
-				if t.name.isExported() || pkgPath == ipkg {
+				if tname.isExported() || pkgPath == ipkg {
 					if m != nil {
-						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
+						ifn := typ.textOff(t.ifn)
+						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
 					}
 					goto nextimethod
 				}
@@ -123,7 +128,7 @@ func additab(m *itab, locked, canfail bool) {
 			if locked {
 				unlock(&ifaceLock)
 			}
-			panic(&TypeAssertionError{"", typ._string, inter.typ._string, iname})
+			panic(&TypeAssertionError{"", typ.string(), inter.typ.string(), iname})
 		}
 		m.bad = 1
 		break
@@ -155,58 +160,54 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 		msanread(elem, t.size)
 	}
 	if isDirectIface(t) {
-		e._type = t
-		typedmemmove(t, unsafe.Pointer(&e.data), elem)
-	} else {
-		if x == nil {
-			x = newobject(t)
-		}
+		throw("direct convT2E")
+	}
+	if x == nil {
+		x = newobject(t)
 		// TODO: We allocate a zeroed object only to overwrite it with
 		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
-		typedmemmove(t, x, elem)
-		e._type = t
-		e.data = x
 	}
+	typedmemmove(t, x, elem)
+	e._type = t
+	e.data = x
 	return
 }
 
 func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
 	}
 	if isDirectIface(t) {
-		i.tab = tab
-		typedmemmove(t, unsafe.Pointer(&i.data), elem)
-	} else {
-		if x == nil {
-			x = newobject(t)
-		}
-		typedmemmove(t, x, elem)
-		i.tab = tab
-		i.data = x
+		throw("direct convT2I")
 	}
+	if x == nil {
+		x = newobject(t)
+	}
+	typedmemmove(t, x, elem)
+	i.tab = tab
+	i.data = x
 	return
 }
 
 func panicdottype(have, want, iface *_type) {
 	haveString := ""
 	if have != nil {
-		haveString = have._string
+		haveString = have.string()
 	}
-	panic(&TypeAssertionError{iface._string, haveString, want._string, ""})
+	panic(&TypeAssertionError{iface.string(), haveString, want.string(), ""})
 }
 
 func assertI2T(t *_type, i iface, r unsafe.Pointer) {
 	tab := i.tab
 	if tab == nil {
-		panic(&TypeAssertionError{"", "", t._string, ""})
+		panic(&TypeAssertionError{"", "", t.string(), ""})
 	}
 	if tab._type != t {
-		panic(&TypeAssertionError{tab.inter.typ._string, tab._type._string, t._string, ""})
+		panic(&TypeAssertionError{tab.inter.typ.string(), tab._type.string(), t.string(), ""})
 	}
 	if r != nil {
 		if isDirectIface(t) {
@@ -237,10 +238,10 @@ func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
 
 func assertE2T(t *_type, e eface, r unsafe.Pointer) {
 	if e._type == nil {
-		panic(&TypeAssertionError{"", "", t._string, ""})
+		panic(&TypeAssertionError{"", "", t.string(), ""})
 	}
 	if e._type != t {
-		panic(&TypeAssertionError{"", e._type._string, t._string, ""})
+		panic(&TypeAssertionError{"", e._type.string(), t.string(), ""})
 	}
 	if r != nil {
 		if isDirectIface(t) {
@@ -284,7 +285,7 @@ func assertI2E(inter *interfacetype, i iface, r *eface) {
 	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
 	r._type = tab._type
 	r.data = i.data
@@ -321,7 +322,7 @@ func assertI2I(inter *interfacetype, i iface, r *iface) {
 	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
 	if tab.inter == inter {
 		r.tab = tab
@@ -360,7 +361,7 @@ func assertE2I(inter *interfacetype, e eface, r *iface) {
 	t := e._type
 	if t == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
 	r.tab = getitab(inter, t, false)
 	r.data = e.data
@@ -401,7 +402,7 @@ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 func assertE2E(inter *interfacetype, e eface, r *eface) {
 	if e._type == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ.string(), ""})
 	}
 	*r = e
 }

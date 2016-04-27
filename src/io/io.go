@@ -274,6 +274,16 @@ type RuneScanner interface {
 	UnreadRune() error
 }
 
+// SizedReaderAt is the interface that groups the basic ReadAt method
+// with a Size method that reports the total size of the underlying
+// object. It represents a fixed-size data source that supports random
+// access by multiple concurrent goroutines.
+type SizedReaderAt interface {
+	ReaderAt
+	// Size reports the length of the data source in bytes.
+	Size() int64
+}
+
 // stringWriter is the interface that wraps the WriteString method.
 type stringWriter interface {
 	WriteString(s string) (n int, err error)
@@ -281,6 +291,7 @@ type stringWriter interface {
 
 // WriteString writes the contents of the string s to w, which accepts a slice of bytes.
 // If w implements a WriteString method, it is invoked directly.
+// Otherwise, w.Write is called exactly once.
 func WriteString(w Writer, s string) (n int, err error) {
 	if sw, ok := w.(stringWriter); ok {
 		return sw.WriteString(s)

@@ -72,7 +72,7 @@ func init() {
 		for i := 0; i < 4; i++ {
 			for j := 0; j < 16; j++ {
 				f := uint64(sBoxes[s][i][j]) << (4 * (7 - uint(s)))
-				f = permuteBlock(uint64(f), permutationFunction[:])
+				f = permuteBlock(f, permutationFunction[:])
 				feistelBox[s][16*i+j] = uint32(f)
 			}
 		}

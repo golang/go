@@ -224,8 +224,8 @@ func Version() string {
 
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
-const GOOS string = sys.TheGoos
+const GOOS string = sys.GOOS
 
 // GOARCH is the running program's architecture target:
-// 386, amd64, or arm.
-const GOARCH string = sys.TheGoarch
+// 386, amd64, arm, or s390x.
+const GOARCH string = sys.GOARCH

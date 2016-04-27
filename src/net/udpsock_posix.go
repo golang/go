@@ -7,8 +7,8 @@
 package net
 
 import (
+	"context"
 	"syscall"
-	"time"
 )
 
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
@@ -90,24 +90,24 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
 	return c.fd.writeMsg(b, oob, sa)
 }
 
-func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
-	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", noCancel)
+func dialUDP(ctx context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+	fd, err := internetSocket(ctx, net, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial")
 	if err != nil {
 		return nil, err
 	}
 	return newUDPConn(fd), nil
 }
 
-func listenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
-	fd, err := internetSocket(network, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", noCancel)
+func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, error) {
+	fd, err := internetSocket(ctx, network, laddr, nil, syscall.SOCK_DGRAM, 0, "listen")
 	if err != nil {
 		return nil, err
 	}
 	return newUDPConn(fd), nil
 }
 
-func listenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	fd, err := internetSocket(network, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", noCancel)
+func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	fd, err := internetSocket(ctx, network, gaddr, nil, syscall.SOCK_DGRAM, 0, "listen")
 	if err != nil {
 		return nil, err
 	}

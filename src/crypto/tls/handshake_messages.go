@@ -214,7 +214,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[4] = byte(l)
 		z = z[5:]
 		for _, pointFormat := range m.supportedPoints {
-			z[0] = byte(pointFormat)
+			z[0] = pointFormat
 			z = z[1:]
 		}
 	}
@@ -589,7 +589,7 @@ func (m *serverHelloMsg) marshal() []byte {
 	z := x[39+len(m.sessionId):]
 	z[0] = uint8(m.cipherSuite >> 8)
 	z[1] = uint8(m.cipherSuite)
-	z[2] = uint8(m.compressionMethod)
+	z[2] = m.compressionMethod
 
 	z = z[3:]
 	if numExtensions > 0 {
