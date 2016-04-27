@@ -67,7 +67,7 @@ type Context interface {
 	//
 	//  // Stream generates values with DoSomething and sends them to out
 	//  // until DoSomething returns an error or ctx.Done is closed.
-	//  func Stream(ctx context.Context, out <-chan Value) error {
+	//  func Stream(ctx context.Context, out chan<- Value) error {
 	//  	for {
 	//  		v, err := DoSomething(ctx)
 	//  		if err != nil {
