@@ -298,10 +298,10 @@ func (a *Mpint) SetString(as string) {
 }
 
 func (x *Mpint) String() string {
-	return Bconv(x, 0)
+	return bconv(x, 0)
 }
 
-func Bconv(xval *Mpint, flag FmtFlag) string {
+func bconv(xval *Mpint, flag FmtFlag) string {
 	if flag&FmtSharp != 0 {
 		return fmt.Sprintf("%#x", &xval.Val)
 	}

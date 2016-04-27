@@ -1651,7 +1651,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), op, Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", hconv(nln, FmtSign), op, hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }

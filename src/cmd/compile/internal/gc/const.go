@@ -426,7 +426,7 @@ func toflt(v Val) Val {
 		f := newMpflt()
 		f.Set(&u.Real)
 		if u.Imag.CmpFloat64(0) != 0 {
-			Yyerror("constant %v%vi truncated to real", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
+			Yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		v.U = f
 	}
@@ -451,17 +451,17 @@ func toint(v Val) Val {
 			if u.Val.IsInt() {
 				msg = "constant %v overflows integer"
 			}
-			Yyerror(msg, Fconv(u, FmtSharp))
+			Yyerror(msg, fconv(u, FmtSharp))
 		}
 		v.U = i
 
 	case *Mpcplx:
 		i := new(Mpint)
 		if i.SetFloat(&u.Real) < 0 {
-			Yyerror("constant %v%vi truncated to integer", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
+			Yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		if u.Imag.CmpFloat64(0) != 0 {
-			Yyerror("constant %v%vi truncated to real", Fconv(&u.Real, FmtSharp), Fconv(&u.Imag, FmtSharp|FmtSign))
+			Yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		v.U = i
 	}
@@ -507,7 +507,7 @@ func overflow(v Val, t *Type) {
 	}
 
 	if doesoverflow(v, t) {
-		Yyerror("constant %s overflows %v", Vconv(v, 0), t)
+		Yyerror("constant %s overflows %v", vconv(v, 0), t)
 	}
 }
 

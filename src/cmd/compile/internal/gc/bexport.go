@@ -355,7 +355,7 @@ func export(out *bufio.Writer, trace bool) int {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
-				p.tracef("\n----\nfunc { %s }\n", Hconv(f.Inl, FmtSharp))
+				p.tracef("\n----\nfunc { %s }\n", hconv(f.Inl, FmtSharp))
 			}
 			p.int(i)
 			p.stmtList(f.Inl)
