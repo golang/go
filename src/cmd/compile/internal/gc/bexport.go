@@ -112,10 +112,6 @@ import (
 // (suspected) format errors, and whenever a change is made to the format.
 const debugFormat = false // default: false
 
-// If posInfoFormat is set, position information (file, lineno) is written
-// for each exported object, including methods and struct fields.
-const posInfoFormat = true // default: true
-
 // TODO(gri) remove eventually
 const forceNewExport = false // force new export format - do NOT submit with this flag set
 
@@ -144,8 +140,9 @@ type exporter struct {
 	funcList []*Func
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	written int // bytes written
@@ -160,7 +157,11 @@ func export(out *bufio.Writer, trace bool) int {
 		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
 		pkgIndex: make(map[*Pkg]int),
 		typIndex: make(map[*Type]int),
-		trace:    trace,
+		// don't emit pos info for builtin packages
+		// (not needed and avoids path name diffs in builtin.go between
+		// Windows and non-Windows machines, exposed via builtin_test.go)
+		posInfoFormat: Debug['A'] == 0,
+		trace:         trace,
 	}
 
 	// first byte indicates low-level encoding format
@@ -171,7 +172,7 @@ func export(out *bufio.Writer, trace bool) int {
 	p.rawByte(format)
 
 	// posInfo exported or not?
-	p.bool(posInfoFormat)
+	p.bool(p.posInfoFormat)
 
 	// --- generic export data ---
 
@@ -506,7 +507,7 @@ func (p *exporter) obj(sym *Sym) {
 }
 
 func (p *exporter) pos(n *Node) {
-	if !posInfoFormat {
+	if !p.posInfoFormat {
 		return
 	}
 
