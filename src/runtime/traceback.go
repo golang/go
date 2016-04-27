@@ -771,15 +771,15 @@ func isSystemGoroutine(gp *g) bool {
 // The context function will be called with a single argument, a
 // pointer to a struct:
 //
-// struct {
-//	Context uintptr
-// }
+//	struct {
+//		Context uintptr
+//	}
 //
 // In C syntax, this struct will be
 //
-// struct {
-//   uintptr_t Context;
-// };
+//	struct {
+//		uintptr_t Context;
+//	};
 //
 // If the Context field is 0, the context function is being called to
 // record the current traceback context. It should record whatever
@@ -803,19 +803,19 @@ func isSystemGoroutine(gp *g) bool {
 // The traceback function will be called with a single argument, a
 // pointer to a struct:
 //
-// struct {
-//	Context uintptr
-//	Buf     *uintptr
-//	Max     uintptr
-// }
+//	struct {
+//		Context uintptr
+//		Buf     *uintptr
+//		Max     uintptr
+//	}
 //
 // In C syntax, this struct will be
 //
-// struct {
-//   uintptr_t  Context;
-//   uintptr_t* Buf;
-//   uintptr_t  Max;
-// };
+//	struct {
+//		uintptr_t  Context;
+//		uintptr_t* Buf;
+//		uintptr_t  Max;
+//	};
 //
 // The Context field will be zero to gather a traceback from the
 // current program execution point. In this case, the traceback
@@ -847,27 +847,27 @@ func isSystemGoroutine(gp *g) bool {
 // The symbolizer function will be called with a single argument, a
 // pointer to a struct:
 //
-// struct {
-//	PC      uintptr // program counter to fetch information for
-//	File    *byte   // file name (NUL terminated)
-//	Lineno  uintptr // line number
-//	Func    *byte   // function name (NUL terminated)
-//	Entry   uintptr // function entry point
-//	More    uintptr // set non-zero if more info for this PC
-//	Data    uintptr // unused by runtime, available for function
-// }
+//	struct {
+//		PC      uintptr // program counter to fetch information for
+//		File    *byte   // file name (NUL terminated)
+//		Lineno  uintptr // line number
+//		Func    *byte   // function name (NUL terminated)
+//		Entry   uintptr // function entry point
+//		More    uintptr // set non-zero if more info for this PC
+//		Data    uintptr // unused by runtime, available for function
+//	}
 //
 // In C syntax, this struct will be
 //
-// struct {
-//   uintptr_t PC;
-//   char*     File;
-//   uintptr_t Lineno;
-//   char*     Func;
-//   uintptr_t Entry;
-//   uintptr_t More;
-//   uintptr_t Data;
-// };
+//	struct {
+//		uintptr_t PC;
+//		char*     File;
+//		uintptr_t Lineno;
+//		char*     Func;
+//		uintptr_t Entry;
+//		uintptr_t More;
+//		uintptr_t Data;
+//	};
 //
 // The PC field will be a value returned by a call to the traceback
 // function.
