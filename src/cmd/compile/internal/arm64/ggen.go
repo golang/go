@@ -252,6 +252,53 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 }
 
+// RightShiftWithCarry generates a constant unsigned
+// right shift with carry.
+//
+// res = n >> shift // with carry
+func RightShiftWithCarry(n *gc.Node, shift uint, res *gc.Node) {
+	// Extra 1 is for carry bit.
+	maxshift := uint(n.Type.Width*8 + 1)
+	if shift == 0 {
+		gmove(n, res)
+	} else if shift < maxshift {
+		// 1. clear rightmost bit of target
+		var n1 gc.Node
+		gc.Nodconst(&n1, n.Type, 1)
+		gins(optoas(gc.ORSH, n.Type), &n1, n)
+		gins(optoas(gc.OLSH, n.Type), &n1, n)
+		// 2. add carry flag to target
+		var n2 gc.Node
+		gc.Nodconst(&n1, n.Type, 0)
+		gc.Regalloc(&n2, n.Type, nil)
+		gins(optoas(gc.OAS, n.Type), &n1, &n2)
+		gins(arm64.AADC, &n2, n)
+		// 3. right rotate 1 bit
+		gc.Nodconst(&n1, n.Type, 1)
+		gins(arm64.AROR, &n1, n)
+
+		// ARM64 backend doesn't eliminate shifts by 0. It is manually checked here.
+		if shift > 1 {
+			var n3 gc.Node
+			gc.Nodconst(&n3, n.Type, int64(shift-1))
+			cgen_shift(gc.ORSH, true, n, &n3, res)
+		} else {
+			gmove(n, res)
+		}
+		gc.Regfree(&n2)
+	} else {
+		gc.Fatalf("RightShiftWithCarry: shift(%v) is bigger than max size(%v)", shift, maxshift)
+	}
+}
+
+// AddSetCarry generates add and set carry.
+//
+//   res = nl + nr // with carry flag set
+func AddSetCarry(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+	gins(arm64.AADDS, nl, nr)
+	gmove(nr, res)
+}
+
 /*
  * generate high multiply:
  *   res = (nl*nr) >> width

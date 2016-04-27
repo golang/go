@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"io"
 	"os"
 	"syscall"
@@ -60,7 +61,7 @@ func ResolveTCPAddr(net, addr string) (*TCPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(net)
 	}
-	addrs, err := internetAddrList(net, addr, noDeadline)
+	addrs, err := internetAddrList(context.Background(), net, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +187,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
-	c, err := dialTCP(net, laddr, raddr, noDeadline, noCancel)
+	c, err := dialTCP(context.Background(), net, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
@@ -285,7 +286,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	if laddr == nil {
 		laddr = &TCPAddr{}
 	}
-	ln, err := listenTCP(net, laddr)
+	ln, err := listenTCP(context.Background(), net, laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}

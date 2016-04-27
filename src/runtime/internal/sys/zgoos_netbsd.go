@@ -2,7 +2,7 @@
 
 package sys
 
-const TheGoos = `netbsd`
+const GOOS = `netbsd`
 
 const GoosAndroid = 0
 const GoosDarwin = 0

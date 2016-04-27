@@ -24,7 +24,6 @@ doc/articles/wiki/*.bin
 misc/cgo/life/run.out
 misc/cgo/stdio/run.out
 misc/cgo/testso/main
-src/cmd/**/y.output
 src/cmd/cgo/zdefaultcc.go
 src/cmd/go/zdefaultcc.go
 src/cmd/internal/obj/zbootstrap.go

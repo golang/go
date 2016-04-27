@@ -934,3 +934,23 @@ func (dns *dnsMsg) String() string {
 	}
 	return s
 }
+
+// IsResponseTo reports whether m is an acceptable response to query.
+func (m *dnsMsg) IsResponseTo(query *dnsMsg) bool {
+	if !m.response {
+		return false
+	}
+	if m.id != query.id {
+		return false
+	}
+	if len(m.question) != len(query.question) {
+		return false
+	}
+	for i, q := range m.question {
+		q2 := query.question[i]
+		if !equalASCIILabel(q.Name, q2.Name) || q.Qtype != q2.Qtype || q.Qclass != q2.Qclass {
+			return false
+		}
+	}
+	return true
+}

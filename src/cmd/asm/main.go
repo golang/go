@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 )
 
@@ -31,25 +33,26 @@ func main() {
 
 	flags.Parse()
 
-	// Create object file, write header.
-	fd, err := os.Create(*flags.OutputFile)
-	if err != nil {
-		log.Fatal(err)
-	}
 	ctxt := obj.Linknew(architecture.LinkArch)
 	if *flags.PrintOut {
 		ctxt.Debugasm = 1
 	}
 	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
 	ctxt.Flag_dynlink = *flags.Dynlink
-	if *flags.Shared || *flags.Dynlink {
-		ctxt.Flag_shared = 1
-	}
-	ctxt.Bso = obj.Binitw(os.Stdout)
+	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
-	output := obj.Binitw(fd)
-	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
-	fmt.Fprintf(output, "!\n")
+
+	// Create object file, write header.
+	out, err := os.Create(*flags.OutputFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer bio.MustClose(out)
+	buf := bufio.NewWriter(bio.MustWriter(out))
+
+	fmt.Fprintf(buf, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
+	fmt.Fprintf(buf, "!\n")
 
 	lexer := lex.NewLexer(flag.Arg(0), ctxt)
 	parser := asm.NewParser(ctxt, architecture, lexer)
@@ -63,12 +66,12 @@ func main() {
 	pList.Firstpc, ok = parser.Parse()
 	if ok {
 		// reports errors to parser.Errorf
-		obj.Writeobjdirect(ctxt, output)
+		obj.Writeobjdirect(ctxt, buf)
 	}
 	if !ok || diag {
 		log.Printf("assembly of %s failed", flag.Arg(0))
 		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
-	output.Flush()
+	buf.Flush()
 }

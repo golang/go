@@ -9,6 +9,7 @@ package gzip
 import (
 	"bufio"
 	"compress/flate"
+	"encoding/binary"
 	"errors"
 	"hash/crc32"
 	"io"
@@ -32,6 +33,16 @@ var (
 	// ErrHeader is returned when reading GZIP data that has an invalid header.
 	ErrHeader = errors.New("gzip: invalid header")
 )
+
+var le = binary.LittleEndian
+
+// noEOF converts io.EOF to io.ErrUnexpectedEOF.
+func noEOF(err error) error {
+	if err == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return err
+}
 
 // The gzip file stores a header giving metadata about the compressed file.
 // That header is exposed as the fields of the Writer and Reader structs.
@@ -99,7 +110,8 @@ func (z *Reader) Reset(r io.Reader) error {
 	} else {
 		z.r = bufio.NewReader(r)
 	}
-	return z.readHeader(true)
+	z.Header, z.err = z.readHeader()
+	return z.err
 }
 
 // Multistream controls whether the reader supports multistream files.
@@ -122,14 +134,13 @@ func (z *Reader) Multistream(ok bool) {
 	z.multistream = ok
 }
 
-// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
-func get4(p []byte) uint32 {
-	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
-}
-
+// readString reads a NUL-terminated string from z.r.
+// It treats the bytes read as being encoded as ISO 8859-1 (Latin-1) and
+// will output a string encoded using UTF-8.
+// This method always updates z.digest with the data read.
 func (z *Reader) readString() (string, error) {
 	var err error
-	needconv := false
+	needConv := false
 	for i := 0; ; i++ {
 		if i >= len(z.buf) {
 			return "", ErrHeader
@@ -139,11 +150,14 @@ func (z *Reader) readString() (string, error) {
 			return "", err
 		}
 		if z.buf[i] > 0x7f {
-			needconv = true
+			needConv = true
 		}
 		if z.buf[i] == 0 {
-			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
-			if needconv {
+			// Digest covers the NUL terminator.
+			z.digest = crc32.Update(z.digest, crc32.IEEETable, z.buf[:i+1])
+
+			// Strings are ISO 8859-1, Latin-1 (RFC 1952, section 2.3.1).
+			if needConv {
 				s := make([]rune, 0, i)
 				for _, v := range z.buf[:i] {
 					s = append(s, rune(v))
@@ -155,20 +169,10 @@ func (z *Reader) readString() (string, error) {
 	}
 }
 
-func (z *Reader) read2() (uint32, error) {
-	_, err := io.ReadFull(z.r, z.buf[:2])
-	if err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		return 0, err
-	}
-	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
-}
-
-func (z *Reader) readHeader(save bool) error {
-	_, err := io.ReadFull(z.r, z.buf[:10])
-	if err != nil {
+// readHeader reads the GZIP header according to section 2.3.1.
+// This method does not set z.err.
+func (z *Reader) readHeader() (hdr Header, err error) {
+	if _, err = io.ReadFull(z.r, z.buf[:10]); err != nil {
 		// RFC 1952, section 2.2, says the following:
 		//	A gzip file consists of a series of "members" (compressed data sets).
 		//
@@ -176,63 +180,52 @@ func (z *Reader) readHeader(save bool) error {
 		// "series" is defined as "one or more" or "zero or more". To err on the
 		// side of caution, Go interprets this to mean "zero or more".
 		// Thus, it is okay to return io.EOF here.
-		return err
+		return hdr, err
 	}
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
-		return ErrHeader
+		return hdr, ErrHeader
 	}
 	flg := z.buf[3]
-	if save {
-		z.ModTime = time.Unix(int64(get4(z.buf[4:8])), 0)
-		// z.buf[8] is xfl, ignored
-		z.OS = z.buf[9]
-	}
-	z.digest = crc32.Update(0, crc32.IEEETable, z.buf[:10])
+	hdr.ModTime = time.Unix(int64(le.Uint32(z.buf[4:8])), 0)
+	// z.buf[8] is XFL and is currently ignored.
+	hdr.OS = z.buf[9]
+	z.digest = crc32.ChecksumIEEE(z.buf[:10])
 
 	if flg&flagExtra != 0 {
-		n, err := z.read2()
-		if err != nil {
-			return err
+		if _, err = io.ReadFull(z.r, z.buf[:2]); err != nil {
+			return hdr, noEOF(err)
 		}
-		data := make([]byte, n)
+		z.digest = crc32.Update(z.digest, crc32.IEEETable, z.buf[:2])
+		data := make([]byte, le.Uint16(z.buf[:2]))
 		if _, err = io.ReadFull(z.r, data); err != nil {
-			if err == io.EOF {
-				err = io.ErrUnexpectedEOF
-			}
-			return err
+			return hdr, noEOF(err)
 		}
-		if save {
-			z.Extra = data
-		}
+		z.digest = crc32.Update(z.digest, crc32.IEEETable, data)
+		hdr.Extra = data
 	}
 
 	var s string
 	if flg&flagName != 0 {
 		if s, err = z.readString(); err != nil {
-			return err
+			return hdr, err
 		}
-		if save {
-			z.Name = s
-		}
+		hdr.Name = s
 	}
 
 	if flg&flagComment != 0 {
 		if s, err = z.readString(); err != nil {
-			return err
+			return hdr, err
 		}
-		if save {
-			z.Comment = s
-		}
+		hdr.Comment = s
 	}
 
 	if flg&flagHdrCrc != 0 {
-		n, err := z.read2()
-		if err != nil {
-			return err
+		if _, err = io.ReadFull(z.r, z.buf[:2]); err != nil {
+			return hdr, noEOF(err)
 		}
-		sum := z.digest & 0xFFFF
-		if n != sum {
-			return ErrHeader
+		digest := le.Uint16(z.buf[:2])
+		if digest != uint16(z.digest) {
+			return hdr, ErrHeader
 		}
 	}
 
@@ -242,7 +235,7 @@ func (z *Reader) readHeader(save bool) error {
 	} else {
 		z.decompressor.(flate.Resetter).Reset(z.r, nil)
 	}
-	return nil
+	return hdr, nil
 }
 
 func (z *Reader) Read(p []byte) (n int, err error) {
@@ -260,13 +253,11 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 
 	// Finished file; check checksum and size.
 	if _, err := io.ReadFull(z.r, z.buf[:8]); err != nil {
-		if err == io.EOF {
-			err = io.ErrUnexpectedEOF
-		}
-		z.err = err
-		return n, err
+		z.err = noEOF(err)
+		return n, z.err
 	}
-	digest, size := get4(z.buf[:4]), get4(z.buf[4:8])
+	digest := le.Uint32(z.buf[:4])
+	size := le.Uint32(z.buf[4:8])
 	if digest != z.digest || size != z.size {
 		z.err = ErrChecksum
 		return n, z.err
@@ -279,7 +270,7 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 	}
 	z.err = nil // Remove io.EOF
 
-	if z.err = z.readHeader(false); z.err != nil {
+	if _, z.err = z.readHeader(); z.err != nil {
 		return n, z.err
 	}
 

@@ -7,6 +7,7 @@
 package net
 
 import (
+	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -56,6 +57,7 @@ var dnsReadConfigTests = []struct {
 			ndots:    1,
 			timeout:  5,
 			attempts: 2,
+			search:   []string{"domain.local"},
 		},
 	},
 	{
@@ -72,6 +74,10 @@ var dnsReadConfigTests = []struct {
 }
 
 func TestDNSReadConfig(t *testing.T) {
+	origGetHostname := getHostname
+	defer func() { getHostname = origGetHostname }()
+	getHostname = func() (string, error) { return "host.domain.local", nil }
+
 	for _, tt := range dnsReadConfigTests {
 		conf := dnsReadConfig(tt.name)
 		if conf.err != nil {
@@ -85,6 +91,10 @@ func TestDNSReadConfig(t *testing.T) {
 }
 
 func TestDNSReadMissingFile(t *testing.T) {
+	origGetHostname := getHostname
+	defer func() { getHostname = origGetHostname }()
+	getHostname = func() (string, error) { return "host.domain.local", nil }
+
 	conf := dnsReadConfig("a-nonexistent-file")
 	if !os.IsNotExist(conf.err) {
 		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", conf.err, os.ErrNotExist)
@@ -95,8 +105,52 @@ func TestDNSReadMissingFile(t *testing.T) {
 		ndots:    1,
 		timeout:  5,
 		attempts: 2,
+		search:   []string{"domain.local"},
 	}
 	if !reflect.DeepEqual(conf, want) {
 		t.Errorf("missing resolv.conf:\ngot: %+v\nwant: %+v", conf, want)
+	}
+}
+
+var dnsDefaultSearchTests = []struct {
+	name string
+	err  error
+	want []string
+}{
+	{
+		name: "host.long.domain.local",
+		want: []string{"long.domain.local"},
+	},
+	{
+		name: "host.local",
+		want: []string{"local"},
+	},
+	{
+		name: "host",
+		want: nil,
+	},
+	{
+		name: "host.domain.local",
+		err:  errors.New("errored"),
+		want: nil,
+	},
+	{
+		// ensures we don't return []string{""}
+		// which causes duplicate lookups
+		name: "foo.",
+		want: nil,
+	},
+}
+
+func TestDNSDefaultSearch(t *testing.T) {
+	origGetHostname := getHostname
+	defer func() { getHostname = origGetHostname }()
+
+	for _, tt := range dnsDefaultSearchTests {
+		getHostname = func() (string, error) { return tt.name, tt.err }
+		got := dnsDefaultSearch()
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("dnsDefaultSearch with hostname %q and error %+v = %q, wanted %q", tt.name, tt.err, got, tt.want)
+		}
 	}
 }

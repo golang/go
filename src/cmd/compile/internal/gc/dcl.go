@@ -11,21 +11,29 @@ import (
 	"strings"
 )
 
-func dflag() bool {
-	if Debug['d'] == 0 {
-		return false
-	}
-	if Debug['y'] != 0 {
-		return true
-	}
-	if incannedimport != 0 {
-		return false
-	}
-	return true
-}
+// Declaration stack & operations
 
-// declaration stack & operations
-func dcopy(a *Sym, b *Sym) {
+var externdcl []*Node
+
+var blockgen int32 // max block number
+
+var block int32 // current block number
+
+// dclstack maintains a stack of shadowed symbol declarations so that
+// popdcl can restore their declarations when a block scope ends.
+// The stack is maintained as a linked list, using Sym's Link field.
+//
+// In practice, the "stack" actually ends up forming a tree: goto and label
+// statements record the current state of dclstack so that checkgoto can
+// validate that a goto statement does not jump over any declarations or
+// into a new block scope.
+//
+// Finally, the Syms in this list are not "real" Syms as they don't actually
+// represent object names. Sym is just a convenient type for saving shadowed
+// Sym definitions, and only a subset of its fields are actually used.
+var dclstack *Sym
+
+func dcopy(a, b *Sym) {
 	a.Pkg = b.Pkg
 	a.Name = b.Name
 	a.Def = b.Def
@@ -41,15 +49,16 @@ func push() *Sym {
 	return d
 }
 
+// pushdcl pushes the current declaration for symbol s (if any) so that
+// it can be shadowed by a new declaration within a nested block scope.
 func pushdcl(s *Sym) *Sym {
 	d := push()
 	dcopy(d, s)
-	if dflag() {
-		fmt.Printf("\t%v push %v %p\n", linestr(lineno), s, s.Def)
-	}
 	return d
 }
 
+// popdcl pops the innermost block scope and restores all symbol declarations
+// to their previous state.
 func popdcl() {
 	d := dclstack
 	for ; d != nil && d.Name != ""; d = d.Link {
@@ -57,9 +66,6 @@ func popdcl() {
 		lno := s.Lastlineno
 		dcopy(s, d)
 		d.Lastlineno = lno
-		if dflag() {
-			fmt.Printf("\t%v pop %v %p\n", linestr(lineno), s, s.Def)
-		}
 	}
 
 	if d == nil {
@@ -70,6 +76,7 @@ func popdcl() {
 	block = d.Block
 }
 
+// markdcl records the start of a new block scope for declarations.
 func markdcl() {
 	d := push()
 	d.Name = "" // used as a mark in fifo
@@ -104,6 +111,7 @@ func testdclstack() {
 	}
 }
 
+// redeclare emits a diagnostic about symbol s being redeclared somewhere.
 func redeclare(s *Sym, where string) {
 	if s.Lastlineno == 0 {
 		var tmp string
@@ -137,6 +145,8 @@ var vargen int
 
 var declare_typegen int
 
+// declare records that Node n declares symbol n.Sym in the specified
+// declaration context.
 func declare(n *Node, ctxt Class) {
 	if ctxt == PDISCARD {
 		return
@@ -165,9 +175,6 @@ func declare(n *Node, ctxt Class) {
 	gen := 0
 	if ctxt == PEXTERN {
 		externdcl = append(externdcl, n)
-		if dflag() {
-			fmt.Printf("\t%v global decl %v %p\n", linestr(lineno), s, n)
-		}
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
 			Fatalf("automatic outside function")
@@ -318,8 +325,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	return vv
 }
 
-// this generates a new name node,
-// typically for labels or other one-off names.
+// newname returns a new ONAME Node associated with symbol s.
 func newname(s *Sym) *Node {
 	if s == nil {
 		Fatalf("newname nil")
@@ -364,17 +370,14 @@ func typenod(t *Type) *Node {
 	return t.Nod
 }
 
-// this will return an old name
-// that has already been pushed on the
-// declaration list. a diagnostic is
-// generated if no name has been defined.
+// oldname returns the Node that declares symbol s in the current scope.
+// If no such Node currently exists, an ONONAME Node is returned instead.
 func oldname(s *Sym) *Node {
 	n := s.Def
 	if n == nil {
-		// maybe a top-level name will come along
-		// to give this a definition later.
-		// walkdef will check s->def again once
-		// all the input source has been processed.
+		// Maybe a top-level declaration will come along later to
+		// define s. resolve will check s.Def again once all input
+		// source has been processed.
 		n = newname(s)
 		n.Op = ONONAME
 		n.Name.Iota = iota_ // save current iota value in const declarations
@@ -548,7 +551,7 @@ func funchdr(n *Node) {
 
 func funcargs(nt *Node) {
 	if nt.Op != OTFUNC {
-		Fatalf("funcargs %v", Oconv(nt.Op, 0))
+		Fatalf("funcargs %v", nt.Op)
 	}
 
 	// re-start the variable generation number
@@ -562,7 +565,7 @@ func funcargs(nt *Node) {
 	if nt.Left != nil {
 		n := nt.Left
 		if n.Op != ODCLFIELD {
-			Fatalf("funcargs receiver %v", Oconv(n.Op, 0))
+			Fatalf("funcargs receiver %v", n.Op)
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
@@ -577,7 +580,7 @@ func funcargs(nt *Node) {
 
 	for _, n := range nt.List.Slice() {
 		if n.Op != ODCLFIELD {
-			Fatalf("funcargs in %v", Oconv(n.Op, 0))
+			Fatalf("funcargs in %v", n.Op)
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
@@ -595,7 +598,7 @@ func funcargs(nt *Node) {
 	var i int = 0
 	for _, n := range nt.Rlist.Slice() {
 		if n.Op != ODCLFIELD {
-			Fatalf("funcargs out %v", Oconv(n.Op, 0))
+			Fatalf("funcargs out %v", n.Op)
 		}
 
 		if n.Left == nil {
@@ -716,10 +719,10 @@ func checkembeddedtype(t *Type) {
 		}
 	}
 
-	if t.IsPtr() {
+	if t.IsPtr() || t.IsUnsafePtr() {
 		Yyerror("embedded type cannot be a pointer")
-	} else if t.Etype == TFORW && t.Embedlineno == 0 {
-		t.Embedlineno = lineno
+	} else if t.Etype == TFORW && t.ForwardType().Embedlineno == 0 {
+		t.ForwardType().Embedlineno = lineno
 	}
 }
 
@@ -752,17 +755,13 @@ func structfield(n *Node) *Field {
 		f.Broke = true
 	}
 
-	switch n.Val().Ctype() {
-	case CTSTR:
-		f.Note = new(string)
-		*f.Note = n.Val().U.(string)
-
+	switch u := n.Val().U.(type) {
+	case string:
+		f.Note = u
 	default:
 		Yyerror("field annotation must be string")
-		fallthrough
-
-	case CTxxx:
-		f.Note = nil
+	case nil:
+		// noop
 	}
 
 	if n.Left != nil && n.Left.Op == ONAME {
@@ -830,7 +829,7 @@ func tostruct0(t *Type, l []*Node) {
 
 func tofunargs(l []*Node) *Type {
 	t := typ(TSTRUCT)
-	t.Funarg = true
+	t.StructType().Funarg = true
 
 	fields := make([]*Field, len(l))
 	for i, n := range l {
@@ -1036,11 +1035,11 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 		t.Broke = true
 	}
 
-	t.Outnamed = false
+	t.FuncType().Outnamed = false
 	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
 		s := out[0].Left.Orig.Sym
 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
-			t.Outnamed = true
+			t.FuncType().Outnamed = true
 		}
 	}
 }
@@ -1305,7 +1304,7 @@ func makefuncsym(s *Sym) {
 	if isblanksym(s) {
 		return
 	}
-	if compiling_runtime != 0 && s.Name == "getg" {
+	if compiling_runtime && s.Name == "getg" {
 		// runtime.getg() is not a real function and so does
 		// not get a funcsym.
 		return
@@ -1415,7 +1414,7 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
 		return
 	}
-	if (compiling_runtime != 0 || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
+	if (compiling_runtime || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
 		return
 	}
 	defn := fn.Name.Defn

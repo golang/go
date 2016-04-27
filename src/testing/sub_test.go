@@ -5,8 +5,9 @@
 package testing
 
 import (
-	"io/ioutil"
+	"bytes"
 	"regexp"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -113,11 +114,17 @@ func TestTRun(t *T) {
 		desc   string
 		ok     bool
 		maxPar int
+		chatty bool
+		output string
 		f      func(*T)
 	}{{
 		desc:   "failnow skips future sequential and parallel tests at same level",
 		ok:     false,
 		maxPar: 1,
+		output: `
+--- FAIL: failnow skips future sequential and parallel tests at same level (N.NNs)
+    --- FAIL: failnow skips future sequential and parallel tests at same level/#00 (N.NNs)
+    `,
 		f: func(t *T) {
 			ranSeq := false
 			ranPar := false
@@ -149,6 +156,11 @@ func TestTRun(t *T) {
 		desc:   "failure in parallel test propagates upwards",
 		ok:     false,
 		maxPar: 1,
+		output: `
+--- FAIL: failure in parallel test propagates upwards (N.NNs)
+    --- FAIL: failure in parallel test propagates upwards/#00 (N.NNs)
+        --- FAIL: failure in parallel test propagates upwards/#00/par (N.NNs)
+		`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				t.Parallel()
@@ -157,6 +169,44 @@ func TestTRun(t *T) {
 					t.Fail()
 				})
 			})
+		},
+	}, {
+		desc:   "skipping without message, chatty",
+		ok:     true,
+		chatty: true,
+		output: `
+=== RUN   skipping without message, chatty
+--- SKIP: skipping without message, chatty (N.NNs)`,
+		f: func(t *T) { t.SkipNow() },
+	}, {
+		desc:   "chatty with recursion",
+		ok:     true,
+		chatty: true,
+		output: `
+=== RUN   chatty with recursion
+=== RUN   chatty with recursion/#00
+=== RUN   chatty with recursion/#00/#00
+--- PASS: chatty with recursion (N.NNs)
+    --- PASS: chatty with recursion/#00 (N.NNs)
+        --- PASS: chatty with recursion/#00/#00 (N.NNs)`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.Run("", func(t *T) {})
+			})
+		},
+	}, {
+		desc: "skipping without message, not chatty",
+		ok:   true,
+		f:    func(t *T) { t.SkipNow() },
+	}, {
+		desc: "skipping after error",
+		output: `
+--- FAIL: skipping after error (N.NNs)
+	sub_test.go:NNN: an error
+	sub_test.go:NNN: skipped`,
+		f: func(t *T) {
+			t.Error("an error")
+			t.Skip("skipped")
 		},
 	}, {
 		desc:   "use Run to locally synchronize parallelism",
@@ -174,57 +224,6 @@ func TestTRun(t *T) {
 			})
 			if count != 4 {
 				t.Errorf("count was %d; want 4", count)
-			}
-		},
-	}, {
-		desc:   "run no more than *parallel tests concurrently",
-		ok:     true,
-		maxPar: 4,
-		f: func(t *T) {
-			max := 0
-			in := make(chan int)
-			out := make(chan int)
-			ctx := t.context
-			t.Run("wait", func(t *T) {
-				t.Run("controller", func(t *T) {
-					// Verify sequential tests don't skew counts.
-					t.Run("seq1", func(t *T) {})
-					t.Run("seq2", func(t *T) {})
-					t.Run("seq3", func(t *T) {})
-					t.Parallel()
-					for i := 0; i < 80; i++ {
-						ctx.mu.Lock()
-						if ctx.running > max {
-							max = ctx.running
-						}
-						ctx.mu.Unlock()
-						<-in
-						// force a minimum to avoid a race, although it works
-						// without it.
-						if i >= ctx.maxParallel-2 { // max - this - 1
-							out <- i
-						}
-					}
-					close(out)
-				})
-				// Ensure we don't exceed the maximum even with nested parallelism.
-				for i := 0; i < 2; i++ {
-					t.Run("", func(t *T) {
-						t.Parallel()
-						for j := 0; j < 40; j++ {
-							t.Run("", func(t *T) {
-								t.Run("seq1", func(t *T) {})
-								t.Run("seq2", func(t *T) {})
-								t.Parallel()
-								in <- j
-								<-out
-							})
-						}
-					})
-				}
-			})
-			if max != ctx.maxParallel {
-				realTest.Errorf("max: got %d; want: %d", max, ctx.maxParallel)
 			}
 		},
 	}, {
@@ -301,14 +300,23 @@ func TestTRun(t *T) {
 				})
 			}
 		},
+	}, {
+		desc:   "skip output",
+		ok:     true,
+		maxPar: 4,
+		f: func(t *T) {
+			t.Skip()
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+		buf := &bytes.Buffer{}
 		root := &T{
 			common: common{
 				signal: make(chan bool),
 				name:   "Test",
-				w:      ioutil.Discard,
+				w:      buf,
+				chatty: tc.chatty,
 			},
 			context: ctx,
 		}
@@ -324,6 +332,12 @@ func TestTRun(t *T) {
 		if ctx.running != 0 || ctx.numWaiting != 0 {
 			t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
 		}
+		got := strings.TrimSpace(buf.String())
+		want := strings.TrimSpace(tc.output)
+		re := makeRegexp(want)
+		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+		}
 	}
 }
 
@@ -336,6 +350,8 @@ func TestBRun(t *T) {
 	testCases := []struct {
 		desc   string
 		failed bool
+		chatty bool
+		output string
 		f      func(*B)
 	}{{
 		desc: "simulate sequential run of subbenchmarks.",
@@ -371,7 +387,42 @@ func TestBRun(t *T) {
 	}, {
 		desc:   "failure carried over to root",
 		failed: true,
+		output: "--- FAIL: root",
 		f:      func(b *B) { b.Fail() },
+	}, {
+		desc:   "skipping without message, chatty",
+		chatty: true,
+		output: "--- SKIP: root",
+		f:      func(b *B) { b.SkipNow() },
+	}, {
+		desc:   "skipping with message, chatty",
+		chatty: true,
+		output: `
+--- SKIP: root
+	sub_test.go:NNN: skipping`,
+		f: func(b *B) { b.Skip("skipping") },
+	}, {
+		desc:   "chatty with recursion",
+		chatty: true,
+		f: func(b *B) {
+			b.Run("", func(b *B) {
+				b.Run("", func(b *B) {})
+			})
+		},
+	}, {
+		desc: "skipping without message, not chatty",
+		f:    func(b *B) { b.SkipNow() },
+	}, {
+		desc:   "skipping after error",
+		failed: true,
+		output: `
+--- FAIL: root
+	sub_test.go:NNN: an error
+	sub_test.go:NNN: skipped`,
+		f: func(b *B) {
+			b.Error("an error")
+			b.Skip("skipped")
+		},
 	}, {
 		desc: "memory allocation",
 		f: func(b *B) {
@@ -398,11 +449,15 @@ func TestBRun(t *T) {
 	}}
 	for _, tc := range testCases {
 		var ok bool
+		buf := &bytes.Buffer{}
 		// This is almost like the Benchmark function, except that we override
 		// the benchtime and catch the failure result of the subbenchmark.
 		root := &B{
 			common: common{
 				signal: make(chan bool),
+				name:   "root",
+				w:      buf,
+				chatty: tc.chatty,
 			},
 			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
 			benchTime: time.Microsecond,
@@ -418,5 +473,24 @@ func TestBRun(t *T) {
 		if root.result.N != 1 {
 			t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
 		}
+		got := strings.TrimSpace(buf.String())
+		want := strings.TrimSpace(tc.output)
+		re := makeRegexp(want)
+		if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+			t.Errorf("%s:ouput:\ngot:\n%s\nwant:\n%s", tc.desc, got, want)
+		}
 	}
+}
+
+func makeRegexp(s string) string {
+	s = strings.Replace(s, ":NNN:", `:\d\d\d:`, -1)
+	s = strings.Replace(s, "(N.NNs)", `\(\d*\.\d*s\)`, -1)
+	return s
+}
+
+func TestBenchmarkOutput(t *T) {
+	// Ensure Benchmark initialized common.w by invoking it with an error and
+	// normal case.
+	Benchmark(func(b *B) { b.Error("do not print this output") })
+	Benchmark(func(b *B) {})
 }

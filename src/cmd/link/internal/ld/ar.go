@@ -31,9 +31,11 @@
 package ld
 
 import (
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -62,26 +64,26 @@ type ArHdr struct {
 // define them. This is used for the compiler support library
 // libgcc.a.
 func hostArchive(name string) {
-	f, err := obj.Bopenr(name)
+	f, err := bio.Open(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// It's OK if we don't have a libgcc file at all.
 			if Debug['v'] != 0 {
-				fmt.Fprintf(&Bso, "skipping libgcc file: %v\n", err)
+				fmt.Fprintf(Bso, "skipping libgcc file: %v\n", err)
 			}
 			return
 		}
 		Exitf("cannot open file %s: %v", name, err)
 	}
-	defer obj.Bterm(f)
+	defer f.Close()
 
-	magbuf := make([]byte, len(ARMAG))
-	if obj.Bread(f, magbuf) != len(magbuf) {
+	var magbuf [len(ARMAG)]byte
+	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
 		Exitf("file %s too short", name)
 	}
 
 	var arhdr ArHdr
-	l := nextar(f, obj.Boffset(f), &arhdr)
+	l := nextar(f, f.Offset(), &arhdr)
 	if l <= 0 {
 		Exitf("%s missing armap", name)
 	}
@@ -117,7 +119,7 @@ func hostArchive(name string) {
 			l = atolwhex(arhdr.size)
 
 			h := ldobj(f, "libgcc", l, pname, name, ArchiveObj)
-			obj.Bseek(f, h.off, 0)
+			f.Seek(h.off, 0)
 			h.ld(f, h.pkg, h.length, h.pn)
 		}
 
@@ -130,16 +132,15 @@ func hostArchive(name string) {
 type archiveMap map[string]uint64
 
 // readArmap reads the archive symbol map.
-func readArmap(filename string, f *obj.Biobuf, arhdr ArHdr) archiveMap {
+func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 	is64 := arhdr.name == "/SYM64/"
 	wordSize := 4
 	if is64 {
 		wordSize = 8
 	}
 
-	l := atolwhex(arhdr.size)
-	contents := make([]byte, l)
-	if obj.Bread(f, contents) != int(l) {
+	contents := make([]byte, atolwhex(arhdr.size))
+	if _, err := io.ReadFull(f, contents); err != nil {
 		Exitf("short read from %s", filename)
 	}
 

@@ -533,17 +533,17 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 
 	if !clientDidNPN && serverHasNPN {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised unrequested NPN extension")
+		return false, errors.New("tls: server advertised unrequested NPN extension")
 	}
 
 	if !clientDidALPN && serverHasALPN {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised unrequested ALPN extension")
+		return false, errors.New("tls: server advertised unrequested ALPN extension")
 	}
 
 	if serverHasNPN && serverHasALPN {
 		c.sendAlert(alertHandshakeFailure)
-		return false, errors.New("server advertised both NPN and ALPN extensions")
+		return false, errors.New("tls: server advertised both NPN and ALPN extensions")
 	}
 
 	if serverHasALPN {
@@ -554,6 +554,16 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 
 	if !hs.serverResumedSession() {
 		return false, nil
+	}
+
+	if hs.session.vers != c.vers {
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: server resumed a session with a different version")
+	}
+
+	if hs.session.cipherSuite != hs.suite.id {
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: server resumed a session with a different cipher suite")
 	}
 
 	// Restore masterSecret and peerCerts from previous state

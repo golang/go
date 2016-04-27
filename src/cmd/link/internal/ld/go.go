@@ -8,8 +8,10 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -26,7 +28,7 @@ func expandpkg(t0 string, pkg string) string {
 //	once the dust settles, try to move some code to
 //		libmach, so that other linkers and ar can share.
 
-func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int) {
+func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
 	if Debug['g'] != 0 {
@@ -48,7 +50,7 @@ func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int)
 	}
 
 	bdata := make([]byte, length)
-	if int64(obj.Bread(f, bdata)) != length {
+	if _, err := io.ReadFull(f, bdata); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
 			errorexit()
@@ -418,35 +420,7 @@ type Pkg struct {
 	impby   []*Pkg
 }
 
-var (
-	// pkgmap records the imported-by relationship between packages.
-	// Entries are keyed by package path (e.g., "runtime" or "net/url").
-	pkgmap = map[string]*Pkg{}
-
-	pkgall []*Pkg
-)
-
-func lookupPkg(path string) *Pkg {
-	if p, ok := pkgmap[path]; ok {
-		return p
-	}
-	p := &Pkg{path: path}
-	pkgmap[path] = p
-	pkgall = append(pkgall, p)
-	return p
-}
-
-// imported records that package pkg imports package imp.
-func imported(pkg, imp string) {
-	// everyone imports runtime, even runtime.
-	if imp == "runtime" {
-		return
-	}
-
-	p := lookupPkg(pkg)
-	i := lookupPkg(imp)
-	i.impby = append(i.impby, p)
-}
+var pkgall []*Pkg
 
 func (p *Pkg) cycle() *Pkg {
 	if p.checked {

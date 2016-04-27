@@ -7,6 +7,7 @@
 package net
 
 import (
+	"context"
 	"os"
 	"syscall"
 )
@@ -99,7 +100,7 @@ func readPlan9Addr(proto, filename string) (addr Addr, err error) {
 	return addr, nil
 }
 
-func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
+func startPlan9(ctx context.Context, net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
 	var (
 		ip   IP
 		port int
@@ -118,7 +119,7 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, 
 		return
 	}
 
-	clone, dest, err := queryCS1(proto, ip, port)
+	clone, dest, err := queryCS1(ctx, proto, ip, port)
 	if err != nil {
 		return
 	}
@@ -135,8 +136,8 @@ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, 
 	return f, dest, proto, string(buf[:n]), nil
 }
 
-func netErr(e error) {
-	oe, ok := e.(*OpError)
+func fixErr(err error) {
+	oe, ok := err.(*OpError)
 	if !ok {
 		return
 	}
@@ -165,9 +166,34 @@ func netErr(e error) {
 	}
 }
 
-func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
-	defer func() { netErr(err) }()
-	f, dest, proto, name, err := startPlan9(net, raddr)
+func dialPlan9(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, err error) {
+	defer func() { fixErr(err) }()
+	type res struct {
+		fd  *netFD
+		err error
+	}
+	resc := make(chan res)
+	go func() {
+		testHookDialChannel()
+		fd, err := dialPlan9Blocking(ctx, net, laddr, raddr)
+		select {
+		case resc <- res{fd, err}:
+		case <-ctx.Done():
+			if fd != nil {
+				fd.Close()
+			}
+		}
+	}()
+	select {
+	case res := <-resc:
+		return res.fd, res.err
+	case <-ctx.Done():
+		return nil, mapErr(ctx.Err())
+	}
+}
+
+func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *netFD, err error) {
+	f, dest, proto, name, err := startPlan9(ctx, net, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -190,9 +216,9 @@ func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
 	return newFD(proto, name, f, data, laddr, raddr)
 }
 
-func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
-	defer func() { netErr(err) }()
-	f, dest, proto, name, err := startPlan9(net, laddr)
+func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err error) {
+	defer func() { fixErr(err) }()
+	f, dest, proto, name, err := startPlan9(ctx, net, laddr)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +240,7 @@ func (fd *netFD) netFD() (*netFD, error) {
 }
 
 func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
-	defer func() { netErr(err) }()
+	defer func() { fixErr(err) }()
 	if err := fd.readLock(); err != nil {
 		return nil, err
 	}

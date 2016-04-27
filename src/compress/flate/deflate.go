@@ -73,8 +73,8 @@ type compressor struct {
 	// hashPrev[hashHead[hashValue] & windowMask] contains the previous index
 	// with the same hash value.
 	chainHead  int
-	hashHead   []uint32
-	hashPrev   []uint32
+	hashHead   [hashSize]uint32
+	hashPrev   [windowSize]uint32
 	hashOffset int
 
 	// input window: unprocessed data is window[index:windowEnd]
@@ -188,12 +188,13 @@ func (d *compressor) fillWindow(b []byte) {
 		var newH uint32
 		for i, val := range dst {
 			di := i + index
-			newH = val & hashMask
+			newH = val
+			hh := &d.hashHead[newH&hashMask]
 			// Get previous value with the same hash.
 			// Our chain should point to the previous value.
-			d.hashPrev[di&windowMask] = d.hashHead[newH]
+			d.hashPrev[di&windowMask] = *hh
 			// Set the head of the hash chain to us.
-			d.hashHead[newH] = uint32(di + d.hashOffset)
+			*hh = uint32(di + d.hashOffset)
 		}
 		d.hash = newH
 	}
@@ -293,6 +294,7 @@ func bulkHash4(b []byte, dst []uint32) {
 // bytes in size.
 func matchLen(a, b []byte, max int) int {
 	a = a[:max]
+	b = b[:len(a)]
 	for i, av := range a {
 		if b[i] != av {
 			return i
@@ -302,8 +304,6 @@ func matchLen(a, b []byte, max int) int {
 }
 
 func (d *compressor) initDeflate() {
-	d.hashHead = make([]uint32, hashSize)
-	d.hashPrev = make([]uint32, windowSize)
 	d.window = make([]byte, 2*windowSize)
 	d.hashOffset = 1
 	d.tokens = make([]token, 0, maxFlateBlockTokens+1)
@@ -358,9 +358,10 @@ Loop:
 		if d.index < d.maxInsertIndex {
 			// Update the hash
 			d.hash = hash4(d.window[d.index : d.index+minMatchLength])
-			d.chainHead = int(d.hashHead[d.hash])
+			hh := &d.hashHead[d.hash&hashMask]
+			d.chainHead = int(*hh)
 			d.hashPrev[d.index&windowMask] = uint32(d.chainHead)
-			d.hashHead[d.hash] = uint32(d.index + d.hashOffset)
+			*hh = uint32(d.index + d.hashOffset)
 		}
 		prevLength := d.length
 		prevOffset := d.offset
@@ -404,9 +405,10 @@ Loop:
 						d.hash = hash4(d.window[d.index : d.index+minMatchLength])
 						// Get previous value with the same hash.
 						// Our chain should point to the previous value.
-						d.hashPrev[d.index&windowMask] = d.hashHead[d.hash]
+						hh := &d.hashHead[d.hash&hashMask]
+						d.hashPrev[d.index&windowMask] = *hh
 						// Set the head of the hash chain to us.
-						d.hashHead[d.hash] = uint32(d.index + d.hashOffset)
+						*hh = uint32(d.index + d.hashOffset)
 					}
 				}
 				if d.fastSkipHashing == skipNever {
@@ -531,9 +533,6 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 	return nil
 }
 
-// hzeroes is used for zeroing the hash slice.
-var hzeroes [256]uint32
-
 func (d *compressor) reset(w io.Writer) {
 	d.w.reset(w)
 	d.sync = false
@@ -543,15 +542,13 @@ func (d *compressor) reset(w io.Writer) {
 		d.windowEnd = 0
 	default:
 		d.chainHead = -1
-		for s := d.hashHead; len(s) > 0; {
-			n := copy(s, hzeroes[:])
-			s = s[n:]
+		for i := range d.hashHead {
+			d.hashHead[i] = 0
 		}
-		for s := d.hashPrev; len(s) > 0; s = s[len(hzeroes):] {
-			copy(s, hzeroes[:])
+		for i := range d.hashPrev {
+			d.hashPrev[i] = 0
 		}
 		d.hashOffset = 1
-
 		d.index, d.windowEnd = 0, 0
 		d.blockStart, d.byteAvailable = 0, false
 		d.tokens = d.tokens[:0]

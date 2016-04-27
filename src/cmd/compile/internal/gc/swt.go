@@ -350,7 +350,7 @@ func casebody(sw *Node, typeswvar *Node) {
 	for i, n := range sw.List.Slice() {
 		setlineno(n)
 		if n.Op != OXCASE {
-			Fatalf("casebody %v", Oconv(n.Op, 0))
+			Fatalf("casebody %v", n.Op)
 		}
 		n.Op = OCASE
 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL

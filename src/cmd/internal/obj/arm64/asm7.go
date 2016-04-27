@@ -155,6 +155,7 @@ var optab = []Optab{
 	{AADC, C_REG, C_REG, C_REG, 1, 4, 0, 0, 0},
 	{AADC, C_REG, C_NONE, C_REG, 1, 4, 0, 0, 0},
 	{ANEG, C_REG, C_NONE, C_REG, 25, 4, 0, 0, 0},
+	{ANEG, C_NONE, C_NONE, C_REG, 25, 4, 0, 0, 0},
 	{ANGC, C_REG, C_NONE, C_REG, 17, 4, 0, 0, 0},
 	{ACMP, C_REG, C_REG, C_NONE, 1, 4, 0, 0, 0},
 	{AADD, C_ADDCON, C_RSP, C_RSP, 2, 4, 0, 0, 0},
@@ -972,7 +973,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			ctxt.Instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == obj.STLSBSS {
-					if ctxt.Flag_shared != 0 {
+					if ctxt.Flag_shared {
 						return C_TLS_IE
 					} else {
 						return C_TLS_LE
@@ -1087,7 +1088,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	a1 := int(p.Optab)
 	if a1 != 0 {
-		return &optab[a1-1:][0]
+		return &optab[a1-1]
 	}
 	a1 = int(p.From.Class)
 	if a1 == 0 {
@@ -2198,6 +2199,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = oprrr(ctxt, p.As)
 
 		rf := int(p.From.Reg)
+		if rf == C_NONE {
+			rf = int(p.To.Reg)
+		}
 		rt := int(p.To.Reg)
 		o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
 

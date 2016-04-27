@@ -294,8 +294,8 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 		t.Syms = t.Syms[0 : n+1]
 		ts := &t.Syms[n]
 		ts.Type = s.typ
-		ts.Value = uint64(s.value)
-		ts.GoType = uint64(s.gotype)
+		ts.Value = s.value
+		ts.GoType = s.gotype
 		switch s.typ {
 		default:
 			// rewrite name to use . instead of · (c2 b7)

@@ -9,7 +9,7 @@ func unsafenmagic(nn *Node) *Node {
 	fn := nn.Left
 	args := nn.List
 
-	if safemode != 0 || fn == nil || fn.Op != ONAME {
+	if safemode || fn == nil || fn.Op != ONAME {
 		return nil
 	}
 	s := fn.Sym
@@ -82,7 +82,7 @@ func unsafenmagic(nn *Node) *Node {
 				v += r1.Xoffset
 			default:
 				Dump("unsafenmagic", r)
-				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, FmtSharp))
+				Fatalf("impossible %v node after dot insertion", oconv(r1.Op, FmtSharp))
 				goto bad
 			}
 		}

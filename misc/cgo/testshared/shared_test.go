@@ -329,21 +329,21 @@ func readNotes(f *elf.File) ([]*note, error) {
 	return notes, nil
 }
 
-func dynStrings(path string, flag elf.DynTag) []string {
+func dynStrings(t *testing.T, path string, flag elf.DynTag) []string {
 	f, err := elf.Open(path)
 	defer f.Close()
 	if err != nil {
-		log.Fatal("elf.Open failed: ", err)
+		t.Fatalf("elf.Open(%q) failed: %v", path, err)
 	}
 	dynstrings, err := f.DynString(flag)
 	if err != nil {
-		log.Fatal("dynstring failed: ", err)
+		t.Fatalf("DynString(%s) failed on %s: %v", flag, path, err)
 	}
 	return dynstrings
 }
 
 func AssertIsLinkedToRegexp(t *testing.T, path string, re *regexp.Regexp) {
-	for _, dynstring := range dynStrings(path, elf.DT_NEEDED) {
+	for _, dynstring := range dynStrings(t, path, elf.DT_NEEDED) {
 		if re.MatchString(dynstring) {
 			return
 		}
@@ -357,7 +357,7 @@ func AssertIsLinkedTo(t *testing.T, path, lib string) {
 
 func AssertHasRPath(t *testing.T, path, dir string) {
 	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
-		for _, dynstring := range dynStrings(path, tag) {
+		for _, dynstring := range dynStrings(t, path, tag) {
 			for _, rpath := range strings.Split(dynstring, ":") {
 				if filepath.Clean(rpath) == filepath.Clean(dir) {
 					return

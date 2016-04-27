@@ -31,7 +31,7 @@ package s390x
 
 import (
 	"cmd/internal/obj"
-	"encoding/binary"
+	"cmd/internal/sys"
 	"fmt"
 	"math"
 )
@@ -460,7 +460,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q.As = AMOVD
 				q.From.Type = obj.TYPE_MEM
 				q.From.Reg = REGG
-				q.From.Offset = 4 * int64(ctxt.Arch.Ptrsize) // G.panic
+				q.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R3
 
@@ -664,9 +664,9 @@ func stacksplitPre(ctxt *obj.Link, p *obj.Prog, framesize int32) (*obj.Prog, *ob
 	p.As = AMOVD
 	p.From.Type = obj.TYPE_MEM
 	p.From.Reg = REGG
-	p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+	p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 	if ctxt.Cursym.Cfunc {
-		p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+		p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R3
@@ -999,15 +999,10 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Links390x = obj.LinkArch{
-	ByteOrder:  binary.BigEndian,
-	Name:       "s390x",
-	Thechar:    'z',
+	Arch:       sys.ArchS390X,
 	Preprocess: preprocess,
 	Assemble:   spanz,
 	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
-	Minlc:      2,
-	Ptrsize:    8,
-	Regsize:    8,
 }

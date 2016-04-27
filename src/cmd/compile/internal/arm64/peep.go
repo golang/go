@@ -534,10 +534,13 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 0
 
 	case arm64.AADD, /* read p->from, read p->reg, write p->to */
+		arm64.AADDS,
 		arm64.ASUB,
+		arm64.AADC,
 		arm64.AAND,
 		arm64.AORR,
 		arm64.AEOR,
+		arm64.AROR,
 		arm64.AMUL,
 		arm64.ASMULL,
 		arm64.AUMULL,

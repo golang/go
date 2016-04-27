@@ -2,7 +2,9 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/bio"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -266,7 +268,7 @@ type ElfSect struct {
 }
 
 type ElfObj struct {
-	f         *obj.Biobuf
+	f         *bio.Reader
 	base      int64 // offset in f where ELF begins
 	length    int64 // length of ELF
 	is64      int
@@ -403,7 +405,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 		ehdr.flags = 0x5000202
 	}
 	if data[0] != 'A' {
-		fmt.Fprintf(&Bso, ".ARM.attributes has unexpected format %c\n", data[0])
+		fmt.Fprintf(Bso, ".ARM.attributes has unexpected format %c\n", data[0])
 		return
 	}
 	data = data[1:]
@@ -414,7 +416,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 
 		nulIndex := bytes.IndexByte(sectiondata, 0)
 		if nulIndex < 0 {
-			fmt.Fprintf(&Bso, "corrupt .ARM.attributes (section name not NUL-terminated)\n")
+			fmt.Fprintf(Bso, "corrupt .ARM.attributes (section name not NUL-terminated)\n")
 			return
 		}
 		name := string(sectiondata[:nulIndex])
@@ -438,20 +440,20 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 					}
 				}
 				if attrList.err != nil {
-					fmt.Fprintf(&Bso, "could not parse .ARM.attributes\n")
+					fmt.Fprintf(Bso, "could not parse .ARM.attributes\n")
 				}
 			}
 		}
 	}
 }
 
-func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
+func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
+		fmt.Fprintf(Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
 	Ctxt.IncVersion()
-	base := int32(obj.Boffset(f))
+	base := f.Offset()
 
 	var add uint64
 	var e binary.ByteOrder
@@ -474,7 +476,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 	var sect *ElfSect
 	var sym ElfSym
 	var symbols []*LSym
-	if obj.Bread(f, hdrbuf[:]) != len(hdrbuf) {
+	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
 		goto bad
 	}
 	hdr = new(ElfHdrBytes)
@@ -498,7 +500,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 
 	elfobj.e = e
 	elfobj.f = f
-	elfobj.base = int64(base)
+	elfobj.base = base
 	elfobj.length = length
 	elfobj.name = pn
 
@@ -546,47 +548,48 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 		return
 	}
 
-	switch Thearch.Thechar {
+	switch SysArch.Family {
 	default:
-		Diag("%s: elf %s unimplemented", pn, Thestring)
+		Diag("%s: elf %s unimplemented", pn, SysArch.Name)
 		return
 
-	case '0':
+	case sys.MIPS64:
 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
 			Diag("%s: elf object but not mips64", pn)
 			return
 		}
 
-	case '5':
+	case sys.ARM:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
 			Diag("%s: elf object but not arm", pn)
 			return
 		}
 
-	case '6':
+	case sys.AMD64:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachAmd64 || hdr.Ident[4] != ElfClass64 {
 			Diag("%s: elf object but not amd64", pn)
 			return
 		}
 
-	case '7':
+	case sys.ARM64:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
 			Diag("%s: elf object but not arm64", pn)
 			return
 		}
 
-	case '8':
+	case sys.I386:
 		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
 			Diag("%s: elf object but not 386", pn)
 			return
 		}
 
-	case '9':
+	case sys.PPC64:
 		if elfobj.machine != ElfMachPower64 || hdr.Ident[4] != ElfClass64 {
 			Diag("%s: elf object but not ppc64", pn)
 			return
 		}
-	case 'z':
+
+	case sys.S390X:
 		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
 			Diag("%s: elf object but not s390x", pn)
 			return
@@ -598,7 +601,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 
 	elfobj.nsect = uint(elfobj.shnum)
 	for i := 0; uint(i) < elfobj.nsect; i++ {
-		if obj.Bseek(f, int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
+		if f.Seek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
 			goto bad
 		}
 		sect = &elfobj.sect[i]
@@ -609,7 +612,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 				goto bad
 			}
 
-			sect.nameoff = uint32(e.Uint32(b.Name[:]))
+			sect.nameoff = e.Uint32(b.Name[:])
 			sect.type_ = e.Uint32(b.Type[:])
 			sect.flags = e.Uint64(b.Flags[:])
 			sect.addr = e.Uint64(b.Addr[:])
@@ -626,7 +629,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 				goto bad
 			}
 
-			sect.nameoff = uint32(e.Uint32(b.Name[:]))
+			sect.nameoff = e.Uint32(b.Name[:])
 			sect.type_ = e.Uint32(b.Type[:])
 			sect.flags = uint64(e.Uint32(b.Flags[:]))
 			sect.addr = uint64(e.Uint32(b.Addr[:]))
@@ -771,7 +774,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 		if sym.sym == nil {
 			continue
 		}
-		sect = &elfobj.sect[sym.shndx:][0]
+		sect = &elfobj.sect[sym.shndx]
 		if sect.sym == nil {
 			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
 				continue
@@ -839,19 +842,13 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= AttrOnList
-			if Ctxt.Etextp != nil {
-				Ctxt.Etextp.Next = s
-			} else {
-				Ctxt.Textp = s
-			}
-			Ctxt.Etextp = s
+			Ctxt.Textp = append(Ctxt.Textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
 				s.Attr |= AttrOnList
-				Ctxt.Etextp.Next = s
-				Ctxt.Etextp = s
+				Ctxt.Textp = append(Ctxt.Textp, s)
 			}
 		}
 	}
@@ -925,7 +922,8 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 				rp.Sym = sym.sym
 			}
 
-			rp.Type = int32(reltype(pn, int(uint32(info)), &rp.Siz))
+			rp.Type = 256 + int32(info)
+			rp.Siz = relSize(pn, uint32(info))
 			if rela != 0 {
 				rp.Add = int64(add)
 			} else {
@@ -982,9 +980,11 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	}
 
 	sect.base = make([]byte, sect.size)
-	err = fmt.Errorf("short read")
-	if obj.Bseek(elfobj.f, int64(uint64(elfobj.base)+sect.off), 0) < 0 || obj.Bread(elfobj.f, sect.base) != len(sect.base) {
-		return err
+	if elfobj.f.Seek(int64(uint64(elfobj.base)+sect.off), 0) < 0 {
+		return fmt.Errorf("short read: seek not successful")
+	}
+	if _, err := io.ReadFull(elfobj.f, sect.base); err != nil {
+		return fmt.Errorf("short read: %v", err)
 	}
 
 	return nil
@@ -1056,7 +1056,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 			}
 
 		case ElfSymBindLocal:
-			if Thearch.Thechar == '5' && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
+			if SysArch.Family == sys.ARM && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
 				// binutils for arm generate these mapping
 				// symbols, ignore these
 				break
@@ -1126,79 +1126,89 @@ func (x rbyoff) Less(i, j int) bool {
 	return false
 }
 
-func reltype(pn string, elftype int, siz *uint8) int {
-	switch uint32(Thearch.Thechar) | uint32(elftype)<<24 {
+func relSize(pn string, elftype uint32) uint8 {
+	// TODO(mdempsky): Replace this with a struct-valued switch statement
+	// once golang.org/issue/15164 is fixed or found to not impair cmd/link
+	// performance.
+
+	const (
+		AMD64 = uint32(sys.AMD64)
+		ARM   = uint32(sys.ARM)
+		I386  = uint32(sys.I386)
+		PPC64 = uint32(sys.PPC64)
+		S390X = uint32(sys.S390X)
+	)
+
+	switch uint32(SysArch.Family) | elftype<<24 {
 	default:
 		Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 		fallthrough
 
-	case 'z' | R_390_8:
-		*siz = 1
+	case S390X | R_390_8<<24:
+		return 1
 
-	case '9' | R_PPC64_TOC16<<24,
-		'9' | R_PPC64_TOC16_LO<<24,
-		'9' | R_PPC64_TOC16_HI<<24,
-		'9' | R_PPC64_TOC16_HA<<24,
-		'9' | R_PPC64_TOC16_DS<<24,
-		'9' | R_PPC64_TOC16_LO_DS<<24,
-		'9' | R_PPC64_REL16_LO<<24,
-		'9' | R_PPC64_REL16_HI<<24,
-		'9' | R_PPC64_REL16_HA<<24,
-		'z' | R_390_16<<24,
-		'z' | R_390_GOT16<<24,
-		'z' | R_390_PC16<<24,
-		'z' | R_390_PC16DBL<<24,
-		'z' | R_390_PLT16DBL<<24:
-		*siz = 2
+	case PPC64 | R_PPC64_TOC16<<24,
+		PPC64 | R_PPC64_TOC16_LO<<24,
+		PPC64 | R_PPC64_TOC16_HI<<24,
+		PPC64 | R_PPC64_TOC16_HA<<24,
+		PPC64 | R_PPC64_TOC16_DS<<24,
+		PPC64 | R_PPC64_TOC16_LO_DS<<24,
+		PPC64 | R_PPC64_REL16_LO<<24,
+		PPC64 | R_PPC64_REL16_HI<<24,
+		PPC64 | R_PPC64_REL16_HA<<24,
+		S390X | R_390_16<<24,
+		S390X | R_390_GOT16<<24,
+		S390X | R_390_PC16<<24,
+		S390X | R_390_PC16DBL<<24,
+		S390X | R_390_PLT16DBL<<24:
+		return 2
 
-	case '5' | R_ARM_ABS32<<24,
-		'5' | R_ARM_GOT32<<24,
-		'5' | R_ARM_PLT32<<24,
-		'5' | R_ARM_GOTOFF<<24,
-		'5' | R_ARM_GOTPC<<24,
-		'5' | R_ARM_THM_PC22<<24,
-		'5' | R_ARM_REL32<<24,
-		'5' | R_ARM_CALL<<24,
-		'5' | R_ARM_V4BX<<24,
-		'5' | R_ARM_GOT_PREL<<24,
-		'5' | R_ARM_PC24<<24,
-		'5' | R_ARM_JUMP24<<24,
-		'6' | R_X86_64_PC32<<24,
-		'6' | R_X86_64_PLT32<<24,
-		'6' | R_X86_64_GOTPCREL<<24,
-		'6' | R_X86_64_GOTPCRELX<<24,
-		'6' | R_X86_64_REX_GOTPCRELX<<24,
-		'8' | R_386_32<<24,
-		'8' | R_386_PC32<<24,
-		'8' | R_386_GOT32<<24,
-		'8' | R_386_PLT32<<24,
-		'8' | R_386_GOTOFF<<24,
-		'8' | R_386_GOTPC<<24,
-		'8' | R_386_GOT32X<<24,
-		'9' | R_PPC64_REL24<<24,
-		'9' | R_PPC_REL32<<24,
-		'z' | R_390_32<<24,
-		'z' | R_390_PC32<<24,
-		'z' | R_390_GOT32<<24,
-		'z' | R_390_PLT32<<24,
-		'z' | R_390_PC32DBL<<24,
-		'z' | R_390_PLT32DBL<<24,
-		'z' | R_390_GOTPCDBL<<24,
-		'z' | R_390_GOTENT<<24:
-		*siz = 4
+	case ARM | R_ARM_ABS32<<24,
+		ARM | R_ARM_GOT32<<24,
+		ARM | R_ARM_PLT32<<24,
+		ARM | R_ARM_GOTOFF<<24,
+		ARM | R_ARM_GOTPC<<24,
+		ARM | R_ARM_THM_PC22<<24,
+		ARM | R_ARM_REL32<<24,
+		ARM | R_ARM_CALL<<24,
+		ARM | R_ARM_V4BX<<24,
+		ARM | R_ARM_GOT_PREL<<24,
+		ARM | R_ARM_PC24<<24,
+		ARM | R_ARM_JUMP24<<24,
+		AMD64 | R_X86_64_PC32<<24,
+		AMD64 | R_X86_64_PLT32<<24,
+		AMD64 | R_X86_64_GOTPCREL<<24,
+		AMD64 | R_X86_64_GOTPCRELX<<24,
+		AMD64 | R_X86_64_REX_GOTPCRELX<<24,
+		I386 | R_386_32<<24,
+		I386 | R_386_PC32<<24,
+		I386 | R_386_GOT32<<24,
+		I386 | R_386_PLT32<<24,
+		I386 | R_386_GOTOFF<<24,
+		I386 | R_386_GOTPC<<24,
+		I386 | R_386_GOT32X<<24,
+		PPC64 | R_PPC64_REL24<<24,
+		PPC64 | R_PPC_REL32<<24,
+		S390X | R_390_32<<24,
+		S390X | R_390_PC32<<24,
+		S390X | R_390_GOT32<<24,
+		S390X | R_390_PLT32<<24,
+		S390X | R_390_PC32DBL<<24,
+		S390X | R_390_PLT32DBL<<24,
+		S390X | R_390_GOTPCDBL<<24,
+		S390X | R_390_GOTENT<<24:
+		return 4
 
-	case '6' | R_X86_64_64<<24,
-		'9' | R_PPC64_ADDR64<<24,
-		'z' | R_390_GLOB_DAT<<24,
-		'z' | R_390_RELATIVE<<24,
-		'z' | R_390_GOTOFF<<24,
-		'z' | R_390_GOTPC<<24,
-		'z' | R_390_64<<24,
-		'z' | R_390_PC64<<24,
-		'z' | R_390_GOT64<<24,
-		'z' | R_390_PLT64<<24:
-		*siz = 8
+	case AMD64 | R_X86_64_64<<24,
+		PPC64 | R_PPC64_ADDR64<<24,
+		S390X | R_390_GLOB_DAT<<24,
+		S390X | R_390_RELATIVE<<24,
+		S390X | R_390_GOTOFF<<24,
+		S390X | R_390_GOTPC<<24,
+		S390X | R_390_64<<24,
+		S390X | R_390_PC64<<24,
+		S390X | R_390_GOT64<<24,
+		S390X | R_390_PLT64<<24:
+		return 8
 	}
-
-	return 256 + elftype
 }

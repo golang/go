@@ -2,7 +2,7 @@
 
 package sys
 
-const TheGoarch = `arm`
+const GOARCH = `arm`
 
 const Goarch386 = 0
 const GoarchAmd64 = 0

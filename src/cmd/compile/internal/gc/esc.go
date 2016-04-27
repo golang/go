@@ -522,7 +522,7 @@ func escfunc(e *EscState, func_ *Node) {
 			if ln.Type != nil && !haspointers(ln.Type) {
 				break
 			}
-			if len(Curfn.Nbody.Slice()) == 0 && !Curfn.Noescape {
+			if Curfn.Nbody.Len() == 0 && !Curfn.Noescape {
 				ln.Esc = EscHeap
 			} else {
 				ln.Esc = EscNone // prime for escflood later
@@ -998,8 +998,8 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 	if Debug['m'] > 2 {
 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
 			linestr(lineno), e.loopdepth, funcSym(Curfn),
-			Nconv(dst, FmtShort), Jconv(dst, FmtShort), Oconv(dst.Op, 0),
-			Nconv(src, FmtShort), Jconv(src, FmtShort), Oconv(src.Op, 0))
+			Nconv(dst, FmtShort), Jconv(dst, FmtShort), dst.Op,
+			Nconv(src, FmtShort), Jconv(src, FmtShort), src.Op)
 	}
 
 	setlineno(dst)
@@ -1181,7 +1181,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 
 // mktag returns the string representation for an escape analysis tag.
-func mktag(mask int) *string {
+func mktag(mask int) string {
 	switch mask & EscMask {
 	case EscNone, EscReturn:
 		break
@@ -1191,22 +1191,22 @@ func mktag(mask int) *string {
 	}
 
 	if mask < len(tags) && tags[mask] != "" {
-		return &tags[mask]
+		return tags[mask]
 	}
 
 	s := fmt.Sprintf("esc:0x%x", mask)
 	if mask < len(tags) {
 		tags[mask] = s
 	}
-	return &s
+	return s
 }
 
 // parsetag decodes an escape analysis tag and returns the esc value.
-func parsetag(note *string) uint16 {
-	if note == nil || !strings.HasPrefix(*note, "esc:") {
+func parsetag(note string) uint16 {
+	if !strings.HasPrefix(note, "esc:") {
 		return EscUnknown
 	}
-	n, _ := strconv.ParseInt((*note)[4:], 0, 0)
+	n, _ := strconv.ParseInt(note[4:], 0, 0)
 	em := uint16(n)
 	if em == 0 {
 		return EscNone
@@ -1268,7 +1268,7 @@ func describeEscape(em uint16) string {
 
 // escassignfromtag models the input-to-output assignment flow of one of a function
 // calls arguments, where the flow is encoded in "note".
-func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
+func escassignfromtag(e *EscState, note string, dsts Nodes, src *Node) uint16 {
 	em := parsetag(note)
 	if src.Op == OLITERAL {
 		return em
@@ -1435,7 +1435,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	ll := n.List
 	if n.List.Len() == 1 {
 		a := n.List.First()
-		if a.Type.IsStruct() && a.Type.Funarg { // f(g()).
+		if a.Type.IsFuncArgStruct() { // f(g())
 			ll = e.nodeEscState(a).Escretval
 		}
 	}
@@ -1469,7 +1469,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	nE := e.nodeEscState(n)
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, FmtShort))
 		}
@@ -1741,7 +1741,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 
 	if Debug['m'] > 2 {
 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d] extraloopdepth=%v\n",
-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(src.Op, 0), Nconv(src, FmtShort), Jconv(src, FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
+			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", src.Op, Nconv(src, FmtShort), Jconv(src, FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
 	}
 
 	e.pdepth++
@@ -1969,7 +1969,7 @@ func esctag(e *EscState, func_ *Node) {
 
 	// External functions are assumed unsafe,
 	// unless //go:noescape is given before the declaration.
-	if len(func_.Nbody.Slice()) == 0 {
+	if func_.Nbody.Len() == 0 {
 		if func_.Noescape {
 			for _, t := range func_.Type.Params().Fields().Slice() {
 				if haspointers(t.Type) {
@@ -1997,7 +1997,7 @@ func esctag(e *EscState, func_ *Node) {
 					}
 					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name)
 				}
-				t.Note = &unsafeUintptrTag
+				t.Note = unsafeUintptrTag
 			}
 		}
 

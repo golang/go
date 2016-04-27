@@ -193,6 +193,9 @@ func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRou
 		case syscall.AF_INET6:
 			ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(int(ifam.Prefixlen), 8*IPv6len)}
 			copy(ifa.IP, a.Value[:])
+			if ifa.IP.IsLinkLocalUnicast() {
+				ifa.Zone = ifi.Name
+			}
 			return ifa
 		}
 	}

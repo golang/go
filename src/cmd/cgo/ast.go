@@ -73,7 +73,7 @@ func (f *File) ReadGo(name string) {
 		}
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || string(s.Path.Value) != `"C"` {
+			if !ok || s.Path.Value != `"C"` {
 				continue
 			}
 			sawC = true
@@ -106,7 +106,7 @@ func (f *File) ReadGo(name string) {
 		ws := 0
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec)
-			if !ok || string(s.Path.Value) != `"C"` {
+			if !ok || s.Path.Value != `"C"` {
 				d.Specs[ws] = spec
 				ws++
 			}
@@ -147,7 +147,7 @@ func commentText(g *ast.CommentGroup) string {
 	}
 	var pieces []string
 	for _, com := range g.List {
-		c := string(com.Text)
+		c := com.Text
 		// Remove comment markers.
 		// The parser has given us exactly the comment text.
 		switch c[1] {
@@ -242,11 +242,11 @@ func (f *File) saveExport(x interface{}, context string) {
 		return
 	}
 	for _, c := range n.Doc.List {
-		if !strings.HasPrefix(string(c.Text), "//export ") {
+		if !strings.HasPrefix(c.Text, "//export ") {
 			continue
 		}
 
-		name := strings.TrimSpace(string(c.Text[9:]))
+		name := strings.TrimSpace(c.Text[9:])
 		if name == "" {
 			error_(c.Pos(), "export missing name")
 		}

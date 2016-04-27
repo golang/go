@@ -120,7 +120,7 @@ func goEnv(key string) string {
 func compilemain(t *testing.T, libgo string) {
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c")
 	if GOOS == "windows" {
-		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32")
+		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32", "-lwinmm")
 	} else {
 		ccArgs = append(ccArgs, "main_unix.c", libgo)
 	}
@@ -147,7 +147,11 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	compilemain(t, filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a"))
+	libgopath := filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a")
+	if GOOS == "darwin" && GOARCH == "arm" {
+		libgopath = filepath.Join("pkg", GOOS+"_"+GOARCH+"_shared", "libgo.a")
+	}
+	compilemain(t, libgopath)
 
 	binArgs := append(bin, "arg1", "arg2")
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {

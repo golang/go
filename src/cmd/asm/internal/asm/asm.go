@@ -13,6 +13,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 )
 
 // TODO: configure the architecture
@@ -23,14 +24,14 @@ var testOut *bytes.Buffer // Gathers output when testing.
 // If doLabel is set, it also defines the labels collect for this Prog.
 func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 	if cond != "" {
-		switch p.arch.Thechar {
-		case '5':
+		switch p.arch.Family {
+		case sys.ARM:
 			if !arch.ARMConditionCodes(prog, cond) {
 				p.errorf("unrecognized condition code .%q", cond)
 				return
 			}
 
-		case '7':
+		case sys.ARM64:
 			if !arch.ARM64Suffix(prog, cond) {
 				p.errorf("unrecognized suffix .%q", cond)
 				return
@@ -58,7 +59,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		}
 		p.pendingLabels = p.pendingLabels[0:0]
 	}
-	prog.Pc = int64(p.pc)
+	prog.Pc = p.pc
 	if *flags.Debug {
 		fmt.Println(p.histLineNum, prog)
 	}
@@ -361,7 +362,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		target = &a[1]
 		prog.From = a[0]
 	case 3:
-		if p.arch.Thechar == '9' {
+		if p.arch.Family == sys.PPC64 {
 			// Special 3-operand jumps.
 			// First two must be constants; a[1] is a register number.
 			target = &a[2]
@@ -370,7 +371,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 				Offset: p.getConstant(prog, op, &a[0]),
 			}
 			reg := int16(p.getConstant(prog, op, &a[1]))
-			reg, ok := p.arch.RegisterNumber("R", int16(reg))
+			reg, ok := p.arch.RegisterNumber("R", reg)
 			if !ok {
 				p.errorf("bad register number %d", reg)
 				return
@@ -378,7 +379,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = reg
 			break
 		}
-		if p.arch.Thechar == '0' {
+		if p.arch.Family == sys.MIPS64 {
 			// 3-operand jumps.
 			// First two must be registers
 			target = &a[2]
@@ -386,7 +387,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			break
 		}
-		if p.arch.Thechar == 'z' {
+		if p.arch.Family == sys.S390X {
 			// 3-operand jumps.
 			target = &a[2]
 			prog.From = a[0]
@@ -438,7 +439,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 		// JMP 4(R0)
 		prog.To = *target
 		// On the ppc64, 9a encodes BR (CTR) as BR CTR. We do the same.
-		if p.arch.Thechar == '9' && target.Offset == 0 {
+		if p.arch.Family == sys.PPC64 && target.Offset == 0 {
 			prog.To.Type = obj.TYPE_REG
 		}
 	case target.Type == obj.TYPE_CONST:
@@ -492,14 +493,14 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.From = a[0]
 			// prog.To is no address.
 		}
-		if p.arch.Thechar == '9' && arch.IsPPC64NEG(op) {
+		if p.arch.Family == sys.PPC64 && arch.IsPPC64NEG(op) {
 			// NEG: From and To are both a[0].
 			prog.To = a[0]
 			prog.From = a[0]
 			break
 		}
 	case 2:
-		if p.arch.Thechar == '5' {
+		if p.arch.Family == sys.ARM {
 			if arch.IsARMCMP(op) {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
@@ -532,11 +533,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 				break
 			}
-		} else if p.arch.Thechar == '7' && arch.IsARM64CMP(op) {
+		} else if p.arch.Family == sys.ARM64 && arch.IsARM64CMP(op) {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			break
-		} else if p.arch.Thechar == '0' {
+		} else if p.arch.Family == sys.MIPS64 {
 			if arch.IsMIPS64CMP(op) || arch.IsMIPS64MUL(op) {
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
@@ -546,12 +547,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		prog.From = a[0]
 		prog.To = a[1]
 	case 3:
-		switch p.arch.Thechar {
-		case '0':
+		switch p.arch.Family {
+		case sys.MIPS64:
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
-		case '5':
+		case sys.ARM:
 			// Special cases.
 			if arch.IsARMSTREX(op) {
 				/*
@@ -567,7 +568,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
-		case '7':
+		case sys.ARM64:
 			// ARM64 instructions with one input and two outputs.
 			if arch.IsARM64STLXR(op) {
 				prog.From = a[0]
@@ -582,11 +583,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
-		case '6', '8':
+		case sys.AMD64, sys.I386:
 			prog.From = a[0]
 			prog.From3 = newAddr(a[1])
 			prog.To = a[2]
-		case '9':
+		case sys.PPC64:
 			if arch.IsPPC64CMP(op) {
 				// CMPW etc.; third argument is a CR register that goes into prog.Reg.
 				prog.From = a[0]
@@ -612,7 +613,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				p.errorf("invalid addressing modes for %s instruction", obj.Aconv(op))
 				return
 			}
-		case 'z':
+		case sys.S390X:
 			if arch.IsS390xWithLength(op) || arch.IsS390xWithIndex(op) {
 				prog.From = a[1]
 				prog.From3 = newAddr(a[0])
@@ -626,7 +627,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			return
 		}
 	case 4:
-		if p.arch.Thechar == '5' && arch.IsARMMULA(op) {
+		if p.arch.Family == sys.ARM && arch.IsARMMULA(op) {
 			// All must be registers.
 			p.getRegister(prog, op, &a[0])
 			r1 := p.getRegister(prog, op, &a[1])
@@ -639,14 +640,14 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = r1
 			break
 		}
-		if p.arch.Thechar == '7' {
+		if p.arch.Family == sys.ARM64 {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.From3 = newAddr(a[2])
 			prog.To = a[3]
 			break
 		}
-		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
+		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
 			// 2nd operand must always be a register.
 			// TODO: Do we need to guard this with the instruction type?
 			// That is, are there 4-operand instructions without this property?
@@ -656,7 +657,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[3]
 			break
 		}
-		if p.arch.Thechar == 'z' {
+		if p.arch.Family == sys.S390X {
 			prog.From = a[1]
 			prog.Reg = p.getRegister(prog, op, &a[2])
 			prog.From3 = newAddr(a[0])
@@ -666,7 +667,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		p.errorf("can't handle %s instruction with 4 operands", obj.Aconv(op))
 		return
 	case 5:
-		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
+		if p.arch.Family == sys.PPC64 && arch.IsPPC64RLD(op) {
 			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
@@ -688,7 +689,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		p.errorf("can't handle %s instruction with 5 operands", obj.Aconv(op))
 		return
 	case 6:
-		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
+		if p.arch.Family == sys.ARM && arch.IsARMMRC(op) {
 			// Strange special case: MCR, MRC.
 			prog.To.Type = obj.TYPE_CONST
 			x0 := p.getConstant(prog, op, &a[0])

@@ -183,10 +183,11 @@ func dumptype(t *_type) {
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.size))
-	if x := t.uncommon(); x == nil || x.pkgpath == nil {
-		dumpstr(t._string)
+	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
+		dumpstr(t.string())
 	} else {
-		pkgpath := stringStructOf(x.pkgpath)
+		pkgpathstr := t.nameOff(x.pkgpath).name()
+		pkgpath := stringStructOf(&pkgpathstr)
 		namestr := t.name()
 		name := stringStructOf(&namestr)
 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
@@ -500,7 +501,7 @@ func dumpparams() {
 	dumpint(sys.PtrSize)
 	dumpint(uint64(mheap_.arena_start))
 	dumpint(uint64(mheap_.arena_used))
-	dumpint(sys.TheChar)
+	dumpstr(sys.GOARCH)
 	dumpstr(sys.Goexperiment)
 	dumpint(uint64(ncpu))
 }

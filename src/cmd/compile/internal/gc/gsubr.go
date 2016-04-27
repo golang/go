@@ -32,6 +32,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"runtime"
 	"strings"
@@ -57,7 +58,9 @@ func Ismem(n *Node) bool {
 		return true
 
 	case OADDR:
-		return Thearch.Thechar == '6' || Thearch.Thechar == '9' // because 6g uses PC-relative addressing; TODO(rsc): not sure why 9g too
+		// amd64 and s390x use PC relative addressing.
+		// TODO(rsc): not sure why ppc64 needs this too.
+		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64, sys.S390X)
 	}
 
 	return false
@@ -83,7 +86,7 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Val = nil
-	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' && Thearch.Thechar != '0' {
+	if as != obj.AJMP && likely != 0 && !Thearch.LinkArch.InFamily(sys.PPC64, sys.ARM64, sys.MIPS64, sys.S390X) {
 		p.From.Type = obj.TYPE_CONST
 		if likely > 0 {
 			p.From.Offset = 1
@@ -274,7 +277,7 @@ func gused(n *Node) {
 func Isfat(t *Type) bool {
 	if t != nil {
 		switch t.Etype {
-		case TSTRUCT, TARRAY, TSTRING,
+		case TSTRUCT, TARRAY, TSLICE, TSTRING,
 			TINTER: // maybe remove later
 			return true
 		}
@@ -324,13 +327,13 @@ func Naddr(a *obj.Addr, n *Node) {
 		a := a // copy to let escape into Ctxt.Dconv
 		Debug['h'] = 1
 		Dump("naddr", n)
-		Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
+		Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
 
 	case OREGISTER:
 		a.Type = obj.TYPE_REG
 		a.Reg = n.Reg
 		a.Sym = nil
-		if Thearch.Thechar == '8' { // TODO(rsc): Never clear a->width.
+		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
 			a.Width = 0
 		}
 
@@ -342,7 +345,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Offset != int64(int32(a.Offset)) {
 			Yyerror("offset %d too large for OINDREG", a.Offset)
 		}
-		if Thearch.Thechar == '8' { // TODO(rsc): Never clear a->width.
+		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
 			a.Width = 0
 		}
 
@@ -419,36 +422,36 @@ func Naddr(a *obj.Addr, n *Node) {
 		if !n.Left.Type.IsStruct() || n.Left.Type.Field(0).Sym != n.Sym {
 			Debug['h'] = 1
 			Dump("naddr", n)
-			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
+			Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
 		}
 		Naddr(a, n.Left)
 
 	case OLITERAL:
-		if Thearch.Thechar == '8' {
+		if Thearch.LinkArch.Family == sys.I386 {
 			a.Width = 0
 		}
-		switch n.Val().Ctype() {
+		switch u := n.Val().U.(type) {
 		default:
 			Fatalf("naddr: const %v", Tconv(n.Type, FmtLong))
 
-		case CTFLT:
+		case *Mpflt:
 			a.Type = obj.TYPE_FCONST
-			a.Val = n.Val().U.(*Mpflt).Float64()
+			a.Val = u.Float64()
 
-		case CTINT, CTRUNE:
+		case *Mpint:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = n.Int64()
+			a.Offset = u.Int64()
 
-		case CTSTR:
-			datagostring(n.Val().U.(string), a)
+		case string:
+			datagostring(u, a)
 
-		case CTBOOL:
+		case bool:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = int64(obj.Bool2int(n.Val().U.(bool)))
+			a.Offset = int64(obj.Bool2int(u))
 
-		case CTNIL:
+		case *NilVal:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
 			a.Offset = 0
@@ -457,12 +460,12 @@ func Naddr(a *obj.Addr, n *Node) {
 	case OADDR:
 		Naddr(a, n.Left)
 		a.Etype = uint8(Tptr)
-		if Thearch.Thechar != '0' && Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
+		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) { // TODO(rsc): Do this even for these architectures.
 			a.Width = int64(Widthptr)
 		}
 		if a.Type != obj.TYPE_MEM {
 			a := a // copy to let escape into Ctxt.Dconv
-			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(n.Left.Op, 0))
+			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), n.Left.Op)
 		}
 		a.Type = obj.TYPE_ADDR
 
@@ -496,7 +499,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_nel)
-		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
 		}
 
@@ -509,7 +512,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_cap)
-		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
+		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
 		}
 	}
@@ -541,7 +544,7 @@ func nodarg(t interface{}, fp int) *Node {
 	switch t := t.(type) {
 	case *Type:
 		// entire argument struct, not just one arg
-		if !t.IsStruct() || !t.Funarg {
+		if !t.IsFuncArgStruct() {
 			Fatalf("nodarg: bad type %v", t)
 		}
 		n = Nod(ONAME, nil, nil)
@@ -695,7 +698,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
 		Fatalf("regalloc: t nil")
 	}
 	et := Simtype[t.Etype]
-	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
+	if Ctxt.Arch.RegSize == 4 && (et == TINT64 || et == TUINT64) {
 		Fatalf("regalloc 64bit")
 	}
 

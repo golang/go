@@ -86,14 +86,18 @@ func (e *errorWriter) Write(b []byte) (int, error) {
 // Test if errors from the underlying writer is passed upwards.
 func TestWriteError(t *testing.T) {
 	buf := new(bytes.Buffer)
-	for i := 0; i < 1024*1024; i++ {
-		buf.WriteString(fmt.Sprintf("asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i))
+	n := 65536
+	if !testing.Short() {
+		n *= 4
+	}
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(buf, "asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i)
 	}
 	in := buf.Bytes()
 	// We create our own buffer to control number of writes.
-	copyBuffer := make([]byte, 1024)
+	copyBuffer := make([]byte, 128)
 	for l := 0; l < 10; l++ {
-		for fail := 1; fail <= 512; fail *= 2 {
+		for fail := 1; fail <= 256; fail *= 2 {
 			// Fail after 'fail' writes
 			ew := &errorWriter{N: fail}
 			w, err := NewWriter(ew, l)

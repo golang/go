@@ -61,13 +61,13 @@ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
 		m.Data = m.Data[unsafe.Offsetof(sa.Data):]
 		var name [syscall.IFNAMSIZ]byte
 		for i := 0; i < int(sa.Nlen); i++ {
-			name[i] = byte(m.Data[i])
+			name[i] = m.Data[i]
 		}
 		ifi.Name = string(name[:sa.Nlen])
 		ifi.MTU = int(m.Header.Data.Mtu)
 		addr := make([]byte, sa.Alen)
 		for i := 0; i < int(sa.Alen); i++ {
-			addr[i] = byte(m.Data[int(sa.Nlen)+i])
+			addr[i] = m.Data[int(sa.Nlen)+i]
 		}
 		ifi.HardwareAddr = addr[:sa.Alen]
 	}
@@ -166,6 +166,7 @@ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
 		// link-local address as the kernel-internal form.
 		if ifa.IP.IsLinkLocalUnicast() {
 			ifa.IP[2], ifa.IP[3] = 0, 0
+			ifa.Zone = ifi.Name
 		}
 	}
 	if ifa.IP == nil || ifa.Mask == nil {

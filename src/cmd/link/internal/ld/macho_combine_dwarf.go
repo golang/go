@@ -15,11 +15,9 @@ import (
 	"unsafe"
 )
 
-var fakedwarf, realdwarf, linkseg *macho.Segment
+var realdwarf, linkseg *macho.Segment
 var dwarfstart, linkstart int64
 var linkoffset uint32
-var machHeader *macho.FileHeader
-var mappedHeader []byte
 
 const (
 	LC_ID_DYLIB             = 0xd

@@ -44,32 +44,50 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
-				r := (yy1 + 91881*cr1) >> 16
-				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
-				b := (yy1 + 116130*cb1) >> 16
-				if r < 0 {
-					r = 0
-				} else if r > 255 {
-					r = 255
-				}
-				if g < 0 {
-					g = 0
-				} else if g > 255 {
-					g = 255
-				}
-				if b < 0 {
-					b = 0
-				} else if b > 255 {
-					b = 255
+
+				// The bit twiddling below is equivalent to
+				//
+				// r := (yy1 + 91881*cr1) >> 16
+				// if r < 0 {
+				//     r = 0
+				// } else if r > 0xff {
+				//     r = ^int32(0)
+				// }
+				//
+				// but uses fewer branches and is faster.
+				// Note that the uint8 type conversion in the return
+				// statement will convert ^int32(0) to 0xff.
+				// The code below to compute g and b uses a similar pattern.
+				r := yy1 + 91881*cr1
+				if uint32(r)&0xff000000 == 0 {
+					r >>= 16
+				} else {
+					r = ^(r >> 31)
 				}
 
-				dpix[x+0] = uint8(r)
-				dpix[x+1] = uint8(g)
-				dpix[x+2] = uint8(b)
-				dpix[x+3] = 255
+				g := yy1 - 22554*cb1 - 46802*cr1
+				if uint32(g)&0xff000000 == 0 {
+					g >>= 16
+				} else {
+					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
+				}
+
+				// use a temp slice to hint to the compiler that a single bounds check suffices
+				rgba := dpix[x : x+4 : len(dpix)]
+				rgba[0] = uint8(r)
+				rgba[1] = uint8(g)
+				rgba[2] = uint8(b)
+				rgba[3] = 255
 			}
 		}
 
@@ -83,32 +101,50 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				ci := ciBase + sx/2
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
-				r := (yy1 + 91881*cr1) >> 16
-				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
-				b := (yy1 + 116130*cb1) >> 16
-				if r < 0 {
-					r = 0
-				} else if r > 255 {
-					r = 255
-				}
-				if g < 0 {
-					g = 0
-				} else if g > 255 {
-					g = 255
-				}
-				if b < 0 {
-					b = 0
-				} else if b > 255 {
-					b = 255
+
+				// The bit twiddling below is equivalent to
+				//
+				// r := (yy1 + 91881*cr1) >> 16
+				// if r < 0 {
+				//     r = 0
+				// } else if r > 0xff {
+				//     r = ^int32(0)
+				// }
+				//
+				// but uses fewer branches and is faster.
+				// Note that the uint8 type conversion in the return
+				// statement will convert ^int32(0) to 0xff.
+				// The code below to compute g and b uses a similar pattern.
+				r := yy1 + 91881*cr1
+				if uint32(r)&0xff000000 == 0 {
+					r >>= 16
+				} else {
+					r = ^(r >> 31)
 				}
 
-				dpix[x+0] = uint8(r)
-				dpix[x+1] = uint8(g)
-				dpix[x+2] = uint8(b)
-				dpix[x+3] = 255
+				g := yy1 - 22554*cb1 - 46802*cr1
+				if uint32(g)&0xff000000 == 0 {
+					g >>= 16
+				} else {
+					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
+				}
+
+				// use a temp slice to hint to the compiler that a single bounds check suffices
+				rgba := dpix[x : x+4 : len(dpix)]
+				rgba[0] = uint8(r)
+				rgba[1] = uint8(g)
+				rgba[2] = uint8(b)
+				rgba[3] = 255
 			}
 		}
 
@@ -122,32 +158,50 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 				ci := ciBase + sx/2
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
-				r := (yy1 + 91881*cr1) >> 16
-				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
-				b := (yy1 + 116130*cb1) >> 16
-				if r < 0 {
-					r = 0
-				} else if r > 255 {
-					r = 255
-				}
-				if g < 0 {
-					g = 0
-				} else if g > 255 {
-					g = 255
-				}
-				if b < 0 {
-					b = 0
-				} else if b > 255 {
-					b = 255
+
+				// The bit twiddling below is equivalent to
+				//
+				// r := (yy1 + 91881*cr1) >> 16
+				// if r < 0 {
+				//     r = 0
+				// } else if r > 0xff {
+				//     r = ^int32(0)
+				// }
+				//
+				// but uses fewer branches and is faster.
+				// Note that the uint8 type conversion in the return
+				// statement will convert ^int32(0) to 0xff.
+				// The code below to compute g and b uses a similar pattern.
+				r := yy1 + 91881*cr1
+				if uint32(r)&0xff000000 == 0 {
+					r >>= 16
+				} else {
+					r = ^(r >> 31)
 				}
 
-				dpix[x+0] = uint8(r)
-				dpix[x+1] = uint8(g)
-				dpix[x+2] = uint8(b)
-				dpix[x+3] = 255
+				g := yy1 - 22554*cb1 - 46802*cr1
+				if uint32(g)&0xff000000 == 0 {
+					g >>= 16
+				} else {
+					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
+				}
+
+				// use a temp slice to hint to the compiler that a single bounds check suffices
+				rgba := dpix[x : x+4 : len(dpix)]
+				rgba[0] = uint8(r)
+				rgba[1] = uint8(g)
+				rgba[2] = uint8(b)
+				rgba[3] = 255
 			}
 		}
 
@@ -160,32 +214,50 @@ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Po
 			for x := x0; x != x1; x, yi, ci = x+4, yi+1, ci+1 {
 
 				// This is an inline version of image/color/ycbcr.go's func YCbCrToRGB.
-				yy1 := int32(src.Y[yi]) * 0x10100 // Convert 0x12 to 0x121200.
+				yy1 := int32(src.Y[yi]) * 0x010100 // Convert 0x12 to 0x121200.
 				cb1 := int32(src.Cb[ci]) - 128
 				cr1 := int32(src.Cr[ci]) - 128
-				r := (yy1 + 91881*cr1) >> 16
-				g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
-				b := (yy1 + 116130*cb1) >> 16
-				if r < 0 {
-					r = 0
-				} else if r > 255 {
-					r = 255
-				}
-				if g < 0 {
-					g = 0
-				} else if g > 255 {
-					g = 255
-				}
-				if b < 0 {
-					b = 0
-				} else if b > 255 {
-					b = 255
+
+				// The bit twiddling below is equivalent to
+				//
+				// r := (yy1 + 91881*cr1) >> 16
+				// if r < 0 {
+				//     r = 0
+				// } else if r > 0xff {
+				//     r = ^int32(0)
+				// }
+				//
+				// but uses fewer branches and is faster.
+				// Note that the uint8 type conversion in the return
+				// statement will convert ^int32(0) to 0xff.
+				// The code below to compute g and b uses a similar pattern.
+				r := yy1 + 91881*cr1
+				if uint32(r)&0xff000000 == 0 {
+					r >>= 16
+				} else {
+					r = ^(r >> 31)
 				}
 
-				dpix[x+0] = uint8(r)
-				dpix[x+1] = uint8(g)
-				dpix[x+2] = uint8(b)
-				dpix[x+3] = 255
+				g := yy1 - 22554*cb1 - 46802*cr1
+				if uint32(g)&0xff000000 == 0 {
+					g >>= 16
+				} else {
+					g = ^(g >> 31)
+				}
+
+				b := yy1 + 116130*cb1
+				if uint32(b)&0xff000000 == 0 {
+					b >>= 16
+				} else {
+					b = ^(b >> 31)
+				}
+
+				// use a temp slice to hint to the compiler that a single bounds check suffices
+				rgba := dpix[x : x+4 : len(dpix)]
+				rgba[0] = uint8(r)
+				rgba[1] = uint8(g)
+				rgba[2] = uint8(b)
+				rgba[3] = 255
 			}
 		}
 

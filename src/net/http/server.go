@@ -9,6 +9,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -50,6 +51,9 @@ var (
 // ResponseWriter. Cautious handlers should read the Request.Body
 // first, and then reply.
 //
+// Except for reading the body, handlers should not modify the
+// provided Request.
+//
 // If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
 // that the effect of the panic was isolated to the active request.
 // It recovers the panic, logs a stack trace to the server error log,
@@ -90,6 +94,10 @@ type ResponseWriter interface {
 // The Flusher interface is implemented by ResponseWriters that allow
 // an HTTP handler to flush buffered data to the client.
 //
+// The default HTTP/1.x and HTTP/2 ResponseWriter implementations
+// support Flusher, but ResponseWriter wrappers may not. Handlers
+// should always test for this ability at runtime.
+//
 // Note that even for ResponseWriters that support Flush,
 // if the client is connected through an HTTP proxy,
 // the buffered data may not reach the client until the response
@@ -101,6 +109,11 @@ type Flusher interface {
 
 // The Hijacker interface is implemented by ResponseWriters that allow
 // an HTTP handler to take over the connection.
+//
+// The default ResponseWriter for HTTP/1.x connections supports
+// Hijacker, but HTTP/2 connections intentionally do not.
+// ResponseWriter wrappers may also not support Hijacker. Handlers
+// should always test for this ability at runtime.
 type Hijacker interface {
 	// Hijack lets the caller take over the connection.
 	// After a call to Hijack(), the HTTP server library
@@ -142,6 +155,14 @@ type CloseNotifier interface {
 	// such as POST.
 	CloseNotify() <-chan bool
 }
+
+var (
+	// ServerContextKey is a context key. It can be used in HTTP
+	// handlers with context.WithValue to access the server that
+	// started the handler. The associated value will be of
+	// type *Server.
+	ServerContextKey = &contextKey{"http-server"}
+)
 
 // A conn represents the server side of an HTTP connection.
 type conn struct {
@@ -306,11 +327,14 @@ func (cw *chunkWriter) close() {
 
 // A response represents the server side of an HTTP response.
 type response struct {
-	conn          *conn
-	req           *Request // request for this response
-	reqBody       io.ReadCloser
-	wroteHeader   bool // reply header has been (logically) written
-	wroteContinue bool // 100 Continue response was written
+	conn             *conn
+	req              *Request // request for this response
+	reqBody          io.ReadCloser
+	cancelCtx        context.CancelFunc // when ServeHTTP exits
+	wroteHeader      bool               // reply header has been (logically) written
+	wroteContinue    bool               // 100 Continue response was written
+	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
+	wantsClose       bool               // HTTP request has Connection "close"
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
@@ -681,7 +705,7 @@ func appendTime(b []byte, t time.Time) []byte {
 var errTooLarge = errors.New("http: request too large")
 
 // Read next request from connection.
-func (c *conn) readRequest() (w *response, err error) {
+func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	if c.hijacked() {
 		return nil, ErrHijacked
 	}
@@ -710,6 +734,10 @@ func (c *conn) readRequest() (w *response, err error) {
 		}
 		return nil, err
 	}
+
+	ctx, cancelCtx := context.WithCancel(ctx)
+	req.ctx = ctx
+
 	c.lastMethod = req.Method
 	c.r.setInfiniteReadLimit()
 
@@ -744,10 +772,17 @@ func (c *conn) readRequest() (w *response, err error) {
 
 	w = &response{
 		conn:          c,
+		cancelCtx:     cancelCtx,
 		req:           req,
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
+
+		// We populate these ahead of time so we're not
+		// reading from req.Header after their Handler starts
+		// and maybe mutates it (Issue 14940)
+		wants10KeepAlive: req.wantsHttp10KeepAlive(),
+		wantsClose:       req.wantsClose(),
 	}
 	if isH2Upgrade {
 		w.closeAfterReply = true
@@ -929,7 +964,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 
 	// If this was an HTTP/1.0 request with keep-alive and we sent a
 	// Content-Length back, we can make this a keep-alive response ...
-	if w.req.wantsHttp10KeepAlive() && keepAlivesEnabled {
+	if w.wants10KeepAlive && keepAlivesEnabled {
 		sentLength := header.get("Content-Length") != ""
 		if sentLength && header.get("Connection") == "keep-alive" {
 			w.closeAfterReply = false
@@ -939,12 +974,12 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// Check for a explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
-	if w.req.wantsHttp10KeepAlive() && (isHEAD || hasCL) {
+	if w.wants10KeepAlive && (isHEAD || hasCL) {
 		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"
 		}
-	} else if !w.req.ProtoAtLeast(1, 1) || w.req.wantsClose() {
+	} else if !w.req.ProtoAtLeast(1, 1) || w.wantsClose {
 		w.closeAfterReply = true
 	}
 
@@ -1384,7 +1419,7 @@ type badRequestError string
 func (e badRequestError) Error() string { return "Bad Request: " + string(e) }
 
 // Serve a new connection.
-func (c *conn) serve() {
+func (c *conn) serve(ctx context.Context) {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
 	defer func() {
 		if err := recover(); err != nil {
@@ -1421,12 +1456,17 @@ func (c *conn) serve() {
 		}
 	}
 
+	// HTTP/1.x from here on.
+
 	c.r = &connReader{r: c.rwc}
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
+	ctx, cancelCtx := context.WithCancel(ctx)
+	defer cancelCtx()
+
 	for {
-		w, err := c.readRequest()
+		w, err := c.readRequest(ctx)
 		if c.r.remain != c.server.initialReadLimitSize() {
 			// If we read any bytes off the wire, we're active.
 			c.setState(c.rwc, StateActive)
@@ -1474,6 +1514,7 @@ func (c *conn) serve() {
 		// [*] Not strictly true: HTTP pipelining. We could let them all process
 		// in parallel even if their responses need to be serialized.
 		serverHandler{c.server}.ServeHTTP(w, w.req)
+		w.cancelCtx()
 		if c.hijacked() {
 			return
 		}
@@ -1625,6 +1666,8 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
 // Helper handlers
 
 // Error replies to the request with the specified error message and HTTP code.
+// It does not otherwise end the request; the caller should ensure no further
+// writes are done to w.
 // The error message should be plain text.
 func Error(w ResponseWriter, error string, code int) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -1713,7 +1756,7 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 	w.Header().Set("Location", urlStr)
 	w.WriteHeader(code)
 
-	// RFC2616 recommends that a short note "SHOULD" be included in the
+	// RFC 2616 recommends that a short note "SHOULD" be included in the
 	// response because older user agents may not understand 301/307.
 	// Shouldn't send the response for POST or HEAD; that leaves GET.
 	if r.Method == "GET" {
@@ -2122,6 +2165,10 @@ func (srv *Server) Serve(l net.Listener) error {
 	if err := srv.setupHTTP2(); err != nil {
 		return err
 	}
+	// TODO: allow changing base context? can't imagine concrete
+	// use cases yet.
+	baseCtx := context.Background()
+	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
 	for {
 		rw, e := l.Accept()
 		if e != nil {
@@ -2143,7 +2190,7 @@ func (srv *Server) Serve(l net.Listener) error {
 		tempDelay = 0
 		c := srv.newConn(rw)
 		c.setState(c.rwc, StateNew) // before Serve can return
-		go c.serve()
+		go c.serve(ctx)
 	}
 }
 

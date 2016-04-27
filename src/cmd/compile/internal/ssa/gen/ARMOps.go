@@ -25,13 +25,13 @@ func init() {
 
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1
 
-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW"},   // load from arg0 + auxInt + aux.  arg1=mem.
-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW"},   // load from arg0 + auxInt + aux.  arg1=mem.
+		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"}, // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
-		{name: "LessThan", argLength: 2, reg: flagsgp}, // bool, 1 flags encode x<y 0 otherwise.
+		{name: "LessThan", argLength: 1, reg: flagsgp}, // bool, 1 flags encode x<y 0 otherwise.
 	}
 
 	blocks := []blockData{

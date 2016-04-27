@@ -127,14 +127,17 @@ type moduledata struct {
 	bss, ebss             uintptr
 	noptrbss, enoptrbss   uintptr
 	end, gcdata, gcbss    uintptr
+	types, etypes         uintptr
 
-	typelinks []*_type
+	typelinks []int32 // offsets from types
 	itablinks []*itab
 
 	modulename   string
 	modulehashes []modulehash
 
 	gcdatamask, gcbssmask bitvector
+
+	typemap map[typeOff]*_type // offset to *_rtype in previous module
 
 	next *moduledata
 }

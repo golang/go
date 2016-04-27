@@ -32,7 +32,7 @@ package x86
 
 import (
 	"cmd/internal/obj"
-	"encoding/binary"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"math"
@@ -49,7 +49,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 		return true
 	}
 
-	if ctxt.Arch.Regsize == 4 {
+	if ctxt.Arch.RegSize == 4 {
 		switch ctxt.Headtype {
 		case obj.Hlinux,
 			obj.Hnacl,
@@ -66,7 +66,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 		obj.Hwindows:
 		return false
 	case obj.Hlinux:
-		return ctxt.Flag_shared == 0
+		return !ctxt.Flag_shared
 	}
 
 	return true
@@ -75,7 +75,7 @@ func CanUse1InsnTLS(ctxt *obj.Link) bool {
 func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// Maintain information about code generation mode.
 	if ctxt.Mode == 0 {
-		ctxt.Mode = ctxt.Arch.Regsize * 8
+		ctxt.Mode = ctxt.Arch.RegSize * 8
 	}
 	p.Mode = int8(ctxt.Mode)
 
@@ -207,7 +207,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	}
 
 	// Rewrite MOVL/MOVQ $XXX(FP/SP) as LEAL/LEAQ.
-	if p.From.Type == obj.TYPE_ADDR && (ctxt.Arch.Thechar == '6' || p.From.Name != obj.NAME_EXTERN && p.From.Name != obj.NAME_STATIC) {
+	if p.From.Type == obj.TYPE_ADDR && (ctxt.Arch.Family == sys.AMD64 || p.From.Name != obj.NAME_EXTERN && p.From.Name != obj.NAME_STATIC) {
 		switch p.As {
 		case AMOVL:
 			p.As = ALEAL
@@ -314,7 +314,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		rewriteToUseGot(ctxt, p)
 	}
 
-	if ctxt.Flag_shared != 0 && p.Mode == 32 {
+	if ctxt.Flag_shared && p.Mode == 32 {
 		rewriteToPcrel(ctxt, p)
 	}
 }
@@ -614,7 +614,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		// Make room for to save a base pointer. If autoffset == 0,
 		// this might do something special like a tail jump to
 		// another function, so in that case we omit this.
-		bpsize = ctxt.Arch.Ptrsize
+		bpsize = ctxt.Arch.PtrSize
 
 		autoffset += int32(bpsize)
 		p.To.Offset += int64(bpsize)
@@ -656,7 +656,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	if autoffset != 0 {
-		if autoffset%int32(ctxt.Arch.Regsize) != 0 {
+		if autoffset%int32(ctxt.Arch.RegSize) != 0 {
 			ctxt.Diag("unaligned stack size %d", autoffset)
 		}
 		p = obj.Appendp(ctxt, p)
@@ -671,10 +671,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p = obj.Appendp(ctxt, p)
 
 		p.As = obj.ANOP
-		p.Spadj = int32(-ctxt.Arch.Ptrsize)
+		p.Spadj = int32(-ctxt.Arch.PtrSize)
 		p = obj.Appendp(ctxt, p)
 		p.As = obj.ANOP
-		p.Spadj = int32(ctxt.Arch.Ptrsize)
+		p.Spadj = int32(ctxt.Arch.PtrSize)
 	}
 
 	deltasp := autoffset
@@ -724,7 +724,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.As = AMOVQ
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_CX
-		p.From.Offset = 4 * int64(ctxt.Arch.Ptrsize) // G.panic
+		p.From.Offset = 4 * int64(ctxt.Arch.PtrSize) // G.panic
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BX
 		if ctxt.Headtype == obj.Hnacl && p.Mode == 64 {
@@ -757,7 +757,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.As = ALEAQ
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
-		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.Regsize)
+		p.From.Offset = int64(autoffset) + int64(ctxt.Arch.RegSize)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_DI
 		if ctxt.Headtype == obj.Hnacl || p.Mode == 32 {
@@ -935,7 +935,7 @@ func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 // Returns last new instruction.
 func load_g_cx(ctxt *obj.Link, p *obj.Prog) *obj.Prog {
 	p.As = AMOVQ
-	if ctxt.Arch.Ptrsize == 4 {
+	if ctxt.Arch.PtrSize == 4 {
 		p.As = AMOVL
 	}
 	p.From.Type = obj.TYPE_MEM
@@ -984,9 +984,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
 		indir_cx(ctxt, p, &p.To)
-		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if ctxt.Cursym.Cfunc {
-			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else if framesize <= obj.StackBig {
 		// large stack: SP-framesize <= stackguard-StackSmall
@@ -1006,9 +1006,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_AX
 		indir_cx(ctxt, p, &p.To)
-		p.To.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+		p.To.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if ctxt.Cursym.Cfunc {
-			p.To.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 	} else {
 		// Such a large stack we need to protect against wraparound.
@@ -1030,9 +1030,9 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 
 		p.As = mov
 		indir_cx(ctxt, p, &p.From)
-		p.From.Offset = 2 * int64(ctxt.Arch.Ptrsize) // G.stackguard0
+		p.From.Offset = 2 * int64(ctxt.Arch.PtrSize) // G.stackguard0
 		if ctxt.Cursym.Cfunc {
-			p.From.Offset = 3 * int64(ctxt.Arch.Ptrsize) // G.stackguard1
+			p.From.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_SI
@@ -1402,43 +1402,28 @@ var unaryDst = map[obj.As]bool{
 }
 
 var Linkamd64 = obj.LinkArch{
-	ByteOrder:  binary.LittleEndian,
-	Name:       "amd64",
-	Thechar:    '6',
+	Arch:       sys.ArchAMD64,
 	Preprocess: preprocess,
 	Assemble:   span6,
 	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
-	Minlc:      1,
-	Ptrsize:    8,
-	Regsize:    8,
 }
 
 var Linkamd64p32 = obj.LinkArch{
-	ByteOrder:  binary.LittleEndian,
-	Name:       "amd64p32",
-	Thechar:    '6',
+	Arch:       sys.ArchAMD64P32,
 	Preprocess: preprocess,
 	Assemble:   span6,
 	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
-	Minlc:      1,
-	Ptrsize:    4,
-	Regsize:    8,
 }
 
 var Link386 = obj.LinkArch{
-	ByteOrder:  binary.LittleEndian,
-	Name:       "386",
-	Thechar:    '8',
+	Arch:       sys.Arch386,
 	Preprocess: preprocess,
 	Assemble:   span6,
 	Follow:     follow,
 	Progedit:   progedit,
 	UnaryDst:   unaryDst,
-	Minlc:      1,
-	Ptrsize:    4,
-	Regsize:    4,
 }

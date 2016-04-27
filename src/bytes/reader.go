@@ -114,7 +114,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	case 0:
 		abs = offset
 	case 1:
-		abs = int64(r.i) + offset
+		abs = r.i + offset
 	case 2:
 		abs = int64(len(r.s)) + offset
 	default:
@@ -145,6 +145,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	return
 }
+
+// Reset resets the Reader to be reading from b.
+func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
 
 // NewReader returns a new Reader reading from b.
 func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }

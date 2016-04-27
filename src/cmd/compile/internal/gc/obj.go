@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"crypto/sha256"
 	"fmt"
@@ -23,7 +24,7 @@ func formathdr(arhdr []byte, name string, size int64) {
 
 func dumpobj() {
 	var err error
-	bout, err = obj.Bopenw(outfile)
+	bout, err = bio.Create(outfile)
 	if err != nil {
 		Flusherrors()
 		fmt.Printf("can't create %s: %v\n", outfile, err)
@@ -32,36 +33,36 @@ func dumpobj() {
 
 	startobj := int64(0)
 	var arhdr [ArhdrSize]byte
-	if writearchive != 0 {
-		obj.Bwritestring(bout, "!<arch>\n")
+	if writearchive {
+		bout.WriteString("!<arch>\n")
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
-		startobj = obj.Boffset(bout)
+		startobj = bout.Offset()
 	}
 
 	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 	dumpexport()
 
-	if writearchive != 0 {
+	if writearchive {
 		bout.Flush()
-		size := obj.Boffset(bout) - startobj
+		size := bout.Offset() - startobj
 		if size&1 != 0 {
-			obj.Bputc(bout, 0)
+			bout.WriteByte(0)
 		}
-		obj.Bseek(bout, startobj-ArhdrSize, 0)
+		bout.Seek(startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "__.PKGDEF", size)
 		bout.Write(arhdr[:])
 		bout.Flush()
 
-		obj.Bseek(bout, startobj+size+(size&1), 0)
+		bout.Seek(startobj+size+(size&1), 0)
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
-		startobj = obj.Boffset(bout)
+		startobj = bout.Offset()
 		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
 	}
 
 	if pragcgobuf != "" {
-		if writearchive != 0 {
+		if writearchive {
 			// write empty export section; must be before cgo section
 			fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
 		}
@@ -86,21 +87,26 @@ func dumpobj() {
 	dumpglobls()
 	externdcl = tmp
 
-	dumpdata()
-	obj.Writeobjdirect(Ctxt, bout)
+	if zerosize > 0 {
+		zero := Pkglookup("zero", mappkg)
+		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+	}
 
-	if writearchive != 0 {
+	dumpdata()
+	obj.Writeobjdirect(Ctxt, bout.Writer)
+
+	if writearchive {
 		bout.Flush()
-		size := obj.Boffset(bout) - startobj
+		size := bout.Offset() - startobj
 		if size&1 != 0 {
-			obj.Bputc(bout, 0)
+			bout.WriteByte(0)
 		}
-		obj.Bseek(bout, startobj-ArhdrSize, 0)
+		bout.Seek(startobj-ArhdrSize, 0)
 		formathdr(arhdr[:], "_go_.o", size)
 		bout.Write(arhdr[:])
 	}
 
-	obj.Bterm(bout)
+	bout.Close()
 }
 
 func dumpglobls() {
@@ -132,9 +138,9 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-func Bputname(b *obj.Biobuf, s *obj.LSym) {
-	obj.Bwritestring(b, s.Name)
-	obj.Bputc(b, 0)
+func Bputname(b *bio.Writer, s *obj.LSym) {
+	b.WriteString(s.Name)
+	b.WriteByte(0)
 }
 
 func Linksym(s *Sym) *obj.LSym {
@@ -320,9 +326,15 @@ func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
+func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
+	off += 4
+	return off
+}
+
 func gdata(nam *Node, nr *Node, wid int) {
 	if nam.Op != ONAME {
-		Fatalf("gdata nam op %v", opnames[nam.Op])
+		Fatalf("gdata nam op %v", nam.Op)
 	}
 	if nam.Sym == nil {
 		Fatalf("gdata nil nam sym")
@@ -330,20 +342,23 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 	switch nr.Op {
 	case OLITERAL:
-		switch nr.Val().Ctype() {
-		case CTCPLX:
-			gdatacomplex(nam, nr.Val().U.(*Mpcplx))
+		switch u := nr.Val().U.(type) {
+		case *Mpcplx:
+			gdatacomplex(nam, u)
 
-		case CTSTR:
-			gdatastring(nam, nr.Val().U.(string))
+		case string:
+			gdatastring(nam, u)
 
-		case CTINT, CTRUNE, CTBOOL:
-			i, _ := nr.IntLiteral()
+		case bool:
+			i := int64(obj.Bool2int(u))
 			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, i)
 
-		case CTFLT:
+		case *Mpint:
+			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, u.Int64())
+
+		case *Mpflt:
 			s := Linksym(nam.Sym)
-			f := nr.Val().U.(*Mpflt).Float64()
+			f := u.Float64()
 			switch nam.Type.Etype {
 			case TFLOAT32:
 				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
@@ -357,7 +372,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 	case OADDR:
 		if nr.Left.Op != ONAME {
-			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
+			Fatalf("gdata ADDR left op %s", nr.Left.Op)
 		}
 		to := nr.Left
 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
@@ -369,7 +384,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
 
 	default:
-		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
+		Fatalf("gdata unhandled op %v %v\n", nr, nr.Op)
 	}
 }
 

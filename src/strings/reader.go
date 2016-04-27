@@ -113,7 +113,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	case 0:
 		abs = offset
 	case 1:
-		abs = int64(r.i) + offset
+		abs = r.i + offset
 	case 2:
 		abs = int64(len(r.s)) + offset
 	default:
@@ -144,6 +144,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	return
 }
+
+// Reset resets the Reader to be reading from s.
+func (r *Reader) Reset(s string) { *r = Reader{s, 0, -1} }
 
 // NewReader returns a new Reader reading from s.
 // It is similar to bytes.NewBufferString but more efficient and read-only.

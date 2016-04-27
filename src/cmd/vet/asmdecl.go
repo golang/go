@@ -559,6 +559,11 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 				src = 8
 				break
 			}
+			if strings.HasPrefix(op, "P") && strings.HasSuffix(op, "RD") {
+				// PINSRD, PEXTRD, etc
+				src = 4
+				break
+			}
 			if strings.HasPrefix(op, "F") && (strings.HasSuffix(op, "F") || strings.HasSuffix(op, "FP")) {
 				// FMOVFP, FXCHF, etc
 				src = 4

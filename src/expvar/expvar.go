@@ -219,8 +219,10 @@ type String struct {
 
 func (v *String) String() string {
 	v.mu.RLock()
-	defer v.mu.RUnlock()
-	return strconv.Quote(v.s)
+	s := v.s
+	v.mu.RUnlock()
+	b, _ := json.Marshal(s)
+	return string(b)
 }
 
 func (v *String) Set(value string) {

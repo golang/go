@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains tests for the untagged struct literal checker.
-
 // This file contains the test for untagged struct literals.
 
 package testdata
@@ -11,6 +9,7 @@ package testdata
 import (
 	"flag"
 	"go/scanner"
+	"unicode"
 )
 
 var Okay1 = []string{
@@ -55,6 +54,11 @@ var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "unkeyed fields"
 	"Usage",
 	nil, // Value
 	"DefValue",
+}
+
+// SpecialCase is an (aptly named) slice of CaseRange to test issue 9171.
+var GoodNamedSliceLiteralUsedInTests = unicode.SpecialCase{
+	{Lo: 1, Hi: 2},
 }
 
 // Used to test the check for slices and arrays: If that test is disabled and

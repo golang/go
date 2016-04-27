@@ -109,6 +109,10 @@ go	src=..
 			png
 				testdata
 					+
+		internal
+			trace
+				testdata
+					+
 		io
 			+
 		mime

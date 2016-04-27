@@ -90,12 +90,7 @@ func gentext() {
 	// undef (for debugging)
 	ld.Adduint32(ld.Ctxt, initfunc, 0)
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Attr |= ld.AttrReachable
@@ -505,7 +500,7 @@ func addgotsym(s *ld.LSym) {
 
 func asmb() {
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
@@ -523,7 +518,7 @@ func asmb() {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
 
@@ -532,12 +527,15 @@ func asmb() {
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f datblk\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+
+	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ld.Dwarfblk(int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	/* output symbol table */
 	ld.Symsize = 0
@@ -549,24 +547,23 @@ func asmb() {
 			ld.Diag("unsupported executable format")
 		}
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
-		symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 		symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 
 		ld.Cseek(int64(symo))
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f elfsym\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f elfsym\n", obj.Cputime())
 		}
 		ld.Asmelfsym()
 		ld.Cflush()
 		ld.Cwrite(ld.Elfstrdat)
 
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
-		ld.Dwarfemitdebugsections()
 
 		if ld.Linkmode == ld.LinkExternal {
 			ld.Elfemitreloc()
@@ -575,7 +572,7 @@ func asmb() {
 
 	ld.Ctxt.Cursym = nil
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f header\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f header\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 	ld.Cseek(0)

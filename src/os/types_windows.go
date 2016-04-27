@@ -73,7 +73,7 @@ func (fs *fileStat) loadFileId() error {
 	}
 	defer syscall.CloseHandle(h)
 	var i syscall.ByHandleFileInformation
-	err = syscall.GetFileInformationByHandle(syscall.Handle(h), &i)
+	err = syscall.GetFileInformationByHandle(h, &i)
 	if err != nil {
 		return err
 	}

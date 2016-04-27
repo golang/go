@@ -5,11 +5,12 @@
 package net
 
 import (
+	"context"
 	"errors"
 	"os"
 )
 
-func query(filename, query string, bufSize int) (res []string, err error) {
+func query(ctx context.Context, filename, query string, bufSize int) (res []string, err error) {
 	file, err := os.OpenFile(filename, os.O_RDWR, 0)
 	if err != nil {
 		return
@@ -39,7 +40,7 @@ func query(filename, query string, bufSize int) (res []string, err error) {
 	return
 }
 
-func queryCS(net, host, service string) (res []string, err error) {
+func queryCS(ctx context.Context, net, host, service string) (res []string, err error) {
 	switch net {
 	case "tcp4", "tcp6":
 		net = "tcp"
@@ -49,15 +50,15 @@ func queryCS(net, host, service string) (res []string, err error) {
 	if host == "" {
 		host = "*"
 	}
-	return query(netdir+"/cs", net+"!"+host+"!"+service, 128)
+	return query(ctx, netdir+"/cs", net+"!"+host+"!"+service, 128)
 }
 
-func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
+func queryCS1(ctx context.Context, net string, ip IP, port int) (clone, dest string, err error) {
 	ips := "*"
 	if len(ip) != 0 && !ip.IsUnspecified() {
 		ips = ip.String()
 	}
-	lines, err := queryCS(net, ips, itoa(port))
+	lines, err := queryCS(ctx, net, ips, itoa(port))
 	if err != nil {
 		return
 	}
@@ -69,8 +70,8 @@ func queryCS1(net string, ip IP, port int) (clone, dest string, err error) {
 	return
 }
 
-func queryDNS(addr string, typ string) (res []string, err error) {
-	return query(netdir+"/dns", addr+" "+typ, 1024)
+func queryDNS(ctx context.Context, addr string, typ string) (res []string, err error) {
+	return query(ctx, netdir+"/dns", addr+" "+typ, 1024)
 }
 
 // toLower returns a lower-case version of in. Restricting us to
@@ -96,8 +97,8 @@ func toLower(in string) string {
 
 // lookupProtocol looks up IP protocol name and returns
 // the corresponding protocol number.
-func lookupProtocol(name string) (proto int, err error) {
-	lines, err := query(netdir+"/cs", "!protocol="+toLower(name), 128)
+func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+	lines, err := query(ctx, netdir+"/cs", "!protocol="+toLower(name), 128)
 	if err != nil {
 		return 0, err
 	}
@@ -115,10 +116,10 @@ func lookupProtocol(name string) (proto int, err error) {
 	return 0, UnknownNetworkError(name)
 }
 
-func lookupHost(host string) (addrs []string, err error) {
+func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	// Use netdir/cs instead of netdir/dns because cs knows about
 	// host names in local network (e.g. from /lib/ndb/local)
-	lines, err := queryCS("net", host, "1")
+	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
 		return
 	}
@@ -146,8 +147,8 @@ loop:
 	return
 }
 
-func lookupIP(host string) (addrs []IPAddr, err error) {
-	lits, err := LookupHost(host)
+func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+	lits, err := lookupHost(ctx, host)
 	if err != nil {
 		return
 	}
@@ -161,14 +162,14 @@ func lookupIP(host string) (addrs []IPAddr, err error) {
 	return
 }
 
-func lookupPort(network, service string) (port int, err error) {
+func lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
 	case "udp4", "udp6":
 		network = "udp"
 	}
-	lines, err := queryCS(network, "127.0.0.1", service)
+	lines, err := queryCS(ctx, network, "127.0.0.1", service)
 	if err != nil {
 		return
 	}
@@ -190,8 +191,8 @@ func lookupPort(network, service string) (port int, err error) {
 	return 0, unknownPortError
 }
 
-func lookupCNAME(name string) (cname string, err error) {
-	lines, err := queryDNS(name, "cname")
+func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
+	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
 		return
 	}
@@ -203,14 +204,14 @@ func lookupCNAME(name string) (cname string, err error) {
 	return "", errors.New("bad response from ndb/dns")
 }
 
-func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
+func lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
 	var target string
 	if service == "" && proto == "" {
 		target = name
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	lines, err := queryDNS(target, "srv")
+	lines, err := queryDNS(ctx, target, "srv")
 	if err != nil {
 		return
 	}
@@ -232,8 +233,8 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 	return
 }
 
-func lookupMX(name string) (mx []*MX, err error) {
-	lines, err := queryDNS(name, "mx")
+func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
 		return
 	}
@@ -250,8 +251,8 @@ func lookupMX(name string) (mx []*MX, err error) {
 	return
 }
 
-func lookupNS(name string) (ns []*NS, err error) {
-	lines, err := queryDNS(name, "ns")
+func lookupNS(ctx context.Context, name string) (ns []*NS, err error) {
+	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
 		return
 	}
@@ -265,8 +266,8 @@ func lookupNS(name string) (ns []*NS, err error) {
 	return
 }
 
-func lookupTXT(name string) (txt []string, err error) {
-	lines, err := queryDNS(name, "txt")
+func lookupTXT(ctx context.Context, name string) (txt []string, err error) {
+	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
 		return
 	}
@@ -278,12 +279,12 @@ func lookupTXT(name string) (txt []string, err error) {
 	return
 }
 
-func lookupAddr(addr string) (name []string, err error) {
+func lookupAddr(ctx context.Context, addr string) (name []string, err error) {
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return
 	}
-	lines, err := queryDNS(arpa, "ptr")
+	lines, err := queryDNS(ctx, arpa, "ptr")
 	if err != nil {
 		return
 	}

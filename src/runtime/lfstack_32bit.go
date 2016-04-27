@@ -14,8 +14,6 @@ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
 	return uint64(uintptr(unsafe.Pointer(node)))<<32 | uint64(cnt)
 }
 
-func lfstackUnpack(val uint64) (node *lfnode, cnt uintptr) {
-	node = (*lfnode)(unsafe.Pointer(uintptr(val >> 32)))
-	cnt = uintptr(val)
-	return
+func lfstackUnpack(val uint64) *lfnode {
+	return (*lfnode)(unsafe.Pointer(uintptr(val >> 32)))
 }

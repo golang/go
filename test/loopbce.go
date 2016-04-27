@@ -139,6 +139,70 @@ func h2(a []byte) {
 	}
 }
 
+func k0(a [100]int) [100]int {
+	for i := 10; i < 90; i++ { // ERROR "Induction variable with minimum 10 and increment 1$"
+		a[i-11] = i
+		a[i-10] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 80$"
+		a[i-5] = i  // ERROR "Found redundant \(IsInBounds ind 100\), ind < 85$"
+		a[i] = i    // ERROR "Found redundant \(IsInBounds ind 100\), ind < 90$"
+		a[i+5] = i  // ERROR "Found redundant \(IsInBounds ind 100\), ind < 95$"
+		a[i+10] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 100$"
+		a[i+11] = i
+	}
+	return a
+}
+
+func k1(a [100]int) [100]int {
+	for i := 10; i < 90; i++ { // ERROR "Induction variable with minimum 10 and increment 1$"
+		useSlice(a[:i-11])
+		useSlice(a[:i-10]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 80$"
+		useSlice(a[:i-5])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 85$"
+		useSlice(a[:i])    // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 90$"
+		useSlice(a[:i+5])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 95$"
+		useSlice(a[:i+10]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 100$"
+		useSlice(a[:i+11]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 101$"
+
+	}
+	return a
+}
+
+func k2(a [100]int) [100]int {
+	for i := 10; i < 90; i++ { // ERROR "Induction variable with minimum 10 and increment 1$"
+		useSlice(a[i-11:])
+		useSlice(a[i-10:]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 80$"
+		useSlice(a[i-5:])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 85$"
+		useSlice(a[i:])    // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 90$"
+		useSlice(a[i+5:])  // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 95$"
+		useSlice(a[i+10:]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 100$"
+		useSlice(a[i+11:]) // ERROR "Found redundant \(IsSliceInBounds ind 100\), ind < 101$"
+	}
+	return a
+}
+
+func k3(a [100]int) [100]int {
+	for i := -10; i < 90; i++ { // ERROR "Induction variable with minimum -10 and increment 1$"
+		a[i+10] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 100$"
+	}
+	return a
+}
+
+func k4(a [100]int) [100]int {
+	min := (-1) << 63
+	for i := min; i < min+50; i++ { // ERROR "Induction variable with minimum -9223372036854775808 and increment 1$"
+		a[i-min] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 50$"
+	}
+	return a
+}
+
+func k5(a [100]int) [100]int {
+	max := (1 << 63) - 1
+	for i := max - 50; i < max; i++ { // ERROR "Induction variable with minimum 9223372036854775757 and increment 1$"
+		a[i-max+50] = i
+		a[i-(max-70)] = i // ERROR "Found redundant \(IsInBounds ind 100\), ind < 70$"
+	}
+	return a
+}
+
 func nobce1() {
 	// tests overflow of max-min
 	a := int64(9223372036854774057)
@@ -168,8 +232,21 @@ func nobce2(a string) {
 	}
 }
 
+func nobce3(a [100]int64) [100]int64 {
+	min := int64((-1) << 63)
+	max := int64((1 << 63) - 1)
+	for i := min; i < max; i++ { // ERROR "Induction variable with minimum -9223372036854775808 and increment 1$"
+		a[i] = i
+	}
+	return a
+}
+
 //go:noinline
 func useString(a string) {
+}
+
+//go:noinline
+func useSlice(a []int) {
 }
 
 func main() {

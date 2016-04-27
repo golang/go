@@ -13,13 +13,13 @@ import (
 
 // This implementation depends on OS-specific implementations of
 //
-//	runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+//	futexsleep(addr *uint32, val uint32, ns int64)
 //		Atomically,
-//			if(*addr == val) sleep
+//			if *addr == val { sleep }
 //		Might be woken up spuriously; that's allowed.
 //		Don't sleep longer than ns; ns < 0 means forever.
 //
-//	runtime·futexwakeup(uint32 *addr, uint32 cnt)
+//	futexwakeup(addr *uint32, cnt uint32)
 //		If any procs are sleeping on addr, wake up at most cnt.
 
 const (

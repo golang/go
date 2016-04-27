@@ -49,6 +49,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
+		domTree(fun.f)
 		nilcheckelim(fun.f)
 	}
 }
@@ -83,6 +84,7 @@ func TestNilcheckSimple(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -120,6 +122,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 			Goto("exit")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -153,6 +156,7 @@ func TestNilcheckAddr(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -187,6 +191,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -231,6 +236,7 @@ func TestNilcheckPhi(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -272,6 +278,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -319,6 +326,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -370,6 +378,7 @@ func TestNilcheckUser(t *testing.T) {
 	CheckFunc(fun.f)
 	// we need the opt here to rewrite the user nilcheck
 	opt(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
@@ -409,11 +418,12 @@ func TestNilcheckBug(t *testing.T) {
 			Goto("exit")),
 		Bloc("exit",
 			Valu("phi", OpPhi, TypeMem, 0, nil, "mem", "store"),
-			Exit("mem")))
+			Exit("phi")))
 
 	CheckFunc(fun.f)
 	// we need the opt here to rewrite the user nilcheck
 	opt(fun.f)
+	domTree(fun.f)
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check

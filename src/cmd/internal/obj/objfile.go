@@ -109,205 +109,19 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 // The Go and C compilers, and the assembler, call writeobj to write
 // out a Go object file. The linker does not call this; the linker
 // does not write out object files.
-func Writeobjdirect(ctxt *Link, b *Biobuf) {
+func Writeobjdirect(ctxt *Link, b *bufio.Writer) {
 	Flushplist(ctxt)
 	WriteObjFile(ctxt, b)
-}
-
-func Flushplist(ctxt *Link) {
-	flushplist(ctxt, ctxt.Debugasm == 0)
-}
-func FlushplistNoFree(ctxt *Link) {
-	flushplist(ctxt, false)
-}
-func flushplist(ctxt *Link, freeProgs bool) {
-	// Build list of symbols, and assign instructions to lists.
-	// Ignore ctxt->plist boundaries. There are no guarantees there,
-	// and the assemblers just use one big list.
-	var curtext *LSym
-	var etext *Prog
-	var text []*LSym
-
-	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
-		var plink *Prog
-		for p := pl.Firstpc; p != nil; p = plink {
-			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
-				fmt.Printf("obj: %v\n", p)
-			}
-			plink = p.Link
-			p.Link = nil
-
-			switch p.As {
-			case AEND:
-				continue
-
-			case ATYPE:
-				// Assume each TYPE instruction describes
-				// a different local variable or parameter,
-				// so no dedup.
-				// Using only the TYPE instructions means
-				// that we discard location information about local variables
-				// in C and assembly functions; that information is inferred
-				// from ordinary references, because there are no TYPE
-				// instructions there. Without the type information, gdb can't
-				// use the locations, so we don't bother to save them.
-				// If something else could use them, we could arrange to
-				// preserve them.
-				if curtext == nil {
-					continue
-				}
-				a := new(Auto)
-				a.Asym = p.From.Sym
-				a.Aoffset = int32(p.From.Offset)
-				a.Name = int16(p.From.Name)
-				a.Gotype = p.From.Gotype
-				a.Link = curtext.Autom
-				curtext.Autom = a
-				continue
-
-			case AGLOBL:
-				s := p.From.Sym
-				if s.Seenglobl {
-					fmt.Printf("duplicate %v\n", p)
-				}
-				s.Seenglobl = true
-				if s.Onlist {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Onlist = true
-				ctxt.Data = append(ctxt.Data, s)
-				s.Size = p.To.Offset
-				if s.Type == 0 || s.Type == SXREF {
-					s.Type = SBSS
-				}
-				flag := int(p.From3.Offset)
-				if flag&DUPOK != 0 {
-					s.Dupok = true
-				}
-				if flag&RODATA != 0 {
-					s.Type = SRODATA
-				} else if flag&NOPTR != 0 {
-					s.Type = SNOPTRBSS
-				} else if flag&TLSBSS != 0 {
-					s.Type = STLSBSS
-				}
-				continue
-
-			case ATEXT:
-				s := p.From.Sym
-				if s == nil {
-					// func _() { }
-					curtext = nil
-
-					continue
-				}
-
-				if s.Text != nil {
-					log.Fatalf("duplicate TEXT for %s", s.Name)
-				}
-				if s.Onlist {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Onlist = true
-				text = append(text, s)
-				flag := int(p.From3Offset())
-				if flag&DUPOK != 0 {
-					s.Dupok = true
-				}
-				if flag&NOSPLIT != 0 {
-					s.Nosplit = true
-				}
-				if flag&REFLECTMETHOD != 0 {
-					s.ReflectMethod = true
-				}
-				s.Type = STEXT
-				s.Text = p
-				etext = p
-				curtext = s
-				continue
-
-			case AFUNCDATA:
-				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
-				if curtext == nil { // func _() {}
-					continue
-				}
-				if p.To.Sym.Name == "go_args_stackmap" {
-					if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
-						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
-					}
-					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
-				}
-
-			}
-
-			if curtext == nil {
-				etext = nil
-				continue
-			}
-			etext.Link = p
-			etext = p
-		}
-	}
-
-	// Add reference to Go arguments for C or assembly functions without them.
-	for _, s := range text {
-		if !strings.HasPrefix(s.Name, "\"\".") {
-			continue
-		}
-		found := false
-		var p *Prog
-		for p = s.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			p = Appendp(ctxt, s.Text)
-			p.As = AFUNCDATA
-			p.From.Type = TYPE_CONST
-			p.From.Offset = FUNCDATA_ArgsPointerMaps
-			p.To.Type = TYPE_MEM
-			p.To.Name = NAME_EXTERN
-			p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
-		}
-	}
-
-	// Turn functions into machine code images.
-	for _, s := range text {
-		mkfwd(s)
-		linkpatch(ctxt, s)
-		if ctxt.Flag_optimize {
-			ctxt.Arch.Follow(ctxt, s)
-		}
-		ctxt.Arch.Preprocess(ctxt, s)
-		ctxt.Arch.Assemble(ctxt, s)
-		fieldtrack(ctxt, s)
-		linkpcln(ctxt, s)
-		if freeProgs {
-			s.Text = nil
-		}
-	}
-
-	// Add to running list in ctxt.
-	ctxt.Text = append(ctxt.Text, text...)
-	ctxt.Plist = nil
-	ctxt.Plast = nil
-	ctxt.Curp = nil
-	if freeProgs {
-		ctxt.freeProgs()
-	}
 }
 
 // objWriter writes Go object files.
@@ -372,16 +186,16 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nFile))
 }
 
-func newObjWriter(ctxt *Link, b *Biobuf) *objWriter {
+func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
 	return &objWriter{
 		ctxt:    ctxt,
-		wr:      b.w,
+		wr:      b,
 		vrefIdx: make(map[string]int),
 		refIdx:  make(map[string]int),
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *Biobuf) {
+func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	w := newObjWriter(ctxt, b)
 
 	// Magic header
@@ -556,10 +370,10 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 		} else if r.Type == R_TLS_LE {
 			name = "TLS"
 		}
-		if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
+		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(r.Add))
 		} else {
-			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, r.Add)
 		}
 	}
 }
@@ -659,7 +473,7 @@ func (w *objWriter) writeSym(s *LSym) {
 
 func (w *objWriter) writeInt(sval int64) {
 	var v uint64
-	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
+	uv := (uint64(sval) << 1) ^ uint64(sval>>63)
 	p := w.varintbuf[:]
 	for v = uv; v >= 0x80; v >>= 7 {
 		p[0] = uint8(v | 0x80)

@@ -39,6 +39,7 @@ type Package struct {
 	Goroot        bool   `json:",omitempty"` // is this package found in the Go root?
 	Standard      bool   `json:",omitempty"` // is this package part of the standard Go library?
 	Stale         bool   `json:",omitempty"` // would 'go install' do anything for this package?
+	StaleReason   string `json:",omitempty"` // why is Stale true?
 	Root          string `json:",omitempty"` // Go root or Go path dir containing this package
 	ConflictDir   string `json:",omitempty"` // Dir is hidden by this other directory
 
@@ -434,6 +435,12 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 		}
 		targ := filepath.Join(dir[:i], vpath)
 		if isDir(targ) && hasGoFiles(targ) {
+			importPath := parent.ImportPath
+			if importPath == "command-line-arguments" {
+				// If parent.ImportPath is 'command-line-arguments'.
+				// set to relative directory to root (also chopped root directory)
+				importPath = dir[len(root)+1:]
+			}
 			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
 			// We know the import path for parent's dir.
 			// We chopped off some number of path elements and
@@ -443,14 +450,14 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 			// (actually the same number of bytes) from parent's import path
 			// and then append /vendor/path.
 			chopped := len(dir) - i
-			if chopped == len(parent.ImportPath)+1 {
+			if chopped == len(importPath)+1 {
 				// We walked up from c:\gopath\src\foo\bar
 				// and found c:\gopath\src\vendor\path.
 				// We chopped \foo\bar (length 8) but the import path is "foo/bar" (length 7).
 				// Use "vendor/path" without any prefix.
 				return vpath
 			}
-			return parent.ImportPath[:len(parent.ImportPath)-chopped] + "/" + vpath
+			return importPath[:len(importPath)-chopped] + "/" + vpath
 		}
 	}
 	return path
@@ -517,7 +524,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		return p
 	}
 
-	// Check for "internal" element: four cases depending on begin of string and/or end of string.
+	// Check for "internal" element: three cases depending on begin of string and/or end of string.
 	i, ok := findInternal(p.ImportPath)
 	if !ok {
 		return p
@@ -554,7 +561,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 // If there isn't one, findInternal returns ok=false.
 // Otherwise, findInternal returns ok=true and the index of the "internal".
 func findInternal(path string) (index int, ok bool) {
-	// Four cases, depending on internal at start/end of string or not.
+	// Three cases, depending on internal at start/end of string or not.
 	// The order matters: we must return the index of the final element,
 	// because the final one produces the most restrictive requirement
 	// on the importer.
@@ -652,7 +659,7 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 
 // findVendor looks for the last non-terminating "vendor" path element in the given import path.
 // If there isn't one, findVendor returns ok=false.
-// Otherwise, findInternal returns ok=true and the index of the "vendor".
+// Otherwise, findVendor returns ok=true and the index of the "vendor".
 //
 // Note that terminating "vendor" elements don't count: "x/vendor" is its own package,
 // not the vendored copy of an import "" (the empty import path).
@@ -676,7 +683,6 @@ type targetDir int
 const (
 	toRoot    targetDir = iota // to bin dir inside package root (default)
 	toTool                     // GOROOT/pkg/tool
-	toBin                      // GOROOT/bin
 	stalePath                  // the old import path; fail to build
 )
 
@@ -700,7 +706,6 @@ var goTools = map[string]targetDir{
 	"cmd/trace":                            toTool,
 	"cmd/vet":                              toTool,
 	"cmd/yacc":                             toTool,
-	"golang.org/x/tools/cmd/godoc":         toBin,
 	"code.google.com/p/go.tools/cmd/cover": stalePath,
 	"code.google.com/p/go.tools/cmd/godoc": stalePath,
 	"code.google.com/p/go.tools/cmd/vet":   stalePath,
@@ -787,12 +792,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			// Install cross-compiled binaries to subdirectories of bin.
 			elem = full
 		}
-		if p.build.BinDir != gobin && goTools[p.ImportPath] == toBin {
-			// Override BinDir.
-			// This is from a subrepo but installs to $GOROOT/bin
-			// by default anyway (like godoc).
-			p.target = filepath.Join(gorootBin, elem)
-		} else if p.build.BinDir != "" {
+		if p.build.BinDir != "" {
 			// Install to GOBIN or bin of GOPATH entry.
 			p.target = filepath.Join(p.build.BinDir, elem)
 			if !p.Goroot && strings.Contains(elem, "/") && gobin != "" {
@@ -1086,7 +1086,7 @@ func packageList(roots []*Package) []*Package {
 // at the named pkgs (command-line arguments).
 func computeStale(pkgs ...*Package) {
 	for _, p := range packageList(pkgs) {
-		p.Stale = isStale(p)
+		p.Stale, p.StaleReason = isStale(p)
 	}
 }
 
@@ -1357,14 +1357,15 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 // standard library, even in release versions. This makes
 // 'go build -tags netgo' work, among other things.
 
-// isStale reports whether package p needs to be rebuilt.
-func isStale(p *Package) bool {
+// isStale reports whether package p needs to be rebuilt,
+// along with the reason why.
+func isStale(p *Package) (bool, string) {
 	if p.Standard && (p.ImportPath == "unsafe" || buildContext.Compiler == "gccgo") {
 		// fake, builtin package
-		return false
+		return false, "builtin package"
 	}
 	if p.Error != nil {
-		return true
+		return true, "errors loading package"
 	}
 
 	// A package without Go sources means we only found
@@ -1374,23 +1375,26 @@ func isStale(p *Package) bool {
 	// only useful with the specific version of the toolchain that
 	// created them.
 	if len(p.gofiles) == 0 && !p.usesSwig() {
-		return false
+		return false, "no source files"
 	}
 
 	// If the -a flag is given, rebuild everything.
 	if buildA {
-		return true
+		return true, "build -a flag in use"
 	}
 
 	// If there's no install target or it's already marked stale, we have to rebuild.
-	if p.target == "" || p.Stale {
-		return true
+	if p.target == "" {
+		return true, "no install target"
+	}
+	if p.Stale {
+		return true, p.StaleReason
 	}
 
 	// Package is stale if completely unbuilt.
 	fi, err := os.Stat(p.target)
 	if err != nil {
-		return true
+		return true, "cannot stat install target"
 	}
 
 	// Package is stale if the expected build ID differs from the
@@ -1403,13 +1407,13 @@ func isStale(p *Package) bool {
 	// See issue 8290 and issue 10702.
 	targetBuildID, err := readBuildID(p)
 	if err == nil && targetBuildID != p.buildID {
-		return true
+		return true, "build ID mismatch"
 	}
 
 	// Package is stale if a dependency is.
 	for _, p1 := range p.deps {
 		if p1.Stale {
-			return true
+			return true, "stale dependency"
 		}
 	}
 
@@ -1432,7 +1436,7 @@ func isStale(p *Package) bool {
 	// install is to run make.bash, which will remove the old package archives
 	// before rebuilding.)
 	if p.Standard && isGoRelease {
-		return false
+		return false, "standard package in Go release distribution"
 	}
 
 	// Time-based staleness.
@@ -1447,7 +1451,7 @@ func isStale(p *Package) bool {
 	// Package is stale if a dependency is, or if a dependency is newer.
 	for _, p1 := range p.deps {
 		if p1.target != "" && olderThan(p1.target) {
-			return true
+			return true, "newer dependency"
 		}
 	}
 
@@ -1466,10 +1470,10 @@ func isStale(p *Package) bool {
 	// taken care of above (at least when the installed Go is a released version).
 	if p.Root != goroot {
 		if olderThan(buildToolchain.compiler()) {
-			return true
+			return true, "newer compiler"
 		}
 		if p.build.IsCommand() && olderThan(buildToolchain.linker()) {
-			return true
+			return true, "newer linker"
 		}
 	}
 
@@ -1514,11 +1518,11 @@ func isStale(p *Package) bool {
 	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
-			return true
+			return true, "newer source file"
 		}
 	}
 
-	return false
+	return false, ""
 }
 
 // computeBuildID computes the build ID for p, leaving it in p.buildID.

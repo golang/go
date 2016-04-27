@@ -233,9 +233,9 @@ func decodeArg(aop instArg, x uint32) Arg {
 		typ, count := decodeShift(x)
 		// ROR #0 here means ROR #0, but decodeShift rewrites to RRX #1.
 		if typ == RotateRightExt {
-			return Reg(Rm)
+			return Rm
 		}
-		return RegShift{Rm, typ, uint8(count)}
+		return RegShift{Rm, typ, count}
 
 	case arg_R_shift_R:
 		Rm := Reg(x & (1<<4 - 1))
@@ -247,9 +247,9 @@ func decodeArg(aop instArg, x uint32) Arg {
 		Rm := Reg(x & (1<<4 - 1))
 		typ, count := decodeShift(x)
 		if typ == ShiftLeft && count == 0 {
-			return Reg(Rm)
+			return Rm
 		}
-		return RegShift{Rm, typ, uint8(count)}
+		return RegShift{Rm, typ, count}
 
 	case arg_R1_0:
 		return Reg((x & (1<<4 - 1)))

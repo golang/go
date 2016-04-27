@@ -26,6 +26,7 @@ package ssa
 func phiopt(f *Func) {
 	for _, b := range f.Blocks {
 		if len(b.Preds) != 2 || len(b.Values) == 0 {
+			// TODO: handle more than 2 predecessors, e.g. a || b || c.
 			continue
 		}
 
@@ -45,44 +46,67 @@ func phiopt(f *Func) {
 		}
 		// b0 is the if block giving the boolean value.
 
-		var reverse bool
+		// reverse is the predecessor from which the truth value comes.
+		var reverse int
 		if b0.Succs[0] == pb0 && b0.Succs[1] == pb1 {
-			reverse = false
+			reverse = 0
 		} else if b0.Succs[0] == pb1 && b0.Succs[1] == pb0 {
-			reverse = true
+			reverse = 1
 		} else {
 			b.Fatalf("invalid predecessors\n")
 		}
 
 		for _, v := range b.Values {
-			if v.Op != OpPhi || !v.Type.IsBoolean() || v.Args[0].Op != OpConstBool || v.Args[1].Op != OpConstBool {
+			if v.Op != OpPhi || !v.Type.IsBoolean() {
 				continue
 			}
 
-			ok, isCopy := false, false
-			if v.Args[0].AuxInt == 1 && v.Args[1].AuxInt == 0 {
-				ok, isCopy = true, !reverse
-			} else if v.Args[0].AuxInt == 0 && v.Args[1].AuxInt == 1 {
-				ok, isCopy = true, reverse
-			}
-
-			// (Phi (ConstBool [x]) (ConstBool [x])) is already handled by opt / phielim.
-
-			if ok && isCopy {
-				if f.pass.debug > 0 {
-					f.Config.Warnl(b.Line, "converted OpPhi to OpCopy")
+			// Replaces
+			//   if a { x = true } else { x = false } with x = a
+			// and
+			//   if a { x = false } else { x = true } with x = !a
+			if v.Args[0].Op == OpConstBool && v.Args[1].Op == OpConstBool {
+				if v.Args[reverse].AuxInt != v.Args[1-reverse].AuxInt {
+					ops := [2]Op{OpNot, OpCopy}
+					v.reset(ops[v.Args[reverse].AuxInt])
+					v.AddArg(b0.Control)
+					if f.pass.debug > 0 {
+						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+					}
+					continue
 				}
-				v.reset(OpCopy)
-				v.AddArg(b0.Control)
-				continue
 			}
-			if ok && !isCopy {
-				if f.pass.debug > 0 {
-					f.Config.Warnl(b.Line, "converted OpPhi to OpNot")
+
+			// Replaces
+			//   if a { x = true } else { x = value } with x = a || value.
+			// Requires that value dominates x, meaning that regardless of a,
+			// value is always computed. This guarantees that the side effects
+			// of value are not seen if a is false.
+			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
+				if tmp := v.Args[1-reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
+					v.reset(OpOrB)
+					v.SetArgs2(b0.Control, tmp)
+					if f.pass.debug > 0 {
+						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+					}
+					continue
 				}
-				v.reset(OpNot)
-				v.AddArg(b0.Control)
-				continue
+			}
+
+			// Replaces
+			//   if a { x = value } else { x = false } with x = a && value.
+			// Requires that value dominates x, meaning that regardless of a,
+			// value is always computed. This guarantees that the side effects
+			// of value are not seen if a is false.
+			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
+				if tmp := v.Args[reverse]; f.sdom.isAncestorEq(tmp.Block, b) {
+					v.reset(OpAndB)
+					v.SetArgs2(b0.Control, tmp)
+					if f.pass.debug > 0 {
+						f.Config.Warnl(b.Line, "converted OpPhi to %v", v.Op)
+					}
+					continue
+				}
 			}
 		}
 	}

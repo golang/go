@@ -229,55 +229,55 @@ func TestChildFinishesFirst(t *testing.T) {
 	}
 }
 
-func testDeadline(c Context, wait time.Duration, t *testing.T) {
+func testDeadline(c Context, name string, failAfter time.Duration, t *testing.T) {
 	select {
-	case <-time.After(wait):
-		t.Fatalf("context should have timed out")
+	case <-time.After(failAfter):
+		t.Fatalf("%s: context should have timed out", name)
 	case <-c.Done():
 	}
 	if e := c.Err(); e != DeadlineExceeded {
-		t.Errorf("c.Err() == %v want %v", e, DeadlineExceeded)
+		t.Errorf("%s: c.Err() == %v; want %v", name, e, DeadlineExceeded)
 	}
 }
 
 func TestDeadline(t *testing.T) {
-	c, _ := WithDeadline(Background(), time.Now().Add(100*time.Millisecond))
+	c, _ := WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
 	}
-	testDeadline(c, 200*time.Millisecond, t)
+	testDeadline(c, "WithDeadline", time.Second, t)
 
-	c, _ = WithDeadline(Background(), time.Now().Add(100*time.Millisecond))
+	c, _ = WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
 	o := otherContext{c}
-	testDeadline(o, 200*time.Millisecond, t)
+	testDeadline(o, "WithDeadline+otherContext", time.Second, t)
 
-	c, _ = WithDeadline(Background(), time.Now().Add(100*time.Millisecond))
+	c, _ = WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
 	o = otherContext{c}
-	c, _ = WithDeadline(o, time.Now().Add(300*time.Millisecond))
-	testDeadline(c, 200*time.Millisecond, t)
+	c, _ = WithDeadline(o, time.Now().Add(4*time.Second))
+	testDeadline(c, "WithDeadline+otherContext+WithDeadline", 2*time.Second, t)
 }
 
 func TestTimeout(t *testing.T) {
-	c, _ := WithTimeout(Background(), 100*time.Millisecond)
+	c, _ := WithTimeout(Background(), 50*time.Millisecond)
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
 	}
-	testDeadline(c, 200*time.Millisecond, t)
+	testDeadline(c, "WithTimeout", time.Second, t)
 
-	c, _ = WithTimeout(Background(), 100*time.Millisecond)
+	c, _ = WithTimeout(Background(), 50*time.Millisecond)
 	o := otherContext{c}
-	testDeadline(o, 200*time.Millisecond, t)
+	testDeadline(o, "WithTimeout+otherContext", time.Second, t)
 
-	c, _ = WithTimeout(Background(), 100*time.Millisecond)
+	c, _ = WithTimeout(Background(), 50*time.Millisecond)
 	o = otherContext{c}
-	c, _ = WithTimeout(o, 300*time.Millisecond)
-	testDeadline(c, 200*time.Millisecond, t)
+	c, _ = WithTimeout(o, 3*time.Second)
+	testDeadline(c, "WithTimeout+otherContext+WithTimeout", 2*time.Second, t)
 }
 
 func TestCanceledTimeout(t *testing.T) {
-	c, _ := WithTimeout(Background(), 200*time.Millisecond)
+	c, _ := WithTimeout(Background(), time.Second)
 	o := otherContext{c}
-	c, cancel := WithTimeout(o, 400*time.Millisecond)
+	c, cancel := WithTimeout(o, 2*time.Second)
 	cancel()
 	time.Sleep(100 * time.Millisecond) // let cancelation propagate
 	select {
@@ -388,9 +388,9 @@ func TestAllocs(t *testing.T) {
 			gccgoLimit: 8,
 		},
 		{
-			desc: "WithTimeout(bg, 100*time.Millisecond)",
+			desc: "WithTimeout(bg, 5*time.Millisecond)",
 			f: func() {
-				c, cancel := WithTimeout(bg, 100*time.Millisecond)
+				c, cancel := WithTimeout(bg, 5*time.Millisecond)
 				cancel()
 				<-c.Done()
 			},
@@ -404,7 +404,11 @@ func TestAllocs(t *testing.T) {
 			// TOOD(iant): Remove this when gccgo does do escape analysis.
 			limit = test.gccgoLimit
 		}
-		if n := testing.AllocsPerRun(100, test.f); n > limit {
+		numRuns := 100
+		if testing.Short() {
+			numRuns = 10
+		}
+		if n := testing.AllocsPerRun(numRuns, test.f); n > limit {
 			t.Errorf("%s allocs = %f want %d", test.desc, n, int(limit))
 		}
 	}
@@ -536,7 +540,7 @@ func testLayers(t *testing.T, seed int64, testTimeout bool) {
 	if testTimeout {
 		select {
 		case <-ctx.Done():
-		case <-time.After(timeout + 100*time.Millisecond):
+		case <-time.After(timeout + time.Second):
 			errorf("ctx should have timed out")
 		}
 		checkValues("after timeout")
@@ -572,4 +576,17 @@ func TestCancelRemoves(t *testing.T) {
 	checkChildren("with WithTimeout child ", ctx, 1)
 	cancel()
 	checkChildren("after cancelling WithTimeout child", ctx, 0)
+}
+
+func TestWithValueChecksKey(t *testing.T) {
+	panicVal := recoveredValue(func() { WithValue(Background(), []byte("foo"), "bar") })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+}
+
+func recoveredValue(fn func()) (v interface{}) {
+	defer func() { v = recover() }()
+	fn()
+	return
 }

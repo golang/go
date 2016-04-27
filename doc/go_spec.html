@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 23, 2016",
+	"Subtitle": "Version of April 25, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -1043,8 +1043,8 @@ promoted methods are included in the method set of the struct as follows:
 <p>
 A field declaration may be followed by an optional string literal <i>tag</i>,
 which becomes an attribute for all the fields in the corresponding
-field declaration. The tags are made
-visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
+field declaration. An empty tag string is equivalent to an absent tag.
+The tags are made visible through a <a href="/pkg/reflect/#StructTag">reflection interface</a>
 and take part in <a href="#Type_identity">type identity</a> for structs
 but are otherwise ignored.
 </p>
@@ -3326,8 +3326,8 @@ var s uint = 33
 var i = 1&lt;&lt;s           // 1 has type int
 var j int32 = 1&lt;&lt;s     // 1 has type int32; j == 0
 var k = uint64(1&lt;&lt;s)   // 1 has type uint64; k == 1&lt;&lt;33
-var m int = 1.0&lt;&lt;s     // 1.0 has type int
-var n = 1.0&lt;&lt;s != i    // 1.0 has type int; n == false if ints are 32bits in size
+var m int = 1.0&lt;&lt;s     // 1.0 has type int; m == 0 if ints are 32bits in size
+var n = 1.0&lt;&lt;s == j    // 1.0 has type int32; n == true
 var o = 1&lt;&lt;s == 2&lt;&lt;s   // 1 and 2 have type int; o == true if ints are 32bits in size
 var p = 1&lt;&lt;s == 1&lt;&lt;33  // illegal if ints are 32bits in size: 1 has type int, but 1&lt;&lt;33 overflows int
 var u = 1.0&lt;&lt;s         // illegal: 1.0 has type float64, cannot shift
@@ -4257,7 +4257,7 @@ All other statements are not terminating.
 
 <p>
 A <a href="#Blocks">statement list</a> ends in a terminating statement if the list
-is not empty and its final statement is terminating.
+is not empty and its final non-empty statement is terminating.
 </p>
 
 

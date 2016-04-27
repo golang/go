@@ -101,20 +101,27 @@ func (bp *buffer) WriteRune(r rune) {
 	*bp = b[:n+w]
 }
 
+// pp is used to store a printer's state and is reused with sync.Pool to avoid allocations.
 type pp struct {
-	panicking bool
-	erroring  bool // printing an error condition
-	buf       buffer
+	buf buffer
+
 	// arg holds the current item, as an interface{}.
 	arg interface{}
-	// value holds the current item, as a reflect.Value, and will be
-	// the zero Value if the item has not been reflected.
+
+	// value is used instead of arg for reflect values.
 	value reflect.Value
+
+	// fmt is used to format basic items such as integers or strings.
+	fmt fmt
+
 	// reordered records whether the format string used argument reordering.
 	reordered bool
 	// goodArgNum records whether the most recent reordering directive was valid.
 	goodArgNum bool
-	fmt        fmt
+	// panicking is set by catchPanic to avoid infinite panic, recover, panic, ... recursion.
+	panicking bool
+	// erroring is set when printing an error string to guard against calling handleMethods.
+	erroring bool
 }
 
 var ppFree = sync.Pool{

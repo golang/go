@@ -62,7 +62,7 @@ func regnames(n *int) []string {
 }
 
 func excludedregs() uint64 {
-	if gc.Ctxt.Flag_shared != 0 {
+	if gc.Ctxt.Flag_shared {
 		return RtoB(x86.REG_SP) | RtoB(x86.REG_CX)
 	} else {
 		return RtoB(x86.REG_SP)

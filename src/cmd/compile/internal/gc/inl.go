@@ -71,7 +71,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	save_safemode := safemode
-	safemode = 0
+	safemode = false
 
 	savefn := Curfn
 	Curfn = fn
@@ -100,7 +100,7 @@ func caninl(fn *Node) {
 	}
 
 	// If fn has no body (is defined outside of Go), cannot inline it.
-	if len(fn.Nbody.Slice()) == 0 {
+	if fn.Nbody.Len() == 0 {
 		return
 	}
 
@@ -110,8 +110,9 @@ func caninl(fn *Node) {
 
 	// can't handle ... args yet
 	if Debug['l'] < 3 {
-		for _, t := range fn.Type.Params().Fields().Slice() {
-			if t.Isddd {
+		f := fn.Type.Params().Fields()
+		if len := f.Len(); len > 0 {
+			if t := f.Index(len - 1); t.Isddd {
 				return
 			}
 		}
@@ -128,7 +129,7 @@ func caninl(fn *Node) {
 	}
 
 	const maxBudget = 80
-	budget := maxBudget // allowed hairyness
+	budget := int32(maxBudget) // allowed hairyness
 	if ishairylist(fn.Nbody, &budget) || budget < 0 {
 		return
 	}
@@ -136,27 +137,29 @@ func caninl(fn *Node) {
 	savefn := Curfn
 	Curfn = fn
 
-	fn.Func.Nname.Func.Inl.Set(fn.Nbody.Slice())
-	fn.Nbody.Set(inlcopylist(fn.Func.Nname.Func.Inl.Slice()))
-	inldcl := inlcopylist(fn.Func.Nname.Name.Defn.Func.Dcl)
-	fn.Func.Nname.Func.Inldcl.Set(inldcl)
-	fn.Func.Nname.Func.InlCost = int32(maxBudget - budget)
+	n := fn.Func.Nname
+
+	n.Func.Inl.Set(fn.Nbody.Slice())
+	fn.Nbody.Set(inlcopylist(n.Func.Inl.Slice()))
+	inldcl := inlcopylist(n.Name.Defn.Func.Dcl)
+	n.Func.Inldcl.Set(inldcl)
+	n.Func.InlCost = maxBudget - budget
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
 	// this is so export can find the body of a method
-	fn.Type.SetNname(fn.Func.Nname)
+	fn.Type.SetNname(n)
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, FmtSharp), Tconv(fn.Type, FmtSharp), Hconv(fn.Func.Nname.Func.Inl, FmtSharp))
+		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(n, FmtSharp), Tconv(fn.Type, FmtSharp), Hconv(n.Func.Inl, FmtSharp))
 	} else if Debug['m'] != 0 {
-		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Func.Nname)
+		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
 
 	Curfn = savefn
 }
 
 // Look for anything we want to punt on.
-func ishairylist(ll Nodes, budget *int) bool {
+func ishairylist(ll Nodes, budget *int32) bool {
 	for _, n := range ll.Slice() {
 		if ishairy(n, budget) {
 			return true
@@ -165,7 +168,7 @@ func ishairylist(ll Nodes, budget *int) bool {
 	return false
 }
 
-func ishairy(n *Node, budget *int) bool {
+func ishairy(n *Node, budget *int32) bool {
 	if n == nil {
 		return false
 	}
@@ -173,13 +176,13 @@ func ishairy(n *Node, budget *int) bool {
 	switch n.Op {
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLFUNC:
-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 {
-			*budget -= int(n.Left.Func.InlCost)
+		if fn := n.Left.Func; fn != nil && fn.Inl.Len() != 0 {
+			*budget -= fn.InlCost
 			break
 		}
 		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
-			if n.Left.Sym.Def != nil && len(n.Left.Sym.Def.Func.Inl.Slice()) != 0 {
-				*budget -= int(n.Left.Sym.Def.Func.InlCost)
+			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
+				*budget -= d.Func.InlCost
 				break
 			}
 		}
@@ -189,14 +192,15 @@ func ishairy(n *Node, budget *int) bool {
 
 	// Call is okay if inlinable and we have the budget for the body.
 	case OCALLMETH:
-		if n.Left.Type == nil {
+		t := n.Left.Type
+		if t == nil {
 			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
 		}
-		if n.Left.Type.Nname() == nil {
-			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+		if t.Nname() == nil {
+			Fatalf("no function definition for [%p] %v\n", t, Tconv(t, FmtSign))
 		}
-		if len(n.Left.Type.Nname().Func.Inl.Slice()) != 0 {
-			*budget -= int(n.Left.Type.Nname().Func.InlCost)
+		if inlfn := t.Nname().Func; inlfn.Inl.Len() != 0 {
+			*budget -= inlfn.InlCost
 			break
 		}
 		if Debug['l'] < 4 {
@@ -453,7 +457,7 @@ func inlnode(n *Node) *Node {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
 		}
-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 && !isIntrinsicCall1(n) { // normal case
+		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall1(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd)
 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if n.Left.Sym.Def != nil {
@@ -492,7 +496,7 @@ func mkinlcall(n *Node, fn *Node, isddd bool) *Node {
 	pkg := fnpkg(fn)
 
 	if pkg != localpkg && pkg != nil {
-		safemode = 0
+		safemode = false
 	}
 	n = mkinlcall1(n, fn, isddd)
 	safemode = save_safemode
@@ -520,7 +524,7 @@ var inlgen int
 // 	n.Left = mkinlcall1(n.Left, fn, isddd)
 func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	// For variadic fn.
-	if len(fn.Func.Inl.Slice()) == 0 {
+	if fn.Func.Inl.Len() == 0 {
 		return n
 	}
 
@@ -750,7 +754,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			vararrtype := typArray(varargtype.Elem(), int64(varargcount))
 			as.Right = Nod(OCOMPLIT, nil, typenod(vararrtype))
 			as.Right.List.Set(varargs)
-			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
+			as.Right = Nod(OSLICE, as.Right, nil)
 		}
 
 		as = typecheck(as, Etop)

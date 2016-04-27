@@ -81,13 +81,13 @@
 (Rsh64Ux64 (Const64 [c]) (Const64 [d])) -> (Const64 [int64(uint64(c) >> uint64(d))])
 (Lsh32x64  (Const32 [c]) (Const64 [d])) -> (Const32 [int64(int32(c) << uint64(d))])
 (Rsh32x64  (Const32 [c]) (Const64 [d])) -> (Const32 [int64(int32(c) >> uint64(d))])
-(Rsh32Ux64 (Const32 [c]) (Const64 [d])) -> (Const32 [int64(uint32(c) >> uint64(d))])
+(Rsh32Ux64 (Const32 [c]) (Const64 [d])) -> (Const32 [int64(int32(uint32(c) >> uint64(d)))])
 (Lsh16x64  (Const16 [c]) (Const64 [d])) -> (Const16 [int64(int16(c) << uint64(d))])
 (Rsh16x64  (Const16 [c]) (Const64 [d])) -> (Const16 [int64(int16(c) >> uint64(d))])
-(Rsh16Ux64 (Const16 [c]) (Const64 [d])) -> (Const16 [int64(uint16(c) >> uint64(d))])
+(Rsh16Ux64 (Const16 [c]) (Const64 [d])) -> (Const16 [int64(int16(uint16(c) >> uint64(d)))])
 (Lsh8x64   (Const8  [c]) (Const64 [d])) -> (Const8  [int64(int8(c) << uint64(d))])
 (Rsh8x64   (Const8  [c]) (Const64 [d])) -> (Const8  [int64(int8(c) >> uint64(d))])
-(Rsh8Ux64  (Const8  [c]) (Const64 [d])) -> (Const8  [int64(uint8(c) >> uint64(d))])
+(Rsh8Ux64  (Const8  [c]) (Const64 [d])) -> (Const8  [int64(int8(uint8(c) >> uint64(d)))])
 
 (Lsh64x64  (Const64 [0]) _) -> (Const64 [0])
 (Rsh64x64  (Const64 [0]) _) -> (Const64 [0])
@@ -114,7 +114,7 @@
 (Lsh16x16 (Rsh16Ux16 (Lsh16x16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && uint16(c1) >= uint16(c2) && uint16(c3) >= uint16(c2) ->  (Lsh16x16 x (Const16 <config.fe.TypeUInt16()> [int64(int16(c1-c2+c3))]))
 (Lsh8x8 (Rsh8Ux8 (Lsh8x8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && uint8(c1) >= uint8(c2) && uint8(c3) >= uint8(c2) ->  (Lsh8x8 x (Const8 <config.fe.TypeUInt8()> [int64(int8(c1-c2+c3))]))
 
-// Fold IsInBounds when the range of the index cannot exceed the limt.
+// Fold IsInBounds when the range of the index cannot exceed the limit.
 (IsInBounds (ZeroExt8to32 _) (Const32 [c])) && (1 << 8) <= c -> (ConstBool [1])
 (IsInBounds (ZeroExt8to64 _) (Const64 [c])) && (1 << 8) <= c -> (ConstBool [1])
 (IsInBounds (ZeroExt16to32 _) (Const32 [c])) && (1 << 16) <= c -> (ConstBool [1])
@@ -141,17 +141,17 @@
 (Eq32 x x) -> (ConstBool [1])
 (Eq16 x x) -> (ConstBool [1])
 (Eq8 x x) -> (ConstBool [1])
-(Eq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c == d)])
-(Eq8 (ConstBool [0]) x) -> (Not x)
-(Eq8 (ConstBool [1]) x) -> x
+(EqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c == d)])
+(EqB (ConstBool [0]) x) -> (Not x)
+(EqB (ConstBool [1]) x) -> x
 
 (Neq64 x x) -> (ConstBool [0])
 (Neq32 x x) -> (ConstBool [0])
 (Neq16 x x) -> (ConstBool [0])
 (Neq8 x x) -> (ConstBool [0])
-(Neq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
-(Neq8 (ConstBool [0]) x) -> x
-(Neq8 (ConstBool [1]) x) -> (Not x)
+(NeqB (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i(c != d)])
+(NeqB (ConstBool [0]) x) -> x
+(NeqB (ConstBool [1]) x) -> (Not x)
 
 (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
 (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [int64(int32(c-d))]) x)
@@ -168,13 +168,11 @@
 (Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
 (Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
 (Eq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Eq8 (Const8 <t> [c]) x)
-(Eq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Eq8 (ConstBool <t> [c]) x)
 
 (Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
 (Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
 (Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
 (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
-(Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
 
 // AddPtr is not canonicalized because nilcheck ptr checks the first argument to be non-nil.
 (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
@@ -413,6 +411,55 @@
 (Neg16 (Sub16 x y)) -> (Sub16 y x)
 (Neg32 (Sub32 x y)) -> (Sub32 y x)
 (Neg64 (Sub64 x y)) -> (Sub64 y x)
+
+(And64 x (And64 x y)) -> (And64 x y)
+(And32 x (And32 x y)) -> (And32 x y)
+(And16 x (And16 x y)) -> (And16 x y)
+(And8  x (And8  x y)) -> (And8  x y)
+(And64 x (And64 y x)) -> (And64 x y)
+(And32 x (And32 y x)) -> (And32 x y)
+(And16 x (And16 y x)) -> (And16 x y)
+(And8  x (And8  y x)) -> (And8  x y)
+(And64 (And64 x y) x) -> (And64 x y)
+(And32 (And32 x y) x) -> (And32 x y)
+(And16 (And16 x y) x) -> (And16 x y)
+(And8  (And8  x y) x) -> (And8  x y)
+(And64 (And64 x y) y) -> (And64 x y)
+(And32 (And32 x y) y) -> (And32 x y)
+(And16 (And16 x y) y) -> (And16 x y)
+(And8  (And8  x y) y) -> (And8  x y)
+(Or64 x (Or64 x y)) -> (Or64 x y)
+(Or32 x (Or32 x y)) -> (Or32 x y)
+(Or16 x (Or16 x y)) -> (Or16 x y)
+(Or8  x (Or8  x y)) -> (Or8  x y)
+(Or64 x (Or64 y x)) -> (Or64 x y)
+(Or32 x (Or32 y x)) -> (Or32 x y)
+(Or16 x (Or16 y x)) -> (Or16 x y)
+(Or8  x (Or8  y x)) -> (Or8  x y)
+(Or64 (Or64 x y) x) -> (Or64 x y)
+(Or32 (Or32 x y) x) -> (Or32 x y)
+(Or16 (Or16 x y) x) -> (Or16 x y)
+(Or8  (Or8  x y) x) -> (Or8  x y)
+(Or64 (Or64 x y) y) -> (Or64 x y)
+(Or32 (Or32 x y) y) -> (Or32 x y)
+(Or16 (Or16 x y) y) -> (Or16 x y)
+(Or8  (Or8  x y) y) -> (Or8  x y)
+(Xor64 x (Xor64 x y)) -> y
+(Xor32 x (Xor32 x y)) -> y
+(Xor16 x (Xor16 x y)) -> y
+(Xor8  x (Xor8  x y)) -> y
+(Xor64 x (Xor64 y x)) -> y
+(Xor32 x (Xor32 y x)) -> y
+(Xor16 x (Xor16 y x)) -> y
+(Xor8  x (Xor8  y x)) -> y
+(Xor64 (Xor64 x y) x) -> y
+(Xor32 (Xor32 x y) x) -> y
+(Xor16 (Xor16 x y) x) -> y
+(Xor8  (Xor8  x y) x) -> y
+(Xor64 (Xor64 x y) y) -> x
+(Xor32 (Xor32 x y) y) -> x
+(Xor16 (Xor16 x y) y) -> x
+(Xor8  (Xor8  x y) y) -> x
 
 (Trunc64to8 (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
 (Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)

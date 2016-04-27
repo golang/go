@@ -5,6 +5,7 @@
 package asm
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -33,7 +34,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	pList := obj.Linknewplist(ctxt)
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
-	ctxt.Bso = obj.Binitw(os.Stdout)
+	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
 	failed := false
 	ctxt.DiagFunc = func(format string, args ...interface{}) {
@@ -271,7 +272,7 @@ func testErrors(t *testing.T, goarch, file string) {
 	pList := obj.Linknewplist(ctxt)
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
-	ctxt.Bso = obj.Binitw(os.Stdout)
+	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
 	failed := false
 	var errBuf bytes.Buffer

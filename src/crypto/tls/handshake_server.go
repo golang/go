@@ -209,7 +209,7 @@ Curves:
 			hs.rsaSignOk = true
 		default:
 			c.sendAlert(alertInternalError)
-			return false, fmt.Errorf("crypto/tls: unsupported signing key type (%T)", priv.Public())
+			return false, fmt.Errorf("tls: unsupported signing key type (%T)", priv.Public())
 		}
 	}
 	if priv, ok := hs.cert.PrivateKey.(crypto.Decrypter); ok {
@@ -218,7 +218,7 @@ Curves:
 			hs.rsaDecryptOk = true
 		default:
 			c.sendAlert(alertInternalError)
-			return false, fmt.Errorf("crypto/tls: unsupported decryption key type (%T)", priv.Public())
+			return false, fmt.Errorf("tls: unsupported decryption key type (%T)", priv.Public())
 		}
 	}
 
@@ -514,7 +514,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		switch key := pub.(type) {
 		case *ecdsa.PublicKey:
 			if signatureAndHash.signature != signatureECDSA {
-				err = errors.New("bad signature type for client's ECDSA certificate")
+				err = errors.New("tls: bad signature type for client's ECDSA certificate")
 				break
 			}
 			ecdsaSig := new(ecdsaSignature)
@@ -522,7 +522,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 				break
 			}
 			if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-				err = errors.New("ECDSA signature contained zero or negative values")
+				err = errors.New("tls: ECDSA signature contained zero or negative values")
 				break
 			}
 			var digest []byte
@@ -530,11 +530,11 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 				break
 			}
 			if !ecdsa.Verify(key, digest, ecdsaSig.R, ecdsaSig.S) {
-				err = errors.New("ECDSA verification failure")
+				err = errors.New("tls: ECDSA verification failure")
 			}
 		case *rsa.PublicKey:
 			if signatureAndHash.signature != signatureRSA {
-				err = errors.New("bad signature type for client's RSA certificate")
+				err = errors.New("tls: bad signature type for client's RSA certificate")
 				break
 			}
 			var digest []byte

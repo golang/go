@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"strings"
 	"unicode"
@@ -18,7 +19,7 @@ import (
 //
 // This flood fill is wrapped in logic for pruning unused methods.
 // All methods are mentioned by relocations on their receiver's *rtype.
-// These relocations are specially defined as R_METHOD by the compiler
+// These relocations are specially defined as R_METHODOFF by the compiler
 // so we can detect and manipulated them here.
 //
 // There are three ways a method of a reachable type can be invoked:
@@ -99,7 +100,7 @@ func deadcode(ctxt *Link) {
 		d.flood()
 	}
 
-	// Remove all remaining unreached R_METHOD relocations.
+	// Remove all remaining unreached R_METHODOFF relocations.
 	for _, m := range d.markableMethods {
 		for _, r := range m.r {
 			d.cleanupReloc(r)
@@ -118,25 +119,13 @@ func deadcode(ctxt *Link) {
 	}
 
 	// Remove dead text but keep file information (z symbols).
-	var last *LSym
-	for s := ctxt.Textp; s != nil; s = s.Next {
-		if !s.Attr.Reachable() {
-			continue
+	textp := make([]*LSym, 0, len(ctxt.Textp))
+	for _, s := range ctxt.Textp {
+		if s.Attr.Reachable() {
+			textp = append(textp, s)
 		}
-		if last == nil {
-			ctxt.Textp = s
-		} else {
-			last.Next = s
-		}
-		last = s
 	}
-	if last == nil {
-		ctxt.Textp = nil
-		ctxt.Etextp = nil
-	} else {
-		last.Next = nil
-		ctxt.Etextp = last
-	}
+	ctxt.Textp = textp
 }
 
 var markextra = []string{
@@ -166,12 +155,10 @@ var markextra = []string{
 type methodref struct {
 	m   methodsig
 	src *LSym     // receiver type symbol
-	r   [3]*Reloc // R_METHOD relocations to fields of runtime.method
+	r   [3]*Reloc // R_METHODOFF relocations to fields of runtime.method
 }
 
-func (m methodref) mtyp() *LSym { return m.r[0].Sym }
-func (m methodref) ifn() *LSym  { return m.r[1].Sym }
-func (m methodref) tfn() *LSym  { return m.r[2].Sym }
+func (m methodref) ifn() *LSym { return m.r[1].Sym }
 
 func (m methodref) isExported() bool {
 	for _, r := range m.m {
@@ -191,7 +178,7 @@ type deadcodepass struct {
 
 func (d *deadcodepass) cleanupReloc(r *Reloc) {
 	if r.Sym.Attr.Reachable() {
-		r.Type = obj.R_ADDR
+		r.Type = obj.R_ADDROFF
 	} else {
 		if Debug['v'] > 1 {
 			fmt.Fprintf(d.ctxt.Bso, "removing method %s\n", r.Sym.Name)
@@ -209,6 +196,13 @@ func (d *deadcodepass) mark(s, parent *LSym) {
 	if s.Attr.ReflectMethod() {
 		d.reflectMethod = true
 	}
+	if flag_dumpdep {
+		p := "_"
+		if parent != nil {
+			p = parent.Name
+		}
+		fmt.Printf("%s -> %s\n", p, s.Name)
+	}
 	s.Attr |= AttrReachable
 	s.Reachparent = parent
 	d.markQueue = append(d.markQueue, s)
@@ -218,7 +212,7 @@ func (d *deadcodepass) mark(s, parent *LSym) {
 func (d *deadcodepass) markMethod(m methodref) {
 	for _, r := range m.r {
 		d.mark(r.Sym, m.src)
-		r.Type = obj.R_ADDR
+		r.Type = obj.R_ADDROFF
 	}
 }
 
@@ -227,7 +221,7 @@ func (d *deadcodepass) markMethod(m methodref) {
 func (d *deadcodepass) init() {
 	var names []string
 
-	if Thearch.Thechar == '5' {
+	if SysArch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
 		if d.ctxt.Goarm == 5 {
 			names = append(names, "_sfloat")
@@ -273,9 +267,12 @@ func (d *deadcodepass) flood() {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(d.ctxt.Bso, "marktext %s\n", s.Name)
 			}
-			for _, a := range s.Autom {
-				d.mark(a.Gotype, s)
+			if s.FuncInfo != nil {
+				for _, a := range s.FuncInfo.Autom {
+					d.mark(a.Gotype, s)
+				}
 			}
+
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
@@ -289,14 +286,14 @@ func (d *deadcodepass) flood() {
 			}
 		}
 
-		mpos := 0 // 0-3, the R_METHOD relocs of runtime.uncommontype
+		mpos := 0 // 0-3, the R_METHODOFF relocs of runtime.uncommontype
 		var methods []methodref
 		for i := 0; i < len(s.R); i++ {
 			r := &s.R[i]
 			if r.Sym == nil {
 				continue
 			}
-			if r.Type != obj.R_METHOD {
+			if r.Type != obj.R_METHODOFF {
 				d.mark(r.Sym, s)
 				continue
 			}
@@ -333,9 +330,9 @@ func (d *deadcodepass) flood() {
 			d.markableMethods = append(d.markableMethods, methods...)
 		}
 
-		if s.Pcln != nil {
-			for i := range s.Pcln.Funcdata {
-				d.mark(s.Pcln.Funcdata[i], s)
+		if s.FuncInfo != nil {
+			for i := range s.FuncInfo.Funcdata {
+				d.mark(s.FuncInfo.Funcdata[i], s)
 			}
 		}
 		d.mark(s.Gotype, s)

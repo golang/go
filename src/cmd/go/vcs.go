@@ -253,7 +253,7 @@ func bzrResolveRepo(vcsBzr *vcsCmd, rootDir, remoteRepo string) (realRepo string
 		return "", fmt.Errorf("unable to parse output of bzr info")
 	}
 	out = out[:i]
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
 // vcsSvn describes how to use Subversion.
@@ -294,7 +294,7 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
 		return "", fmt.Errorf("unable to parse output of svn info")
 	}
 	out = out[:i]
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
 func (v *vcsCmd) String() string {
@@ -479,15 +479,14 @@ type vcsPath struct {
 	regexp *regexp.Regexp // cached compiled form of re
 }
 
-// vcsForDir inspects dir and its parents to determine the
+// vcsFromDir inspects dir and its parents to determine the
 // version control system and code repository to use.
 // On return, root is the import path
-// corresponding to the root of the repository
-// (thus root is a prefix of importPath).
-func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
+// corresponding to the root of the repository.
+func vcsFromDir(dir, srcRoot string) (vcs *vcsCmd, root string, err error) {
 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
-	dir := filepath.Clean(p.Dir)
-	srcRoot := filepath.Clean(p.build.SrcRoot)
+	dir = filepath.Clean(dir)
+	srcRoot = filepath.Clean(srcRoot)
 	if len(dir) <= len(srcRoot) || dir[len(srcRoot)] != filepath.Separator {
 		return nil, "", fmt.Errorf("directory %q is outside source root %q", dir, srcRoot)
 	}
@@ -496,7 +495,7 @@ func vcsForDir(p *Package) (vcs *vcsCmd, root string, err error) {
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.cmd)); err == nil && fi.IsDir() {
-				return vcs, dir[len(srcRoot)+1:], nil
+				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
 			}
 		}
 

@@ -1451,7 +1451,7 @@ const char *_cgoPREFIX_Cfunc_CString(struct __go_string s) {
 
 void *_cgoPREFIX_Cfunc_CBytes(struct __go_open_array b) {
 	char *p = malloc(b.__count);
-	memmove(p, b.__data, b.__count);
+	memmove(p, b.__values, b.__count);
 	return p;
 }
 

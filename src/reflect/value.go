@@ -553,7 +553,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		if !m.name.isExported() {
+		if !tt.nameOff(m.name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		iface := (*nonEmptyInterface)(v.ptr)
@@ -562,19 +562,20 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype, t *rtype, fn
 		}
 		rcvrtype = iface.itab.typ
 		fn = unsafe.Pointer(&iface.itab.fun[i])
-		t = m.typ
+		t = tt.typeOff(m.typ)
 	} else {
 		rcvrtype = v.typ
 		ut := v.typ.uncommon()
-		if ut == nil || uint(i) >= uint(len(ut.methods)) {
+		if ut == nil || uint(i) >= uint(ut.mcount) {
 			panic("reflect: internal error: invalid method index")
 		}
-		m := &ut.methods[i]
-		if !m.name.isExported() {
+		m := ut.methods()[i]
+		if !v.typ.nameOff(m.name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
-		fn = unsafe.Pointer(&m.ifn)
-		t = m.mtyp
+		ifn := v.typ.textOff(m.ifn)
+		fn = unsafe.Pointer(&ifn)
+		t = v.typ.typeOff(m.mtyp)
 	}
 	return
 }
@@ -665,7 +666,7 @@ func (v Value) Cap() int {
 	case Array:
 		return v.typ.Len()
 	case Chan:
-		return int(chancap(v.pointer()))
+		return chancap(v.pointer())
 	case Slice:
 		// Slice is always bigger than a word; assume flagIndir.
 		return (*sliceHeader)(v.ptr).Cap
@@ -884,7 +885,7 @@ func (v Value) Int() int64 {
 	case Int32:
 		return int64(*(*int32)(p))
 	case Int64:
-		return int64(*(*int64)(p))
+		return *(*int64)(p)
 	}
 	panic(&ValueError{"reflect.Value.Int", v.kind()})
 }
@@ -1435,7 +1436,7 @@ func (v Value) SetCap(n int) {
 	v.mustBeAssignable()
 	v.mustBe(Slice)
 	s := (*sliceHeader)(v.ptr)
-	if n < int(s.Len) || n > int(s.Cap) {
+	if n < s.Len || n > s.Cap {
 		panic("reflect: slice capacity out of range in SetCap")
 	}
 	s.Cap = n
@@ -1537,7 +1538,7 @@ func (v Value) Slice(i, j int) Value {
 	case Slice:
 		typ = (*sliceType)(unsafe.Pointer(v.typ))
 		s := (*sliceHeader)(v.ptr)
-		base = unsafe.Pointer(s.Data)
+		base = s.Data
 		cap = s.Cap
 
 	case String:
@@ -1683,15 +1684,15 @@ func (v Value) Type() Type {
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		return m.typ
+		return v.typ.typeOff(m.typ)
 	}
 	// Method on concrete type.
 	ut := v.typ.uncommon()
-	if ut == nil || uint(i) >= uint(len(ut.methods)) {
+	if ut == nil || uint(i) >= uint(ut.mcount) {
 		panic("reflect: internal error: invalid method index")
 	}
-	m := &ut.methods[i]
-	return m.mtyp
+	m := ut.methods()[i]
+	return v.typ.typeOff(m.mtyp)
 }
 
 // Uint returns v's underlying value, as a uint64.
@@ -1709,7 +1710,7 @@ func (v Value) Uint() uint64 {
 	case Uint32:
 		return uint64(*(*uint32)(p))
 	case Uint64:
-		return uint64(*(*uint64)(p))
+		return *(*uint64)(p)
 	case Uintptr:
 		return uint64(*(*uintptr)(p))
 	}
@@ -2266,13 +2267,13 @@ func makeInt(f flag, bits uint64, t Type) Value {
 	ptr := unsafe_New(typ)
 	switch typ.size {
 	case 1:
-		*(*uint8)(unsafe.Pointer(ptr)) = uint8(bits)
+		*(*uint8)(ptr) = uint8(bits)
 	case 2:
-		*(*uint16)(unsafe.Pointer(ptr)) = uint16(bits)
+		*(*uint16)(ptr) = uint16(bits)
 	case 4:
-		*(*uint32)(unsafe.Pointer(ptr)) = uint32(bits)
+		*(*uint32)(ptr) = uint32(bits)
 	case 8:
-		*(*uint64)(unsafe.Pointer(ptr)) = bits
+		*(*uint64)(ptr) = bits
 	}
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }
@@ -2284,9 +2285,9 @@ func makeFloat(f flag, v float64, t Type) Value {
 	ptr := unsafe_New(typ)
 	switch typ.size {
 	case 4:
-		*(*float32)(unsafe.Pointer(ptr)) = float32(v)
+		*(*float32)(ptr) = float32(v)
 	case 8:
-		*(*float64)(unsafe.Pointer(ptr)) = v
+		*(*float64)(ptr) = v
 	}
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }
@@ -2298,9 +2299,9 @@ func makeComplex(f flag, v complex128, t Type) Value {
 	ptr := unsafe_New(typ)
 	switch typ.size {
 	case 8:
-		*(*complex64)(unsafe.Pointer(ptr)) = complex64(v)
+		*(*complex64)(ptr) = complex64(v)
 	case 16:
-		*(*complex128)(unsafe.Pointer(ptr)) = v
+		*(*complex128)(ptr) = v
 	}
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }

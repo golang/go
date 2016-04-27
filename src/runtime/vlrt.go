@@ -195,7 +195,6 @@ func dodiv(n, d uint64) (q, r uint64) {
 	if GOARCH == "arm" {
 		// arm doesn't have a division instruction, so
 		// slowdodiv is the best that we can do.
-		// TODO: revisit for arm64.
 		return slowdodiv(n, d)
 	}
 

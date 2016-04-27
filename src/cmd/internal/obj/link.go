@@ -30,7 +30,10 @@
 
 package obj
 
-import "encoding/binary"
+import (
+	"bufio"
+	"cmd/internal/sys"
+)
 
 // An Addr is an argument to an instruction.
 // The general forms and their encodings are:
@@ -423,6 +426,8 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
+	SDWARFSECT
+	SDWARFINFO
 	SSUB       = 1 << 8
 	SMASK      = SSUB - 1
 	SHIDDEN    = 1 << 9
@@ -452,6 +457,9 @@ const (
 	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
 	// by loading the address into a register with two instructions (lui, ori).
 	R_ADDRMIPS
+	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
+	// holding the data being relocated to the referenced symbol.
+	R_ADDROFF
 	R_SIZE
 	R_CALL
 	R_CALLARM
@@ -484,17 +492,20 @@ const (
 	// should be linked into the final binary, even if there are no other
 	// direct references. (This is used for types reachable by reflection.)
 	R_USETYPE
-	// R_METHOD resolves to an *rtype for a method.
-	// It is used when linking from the uncommonType of another *rtype, and
-	// may be set to zero by the linker if it determines the method text is
-	// unreachable by the linked program.
-	R_METHOD
+	// R_METHODOFF resolves to a 32-bit offset from the beginning of the section
+	// holding the data being relocated to the referenced symbol.
+	// It is a variant of R_ADDROFF used when linking from the uncommonType of a
+	// *rtype, and may be set to zero by the linker if it determines the method
+	// text is unreachable by the linked program.
+	R_METHODOFF
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
 	// of a JMP instruction, by encoding the address into the instruction.
 	// The stack nosplit check ignores this since it is not a function call.
 	R_JMPMIPS
+	// R_DWARFREF resolves to the offset of the symbol from its section.
+	R_DWARFREF
 
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
@@ -590,19 +601,6 @@ type Pcdata struct {
 	P []byte
 }
 
-// Pcdata iterator.
-//      for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
-type Pciter struct {
-	d       Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
-}
-
 // symbol version, incremented each time a file is loaded.
 // version==1 is reserved for savehist.
 const (
@@ -619,10 +617,10 @@ type Link struct {
 	Debugvlog     int32
 	Debugdivmod   int32
 	Debugpcln     int32
-	Flag_shared   int32
+	Flag_shared   bool
 	Flag_dynlink  bool
 	Flag_optimize bool
-	Bso           *Biobuf
+	Bso           *bufio.Writer
 	Pathname      string
 	Goroot        string
 	Goroot_final  string
@@ -678,15 +676,15 @@ func (ctxt *Link) Diag(format string, args ...interface{}) {
 // on the stack in the function prologue and so always have a pointer between
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Thechar {
-	case '6', '8':
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
 		return 0
-	case '9':
+	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
 		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.Ptrsize)
+		return int64(4 * ctxt.Arch.PtrSize)
 	default:
-		return int64(ctxt.Arch.Ptrsize)
+		return int64(ctxt.Arch.PtrSize)
 	}
 }
 
@@ -697,17 +695,12 @@ type SymVer struct {
 
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
-	ByteOrder  binary.ByteOrder
-	Name       string
-	Thechar    int
+	*sys.Arch
 	Preprocess func(*Link, *LSym)
 	Assemble   func(*Link, *LSym)
 	Follow     func(*Link, *LSym)
 	Progedit   func(*Link, *Prog)
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
-	Minlc      int
-	Ptrsize    int
-	Regsize    int
 }
 
 /* executable header types */
@@ -724,27 +717,6 @@ const (
 	Hsolaris
 	Hwindows
 )
-
-type Plist struct {
-	Name    *LSym
-	Firstpc *Prog
-	Recur   int
-	Link    *Plist
-}
-
-/*
- * start a new Prog list.
- */
-func Linknewplist(ctxt *Link) *Plist {
-	pl := new(Plist)
-	if ctxt.Plist == nil {
-		ctxt.Plist = pl
-	} else {
-		ctxt.Plast.Link = pl
-	}
-	ctxt.Plast = pl
-	return pl
-}
 
 // AsmBuf is a simple buffer to assemble variable-length x86 instructions into.
 type AsmBuf struct {

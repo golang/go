@@ -8,9 +8,15 @@
 
 package net
 
-import "time"
+import (
+	"os"
+	"time"
+)
 
-var defaultNS = []string{"127.0.0.1", "::1"}
+var (
+	defaultNS   = []string{"127.0.0.1", "::1"}
+	getHostname = os.Hostname // variable for testing
+)
 
 type dnsConfig struct {
 	servers    []string  // servers to use
@@ -26,8 +32,6 @@ type dnsConfig struct {
 }
 
 // See resolv.conf(5) on a Linux machine.
-// TODO(rsc): Supposed to call uname() and chop the beginning
-// of the host name to get the default search domain.
 func dnsReadConfig(filename string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
@@ -37,6 +41,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 	file, err := open(filename)
 	if err != nil {
 		conf.servers = defaultNS
+		conf.search = dnsDefaultSearch()
 		conf.err = err
 		return conf
 	}
@@ -45,6 +50,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 		conf.mtime = fi.ModTime()
 	} else {
 		conf.servers = defaultNS
+		conf.search = dnsDefaultSearch()
 		conf.err = err
 		return conf
 	}
@@ -122,7 +128,22 @@ func dnsReadConfig(filename string) *dnsConfig {
 	if len(conf.servers) == 0 {
 		conf.servers = defaultNS
 	}
+	if len(conf.search) == 0 {
+		conf.search = dnsDefaultSearch()
+	}
 	return conf
+}
+
+func dnsDefaultSearch() []string {
+	hn, err := getHostname()
+	if err != nil {
+		// best effort
+		return nil
+	}
+	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
+		return []string{hn[i+1:]}
+	}
+	return nil
 }
 
 func hasPrefix(s, prefix string) bool {

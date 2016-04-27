@@ -31,16 +31,16 @@ type Type interface {
 	ElemType() Type // given []T or *T or [n]T, return T
 	PtrTo() Type    // given T, return *T
 
-	NumFields() int       // # of fields of a struct
-	FieldType(i int) Type // type of ith field of the struct
-	FieldOff(i int) int64 // offset of ith field of the struct
+	NumFields() int         // # of fields of a struct
+	FieldType(i int) Type   // type of ith field of the struct
+	FieldOff(i int) int64   // offset of ith field of the struct
+	FieldName(i int) string // name of ith field of the struct
 
 	NumElem() int64 // # of elements of an array
 
 	String() string
 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
-	Equal(Type) bool
-	Compare(Type) Cmp // compare types, returning one of CMPlt, CMPeq, CMPgt.
+	Compare(Type) Cmp     // compare types, returning one of CMPlt, CMPeq, CMPgt.
 }
 
 // Special compiler-only types.
@@ -53,30 +53,31 @@ type CompilerType struct {
 	Int128 bool
 }
 
-func (t *CompilerType) Size() int64          { return t.size } // Size in bytes
-func (t *CompilerType) Alignment() int64     { return 0 }
-func (t *CompilerType) IsBoolean() bool      { return false }
-func (t *CompilerType) IsInteger() bool      { return false }
-func (t *CompilerType) IsSigned() bool       { return false }
-func (t *CompilerType) IsFloat() bool        { return false }
-func (t *CompilerType) IsComplex() bool      { return false }
-func (t *CompilerType) IsPtrShaped() bool    { return false }
-func (t *CompilerType) IsString() bool       { return false }
-func (t *CompilerType) IsSlice() bool        { return false }
-func (t *CompilerType) IsArray() bool        { return false }
-func (t *CompilerType) IsStruct() bool       { return false }
-func (t *CompilerType) IsInterface() bool    { return false }
-func (t *CompilerType) IsMemory() bool       { return t.Memory }
-func (t *CompilerType) IsFlags() bool        { return t.Flags }
-func (t *CompilerType) IsVoid() bool         { return t.Void }
-func (t *CompilerType) String() string       { return t.Name }
-func (t *CompilerType) SimpleString() string { return t.Name }
-func (t *CompilerType) ElemType() Type       { panic("not implemented") }
-func (t *CompilerType) PtrTo() Type          { panic("not implemented") }
-func (t *CompilerType) NumFields() int       { panic("not implemented") }
-func (t *CompilerType) FieldType(i int) Type { panic("not implemented") }
-func (t *CompilerType) FieldOff(i int) int64 { panic("not implemented") }
-func (t *CompilerType) NumElem() int64       { panic("not implemented") }
+func (t *CompilerType) Size() int64            { return t.size } // Size in bytes
+func (t *CompilerType) Alignment() int64       { return 0 }
+func (t *CompilerType) IsBoolean() bool        { return false }
+func (t *CompilerType) IsInteger() bool        { return false }
+func (t *CompilerType) IsSigned() bool         { return false }
+func (t *CompilerType) IsFloat() bool          { return false }
+func (t *CompilerType) IsComplex() bool        { return false }
+func (t *CompilerType) IsPtrShaped() bool      { return false }
+func (t *CompilerType) IsString() bool         { return false }
+func (t *CompilerType) IsSlice() bool          { return false }
+func (t *CompilerType) IsArray() bool          { return false }
+func (t *CompilerType) IsStruct() bool         { return false }
+func (t *CompilerType) IsInterface() bool      { return false }
+func (t *CompilerType) IsMemory() bool         { return t.Memory }
+func (t *CompilerType) IsFlags() bool          { return t.Flags }
+func (t *CompilerType) IsVoid() bool           { return t.Void }
+func (t *CompilerType) String() string         { return t.Name }
+func (t *CompilerType) SimpleString() string   { return t.Name }
+func (t *CompilerType) ElemType() Type         { panic("not implemented") }
+func (t *CompilerType) PtrTo() Type            { panic("not implemented") }
+func (t *CompilerType) NumFields() int         { panic("not implemented") }
+func (t *CompilerType) FieldType(i int) Type   { panic("not implemented") }
+func (t *CompilerType) FieldOff(i int) int64   { panic("not implemented") }
+func (t *CompilerType) FieldName(i int) string { panic("not implemented") }
+func (t *CompilerType) NumElem() int64         { panic("not implemented") }
 
 // Cmp is a comparison between values a and b.
 // -1 if a < b
@@ -113,14 +114,6 @@ func (t *CompilerType) Compare(u Type) Cmp {
 		return CMPgt
 	}
 	return CMPlt
-}
-
-func (t *CompilerType) Equal(u Type) bool {
-	x, ok := u.(*CompilerType)
-	if !ok {
-		return false
-	}
-	return x == t
 }
 
 var (

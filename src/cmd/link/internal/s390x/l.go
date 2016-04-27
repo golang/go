@@ -62,14 +62,9 @@ package s390x
 // THE SOFTWARE.
 
 const (
-	thechar   = 'z'
-	PtrSize   = 8
-	IntSize   = 8
-	RegSize   = 8
 	MaxAlign  = 32 // max data alignment
 	MinAlign  = 2  // min data alignment
 	FuncAlign = 16
-	MINLC     = 2
 )
 
 /* Used by ../internal/ld/dwarf.go */

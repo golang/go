@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"crypto/md5"
 	"fmt"
 	"sort"
@@ -90,7 +91,7 @@ func gvardefx(n *Node, as obj.As) {
 		Fatalf("gvardef nil")
 	}
 	if n.Op != ONAME {
-		Yyerror("gvardef %v; %v", Oconv(n.Op, FmtSharp), n)
+		Yyerror("gvardef %v; %v", oconv(n.Op, FmtSharp), n)
 		return
 	}
 
@@ -286,7 +287,7 @@ func allocauto(ptxt *obj.Prog) {
 		if haspointers(n.Type) {
 			stkptrsize = Stksize
 		}
-		if Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+		if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) {
 			Stksize = Rnd(Stksize, int64(Widthptr))
 		}
 		if Stksize >= 1<<31 {
@@ -323,7 +324,12 @@ func Cgen_checknil(n *Node) {
 		Fatalf("bad checknil")
 	}
 
-	if ((Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
+	// Most architectures require that the address to be checked is
+	// in a register (it could be in memory).
+	needsReg := !Thearch.LinkArch.InFamily(sys.AMD64, sys.I386)
+
+	// Move the address to be checked into a register if necessary.
+	if (needsReg && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
 		var reg Node
 		Regalloc(&reg, Types[Tptr], n)
 		Cgen(n, &reg)
@@ -357,8 +363,8 @@ func compile(fn *Node) {
 	Curfn = fn
 	dowidth(Curfn.Type)
 
-	if len(fn.Nbody.Slice()) == 0 {
-		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
+	if fn.Nbody.Len() == 0 {
+		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
 			return
 		}
@@ -375,7 +381,7 @@ func compile(fn *Node) {
 	// set up domain for labels
 	clearlabels()
 
-	if Curfn.Type.Outnamed {
+	if Curfn.Type.FuncType().Outnamed {
 		// add clearing of the output parameters
 		for _, t := range Curfn.Type.Results().Fields().Slice() {
 			if t.Nname != nil {

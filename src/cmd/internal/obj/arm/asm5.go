@@ -870,7 +870,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
 		t.To.Type = a.Type
 		t.To.Name = a.Name
 
-		if ctxt.Flag_shared != 0 && t.To.Sym != nil {
+		if ctxt.Flag_shared && t.To.Sym != nil {
 			t.Rel = p
 		}
 
@@ -1015,7 +1015,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 			ctxt.Instoffset = 0 // s.b. unused but just in case
 			if a.Sym.Type == obj.STLSBSS {
-				if ctxt.Flag_shared != 0 {
+				if ctxt.Flag_shared {
 					return C_TLS_IE
 				} else {
 					return C_TLS_LE
@@ -1322,7 +1322,7 @@ func buildop(ctxt *obj.Link) {
 	}
 	for n = 0; optab[n].as != obj.AXXX; n++ {
 		if optab[n].flag&LPCREL != 0 {
-			if ctxt.Flag_shared != 0 {
+			if ctxt.Flag_shared {
 				optab[n].size += int8(optab[n].pcrelsiz)
 			} else {
 				optab[n].flag &^= LPCREL
@@ -1633,7 +1633,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel.Sym = p.To.Sym
 			rel.Add = p.To.Offset
 
-			if ctxt.Flag_shared != 0 {
+			if ctxt.Flag_shared {
 				if p.To.Name == obj.NAME_GOTREF {
 					rel.Type = obj.R_GOTPCREL
 				} else {

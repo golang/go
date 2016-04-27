@@ -682,6 +682,7 @@ var Anames = []string{
 	"UNPCKLPS",
 	"XORPD",
 	"XORPS",
+	"PCMPESTRI",
 	"RETFW",
 	"RETFL",
 	"RETFQ",
