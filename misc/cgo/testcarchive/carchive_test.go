@@ -147,7 +147,11 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	compilemain(t, filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a"))
+	libgopath := filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a")
+	if GOOS == "darwin" && GOARCH == "arm" {
+		libgopath = filepath.Join("pkg", GOOS+"_"+GOARCH+"_shared", "libgo.a")
+	}
+	compilemain(t, libgopath)
 
 	binArgs := append(bin, "arg1", "arg2")
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
