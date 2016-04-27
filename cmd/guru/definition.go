@@ -7,9 +7,15 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
+	"go/parser"
 	"go/token"
+	pathpkg "path"
+	"path/filepath"
+	"strconv"
 
 	"golang.org/x/tools/cmd/guru/serial"
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -30,6 +36,7 @@ func definition(q *Query) error {
 			return fmt.Errorf("no identifier here")
 		}
 
+		// Did the parser resolve it to a local object?
 		if obj := id.Obj; obj != nil && obj.Pos().IsValid() {
 			q.Output(qpos.fset, &definitionResult{
 				pos:   obj.Pos(),
@@ -37,6 +44,22 @@ func definition(q *Query) error {
 			})
 			return nil // success
 		}
+
+		// Qualified identifier?
+		if pkg := packageForQualIdent(qpos.path, id); pkg != "" {
+			srcdir := filepath.Dir(qpos.fset.File(qpos.start).Name())
+			tok, pos, err := findPackageMember(q.Build, qpos.fset, srcdir, pkg, id.Name)
+			if err != nil {
+				return err
+			}
+			q.Output(qpos.fset, &definitionResult{
+				pos:   pos,
+				descr: fmt.Sprintf("%s %s.%s", tok, pkg, id.Name),
+			})
+			return nil // success
+		}
+
+		// Fall back on the type checker.
 	}
 
 	// Run the type checker.
@@ -80,6 +103,82 @@ func definition(q *Query) error {
 		descr: qpos.objectString(obj),
 	})
 	return nil
+}
+
+// packageForQualIdent returns the package p if id is X in a qualified
+// identifier p.X; it returns "" otherwise.
+//
+// Precondition: id is path[0], and the parser did not resolve id to a
+// local object.  For speed, packageForQualIdent assumes that p is a
+// package iff it is the basename of an import path (and not, say, a
+// package-level decl in another file or a predeclared identifier).
+func packageForQualIdent(path []ast.Node, id *ast.Ident) string {
+	if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == id && ast.IsExported(id.Name) {
+		if pkgid, ok := sel.X.(*ast.Ident); ok && pkgid.Obj == nil {
+			f := path[len(path)-1].(*ast.File)
+			for _, imp := range f.Imports {
+				path, _ := strconv.Unquote(imp.Path.Value)
+				if imp.Name != nil {
+					if imp.Name.Name == pkgid.Name {
+						return path // renaming import
+					}
+				} else if pathpkg.Base(path) == pkgid.Name {
+					return path // ordinary import
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// findPackageMember returns the type and position of the declaration of
+// pkg.member by loading and parsing the files of that package.
+// srcdir is the directory in which the import appears.
+func findPackageMember(ctxt *build.Context, fset *token.FileSet, srcdir, pkg, member string) (token.Token, token.Pos, error) {
+	bp, err := ctxt.Import(pkg, srcdir, 0)
+	if err != nil {
+		return 0, token.NoPos, err // no files for package
+	}
+
+	// TODO(adonovan): opt: parallelize.
+	for _, fname := range bp.GoFiles {
+		filename := filepath.Join(bp.Dir, fname)
+
+		// Parse the file, opening it the file via the build.Context
+		// so that we observe the effects of the -modified flag.
+		f, _ := buildutil.ParseFile(fset, ctxt, nil, ".", filename, parser.Mode(0))
+		if f == nil {
+			continue
+		}
+
+		// Find a package-level decl called 'member'.
+		for _, decl := range f.Decls {
+			switch decl := decl.(type) {
+			case *ast.GenDecl:
+				for _, spec := range decl.Specs {
+					switch spec := spec.(type) {
+					case *ast.ValueSpec:
+						// const or var
+						for _, id := range spec.Names {
+							if id.Name == member {
+								return decl.Tok, id.Pos(), nil
+							}
+						}
+					case *ast.TypeSpec:
+						if spec.Name.Name == member {
+							return token.TYPE, spec.Name.Pos(), nil
+						}
+					}
+				}
+			case *ast.FuncDecl:
+				if decl.Recv == nil && decl.Name.Name == member {
+					return token.FUNC, decl.Name.Pos(), nil
+				}
+			}
+		}
+	}
+
+	return 0, token.NoPos, fmt.Errorf("couldn't find declaration of %s in %q", member, pkg)
 }
 
 type definitionResult struct {

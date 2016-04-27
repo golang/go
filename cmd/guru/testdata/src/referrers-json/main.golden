@@ -3,6 +3,39 @@
 	"desc": "package lib"
 }
 {
+	"package": "definition-json",
+	"refs": [
+		{
+			"pos": "testdata/src/definition-json/main.go:19:8",
+			"text": "\tvar x lib.T           // @definition lexical-pkgname \"lib\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:25:8",
+			"text": "\tvar _ lib.Type     // @definition qualified-type \"Type\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:26:8",
+			"text": "\tvar _ lib.Func     // @definition qualified-func \"Func\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:27:8",
+			"text": "\tvar _ lib.Var      // @definition qualified-var \"Var\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:28:8",
+			"text": "\tvar _ lib.Const    // @definition qualified-const \"Const\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:29:8",
+			"text": "\tvar _ lib2.Type    // @definition qualified-type-renaming \"Type\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:30:8",
+			"text": "\tvar _ lib.Nonesuch // @definition qualified-nomember \"Nonesuch\""
+		}
+	]
+}
+{
 	"package": "describe",
 	"refs": [
 		{

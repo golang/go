@@ -1,0 +1,67 @@
+-------- @definition builtin --------
+
+Error: int is built in
+-------- @definition lexical-undef --------
+
+Error: no object for identifier
+-------- @definition lexical-pkgname --------
+{
+	"objpos": "testdata/src/definition-json/main.go:10:2",
+	"desc": "package lib"
+}
+-------- @definition lexical-func --------
+{
+	"objpos": "$GOPATH/src/definition-json/main.go:38:6",
+	"desc": "func f"
+}
+-------- @definition lexical-var --------
+{
+	"objpos": "$GOPATH/src/definition-json/main.go:19:6",
+	"desc": "var x"
+}
+-------- @definition lexical-shadowing --------
+{
+	"objpos": "$GOPATH/src/definition-json/main.go:22:5",
+	"desc": "var x"
+}
+-------- @definition qualified-type --------
+{
+	"objpos": "testdata/src/lib/lib.go:3:6",
+	"desc": "type lib.Type"
+}
+-------- @definition qualified-func --------
+{
+	"objpos": "testdata/src/lib/lib.go:9:6",
+	"desc": "func lib.Func"
+}
+-------- @definition qualified-var --------
+{
+	"objpos": "testdata/src/lib/lib.go:14:5",
+	"desc": "var lib.Var"
+}
+-------- @definition qualified-const --------
+{
+	"objpos": "testdata/src/lib/lib.go:12:7",
+	"desc": "const lib.Const"
+}
+-------- @definition qualified-type-renaming --------
+{
+	"objpos": "testdata/src/lib/lib.go:3:6",
+	"desc": "type lib.Type"
+}
+-------- @definition qualified-nomember --------
+
+Error: couldn't find declaration of Nonesuch in "lib"
+-------- @definition qualified-nopkg --------
+
+Error: no object for identifier
+-------- @definition select-field --------
+{
+	"objpos": "testdata/src/definition-json/main.go:40:16",
+	"desc": "field field int"
+}
+-------- @definition select-method --------
+{
+	"objpos": "testdata/src/definition-json/main.go:42:10",
+	"desc": "func (T).method()"
+}
