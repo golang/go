@@ -5659,20 +5659,25 @@ type nameTest struct {
 }
 
 var nameTests = []nameTest{
-	{int32(0), "int32"},
-	{D1{}, "D1"},
-	{[]D1{}, ""},
-	{(chan D1)(nil), ""},
-	{(func() D1)(nil), ""},
-	{(<-chan D1)(nil), ""},
-	{(chan<- D1)(nil), ""},
-	{TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678(0), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
+	{(*int32)(nil), "int32"},
+	{(*D1)(nil), "D1"},
+	{(*[]D1)(nil), ""},
+	{(*chan D1)(nil), ""},
+	{(*func() D1)(nil), ""},
+	{(*<-chan D1)(nil), ""},
+	{(*chan<- D1)(nil), ""},
+	{(*interface{})(nil), ""},
+	{(*interface {
+		F()
+	})(nil), ""},
+	{(*TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678)(nil), "TheNameOfThisTypeIsExactly255BytesLongSoWhenTheCompilerPrependsTheReflectTestPackageNameAndExtraStarTheLinkerRuntimeAndReflectPackagesWillHaveToCorrectlyDecodeTheSecondLengthByte0123456789_0123456789_0123456789_0123456789_0123456789_012345678"},
 }
 
 func TestNames(t *testing.T) {
 	for _, test := range nameTests {
-		if got := TypeOf(test.v).Name(); got != test.want {
-			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
+		typ := TypeOf(test.v).Elem()
+		if got := typ.Name(); got != test.want {
+			t.Errorf("%v Name()=%q, want %q", typ, got, test.want)
 		}
 	}
 }
