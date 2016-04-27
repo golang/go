@@ -61,7 +61,12 @@ Flags:
 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
 	-largemodel
-		Generated code that assumes a large memory model.
+		Generate code that assumes a large memory model.
+	-linkobj file
+		Write linker-specific object to file and compiler-specific
+		object to usual output file (as specified by -o).
+		Without this flag, the -o output is a combination of both
+		linker and compiler input.
 	-memprofile file
 		Write memory profile for the compilation to file.
 	-memprofilerate rate
