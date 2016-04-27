@@ -867,6 +867,9 @@ func (t *rtype) Name() string {
 	if hasPrefix(s, "func(") {
 		return ""
 	}
+	if hasPrefix(s, "interface {") {
+		return ""
+	}
 	switch s[0] {
 	case '[', '*', '<':
 		return ""
