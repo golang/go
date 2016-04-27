@@ -159,7 +159,7 @@ func walkstmt(n *Node) *Node {
 		if n.Op == ONAME {
 			Yyerror("%v is not a top level statement", n.Sym)
 		} else {
-			Yyerror("%v is not a top level statement", oconv(n.Op, 0))
+			Yyerror("%v is not a top level statement", n.Op)
 		}
 		Dump("nottop", n)
 
@@ -1505,7 +1505,7 @@ opswitch:
 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
 	case OCMPIFACE:
 		if !Eqtype(n.Left.Type, n.Right.Type) {
-			Fatalf("ifaceeq %v %v %v", oconv(n.Op, 0), n.Left.Type, n.Right.Type)
+			Fatalf("ifaceeq %v %v %v", n.Op, n.Left.Type, n.Right.Type)
 		}
 		var fn *Node
 		if n.Left.Type.IsEmptyInterface() {
@@ -1651,7 +1651,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), oconv(op, 0), Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), op, Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1866,9 +1866,9 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 				l1 := dumptypes(nl, "expected")
 				l2 := dumpnodetypes(lr0, "given")
 				if l != nil {
-					Yyerror("not enough arguments to %v\n\t%s\n\t%s", oconv(op, 0), l1, l2)
+					Yyerror("not enough arguments to %v\n\t%s\n\t%s", op, l1, l2)
 				} else {
-					Yyerror("too many arguments to %v\n\t%s\n\t%s", oconv(op, 0), l1, l2)
+					Yyerror("too many arguments to %v\n\t%s\n\t%s", op, l1, l2)
 				}
 			}
 
@@ -2142,7 +2142,7 @@ func applywritebarrier(n *Node) *Node {
 
 func convas(n *Node, init *Nodes) *Node {
 	if n.Op != OAS {
-		Fatalf("convas: not OAS %v", oconv(n.Op, 0))
+		Fatalf("convas: not OAS %v", n.Op)
 	}
 
 	n.Typecheck = 1
@@ -3798,7 +3798,7 @@ func usefield(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("usefield %v", oconv(n.Op, 0))
+		Fatalf("usefield %v", n.Op)
 
 	case ODOT, ODOTPTR:
 		break

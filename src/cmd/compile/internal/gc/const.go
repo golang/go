@@ -695,7 +695,7 @@ func evconst(n *Node) {
 		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
 		default:
 			if n.Diag == 0 {
-				Yyerror("illegal constant expression %v %v", oconv(n.Op, 0), nl.Type)
+				Yyerror("illegal constant expression %v %v", n.Op, nl.Type)
 				n.Diag = 1
 			}
 			return
@@ -1179,7 +1179,7 @@ setfalse:
 
 illegal:
 	if n.Diag == 0 {
-		Yyerror("illegal constant expression: %v %v %v", nl.Type, oconv(n.Op, 0), nr.Type)
+		Yyerror("illegal constant expression: %v %v %v", nl.Type, n.Op, nr.Type)
 		n.Diag = 1
 	}
 }

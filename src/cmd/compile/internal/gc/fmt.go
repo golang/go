@@ -914,7 +914,7 @@ func stmtfmt(n *Node) string {
 
 	case OSELECT, OSWITCH:
 		if fmtmode == FErr {
-			f += fmt.Sprintf("%v statement", oconv(n.Op, 0))
+			f += fmt.Sprintf("%v statement", n.Op)
 			break
 		}
 
@@ -1472,7 +1472,7 @@ func exprfmt(n *Node, prec int) string {
 		}
 	}
 
-	return fmt.Sprintf("<node %v>", oconv(n.Op, 0))
+	return fmt.Sprintf("<node %v>", n.Op)
 }
 
 func nodefmt(n *Node, flag FmtFlag) string {
@@ -1527,40 +1527,40 @@ func nodedump(n *Node, flag FmtFlag) string {
 		}
 
 		if n.Ninit.Len() != 0 {
-			fmt.Fprintf(&buf, "%v-init%v", oconv(n.Op, 0), n.Ninit)
+			fmt.Fprintf(&buf, "%v-init%v", n.Op, n.Ninit)
 			indent(&buf)
 		}
 	}
 
 	switch n.Op {
 	default:
-		fmt.Fprintf(&buf, "%v%v", oconv(n.Op, 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v%v", n.Op, Jconv(n, 0))
 
 	case OREGISTER, OINDREG:
-		fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", n.Op, obj.Rconv(int(n.Reg)), Jconv(n, 0))
 
 	case OLITERAL:
-		fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), Vconv(n.Val(), 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", n.Op, Vconv(n.Val(), 0), Jconv(n, 0))
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
-			fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), n.Sym, Jconv(n, 0))
+			fmt.Fprintf(&buf, "%v-%v%v", n.Op, n.Sym, Jconv(n, 0))
 		} else {
-			fmt.Fprintf(&buf, "%v%v", oconv(n.Op, 0), Jconv(n, 0))
+			fmt.Fprintf(&buf, "%v%v", n.Op, Jconv(n, 0))
 		}
 		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", oconv(n.Op, 0), n.Name.Param.Ntype)
+			fmt.Fprintf(&buf, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}
 
 	case OASOP:
-		fmt.Fprintf(&buf, "%v-%v%v", oconv(n.Op, 0), oconv(Op(n.Etype), 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", n.Op, Op(n.Etype), Jconv(n, 0))
 
 	case OTYPE:
-		fmt.Fprintf(&buf, "%v %v%v type=%v", oconv(n.Op, 0), n.Sym, Jconv(n, 0), n.Type)
+		fmt.Fprintf(&buf, "%v %v%v type=%v", n.Op, n.Sym, Jconv(n, 0), n.Type)
 		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", oconv(n.Op, 0), n.Name.Param.Ntype)
+			fmt.Fprintf(&buf, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}
 	}
 
@@ -1581,17 +1581,17 @@ func nodedump(n *Node, flag FmtFlag) string {
 		}
 		if n.List.Len() != 0 {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-list%v", oconv(n.Op, 0), n.List)
+			fmt.Fprintf(&buf, "%v-list%v", n.Op, n.List)
 		}
 
 		if n.Rlist.Len() != 0 {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-rlist%v", oconv(n.Op, 0), n.Rlist)
+			fmt.Fprintf(&buf, "%v-rlist%v", n.Op, n.Rlist)
 		}
 
 		if n.Nbody.Len() != 0 {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-body%v", oconv(n.Op, 0), n.Nbody)
+			fmt.Fprintf(&buf, "%v-body%v", n.Op, n.Nbody)
 		}
 	}
 

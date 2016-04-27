@@ -2560,7 +2560,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// want to set it here.
 	case OCALLINTER:
 		if fn.Op != ODOTINTER {
-			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", oconv(fn.Op, 0))
+			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", fn.Op)
 		}
 		i := s.expr(fn.Left)
 		itab := s.newValue1(ssa.OpITab, Types[TUINTPTR], i)
@@ -2784,7 +2784,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		return s.call(n, callNormal)
 
 	default:
-		s.Unimplementedf("unhandled addr %v", oconv(n.Op, 0))
+		s.Unimplementedf("unhandled addr %v", n.Op)
 		return nil
 	}
 }

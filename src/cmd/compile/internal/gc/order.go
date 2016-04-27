@@ -165,7 +165,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		a.Right = r
 		return typecheck(&a, Erv)
 	default:
-		Fatalf("ordersafeexpr %v", oconv(n.Op, 0))
+		Fatalf("ordersafeexpr %v", n.Op)
 		return nil // not reached
 	}
 }
@@ -416,7 +416,7 @@ func ordercall(n *Node, order *Order) {
 func ordermapassign(n *Node, order *Order) {
 	switch n.Op {
 	default:
-		Fatalf("ordermapassign %v", oconv(n.Op, 0))
+		Fatalf("ordermapassign %v", n.Op)
 
 	case OAS:
 		order.out = append(order.out, n)
@@ -478,7 +478,7 @@ func orderstmt(n *Node, order *Order) {
 
 	switch n.Op {
 	default:
-		Fatalf("orderstmt %v", oconv(n.Op, 0))
+		Fatalf("orderstmt %v", n.Op)
 
 	case OVARKILL, OVARLIVE:
 		order.out = append(order.out, n)
@@ -790,7 +790,7 @@ func orderstmt(n *Node, order *Order) {
 		var r *Node
 		for _, n2 := range n.List.Slice() {
 			if n2.Op != OXCASE {
-				Fatalf("order select case %v", oconv(n2.Op, 0))
+				Fatalf("order select case %v", n2.Op)
 			}
 			r = n2.Left
 			setlineno(n2)
@@ -803,7 +803,7 @@ func orderstmt(n *Node, order *Order) {
 			if r != nil {
 				switch r.Op {
 				default:
-					Yyerror("unknown op in select %v", oconv(r.Op, 0))
+					Yyerror("unknown op in select %v", r.Op)
 					Dump("select case", r)
 
 				// If this is case x := <-ch or case x, y := <-ch, the case has
@@ -943,7 +943,7 @@ func orderstmt(n *Node, order *Order) {
 		n.Left = orderexpr(n.Left, order, nil)
 		for _, n4 := range n.List.Slice() {
 			if n4.Op != OXCASE {
-				Fatalf("order switch case %v", oconv(n4.Op, 0))
+				Fatalf("order switch case %v", n4.Op)
 			}
 			orderexprlistinplace(n4.List, order)
 			orderblockNodes(&n4.Nbody)

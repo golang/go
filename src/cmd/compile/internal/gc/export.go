@@ -354,7 +354,7 @@ func dumpsym(s *Sym) {
 
 	switch s.Def.Op {
 	default:
-		Yyerror("unexpected export symbol: %v %v", oconv(s.Def.Op, 0), s)
+		Yyerror("unexpected export symbol: %v %v", s.Def.Op, s)
 
 	case OLITERAL:
 		dumpexportconst(s)
