@@ -82,7 +82,7 @@ func unsafenmagic(nn *Node) *Node {
 				v += r1.Xoffset
 			default:
 				Dump("unsafenmagic", r)
-				Fatalf("impossible %v node after dot insertion", oconv(r1.Op, FmtSharp))
+				Fatalf("impossible %#v node after dot insertion", r1.Op)
 				goto bad
 			}
 		}

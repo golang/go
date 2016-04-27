@@ -2285,7 +2285,7 @@ func reorder3(all []*Node) []*Node {
 
 		switch l.Op {
 		default:
-			Fatalf("reorder3 unexpected lvalue %v", oconv(l.Op, FmtSharp))
+			Fatalf("reorder3 unexpected lvalue %#v", l.Op)
 
 		case ONAME:
 			break
