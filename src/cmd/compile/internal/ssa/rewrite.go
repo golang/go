@@ -53,23 +53,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 					if a.Op != OpCopy {
 						continue
 					}
-					x := a.Args[0]
-					// Rewriting can generate OpCopy loops.
-					// They are harmless (see removePredecessor),
-					// but take care to stop if we find a cycle.
-					slow := x // advances every other iteration
-					var advance bool
-					for x.Op == OpCopy {
-						x = x.Args[0]
-						if slow == x {
-							break
-						}
-						if advance {
-							slow = slow.Args[0]
-						}
-						advance = !advance
-					}
-					v.SetArg(i, x)
+					v.SetArg(i, copySource(a))
 					change = true
 					for a.Uses == 0 {
 						b := a.Args[0]
