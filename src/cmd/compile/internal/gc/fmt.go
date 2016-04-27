@@ -192,7 +192,14 @@ var goopnames = []string{
 	OXFALL:    "fallthrough",
 }
 
-// Fmt "%O":  Node opcodes
+func (o Op) String() string {
+	return oconv(o, 0)
+}
+
+func (o Op) GoString() string {
+	return oconv(o, FmtSharp)
+}
+
 func oconv(o Op, flag FmtFlag) string {
 	if (flag&FmtSharp != 0) || fmtmode != FDbg {
 		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
@@ -451,10 +458,6 @@ func Econv(et EType) string {
 
 func (e EType) String() string {
 	return Econv(e)
-}
-
-func (o Op) String() string {
-	return oconv(o, 0)
 }
 
 // Fmt "%S": syms
@@ -840,7 +843,7 @@ func stmtfmt(n *Node) string {
 			break
 		}
 
-		f += fmt.Sprintf("%v %v= %v", n.Left, oconv(Op(n.Etype), FmtSharp), n.Right)
+		f += fmt.Sprintf("%v %#v= %v", n.Left, Op(n.Etype), n.Right)
 
 	case OAS2:
 		if n.Colas && !complexinit {
@@ -918,7 +921,7 @@ func stmtfmt(n *Node) string {
 			break
 		}
 
-		f += oconv(n.Op, FmtSharp)
+		f += n.Op.GoString() // %#v
 		if simpleinit {
 			f += fmt.Sprintf(" %v;", n.Ninit.First())
 		}
@@ -941,9 +944,9 @@ func stmtfmt(n *Node) string {
 		OFALL,
 		OXFALL:
 		if n.Left != nil {
-			f += fmt.Sprintf("%v %v", oconv(n.Op, FmtSharp), n.Left)
+			f += fmt.Sprintf("%#v %v", n.Op, n.Left)
 		} else {
-			f += oconv(n.Op, FmtSharp)
+			f += n.Op.GoString() // %#v
 		}
 
 	case OEMPTY:
@@ -1337,7 +1340,7 @@ func exprfmt(n *Node, prec int) string {
 		return buf.String()
 
 	case OCOPY, OCOMPLEX:
-		return fmt.Sprintf("%v(%v, %v)", oconv(n.Op, FmtSharp), n.Left, n.Right)
+		return fmt.Sprintf("%#v(%v, %v)", n.Op, n.Left, n.Right)
 
 	case OCONV,
 		OCONVIFACE,
@@ -1369,12 +1372,12 @@ func exprfmt(n *Node, prec int) string {
 		OPRINT,
 		OPRINTN:
 		if n.Left != nil {
-			return fmt.Sprintf("%v(%v)", oconv(n.Op, FmtSharp), n.Left)
+			return fmt.Sprintf("%#v(%v)", n.Op, n.Left)
 		}
 		if n.Isddd {
-			return fmt.Sprintf("%v(%v...)", oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
+			return fmt.Sprintf("%#v(%v...)", n.Op, Hconv(n.List, FmtComma))
 		}
-		return fmt.Sprintf("%v(%v)", oconv(n.Op, FmtSharp), Hconv(n.List, FmtComma))
+		return fmt.Sprintf("%#v(%v)", n.Op, Hconv(n.List, FmtComma))
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		var f string
@@ -1406,11 +1409,9 @@ func exprfmt(n *Node, prec int) string {
 		OIND,
 		ONOT,
 		ORECV:
-		var f string
+		f := n.Op.GoString() // %#v
 		if n.Left.Op == n.Op {
-			f += fmt.Sprintf("%v ", oconv(n.Op, FmtSharp))
-		} else {
-			f += oconv(n.Op, FmtSharp)
+			f += " "
 		}
 		f += exprfmt(n.Left, nprec+1)
 		return f
@@ -1439,7 +1440,7 @@ func exprfmt(n *Node, prec int) string {
 		var f string
 		f += exprfmt(n.Left, nprec)
 
-		f += fmt.Sprintf(" %v ", oconv(n.Op, FmtSharp))
+		f += fmt.Sprintf(" %#v ", n.Op)
 		f += exprfmt(n.Right, nprec+1)
 		return f
 
@@ -1460,7 +1461,7 @@ func exprfmt(n *Node, prec int) string {
 		var f string
 		f += exprfmt(n.Left, nprec)
 		// TODO(marvin): Fix Node.EType type union.
-		f += fmt.Sprintf(" %v ", oconv(Op(n.Etype), FmtSharp))
+		f += fmt.Sprintf(" %#v ", Op(n.Etype))
 		f += exprfmt(n.Right, nprec+1)
 		return f
 
