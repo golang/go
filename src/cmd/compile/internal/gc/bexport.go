@@ -501,7 +501,7 @@ func (p *exporter) obj(sym *Sym) {
 		}
 
 	default:
-		Fatalf("exporter: unexpected export symbol: %v %v", Oconv(n.Op, 0), sym)
+		Fatalf("exporter: unexpected export symbol: %v %v", oconv(n.Op, 0), sym)
 	}
 }
 

@@ -567,7 +567,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
 	gc.Naddr(&a, n)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
-			gc.Fatalf("bad in raddr: %v", gc.Oconv(n.Op, 0))
+			gc.Fatalf("bad in raddr: %v", n.Op)
 		} else {
 			gc.Fatalf("bad in raddr: <null>")
 		}
@@ -579,7 +579,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
 
 func gcmp(as obj.As, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
 	if lhs.Op != gc.OREGISTER {
-		gc.Fatalf("bad operands to gcmp: %v %v", gc.Oconv(lhs.Op, 0), gc.Oconv(rhs.Op, 0))
+		gc.Fatalf("bad operands to gcmp: %v %v", lhs.Op, rhs.Op)
 	}
 
 	p := rawgins(as, rhs, nil)
@@ -622,7 +622,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
+		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
 
 	case OEQ_ | gc.TBOOL,
 		OEQ_ | gc.TINT8,
