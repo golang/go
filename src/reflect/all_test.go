@@ -3902,6 +3902,9 @@ func TestSliceOf(t *testing.T) {
 	// check construction and use of type not in binary
 	type T int
 	st := SliceOf(TypeOf(T(1)))
+	if got, want := st.String(), "[]reflect_test.T"; got != want {
+		t.Errorf("SliceOf(T(1)).String()=%q, want %q", got, want)
+	}
 	v := MakeSlice(st, 10, 10)
 	runtime.GC()
 	for i := 0; i < v.Len(); i++ {
