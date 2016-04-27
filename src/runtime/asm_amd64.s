@@ -622,23 +622,25 @@ nosave:
 	MOVL	AX, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
 	LEAQ	fn+0(FP), AX
 	MOVQ	AX, 0(SP)
 	MOVQ	frame+8(FP), AX
 	MOVQ	AX, 8(SP)
 	MOVQ	framesize+16(FP), AX
 	MOVQ	AX, 16(SP)
+	MOVQ	ctxt+24(FP), AX
+	MOVQ	AX, 24(SP)
 	MOVQ	$runtime·cgocallback_gofunc(SB), AX
 	CALL	AX
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -706,7 +708,7 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, 0(SP) holds the saved R8.
+	// In the new goroutine, 8(SP) holds the saved R8.
 	MOVQ	m_curg(BX), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
@@ -714,14 +716,16 @@ havem:
 	MOVQ	BX, -8(DI)
 	// Compute the size of the frame, including return PC and, if
 	// GOEXPERIMENT=framepointer, the saved based pointer
+	MOVQ	ctxt+24(FP), BX
 	LEAQ	fv+0(FP), AX
 	SUBQ	SP, AX
 	SUBQ	AX, DI
 	MOVQ	DI, SP
 
-	MOVQ	R8, 0(SP)
+	MOVQ	R8, 8(SP)
+	MOVQ	BX, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVQ	0(SP), R8
+	MOVQ	8(SP), R8
 
 	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,

@@ -172,6 +172,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.lr = lr0
 	}
 	waspanic := false
+	cgoCtxt := gp.cgoCtxt
 	printing := pcbuf == nil && callback == nil
 	_defer := gp._defer
 
@@ -252,6 +253,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				sp = gp.m.curg.sched.sp
 				stkbarG = gp.m.curg
 				stkbar = stkbarG.stkbar[stkbarG.stkbarPos:]
+				cgoCtxt = gp.m.curg.cgoCtxt
 			}
 			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
@@ -413,6 +415,18 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		n++
 
 	skipped:
+		if f.entry == cgocallback_gofuncPC && len(cgoCtxt) > 0 {
+			ctxt := cgoCtxt[len(cgoCtxt)-1]
+			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
+
+			// skip only applies to Go frames.
+			// callback != nil only used when we only care
+			// about Go frames.
+			if skip == 0 && callback == nil {
+				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
+			}
+		}
+
 		waspanic = f.entry == sigpanicPC
 
 		// Do not unwind past the bottom of the stack.
@@ -544,6 +558,39 @@ func getArgInfo(frame *stkframe, f *_func, needArgMap bool) (arglen uintptr, arg
 		}
 	}
 	return
+}
+
+// tracebackCgoContext handles tracing back a cgo context value, from
+// the context argument to setCgoTraceback, for the gentraceback
+// function. It returns the new value of n.
+func tracebackCgoContext(pcbuf *uintptr, printing bool, ctxt uintptr, n, max int) int {
+	var cgoPCs [32]uintptr
+	cgoContextPCs(ctxt, cgoPCs[:])
+	var arg cgoSymbolizerArg
+	anySymbolized := false
+	for _, pc := range cgoPCs {
+		if pc == 0 || n >= max {
+			break
+		}
+		if pcbuf != nil {
+			(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
+		}
+		if printing {
+			if cgoSymbolizer == nil {
+				print("non-Go function at pc=", hex(pc), "\n")
+			} else {
+				c := printOneCgoTraceback(pc, max-n, &arg)
+				n += c - 1 // +1 a few lines down
+				anySymbolized = true
+			}
+		}
+		n++
+	}
+	if anySymbolized {
+		arg.pc = 0
+		callCgoSymbolizer(&arg)
+	}
+	return n
 }
 
 func printcreatedby(gp *g) {
@@ -782,10 +829,11 @@ func isSystemGoroutine(gp *g) bool {
 //	};
 //
 // If the Context field is 0, the context function is being called to
-// record the current traceback context. It should record whatever
-// information is needed about the current point of execution to later
-// produce a stack trace, probably the stack pointer and PC. In this
-// case the context function will be called from C code.
+// record the current traceback context. It should record in the
+// Context field whatever information is needed about the current
+// point of execution to later produce a stack trace, probably the
+// stack pointer and PC. In this case the context function will be
+// called from C code.
 //
 // If the Context field is not 0, then it is a value returned by a
 // previous call to the context function. This case is called when the
@@ -903,16 +951,18 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 	if version != 0 {
 		panic("unsupported version")
 	}
-	if context != nil {
-		panic("SetCgoTraceback: context function not yet implemented")
-	}
+
 	cgoTraceback = traceback
-	cgoContext = context
 	cgoSymbolizer = symbolizer
+
+	// The context function is called when a C function calls a Go
+	// function. As such it is only called by C code in runtime/cgo.
+	if _cgo_set_context_function != nil {
+		cgocall(_cgo_set_context_function, context)
+	}
 }
 
 var cgoTraceback unsafe.Pointer
-var cgoContext unsafe.Pointer
 var cgoSymbolizer unsafe.Pointer
 
 // cgoTracebackArg is the type passed to cgoTraceback.
@@ -922,7 +972,7 @@ type cgoTracebackArg struct {
 	max     uintptr
 }
 
-// cgoContextArg is the type passed to cgoContext.
+// cgoContextArg is the type passed to the context function.
 type cgoContextArg struct {
 	context uintptr
 }
@@ -950,39 +1000,75 @@ func printCgoTraceback(callers *cgoCallers) {
 		return
 	}
 
-	call := cgocall
-	if panicking > 0 {
-		// We do not want to call into the scheduler when panicking.
-		call = asmcgocall
-	}
-
 	var arg cgoSymbolizerArg
 	for _, c := range callers {
 		if c == 0 {
 			break
 		}
-		arg.pc = c
-		for {
-			call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
-			if arg.funcName != nil {
-				// Note that we don't print any argument
-				// information here, not even parentheses.
-				// The symbolizer must add that if
-				// appropriate.
-				println(gostringnocopy(arg.funcName))
-			} else {
-				println("non-Go function")
-			}
-			print("\t")
-			if arg.file != nil {
-				print(gostringnocopy(arg.file), ":", arg.lineno, " ")
-			}
-			print("pc=", hex(c), "\n")
-			if arg.more == 0 {
-				break
-			}
-		}
+		printOneCgoTraceback(c, 0x7fffffff, &arg)
 	}
 	arg.pc = 0
-	call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
+	callCgoSymbolizer(&arg)
+}
+
+// printOneCgoTraceback prints the traceback of a single cgo caller.
+// This can print more than one line because of inlining.
+// Returns the number of frames printed.
+func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
+	c := 0
+	arg.pc = pc
+	for {
+		if c > max {
+			break
+		}
+		callCgoSymbolizer(arg)
+		if arg.funcName != nil {
+			// Note that we don't print any argument
+			// information here, not even parentheses.
+			// The symbolizer must add that if appropriate.
+			println(gostringnocopy(arg.funcName))
+		} else {
+			println("non-Go function")
+		}
+		print("\t")
+		if arg.file != nil {
+			print(gostringnocopy(arg.file), ":", arg.lineno, " ")
+		}
+		print("pc=", hex(c), "\n")
+		c++
+		if arg.more == 0 {
+			break
+		}
+	}
+	return c
+}
+
+// callCgoSymbolizer calls the cgoSymbolizer function.
+func callCgoSymbolizer(arg *cgoSymbolizerArg) {
+	call := cgocall
+	if panicking > 0 || getg().m.curg != getg() {
+		// We do not want to call into the scheduler when panicking
+		// or when on the system stack.
+		call = asmcgocall
+	}
+	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
+}
+
+// cgoContextPCs gets the PC values from a cgo traceback.
+func cgoContextPCs(ctxt uintptr, buf []uintptr) {
+	if cgoTraceback == nil {
+		return
+	}
+	call := cgocall
+	if panicking > 0 || getg().m.curg != getg() {
+		// We do not want to call into the scheduler when panicking
+		// or when on the system stack.
+		call = asmcgocall
+	}
+	arg := cgoTracebackArg{
+		context: ctxt,
+		buf:     (*uintptr)(noescape(unsafe.Pointer(&buf[0]))),
+		max:     uintptr(len(buf)),
+	}
+	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
 }
