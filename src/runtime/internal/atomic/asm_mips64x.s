@@ -83,7 +83,7 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 TEXT ·Loadint64(SB), NOSPLIT, $0-16
 	JMP	·Load64(SB)
 
-TEXT ·Xaddint64(SB), NOSPLIT, $0-16
+TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
 // bool casp(void **val, void *old, void *new)
