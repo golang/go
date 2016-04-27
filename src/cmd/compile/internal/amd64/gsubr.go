@@ -722,7 +722,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(op, 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", op, t)
 
 	case OADDR_ | gc.TPTR32:
 		a = x86.ALEAL
