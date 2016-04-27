@@ -205,10 +205,10 @@ func (a *Mpflt) SetString(as string) {
 }
 
 func (f *Mpflt) String() string {
-	return Fconv(f, 0)
+	return fconv(f, 0)
 }
 
-func Fconv(fvp *Mpflt, flag FmtFlag) string {
+func fconv(fvp *Mpflt, flag FmtFlag) string {
 	if flag&FmtSharp == 0 {
 		return fvp.Val.Text('b', 0)
 	}

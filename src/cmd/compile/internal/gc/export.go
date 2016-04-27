@@ -234,9 +234,9 @@ func dumpexportconst(s *Sym) {
 	dumpexporttype(t)
 
 	if t != nil && !t.IsUntyped() {
-		exportf("\tconst %v %v = %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp), Vconv(n.Val(), FmtSharp))
+		exportf("\tconst %v %v = %v\n", sconv(s, FmtSharp), Tconv(t, FmtSharp), vconv(n.Val(), FmtSharp))
 	} else {
-		exportf("\tconst %v = %v\n", Sconv(s, FmtSharp), Vconv(n.Val(), FmtSharp))
+		exportf("\tconst %v = %v\n", sconv(s, FmtSharp), vconv(n.Val(), FmtSharp))
 	}
 }
 
@@ -260,14 +260,14 @@ func dumpexportvar(s *Sym) {
 			}
 
 			// NOTE: The space after %#S here is necessary for ld's export data parser.
-			exportf("\tfunc %v %v { %v }\n", Sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp), Hconv(n.Func.Inl, FmtSharp|FmtBody))
+			exportf("\tfunc %v %v { %v }\n", sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp), hconv(n.Func.Inl, FmtSharp|FmtBody))
 
 			reexportdeplist(n.Func.Inl)
 		} else {
-			exportf("\tfunc %v %v\n", Sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp))
+			exportf("\tfunc %v %v\n", sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp))
 		}
 	} else {
-		exportf("\tvar %v %v\n", Sconv(s, FmtSharp), Tconv(t, FmtSharp))
+		exportf("\tvar %v %v\n", sconv(s, FmtSharp), Tconv(t, FmtSharp))
 	}
 }
 
@@ -318,7 +318,7 @@ func dumpexporttype(t *Type) {
 	}
 	sort.Sort(methodbyname(m))
 
-	exportf("\ttype %v %v\n", Sconv(t.Sym, FmtSharp), Tconv(t, FmtSharp|FmtLong))
+	exportf("\ttype %v %v\n", sconv(t.Sym, FmtSharp), Tconv(t, FmtSharp|FmtLong))
 	for _, f := range m {
 		if f.Nointerface {
 			exportf("\t//go:nointerface\n")
@@ -330,10 +330,10 @@ func dumpexporttype(t *Type) {
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname())
 			}
-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname().Func.Inl, FmtSharp|FmtBody))
+			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), hconv(f.Type.Nname().Func.Inl, FmtSharp|FmtBody))
 			reexportdeplist(f.Type.Nname().Func.Inl)
 		} else {
-			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
+			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
 		}
 	}
 }
@@ -588,7 +588,7 @@ func dumpasmhdr() {
 		}
 		switch n.Op {
 		case OLITERAL:
-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, Vconv(n.Val(), FmtSharp))
+			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, vconv(n.Val(), FmtSharp))
 
 		case OTYPE:
 			t := n.Type
