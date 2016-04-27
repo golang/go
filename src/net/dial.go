@@ -284,7 +284,10 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 // DialContext connects to the address on the named network using
 // the provided context.
 //
-// The provided Context must be non-nil.
+// The provided Context must be non-nil. If the context expires before
+// the connection is complete, an error is returned. Once successfully
+// connected, any expiration of the context will not affect the
+// connection.
 //
 // See func Dial for a description of the network and address
 // parameters.
