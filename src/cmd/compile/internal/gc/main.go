@@ -178,6 +178,7 @@ func Main() {
 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
 	obj.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
 	obj.Flagcount("l", "disable inlining", &Debug['l'])
+	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
@@ -772,7 +773,7 @@ func importfile(f *Val, indent []byte) {
 
 	if p != "empty archive" {
 		if !strings.HasPrefix(p, "go object ") {
-			Yyerror("import %s: not a go object file", file)
+			Yyerror("import %s: not a go object file: %s", file, p)
 			errorexit()
 		}
 

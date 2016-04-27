@@ -133,6 +133,7 @@ var pragcgobuf string
 var infile string
 
 var outfile string
+var linkobj string
 
 var bout *bio.Writer
 
