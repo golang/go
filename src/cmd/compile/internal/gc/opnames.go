@@ -160,9 +160,9 @@ var opnames = []string{
 	OLROT:            "LROT",
 	ORROTC:           "RROTC",
 	ORETJMP:          "RETJMP",
-	OPS:              "OPS",
-	OPC:              "OPC",
-	OSQRT:            "OSQRT",
-	OGETG:            "OGETG",
+	OPS:              "PS",
+	OPC:              "PC",
+	OSQRT:            "SQRT",
+	OGETG:            "GETG",
 	OEND:             "END",
 }
