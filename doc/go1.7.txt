@@ -13,8 +13,15 @@ Ports:
 We now require OpenBSD 5.6+ (CL 18219, crypto/rand using getentropy)
 plan9/arm support? Start at least.
 
+New packages:
+
+* context (and new support in net, net/http, os/exec, net/http/httptrace)
+* net/http/httptrace
+
 API additions and behavior changes:
 
+crypto/tls: allow renegotiation to be handled by a client (CL 22475)
+runtime: support symbolic backtrace of C code in a cgo crash (CL 17761)
 runtime: add CallerFrames and Frames (CL 19869)
 testing/quick: now generates nil values (CL 16470)
 net/http/httptest: ResponseRecorder supports trailer (CL 20047) (compat impact: issue 14928)
