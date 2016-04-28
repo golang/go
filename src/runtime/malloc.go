@@ -490,9 +490,7 @@ var zerobase uintptr
 
 // nextFreeFast returns the next free object if one is quickly available.
 // Otherwise it returns 0.
-func (c *mcache) nextFreeFast(sizeclass int8) gclinkptr {
-	s := c.alloc[sizeclass]
-
+func nextFreeFast(s *mspan) gclinkptr {
 	theBit := sys.Ctz64(s.allocCache) // Is there a free object in the allocCache?
 	if theBit < 64 {
 		result := s.freeindex + uintptr(theBit)
@@ -520,8 +518,8 @@ func (c *mcache) nextFreeFast(sizeclass int8) gclinkptr {
 // weight allocation. If it is a heavy weight allocation the caller must
 // determine whether a new GC cycle needs to be started or if the GC is active
 // whether this goroutine needs to assist the GC.
-func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, shouldhelpgc bool) {
-	s := c.alloc[sizeclass]
+func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+	s = c.alloc[sizeclass]
 	shouldhelpgc = false
 	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
@@ -658,10 +656,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				return x
 			}
 			// Allocate a new maxTinySize block.
-			var v gclinkptr
-			v = c.nextFreeFast(tinySizeClass)
+			span := c.alloc[tinySizeClass]
+			v := nextFreeFast(span)
 			if v == 0 {
-				v, shouldhelpgc = c.nextFree(tinySizeClass)
+				v, _, shouldhelpgc = c.nextFree(tinySizeClass)
 			}
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
@@ -681,15 +679,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				sizeclass = size_to_class128[(size-1024+127)>>7]
 			}
 			size = uintptr(class_to_size[sizeclass])
-			var v gclinkptr
-			v = c.nextFreeFast(sizeclass)
+			span := c.alloc[sizeclass]
+			v := nextFreeFast(span)
 			if v == 0 {
-				v, shouldhelpgc = c.nextFree(sizeclass)
+				v, span, shouldhelpgc = c.nextFree(sizeclass)
 			}
 			x = unsafe.Pointer(v)
-			if needzero {
+			if needzero && span.needzero != 0 {
 				memclr(unsafe.Pointer(v), size)
-				// TODO:(rlh) Only clear if object is not known to be zeroed.
 			}
 		}
 	} else {
