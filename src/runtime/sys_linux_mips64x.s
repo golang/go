@@ -228,8 +228,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R4
 	MOVV	info+16(FP), R5
 	MOVV	ctx+24(FP), R6
-	MOVV	fn+0(FP), R1
-	JAL	(R1)
+	MOVV	fn+0(FP), R25
+	JAL	(R25)
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
