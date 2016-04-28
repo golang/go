@@ -27,5 +27,10 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	JMP main(SB)
 
 TEXT main(SB),NOSPLIT,$-8
+	// initalize REGSB = PC&0xffffffff00000000
+	BGEZAL	R0, 1(PC)
+	SRLV	$32, R31, RSB
+	SLLV	$32, RSB
+
 	MOVV	$runtime·rt0_go(SB), R4
 	JMP	(R4)

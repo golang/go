@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"encoding/binary"
 	"fmt"
 	"log"
 )
@@ -71,24 +70,14 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-	case obj.R_ADDRMIPS:
+	case obj.R_ADDRMIPS,
+		obj.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		if t >= 1<<32 || t < -1<<32 {
-			ld.Diag("program too large, address relocation = %v", t)
-		}
-
-		// the first instruction is always at the lower address, this is endian neutral;
-		// but note that o1 and o2 should still use the target endian.
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
-		o2 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off+4:])
-		o1 = o1&0xffff0000 | uint32(t>>16)&0xffff
-		o2 = o2&0xffff0000 | uint32(t)&0xffff
-
-		// when laid out, the instruction order must always be o1, o2.
-		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-			*val = int64(o1)<<32 | int64(o2)
+		if r.Type == obj.R_ADDRMIPS {
+			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		} else {
-			*val = int64(o2)<<32 | int64(o1)
+			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
 		}
 		return 0
 
