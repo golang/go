@@ -195,7 +195,7 @@ const (
 	REGRT2   = REG_R2  /* reserved for runtime, duffcopy */
 	REGCTXT  = REG_R22 /* context for closures */
 	REGG     = REG_R30 /* G */
-	REGTMP   = REG_R28 /* used by the linker */
+	REGTMP   = REG_R23 /* used by the linker */
 	FREGRET  = REG_F0
 	FREGZERO = REG_F24 /* both float and double */
 	FREGHALF = REG_F26 /* double */

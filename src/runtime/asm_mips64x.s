@@ -24,8 +24,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVV	$runtime·g0(SB), g
-	MOVV	$(-64*1024), R28
-	ADDV	R28, R29, R1
+	MOVV	$(-64*1024), R23
+	ADDV	R23, R29, R1
 	MOVV	R1, g_stackguard0(g)
 	MOVV	R1, g_stackguard1(g)
 	MOVV	R1, (g_stack+stack_lo)(g)
@@ -299,9 +299,9 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
 // Caution: ugly multiline assembly macros in your future!
 
 #define DISPATCH(NAME,MAXSIZE)		\
-	MOVV	$MAXSIZE, R28;		\
-	SGTU	R1, R28, R28;		\
-	BNE	R28, 3(PC);			\
+	MOVV	$MAXSIZE, R23;		\
+	SGTU	R1, R23, R23;		\
+	BNE	R23, 3(PC);			\
 	MOVV	$NAME(SB), R4;	\
 	JMP	(R4)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
