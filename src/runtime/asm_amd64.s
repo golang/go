@@ -1695,6 +1695,16 @@ big_loop_avx2_exit:
 	JMP loop
 
 
+TEXT strings·supportAVX2(SB),NOSPLIT,$0-1
+	MOVBLZX runtime·support_avx2(SB), AX
+	MOVB AX, ret+0(FP)
+	RET
+
+TEXT bytes·supportAVX2(SB),NOSPLIT,$0-1
+	MOVBLZX runtime·support_avx2(SB), AX
+	MOVB AX, ret+0(FP)
+	RET
+
 TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), DI
 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
@@ -1809,7 +1819,7 @@ loop8:
 	JB loop8
 	JMP fail
 _9_or_more:
-	CMPQ AX, $16
+	CMPQ AX, $15
 	JA   _16_or_more
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX
@@ -1833,7 +1843,7 @@ partial_success9to15:
 	JMP fail
 _16_or_more:
 	CMPQ AX, $16
-	JA   _17_to_31
+	JA   _17_or_more
 	MOVOU (BP), X1
 	LEAQ -15(DI)(DX*1), DX
 loop16:
@@ -1846,7 +1856,9 @@ loop16:
 	CMPQ DI,DX
 	JB loop16
 	JMP fail
-_17_to_31:
+_17_or_more:
+	CMPQ AX, $31
+	JA   _32_or_more
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX
 	MOVOU -16(BP)(AX*1), X0
@@ -1870,9 +1882,56 @@ partial_success17to31:
 	ADDQ $1,DI
 	CMPQ DI,DX
 	JB loop17to31
+	JMP fail
+// We can get here only when AVX2 is enabled and cutoff for indexShortStr is set to 63
+// So no need to check cpuid
+_32_or_more:
+	CMPQ AX, $32
+	JA   _33_to_63
+	VMOVDQU (BP), Y1
+	LEAQ -31(DI)(DX*1), DX
+loop32:
+	VMOVDQU (DI), Y2
+	VPCMPEQB Y1, Y2, Y3
+	VPMOVMSKB Y3, SI
+	CMPL  SI, $0xffffffff
+	JE   success_avx2
+	ADDQ $1,DI
+	CMPQ DI,DX
+	JB loop32
+	JMP fail_avx2
+_33_to_63:
+	LEAQ 1(DI)(DX*1), DX
+	SUBQ AX, DX
+	VMOVDQU -32(BP)(AX*1), Y0
+	VMOVDQU (BP), Y1
+loop33to63:
+	VMOVDQU (DI), Y2
+	VPCMPEQB Y1, Y2, Y3
+	VPMOVMSKB Y3, SI
+	CMPL  SI, $0xffffffff
+	JE   partial_success33to63
+	ADDQ $1,DI
+	CMPQ DI,DX
+	JB loop33to63
+	JMP fail_avx2
+partial_success33to63:
+	VMOVDQU -32(AX)(DI*1), Y3
+	VPCMPEQB Y0, Y3, Y4
+	VPMOVMSKB Y4, SI
+	CMPL  SI, $0xffffffff
+	JE success_avx2
+	ADDQ $1,DI
+	CMPQ DI,DX
+	JB loop33to63
+fail_avx2:
+	VZEROUPPER
 fail:
 	MOVQ $-1, (R11)
 	RET
+success_avx2:
+	VZEROUPPER
+	JMP success
 sse42:
 	MOVL runtime·cpuid_ecx(SB), CX
 	ANDL $0x100000, CX
