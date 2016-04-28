@@ -163,73 +163,6 @@ func (rr *dnsRR_CNAME) Walk(f func(v interface{}, name, tag string) bool) bool {
 	return rr.Hdr.Walk(f) && f(&rr.Cname, "Cname", "domain")
 }
 
-type dnsRR_HINFO struct {
-	Hdr dnsRR_Header
-	Cpu string
-	Os  string
-}
-
-func (rr *dnsRR_HINFO) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_HINFO) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Cpu, "Cpu", "") && f(&rr.Os, "Os", "")
-}
-
-type dnsRR_MB struct {
-	Hdr dnsRR_Header
-	Mb  string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MB) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MB) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Mb, "Mb", "domain")
-}
-
-type dnsRR_MG struct {
-	Hdr dnsRR_Header
-	Mg  string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MG) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MG) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Mg, "Mg", "domain")
-}
-
-type dnsRR_MINFO struct {
-	Hdr   dnsRR_Header
-	Rmail string `net:"domain-name"`
-	Email string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MINFO) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Rmail, "Rmail", "domain") && f(&rr.Email, "Email", "domain")
-}
-
-type dnsRR_MR struct {
-	Hdr dnsRR_Header
-	Mr  string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MR) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MR) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Mr, "Mr", "domain")
-}
-
 type dnsRR_MX struct {
 	Hdr  dnsRR_Header
 	Pref uint16
@@ -382,11 +315,6 @@ func (rr *dnsRR_AAAA) Walk(f func(v interface{}, name, tag string) bool) bool {
 // Map of constructors for each RR wire type.
 var rr_mk = map[int]func() dnsRR{
 	dnsTypeCNAME: func() dnsRR { return new(dnsRR_CNAME) },
-	dnsTypeHINFO: func() dnsRR { return new(dnsRR_HINFO) },
-	dnsTypeMB:    func() dnsRR { return new(dnsRR_MB) },
-	dnsTypeMG:    func() dnsRR { return new(dnsRR_MG) },
-	dnsTypeMINFO: func() dnsRR { return new(dnsRR_MINFO) },
-	dnsTypeMR:    func() dnsRR { return new(dnsRR_MR) },
 	dnsTypeMX:    func() dnsRR { return new(dnsRR_MX) },
 	dnsTypeNS:    func() dnsRR { return new(dnsRR_NS) },
 	dnsTypePTR:   func() dnsRR { return new(dnsRR_PTR) },
