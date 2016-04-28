@@ -69,8 +69,9 @@ func main() {
 	deps := []string{
 		// directly imported dependencies:
 		"bytes", "io", "testing",
-		// indirect dependencies (partial list):
-		"errors", "fmt", "os", "runtime",
+		// indirect dependencies mentioned by
+		// the direct imports' export data
+		"sync", "unicode", "time",
 	}
 
 	prog := mainPkg.Prog
