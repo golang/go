@@ -1695,13 +1695,31 @@ big_loop_avx2_exit:
 	JMP loop
 
 
-// TODO: Also use this in bytes.Index
 TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), DI
 	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
 	MOVQ s_len+8(FP), DX
 	MOVQ c+16(FP), BP
 	MOVQ c_len+24(FP), AX
+	MOVQ DI, R10
+	LEAQ ret+32(FP), R11
+	JMP  runtime·indexShortStr(SB)
+
+TEXT bytes·indexShortStr(SB),NOSPLIT,$0-56
+	MOVQ s+0(FP), DI
+	MOVQ s_len+8(FP), DX
+	MOVQ c+24(FP), BP
+	MOVQ c_len+32(FP), AX
+	MOVQ DI, R10
+	LEAQ ret+48(FP), R11
+	JMP  runtime·indexShortStr(SB)
+
+// AX: length of string, that we are searching for
+// DX: length of string, in which we are searching
+// DI: pointer to string, in which we are searching
+// BP: pointer to string, that we are searching for
+// R11: address, where to put return value
+TEXT runtime·indexShortStr(SB),NOSPLIT,$0
 	CMPQ AX, DX
 	JA fail
 	CMPQ DX, $16
@@ -1853,7 +1871,7 @@ partial_success17to31:
 	CMPQ DI,DX
 	JB loop17to31
 fail:
-	MOVQ $-1, ret+32(FP)
+	MOVQ $-1, (R11)
 	RET
 sse42:
 	MOVL runtime·cpuid_ecx(SB), CX
@@ -1893,8 +1911,8 @@ loop_sse42:
 sse42_success:
 	ADDQ CX, DI
 success:
-	SUBQ s+0(FP), DI
-	MOVQ DI, ret+32(FP)
+	SUBQ R10, DI
+	MOVQ DI, (R11)
 	RET
 
 
