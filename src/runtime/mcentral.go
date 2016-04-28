@@ -164,6 +164,7 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 	if s.incache {
 		throw("freeSpan given cached span")
 	}
+	s.needzero = 1
 
 	if preserve {
 		// preserve is set only when called from MCentral_CacheSpan above,
@@ -195,7 +196,6 @@ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 	}
 
 	c.nonempty.remove(s)
-	s.needzero = 1
 	unlock(&c.lock)
 	mheap_.freeSpan(s, 0)
 	return true
