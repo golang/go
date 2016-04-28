@@ -743,23 +743,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		gcmarknewobject(uintptr(x), size, scanSize)
 	}
 
-	// The object x is about to be reused but tracefree and msanfree
-	// need to be informed.
-	// TODO:(rlh) It is quite possible that this object is being allocated
-	// out of a fresh span and that there is no preceding call to
-	// tracealloc with this object. If this is an issue then initialization
-	// of the fresh span needs to leave some crumbs around that can be used to
-	// avoid these calls. Furthermore these crumbs a likely the same as
-	// those needed to determine if the object needs to be zeroed.
-	// In the case of msanfree it does not make sense to call msanfree
-	// followed by msanmalloc. msanfree indicates that the bytes are not
-	// initialized but msanmalloc is about to indicate that they are.
-	// It makes no difference whether msanmalloc has been called on these
-	// bytes or not.
-	if debug.allocfreetrace != 0 {
-		tracefree(unsafe.Pointer(x), size)
-	}
-
 	if raceenabled {
 		racemalloc(x, size)
 	}

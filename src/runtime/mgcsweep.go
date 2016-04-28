@@ -251,6 +251,21 @@ func (s *mspan) sweep(preserve bool) bool {
 		}
 	}
 
+	if debug.allocfreetrace != 0 {
+		// Find all newly freed objects. This doesn't have to
+		// efficient; allocfreetrace has massive overhead.
+		mbits := s.markBitsForBase()
+		abits := s.allocBitsForIndex(0)
+		for i := uintptr(0); i < s.nelems; i++ {
+			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
+				x := s.base() + i*s.elemsize
+				tracefree(unsafe.Pointer(x), size)
+			}
+			mbits.advance()
+			abits.advance()
+		}
+	}
+
 	// Count the number of free objects in this span.
 	nfree = s.countFree()
 	if cl == 0 && nfree != 0 {
