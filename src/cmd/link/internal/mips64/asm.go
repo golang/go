@@ -45,7 +45,49 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 }
 
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
-	return -1
+	// mips64 ELF relocation (endian neutral)
+	//		offset	uint64
+	//		sym		uint32
+	//		ssym	uint8
+	//		type3	uint8
+	//		type2	uint8
+	//		type	uint8
+	//		addend	int64
+
+	ld.Thearch.Vput(uint64(sectoff))
+
+	elfsym := r.Xsym.ElfsymForReloc()
+	ld.Thearch.Lput(uint32(elfsym))
+	ld.Cput(0)
+	ld.Cput(0)
+	ld.Cput(0)
+	switch r.Type {
+	default:
+		return -1
+
+	case obj.R_ADDR:
+		switch r.Siz {
+		case 4:
+			ld.Cput(ld.R_MIPS_32)
+		case 8:
+			ld.Cput(ld.R_MIPS_64)
+		default:
+			return -1
+		}
+
+	case obj.R_ADDRMIPS:
+		ld.Cput(ld.R_MIPS_LO16)
+
+	case obj.R_ADDRMIPSU:
+		ld.Cput(ld.R_MIPS_HI16)
+
+	case obj.R_CALLMIPS,
+		obj.R_JMPMIPS:
+		ld.Cput(ld.R_MIPS_26)
+	}
+	ld.Thearch.Vput(uint64(r.Xadd))
+
+	return 0
 }
 
 func elfsetupplt() {
@@ -58,7 +100,36 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
-		return -1
+		switch r.Type {
+		default:
+			return -1
+
+		case obj.R_ADDRMIPS,
+			obj.R_ADDRMIPSU:
+			r.Done = 0
+
+			// set up addend for eventual relocation via outer symbol.
+			rs := r.Sym
+			r.Xadd = r.Add
+			for rs.Outer != nil {
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+				rs = rs.Outer
+			}
+
+			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+				ld.Diag("missing section for %s", rs.Name)
+			}
+			r.Xsym = rs
+
+			return 0
+
+		case obj.R_CALLMIPS,
+			obj.R_JMPMIPS:
+			r.Done = 0
+			r.Xsym = r.Sym
+			r.Xadd = r.Add
+			return 0
+		}
 	}
 
 	switch r.Type {
