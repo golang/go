@@ -387,6 +387,10 @@ func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
 	return sysReserve(nil, n, reserved)
 }
 
+// sysAlloc allocates the next n bytes from the heap arena. The
+// returned pointer is always _PageSize aligned and between
+// h.arena_start and h.arena_end. sysAlloc returns nil on failure.
+// There is no corresponding free function.
 func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	if n > h.arena_end-h.arena_used {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
