@@ -11,10 +11,10 @@
 
 // If !iscgo, this is a no-op.
 //
-// NOTE: mcall() assumes this clobbers only R28 (REGTMP).
+// NOTE: mcall() assumes this clobbers only R23 (REGTMP).
 TEXT runtime·save_g(SB),NOSPLIT,$-8-0
-	MOVB	runtime·iscgo(SB), R28
-	BEQ	R28, nocgo
+	MOVB	runtime·iscgo(SB), R23
+	BEQ	R23, nocgo
 
 nocgo:
 	RET
