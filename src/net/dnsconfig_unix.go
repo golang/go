@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	defaultNS   = []string{"127.0.0.1", "::1"}
+	defaultNS   = []string{"127.0.0.1:53", "[::1]:53"}
 	getHostname = os.Hostname // variable for testing
 )
 
 type dnsConfig struct {
-	servers    []string      // servers to use
+	servers    []string      // server addresses (in host:port form) to use
 	search     []string      // suffixes to append to local name
 	ndots      int           // number of dots in name to trigger absolute lookup
 	timeout    time.Duration // wait before giving up on a query, including retries
@@ -70,9 +70,9 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// just an IP address. Otherwise we need DNS
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
-					conf.servers = append(conf.servers, f[1])
+					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
-					conf.servers = append(conf.servers, f[1])
+					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
 

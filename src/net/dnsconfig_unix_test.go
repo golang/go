@@ -21,7 +21,7 @@ var dnsReadConfigTests = []struct {
 	{
 		name: "testdata/resolv.conf",
 		want: &dnsConfig{
-			servers:    []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
+			servers:    []string{"8.8.8.8:53", "[2001:4860:4860::8888]:53", "[fe80::1%lo0]:53"},
 			search:     []string{"localdomain"},
 			ndots:      5,
 			timeout:    10 * time.Second,
@@ -33,7 +33,7 @@ var dnsReadConfigTests = []struct {
 	{
 		name: "testdata/domain-resolv.conf",
 		want: &dnsConfig{
-			servers:  []string{"8.8.8.8"},
+			servers:  []string{"8.8.8.8:53"},
 			search:   []string{"localdomain"},
 			ndots:    1,
 			timeout:  5 * time.Second,
@@ -43,7 +43,7 @@ var dnsReadConfigTests = []struct {
 	{
 		name: "testdata/search-resolv.conf",
 		want: &dnsConfig{
-			servers:  []string{"8.8.8.8"},
+			servers:  []string{"8.8.8.8:53"},
 			search:   []string{"test", "invalid"},
 			ndots:    1,
 			timeout:  5 * time.Second,
@@ -67,7 +67,7 @@ var dnsReadConfigTests = []struct {
 			timeout:  5 * time.Second,
 			attempts: 2,
 			lookup:   []string{"file", "bind"},
-			servers:  []string{"169.254.169.254", "10.240.0.1"},
+			servers:  []string{"169.254.169.254:53", "10.240.0.1:53"},
 			search:   []string{"c.symbolic-datum-552.internal."},
 		},
 	},
