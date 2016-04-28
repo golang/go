@@ -12,14 +12,14 @@
 #define	REGCTXT	R22
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
-	// R29 = stack; R1 = argc; R2 = argv
+	// R29 = stack; R4 = argc; R5 = argv
 
 	// initialize essential registers
 	JAL	runtime·reginit(SB)
 
 	ADDV	$-24, R29
-	MOVW	R1, 8(R29) // argc
-	MOVV	R2, 16(R29) // argv
+	MOVW	R4, 8(R29) // argc
+	MOVV	R5, 16(R29) // argv
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
