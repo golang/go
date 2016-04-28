@@ -37,14 +37,6 @@ import (
 // (suspected) format errors, and whenever a change is made to the format.
 const debugFormat = false // default: false
 
-// If posInfoFormat is set, position information (file, lineno) is written
-// for each exported object, including methods and struct fields. Currently
-// disabled because it may lead to different object files depending on which
-// directory they are built under, which causes tests checking for hermetic
-// builds to fail (e.g. TestCgoConsistentResults for cmd/go).
-// TODO(gri) determine what to do here.
-const posInfoFormat = false
-
 // If trace is set, debugging output is printed to std out.
 const trace = false // default: false
 
@@ -60,8 +52,9 @@ type exporter struct {
 	typIndex map[types.Type]int
 
 	// position encoding
-	prevFile string
-	prevLine int
+	posInfoFormat bool
+	prevFile      string
+	prevLine      int
 
 	// debugging support
 	written int // bytes written
@@ -72,10 +65,11 @@ type exporter struct {
 // If no file set is provided, position info will be missing.
 func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 	p := exporter{
-		fset:     fset,
-		strIndex: map[string]int{"": 0}, // empty string is mapped to 0
-		pkgIndex: make(map[*types.Package]int),
-		typIndex: make(map[types.Type]int),
+		fset:          fset,
+		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
+		pkgIndex:      make(map[*types.Package]int),
+		typIndex:      make(map[types.Type]int),
+		posInfoFormat: true, // TODO(gri) might become a flag, eventually
 	}
 
 	// first byte indicates low-level encoding format
@@ -86,7 +80,7 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 	p.rawByte(format)
 
 	// posInfo exported or not?
-	p.bool(posInfoFormat)
+	p.bool(p.posInfoFormat)
 
 	// --- generic export data ---
 
@@ -211,29 +205,56 @@ func (p *exporter) obj(obj types.Object) {
 }
 
 func (p *exporter) pos(obj types.Object) {
-	if !posInfoFormat {
+	if !p.posInfoFormat {
 		return
 	}
 
-	var file string
-	var line int
+	file, line := p.fileLine(obj)
+	if file == p.prevFile {
+		// common case: write line delta
+		// delta == 0 means different file or no line change
+		delta := line - p.prevLine
+		p.int(delta)
+		if delta == 0 {
+			p.int(-1) // -1 means no file change
+		}
+	} else {
+		// different file
+		p.int(0)
+		// Encode filename as length of common prefix with previous
+		// filename, followed by (possibly empty) suffix. Filenames
+		// frequently share path prefixes, so this can save a lot
+		// of space and make export data size less dependent on file
+		// path length. The suffix is unlikely to be empty because
+		// file names tend to end in ".go".
+		n := commonPrefixLen(p.prevFile, file)
+		p.int(n)           // n >= 0
+		p.string(file[n:]) // write suffix only
+		p.prevFile = file
+		p.int(line)
+	}
+	p.prevLine = line
+}
+
+func (p *exporter) fileLine(obj types.Object) (file string, line int) {
 	if p.fset != nil {
 		pos := p.fset.Position(obj.Pos())
 		file = pos.Filename
 		line = pos.Line
 	}
+	return
+}
 
-	if file == p.prevFile && line != p.prevLine {
-		// common case: write delta-encoded line number
-		p.int(line - p.prevLine) // != 0
-	} else {
-		// uncommon case: filename changed, or line didn't change
-		p.int(0)
-		p.string(file)
-		p.int(line)
-		p.prevFile = file
+func commonPrefixLen(a, b string) int {
+	if len(a) > len(b) {
+		a, b = b, a
 	}
-	p.prevLine = line
+	// len(a) <= len(b)
+	i := 0
+	for i < len(a) && a[i] == b[i] {
+		i++
+	}
+	return i
 }
 
 func (p *exporter) qualifiedName(obj types.Object) {
