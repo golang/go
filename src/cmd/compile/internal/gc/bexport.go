@@ -819,19 +819,30 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	}
 	p.typ(t)
 	if n > 0 {
-		p.string(parName(q, numbered))
-		// Because of (re-)exported inlined functions
-		// the importpkg may not be the package to which this
-		// function (and thus its parameter) belongs. We need to
-		// supply the parameter package here. We need the package
-		// when the function is inlined so we can properly resolve
-		// the name.
-		// TODO(gri) This is compiler-specific. Try using importpkg
-		// here and then update the symbols if we find an inlined
-		// body only. Otherwise, the parameter name is ignored and
-		// the package doesn't matter. This would remove an int
-		// (likely 1 byte) for each named parameter.
-		p.pkg(q.Sym.Pkg)
+		if name := parName(q, numbered); name != "" {
+			p.string(name)
+			// Because of (re-)exported inlined functions
+			// the importpkg may not be the package to which this
+			// function (and thus its parameter) belongs. We need to
+			// supply the parameter package here. We need the package
+			// when the function is inlined so we can properly resolve
+			// the name.
+			// TODO(gri) This is compiler-specific. Try using importpkg
+			// here and then update the symbols if we find an inlined
+			// body only. Otherwise, the parameter name is ignored and
+			// the package doesn't matter. This would remove an int
+			// (likely 1 byte) for each named parameter.
+			p.pkg(q.Sym.Pkg)
+		} else {
+			// Sometimes we see an empty name even for n > 0.
+			// This appears to happen for interface methods
+			// with _ (blank) parameter names. Make sure we
+			// have a proper name and package so we don't crash
+			// during import (see also issue #15470).
+			// TODO(gri) review parameter encoding
+			p.string("_")
+			p.pkg(localpkg)
+		}
 	}
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
