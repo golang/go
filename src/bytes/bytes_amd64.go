@@ -9,7 +9,17 @@ package bytes
 // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
 // indexShortStr requires 2 <= len(c) <= shortStringLen
 func indexShortStr(s, c []byte) int // ../runtime/asm_$GOARCH.s
-const shortStringLen = 31
+func supportAVX2() bool             // ../runtime/asm_$GOARCH.s
+
+var shortStringLen int
+
+func init() {
+	if supportAVX2() {
+		shortStringLen = 63
+	} else {
+		shortStringLen = 31
+	}
+}
 
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep []byte) int {
