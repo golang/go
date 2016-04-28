@@ -221,7 +221,7 @@ var updateResolvConfTests = []struct {
 	{
 		name:    "golang.org",
 		lines:   []string{"nameserver 8.8.8.8"},
-		servers: []string{"8.8.8.8"},
+		servers: []string{"8.8.8.8:53"},
 	},
 	{
 		name:    "",
@@ -231,7 +231,7 @@ var updateResolvConfTests = []struct {
 	{
 		name:    "www.example.com",
 		lines:   []string{"nameserver 8.8.4.4"},
-		servers: []string{"8.8.4.4"},
+		servers: []string{"8.8.4.4:53"},
 	},
 }
 

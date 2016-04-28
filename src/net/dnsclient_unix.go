@@ -190,7 +190,6 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 	var lastErr error
 	for i := 0; i < cfg.attempts; i++ {
 		for _, server := range cfg.servers {
-			server = JoinHostPort(server, "53")
 			msg, err := exchange(ctx, server, name, qtype)
 			if err != nil {
 				lastErr = &DNSError{
