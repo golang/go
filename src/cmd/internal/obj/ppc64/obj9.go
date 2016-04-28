@@ -301,6 +301,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 
 		case ALWAR,
+			ALBAR,
+			ASTBCCC,
 			ASTWCCC,
 			AECIWX,
 			AECOWX,
@@ -323,6 +325,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			ASYNC,
 			ATLBSYNC,
 			APTESYNC,
+			ALWSYNC,
 			ATW,
 			AWORD,
 			ARFI,
