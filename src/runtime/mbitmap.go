@@ -392,9 +392,8 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 	idx := off >> _PageShift
 	// p points into the heap, but possibly to the middle of an object.
 	// Consult the span table to find the block beginning.
-	k := p >> _PageShift
 	s = h_spans[idx]
-	if s == nil || pageID(k) < s.start || p >= s.limit || s.state != mSpanInUse {
+	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
 		if s == nil || s.state == _MSpanStack {
 			// If s is nil, the virtual address has never been part of the heap.
 			// This pointer may be to some mmap'd region, so we allow it.

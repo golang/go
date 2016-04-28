@@ -170,9 +170,6 @@ const (
 	_MaxGcproc = 32
 )
 
-// Page number (address>>pageShift)
-type pageID uintptr
-
 const _MaxArena32 = 2 << 30
 
 // OS-defined helpers:

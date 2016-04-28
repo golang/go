@@ -116,9 +116,8 @@ type mspan struct {
 	next *mspan     // next span in list, or nil if none
 	prev **mspan    // previous span's next field, or list head's first field if none
 	list *mSpanList // For debugging. TODO: Remove.
-	//TODO:(rlh) Eliminate start field and use startAddr >> PageShift instead.
-	startAddr     uintptr   // uintptr(s.start << _PageShift) aka s.base()
-	start         pageID    // starting page number
+
+	startAddr     uintptr   // address of first byte of span aka s.base()
 	npages        uintptr   // number of pages in span
 	stackfreelist gclinkptr // list of free stacks, avoids overloading freelist
 
@@ -262,11 +261,8 @@ func inheap(b uintptr) bool {
 		return false
 	}
 	// Not a beginning of a block, consult span table to find the block beginning.
-	k := b >> _PageShift
-	x := k
-	x -= mheap_.arena_start >> _PageShift
-	s := h_spans[x]
-	if s == nil || pageID(k) < s.start || b >= s.limit || s.state != mSpanInUse {
+	s := h_spans[(b-mheap_.arena_start)>>_PageShift]
+	if s == nil || b < s.base() || b >= s.limit || s.state != mSpanInUse {
 		return false
 	}
 	return true
@@ -634,10 +630,9 @@ HaveSpan:
 	if s.npages > npage {
 		// Trim extra and put it back in the heap.
 		t := (*mspan)(h.spanalloc.alloc())
-		t.init(s.start+pageID(npage), s.npages-npage)
+		t.init(s.base()+npage<<_PageShift, s.npages-npage)
 		s.npages = npage
-		p := uintptr(t.start)
-		p -= (h.arena_start >> _PageShift)
+		p := (t.base() - h.arena_start) >> _PageShift
 		if p > 0 {
 			h_spans[p-1] = s
 		}
@@ -651,8 +646,7 @@ HaveSpan:
 	}
 	s.unusedsince = 0
 
-	p := uintptr(s.start)
-	p -= (h.arena_start >> _PageShift)
+	p := (s.base() - h.arena_start) >> _PageShift
 	for n := uintptr(0); n < npage; n++ {
 		h_spans[p+n] = s
 	}
@@ -680,7 +674,7 @@ func bestFit(list *mSpanList, npage uintptr, best *mspan) *mspan {
 		if s.npages < npage {
 			continue
 		}
-		if best == nil || s.npages < best.npages || (s.npages == best.npages && s.start < best.start) {
+		if best == nil || s.npages < best.npages || (s.npages == best.npages && s.base() < best.base()) {
 			best = s
 		}
 	}
@@ -717,9 +711,8 @@ func (h *mheap) grow(npage uintptr) bool {
 	// Create a fake "in use" span and free it, so that the
 	// right coalescing happens.
 	s := (*mspan)(h.spanalloc.alloc())
-	s.init(pageID(uintptr(v)>>_PageShift), ask>>_PageShift)
-	p := uintptr(s.start)
-	p -= (h.arena_start >> _PageShift)
+	s.init(uintptr(v), ask>>_PageShift)
+	p := (s.base() - h.arena_start) >> _PageShift
 	for i := p; i < p+s.npages; i++ {
 		h_spans[i] = s
 	}
@@ -750,11 +743,8 @@ func (h *mheap) lookupMaybe(v unsafe.Pointer) *mspan {
 	if uintptr(v) < h.arena_start || uintptr(v) >= h.arena_used {
 		return nil
 	}
-	p := uintptr(v) >> _PageShift
-	q := p
-	q -= h.arena_start >> _PageShift
-	s := h_spans[q]
-	if s == nil || p < uintptr(s.start) || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != _MSpanInUse {
+	s := h_spans[(uintptr(v)-h.arena_start)>>_PageShift]
+	if s == nil || uintptr(v) < s.base() || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != _MSpanInUse {
 		return nil
 	}
 	return s
@@ -836,13 +826,11 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 	s.npreleased = 0
 
 	// Coalesce with earlier, later spans.
-	p := uintptr(s.start)
-	p -= h.arena_start >> _PageShift
+	p := (s.base() - h.arena_start) >> _PageShift
 	if p > 0 {
 		t := h_spans[p-1]
 		if t != nil && t.state == _MSpanFree {
-			s.start = t.start
-			s.startAddr = uintptr(s.start << _PageShift)
+			s.startAddr = t.startAddr
 			s.npages += t.npages
 			s.npreleased = t.npreleased // absorb released pages
 			s.needzero |= t.needzero
@@ -947,12 +935,11 @@ func runtime_debug_freeOSMemory() {
 }
 
 // Initialize a new span with the given start and npages.
-func (span *mspan) init(start pageID, npages uintptr) {
+func (span *mspan) init(base uintptr, npages uintptr) {
 	span.next = nil
 	span.prev = nil
 	span.list = nil
-	span.start = start
-	span.startAddr = uintptr(start << _PageShift)
+	span.startAddr = base
 	span.npages = npages
 	span.allocCount = 0
 	span.sizeclass = 0
