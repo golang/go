@@ -160,7 +160,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 // freeSpan returns true if s was returned to the heap.
 // If preserve=true, it does not move s (the caller
 // must take care of it).
-func (c *mcentral) freeSpan(s *mspan, start gclinkptr, end gclinkptr, preserve bool, wasempty bool) bool {
+func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 	if s.incache {
 		throw("freeSpan given cached span")
 	}
