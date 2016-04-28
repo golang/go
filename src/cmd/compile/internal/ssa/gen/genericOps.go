@@ -438,9 +438,8 @@ var genericBlocks = []blockData{
 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
 	{name: "Exit"},   // no successors, control value generates a panic
 
-	// transient block states used for dead code removal
+	// transient block state used for dead code removal
 	{name: "First"}, // 2 successors, always takes the first one (second is dead)
-	{name: "Dead"},  // no successors; determined to be dead but not yet removed
 }
 
 func init() {
