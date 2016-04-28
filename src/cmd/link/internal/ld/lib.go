@@ -571,7 +571,8 @@ func loadlib() {
 
 	// cmd/7l doesn't support cgo internal linking
 	// This is https://golang.org/issue/10373.
-	if iscgo && goarch == "arm64" {
+	// mips64x doesn't support cgo internal linking either (golang.org/issue/14449)
+	if iscgo && (goarch == "arm64" || goarch == "mips64" || goarch == "mips64le") {
 		Linkmode = LinkExternal
 	}
 
