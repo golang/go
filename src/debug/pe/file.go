@@ -158,7 +158,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			NumberOfLineNumbers:  sh.NumberOfLineNumbers,
 			Characteristics:      sh.Characteristics,
 		}
-		s.sr = io.NewSectionReader(r, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
+		r2 := r
+		if sh.PointerToRawData == 0 { // .bss must have all 0s
+			r2 = zeroReaderAt{}
+		}
+		s.sr = io.NewSectionReader(r2, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
 		s.ReaderAt = s.sr
 		f.Sections[i] = s
 	}
@@ -171,6 +175,17 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	return f, nil
+}
+
+// zeroReaderAt is ReaderAt that reads 0s.
+type zeroReaderAt struct{}
+
+// ReadAt writes len(p) 0s into p.
+func (w zeroReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }
 
 // getString extracts a string from symbol string table.
