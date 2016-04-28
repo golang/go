@@ -361,23 +361,23 @@ func (conf *dnsConfig) nameList(name string) []string {
 	if rooted {
 		return []string{name}
 	}
+
+	hasNdots := count(name, '.') >= conf.ndots
+	name += "."
+
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
 	// If name has enough dots, try unsuffixed first.
-	if count(name, '.') >= conf.ndots {
-		names = append(names, name+".")
+	if hasNdots {
+		names = append(names, name)
 	}
 	// Try suffixes.
 	for _, suffix := range conf.search {
-		suffixed := name + "." + suffix
-		if suffixed[len(suffixed)-1] != '.' {
-			suffixed += "."
-		}
-		names = append(names, suffixed)
+		names = append(names, name+suffix)
 	}
 	// Try unsuffixed, if not tried first above.
-	if count(name, '.') < conf.ndots {
-		names = append(names, name+".")
+	if !hasNdots {
+		names = append(names, name)
 	}
 	return names
 }

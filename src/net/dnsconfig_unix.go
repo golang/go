@@ -20,7 +20,7 @@ var (
 
 type dnsConfig struct {
 	servers    []string      // server addresses (in host:port form) to use
-	search     []string      // suffixes to append to local name
+	search     []string      // rooted suffixes to append to local name
 	ndots      int           // number of dots in name to trigger absolute lookup
 	timeout    time.Duration // wait before giving up on a query, including retries
 	attempts   int           // lost packets before giving up on server
@@ -78,13 +78,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
-				conf.search = []string{f[1]}
+				conf.search = []string{ensureRooted(f[1])}
 			}
 
 		case "search": // set search path to given servers
 			conf.search = make([]string, len(f)-1)
 			for i := 0; i < len(conf.search); i++ {
-				conf.search[i] = f[i+1]
+				conf.search[i] = ensureRooted(f[i+1])
 			}
 
 		case "options": // magic options
@@ -141,11 +141,18 @@ func dnsDefaultSearch() []string {
 		return nil
 	}
 	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
-		return []string{hn[i+1:]}
+		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil
 }
 
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func ensureRooted(s string) string {
+	if len(s) > 0 && s[len(s)-1] == '.' {
+		return s
+	}
+	return s + "."
 }

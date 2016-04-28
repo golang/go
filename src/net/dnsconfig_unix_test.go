@@ -22,7 +22,7 @@ var dnsReadConfigTests = []struct {
 		name: "testdata/resolv.conf",
 		want: &dnsConfig{
 			servers:    []string{"8.8.8.8:53", "[2001:4860:4860::8888]:53", "[fe80::1%lo0]:53"},
-			search:     []string{"localdomain"},
+			search:     []string{"localdomain."},
 			ndots:      5,
 			timeout:    10 * time.Second,
 			attempts:   3,
@@ -34,7 +34,7 @@ var dnsReadConfigTests = []struct {
 		name: "testdata/domain-resolv.conf",
 		want: &dnsConfig{
 			servers:  []string{"8.8.8.8:53"},
-			search:   []string{"localdomain"},
+			search:   []string{"localdomain."},
 			ndots:    1,
 			timeout:  5 * time.Second,
 			attempts: 2,
@@ -44,7 +44,7 @@ var dnsReadConfigTests = []struct {
 		name: "testdata/search-resolv.conf",
 		want: &dnsConfig{
 			servers:  []string{"8.8.8.8:53"},
-			search:   []string{"test", "invalid"},
+			search:   []string{"test.", "invalid."},
 			ndots:    1,
 			timeout:  5 * time.Second,
 			attempts: 2,
@@ -57,7 +57,7 @@ var dnsReadConfigTests = []struct {
 			ndots:    1,
 			timeout:  5 * time.Second,
 			attempts: 2,
-			search:   []string{"domain.local"},
+			search:   []string{"domain.local."},
 		},
 	},
 	{
@@ -105,7 +105,7 @@ func TestDNSReadMissingFile(t *testing.T) {
 		ndots:    1,
 		timeout:  5 * time.Second,
 		attempts: 2,
-		search:   []string{"domain.local"},
+		search:   []string{"domain.local."},
 	}
 	if !reflect.DeepEqual(conf, want) {
 		t.Errorf("missing resolv.conf:\ngot: %+v\nwant: %+v", conf, want)
@@ -119,11 +119,11 @@ var dnsDefaultSearchTests = []struct {
 }{
 	{
 		name: "host.long.domain.local",
-		want: []string{"long.domain.local"},
+		want: []string{"long.domain.local."},
 	},
 	{
 		name: "host.local",
-		want: []string{"local"},
+		want: []string{"local."},
 	},
 	{
 		name: "host",
