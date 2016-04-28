@@ -612,7 +612,7 @@ func (p *exporter) typ(t *Type) {
 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
 			}
 
-			p.pos(m.Sym.Def)
+			p.pos(m.Nname)
 			p.fieldSym(m.Sym, false)
 
 			sig := m.Type
@@ -717,7 +717,7 @@ func (p *exporter) fieldList(t *Type) {
 }
 
 func (p *exporter) field(f *Field) {
-	p.pos(f.Sym.Def)
+	p.pos(f.Nname)
 	p.fieldName(f.Sym, f)
 	p.typ(f.Type)
 	p.string(f.Note)
@@ -739,7 +739,7 @@ func (p *exporter) methodList(t *Type) {
 }
 
 func (p *exporter) method(m *Field) {
-	p.pos(m.Sym.Def)
+	p.pos(m.Nname)
 	p.fieldName(m.Sym, m)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
