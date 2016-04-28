@@ -184,7 +184,7 @@ func BenchmarkCompressedZipGarbage(b *testing.B) {
 	b.ReportAllocs()
 	var buf bytes.Buffer
 	bigBuf := bytes.Repeat([]byte("a"), 1<<20)
-	for i := 0; i < b.N; i++ {
+	for i := 0; i <= b.N; i++ {
 		buf.Reset()
 		zw := NewWriter(&buf)
 		for j := 0; j < 3; j++ {
@@ -195,5 +195,11 @@ func BenchmarkCompressedZipGarbage(b *testing.B) {
 			w.Write(bigBuf)
 		}
 		zw.Close()
+		if i == 0 {
+			// Reset the timer after the first time through.
+			// This effectively discards the very large initial flate setup cost,
+			// as well as the initialization of bigBuf.
+			b.ResetTimer()
+		}
 	}
 }
