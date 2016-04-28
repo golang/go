@@ -81,6 +81,9 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	case obj.R_ADDRMIPSU:
 		ld.Cput(ld.R_MIPS_HI16)
 
+	case obj.R_ADDRMIPSTLS:
+		ld.Cput(ld.R_MIPS_TLS_TPREL_LO16)
+
 	case obj.R_CALLMIPS,
 		obj.R_JMPMIPS:
 		ld.Cput(ld.R_MIPS_26)
@@ -123,7 +126,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 			return 0
 
-		case obj.R_CALLMIPS,
+		case obj.R_ADDRMIPSTLS,
+			obj.R_CALLMIPS,
 			obj.R_JMPMIPS:
 			r.Done = 0
 			r.Xsym = r.Sym
@@ -150,6 +154,16 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		} else {
 			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
 		}
+		return 0
+
+	case obj.R_ADDRMIPSTLS:
+		// thread pointer is at 0x7000 offset from the start of TLS data area
+		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
+		if t < -32768 || t >= 32678 {
+			ld.Diag("TLS offset out of range %d", t)
+		}
+		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		return 0
 
 	case obj.R_CALLMIPS,

@@ -585,6 +585,9 @@ const (
 	// R_ADDRMIPSU (only used on mips64) resolves to the sign-adjusted "upper" 16
 	// bits (bit 16-31) of an external address, by encoding it into the instruction.
 	R_ADDRMIPSU
+	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
+	// address (offset from thread pointer), by encoding it into the instruction.
+	R_ADDRMIPSTLS
 )
 
 type Auto struct {
