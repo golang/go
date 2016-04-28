@@ -412,7 +412,7 @@ func (c *Cmd) WaitContext(ctx context.Context) error {
 
 	var waitDone chan struct{}
 	if ctx != nil {
-		waitDone := make(chan struct{})
+		waitDone = make(chan struct{})
 		go func() {
 			select {
 			case <-ctx.Done():
