@@ -4,8 +4,6 @@
 
 // Binary package export.
 // (see fmt.go, parser.go as "documentation" for how to use/setup data structures)
-//
-// Use "-newexport" flag to enable.
 
 /*
 Export data encoding:
@@ -508,23 +506,50 @@ func (p *exporter) pos(n *Node) {
 		return
 	}
 
-	var file string
-	var line int
+	file, line := fileLine(n)
+	if file == p.prevFile {
+		// common case: write line delta
+		// delta == 0 means different file or no line change
+		delta := line - p.prevLine
+		p.int(delta)
+		if delta == 0 {
+			p.int(-1) // -1 means no file change
+		}
+	} else {
+		// different file
+		p.int(0)
+		// Encode filename as length of common prefix with previous
+		// filename, followed by (possibly empty) suffix. Filenames
+		// frequently share path prefixes, so this can save a lot
+		// of space and make export data size less dependent on file
+		// path length. The suffix is unlikely to be empty because
+		// file names tend to end in ".go".
+		n := commonPrefixLen(p.prevFile, file)
+		p.int(n)           // n >= 0
+		p.string(file[n:]) // write suffix only
+		p.prevFile = file
+		p.int(line)
+	}
+	p.prevLine = line
+}
+
+func fileLine(n *Node) (file string, line int) {
 	if n != nil {
 		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno))
 	}
+	return
+}
 
-	if file == p.prevFile && line != p.prevLine {
-		// common case: write delta-encoded line number
-		p.int(line - p.prevLine) // != 0
-	} else {
-		// uncommon case: filename changed, or line didn't change
-		p.int(0)
-		p.string(file)
-		p.int(line)
-		p.prevFile = file
+func commonPrefixLen(a, b string) int {
+	if len(a) > len(b) {
+		a, b = b, a
 	}
-	p.prevLine = line
+	// len(a) <= len(b)
+	i := 0
+	for i < len(a) && a[i] == b[i] {
+		i++
+	}
+	return i
 }
 
 func isInlineable(n *Node) bool {

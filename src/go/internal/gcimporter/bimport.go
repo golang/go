@@ -204,13 +204,14 @@ func (p *importer) pos() {
 
 	file := p.prevFile
 	line := p.prevLine
-
 	if delta := p.int(); delta != 0 {
+		// line changed
 		line += delta
-	} else {
-		file = p.string()
-		line = p.int()
+	} else if n := p.int(); n >= 0 {
+		// file changed
+		file = p.prevFile[:n] + p.string()
 		p.prevFile = file
+		line = p.int()
 	}
 	p.prevLine = line
 
