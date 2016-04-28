@@ -47,7 +47,6 @@ const (
 	BlockRetJmp
 	BlockExit
 	BlockFirst
-	BlockDead
 )
 
 var blockString = [...]string{
@@ -88,7 +87,6 @@ var blockString = [...]string{
 	BlockRetJmp: "RetJmp",
 	BlockExit:   "Exit",
 	BlockFirst:  "First",
-	BlockDead:   "Dead",
 }
 
 func (k BlockKind) String() string { return blockString[k] }

@@ -26,9 +26,6 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 	for {
 		change := false
 		for _, b := range f.Blocks {
-			if b.Kind == BlockDead {
-				continue
-			}
 			if b.Control != nil && b.Control.Op == OpCopy {
 				for b.Control.Op == OpCopy {
 					b.SetControl(b.Control.Args[0])
