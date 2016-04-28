@@ -187,7 +187,7 @@ const (
 
 	REGZERO  = REG_R0 /* set to zero */
 	REGSP    = REG_R29
-	REGSB    = REG_R30
+	REGSB    = REG_R28
 	REGLINK  = REG_R31
 	REGRET   = REG_R1
 	REGARG   = -1      /* -1 disables passing the first argument in register */
