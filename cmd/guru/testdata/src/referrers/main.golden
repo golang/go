@@ -9,42 +9,42 @@ references to type s struct{f int}
 
 -------- @referrers ref-package --------
 references to package lib
+	_ = (lib.Type).Method // ref from external test package
+	_ = (lib.Type).Method // ref from internal test package
+	const c = lib.Const // @describe ref-const "Const"
+	lib.Func()          // @describe ref-func "Func"
+	lib.Var++           // @describe ref-var "Var"
+	var _ lib.Const    // @definition qualified-const "Const"
+	var _ lib.Func     // @definition qualified-func "Func"
+	var _ lib.Nonesuch // @definition qualified-nomember "Nonesuch"
+	var _ lib.Outer // @describe lib-outer "Outer"
+	var _ lib.Type     // @definition qualified-type "Type"
+	var _ lib.Type // @describe ref-pkg "lib"
+	var _ lib.Var      // @definition qualified-var "Var"
+	var _ lib2.Type    // @definition qualified-type-renaming "Type"
+	var t lib.Type      // @describe ref-type "Type"
 	var v lib.Type = lib.Const // @referrers ref-package "lib"
 	var v lib.Type = lib.Const // @referrers ref-package "lib"
 	var v lib.Type = lib.Const // @referrers ref-package "lib"
 	var v lib.Type = lib.Const // @referrers ref-package "lib"
 	var x lib.T           // @definition lexical-pkgname "lib"
-	var _ lib.Type     // @definition qualified-type "Type"
-	var _ lib.Func     // @definition qualified-func "Func"
-	var _ lib.Var      // @definition qualified-var "Var"
-	var _ lib.Const    // @definition qualified-const "Const"
-	var _ lib2.Type    // @definition qualified-type-renaming "Type"
-	var _ lib.Nonesuch // @definition qualified-nomember "Nonesuch"
-	var _ lib.Outer // @describe lib-outer "Outer"
-	const c = lib.Const // @describe ref-const "Const"
-	lib.Func()          // @describe ref-func "Func"
-	lib.Var++           // @describe ref-var "Var"
-	var t lib.Type      // @describe ref-type "Type"
-	var _ lib.Type // @describe ref-pkg "lib"
-	_ = (lib.Type).Method // ref from internal test package
-	_ = (lib.Type).Method // ref from external test package
 
 -------- @referrers ref-method --------
 references to func (Type).Method(x *int) *int
-	_ = v.Method               // @referrers ref-method "Method"
-	_ = v.Method
-	_ = v.Method               // @referrers ref-method "Method"
-	_ = v.Method
-	p := t.Method(&a)   // @describe ref-method "Method"
-	_ = (lib.Type).Method // ref from internal test package
 	_ = (lib.Type).Method // ref from external test package
+	_ = (lib.Type).Method // ref from internal test package
+	_ = v.Method
+	_ = v.Method
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method               // @referrers ref-method "Method"
+	p := t.Method(&a)   // @describe ref-method "Method"
 
 -------- @referrers ref-local --------
 references to var v lib.Type
-	_ = v.Method               // @referrers ref-method "Method"
 	_ = v.Method
-	v++ //@referrers ref-local "v"
+	_ = v.Method               // @referrers ref-method "Method"
 	v++
+	v++ //@referrers ref-local "v"
 
 -------- @referrers ref-field --------
 references to field f int
