@@ -180,8 +180,7 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
 	}
 
-	timeout := time.Duration(cfg.timeout) * time.Second
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(cfg.timeout)
 	if old, ok := ctx.Deadline(); !ok || deadline.Before(old) {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithDeadline(ctx, deadline)

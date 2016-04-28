@@ -24,7 +24,7 @@ var dnsReadConfigTests = []struct {
 			servers:    []string{"8.8.8.8", "2001:4860:4860::8888", "fe80::1%lo0"},
 			search:     []string{"localdomain"},
 			ndots:      5,
-			timeout:    10,
+			timeout:    10 * time.Second,
 			attempts:   3,
 			rotate:     true,
 			unknownOpt: true, // the "options attempts 3" line
@@ -36,7 +36,7 @@ var dnsReadConfigTests = []struct {
 			servers:  []string{"8.8.8.8"},
 			search:   []string{"localdomain"},
 			ndots:    1,
-			timeout:  5,
+			timeout:  5 * time.Second,
 			attempts: 2,
 		},
 	},
@@ -46,7 +46,7 @@ var dnsReadConfigTests = []struct {
 			servers:  []string{"8.8.8.8"},
 			search:   []string{"test", "invalid"},
 			ndots:    1,
-			timeout:  5,
+			timeout:  5 * time.Second,
 			attempts: 2,
 		},
 	},
@@ -55,7 +55,7 @@ var dnsReadConfigTests = []struct {
 		want: &dnsConfig{
 			servers:  defaultNS,
 			ndots:    1,
-			timeout:  5,
+			timeout:  5 * time.Second,
 			attempts: 2,
 			search:   []string{"domain.local"},
 		},
@@ -64,7 +64,7 @@ var dnsReadConfigTests = []struct {
 		name: "testdata/openbsd-resolv.conf",
 		want: &dnsConfig{
 			ndots:    1,
-			timeout:  5,
+			timeout:  5 * time.Second,
 			attempts: 2,
 			lookup:   []string{"file", "bind"},
 			servers:  []string{"169.254.169.254", "10.240.0.1"},
@@ -103,7 +103,7 @@ func TestDNSReadMissingFile(t *testing.T) {
 	want := &dnsConfig{
 		servers:  defaultNS,
 		ndots:    1,
-		timeout:  5,
+		timeout:  5 * time.Second,
 		attempts: 2,
 		search:   []string{"domain.local"},
 	}

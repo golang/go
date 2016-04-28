@@ -19,23 +19,23 @@ var (
 )
 
 type dnsConfig struct {
-	servers    []string  // servers to use
-	search     []string  // suffixes to append to local name
-	ndots      int       // number of dots in name to trigger absolute lookup
-	timeout    int       // seconds before giving up on packet
-	attempts   int       // lost packets before giving up on server
-	rotate     bool      // round robin among servers
-	unknownOpt bool      // anything unknown was encountered
-	lookup     []string  // OpenBSD top-level database "lookup" order
-	err        error     // any error that occurs during open of resolv.conf
-	mtime      time.Time // time of resolv.conf modification
+	servers    []string      // servers to use
+	search     []string      // suffixes to append to local name
+	ndots      int           // number of dots in name to trigger absolute lookup
+	timeout    time.Duration // wait before giving up on a query, including retries
+	attempts   int           // lost packets before giving up on server
+	rotate     bool          // round robin among servers
+	unknownOpt bool          // anything unknown was encountered
+	lookup     []string      // OpenBSD top-level database "lookup" order
+	err        error         // any error that occurs during open of resolv.conf
+	mtime      time.Time     // time of resolv.conf modification
 }
 
 // See resolv.conf(5) on a Linux machine.
 func dnsReadConfig(filename string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
-		timeout:  5,
+		timeout:  5 * time.Second,
 		attempts: 2,
 	}
 	file, err := open(filename)
@@ -101,7 +101,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 					if n < 1 {
 						n = 1
 					}
-					conf.timeout = n
+					conf.timeout = time.Duration(n) * time.Second
 				case hasPrefix(s, "attempts:"):
 					n, _, _ := dtoi(s, 9)
 					if n < 1 {
