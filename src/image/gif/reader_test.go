@@ -97,7 +97,7 @@ func TestTransparentIndex(t *testing.T) {
 	for transparentIndex := 0; transparentIndex < 3; transparentIndex++ {
 		if transparentIndex < 2 {
 			// Write the graphic control for the transparent index.
-			b.WriteString("\x21\xf9\x00\x01\x00\x00")
+			b.WriteString("\x21\xf9\x04\x01\x00\x00")
 			b.WriteByte(byte(transparentIndex))
 			b.WriteByte(0)
 		}
