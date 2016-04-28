@@ -1213,7 +1213,7 @@ func hostlink() {
 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
 			Ctxt.Diag("WriteFile trivial.c failed: %v", err)
 		}
-		cmd := exec.Command(argv[0], "-no-pie", "trivial.c")
+		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
 		cmd.Dir = tmpdir
 		out, err := cmd.CombinedOutput()
 		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
