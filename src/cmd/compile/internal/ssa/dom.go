@@ -47,7 +47,8 @@ func postorderWithNumbering(f *Func, ponums []int) []*Block {
 			// Children have not been visited yet. Mark as explored
 			// and queue any children we haven't seen yet.
 			mark[b.ID] = explored
-			for _, c := range b.Succs {
+			for _, e := range b.Succs {
+				c := e.b
 				if mark[c.ID] == notFound {
 					mark[c.ID] = notExplored
 					s = append(s, c)
@@ -60,7 +61,7 @@ func postorderWithNumbering(f *Func, ponums []int) []*Block {
 	return order
 }
 
-type linkedBlocks func(*Block) []*Block
+type linkedBlocks func(*Block) []Edge
 
 const nscratchslices = 7
 
@@ -101,8 +102,8 @@ func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g []ID
 }
 
 func dominators(f *Func) []*Block {
-	preds := func(b *Block) []*Block { return b.Preds }
-	succs := func(b *Block) []*Block { return b.Succs }
+	preds := func(b *Block) []Edge { return b.Preds }
+	succs := func(b *Block) []Edge { return b.Succs }
 
 	//TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
@@ -135,7 +136,8 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 		w := vertex[i]
 
 		// step2 in TOPLAS paper
-		for _, v := range predFn(fromID[w]) {
+		for _, e := range predFn(fromID[w]) {
+			v := e.b
 			if semi[v.ID] == 0 {
 				// skip unreachable predecessor
 				// not in original, but we're using existing pred instead of building one.
@@ -199,7 +201,8 @@ func (f *Func) dfsOrig(entry *Block, succFn linkedBlocks, semi, vertex, label, p
 		vertex[n] = v.ID
 		label[v.ID] = v.ID
 		// ancestor[v] already zero
-		for _, w := range succFn(v) {
+		for _, e := range succFn(v) {
+			w := e.b
 			// if it has a dfnum, we've already visited it
 			if semi[w.ID] == 0 {
 				// yes, w can be pushed multiple times.
@@ -265,7 +268,8 @@ func dominatorsSimple(f *Func) []*Block {
 		for i := len(post) - 2; i >= 0; i-- {
 			b := post[i]
 			var d *Block
-			for _, p := range b.Preds {
+			for _, e := range b.Preds {
+				p := e.b
 				if idom[p.ID] == nil {
 					continue
 				}

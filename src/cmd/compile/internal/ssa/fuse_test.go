@@ -1,6 +1,8 @@
 package ssa
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -125,5 +127,43 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 		if k[:1] == "z" && b.Kind != BlockInvalid {
 			t.Errorf("%s was not eliminated, but should have", k)
 		}
+	}
+}
+
+func BenchmarkFuse(b *testing.B) {
+	for _, n := range [...]int{1, 10, 100, 1000, 10000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			c := testConfig(b)
+
+			blocks := make([]bloc, 0, 2*n+3)
+			blocks = append(blocks,
+				Bloc("entry",
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
+					Valu("cond", OpArg, TypeBool, 0, nil),
+					Valu("x", OpArg, TypeInt64, 0, nil),
+					Goto("exit")))
+
+			phiArgs := make([]string, 0, 2*n)
+			for i := 0; i < n; i++ {
+				cname := fmt.Sprintf("c%d", i)
+				blocks = append(blocks,
+					Bloc(fmt.Sprintf("b%d", i), If("cond", cname, "merge")),
+					Bloc(cname, Goto("merge")))
+				phiArgs = append(phiArgs, "x", "x")
+			}
+			blocks = append(blocks,
+				Bloc("merge",
+					Valu("phi", OpPhi, TypeMem, 0, nil, phiArgs...),
+					Goto("exit")),
+				Bloc("exit",
+					Exit("mem")))
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				fun := Fun(c, "entry", blocks...)
+				fuse(fun.f)
+				fun.f.Free()
+			}
+		})
 	}
 }

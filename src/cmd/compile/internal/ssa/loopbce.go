@@ -103,14 +103,14 @@ nextb:
 		// First condition: loop entry has a single predecessor, which
 		// is the header block.  This implies that b.Succs[entry] is
 		// reached iff ind < max.
-		if len(b.Succs[entry].Preds) != 1 {
+		if len(b.Succs[entry].b.Preds) != 1 {
 			// b.Succs[1-entry] must exit the loop.
 			continue
 		}
 
 		// Second condition: b.Succs[entry] dominates nxt so that
 		// nxt is computed when inc < max, meaning nxt <= max.
-		if !f.sdom.isAncestorEq(b.Succs[entry], nxt.Block) {
+		if !f.sdom.isAncestorEq(b.Succs[entry].b, nxt.Block) {
 			// inc+ind can only be reached through the branch that enters the loop.
 			continue
 		}
@@ -150,7 +150,7 @@ nextb:
 			nxt:   nxt,
 			min:   min,
 			max:   max,
-			entry: b.Succs[entry],
+			entry: b.Succs[entry].b,
 		})
 		b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
 	}

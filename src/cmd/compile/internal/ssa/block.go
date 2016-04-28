@@ -12,18 +12,30 @@ type Block struct {
 	// these IDs densely, but no guarantees.
 	ID ID
 
+	// Line number for block's control operation
+	Line int32
+
 	// The kind of block this is.
 	Kind BlockKind
 
+	// Likely direction for branches.
+	// If BranchLikely, Succs[0] is the most likely branch taken.
+	// If BranchUnlikely, Succs[1] is the most likely branch taken.
+	// Ignored if len(Succs) < 2.
+	// Fatal if not BranchUnknown and len(Succs) > 2.
+	Likely BranchPrediction
+
+	// After flagalloc, records whether flags are live at the end of the block.
+	FlagsLiveAtEnd bool
+
 	// Subsequent blocks, if any. The number and order depend on the block kind.
-	// All successors must be distinct (to make phi values in successors unambiguous).
-	Succs []*Block
+	Succs []Edge
 
 	// Inverse of successors.
 	// The order is significant to Phi nodes in the block.
-	Preds []*Block
 	// TODO: predecessors is a pain to maintain. Can we somehow order phi
 	// arguments by block id and have this field computed explicitly when needed?
+	Preds []Edge
 
 	// A value that determines how the block is exited. Its value depends on the kind
 	// of the block. For instance, a BlockIf has a boolean control value and BlockExit
@@ -41,23 +53,41 @@ type Block struct {
 	// The containing function
 	Func *Func
 
-	// Line number for block's control operation
-	Line int32
-
-	// Likely direction for branches.
-	// If BranchLikely, Succs[0] is the most likely branch taken.
-	// If BranchUnlikely, Succs[1] is the most likely branch taken.
-	// Ignored if len(Succs) < 2.
-	// Fatal if not BranchUnknown and len(Succs) > 2.
-	Likely BranchPrediction
-
-	// After flagalloc, records whether flags are live at the end of the block.
-	FlagsLiveAtEnd bool
-
 	// Storage for Succs, Preds, and Values
-	succstorage [2]*Block
-	predstorage [4]*Block
-	valstorage  [8]*Value
+	succstorage [2]Edge
+	predstorage [4]Edge
+	valstorage  [9]*Value
+}
+
+// Edge represents a CFG edge.
+// Example edges for b branching to either c or d.
+// (c and d have other predecessors.)
+//   b.Succs = [{c,3}, {d,1}]
+//   c.Preds = [?, ?, ?, {b,0}]
+//   d.Preds = [?, {b,1}, ?]
+// These indexes allow us to edit the CFG in constant time.
+// In addition, it informs phi ops in degenerate cases like:
+// b:
+//    if k then c else c
+// c:
+//    v = Phi(x, y)
+// Then the indexes tell you whether x is chosen from
+// the if or else branch from b.
+//   b.Succs = [{c,0},{c,1}]
+//   c.Preds = [{b,0},{b,1}]
+// means x is chosen if k is true.
+type Edge struct {
+	// block edge goes to (in a Succs list) or from (in a Preds list)
+	b *Block
+	// index of reverse edge.  Invariant:
+	//   e := x.Succs[idx]
+	//   e.b.Preds[e.i] = Edge{x,idx}
+	// and similarly for predecessors.
+	i int
+}
+
+func (e Edge) Block() *Block {
+	return e.b
 }
 
 //     kind           control    successors
@@ -66,7 +96,7 @@ type Block struct {
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
 //     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
-type BlockKind int32
+type BlockKind int8
 
 // short form print
 func (b *Block) String() string {
@@ -85,7 +115,7 @@ func (b *Block) LongString() string {
 	if len(b.Succs) > 0 {
 		s += " ->"
 		for _, c := range b.Succs {
-			s += " " + c.String()
+			s += " " + c.b.String()
 		}
 	}
 	switch b.Likely {
@@ -110,8 +140,53 @@ func (b *Block) SetControl(v *Value) {
 // AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {
-	b.Succs = append(b.Succs, c)
-	c.Preds = append(c.Preds, b)
+	i := len(b.Succs)
+	j := len(c.Preds)
+	b.Succs = append(b.Succs, Edge{c, j})
+	c.Preds = append(c.Preds, Edge{b, i})
+}
+
+// removePred removes the ith input edge from b.
+// It is the responsibility of the caller to remove
+// the corresponding successor edge.
+func (b *Block) removePred(i int) {
+	n := len(b.Preds) - 1
+	if i != n {
+		e := b.Preds[n]
+		b.Preds[i] = e
+		// Update the other end of the edge we moved.
+		e.b.Succs[e.i].i = i
+	}
+	b.Preds[n] = Edge{}
+	b.Preds = b.Preds[:n]
+}
+
+// removeSucc removes the ith output edge from b.
+// It is the responsibility of the caller to remove
+// the corresponding predecessor edge.
+func (b *Block) removeSucc(i int) {
+	n := len(b.Succs) - 1
+	if i != n {
+		e := b.Succs[n]
+		b.Succs[i] = e
+		// Update the other end of the edge we moved.
+		e.b.Preds[e.i].i = i
+	}
+	b.Succs[n] = Edge{}
+	b.Succs = b.Succs[:n]
+}
+
+func (b *Block) swapSuccessors() {
+	if len(b.Succs) != 2 {
+		b.Fatalf("swapSuccessors with len(Succs)=%d", len(b.Succs))
+	}
+	e0 := b.Succs[0]
+	e1 := b.Succs[1]
+	b.Succs[0] = e1
+	b.Succs[1] = e0
+	e0.b.Preds[e0.i].i = 1
+	e1.b.Preds[e1.i].i = 0
+	b.Likely *= -1
 }
 
 func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }

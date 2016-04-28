@@ -502,7 +502,7 @@ func prove(f *Func) {
 				b.Kind = BlockFirst
 				b.SetControl(nil)
 				if succ == negative {
-					b.Succs[0], b.Succs[1] = b.Succs[1], b.Succs[0]
+					b.swapSuccessors()
 				}
 			}
 
@@ -525,10 +525,10 @@ func getBranch(sdom sparseTree, p *Block, b *Block) branch {
 	// has one predecessor then (apart from the degenerate case),
 	// there is no path from entry that can reach b through p.Succs[1].
 	// TODO: how about p->yes->b->yes, i.e. a loop in yes.
-	if sdom.isAncestorEq(p.Succs[0], b) && len(p.Succs[0].Preds) == 1 {
+	if sdom.isAncestorEq(p.Succs[0].b, b) && len(p.Succs[0].b.Preds) == 1 {
 		return positive
 	}
-	if sdom.isAncestorEq(p.Succs[1], b) && len(p.Succs[1].Preds) == 1 {
+	if sdom.isAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
 		return negative
 	}
 	return unknown

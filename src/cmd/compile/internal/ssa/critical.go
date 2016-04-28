@@ -40,9 +40,12 @@ func critical(f *Func) {
 		}
 
 		// split input edges coming from multi-output blocks.
-		for i := 0; i < len(b.Preds); i++ {
-			c := b.Preds[i]
-			if c.Kind == BlockPlain {
+		for i := 0; i < len(b.Preds); {
+			e := b.Preds[i]
+			p := e.b
+			pi := e.i
+			if p.Kind == BlockPlain {
+				i++
 				continue // only single output block
 			}
 
@@ -57,10 +60,10 @@ func critical(f *Func) {
 					// since we're iterating over len(f.Blocks) above, this forces
 					// the new blocks to be re-examined.
 					d = f.NewBlock(BlockPlain)
-					d.Line = c.Line
+					d.Line = p.Line
 					blocks[argID] = d
 					if f.pass.debug > 0 {
-						f.Config.Warnl(c.Line, "split critical edge")
+						f.Config.Warnl(p.Line, "split critical edge")
 					}
 				} else {
 					reusedBlock = true
@@ -69,9 +72,9 @@ func critical(f *Func) {
 				// no existing block, so allocate a new block
 				// to place on the edge
 				d = f.NewBlock(BlockPlain)
-				d.Line = c.Line
+				d.Line = p.Line
 				if f.pass.debug > 0 {
-					f.Config.Warnl(c.Line, "split critical edge")
+					f.Config.Warnl(p.Line, "split critical edge")
 				}
 			}
 
@@ -80,57 +83,34 @@ func critical(f *Func) {
 			// corresponding elements from the block
 			// predecessors and phi args
 			if reusedBlock {
-				d.Preds = append(d.Preds, c)
-				b.Preds[i] = nil
+				// Add p->d edge
+				p.Succs[pi] = Edge{d, len(d.Preds)}
+				d.Preds = append(d.Preds, Edge{p, pi})
+
+				// Remove p as a predecessor from b.
+				b.removePred(i)
+
+				// Update corresponding phi args
+				n := len(b.Preds)
 				phi.Args[i].Uses--
-				phi.Args[i] = nil
+				phi.Args[i] = phi.Args[n]
+				phi.Args[n] = nil
+				phi.Args = phi.Args[:n]
+				// splitting occasionally leads to a phi having
+				// a single argument (occurs with -N)
+				if n == 1 {
+					phi.Op = OpCopy
+				}
+				// Don't increment i in this case because we moved
+				// an unprocessed predecessor down into slot i.
 			} else {
 				// splice it in
-				d.Preds = append(d.Preds, c)
-				d.Succs = append(d.Succs, b)
-				b.Preds[i] = d
-			}
-
-			// replace b with d in c's successor list.
-			for j, b2 := range c.Succs {
-				if b2 == b {
-					c.Succs[j] = d
-					break
-				}
-			}
-		}
-
-		// clean up phi's args and b's predecessor list
-		if phi != nil {
-			phi.Args = filterNilValues(phi.Args)
-			b.Preds = filterNilBlocks(b.Preds)
-			// splitting occasionally leads to a phi having
-			// a single argument (occurs with -N)
-			if len(phi.Args) == 1 {
-				phi.Op = OpCopy
+				p.Succs[pi] = Edge{d, 0}
+				b.Preds[i] = Edge{d, 0}
+				d.Preds = append(d.Preds, Edge{p, pi})
+				d.Succs = append(d.Succs, Edge{b, i})
+				i++
 			}
 		}
 	}
-}
-
-// filterNilValues preserves the order of v, while filtering out nils.
-func filterNilValues(v []*Value) []*Value {
-	nv := v[:0]
-	for i := range v {
-		if v[i] != nil {
-			nv = append(nv, v[i])
-		}
-	}
-	return nv
-}
-
-// filterNilBlocks preserves the order of b, while filtering out nils.
-func filterNilBlocks(b []*Block) []*Block {
-	nb := b[:0]
-	for i := range b {
-		if b[i] != nil {
-			nb = append(nb, b[i])
-		}
-	}
-	return nb
 }

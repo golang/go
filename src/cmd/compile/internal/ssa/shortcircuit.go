@@ -28,14 +28,15 @@ func shortcircuit(f *Func) {
 				continue
 			}
 			for i, a := range v.Args {
-				p := b.Preds[i]
+				e := b.Preds[i]
+				p := e.b
 				if p.Kind != BlockIf {
 					continue
 				}
 				if p.Control != a {
 					continue
 				}
-				if p.Succs[0] == b {
+				if e.i == 0 {
 					v.SetArg(i, ct)
 				} else {
 					v.SetArg(i, cf)
@@ -91,39 +92,37 @@ func shortcircuit(f *Func) {
 			}
 
 			// The predecessor we come in from.
-			p := b.Preds[i]
+			e1 := b.Preds[i]
+			p := e1.b
+			pi := e1.i
+
 			// The successor we always go to when coming in
 			// from that predecessor.
-			t := b.Succs[1-a.AuxInt]
+			e2 := b.Succs[1-a.AuxInt]
+			t := e2.b
+			ti := e2.i
 
-			// Change the edge p->b to p->t.
-			for j, x := range p.Succs {
-				if x == b {
-					p.Succs[j] = t
-					break
-				}
-			}
-
-			// Fix up t to have one more predecessor.
-			j := predIdx(t, b)
-			t.Preds = append(t.Preds, p)
-			for _, w := range t.Values {
-				if w.Op != OpPhi {
-					continue
-				}
-				w.AddArg(w.Args[j])
-			}
-
-			// Fix up b to have one less predecessor.
-			n := len(b.Preds) - 1
-			b.Preds[i] = b.Preds[n]
-			b.Preds[n] = nil
-			b.Preds = b.Preds[:n]
+			// Remove b's incoming edge from p.
+			b.removePred(i)
+			n := len(b.Preds)
 			v.Args[i].Uses--
 			v.Args[i] = v.Args[n]
 			v.Args[n] = nil
 			v.Args = v.Args[:n]
-			if n == 1 {
+
+			// Redirect p's outgoing edge to t.
+			p.Succs[pi] = Edge{t, len(t.Preds)}
+
+			// Fix up t to have one more predecessor.
+			t.Preds = append(t.Preds, Edge{p, pi})
+			for _, w := range t.Values {
+				if w.Op != OpPhi {
+					continue
+				}
+				w.AddArg(w.Args[ti])
+			}
+
+			if len(b.Preds) == 1 {
 				v.Op = OpCopy
 				// No longer a phi, stop optimizing here.
 				break
@@ -131,15 +130,4 @@ func shortcircuit(f *Func) {
 			i--
 		}
 	}
-}
-
-// predIdx returns the index where p appears in the predecessor list of b.
-// p must be in the predecessor list of b.
-func predIdx(b, p *Block) int {
-	for i, x := range b.Preds {
-		if x == p {
-			return i
-		}
-	}
-	panic("predecessor not found")
 }

@@ -149,11 +149,11 @@ func checkedptr(b *Block) *Value {
 // predecessor.
 func nonnilptr(b *Block) *Value {
 	if len(b.Preds) == 1 {
-		bp := b.Preds[0]
+		bp := b.Preds[0].b
 		if bp.Kind == BlockCheck {
 			return bp.Control.Args[0]
 		}
-		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0] == b {
+		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0].b == b {
 			return bp.Control.Args[0]
 		}
 	}

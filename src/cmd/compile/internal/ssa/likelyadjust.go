@@ -134,11 +134,11 @@ func likelyadjust(f *Func) {
 			// and less influential than inferences from loop structure.
 		case BlockCall, BlockDefer:
 			local[b.ID] = blCALL
-			certain[b.ID] = max8(blCALL, certain[b.Succs[0].ID])
+			certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
 
 		default:
 			if len(b.Succs) == 1 {
-				certain[b.ID] = certain[b.Succs[0].ID]
+				certain[b.ID] = certain[b.Succs[0].b.ID]
 			} else if len(b.Succs) == 2 {
 				// If successor is an unvisited backedge, it's in loop and we don't care.
 				// Its default unlikely is also zero which is consistent with favoring loop edges.
@@ -146,8 +146,8 @@ func likelyadjust(f *Func) {
 				// default "everything returns" unlikeliness is erased by min with the
 				// backedge likeliness; however a loop with calls on every path will be
 				// tagged with call cost. Net effect is that loop entry is favored.
-				b0 := b.Succs[0].ID
-				b1 := b.Succs[1].ID
+				b0 := b.Succs[0].b.ID
+				b1 := b.Succs[1].b.ID
 				certain[b.ID] = min8(certain[b0], certain[b1])
 
 				l := b2l[b.ID]
@@ -270,7 +270,8 @@ func loopnestfor(f *Func) *loopnest {
 		// and there may be more than one such s.
 		// Since there's at most 2 successors, the inner/outer ordering
 		// between them can be established with simple comparisons.
-		for _, bb := range b.Succs {
+		for _, e := range b.Succs {
+			bb := e.b
 			l := b2l[bb.ID]
 
 			if sdom.isAncestorEq(bb, b) { // Found a loop header
@@ -405,12 +406,12 @@ func (ln *loopnest) findExits() {
 	for _, b := range ln.po {
 		l := b2l[b.ID]
 		if l != nil && len(b.Succs) == 2 {
-			sl := b2l[b.Succs[0].ID]
-			if recordIfExit(l, sl, b.Succs[0]) {
+			sl := b2l[b.Succs[0].b.ID]
+			if recordIfExit(l, sl, b.Succs[0].b) {
 				continue
 			}
-			sl = b2l[b.Succs[1].ID]
-			if recordIfExit(l, sl, b.Succs[1]) {
+			sl = b2l[b.Succs[1].b.ID]
+			if recordIfExit(l, sl, b.Succs[1].b) {
 				continue
 			}
 		}

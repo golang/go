@@ -18,36 +18,14 @@ func checkFunc(f *Func) {
 			f.Fatalf("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
 		}
 
-		if f.RegAlloc == nil {
-			for i, c := range b.Succs {
-				for j, d := range b.Succs {
-					if i != j && c == d {
-						f.Fatalf("%s.Succs has duplicate block %s", b, c)
-					}
-				}
+		for i, e := range b.Preds {
+			if se := e.b.Succs[e.i]; se.b != b || se.i != i {
+				f.Fatalf("block pred/succ not crosslinked correctly %d:%s %d:%s", i, b, se.i, se.b)
 			}
 		}
-		// Note: duplicate successors are hard in the following case:
-		//      if(...) goto x else goto x
-		//   x: v = phi(a, b)
-		// If the conditional is true, does v get the value of a or b?
-		// We could solve this other ways, but the easiest is just to
-		// require (by possibly adding empty control-flow blocks) that
-		// all successors are distinct. They will need to be distinct
-		// anyway for register allocation (duplicate successors implies
-		// the existence of critical edges).
-		// After regalloc we can allow non-distinct predecessors.
-
-		for _, p := range b.Preds {
-			var found bool
-			for _, c := range p.Succs {
-				if c == b {
-					found = true
-					break
-				}
-			}
-			if !found {
-				f.Fatalf("block %s is not a succ of its pred block %s", b, p)
+		for i, e := range b.Succs {
+			if pe := e.b.Preds[e.i]; pe.b != b || pe.i != i {
+				f.Fatalf("block succ/pred not crosslinked correctly %d:%s %d:%s", i, b, pe.i, pe.b)
 			}
 		}
 
@@ -252,12 +230,12 @@ func checkFunc(f *Func) {
 	}
 	for _, b := range f.Blocks {
 		for _, c := range b.Preds {
-			if !blockMark[c.ID] {
+			if !blockMark[c.b.ID] {
 				f.Fatalf("predecessor block %v for %v is missing", c, b)
 			}
 		}
 		for _, c := range b.Succs {
-			if !blockMark[c.ID] {
+			if !blockMark[c.b.ID] {
 				f.Fatalf("successor block %v for %v is missing", c, b)
 			}
 		}
@@ -280,7 +258,7 @@ func checkFunc(f *Func) {
 			f.Fatalf("control value for %s is missing: %v", b, b.Control)
 		}
 	}
-	for b := f.freeBlocks; b != nil; b = b.succstorage[0] {
+	for b := f.freeBlocks; b != nil; b = b.succstorage[0].b {
 		if blockMark[b.ID] {
 			f.Fatalf("used block b%d in free list", b.ID)
 		}
@@ -303,7 +281,7 @@ func checkFunc(f *Func) {
 					x := arg.Block
 					y := b
 					if v.Op == OpPhi {
-						y = b.Preds[i]
+						y = b.Preds[i].b
 					}
 					if !domCheck(f, sdom, x, y) {
 						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())

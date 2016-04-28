@@ -279,8 +279,8 @@ func rewriteBlockARM(b *Block) bool {
 			no := b.Succs[1]
 			b.Kind = BlockARMLT
 			b.SetControl(cc)
-			b.Succs[0] = yes
-			b.Succs[1] = no
+			_ = yes
+			_ = no
 			return true
 		}
 	}

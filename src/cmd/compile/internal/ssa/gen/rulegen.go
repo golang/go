@@ -273,35 +273,30 @@ func genRules(arch arch) {
 				log.Fatalf("unmatched successors %v in %s", m, rule)
 			}
 
-			// Modify predecessor lists for no-longer-reachable blocks
-			for succ := range m {
-				fmt.Fprintf(w, "b.Func.removePredecessor(b, %s)\n", succ)
-			}
-
 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
 			if t[1] == "nil" {
 				fmt.Fprintf(w, "b.SetControl(nil)\n")
 			} else {
 				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false, rule.loc))
 			}
-			if len(newsuccs) < len(succs) {
-				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
+
+			succChanged := false
+			for i := 0; i < len(succs); i++ {
+				if succs[i] != newsuccs[i] {
+					succChanged = true
+				}
 			}
-			for i, a := range newsuccs {
-				fmt.Fprintf(w, "b.Succs[%d] = %s\n", i, a)
+			if succChanged {
+				if len(succs) != 2 {
+					log.Fatalf("changed successors, len!=2 in %s", rule)
+				}
+				if succs[0] != newsuccs[1] || succs[1] != newsuccs[0] {
+					log.Fatalf("can only handle swapped successors in %s", rule)
+				}
+				fmt.Fprintln(w, "b.swapSuccessors()")
 			}
-			// Update branch prediction
-			switch {
-			case len(newsuccs) != 2:
-				fmt.Fprintln(w, "b.Likely = BranchUnknown")
-			case newsuccs[0] == succs[0] && newsuccs[1] == succs[1]:
-				// unchanged
-			case newsuccs[0] == succs[1] && newsuccs[1] == succs[0]:
-				// flipped
-				fmt.Fprintln(w, "b.Likely *= -1")
-			default:
-				// unknown
-				fmt.Fprintln(w, "b.Likely = BranchUnknown")
+			for i := 0; i < len(succs); i++ {
+				fmt.Fprintf(w, "_ = %s\n", newsuccs[i])
 			}
 
 			if *genLog {

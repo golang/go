@@ -304,7 +304,8 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
 
 			// for each predecessor of b, expand its list of live-at-end values
 			// invariant: s contains the values live at the start of b (excluding phi inputs)
-			for i, p := range b.Preds {
+			for i, e := range b.Preds {
+				p := e.b
 				t.clear()
 				t.addAll(s.live[p.ID])
 				t.addAll(live.contents())
