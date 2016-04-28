@@ -808,7 +808,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 		}
 	case _MSpanInUse:
 		if s.allocCount != 0 || s.sweepgen != h.sweepgen {
-			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
+			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.base()), " allocCount ", s.allocCount, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("MHeap_FreeSpanLocked - invalid free")
 		}
 		h.pagesInUse -= uint64(s.npages)
@@ -892,7 +892,7 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 	var sumreleased uintptr
 	for s := list.first; s != nil; s = s.next {
 		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
-			start := uintptr(s.start) << _PageShift
+			start := s.base()
 			end := start + s.npages<<_PageShift
 			if sys.PhysPageSize > _PageSize {
 				// We can only release pages in
@@ -1062,7 +1062,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	mp := acquirem()
 	span.ensureSwept()
 
-	offset := uintptr(p) - uintptr(span.start<<_PageShift)
+	offset := uintptr(p) - span.base()
 	kind := s.kind
 
 	lock(&span.speciallock)
@@ -1110,7 +1110,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 	mp := acquirem()
 	span.ensureSwept()
 
-	offset := uintptr(p) - uintptr(span.start<<_PageShift)
+	offset := uintptr(p) - span.base()
 
 	lock(&span.speciallock)
 	t := &span.specials
