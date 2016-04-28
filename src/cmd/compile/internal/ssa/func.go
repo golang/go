@@ -34,7 +34,7 @@ type Func struct {
 	Names []LocalSlot
 
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
-	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
+	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
 	idom []*Block   // precomputed immediate dominators
 	sdom sparseTree // precomputed dominator tree
@@ -146,8 +146,8 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 	var b *Block
 	if f.freeBlocks != nil {
 		b = f.freeBlocks
-		f.freeBlocks = b.succstorage[0]
-		b.succstorage[0] = nil
+		f.freeBlocks = b.succstorage[0].b
+		b.succstorage[0].b = nil
 	} else {
 		ID := f.bid.get()
 		if int(ID) < len(f.Config.blocks) {
@@ -173,7 +173,7 @@ func (f *Func) freeBlock(b *Block) {
 	id := b.ID
 	*b = Block{}
 	b.ID = id
-	b.succstorage[0] = f.freeBlocks
+	b.succstorage[0].b = f.freeBlocks
 	f.freeBlocks = b
 }
 

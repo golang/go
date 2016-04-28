@@ -317,7 +317,7 @@ func mergePoint(b *Block, a ...*Value) *Block {
 			// Don't know which way to go back. Abort.
 			return nil
 		}
-		b = b.Preds[0]
+		b = b.Preds[0].b
 		d--
 	}
 	return nil // too far away
@@ -341,7 +341,7 @@ found:
 		if len(b.Preds) > 1 {
 			return nil
 		}
-		b = b.Preds[0]
+		b = b.Preds[0].b
 		d--
 
 	}

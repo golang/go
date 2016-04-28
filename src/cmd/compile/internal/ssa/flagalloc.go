@@ -43,7 +43,8 @@ func flagalloc(f *Func) {
 				}
 			}
 			if flag != nil {
-				for _, p := range b.Preds {
+				for _, e := range b.Preds {
+					p := e.b
 					end[p.ID] = flag
 				}
 			}
@@ -73,9 +74,10 @@ func flagalloc(f *Func) {
 		// The current live flag value the pre-flagalloc copy).
 		var flag *Value
 		if len(b.Preds) > 0 {
-			flag = end[b.Preds[0].ID]
+			flag = end[b.Preds[0].b.ID]
 			// Note: the following condition depends on the lack of critical edges.
-			for _, p := range b.Preds[1:] {
+			for _, e := range b.Preds[1:] {
+				p := e.b
 				if end[p.ID] != flag {
 					f.Fatalf("live flag in %s's predecessors not consistent", b)
 				}

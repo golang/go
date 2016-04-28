@@ -30,16 +30,16 @@ func phiopt(f *Func) {
 			continue
 		}
 
-		pb0, b0 := b, b.Preds[0]
+		pb0, b0 := b, b.Preds[0].b
 		for len(b0.Succs) == 1 && len(b0.Preds) == 1 {
-			pb0, b0 = b0, b0.Preds[0]
+			pb0, b0 = b0, b0.Preds[0].b
 		}
 		if b0.Kind != BlockIf {
 			continue
 		}
-		pb1, b1 := b, b.Preds[1]
+		pb1, b1 := b, b.Preds[1].b
 		for len(b1.Succs) == 1 && len(b1.Preds) == 1 {
-			pb1, b1 = b1, b1.Preds[0]
+			pb1, b1 = b1, b1.Preds[0].b
 		}
 		if b1 != b0 {
 			continue
@@ -48,9 +48,9 @@ func phiopt(f *Func) {
 
 		// reverse is the predecessor from which the truth value comes.
 		var reverse int
-		if b0.Succs[0] == pb0 && b0.Succs[1] == pb1 {
+		if b0.Succs[0].b == pb0 && b0.Succs[1].b == pb1 {
 			reverse = 0
-		} else if b0.Succs[0] == pb1 && b0.Succs[1] == pb0 {
+		} else if b0.Succs[0].b == pb1 && b0.Succs[1].b == pb0 {
 			reverse = 1
 		} else {
 			b.Fatalf("invalid predecessors\n")

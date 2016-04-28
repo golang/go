@@ -3799,7 +3799,8 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 	// Find variable value on each predecessor.
 	var argstore [4]*ssa.Value
 	args := argstore[:0]
-	for _, p := range b.Preds {
+	for _, e := range b.Preds {
+		p := e.Block()
 		args = append(args, s.lookupVarOutgoing(p, v.Type, name, v.Line))
 	}
 
@@ -4044,7 +4045,7 @@ func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPredictio
 	p := Prog(jumps.Jump)
 	p.To.Type = obj.TYPE_BRANCH
 	to := jumps.Index
-	branches = append(branches, Branch{p, b.Succs[to]})
+	branches = append(branches, Branch{p, b.Succs[to].Block()})
 	if to == 1 {
 		likely = -likely
 	}
@@ -4066,10 +4067,10 @@ func oneFPJump(b *ssa.Block, jumps *FloatingEQNEJump, likely ssa.BranchPredictio
 func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) {
 	likely := b.Likely
 	switch next {
-	case b.Succs[0]:
+	case b.Succs[0].Block():
 		s.Branches = oneFPJump(b, &jumps[0][0], likely, s.Branches)
 		s.Branches = oneFPJump(b, &jumps[0][1], likely, s.Branches)
-	case b.Succs[1]:
+	case b.Succs[1].Block():
 		s.Branches = oneFPJump(b, &jumps[1][0], likely, s.Branches)
 		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
 	default:
@@ -4077,7 +4078,7 @@ func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJ
 		s.Branches = oneFPJump(b, &jumps[1][1], likely, s.Branches)
 		q := Prog(obj.AJMP)
 		q.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, Branch{q, b.Succs[1]})
+		s.Branches = append(s.Branches, Branch{q, b.Succs[1].Block()})
 	}
 }
 

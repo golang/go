@@ -9777,8 +9777,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			next := b.Succs[0]
 			b.Kind = BlockPlain
 			b.SetControl(nil)
-			b.Succs[0] = next
-			b.Likely = BranchUnknown
+			_ = next
 			return true
 		}
 	case BlockIf:
@@ -9795,9 +9794,9 @@ func rewriteBlockgeneric(b *Block) bool {
 			no := b.Succs[1]
 			b.Kind = BlockIf
 			b.SetControl(cond)
-			b.Succs[0] = no
-			b.Succs[1] = yes
-			b.Likely *= -1
+			b.swapSuccessors()
+			_ = no
+			_ = yes
 			return true
 		}
 		// match: (If (ConstBool [c]) yes no)
@@ -9816,8 +9815,8 @@ func rewriteBlockgeneric(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			b.Succs[0] = yes
-			b.Succs[1] = no
+			_ = yes
+			_ = no
 			return true
 		}
 		// match: (If (ConstBool [c]) yes no)
@@ -9836,9 +9835,9 @@ func rewriteBlockgeneric(b *Block) bool {
 			}
 			b.Kind = BlockFirst
 			b.SetControl(nil)
-			b.Succs[0] = no
-			b.Succs[1] = yes
-			b.Likely *= -1
+			b.swapSuccessors()
+			_ = no
+			_ = yes
 			return true
 		}
 	}

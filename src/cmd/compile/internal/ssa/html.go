@@ -383,7 +383,8 @@ func (b *Block) LongHTML() string {
 	}
 	if len(b.Succs) > 0 {
 		s += " &#8594;" // right arrow
-		for _, c := range b.Succs {
+		for _, e := range b.Succs {
+			c := e.b
 			s += " " + c.HTML()
 		}
 	}
@@ -423,7 +424,8 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	fmt.Fprintf(p.w, "<li class=\"ssa-start-block\">%s:", b.HTML())
 	if len(b.Preds) > 0 {
 		io.WriteString(p.w, " &#8592;") // left arrow
-		for _, pred := range b.Preds {
+		for _, e := range b.Preds {
+			pred := e.b
 			fmt.Fprintf(p.w, " %s", pred.HTML())
 		}
 	}

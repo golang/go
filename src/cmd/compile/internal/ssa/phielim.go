@@ -31,6 +31,7 @@ func phielim(f *Func) {
 	}
 }
 
+// phielimValue tries to convert the phi v to a copy.
 func phielimValue(v *Value) bool {
 	if v.Op != OpPhi {
 		return false
