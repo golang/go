@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -104,6 +105,7 @@ func init() {
 		"runtime.Gosched":                  ext۰runtime۰Gosched,
 		"runtime.init":                     ext۰runtime۰init,
 		"runtime.NumCPU":                   ext۰runtime۰NumCPU,
+		"runtime.NumGoroutine":             ext۰runtime۰NumGoroutine,
 		"runtime.ReadMemStats":             ext۰runtime۰ReadMemStats,
 		"runtime.SetFinalizer":             ext۰runtime۰SetFinalizer,
 		"(*runtime.Func).Entry":            ext۰runtime۰Func۰Entry,
@@ -385,6 +387,10 @@ func ext۰runtime۰init(fr *frame, args []value) value {
 
 func ext۰runtime۰NumCPU(fr *frame, args []value) value {
 	return runtime.NumCPU()
+}
+
+func ext۰runtime۰NumGoroutine(fr *frame, args []value) value {
+	return int(atomic.LoadInt32(&fr.i.goroutines))
 }
 
 func ext۰runtime۰ReadMemStats(fr *frame, args []value) value {

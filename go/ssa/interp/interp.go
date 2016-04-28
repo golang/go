@@ -53,6 +53,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"sync/atomic"
 
 	"golang.org/x/tools/go/ssa"
 )
@@ -86,6 +87,7 @@ type interpreter struct {
 	rtypeMethods       methodSet            // the method set of rtype, which implements the reflect.Type interface.
 	runtimeErrorString types.Type           // the runtime.errorString type
 	sizes              types.Sizes          // the effective type-sizing function
+	goroutines         int32                // atomically updated
 }
 
 type deferred struct {
@@ -269,7 +271,11 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
 
 	case *ssa.Go:
 		fn, args := prepareCall(fr, &instr.Call)
-		go call(fr.i, nil, instr.Pos(), fn, args)
+		atomic.AddInt32(&fr.i.goroutines, 1)
+		go func() {
+			call(fr.i, nil, instr.Pos(), fn, args)
+			atomic.AddInt32(&fr.i.goroutines, -1)
+		}()
 
 	case *ssa.MakeChan:
 		fr.env[instr] = make(chan value, asInt(fr.get(instr.Size)))
@@ -660,10 +666,11 @@ func deleteBodies(pkg *ssa.Package, except ...string) {
 //
 func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename string, args []string) (exitCode int) {
 	i := &interpreter{
-		prog:    mainpkg.Prog,
-		globals: make(map[ssa.Value]*value),
-		mode:    mode,
-		sizes:   sizes,
+		prog:       mainpkg.Prog,
+		globals:    make(map[ssa.Value]*value),
+		mode:       mode,
+		sizes:      sizes,
+		goroutines: 1,
 	}
 	runtimePkg := i.prog.ImportedPackage("runtime")
 	if runtimePkg == nil {
