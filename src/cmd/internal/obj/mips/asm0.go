@@ -141,6 +141,11 @@ var optab = []Optab{
 	{AMOVV, C_REG, C_NONE, C_ADDR, 50, 12, 0},
 	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 12, 0},
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+	{AMOVW, C_REG, C_NONE, C_TLS, 53, 8, 0},
+	{AMOVWU, C_REG, C_NONE, C_TLS, 53, 8, 0},
+	{AMOVV, C_REG, C_NONE, C_TLS, 53, 8, 0},
+	{AMOVB, C_REG, C_NONE, C_TLS, 53, 8, 0},
+	{AMOVBU, C_REG, C_NONE, C_TLS, 53, 8, 0},
 
 	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
 	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
@@ -162,6 +167,11 @@ var optab = []Optab{
 	{AMOVV, C_ADDR, C_NONE, C_REG, 51, 12, 0},
 	{AMOVB, C_ADDR, C_NONE, C_REG, 51, 12, 0},
 	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 12, 0},
+	{AMOVW, C_TLS, C_NONE, C_REG, 54, 8, 0},
+	{AMOVWU, C_TLS, C_NONE, C_REG, 54, 8, 0},
+	{AMOVV, C_TLS, C_NONE, C_REG, 54, 8, 0},
+	{AMOVB, C_TLS, C_NONE, C_REG, 54, 8, 0},
+	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 8, 0},
 
 	{AMOVW, C_SECON, C_NONE, C_REG, 3, 4, REGSB},
 	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, REGSB},
@@ -175,6 +185,8 @@ var optab = []Optab{
 	{AMOVV, C_ADDCON, C_NONE, C_REG, 3, 4, REGZERO},
 	{AMOVW, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO},
 	{AMOVV, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO},
+	{AMOVW, C_STCON, C_NONE, C_REG, 55, 8, 0},
+	{AMOVV, C_STCON, C_NONE, C_REG, 55, 8, 0},
 
 	{AMOVW, C_UCON, C_NONE, C_REG, 24, 4, 0},
 	{AMOVV, C_UCON, C_NONE, C_REG, 24, 4, 0},
@@ -476,6 +488,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 			ctxt.Instoffset = a.Offset
 			if a.Sym != nil { // use relocation
+				if a.Sym.Type == obj.STLSBSS {
+					return C_TLS
+				}
 				return C_ADDR
 			}
 			return C_LEXT
@@ -539,6 +554,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 
 			ctxt.Instoffset = a.Offset
+			if s.Type == obj.STLSBSS {
+				return C_STCON // address of TLS variable
+			}
 			return C_LECON
 
 		case obj.NAME_AUTO:
@@ -1387,6 +1405,40 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel2.Sym = p.From.Sym
 		rel2.Add = p.From.Offset
 		rel2.Type = obj.R_ADDRMIPS
+
+	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) */
+		// clobbers R3 !
+		// load thread pointer with RDHWR, R3 is used for fast kernel emulation on Linux
+		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
+		o2 = OP_IRR(opirr(ctxt, p.As), uint32(0), uint32(REG_R3), uint32(p.From.Reg))
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc + 4)
+		rel.Siz = 4
+		rel.Sym = p.To.Sym
+		rel.Add = p.To.Offset
+		rel.Type = obj.R_ADDRMIPSTLS
+
+	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) */
+		// clobbers R3 !
+		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
+		o2 = OP_IRR(opirr(ctxt, -p.As), uint32(0), uint32(REG_R3), uint32(p.To.Reg))
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc + 4)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Add = p.From.Offset
+		rel.Type = obj.R_ADDRMIPSTLS
+
+	case 55: /* mov $tlsvar, r ==> rdhwr + add */
+		// clobbers R3 !
+		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
+		o2 = OP_IRR(opirr(ctxt, AADDVU), uint32(0), uint32(REG_R3), uint32(p.To.Reg))
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc + 4)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Add = p.From.Offset
+		rel.Type = obj.R_ADDRMIPSTLS
 	}
 
 	out[0] = o1
