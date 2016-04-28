@@ -187,8 +187,6 @@ func (s *mspan) sweep(preserve bool) bool {
 	res := false
 	nfree := 0
 
-	var head, end gclinkptr
-
 	c := _g_.m.mcache
 	freeToHeap := false
 
@@ -292,7 +290,7 @@ func (s *mspan) sweep(preserve bool) bool {
 
 	if nfree > 0 && cl != 0 {
 		c.local_nsmallfree[cl] += uintptr(nfree)
-		res = mheap_.central[cl].mcentral.freeSpan(s, head, end, preserve, wasempty)
+		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
 		// MCentral_FreeSpan updates sweepgen
 	} else if freeToHeap {
 		// Free large span to heap
