@@ -178,12 +178,25 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				}
 				m.Palette = d.globalColorTable
 			}
-			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
+			if d.hasTransparentIndex {
 				if !useLocalColorTable {
 					// Clone the global color table.
 					m.Palette = append(color.Palette(nil), d.globalColorTable...)
 				}
-				m.Palette[d.transparentIndex] = color.RGBA{}
+				if ti := int(d.transparentIndex); ti < len(m.Palette) {
+					m.Palette[ti] = color.RGBA{}
+				} else {
+					// The transparentIndex is out of range, which is an error
+					// according to the spec, but Firefox and Google Chrome
+					// seem OK with this, so we enlarge the palette with
+					// transparent colors. See golang.org/issue/15059.
+					p := make(color.Palette, ti+1)
+					copy(p, m.Palette)
+					for i := len(m.Palette); i < len(p); i++ {
+						p[i] = color.RGBA{}
+					}
+					m.Palette = p
+				}
 			}
 			litWidth, err := d.r.ReadByte()
 			if err != nil {
