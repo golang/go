@@ -41,6 +41,7 @@ import (
 var resvd = []int{
 	mips.REGZERO,
 	mips.REGSP,   // reserved for SP
+	mips.REGSB,   // reserved for SB
 	mips.REGLINK, // reserved for link
 	mips.REGG,
 	mips.REGTMP,
