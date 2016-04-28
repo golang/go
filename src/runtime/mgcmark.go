@@ -1247,7 +1247,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 		print(" s=nil\n")
 		return
 	}
-	print(" s.start*_PageSize=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
+	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
 	skipped := false
 	for i := uintptr(0); i < s.elemsize; i += sys.PtrSize {
 		// For big objects, just print the beginning (because

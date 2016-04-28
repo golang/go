@@ -402,7 +402,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	if s == nil {
 		return
 	}
-	x = unsafe.Pointer(uintptr(s.start) << pageShift)
+	x = unsafe.Pointer(s.base())
 
 	if uintptr(v) < uintptr(x) || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != mSpanInUse {
 		s = nil

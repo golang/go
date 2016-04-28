@@ -198,7 +198,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 			throw("bad stackfreelist")
 		}
 		for i := uintptr(0); i < _StackCacheSize; i += _FixedStack << order {
-			x := gclinkptr(uintptr(s.start)<<_PageShift + i)
+			x := gclinkptr(s.base() + i)
 			x.ptr().next = s.stackfreelist
 			s.stackfreelist = x
 		}
@@ -391,7 +391,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
 				throw("out of memory")
 			}
 		}
-		v = unsafe.Pointer(s.start << _PageShift)
+		v = unsafe.Pointer(s.base())
 	}
 
 	if raceenabled {
@@ -456,7 +456,7 @@ func stackfree(stk stack, n uintptr) {
 	} else {
 		s := mheap_.lookup(v)
 		if s.state != _MSpanStack {
-			println(hex(s.start<<_PageShift), v)
+			println(hex(s.base()), v)
 			throw("bad span state")
 		}
 		if gcphase == _GCoff {
