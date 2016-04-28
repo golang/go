@@ -349,12 +349,18 @@ func (d *decoder) readGraphicControl() error {
 	if _, err := io.ReadFull(d.r, d.tmp[:6]); err != nil {
 		return fmt.Errorf("gif: can't read graphic control: %s", err)
 	}
+	if d.tmp[0] != 4 {
+		return fmt.Errorf("gif: invalid graphic control extension block size: %d", d.tmp[0])
+	}
 	flags := d.tmp[1]
 	d.disposalMethod = (flags & gcDisposalMethodMask) >> 2
 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
 	if flags&gcTransparentColorSet != 0 {
 		d.transparentIndex = d.tmp[4]
 		d.hasTransparentIndex = true
+	}
+	if d.tmp[5] != 0 {
+		return fmt.Errorf("gif: invalid graphic control extension block terminator: %d", d.tmp[5])
 	}
 	return nil
 }
