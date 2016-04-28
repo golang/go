@@ -93,37 +93,6 @@ func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
 }
 
-// Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
-func Index(s, sep []byte) int {
-	n := len(sep)
-	if n == 0 {
-		return 0
-	}
-	if n > len(s) {
-		return -1
-	}
-	c := sep[0]
-	if n == 1 {
-		return IndexByte(s, c)
-	}
-	i := 0
-	t := s[:len(s)-n+1]
-	for i < len(t) {
-		if t[i] != c {
-			o := IndexByte(t[i:], c)
-			if o < 0 {
-				break
-			}
-			i += o
-		}
-		if Equal(s[i:i+n], sep) {
-			return i
-		}
-		i++
-	}
-	return -1
-}
-
 func indexBytePortable(s []byte, c byte) int {
 	for i, b := range s {
 		if b == c {
