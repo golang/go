@@ -47,8 +47,6 @@ func testNoteReading(t *testing.T) {
 		t.Skipf("skipping - no cgo, so assuming external linking not available")
 	case runtime.GOOS == "linux" && (runtime.GOARCH == "ppc64le" || runtime.GOARCH == "ppc64"):
 		t.Skipf("skipping - external linking not supported, golang.org/issue/11184")
-	case runtime.GOOS == "linux" && (runtime.GOARCH == "mips64le" || runtime.GOARCH == "mips64"):
-		t.Skipf("skipping - external linking not supported, golang.org/issue/12560")
 	case runtime.GOOS == "openbsd" && runtime.GOARCH == "arm":
 		t.Skipf("skipping - external linking not supported, golang.org/issue/10619")
 	case runtime.GOOS == "plan9":
