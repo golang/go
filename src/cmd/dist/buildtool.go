@@ -55,6 +55,7 @@ var bootstrapDirs = []string{
 	"link/internal/amd64",
 	"link/internal/arm",
 	"link/internal/arm64",
+	"link/internal/pe",
 	"link/internal/ld",
 	"link/internal/mips64",
 	"link/internal/ppc64",

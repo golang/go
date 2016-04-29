@@ -36,6 +36,11 @@ go	src=..
 				gofmt_test.go
 				testdata
 					+
+			link
+				internal
+					pe
+						testdata
+							+
 			vendor
 				golang.org
 					x
