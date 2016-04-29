@@ -296,7 +296,7 @@ func (s *mspan) sweep(preserve bool) bool {
 	// But we need to set it before we make the span available for allocation
 	// (return it to heap or mcentral), because allocation code assumes that a
 	// span is already swept if available for allocation.
-	if freeToHeap || nfree == 0 {
+	if freeToHeap || nfreed == 0 {
 		// The span must be in our exclusive ownership until we update sweepgen,
 		// check for potential races.
 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {
@@ -309,7 +309,7 @@ func (s *mspan) sweep(preserve bool) bool {
 		atomic.Store(&s.sweepgen, sweepgen)
 	}
 
-	if nfree > 0 && cl != 0 {
+	if nfreed > 0 && cl != 0 {
 		c.local_nsmallfree[cl] += uintptr(nfreed)
 		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
 		// MCentral_FreeSpan updates sweepgen
