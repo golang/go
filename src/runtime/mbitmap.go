@@ -492,7 +492,7 @@ func (h heapBits) bits() uint32 {
 // are scalars.
 // h must not describe the first or second word of the object.
 func (h heapBits) morePointers() bool {
-	return *h.bitp&(bitMarked<<h.shift) != 0
+	return h.bits()&bitMarked != 0
 }
 
 // isPointer reports whether the heap bits describe a pointer word.
@@ -501,7 +501,7 @@ func (h heapBits) morePointers() bool {
 // nosplit because it is used during write barriers and must not be preempted.
 //go:nosplit
 func (h heapBits) isPointer() bool {
-	return (*h.bitp>>h.shift)&bitPointer != 0
+	return h.bits()&bitPointer != 0
 }
 
 // hasPointers reports whether the given object has any pointers.
