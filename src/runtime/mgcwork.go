@@ -116,6 +116,22 @@ func (w *gcWork) put(obj uintptr) {
 	wbuf.nobj++
 }
 
+// putFast does a put and returns true if it can be done quickly
+// otherwise it returns false and the caller needs to call put.
+//go:nowritebarrier
+func (w *gcWork) putFast(obj uintptr) bool {
+	wbuf := w.wbuf1.ptr()
+	if wbuf == nil {
+		return false
+	} else if wbuf.nobj == len(wbuf.obj) {
+		return false
+	}
+
+	wbuf.obj[wbuf.nobj] = obj
+	wbuf.nobj++
+	return true
+}
+
 // tryGet dequeues a pointer for the garbage collector to trace.
 //
 // If there are no pointers remaining in this gcWork or in the global
@@ -141,6 +157,23 @@ func (w *gcWork) tryGet() uintptr {
 			putempty(owbuf)
 			w.wbuf1 = wbufptrOf(wbuf)
 		}
+	}
+
+	wbuf.nobj--
+	return wbuf.obj[wbuf.nobj]
+}
+
+// tryGetFast dequeues a pointer for the garbage collector to trace
+// if one is readily available. Otherwise it returns 0 and
+// the caller is expected to call tryGet().
+//go:nowritebarrier
+func (w *gcWork) tryGetFast() uintptr {
+	wbuf := w.wbuf1.ptr()
+	if wbuf == nil {
+		return 0
+	}
+	if wbuf.nobj == 0 {
+		return 0
 	}
 
 	wbuf.nobj--

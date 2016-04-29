@@ -18,7 +18,7 @@ import "runtime/internal/atomic"
 type mcentral struct {
 	lock      mutex
 	sizeclass int32
-	nonempty  mSpanList // list of spans with a free object
+	nonempty  mSpanList // list of spans with a free object, ie a nonempty free list
 	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
 }
 
@@ -67,7 +67,9 @@ retry:
 			c.empty.insertBack(s)
 			unlock(&c.lock)
 			s.sweep(true)
-			if s.freelist.ptr() != nil {
+			freeIndex := s.nextFreeIndex()
+			if freeIndex != s.nelems {
+				s.freeindex = freeIndex
 				goto havespan
 			}
 			lock(&c.lock)
@@ -98,11 +100,11 @@ retry:
 	// c is unlocked.
 havespan:
 	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.ref)
-	if n == 0 {
-		throw("empty span")
+	n := cap - int32(s.allocCount)
+	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
+		throw("span has no free objects")
 	}
-	usedBytes := uintptr(s.ref) * s.elemsize
+	usedBytes := uintptr(s.allocCount) * s.elemsize
 	if usedBytes > 0 {
 		reimburseSweepCredit(usedBytes)
 	}
@@ -115,10 +117,16 @@ havespan:
 		// heap_live changed.
 		gcController.revise()
 	}
-	if s.freelist.ptr() == nil {
-		throw("freelist empty")
-	}
 	s.incache = true
+	freeByteBase := s.freeindex &^ (64 - 1)
+	whichByte := freeByteBase / 8
+	// Init alloc bits cache.
+	s.refillAllocCache(whichByte)
+
+	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
+	// s.allocCache.
+	s.allocCache >>= s.freeindex % 64
+
 	return s
 }
 
@@ -128,12 +136,12 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 
 	s.incache = false
 
-	if s.ref == 0 {
-		throw("uncaching full span")
+	if s.allocCount == 0 {
+		throw("uncaching span but s.allocCount == 0")
 	}
 
 	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.ref)
+	n := cap - int32(s.allocCount)
 	if n > 0 {
 		c.empty.remove(s)
 		c.nonempty.insert(s)
@@ -144,22 +152,19 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 	unlock(&c.lock)
 }
 
-// Free n objects from a span s back into the central free list c.
-// Called during sweep.
-// Returns true if the span was returned to heap. Sets sweepgen to
-// the latest generation.
-// If preserve=true, don't return the span to heap nor relink in MCentral lists;
-// caller takes care of it.
-func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
+// freeSpan updates c and s after sweeping s.
+// It sets s's sweepgen to the latest generation,
+// and, based on the number of free objects in s,
+// moves s to the appropriate list of c or returns it
+// to the heap.
+// freeSpan returns true if s was returned to the heap.
+// If preserve=true, it does not move s (the caller
+// must take care of it).
+func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
 	if s.incache {
-		throw("freespan into cached span")
+		throw("freeSpan given cached span")
 	}
-
-	// Add the objects back to s's free list.
-	wasempty := s.freelist.ptr() == nil
-	end.ptr().next = s.freelist
-	s.freelist = start
-	s.ref -= uint16(n)
+	s.needzero = 1
 
 	if preserve {
 		// preserve is set only when called from MCentral_CacheSpan above,
@@ -185,21 +190,18 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
 	// lock of c above.)
 	atomic.Store(&s.sweepgen, mheap_.sweepgen)
 
-	if s.ref != 0 {
+	if s.allocCount != 0 {
 		unlock(&c.lock)
 		return false
 	}
 
-	// s is completely freed, return it to the heap.
 	c.nonempty.remove(s)
-	s.needzero = 1
-	s.freelist = 0
 	unlock(&c.lock)
 	mheap_.freeSpan(s, 0)
 	return true
 }
 
-// Fetch a new span from the heap and carve into objects for the free list.
+// grow allocates a new empty span from the heap and initializes it for c's size class.
 func (c *mcentral) grow() *mspan {
 	npages := uintptr(class_to_allocnpages[c.sizeclass])
 	size := uintptr(class_to_size[c.sizeclass])
@@ -210,21 +212,9 @@ func (c *mcentral) grow() *mspan {
 		return nil
 	}
 
-	p := uintptr(s.start << _PageShift)
+	p := s.base()
 	s.limit = p + size*n
-	head := gclinkptr(p)
-	tail := gclinkptr(p)
-	// i==0 iteration already done
-	for i := uintptr(1); i < n; i++ {
-		p += size
-		tail.ptr().next = gclinkptr(p)
-		tail = gclinkptr(p)
-	}
-	if s.freelist.ptr() != nil {
-		throw("freelist not empty")
-	}
-	tail.ptr().next = 0
-	s.freelist = head
-	heapBitsForSpan(s.base()).initSpan(s.layout())
+
+	heapBitsForSpan(s.base()).initSpan(s)
 	return s
 }

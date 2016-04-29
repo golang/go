@@ -529,7 +529,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 			return
 		}
 
-		b, hbits, span := heapBitsForObject(uintptr(p), 0, 0)
+		b, hbits, span, _ := heapBitsForObject(uintptr(p), 0, 0)
 		base = b
 		if base == 0 {
 			return
