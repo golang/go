@@ -660,10 +660,6 @@ func TestHelperProcess(*testing.T) {
 			// the cloned file descriptors that result from opening
 			// /dev/urandom.
 			// https://golang.org/issue/3955
-		case "plan9":
-			// TODO(0intro): Determine why Plan 9 is leaking
-			// file descriptors.
-			// https://golang.org/issue/7118
 		case "solaris":
 			// TODO(aram): This fails on Solaris because libc opens
 			// its own files, as it sees fit. Darwin does the same,
