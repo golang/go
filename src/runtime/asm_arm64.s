@@ -648,10 +648,10 @@ havem:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -(16+8)(R4)
+	MOVD	R5, -(24+8)(R4)
 	MOVD	ctxt+24(FP), R0
-	MOVD	R0, -(24+8)(R4)	// maintain 16-byte SP alignment
-	MOVD	$-(24+8)(R4), R0
+	MOVD	R0, -(16+8)(R4)
+	MOVD	$-(24+8)(R4), R0 // maintain 16-byte SP alignment
 	MOVD	R0, RSP
 	BL	runtime·cgocallbackg(SB)
 
