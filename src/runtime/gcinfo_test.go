@@ -66,7 +66,7 @@ func verifyGCInfo(t *testing.T, name string, p interface{}, mask0 []byte) {
 }
 
 func padDead(mask []byte) []byte {
-	// Because the dead bit isn't encoded until the third word,
+	// Because the dead bit isn't encoded in the second word,
 	// and because on 32-bit systems a one-word allocation
 	// uses a two-word block, the pointer info for a one-word
 	// object needs to be expanded to include an extra scalar
@@ -80,6 +80,9 @@ func padDead(mask []byte) []byte {
 func trimDead(mask []byte) []byte {
 	for len(mask) > 2 && mask[len(mask)-1] == typeScalar {
 		mask = mask[:len(mask)-1]
+	}
+	if len(mask) == 2 && mask[0] == typeScalar && mask[1] == typeScalar {
+		mask = mask[:0]
 	}
 	return mask
 }
