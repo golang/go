@@ -7,6 +7,7 @@
 package runtime_test
 
 import (
+	"bytes"
 	"fmt"
 	"internal/testenv"
 	"os/exec"
@@ -230,5 +231,34 @@ func TestCgoTracebackContext(t *testing.T) {
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoPprof(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprogcgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "CgoPprof")).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := strings.TrimSpace(string(got))
+
+	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%s", top)
+
+	if !bytes.Contains(top, []byte("cpuHog")) {
+		t.Error("missing cpuHog in pprof output")
 	}
 }
