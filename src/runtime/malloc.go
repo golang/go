@@ -696,6 +696,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			s = largeAlloc(size, needzero)
 		})
 		s.freeindex = 1
+		s.allocCount = 1
 		x = unsafe.Pointer(s.base())
 		size = s.elemsize
 	}
