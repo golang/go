@@ -1132,11 +1132,10 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// in the type bit for the one word. The only one-word objects
 		// are pointers, or else they'd be merged with other non-pointer
 		// data into larger allocations.
-		bits := hbits.bits()
-		if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
+		if i >= 2*sys.PtrSize && !hbits.morePointers() {
 			break // no more pointers in this object
 		}
-		if bits&bitPointer == 0 {
+		if !hbits.isPointer() {
 			continue // not a pointer
 		}
 
