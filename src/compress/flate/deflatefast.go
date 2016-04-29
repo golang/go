@@ -7,7 +7,14 @@ package flate
 // This encoding algorithm, which prioritizes speed over output size, is
 // based on Snappy's LZ77-style encoder: github.com/golang/snappy
 
-const maxOffset = 1 << logMaxOffsetSize // Maximum deflate offset.
+const (
+	maxOffset = 1 << logMaxOffsetSize // Maximum deflate offset.
+
+	tableBits  = 14             // Bits used in the table.
+	tableSize  = 1 << tableBits // Size of the table.
+	tableMask  = tableSize - 1  // Mask for table indices. Redundant, but can eliminate bounds checks.
+	tableShift = 32 - tableBits // Right-shift to get the tableBits most significant bits of a uint32.
+)
 
 func load32(b []byte, i int) uint32 {
 	b = b[i : i+4 : len(b)] // Help the compiler eliminate bounds checks on the next line.
@@ -20,8 +27,8 @@ func load64(b []byte, i int) uint64 {
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
-func hash(u, shift uint32) uint32 {
-	return (u * 0x1e35a7bd) >> shift
+func hash(u uint32) uint32 {
+	return (u * 0x1e35a7bd) >> tableShift
 }
 
 // These constants are defined by the Snappy implementation so that its
@@ -40,24 +47,11 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 		return emitLiteral(dst, src)
 	}
 
-	// Initialize the hash table. Its size ranges from 1<<8 to 1<<14 inclusive.
+	// Initialize the hash table.
+	//
 	// The table element type is uint16, as s < sLimit and sLimit < len(src)
 	// and len(src) <= maxStoreBlockSize and maxStoreBlockSize == 65535.
-	const (
-		maxTableSize = 1 << 14
-		// tableMask is redundant, but helps the compiler eliminate bounds
-		// checks.
-		tableMask = maxTableSize - 1
-	)
-	shift := uint32(32 - 8)
-	for tableSize := 1 << 8; tableSize < maxTableSize && tableSize < len(src); tableSize *= 2 {
-		shift--
-	}
-	// In Go, all array elements are zero-initialized, so there is no advantage
-	// to a smaller tableSize per se. However, it matches the C++ algorithm,
-	// and in the asm versions of this code, we can get away with zeroing only
-	// the first tableSize elements.
-	var table [maxTableSize]uint16
+	var table [tableSize]uint16
 
 	// sLimit is when to stop looking for offset/length copies. The inputMargin
 	// lets us use a fast path for emitLiteral in the main loop, while we are
@@ -70,7 +64,7 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 	// The encoded form must start with a literal, as there are no previous
 	// bytes to copy, so we start looking for hash matches at s == 1.
 	s := 1
-	nextHash := hash(load32(src, s), shift)
+	nextHash := hash(load32(src, s))
 
 	for {
 		// Copied from the C++ snappy implementation:
@@ -102,7 +96,7 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			}
 			candidate = int(table[nextHash&tableMask])
 			table[nextHash&tableMask] = uint16(s)
-			nextHash = hash(load32(src, nextS), shift)
+			nextHash = hash(load32(src, nextS))
 			if s-candidate < maxOffset && load32(src, s) == load32(src, candidate) {
 				break
 			}
@@ -152,13 +146,13 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			// are faster as one load64 call (with some shifts) instead of
 			// three load32 calls.
 			x := load64(src, s-1)
-			prevHash := hash(uint32(x>>0), shift)
+			prevHash := hash(uint32(x >> 0))
 			table[prevHash&tableMask] = uint16(s - 1)
-			currHash := hash(uint32(x>>8), shift)
+			currHash := hash(uint32(x >> 8))
 			candidate = int(table[currHash&tableMask])
 			table[currHash&tableMask] = uint16(s)
 			if s-candidate >= maxOffset || uint32(x>>8) != load32(src, candidate) {
-				nextHash = hash(uint32(x>>16), shift)
+				nextHash = hash(uint32(x >> 16))
 				s++
 				break
 			}
