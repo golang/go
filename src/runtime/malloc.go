@@ -495,14 +495,11 @@ func nextFreeFast(s *mspan) gclinkptr {
 	if theBit < 64 {
 		result := s.freeindex + uintptr(theBit)
 		if result < s.nelems {
-			s.allocCache >>= (theBit + 1)
 			freeidx := result + 1
 			if freeidx%64 == 0 && freeidx != s.nelems {
-				// We just incremented s.freeindex so it isn't 0
-				// so we are moving to the next aCache.
-				whichByte := freeidx / 8
-				s.refillAllocCache(whichByte)
+				return 0
 			}
+			s.allocCache >>= (theBit + 1)
 			s.freeindex = freeidx
 			v := gclinkptr(result*s.elemsize + s.base())
 			s.allocCount++
