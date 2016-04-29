@@ -2356,7 +2356,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 	}
 	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left, false)
-	if left.Op == ONAME {
+	if left.Op == ONAME && skip == 0 {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
 	if deref {
@@ -2792,6 +2792,9 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 // canSSA reports whether n is SSA-able.
 // n must be an ONAME (or an ODOT sequence with an ONAME base).
 func (s *state) canSSA(n *Node) bool {
+	if Debug['N'] != 0 {
+		return false
+	}
 	for n.Op == ODOT {
 		n = n.Left
 	}
