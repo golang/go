@@ -8,12 +8,12 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"encoding/binary"
+	"cmd/link/internal/pe"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -100,155 +100,75 @@ const (
 	IMAGE_REL_AMD64_SSPAN32          = 0x0010
 )
 
-type PeSym struct {
-	name    string
-	value   uint32
-	sectnum uint16
-	type_   uint16
-	sclass  uint8
-	aux     uint8
-	sym     *Symbol
+// TODO(brainman): maybe just add ReadAt method to bio.Reader instead of creating peBiobuf
+
+// peBiobuf makes bio.Reader look like io.ReaderAt.
+type peBiobuf bio.Reader
+
+func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
+	ret := ((*bio.Reader)(f)).Seek(off, 0)
+	if ret < 0 {
+		return 0, errors.New("fail to seek")
+	}
+	n, err := f.Read(p)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
-type PeSect struct {
-	name string
-	base []byte
-	size uint64
-	sym  *Symbol
-	sh   IMAGE_SECTION_HEADER
-}
+// TODO(brainman): remove 'goto bad' everywhere inside ldpe
 
-type PeObj struct {
-	f      *bio.Reader
-	name   string
-	base   uint32
-	sect   []PeSect
-	nsect  uint
-	pesym  []PeSym
-	npesym uint
-	fh     IMAGE_FILE_HEADER
-	snames []byte
-}
-
-func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+func ldpe(ctxt *Link, input *bio.Reader, pkg string, length int64, pn string) {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
-	var sect *PeSect
 	localSymVersion := ctxt.Syms.IncVersion()
-	base := f.Offset()
 
-	peobj := new(PeObj)
-	peobj.f = f
-	peobj.base = uint32(base)
-	peobj.name = pn
+	sectsyms := make(map[*pe.Section]*Symbol)
+	sectdata := make(map[*pe.Section][]byte)
 
-	// read header
 	var err error
-	var j int
-	var l uint32
-	var name string
-	var numaux int
-	var r []Reloc
-	var rp *Reloc
-	var rsect *PeSect
-	var s *Symbol
-	var sym *PeSym
-	var symbuf [18]uint8
-	if err = binary.Read(f, binary.LittleEndian, &peobj.fh); err != nil {
+
+	// Some input files are archives containing multiple of
+	// object files, and pe.NewFile seeks to the start of
+	// input file and get confused. Create section reader
+	// to stop pe.NewFile looking before current position.
+	sr := io.NewSectionReader((*peBiobuf)(input), input.Offset(), 1<<63-1)
+
+	// TODO: replace pe.NewFile with pe.Load (grep for "add Load function" in debug/pe for details)
+	f, err := pe.NewFile(sr)
+	if err != nil {
 		goto bad
 	}
-
-	// load section list
-	peobj.sect = make([]PeSect, peobj.fh.NumberOfSections)
-
-	peobj.nsect = uint(peobj.fh.NumberOfSections)
-	for i := 0; i < int(peobj.fh.NumberOfSections); i++ {
-		if err = binary.Read(f, binary.LittleEndian, &peobj.sect[i].sh); err != nil {
-			goto bad
-		}
-		peobj.sect[i].size = uint64(peobj.sect[i].sh.SizeOfRawData)
-		peobj.sect[i].name = cstring(peobj.sect[i].sh.Name[:])
-	}
+	defer f.Close()
 
 	// TODO return error if found .cormeta
 
-	// load string table
-	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
-
-	if _, err := io.ReadFull(f, symbuf[:4]); err != nil {
-		goto bad
-	}
-	l = Le32(symbuf[:])
-	peobj.snames = make([]byte, l)
-	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
-	if _, err := io.ReadFull(f, peobj.snames); err != nil {
-		goto bad
-	}
-
-	// rewrite section names if they start with /
-	for i := 0; i < int(peobj.fh.NumberOfSections); i++ {
-		if peobj.sect[i].name == "" {
-			continue
-		}
-		if peobj.sect[i].name[0] != '/' {
-			continue
-		}
-		n, _ := strconv.Atoi(peobj.sect[i].name[1:])
-		peobj.sect[i].name = cstring(peobj.snames[n:])
-	}
-
-	// read symbols
-	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
-
-	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
-	f.Seek(base+int64(peobj.fh.PointerToSymbolTable), 0)
-	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
-		f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
-		if _, err := io.ReadFull(f, symbuf[:]); err != nil {
-			goto bad
-		}
-
-		if (symbuf[0] == 0) && (symbuf[1] == 0) && (symbuf[2] == 0) && (symbuf[3] == 0) {
-			l = Le32(symbuf[4:])
-			peobj.pesym[i].name = cstring(peobj.snames[l:]) // sym name length <= 8
-		} else {
-			peobj.pesym[i].name = cstring(symbuf[:8])
-		}
-
-		peobj.pesym[i].value = Le32(symbuf[8:])
-		peobj.pesym[i].sectnum = Le16(symbuf[12:])
-		peobj.pesym[i].sclass = symbuf[16]
-		peobj.pesym[i].aux = symbuf[17]
-		peobj.pesym[i].type_ = Le16(symbuf[14:])
-		numaux = int(peobj.pesym[i].aux)
-		if numaux < 0 {
-			numaux = 0
-		}
-	}
-
 	// create symbols for mapped sections
-	for i := 0; uint(i) < peobj.nsect; i++ {
-		sect = &peobj.sect[i]
-		if sect.sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+	for _, sect := range f.Sections {
+		if sect.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
 			continue
 		}
 
-		if sect.sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
+		if sect.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
 			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
-		if pemap(peobj, sect) < 0 {
+		data, err2 := sect.Data()
+		if err2 != nil {
+			err = err2
 			goto bad
 		}
+		sectdata[sect] = data
 
-		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = ctxt.Syms.Lookup(name, localSymVersion)
+		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
+		s := ctxt.Syms.Lookup(name, localSymVersion)
 
-		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
+		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
 			s.Type = obj.SRODATA
 
@@ -262,58 +182,63 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			s.Type = obj.STEXT
 
 		default:
-			err = fmt.Errorf("unexpected flags %#06x for PE section %s", sect.sh.Characteristics, sect.name)
+			err = fmt.Errorf("unexpected flags %#06x for PE section %s", sect.Characteristics, sect.Name)
 			goto bad
 		}
 
-		s.P = sect.base
-		s.P = s.P[:sect.size]
-		s.Size = int64(sect.size)
-		sect.sym = s
-		if sect.name == ".rsrc" {
-			setpersrc(ctxt, sect.sym)
+		s.P = data
+		s.Size = int64(len(data))
+		sectsyms[sect] = s
+		if sect.Name == ".rsrc" {
+			setpersrc(ctxt, s)
 		}
 	}
 
 	// load relocations
-	for i := 0; uint(i) < peobj.nsect; i++ {
-		rsect = &peobj.sect[i]
-		if rsect.sym == nil || rsect.sh.NumberOfRelocations == 0 {
+	for _, rsect := range f.Sections {
+		if _, found := sectsyms[rsect]; !found {
 			continue
 		}
-		if rsect.sh.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+		if rsect.NumberOfRelocations == 0 {
 			continue
 		}
-		if sect.sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
+		if rsect.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+			continue
+		}
+		if rsect.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
 			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
-		r = make([]Reloc, rsect.sh.NumberOfRelocations)
-		f.Seek(int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
-		for j = 0; j < int(rsect.sh.NumberOfRelocations); j++ {
-			rp = &r[j]
-			if _, err := io.ReadFull(f, symbuf[:10]); err != nil {
+		rs := make([]Reloc, rsect.NumberOfRelocations)
+		for j, r := range rsect.Relocs {
+			rp := &rs[j]
+			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
+				err = fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 				goto bad
 			}
-			rva := Le32(symbuf[0:])
-			symindex := Le32(symbuf[4:])
-			type_ := Le16(symbuf[8:])
-			if err = readpesym(ctxt, peobj, int(symindex), &sym, localSymVersion); err != nil {
+			pesym := &f.COFFSymbols[r.SymbolTableIndex]
+			gosym, err2 := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
+			if err2 != nil {
+				err = err2
 				goto bad
 			}
-			if sym.sym == nil {
-				err = fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", sym.name, symindex, sym.type_)
+			if gosym == nil {
+				name, err2 := pesym.FullName(f.StringTable)
+				if err2 != nil {
+					name = string(pesym.Name[:])
+				}
+				err = fmt.Errorf("reloc of invalid sym %s idx=%d type=%d", name, r.SymbolTableIndex, pesym.Type)
 				goto bad
 			}
 
-			rp.Sym = sym.sym
+			rp.Sym = gosym
 			rp.Siz = 4
-			rp.Off = int32(rva)
-			switch type_ {
+			rp.Off = int32(r.VirtualAddress)
+			switch r.Type {
 			default:
-				Errorf(rsect.sym, "%s: unknown relocation type %d;", pn, type_)
+				Errorf(sectsyms[rsect], "%s: unknown relocation type %d;", pn, r.Type)
 				fallthrough
 
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
@@ -321,13 +246,13 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				IMAGE_REL_AMD64_ADDR32NB:
 				rp.Type = obj.R_PCREL
 
-				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
+				rp.Add = int64(int32(Le32(sectdata[rsect][rp.Off:])))
 
 			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
 				rp.Type = obj.R_ADDR
 
 				// load addend from image
-				rp.Add = int64(int32(Le32(rsect.base[rp.Off:])))
+				rp.Add = int64(int32(Le32(sectdata[rsect][rp.Off:])))
 
 			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 				rp.Siz = 8
@@ -335,60 +260,74 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 				rp.Type = obj.R_ADDR
 
 				// load addend from image
-				rp.Add = int64(Le64(rsect.base[rp.Off:]))
+				rp.Add = int64(Le64(sectdata[rsect][rp.Off:]))
 			}
 
 			// ld -r could generate multiple section symbols for the
 			// same section but with different values, we have to take
 			// that into account
-			if issect(&peobj.pesym[symindex]) {
-				rp.Add += int64(peobj.pesym[symindex].value)
+			if issect(pesym) {
+				rp.Add += int64(pesym.Value)
 			}
 		}
 
-		sort.Sort(rbyoff(r[:rsect.sh.NumberOfRelocations]))
+		sort.Sort(rbyoff(rs[:rsect.NumberOfRelocations]))
 
-		s = rsect.sym
-		s.R = r
-		s.R = s.R[:rsect.sh.NumberOfRelocations]
+		s := sectsyms[rsect]
+		s.R = rs
+		s.R = s.R[:rsect.NumberOfRelocations]
 	}
 
 	// enter sub-symbols into symbol table.
-	for i := 0; uint(i) < peobj.npesym; i++ {
-		if peobj.pesym[i].name == "" {
+	for i, numaux := 0, 0; i < len(f.COFFSymbols); i += numaux + 1 {
+		pesym := &f.COFFSymbols[i]
+
+		numaux = int(pesym.NumberOfAuxSymbols)
+
+		name, err2 := pesym.FullName(f.StringTable)
+		if err2 != nil {
+			err = err2
+			goto bad
+		}
+		if name == "" {
 			continue
 		}
-		if issect(&peobj.pesym[i]) {
+		if issect(pesym) {
 			continue
 		}
-		if uint(peobj.pesym[i].sectnum) > peobj.nsect {
+		if int(pesym.SectionNumber) > len(f.Sections) {
 			continue
 		}
-		if peobj.pesym[i].sectnum > 0 {
-			sect = &peobj.sect[peobj.pesym[i].sectnum-1]
-			if sect.sym == nil {
+		if pesym.SectionNumber == IMAGE_SYM_DEBUG {
+			continue
+		}
+		var sect *pe.Section
+		if pesym.SectionNumber > 0 {
+			sect = f.Sections[pesym.SectionNumber-1]
+			if _, found := sectsyms[sect]; !found {
 				continue
 			}
 		}
 
-		if err = readpesym(ctxt, peobj, i, &sym, localSymVersion); err != nil {
+		s, err2 := readpesym(ctxt, f, pesym, sectsyms, localSymVersion)
+		if err2 != nil {
+			err = err2
 			goto bad
 		}
 
-		s = sym.sym
-		if sym.sectnum == 0 { // extern
+		if pesym.SectionNumber == 0 { // extern
 			if s.Type == obj.SDYNIMPORT {
 				s.Plt = -2 // flag for dynimport in PE object files.
 			}
-			if s.Type == obj.SXREF && sym.value > 0 { // global data
+			if s.Type == obj.SXREF && pesym.Value > 0 { // global data
 				s.Type = obj.SNOPTRDATA
-				s.Size = int64(sym.value)
+				s.Size = int64(pesym.Value)
 			}
 
 			continue
-		} else if sym.sectnum > 0 && uint(sym.sectnum) <= peobj.nsect {
-			sect = &peobj.sect[sym.sectnum-1]
-			if sect.sym == nil {
+		} else if pesym.SectionNumber > 0 && int(pesym.SectionNumber) <= len(f.Sections) {
+			sect = f.Sections[pesym.SectionNumber-1]
+			if _, found := sectsyms[sect]; !found {
 				Errorf(s, "%s: missing sect.sym", pn)
 			}
 		} else {
@@ -403,16 +342,17 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if s.Attr.DuplicateOK() {
 				continue
 			}
-			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
+			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sectsyms[sect].Name)
 		}
 
-		s.Sub = sect.sym.Sub
-		sect.sym.Sub = s
-		s.Type = sect.sym.Type | obj.SSUB
-		s.Value = int64(sym.value)
+		sectsym := sectsyms[sect]
+		s.Sub = sectsym.Sub
+		sectsym.Sub = s
+		s.Type = sectsym.Type | obj.SSUB
+		s.Value = int64(pesym.Value)
 		s.Size = 4
-		s.Outer = sect.sym
-		if sect.sym.Type == obj.STEXT {
+		s.Outer = sectsym
+		if sectsym.Type == obj.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Errorf(s, "%s: duplicate symbol definition", pn)
 			}
@@ -422,8 +362,8 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
-	for i := 0; uint(i) < peobj.nsect; i++ {
-		s = peobj.sect[i].sym
+	for _, sect := range f.Sections {
+		s := sectsyms[sect]
 		if s == nil {
 			continue
 		}
@@ -452,43 +392,20 @@ bad:
 	Errorf(nil, "%s: malformed pe file: %v", pn, err)
 }
 
-func pemap(peobj *PeObj, sect *PeSect) int {
-	if sect.base != nil {
-		return 0
-	}
-
-	sect.base = make([]byte, sect.sh.SizeOfRawData)
-	if sect.sh.PointerToRawData == 0 { // .bss doesn't have data in object file
-		return 0
-	}
-	if peobj.f.Seek(int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 {
-		return -1
-	}
-	if _, err := io.ReadFull(peobj.f, sect.base); err != nil {
-		return -1
-	}
-
-	return 0
+func issect(s *pe.COFFSymbol) bool {
+	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func issect(s *PeSym) bool {
-	return s.sclass == IMAGE_SYM_CLASS_STATIC && s.type_ == 0 && s.name[0] == '.'
-}
-
-func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym, localSymVersion int) (err error) {
-	if uint(i) >= peobj.npesym || i < 0 {
-		err = fmt.Errorf("invalid pe symbol index")
-		return err
+func readpesym(ctxt *Link, f *pe.File, sym *pe.COFFSymbol, sectsyms map[*pe.Section]*Symbol, localSymVersion int) (*Symbol, error) {
+	symname, err := sym.FullName(f.StringTable)
+	if err != nil {
+		return nil, err
 	}
-
-	sym := &peobj.pesym[i]
-	*y = sym
-
 	var name string
 	if issect(sym) {
-		name = peobj.sect[sym.sectnum-1].sym.Name
+		name = sectsyms[f.Sections[sym.SectionNumber-1]].Name
 	} else {
-		name = sym.name
+		name = symname
 		if strings.HasPrefix(name, "__imp_") {
 			name = name[6:] // __imp_Name => Name
 		}
@@ -503,13 +420,12 @@ func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym, localSymVersion int) 
 	}
 
 	var s *Symbol
-	switch sym.type_ {
+	switch sym.Type {
 	default:
-		err = fmt.Errorf("%s: invalid symbol type %d", sym.name, sym.type_)
-		return err
+		return nil, fmt.Errorf("%s: invalid symbol type %d", symname, sym.Type)
 
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
-		switch sym.sclass {
+		switch sym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
 			s = ctxt.Syms.Lookup(name, 0)
 
@@ -518,18 +434,16 @@ func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym, localSymVersion int) 
 			s.Attr |= AttrDuplicateOK
 
 		default:
-			err = fmt.Errorf("%s: invalid symbol binding %d", sym.name, sym.sclass)
-			return err
+			return nil, fmt.Errorf("%s: invalid symbol binding %d", symname, sym.StorageClass)
 		}
 	}
 
-	if s != nil && s.Type == 0 && (sym.sclass != IMAGE_SYM_CLASS_STATIC || sym.value != 0) {
+	if s != nil && s.Type == 0 && (sym.StorageClass != IMAGE_SYM_CLASS_STATIC || sym.Value != 0) {
 		s.Type = obj.SXREF
 	}
-	if strings.HasPrefix(sym.name, "__imp_") {
+	if strings.HasPrefix(symname, "__imp_") {
 		s.Got = -2 // flag for __imp_
 	}
-	sym.sym = s
 
-	return nil
+	return s, nil
 }
