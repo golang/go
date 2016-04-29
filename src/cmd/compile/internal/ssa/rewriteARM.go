@@ -82,7 +82,6 @@ func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
 	b := v.Block
@@ -98,7 +97,6 @@ func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
 		v.AddArg(base)
 		return true
 	}
-	return false
 }
 func rewriteValueARM_OpConst32(v *Value, config *Config) bool {
 	b := v.Block
@@ -112,7 +110,6 @@ func rewriteValueARM_OpConst32(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueARM_OpLess32(v *Value, config *Config) bool {
 	b := v.Block
@@ -130,7 +127,6 @@ func rewriteValueARM_OpLess32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueARM_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
@@ -228,7 +224,6 @@ func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
 		v.AddArg(ptr)
 		return true
 	}
-	return false
 }
 func rewriteValueARM_OpStaticCall(v *Value, config *Config) bool {
 	b := v.Block
@@ -246,7 +241,6 @@ func rewriteValueARM_OpStaticCall(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueARM_OpStore(v *Value, config *Config) bool {
 	b := v.Block

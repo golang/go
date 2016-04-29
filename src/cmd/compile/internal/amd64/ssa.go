@@ -141,7 +141,6 @@ func moveByType(t ssa.Type) obj.As {
 			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
 		}
 	}
-	panic("bad register type")
 }
 
 // opregreg emits instructions for
@@ -966,12 +965,12 @@ var blockJump = [...]struct {
 }
 
 var eqfJumps = [2][2]gc.FloatingEQNEJump{
-	{{x86.AJNE, 1}, {x86.AJPS, 1}}, // next == b.Succs[0]
-	{{x86.AJNE, 1}, {x86.AJPC, 0}}, // next == b.Succs[1]
+	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPS, Index: 1}}, // next == b.Succs[0]
+	{{Jump: x86.AJNE, Index: 1}, {Jump: x86.AJPC, Index: 0}}, // next == b.Succs[1]
 }
 var nefJumps = [2][2]gc.FloatingEQNEJump{
-	{{x86.AJNE, 0}, {x86.AJPC, 1}}, // next == b.Succs[0]
-	{{x86.AJNE, 0}, {x86.AJPS, 0}}, // next == b.Succs[1]
+	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPC, Index: 1}}, // next == b.Succs[0]
+	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPS, Index: 0}}, // next == b.Succs[1]
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -982,7 +981,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		if b.Succs[0] != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
 		}
 	case ssa.BlockDefer:
 		// defer returns in rax:
@@ -995,11 +994,11 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		p.To.Reg = x86.REG_AX
 		p = gc.Prog(x86.AJNE)
 		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{p, b.Succs[1]})
+		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1]})
 		if b.Succs[0] != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
 		}
 	case ssa.BlockExit:
 		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
@@ -1030,18 +1029,18 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			p = gc.Prog(jmp.invasm)
 			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{p, b.Succs[1]})
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1]})
 		case b.Succs[1]:
 			p = gc.Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
 		default:
 			p = gc.Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
 			q := gc.Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{q, b.Succs[1]})
+			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1]})
 		}
 
 		// liblink reorders the instruction stream as it sees fit.

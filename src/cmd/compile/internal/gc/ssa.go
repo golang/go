@@ -1424,7 +1424,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	s.stmtList(n.Ninit)
 	switch n.Op {
 	case OCFUNC:
-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{n.Type, n.Left.Sym})
+		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case OPARAM:
 		addr := s.addr(n, false)
@@ -1433,7 +1433,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
 			sym := funcsym(n.Sym)
-			aux := &ssa.ExternSymbol{n.Type, sym}
+			aux := &ssa.ExternSymbol{Typ: n.Type, Sym: sym}
 			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
 		}
 		if s.canSSA(n) {
@@ -2163,7 +2163,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	// Call growslice
 	s.startBlock(grow)
-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(n.Type.Elem())}, s.sb)
+	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(n.Type.Elem())}, s.sb)
 
 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
@@ -2691,7 +2691,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		switch n.Class {
 		case PEXTERN:
 			// global variable
-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{n.Type, n.Sym})
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Sym})
 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if n.Xoffset != 0 {
@@ -3024,7 +3024,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier").Sym}
+	aux := &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: syslook("writeBarrier").Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
 	// TODO: select the .enabled field. It is currently first, so not needed for now.
 	// Load word, test byte, avoiding partial register write from load byte.
@@ -3038,7 +3038,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	b.AddEdgeTo(bElse)
 
 	s.startBlock(bThen)
-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(t)}, s.sb)
+	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
 	s.rtcall(typedmemmove, true, nil, taddr, left, right)
 	s.endBlock().AddEdgeTo(bEnd)
 
@@ -3075,7 +3075,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip 
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier").Sym}
+	aux := &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: syslook("writeBarrier").Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
 	// TODO: select the .enabled field. It is currently first, so not needed for now.
 	// Load word, test byte, avoiding partial register write from load byte.
@@ -3629,7 +3629,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{byteptr, typenamesym(n.Left.Type)}, s.sb)
+		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: typenamesym(n.Left.Type)}, s.sb)
 		s.rtcall(panicdottype, false, nil, typ, target, taddr)
 
 		// on success, return idata field
@@ -3995,7 +3995,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	if f.StaticData != nil {
 		for _, n := range f.StaticData.([]*Node) {
 			if !gen_as_init(n, false) {
-				Fatalf("non-static data marked as static: %v\n\n", n, f)
+				Fatalf("non-static data marked as static: %v\n\n", n)
 			}
 		}
 	}
@@ -4084,7 +4084,7 @@ func AddAux(a *obj.Addr, v *ssa.Value) {
 }
 func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	if a.Type != obj.TYPE_MEM {
-		v.Fatalf("bad AddAux addr %s", a)
+		v.Fatalf("bad AddAux addr %v", a)
 	}
 	// add integer offset
 	a.Offset += offset
@@ -4263,10 +4263,10 @@ func (e *ssaExport) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlo
 		// Split this string up into two separate variables.
 		p := e.namedAuto(n.Sym.Name+".ptr", ptrType)
 		l := e.namedAuto(n.Sym.Name+".len", lenType)
-		return ssa.LocalSlot{p, ptrType, 0}, ssa.LocalSlot{l, lenType, 0}
+		return ssa.LocalSlot{N: p, Type: ptrType, Off: 0}, ssa.LocalSlot{N: l, Type: lenType, Off: 0}
 	}
 	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{n, ptrType, name.Off}, ssa.LocalSlot{n, lenType, name.Off + int64(Widthptr)}
+	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off}, ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)}
 }
 
 func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
@@ -4280,10 +4280,10 @@ func (e *ssaExport) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.Local
 		}
 		c := e.namedAuto(n.Sym.Name+f, t)
 		d := e.namedAuto(n.Sym.Name+".data", t)
-		return ssa.LocalSlot{c, t, 0}, ssa.LocalSlot{d, t, 0}
+		return ssa.LocalSlot{N: c, Type: t, Off: 0}, ssa.LocalSlot{N: d, Type: t, Off: 0}
 	}
 	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{n, t, name.Off}, ssa.LocalSlot{n, t, name.Off + int64(Widthptr)}
+	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + int64(Widthptr)}
 }
 
 func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
@@ -4295,12 +4295,12 @@ func (e *ssaExport) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
 		p := e.namedAuto(n.Sym.Name+".ptr", ptrType)
 		l := e.namedAuto(n.Sym.Name+".len", lenType)
 		c := e.namedAuto(n.Sym.Name+".cap", lenType)
-		return ssa.LocalSlot{p, ptrType, 0}, ssa.LocalSlot{l, lenType, 0}, ssa.LocalSlot{c, lenType, 0}
+		return ssa.LocalSlot{N: p, Type: ptrType, Off: 0}, ssa.LocalSlot{N: l, Type: lenType, Off: 0}, ssa.LocalSlot{N: c, Type: lenType, Off: 0}
 	}
 	// Return the three parts of the larger variable.
-	return ssa.LocalSlot{n, ptrType, name.Off},
-		ssa.LocalSlot{n, lenType, name.Off + int64(Widthptr)},
-		ssa.LocalSlot{n, lenType, name.Off + int64(2*Widthptr)}
+	return ssa.LocalSlot{N: n, Type: ptrType, Off: name.Off},
+		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(Widthptr)},
+		ssa.LocalSlot{N: n, Type: lenType, Off: name.Off + int64(2*Widthptr)}
 }
 
 func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
@@ -4316,10 +4316,10 @@ func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSl
 		// Split this complex up into two separate variables.
 		c := e.namedAuto(n.Sym.Name+".real", t)
 		d := e.namedAuto(n.Sym.Name+".imag", t)
-		return ssa.LocalSlot{c, t, 0}, ssa.LocalSlot{d, t, 0}
+		return ssa.LocalSlot{N: c, Type: t, Off: 0}, ssa.LocalSlot{N: d, Type: t, Off: 0}
 	}
 	// Return the two parts of the larger variable.
-	return ssa.LocalSlot{n, t, name.Off}, ssa.LocalSlot{n, t, name.Off + s}
+	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
 }
 
 func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
@@ -4331,9 +4331,9 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 		// have no fear, identically-named but distinct Autos are
 		// ok, albeit maybe confusing for a debugger.
 		x := e.namedAuto(n.Sym.Name+"."+st.FieldName(i), ft)
-		return ssa.LocalSlot{x, ft, 0}
+		return ssa.LocalSlot{N: x, Type: ft, Off: 0}
 	}
-	return ssa.LocalSlot{n, ft, name.Off + st.FieldOff(i)}
+	return ssa.LocalSlot{N: n, Type: ft, Off: name.Off + st.FieldOff(i)}
 }
 
 // namedAuto returns a new AUTO variable with the given name and type.

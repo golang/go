@@ -67,7 +67,7 @@ func checkFunc(f *Func) {
 				f.Fatalf("ret block %s has successors", b)
 			}
 			if b.Control == nil {
-				f.Fatalf("ret block %s has nil control %s", b)
+				f.Fatalf("ret block %s has nil control", b)
 			}
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
@@ -77,7 +77,7 @@ func checkFunc(f *Func) {
 				f.Fatalf("retjmp block %s len(Succs)==%d, want 0", b, len(b.Succs))
 			}
 			if b.Control == nil {
-				f.Fatalf("retjmp block %s has nil control %s", b)
+				f.Fatalf("retjmp block %s has nil control", b)
 			}
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Control.LongString())
@@ -141,7 +141,7 @@ func checkFunc(f *Func) {
 			}
 		}
 		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
-			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))
+			f.Fatalf("likeliness prediction %d for block %s with %d successors", b.Likely, b, len(b.Succs))
 		}
 
 		for _, v := range b.Values {

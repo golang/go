@@ -1539,7 +1539,6 @@ func rewriteValueAMD64_OpAdd16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAdd32(v *Value, config *Config) bool {
 	b := v.Block
@@ -1555,7 +1554,6 @@ func rewriteValueAMD64_OpAdd32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAdd32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -1571,7 +1569,6 @@ func rewriteValueAMD64_OpAdd32F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAdd64(v *Value, config *Config) bool {
 	b := v.Block
@@ -1587,7 +1584,6 @@ func rewriteValueAMD64_OpAdd64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAdd64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -1603,7 +1599,6 @@ func rewriteValueAMD64_OpAdd64F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAdd8(v *Value, config *Config) bool {
 	b := v.Block
@@ -1619,7 +1614,6 @@ func rewriteValueAMD64_OpAdd8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAddPtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -1635,7 +1629,6 @@ func rewriteValueAMD64_OpAddPtr(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAddr(v *Value, config *Config) bool {
 	b := v.Block
@@ -1651,7 +1644,6 @@ func rewriteValueAMD64_OpAddr(v *Value, config *Config) bool {
 		v.AddArg(base)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAnd16(v *Value, config *Config) bool {
 	b := v.Block
@@ -1667,7 +1659,6 @@ func rewriteValueAMD64_OpAnd16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAnd32(v *Value, config *Config) bool {
 	b := v.Block
@@ -1683,7 +1674,6 @@ func rewriteValueAMD64_OpAnd32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAnd64(v *Value, config *Config) bool {
 	b := v.Block
@@ -1699,7 +1689,6 @@ func rewriteValueAMD64_OpAnd64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAnd8(v *Value, config *Config) bool {
 	b := v.Block
@@ -1715,7 +1704,6 @@ func rewriteValueAMD64_OpAnd8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAndB(v *Value, config *Config) bool {
 	b := v.Block
@@ -1731,7 +1719,6 @@ func rewriteValueAMD64_OpAndB(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
 	b := v.Block
@@ -1747,7 +1734,6 @@ func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpBswap32(v *Value, config *Config) bool {
 	b := v.Block
@@ -1761,7 +1747,6 @@ func rewriteValueAMD64_OpBswap32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpBswap64(v *Value, config *Config) bool {
 	b := v.Block
@@ -1775,7 +1760,6 @@ func rewriteValueAMD64_OpBswap64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64CMOVLEQconst(v *Value, config *Config) bool {
 	b := v.Block
@@ -2899,7 +2883,6 @@ func rewriteValueAMD64_OpClosureCall(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCom16(v *Value, config *Config) bool {
 	b := v.Block
@@ -2913,7 +2896,6 @@ func rewriteValueAMD64_OpCom16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCom32(v *Value, config *Config) bool {
 	b := v.Block
@@ -2927,7 +2909,6 @@ func rewriteValueAMD64_OpCom32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCom64(v *Value, config *Config) bool {
 	b := v.Block
@@ -2941,7 +2922,6 @@ func rewriteValueAMD64_OpCom64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCom8(v *Value, config *Config) bool {
 	b := v.Block
@@ -2955,7 +2935,6 @@ func rewriteValueAMD64_OpCom8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConst16(v *Value, config *Config) bool {
 	b := v.Block
@@ -2969,7 +2948,6 @@ func rewriteValueAMD64_OpConst16(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConst32(v *Value, config *Config) bool {
 	b := v.Block
@@ -2983,7 +2961,6 @@ func rewriteValueAMD64_OpConst32(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConst32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -2997,7 +2974,6 @@ func rewriteValueAMD64_OpConst32F(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConst64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3011,7 +2987,6 @@ func rewriteValueAMD64_OpConst64(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConst64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3025,7 +3000,6 @@ func rewriteValueAMD64_OpConst64F(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConst8(v *Value, config *Config) bool {
 	b := v.Block
@@ -3039,7 +3013,6 @@ func rewriteValueAMD64_OpConst8(v *Value, config *Config) bool {
 		v.AuxInt = val
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConstBool(v *Value, config *Config) bool {
 	b := v.Block
@@ -3053,7 +3026,6 @@ func rewriteValueAMD64_OpConstBool(v *Value, config *Config) bool {
 		v.AuxInt = b
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConstNil(v *Value, config *Config) bool {
 	b := v.Block
@@ -3066,7 +3038,6 @@ func rewriteValueAMD64_OpConstNil(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
 	b := v.Block
@@ -3084,7 +3055,6 @@ func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCtz16(v *Value, config *Config) bool {
 	b := v.Block
@@ -3106,7 +3076,6 @@ func rewriteValueAMD64_OpCtz16(v *Value, config *Config) bool {
 		v.AuxInt = 16
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCtz32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3128,7 +3097,6 @@ func rewriteValueAMD64_OpCtz32(v *Value, config *Config) bool {
 		v.AuxInt = 32
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCtz64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3150,7 +3118,6 @@ func rewriteValueAMD64_OpCtz64(v *Value, config *Config) bool {
 		v.AuxInt = 64
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt32Fto32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3164,7 +3131,6 @@ func rewriteValueAMD64_OpCvt32Fto32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt32Fto64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3178,7 +3144,6 @@ func rewriteValueAMD64_OpCvt32Fto64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt32Fto64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3192,7 +3157,6 @@ func rewriteValueAMD64_OpCvt32Fto64F(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt32to32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3206,7 +3170,6 @@ func rewriteValueAMD64_OpCvt32to32F(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt32to64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3220,7 +3183,6 @@ func rewriteValueAMD64_OpCvt32to64F(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt64Fto32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3234,7 +3196,6 @@ func rewriteValueAMD64_OpCvt64Fto32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt64Fto32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3248,7 +3209,6 @@ func rewriteValueAMD64_OpCvt64Fto32F(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt64Fto64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3262,7 +3222,6 @@ func rewriteValueAMD64_OpCvt64Fto64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt64to32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3276,7 +3235,6 @@ func rewriteValueAMD64_OpCvt64to32F(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpCvt64to64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3290,7 +3248,6 @@ func rewriteValueAMD64_OpCvt64to64F(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDeferCall(v *Value, config *Config) bool {
 	b := v.Block
@@ -3306,7 +3263,6 @@ func rewriteValueAMD64_OpDeferCall(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv16(v *Value, config *Config) bool {
 	b := v.Block
@@ -3322,7 +3278,6 @@ func rewriteValueAMD64_OpDiv16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv16u(v *Value, config *Config) bool {
 	b := v.Block
@@ -3338,7 +3293,6 @@ func rewriteValueAMD64_OpDiv16u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3354,7 +3308,6 @@ func rewriteValueAMD64_OpDiv32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3370,7 +3323,6 @@ func rewriteValueAMD64_OpDiv32F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv32u(v *Value, config *Config) bool {
 	b := v.Block
@@ -3386,7 +3338,6 @@ func rewriteValueAMD64_OpDiv32u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3402,7 +3353,6 @@ func rewriteValueAMD64_OpDiv64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3418,7 +3368,6 @@ func rewriteValueAMD64_OpDiv64F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv64u(v *Value, config *Config) bool {
 	b := v.Block
@@ -3434,7 +3383,6 @@ func rewriteValueAMD64_OpDiv64u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv8(v *Value, config *Config) bool {
 	b := v.Block
@@ -3454,7 +3402,6 @@ func rewriteValueAMD64_OpDiv8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpDiv8u(v *Value, config *Config) bool {
 	b := v.Block
@@ -3474,7 +3421,6 @@ func rewriteValueAMD64_OpDiv8u(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEq16(v *Value, config *Config) bool {
 	b := v.Block
@@ -3492,7 +3438,6 @@ func rewriteValueAMD64_OpEq16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEq32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3510,7 +3455,6 @@ func rewriteValueAMD64_OpEq32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEq32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3528,7 +3472,6 @@ func rewriteValueAMD64_OpEq32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEq64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3546,7 +3489,6 @@ func rewriteValueAMD64_OpEq64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEq64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3564,7 +3506,6 @@ func rewriteValueAMD64_OpEq64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEq8(v *Value, config *Config) bool {
 	b := v.Block
@@ -3582,7 +3523,6 @@ func rewriteValueAMD64_OpEq8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEqB(v *Value, config *Config) bool {
 	b := v.Block
@@ -3600,7 +3540,6 @@ func rewriteValueAMD64_OpEqB(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpEqPtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -3618,7 +3557,6 @@ func rewriteValueAMD64_OpEqPtr(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq16(v *Value, config *Config) bool {
 	b := v.Block
@@ -3636,7 +3574,6 @@ func rewriteValueAMD64_OpGeq16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq16U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3654,7 +3591,6 @@ func rewriteValueAMD64_OpGeq16U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3672,7 +3608,6 @@ func rewriteValueAMD64_OpGeq32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3690,7 +3625,6 @@ func rewriteValueAMD64_OpGeq32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq32U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3708,7 +3642,6 @@ func rewriteValueAMD64_OpGeq32U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3726,7 +3659,6 @@ func rewriteValueAMD64_OpGeq64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3744,7 +3676,6 @@ func rewriteValueAMD64_OpGeq64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq64U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3762,7 +3693,6 @@ func rewriteValueAMD64_OpGeq64U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq8(v *Value, config *Config) bool {
 	b := v.Block
@@ -3780,7 +3710,6 @@ func rewriteValueAMD64_OpGeq8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGeq8U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3798,7 +3727,6 @@ func rewriteValueAMD64_OpGeq8U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGetClosurePtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -3810,7 +3738,6 @@ func rewriteValueAMD64_OpGetClosurePtr(v *Value, config *Config) bool {
 		v.reset(OpAMD64LoweredGetClosurePtr)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGetG(v *Value, config *Config) bool {
 	b := v.Block
@@ -3824,7 +3751,6 @@ func rewriteValueAMD64_OpGetG(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGoCall(v *Value, config *Config) bool {
 	b := v.Block
@@ -3840,7 +3766,6 @@ func rewriteValueAMD64_OpGoCall(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater16(v *Value, config *Config) bool {
 	b := v.Block
@@ -3858,7 +3783,6 @@ func rewriteValueAMD64_OpGreater16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater16U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3876,7 +3800,6 @@ func rewriteValueAMD64_OpGreater16U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater32(v *Value, config *Config) bool {
 	b := v.Block
@@ -3894,7 +3817,6 @@ func rewriteValueAMD64_OpGreater32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3912,7 +3834,6 @@ func rewriteValueAMD64_OpGreater32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater32U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3930,7 +3851,6 @@ func rewriteValueAMD64_OpGreater32U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater64(v *Value, config *Config) bool {
 	b := v.Block
@@ -3948,7 +3868,6 @@ func rewriteValueAMD64_OpGreater64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -3966,7 +3885,6 @@ func rewriteValueAMD64_OpGreater64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater64U(v *Value, config *Config) bool {
 	b := v.Block
@@ -3984,7 +3902,6 @@ func rewriteValueAMD64_OpGreater64U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater8(v *Value, config *Config) bool {
 	b := v.Block
@@ -4002,7 +3919,6 @@ func rewriteValueAMD64_OpGreater8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpGreater8U(v *Value, config *Config) bool {
 	b := v.Block
@@ -4020,7 +3936,6 @@ func rewriteValueAMD64_OpGreater8U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul16(v *Value, config *Config) bool {
 	b := v.Block
@@ -4036,7 +3951,6 @@ func rewriteValueAMD64_OpHmul16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul16u(v *Value, config *Config) bool {
 	b := v.Block
@@ -4052,7 +3966,6 @@ func rewriteValueAMD64_OpHmul16u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul32(v *Value, config *Config) bool {
 	b := v.Block
@@ -4068,7 +3981,6 @@ func rewriteValueAMD64_OpHmul32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul32u(v *Value, config *Config) bool {
 	b := v.Block
@@ -4084,7 +3996,6 @@ func rewriteValueAMD64_OpHmul32u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul64(v *Value, config *Config) bool {
 	b := v.Block
@@ -4100,7 +4011,6 @@ func rewriteValueAMD64_OpHmul64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul64u(v *Value, config *Config) bool {
 	b := v.Block
@@ -4116,7 +4026,6 @@ func rewriteValueAMD64_OpHmul64u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul8(v *Value, config *Config) bool {
 	b := v.Block
@@ -4132,7 +4041,6 @@ func rewriteValueAMD64_OpHmul8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpHmul8u(v *Value, config *Config) bool {
 	b := v.Block
@@ -4148,7 +4056,6 @@ func rewriteValueAMD64_OpHmul8u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpITab(v *Value, config *Config) bool {
 	b := v.Block
@@ -4186,7 +4093,6 @@ func rewriteValueAMD64_OpInterCall(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpIsInBounds(v *Value, config *Config) bool {
 	b := v.Block
@@ -4204,7 +4110,6 @@ func rewriteValueAMD64_OpIsInBounds(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpIsNonNil(v *Value, config *Config) bool {
 	b := v.Block
@@ -4221,7 +4126,6 @@ func rewriteValueAMD64_OpIsNonNil(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpIsSliceInBounds(v *Value, config *Config) bool {
 	b := v.Block
@@ -4239,7 +4143,6 @@ func rewriteValueAMD64_OpIsSliceInBounds(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64LEAQ(v *Value, config *Config) bool {
 	b := v.Block
@@ -4945,7 +4848,6 @@ func rewriteValueAMD64_OpLeq16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq16U(v *Value, config *Config) bool {
 	b := v.Block
@@ -4963,7 +4865,6 @@ func rewriteValueAMD64_OpLeq16U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq32(v *Value, config *Config) bool {
 	b := v.Block
@@ -4981,7 +4882,6 @@ func rewriteValueAMD64_OpLeq32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -4999,7 +4899,6 @@ func rewriteValueAMD64_OpLeq32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq32U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5017,7 +4916,6 @@ func rewriteValueAMD64_OpLeq32U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5035,7 +4933,6 @@ func rewriteValueAMD64_OpLeq64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -5053,7 +4950,6 @@ func rewriteValueAMD64_OpLeq64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq64U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5071,7 +4967,6 @@ func rewriteValueAMD64_OpLeq64U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5089,7 +4984,6 @@ func rewriteValueAMD64_OpLeq8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLeq8U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5107,7 +5001,6 @@ func rewriteValueAMD64_OpLeq8U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess16(v *Value, config *Config) bool {
 	b := v.Block
@@ -5125,7 +5018,6 @@ func rewriteValueAMD64_OpLess16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess16U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5143,7 +5035,6 @@ func rewriteValueAMD64_OpLess16U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess32(v *Value, config *Config) bool {
 	b := v.Block
@@ -5161,7 +5052,6 @@ func rewriteValueAMD64_OpLess32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -5179,7 +5069,6 @@ func rewriteValueAMD64_OpLess32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess32U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5197,7 +5086,6 @@ func rewriteValueAMD64_OpLess32U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5215,7 +5103,6 @@ func rewriteValueAMD64_OpLess64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -5233,7 +5120,6 @@ func rewriteValueAMD64_OpLess64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess64U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5251,7 +5137,6 @@ func rewriteValueAMD64_OpLess64U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5269,7 +5154,6 @@ func rewriteValueAMD64_OpLess8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLess8U(v *Value, config *Config) bool {
 	b := v.Block
@@ -5287,7 +5171,6 @@ func rewriteValueAMD64_OpLess8U(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
@@ -5400,7 +5283,6 @@ func rewriteValueAMD64_OpLrot16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLrot32(v *Value, config *Config) bool {
 	b := v.Block
@@ -5418,7 +5300,6 @@ func rewriteValueAMD64_OpLrot32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLrot64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5436,7 +5317,6 @@ func rewriteValueAMD64_OpLrot64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLrot8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5454,7 +5334,6 @@ func rewriteValueAMD64_OpLrot8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh16x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -5479,7 +5358,6 @@ func rewriteValueAMD64_OpLsh16x16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh16x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -5504,7 +5382,6 @@ func rewriteValueAMD64_OpLsh16x32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh16x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5529,7 +5406,6 @@ func rewriteValueAMD64_OpLsh16x64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh16x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5554,7 +5430,6 @@ func rewriteValueAMD64_OpLsh16x8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh32x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -5579,7 +5454,6 @@ func rewriteValueAMD64_OpLsh32x16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh32x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -5604,7 +5478,6 @@ func rewriteValueAMD64_OpLsh32x32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh32x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5629,7 +5502,6 @@ func rewriteValueAMD64_OpLsh32x64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh32x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5654,7 +5526,6 @@ func rewriteValueAMD64_OpLsh32x8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh64x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -5679,7 +5550,6 @@ func rewriteValueAMD64_OpLsh64x16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh64x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -5704,7 +5574,6 @@ func rewriteValueAMD64_OpLsh64x32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh64x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5729,7 +5598,6 @@ func rewriteValueAMD64_OpLsh64x64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh64x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5754,7 +5622,6 @@ func rewriteValueAMD64_OpLsh64x8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh8x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -5779,7 +5646,6 @@ func rewriteValueAMD64_OpLsh8x16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh8x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -5804,7 +5670,6 @@ func rewriteValueAMD64_OpLsh8x32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh8x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -5829,7 +5694,6 @@ func rewriteValueAMD64_OpLsh8x64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpLsh8x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -5854,7 +5718,6 @@ func rewriteValueAMD64_OpLsh8x8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
 	b := v.Block
@@ -12020,7 +11883,6 @@ func rewriteValueAMD64_OpMod16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod16u(v *Value, config *Config) bool {
 	b := v.Block
@@ -12036,7 +11898,6 @@ func rewriteValueAMD64_OpMod16u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod32(v *Value, config *Config) bool {
 	b := v.Block
@@ -12052,7 +11913,6 @@ func rewriteValueAMD64_OpMod32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod32u(v *Value, config *Config) bool {
 	b := v.Block
@@ -12068,7 +11928,6 @@ func rewriteValueAMD64_OpMod32u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod64(v *Value, config *Config) bool {
 	b := v.Block
@@ -12084,7 +11943,6 @@ func rewriteValueAMD64_OpMod64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod64u(v *Value, config *Config) bool {
 	b := v.Block
@@ -12100,7 +11958,6 @@ func rewriteValueAMD64_OpMod64u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod8(v *Value, config *Config) bool {
 	b := v.Block
@@ -12120,7 +11977,6 @@ func rewriteValueAMD64_OpMod8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMod8u(v *Value, config *Config) bool {
 	b := v.Block
@@ -12140,7 +11996,6 @@ func rewriteValueAMD64_OpMod8u(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
 	b := v.Block
@@ -12510,7 +12365,6 @@ func rewriteValueAMD64_OpMul16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMul32(v *Value, config *Config) bool {
 	b := v.Block
@@ -12526,7 +12380,6 @@ func rewriteValueAMD64_OpMul32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMul32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -12542,7 +12395,6 @@ func rewriteValueAMD64_OpMul32F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMul64(v *Value, config *Config) bool {
 	b := v.Block
@@ -12558,7 +12410,6 @@ func rewriteValueAMD64_OpMul64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMul64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -12574,7 +12425,6 @@ func rewriteValueAMD64_OpMul64F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpMul8(v *Value, config *Config) bool {
 	b := v.Block
@@ -12590,7 +12440,6 @@ func rewriteValueAMD64_OpMul8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64NEGL(v *Value, config *Config) bool {
 	b := v.Block
@@ -12676,7 +12525,6 @@ func rewriteValueAMD64_OpNeg16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeg32(v *Value, config *Config) bool {
 	b := v.Block
@@ -12690,7 +12538,6 @@ func rewriteValueAMD64_OpNeg32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeg32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -12707,7 +12554,6 @@ func rewriteValueAMD64_OpNeg32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeg64(v *Value, config *Config) bool {
 	b := v.Block
@@ -12721,7 +12567,6 @@ func rewriteValueAMD64_OpNeg64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeg64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -12738,7 +12583,6 @@ func rewriteValueAMD64_OpNeg64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeg8(v *Value, config *Config) bool {
 	b := v.Block
@@ -12752,7 +12596,6 @@ func rewriteValueAMD64_OpNeg8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeq16(v *Value, config *Config) bool {
 	b := v.Block
@@ -12770,7 +12613,6 @@ func rewriteValueAMD64_OpNeq16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeq32(v *Value, config *Config) bool {
 	b := v.Block
@@ -12788,7 +12630,6 @@ func rewriteValueAMD64_OpNeq32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeq32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -12806,7 +12647,6 @@ func rewriteValueAMD64_OpNeq32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeq64(v *Value, config *Config) bool {
 	b := v.Block
@@ -12824,7 +12664,6 @@ func rewriteValueAMD64_OpNeq64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeq64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -12842,7 +12681,6 @@ func rewriteValueAMD64_OpNeq64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeq8(v *Value, config *Config) bool {
 	b := v.Block
@@ -12860,7 +12698,6 @@ func rewriteValueAMD64_OpNeq8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeqB(v *Value, config *Config) bool {
 	b := v.Block
@@ -12878,7 +12715,6 @@ func rewriteValueAMD64_OpNeqB(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNeqPtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -12896,7 +12732,6 @@ func rewriteValueAMD64_OpNeqPtr(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNilCheck(v *Value, config *Config) bool {
 	b := v.Block
@@ -12912,7 +12747,6 @@ func rewriteValueAMD64_OpNilCheck(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpNot(v *Value, config *Config) bool {
 	b := v.Block
@@ -12927,7 +12761,6 @@ func rewriteValueAMD64_OpNot(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
 	b := v.Block
@@ -13908,7 +13741,6 @@ func rewriteValueAMD64_OpOffPtr(v *Value, config *Config) bool {
 		v.AddArg(ptr)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpOr16(v *Value, config *Config) bool {
 	b := v.Block
@@ -13924,7 +13756,6 @@ func rewriteValueAMD64_OpOr16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpOr32(v *Value, config *Config) bool {
 	b := v.Block
@@ -13940,7 +13771,6 @@ func rewriteValueAMD64_OpOr32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpOr64(v *Value, config *Config) bool {
 	b := v.Block
@@ -13956,7 +13786,6 @@ func rewriteValueAMD64_OpOr64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpOr8(v *Value, config *Config) bool {
 	b := v.Block
@@ -13972,7 +13801,6 @@ func rewriteValueAMD64_OpOr8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpOrB(v *Value, config *Config) bool {
 	b := v.Block
@@ -13988,7 +13816,6 @@ func rewriteValueAMD64_OpOrB(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16Ux16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14013,7 +13840,6 @@ func rewriteValueAMD64_OpRsh16Ux16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16Ux32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14038,7 +13864,6 @@ func rewriteValueAMD64_OpRsh16Ux32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16Ux64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14063,7 +13888,6 @@ func rewriteValueAMD64_OpRsh16Ux64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16Ux8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14088,7 +13912,6 @@ func rewriteValueAMD64_OpRsh16Ux8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14116,7 +13939,6 @@ func rewriteValueAMD64_OpRsh16x16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14144,7 +13966,6 @@ func rewriteValueAMD64_OpRsh16x32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14172,7 +13993,6 @@ func rewriteValueAMD64_OpRsh16x64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh16x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14200,7 +14020,6 @@ func rewriteValueAMD64_OpRsh16x8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32Ux16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14225,7 +14044,6 @@ func rewriteValueAMD64_OpRsh32Ux16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32Ux32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14250,7 +14068,6 @@ func rewriteValueAMD64_OpRsh32Ux32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32Ux64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14275,7 +14092,6 @@ func rewriteValueAMD64_OpRsh32Ux64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32Ux8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14300,7 +14116,6 @@ func rewriteValueAMD64_OpRsh32Ux8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14328,7 +14143,6 @@ func rewriteValueAMD64_OpRsh32x16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14356,7 +14170,6 @@ func rewriteValueAMD64_OpRsh32x32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14384,7 +14197,6 @@ func rewriteValueAMD64_OpRsh32x64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh32x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14412,7 +14224,6 @@ func rewriteValueAMD64_OpRsh32x8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64Ux16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14437,7 +14248,6 @@ func rewriteValueAMD64_OpRsh64Ux16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64Ux32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14462,7 +14272,6 @@ func rewriteValueAMD64_OpRsh64Ux32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64Ux64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14487,7 +14296,6 @@ func rewriteValueAMD64_OpRsh64Ux64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64Ux8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14512,7 +14320,6 @@ func rewriteValueAMD64_OpRsh64Ux8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14540,7 +14347,6 @@ func rewriteValueAMD64_OpRsh64x16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14568,7 +14374,6 @@ func rewriteValueAMD64_OpRsh64x32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14596,7 +14401,6 @@ func rewriteValueAMD64_OpRsh64x64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh64x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14624,7 +14428,6 @@ func rewriteValueAMD64_OpRsh64x8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8Ux16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14649,7 +14452,6 @@ func rewriteValueAMD64_OpRsh8Ux16(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8Ux32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14674,7 +14476,6 @@ func rewriteValueAMD64_OpRsh8Ux32(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8Ux64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14699,7 +14500,6 @@ func rewriteValueAMD64_OpRsh8Ux64(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8Ux8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14724,7 +14524,6 @@ func rewriteValueAMD64_OpRsh8Ux8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8x16(v *Value, config *Config) bool {
 	b := v.Block
@@ -14752,7 +14551,6 @@ func rewriteValueAMD64_OpRsh8x16(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8x32(v *Value, config *Config) bool {
 	b := v.Block
@@ -14780,7 +14578,6 @@ func rewriteValueAMD64_OpRsh8x32(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8x64(v *Value, config *Config) bool {
 	b := v.Block
@@ -14808,7 +14605,6 @@ func rewriteValueAMD64_OpRsh8x64(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpRsh8x8(v *Value, config *Config) bool {
 	b := v.Block
@@ -14836,7 +14632,6 @@ func rewriteValueAMD64_OpRsh8x8(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64SARB(v *Value, config *Config) bool {
 	b := v.Block
@@ -16359,37 +16154,6 @@ func rewriteValueAMD64_OpAMD64SUBLconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (SUBLconst (MOVLconst [d]) [c])
-	// cond:
-	// result: (MOVLconst [int64(int32(d-c))])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpAMD64MOVLconst {
-			break
-		}
-		d := v_0.AuxInt
-		c := v.AuxInt
-		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = int64(int32(d - c))
-		return true
-	}
-	// match: (SUBLconst (SUBLconst x [d]) [c])
-	// cond:
-	// result: (ADDLconst [int64(int32(-c-d))] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpAMD64SUBLconst {
-			break
-		}
-		x := v_0.Args[0]
-		d := v_0.AuxInt
-		c := v.AuxInt
-		v.reset(OpAMD64ADDLconst)
-		v.AuxInt = int64(int32(-c - d))
-		v.AddArg(x)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64SUBQ(v *Value, config *Config) bool {
 	b := v.Block
@@ -16523,7 +16287,6 @@ func rewriteValueAMD64_OpSignExt16to32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSignExt16to64(v *Value, config *Config) bool {
 	b := v.Block
@@ -16537,7 +16300,6 @@ func rewriteValueAMD64_OpSignExt16to64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSignExt32to64(v *Value, config *Config) bool {
 	b := v.Block
@@ -16551,7 +16313,6 @@ func rewriteValueAMD64_OpSignExt32to64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSignExt8to16(v *Value, config *Config) bool {
 	b := v.Block
@@ -16565,7 +16326,6 @@ func rewriteValueAMD64_OpSignExt8to16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSignExt8to32(v *Value, config *Config) bool {
 	b := v.Block
@@ -16579,7 +16339,6 @@ func rewriteValueAMD64_OpSignExt8to32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSignExt8to64(v *Value, config *Config) bool {
 	b := v.Block
@@ -16593,7 +16352,6 @@ func rewriteValueAMD64_OpSignExt8to64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSqrt(v *Value, config *Config) bool {
 	b := v.Block
@@ -16607,7 +16365,6 @@ func rewriteValueAMD64_OpSqrt(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpStaticCall(v *Value, config *Config) bool {
 	b := v.Block
@@ -16625,7 +16382,6 @@ func rewriteValueAMD64_OpStaticCall(v *Value, config *Config) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpStore(v *Value, config *Config) bool {
 	b := v.Block
@@ -16748,7 +16504,6 @@ func rewriteValueAMD64_OpSub16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSub32(v *Value, config *Config) bool {
 	b := v.Block
@@ -16764,7 +16519,6 @@ func rewriteValueAMD64_OpSub32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSub32F(v *Value, config *Config) bool {
 	b := v.Block
@@ -16780,7 +16534,6 @@ func rewriteValueAMD64_OpSub32F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSub64(v *Value, config *Config) bool {
 	b := v.Block
@@ -16796,7 +16549,6 @@ func rewriteValueAMD64_OpSub64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSub64F(v *Value, config *Config) bool {
 	b := v.Block
@@ -16812,7 +16564,6 @@ func rewriteValueAMD64_OpSub64F(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSub8(v *Value, config *Config) bool {
 	b := v.Block
@@ -16828,7 +16579,6 @@ func rewriteValueAMD64_OpSub8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpSubPtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -16844,7 +16594,6 @@ func rewriteValueAMD64_OpSubPtr(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc16to8(v *Value, config *Config) bool {
 	b := v.Block
@@ -16859,7 +16608,6 @@ func rewriteValueAMD64_OpTrunc16to8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc32to16(v *Value, config *Config) bool {
 	b := v.Block
@@ -16874,7 +16622,6 @@ func rewriteValueAMD64_OpTrunc32to16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc32to8(v *Value, config *Config) bool {
 	b := v.Block
@@ -16889,7 +16636,6 @@ func rewriteValueAMD64_OpTrunc32to8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc64to16(v *Value, config *Config) bool {
 	b := v.Block
@@ -16904,7 +16650,6 @@ func rewriteValueAMD64_OpTrunc64to16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc64to32(v *Value, config *Config) bool {
 	b := v.Block
@@ -16919,7 +16664,6 @@ func rewriteValueAMD64_OpTrunc64to32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc64to8(v *Value, config *Config) bool {
 	b := v.Block
@@ -16934,7 +16678,6 @@ func rewriteValueAMD64_OpTrunc64to8(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpAMD64XORL(v *Value, config *Config) bool {
 	b := v.Block
@@ -17115,7 +16858,6 @@ func rewriteValueAMD64_OpXor16(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpXor32(v *Value, config *Config) bool {
 	b := v.Block
@@ -17131,7 +16873,6 @@ func rewriteValueAMD64_OpXor32(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpXor64(v *Value, config *Config) bool {
 	b := v.Block
@@ -17147,7 +16888,6 @@ func rewriteValueAMD64_OpXor64(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpXor8(v *Value, config *Config) bool {
 	b := v.Block
@@ -17163,7 +16903,6 @@ func rewriteValueAMD64_OpXor8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
 	b := v.Block
@@ -17491,7 +17230,6 @@ func rewriteValueAMD64_OpZeroExt16to32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpZeroExt16to64(v *Value, config *Config) bool {
 	b := v.Block
@@ -17505,7 +17243,6 @@ func rewriteValueAMD64_OpZeroExt16to64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpZeroExt32to64(v *Value, config *Config) bool {
 	b := v.Block
@@ -17519,7 +17256,6 @@ func rewriteValueAMD64_OpZeroExt32to64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpZeroExt8to16(v *Value, config *Config) bool {
 	b := v.Block
@@ -17533,7 +17269,6 @@ func rewriteValueAMD64_OpZeroExt8to16(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpZeroExt8to32(v *Value, config *Config) bool {
 	b := v.Block
@@ -17547,7 +17282,6 @@ func rewriteValueAMD64_OpZeroExt8to32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpZeroExt8to64(v *Value, config *Config) bool {
 	b := v.Block
@@ -17561,7 +17295,6 @@ func rewriteValueAMD64_OpZeroExt8to64(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
-	return false
 }
 func rewriteBlockAMD64(b *Block) bool {
 	switch b.Kind {
