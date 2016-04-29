@@ -559,12 +559,11 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		}
 		n := span.elemsize
 		for i = uintptr(0); i < n; i += sys.PtrSize {
-			bits := hbits.bits()
-			if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
+			if i >= 2*sys.PtrSize && !hbits.morePointers() {
 				// No more possible pointers.
 				break
 			}
-			if bits&bitPointer != 0 {
+			if hbits.isPointer() {
 				if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(base + i))) {
 					panic(errorString(msg))
 				}
