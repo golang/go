@@ -19,6 +19,7 @@ type sha1Test struct {
 }
 
 var golden = []sha1Test{
+	{"76245dbf96f661bd221046197ab8b9f063f11bad", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"},
 	{"da39a3ee5e6b4b0d3255bfef95601890afd80709", ""},
 	{"86f7e437faa5a7fce15d1ddcb9eaeaea377667b8", "a"},
 	{"da23614e02469a0d7c7bd1bdab5c9c474b1904dc", "ab"},
@@ -118,6 +119,10 @@ func benchmarkSize(b *testing.B, size int) {
 
 func BenchmarkHash8Bytes(b *testing.B) {
 	benchmarkSize(b, 8)
+}
+
+func BenchmarkHash320Bytes(b *testing.B) {
+	benchmarkSize(b, 320)
 }
 
 func BenchmarkHash1K(b *testing.B) {
