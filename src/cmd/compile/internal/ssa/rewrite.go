@@ -142,7 +142,6 @@ func mergeSym(x, y interface{}) interface{} {
 		return x
 	}
 	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
-	return nil
 }
 func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil

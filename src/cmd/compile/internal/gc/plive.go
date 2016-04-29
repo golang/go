@@ -1693,7 +1693,7 @@ func onebitwritesymbol(arr []bvec, sym *Sym) {
 	ls := Linksym(sym)
 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
 	ls.Dupok = true
-	sv := obj.SymVer{ls.Name, 0}
+	sv := obj.SymVer{Name: ls.Name, Version: 0}
 	ls2, ok := Ctxt.Hash[sv]
 	if ok {
 		sym.Lsym = ls2

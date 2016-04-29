@@ -139,16 +139,16 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		if b.Succs[0] != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
 		}
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)
 	case ssa.BlockARMLT:
 		p := gc.Prog(arm.ABLT)
 		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{p, b.Succs[0]})
+		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0]})
 		p = gc.Prog(obj.AJMP)
 		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{p, b.Succs[1]})
+		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1]})
 	}
 }

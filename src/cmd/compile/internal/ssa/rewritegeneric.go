@@ -1620,7 +1620,6 @@ func rewriteValuegeneric_OpConstInterface(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
 	b := v.Block
@@ -2497,7 +2496,6 @@ func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValuegeneric_OpEqPtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -2552,7 +2550,6 @@ func rewriteValuegeneric_OpEqSlice(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValuegeneric_OpGeq16(v *Value, config *Config) bool {
 	b := v.Block
@@ -5780,7 +5777,6 @@ func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValuegeneric_OpNeqPtr(v *Value, config *Config) bool {
 	b := v.Block
@@ -5831,7 +5827,6 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-	return false
 }
 func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
 	b := v.Block
