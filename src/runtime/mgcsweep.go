@@ -272,8 +272,14 @@ func (s *mspan) sweep(preserve bool) bool {
 		s.needzero = 1
 		freeToHeap = true
 	}
+	nalloc := uint16(s.nelems) - uint16(nfree)
+	nfreed := s.allocCount - nalloc
+	if nalloc > s.allocCount {
+		print("runtime: nelems=", s.nelems, " nfree=", nfree, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
+		throw("sweep increased allocation count")
+	}
 
-	s.allocCount = uint16(s.nelems) - uint16(nfree)
+	s.allocCount = nalloc
 	wasempty := s.nextFreeIndex() == s.nelems
 	s.freeindex = 0 // reset allocation index to start of span.
 
@@ -304,7 +310,7 @@ func (s *mspan) sweep(preserve bool) bool {
 	}
 
 	if nfree > 0 && cl != 0 {
-		c.local_nsmallfree[cl] += uintptr(nfree)
+		c.local_nsmallfree[cl] += uintptr(nfreed)
 		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
 		// MCentral_FreeSpan updates sweepgen
 	} else if freeToHeap {
