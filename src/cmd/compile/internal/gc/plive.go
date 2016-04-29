@@ -65,9 +65,9 @@ type BasicBlock struct {
 	//	uevar: upward exposed variables (used before set in block)
 	//	varkill: killed variables (set in block)
 	//	avarinit: addrtaken variables set or used (proof of initialization)
-	uevar    Bvec
-	varkill  Bvec
-	avarinit Bvec
+	uevar    bvec
+	varkill  bvec
+	avarinit bvec
 
 	// Computed during livenesssolve using control flow information:
 	//
@@ -77,10 +77,10 @@ type BasicBlock struct {
 	//		(initialized in block or at exit from any predecessor block)
 	//	avarinitall: addrtaken variables certainly initialized at block exit
 	//		(initialized in block or at exit from all predecessor blocks)
-	livein      Bvec
-	liveout     Bvec
-	avarinitany Bvec
-	avarinitall Bvec
+	livein      bvec
+	liveout     bvec
+	avarinitany bvec
+	avarinitall bvec
 }
 
 // A collection of global state used by liveness analysis.
@@ -92,8 +92,8 @@ type Liveness struct {
 
 	// An array with a bit vector for each safe point tracking live pointers
 	// in the arguments and locals area, indexed by bb.rpo.
-	argslivepointers []Bvec
-	livepointers     []Bvec
+	argslivepointers []bvec
+	livepointers     []bvec
 }
 
 // Constructs a new basic block containing a single instruction.
@@ -550,7 +550,7 @@ func isfunny(n *Node) bool {
 // The avarinit output serves as a signal that the data has been
 // initialized, because any use of a variable must come after its
 // initialization.
-func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarinit Bvec) {
+func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarinit bvec) {
 	bvresetall(uevar)
 	bvresetall(varkill)
 	bvresetall(avarinit)
@@ -701,7 +701,7 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
 	return &result
 }
 
-func printeffects(p *obj.Prog, uevar Bvec, varkill Bvec, avarinit Bvec) {
+func printeffects(p *obj.Prog, uevar bvec, varkill bvec, avarinit bvec) {
 	fmt.Printf("effects of %v", p)
 	fmt.Printf("\nuevar: ")
 	bvprint(uevar)
@@ -728,7 +728,7 @@ func printnode(node *Node) {
 }
 
 // Pretty print a list of variables. The vars argument is a slice of *Nodes.
-func printvars(name string, bv Bvec, vars []*Node) {
+func printvars(name string, bv bvec, vars []*Node) {
 	fmt.Printf("%s:", name)
 	for i, node := range vars {
 		if bvget(bv, int32(i)) != 0 {
@@ -864,7 +864,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
 // and then simply copied into bv at the correct offset on future calls with
 // the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
 // accounts for 40% of the 6g execution time.
-func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+func onebitwalktype1(t *Type, xoffset *int64, bv bvec) {
 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
 	}
@@ -961,7 +961,7 @@ func argswords() int32 {
 // Generates live pointer value maps for arguments and local variables. The
 // this argument and the in arguments are always assumed live. The vars
 // argument is a slice of *Nodes.
-func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, locals Bvec) {
+func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, locals bvec) {
 	var xoffset int64
 
 	for i := int32(0); ; i++ {
@@ -1158,7 +1158,7 @@ func livenesssolve(lv *Liveness) {
 
 // This function is slow but it is only used for generating debug prints.
 // Check whether n is marked live in args/locals.
-func islive(n *Node, args Bvec, locals Bvec) bool {
+func islive(n *Node, args bvec, locals bvec) bool {
 	switch n.Class {
 	case PPARAM, PPARAMOUT:
 		for i := 0; int64(i) < n.Type.Width/int64(Widthptr); i++ {
@@ -1435,7 +1435,7 @@ const (
 	Hp = 16777619
 )
 
-func hashbitmap(h uint32, bv Bvec) uint32 {
+func hashbitmap(h uint32, bv bvec) uint32 {
 	n := int((bv.n + 31) / 32)
 	for i := 0; i < n; i++ {
 		w := bv.b[i]
@@ -1524,8 +1524,8 @@ func livenesscompact(lv *Liveness) {
 	// array so that we can tell where the coalesced bitmaps stop
 	// and so that we don't double-free when cleaning up.
 	for j := uniq; j < n; j++ {
-		lv.livepointers[j] = Bvec{}
-		lv.argslivepointers[j] = Bvec{}
+		lv.livepointers[j] = bvec{}
+		lv.argslivepointers[j] = bvec{}
 	}
 
 	// Rewrite PCDATA instructions to use new numbering.
@@ -1539,7 +1539,7 @@ func livenesscompact(lv *Liveness) {
 	}
 }
 
-func printbitset(printed bool, name string, vars []*Node, bits Bvec) bool {
+func printbitset(printed bool, name string, vars []*Node, bits bvec) bool {
 	started := false
 	for i, n := range vars {
 		if bvget(bits, int32(i)) == 0 {
@@ -1666,7 +1666,7 @@ func livenessprintdebug(lv *Liveness) {
 // first word dumped is the total number of bitmaps. The second word is the
 // length of the bitmaps. All bitmaps are assumed to be of equal length. The
 // words that are followed are the raw bitmap words.
-func onebitwritesymbol(arr []Bvec, sym *Sym) {
+func onebitwritesymbol(arr []bvec, sym *Sym) {
 	off := 4                                  // number of bitmaps, to fill in later
 	off = duint32(sym, off, uint32(arr[0].n)) // number of bits in each bitmap
 	var i int
