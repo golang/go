@@ -24,13 +24,15 @@
 // In each 2-bit entry, the lower bit holds the same information as in the 1-bit
 // bitmaps: 0 means uninteresting and 1 means live pointer to be visited during GC.
 // The meaning of the high bit depends on the position of the word being described
-// in its allocated object. In the first word, the high bit is unused.
+// in its allocated object. In all words *except* the second word, the
+// high bit indicates that the object is still being described. In
+// these words, if a bit pair with a high bit 0 is encountered, the
+// low bit can also be assumed to be 0, and the object description is
+// over. This 00 is called the ``dead'' encoding: it signals that the
+// rest of the words in the object are uninteresting to the garbage
+// collector.
+//
 // In the second word, the high bit is the GC ``checkmarked'' bit (see below).
-// In the third and later words, the high bit indicates that the object is still
-// being described. In these words, if a bit pair with a high bit 0 is encountered,
-// the low bit can also be assumed to be 0, and the object description is over.
-// This 00 is called the ``dead'' encoding: it signals that the rest of the words
-// in the object are uninteresting to the garbage collector.
 //
 // The 2-bit entries are split when written into the byte, so that the top half
 // of the byte contains 4 high bits and the bottom half contains 4 low (pointer)
@@ -76,7 +78,7 @@ import (
 
 const (
 	bitPointer = 1 << 0
-	bitMarked  = 1 << 4
+	bitMarked  = 1 << 4 // TODO: Rename bitScan.
 
 	heapBitsShift   = 1                     // shift offset between successive bitPointer or bitMarked entries
 	heapBitmapScale = sys.PtrSize * (8 / 2) // number of data bytes described by one heap bitmap byte
@@ -490,7 +492,7 @@ func (h heapBits) bits() uint32 {
 
 // morePointers returns true if this word and all remaining words in this object
 // are scalars.
-// h must not describe the first or second word of the object.
+// h must not describe the second word of the object.
 func (h heapBits) morePointers() bool {
 	return h.bits()&bitMarked != 0
 }
@@ -512,22 +514,7 @@ func (h heapBits) hasPointers(size uintptr) bool {
 	if size == sys.PtrSize { // 1-word objects are always pointers
 		return true
 	}
-	// Otherwise, at least a 2-word object, and at least 2-word aligned,
-	// so h.shift is either 0 or 2, so we know we can get the bits for the
-	// first two words out of *h.bitp.
-	// If either of the first two words is a pointer, not pointer free.
-	b := uint32(*h.bitp >> h.shift)
-	if b&(bitPointer|bitPointer<<heapBitsShift) != 0 {
-		return true
-	}
-	if size == 2*sys.PtrSize {
-		return false
-	}
-	// At least a 4-word object. Check scan bit (aka marked bit) in third word.
-	if h.shift == 0 {
-		return b&(bitMarked<<(2*heapBitsShift)) != 0
-	}
-	return uint32(*subtract1(h.bitp))&bitMarked != 0
+	return (*h.bitp>>h.shift)&bitMarked != 0
 }
 
 // isCheckmarked reports whether the heap bits have the checkmarked bit set.
@@ -720,9 +707,9 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
 // TODO(rsc): Perhaps introduce a different heapBitsSpan type.
 
 // initSpan initializes the heap bitmap for a span.
-// It clears all mark and checkmark bits.
+// It clears all checkmark bits.
 // If this is a span of pointer-sized objects, it initializes all
-// words to pointer (and there are no dead bits).
+// words to pointer/scan.
 // Otherwise, it initializes all words to scalar/dead.
 func (h heapBits) initSpan(s *mspan) {
 	size, n, total := s.layout()
@@ -745,7 +732,7 @@ func (h heapBits) initSpan(s *mspan) {
 		end := h.bitp
 		bitp := subtractb(end, nbyte-1)
 		for {
-			*bitp = bitPointerAll
+			*bitp = bitPointerAll | bitMarkedAll
 			if bitp == end {
 				break
 			}
@@ -897,6 +884,9 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			if !h.isPointer() {
 				throw("heapBitsSetType: pointer bit missing")
 			}
+			if !h.morePointers() {
+				throw("heapBitsSetType: scan bit missing")
+			}
 		}
 		return
 	}
@@ -924,17 +914,17 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 				// unused second word.
 				if gcphase == _GCoff {
 					*h.bitp &^= (bitPointer | bitMarked | ((bitPointer | bitMarked) << heapBitsShift)) << h.shift
-					*h.bitp |= bitPointer << h.shift
+					*h.bitp |= (bitPointer | bitMarked) << h.shift
 				} else {
 					atomic.And8(h.bitp, ^uint8((bitPointer|bitMarked|((bitPointer|bitMarked)<<heapBitsShift))<<h.shift))
-					atomic.Or8(h.bitp, bitPointer<<h.shift)
+					atomic.Or8(h.bitp, (bitPointer|bitMarked)<<h.shift)
 				}
 			} else {
 				// 2-element slice of pointer.
 				if gcphase == _GCoff {
-					*h.bitp |= (bitPointer | bitPointer<<heapBitsShift) << h.shift
+					*h.bitp |= (bitPointer | bitMarked | bitPointer<<heapBitsShift) << h.shift
 				} else {
-					atomic.Or8(h.bitp, (bitPointer|bitPointer<<heapBitsShift)<<h.shift)
+					atomic.Or8(h.bitp, (bitPointer|bitMarked|bitPointer<<heapBitsShift)<<h.shift)
 				}
 			}
 			return
@@ -948,7 +938,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			}
 		}
 		b := uint32(*ptrmask)
-		hb := b & 3
+		hb := (b & 3) | bitMarked
 		if gcphase == _GCoff {
 			// bitPointer == 1, bitMarked is 1 << 4, heapBitsShift is 1.
 			// 110011 is shifted h.shift and complemented.
@@ -1143,12 +1133,20 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	case h.shift == 0:
 		// Ptrmask and heap bitmap are aligned.
 		// Handle first byte of bitmap specially.
-		// The first byte we write out contains the first two words of the object.
-		// In those words, the mark bits are mark and checkmark, respectively,
-		// and must not be set. In all following words, we want to set the mark bit
-		// as a signal that the object continues to the next 2-bit entry in the bitmap.
+		//
+		// The first byte we write out covers the first four
+		// words of the object. The scan/dead bit on the first
+		// word must be set to scan since there are pointers
+		// somewhere in the object. The scan/dead bit on the
+		// second word is the checkmark, so we don't set it.
+		// In all following words, we set the scan/dead
+		// appropriately to indicate that the object contains
+		// to the next 2-bit entry in the bitmap.
+		//
+		// TODO: It doesn't matter if we set the checkmark, so
+		// maybe this case isn't needed any more.
 		hb = b & bitPointerAll
-		hb |= bitMarked<<(2*heapBitsShift) | bitMarked<<(3*heapBitsShift)
+		hb |= bitMarked | bitMarked<<(2*heapBitsShift) | bitMarked<<(3*heapBitsShift)
 		if w += 4; w >= nw {
 			goto Phase3
 		}
@@ -1169,14 +1167,18 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// from a given span at a time, we should be able to set
 		// these bits non-atomically. Not worth the risk right now.
 		hb = (b & (bitPointer | bitPointer<<heapBitsShift)) << (2 * heapBitsShift)
+		// This is not noscan, so set the scan bit in the
+		// first word.
+		hb |= bitMarked << (2 * heapBitsShift)
 		b >>= 2
 		nb -= 2
-		// Note: no bitMarker in hb because the first two words don't get markers from us.
+		// Note: no bitMarker for second word because that's
+		// the checkmark.
 		if gcphase == _GCoff {
-			*hbitp &^= uint8((bitPointer | (bitPointer << heapBitsShift)) << (2 * heapBitsShift))
+			*hbitp &^= uint8((bitPointer | bitMarked | (bitPointer << heapBitsShift)) << (2 * heapBitsShift))
 			*hbitp |= uint8(hb)
 		} else {
-			atomic.And8(hbitp, ^(uint8(bitPointer|bitPointer<<heapBitsShift) << (2 * heapBitsShift)))
+			atomic.And8(hbitp, ^(uint8(bitPointer|bitMarked|bitPointer<<heapBitsShift) << (2 * heapBitsShift)))
 			atomic.Or8(hbitp, uint8(hb))
 		}
 		hbitp = subtract1(hbitp)
@@ -1336,7 +1338,7 @@ Phase4:
 				if j < nptr && (*addb(ptrmask, j/8)>>(j%8))&1 != 0 {
 					want |= bitPointer
 				}
-				if i >= 2 {
+				if i != 1 {
 					want |= bitMarked
 				} else {
 					have &^= bitMarked
@@ -1366,39 +1368,11 @@ Phase4:
 	}
 }
 
-// heapBitsSetTypeNoScan marks x as noscan. For objects with 1 or 2
-// words set their bitPointers to off (0).
-// All other objects have the first 3 bitPointers set to
-// off (0) and the scan word in the third word
-// also set to off (0).
-func heapBitsSetTypeNoScan(x, size uintptr) {
+// heapBitsSetTypeNoScan marks x as noscan by setting the first word
+// of x in the heap bitmap to scalar/dead.
+func heapBitsSetTypeNoScan(x uintptr) {
 	h := heapBitsForAddr(uintptr(x))
-	bitp := h.bitp
-
-	if sys.PtrSize == 8 && size == sys.PtrSize {
-		// If this is truely noScan the tinyAlloc logic should have noticed
-		// and combined such objects.
-		throw("noscan object is too small")
-	} else if size%(4*sys.PtrSize) == 0 {
-		*bitp &^= bitPointer | bitPointer<<heapBitsShift | (bitMarked|bitPointer)<<(2*heapBitsShift)
-	} else if size%(4*sys.PtrSize) == 2*sys.PtrSize {
-		if h.shift == 0 {
-			*bitp &^= (bitPointer | bitPointer<<heapBitsShift)
-			if size > 2*sys.PtrSize {
-				*bitp &^= (bitPointer | bitMarked) << (2 * heapBitsShift)
-			}
-		} else if h.shift == 2 {
-			*bitp &^= bitPointer<<(2*heapBitsShift) | bitPointer<<(3*heapBitsShift)
-			if size > 2*sys.PtrSize {
-				bitp = subtract1(bitp)
-				*bitp &^= bitPointer | bitMarked
-			}
-		} else {
-			throw("Type has unrecognized size")
-		}
-	} else {
-		throw("Type has unrecognized size")
-	}
+	*h.bitp &^= (bitPointer | bitMarked) << h.shift
 }
 
 var debugPtrmask struct {
@@ -1804,12 +1778,6 @@ Run:
 			dst = subtract1(dst)
 			bits >>= 4
 		}
-		// Clear the mark bits in the first two entries.
-		// They are the actual mark and checkmark bits,
-		// not non-dead markers. It simplified the code
-		// above to set the marker in every bit written and
-		// then clear these two as a special case at the end.
-		*dstStart &^= bitMarked | bitMarked<<heapBitsShift
 	}
 	return totalBits
 }
@@ -1925,7 +1893,7 @@ func getgcmask(ep interface{}) (mask []byte) {
 			if hbits.isPointer() {
 				mask[i/sys.PtrSize] = 1
 			}
-			if i >= 2*sys.PtrSize && !hbits.morePointers() {
+			if i != 1*sys.PtrSize && !hbits.morePointers() {
 				mask = mask[:i/sys.PtrSize]
 				break
 			}
