@@ -428,6 +428,9 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 //
 // The provided key must be comparable.
 func WithValue(parent Context, key, val interface{}) Context {
+	if key == nil {
+		panic("nil key")
+	}
 	if !reflect.TypeOf(key).Comparable() {
 		panic("key is not comparable")
 	}
