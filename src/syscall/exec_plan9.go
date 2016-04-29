@@ -61,6 +61,41 @@ import (
 
 var ForkLock sync.RWMutex
 
+// gstringb reads a non-empty string from b, prefixed with a 16-bit length in little-endian order.
+// It returns the string as a byte slice, or nil if b is too short to contain the length or
+// the full string.
+//go:nosplit
+func gstringb(b []byte) []byte {
+	if len(b) < 2 {
+		return nil
+	}
+	n, b := gbit16(b)
+	if int(n) > len(b) {
+		return nil
+	}
+	return b[:n]
+}
+
+// Offset of the name field in a 9P directory entry - see UnmarshalDir() in dir_plan9.go
+const nameOffset = 39
+
+// gdirname returns the first filename from a buffer of directory entries,
+// and a slice containing the remaining directory entries.
+// If the buffer doesn't start with a valid directory entry, the returned name is nil.
+//go:nosplit
+func gdirname(buf []byte) (name []byte, rest []byte) {
+	if len(buf) < 2 {
+		return
+	}
+	size, buf := gbit16(buf)
+	if size < STATFIXLEN || int(size) > len(buf) {
+		return
+	}
+	name = gstringb(buf[nameOffset:size])
+	rest = buf[size:]
+	return
+}
+
 // StringSlicePtr converts a slice of strings to a slice of pointers
 // to NUL-terminated byte arrays. If any string contains a NUL byte
 // this function panics instead of returning an error.
@@ -104,20 +139,13 @@ func readdirnames(dirfd int) (names []string, err error) {
 		if n == 0 {
 			break
 		}
-		for i := 0; i < n; {
-			m, _ := gbit16(buf[i:])
-			m += 2
-
-			if m < STATFIXLEN {
+		for b := buf[:n]; len(b) > 0; {
+			var s []byte
+			s, b = gdirname(b)
+			if s == nil {
 				return nil, ErrBadStat
 			}
-
-			s, _, ok := gstring(buf[i+41:])
-			if !ok {
-				return nil, ErrBadStat
-			}
-			names = append(names, s)
-			i += int(m)
+			names = append(names, string(s))
 		}
 	}
 	return
@@ -152,16 +180,8 @@ func readdupdevice() (fds []int, err error) {
 	return
 }
 
-var startupFds []int
-
-// Plan 9 does not allow clearing the OCEXEC flag
-// from the underlying channel backing an open file descriptor,
-// therefore we store a list of already opened file descriptors
-// inside startupFds and skip them when manually closing descriptors
-// not meant to be passed to a child exec.
-func init() {
-	startupFds, _ = readdupdevice()
-}
+// name of the directory containing names and control files for all open file descriptors
+var dupdev, _ = BytePtrFromString("#d")
 
 // forkAndExecInChild forks the process, calling dup onto 0..len(fd)
 // and finally invoking exec(argv0, argvv, envv) in the child.
@@ -174,7 +194,7 @@ func init() {
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
 //go:norace
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, fdsToClose []int, pipe int, rflag int) (pid int, err error) {
+func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, attr *ProcAttr, pipe int, rflag int) (pid int, err error) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., errbuf).
 	var (
@@ -184,6 +204,8 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 		clearenv int
 		envfd    int
 		errbuf   [ERRMAX]byte
+		statbuf  [STATMAX]byte
+		dupdevfd int
 	)
 
 	// Guard against side effects of shuffling fds below.
@@ -218,14 +240,39 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 	// Fork succeeded, now in child.
 
 	// Close fds we don't need.
-	for i = 0; i < len(fdsToClose); i++ {
-		if fdsToClose[i] != pipe {
-			RawSyscall(SYS_CLOSE, uintptr(fdsToClose[i]), 0, 0)
+	r1, _, _ = RawSyscall(SYS_OPEN, uintptr(unsafe.Pointer(dupdev)), uintptr(O_RDONLY), 0)
+	dupdevfd = int(r1)
+	if dupdevfd == -1 {
+		goto childerror
+	}
+dirloop:
+	for {
+		r1, _, _ = RawSyscall6(SYS_PREAD, uintptr(dupdevfd), uintptr(unsafe.Pointer(&statbuf[0])), uintptr(len(statbuf)), ^uintptr(0), ^uintptr(0), 0)
+		n := int(r1)
+		switch n {
+		case -1:
+			goto childerror
+		case 0:
+			break dirloop
+		}
+		for b := statbuf[:n]; len(b) > 0; {
+			var s []byte
+			s, b = gdirname(b)
+			if s == nil {
+				copy(errbuf[:], ErrBadStat.Error())
+				goto childerror1
+			}
+			if s[len(s)-1] == 'l' {
+				// control file for descriptor <N> is named <N>ctl
+				continue
+			}
+			closeFdExcept(int(atoi(s)), pipe, dupdevfd, fd)
 		}
 	}
+	RawSyscall(SYS_CLOSE, uintptr(dupdevfd), 0, 0)
 
+	// Write new environment variables.
 	if envv != nil {
-		// Write new environment variables.
 		for i = 0; i < len(envv); i++ {
 			r1, _, _ = RawSyscall(SYS_CREATE, uintptr(unsafe.Pointer(envv[i].name)), uintptr(O_WRONLY), uintptr(0666))
 
@@ -313,6 +360,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 childerror:
 	// send error string on pipe
 	RawSyscall(SYS_ERRSTR, uintptr(unsafe.Pointer(&errbuf[0])), uintptr(len(errbuf)), 0)
+childerror1:
 	errbuf[len(errbuf)-1] = 0
 	i = 0
 	for i < len(errbuf) && errbuf[i] != 0 {
@@ -330,6 +378,20 @@ childerror:
 	// but the for loop above won't break
 	// and this shuts up the compiler.
 	panic("unreached")
+}
+
+// close the numbered file descriptor, unless it is fd1, fd2, or a member of fds.
+//go:nosplit
+func closeFdExcept(n int, fd1 int, fd2 int, fds []int) {
+	if n == fd1 || n == fd2 {
+		return
+	}
+	for _, fd := range fds {
+		if n == fd {
+			return
+		}
+	}
+	RawSyscall(SYS_CLOSE, uintptr(n), 0, 0)
 }
 
 func cexecPipe(p []int) error {
@@ -433,49 +495,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	// Acquire the fork lock to prevent other threads from creating new fds before we fork.
 	ForkLock.Lock()
 
-	// get a list of open fds, excluding stdin,stdout and stderr that need to be closed in the child.
-	// no new fds can be created while we hold the ForkLock for writing.
-	openFds, e := readdupdevice()
-	if e != nil {
-		ForkLock.Unlock()
-		return 0, e
-	}
-
-	fdsToClose := make([]int, 0, len(openFds))
-	for _, fd := range openFds {
-		doClose := true
-
-		// exclude files opened at startup.
-		for _, sfd := range startupFds {
-			if fd == sfd {
-				doClose = false
-				break
-			}
-		}
-
-		// exclude files explicitly requested by the caller.
-		for _, rfd := range attr.Files {
-			if fd == int(rfd) {
-				doClose = false
-				break
-			}
-		}
-
-		if doClose {
-			fdsToClose = append(fdsToClose, fd)
-		}
-	}
-
 	// Allocate child status pipe close on exec.
-	e = cexecPipe(p[:])
+	e := cexecPipe(p[:])
 
 	if e != nil {
 		return 0, e
 	}
-	fdsToClose = append(fdsToClose, p[0])
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvParsed, dir, attr, fdsToClose, p[1], sys.Rfork)
+	pid, err = forkAndExecInChild(argv0p, argvp, envvParsed, dir, attr, p[1], sys.Rfork)
 
 	if err != nil {
 		if p[0] >= 0 {
@@ -493,8 +521,10 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 	Close(p[0])
 
 	if err != nil || n != 0 {
-		if n != 0 {
+		if n > 0 {
 			err = NewError(string(errbuf[:n]))
+		} else if err == nil {
+			err = NewError("failed to read exec status")
 		}
 
 		// Child failed; wait for it to exit, to make sure
