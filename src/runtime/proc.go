@@ -3085,12 +3085,24 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	var haveStackLock *g
 	n := 0
 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
-		// Cgo, we can't unwind and symbolize arbitrary C code,
-		// so instead collect Go stack that leads to the cgo call.
-		// This is especially important on windows, since all syscalls are cgo calls.
+		cgoOff := 0
+		// Check cgoCallersUse to make sure that we are not
+		// interrupting other code that is fiddling with
+		// cgoCallers.  We are running in a signal handler
+		// with all signals blocked, so we don't have to worry
+		// about any other code interrupting us.
+		if atomic.Load(&mp.cgoCallersUse) == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
+			for cgoOff < len(mp.cgoCallers) && mp.cgoCallers[cgoOff] != 0 {
+				cgoOff++
+			}
+			copy(stk[:], mp.cgoCallers[:cgoOff])
+			mp.cgoCallers[0] = 0
+		}
+
+		// Collect Go stack that leads to the cgo call.
 		if gcTryLockStackBarriers(mp.curg) {
 			haveStackLock = mp.curg
-			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
+			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
 		}
 	} else if traceback {
 		var flags uint = _TraceTrap
