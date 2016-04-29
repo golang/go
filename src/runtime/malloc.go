@@ -94,6 +94,9 @@ const (
 	pageShift = _PageShift
 	pageSize  = _PageSize
 	pageMask  = _PageMask
+	// By construction, single page spans of the smallest object class
+	// have the most objects per span.
+	maxObjsPerSpan = pageSize / 8
 
 	mSpanInUse = _MSpanInUse
 
@@ -166,9 +169,6 @@ const (
 	// collector scales well to 32 cpus.
 	_MaxGcproc = 32
 )
-
-// Page number (address>>pageShift)
-type pageID uintptr
 
 const _MaxArena32 = 2 << 30
 
@@ -384,6 +384,10 @@ func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
 	return sysReserve(nil, n, reserved)
 }
 
+// sysAlloc allocates the next n bytes from the heap arena. The
+// returned pointer is always _PageSize aligned and between
+// h.arena_start and h.arena_end. sysAlloc returns nil on failure.
+// There is no corresponding free function.
 func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	if n > h.arena_end-h.arena_used {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
@@ -484,6 +488,65 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 // base address for all 0-byte allocations
 var zerobase uintptr
 
+// nextFreeFast returns the next free object if one is quickly available.
+// Otherwise it returns 0.
+func nextFreeFast(s *mspan) gclinkptr {
+	theBit := sys.Ctz64(s.allocCache) // Is there a free object in the allocCache?
+	if theBit < 64 {
+		result := s.freeindex + uintptr(theBit)
+		if result < s.nelems {
+			freeidx := result + 1
+			if freeidx%64 == 0 && freeidx != s.nelems {
+				return 0
+			}
+			s.allocCache >>= (theBit + 1)
+			s.freeindex = freeidx
+			v := gclinkptr(result*s.elemsize + s.base())
+			s.allocCount++
+			return v
+		}
+	}
+	return 0
+}
+
+// nextFree returns the next free object from the cached span if one is available.
+// Otherwise it refills the cache with a span with an available object and
+// returns that object along with a flag indicating that this was a heavy
+// weight allocation. If it is a heavy weight allocation the caller must
+// determine whether a new GC cycle needs to be started or if the GC is active
+// whether this goroutine needs to assist the GC.
+func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+	s = c.alloc[sizeclass]
+	shouldhelpgc = false
+	freeIndex := s.nextFreeIndex()
+	if freeIndex == s.nelems {
+		// The span is full.
+		if uintptr(s.allocCount) != s.nelems {
+			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+		}
+		systemstack(func() {
+			c.refill(int32(sizeclass))
+		})
+		shouldhelpgc = true
+		s = c.alloc[sizeclass]
+
+		freeIndex = s.nextFreeIndex()
+	}
+
+	if freeIndex >= s.nelems {
+		throw("freeIndex is not valid")
+	}
+
+	v = gclinkptr(freeIndex*s.elemsize + s.base())
+	s.allocCount++
+	if uintptr(s.allocCount) > s.nelems {
+		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+		throw("s.allocCount > s.nelems")
+	}
+	return
+}
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -538,7 +601,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	shouldhelpgc := false
 	dataSize := size
 	c := gomcache()
-	var s *mspan
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.kind&kindNoPointers != 0
 	if size <= maxSmallSize {
@@ -591,20 +653,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				return x
 			}
 			// Allocate a new maxTinySize block.
-			s = c.alloc[tinySizeClass]
-			v := s.freelist
-			if v.ptr() == nil {
-				systemstack(func() {
-					c.refill(tinySizeClass)
-				})
-				shouldhelpgc = true
-				s = c.alloc[tinySizeClass]
-				v = s.freelist
+			span := c.alloc[tinySizeClass]
+			v := nextFreeFast(span)
+			if v == 0 {
+				v, _, shouldhelpgc = c.nextFree(tinySizeClass)
 			}
-			s.freelist = v.ptr().next
-			s.ref++
-			// prefetchnta offers best performance, see change list message.
-			prefetchnta(uintptr(v.ptr().next))
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
 			(*[2]uint64)(x)[1] = 0
@@ -623,26 +676,14 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				sizeclass = size_to_class128[(size-1024+127)>>7]
 			}
 			size = uintptr(class_to_size[sizeclass])
-			s = c.alloc[sizeclass]
-			v := s.freelist
-			if v.ptr() == nil {
-				systemstack(func() {
-					c.refill(int32(sizeclass))
-				})
-				shouldhelpgc = true
-				s = c.alloc[sizeclass]
-				v = s.freelist
+			span := c.alloc[sizeclass]
+			v := nextFreeFast(span)
+			if v == 0 {
+				v, span, shouldhelpgc = c.nextFree(sizeclass)
 			}
-			s.freelist = v.ptr().next
-			s.ref++
-			// prefetchnta offers best performance, see change list message.
-			prefetchnta(uintptr(v.ptr().next))
 			x = unsafe.Pointer(v)
-			if needzero {
-				v.ptr().next = 0
-				if size > 2*sys.PtrSize && ((*[2]uintptr)(x))[1] != 0 {
-					memclr(unsafe.Pointer(v), size)
-				}
+			if needzero && span.needzero != 0 {
+				memclr(unsafe.Pointer(v), size)
 			}
 		}
 	} else {
@@ -651,13 +692,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		systemstack(func() {
 			s = largeAlloc(size, needzero)
 		})
-		x = unsafe.Pointer(uintptr(s.start << pageShift))
+		s.freeindex = 1
+		s.allocCount = 1
+		x = unsafe.Pointer(s.base())
 		size = s.elemsize
 	}
 
 	var scanSize uintptr
 	if noscan {
-		// All objects are pre-marked as noscan. Nothing to do.
+		heapBitsSetTypeNoScan(uintptr(x), size)
 	} else {
 		// If allocating a defer+arg block, now that we've picked a malloc size
 		// large enough to hold everything, cut the "asked for" size down to
@@ -701,6 +744,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if raceenabled {
 		racemalloc(x, size)
 	}
+
 	if msanenabled {
 		msanmalloc(x, size)
 	}
@@ -755,8 +799,8 @@ func largeAlloc(size uintptr, needzero bool) *mspan {
 	if s == nil {
 		throw("out of memory")
 	}
-	s.limit = uintptr(s.start)<<_PageShift + size
-	heapBitsForSpan(s.base()).initSpan(s.layout())
+	s.limit = s.base() + size
+	heapBitsForSpan(s.base()).initSpan(s)
 	return s
 }
 
