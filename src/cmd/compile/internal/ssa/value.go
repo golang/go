@@ -98,40 +98,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
 	s += " <" + v.Type.String() + ">"
-	switch opcodeTable[v.Op].auxType {
-	case auxBool:
-		if v.AuxInt == 0 {
-			s += " [false]"
-		} else {
-			s += " [true]"
-		}
-	case auxInt8:
-		s += fmt.Sprintf(" [%d]", v.AuxInt8())
-	case auxInt16:
-		s += fmt.Sprintf(" [%d]", v.AuxInt16())
-	case auxInt32:
-		s += fmt.Sprintf(" [%d]", v.AuxInt32())
-	case auxInt64:
-		s += fmt.Sprintf(" [%d]", v.AuxInt)
-	case auxFloat32, auxFloat64:
-		s += fmt.Sprintf(" [%g]", v.AuxFloat())
-	case auxString:
-		s += fmt.Sprintf(" {%s}", v.Aux)
-	case auxSym:
-		if v.Aux != nil {
-			s += fmt.Sprintf(" {%s}", v.Aux)
-		}
-	case auxSymOff:
-		if v.Aux != nil {
-			s += fmt.Sprintf(" {%s}", v.Aux)
-		}
-		s += fmt.Sprintf(" [%d]", v.AuxInt)
-	case auxSymValAndOff:
-		if v.Aux != nil {
-			s += fmt.Sprintf(" {%s}", v.Aux)
-		}
-		s += fmt.Sprintf(" [%s]", v.AuxValAndOff())
-	}
+	s += v.auxString()
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
@@ -140,6 +107,49 @@ func (v *Value) LongString() string {
 		s += " : " + r[v.ID].Name()
 	}
 	return s
+}
+
+func (v *Value) auxString() string {
+	switch opcodeTable[v.Op].auxType {
+	case auxBool:
+		if v.AuxInt == 0 {
+			return " [false]"
+		} else {
+			return " [true]"
+		}
+	case auxInt8:
+		return fmt.Sprintf(" [%d]", v.AuxInt8())
+	case auxInt16:
+		return fmt.Sprintf(" [%d]", v.AuxInt16())
+	case auxInt32:
+		return fmt.Sprintf(" [%d]", v.AuxInt32())
+	case auxInt64, auxInt128:
+		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxFloat32, auxFloat64:
+		return fmt.Sprintf(" [%g]", v.AuxFloat())
+	case auxString:
+		return fmt.Sprintf(" {%q}", v.Aux)
+	case auxSym:
+		if v.Aux != nil {
+			return fmt.Sprintf(" {%s}", v.Aux)
+		}
+	case auxSymOff, auxSymInt32:
+		s := ""
+		if v.Aux != nil {
+			s = fmt.Sprintf(" {%s}", v.Aux)
+		}
+		if v.AuxInt != 0 {
+			s += fmt.Sprintf(" [%v]", v.AuxInt)
+		}
+		return s
+	case auxSymValAndOff:
+		s := ""
+		if v.Aux != nil {
+			s = fmt.Sprintf(" {%s}", v.Aux)
+		}
+		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
+	}
+	return ""
 }
 
 func (v *Value) AddArg(w *Value) {
