@@ -9,6 +9,7 @@ package http
 
 import (
 	"net"
+	"sort"
 	"sync"
 	"time"
 )
@@ -86,6 +87,7 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	for key := range t.idleConn {
 		keys = append(keys, key.String())
 	}
+	sort.Strings(keys)
 	return
 }
 

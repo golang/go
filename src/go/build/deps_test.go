@@ -360,7 +360,7 @@ var pkgDeps = map[string][]string{
 	// HTTP, kingpin of dependencies.
 	"net/http": {
 		"L4", "NET", "OS",
-		"context", "compress/gzip", "crypto/tls",
+		"context", "compress/gzip", "container/list", "crypto/tls",
 		"mime/multipart", "runtime/debug",
 		"net/http/internal",
 		"golang.org/x/net/http2/hpack",

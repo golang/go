@@ -12,6 +12,7 @@ package http
 import (
 	"bufio"
 	"compress/gzip"
+	"container/list"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -38,6 +39,7 @@ var DefaultTransport RoundTripper = &Transport{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	},
+	MaxIdleConns:          100,
 	TLSHandshakeTimeout:   10 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 }
@@ -69,6 +71,7 @@ type Transport struct {
 	idleCount  int
 	idleConn   map[connectMethodKey][]*persistConn
 	idleConnCh map[connectMethodKey]chan *persistConn
+	idleLRU    connLRU
 
 	reqMu       sync.Mutex
 	reqCanceler map[*Request]func()
@@ -126,6 +129,10 @@ type Transport struct {
 	// explicitly requested gzip it is not automatically
 	// uncompressed.
 	DisableCompression bool
+
+	// MaxIdleConns controls the maximum number of idle (keep-alive)
+	// connections across all hosts. Zero means no limit.
+	MaxIdleConns int
 
 	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
 	// (keep-alive) connections to keep per-host. If zero,
@@ -455,6 +462,8 @@ func (t *Transport) CloseIdleConnections() {
 	t.idleConn = nil
 	t.idleConnCh = nil
 	t.wantIdle = true
+	t.idleCount = 0
+	t.idleLRU = connLRU{}
 	t.idleMu.Unlock()
 	for _, conns := range m {
 		for _, pconn := range conns {
@@ -555,6 +564,7 @@ var (
 	errConnBroken         = errors.New("http: putIdleConn: connection is in bad state")
 	errWantIdle           = errors.New("http: putIdleConn: CloseIdleConnections was called")
 	errTooManyIdle        = errors.New("http: putIdleConn: too many idle connections")
+	errTooManyIdleHost    = errors.New("http: putIdleConn: too many idle connections for host")
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errServerClosedIdle   = errors.New("http: server closed idle conn")
@@ -564,6 +574,13 @@ func (t *Transport) putOrCloseIdleConn(pconn *persistConn) {
 	if err := t.tryPutIdleConn(pconn); err != nil {
 		pconn.close(err)
 	}
+}
+
+func (t *Transport) maxIdleConnsPerHost() int {
+	if v := t.MaxIdleConnsPerHost; v != 0 {
+		return v
+	}
+	return DefaultMaxIdleConnsPerHost
 }
 
 // tryPutIdleConn adds pconn to the list of idle persistent connections awaiting
@@ -578,12 +595,8 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	if pconn.isBroken() {
 		return errConnBroken
 	}
-	key := pconn.cacheKey
-	max := t.MaxIdleConnsPerHost
-	if max == 0 {
-		max = DefaultMaxIdleConnsPerHost
-	}
 	pconn.markReused()
+	key := pconn.cacheKey
 
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
@@ -611,17 +624,22 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		t.idleConn = make(map[connectMethodKey][]*persistConn)
 	}
 	idles := t.idleConn[key]
-	if len(idles) >= max {
-		return errTooManyIdle
+	if len(idles) >= t.maxIdleConnsPerHost() {
+		return errTooManyIdleHost
 	}
 	for _, exist := range idles {
 		if exist == pconn {
 			log.Fatalf("dup idle pconn %p in freelist", pconn)
 		}
 	}
-
 	t.idleConn[key] = append(idles, pconn)
 	t.idleCount++
+	t.idleLRU.add(pconn)
+	if t.MaxIdleConns != 0 && t.idleLRU.len() > t.MaxIdleConns {
+		oldest := t.idleLRU.removeOldest()
+		oldest.close(errTooManyIdle)
+		t.removeIdleConnLocked(oldest)
+	}
 	pconn.idleAt = time.Now()
 	return nil
 }
@@ -661,12 +679,13 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
 			pconn = pconns[0]
 			delete(t.idleConn, key)
 		} else {
-			// 2 or more cached connections; pop last
-			// TODO: queue?
+			// 2 or more cached connections; use the most
+			// recently used one.
 			pconn = pconns[len(pconns)-1]
 			t.idleConn[key] = pconns[:len(pconns)-1]
 		}
 		t.idleCount--
+		t.idleLRU.remove(pconn)
 		if pconn.isBroken() {
 			// There is a tiny window where this is
 			// possible, between the connecting dying and
@@ -681,10 +700,15 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
 
 // removeIdleConn marks pconn as dead.
 func (t *Transport) removeIdleConn(pconn *persistConn) {
-	key := pconn.cacheKey
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
+	t.removeIdleConnLocked(pconn)
+}
 
+// t.idleMu must be held.
+func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+	t.idleLRU.remove(pconn)
+	key := pconn.cacheKey
 	pconns, _ := t.idleConn[key]
 	switch len(pconns) {
 	case 0:
@@ -695,7 +719,6 @@ func (t *Transport) removeIdleConn(pconn *persistConn) {
 			delete(t.idleConn, key)
 		}
 	default:
-		// TODO(bradfitz): map into LRU element?
 		for i, v := range pconns {
 			if v != pconn {
 				continue
@@ -1943,4 +1966,43 @@ func cloneTLSClientConfig(cfg *tls.Config) *tls.Config {
 		CurvePreferences:         cfg.CurvePreferences,
 		Renegotiation:            cfg.Renegotiation,
 	}
+}
+
+type connLRU struct {
+	ll *list.List // list.Element.Value type is of *persistConn
+	m  map[*persistConn]*list.Element
+}
+
+// addO adds pc to the head of the linked list.
+func (cl *connLRU) add(pc *persistConn) {
+	if cl.ll == nil {
+		cl.ll = list.New()
+		cl.m = make(map[*persistConn]*list.Element)
+	}
+	ele := cl.ll.PushFront(pc)
+	if _, ok := cl.m[pc]; ok {
+		panic("persistConn was already in LRU")
+	}
+	cl.m[pc] = ele
+}
+
+func (cl *connLRU) removeOldest() *persistConn {
+	ele := cl.ll.Back()
+	pc := ele.Value.(*persistConn)
+	cl.ll.Remove(ele)
+	delete(cl.m, pc)
+	return pc
+}
+
+// remove removes pc from cl.
+func (cl *connLRU) remove(pc *persistConn) {
+	if ele, ok := cl.m[pc]; ok {
+		cl.ll.Remove(ele)
+		delete(cl.m, pc)
+	}
+}
+
+// len returns the number of items in the cache.
+func (cl *connLRU) len() int {
+	return len(cl.m)
 }
