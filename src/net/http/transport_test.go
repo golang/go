@@ -383,8 +383,8 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	maxIdleConns := 2
-	tr := &Transport{DisableKeepAlives: false, MaxIdleConnsPerHost: maxIdleConns}
+	maxIdleConnsPerHost := 2
+	tr := &Transport{DisableKeepAlives: false, MaxIdleConnsPerHost: maxIdleConnsPerHost}
 	c := &Client{Transport: tr}
 
 	// Start 3 outstanding requests and wait for the server to get them.
@@ -429,14 +429,14 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 
 	resch <- "res2"
 	<-donech
-	if e, g := 2, tr.IdleConnCountForTesting(cacheKey); e != g {
-		t.Errorf("after second response, expected %d idle conns; got %d", e, g)
+	if g, w := tr.IdleConnCountForTesting(cacheKey), 2; g != w {
+		t.Errorf("after second response, idle conns = %d; want %d", g, w)
 	}
 
 	resch <- "res3"
 	<-donech
-	if e, g := maxIdleConns, tr.IdleConnCountForTesting(cacheKey); e != g {
-		t.Errorf("after third response, still expected %d idle conns; got %d", e, g)
+	if g, w := tr.IdleConnCountForTesting(cacheKey), maxIdleConnsPerHost; g != w {
+		t.Errorf("after third response, idle conns = %d; want %d", g, w)
 	}
 }
 
@@ -3229,10 +3229,6 @@ func TestTransportEventTrace(t *testing.T) {
 			t.Errorf("unexpected DNS host lookup for %q", host)
 			return nil, nil
 		}
-		if err != nil {
-			t.Error(err)
-			return nil, err
-		}
 		return []net.IPAddr{net.IPAddr{IP: net.ParseIP(ip)}}, nil
 	})
 
@@ -3288,6 +3284,61 @@ func TestTransportEventTrace(t *testing.T) {
 	wantSub("Got100Continue")
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
+	}
+}
+
+func TestTransportMaxIdleConns(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// No body for convenience.
+	}))
+	defer ts.Close()
+	tr := &Transport{
+		MaxIdleConns: 4,
+	}
+	defer tr.CloseIdleConnections()
+
+	ip, port, err := net.SplitHostPort(ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Client{Transport: tr}
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
+		return []net.IPAddr{net.IPAddr{IP: net.ParseIP(ip)}}, nil
+	})
+
+	hitHost := func(n int) {
+		req, _ := NewRequest("GET", fmt.Sprintf("http://host-%d.dns-is-faked.golang:"+port, n), nil)
+		req = req.WithContext(ctx)
+		res, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+	}
+	for i := 0; i < 4; i++ {
+		hitHost(i)
+	}
+	want := []string{
+		"|http|host-0.dns-is-faked.golang:" + port,
+		"|http|host-1.dns-is-faked.golang:" + port,
+		"|http|host-2.dns-is-faked.golang:" + port,
+		"|http|host-3.dns-is-faked.golang:" + port,
+	}
+	if got := tr.IdleConnKeysForTesting(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("idle conn keys mismatch.\n got: %q\nwant: %q\n", got, want)
+	}
+
+	// Now hitting the 5th host should kick out the first host:
+	hitHost(4)
+	want = []string{
+		"|http|host-1.dns-is-faked.golang:" + port,
+		"|http|host-2.dns-is-faked.golang:" + port,
+		"|http|host-3.dns-is-faked.golang:" + port,
+		"|http|host-4.dns-is-faked.golang:" + port,
+	}
+	if got := tr.IdleConnKeysForTesting(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("idle conn keys mismatch after 5th host.\n got: %q\nwant: %q\n", got, want)
 	}
 }
 
