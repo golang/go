@@ -588,7 +588,7 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
@@ -662,9 +662,9 @@ havem:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -(FIXED_FRAME+8)(R4)
-	MOVD	ctxt+24(FP), R1
-	MOVD	R1, -(FIXED_FRAME+16)(R4)
+	MOVD	R5, -(FIXED_FRAME+16)(R4)
+	MOVD	ctxt+24(FP), R3
+	MOVD	R3, -16(R4)
 	MOVD	$-(FIXED_FRAME+16)(R4), R1
 	BL	runtime·cgocallbackg(SB)
 
