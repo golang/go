@@ -249,6 +249,10 @@ func excise(r *gc.Flow) {
 }
 
 func regtyp(a *obj.Addr) bool {
+	if gc.Ctxt.Flag_shared && a.Type == obj.TYPE_REG && a.Reg == x86.REG_CX {
+		// don't propagate CX, it is used implicitly by PIC global references
+		return false
+	}
 	return a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_DI || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X7)
 }
 
