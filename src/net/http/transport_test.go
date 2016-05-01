@@ -3234,7 +3234,7 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 			t.Errorf("unexpected DNS host lookup for %q", host)
 			return nil, nil
 		}
-		return []net.IPAddr{net.IPAddr{IP: net.ParseIP(ip)}}, nil
+		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
 	req, _ := NewRequest("POST", "http://dns-is-faked.golang:"+port, strings.NewReader("some body"))
@@ -3321,7 +3321,7 @@ func TestTransportMaxIdleConns(t *testing.T) {
 	}
 	c := &Client{Transport: tr}
 	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, host string) ([]net.IPAddr, error) {
-		return []net.IPAddr{net.IPAddr{IP: net.ParseIP(ip)}}, nil
+		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
 	hitHost := func(n int) {
