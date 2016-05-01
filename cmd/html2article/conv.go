@@ -7,7 +7,6 @@
 package main // import "golang.org/x/tools/cmd/html2article"
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"flag"
@@ -39,7 +38,9 @@ func convert(w io.Writer, r io.Reader) error {
 	}
 
 	style := find(root, isTag(atom.Style))
-	parseStyles(style)
+	if err := parseStyles(style); err != nil {
+		log.Printf("couldn't parse all styles: %v", err)
+	}
 
 	body := find(root, isTag(atom.Body))
 	if body == nil {
@@ -60,59 +61,44 @@ const (
 
 var cssRules = make(map[string]Style)
 
-func parseStyles(style *html.Node) {
+func parseStyles(style *html.Node) error {
 	if style == nil || style.FirstChild == nil {
-		log.Println("couldn't find styles")
-		return
-	}
-	s := bufio.NewScanner(strings.NewReader(style.FirstChild.Data))
-
-	findRule := func(b []byte, atEOF bool) (advance int, token []byte, err error) {
-		if i := bytes.Index(b, []byte("{")); i >= 0 {
-			token = bytes.TrimSpace(b[:i])
-			advance = i
-		}
-		return
-	}
-	findBody := func(b []byte, atEOF bool) (advance int, token []byte, err error) {
-		if len(b) == 0 {
-			return
-		}
-		if b[0] != '{' {
-			err = fmt.Errorf("expected {, got %c", b[0])
-			return
-		}
-		if i := bytes.Index(b, []byte("}")); i < 0 {
-			err = fmt.Errorf("can't find closing }")
-			return
-		} else {
-			token = b[1:i]
-			advance = i + 1
-		}
-		return
+		return errors.New("couldn't find styles")
 	}
 
-	s.Split(findRule)
-	for s.Scan() {
-		rule := s.Text()
-		s.Split(findBody)
-		if !s.Scan() {
+	styles := style.FirstChild.Data
+	readUntil := func(end rune) (string, bool) {
+		i := strings.IndexRune(styles, end)
+		if i < 0 {
+			return "", false
+		}
+		s := styles[:i]
+		styles = styles[i:]
+		return s, true
+	}
+
+	for {
+		sel, ok := readUntil('{')
+		if !ok && sel == "" {
 			break
+		} else if !ok {
+			return fmt.Errorf("could not parse selector %q", styles)
 		}
-		b := strings.ToLower(s.Text())
+
+		value, ok := readUntil('}')
+		if !ok {
+			return fmt.Errorf("couldn't parse style body for %s", sel)
+		}
 		switch {
-		case strings.Contains(b, "italic"):
-			cssRules[rule] = Italic
-		case strings.Contains(b, "bold"):
-			cssRules[rule] = Bold
-		case strings.Contains(b, "Consolas") || strings.Contains(b, "Courier New"):
-			cssRules[rule] = Code
+		case strings.Contains(value, "italic"):
+			cssRules[sel] = Italic
+		case strings.Contains(value, "bold"):
+			cssRules[sel] = Bold
+		case strings.Contains(value, "Consolas") || strings.Contains(value, "Courier New"):
+			cssRules[sel] = Code
 		}
-		s.Split(findRule)
 	}
-	if err := s.Err(); err != nil {
-		log.Println(err)
-	}
+	return nil
 }
 
 var newlineRun = regexp.MustCompile(`\n\n+`)
