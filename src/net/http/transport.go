@@ -2009,7 +2009,7 @@ type connLRU struct {
 	m  map[*persistConn]*list.Element
 }
 
-// addO adds pc to the head of the linked list.
+// add adds pc to the head of the linked list.
 func (cl *connLRU) add(pc *persistConn) {
 	if cl.ll == nil {
 		cl.ll = list.New()
