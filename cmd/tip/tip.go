@@ -337,5 +337,9 @@ func (h httpsOnlyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		return
 	}
+	if r.Header.Get("X-Appengine-Https") == "on" {
+		// Only set this header when we're actually in production.
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; preload")
+	}
 	h.h.ServeHTTP(w, r)
 }
