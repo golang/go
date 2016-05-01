@@ -787,11 +787,11 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 	req := treq.Request
 	trace := treq.trace
 	ctx := req.Context()
-	if trace != nil {
+	if trace != nil && trace.GetConn != nil {
 		trace.GetConn(cm.addr())
 	}
 	if pc, idleSince := t.getIdleConn(cm); pc != nil {
-		if trace != nil {
+		if trace != nil && trace.GotConn != nil {
 			trace.GotConn(pc.gotIdleConnTrace(idleSince))
 		}
 		// set request canceler to some non-nil function so we
@@ -834,7 +834,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 	select {
 	case v := <-dialc:
 		// Our dial finished.
-		if trace != nil && v.pc != nil {
+		if trace != nil && trace.GotConn != nil && v.pc != nil {
 			trace.GotConn(httptrace.GotConnInfo{Conn: v.pc.conn})
 		}
 		return v.pc, v.err
