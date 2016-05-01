@@ -3359,6 +3359,60 @@ func TestTransportMaxIdleConns(t *testing.T) {
 	}
 }
 
+func TestTransportIdleConnTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		// No body for convenience.
+	}))
+	defer ts.Close()
+
+	const timeout = 1 * time.Second
+	tr := &Transport{
+		IdleConnTimeout: timeout,
+	}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	var conn string
+	doReq := func(n int) {
+		req, _ := NewRequest("GET", ts.URL, nil)
+		req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			PutIdleConn: func(err error) {
+				if err != nil {
+					t.Errorf("failed to keep idle conn: %v", err)
+				}
+			},
+		}))
+		res, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		conns := tr.IdleConnStrsForTesting()
+		if len(conns) != 1 {
+			t.Fatalf("req %v: unexpected number of idle conns: %q", n, conns)
+		}
+		if conn == "" {
+			conn = conns[0]
+		}
+		if conn != conns[0] {
+			t.Fatalf("req %v: cached connection changed; expected the same one throughout the test", n)
+		}
+	}
+	for i := 0; i < 3; i++ {
+		doReq(i)
+		time.Sleep(timeout / 2)
+	}
+	time.Sleep(timeout * 3 / 2)
+	if got := tr.IdleConnStrsForTesting(); len(got) != 0 {
+		t.Errorf("idle conns = %q; want none", got)
+	}
+}
+
 var errFakeRoundTrip = errors.New("fake roundtrip")
 
 type funcRoundTripper func()

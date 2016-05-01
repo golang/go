@@ -81,9 +81,6 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	keys = make([]string, 0)
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	if t.idleConn == nil {
-		return
-	}
 	for key := range t.idleConn {
 		keys = append(keys, key.String())
 	}
@@ -91,12 +88,22 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	return
 }
 
+func (t *Transport) IdleConnStrsForTesting() []string {
+	var ret []string
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	for _, conns := range t.idleConn {
+		for _, pc := range conns {
+			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
+		}
+	}
+	sort.Strings(ret)
+	return ret
+}
+
 func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	if t.idleConn == nil {
-		return 0
-	}
 	for k, conns := range t.idleConn {
 		if k.String() == cacheKey {
 			return len(conns)
