@@ -2065,7 +2065,7 @@ func (s *regAllocState) computeLive() {
 
 			// Propagate backwards to the start of the block
 			// Assumes Values have been scheduled.
-			phis := phis[:0]
+			phis = phis[:0]
 			for i := len(b.Values) - 1; i >= 0; i-- {
 				v := b.Values[i]
 				live.remove(v.ID)
