@@ -3193,7 +3193,12 @@ func TestTransportResponseHeaderLength(t *testing.T) {
 	}
 }
 
-func TestTransportEventTrace(t *testing.T) {
+func TestTransportEventTrace(t *testing.T) { testTransportEventTrace(t, false) }
+
+// test a non-nil httptrace.ClientTrace but with all hooks set to zero.
+func TestTransportEventTrace_NoHooks(t *testing.T) { testTransportEventTrace(t, true) }
+
+func testTransportEventTrace(t *testing.T, noHooks bool) {
 	defer afterTest(t)
 	const resBody = "some body"
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -3233,7 +3238,7 @@ func TestTransportEventTrace(t *testing.T) {
 	})
 
 	req, _ := NewRequest("POST", "http://dns-is-faked.golang:"+port, strings.NewReader("some body"))
-	req = req.WithContext(httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+	trace := &httptrace.ClientTrace{
 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
 		GotFirstResponseByte: func() { logf("first response byte") },
@@ -3250,7 +3255,12 @@ func TestTransportEventTrace(t *testing.T) {
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
 		WroteRequest:    func(e httptrace.WroteRequestInfo) { logf("WroteRequest: %+v", e) },
-	}))
+	}
+	if noHooks {
+		// zero out all func pointers, trying to get some path to crash
+		*trace = httptrace.ClientTrace{}
+	}
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 
 	req.Header.Set("Expect", "100-continue")
 	res, err := c.Do(req)
@@ -3265,6 +3275,13 @@ func TestTransportEventTrace(t *testing.T) {
 		t.Fatalf("Got %q, %v; want %q, 200 OK", slurp, res.Status, resBody)
 	}
 	res.Body.Close()
+
+	if noHooks {
+		// Done at this point. Just testing a full HTTP
+		// requests can happen with a trace pointing to a zero
+		// ClientTrace, full of nil func pointers.
+		return
+	}
 
 	got := buf.String()
 	wantSub := func(sub string) {
