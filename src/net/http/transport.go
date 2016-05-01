@@ -40,6 +40,7 @@ var DefaultTransport RoundTripper = &Transport{
 		KeepAlive: 30 * time.Second,
 	},
 	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
 	ExpectContinueTimeout: 1 * time.Second,
 }
@@ -68,7 +69,6 @@ const DefaultMaxIdleConnsPerHost = 2
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool // user has requested to close all idle conns
-	idleCount  int
 	idleConn   map[connectMethodKey][]*persistConn
 	idleConnCh map[connectMethodKey]chan *persistConn
 	idleLRU    connLRU
@@ -138,6 +138,12 @@ type Transport struct {
 	// (keep-alive) connections to keep per-host. If zero,
 	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost int
+
+	// IdleConnTimeout is the maximum amount of time an idle
+	// (keep-alive) connection will remain idle before closing
+	// itself.
+	// Zero means no limit.
+	IdleConnTimeout time.Duration
 
 	// ResponseHeaderTimeout, if non-zero, specifies the amount of
 	// time to wait for a server's response headers after fully
@@ -462,7 +468,6 @@ func (t *Transport) CloseIdleConnections() {
 	t.idleConn = nil
 	t.idleConnCh = nil
 	t.wantIdle = true
-	t.idleCount = 0
 	t.idleLRU = connLRU{}
 	t.idleMu.Unlock()
 	for _, conns := range m {
@@ -568,6 +573,7 @@ var (
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errServerClosedIdle   = errors.New("http: server closed idle conn")
+	errIdleConnTimeout    = errors.New("http: idle connection timeout")
 )
 
 func (t *Transport) putOrCloseIdleConn(pconn *persistConn) {
@@ -633,12 +639,18 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		}
 	}
 	t.idleConn[key] = append(idles, pconn)
-	t.idleCount++
 	t.idleLRU.add(pconn)
 	if t.MaxIdleConns != 0 && t.idleLRU.len() > t.MaxIdleConns {
 		oldest := t.idleLRU.removeOldest()
 		oldest.close(errTooManyIdle)
 		t.removeIdleConnLocked(oldest)
+	}
+	if t.IdleConnTimeout > 0 {
+		if pconn.idleTimer != nil {
+			pconn.idleTimer.Reset(t.IdleConnTimeout)
+		} else {
+			pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
+		}
 	}
 	pconn.idleAt = time.Now()
 	return nil
@@ -684,7 +696,6 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
 			pconn = pconns[len(pconns)-1]
 			t.idleConn[key] = pconns[:len(pconns)-1]
 		}
-		t.idleCount--
 		t.idleLRU.remove(pconn)
 		if pconn.isBroken() {
 			// There is a tiny window where this is
@@ -692,6 +703,12 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
 			// the persistConn readLoop calling
 			// Transport.removeIdleConn. Just skip it and
 			// carry on.
+			continue
+		}
+		if pconn.idleTimer != nil && !pconn.idleTimer.Stop() {
+			// We picked this conn at the ~same time it
+			// was expiring and it's trying to close
+			// itself in another goroutine. Don't use it.
 			continue
 		}
 		return pconn, pconn.idleAt
@@ -707,6 +724,9 @@ func (t *Transport) removeIdleConn(pconn *persistConn) {
 
 // t.idleMu must be held.
 func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+	if pconn.idleTimer != nil {
+		pconn.idleTimer.Stop()
+	}
 	t.idleLRU.remove(pconn)
 	key := pconn.cacheKey
 	pconns, _ := t.idleConn[key]
@@ -715,7 +735,6 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 		// Nothing
 	case 1:
 		if pconns[0] == pconn {
-			t.idleCount--
 			delete(t.idleConn, key)
 		}
 	default:
@@ -725,7 +744,6 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 			}
 			pconns[i] = pconns[len(pconns)-1]
 			t.idleConn[key] = pconns[:len(pconns)-1]
-			t.idleCount--
 			break
 		}
 	}
@@ -845,7 +863,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 		// But our dial is still going, so give it away
 		// when it finishes:
 		handlePendingDial()
-		if trace != nil {
+		if trace != nil && trace.GotConn != nil {
 			trace.GotConn(httptrace.GotConnInfo{Conn: pc.conn, Reused: pc.isReused()})
 		}
 		return pc, nil
@@ -1136,7 +1154,9 @@ type persistConn struct {
 	// whether or not a connection can be reused. Issue 7569.
 	writeErrCh chan error
 
-	idleAt time.Time // time it last become idle; guarded by Transport.idleMu
+	// Both guarded by Transport.idleMu:
+	idleAt    time.Time   // time it last become idle
+	idleTimer *time.Timer // holding an AfterFunc to close it
 
 	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
@@ -1210,6 +1230,21 @@ func (pc *persistConn) cancelRequest() {
 	defer pc.mu.Unlock()
 	pc.canceled = true
 	pc.closeLocked(errRequestCanceled)
+}
+
+// closeConnIfStillIdle closes the connection if it's still sitting idle.
+// This is what's called by the persistConn's idleTimer, and is run in its
+// own goroutine.
+func (pc *persistConn) closeConnIfStillIdle() {
+	t := pc.t
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	if _, ok := t.idleLRU.m[pc]; !ok {
+		// Not idle.
+		return
+	}
+	t.removeIdleConnLocked(pc)
+	pc.close(errIdleConnTimeout)
 }
 
 func (pc *persistConn) readLoop() {
