@@ -850,15 +850,12 @@ func (s *mspan) countFree() int {
 // because all free objects are marked as noscan during
 // heapBitsSweepSpan.
 // There can only be one allocation from a given span active at a time,
-// so this code is not racing with other instances of itself,
-// and we don't allocate from a span until it has been swept,
-// so this code is not racing with heapBitsSweepSpan.
-// It is, however, racing with the concurrent GC mark phase,
-// which can be setting the mark bit in the leading 2-bit entry
-// of an allocated block. The block we are modifying is not quite
-// allocated yet, so the GC marker is not racing with updates to x's bits,
-// but if the start or end of x shares a bitmap byte with an adjacent
-// object, the GC marker is racing with updates to those object's mark bits.
+// so this code is not racing with other instances of itself, and
+// the bitmap for a span always falls on byte boundaries.
+// Hence, it can access the bitmap with racing.
+//
+// TODO: This still has atomic accesses left over from when it could
+// race with GC accessing mark bits in the bitmap. Remove these.
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	const doubleCheck = false // slow but helpful; enable to test modifications to this code
 
@@ -1122,8 +1119,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	}
 
 	// Phase 1: Special case for leading byte (shift==0) or half-byte (shift==4).
-	// The leading byte is special because it contains the bits for words 0 and 1,
-	// which do not have the marked bits set.
+	// The leading byte is special because it contains the bits for word 1,
+	// which does not have the marked bits set.
 	// The leading half-byte is special because it's a half a byte and must be
 	// manipulated atomically.
 	switch {
