@@ -29,12 +29,26 @@ import (
 	"time"
 )
 
-// Errors introduced by the HTTP server.
+// Errors used by the HTTP server.
 var (
-	ErrWriteAfterFlush = errors.New("Conn.Write called after Flush")
-	ErrBodyNotAllowed  = errors.New("http: request method or response status code does not allow body")
-	ErrHijacked        = errors.New("Conn has been hijacked")
-	ErrContentLength   = errors.New("Conn.Write wrote more than the declared Content-Length")
+	// ErrBodyNotAllowed is returned by ResponseWriter.Write calls
+	// when the HTTP method or response code does not permit a
+	// body.
+	ErrBodyNotAllowed = errors.New("http: request method or response status code does not allow body")
+
+	// ErrHijacked is returned by ResponseWriter.Write calls when
+	// the underlying connection has been hijacked using the
+	// Hijacker interfaced.
+	ErrHijacked = errors.New("http: connection has been hijacked")
+
+	// ErrContentLength is returned by ResponseWriter.Write calls
+	// when a Handler set a Content-Length response header with a
+	// declared size and then attempted to write more bytes than
+	// declared.
+	ErrContentLength = errors.New("http: wrote more than the declared Content-Length")
+
+	// Deprecated: ErrWriteAfterFlush is no longer used.
+	ErrWriteAfterFlush = errors.New("unused")
 )
 
 // A Handler responds to an HTTP request.
