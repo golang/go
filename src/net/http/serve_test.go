@@ -4062,7 +4062,12 @@ func TestServerContext_ServerContextKey(t *testing.T) {
 		ctx := r.Context()
 		got := ctx.Value(ServerContextKey)
 		if _, ok := got.(*Server); !ok {
-			t.Errorf("context value = %T; want *http.Server")
+			t.Errorf("context value = %T; want *http.Server", got)
+		}
+
+		got = ctx.Value(LocalAddrContextKey)
+		if _, ok := got.(net.Addr); !ok {
+			t.Errorf("local addr value = %T; want net.Addr", got)
 		}
 	}))
 	defer ts.Close()
