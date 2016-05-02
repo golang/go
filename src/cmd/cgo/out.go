@@ -568,7 +568,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	fmt.Fprintf(fgcc, "_cgo%s%s(void *v)\n", cPrefix, n.Mangle)
 	fmt.Fprintf(fgcc, "{\n")
 	if n.AddError {
-		fmt.Fprintf(fgcc, "\terrno = 0;\n")
+		fmt.Fprintf(fgcc, "\tint _cgo_errno;\n")
 	}
 	// We're trying to write a gcc struct that matches gc's layout.
 	// Use packed attribute to force no padding in this struct in case
@@ -578,11 +578,18 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		// Save the stack top for use below.
 		fmt.Fprintf(fgcc, "\tchar *stktop = _cgo_topofstack();\n")
 	}
+	tr := n.FuncType.Result
+	if tr != nil {
+		fmt.Fprintf(fgcc, "\t__typeof__(a->r) r;\n")
+	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
+	if n.AddError {
+		fmt.Fprintf(fgcc, "\terrno = 0;\n")
+	}
 	fmt.Fprintf(fgcc, "\t")
-	if t := n.FuncType.Result; t != nil {
-		fmt.Fprintf(fgcc, "__typeof__(a->r) r = ")
-		if c := t.C.String(); c[len(c)-1] == '*' {
+	if tr != nil {
+		fmt.Fprintf(fgcc, "r = ")
+		if c := tr.C.String(); c[len(c)-1] == '*' {
 			fmt.Fprint(fgcc, "(__typeof__(a->r)) ")
 		}
 	}
@@ -604,6 +611,9 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "a->p%d", i)
 	}
 	fmt.Fprintf(fgcc, ");\n")
+	if n.AddError {
+		fmt.Fprintf(fgcc, "\t_cgo_errno = errno;\n")
+	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 	if n.FuncType.Result != nil {
 		// The cgo call may have caused a stack copy (via a callback).
@@ -613,7 +623,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		fmt.Fprintf(fgcc, "\ta->r = r;\n")
 	}
 	if n.AddError {
-		fmt.Fprintf(fgcc, "\treturn errno;\n")
+		fmt.Fprintf(fgcc, "\treturn _cgo_errno;\n")
 	}
 	fmt.Fprintf(fgcc, "}\n")
 	fmt.Fprintf(fgcc, "\n")
