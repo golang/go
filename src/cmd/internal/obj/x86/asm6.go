@@ -3691,7 +3691,11 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.AsmBuf.Put2(byte(op), o.op[z+1])
 				r = obj.Addrel(ctxt.Cursym)
 				r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
-				r.Type = obj.R_ADDR
+				if p.Mode == 64 {
+					r.Type = obj.R_PCREL
+				} else {
+					r.Type = obj.R_ADDR
+				}
 				r.Siz = 4
 				r.Add = p.To.Offset
 				r.Sym = p.To.Sym
