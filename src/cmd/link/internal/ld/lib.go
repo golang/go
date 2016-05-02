@@ -1091,6 +1091,9 @@ func hostlink() {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
 	case BuildmodePIE:
+		if UseRelro() {
+			argv = append(argv, "-Wl,-z,relro")
+		}
 		argv = append(argv, "-pie")
 	case BuildmodeCShared:
 		if HEADTYPE == obj.Hdarwin {
