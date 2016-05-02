@@ -1303,14 +1303,12 @@ extern char* _cgo_topofstack(void);
 `
 
 // Prologue defining TSAN functions in C.
-const tsanProlog = `
+const noTsanProlog = `
 #define _cgo_tsan_acquire()
 #define _cgo_tsan_release()
-#if defined(__has_feature)
-#if __has_feature(thread_sanitizer)
-#undef _cgo_tsan_acquire
-#undef _cgo_tsan_release
+`
 
+const yesTsanProlog = `
 long long _cgo_sync __attribute__ ((common));
 
 extern void __tsan_acquire(void*);
@@ -1323,9 +1321,10 @@ static void _cgo_tsan_acquire() {
 static void _cgo_tsan_release() {
 	__tsan_release(&_cgo_sync);
 }
-#endif
-#endif
 `
+
+// Set to yesTsanProlog if we see -fsanitize=thread in the flags for gcc.
+var tsanProlog = noTsanProlog
 
 const builtinProlog = `
 #include <stddef.h> /* for ptrdiff_t and size_t below */
