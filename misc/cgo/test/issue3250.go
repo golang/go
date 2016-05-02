@@ -13,9 +13,9 @@ package cgotest
 #include <stdlib.h>
 
 static void *thread(void *p) {
-	(void)p;
 	const int M = 100;
 	int i;
+	(void)p;
 	for (i = 0; i < M; i++) {
 		pthread_kill(pthread_self(), SIGCHLD);
 		usleep(rand() % 20 + 5);
