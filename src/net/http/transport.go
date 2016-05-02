@@ -68,8 +68,8 @@ const DefaultMaxIdleConnsPerHost = 2
 // See the package docs for more about HTTP/2.
 type Transport struct {
 	idleMu     sync.Mutex
-	wantIdle   bool // user has requested to close all idle conns
-	idleConn   map[connectMethodKey][]*persistConn
+	wantIdle   bool                                // user has requested to close all idle conns
+	idleConn   map[connectMethodKey][]*persistConn // most recently used at end
 	idleConnCh map[connectMethodKey]chan *persistConn
 	idleLRU    connLRU
 
@@ -690,7 +690,7 @@ func (t *Transport) getIdleConn(cm connectMethod) (pconn *persistConn, idleSince
 			delete(t.idleConn, key)
 		} else {
 			// 2 or more cached connections; use the most
-			// recently used one.
+			// recently used one at the end.
 			pconn = pconns[len(pconns)-1]
 			t.idleConn[key] = pconns[:len(pconns)-1]
 		}
@@ -740,7 +740,9 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 			if v != pconn {
 				continue
 			}
-			pconns[i] = pconns[len(pconns)-1]
+			// Slide down, keeping most recently-used
+			// conns at the end.
+			copy(pconns[i:], pconns[i+1:])
 			t.idleConn[key] = pconns[:len(pconns)-1]
 			break
 		}
