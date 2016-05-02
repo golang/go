@@ -57,7 +57,16 @@ func phiopt(f *Func) {
 		}
 
 		for _, v := range b.Values {
-			if v.Op != OpPhi || !v.Type.IsBoolean() {
+			if v.Op != OpPhi {
+				continue
+			}
+
+			// Look for conversions from bool to 0/1.
+			if v.Type.IsInteger() {
+				phioptint(v, b0, reverse)
+			}
+
+			if !v.Type.IsBoolean() {
 				continue
 			}
 
@@ -110,5 +119,55 @@ func phiopt(f *Func) {
 			}
 		}
 	}
+}
 
+func phioptint(v *Value, b0 *Block, reverse int) {
+	a0 := v.Args[0]
+	a1 := v.Args[1]
+	if a0.Op != a1.Op {
+		return
+	}
+
+	switch a0.Op {
+	case OpConst8, OpConst16, OpConst32, OpConst64:
+	default:
+		return
+	}
+
+	negate := false
+	switch {
+	case a0.AuxInt == 0 && a1.AuxInt == 1:
+		negate = true
+	case a0.AuxInt == 1 && a1.AuxInt == 0:
+	default:
+		return
+	}
+
+	if reverse == 1 {
+		negate = !negate
+	}
+
+	switch v.Type.Size() {
+	case 1:
+		v.reset(OpCopy)
+	case 2:
+		v.reset(OpZeroExt8to16)
+	case 4:
+		v.reset(OpZeroExt8to32)
+	case 8:
+		v.reset(OpZeroExt8to64)
+	default:
+		v.Fatalf("bad int size %d", v.Type.Size())
+	}
+
+	a := b0.Control
+	if negate {
+		a = v.Block.NewValue1(v.Line, OpNot, a.Type, a)
+	}
+	v.AddArg(a)
+
+	f := b0.Func
+	if f.pass.debug > 0 {
+		f.Config.Warnl(v.Block.Line, "converted OpPhi bool -> int%d", v.Type.Size()*8)
+	}
 }
