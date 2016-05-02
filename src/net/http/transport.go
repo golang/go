@@ -181,8 +181,6 @@ type Transport struct {
 	nextProtoOnce sync.Once
 	h2transport   *http2Transport // non-nil if http2 wired up
 
-	// TODO: MaxIdleConns tunable for global max cached connections (Issue 15461)
-	// TODO: tunable on timeout on cached connections (and advertise with Keep-Alive header?)
 	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
 }
 
