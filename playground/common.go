@@ -15,7 +15,7 @@ import (
 	"net/http"
 )
 
-const baseURL = "https://golang.org/compile?output=json"
+const baseURL = "https://golang.org"
 
 func init() {
 	http.HandleFunc("/compile", bounce)
