@@ -22,7 +22,9 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"html/template"
 	"internal/trace"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -76,19 +78,35 @@ func main() {
 	if err != nil {
 		dief("failed to create server socket: %v\n", err)
 	}
-	// Open browser.
+
+	log.Printf("Parsing trace...")
+	events, err := parseEvents()
+	if err != nil {
+		dief("%v\n", err)
+	}
+
+	log.Printf("Serializing trace...")
+	params := &traceParams{
+		events:  events,
+		endTime: int64(1<<63 - 1),
+	}
+	data := generateTrace(params)
+
+	log.Printf("Splitting trace...")
+	ranges = splitTrace(data)
+
+	log.Printf("Opening browser")
 	if !startBrowser("http://" + ln.Addr().String()) {
 		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
 	}
-
-	// Parse and symbolize trace asynchronously while browser opens.
-	go parseEvents()
 
 	// Start http server.
 	http.HandleFunc("/", httpMain)
 	err = http.Serve(ln, nil)
 	dief("failed to start http server: %v\n", err)
 }
+
+var ranges []Range
 
 var loader struct {
 	once   sync.Once
@@ -118,13 +136,23 @@ func parseEvents() ([]*trace.Event, error) {
 
 // httpMain serves the starting page.
 func httpMain(w http.ResponseWriter, r *http.Request) {
-	w.Write(templMain)
+	if err := templMain.Execute(w, ranges); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
-var templMain = []byte(`
+var templMain = template.Must(template.New("").Parse(`
 <html>
 <body>
-<a href="/trace">View trace</a><br>
+{{if $}}
+	{{range $e := $}}
+		<a href="/trace?start={{$e.Start}}&end={{$e.End}}">View trace ({{$e.Name}})</a><br>
+	{{end}}
+	<br>
+{{else}}
+	<a href="/trace">View trace</a><br>
+{{end}}
 <a href="/goroutines">Goroutine analysis</a><br>
 <a href="/io">Network blocking profile</a><br>
 <a href="/block">Synchronization blocking profile</a><br>
@@ -132,7 +160,7 @@ var templMain = []byte(`
 <a href="/sched">Scheduler latency profile</a><br>
 </body>
 </html>
-`)
+`))
 
 // startBrowser tries to open the URL in a browser
 // and reports whether it succeeds.
