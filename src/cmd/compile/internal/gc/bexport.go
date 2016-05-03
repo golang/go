@@ -844,29 +844,33 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	}
 	p.typ(t)
 	if n > 0 {
-		if name := parName(q, numbered); name != "" {
-			p.string(name)
+		name := parName(q, numbered)
+		if name == "" {
+			// Sometimes we see an empty name even for n > 0.
+			// This appears to happen for interface methods
+			// with _ (blank) parameter names. Make sure we
+			// have a proper name and package so we don't crash
+			// during import (see also issue #15470).
+			// (parName uses "" instead of "?" as in fmt.go)
+			// TODO(gri) review parameter name encoding
+			name = "_"
+		}
+		p.string(name)
+		if name != "_" {
 			// Because of (re-)exported inlined functions
 			// the importpkg may not be the package to which this
 			// function (and thus its parameter) belongs. We need to
 			// supply the parameter package here. We need the package
 			// when the function is inlined so we can properly resolve
-			// the name.
+			// the name. The _ (blank) parameter cannot be accessed, so
+			// we don't need to export a package.
+			//
 			// TODO(gri) This is compiler-specific. Try using importpkg
 			// here and then update the symbols if we find an inlined
 			// body only. Otherwise, the parameter name is ignored and
 			// the package doesn't matter. This would remove an int
 			// (likely 1 byte) for each named parameter.
 			p.pkg(q.Sym.Pkg)
-		} else {
-			// Sometimes we see an empty name even for n > 0.
-			// This appears to happen for interface methods
-			// with _ (blank) parameter names. Make sure we
-			// have a proper name and package so we don't crash
-			// during import (see also issue #15470).
-			// TODO(gri) review parameter encoding
-			p.string("_")
-			p.pkg(localpkg)
 		}
 	}
 	// TODO(gri) This is compiler-specific (escape info).
@@ -890,7 +894,7 @@ func parName(f *Field, numbered bool) string {
 				if s.Name[1] == 'r' { // originally an unnamed result
 					return "" // s = nil
 				} else if s.Name[1] == 'b' { // originally the blank identifier _
-					return "_"
+					return "_" // belongs to localpkg
 				}
 			}
 		} else {
@@ -1463,6 +1467,8 @@ func (p *exporter) fieldSym(s *Sym, short bool) {
 		}
 	}
 
+	// we should never see a _ (blank) here - these are accessible ("read") fields
+	// TODO(gri) can we assert this with an explicit check?
 	p.string(name)
 	if !exportname(name) {
 		p.pkg(s.Pkg)

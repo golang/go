@@ -506,10 +506,12 @@ func (p *importer) param(named bool) (*types.Var, bool) {
 		if name == "" {
 			panic("expected named parameter")
 		}
+		if name != "_" {
+			pkg = p.pkg()
+		}
 		if i := strings.Index(name, "·"); i > 0 {
 			name = name[:i] // cut off gc-specific parameter numbering
 		}
-		pkg = p.pkg()
 	}
 
 	// read and discard compiler-specific info

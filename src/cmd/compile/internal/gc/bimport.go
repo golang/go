@@ -201,12 +201,12 @@ func (p *importer) pkg() *Pkg {
 
 	// we should never see an empty package name
 	if name == "" {
-		Fatalf("importer: empty package name in import")
+		Fatalf("importer: empty package name for path %q", path)
 	}
 
 	// we should never see a bad import path
 	if isbadimport(path) {
-		Fatalf("importer: bad path in import: %q", path)
+		Fatalf("importer: bad package path %q for package %s", path, name)
 	}
 
 	// an empty path denotes the package we are currently importing;
@@ -222,7 +222,7 @@ func (p *importer) pkg() *Pkg {
 	if pkg.Name == "" {
 		pkg.Name = name
 	} else if pkg.Name != name {
-		Fatalf("importer: conflicting names %s and %s for package %q", pkg.Name, name, path)
+		Fatalf("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
 	}
 	p.pkgList = append(p.pkgList, pkg)
 
@@ -518,7 +518,7 @@ func (p *importer) fieldName() *Sym {
 		// During imports, unqualified non-exported identifiers are from builtinpkg
 		// (see parser.go:sym). The binary exporter only exports blank as a non-exported
 		// identifier without qualification.
-		pkg = localpkg
+		pkg = builtinpkg
 	} else if name == "?" || name != "" && !exportname(name) {
 		if name == "?" {
 			name = ""
@@ -569,7 +569,10 @@ func (p *importer) param(named bool) *Node {
 		}
 		// TODO(gri) Supply function/method package rather than
 		// encoding the package for each parameter repeatedly.
-		pkg := p.pkg()
+		pkg := localpkg
+		if name != "_" {
+			pkg = p.pkg()
+		}
 		n.Left = newname(pkg.Lookup(name))
 	}
 
