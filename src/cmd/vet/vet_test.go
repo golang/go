@@ -34,6 +34,9 @@ func MustHavePerl(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("skipping test: perl not available on %s", runtime.GOOS)
 	}
+	if _, err := exec.LookPath("perl"); err != nil {
+		t.Skipf("skipping test: perl not found in path")
+	}
 }
 
 var (
@@ -42,11 +45,11 @@ var (
 )
 
 func Build(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	MustHavePerl(t)
 	if built {
 		return
 	}
-	testenv.MustHaveGoBuild(t)
-	MustHavePerl(t)
 	if failed {
 		t.Skip("cannot run on this environment")
 	}
