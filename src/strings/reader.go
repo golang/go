@@ -35,9 +35,6 @@ func (r *Reader) Len() int {
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
 func (r *Reader) Read(b []byte) (n int, err error) {
-	if len(b) == 0 {
-		return 0, nil
-	}
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
 	}
