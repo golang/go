@@ -490,8 +490,11 @@ func (p *exporter) paramList(params *types.Tuple, variadic bool) {
 		}
 		p.typ(t)
 		if n > 0 {
-			p.string(q.Name())
-			p.pkg(q.Pkg(), false)
+			name := q.Name()
+			p.string(name)
+			if name != "_" {
+				p.pkg(q.Pkg(), false)
+			}
 		}
 		p.string("") // no compiler-specific info
 	}
