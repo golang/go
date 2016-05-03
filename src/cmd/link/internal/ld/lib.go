@@ -1522,9 +1522,10 @@ func ldshlibsyms(shlib string) {
 		}
 		lsym := Linklookup(Ctxt, elfsym.Name, 0)
 		// Because loadlib above loads all .a files before loading any shared
-		// libraries, any symbols we find that duplicate symbols already
-		// loaded should be ignored (the symbols from the .a files "win").
-		if lsym.Type != 0 {
+		// libraries, any non-dynimport symbols we find that duplicate symbols
+		// already loaded should be ignored (the symbols from the .a files
+		// "win").
+		if lsym.Type != 0 && lsym.Type != obj.SDYNIMPORT {
 			continue
 		}
 		lsym.Type = obj.SDYNIMPORT

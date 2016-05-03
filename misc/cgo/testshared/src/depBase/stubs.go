@@ -1,5 +1,5 @@
 //+build !gccgo
 
-package dep
+package depBase
 
 func ImplementedInAsm()

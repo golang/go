@@ -1,11 +1,15 @@
 package dep2
 
-import "dep"
+import "depBase"
 
 var W int = 1
 
-var hasProg dep.HasProg
+var hasProg depBase.HasProg
+
+type Dep2 struct {
+	depBase.Dep
+}
 
 func G() int {
-	return dep.F() + 1
+	return depBase.F() + 1
 }
