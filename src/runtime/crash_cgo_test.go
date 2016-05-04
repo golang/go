@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -250,6 +251,7 @@ func TestCgoPprof(t *testing.T) {
 		t.Fatal(err)
 	}
 	fn := strings.TrimSpace(string(got))
+	defer os.Remove(fn)
 
 	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
 	if err != nil {
