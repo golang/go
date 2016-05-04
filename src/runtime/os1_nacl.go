@@ -56,6 +56,13 @@ func osinit() {
 	//nacl_exception_handler(funcPC(sigtramp), nil);
 }
 
+func signame(sig uint32) string {
+	if sig >= uint32(len(sigtable)) {
+		return ""
+	}
+	return sigtable[sig].name
+}
+
 func crash() {
 	*(*int32)(nil) = 0
 }
