@@ -92,13 +92,24 @@ func caninl(fn *Node) {
 		Fatalf("caninl no nname %v", Nconv(fn, FmtSign))
 	}
 
+	var reason string // reason, if any, that the function was not inlined
+	if Debug['m'] > 1 {
+		defer func() {
+			if reason != "" {
+				fmt.Printf("%v: cannot inline %v: %s\n", fn.Line(), fn.Func.Nname, reason)
+			}
+		}()
+	}
+
 	// If marked "go:noinline", don't inline
 	if fn.Func.Pragma&Noinline != 0 {
+		reason = "marked go:noinline"
 		return
 	}
 
 	// If fn has no body (is defined outside of Go), cannot inline it.
 	if fn.Nbody.Len() == 0 {
+		reason = "no function body"
 		return
 	}
 
@@ -111,6 +122,7 @@ func caninl(fn *Node) {
 		f := fn.Type.Params().Fields()
 		if len := f.Len(); len > 0 {
 			if t := f.Index(len - 1); t.Isddd {
+				reason = "has ... args"
 				return
 			}
 		}
@@ -123,12 +135,17 @@ func caninl(fn *Node) {
 	// The example that we observed is inlining of LockOSThread,
 	// which lead to false race reports on m contents.
 	if instrumenting && myimportpath == "runtime" {
+		reason = "instrumenting and is runtime function"
 		return
 	}
 
 	const maxBudget = 80
 	budget := int32(maxBudget) // allowed hairyness
-	if ishairylist(fn.Nbody, &budget) || budget < 0 {
+	if ishairylist(fn.Nbody, &budget, &reason) {
+		return
+	}
+	if budget < 0 {
+		reason = "function too complex"
 		return
 	}
 
@@ -157,16 +174,16 @@ func caninl(fn *Node) {
 }
 
 // Look for anything we want to punt on.
-func ishairylist(ll Nodes, budget *int32) bool {
+func ishairylist(ll Nodes, budget *int32, reason *string) bool {
 	for _, n := range ll.Slice() {
-		if ishairy(n, budget) {
+		if ishairy(n, budget, reason) {
 			return true
 		}
 	}
 	return false
 }
 
-func ishairy(n *Node, budget *int32) bool {
+func ishairy(n *Node, budget *int32, reason *string) bool {
 	if n == nil {
 		return false
 	}
@@ -186,6 +203,7 @@ func ishairy(n *Node, budget *int32) bool {
 			}
 		}
 		if Debug['l'] < 4 {
+			*reason = "non-leaf function"
 			return true
 		}
 
@@ -203,12 +221,14 @@ func ishairy(n *Node, budget *int32) bool {
 			break
 		}
 		if Debug['l'] < 4 {
+			*reason = "non-leaf method"
 			return true
 		}
 
 	// Things that are too hairy, irrespective of the budget
 	case OCALL, OCALLINTER, OPANIC, ORECOVER:
 		if Debug['l'] < 4 {
+			*reason = "non-leaf op " + n.Op.String()
 			return true
 		}
 
@@ -223,12 +243,15 @@ func ishairy(n *Node, budget *int32) bool {
 		ODCLTYPE, // can't print yet
 		OBREAK,
 		ORETJMP:
+		*reason = "unhandled op " + n.Op.String()
 		return true
 	}
 
 	(*budget)--
 
-	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairylist(n.Nbody, budget)
+	return *budget < 0 || ishairy(n.Left, budget, reason) || ishairy(n.Right, budget, reason) ||
+		ishairylist(n.List, budget, reason) || ishairylist(n.Rlist, budget, reason) ||
+		ishairylist(n.Ninit, budget, reason) || ishairylist(n.Nbody, budget, reason)
 }
 
 // Inlcopy and inlcopylist recursively copy the body of a function.
