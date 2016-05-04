@@ -19,12 +19,20 @@ const (
 	logWindowSize      = 15
 	windowSize         = 1 << logWindowSize
 	windowMask         = windowSize - 1
-	logMaxOffsetSize   = 15  // Standard DEFLATE
-	minMatchLength     = 4   // The smallest match that the compressor looks for
-	maxMatchLength     = 258 // The longest match for the compressor
-	minOffsetSize      = 1   // The shortest offset that makes any sense
 
-	// The maximum number of tokens we put into a single flat block, just to
+	// The LZ77 step produces a sequence of literal tokens and <length, offset>
+	// pair tokens. The offset is also known as distance. The underlying wire
+	// format limits the range of lengths and offsets. For example, there are
+	// 256 legitimate lengths: those in the range [3, 258]. This package's
+	// compressor uses a higher minimum match length, enabling optimizations
+	// such as finding matches via 32-bit loads and compares.
+	baseMatchLength = 3       // The smallest match length per the RFC section 3.2.5
+	minMatchLength  = 4       // The smallest match length that the compressor actually emits
+	maxMatchLength  = 258     // The largest match length
+	baseMatchOffset = 1       // The smallest match offset
+	maxMatchOffset  = 1 << 15 // The largest match offset
+
+	// The maximum number of tokens we put into a single flate block, just to
 	// stop things from getting too large.
 	maxFlateBlockTokens = 1 << 14
 	maxStoreBlockSize   = 65535
@@ -424,9 +432,9 @@ Loop:
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			if d.fastSkipHashing != skipNever {
-				d.tokens = append(d.tokens, matchToken(uint32(d.length-3), uint32(d.offset-minOffsetSize)))
+				d.tokens = append(d.tokens, matchToken(uint32(d.length-baseMatchLength), uint32(d.offset-baseMatchOffset)))
 			} else {
-				d.tokens = append(d.tokens, matchToken(uint32(prevLength-3), uint32(prevOffset-minOffsetSize)))
+				d.tokens = append(d.tokens, matchToken(uint32(prevLength-baseMatchLength), uint32(prevOffset-baseMatchOffset)))
 			}
 			// Insert in the hash table all strings up to the end of the match.
 			// index and index-1 are already inserted. If there is not enough

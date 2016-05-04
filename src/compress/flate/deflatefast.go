@@ -8,8 +8,6 @@ package flate
 // based on Snappy's LZ77-style encoder: github.com/golang/snappy
 
 const (
-	maxOffset = 1 << logMaxOffsetSize // Maximum deflate offset.
-
 	tableBits  = 14             // Bits used in the table.
 	tableSize  = 1 << tableBits // Size of the table.
 	tableMask  = tableSize - 1  // Mask for table indices. Redundant, but can eliminate bounds checks.
@@ -97,7 +95,8 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			candidate = int(table[nextHash&tableMask])
 			table[nextHash&tableMask] = uint16(s)
 			nextHash = hash(load32(src, nextS))
-			if s-candidate < maxOffset && load32(src, s) == load32(src, candidate) {
+			// TODO: < should be <=, and add a test for that.
+			if s-candidate < maxMatchOffset && load32(src, s) == load32(src, candidate) {
 				break
 			}
 		}
@@ -133,7 +132,7 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			}
 
 			// matchToken is flate's equivalent of Snappy's emitCopy.
-			dst = append(dst, matchToken(uint32(s-base-3), uint32(base-candidate-minOffsetSize)))
+			dst = append(dst, matchToken(uint32(s-base-baseMatchLength), uint32(base-candidate-baseMatchOffset)))
 			nextEmit = s
 			if s >= sLimit {
 				goto emitRemainder
@@ -151,7 +150,8 @@ func encodeBestSpeed(dst []token, src []byte) []token {
 			currHash := hash(uint32(x >> 8))
 			candidate = int(table[currHash&tableMask])
 			table[currHash&tableMask] = uint16(s)
-			if s-candidate >= maxOffset || uint32(x>>8) != load32(src, candidate) {
+			// TODO: >= should be >, and add a test for that.
+			if s-candidate >= maxMatchOffset || uint32(x>>8) != load32(src, candidate) {
 				nextHash = hash(uint32(x >> 16))
 				s++
 				break
