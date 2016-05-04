@@ -440,6 +440,10 @@ func Main() {
 			for _, n := range list {
 				if !recursive {
 					caninl(n)
+				} else {
+					if Debug['m'] > 1 {
+						fmt.Printf("%v: cannot inline %v: recursive\n", n.Line(), n.Func.Nname)
+					}
 				}
 				inlcalls(n)
 			}
