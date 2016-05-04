@@ -208,9 +208,15 @@ func checkFunc(f *Func) {
 				f.Fatalf("value %s has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
 			}
 
-			for _, arg := range v.Args {
+			for i, arg := range v.Args {
 				if arg == nil {
 					f.Fatalf("value %s has nil arg", v.LongString())
+				}
+				if v.Op != OpPhi {
+					// For non-Phi ops, memory args must be last, if present
+					if arg.Type.IsMemory() && i != len(v.Args)-1 {
+						f.Fatalf("value %s has non-final memory arg (%d < %d)", v.LongString(), i, len(v.Args)-1)
+					}
 				}
 			}
 
