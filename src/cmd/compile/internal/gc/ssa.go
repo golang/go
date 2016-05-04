@@ -3832,15 +3832,22 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 
 // lookupVarOutgoing finds the variable's value at the end of block b.
 func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node, line int32) *ssa.Value {
-	m := s.defvars[b.ID]
-	if v, ok := m[name]; ok {
-		return v
+	for {
+		if v, ok := s.defvars[b.ID][name]; ok {
+			return v
+		}
+		// The variable is not defined by b and we haven't looked it up yet.
+		// If b has exactly one predecessor, loop to look it up there.
+		// Otherwise, give up and insert a new FwdRef and resolve it later.
+		if len(b.Preds) != 1 {
+			break
+		}
+		b = b.Preds[0].Block()
 	}
-	// The variable is not defined by b and we haven't
-	// looked it up yet. Generate a FwdRef for the variable and return that.
+	// Generate a FwdRef for the variable and return that.
 	v := b.NewValue0A(line, ssa.OpFwdRef, t, name)
 	s.fwdRefs = append(s.fwdRefs, v)
-	m[name] = v
+	s.defvars[b.ID][name] = v
 	s.addNamedValue(name, v)
 	return v
 }
