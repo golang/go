@@ -1103,7 +1103,7 @@ func (p *importer) int64() int64 {
 }
 
 func (p *importer) string() string {
-	if debugFormat {
+	if p.debugFormat {
 		p.marker('s')
 	}
 	// if the string was seen before, i is its index (>= 0)
