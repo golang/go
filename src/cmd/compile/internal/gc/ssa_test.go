@@ -23,9 +23,6 @@ func buildTest(t *testing.T, filename string) {
 	doTest(t, filename, "build")
 }
 func doTest(t *testing.T, filename string, kind string) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("skipping SSA tests on %s for now", runtime.GOARCH)
-	}
 	testenv.MustHaveGoBuild(t)
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
@@ -52,7 +49,12 @@ func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
 func TestTypeAssertion(t *testing.T) { runTest(t, "assert_ssa.go") }
 
 // TestArithmetic tests that both backends have the same result for arithmetic expressions.
-func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
+func TestArithmetic(t *testing.T) {
+	if runtime.GOARCH == "386" {
+		t.Skip("legacy 386 compiler can't handle this test")
+	}
+	runTest(t, "arith_ssa.go")
+}
 
 // TestFP tests that both backends have the same result for floating point expressions.
 func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
