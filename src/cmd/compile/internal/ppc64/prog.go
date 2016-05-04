@@ -71,6 +71,7 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	ppc64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCTIDZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AFCFIDU & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
 	ppc64.AFRSP & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
 	ppc64.AFSQRT & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
@@ -206,6 +207,7 @@ func initvariants() {
 	initvariant(ppc64.AFADD, ppc64.AFADDCC)
 	initvariant(ppc64.AFADDS, ppc64.AFADDSCC)
 	initvariant(ppc64.AFCFID, ppc64.AFCFIDCC)
+	initvariant(ppc64.AFCFIDU, ppc64.AFCFIDUCC)
 	initvariant(ppc64.AFCTID, ppc64.AFCTIDCC)
 	initvariant(ppc64.AFCTIDZ, ppc64.AFCTIDZCC)
 	initvariant(ppc64.AFCTIW, ppc64.AFCTIWCC)
