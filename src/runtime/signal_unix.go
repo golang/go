@@ -12,3 +12,10 @@ import _ "unsafe" // for go:linkname
 func os_sigpipe() {
 	systemstack(sigpipe)
 }
+
+func signame(sig uint32) string {
+	if sig >= uint32(len(sigtable)) {
+		return ""
+	}
+	return sigtable[sig].name
+}

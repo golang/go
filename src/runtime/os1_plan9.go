@@ -286,3 +286,10 @@ func _atoi(b []byte) int {
 	}
 	return n
 }
+
+func signame(sig uint32) string {
+	if sig >= uint32(len(sigtable)) {
+		return ""
+	}
+	return sigtable[sig].name
+}
