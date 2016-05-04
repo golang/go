@@ -179,7 +179,7 @@ func lsh_1_uint64_ssa(a uint64) uint64 {
 
 //go:noinline
 func lsh_uint64_4294967296_ssa(a uint64) uint64 {
-	return a << 4294967296
+	return a << uint64(4294967296)
 }
 
 //go:noinline
@@ -189,7 +189,7 @@ func lsh_4294967296_uint64_ssa(a uint64) uint64 {
 
 //go:noinline
 func lsh_uint64_18446744073709551615_ssa(a uint64) uint64 {
-	return a << 18446744073709551615
+	return a << uint64(18446744073709551615)
 }
 
 //go:noinline
@@ -219,7 +219,7 @@ func rsh_1_uint64_ssa(a uint64) uint64 {
 
 //go:noinline
 func rsh_uint64_4294967296_ssa(a uint64) uint64 {
-	return a >> 4294967296
+	return a >> uint64(4294967296)
 }
 
 //go:noinline
@@ -229,7 +229,7 @@ func rsh_4294967296_uint64_ssa(a uint64) uint64 {
 
 //go:noinline
 func rsh_uint64_18446744073709551615_ssa(a uint64) uint64 {
-	return a >> 18446744073709551615
+	return a >> uint64(18446744073709551615)
 }
 
 //go:noinline
