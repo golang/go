@@ -11,10 +11,12 @@ import (
 	"go/ast"
 	"go/build"
 	"go/constant"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/buildutil"
@@ -66,7 +68,8 @@ type UnknownType undefined
 		exportdata := gcimporter.BExportData(conf.Fset, pkg)
 
 		imports := make(map[string]*types.Package)
-		n, pkg2, err := gcimporter.BImportData(imports, exportdata, pkg.Path())
+		fset2 := token.NewFileSet()
+		n, pkg2, err := gcimporter.BImportData(fset2, imports, exportdata, pkg.Path())
 		if err != nil {
 			t.Errorf("BImportData(%s): %v", pkg.Path(), err)
 			continue
@@ -87,12 +90,25 @@ type UnknownType undefined
 				t.Errorf("%s.%s not found, want %s", pkg.Path(), name, obj1)
 				continue
 			}
+
+			fl1 := fileLine(conf.Fset, obj1)
+			fl2 := fileLine(fset2, obj2)
+			if fl1 != fl2 {
+				t.Errorf("%s.%s: got posn %s, want %s",
+					pkg.Path(), name, fl2, fl1)
+			}
+
 			if err := equalObj(obj1, obj2); err != nil {
 				t.Errorf("%s.%s: %s\ngot:  %s\nwant: %s",
 					pkg.Path(), name, err, obj2, obj1)
 			}
 		}
 	}
+}
+
+func fileLine(fset *token.FileSet, obj types.Object) string {
+	posn := fset.Position(obj.Pos())
+	return fmt.Sprintf("%s:%d", posn.Filename, posn.Line)
 }
 
 // equalObj reports how x and y differ.  They are assumed to belong to
@@ -272,4 +288,41 @@ func equalType(x, y types.Type) error {
 		}
 	}
 	return nil
+}
+
+// TestVeryLongFile tests the position of an import object declared in
+// a very long input file.  Line numbers greater than maxlines are
+// reported as line 1, not garbage or token.NoPos.
+func TestVeryLongFile(t *testing.T) {
+	// parse and typecheck
+	longFile := "package foo" + strings.Repeat("\n", 123456) + "var X int"
+	fset1 := token.NewFileSet()
+	f, err := parser.ParseFile(fset1, "foo.go", longFile, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var conf types.Config
+	pkg, err := conf.Check("foo", fset1, []*ast.File{f}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// export
+	exportdata := gcimporter.BExportData(fset1, pkg)
+
+	// import
+	imports := make(map[string]*types.Package)
+	fset2 := token.NewFileSet()
+	_, pkg2, err := gcimporter.BImportData(fset2, imports, exportdata, pkg.Path())
+	if err != nil {
+		t.Fatalf("BImportData(%s): %v", pkg.Path(), err)
+	}
+
+	// compare
+	posn1 := fset1.Position(pkg.Scope().Lookup("X").Pos())
+	posn2 := fset2.Position(pkg2.Scope().Lookup("X").Pos())
+	if want := "foo.go:1:1"; posn2.String() != want {
+		t.Errorf("X position = %s, want %s (orig was %s)",
+			posn2, want, posn1)
+	}
 }
