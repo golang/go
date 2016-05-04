@@ -5,13 +5,14 @@ cmd/go: GO15VENDOREXPERIMENT gone, assumed on (CL 19615)
 cmd/link: "-X name value" form gone (CL 19614)
 cmd/compile: smaller binaries (many CLs)
 cmd/go, go/build: add support for Fortran (CL 19670, CL 4114)
-cmd/dist: introduce list subcommand to list all supported platforms (CL 19837)
 cmd/doc: group constructors with types (CL 22354)
+cmd/go, go/build: binary-only package support (CL 22433)
 
 Ports:
 
 We now require OpenBSD 5.6+ (CL 18219, crypto/rand using getentropy)
 plan9/arm support? Start at least.
+cgo and external linking support for linux/mips64 and linux/mips64le (CL 19809, ...)
 
 New packages:
 
