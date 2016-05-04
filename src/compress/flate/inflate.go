@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	maxCodeLen = 16    // max length of Huffman code
-	maxHist    = 32768 // max history required
+	maxCodeLen = 16 // max length of Huffman code
 	// The next three numbers come from the RFC section 3.2.7, with the
 	// additional proviso in section 3.2.5 which implies that distance codes
 	// 30 and 31 should never occur in compressed data.
@@ -767,7 +766,7 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 		dict:     f.dict,
 		step:     (*decompressor).nextBlock,
 	}
-	f.dict.init(maxHist, nil)
+	f.dict.init(maxMatchOffset, nil)
 	return nil
 }
 
@@ -787,7 +786,7 @@ func NewReader(r io.Reader) io.ReadCloser {
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
 	f.step = (*decompressor).nextBlock
-	f.dict.init(maxHist, nil)
+	f.dict.init(maxMatchOffset, nil)
 	return &f
 }
 
@@ -806,6 +805,6 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
 	f.step = (*decompressor).nextBlock
-	f.dict.init(maxHist, dict)
+	f.dict.init(maxMatchOffset, dict)
 	return &f
 }
