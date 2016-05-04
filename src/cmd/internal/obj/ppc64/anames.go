@@ -247,6 +247,8 @@ var Anames = []string{
 	"EXTSWCC",
 	"FCFID",
 	"FCFIDCC",
+	"FCFIDU",
+	"FCFIDUCC",
 	"FCTID",
 	"FCTIDCC",
 	"FCTIDZ",

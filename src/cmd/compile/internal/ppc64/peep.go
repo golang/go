@@ -628,6 +628,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		ppc64.AFCTIDZ,
 		ppc64.AFCFID,
 		ppc64.AFCFIDCC,
+		ppc64.AFCFIDU,
+		ppc64.AFCFIDUCC,
 		ppc64.AFMOVS,
 		ppc64.AFMOVD,
 		ppc64.AFRSP,
