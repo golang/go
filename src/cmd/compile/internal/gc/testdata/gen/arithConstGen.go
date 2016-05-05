@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This program generates a test to verify that the standard arithmetic
-// operators properly handle const cases.  The test file should be
+// operators properly handle const cases. The test file should be
 // generated with a known working version of go.
 // launch with `go run arithConstGen.go` a file called arithConst_ssa.go
 // will be written into the parent directory containing the tests
@@ -47,7 +47,7 @@ var szs []szD = []szD{
 }
 
 var ops []op = []op{op{"add", "+"}, op{"sub", "-"}, op{"div", "/"}, op{"mul", "*"},
-	op{"lsh", "<<"}, op{"rsh", ">>"}}
+	op{"lsh", "<<"}, op{"rsh", ">>"}, op{"mod", "%"}}
 
 // compute the result of i op j, cast as type t.
 func ansU(i, j uint64, t, op string) string {
@@ -62,6 +62,10 @@ func ansU(i, j uint64, t, op string) string {
 	case "/":
 		if j != 0 {
 			ans = i / j
+		}
+	case "%":
+		if j != 0 {
+			ans = i % j
 		}
 	case "<<":
 		ans = i << j
@@ -92,6 +96,10 @@ func ansS(i, j int64, t, op string) string {
 	case "/":
 		if j != 0 {
 			ans = i / j
+		}
+	case "%":
+		if j != 0 {
+			ans = i % j
 		}
 	case "<<":
 		ans = i << uint64(j)
@@ -151,7 +159,7 @@ func main() {
 					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
 
 					// avoid division by zero
-					if o.name != "div" || i != 0 {
+					if o.name != "mod" && o.name != "div" || i != 0 {
 						fncCnst1.Execute(w, fd)
 					}
 
@@ -170,7 +178,7 @@ func main() {
 					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
 
 					// avoid division by zero
-					if o.name != "div" || i != 0 {
+					if o.name != "mod" && o.name != "div" || i != 0 {
 						fncCnst1.Execute(w, fd)
 					}
 					fncCnst2.Execute(w, fd)
@@ -184,14 +192,14 @@ func main() {
 
 	vrf1, _ := template.New("vrf1").Parse(`
   if got := {{.Name}}_{{.FNumber}}_{{.Type_}}_ssa({{.Input}}); got != {{.Ans}} {
-  	fmt.Printf("{{.Name}}_{{.Type_}} {{.Number}}{{.Symbol}}{{.Input}} = %d, wanted {{.Ans}}\n",got)
+  	fmt.Printf("{{.Name}}_{{.Type_}} {{.Number}}%s{{.Input}} = %d, wanted {{.Ans}}\n", ` + "`{{.Symbol}}`" + `, got)
   	failed = true
   }
 `)
 
 	vrf2, _ := template.New("vrf2").Parse(`
   if got := {{.Name}}_{{.Type_}}_{{.FNumber}}_ssa({{.Input}}); got != {{.Ans}} {
-    fmt.Printf("{{.Name}}_{{.Type_}} {{.Input}}{{.Symbol}}{{.Number}} = %d, wanted {{.Ans}}\n",got)
+    fmt.Printf("{{.Name}}_{{.Type_}} {{.Input}}%s{{.Number}} = %d, wanted {{.Ans}}\n", ` + "`{{.Symbol}}`" + `, got)
     failed = true
   }
 `)
@@ -211,7 +219,7 @@ func main() {
 					// unsigned
 					for _, j := range s.u {
 
-						if o.name != "div" || j != 0 {
+						if o.name != "mod" && o.name != "div" || j != 0 {
 							fd.Ans = ansU(i, j, s.name, o.symbol)
 							fd.Input = fmt.Sprintf("%d", j)
 							err = vrf1.Execute(w, fd)
@@ -220,7 +228,7 @@ func main() {
 							}
 						}
 
-						if o.name != "div" || i != 0 {
+						if o.name != "mod" && o.name != "div" || i != 0 {
 							fd.Ans = ansU(j, i, s.name, o.symbol)
 							fd.Input = fmt.Sprintf("%d", j)
 							err = vrf2.Execute(w, fd)
@@ -247,7 +255,7 @@ func main() {
 					fd.Number = fmt.Sprintf("%d", i)
 					fd.FNumber = strings.Replace(fd.Number, "-", "Neg", -1)
 					for _, j := range s.i {
-						if o.name != "div" || j != 0 {
+						if o.name != "mod" && o.name != "div" || j != 0 {
 							fd.Ans = ansS(i, j, s.name, o.symbol)
 							fd.Input = fmt.Sprintf("%d", j)
 							err = vrf1.Execute(w, fd)
@@ -256,7 +264,7 @@ func main() {
 							}
 						}
 
-						if o.name != "div" || i != 0 {
+						if o.name != "mod" && o.name != "div" || i != 0 {
 							fd.Ans = ansS(j, i, s.name, o.symbol)
 							fd.Input = fmt.Sprintf("%d", j)
 							err = vrf2.Execute(w, fd)

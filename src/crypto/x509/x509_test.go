@@ -96,6 +96,17 @@ tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
 -----END RSA PRIVATE KEY-----
 `
 
+var testPrivateKey *rsa.PrivateKey
+
+func init() {
+	block, _ := pem.Decode([]byte(pemPrivateKey))
+
+	var err error
+	if testPrivateKey, err = ParsePKCS1PrivateKey(block.Bytes); err != nil {
+		panic("Failed to parse private key: " + err.Error())
+	}
+}
+
 func bigFromString(s string) *big.Int {
 	ret := new(big.Int)
 	ret.SetString(s, 10)
@@ -314,12 +325,6 @@ var certBytes = "308203223082028ba00302010202106edf0d9499fd4533dd1297fc42a93be13
 func TestCreateSelfSignedCertificate(t *testing.T) {
 	random := rand.Reader
 
-	block, _ := pem.Decode([]byte(pemPrivateKey))
-	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		t.Fatalf("Failed to parse private key: %s", err)
-	}
-
 	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
@@ -331,9 +336,9 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 		checkSig  bool
 		sigAlgo   SignatureAlgorithm
 	}{
-		{"RSA/RSA", &rsaPriv.PublicKey, rsaPriv, true, SHA1WithRSA},
-		{"RSA/ECDSA", &rsaPriv.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
-		{"ECDSA/RSA", &ecdsaPriv.PublicKey, rsaPriv, false, SHA256WithRSA},
+		{"RSA/RSA", &testPrivateKey.PublicKey, testPrivateKey, true, SHA1WithRSA},
+		{"RSA/ECDSA", &testPrivateKey.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
+		{"ECDSA/RSA", &ecdsaPriv.PublicKey, testPrivateKey, false, SHA256WithRSA},
 		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true, ECDSAWithSHA1},
 	}
 
@@ -488,7 +493,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
 			t.Errorf("%s: ExtraExtensions didn't override SubjectKeyId", test.name)
 		}
 
-		if bytes.Index(derBytes, extraExtensionData) == -1 {
+		if !bytes.Contains(derBytes, extraExtensionData) {
 			t.Errorf("%s: didn't find extra extension in DER output", test.name)
 		}
 
@@ -874,12 +879,6 @@ const pemCRLBase64 = "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tDQpNSUlCOWpDQ0FWOENBUUV3RF
 func TestCreateCertificateRequest(t *testing.T) {
 	random := rand.Reader
 
-	block, _ := pem.Decode([]byte(pemPrivateKey))
-	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		t.Fatalf("Failed to parse private key: %s", err)
-	}
-
 	ecdsa256Priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
@@ -900,7 +899,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 		priv    interface{}
 		sigAlgo SignatureAlgorithm
 	}{
-		{"RSA", rsaPriv, SHA1WithRSA},
+		{"RSA", testPrivateKey, SHA1WithRSA},
 		{"ECDSA-256", ecdsa256Priv, ECDSAWithSHA1},
 		{"ECDSA-384", ecdsa384Priv, ECDSAWithSHA1},
 		{"ECDSA-521", ecdsa521Priv, ECDSAWithSHA1},
@@ -951,13 +950,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 }
 
 func marshalAndParseCSR(t *testing.T, template *CertificateRequest) *CertificateRequest {
-	block, _ := pem.Decode([]byte(pemPrivateKey))
-	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	derBytes, err := CreateCertificateRequest(rand.Reader, template, rsaPriv)
+	derBytes, err := CreateCertificateRequest(rand.Reader, template, testPrivateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1113,13 +1106,25 @@ func TestCriticalFlagInCSRRequestedExtensions(t *testing.T) {
 	}
 }
 
-func TestMaxPathLen(t *testing.T) {
-	block, _ := pem.Decode([]byte(pemPrivateKey))
-	rsaPriv, err := ParsePKCS1PrivateKey(block.Bytes)
+// serialiseAndParse generates a self-signed certificate from template and
+// returns a parsed version of it.
+func serialiseAndParse(t *testing.T, template *Certificate) *Certificate {
+	derBytes, err := CreateCertificate(rand.Reader, template, template, &testPrivateKey.PublicKey, testPrivateKey)
 	if err != nil {
-		t.Fatalf("Failed to parse private key: %s", err)
+		t.Fatalf("failed to create certificate: %s", err)
+		return nil
 	}
 
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+		return nil
+	}
+
+	return cert
+}
+
+func TestMaxPathLen(t *testing.T) {
 	template := &Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
@@ -1132,23 +1137,7 @@ func TestMaxPathLen(t *testing.T) {
 		IsCA: true,
 	}
 
-	serialiseAndParse := func(template *Certificate) *Certificate {
-		derBytes, err := CreateCertificate(rand.Reader, template, template, &rsaPriv.PublicKey, rsaPriv)
-		if err != nil {
-			t.Fatalf("failed to create certificate: %s", err)
-			return nil
-		}
-
-		cert, err := ParseCertificate(derBytes)
-		if err != nil {
-			t.Fatalf("failed to parse certificate: %s", err)
-			return nil
-		}
-
-		return cert
-	}
-
-	cert1 := serialiseAndParse(template)
+	cert1 := serialiseAndParse(t, template)
 	if m := cert1.MaxPathLen; m != -1 {
 		t.Errorf("Omitting MaxPathLen didn't turn into -1, got %d", m)
 	}
@@ -1157,7 +1146,7 @@ func TestMaxPathLen(t *testing.T) {
 	}
 
 	template.MaxPathLen = 1
-	cert2 := serialiseAndParse(template)
+	cert2 := serialiseAndParse(t, template)
 	if m := cert2.MaxPathLen; m != 1 {
 		t.Errorf("Setting MaxPathLen didn't work. Got %d but set 1", m)
 	}
@@ -1167,12 +1156,36 @@ func TestMaxPathLen(t *testing.T) {
 
 	template.MaxPathLen = 0
 	template.MaxPathLenZero = true
-	cert3 := serialiseAndParse(template)
+	cert3 := serialiseAndParse(t, template)
 	if m := cert3.MaxPathLen; m != 0 {
 		t.Errorf("Setting MaxPathLenZero didn't work, got %d", m)
 	}
 	if !cert3.MaxPathLenZero {
 		t.Errorf("Setting MaxPathLen to zero didn't result in MaxPathLenZero")
+	}
+}
+
+func TestNoAuthorityKeyIdInSelfSignedCert(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Σ Acme Co",
+		},
+		NotBefore: time.Unix(1000, 0),
+		NotAfter:  time.Unix(100000, 0),
+
+		BasicConstraintsValid: true,
+		IsCA:         true,
+		SubjectKeyId: []byte{1, 2, 3, 4},
+	}
+
+	if cert := serialiseAndParse(t, template); len(cert.AuthorityKeyId) != 0 {
+		t.Fatalf("self-signed certificate contained default authority key id")
+	}
+
+	template.AuthorityKeyId = []byte{1, 2, 3, 4}
+	if cert := serialiseAndParse(t, template); len(cert.AuthorityKeyId) == 0 {
+		t.Fatalf("self-signed certificate erased explicit authority key id")
 	}
 }
 

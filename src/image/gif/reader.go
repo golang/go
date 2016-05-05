@@ -96,7 +96,7 @@ type decoder struct {
 // blockReader parses the block structure of GIF image data, which
 // comprises (n, (n bytes)) blocks, with 1 <= n <= 255.  It is the
 // reader given to the LZW decoder, which is thus immune to the
-// blocking.  After the LZW decoder completes, there will be a 0-byte
+// blocking. After the LZW decoder completes, there will be a 0-byte
 // block remaining (0, ()), which is consumed when checking that the
 // blockReader is exhausted.
 type blockReader struct {
@@ -178,12 +178,25 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 				}
 				m.Palette = d.globalColorTable
 			}
-			if d.hasTransparentIndex && int(d.transparentIndex) < len(m.Palette) {
+			if d.hasTransparentIndex {
 				if !useLocalColorTable {
 					// Clone the global color table.
 					m.Palette = append(color.Palette(nil), d.globalColorTable...)
 				}
-				m.Palette[d.transparentIndex] = color.RGBA{}
+				if ti := int(d.transparentIndex); ti < len(m.Palette) {
+					m.Palette[ti] = color.RGBA{}
+				} else {
+					// The transparentIndex is out of range, which is an error
+					// according to the spec, but Firefox and Google Chrome
+					// seem OK with this, so we enlarge the palette with
+					// transparent colors. See golang.org/issue/15059.
+					p := make(color.Palette, ti+1)
+					copy(p, m.Palette)
+					for i := len(m.Palette); i < len(p); i++ {
+						p[i] = color.RGBA{}
+					}
+					m.Palette = p
+				}
 			}
 			litWidth, err := d.r.ReadByte()
 			if err != nil {
@@ -349,12 +362,18 @@ func (d *decoder) readGraphicControl() error {
 	if _, err := io.ReadFull(d.r, d.tmp[:6]); err != nil {
 		return fmt.Errorf("gif: can't read graphic control: %s", err)
 	}
+	if d.tmp[0] != 4 {
+		return fmt.Errorf("gif: invalid graphic control extension block size: %d", d.tmp[0])
+	}
 	flags := d.tmp[1]
 	d.disposalMethod = (flags & gcDisposalMethodMask) >> 2
 	d.delayTime = int(d.tmp[2]) | int(d.tmp[3])<<8
 	if flags&gcTransparentColorSet != 0 {
 		d.transparentIndex = d.tmp[4]
 		d.hasTransparentIndex = true
+	}
+	if d.tmp[5] != 0 {
+		return fmt.Errorf("gif: invalid graphic control extension block terminator: %d", d.tmp[5])
 	}
 	return nil
 }

@@ -13,7 +13,7 @@
 // and chopped up when new objects of the size class are needed.
 // That page count is chosen so that chopping up the run of
 // pages into objects of the given size wastes at most 12.5% (1.125x)
-// of the memory.  It is not necessary that the cutoff here be
+// of the memory. It is not necessary that the cutoff here be
 // the same as above.
 //
 // The two sources of waste multiply, so the worst possible case
@@ -27,7 +27,7 @@
 
 package runtime
 
-// Size classes.  Computed and initialized by InitSizes.
+// Size classes. Computed and initialized by InitSizes.
 //
 // SizeToClass(0 <= n <= MaxSmallSize) returns the size class,
 //	1 <= sizeclass < NumSizeClasses, for n.
@@ -55,7 +55,7 @@ var size_to_class128 [(_MaxSmallSize-1024)/128 + 1]int8
 
 func sizeToClass(size int32) int32 {
 	if size > _MaxSmallSize {
-		throw("SizeToClass - invalid size")
+		throw("invalid size")
 	}
 	if size > 1024-8 {
 		return int32(size_to_class128[(size-1024+127)>>7])
@@ -79,7 +79,7 @@ func initSizes() {
 			}
 		}
 		if align&(align-1) != 0 {
-			throw("InitSizes - bug")
+			throw("incorrect alignment")
 		}
 
 		// Make the allocnpages big enough that
@@ -106,10 +106,18 @@ func initSizes() {
 		sizeclass++
 	}
 	if sizeclass != _NumSizeClasses {
-		print("sizeclass=", sizeclass, " NumSizeClasses=", _NumSizeClasses, "\n")
-		throw("InitSizes - bad NumSizeClasses")
+		print("runtime: sizeclass=", sizeclass, " NumSizeClasses=", _NumSizeClasses, "\n")
+		throw("bad NumSizeClasses")
 	}
-
+	// Check maxObjsPerSpan => number of objects invariant.
+	for i, size := range class_to_size {
+		if size != 0 && class_to_allocnpages[i]*pageSize/size > maxObjsPerSpan {
+			throw("span contains too many objects")
+		}
+		if size == 0 && i != 0 {
+			throw("size is 0 but class is not 0")
+		}
+	}
 	// Initialize the size_to_class tables.
 	nextsize := 0
 	for sizeclass = 1; sizeclass < _NumSizeClasses; sizeclass++ {
@@ -128,12 +136,12 @@ func initSizes() {
 		for n := int32(0); n < _MaxSmallSize; n++ {
 			sizeclass := sizeToClass(n)
 			if sizeclass < 1 || sizeclass >= _NumSizeClasses || class_to_size[sizeclass] < n {
-				print("size=", n, " sizeclass=", sizeclass, " runtime·class_to_size=", class_to_size[sizeclass], "\n")
+				print("runtime: size=", n, " sizeclass=", sizeclass, " runtime·class_to_size=", class_to_size[sizeclass], "\n")
 				print("incorrect SizeToClass\n")
 				goto dump
 			}
 			if sizeclass > 1 && class_to_size[sizeclass-1] >= n {
-				print("size=", n, " sizeclass=", sizeclass, " runtime·class_to_size=", class_to_size[sizeclass], "\n")
+				print("runtime: size=", n, " sizeclass=", sizeclass, " runtime·class_to_size=", class_to_size[sizeclass], "\n")
 				print("SizeToClass too big\n")
 				goto dump
 			}
@@ -155,18 +163,18 @@ func initSizes() {
 
 dump:
 	if true {
-		print("NumSizeClasses=", _NumSizeClasses, "\n")
+		print("runtime: NumSizeClasses=", _NumSizeClasses, "\n")
 		print("runtime·class_to_size:")
 		for sizeclass = 0; sizeclass < _NumSizeClasses; sizeclass++ {
 			print(" ", class_to_size[sizeclass], "")
 		}
 		print("\n\n")
-		print("size_to_class8:")
+		print("runtime: size_to_class8:")
 		for i := 0; i < len(size_to_class8); i++ {
 			print(" ", i*8, "=>", size_to_class8[i], "(", class_to_size[size_to_class8[i]], ")\n")
 		}
 		print("\n")
-		print("size_to_class128:")
+		print("runtime: size_to_class128:")
 		for i := 0; i < len(size_to_class128); i++ {
 			print(" ", i*128, "=>", size_to_class128[i], "(", class_to_size[size_to_class128[i]], ")\n")
 		}

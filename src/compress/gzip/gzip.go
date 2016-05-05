@@ -8,7 +8,6 @@ import (
 	"compress/flate"
 	"errors"
 	"fmt"
-	"hash"
 	"hash/crc32"
 	"io"
 )
@@ -30,8 +29,8 @@ type Writer struct {
 	level       int
 	wroteHeader bool
 	compressor  *flate.Writer
-	digest      hash.Hash32
-	size        uint32
+	digest      uint32 // CRC-32, IEEE polynomial (section 8)
+	size        uint32 // Uncompressed size (section 2.3.1)
 	closed      bool
 	buf         [10]byte
 	err         error
@@ -66,12 +65,6 @@ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 }
 
 func (z *Writer) init(w io.Writer, level int) {
-	digest := z.digest
-	if digest != nil {
-		digest.Reset()
-	} else {
-		digest = crc32.NewIEEE()
-	}
 	compressor := z.compressor
 	if compressor != nil {
 		compressor.Reset(w)
@@ -82,7 +75,6 @@ func (z *Writer) init(w io.Writer, level int) {
 		},
 		w:          w,
 		level:      level,
-		digest:     digest,
 		compressor: compressor,
 	}
 }
@@ -95,26 +87,13 @@ func (z *Writer) Reset(w io.Writer) {
 	z.init(w, z.level)
 }
 
-// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
-func put2(p []byte, v uint16) {
-	p[0] = uint8(v >> 0)
-	p[1] = uint8(v >> 8)
-}
-
-func put4(p []byte, v uint32) {
-	p[0] = uint8(v >> 0)
-	p[1] = uint8(v >> 8)
-	p[2] = uint8(v >> 16)
-	p[3] = uint8(v >> 24)
-}
-
 // writeBytes writes a length-prefixed byte slice to z.w.
 func (z *Writer) writeBytes(b []byte) error {
 	if len(b) > 0xffff {
 		return errors.New("gzip.Write: Extra data is too large")
 	}
-	put2(z.buf[0:2], uint16(len(b)))
-	_, err := z.w.Write(z.buf[0:2])
+	le.PutUint16(z.buf[:2], uint16(len(b)))
+	_, err := z.w.Write(z.buf[:2])
 	if err != nil {
 		return err
 	}
@@ -149,7 +128,7 @@ func (z *Writer) writeString(s string) (err error) {
 	}
 	// GZIP strings are NUL-terminated.
 	z.buf[0] = 0
-	_, err = z.w.Write(z.buf[0:1])
+	_, err = z.w.Write(z.buf[:1])
 	return err
 }
 
@@ -176,7 +155,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 		if z.Comment != "" {
 			z.buf[3] |= 0x10
 		}
-		put4(z.buf[4:8], uint32(z.ModTime.Unix()))
+		le.PutUint32(z.buf[4:8], uint32(z.ModTime.Unix()))
 		if z.level == BestCompression {
 			z.buf[8] = 2
 		} else if z.level == BestSpeed {
@@ -185,7 +164,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 			z.buf[8] = 0
 		}
 		z.buf[9] = z.OS
-		n, z.err = z.w.Write(z.buf[0:10])
+		n, z.err = z.w.Write(z.buf[:10])
 		if z.err != nil {
 			return n, z.err
 		}
@@ -212,7 +191,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 		}
 	}
 	z.size += uint32(len(p))
-	z.digest.Write(p)
+	z.digest = crc32.Update(z.digest, crc32.IEEETable, p)
 	n, z.err = z.compressor.Write(p)
 	return n, z.err
 }
@@ -262,8 +241,8 @@ func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err
 	}
-	put4(z.buf[0:4], z.digest.Sum32())
-	put4(z.buf[4:8], z.size)
-	_, z.err = z.w.Write(z.buf[0:8])
+	le.PutUint32(z.buf[:4], z.digest)
+	le.PutUint32(z.buf[4:8], z.size)
+	_, z.err = z.w.Write(z.buf[:8])
 	return z.err
 }

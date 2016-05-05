@@ -5,9 +5,12 @@
 package ld
 
 import (
+	"cmd/internal/bio"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"sort"
 	"strconv"
@@ -116,7 +119,7 @@ type PeSect struct {
 }
 
 type PeObj struct {
-	f      *obj.Biobuf
+	f      *bio.Reader
 	name   string
 	base   uint32
 	sect   []PeSect
@@ -127,14 +130,14 @@ type PeObj struct {
 	snames []byte
 }
 
-func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
+func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
+		fmt.Fprintf(Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
 	var sect *PeSect
-	Ctxt.Version++
-	base := int32(obj.Boffset(f))
+	Ctxt.IncVersion()
+	base := f.Offset()
 
 	peobj := new(PeObj)
 	peobj.f = f
@@ -172,15 +175,15 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 	// TODO return error if found .cormeta
 
 	// load string table
-	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
 
-	if obj.Bread(f, symbuf[:4]) != 4 {
+	if _, err := io.ReadFull(f, symbuf[:4]); err != nil {
 		goto bad
 	}
 	l = Le32(symbuf[:])
 	peobj.snames = make([]byte, l)
-	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
-	if obj.Bread(f, peobj.snames) != len(peobj.snames) {
+	f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(peobj.fh.NumberOfSymbols), 0)
+	if _, err := io.ReadFull(f, peobj.snames); err != nil {
 		goto bad
 	}
 
@@ -200,10 +203,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 	peobj.pesym = make([]PeSym, peobj.fh.NumberOfSymbols)
 
 	peobj.npesym = uint(peobj.fh.NumberOfSymbols)
-	obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable), 0)
+	f.Seek(base+int64(peobj.fh.PointerToSymbolTable), 0)
 	for i := 0; uint32(i) < peobj.fh.NumberOfSymbols; i += numaux + 1 {
-		obj.Bseek(f, int64(base)+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
-		if obj.Bread(f, symbuf[:]) != len(symbuf) {
+		f.Seek(base+int64(peobj.fh.PointerToSymbolTable)+int64(len(symbuf))*int64(i), 0)
+		if _, err := io.ReadFull(f, symbuf[:]); err != nil {
 			goto bad
 		}
 
@@ -234,7 +237,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 
 		if sect.sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
-			// want to ignore.  See issues 5106 and 5273.
+			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
@@ -283,15 +286,15 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 		}
 		if sect.sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
-			// want to ignore.  See issues 5106 and 5273.
+			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
 		r = make([]Reloc, rsect.sh.NumberOfRelocations)
-		obj.Bseek(f, int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
+		f.Seek(int64(peobj.base)+int64(rsect.sh.PointerToRelocations), 0)
 		for j = 0; j < int(rsect.sh.NumberOfRelocations); j++ {
 			rp = &r[j]
-			if obj.Bread(f, symbuf[:10]) != 10 {
+			if _, err := io.ReadFull(f, symbuf[:10]); err != nil {
 				goto bad
 			}
 			rva := Le32(symbuf[0:])
@@ -397,7 +400,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 		}
 
 		if s.Outer != nil {
-			if s.Dupok != 0 {
+			if s.Attr.DuplicateOK() {
 				continue
 			}
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
@@ -410,10 +413,10 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 		s.Size = 4
 		s.Outer = sect.sym
 		if sect.sym.Type == obj.STEXT {
-			if s.External != 0 && s.Dupok == 0 {
+			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
-			s.External = 1
+			s.Attr |= AttrExternal
 		}
 	}
 
@@ -428,23 +431,17 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
 		}
 		if s.Type == obj.STEXT {
-			if s.Onlist != 0 {
+			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
-			s.Onlist = 1
-			if Ctxt.Etextp != nil {
-				Ctxt.Etextp.Next = s
-			} else {
-				Ctxt.Textp = s
-			}
-			Ctxt.Etextp = s
+			s.Attr |= AttrOnList
+			Ctxt.Textp = append(Ctxt.Textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
-				if s.Onlist != 0 {
+				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Onlist = 1
-				Ctxt.Etextp.Next = s
-				Ctxt.Etextp = s
+				s.Attr |= AttrOnList
+				Ctxt.Textp = append(Ctxt.Textp, s)
 			}
 		}
 	}
@@ -464,7 +461,10 @@ func pemap(peobj *PeObj, sect *PeSect) int {
 	if sect.sh.PointerToRawData == 0 { // .bss doesn't have data in object file
 		return 0
 	}
-	if obj.Bseek(peobj.f, int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 || obj.Bread(peobj.f, sect.base) != len(sect.base) {
+	if peobj.f.Seek(int64(peobj.base)+int64(sect.sh.PointerToRawData), 0) < 0 {
+		return -1
+	}
+	if _, err := io.ReadFull(peobj.f, sect.base); err != nil {
 		return -1
 	}
 
@@ -492,7 +492,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 		if strings.HasPrefix(name, "__imp_") {
 			name = name[6:] // __imp_Name => Name
 		}
-		if Thearch.Thechar == '8' && name[0] == '_' {
+		if SysArch.Family == sys.I386 && name[0] == '_' {
 			name = name[1:] // _Name => Name
 		}
 	}
@@ -515,7 +515,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
 			s = Linklookup(Ctxt, name, Ctxt.Version)
-			s.Dupok = 1
+			s.Attr |= AttrDuplicateOK
 
 		default:
 			err = fmt.Errorf("%s: invalid symbol binding %d", sym.name, sym.sclass)

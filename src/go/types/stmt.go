@@ -83,9 +83,19 @@ func (check *Checker) simpleStmt(s ast.Stmt) {
 	}
 }
 
+func trimTrailingEmptyStmts(list []ast.Stmt) []ast.Stmt {
+	for i := len(list); i > 0; i-- {
+		if _, ok := list[i-1].(*ast.EmptyStmt); !ok {
+			return list[:i]
+		}
+	}
+	return nil
+}
+
 func (check *Checker) stmtList(ctxt stmtContext, list []ast.Stmt) {
 	ok := ctxt&fallthroughOk != 0
 	inner := ctxt &^ fallthroughOk
+	list = trimTrailingEmptyStmts(list) // trailing empty statements are "invisible" to fallthrough analysis
 	for i, s := range list {
 		inner := inner
 		if ok && i+1 == len(list) {
@@ -346,7 +356,17 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.invalidAST(s.TokPos, "unknown inc/dec operation %s", s.Tok)
 			return
 		}
+
 		var x operand
+		check.expr(&x, s.X)
+		if x.mode == invalid {
+			return
+		}
+		if !isNumeric(x.typ) {
+			check.invalidOp(s.X.Pos(), "%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
+			return
+		}
+
 		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
 		check.binary(&x, nil, s.X, Y, op)
 		if x.mode == invalid {

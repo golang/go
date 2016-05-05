@@ -17,7 +17,7 @@ import (
 
 // A forkableWriter is an in-memory buffer that can be
 // 'forked' to create new forkableWriters that bracket the
-// original.  After
+// original. After
 //    pre, post := w.fork()
 // the overall sequence of bytes represented is logically w+pre+post.
 type forkableWriter struct {
@@ -315,9 +315,9 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
 
 	switch {
 	case 1950 <= year && year < 2000:
-		err = marshalTwoDigits(out, int(year-1900))
+		err = marshalTwoDigits(out, year-1900)
 	case 2000 <= year && year < 2050:
-		err = marshalTwoDigits(out, int(year-2000))
+		err = marshalTwoDigits(out, year-2000)
 	default:
 		return StructuralError{"cannot represent time as UTCTime"}
 	}
@@ -435,7 +435,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 			return out.WriteByte(0)
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return marshalInt64(out, int64(v.Int()))
+		return marshalInt64(out, v.Int())
 	case reflect.Struct:
 		t := v.Type()
 

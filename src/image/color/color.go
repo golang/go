@@ -147,7 +147,7 @@ type Model interface {
 func ModelFunc(f func(Color) Color) Model {
 	// Note: using *modelFunc as the implementation
 	// means that callers can still use comparisons
-	// like m == RGBAModel.  This is not possible if
+	// like m == RGBAModel. This is not possible if
 	// we use the func value directly, because funcs
 	// are no longer comparable.
 	return &modelFunc{f}

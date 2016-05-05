@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,8 +15,7 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-20
 	SYNC
 	LWAR	(R3), R5
 	STWCCC	R4, (R3)
-	BNE	-3(PC)
-	SYNC
+	BNE	-2(PC)
 	ISYNC
 	MOVW	R5, old+16(FP)
 	RET
@@ -30,8 +29,7 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 	SYNC
 	LDAR	(R3), R5
 	STDCCC	R4, (R3)
-	BNE	-3(PC)
-	SYNC
+	BNE	-2(PC)
 	ISYNC
 	MOVD	R5, old+16(FP)
 	RET
@@ -49,10 +47,9 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	SYNC
 	LWAR	(R3), R6
 	CMPW	R6, R4
-	BNE	8(PC)
+	BNE	7(PC)
 	STWCCC	R5, (R3)
-	BNE	-5(PC)
-	SYNC
+	BNE	-4(PC)
 	ISYNC
 	MOVD	$1, R3
 	MOVB	R3, swapped+16(FP)
@@ -73,10 +70,9 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
 	SYNC
 	LDAR	(R3), R6
 	CMP	R6, R4
-	BNE	8(PC)
+	BNE	7(PC)
 	STDCCC	R5, (R3)
-	BNE	-5(PC)
-	SYNC
+	BNE	-4(PC)
 	ISYNC
 	MOVD	$1, R3
 	MOVB	R3, swapped+24(FP)
@@ -94,8 +90,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
 	LWAR	(R3), R5
 	ADD	R4, R5
 	STWCCC	R5, (R3)
-	BNE	-4(PC)
-	SYNC
+	BNE	-3(PC)
 	ISYNC
 	MOVW	R5, ret+16(FP)
 	RET
@@ -113,8 +108,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0-24
 	LDAR	(R3), R5
 	ADD	R4, R5
 	STDCCC	R5, (R3)
-	BNE	-4(PC)
-	SYNC
+	BNE	-3(PC)
 	ISYNC
 	MOVD	R5, ret+16(FP)
 	RET

@@ -48,28 +48,24 @@ func main() {
 	test_autos()
 }
 
+//go:noinline
 func f1_ssa(x, y int) *int {
-	switch {
-	} //go:noinline
 	x = x*y + y
 	return &x
 }
 
+//go:noinline
 func f3a_ssa(x int) *int {
-	switch {
-	} //go:noinline
 	return &x
 }
 
+//go:noinline
 func f3b_ssa(x int) interface{} { // ./foo.go:15: internal error: f3b_ssa ~r1 (type interface {}) recorded as live on entry
-	switch {
-	} //go:noinline
 	return &x
 }
 
+//go:noinline
 func f3c_ssa(y int) interface{} {
-	switch {
-	} //go:noinline
 	x := y
 	return &x
 }
@@ -88,9 +84,8 @@ func args() {
 	assertEqual(int(i), 2)
 }
 
+//go:noinline
 func (v V) args_ssa(a, b V) int64 {
-	switch {
-	} //go:noinline
 	if v.w == 0 {
 		return v.x
 	}
@@ -143,13 +138,12 @@ func (v V) val() int64 {
 // address taken to force heap allocation, and then based on
 // the value of which a pair of those locals are copied in
 // various ways to the two results y, and z, which are also
-// addressed.  Which is expected to be one of 11-13, 21-23, 31, 32,
+// addressed. Which is expected to be one of 11-13, 21-23, 31, 32,
 // and y.val() should be equal to which and y.p.val() should
 // be equal to z.val().  Also, x(.p)**8 == x; that is, the
 // autos are all linked into a ring.
+//go:noinline
 func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
-	switch {
-	} //go:noinline
 	fill_ssa(v.w, v.x, &v, v.p) // gratuitous no-op to force addressing
 	var a, b, c, d, e, f, g, h V
 	fill_ssa(w1, x1, &a, &b)
@@ -194,23 +188,20 @@ func (v V) autos_ssa(which, w1, x1, w2, x2 int64) (y, z V) {
 
 // gets is an address-mentioning way of implementing
 // structure assignment.
+//go:noinline
 func (to *V) gets(from *V) {
-	switch {
-	} //go:noinline
 	*to = *from
 }
 
 // gets is an address-and-interface-mentioning way of
 // implementing structure assignment.
+//go:noinline
 func (to *V) getsI(from interface{}) {
-	switch {
-	} //go:noinline
 	*to = *from.(*V)
 }
 
 // fill_ssa initializes r with V{w:w, x:x, p:p}
+//go:noinline
 func fill_ssa(w, x int64, r, p *V) {
-	switch {
-	} //go:noinline
 	*r = V{w: w, x: x, p: p}
 }

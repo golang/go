@@ -24,7 +24,7 @@ type runtimeTimer struct {
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
 // It returns what the time will be, in nanoseconds, Duration d in the future.
-// If d is negative, it is ignored.  If the returned value would be less than
+// If d is negative, it is ignored. If the returned value would be less than
 // zero because of an overflow, MaxInt64 is returned.
 func when(d Duration) int64 {
 	if d <= 0 {

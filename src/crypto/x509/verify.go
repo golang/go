@@ -117,10 +117,16 @@ func (e UnknownAuthorityError) Error() string {
 }
 
 // SystemRootsError results when we fail to load the system root certificates.
-type SystemRootsError struct{}
+type SystemRootsError struct {
+	Err error
+}
 
-func (SystemRootsError) Error() string {
-	return "x509: failed to load system roots and no roots provided"
+func (se SystemRootsError) Error() string {
+	msg := "x509: failed to load system roots and no roots provided"
+	if se.Err != nil {
+		return msg + "; " + se.Err.Error()
+	}
+	return msg
 }
 
 // errNotParsed is returned when a certificate without ASN.1 contents is
@@ -179,7 +185,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	// being valid for encryption only, but no-one noticed. Another
 	// European CA marked its signature keys as not being valid for
 	// signatures. A different CA marked its own trusted root certificate
-	// as being invalid for certificate signing.  Another national CA
+	// as being invalid for certificate signing. Another national CA
 	// distributed a certificate to be used to encrypt data for the
 	// country’s tax authority that was marked as only being usable for
 	// digital signatures but not for encryption. Yet another CA reversed
@@ -240,7 +246,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	if opts.Roots == nil {
 		opts.Roots = systemRootsPool()
 		if opts.Roots == nil {
-			return nil, SystemRootsError{}
+			return nil, SystemRootsError{systemRootsErr}
 		}
 	}
 

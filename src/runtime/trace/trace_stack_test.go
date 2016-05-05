@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -125,14 +125,7 @@ func TestTraceSymbolize(t *testing.T) {
 	<-pipeReadDone
 
 	Stop()
-	events, _, err := parseTrace(t, buf)
-	if err != nil {
-		t.Fatalf("failed to parse trace: %v", err)
-	}
-	err = trace.Symbolize(events, os.Args[0])
-	if err != nil {
-		t.Fatalf("failed to symbolize trace: %v", err)
-	}
+	events, _ := parseTrace(t, buf)
 
 	// Now check that the stacks are correct.
 	type frame struct {
@@ -148,6 +141,9 @@ func TestTraceSymbolize(t *testing.T) {
 			{"runtime.GC", 0},
 			{"runtime/trace_test.TestTraceSymbolize", 106},
 			{"testing.tRunner", 0},
+		}},
+		{trace.EvGoStart, []frame{
+			{"runtime/trace_test.TestTraceSymbolize.func1", 37},
 		}},
 		{trace.EvGoSched, []frame{
 			{"runtime/trace_test.TestTraceSymbolize", 107},
@@ -235,7 +231,7 @@ func TestTraceSymbolize(t *testing.T) {
 		want = append(want, []eventDesc{
 			{trace.EvGoBlockNet, []frame{
 				{"net.(*netFD).accept", 0},
-				{"net.(*TCPListener).AcceptTCP", 0},
+				{"net.(*TCPListener).accept", 0},
 				{"net.(*TCPListener).Accept", 0},
 				{"runtime/trace_test.TestTraceSymbolize.func10", 86},
 			}},

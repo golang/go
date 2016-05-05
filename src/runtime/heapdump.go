@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Implementation of runtime/debug.WriteHeapDump.  Writes all
+// Implementation of runtime/debug.WriteHeapDump. Writes all
 // objects in the heap plus additional info (roots, threads,
 // finalizers, etc.) to a file.
 
 // The format of the dumped file is described at
-// https://golang.org/s/go14heapdump.
+// https://golang.org/s/go15heapdump.
 
 package runtime
 
@@ -97,7 +97,7 @@ func flush() {
 // Inside a bucket, we keep a list of types that
 // have been serialized so far, most recently used first.
 // Note: when a bucket overflows we may end up
-// serializing a type more than once.  That's ok.
+// serializing a type more than once. That's ok.
 const (
 	typeCacheBuckets = 256
 	typeCacheAssoc   = 4
@@ -172,7 +172,7 @@ func dumptype(t *_type) {
 		}
 	}
 
-	// Might not have been dumped yet.  Dump it and
+	// Might not have been dumped yet. Dump it and
 	// remember we did so.
 	for j := typeCacheAssoc - 1; j > 0; j-- {
 		b.t[j] = b.t[j-1]
@@ -183,10 +183,11 @@ func dumptype(t *_type) {
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.size))
-	if t.x == nil || t.x.pkgpath == nil {
-		dumpstr(t._string)
+	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
+		dumpstr(t.string())
 	} else {
-		pkgpath := stringStructOf(t.x.pkgpath)
+		pkgpathstr := t.nameOff(x.pkgpath).name()
+		pkgpath := stringStructOf(&pkgpathstr)
 		namestr := t.name()
 		name := stringStructOf(&namestr)
 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
@@ -234,7 +235,7 @@ type childInfo struct {
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
 	bv := gobv(*cbv)
-	for i := uintptr(0); i < uintptr(bv.n); i++ {
+	for i := uintptr(0); i < bv.n; i++ {
 		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(offset + i*sys.PtrSize))
@@ -254,7 +255,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
-		// stackmap for this function.  It is likely that we are looking
+		// stackmap for this function. It is likely that we are looking
 		// at the function prologue, assume so and hope for the best.
 		pcdata = 0
 	}
@@ -446,7 +447,7 @@ func dumproots() {
 					continue
 				}
 				spf := (*specialfinalizer)(unsafe.Pointer(sp))
-				p := unsafe.Pointer((uintptr(s.start) << _PageShift) + uintptr(spf.special.offset))
+				p := unsafe.Pointer(s.base() + uintptr(spf.special.offset))
 				dumpfinalizer(p, spf.fn, spf.fint, spf.ot)
 			}
 		}
@@ -466,15 +467,19 @@ func dumpobjs() {
 		if s.state != _MSpanInUse {
 			continue
 		}
-		p := uintptr(s.start << _PageShift)
+		p := s.base()
 		size := s.elemsize
 		n := (s.npages << _PageShift) / size
 		if n > uintptr(len(freemark)) {
 			throw("freemark array doesn't have enough entries")
 		}
-		for l := s.freelist; l.ptr() != nil; l = l.ptr().next {
-			freemark[(uintptr(l)-p)/size] = true
+
+		for freeIndex := s.freeindex; freeIndex < s.nelems; freeIndex++ {
+			if s.isFree(freeIndex) {
+				freemark[freeIndex] = true
+			}
 		}
+
 		for j := uintptr(0); j < n; j, p = j+1, p+size {
 			if freemark[j] {
 				freemark[j] = false
@@ -496,7 +501,7 @@ func dumpparams() {
 	dumpint(sys.PtrSize)
 	dumpint(uint64(mheap_.arena_start))
 	dumpint(uint64(mheap_.arena_used))
-	dumpint(sys.TheChar)
+	dumpstr(sys.GOARCH)
 	dumpstr(sys.Goexperiment)
 	dumpint(uint64(ncpu))
 }
@@ -614,7 +619,7 @@ func dumpmemprof() {
 				continue
 			}
 			spp := (*specialprofile)(unsafe.Pointer(sp))
-			p := uintptr(s.start<<_PageShift) + uintptr(spp.special.offset)
+			p := s.base() + uintptr(spp.special.offset)
 			dumpint(tagAllocSample)
 			dumpint(uint64(p))
 			dumpint(uint64(uintptr(unsafe.Pointer(spp.b))))
@@ -679,8 +684,8 @@ func dumpfields(bv bitvector) {
 }
 
 // The heap dump reader needs to be able to disambiguate
-// Eface entries.  So it needs to know every type that might
-// appear in such an entry.  The following routine accomplishes that.
+// Eface entries. So it needs to know every type that might
+// appear in such an entry. The following routine accomplishes that.
 // TODO(rsc, khr): Delete - no longer possible.
 
 // Dump all the types that appear in the type field of
@@ -709,7 +714,7 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
-		if i >= 2 && !hbits.isMarked() {
+		if i != 1 && !hbits.morePointers() {
 			break // end of object
 		}
 		if hbits.isPointer() {

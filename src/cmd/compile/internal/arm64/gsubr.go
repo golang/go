@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ var resvd = []int{
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
@@ -77,7 +77,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
  * generate
  *	as n, $c (CMP)
  */
-func ginscon2(as int, n2 *gc.Node, c int64) {
+func ginscon2(as obj.As, n2 *gc.Node, c int64) {
 	var n1 gc.Node
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
@@ -103,7 +103,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
+	if t.IsInteger() && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
 		// Reverse comparison to place constant last.
 		op = gc.Brrev(op)
 		n1, n2 = n2, n1
@@ -114,8 +114,8 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	gc.Regalloc(&g1, n1.Type, &r1)
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
-	if gc.Isint[t.Etype] && gc.Isconst(n2, gc.CTINT) {
-		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int())
+	if t.IsInteger() && gc.Isconst(n2, gc.CTINT) {
+		ginscon2(optoas(gc.OCMP, t), &r1, n2.Int64())
 	} else {
 		gc.Regalloc(&r2, t, n2)
 		gc.Regalloc(&g2, n1.Type, &r2)
@@ -137,12 +137,12 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
 	}
 
 	ft := int(gc.Simsimtype(f.Type))
 	tt := int(gc.Simsimtype(t.Type))
-	cvt := (*gc.Type)(t.Type)
+	cvt := t.Type
 
 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)
@@ -151,7 +151,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	// cannot have two memory operands
 	var r1 gc.Node
-	var a int
+	var a obj.As
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -214,7 +214,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
 
 		/*
 		 * integer copy and truncate
@@ -470,7 +470,7 @@ hard:
 // gins is called by the front end.
 // It synthesizes some multiple-instruction sequences
 // so the front end can stay simpler.
-func gins(as int, f, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f, t *gc.Node) *obj.Prog {
 	if as >= obj.A_ARCHSPECIFIC {
 		if x, ok := f.IntLiteral(); ok {
 			ginscon(as, x, t)
@@ -490,7 +490,7 @@ func gins(as int, f, t *gc.Node) *obj.Prog {
  * generate one instruction:
  *	as f, t
  */
-func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	// TODO(austin): Add self-move test like in 6g (but be careful
 	// of truncation moves)
 
@@ -567,7 +567,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
 	gc.Naddr(&a, n)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
-			gc.Fatalf("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+			gc.Fatalf("bad in raddr: %v", n.Op)
 		} else {
 			gc.Fatalf("bad in raddr: <null>")
 		}
@@ -577,9 +577,9 @@ func raddr(n *gc.Node, p *obj.Prog) {
 	}
 }
 
-func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
+func gcmp(as obj.As, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
 	if lhs.Op != gc.OREGISTER {
-		gc.Fatalf("bad operands to gcmp: %v %v", gc.Oconv(int(lhs.Op), 0), gc.Oconv(int(rhs.Op), 0))
+		gc.Fatalf("bad operands to gcmp: %v %v", lhs.Op, rhs.Op)
 	}
 
 	p := rawgins(as, rhs, nil)
@@ -590,7 +590,7 @@ func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -619,10 +619,10 @@ func optoas(op gc.Op, t *gc.Type) int {
 		OSQRT_  = uint32(gc.OSQRT) << 16
 	)
 
-	a := int(obj.AXXX)
+	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
 
 	case OEQ_ | gc.TBOOL,
 		OEQ_ | gc.TINT8,
@@ -890,18 +890,6 @@ func optoas(op gc.Op, t *gc.Type) int {
 		ORSH_ | gc.TINT64:
 		a = arm64.AASR
 
-		// TODO(minux): handle rotates
-	//case CASE(ORROTC, TINT8):
-	//case CASE(ORROTC, TUINT8):
-	//case CASE(ORROTC, TINT16):
-	//case CASE(ORROTC, TUINT16):
-	//case CASE(ORROTC, TINT32):
-	//case CASE(ORROTC, TUINT32):
-	//case CASE(ORROTC, TINT64):
-	//case CASE(ORROTC, TUINT64):
-	//	a = 0//??? RLDC??
-	//	break;
-
 	case OHMUL_ | gc.TINT64:
 		a = arm64.ASMULH
 
@@ -987,7 +975,7 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	// TODO(minux)
 
 	*a = obj.Addr{}

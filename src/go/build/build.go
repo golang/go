@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -55,8 +55,8 @@ type Context struct {
 	InstallSuffix string
 
 	// By default, Import uses the operating system's file system calls
-	// to read directories and files.  To read from other sources,
-	// callers can set the following functions.  They all have default
+	// to read directories and files. To read from other sources,
+	// callers can set the following functions. They all have default
 	// behaviors that use the local file system, so clients need only set
 	// the functions whose behaviors they wish to change.
 
@@ -87,11 +87,11 @@ type Context struct {
 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
 	// describing the content of the named directory.
 	// If ReadDir is nil, Import uses ioutil.ReadDir.
-	ReadDir func(dir string) (fi []os.FileInfo, err error)
+	ReadDir func(dir string) ([]os.FileInfo, error)
 
 	// OpenFile opens a file (not a directory) for reading.
 	// If OpenFile is nil, Import uses os.Open.
-	OpenFile func(path string) (r io.ReadCloser, err error)
+	OpenFile func(path string) (io.ReadCloser, error)
 }
 
 // joinPath calls ctxt.JoinPath (if not nil) or else filepath.Join.
@@ -270,7 +270,7 @@ func defaultContext() Context {
 	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
 	// say "+build go1.x", and code that should only be built before Go 1.x
 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
-	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6"}
+	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6", "go1.7"}
 
 	switch os.Getenv("CGO_ENABLED") {
 	case "1":
@@ -302,12 +302,19 @@ type ImportMode uint
 
 const (
 	// If FindOnly is set, Import stops after locating the directory
-	// that should contain the sources for a package.  It does not
+	// that should contain the sources for a package. It does not
 	// read any files in the directory.
 	FindOnly ImportMode = 1 << iota
 
 	// If AllowBinary is set, Import can be satisfied by a compiled
 	// package object without corresponding sources.
+	//
+	// Deprecated:
+	// The supported way to create a compiled-only package is to
+	// write source code containing a //go:binary-only-package comment at
+	// the top of the file. Such a package will be recognized
+	// regardless of this flag setting (because it has source code)
+	// and will have BinaryOnly set to true in the returned Package.
 	AllowBinary
 
 	// If ImportComment is set, parse import comments on package statements.
@@ -348,6 +355,7 @@ type Package struct {
 	PkgObj        string   // installed .a file
 	AllTags       []string // tags that can influence file selection in this directory
 	ConflictDir   string   // this directory shadows Dir in $GOPATH
+	BinaryOnly    bool     // cannot be rebuilt from source (has //go:binary-only-package comment)
 
 	// Source files
 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -679,7 +687,7 @@ Found:
 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
 		}
 
-		match, data, filename, err := ctxt.matchFile(p.Dir, name, true, allTags)
+		match, data, filename, err := ctxt.matchFile(p.Dir, name, true, allTags, &p.BinaryOnly)
 		if err != nil {
 			badFile(err)
 			continue
@@ -691,7 +699,7 @@ Found:
 			continue
 		}
 
-		// Going to save the file.  For non-Go files, can stop here.
+		// Going to save the file. For non-Go files, can stop here.
 		switch ext {
 		case ".c":
 			p.CFiles = append(p.CFiles, name)
@@ -993,7 +1001,7 @@ func parseWord(data []byte) (word, rest []byte) {
 // MatchFile considers the name of the file and may use ctxt.OpenFile to
 // read some or all of the file's content.
 func (ctxt *Context) MatchFile(dir, name string) (match bool, err error) {
-	match, _, _, err = ctxt.matchFile(dir, name, false, nil)
+	match, _, _, err = ctxt.matchFile(dir, name, false, nil, nil)
 	return
 }
 
@@ -1005,7 +1013,7 @@ func (ctxt *Context) MatchFile(dir, name string) (match bool, err error) {
 // considers text until the first non-comment.
 // If allTags is non-nil, matchFile records any encountered build tag
 // by setting allTags[tag] = true.
-func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map[string]bool) (match bool, data []byte, filename string, err error) {
+func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map[string]bool, binaryOnly *bool) (match bool, data []byte, filename string, err error) {
 	if strings.HasPrefix(name, "_") ||
 		strings.HasPrefix(name, ".") {
 		return
@@ -1041,7 +1049,11 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 
 	if strings.HasSuffix(filename, ".go") {
 		data, err = readImports(f, false, nil)
+		if strings.HasSuffix(filename, "_test.go") {
+			binaryOnly = nil // ignore //go:binary-only-package comments in _test.go files
+		}
 	} else {
+		binaryOnly = nil // ignore //go:binary-only-package comments in non-Go sources
 		data, err = readComments(f)
 	}
 	f.Close()
@@ -1051,7 +1063,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	// Look for +build comments to accept or reject the file.
-	if !ctxt.shouldBuild(data, allTags) && !ctxt.UseAllFiles {
+	if !ctxt.shouldBuild(data, allTags, binaryOnly) && !ctxt.UseAllFiles {
 		return
 	}
 
@@ -1080,6 +1092,11 @@ func ImportDir(dir string, mode ImportMode) (*Package, error) {
 
 var slashslash = []byte("//")
 
+// Special comment denoting a binary-only package.
+// See https://golang.org/design/2775-binary-only-packages
+// for more about the design of binary-only packages.
+var binaryOnlyComment = []byte("//go:binary-only-package")
+
 // shouldBuild reports whether it is okay to use this file,
 // The rule is that in the file's leading run of // comments
 // and blank lines, which must be followed by a blank line
@@ -1087,13 +1104,19 @@ var slashslash = []byte("//")
 // lines beginning with '// +build' are taken as build directives.
 //
 // The file is accepted only if each such line lists something
-// matching the file.  For example:
+// matching the file. For example:
 //
 //	// +build windows linux
 //
 // marks the file as applicable only on Windows and Linux.
 //
-func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
+// If shouldBuild finds a //go:binary-only-package comment in a file that
+// should be built, it sets *binaryOnly to true. Otherwise it does
+// not change *binaryOnly.
+//
+func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
+	sawBinaryOnly := false
+
 	// Pass 1. Identify leading run of // comments and blank lines,
 	// which must be followed by a blank line.
 	end := 0
@@ -1128,6 +1151,9 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
 		}
 		line = bytes.TrimSpace(line)
 		if bytes.HasPrefix(line, slashslash) {
+			if bytes.HasPrefix(line, binaryOnlyComment) {
+				sawBinaryOnly = true
+			}
 			line = bytes.TrimSpace(line[len(slashslash):])
 			if len(line) > 0 && line[0] == '+' {
 				// Looks like a comment +line.
@@ -1145,6 +1171,10 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) bool {
 				}
 			}
 		}
+	}
+
+	if binaryOnly != nil && sawBinaryOnly {
+		*binaryOnly = true
 	}
 
 	return allok
@@ -1266,7 +1296,7 @@ func safeCgoName(s string, spaces bool) bool {
 		safe = safe[len(safeSpaces):]
 	}
 	for i := 0; i < len(s); i++ {
-		if c := s[i]; c < 0x80 && bytes.IndexByte(safe, c) < 0 {
+		if c := s[i]; c < utf8.RuneSelf && bytes.IndexByte(safe, c) < 0 {
 			return false
 		}
 	}
@@ -1279,7 +1309,7 @@ func safeCgoName(s string, spaces bool) bool {
 // Single quotes and double quotes are recognized to prevent splitting within the
 // quoted region, and are removed from the resulting substrings. If a quote in s
 // isn't closed err will be set and r will have the unclosed argument as the
-// last element.  The backslash is used for escaping.
+// last element. The backslash is used for escaping.
 //
 // For example, the following string:
 //

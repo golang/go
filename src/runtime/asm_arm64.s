@@ -149,7 +149,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-8-8
 
 // void mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	// Save caller state in g->sched
@@ -178,7 +178,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	B	runtime·badmcall2(SB)
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -211,7 +211,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	BL	(R3)
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVD	$runtime·systemstack_switch(SB), R6
 	ADD	$8, R6	// get past prologue
@@ -542,7 +542,7 @@ g0:
 	BL	(R1)
 	MOVD	R0, R9
 
-	// Restore g, stack pointer.  R0 is errno, so don't touch it
+	// Restore g, stack pointer. R0 is errno, so don't touch it
 	MOVD	0(RSP), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_stack+stack_hi)(g), R5
@@ -554,23 +554,25 @@ g0:
 	MOVW	R0, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+TEXT runtime·cgocallback(SB),NOSPLIT,$40-32
 	MOVD	$fn+0(FP), R0
 	MOVD	R0, 8(RSP)
 	MOVD	frame+8(FP), R0
 	MOVD	R0, 16(RSP)
 	MOVD	framesize+16(FP), R0
 	MOVD	R0, 24(RSP)
+	MOVD	ctxt+24(FP), R0
+	MOVD	R0, 32(RSP)
 	MOVD	$runtime·cgocallback_gofunc(SB), R0
 	BL	(R0)
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-24
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$24-32
 	NO_LOCAL_POINTERS
 
 	// Load g from thread-local storage.
@@ -640,13 +642,16 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, -16(SP) and -8(SP) are unused.
+	// In the new goroutine, -8(SP) is unused (where SP refers to
+	// m->curg's SP while we're setting it up, before we've adjusted it).
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -(24+8)(R4)	// maintain 16-byte SP alignment
-	MOVD	$-(24+8)(R4), R0
+	MOVD	R5, -(24+8)(R4)
+	MOVD	ctxt+24(FP), R0
+	MOVD	R0, -(16+8)(R4)
+	MOVD	$-(24+8)(R4), R0 // maintain 16-byte SP alignment
 	MOVD	R0, RSP
 	BL	runtime·cgocallbackg(SB)
 

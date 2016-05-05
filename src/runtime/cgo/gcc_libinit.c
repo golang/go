@@ -1,15 +1,15 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // +build cgo
 // +build darwin dragonfly freebsd linux netbsd solaris
-// +build !ppc64,!ppc64le
 
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h> // strerror
+#include "libcgo.h"
 
 static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -25,13 +25,21 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 	}
 }
 
-void
+uintptr_t
 _cgo_wait_runtime_init_done() {
 	pthread_mutex_lock(&runtime_init_mu);
 	while (runtime_init_done == 0) {
 		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
 	}
 	pthread_mutex_unlock(&runtime_init_mu);
+	if (x_cgo_context_function != nil) {
+		struct context_arg arg;
+
+		arg.Context = 0;
+		(*x_cgo_context_function)(&arg);
+		return arg.Context;
+	}
+	return 0;
 }
 
 void

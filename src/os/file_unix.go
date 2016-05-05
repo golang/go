@@ -79,8 +79,8 @@ func epipecheck(file *File, e error) {
 const DevNull = "/dev/null"
 
 // OpenFile is the generalized open call; most users will use Open
-// or Create instead.  It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+// or Create instead. It opens the named file with specified flag
+// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
@@ -115,7 +115,7 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	// There's a race here with fork/exec, which we are
-	// content to live with.  See ../syscall/exec_unix.go.
+	// content to live with. See ../syscall/exec_unix.go.
 	if !supportsCloseOnExec {
 		syscall.CloseOnExec(r)
 	}
@@ -176,7 +176,7 @@ func Stat(name string) (FileInfo, error) {
 
 // Lstat returns a FileInfo describing the named file.
 // If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+// describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
 func Lstat(name string) (FileInfo, error) {
 	var fs fileStat
@@ -311,7 +311,7 @@ func Remove(name string) error {
 
 	// Both failed: figure out which error to return.
 	// OS X and Linux differ on whether unlink(dir)
-	// returns EISDIR, so can't use that.  However,
+	// returns EISDIR, so can't use that. However,
 	// both agree that rmdir(file) returns ENOTDIR,
 	// so we can use that to decide which error is real.
 	// Rmdir might also return ENOTDIR if given a bad

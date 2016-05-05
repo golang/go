@@ -14,7 +14,7 @@ func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
@@ -34,7 +34,7 @@ func defframe(ptxt *obj.Prog) {
 			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
 			// merge with range we already have
@@ -84,15 +84,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
-	q.From.Type = int16(ftype)
+	q.From.Type = ftype
 	q.From.Reg = int16(freg)
 	q.From.Offset = foffset
-	q.To.Type = int16(ttype)
+	q.To.Type = ttype
 	q.To.Reg = int16(treg)
 	q.To.Offset = toffset
 	q.Link = p.Link
@@ -201,17 +201,17 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
 
 	t0 := t
 	check := false
-	if gc.Issigned[t.Etype] {
+	if t.IsSigned() {
 		check = true
-		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -1<<uint64(t.Width*8-1) {
+		if gc.Isconst(nl, gc.CTINT) && nl.Int64() != -1<<uint64(t.Width*8-1) {
 			check = false
-		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
+		} else if gc.Isconst(nr, gc.CTINT) && nr.Int64() != -1 {
 			check = false
 		}
 	}
 
 	if t.Width < 4 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT32]
 		} else {
 			t = gc.Types[gc.TUINT32]
@@ -285,7 +285,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc
 		gc.Patch(p1, gc.Pc)
 	}
 
-	if !gc.Issigned[t.Etype] {
+	if !t.IsSigned() {
 		var nz gc.Node
 		gc.Nodconst(&nz, t, 0)
 		gmove(&nz, dx)
@@ -341,7 +341,7 @@ func cgen_div(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	var t *gc.Type
-	if gc.Issigned[nl.Type.Etype] {
+	if nl.Type.IsSigned() {
 		t = gc.Types[gc.TINT32]
 	} else {
 		t = gc.Types[gc.TUINT32]
@@ -378,7 +378,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gmove(&n2, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
 			gins(a, ncon(uint32(w)-1), &n1)
@@ -459,7 +459,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 			p1 = gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT32]), nil, +1)
 		}
 
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gins(a, ncon(uint32(w)-1), &n2)
 		} else {
 			gmove(ncon(0), &n2)
@@ -494,7 +494,7 @@ func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 	// copy from byte to full registers
 	t := gc.Types[gc.TUINT32]
 
-	if gc.Issigned[nl.Type.Etype] {
+	if nl.Type.IsSigned() {
 		t = gc.Types[gc.TINT32]
 	}
 
@@ -654,20 +654,19 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 }
 
 func cgen_floatsse(n *gc.Node, res *gc.Node) {
-	var a int
+	var a obj.As
 
 	nl := n.Left
 	nr := n.Right
 	switch n.Op {
 	default:
 		gc.Dump("cgen_floatsse", n)
-		gc.Fatalf("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen_floatsse %v", n.Op)
 		return
 
 	case gc.OMINUS,
 		gc.OCOM:
-		nr = gc.Nodintconst(-1)
-		gc.Convlit(&nr, n.Type)
+		nr = gc.NegOne(n.Type)
 		a = foptoas(gc.OMUL, nl.Type, 0)
 		goto sbop
 
@@ -843,7 +842,7 @@ func expandchecks(firstp *obj.Prog) {
 			continue
 		}
 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
-			gc.Warnl(int(p.Lineno), "generated nil check")
+			gc.Warnl(p.Lineno, "generated nil check")
 		}
 
 		// check is

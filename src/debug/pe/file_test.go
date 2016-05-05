@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,6 +6,7 @@ package pe
 
 import (
 	"debug/dwarf"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -306,4 +307,76 @@ func main() {
 		}
 	}
 	t.Fatal("main.main not found")
+}
+
+func TestBSSHasZeros(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows only test")
+	}
+	gccpath, err := exec.LookPath("gcc")
+	if err != nil {
+		t.Skip("skipping test: gcc is missing")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestBSSHasZeros")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	srcpath := filepath.Join(tmpdir, "a.c")
+	src := `
+#include <stdio.h>
+
+int zero = 0;
+
+int
+main(void)
+{
+	printf("%d\n", zero);
+	return 0;
+}
+`
+	err = ioutil.WriteFile(srcpath, []byte(src), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	objpath := filepath.Join(tmpdir, "a.obj")
+	cmd := exec.Command(gccpath, "-c", srcpath, "-o", objpath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to build object file: %v - %v", err, string(out))
+	}
+
+	f, err := Open(objpath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	var bss *Section
+	for _, sect := range f.Sections {
+		if sect.Name == ".bss" {
+			bss = sect
+			break
+		}
+	}
+	if bss == nil {
+		t.Fatal("could not find .bss section")
+	}
+	data, err := bss.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(data) == 0 {
+		t.Fatalf("%s file .bss section cannot be empty", objpath)
+	}
+	for _, b := range data {
+		if b != 0 {
+			t.Fatalf(".bss section has non zero bytes: %v", data)
+		}
+	}
 }

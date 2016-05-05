@@ -393,7 +393,7 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
   -Z int
     	an int that defaults to zero
   -maxT timeout
-    	set timeout for dial
+    	set timeout for dial (default 0s)
 `
 
 func TestPrintDefaults(t *testing.T) {

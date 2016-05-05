@@ -20,7 +20,7 @@ func sameFile(fs1, fs2 *fileStat) bool {
 func fileInfoFromStat(d *syscall.Dir) FileInfo {
 	fs := &fileStat{
 		name:    d.Name,
-		size:    int64(d.Length),
+		size:    d.Length,
 		modTime: time.Unix(int64(d.Mtime), 0),
 		sys:     d,
 	}
@@ -100,7 +100,7 @@ func Stat(name string) (FileInfo, error) {
 
 // Lstat returns a FileInfo describing the named file.
 // If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+// describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
 func Lstat(name string) (FileInfo, error) {
 	return Stat(name)

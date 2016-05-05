@@ -83,6 +83,17 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// query ending in question mark (Issue 14573)
+	{
+		"http://www.google.com/?foo=bar?",
+		&URL{
+			Scheme:   "http",
+			Host:     "www.google.com",
+			Path:     "/",
+			RawQuery: "foo=bar?",
+		},
+		"",
+	},
 	// query
 	{
 		"http://www.google.com/?q=go+language",
@@ -407,10 +418,10 @@ var urltests = []URLTest{
 	},
 	// worst case host, still round trips
 	{
-		"scheme://!$&'()*+,;=hello!:port/path",
+		"scheme://!$&'()*+,;=hello!:8080/path",
 		&URL{
 			Scheme: "scheme",
-			Host:   "!$&'()*+,;=hello!:port",
+			Host:   "!$&'()*+,;=hello!:8080",
 			Path:   "/path",
 		},
 		"",
@@ -564,8 +575,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
@@ -600,7 +611,7 @@ func BenchmarkString(b *testing.B) {
 			g = u.String()
 		}
 		b.StopTimer()
-		if w := tt.roundtrip; g != w {
+		if w := tt.roundtrip; b.N > 0 && g != w {
 			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
 		}
 	}
@@ -625,8 +636,10 @@ var parseRequestURLTests = []struct {
 	{"*", true},
 	{"http://192.168.0.1/", true},
 	{"http://192.168.0.1:8080/", true},
+	{"http://192.168.0.1:foo/", false},
 	{"http://[fe80::1]/", true},
 	{"http://[fe80::1]:8080/", true},
+	{"http://[fe80::1]:foo/", false},
 
 	// Tests exercising RFC 6874 compliance:
 	{"http://[fe80::1%25en0]/", true},                 // with alphanum zone identifier

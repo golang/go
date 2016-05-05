@@ -179,7 +179,7 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	}
 
 	// CertGetCertificateChain will traverse Windows's root stores
-	// in an attempt to build a verified certificate chain.  Once
+	// in an attempt to build a verified certificate chain. Once
 	// it has found a verified chain, it stops. MSDN docs on
 	// CERT_CHAIN_CONTEXT:
 	//
@@ -225,5 +225,4 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	return chains, nil
 }
 
-func initSystemRoots() {
-}
+func loadSystemRoots() (*CertPool, error) { return nil, nil }

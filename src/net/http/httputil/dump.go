@@ -128,7 +128,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 
 	// If we used a dummy body above, remove it now.
 	// TODO: if the req.ContentLength is large, we allocate memory
-	// unnecessarily just to slice it off here.  But this is just
+	// unnecessarily just to slice it off here. But this is just
 	// a debug function, so this is acceptable for now. We could
 	// discard the body earlier if this matters.
 	if dummyBody {
@@ -163,16 +163,8 @@ func valueOrDefault(value, def string) string {
 
 var reqWriteExcludeHeaderDump = map[string]bool{
 	"Host":              true, // not in Header map anyway
-	"Content-Length":    true,
 	"Transfer-Encoding": true,
 	"Trailer":           true,
-}
-
-// dumpAsReceived writes req to w in the form as it was received, or
-// at least as accurately as possible from the information retained in
-// the request.
-func dumpAsReceived(req *http.Request, w io.Writer) error {
-	return nil
 }
 
 // DumpRequest returns the given request in its HTTP/1.x wire
@@ -191,7 +183,8 @@ func dumpAsReceived(req *http.Request, w io.Writer) error {
 //
 // The documentation for http.Request.Write details which fields
 // of req are included in the dump.
-func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+func DumpRequest(req *http.Request, body bool) ([]byte, error) {
+	var err error
 	save := req.Body
 	if !body || req.Body == nil {
 		req.Body = nil
@@ -239,7 +232,7 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	io.WriteString(&b, "\r\n")
@@ -258,10 +251,9 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 
 	req.Body = save
 	if err != nil {
-		return
+		return nil, err
 	}
-	dump = b.Bytes()
-	return
+	return b.Bytes(), nil
 }
 
 // errNoBody is a sentinel error value used by failureToReadBody so we
@@ -269,7 +261,7 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 var errNoBody = errors.New("sentinel error value")
 
 // failureToReadBody is a io.ReadCloser that just returns errNoBody on
-// Read.  It's swapped in when we don't actually want to consume
+// Read. It's swapped in when we don't actually want to consume
 // the body, but need a non-nil one, and want to distinguish the
 // error from reading the dummy body.
 type failureToReadBody struct{}
@@ -281,8 +273,9 @@ func (failureToReadBody) Close() error             { return nil }
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // DumpResponse is like DumpRequest but dumps a response.
-func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
+func DumpResponse(resp *http.Response, body bool) ([]byte, error) {
 	var b bytes.Buffer
+	var err error
 	save := resp.Body
 	savecl := resp.ContentLength
 

@@ -5,6 +5,7 @@
 package net
 
 import (
+	"bytes"
 	"reflect"
 	"runtime"
 	"testing"
@@ -124,30 +125,119 @@ func TestMarshalEmptyIP(t *testing.T) {
 }
 
 var ipStringTests = []struct {
-	in  IP
-	out string // see RFC 5952
+	in  IP     // see RFC 791 and RFC 4291
+	str string // see RFC 791, RFC 4291 and RFC 5952
+	byt []byte
+	error
 }{
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, "2001:db8::123:12:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1}, "2001:db8:0:1:0:1:0:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0}, "2001:db8:1:0:1:0:1:0"},
-	{IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001::1:0:0:1"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0}, "2001:db8:0:0:1::"},
-	{IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1}, "2001:db8::1:0:0:1"},
-	{IP{0x20, 0x1, 0xD, 0xB8, 0, 0, 0, 0, 0, 0xA, 0, 0xB, 0, 0xC, 0, 0xD}, "2001:db8::a:b:c:d"},
-	{IPv4(192, 168, 0, 1), "192.168.0.1"},
-	{nil, ""},
+	// IPv4 address
+	{
+		IP{192, 0, 2, 1},
+		"192.0.2.1",
+		[]byte("192.0.2.1"),
+		nil,
+	},
+	{
+		IP{0, 0, 0, 0},
+		"0.0.0.0",
+		[]byte("0.0.0.0"),
+		nil,
+	},
+
+	// IPv4-mapped IPv6 address
+	{
+		IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 0, 2, 1},
+		"192.0.2.1",
+		[]byte("192.0.2.1"),
+		nil,
+	},
+	{
+		IP{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0, 0, 0, 0},
+		"0.0.0.0",
+		[]byte("0.0.0.0"),
+		nil,
+	},
+
+	// IPv6 address
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1},
+		"2001:db8::123:12:1",
+		[]byte("2001:db8::123:12:1"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1},
+		"2001:db8::1",
+		[]byte("2001:db8::1"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1},
+		"2001:db8:0:1:0:1:0:1",
+		[]byte("2001:db8:0:1:0:1:0:1"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0x1, 0, 0, 0, 0x1, 0, 0, 0, 0x1, 0, 0},
+		"2001:db8:1:0:1:0:1:0",
+		[]byte("2001:db8:1:0:1:0:1:0"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
+		"2001::1:0:0:1",
+		[]byte("2001::1:0:0:1"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0},
+		"2001:db8:0:0:1::",
+		[]byte("2001:db8:0:0:1::"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0x1},
+		"2001:db8::1:0:0:1",
+		[]byte("2001:db8::1:0:0:1"),
+		nil,
+	},
+	{
+		IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd},
+		"2001:db8::a:b:c:d",
+		[]byte("2001:db8::a:b:c:d"),
+		nil,
+	},
+	{
+		IPv6unspecified,
+		"::",
+		[]byte("::"),
+		nil,
+	},
+
+	// IP wildcard equivalent address in Dial/Listen API
+	{
+		nil,
+		"<nil>",
+		nil,
+		nil,
+	},
+
+	// Opaque byte sequence
+	{
+		IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
+		"0123456789abcdef",
+		nil,
+		&AddrError{Err: "invalid IP address", Addr: "0123456789abcdef"},
+	},
 }
 
 func TestIPString(t *testing.T) {
 	for _, tt := range ipStringTests {
-		if tt.in != nil {
-			if out := tt.in.String(); out != tt.out {
-				t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.out)
-			}
+		if out := tt.in.String(); out != tt.str {
+			t.Errorf("IP.String(%v) = %q, want %q", tt.in, out, tt.str)
 		}
-		if out, err := tt.in.MarshalText(); string(out) != tt.out || err != nil {
-			t.Errorf("IP.MarshalText(%v) = %q, %v, want %q, nil", tt.in, out, err, tt.out)
+		if out, err := tt.in.MarshalText(); !bytes.Equal(out, tt.byt) || !reflect.DeepEqual(err, tt.error) {
+			t.Errorf("IP.MarshalText(%v) = %v, %v, want %v, %v", tt.in, out, err, tt.byt, tt.error)
 		}
 	}
 }
@@ -237,6 +327,9 @@ var parseCIDRTests = []struct {
 	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
 	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
 	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
+	{"fe80::%en0/64", ParseIP("fe80::"), &IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, nil},
+	{"fe80::1%en0/64", ParseIP("fe80::1"), &IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, nil},
+
 	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
 	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
 	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
@@ -283,8 +376,13 @@ var ipNetStringTests = []struct {
 	out string
 }{
 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: CIDRMask(26, 32)}, "192.168.1.0/26"},
+	{&IPNet{IP: IPv4(192, 168, 1, 1), Mask: CIDRMask(26, 32)}, "192.168.1.1/26"},
 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
+	{&IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, "fe80::%en0/64"},
+	{&IPNet{IP: ParseIP("fe80::1"), Mask: CIDRMask(64, 128), Zone: "en0"}, "fe80::1%en0/64"},
+	{&IPNet{IP: ParseIP("fe80::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::")), Zone: "en0"}, "fe80::%en0/8000f1230000cafe0000000000000000"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
+	{&IPNet{IP: ParseIP("2001:db8::1"), Mask: CIDRMask(55, 128)}, "2001:db8::1/55"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
 }
 
@@ -421,12 +519,15 @@ func TestSplitHostPort(t *testing.T) {
 		}
 	}
 	for _, tt := range splitFailureTests {
-		if _, _, err := SplitHostPort(tt.hostPort); err == nil {
+		if host, port, err := SplitHostPort(tt.hostPort); err == nil {
 			t.Errorf("SplitHostPort(%q) should have failed", tt.hostPort)
 		} else {
 			e := err.(*AddrError)
 			if e.Err != tt.err {
 				t.Errorf("SplitHostPort(%q) = _, _, %q; want %q", tt.hostPort, e.Err, tt.err)
+			}
+			if host != "" || port != "" {
+				t.Errorf("SplitHostPort(%q) = %q, %q, err; want %q, %q, err on failure", tt.hostPort, host, port, "", "")
 			}
 		}
 	}

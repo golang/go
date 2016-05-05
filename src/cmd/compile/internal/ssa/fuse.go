@@ -25,6 +25,11 @@ func fuse(f *Func) {
 //
 // If all Phi ops in ss have identical variables for slots corresponding to
 // s0, s1 and b then the branch can be dropped.
+// This optimization often comes up in switch statements with multiple
+// expressions in a case clause:
+//   switch n {
+//     case 1,2,3: return 4
+//   }
 // TODO: If ss doesn't contain any OpPhis, are s0 and s1 dead code anyway.
 func fuseBlockIf(b *Block) bool {
 	if b.Kind != BlockIf {
@@ -32,17 +37,21 @@ func fuseBlockIf(b *Block) bool {
 	}
 
 	var ss0, ss1 *Block
-	s0 := b.Succs[0]
+	s0 := b.Succs[0].b
+	i0 := b.Succs[0].i
 	if s0.Kind != BlockPlain || len(s0.Preds) != 1 || len(s0.Values) != 0 {
 		s0, ss0 = b, s0
 	} else {
-		ss0 = s0.Succs[0]
+		ss0 = s0.Succs[0].b
+		i0 = s0.Succs[0].i
 	}
-	s1 := b.Succs[1]
+	s1 := b.Succs[1].b
+	i1 := b.Succs[1].i
 	if s1.Kind != BlockPlain || len(s1.Preds) != 1 || len(s1.Values) != 0 {
 		s1, ss1 = b, s1
 	} else {
-		ss1 = s1.Succs[0]
+		ss1 = s1.Succs[0].b
+		i1 = s1.Succs[0].i
 	}
 
 	if ss0 != ss1 {
@@ -52,20 +61,9 @@ func fuseBlockIf(b *Block) bool {
 
 	// s0 and s1 are equal with b if the corresponding block is missing
 	// (2nd, 3rd and 4th case in the figure).
-	i0, i1 := -1, -1
-	for i, p := range ss.Preds {
-		if p == s0 {
-			i0 = i
-		}
-		if p == s1 {
-			i1 = i
-		}
-	}
-	if i0 == -1 || i1 == -1 {
-		b.Fatalf("invalid predecessors")
-	}
+
 	for _, v := range ss.Values {
-		if v.Op == OpPhi && v.Args[i0] != v.Args[i1] {
+		if v.Op == OpPhi && v.Uses > 0 && v.Args[i0] != v.Args[i1] {
 			return false
 		}
 	}
@@ -76,28 +74,23 @@ func fuseBlockIf(b *Block) bool {
 	// have identical predecessors (verified above).
 	// No critical edge is introduced because b will have one successor.
 	if s0 != b && s1 != b {
-		ss.removePred(s0)
-
-		// Replace edge b->s1->ss with b->ss.
+		// Replace edge b->s0->ss with b->ss.
 		// We need to keep a slot for Phis corresponding to b.
-		for i := range b.Succs {
-			if b.Succs[i] == s1 {
-				b.Succs[i] = ss
-			}
-		}
-		for i := range ss.Preds {
-			if ss.Preds[i] == s1 {
-				ss.Preds[i] = b
-			}
-		}
+		b.Succs[0] = Edge{ss, i0}
+		ss.Preds[i0] = Edge{b, 0}
+		b.removeEdge(1)
+		s1.removeEdge(0)
 	} else if s0 != b {
-		ss.removePred(s0)
+		b.removeEdge(0)
+		s0.removeEdge(0)
 	} else if s1 != b {
-		ss.removePred(s1)
+		b.removeEdge(1)
+		s1.removeEdge(0)
+	} else {
+		b.removeEdge(1)
 	}
 	b.Kind = BlockPlain
-	b.Control = nil
-	b.Succs = append(b.Succs[:0], ss)
+	b.SetControl(nil)
 
 	// Trash the empty blocks s0 & s1.
 	if s0 != b {
@@ -120,30 +113,27 @@ func fuseBlockPlain(b *Block) bool {
 		return false
 	}
 
-	c := b.Succs[0]
+	c := b.Succs[0].b
 	if len(c.Preds) != 1 {
 		return false
 	}
 
-	// move all of b'c values to c.
+	// move all of b's values to c.
 	for _, v := range b.Values {
 		v.Block = c
 		c.Values = append(c.Values, v)
 	}
 
 	// replace b->c edge with preds(b) -> c
-	c.predstorage[0] = nil
+	c.predstorage[0] = Edge{}
 	if len(b.Preds) > len(b.predstorage) {
 		c.Preds = b.Preds
 	} else {
 		c.Preds = append(c.predstorage[:0], b.Preds...)
 	}
-	for _, p := range c.Preds {
-		for i, q := range p.Succs {
-			if q == b {
-				p.Succs[i] = c
-			}
-		}
+	for i, e := range c.Preds {
+		p := e.b
+		p.Succs[e.i] = Edge{c, i}
 	}
 	if f := b.Func; f.Entry == b {
 		f.Entry = c

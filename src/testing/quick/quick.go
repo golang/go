@@ -248,8 +248,8 @@ func (s *CheckEqualError) Error() string {
 }
 
 // Check looks for an input to f, any function that returns bool,
-// such that f returns false.  It calls f repeatedly, with arbitrary
-// values for each argument.  If f returns false on a given input,
+// such that f returns false. It calls f repeatedly, with arbitrary
+// values for each argument. If f returns false on a given input,
 // Check returns that input as a *CheckError.
 // For example:
 //
@@ -262,24 +262,21 @@ func (s *CheckEqualError) Error() string {
 // 			t.Error(err)
 // 		}
 // 	}
-func Check(f interface{}, config *Config) (err error) {
+func Check(f interface{}, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
 
 	fVal, fType, ok := functionAndType(f)
 	if !ok {
-		err = SetupError("argument is not a function")
-		return
+		return SetupError("argument is not a function")
 	}
 
 	if fType.NumOut() != 1 {
-		err = SetupError("function does not return one value")
-		return
+		return SetupError("function does not return one value")
 	}
 	if fType.Out(0).Kind() != reflect.Bool {
-		err = SetupError("function does not return a bool")
-		return
+		return SetupError("function does not return a bool")
 	}
 
 	arguments := make([]reflect.Value, fType.NumIn())
@@ -287,43 +284,39 @@ func Check(f interface{}, config *Config) (err error) {
 	maxCount := config.getMaxCount()
 
 	for i := 0; i < maxCount; i++ {
-		err = arbitraryValues(arguments, fType, config, rand)
+		err := arbitraryValues(arguments, fType, config, rand)
 		if err != nil {
-			return
+			return err
 		}
 
 		if !fVal.Call(arguments)[0].Bool() {
-			err = &CheckError{i + 1, toInterfaces(arguments)}
-			return
+			return &CheckError{i + 1, toInterfaces(arguments)}
 		}
 	}
 
-	return
+	return nil
 }
 
 // CheckEqual looks for an input on which f and g return different results.
 // It calls f and g repeatedly with arbitrary values for each argument.
 // If f and g return different answers, CheckEqual returns a *CheckEqualError
 // describing the input and the outputs.
-func CheckEqual(f, g interface{}, config *Config) (err error) {
+func CheckEqual(f, g interface{}, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
 	}
 
 	x, xType, ok := functionAndType(f)
 	if !ok {
-		err = SetupError("f is not a function")
-		return
+		return SetupError("f is not a function")
 	}
 	y, yType, ok := functionAndType(g)
 	if !ok {
-		err = SetupError("g is not a function")
-		return
+		return SetupError("g is not a function")
 	}
 
 	if xType != yType {
-		err = SetupError("functions have different types")
-		return
+		return SetupError("functions have different types")
 	}
 
 	arguments := make([]reflect.Value, xType.NumIn())
@@ -331,21 +324,20 @@ func CheckEqual(f, g interface{}, config *Config) (err error) {
 	maxCount := config.getMaxCount()
 
 	for i := 0; i < maxCount; i++ {
-		err = arbitraryValues(arguments, xType, config, rand)
+		err := arbitraryValues(arguments, xType, config, rand)
 		if err != nil {
-			return
+			return err
 		}
 
 		xOut := toInterfaces(x.Call(arguments))
 		yOut := toInterfaces(y.Call(arguments))
 
 		if !reflect.DeepEqual(xOut, yOut) {
-			err = &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut}
-			return
+			return &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut}
 		}
 	}
 
-	return
+	return nil
 }
 
 // arbitraryValues writes Values to args such that args contains Values

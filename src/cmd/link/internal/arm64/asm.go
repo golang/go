@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -48,11 +48,11 @@ func gentext() {
 		// an init function
 		return
 	}
-	addmoduledata.Reachable = true
+	addmoduledata.Attr |= ld.AttrReachable
 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
 	initfunc.Type = obj.STEXT
-	initfunc.Local = true
-	initfunc.Reachable = true
+	initfunc.Attr |= ld.AttrLocal
+	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
 		ld.Adduint32(ld.Ctxt, initfunc, op)
 	}
@@ -78,21 +78,12 @@ func gentext() {
 	rel.Sym = ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
 	rel.Type = obj.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
 
-	if ld.Ctxt.Etextp != nil {
-		ld.Ctxt.Etextp.Next = initfunc
-	} else {
-		ld.Ctxt.Textp = initfunc
-	}
-	ld.Ctxt.Etextp = initfunc
+	ld.Ctxt.Textp = append(ld.Ctxt.Textp, initfunc)
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
-	initarray_entry.Reachable = true
-	initarray_entry.Local = true
+	initarray_entry.Attr |= ld.AttrReachable
+	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = obj.SINITARR
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
-}
-
-func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
-	log.Fatalf("adddynrela not implemented")
 }
 
 func adddynrel(s *ld.LSym, r *ld.Reloc) {
@@ -258,7 +249,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Local) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
+			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ld.Ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}
@@ -375,7 +366,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
 		// de facto part of the ABI.
-		v := r.Sym.Value + int64(2*ld.Thearch.Ptrsize)
+		v := r.Sym.Value + int64(2*ld.SysArch.PtrSize)
 		if v < 0 || v >= 32678 {
 			ld.Diag("TLS offset out of range %d", v)
 		}
@@ -401,7 +392,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 
 func asmb() {
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f asmb\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
@@ -419,7 +410,7 @@ func asmb() {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
 
@@ -428,26 +419,18 @@ func asmb() {
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f datblk\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
+	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ld.Dwarfblk(int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+
 	machlink := uint32(0)
 	if ld.HEADTYPE == obj.Hdarwin {
-		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
-		}
-
-		dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
-		ld.Cseek(int64(dwarfoff))
-
-		ld.Segdwarf.Fileoff = uint64(ld.Cpos())
-		ld.Dwarfemitdebugsections()
-		ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
-
 		machlink = uint32(ld.Domacholink())
 	}
 
@@ -459,13 +442,13 @@ func asmb() {
 	if ld.Debug['s'] == 0 {
 		// TODO: rationalize
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
+			fmt.Fprintf(ld.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
-				symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 			}
 
@@ -481,16 +464,11 @@ func asmb() {
 		default:
 			if ld.Iself {
 				if ld.Debug['v'] != 0 {
-					fmt.Fprintf(&ld.Bso, "%5.2f elfsym\n", obj.Cputime())
+					fmt.Fprintf(ld.Bso, "%5.2f elfsym\n", obj.Cputime())
 				}
 				ld.Asmelfsym()
 				ld.Cflush()
 				ld.Cwrite(ld.Elfstrdat)
-
-				if ld.Debug['v'] != 0 {
-					fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
-				}
-				ld.Dwarfemitdebugsections()
 
 				if ld.Linkmode == ld.LinkExternal {
 					ld.Elfemitreloc()
@@ -505,7 +483,7 @@ func asmb() {
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {
-					ld.Cput(uint8(sym.P[i]))
+					ld.Cput(sym.P[i])
 				}
 
 				ld.Cflush()
@@ -520,7 +498,7 @@ func asmb() {
 
 	ld.Ctxt.Cursym = nil
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(&ld.Bso, "%5.2f header\n", obj.Cputime())
+		fmt.Fprintf(ld.Bso, "%5.2f header\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 	ld.Cseek(0)

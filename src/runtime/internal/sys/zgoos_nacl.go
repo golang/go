@@ -2,7 +2,7 @@
 
 package sys
 
-const TheGoos = `nacl`
+const GOOS = `nacl`
 
 const GoosAndroid = 0
 const GoosDarwin = 0

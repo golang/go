@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -33,7 +33,7 @@ type onePassInst struct {
 }
 
 // OnePassPrefix returns a literal string that all matches for the
-// regexp must start with.  Complete is true if the prefix
+// regexp must start with. Complete is true if the prefix
 // is the entire match. Pc is the index of the last rune instruction
 // in the string. The OnePassPrefix skips over the mandatory
 // EmptyBeginText
@@ -450,7 +450,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 	for !instQueue.empty() {
 		visitQueue.clear()
 		pc := instQueue.next()
-		if !check(uint32(pc), m) {
+		if !check(pc, m) {
 			p = notOnePass
 			break
 		}

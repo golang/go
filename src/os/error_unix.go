@@ -19,7 +19,7 @@ func isExist(err error) bool {
 	case *SyscallError:
 		err = pe.Err
 	}
-	return err == syscall.EEXIST || err == ErrExist
+	return err == syscall.EEXIST || err == syscall.ENOTEMPTY || err == ErrExist
 }
 
 func isNotExist(err error) bool {

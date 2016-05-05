@@ -1,14 +1,14 @@
 // cmd/7l/list.c and cmd/7l/sub.c from Vita Nuova.
 // https://code.google.com/p/ken-cc/source/browse/
 //
-// 	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+// 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 // 	Portions Copyright © 1997-1999 Vita Nuova Limited
 // 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
 // 	Portions Copyright © 2004,2006 Bruce Ellis
 // 	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 // 	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-// 	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+// 	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,7 @@ func Rconv(r int) string {
 	case REG_F0 <= r && r <= REG_F31:
 		return fmt.Sprintf("F%d", r-REG_F0)
 	case REG_V0 <= r && r <= REG_V31:
-		return fmt.Sprintf("V%d", r-REG_F0)
+		return fmt.Sprintf("V%d", r-REG_V0)
 	case COND_EQ <= r && r <= COND_NV:
 		return strcond[r-COND_EQ]
 	case r == REGSP:

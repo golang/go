@@ -311,8 +311,8 @@ func (f *File) addImport(path string) string {
 var slashslash = []byte("//")
 
 // initialComments returns the prefix of content containing only
-// whitespace and line comments.  Any +build directives must appear
-// within this region.  This approach is more reliable than using
+// whitespace and line comments. Any +build directives must appear
+// within this region. This approach is more reliable than using
 // go/printer to print a modified AST containing comments.
 //
 func initialComments(content []byte) []byte {

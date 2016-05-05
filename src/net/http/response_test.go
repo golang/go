@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,6 +10,7 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
+	"go/ast"
 	"io"
 	"io/ioutil"
 	"net/http/internal"
@@ -505,6 +506,32 @@ some body`,
 
 		"Body here\n",
 	},
+
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Encoding: gzip\r\n" +
+			"Content-Length: 23\r\n" +
+			"Connection: keep-alive\r\n" +
+			"Keep-Alive: timeout=7200\r\n\r\n" +
+			"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Content-Length":   {"23"},
+				"Content-Encoding": {"gzip"},
+				"Connection":       {"keep-alive"},
+				"Keep-Alive":       {"timeout=7200"},
+			},
+			Close:         false,
+			ContentLength: 23,
+		},
+		"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
+	},
 }
 
 // tests successful calls to ReadResponse, and inspects the returned Response.
@@ -656,10 +683,14 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 		t.Errorf("%s: type mismatch %v want %v", prefix, hv.Type(), wv.Type())
 	}
 	for i := 0; i < hv.NumField(); i++ {
+		name := hv.Type().Field(i).Name
+		if !ast.IsExported(name) {
+			continue
+		}
 		hf := hv.Field(i).Interface()
 		wf := wv.Field(i).Interface()
 		if !reflect.DeepEqual(hf, wf) {
-			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().Field(i).Name, hf, wf)
+			t.Errorf("%s: %s = %v want %v", prefix, name, hf, wf)
 		}
 	}
 }

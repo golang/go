@@ -21,7 +21,7 @@ var (
 func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
 	// If there is no SysProcAttr (ie. no Chroot or changed
 	// UID/GID), double-check existence of the directory we want
-	// to chdir into.  We can make the error clearer this way.
+	// to chdir into. We can make the error clearer this way.
 	if attr != nil && attr.Sys == nil && attr.Dir != "" {
 		if _, err := Stat(attr.Dir); err != nil {
 			pe := err.(*PathError)

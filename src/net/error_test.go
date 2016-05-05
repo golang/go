@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -91,9 +92,12 @@ second:
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
+	case *os.PathError: // for Plan 9
+		nestedErr = err.Err
+		goto third
 	}
 	switch nestedErr {
-	case errCanceled, errClosing, errMissingAddress:
+	case errCanceled, errClosing, errMissingAddress, errNoSuitableAddress:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -135,7 +139,7 @@ func TestDialError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "dial error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 	sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
@@ -203,6 +207,58 @@ func TestProtocolDialError(t *testing.T) {
 	}
 }
 
+func TestDialAddrError(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl", "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
+	}
+
+	for _, tt := range []struct {
+		network string
+		lit     string
+		addr    *TCPAddr
+	}{
+		{"tcp4", "::1", nil},
+		{"tcp4", "", &TCPAddr{IP: IPv6loopback}},
+		// We don't test the {"tcp6", "byte sequence", nil}
+		// case for now because there is no easy way to
+		// control name resolution.
+		{"tcp6", "", &TCPAddr{IP: IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}}},
+	} {
+		var err error
+		var c Conn
+		if tt.lit != "" {
+			c, err = Dial(tt.network, JoinHostPort(tt.lit, "0"))
+		} else {
+			c, err = DialTCP(tt.network, nil, tt.addr)
+		}
+		if err == nil {
+			c.Close()
+			t.Errorf("%s %q/%v: should fail", tt.network, tt.lit, tt.addr)
+			continue
+		}
+		if perr := parseDialError(err); perr != nil {
+			t.Error(perr)
+			continue
+		}
+		aerr, ok := err.(*OpError).Err.(*AddrError)
+		if !ok {
+			t.Errorf("%s %q/%v: should be AddrError: %v", tt.network, tt.lit, tt.addr, err)
+			continue
+		}
+		want := tt.lit
+		if tt.lit == "" {
+			want = tt.addr.IP.String()
+		}
+		if aerr.Addr != want {
+			t.Fatalf("%s: got %q; want %q", tt.network, aerr.Addr, want)
+		}
+	}
+}
+
 var listenErrorTests = []struct {
 	network, address string
 }{
@@ -228,7 +284,7 @@ func TestListenError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(_ context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 	sw.Set(socktest.FilterListen, func(so *socktest.Status) (socktest.AfterFilter, error) {
@@ -288,7 +344,7 @@ func TestListenPacketError(t *testing.T) {
 
 	origTestHookLookupIP := testHookLookupIP
 	defer func() { testHookLookupIP = origTestHookLookupIP }()
-	testHookLookupIP = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	testHookLookupIP = func(_ context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
 		return nil, &DNSError{Err: "listen error test", Name: "name", Server: "server", IsTimeout: true}
 	}
 
@@ -413,7 +469,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errCanceled, errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+	case errCanceled, errClosing, errMissingAddress, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -541,6 +597,9 @@ second:
 	}
 	switch err := nestedErr.(type) {
 	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	case *os.PathError: // for Plan 9
 		nestedErr = err.Err
 		goto third
 	}

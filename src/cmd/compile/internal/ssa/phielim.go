@@ -5,8 +5,8 @@
 package ssa
 
 // phielim eliminates redundant phi values from f.
-// A phi is redundant if its arguments are all equal.  For
-// purposes of counting, ignore the phi itself.  Both of
+// A phi is redundant if its arguments are all equal. For
+// purposes of counting, ignore the phi itself. Both of
 // these phis are redundant:
 //   v = phi(x,x,x)
 //   v = phi(x,v,x,v)
@@ -31,6 +31,7 @@ func phielim(f *Func) {
 	}
 }
 
+// phielimValue tries to convert the phi v to a copy.
 func phielimValue(v *Value) bool {
 	if v.Op != OpPhi {
 		return false
@@ -40,11 +41,7 @@ func phielimValue(v *Value) bool {
 	// are not v itself, then the phi must remain.
 	// Otherwise, we can replace it with a copy.
 	var w *Value
-	for i, x := range v.Args {
-		if b := v.Block.Preds[i]; b.Kind == BlockFirst && b.Succs[1] == v.Block {
-			// This branch is never taken so we can just eliminate it.
-			continue
-		}
+	for _, x := range v.Args {
 		if x == v {
 			continue
 		}
@@ -58,11 +55,15 @@ func phielimValue(v *Value) bool {
 	}
 
 	if w == nil {
-		// v references only itself.  It must be in
-		// a dead code loop.  Don't bother modifying it.
+		// v references only itself. It must be in
+		// a dead code loop. Don't bother modifying it.
 		return false
 	}
 	v.Op = OpCopy
 	v.SetArgs1(w)
+	f := v.Block.Func
+	if f.pass.debug > 0 {
+		f.Config.Warnl(v.Line, "eliminated phi")
+	}
 	return true
 }

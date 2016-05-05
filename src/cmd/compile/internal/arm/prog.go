@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,9 +21,7 @@ const (
 // Instructions not generated need not be listed.
 // As an exception to that rule, we typically write down all the
 // size variants of an operation even if we just use a subset.
-//
-// The table is formatted for 8-space tabs.
-var progtable = [arm.ALAST]obj.ProgInfo{
+var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
@@ -40,63 +38,63 @@ var progtable = [arm.ALAST]obj.ProgInfo{
 	obj.ANOP: {Flags: gc.LeftRead | gc.RightWrite},
 
 	// Integer.
-	arm.AADC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AADD:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AAND:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ABIC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ACMN:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
-	arm.ACMP:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
-	arm.ADIVU:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ADIV:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AEOR:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMODU:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMOD:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMULALU: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
-	arm.AMULAL:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
-	arm.AMULA:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
-	arm.AMULU:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMUL:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMULL:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMULLU:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.AMVN:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
-	arm.AORR:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ARSB:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ARSC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ASBC:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ASLL:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ASRA:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ASRL:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ASUB:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm.ATEQ:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
-	arm.ATST:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+	arm.AADC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AADD & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AAND & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ABIC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ACMN & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+	arm.ACMP & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+	arm.ADIVU & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ADIV & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AEOR & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMODU & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMOD & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMULALU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
+	arm.AMULAL & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
+	arm.AMULA & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | RightRdwr},
+	arm.AMULU & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMUL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMULL & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMULLU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.AMVN & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+	arm.AORR & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ARSB & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ARSC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ASBC & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ASLL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ASRA & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ASRL & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ASUB & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm.ATEQ & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+	arm.ATST & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
 
 	// Floating point.
-	arm.AADDD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
-	arm.AADDF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
-	arm.ACMPD:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
-	arm.ACMPF:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
-	arm.ADIVD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
-	arm.ADIVF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
-	arm.AMULD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
-	arm.AMULF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
-	arm.ASUBD:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
-	arm.ASUBF:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
-	arm.ASQRTD: {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+	arm.AADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+	arm.AADDF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+	arm.ACMPD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+	arm.ACMPF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightRead},
+	arm.ADIVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+	arm.ADIVF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+	arm.AMULD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+	arm.AMULF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+	arm.ASUBD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+	arm.ASUBF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+	arm.ASQRTD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 
 	// Conversions.
-	arm.AMOVWD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVWF: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVDF: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVDW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVFD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVFW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVWD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVWF & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVDF & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVDW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVFD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVFW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
 
 	// Moves.
-	arm.AMOVB: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
-	arm.AMOVD: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
-	arm.AMOVF: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
-	arm.AMOVH: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
-	arm.AMOVW: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm.AMOVB & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm.AMOVD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm.AMOVF & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm.AMOVH & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm.AMOVW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
 
 	// In addition, duffzero reads R0,R1 and writes R1.  This fact is
 	// encoded in peep.c
@@ -108,36 +106,36 @@ var progtable = [arm.ALAST]obj.ProgInfo{
 
 	// These should be split into the two different conversions instead
 	// of overloading the one.
-	arm.AMOVBS: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVBU: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVHS: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
-	arm.AMOVHU: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVBS & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVHS & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
+	arm.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Conv},
 
 	// Jumps.
-	arm.AB:   {Flags: gc.Jump | gc.Break},
-	arm.ABL:  {Flags: gc.Call},
-	arm.ABEQ: {Flags: gc.Cjmp},
-	arm.ABNE: {Flags: gc.Cjmp},
-	arm.ABCS: {Flags: gc.Cjmp},
-	arm.ABHS: {Flags: gc.Cjmp},
-	arm.ABCC: {Flags: gc.Cjmp},
-	arm.ABLO: {Flags: gc.Cjmp},
-	arm.ABMI: {Flags: gc.Cjmp},
-	arm.ABPL: {Flags: gc.Cjmp},
-	arm.ABVS: {Flags: gc.Cjmp},
-	arm.ABVC: {Flags: gc.Cjmp},
-	arm.ABHI: {Flags: gc.Cjmp},
-	arm.ABLS: {Flags: gc.Cjmp},
-	arm.ABGE: {Flags: gc.Cjmp},
-	arm.ABLT: {Flags: gc.Cjmp},
-	arm.ABGT: {Flags: gc.Cjmp},
-	arm.ABLE: {Flags: gc.Cjmp},
-	obj.ARET: {Flags: gc.Break},
+	arm.AB & obj.AMask:   {Flags: gc.Jump | gc.Break},
+	arm.ABL & obj.AMask:  {Flags: gc.Call},
+	arm.ABEQ & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABNE & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABCS & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABHS & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABCC & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABLO & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABMI & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABPL & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABVS & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABVC & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABHI & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABLS & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABGE & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABLT & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABGT & obj.AMask: {Flags: gc.Cjmp},
+	arm.ABLE & obj.AMask: {Flags: gc.Cjmp},
+	obj.ARET:             {Flags: gc.Break},
 }
 
 func proginfo(p *obj.Prog) {
 	info := &p.Info
-	*info = progtable[p.As]
+	*info = progtable[p.As&obj.AMask]
 	if info.Flags == 0 {
 		gc.Fatalf("unknown instruction %v", p)
 	}

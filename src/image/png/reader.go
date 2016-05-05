@@ -717,6 +717,13 @@ func (d *decoder) parseChunk() error {
 	case "IDAT":
 		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.stage == dsSeenIHDR && cbPaletted(d.cb)) {
 			return chunkOrderError
+		} else if d.stage == dsSeenIDAT {
+			// Ignore trailing zero-length or garbage IDAT chunks.
+			//
+			// This does not affect valid PNG images that contain multiple IDAT
+			// chunks, since the first call to parseIDAT below will consume all
+			// consecutive IDAT chunks required for decoding the image.
+			break
 		}
 		d.stage = dsSeenIDAT
 		return d.parseIDAT(length)

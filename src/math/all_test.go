@@ -1225,12 +1225,6 @@ var hypotSC = []float64{
 	NaN(),
 }
 
-var vfilogbSC = []float64{
-	Inf(-1),
-	0,
-	Inf(1),
-	NaN(),
-}
 var ilogbSC = []int{
 	MaxInt32,
 	MinInt32,
@@ -1756,7 +1750,6 @@ func tolerance(a, b, e float64) bool {
 	}
 	return d < e
 }
-func kindaclose(a, b float64) bool { return tolerance(a, b, 1e-8) }
 func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
 func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
 func soclose(a, b, e float64) bool { return tolerance(a, b, e) }

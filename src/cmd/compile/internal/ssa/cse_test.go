@@ -44,6 +44,7 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 			Exit("rstore")))
 
 	CheckFunc(fun.f)
+	domTree(fun.f)
 	cse(fun.f)
 	deadcode(fun.f)
 	CheckFunc(fun.f)

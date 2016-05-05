@@ -6,6 +6,7 @@ package net
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
 	"runtime"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+func lookupLocalhost(ctx context.Context, fn func(context.Context, string) ([]IPAddr, error), host string) ([]IPAddr, error) {
 	switch host {
 	case "localhost":
 		return []IPAddr{
@@ -22,7 +23,7 @@ func lookupLocalhost(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, 
 			{IP: IPv6loopback},
 		}, nil
 	default:
-		return fn(host)
+		return fn(ctx, host)
 	}
 }
 
@@ -58,9 +59,10 @@ var lookupGoogleSRVTests = []struct {
 }
 
 func TestLookupGoogleSRV(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -92,9 +94,10 @@ var lookupGmailMXTests = []struct {
 }
 
 func TestLookupGmailMX(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -123,9 +126,10 @@ var lookupGmailNSTests = []struct {
 }
 
 func TestLookupGmailNS(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -154,9 +158,10 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -188,9 +193,10 @@ var lookupGooglePublicDNSAddrTests = []struct {
 }
 
 func TestLookupGooglePublicDNSAddr(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
@@ -243,9 +249,10 @@ var lookupIANACNAMETests = []struct {
 }
 
 func TestLookupIANACNAME(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -269,9 +276,10 @@ var lookupGoogleHostTests = []struct {
 }
 
 func TestLookupGoogleHost(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -300,9 +308,10 @@ var lookupGoogleIPTests = []struct {
 }
 
 func TestLookupGoogleIP(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -367,15 +376,20 @@ func TestLookupIPDeadline(t *testing.T) {
 
 	const N = 5000
 	const timeout = 3 * time.Second
+	ctxHalfTimeout, cancel := context.WithTimeout(context.Background(), timeout/2)
+	defer cancel()
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	c := make(chan error, 2*N)
 	for i := 0; i < N; i++ {
 		name := fmt.Sprintf("%d.net-test.golang.org", i)
 		go func() {
-			_, err := lookupIPDeadline(name, time.Now().Add(timeout/2))
+			_, err := lookupIPContext(ctxHalfTimeout, name)
 			c <- err
 		}()
 		go func() {
-			_, err := lookupIPDeadline(name, time.Now().Add(timeout))
+			_, err := lookupIPContext(ctxTimeout, name)
 			c <- err
 		}()
 	}
@@ -463,9 +477,10 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" || !*testExternal {
-		t.Skip("avoid external network")
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
 	}
+
 	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
@@ -612,6 +627,7 @@ var lookupPortTests = []struct {
 	{"tcp", "65536", 0, false},
 	{"udp", "-1", 0, false},
 	{"udp", "65536", 0, false},
+	{"tcp", "123456789", 0, false},
 
 	// Issue 13610: LookupPort("tcp", "")
 	{"tcp", "", 0, true},
@@ -624,11 +640,15 @@ func TestLookupPort(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	case "android":
+		if netGo {
+			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
+		}
 	}
 
 	for _, tt := range lookupPortTests {
 		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
-			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d", tt.network, tt.name, port, err, tt.port)
+			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d, error=%t", tt.network, tt.name, port, err, tt.port, !tt.ok)
 		}
 	}
 }

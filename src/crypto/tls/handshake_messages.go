@@ -7,23 +7,24 @@ package tls
 import "bytes"
 
 type clientHelloMsg struct {
-	raw                 []byte
-	vers                uint16
-	random              []byte
-	sessionId           []byte
-	cipherSuites        []uint16
-	compressionMethods  []uint8
-	nextProtoNeg        bool
-	serverName          string
-	ocspStapling        bool
-	scts                bool
-	supportedCurves     []CurveID
-	supportedPoints     []uint8
-	ticketSupported     bool
-	sessionTicket       []uint8
-	signatureAndHashes  []signatureAndHash
-	secureRenegotiation bool
-	alpnProtocols       []string
+	raw                          []byte
+	vers                         uint16
+	random                       []byte
+	sessionId                    []byte
+	cipherSuites                 []uint16
+	compressionMethods           []uint8
+	nextProtoNeg                 bool
+	serverName                   string
+	ocspStapling                 bool
+	scts                         bool
+	supportedCurves              []CurveID
+	supportedPoints              []uint8
+	ticketSupported              bool
+	sessionTicket                []uint8
+	signatureAndHashes           []signatureAndHash
+	secureRenegotiation          []byte
+	secureRenegotiationSupported bool
+	alpnProtocols                []string
 }
 
 func (m *clientHelloMsg) equal(i interface{}) bool {
@@ -47,7 +48,8 @@ func (m *clientHelloMsg) equal(i interface{}) bool {
 		m.ticketSupported == m1.ticketSupported &&
 		bytes.Equal(m.sessionTicket, m1.sessionTicket) &&
 		eqSignatureAndHashes(m.signatureAndHashes, m1.signatureAndHashes) &&
-		m.secureRenegotiation == m1.secureRenegotiation &&
+		m.secureRenegotiationSupported == m1.secureRenegotiationSupported &&
+		bytes.Equal(m.secureRenegotiation, m1.secureRenegotiation) &&
 		eqStrings(m.alpnProtocols, m1.alpnProtocols)
 }
 
@@ -86,8 +88,8 @@ func (m *clientHelloMsg) marshal() []byte {
 		extensionsLength += 2 + 2*len(m.signatureAndHashes)
 		numExtensions++
 	}
-	if m.secureRenegotiation {
-		extensionsLength += 1
+	if m.secureRenegotiationSupported {
+		extensionsLength += 1 + len(m.secureRenegotiation)
 		numExtensions++
 	}
 	if len(m.alpnProtocols) > 0 {
@@ -214,7 +216,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		z[4] = byte(l)
 		z = z[5:]
 		for _, pointFormat := range m.supportedPoints {
-			z[0] = byte(pointFormat)
+			z[0] = pointFormat
 			z = z[1:]
 		}
 	}
@@ -248,12 +250,15 @@ func (m *clientHelloMsg) marshal() []byte {
 			z = z[2:]
 		}
 	}
-	if m.secureRenegotiation {
+	if m.secureRenegotiationSupported {
 		z[0] = byte(extensionRenegotiationInfo >> 8)
 		z[1] = byte(extensionRenegotiationInfo & 0xff)
 		z[2] = 0
-		z[3] = 1
+		z[3] = byte(len(m.secureRenegotiation) + 1)
+		z[4] = byte(len(m.secureRenegotiation))
 		z = z[5:]
+		copy(z, m.secureRenegotiation)
+		z = z[len(m.secureRenegotiation):]
 	}
 	if len(m.alpnProtocols) > 0 {
 		z[0] = byte(extensionALPN >> 8)
@@ -316,7 +321,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	for i := 0; i < numCipherSuites; i++ {
 		m.cipherSuites[i] = uint16(data[2+2*i])<<8 | uint16(data[3+2*i])
 		if m.cipherSuites[i] == scsvRenegotiation {
-			m.secureRenegotiation = true
+			m.secureRenegotiationSupported = true
 		}
 	}
 	data = data[2+cipherSuiteLen:]
@@ -448,10 +453,18 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 				d = d[2:]
 			}
 		case extensionRenegotiationInfo:
-			if length != 1 || data[0] != 0 {
+			if length == 0 {
 				return false
 			}
-			m.secureRenegotiation = true
+			d := data[:length]
+			l := int(d[0])
+			d = d[1:]
+			if l != len(d) {
+				return false
+			}
+
+			m.secureRenegotiation = d
+			m.secureRenegotiationSupported = true
 		case extensionALPN:
 			if length < 2 {
 				return false
@@ -483,19 +496,20 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 }
 
 type serverHelloMsg struct {
-	raw                 []byte
-	vers                uint16
-	random              []byte
-	sessionId           []byte
-	cipherSuite         uint16
-	compressionMethod   uint8
-	nextProtoNeg        bool
-	nextProtos          []string
-	ocspStapling        bool
-	scts                [][]byte
-	ticketSupported     bool
-	secureRenegotiation bool
-	alpnProtocol        string
+	raw                          []byte
+	vers                         uint16
+	random                       []byte
+	sessionId                    []byte
+	cipherSuite                  uint16
+	compressionMethod            uint8
+	nextProtoNeg                 bool
+	nextProtos                   []string
+	ocspStapling                 bool
+	scts                         [][]byte
+	ticketSupported              bool
+	secureRenegotiation          []byte
+	secureRenegotiationSupported bool
+	alpnProtocol                 string
 }
 
 func (m *serverHelloMsg) equal(i interface{}) bool {
@@ -523,7 +537,8 @@ func (m *serverHelloMsg) equal(i interface{}) bool {
 		eqStrings(m.nextProtos, m1.nextProtos) &&
 		m.ocspStapling == m1.ocspStapling &&
 		m.ticketSupported == m1.ticketSupported &&
-		m.secureRenegotiation == m1.secureRenegotiation &&
+		m.secureRenegotiationSupported == m1.secureRenegotiationSupported &&
+		bytes.Equal(m.secureRenegotiation, m1.secureRenegotiation) &&
 		m.alpnProtocol == m1.alpnProtocol
 }
 
@@ -551,8 +566,8 @@ func (m *serverHelloMsg) marshal() []byte {
 	if m.ticketSupported {
 		numExtensions++
 	}
-	if m.secureRenegotiation {
-		extensionsLength += 1
+	if m.secureRenegotiationSupported {
+		extensionsLength += 1 + len(m.secureRenegotiation)
 		numExtensions++
 	}
 	if alpnLen := len(m.alpnProtocol); alpnLen > 0 {
@@ -589,7 +604,7 @@ func (m *serverHelloMsg) marshal() []byte {
 	z := x[39+len(m.sessionId):]
 	z[0] = uint8(m.cipherSuite >> 8)
 	z[1] = uint8(m.cipherSuite)
-	z[2] = uint8(m.compressionMethod)
+	z[2] = m.compressionMethod
 
 	z = z[3:]
 	if numExtensions > 0 {
@@ -624,12 +639,15 @@ func (m *serverHelloMsg) marshal() []byte {
 		z[1] = byte(extensionSessionTicket)
 		z = z[4:]
 	}
-	if m.secureRenegotiation {
+	if m.secureRenegotiationSupported {
 		z[0] = byte(extensionRenegotiationInfo >> 8)
 		z[1] = byte(extensionRenegotiationInfo & 0xff)
 		z[2] = 0
-		z[3] = 1
+		z[3] = byte(len(m.secureRenegotiation) + 1)
+		z[4] = byte(len(m.secureRenegotiation))
 		z = z[5:]
+		copy(z, m.secureRenegotiation)
+		z = z[len(m.secureRenegotiation):]
 	}
 	if alpnLen := len(m.alpnProtocol); alpnLen > 0 {
 		z[0] = byte(extensionALPN >> 8)
@@ -744,10 +762,18 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 			}
 			m.ticketSupported = true
 		case extensionRenegotiationInfo:
-			if length != 1 || data[0] != 0 {
+			if length == 0 {
 				return false
 			}
-			m.secureRenegotiation = true
+			d := data[:length]
+			l := int(d[0])
+			d = d[1:]
+			if l != len(d) {
+				return false
+			}
+
+			m.secureRenegotiation = d
+			m.secureRenegotiationSupported = true
 		case extensionALPN:
 			d := data[:length]
 			if len(d) < 3 {
@@ -1316,11 +1342,8 @@ func (m *certificateRequestMsg) unmarshal(data []byte) bool {
 		m.certificateAuthorities = append(m.certificateAuthorities, cas[:caLen])
 		cas = cas[caLen:]
 	}
-	if len(data) > 0 {
-		return false
-	}
 
-	return true
+	return len(data) == 0
 }
 
 type certificateVerifyMsg struct {
@@ -1464,6 +1487,17 @@ func (m *newSessionTicketMsg) unmarshal(data []byte) bool {
 	m.ticket = data[10:]
 
 	return true
+}
+
+type helloRequestMsg struct {
+}
+
+func (*helloRequestMsg) marshal() []byte {
+	return []byte{typeHelloRequest, 0, 0, 0}
+}
+
+func (*helloRequestMsg) unmarshal(data []byte) bool {
+	return len(data) == 4
 }
 
 func eqUint16s(x, y []uint16) bool {

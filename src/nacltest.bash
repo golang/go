@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2014 The Go Authors.  All rights reserved.
+# Copyright 2014 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
@@ -13,21 +13,7 @@
 set -e
 ulimit -c 0
 
-# guess GOARCH if not set
-naclGOARCH=$GOARCH
-if [ -z "$naclGOARCH" ]; then
-	case "$(uname -m)" in
-	x86_64)
-		naclGOARCH=amd64p32
-		;;
-	armv7l) # NativeClient on ARM only supports ARMv7A.
-		naclGOARCH=arm
-		;;
-	i?86)
-		naclGOARCH=386
-		;;
-	esac
-fi
+. ./naclmake.bash
 
 # Check GOARCH.
 case "$naclGOARCH" in
@@ -59,24 +45,8 @@ if ! which go_nacl_${naclGOARCH}_exec >/dev/null; then
 	exit 1
 fi
 
-unset GOOS GOARCH
-if [ ! -f make.bash ]; then
-	echo 'nacltest.bash must be run from $GOROOT/src' 1>&2
-	exit 1
-fi
-
-# the builder might have set GOROOT_FINAL.
-export GOROOT=$(pwd)/..
-
-# Build zip file embedded in package syscall.
-echo "##### Building fake file system zip for nacl"
-rm -f syscall/fstest_nacl.go
-GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
-gobin=$GOROOT_BOOTSTRAP/bin
-GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
-
-# Run standard build and tests.
-export PATH=$(pwd)/../misc/nacl:$PATH
-GOOS=nacl GOARCH=$naclGOARCH ./all.bash
+export PATH=$(pwd)/../bin:$(pwd)/../misc/nacl:$PATH
+GOROOT=$(../bin/go env GOROOT)
+GOOS=nacl GOARCH=$naclGOARCH go tool dist test --no-rebuild
 
 rm -f syscall/fstest_nacl.go

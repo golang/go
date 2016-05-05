@@ -23,9 +23,6 @@ func buildTest(t *testing.T, filename string) {
 	doTest(t, filename, "build")
 }
 func doTest(t *testing.T, filename string, kind string) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("skipping SSA tests on %s for now", runtime.GOARCH)
-	}
 	testenv.MustHaveGoBuild(t)
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
@@ -52,10 +49,20 @@ func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
 func TestTypeAssertion(t *testing.T) { runTest(t, "assert_ssa.go") }
 
 // TestArithmetic tests that both backends have the same result for arithmetic expressions.
-func TestArithmetic(t *testing.T) { runTest(t, "arith_ssa.go") }
+func TestArithmetic(t *testing.T) {
+	if runtime.GOARCH == "386" {
+		t.Skip("legacy 386 compiler can't handle this test")
+	}
+	runTest(t, "arith_ssa.go")
+}
 
 // TestFP tests that both backends have the same result for floating point expressions.
-func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
+func TestFP(t *testing.T) {
+	if runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le" {
+		t.Skip("legacy mips64 compiler doesn't handle uint->float conversion correctly (issue 15552)")
+	}
+	runTest(t, "fp_ssa.go")
+}
 
 // TestArithmeticBoundary tests boundary results for arithmetic operations.
 func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary_ssa.go") }
@@ -68,8 +75,6 @@ func TestChan(t *testing.T) { runTest(t, "chan_ssa.go") }
 func TestCompound(t *testing.T) { runTest(t, "compound_ssa.go") }
 
 func TestCtl(t *testing.T) { runTest(t, "ctl_ssa.go") }
-
-func TestFp(t *testing.T) { runTest(t, "fp_ssa.go") }
 
 func TestLoadStore(t *testing.T) { runTest(t, "loadstore_ssa.go") }
 
@@ -97,3 +102,9 @@ func TestCopy(t *testing.T) { runTest(t, "copy_ssa.go") }
 func TestUnsafe(t *testing.T) { runTest(t, "unsafe_ssa.go") }
 
 func TestPhi(t *testing.T) { runTest(t, "phi_ssa.go") }
+
+func TestSlice(t *testing.T) { runTest(t, "slice.go") }
+
+func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
+
+func TestDuplicateLoad(t *testing.T) { runTest(t, "dupLoad.go") }

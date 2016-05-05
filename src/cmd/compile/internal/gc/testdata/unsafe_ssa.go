@@ -30,7 +30,7 @@ func f_ssa() *[8]uint {
 	} else {
 		x = 0
 	}
-	// Clobber the global pointer.  The only live ref
+	// Clobber the global pointer. The only live ref
 	// to the allocated object is now x.
 	a = nil
 
@@ -66,7 +66,7 @@ func g_ssa() *[7]uint {
 	} else {
 		x = 0
 	}
-	// Clobber the global pointer.  The only live ref
+	// Clobber the global pointer. The only live ref
 	// to the allocated object is now x.
 	a = nil
 

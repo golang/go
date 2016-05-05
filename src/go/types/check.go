@@ -215,7 +215,9 @@ func (check *Checker) handleBailout(err *error) {
 }
 
 // Files checks the provided files as part of the checker's package.
-func (check *Checker) Files(files []*ast.File) (err error) {
+func (check *Checker) Files(files []*ast.File) error { return check.checkFiles(files) }
+
+func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
 
 	check.initFiles(files)

@@ -74,8 +74,12 @@ const (
 	speed    = BestSpeed
 	default_ = DefaultCompression
 	compress = BestCompression
+	huffman  = HuffmanOnly
 )
 
+func BenchmarkDecodeDigitsHuffman1e4(b *testing.B)  { benchmarkDecode(b, digits, huffman, 1e4) }
+func BenchmarkDecodeDigitsHuffman1e5(b *testing.B)  { benchmarkDecode(b, digits, huffman, 1e5) }
+func BenchmarkDecodeDigitsHuffman1e6(b *testing.B)  { benchmarkDecode(b, digits, huffman, 1e6) }
 func BenchmarkDecodeDigitsSpeed1e4(b *testing.B)    { benchmarkDecode(b, digits, speed, 1e4) }
 func BenchmarkDecodeDigitsSpeed1e5(b *testing.B)    { benchmarkDecode(b, digits, speed, 1e5) }
 func BenchmarkDecodeDigitsSpeed1e6(b *testing.B)    { benchmarkDecode(b, digits, speed, 1e6) }
@@ -85,6 +89,9 @@ func BenchmarkDecodeDigitsDefault1e6(b *testing.B)  { benchmarkDecode(b, digits,
 func BenchmarkDecodeDigitsCompress1e4(b *testing.B) { benchmarkDecode(b, digits, compress, 1e4) }
 func BenchmarkDecodeDigitsCompress1e5(b *testing.B) { benchmarkDecode(b, digits, compress, 1e5) }
 func BenchmarkDecodeDigitsCompress1e6(b *testing.B) { benchmarkDecode(b, digits, compress, 1e6) }
+func BenchmarkDecodeTwainHuffman1e4(b *testing.B)   { benchmarkDecode(b, twain, huffman, 1e4) }
+func BenchmarkDecodeTwainHuffman1e5(b *testing.B)   { benchmarkDecode(b, twain, huffman, 1e5) }
+func BenchmarkDecodeTwainHuffman1e6(b *testing.B)   { benchmarkDecode(b, twain, huffman, 1e6) }
 func BenchmarkDecodeTwainSpeed1e4(b *testing.B)     { benchmarkDecode(b, twain, speed, 1e4) }
 func BenchmarkDecodeTwainSpeed1e5(b *testing.B)     { benchmarkDecode(b, twain, speed, 1e5) }
 func BenchmarkDecodeTwainSpeed1e6(b *testing.B)     { benchmarkDecode(b, twain, speed, 1e6) }

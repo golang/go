@@ -15,7 +15,7 @@ type dnsNameTest struct {
 }
 
 var dnsNameTests = []dnsNameTest{
-	// RFC2181, section 11.
+	// RFC 2181, section 11.
 	{"_xmpp-server._tcp.google.com", true},
 	{"foo.com", true},
 	{"1foo.com", true},

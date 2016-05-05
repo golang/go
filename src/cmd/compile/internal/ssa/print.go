@@ -45,7 +45,8 @@ func (p stringFuncPrinter) startBlock(b *Block, reachable bool) {
 	fmt.Fprintf(p.w, "  b%d:", b.ID)
 	if len(b.Preds) > 0 {
 		io.WriteString(p.w, " <-")
-		for _, pred := range b.Preds {
+		for _, e := range b.Preds {
+			pred := e.b
 			fmt.Fprintf(p.w, " b%d", pred.ID)
 		}
 	}
@@ -143,7 +144,7 @@ func fprintFunc(p funcPrinter, f *Func) {
 
 		p.endBlock(b)
 	}
-	for name, vals := range f.NamedValues {
-		p.named(name, vals)
+	for _, name := range f.Names {
+		p.named(name, f.NamedValues[name])
 	}
 }

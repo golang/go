@@ -10,46 +10,14 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-var thechar int = '0'
-
-var thestring string = "mips64"
-
-var thelinkarch *obj.LinkArch
-
-func linkarchinit() {
-	thestring = obj.Getgoarch()
-	gc.Thearch.Thestring = thestring
-	if thestring == "mips64le" {
-		thelinkarch = &mips.Linkmips64le
-	} else {
-		thelinkarch = &mips.Linkmips64
-	}
-	gc.Thearch.Thelinkarch = thelinkarch
-}
-
-var MAXWIDTH int64 = 1 << 50
-
-/*
- * go declares several platform-specific type aliases:
- * int, uint, and uintptr
- */
-var typedefs = []gc.Typedef{
-	{"int", gc.TINT, gc.TINT64},
-	{"uint", gc.TUINT, gc.TUINT64},
-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
-}
-
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
-	gc.Thearch.Typedefs = typedefs
+	gc.Thearch.LinkArch = &mips.Linkmips64
+	if obj.Getgoarch() == "mips64le" {
+		gc.Thearch.LinkArch = &mips.Linkmips64le
+	}
 	gc.Thearch.REGSP = mips.REGSP
 	gc.Thearch.REGCTXT = mips.REGCTXT
 	gc.Thearch.REGCALLX = mips.REG_R1
@@ -59,7 +27,7 @@ func Main() {
 	gc.Thearch.REGMAX = mips.REG_R31
 	gc.Thearch.FREGMIN = mips.REG_F0
 	gc.Thearch.FREGMAX = mips.REG_F31
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
@@ -76,7 +44,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp

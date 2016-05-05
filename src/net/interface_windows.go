@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -61,7 +61,7 @@ func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
 }
 
 // If the ifindex is zero, interfaceTable returns mappings of all
-// network interfaces.  Otherwise it returns a mapping of a specific
+// network interfaces. Otherwise it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
 	aas, err := adapterAddresses()
@@ -116,7 +116,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 }
 
 // If the ifi is nil, interfaceAddrTable returns addresses for all
-// network interfaces.  Otherwise it returns addresses for a specific
+// network interfaces. Otherwise it returns addresses for a specific
 // interface.
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	aas, err := adapterAddresses()
@@ -159,6 +159,9 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 					}
 					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(l, 8*IPv6len)}
 					copy(ifa.IP, sa.Addr[:])
+					if ifa.IP.IsLinkLocalUnicast() {
+						ifa.Zone = syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:])
+					}
 					ifat = append(ifat, ifa)
 				}
 			}

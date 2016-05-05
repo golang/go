@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 //
 // The Go path is a list of directory trees containing Go source code.
 // It is consulted to resolve imports that cannot be found in the standard
-// Go tree.  The default path is the value of the GOPATH environment
+// Go tree. The default path is the value of the GOPATH environment
 // variable, interpreted as a path list appropriate to the operating system
 // (on Unix, the variable is a colon-separated string;
 // on Windows, a semicolon-separated string;
@@ -16,7 +16,7 @@
 //
 // Each directory listed in the Go path must have a prescribed structure:
 //
-// The src/ directory holds source code.  The path below 'src' determines
+// The src/ directory holds source code. The path below 'src' determines
 // the import path or executable name.
 //
 // The pkg/ directory holds installed package objects.
@@ -31,9 +31,9 @@
 //
 // The bin/ directory holds compiled commands.
 // Each command is named for its source directory, but only
-// using the final element, not the entire path.  That is, the
+// using the final element, not the entire path. That is, the
 // command with source in DIR/src/foo/quux is installed into
-// DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
+// DIR/bin/quux, not DIR/bin/foo/quux. The foo/ is stripped
 // so that you can add DIR/bin to your PATH to get at the
 // installed commands.
 //
@@ -103,6 +103,7 @@
 //	- "go1.4", from Go version 1.4 onward
 //	- "go1.5", from Go version 1.5 onward
 //	- "go1.6", from Go version 1.6 onward
+//	- "go1.7", from Go version 1.7 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // If a file's name, after stripping the extension and a possible _test suffix,
@@ -137,5 +138,27 @@
 //
 // Using GOOS=android matches build tags and files as for GOOS=linux
 // in addition to android tags and files.
+//
+// Binary-Only Packages
+//
+// It is possible to distribute packages in binary form without including the
+// source code used for compiling the package. To do this, the package must
+// be distributed with a source file not excluded by build constraints and
+// containing a "//go:binary-only-package" comment.
+// Like a build constraint, this comment must appear near the top of the file,
+// preceded only by blank lines and other line comments and with a blank line
+// following the comment, to separate it from the package documentation.
+// Unlike build constraints, this comment is only recognized in non-test
+// Go source files.
+//
+// The minimal source code for a binary-only package is therefore:
+//
+//	//go:binary-only-package
+//
+//	package mypkg
+//
+// The source code may include additional Go code. That code is never compiled
+// but will be processed by tools like godoc and might be useful as end-user
+// documentation.
 //
 package build

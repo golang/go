@@ -12,8 +12,8 @@ import "errors"
 // A Time represents an instant in time with nanosecond precision.
 //
 // Programs using times should typically store and pass them as values,
-// not pointers.  That is, time variables and struct fields should be of
-// type time.Time, not *time.Time.  A Time value can be used by
+// not pointers. That is, time variables and struct fields should be of
+// type time.Time, not *time.Time. A Time value can be used by
 // multiple goroutines simultaneously.
 //
 // Time instants can be compared using the Before, After, and Equal methods.
@@ -146,7 +146,7 @@ func (d Weekday) String() string { return days[d] }
 // 00:00:00 UTC, which would be 12-31-(-1) 19:00:00 in New York.
 //
 // The zero Time value does not force a specific epoch for the time
-// representation.  For example, to use the Unix epoch internally, we
+// representation. For example, to use the Unix epoch internally, we
 // could define that to distinguish a zero value from Jan 1 1970, that
 // time would be represented by sec=-1, nsec=1e9.  However, it does
 // suggest a representation, namely using 1-1-1 00:00:00 UTC as the
@@ -155,17 +155,17 @@ func (d Weekday) String() string { return days[d] }
 // The Add and Sub computations are oblivious to the choice of epoch.
 //
 // The presentation computations - year, month, minute, and so on - all
-// rely heavily on division and modulus by positive constants.  For
+// rely heavily on division and modulus by positive constants. For
 // calendrical calculations we want these divisions to round down, even
 // for negative values, so that the remainder is always positive, but
 // Go's division (like most hardware division instructions) rounds to
-// zero.  We can still do those computations and then adjust the result
+// zero. We can still do those computations and then adjust the result
 // for a negative numerator, but it's annoying to write the adjustment
-// over and over.  Instead, we can change to a different epoch so long
+// over and over. Instead, we can change to a different epoch so long
 // ago that all the times we care about will be positive, and then round
-// to zero and round down coincide.  These presentation routines already
+// to zero and round down coincide. These presentation routines already
 // have to add the zone offset, so adding the translation to the
-// alternate epoch is cheap.  For example, having a non-negative time t
+// alternate epoch is cheap. For example, having a non-negative time t
 // means that we can write
 //
 //	sec = t % 60
@@ -181,9 +181,9 @@ func (d Weekday) String() string { return days[d] }
 //
 // The calendar runs on an exact 400 year cycle: a 400-year calendar
 // printed for 1970-2469 will apply as well to 2370-2769.  Even the days
-// of the week match up.  It simplifies the computations to choose the
+// of the week match up. It simplifies the computations to choose the
 // cycle boundaries so that the exceptional years are always delayed as
-// long as possible.  That means choosing a year equal to 1 mod 400, so
+// long as possible. That means choosing a year equal to 1 mod 400, so
 // that the first leap year is the 4th year, the first missed leap year
 // is the 100th year, and the missed missed leap year is the 400th year.
 // So we'd prefer instead to print a calendar for 2001-2400 and reuse it
@@ -209,7 +209,7 @@ func (d Weekday) String() string { return days[d] }
 // routines would then be invalid when displaying the epoch in time zones
 // west of UTC, since it is year 0.  It doesn't seem tenable to say that
 // printing the zero time correctly isn't supported in half the time
-// zones.  By comparison, it's reasonable to mishandle some times in
+// zones. By comparison, it's reasonable to mishandle some times in
 // the year -292277022399.
 //
 // All this is opaque to clients of the API and can be changed if a
@@ -224,9 +224,6 @@ const (
 	// The year of the zero Time.
 	// Assumed by the unixToInternal computation below.
 	internalYear = 1
-
-	// The year of the zero Unix time.
-	unixYear = 1970
 
 	// Offsets to convert between internal and absolute or Unix times.
 	absoluteToInternal int64 = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
@@ -425,7 +422,7 @@ func (t Time) YearDay() int {
 }
 
 // A Duration represents the elapsed time between two instants
-// as an int64 nanosecond count.  The representation limits the
+// as an int64 nanosecond count. The representation limits the
 // largest representable duration to approximately 290 years.
 type Duration int64
 
@@ -434,7 +431,7 @@ const (
 	maxDuration Duration = 1<<63 - 1
 )
 
-// Common durations.  There is no definition for units of Day or larger
+// Common durations. There is no definition for units of Day or larger
 // to avoid confusion across daylight savings time zone transitions.
 //
 // To count the number of units in a Duration, divide:
@@ -455,9 +452,9 @@ const (
 )
 
 // String returns a string representing the duration in the form "72h3m0.5s".
-// Leading zero units are omitted.  As a special case, durations less than one
+// Leading zero units are omitted. As a special case, durations less than one
 // second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure
-// that the leading digit is non-zero.  The zero duration formats as 0,
+// that the leading digit is non-zero. The zero duration formats as 0,
 // with no unit.
 func (d Duration) String() string {
 	// Largest time is 2540400h10m10.000000000s
@@ -479,7 +476,7 @@ func (d Duration) String() string {
 		w--
 		switch {
 		case u == 0:
-			return "0"
+			return "0s"
 		case u < uint64(Microsecond):
 			// print nanoseconds
 			prec = 0
@@ -609,7 +606,7 @@ func (d Duration) Hours() float64 {
 // Add returns the time t+d.
 func (t Time) Add(d Duration) Time {
 	t.sec += int64(d / 1e9)
-	nsec := int32(t.nsec) + int32(d%1e9)
+	nsec := t.nsec + int32(d%1e9)
 	if nsec >= 1e9 {
 		t.sec++
 		nsec -= 1e9
@@ -626,7 +623,7 @@ func (t Time) Add(d Duration) Time {
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (t Time) Sub(u Time) Duration {
-	d := Duration(t.sec-u.sec)*Second + Duration(int32(t.nsec)-int32(u.nsec))
+	d := Duration(t.sec-u.sec)*Second + Duration(t.nsec-u.nsec)
 	// Check for overflow or underflow.
 	switch {
 	case u.Add(d).Equal(t):
@@ -749,7 +746,7 @@ func absDate(abs uint64, full bool) (year int, month Month, day int, yday int) {
 }
 
 // daysBefore[m] counts the number of days in a non-leap year
-// before month m begins.  There is an entry for m=12, counting
+// before month m begins. There is an entry for m=12, counting
 // the number of days before January of next year (365).
 var daysBefore = [...]int32{
 	0,
@@ -945,10 +942,11 @@ func (t Time) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // The time is expected to be a quoted string in RFC 3339 format.
-func (t *Time) UnmarshalJSON(data []byte) (err error) {
+func (t *Time) UnmarshalJSON(data []byte) error {
 	// Fractional seconds are handled implicitly by Parse.
+	var err error
 	*t, err = Parse(`"`+RFC3339+`"`, string(data))
-	return
+	return err
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
@@ -964,10 +962,11 @@ func (t Time) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
 // The time is expected to be in RFC 3339 format.
-func (t *Time) UnmarshalText(data []byte) (err error) {
+func (t *Time) UnmarshalText(data []byte) error {
 	// Fractional seconds are handled implicitly by Parse.
+	var err error
 	*t, err = Parse(RFC3339, string(data))
-	return
+	return err
 }
 
 // Unix returns the local Time corresponding to the given Unix time,
@@ -1019,7 +1018,7 @@ func norm(hi, lo, base int) (nhi, nlo int) {
 //
 // A daylight savings time transition skips or repeats times.
 // For example, in the United States, March 13, 2011 2:15am never occurred,
-// while November 6, 2011 1:15am occurred twice.  In such cases, the
+// while November 6, 2011 1:15am occurred twice. In such cases, the
 // choice of time zone, and therefore the time, is not well-defined.
 // Date returns a time that is correct in one of the two zones involved
 // in the transition, but it does not guarantee which.
@@ -1126,7 +1125,7 @@ func (t Time) Round(d Duration) Time {
 // but it's still here in case we change our minds.
 func div(t Time, d Duration) (qmod2 int, r Duration) {
 	neg := false
-	nsec := int32(t.nsec)
+	nsec := t.nsec
 	if t.sec < 0 {
 		// Operate on absolute value.
 		neg = true
@@ -1160,7 +1159,7 @@ func div(t Time, d Duration) (qmod2 int, r Duration) {
 		tmp := (sec >> 32) * 1e9
 		u1 := tmp >> 32
 		u0 := tmp << 32
-		tmp = uint64(sec&0xFFFFFFFF) * 1e9
+		tmp = (sec & 0xFFFFFFFF) * 1e9
 		u0x, u0 := u0, u0+tmp
 		if u0 < u0x {
 			u1++

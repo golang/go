@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2012 The Go Authors.  All rights reserved.
+# Copyright 2012 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 # Consult http://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2016a
-DATA=2016a
+CODE=2016d
+DATA=2016d
 
 set -e
 rm -rf work

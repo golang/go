@@ -256,31 +256,6 @@ func BenchmarkIndexByte(b *testing.B) {
 	}
 }
 
-var explodetests = []struct {
-	s string
-	n int
-	a []string
-}{
-	{"", -1, []string{}},
-	{abcd, 4, []string{"a", "b", "c", "d"}},
-	{faces, 3, []string{"☺", "☻", "☹"}},
-	{abcd, 2, []string{"a", "bcd"}},
-}
-
-func TestExplode(t *testing.T) {
-	for _, tt := range explodetests {
-		a := SplitN(tt.s, "", tt.n)
-		if !eq(a, tt.a) {
-			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a)
-			continue
-		}
-		s := Join(a, "")
-		if s != tt.s {
-			t.Errorf(`Join(explode(%q, %d), "") = %q`, tt.s, tt.n, s)
-		}
-	}
-}
-
 type SplitTest struct {
 	s   string
 	sep string
@@ -289,19 +264,23 @@ type SplitTest struct {
 }
 
 var splittests = []SplitTest{
+	{"", "", -1, []string{}},
+	{abcd, "", 2, []string{"a", "bcd"}},
+	{abcd, "", 4, []string{"a", "b", "c", "d"}},
+	{abcd, "", -1, []string{"a", "b", "c", "d"}},
+	{faces, "", -1, []string{"☺", "☻", "☹"}},
+	{faces, "", 3, []string{"☺", "☻", "☹"}},
+	{faces, "", 17, []string{"☺", "☻", "☹"}},
+	{"☺�☹", "", -1, []string{"☺", "�", "☹"}},
 	{abcd, "a", 0, nil},
 	{abcd, "a", -1, []string{"", "bcd"}},
 	{abcd, "z", -1, []string{"abcd"}},
-	{abcd, "", -1, []string{"a", "b", "c", "d"}},
 	{commas, ",", -1, []string{"1", "2", "3", "4"}},
 	{dots, "...", -1, []string{"1", ".2", ".3", ".4"}},
 	{faces, "☹", -1, []string{"☺☻", ""}},
 	{faces, "~", -1, []string{faces}},
-	{faces, "", -1, []string{"☺", "☻", "☹"}},
 	{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
 	{"1 2", " ", 3, []string{"1", "2"}},
-	{"123", "", 2, []string{"1", "23"}},
-	{"123", "", 17, []string{"1", "2", "3"}},
 }
 
 func TestSplit(t *testing.T) {
@@ -492,7 +471,7 @@ func rot13(r rune) rune {
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a')
-	// 1.  Grow.  This triggers two reallocations in Map.
+	// 1.  Grow. This triggers two reallocations in Map.
 	maxRune := func(rune) rune { return unicode.MaxRune }
 	m := Map(maxRune, a)
 	expect := tenRunes(unicode.MaxRune)

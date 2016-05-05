@@ -13,7 +13,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -307,7 +306,7 @@ func mergePAX(hdr *Header, headers map[string]string) error {
 			if err != nil {
 				return err
 			}
-			hdr.Size = int64(size)
+			hdr.Size = size
 		default:
 			if strings.HasPrefix(k, paxXattr) {
 				if hdr.Xattrs == nil {
@@ -337,17 +336,17 @@ func parsePAXTime(t string) (time.Time, error) {
 		if err != nil {
 			return time.Time{}, err
 		}
-		nano_buf := string(buf[pos+1:])
+		nanoBuf := string(buf[pos+1:])
 		// Pad as needed before converting to a decimal.
 		// For example .030 -> .030000000 -> 30000000 nanoseconds
-		if len(nano_buf) < maxNanoSecondIntSize {
+		if len(nanoBuf) < maxNanoSecondIntSize {
 			// Right pad
-			nano_buf += strings.Repeat("0", maxNanoSecondIntSize-len(nano_buf))
-		} else if len(nano_buf) > maxNanoSecondIntSize {
+			nanoBuf += strings.Repeat("0", maxNanoSecondIntSize-len(nanoBuf))
+		} else if len(nanoBuf) > maxNanoSecondIntSize {
 			// Right truncate
-			nano_buf = nano_buf[:maxNanoSecondIntSize]
+			nanoBuf = nanoBuf[:maxNanoSecondIntSize]
 		}
-		nanoseconds, err = strconv.ParseInt(string(nano_buf), 10, 0)
+		nanoseconds, err = strconv.ParseInt(nanoBuf, 10, 0)
 		if err != nil {
 			return time.Time{}, err
 		}
@@ -379,14 +378,14 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		}
 		sbuf = residual
 
-		keyStr := string(key)
+		keyStr := key
 		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
 			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
 			sparseMap.WriteString(value)
 			sparseMap.Write([]byte{','})
 		} else {
 			// Normal key. Set the value in the headers map.
-			headers[keyStr] = string(value)
+			headers[keyStr] = value
 		}
 	}
 	if sparseMap.Len() != 0 {
@@ -523,10 +522,10 @@ func (tr *Reader) skipUnread() error {
 		// io.Seeker, but calling Seek always returns an error and performs
 		// no action. Thus, we try an innocent seek to the current position
 		// to see if Seek is really supported.
-		pos1, err := sr.Seek(0, os.SEEK_CUR)
+		pos1, err := sr.Seek(0, io.SeekCurrent)
 		if err == nil {
 			// Seek seems supported, so perform the real Seek.
-			pos2, err := sr.Seek(dataSkip-1, os.SEEK_CUR)
+			pos2, err := sr.Seek(dataSkip-1, io.SeekCurrent)
 			if err != nil {
 				tr.err = err
 				return tr.err

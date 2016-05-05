@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -376,6 +376,27 @@ var reqTests = []reqTest{
 			RequestURI: "/",
 		},
 
+		noBody,
+		noTrailer,
+		noError,
+	},
+
+	// http2 client preface:
+	{
+		"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n",
+		&Request{
+			Method: "PRI",
+			URL: &url.URL{
+				Path: "*",
+			},
+			Header:        Header{},
+			Proto:         "HTTP/2.0",
+			ProtoMajor:    2,
+			ProtoMinor:    0,
+			RequestURI:    "*",
+			ContentLength: -1,
+			Close:         true,
+		},
 		noBody,
 		noTrailer,
 		noError,

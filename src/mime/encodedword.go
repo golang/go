@@ -16,7 +16,7 @@ import (
 	"unicode/utf8"
 )
 
-// A WordEncoder is a RFC 2047 encoded-word encoder.
+// A WordEncoder is an RFC 2047 encoded-word encoder.
 type WordEncoder byte
 
 const (
@@ -71,7 +71,7 @@ const (
 	maxEncodedWordLen = 75
 	// maxContentLen is how much content can be encoded, ignoring the header and
 	// 2-byte footer.
-	maxContentLen = maxEncodedWordLen - len("=?UTF-8?") - len("?=")
+	maxContentLen = maxEncodedWordLen - len("=?UTF-8?q?") - len("?=")
 )
 
 var maxBase64Len = base64.StdEncoding.DecodedLen(maxContentLen)

@@ -76,7 +76,7 @@ var numberTests = []numberTest{
 
 func TestNumberParse(t *testing.T) {
 	for _, test := range numberTests {
-		// If fmt.Sscan thinks it's complex, it's complex.  We can't trust the output
+		// If fmt.Sscan thinks it's complex, it's complex. We can't trust the output
 		// because imaginary comes out as a number.
 		var c complex128
 		typ := itemNumber

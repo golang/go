@@ -13,6 +13,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -262,6 +263,15 @@ func (c *Cmd) Run() error {
 	return c.Wait()
 }
 
+// RunContext is like Run, but kills the process (by calling os.Process.Kill)
+// if ctx is done before the process ends on its own.
+func (c *Cmd) RunContext(ctx context.Context) error {
+	if err := c.Start(); err != nil {
+		return err
+	}
+	return c.WaitContext(ctx)
+}
+
 // lookExtensions finds windows executable by its dir and path.
 // It uses LookPath to try appropriate extensions.
 // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
@@ -386,6 +396,12 @@ func (e *ExitError) Error() string {
 //
 // Wait releases any resources associated with the Cmd.
 func (c *Cmd) Wait() error {
+	return c.WaitContext(nil)
+}
+
+// WaitContext is like Wait, but kills the process (by calling os.Process.Kill)
+// if ctx is done before the process ends on its own.
+func (c *Cmd) WaitContext(ctx context.Context) error {
 	if c.Process == nil {
 		return errors.New("exec: not started")
 	}
@@ -393,7 +409,22 @@ func (c *Cmd) Wait() error {
 		return errors.New("exec: Wait was already called")
 	}
 	c.finished = true
+
+	var waitDone chan struct{}
+	if ctx != nil {
+		waitDone = make(chan struct{})
+		go func() {
+			select {
+			case <-ctx.Done():
+				c.Process.Kill()
+			case <-waitDone:
+			}
+		}()
+	}
 	state, err := c.Process.Wait()
+	if waitDone != nil {
+		close(waitDone)
+	}
 	c.ProcessState = state
 
 	var copyError error

@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -87,6 +87,17 @@ import (
 // frames that have potentially been active since the concurrent scan,
 // so it depends on write barriers to track changes to pointers in
 // stack frames that have not been active.
+//
+//
+// Global writes:
+//
+// The Go garbage collector requires write barriers when heap pointers
+// are stored in globals. Many garbage collectors ignore writes to
+// globals and instead pick up global -> heap pointers during
+// termination. This increases pause time, so we instead rely on write
+// barriers for writes to globals so that we don't have to rescan
+// global during mark termination.
+//
 //go:nowritebarrierrec
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	if writeBarrier.needed {
@@ -159,31 +170,6 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	writebarrierptr_nostore1(dst, src)
 }
 
-//go:nosplit
-func writebarrierstring(dst *[2]uintptr, src [2]uintptr) {
-	writebarrierptr(&dst[0], src[0])
-	dst[1] = src[1]
-}
-
-//go:nosplit
-func writebarrierslice(dst *[3]uintptr, src [3]uintptr) {
-	writebarrierptr(&dst[0], src[0])
-	dst[1] = src[1]
-	dst[2] = src[2]
-}
-
-//go:nosplit
-func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
-	writebarrierptr(&dst[0], src[0])
-	writebarrierptr(&dst[1], src[1])
-}
-
-//go:generate go run wbfat_gen.go -- wbfat.go
-//
-// The above line generates multiword write barriers for
-// all the combinations of ptr+scalar up to four words.
-// The implementations are written to wbfat.go.
-
 // typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
@@ -210,7 +196,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 	if writeBarrier.cgo {
 		cgoCheckMemmove(typ, dst, src, off, size)
 	}
-	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize || !inheap(uintptr(dst)) {
+	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize {
 		return
 	}
 
@@ -226,11 +212,11 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 // values have just been copied to frame, starting at retoffset
 // and continuing to framesize. The entire frame (not just the return
 // values) is described by typ. Because the copy has already
-// happened, we call writebarrierptr_nostore, and we must be careful
-// not to be preempted before the write barriers have been run.
+// happened, we call writebarrierptr_nostore, and this is nosplit so
+// the copy and write barrier appear atomic to GC.
 //go:nosplit
 func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize || !inheap(uintptr(frame)) {
+	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize {
 		return
 	}
 	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
@@ -247,8 +233,8 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	if n == 0 {
 		return 0
 	}
-	dstp := unsafe.Pointer(dst.array)
-	srcp := unsafe.Pointer(src.array)
+	dstp := dst.array
+	srcp := src.array
 
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&typ))
@@ -304,7 +290,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 			}
 		}
 	})
-	return int(n)
+	return n
 }
 
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy

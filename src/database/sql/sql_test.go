@@ -911,7 +911,7 @@ func nullTestRun(t *testing.T, spec nullTestSpec) {
 	if err == nil {
 		// TODO: this test fails, but it's just because
 		// fakeConn implements the optional Execer interface,
-		// so arguably this is the correct behavior.  But
+		// so arguably this is the correct behavior. But
 		// maybe I should flesh out the fakeConn.Exec
 		// implementation so this properly fails.
 		// t.Errorf("expected error inserting nil name with Exec")

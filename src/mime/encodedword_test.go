@@ -31,15 +31,44 @@ func TestEncodeWord(t *testing.T) {
 		{QEncoding, utf8, strings.Repeat("é", 11), "=?utf-8?q?" + strings.Repeat("=C3=A9", 10) + "?= =?utf-8?q?=C3=A9?="},
 		{QEncoding, iso88591, strings.Repeat("\xe9", 22), "=?iso-8859-1?q?" + strings.Repeat("=E9", 22) + "?="},
 		{QEncoding, utf8, strings.Repeat("\x80", 22), "=?utf-8?q?" + strings.Repeat("=80", 21) + "?= =?utf-8?q?=80?="},
-		{BEncoding, utf8, strings.Repeat("é", 24), "=?utf-8?b?" + strings.Repeat("w6nDqcOp", 8) + "?="},
-		{BEncoding, utf8, strings.Repeat("é", 27), "=?utf-8?b?" + strings.Repeat("w6nDqcOp", 8) + "?= =?utf-8?b?w6nDqcOp?="},
 		{BEncoding, iso88591, strings.Repeat("\xe9", 45), "=?iso-8859-1?b?" + strings.Repeat("6enp", 15) + "?="},
-		{BEncoding, utf8, strings.Repeat("\x80", 51), "=?utf-8?b?" + strings.Repeat("gICA", 16) + "?= =?utf-8?b?gICA?="},
+		{BEncoding, utf8, strings.Repeat("\x80", 48), "=?utf-8?b?" + strings.Repeat("gICA", 15) + "?= =?utf-8?b?gICA?="},
 	}
 
 	for _, test := range tests {
 		if s := test.enc.Encode(test.charset, test.src); s != test.exp {
 			t.Errorf("Encode(%q) = %q, want %q", test.src, s, test.exp)
+		}
+	}
+}
+
+func TestEncodedWordLength(t *testing.T) {
+	tests := []struct {
+		enc WordEncoder
+		src string
+	}{
+		{QEncoding, strings.Repeat("à", 30)},
+		{QEncoding, strings.Repeat("é", 60)},
+		{BEncoding, strings.Repeat("ï", 25)},
+		{BEncoding, strings.Repeat("ô", 37)},
+		{BEncoding, strings.Repeat("\x80", 50)},
+		{QEncoding, "{$firstname} Bienvendio a Apostolica, aquà inicia el camino de tu"},
+	}
+
+	for _, test := range tests {
+		s := test.enc.Encode("utf-8", test.src)
+		wordLen := 0
+		for i := 0; i < len(s); i++ {
+			if s[i] == ' ' {
+				wordLen = 0
+				continue
+			}
+
+			wordLen++
+			if wordLen > maxEncodedWordLen {
+				t.Errorf("Encode(%q) has more than %d characters: %q",
+					test.src, maxEncodedWordLen, s)
+			}
 		}
 	}
 }
@@ -203,6 +232,6 @@ func BenchmarkQDecodeHeader(b *testing.B) {
 	dec := new(WordDecoder)
 
 	for i := 0; i < b.N; i++ {
-		dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
+		dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
 	}
 }

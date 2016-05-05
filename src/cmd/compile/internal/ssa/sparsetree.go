@@ -99,7 +99,7 @@ func (t sparseTree) numberBlock(b *Block, n int32) int32 {
 // Sibling returns a sibling of x in the dominator tree (i.e.,
 // a node with the same immediate dominator) or nil if there
 // are no remaining siblings in the arbitrary but repeatable
-// order chosen.  Because the Child-Sibling order is used
+// order chosen. Because the Child-Sibling order is used
 // to assign entry and exit numbers in the treewalk, those
 // numbers are also consistent with this order (i.e.,
 // Sibling(x) has entry number larger than x's exit number).
@@ -108,7 +108,7 @@ func (t sparseTree) Sibling(x *Block) *Block {
 }
 
 // Child returns a child of x in the dominator tree, or
-// nil if there are none.  The choice of first child is
+// nil if there are none. The choice of first child is
 // arbitrary but repeatable.
 func (t sparseTree) Child(x *Block) *Block {
 	return t[x.ID].child
@@ -116,6 +116,9 @@ func (t sparseTree) Child(x *Block) *Block {
 
 // isAncestorEq reports whether x is an ancestor of or equal to y.
 func (t sparseTree) isAncestorEq(x, y *Block) bool {
+	if x == y {
+		return true
+	}
 	xx := &t[x.ID]
 	yy := &t[y.ID]
 	return xx.entry <= yy.entry && yy.exit <= xx.exit
@@ -123,7 +126,16 @@ func (t sparseTree) isAncestorEq(x, y *Block) bool {
 
 // isAncestor reports whether x is a strict ancestor of y.
 func (t sparseTree) isAncestor(x, y *Block) bool {
+	if x == y {
+		return false
+	}
 	xx := &t[x.ID]
 	yy := &t[y.ID]
 	return xx.entry < yy.entry && yy.exit < xx.exit
+}
+
+// maxdomorder returns a value to allow a maximal dominator first sort.  maxdomorder(x) < maxdomorder(y) is true
+// if x may dominate y, and false if x cannot dominate y.
+func (t sparseTree) maxdomorder(x *Block) int32 {
+	return t[x.ID].entry
 }

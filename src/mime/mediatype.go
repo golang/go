@@ -221,7 +221,7 @@ func isNotTokenChar(r rune) bool {
 
 // consumeToken consumes a token from the beginning of provided
 // string, per RFC 2045 section 5.1 (referenced from 2183), and return
-// the token consumed and the rest of the string.  Returns ("", v) on
+// the token consumed and the rest of the string. Returns ("", v) on
 // failure to consume at least one character.
 func consumeToken(v string) (token, rest string) {
 	notPos := strings.IndexFunc(v, isNotTokenChar)
@@ -237,7 +237,7 @@ func consumeToken(v string) (token, rest string) {
 // consumeValue consumes a "value" per RFC 2045, where a value is
 // either a 'token' or a 'quoted-string'.  On success, consumeValue
 // returns the value consumed (and de-quoted/escaped, if a
-// quoted-string) and the rest of the string.  On failure, returns
+// quoted-string) and the rest of the string. On failure, returns
 // ("", v).
 func consumeValue(v string) (value, rest string) {
 	if v == "" {

@@ -104,7 +104,7 @@ func init() {
 	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
 	Args = make([]string, argc)
 	for i, v := range (*argv)[:argc] {
-		Args[i] = string(syscall.UTF16ToString((*v)[:]))
+		Args[i] = syscall.UTF16ToString((*v)[:])
 	}
 }
 

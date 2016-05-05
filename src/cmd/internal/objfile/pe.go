@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/pe"
 	"fmt"
 	"os"
@@ -68,8 +69,6 @@ func (f *peFile) symbols() ([]Sym, error) {
 				text  = 0x20
 				data  = 0x40
 				bss   = 0x80
-				permX = 0x20000000
-				permR = 0x40000000
 				permW = 0x80000000
 			)
 			ch := sect.Characteristics
@@ -198,4 +197,8 @@ func (f *peFile) goarch() string {
 		return "amd64"
 	}
 	return ""
+}
+
+func (f *peFile) dwarf() (*dwarf.Data, error) {
+	return f.pe.DWARF()
 }

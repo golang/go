@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,8 +7,7 @@
 package net
 
 import (
-	"errors"
-	"time"
+	"context"
 )
 
 var (
@@ -22,7 +21,7 @@ var (
 
 	// supportsIPv4map reports whether the platform supports
 	// mapping an IPv4 address inside an IPv6 address at transport
-	// layer protocols.  See RFC 4291, RFC 4038 and RFC 3493.
+	// layer protocols. See RFC 4291, RFC 4038 and RFC 3493.
 	supportsIPv4map bool
 )
 
@@ -73,8 +72,6 @@ func (addrs addrList) partition(strategy func(Addr) bool) (primaries, fallbacks 
 	return
 }
 
-var errNoSuitableAddress = errors.New("no suitable address found")
-
 // filterAddrList applies a filter to a list of IP addresses,
 // yielding a list of Addr objects. Known filters are nil, ipv4only,
 // and ipv6only. It returns every address when the filter is nil.
@@ -106,73 +103,65 @@ func ipv6only(addr IPAddr) bool {
 
 // SplitHostPort splits a network address of the form "host:port",
 // "[host]:port" or "[ipv6-host%zone]:port" into host or
-// ipv6-host%zone and port.  A literal address or host name for IPv6
+// ipv6-host%zone and port. A literal address or host name for IPv6
 // must be enclosed in square brackets, as in "[::1]:80",
 // "[ipv6-host]:http" or "[ipv6-host%zone]:80".
 func SplitHostPort(hostport string) (host, port string, err error) {
+	const (
+		missingPort   = "missing port in address"
+		tooManyColons = "too many colons in address"
+	)
+	addrErr := func(addr, why string) (host, port string, err error) {
+		return "", "", &AddrError{Err: why, Addr: addr}
+	}
 	j, k := 0, 0
 
 	// The port starts after the last colon.
 	i := last(hostport, ':')
 	if i < 0 {
-		goto missingPort
+		return addrErr(hostport, missingPort)
 	}
 
 	if hostport[0] == '[' {
 		// Expect the first ']' just before the last ':'.
 		end := byteIndex(hostport, ']')
 		if end < 0 {
-			err = &AddrError{Err: "missing ']' in address", Addr: hostport}
-			return
+			return addrErr(hostport, "missing ']' in address")
 		}
 		switch end + 1 {
 		case len(hostport):
 			// There can't be a ':' behind the ']' now.
-			goto missingPort
+			return addrErr(hostport, missingPort)
 		case i:
 			// The expected result.
 		default:
 			// Either ']' isn't followed by a colon, or it is
 			// followed by a colon that is not the last one.
 			if hostport[end+1] == ':' {
-				goto tooManyColons
+				return addrErr(hostport, tooManyColons)
 			}
-			goto missingPort
+			return addrErr(hostport, missingPort)
 		}
 		host = hostport[1:end]
 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
 	} else {
 		host = hostport[:i]
 		if byteIndex(host, ':') >= 0 {
-			goto tooManyColons
+			return addrErr(hostport, tooManyColons)
 		}
 		if byteIndex(host, '%') >= 0 {
-			goto missingBrackets
+			return addrErr(hostport, "missing brackets in address")
 		}
 	}
 	if byteIndex(hostport[j:], '[') >= 0 {
-		err = &AddrError{Err: "unexpected '[' in address", Addr: hostport}
-		return
+		return addrErr(hostport, "unexpected '[' in address")
 	}
 	if byteIndex(hostport[k:], ']') >= 0 {
-		err = &AddrError{Err: "unexpected ']' in address", Addr: hostport}
-		return
+		return addrErr(hostport, "unexpected ']' in address")
 	}
 
 	port = hostport[i+1:]
-	return
-
-missingPort:
-	err = &AddrError{Err: "missing port in address", Addr: hostport}
-	return
-
-tooManyColons:
-	err = &AddrError{Err: "too many colons in address", Addr: hostport}
-	return
-
-missingBrackets:
-	err = &AddrError{Err: "missing brackets in address", Addr: hostport}
-	return
+	return host, port, nil
 }
 
 func splitHostZone(s string) (host, zone string) {
@@ -201,7 +190,7 @@ func JoinHostPort(host, port string) string {
 // address or a DNS name, and returns a list of internet protocol
 // family addresses. The result contains at least one address when
 // error is nil.
-func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
+func internetAddrList(ctx context.Context, net, addr string) (addrList, error) {
 	var (
 		err        error
 		host, port string
@@ -249,7 +238,7 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 		return addrList{inetaddr(IPAddr{IP: ip, Zone: zone})}, nil
 	}
 	// Try as a DNS name.
-	ips, err := lookupIPDeadline(host, deadline)
+	ips, err := lookupIPContext(ctx, host)
 	if err != nil {
 		return nil, err
 	}
@@ -261,25 +250,4 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
 		filter = ipv6only
 	}
 	return filterAddrList(filter, ips, inetaddr)
-}
-
-func zoneToString(zone int) string {
-	if zone == 0 {
-		return ""
-	}
-	if ifi, err := InterfaceByIndex(zone); err == nil {
-		return ifi.Name
-	}
-	return uitoa(uint(zone))
-}
-
-func zoneToInt(zone string) int {
-	if zone == "" {
-		return 0
-	}
-	if ifi, err := InterfaceByName(zone); err == nil {
-		return ifi.Index
-	}
-	n, _, _ := dtoi(zone, 0)
-	return n
 }

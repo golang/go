@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -111,8 +111,6 @@ func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
 	return f, tab
 }
 
-var goarch = os.Getenv("O")
-
 func TestLineFromAline(t *testing.T) {
 	skipIfNotELF(t)
 
@@ -210,6 +208,7 @@ func TestPCLine(t *testing.T) {
 	defer endtest()
 
 	f, tab := crack(pclinetestBinary, t)
+	defer f.Close()
 	text := f.Section(".text")
 	textdat, err := text.Data()
 	if err != nil {

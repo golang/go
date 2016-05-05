@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,10 @@
 
 package runtime
 
-import "runtime/internal/sys"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
 	_SIG_DFL uintptr = 0
@@ -197,7 +200,7 @@ func dieFromSignal(sig int32) {
 // raisebadsignal is called when a signal is received on a non-Go
 // thread, and the Go program does not want to handle it (that is, the
 // program has not called os/signal.Notify for the signal).
-func raisebadsignal(sig int32) {
+func raisebadsignal(sig int32, c *sigctxt) {
 	if sig == _SIGPROF {
 		// Ignore profiling signals that arrive on non-Go threads.
 		return
@@ -212,14 +215,26 @@ func raisebadsignal(sig int32) {
 
 	// Reset the signal handler and raise the signal.
 	// We are currently running inside a signal handler, so the
-	// signal is blocked.  We need to unblock it before raising the
+	// signal is blocked. We need to unblock it before raising the
 	// signal, or the signal we raise will be ignored until we return
-	// from the signal handler.  We know that the signal was unblocked
+	// from the signal handler. We know that the signal was unblocked
 	// before entering the handler, or else we would not have received
-	// it.  That means that we don't have to worry about blocking it
+	// it. That means that we don't have to worry about blocking it
 	// again.
 	unblocksig(sig)
 	setsig(sig, handler, false)
+
+	// If we're linked into a non-Go program we want to try to
+	// avoid modifying the original context in which the signal
+	// was raised. If the handler is the default, we know it
+	// is non-recoverable, so we don't have to worry about
+	// re-installing sighandler. At this point we can just
+	// return and the signal will be re-raised and caught by
+	// the default handler with the correct context.
+	if (isarchive || islibrary) && handler == _SIG_DFL && c.sigcode() != _SI_USER {
+		return
+	}
+
 	raise(sig)
 
 	// If the signal didn't cause the program to exit, restore the
@@ -294,16 +309,32 @@ func ensureSigM() {
 
 // This is called when we receive a signal when there is no signal stack.
 // This can only happen if non-Go code calls sigaltstack to disable the
-// signal stack.  This is called via cgocallback to establish a stack.
+// signal stack. This is called via cgocallback to establish a stack.
 func noSignalStack(sig uint32) {
 	println("signal", sig, "received on thread with no signal stack")
 	throw("non-Go code disabled sigaltstack")
 }
 
 // This is called if we receive a signal when there is a signal stack
-// but we are not on it.  This can only happen if non-Go code called
+// but we are not on it. This can only happen if non-Go code called
 // sigaction without setting the SS_ONSTACK flag.
 func sigNotOnStack(sig uint32) {
 	println("signal", sig, "received but handler not on signal stack")
 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
+}
+
+// This runs on a foreign stack, without an m or a g. No stack split.
+//go:nosplit
+//go:norace
+//go:nowritebarrierrec
+func badsignal(sig uintptr, c *sigctxt) {
+	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig)+unsafe.Sizeof(c))
+}
+
+func badsignalgo(sig uintptr, c *sigctxt) {
+	if !sigsend(uint32(sig)) {
+		// A foreign thread received the signal sig, and the
+		// Go code does not want to handle it.
+		raisebadsignal(int32(sig), c)
+	}
 }

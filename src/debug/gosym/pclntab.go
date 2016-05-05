@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -53,7 +53,7 @@ const oldQuantum = 1
 func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64, line int) {
 	// The PC/line table can be thought of as a sequence of
 	//  <pc update>* <line update>
-	// batches.  Each update batch results in a (pc, line) pair,
+	// batches. Each update batch results in a (pc, line) pair,
 	// where line applies to every PC from pc up to but not
 	// including the pc of the next pair.
 	//
@@ -167,7 +167,7 @@ func (t *LineTable) go12Init() {
 	// Check header: 4-byte magic, two zeros, pc quantum, pointer size.
 	t.go12 = -1 // not Go 1.2 until proven otherwise
 	if len(t.Data) < 16 || t.Data[4] != 0 || t.Data[5] != 0 ||
-		(t.Data[6] != 1 && t.Data[6] != 4) || // pc quantum
+		(t.Data[6] != 1 && t.Data[6] != 2 && t.Data[6] != 4) || // pc quantum
 		(t.Data[7] != 4 && t.Data[7] != 8) { // pointer size
 		return
 	}
@@ -207,8 +207,8 @@ func (t *LineTable) go12Funcs() []Func {
 	funcs := make([]Func, n)
 	for i := range funcs {
 		f := &funcs[i]
-		f.Entry = uint64(t.uintptr(t.functab[2*i*int(t.ptrsize):]))
-		f.End = uint64(t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):]))
+		f.Entry = t.uintptr(t.functab[2*i*int(t.ptrsize):])
+		f.End = t.uintptr(t.functab[(2*i+2)*int(t.ptrsize):])
 		info := t.Data[t.uintptr(t.functab[(2*i+1)*int(t.ptrsize):]):]
 		f.LineTable = t
 		f.FrameSize = int(t.binary.Uint32(info[t.ptrsize+2*4:]))

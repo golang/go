@@ -76,7 +76,7 @@ func goargs() {
 
 func goenvs_unix() {
 	// TODO(austin): ppc64 in dynamic linking mode doesn't
-	// guarantee env[] will immediately follow argv.  Might cause
+	// guarantee env[] will immediately follow argv. Might cause
 	// problems.
 	n := int32(0)
 	for argv_index(argv, argc+1+n) != nil {
@@ -241,7 +241,7 @@ func check() {
 
 	k = unsafe.Pointer(uintptr(0xfedcb123))
 	if sys.PtrSize == 8 {
-		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
+		k = unsafe.Pointer(uintptr(k) << 10)
 	}
 	if casp(&k, nil, nil) {
 		throw("casp1")
@@ -476,10 +476,51 @@ func gomcache() *mcache {
 }
 
 //go:linkname reflect_typelinks reflect.typelinks
-func reflect_typelinks() [][]*_type {
-	ret := [][]*_type{firstmoduledata.typelinks}
+func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
+	sections := []unsafe.Pointer{unsafe.Pointer(firstmoduledata.types)}
+	ret := [][]int32{firstmoduledata.typelinks}
 	for datap := firstmoduledata.next; datap != nil; datap = datap.next {
+		sections = append(sections, unsafe.Pointer(datap.types))
 		ret = append(ret, datap.typelinks)
 	}
-	return ret
+	return sections, ret
+}
+
+// reflect_resolveNameOff resolves a name offset from a base pointer.
+//go:linkname reflect_resolveNameOff reflect.resolveNameOff
+func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+}
+
+// reflect_resolveTypeOff resolves an *rtype offset from a base type.
+//go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
+func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+}
+
+// reflect_resolveTextOff resolves an function pointer offset from a base type.
+//go:linkname reflect_resolveTextOff reflect.resolveTextOff
+func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+	return (*_type)(rtype).textOff(textOff(off))
+
+}
+
+// reflect_addReflectOff adds a pointer to the reflection offset lookup map.
+//go:linkname reflect_addReflectOff reflect.addReflectOff
+func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+	lock(&reflectOffs.lock)
+	if reflectOffs.m == nil {
+		reflectOffs.m = make(map[int32]unsafe.Pointer)
+		reflectOffs.minv = make(map[unsafe.Pointer]int32)
+		reflectOffs.next = -1
+	}
+	id, found := reflectOffs.minv[ptr]
+	if !found {
+		id = reflectOffs.next
+		reflectOffs.next-- // use negative offsets as IDs to aid debugging
+		reflectOffs.m[id] = ptr
+		reflectOffs.minv[ptr] = id
+	}
+	unlock(&reflectOffs.lock)
+	return id
 }

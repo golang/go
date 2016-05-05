@@ -44,9 +44,6 @@ go	src=..
 				gofmt_test.go
 				testdata
 					+
-			newlink
-				testdata
-					+
 		archive
 			tar
 				testdata
@@ -59,6 +56,8 @@ go	src=..
 				testdata
 					+
 			flate
+				testdata
+					+
 			gzip
 				testdata
 					+
@@ -108,6 +107,10 @@ go	src=..
 			gif
 			jpeg
 			png
+				testdata
+					+
+		internal
+			trace
 				testdata
 					+
 		io

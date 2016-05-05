@@ -14,7 +14,7 @@ const (
 )
 
 // cse does common-subexpression elimination on the Function.
-// Values are just relinked, nothing is deleted.  A subsequent deadcode
+// Values are just relinked, nothing is deleted. A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
 func cse(f *Func) {
 	// Two values are equivalent if they satisfy the following definition:
@@ -82,7 +82,7 @@ func cse(f *Func) {
 	}
 
 	// Find an equivalence class where some members of the class have
-	// non-equivalent arguments.  Split the equivalence class appropriately.
+	// non-equivalent arguments. Split the equivalence class appropriately.
 	// Repeat until we can't find any more splits.
 	for {
 		changed := false
@@ -108,7 +108,7 @@ func cse(f *Func) {
 						break
 					}
 				}
-				if !equivalent || !v.Type.Equal(w.Type) {
+				if !equivalent || v.Type.Compare(w.Type) != CMPeq {
 					// w is not equivalent to v.
 					// move it to the end and shrink e.
 					e[j], e[len(e)-1] = e[len(e)-1], e[j]
@@ -117,7 +117,7 @@ func cse(f *Func) {
 					changed = true
 					continue eqloop
 				}
-				// v and w are equivalent.  Keep w in e.
+				// v and w are equivalent. Keep w in e.
 				j++
 			}
 			partition[i] = e
@@ -131,33 +131,36 @@ func cse(f *Func) {
 		}
 	}
 
-	// Compute dominator tree
-	idom := dominators(f)
-	sdom := newSparseTree(f, idom)
+	// Dominator tree (f.sdom) is computed by the generic domtree pass.
 
-	// Compute substitutions we would like to do.  We substitute v for w
+	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
-		for len(e) > 1 {
-			// Find a maximal dominant element in e
-			v := e[0]
-			for _, w := range e[1:] {
-				if sdom.isAncestorEq(w.Block, v.Block) {
-					v = w
-				}
+		sort.Sort(sortbyentry{e, f.sdom})
+		for i := 0; i < len(e)-1; i++ {
+			// e is sorted by entry value so maximal dominant element should be
+			// found first in the slice
+			v := e[i]
+			if v == nil {
+				continue
 			}
 
+			e[i] = nil
 			// Replace all elements of e which v dominates
-			for i := 0; i < len(e); {
-				w := e[i]
-				if w == v {
-					e, e[i] = e[:len(e)-1], e[len(e)-1]
-				} else if sdom.isAncestorEq(v.Block, w.Block) {
+			for j := i + 1; j < len(e); j++ {
+				w := e[j]
+				if w == nil {
+					continue
+				}
+				if f.sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
-					e, e[i] = e[:len(e)-1], e[len(e)-1]
+					e[j] = nil
 				} else {
-					i++
+					// since the blocks are assorted in ascending order by entry number
+					// once we know that we don't dominate a block we can't dominate any
+					// 'later' block
+					break
 				}
 			}
 		}
@@ -182,7 +185,7 @@ func cse(f *Func) {
 					// them appropriately, so don't mess with them here.
 					continue
 				}
-				b.Control = x
+				b.SetControl(x)
 			}
 		}
 	}
@@ -191,7 +194,7 @@ func cse(f *Func) {
 	}
 }
 
-// An eqclass approximates an equivalence class.  During the
+// An eqclass approximates an equivalence class. During the
 // algorithm it may represent the union of several of the
 // final equivalence classes.
 type eqclass []*Value
@@ -207,7 +210,7 @@ type eqclass []*Value
 //  - first two arg's opcodes and auxint
 //  - NOT first two arg's aux; that can break CSE.
 // partitionValues returns a list of equivalence classes, each
-// being a sorted by ID list of *Values.  The eqclass slices are
+// being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
 func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
@@ -253,6 +256,11 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
 	}
 	if v.Op == OpPhi && v.Block != w.Block {
 		return lt2Cmp(v.Block.ID < w.Block.ID)
+	}
+	if v.Type.IsMemory() {
+		// We will never be able to CSE two values
+		// that generate memory.
+		return lt2Cmp(v.ID < w.ID)
 	}
 
 	if tc := v.Type.Compare(w.Type); tc != CMPeq {
@@ -301,4 +309,17 @@ func (sv sortvalues) Less(i, j int) bool {
 
 	// Sort by value ID last to keep the sort result deterministic.
 	return v.ID < w.ID
+}
+
+type sortbyentry struct {
+	a    []*Value // array of values
+	sdom sparseTree
+}
+
+func (sv sortbyentry) Len() int      { return len(sv.a) }
+func (sv sortbyentry) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+func (sv sortbyentry) Less(i, j int) bool {
+	v := sv.a[i]
+	w := sv.a[j]
+	return sv.sdom.maxdomorder(v.Block) < sv.sdom.maxdomorder(w.Block)
 }

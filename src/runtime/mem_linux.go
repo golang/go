@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -132,6 +132,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		}
 	}
 
+	if uintptr(v)&(sys.PhysPageSize-1) != 0 || n&(sys.PhysPageSize-1) != 0 {
+		// madvise will round this to any physical page
+		// *covered* by this range, so an unaligned madvise
+		// will release more memory than intended.
+		throw("unaligned sysUnused")
+	}
+
 	madvise(v, n, _MADV_DONTNEED)
 }
 
@@ -172,7 +179,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 
 func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	// On 64-bit, people with ulimit -v set complain if we reserve too
-	// much address space.  Instead, assume that the reservation is okay
+	// much address space. Instead, assume that the reservation is okay
 	// if we can reserve at least 64K and check the assumption in SysMap.
 	// Only user-mode Linux (UML) rejects these requests.
 	if sys.PtrSize == 8 && uint64(n) > 1<<32 {

@@ -25,7 +25,8 @@ func reachableBlocks(f *Func) []bool {
 		if b.Kind == BlockFirst {
 			s = s[:1]
 		}
-		for _, c := range s {
+		for _, e := range s {
+			c := e.b
 			if !reachable[c.ID] {
 				reachable[c.ID] = true
 				p = append(p, c) // push
@@ -69,7 +70,7 @@ func liveValues(f *Func, reachable []bool) []bool {
 		v := q[len(q)-1]
 		q = q[:len(q)-1]
 		for i, x := range v.Args {
-			if v.Op == OpPhi && !reachable[v.Block.Preds[i].ID] {
+			if v.Op == OpPhi && !reachable[v.Block.Preds[i].b.ID] {
 				continue
 			}
 			if !live[x.ID] {
@@ -84,9 +85,9 @@ func liveValues(f *Func, reachable []bool) []bool {
 
 // deadcode removes dead code from f.
 func deadcode(f *Func) {
-	// deadcode after regalloc is forbidden for now.  Regalloc
+	// deadcode after regalloc is forbidden for now. Regalloc
 	// doesn't quite generate legal SSA which will lead to some
-	// required moves being eliminated.  See the comment at the
+	// required moves being eliminated. See the comment at the
 	// top of regalloc.go for details.
 	if f.RegAlloc != nil {
 		f.Fatalf("deadcode after regalloc")
@@ -100,9 +101,12 @@ func deadcode(f *Func) {
 		if reachable[b.ID] {
 			continue
 		}
-		for _, c := range b.Succs {
-			if reachable[c.ID] {
-				c.removePred(b)
+		for i := 0; i < len(b.Succs); {
+			e := b.Succs[i]
+			if reachable[e.b.ID] {
+				b.removeEdge(i)
+			} else {
+				i++
 			}
 		}
 	}
@@ -115,16 +119,9 @@ func deadcode(f *Func) {
 		if b.Kind != BlockFirst {
 			continue
 		}
-		c := b.Succs[1]
-		b.Succs[1] = nil
-		b.Succs = b.Succs[:1]
+		b.removeEdge(1)
 		b.Kind = BlockPlain
 		b.Likely = BranchUnknown
-
-		if reachable[c.ID] {
-			// Note: c must be reachable through some other edge.
-			c.removePred(b)
-		}
 	}
 
 	// Splice out any copies introduced during dead block removal.
@@ -164,7 +161,19 @@ func deadcode(f *Func) {
 	}
 	f.Names = f.Names[:i]
 
-	// Remove dead values from blocks' value list.  Return dead
+	// Unlink values.
+	for _, b := range f.Blocks {
+		if !reachable[b.ID] {
+			b.SetControl(nil)
+		}
+		for _, v := range b.Values {
+			if !live[v.ID] {
+				v.resetArgs()
+			}
+		}
+	}
+
+	// Remove dead values from blocks' value list. Return dead
 	// values to the allocator.
 	for _, b := range f.Blocks {
 		i := 0
@@ -184,7 +193,7 @@ func deadcode(f *Func) {
 		b.Values = b.Values[:i]
 	}
 
-	// Remove unreachable blocks.  Return dead blocks to allocator.
+	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0
 	for _, b := range f.Blocks {
 		if reachable[b.ID] {
@@ -205,41 +214,35 @@ func deadcode(f *Func) {
 	f.Blocks = f.Blocks[:i]
 }
 
-// removePred removes the predecessor p from b's predecessor list.
-func (b *Block) removePred(p *Block) {
-	var i int
-	found := false
-	for j, q := range b.Preds {
-		if q == p {
-			i = j
-			found = true
-			break
-		}
-	}
-	// TODO: the above loop could make the deadcode pass take quadratic time
-	if !found {
-		b.Fatalf("can't find predecessor %v of %v\n", p, b)
-	}
+// removeEdge removes the i'th outgoing edge from b (and
+// the corresponding incoming edge from b.Succs[i].b).
+func (b *Block) removeEdge(i int) {
+	e := b.Succs[i]
+	c := e.b
+	j := e.i
 
-	n := len(b.Preds) - 1
-	b.Preds[i] = b.Preds[n]
-	b.Preds[n] = nil // aid GC
-	b.Preds = b.Preds[:n]
+	// Adjust b.Succs
+	b.removeSucc(i)
 
-	// rewrite phi ops to match the new predecessor list
-	for _, v := range b.Values {
+	// Adjust c.Preds
+	c.removePred(j)
+
+	// Remove phi args from c's phis.
+	n := len(c.Preds)
+	for _, v := range c.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		v.Args[i] = v.Args[n]
-		v.Args[n] = nil // aid GC
+		v.Args[j].Uses--
+		v.Args[j] = v.Args[n]
+		v.Args[n] = nil
 		v.Args = v.Args[:n]
 		phielimValue(v)
-		// Note: this is trickier than it looks.  Replacing
+		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because
 		// Phi and Copy don't have exactly the same semantics.
 		// Phi arguments always come from a predecessor block,
-		// whereas copies don't.  This matters in loops like:
+		// whereas copies don't. This matters in loops like:
 		// 1: x = (Phi y)
 		//    y = (Add x 1)
 		//    goto 1
@@ -253,15 +256,15 @@ func (b *Block) removePred(p *Block) {
 		// will barf on it.
 		//
 		// Fortunately, this situation can only happen for dead
-		// code loops.  We know the code we're working with is
+		// code loops. We know the code we're working with is
 		// not dead, so we're ok.
 		// Proof: If we have a potential bad cycle, we have a
 		// situation like this:
 		//   x = (Phi z)
 		//   y = (op1 x ...)
 		//   z = (op2 y ...)
-		// Where opX are not Phi ops.  But such a situation
-		// implies a cycle in the dominator graph.  In the
+		// Where opX are not Phi ops. But such a situation
+		// implies a cycle in the dominator graph. In the
 		// example, x.Block dominates y.Block, y.Block dominates
 		// z.Block, and z.Block dominates x.Block (treating
 		// "dominates" as reflexive).  Cycles in the dominator

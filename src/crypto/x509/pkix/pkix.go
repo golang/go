@@ -177,7 +177,7 @@ func (certList *CertificateList) HasExpired(now time.Time) bool {
 // 5280, section 5.1.
 type TBSCertificateList struct {
 	Raw                 asn1.RawContent
-	Version             int `asn1:"optional,default:1"`
+	Version             int `asn1:"optional,default:0"`
 	Signature           AlgorithmIdentifier
 	Issuer              RDNSequence
 	ThisUpdate          time.Time

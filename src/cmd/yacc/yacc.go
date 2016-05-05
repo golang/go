@@ -17,7 +17,7 @@ file such as NOTICE, LICENCE or COPYING.
 	Portions Copyright © 2004,2006 Bruce Ellis
 	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+	Portions Copyright © 2009 The Go Authors. All rights reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -237,7 +237,6 @@ var defact = make([]int, NSTATES)  // default actions of states
 
 // lookahead set information
 
-var lkst []Lkset
 var nolook = 0  // flag to turn off lookahead computations
 var tbitset = 0 // size of lookahead sets
 var clset Lkset // temporary storage for lookahead computations
@@ -3185,8 +3184,6 @@ func isword(c rune) bool {
 	return c >= 0xa0 || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-func mktemp(t string) string { return t }
-
 //
 // return 1 if 2 arrays are equal
 // return 0 if not equal
@@ -3202,13 +3199,6 @@ func aryeq(a []int, b []int) int {
 		}
 	}
 	return 1
-}
-
-func putrune(f *bufio.Writer, c int) {
-	s := string(c)
-	for i := 0; i < len(s); i++ {
-		f.WriteByte(s[i])
-	}
 }
 
 func getrune(f *bufio.Reader) rune {

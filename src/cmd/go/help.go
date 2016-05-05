@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -148,14 +148,6 @@ A few common code hosting sites have special syntax:
 
 		import "github.com/user/project"
 		import "github.com/user/project/sub/directory"
-
-	Google Code Project Hosting (Git, Mercurial, Subversion)
-
-		import "code.google.com/p/project"
-		import "code.google.com/p/project/sub/directory"
-
-		import "code.google.com/p/project.subrepository"
-		import "code.google.com/p/project.subrepository/sub/directory"
 
 	Launchpad (Bazaar)
 
@@ -532,7 +524,15 @@ the extension of the file name. These extensions are:
 Files of each of these types except .syso may contain build
 constraints, but the go command stops scanning for build constraints
 at the first item in the file that is not a blank line or //-style
-line comment.
+line comment. See the go/build package documentation for
+more details.
+
+Non-test Go source files can also include a //go:binary-only-package
+comment, indicating that the package sources are included
+for documentation only and must not be used to build the
+package binary. This enables distribution of Go packages in
+their compiled form alone. See the go/build package documentation
+for more details.
 	`,
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,7 @@ package windows
 
 import "syscall"
 
-//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
+//go:generate go run ../../../syscall/mksyscall_windows.go -output zsyscall_windows.go -systemdll syscall_windows.go
 
 const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
 

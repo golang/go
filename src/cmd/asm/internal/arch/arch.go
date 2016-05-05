@@ -10,6 +10,7 @@ import (
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/x86"
 	"fmt"
 	"strings"
@@ -27,7 +28,7 @@ const (
 type Arch struct {
 	*obj.LinkArch
 	// Map of instruction names to enumeration.
-	Instructions map[string]int
+	Instructions map[string]obj.As
 	// Map of register names to enumeration.
 	Register map[string]int16
 	// Table of register prefix names. These are things like R for R(0) and SPR for SPR(268).
@@ -42,14 +43,6 @@ type Arch struct {
 // that do not accept the R(N) notation. It always returns failure.
 func nilRegisterNumber(name string, n int16) (int16, bool) {
 	return 0, false
-}
-
-var Pseudos = map[string]int{
-	"DATA":     obj.ADATA,
-	"FUNCDATA": obj.AFUNCDATA,
-	"GLOBL":    obj.AGLOBL,
-	"PCDATA":   obj.APCDATA,
-	"TEXT":     obj.ATEXT,
 }
 
 // Set configures the architecture specified by GOARCH and returns its representation.
@@ -82,6 +75,10 @@ func Set(GOARCH string) *Arch {
 		a := archPPC64()
 		a.LinkArch = &ppc64.Linkppc64le
 		return a
+	case "s390x":
+		a := archS390x()
+		a.LinkArch = &s390x.Links390x
+		return a
 	}
 	return nil
 }
@@ -102,13 +99,13 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	register["PC"] = RPC
 	// Register prefix not used on this architecture.
 
-	instructions := make(map[string]int)
+	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
-		instructions[s] = i
+		instructions[s] = obj.As(i)
 	}
 	for i, s := range x86.Anames {
-		if i >= obj.A_ARCHSPECIFIC {
-			instructions[s] = i + obj.ABaseAMD64
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseAMD64
 		}
 	}
 	// Annoying aliases.
@@ -200,13 +197,13 @@ func archArm() *Arch {
 		"R": true,
 	}
 
-	instructions := make(map[string]int)
+	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
-		instructions[s] = i
+		instructions[s] = obj.As(i)
 	}
 	for i, s := range arm.Anames {
-		if i >= obj.A_ARCHSPECIFIC {
-			instructions[s] = i + obj.ABaseARM
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseARM
 		}
 	}
 	// Annoying aliases.
@@ -288,13 +285,13 @@ func archArm64() *Arch {
 		"V": true,
 	}
 
-	instructions := make(map[string]int)
+	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
-		instructions[s] = i
+		instructions[s] = obj.As(i)
 	}
 	for i, s := range arm64.Anames {
-		if i >= obj.A_ARCHSPECIFIC {
-			instructions[s] = i + obj.ABaseARM64
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseARM64
 		}
 	}
 	// Annoying aliases.
@@ -348,13 +345,13 @@ func archPPC64() *Arch {
 		"SPR": true,
 	}
 
-	instructions := make(map[string]int)
+	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
-		instructions[s] = i
+		instructions[s] = obj.As(i)
 	}
 	for i, s := range ppc64.Anames {
-		if i >= obj.A_ARCHSPECIFIC {
-			instructions[s] = i + obj.ABasePPC64
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABasePPC64
 		}
 	}
 	// Annoying aliases.
@@ -396,6 +393,9 @@ func archMips64() *Arch {
 	// Avoid unintentionally clobbering g using R30.
 	delete(register, "R30")
 	register["g"] = mips.REG_R30
+	// Avoid unintentionally clobbering RSB using R28.
+	delete(register, "R28")
+	register["RSB"] = mips.REG_R28
 	registerPrefix := map[string]bool{
 		"F":   true,
 		"FCR": true,
@@ -403,13 +403,13 @@ func archMips64() *Arch {
 		"R":   true,
 	}
 
-	instructions := make(map[string]int)
+	instructions := make(map[string]obj.As)
 	for i, s := range obj.Anames {
-		instructions[s] = i
+		instructions[s] = obj.As(i)
 	}
 	for i, s := range mips.Anames {
-		if i >= obj.A_ARCHSPECIFIC {
-			instructions[s] = i + obj.ABaseMIPS64
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseMIPS64
 		}
 	}
 	// Annoying alias.
@@ -422,5 +422,58 @@ func archMips64() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: mipsRegisterNumber,
 		IsJump:         jumpMIPS64,
+	}
+}
+
+func archS390x() *Arch {
+	register := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// Note that there is no list of names as there is for x86.
+	for i := s390x.REG_R0; i <= s390x.REG_R15; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := s390x.REG_F0; i <= s390x.REG_F15; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := s390x.REG_V0; i <= s390x.REG_V31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := s390x.REG_AR0; i <= s390x.REG_AR15; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	register["LR"] = s390x.REG_LR
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Avoid unintentionally clobbering g using R13.
+	delete(register, "R13")
+	register["g"] = s390x.REG_R13
+	registerPrefix := map[string]bool{
+		"AR": true,
+		"F":  true,
+		"R":  true,
+	}
+
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range s390x.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseS390X
+		}
+	}
+	// Annoying aliases.
+	instructions["BR"] = s390x.ABR
+	instructions["BL"] = s390x.ABL
+
+	return &Arch{
+		LinkArch:       &s390x.Links390x,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: s390xRegisterNumber,
+		IsJump:         jumpS390x,
 	}
 }

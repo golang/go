@@ -119,7 +119,7 @@ func (e *encoder) incHi() error {
 		if err := e.write(e, clear); err != nil {
 			return err
 		}
-		e.width = uint(e.litWidth) + 1
+		e.width = e.litWidth + 1
 		e.hi = clear + 1
 		e.overflow = clear << 1
 		for i := range e.table {

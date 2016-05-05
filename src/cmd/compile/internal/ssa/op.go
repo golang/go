@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/obj"
+	"fmt"
+)
 
 // An Op encodes the specific operation that a Value performs.
 // Opcodes' semantics can be modified by the type and aux fields of the Value.
@@ -16,13 +19,14 @@ type Op int32
 
 type opInfo struct {
 	name              string
-	asm               int
 	reg               regInfo
 	auxType           auxType
 	argLen            int32 // the number of arugments, -1 if variable length
-	generic           bool  // this is a generic (arch-independent) opcode
-	rematerializeable bool  // this op is rematerializeable
-	commutative       bool  // this operation is commutative (e.g. addition)
+	asm               obj.As
+	generic           bool // this is a generic (arch-independent) opcode
+	rematerializeable bool // this op is rematerializeable
+	commutative       bool // this operation is commutative (e.g. addition)
+	resultInArg0      bool // v and v.Args[0] must be allocated to the same register
 }
 
 type inputInfo struct {
@@ -45,14 +49,18 @@ const (
 	auxInt16                // auxInt is a 16-bit integer
 	auxInt32                // auxInt is a 32-bit integer
 	auxInt64                // auxInt is a 64-bit integer
-	auxFloat                // auxInt is a float64 (encoded with math.Float64bits)
-	auxString               // auxInt is a string
+	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
+	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+	auxString               // aux is a string
 	auxSym                  // aux is a symbol
 	auxSymOff               // aux is a symbol, auxInt is an offset
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+
+	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
 )
 
-// A ValAndOff is used by the several opcodes.  It holds
+// A ValAndOff is used by the several opcodes. It holds
 // both a value and a pointer offset.
 // A ValAndOff is intended to be encoded into an AuxInt field.
 // The zero ValAndOff encodes a value of 0 and an offset of 0.

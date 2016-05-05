@@ -411,10 +411,11 @@ func split(s string, c string, cutc bool) (string, string) {
 
 // Parse parses rawurl into a URL structure.
 // The rawurl may be relative or absolute.
-func Parse(rawurl string) (url *URL, err error) {
+func Parse(rawurl string) (*URL, error) {
 	// Cut off #frag
 	u, frag := split(rawurl, "#", true)
-	if url, err = parse(u, false); err != nil {
+	url, err := parse(u, false)
+	if err != nil {
 		return nil, err
 	}
 	if frag == "" {
@@ -426,16 +427,16 @@ func Parse(rawurl string) (url *URL, err error) {
 	return url, nil
 }
 
-// ParseRequestURI parses rawurl into a URL structure.  It assumes that
+// ParseRequestURI parses rawurl into a URL structure. It assumes that
 // rawurl was received in an HTTP request, so the rawurl is interpreted
 // only as an absolute URI or an absolute path.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
-func ParseRequestURI(rawurl string) (url *URL, err error) {
+func ParseRequestURI(rawurl string) (*URL, error) {
 	return parse(rawurl, true)
 }
 
-// parse parses a URL from a string in one of two contexts.  If
+// parse parses a URL from a string in one of two contexts. If
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
@@ -460,7 +461,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	}
 	url.Scheme = strings.ToLower(url.Scheme)
 
-	if strings.HasSuffix(rest, "?") {
+	if strings.HasSuffix(rest, "?") && strings.Count(rest, "?") == 1 {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {
@@ -572,8 +573,12 @@ func parseHost(host string) (string, error) {
 			}
 			return host1 + host2 + host3, nil
 		}
+	} else if i := strings.LastIndex(host, ":"); i > 0 {
+		colonPort := host[i:]
+		if !validOptionalPort(colonPort) {
+			return "", fmt.Errorf("invalid port %q after host", colonPort)
+		}
 	}
-
 	var err error
 	if host, err = unescape(host, encodeHost); err != nil {
 		return "", err
@@ -744,10 +749,10 @@ func (v Values) Del(key string) {
 // ParseQuery always returns a non-nil map containing all the
 // valid query parameters found; err describes the first decoding error
 // encountered, if any.
-func ParseQuery(query string) (m Values, err error) {
-	m = make(Values)
-	err = parseQuery(m, query)
-	return
+func ParseQuery(query string) (Values, error) {
+	m := make(Values)
+	err := parseQuery(m, query)
+	return m, err
 }
 
 func parseQuery(m Values, query string) (err error) {
@@ -851,8 +856,8 @@ func (u *URL) IsAbs() bool {
 	return u.Scheme != ""
 }
 
-// Parse parses a URL in the context of the receiver.  The provided URL
-// may be relative or absolute.  Parse returns nil, err on parse
+// Parse parses a URL in the context of the receiver. The provided URL
+// may be relative or absolute. Parse returns nil, err on parse
 // failure, otherwise its return value is the same as ResolveReference.
 func (u *URL) Parse(ref string) (*URL, error) {
 	refurl, err := Parse(ref)
@@ -864,7 +869,7 @@ func (u *URL) Parse(ref string) (*URL, error) {
 
 // ResolveReference resolves a URI reference to an absolute URI from
 // an absolute base URI, per RFC 3986 Section 5.2.  The URI reference
-// may be relative or absolute.  ResolveReference always returns a new
+// may be relative or absolute. ResolveReference always returns a new
 // URL instance, even if the returned URL is identical to either the
 // base or reference. If ref is an absolute URL, then ResolveReference
 // ignores base and returns a copy of ref.

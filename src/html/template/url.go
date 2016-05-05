@@ -17,7 +17,7 @@ func urlFilter(args ...interface{}) string {
 	if t == contentTypeURL {
 		return s
 	}
-	if i := strings.IndexRune(s, ':'); i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
+	if i := strings.IndexRune(s, ':'); i >= 0 && !strings.ContainsRune(s[:i], '/') {
 		protocol := strings.ToLower(s[:i])
 		if protocol != "http" && protocol != "https" && protocol != "mailto" {
 			return "#" + filterFailsafe

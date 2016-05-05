@@ -12,7 +12,7 @@
 // sigsend is called by the signal handler to queue a new signal.
 // signal_recv is called by the Go program to receive a newly queued signal.
 // Synchronization between sigsend and signal_recv is based on the sig.state
-// variable.  It can be in 3 states: sigIdle, sigReceiving and sigSending.
+// variable. It can be in 3 states: sigIdle, sigReceiving and sigSending.
 // sigReceiving means that signal_recv is blocked on sig.Note and there are no
 // new pending signals.
 // sigSending means that sig.mask *may* contain new pending signals,
@@ -30,7 +30,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"unsafe"
+	_ "unsafe" // for go:linkname
 )
 
 var sig struct {
@@ -136,7 +136,7 @@ func signal_recv() uint32 {
 func signal_enable(s uint32) {
 	if !sig.inuse {
 		// The first call to signal_enable is for us
-		// to use for initialization.  It does not pass
+		// to use for initialization. It does not pass
 		// signal information in m.
 		sig.inuse = true // enable reception of signals; cannot disable
 		noteclear(&sig.note)
@@ -175,20 +175,4 @@ func signal_ignore(s uint32) {
 // Checked by signal handlers.
 func signal_ignored(s uint32) bool {
 	return sig.ignored[s/32]&(1<<(s&31)) != 0
-}
-
-// This runs on a foreign stack, without an m or a g.  No stack split.
-//go:nosplit
-//go:norace
-//go:nowritebarrierrec
-func badsignal(sig uintptr) {
-	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
-}
-
-func badsignalgo(sig uintptr) {
-	if !sigsend(uint32(sig)) {
-		// A foreign thread received the signal sig, and the
-		// Go code does not want to handle it.
-		raisebadsignal(int32(sig))
-	}
 }

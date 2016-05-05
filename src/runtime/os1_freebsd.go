@@ -201,7 +201,7 @@ func memlimit() uintptr {
 			return 0;
 
 		// If there's not at least 16 MB left, we're probably
-		// not going to be able to do much.  Treat as no limit.
+		// not going to be able to do much. Treat as no limit.
 		rl.rlim_cur -= used;
 		if(rl.rlim_cur < (16<<20))
 			return 0;

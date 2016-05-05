@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -41,7 +41,10 @@ syntax of package template.  The default output is equivalent to -f
         Goroot        bool   // is this package in the Go root?
         Standard      bool   // is this package part of the standard Go library?
         Stale         bool   // would 'go install' do anything for this package?
+        StaleReason   string // explanation for Stale==true
         Root          string // Go root or Go path dir containing this package
+        ConflictDir   string // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool   // binary-only package: cannot be recompiled from sources
 
         // Source files
         GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)

@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -214,7 +214,7 @@ var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
 {{end}}{{.Long | trim}}
 `
 
-var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reserved.
+var documentationTemplate = `// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -339,7 +339,7 @@ func importPathsNoDotExpansion(args []string) []string {
 	for _, a := range args {
 		// Arguments are supposed to be import paths, but
 		// as a courtesy to Windows developers, rewrite \ to /
-		// in command-line arguments.  Handles .\... and so on.
+		// in command-line arguments. Handles .\... and so on.
 		if filepath.Separator == '\\' {
 			a = strings.Replace(a, `\`, `/`, -1)
 		}
@@ -403,8 +403,6 @@ func errorf(format string, args ...interface{}) {
 	setExitStatus(1)
 }
 
-var logf = log.Printf
-
 func exitIfErrors() {
 	if exitStatus != 0 {
 		exit()
@@ -426,19 +424,6 @@ func run(cmdargs ...interface{}) {
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)
 	}
-}
-
-func runOut(dir string, cmdargs ...interface{}) []byte {
-	cmdline := stringList(cmdargs...)
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		os.Stderr.Write(out)
-		errorf("%v", err)
-		out = nil
-	}
-	return out
 }
 
 // envForDir returns a copy of the environment
@@ -472,7 +457,7 @@ NextVar:
 }
 
 // matchPattern(pattern)(name) reports whether
-// name matches pattern.  Pattern is a limited glob
+// name matches pattern. Pattern is a limited glob
 // pattern in which '...' means 'any string' and there
 // is no other special syntax.
 func matchPattern(pattern string) func(name string) bool {
@@ -629,7 +614,7 @@ func matchPackages(pattern string) []string {
 
 // allPackagesInFS is like allPackages but is passed a pattern
 // beginning ./ or ../, meaning it should scan the tree rooted
-// at the given directory.  There are ... in the pattern too.
+// at the given directory. There are ... in the pattern too.
 func allPackagesInFS(pattern string) []string {
 	pkgs := matchPackagesInFS(pattern)
 	if len(pkgs) == 0 {

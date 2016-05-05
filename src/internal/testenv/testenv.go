@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,10 @@
 package testenv
 
 import (
+	"flag"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -62,6 +65,29 @@ func MustHaveGoRun(t *testing.T) {
 	}
 }
 
+// GoToolPath reports the path to the Go tool.
+// If the tool is unavailable GoToolPath calls t.Skip.
+// If the tool should be available and isn't, GoToolPath calls t.Fatal.
+func GoToolPath(t *testing.T) string {
+	MustHaveGoBuild(t)
+
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+
+	goBin, err := exec.LookPath("go" + exeSuffix)
+	if err != nil {
+		t.Fatalf("cannot find go tool: %v", err)
+	}
+	return goBin
+}
+
 // HasExec reports whether the current system can start new processes
 // using os.StartProcess or (more commonly) exec.Command.
 func HasExec() bool {
@@ -97,5 +123,13 @@ func HasExternalNetwork() bool {
 func MustHaveExternalNetwork(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping test: no external network in -short mode")
+	}
+}
+
+var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+
+func SkipFlaky(t *testing.T, issue int) {
+	if !*flaky {
+		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
 	}
 }

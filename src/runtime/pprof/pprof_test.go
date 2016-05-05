@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -530,15 +530,20 @@ func blockChanClose() {
 }
 
 func blockSelectRecvAsync() {
+	const numTries = 3
 	c := make(chan bool, 1)
 	c2 := make(chan bool, 1)
 	go func() {
-		time.Sleep(blockDelay)
-		c <- true
+		for i := 0; i < numTries; i++ {
+			time.Sleep(blockDelay)
+			c <- true
+		}
 	}()
-	select {
-	case <-c:
-	case <-c2:
+	for i := 0; i < numTries; i++ {
+		select {
+		case <-c:
+		case <-c2:
+		}
 	}
 }
 
@@ -577,4 +582,51 @@ func blockCond() {
 	}()
 	c.Wait()
 	mu.Unlock()
+}
+
+func func1(c chan int) { <-c }
+func func2(c chan int) { <-c }
+func func3(c chan int) { <-c }
+func func4(c chan int) { <-c }
+
+func TestGoroutineCounts(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 15156)
+	}
+	c := make(chan int)
+	for i := 0; i < 100; i++ {
+		if i%10 == 0 {
+			go func1(c)
+			continue
+		}
+		if i%2 == 0 {
+			go func2(c)
+			continue
+		}
+		go func3(c)
+	}
+	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
+
+	var w bytes.Buffer
+	Lookup("goroutine").WriteTo(&w, 1)
+	prof := w.String()
+
+	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
+		t.Errorf("expected sorted goroutine counts:\n%s", prof)
+	}
+
+	close(c)
+
+	time.Sleep(10 * time.Millisecond) // let goroutines exit
+}
+
+func containsInOrder(s string, all ...string) bool {
+	for _, t := range all {
+		i := strings.Index(s, t)
+		if i < 0 {
+			return false
+		}
+		s = s[i+len(t):]
+	}
+	return true
 }

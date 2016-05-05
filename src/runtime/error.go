@@ -50,13 +50,24 @@ func (e errorString) Error() string {
 	return "runtime error: " + string(e)
 }
 
+// plainError represents a runtime error described a string without
+// the prefix "runtime error: " after invoking errorString.Error().
+// See Issue #14965.
+type plainError string
+
+func (e plainError) RuntimeError() {}
+
+func (e plainError) Error() string {
+	return string(e)
+}
+
 type stringer interface {
 	String() string
 }
 
 func typestring(x interface{}) string {
 	e := efaceOf(&x)
-	return e._type._string
+	return e._type.string()
 }
 
 // For calling from C.
@@ -82,5 +93,5 @@ func printany(i interface{}) {
 
 // called from generated code
 func panicwrap(pkg, typ, meth string) {
-	panic("value method " + pkg + "." + typ + "." + meth + " called using nil *" + typ + " pointer")
+	panic(plainError("value method " + pkg + "." + typ + "." + meth + " called using nil *" + typ + " pointer"))
 }

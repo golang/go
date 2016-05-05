@@ -137,7 +137,7 @@ func TestFloatString(t *testing.T) {
 	}
 }
 
-// Test inputs to Rat.SetString.  The prefix "long:" causes the test
+// Test inputs to Rat.SetString. The prefix "long:" causes the test
 // to be skipped in --test.short mode.  (The threshold is about 500us.)
 var float64inputs = []string{
 	// Constants plundered from strconv/testfp.txt.

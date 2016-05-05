@@ -1,10 +1,11 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package syscall
 
 import (
+	"internal/syscall/windows/sysdll"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -26,6 +27,7 @@ func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 u
 func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
 func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
+func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
 
 // A DLL implements access to a single DLL.
@@ -34,13 +36,26 @@ type DLL struct {
 	Handle Handle
 }
 
-// LoadDLL loads DLL file into memory.
-func LoadDLL(name string) (dll *DLL, err error) {
+// LoadDLL loads the named DLL file into memory.
+//
+// If name is not an absolute path and is not a known system DLL used by
+// Go, Windows will search for the named DLL in many locations, causing
+// potential DLL preloading attacks.
+//
+// Use LazyDLL in golang.org/x/sys/windows for a secure way to
+// load system DLLs.
+func LoadDLL(name string) (*DLL, error) {
 	namep, err := UTF16PtrFromString(name)
 	if err != nil {
 		return nil, err
 	}
-	h, e := loadlibrary(namep)
+	var h uintptr
+	var e Errno
+	if sysdll.IsSystemDLL[name] {
+		h, e = loadsystemlibrary(namep)
+	} else {
+		h, e = loadlibrary(namep)
+	}
 	if e != 0 {
 		return nil, &DLLError{
 			Err:     e,
@@ -166,6 +181,12 @@ func (p *Proc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 // It will delay the load of the DLL until the first
 // call to its Handle method or to one of its
 // LazyProc's Addr method.
+//
+// LazyDLL is subject to the same DLL preloading attacks as documented
+// on LoadDLL.
+//
+// Use LazyDLL in golang.org/x/sys/windows for a secure way to
+// load system DLLs.
 type LazyDLL struct {
 	mu   sync.Mutex
 	dll  *DLL // non nil once DLL is loaded

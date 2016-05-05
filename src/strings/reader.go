@@ -35,9 +35,6 @@ func (r *Reader) Len() int {
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
 func (r *Reader) Read(b []byte) (n int, err error) {
-	if len(b) == 0 {
-		return 0, nil
-	}
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
 	}
@@ -62,14 +59,14 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-func (r *Reader) ReadByte() (b byte, err error) {
+func (r *Reader) ReadByte() (byte, error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
 	}
-	b = r.s[r.i]
+	b := r.s[r.i]
 	r.i++
-	return
+	return b, nil
 }
 
 func (r *Reader) UnreadByte() error {
@@ -113,7 +110,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	case 0:
 		abs = offset
 	case 1:
-		abs = int64(r.i) + offset
+		abs = r.i + offset
 	case 2:
 		abs = int64(len(r.s)) + offset
 	default:
@@ -144,6 +141,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	return
 }
+
+// Reset resets the Reader to be reading from s.
+func (r *Reader) Reset(s string) { *r = Reader{s, 0, -1} }
 
 // NewReader returns a new Reader reading from s.
 // It is similar to bytes.NewBufferString but more efficient and read-only.

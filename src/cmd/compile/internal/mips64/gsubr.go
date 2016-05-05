@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,7 @@ import (
 var resvd = []int{
 	mips.REGZERO,
 	mips.REGSP,   // reserved for SP
+	mips.REGSB,   // reserved for SB
 	mips.REGLINK, // reserved for link
 	mips.REGG,
 	mips.REGTMP,
@@ -56,7 +57,7 @@ var resvd = []int{
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
@@ -78,7 +79,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
 
 // generate branch
 // n1, n2 are registers
-func ginsbranch(as int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+func ginsbranch(as obj.As, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	p := gc.Gbranch(as, t, likely)
 	gc.Naddr(&p.From, n1)
 	if n2 != nil {
@@ -88,11 +89,11 @@ func ginsbranch(as int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if !gc.Isfloat[t.Etype] && (op == gc.OLT || op == gc.OGE) {
+	if !t.IsFloat() && (op == gc.OLT || op == gc.OGE) {
 		// swap nodes to fit SGT instruction
 		n1, n2 = n2, n1
 	}
-	if gc.Isfloat[t.Etype] && (op == gc.OLT || op == gc.OLE) {
+	if t.IsFloat() && (op == gc.OLT || op == gc.OLE) {
 		// swap nodes to fit CMPGT, CMPGE instructions and reverse relation
 		n1, n2 = n2, n1
 		if op == gc.OLT {
@@ -148,7 +149,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	case gc.TFLOAT32:
 		switch op {
 		default:
-			gc.Fatalf("ginscmp: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
 
 		case gc.OEQ,
 			gc.ONE:
@@ -165,7 +166,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	case gc.TFLOAT64:
 		switch op {
 		default:
-			gc.Fatalf("ginscmp: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
 
 		case gc.OEQ,
 			gc.ONE:
@@ -218,12 +219,12 @@ func bignodes() {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
 	}
 
 	ft := int(gc.Simsimtype(f.Type))
 	tt := int(gc.Simsimtype(t.Type))
-	cvt := (*gc.Type)(t.Type)
+	cvt := t.Type
 
 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)
@@ -233,7 +234,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// cannot have two memory operands
 	var r2 gc.Node
 	var r1 gc.Node
-	var a int
+	var a obj.As
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -296,7 +297,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
 
 		/*
 		 * integer copy and truncate
@@ -562,7 +563,7 @@ hard:
 // gins is called by the front end.
 // It synthesizes some multiple-instruction sequences
 // so the front end can stay simpler.
-func gins(as int, f, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f, t *gc.Node) *obj.Prog {
 	if as >= obj.A_ARCHSPECIFIC {
 		if x, ok := f.IntLiteral(); ok {
 			ginscon(as, x, t)
@@ -577,7 +578,7 @@ func gins(as int, f, t *gc.Node) *obj.Prog {
  *	as f, r, t
  * r must be register, if not nil
  */
-func gins3(as int, f, r, t *gc.Node) *obj.Prog {
+func gins3(as obj.As, f, r, t *gc.Node) *obj.Prog {
 	p := rawgins(as, f, t)
 	if r != nil {
 		p.Reg = r.Reg
@@ -589,7 +590,7 @@ func gins3(as int, f, r, t *gc.Node) *obj.Prog {
  * generate one instruction:
  *	as f, t
  */
-func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	// TODO(austin): Add self-move test like in 6g (but be careful
 	// of truncation moves)
 
@@ -684,7 +685,7 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -712,10 +713,10 @@ func optoas(op gc.Op, t *gc.Type) int {
 		OHMUL_  = uint32(gc.OHMUL) << 16
 	)
 
-	a := int(obj.AXXX)
+	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry for op=%s type=%v", op, t)
 
 	case OEQ_ | gc.TBOOL,
 		OEQ_ | gc.TINT8,
@@ -1055,7 +1056,7 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	// TODO(minux)
 
 	*a = obj.Addr{}

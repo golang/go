@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -12,7 +12,7 @@ import "unsafe"
 func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 
 // Determines if the signal should be handled by Go and if not, forwards the
-// signal to the handler that was installed before Go's.  Returns whether the
+// signal to the handler that was installed before Go's. Returns whether the
 // signal was forwarded.
 // This is called by the signal handler, and the world may be stopped.
 //go:nosplit
@@ -54,7 +54,7 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
 		return false
 	}
-	// Determine if the signal occurred inside Go code.  We test that:
+	// Determine if the signal occurred inside Go code. We test that:
 	//   (1) we were in a goroutine (i.e., m.curg != nil), and
 	//   (2) we weren't in CGO (i.e., m.curg.syscallsp == 0).
 	g := getg()

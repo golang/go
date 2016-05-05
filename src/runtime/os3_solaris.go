@@ -159,7 +159,7 @@ func newosproc(mp *m, _ unsafe.Pointer) {
 	}
 
 	// Disable signals during create, so that the new thread starts
-	// with signals disabled.  It will enable them in minit.
+	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	ret = pthread_create(&tid, &attr, funcPC(tstart_sysvicall), unsafe.Pointer(mp))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -266,7 +266,7 @@ func memlimit() uintptr {
 			return 0;
 
 		// If there's not at least 16 MB left, we're probably
-		// not going to be able to do much.  Treat as no limit.
+		// not going to be able to do much. Treat as no limit.
 		rl.rlim_cur -= used;
 		if(rl.rlim_cur < (16<<20))
 			return 0;
@@ -357,8 +357,8 @@ func semacreate(mp *m) {
 	var sem *semt
 	_g_ := getg()
 
-	// Call libc's malloc rather than malloc.  This will
-	// allocate space on the C heap.  We can't call malloc
+	// Call libc's malloc rather than malloc. This will
+	// allocate space on the C heap. We can't call malloc
 	// here because it could cause a deadlock.
 	_g_.m.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
 	_g_.m.libcall.n = 1

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -158,7 +158,7 @@ func isWildcard(s string) bool {
 // recording wildcard submatches in m.
 // If m == nil, match checks whether pattern == val.
 func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
-	// Wildcard matches any expression.  If it appears multiple
+	// Wildcard matches any expression. If it appears multiple
 	// times in the pattern, it must match the same expression
 	// each time.
 	if m != nil && pattern.IsValid() && pattern.Type() == identType {

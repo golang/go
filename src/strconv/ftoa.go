@@ -23,7 +23,7 @@ var float32info = floatInfo{23, 8, -127}
 var float64info = floatInfo{52, 11, -1023}
 
 // FormatFloat converts the floating-point number f to a string,
-// according to the format fmt and precision prec.  It rounds the
+// according to the format fmt and precision prec. It rounds the
 // result assuming that the original was obtained from a floating-point
 // value of bitSize bits (32 for float32, 64 for float64).
 //

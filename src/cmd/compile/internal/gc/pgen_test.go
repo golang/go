@@ -6,8 +6,17 @@ package gc
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 )
+
+func typeWithoutPointers() *Type {
+	return &Type{Etype: TSTRUCT, Extra: &StructType{Haspointers: 1}} // haspointers -> false
+}
+
+func typeWithPointers() *Type {
+	return &Type{Etype: TSTRUCT, Extra: &StructType{Haspointers: 2}} // haspointers -> true
+}
 
 // Test all code paths for cmpstackvarlt.
 func TestCmpstackvar(t *testing.T) {
@@ -61,13 +70,13 @@ func TestCmpstackvar(t *testing.T) {
 			false,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{Haspointers: 1}}, // haspointers -> false
-			Node{Class: PAUTO, Type: &Type{Haspointers: 2}}, // haspointers -> true
+			Node{Class: PAUTO, Type: typeWithoutPointers()},
+			Node{Class: PAUTO, Type: typeWithPointers()},
 			false,
 		},
 		{
-			Node{Class: PAUTO, Type: &Type{Haspointers: 2}}, // haspointers -> true
-			Node{Class: PAUTO, Type: &Type{Haspointers: 1}}, // haspointers -> false
+			Node{Class: PAUTO, Type: typeWithPointers()},
+			Node{Class: PAUTO, Type: typeWithoutPointers()},
 			true,
 		},
 		{
@@ -118,23 +127,7 @@ func TestCmpstackvar(t *testing.T) {
 	}
 }
 
-func slice2nodelist(s []*Node) *NodeList {
-	var nl *NodeList
-	for _, n := range s {
-		nl = list(nl, n)
-	}
-	return nl
-}
-
-func nodelist2slice(nl *NodeList) []*Node {
-	var s []*Node
-	for l := nl; l != nil; l = l.Next {
-		s = append(s, l.N)
-	}
-	return s
-}
-
-func TestListsort(t *testing.T) {
+func TestStackvarSort(t *testing.T) {
 	inp := []*Node{
 		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
@@ -142,7 +135,7 @@ func TestListsort(t *testing.T) {
 		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
 		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
 		{Class: PAUTO, Used: true, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
-		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
+		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &Sym{}},
 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
 		{Class: PAUTO, Type: &Type{}, Name: &Name{Needzero: true}, Sym: &Sym{}},
 		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
@@ -163,7 +156,7 @@ func TestListsort(t *testing.T) {
 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
 		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
-		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
+		{Class: PAUTO, Type: typeWithoutPointers(), Name: &Name{}, Sym: &Sym{}},
 	}
 	// haspointers updates Type.Haspointers as a side effect, so
 	// exercise this function on all inputs so that reflect.DeepEqual
@@ -173,13 +166,11 @@ func TestListsort(t *testing.T) {
 		haspointers(inp[i].Type)
 	}
 
-	nl := slice2nodelist(inp)
-	listsort(&nl, cmpstackvarlt)
-	got := nodelist2slice(nl)
-	if !reflect.DeepEqual(want, got) {
-		t.Error("listsort failed")
-		for i := range got {
-			g := got[i]
+	sort.Sort(byStackVar(inp))
+	if !reflect.DeepEqual(want, inp) {
+		t.Error("sort failed")
+		for i := range inp {
+			g := inp[i]
 			w := want[i]
 			eq := reflect.DeepEqual(w, g)
 			if !eq {

@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -161,9 +161,12 @@ func TestSharedLibName(t *testing.T) {
 				}
 				oldGopath := buildContext.GOPATH
 				defer func() {
-					os.RemoveAll(tmpGopath)
 					buildContext.GOPATH = oldGopath
 					os.Chdir(cwd)
+					err := os.RemoveAll(tmpGopath)
+					if err != nil {
+						t.Error(err)
+					}
 				}()
 				root := filepath.Join(tmpGopath, "src", data.rootedAt)
 				err = os.MkdirAll(root, 0755)

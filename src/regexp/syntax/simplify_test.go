@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -59,7 +59,7 @@ var simplifyTests = []struct {
 	{`a{0,1}`, `a?`},
 	// The next three are illegible because Simplify inserts (?:)
 	// parens instead of () parens to avoid creating extra
-	// captured subexpressions.  The comments show a version with fewer parens.
+	// captured subexpressions. The comments show a version with fewer parens.
 	{`(a){0,2}`, `(?:(a)(a)?)?`},                       //       (aa?)?
 	{`(a){0,4}`, `(?:(a)(?:(a)(?:(a)(a)?)?)?)?`},       //   (a(a(aa?)?)?)?
 	{`(a){2,6}`, `(a)(a)(?:(a)(?:(a)(?:(a)(a)?)?)?)?`}, // aa(a(a(aa?)?)?)?
@@ -117,7 +117,7 @@ var simplifyTests = []struct {
 	// Empty string as a regular expression.
 	// The empty string must be preserved inside parens in order
 	// to make submatches work right, so these tests are less
-	// interesting than they might otherwise be.  String inserts
+	// interesting than they might otherwise be. String inserts
 	// explicit (?:) in place of non-parenthesized empty strings,
 	// to make them easier to spot for other parsers.
 	{`(a|b|)`, `([a-b]|(?:))`},

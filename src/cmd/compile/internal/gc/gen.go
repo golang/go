@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Portable half of code generator; mainly statements and control flow.
+
 package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 )
 
-// portable half of code generator.
-// mainly statements and control flow.
-var labellist *Label
-
-var lastlabel *Label
+// TODO: labellist should become part of a "compilation state" for functions.
+var labellist []*Label
 
 func Sysfunc(name string) *Node {
 	n := newname(Pkglookup(name, Runtimepkg))
@@ -99,19 +99,17 @@ func addrescapes(n *Node) {
 	// escape--the pointer inside x does, but that
 	// is always a heap pointer anyway.
 	case ODOT, OINDEX, OPAREN, OCONVNOP:
-		if !Isslice(n.Left.Type) {
+		if !n.Left.Type.IsSlice() {
 			addrescapes(n.Left)
 		}
 	}
 }
 
 func clearlabels() {
-	for l := labellist; l != nil; l = l.Link {
+	for _, l := range labellist {
 		l.Sym.Label = nil
 	}
-
-	labellist = nil
-	lastlabel = nil
+	labellist = labellist[:0]
 }
 
 func newlab(n *Node) *Label {
@@ -119,14 +117,9 @@ func newlab(n *Node) *Label {
 	lab := s.Label
 	if lab == nil {
 		lab = new(Label)
-		if lastlabel == nil {
-			labellist = lab
-		} else {
-			lastlabel.Link = lab
-		}
-		lastlabel = lab
 		lab.Sym = s
 		s.Label = lab
+		labellist = append(labellist, lab)
 	}
 
 	if n.Op == OLABEL {
@@ -162,7 +155,7 @@ func checkgoto(from *Node, to *Node) {
 		fs = fs.Link
 	}
 	if fs != to.Sym {
-		lno := int(lineno)
+		lno := lineno
 		setlineno(from)
 
 		// decide what to complain about.
@@ -192,11 +185,11 @@ func checkgoto(from *Node, to *Node) {
 		}
 
 		if block != nil {
-			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
+			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
 		} else {
-			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, Ctxt.Line(int(dcl.Lastlineno)))
+			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
 		}
-		lineno = int32(lno)
+		lineno = lno
 	}
 }
 
@@ -215,14 +208,8 @@ func stmtlabel(n *Node) *Label {
 }
 
 // compile statements
-func Genlist(l *NodeList) {
-	for ; l != nil; l = l.Next {
-		gen(l.N)
-	}
-}
-
-func Genslice(l []*Node) {
-	for _, n := range l {
+func Genlist(l Nodes) {
+	for _, n := range l.Slice() {
 		gen(n)
 	}
 }
@@ -231,7 +218,7 @@ func Genslice(l []*Node) {
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
-		Fatalf("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
+		Fatalf("cgen_proc: unknown call %v", n.Left.Op)
 
 	case OCALLMETH:
 		cgen_callmeth(n.Left, proc)
@@ -259,7 +246,7 @@ func cgen_dcl(n *Node) {
 	if n.Class&PHEAP == 0 {
 		return
 	}
-	if compiling_runtime != 0 {
+	if compiling_runtime {
 		Yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
 	if prealloc[n] == nil {
@@ -333,12 +320,12 @@ func Clearslim(n *Node) {
 	switch Simtype[n.Type.Etype] {
 	case TCOMPLEX64, TCOMPLEX128:
 		z.SetVal(Val{new(Mpcplx)})
-		Mpmovecflt(&z.Val().U.(*Mpcplx).Real, 0.0)
-		Mpmovecflt(&z.Val().U.(*Mpcplx).Imag, 0.0)
+		z.Val().U.(*Mpcplx).Real.SetFloat64(0.0)
+		z.Val().U.(*Mpcplx).Imag.SetFloat64(0.0)
 
 	case TFLOAT32, TFLOAT64:
 		var zero Mpflt
-		Mpmovecflt(&zero, 0.0)
+		zero.SetFloat64(0.0)
 		z.SetVal(Val{&zero})
 
 	case TPTR32, TPTR64, TCHAN, TMAP:
@@ -356,7 +343,7 @@ func Clearslim(n *Node) {
 		TUINT32,
 		TUINT64:
 		z.SetVal(Val{new(Mpint)})
-		Mpmovecfix(z.Val().U.(*Mpint), 0)
+		z.Val().U.(*Mpint).SetInt64(0)
 
 	default:
 		Fatalf("clearslim called on type %v", n.Type)
@@ -417,7 +404,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	Regalloc(&r1, byteptr, nil)
 	iface.Type = byteptr
 	Cgen(&iface, &r1)
-	if !isnilinter(n.Left.Type) {
+	if !n.Left.Type.IsEmptyInterface() {
 		// Holding itab, want concrete type in second word.
 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
@@ -440,13 +427,13 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 		q := Gbranch(obj.AJMP, nil, 0)
 		Patch(p, Pc)
 		Regrealloc(&r2) // reclaim from above, for this failure path
-		fn := syslook("panicdottype", 0)
+		fn := syslook("panicdottype")
 		dowidth(fn.Type)
 		call := Nod(OCALLFUNC, fn, nil)
 		r1.Type = byteptr
 		r2.Type = byteptr
-		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
-		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+		call.List.Set([]*Node{&r1, &r2, typename(n.Left.Type)})
+		call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.Params(), call.List.Slice(), 0, nil))
 		gen(call)
 		Regfree(&r1)
 		Regfree(&r2)
@@ -506,7 +493,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	Regalloc(&r1, byteptr, res)
 	iface.Type = byteptr
 	Cgen(&iface, &r1)
-	if !isnilinter(n.Left.Type) {
+	if !n.Left.Type.IsEmptyInterface() {
 		// Holding itab, want concrete type in second word.
 		p := Thearch.Ginscmp(OEQ, byteptr, &r1, Nodintconst(0), -1)
 		r2 = r1
@@ -528,11 +515,11 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	q := Gbranch(obj.AJMP, nil, 0)
 	Patch(p, Pc)
 
-	fn := syslook("panicdottype", 0)
+	fn := syslook("panicdottype")
 	dowidth(fn.Type)
 	call := Nod(OCALLFUNC, fn, nil)
-	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
-	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+	call.List.Set([]*Node{&r1, &r2, typename(n.Left.Type)})
+	call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.Params(), call.List.Slice(), 0, nil))
 	gen(call)
 	Regfree(&r1)
 	Regfree(&r2)
@@ -608,7 +595,7 @@ func Tempname(nn *Node, t *Type) {
 
 	// give each tmp a different name so that there
 	// a chance to registerizer them
-	s := Lookupf("autotmp_%.4d", statuniqgen)
+	s := LookupN("autotmp_", statuniqgen)
 	statuniqgen++
 	n := Nod(ONAME, nil, nil)
 	n.Sym = s
@@ -627,8 +614,8 @@ func Tempname(nn *Node, t *Type) {
 }
 
 func temp(t *Type) *Node {
-	n := Nod(OXXX, nil, nil)
-	Tempname(n, t)
+	var n Node
+	Tempname(&n, t)
 	n.Sym.Def.Used = true
 	return n.Orig
 }
@@ -644,7 +631,7 @@ func gen(n *Node) {
 		goto ret
 	}
 
-	if n.Ninit != nil {
+	if n.Ninit.Len() > 0 {
 		Genlist(n.Ninit)
 	}
 
@@ -652,7 +639,7 @@ func gen(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("gen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+		Fatalf("gen: unknown op %v", Nconv(n, FmtShort|FmtSign))
 
 	case OCASE,
 		OFALL,
@@ -851,7 +838,7 @@ func gen(n *Node) {
 		Cgen_as_wb(n.Left, n.Right, true)
 
 	case OAS2DOTTYPE:
-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
+		cgen_dottype(n.Rlist.First(), n.List.First(), n.List.Second(), needwritebarrier(n.List.First(), n.Rlist.First()))
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
@@ -882,10 +869,10 @@ func gen(n *Node) {
 		Cgen_checknil(n.Left)
 
 	case OVARKILL:
-		gvarkill(n.Left)
+		Gvarkill(n.Left)
 
 	case OVARLIVE:
-		gvarlive(n.Left)
+		Gvarlive(n.Left)
 	}
 
 ret:
@@ -962,7 +949,7 @@ func cgen_callmeth(n *Node, proc int) {
 
 	n2 := *n
 	n2.Op = OCALLFUNC
-	n2.Left = l.Right
+	n2.Left = newname(l.Sym)
 	n2.Left.Type = l.Type
 
 	if n2.Left.Op == ONAME {
@@ -980,16 +967,16 @@ func CgenTemp(n *Node) *Node {
 }
 
 func checklabels() {
-	for lab := labellist; lab != nil; lab = lab.Link {
+	for _, lab := range labellist {
 		if lab.Def == nil {
 			for _, n := range lab.Use {
-				yyerrorl(int(n.Lineno), "label %v not defined", lab.Sym)
+				yyerrorl(n.Lineno, "label %v not defined", lab.Sym)
 			}
 			continue
 		}
 
 		if lab.Use == nil && !lab.Used {
-			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
+			yyerrorl(lab.Def.Lineno, "label %v defined and not used", lab.Sym)
 			continue
 		}
 
@@ -1044,7 +1031,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 		// Emit vardef if needed.
 		if nl.Op == ONAME {
 			switch nl.Type.Etype {
-			case TARRAY, TSTRING, TINTER, TSTRUCT:
+			case TARRAY, TSLICE, TSTRING, TINTER, TSTRUCT:
 				Gvardef(nl)
 			}
 		}
@@ -1092,7 +1079,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 			nodl.Type = t
 			nodl.Xoffset = lbase + offset
 			nodr.Type = t
-			if Isfloat[t.Etype] {
+			if t.IsFloat() {
 				// TODO(rsc): Cache zero register like we do for integers?
 				Clearslim(&nodl)
 			} else {
@@ -1188,7 +1175,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		}
 		// NOTE: Assuming little endian (signed top half at offset 4).
 		// We don't have any 32-bit big-endian systems.
-		if Thearch.Thechar != '5' && Thearch.Thechar != '8' {
+		if !Thearch.LinkArch.InFamily(sys.ARM, sys.I386) {
 			Fatalf("unknown 32-bit architecture")
 		}
 		return f(Types[TUINT32], startOffset) &&
@@ -1217,42 +1204,27 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		return f(Ptrto(Types[TUINT8]), startOffset) &&
 			f(Types[Simtype[TUINT]], startOffset+int64(Widthptr))
 
-	case TARRAY:
-		if Isslice(t) {
-			return f(Ptrto(t.Type), startOffset+int64(Array_array)) &&
-				f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
-				f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
-		}
+	case TSLICE:
+		return f(Ptrto(t.Elem()), startOffset+int64(Array_array)) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Array_nel)) &&
+			f(Types[Simtype[TUINT]], startOffset+int64(Array_cap))
 
+	case TARRAY:
 		// Short-circuit [1e6]struct{}.
-		if t.Type.Width == 0 {
+		if t.Elem().Width == 0 {
 			return true
 		}
 
-		for i := int64(0); i < t.Bound; i++ {
-			if !visitComponents(t.Type, startOffset+i*t.Type.Width, f) {
+		for i := int64(0); i < t.NumElem(); i++ {
+			if !visitComponents(t.Elem(), startOffset+i*t.Elem().Width, f) {
 				return false
 			}
 		}
 		return true
 
 	case TSTRUCT:
-		if t.Type != nil && t.Type.Width != 0 {
-			// NOTE(rsc): If this happens, the right thing to do is to say
-			//	startOffset -= t.Type.Width
-			// but I want to see if it does.
-			// The old version of componentgen handled this,
-			// in code introduced in CL 6932045 to fix issue #4518.
-			// But the test case in issue 4518 does not trigger this anymore,
-			// so maybe this complication is no longer needed.
-			Fatalf("struct not at offset 0")
-		}
-
-		for field := t.Type; field != nil; field = field.Down {
-			if field.Etype != TFIELD {
-				Fatalf("bad struct")
-			}
-			if !visitComponents(field.Type, startOffset+field.Width, f) {
+		for _, field := range t.Fields().Slice() {
+			if !visitComponents(field.Type, startOffset+field.Offset, f) {
 				return false
 			}
 		}

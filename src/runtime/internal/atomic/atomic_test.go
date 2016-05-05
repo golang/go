@@ -48,7 +48,7 @@ func TestXadduintptr(t *testing.T) {
 	}
 }
 
-// Tests that xadduintptr correctly updates 64-bit values.  The place where
+// Tests that xadduintptr correctly updates 64-bit values. The place where
 // we actually do so is mstats.go, functions mSysStat{Inc,Dec}.
 func TestXadduintptrOnUint64(t *testing.T) {
 	/*	if runtime.BigEndian != 0 {
