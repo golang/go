@@ -29,6 +29,9 @@ type importer struct {
 	typList  []*Type
 	funcList []*Node // nil entry means already declared
 
+	// for delayed type verification
+	cmpList []struct{ pt, t *Type }
+
 	// position encoding
 	posInfoFormat bool
 	prevFile      string
@@ -175,12 +178,27 @@ func Import(in *bufio.Reader) {
 		Fatalf("importer: unexpected context %d", dclcontext)
 	}
 
+	p.verifyTypes()
+
 	// --- end of export data ---
 
 	typecheckok = tcok
 	resumecheckwidth()
 
 	testdclstack() // debugging only
+}
+
+func (p *importer) verifyTypes() {
+	for _, pair := range p.cmpList {
+		pt := pair.pt
+		t := pair.t
+		if !Eqtype(pt.Orig, t) {
+			// TODO(gri) Is this a possible regular error (stale files)
+			// or can this only happen if export/import is flawed?
+			// (if the latter, change to Fatalf here)
+			Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", pt.Sym, Tconv(pt, FmtLong), pt.Sym.Importdef.Path, Tconv(t, FmtLong), importpkg.Path)
+		}
+	}
 }
 
 func (p *importer) pkg() *Pkg {
@@ -317,6 +335,38 @@ func (p *importer) newtyp(etype EType) *Type {
 	return t
 }
 
+// This is like the function importtype but it delays the
+// type identity check for types that have been seen already.
+// importer.importtype and importtype and (export.go) need to
+// remain in sync.
+func (p *importer) importtype(pt, t *Type) {
+	// override declaration in unsafe.go for Pointer.
+	// there is no way in Go code to define unsafe.Pointer
+	// so we have to supply it.
+	if incannedimport != 0 && importpkg.Name == "unsafe" && pt.Nod.Sym.Name == "Pointer" {
+		t = Types[TUNSAFEPTR]
+	}
+
+	if pt.Etype == TFORW {
+		n := pt.Nod
+		copytype(pt.Nod, t)
+		pt.Nod = n // unzero nod
+		pt.Sym.Importdef = importpkg
+		pt.Sym.Lastlineno = lineno
+		declare(n, PEXTERN)
+		checkwidth(pt)
+	} else {
+		// pt.Orig and t must be identical. Since t may not be
+		// fully set up yet, collect the types and verify identity
+		// later.
+		p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
+	}
+
+	if Debug['E'] != 0 {
+		fmt.Printf("import type %v %v\n", pt, Tconv(t, FmtLong))
+	}
+}
+
 func (p *importer) typ() *Type {
 	// if the type was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
@@ -339,7 +389,7 @@ func (p *importer) typ() *Type {
 		// read underlying type
 		// parser.go:hidden_type
 		t0 := p.typ()
-		importtype(t, t0) // parser.go:hidden_import
+		p.importtype(t, t0) // parser.go:hidden_import
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {

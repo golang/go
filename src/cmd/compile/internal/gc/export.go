@@ -551,6 +551,7 @@ func importvar(s *Sym, t *Type) {
 	}
 }
 
+// importtype and importer.importtype (bimport.go) need to remain in sync.
 func importtype(pt *Type, t *Type) {
 	// override declaration in unsafe.go for Pointer.
 	// there is no way in Go code to define unsafe.Pointer
