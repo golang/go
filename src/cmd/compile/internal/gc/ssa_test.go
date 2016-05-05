@@ -71,8 +71,6 @@ func TestCompound(t *testing.T) { runTest(t, "compound_ssa.go") }
 
 func TestCtl(t *testing.T) { runTest(t, "ctl_ssa.go") }
 
-func TestFp(t *testing.T) { runTest(t, "fp_ssa.go") }
-
 func TestLoadStore(t *testing.T) { runTest(t, "loadstore_ssa.go") }
 
 func TestMap(t *testing.T) { runTest(t, "map_ssa.go") }
