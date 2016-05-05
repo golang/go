@@ -438,10 +438,10 @@ func Main() {
 		// Find functions that can be inlined and clone them before walk expands them.
 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
 			for _, n := range list {
-				if n.Op == ODCLFUNC {
+				if !recursive {
 					caninl(n)
-					inlcalls(n)
 				}
+				inlcalls(n)
 			}
 		})
 	}
