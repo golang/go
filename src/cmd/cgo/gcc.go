@@ -1089,6 +1089,8 @@ func (p *Package) gccMachine() []string {
 		return []string{"-m31"}
 	case "s390x":
 		return []string{"-m64"}
+	case "mips64", "mips64le":
+		return []string{"-mabi=64"}
 	}
 	return nil
 }
