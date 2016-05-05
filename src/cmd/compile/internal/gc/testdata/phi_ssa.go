@@ -85,7 +85,7 @@ func foo() int32 {
 		z = int32(data2[25])
 	}
 	// Lots of phis of the form phi(int32,int64) of type int32 happen here.
-	// Some will be stack phis.  For those stack phis, make sure the spill
+	// Some will be stack phis. For those stack phis, make sure the spill
 	// of the second argument uses the phi's width (4 bytes), not its width
 	// (8 bytes).  Otherwise, a random stack slot gets clobbered.
 

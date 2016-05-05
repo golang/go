@@ -17,21 +17,20 @@ TEXT runtime∕internal∕atomic·Cas(SB), NOSPLIT, $0-17
 	MOVD	ptr+0(FP), R3
 	MOVWZ	old+8(FP), R4
 	MOVWZ	new+12(FP), R5
-cas_again:
 	SYNC
+cas_again:
 	LWAR	(R3), R6
 	CMPW	R6, R4
 	BNE	cas_fail
 	STWCCC	R5, (R3)
 	BNE	cas_again
 	MOVD	$1, R3
-	SYNC
 	ISYNC
 	MOVB	R3, ret+16(FP)
 	RET
 cas_fail:
-	MOVD	$0, R3
-	BR	-5(PC)
+	MOVB	R0, ret+16(FP)
+	RET
 
 // bool	runtime∕internal∕atomic·Cas64(uint64 *ptr, uint64 old, uint64 new)
 // Atomically:
@@ -45,21 +44,20 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-25
 	MOVD	ptr+0(FP), R3
 	MOVD	old+8(FP), R4
 	MOVD	new+16(FP), R5
-cas64_again:
 	SYNC
+cas64_again:
 	LDAR	(R3), R6
 	CMP	R6, R4
 	BNE	cas64_fail
 	STDCCC	R5, (R3)
 	BNE	cas64_again
 	MOVD	$1, R3
-	SYNC
 	ISYNC
 	MOVB	R3, ret+24(FP)
 	RET
 cas64_fail:
-	MOVD	$0, R3
-	BR	-5(PC)
+	MOVB	R0, ret+24(FP)
+	RET
 
 TEXT runtime∕internal∕atomic·Casuintptr(SB), NOSPLIT, $0-25
 	BR	runtime∕internal∕atomic·Cas64(SB)
@@ -103,8 +101,7 @@ TEXT runtime∕internal∕atomic·Xadd(SB), NOSPLIT, $0-20
 	LWAR	(R4), R3
 	ADD	R5, R3
 	STWCCC	R3, (R4)
-	BNE	-4(PC)
-	SYNC
+	BNE	-3(PC)
 	ISYNC
 	MOVW	R3, ret+16(FP)
 	RET
@@ -116,8 +113,7 @@ TEXT runtime∕internal∕atomic·Xadd64(SB), NOSPLIT, $0-24
 	LDAR	(R4), R3
 	ADD	R5, R3
 	STDCCC	R3, (R4)
-	BNE	-4(PC)
-	SYNC
+	BNE	-3(PC)
 	ISYNC
 	MOVD	R3, ret+16(FP)
 	RET
@@ -128,8 +124,7 @@ TEXT runtime∕internal∕atomic·Xchg(SB), NOSPLIT, $0-20
 	SYNC
 	LWAR	(R4), R3
 	STWCCC	R5, (R4)
-	BNE	-3(PC)
-	SYNC
+	BNE	-2(PC)
 	ISYNC
 	MOVW	R3, ret+16(FP)
 	RET
@@ -140,8 +135,7 @@ TEXT runtime∕internal∕atomic·Xchg64(SB), NOSPLIT, $0-24
 	SYNC
 	LDAR	(R4), R3
 	STDCCC	R5, (R4)
-	BNE	-3(PC)
-	SYNC
+	BNE	-2(PC)
 	ISYNC
 	MOVD	R3, ret+16(FP)
 	RET
@@ -150,7 +144,7 @@ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
 	BR	runtime∕internal∕atomic·Xchg64(SB)
 
 
-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-16
+TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
 	BR	runtime∕internal∕atomic·Store64(SB)
 
 TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
@@ -171,26 +165,12 @@ TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R3
 	MOVBZ	val+8(FP), R4
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
-	// R5 = (R3 << 0) & ~3
-	RLDCR	$0, R3, $~3, R5
-	// Compute val shift.
-#ifdef GOARCH_ppc64
-	// Big endian.  ptr = ptr ^ 3
-	XOR	$3, R3
-#endif
-	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
-	RLDC	$3, R3, $(3*8), R6
-	// Shift val for aligned ptr.  R4 = val << R6
-	SLD	R6, R4, R4
-
+	SYNC
 again:
-	SYNC
-	LWAR	(R5), R6
+	LBAR	(R3), R6
 	OR	R4, R6
-	STWCCC	R6, (R5)
+	STBCCC	R6, (R3)
 	BNE	again
-	SYNC
 	ISYNC
 	RET
 
@@ -198,28 +178,11 @@ again:
 TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 	MOVD	ptr+0(FP), R3
 	MOVBZ	val+8(FP), R4
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
-	// R5 = (R3 << 0) & ~3
-	RLDCR	$0, R3, $~3, R5
-	// Compute val shift.
-#ifdef GOARCH_ppc64
-	// Big endian.  ptr = ptr ^ 3
-	XOR	$3, R3
-#endif
-	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
-	RLDC	$3, R3, $(3*8), R6
-	// Shift val for aligned ptr.  R4 = val << R6 | ^(0xFF << R6)
-	MOVD	$0xFF, R7
-	SLD	R6, R4
-	SLD	R6, R7
-	XOR $-1, R7
-	OR	R7, R4
+	SYNC
 again:
-	SYNC
-	LWAR	(R5), R6
+	LBAR	(R3), R6
 	AND	R4, R6
-	STWCCC	R6, (R5)
+	STBCCC	R6, (R3)
 	BNE	again
-	SYNC
 	ISYNC
 	RET

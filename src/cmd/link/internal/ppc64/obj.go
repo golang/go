@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@ package ppc64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -45,20 +46,15 @@ func Main() {
 }
 
 func linkarchinit() {
-	ld.Thestring = obj.Getgoarch()
-	if ld.Thestring == "ppc64le" {
-		ld.Thelinkarch = &ld.Linkppc64le
+	if obj.Getgoarch() == "ppc64le" {
+		ld.SysArch = sys.ArchPPC64LE
 	} else {
-		ld.Thelinkarch = &ld.Linkppc64
+		ld.SysArch = sys.ArchPPC64
 	}
 
-	ld.Thearch.Thechar = thechar
-	ld.Thearch.Ptrsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Intsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
 	ld.Thearch.Funcalign = FuncAlign
 	ld.Thearch.Maxalign = MaxAlign
-	ld.Thearch.Minlc = MINLC
+	ld.Thearch.Minalign = MinAlign
 	ld.Thearch.Dwarfregsp = DWARFREGSP
 	ld.Thearch.Dwarfreglr = DWARFREGLR
 
@@ -71,14 +67,20 @@ func linkarchinit() {
 	ld.Thearch.Elfsetupplt = elfsetupplt
 	ld.Thearch.Gentext = gentext
 	ld.Thearch.Machoreloc1 = machoreloc1
-	if ld.Thelinkarch == &ld.Linkppc64le {
+	if ld.SysArch == sys.ArchPPC64LE {
 		ld.Thearch.Lput = ld.Lputl
 		ld.Thearch.Wput = ld.Wputl
 		ld.Thearch.Vput = ld.Vputl
+		ld.Thearch.Append16 = ld.Append16l
+		ld.Thearch.Append32 = ld.Append32l
+		ld.Thearch.Append64 = ld.Append64l
 	} else {
 		ld.Thearch.Lput = ld.Lputb
 		ld.Thearch.Wput = ld.Wputb
 		ld.Thearch.Vput = ld.Vputb
+		ld.Thearch.Append16 = ld.Append16b
+		ld.Thearch.Append32 = ld.Append32b
+		ld.Thearch.Append64 = ld.Append64b
 	}
 
 	// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
@@ -143,7 +145,7 @@ func archinit() {
 		}
 
 	case obj.Hlinux: /* ppc64 elf */
-		if ld.Thestring == "ppc64" {
+		if ld.SysArch == sys.ArchPPC64 {
 			ld.Debug['d'] = 1 // TODO(austin): ELF ABI v1 not supported yet
 		}
 		ld.Elfinit()

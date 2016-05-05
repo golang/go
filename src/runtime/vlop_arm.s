@@ -1,7 +1,7 @@
 // Inferno's libkern/vlop-arm.s
 // http://code.google.com/p/inferno-os/source/browse/libkern/vlop-arm.s
 //
-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
 //         Portions Copyright 2009 The Go Authors. All rights reserved.
 //

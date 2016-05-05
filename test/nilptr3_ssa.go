@@ -3,7 +3,7 @@
 // See issues 9058.
 // +build !ppc64,!ppc64le,amd64
 
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -206,4 +206,25 @@ type T [29]byte
 func f6(p, q *T) {
 	x := *p // ERROR "removed nil check"
 	*q = x  // ERROR "removed nil check"
+}
+
+func m1(m map[int][80]byte) byte {
+	v := m[3] // ERROR "removed nil check"
+	return v[5]
+}
+func m2(m map[int][800]byte) byte {
+	v := m[3] // ERROR "removed nil check"
+	return v[5]
+}
+func m3(m map[int][80]byte) (byte, bool) {
+	v, ok := m[3] // ERROR "removed nil check"
+	return v[5], ok
+}
+func m4(m map[int][800]byte) (byte, bool) {
+	v, ok := m[3] // ERROR "removed nil check"
+	return v[5], ok
+}
+func p1() byte {
+	p := new([100]byte)
+	return p[5] // ERROR "removed nil check"
 }

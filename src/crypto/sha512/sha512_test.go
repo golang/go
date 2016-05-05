@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// SHA512 hash algorithm.  See FIPS 180-4.
+// SHA512 hash algorithm. See FIPS 180-4.
 
 package sha512
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"hash"
 	"io"
@@ -301,6 +302,18 @@ func TestBlockSize(t *testing.T) {
 	c := New()
 	if got := c.BlockSize(); got != BlockSize {
 		t.Errorf("BlockSize = %d; want %d", got, BlockSize)
+	}
+}
+
+// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
+func TestBlockGeneric(t *testing.T) {
+	gen, asm := New().(*digest), New().(*digest)
+	buf := make([]byte, BlockSize*20) // arbitrary factor
+	rand.Read(buf)
+	blockGeneric(gen, buf)
+	block(asm, buf)
+	if *gen != *asm {
+		t.Error("block and blockGeneric resulted in different states")
 	}
 }
 

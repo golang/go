@@ -158,21 +158,6 @@ var sumVW = []argVW{
 	{nat{585}, nat{314}, 271, 0},
 }
 
-var prodVW = []argVW{
-	{},
-	{nat{0}, nat{0}, 0, 0},
-	{nat{0}, nat{_M}, 0, 0},
-	{nat{0}, nat{0}, _M, 0},
-	{nat{1}, nat{1}, 1, 0},
-	{nat{22793}, nat{991}, 23, 0},
-	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
-	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
-	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
-	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
-	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
-	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
-}
-
 var lshVW = []argVW{
 	{},
 	{nat{0}, nat{0}, 0, 0},
@@ -442,7 +427,7 @@ func benchmarkBitLenN(b *testing.B, nbits uint) {
 	}
 }
 
-// Individual bitLen tests.  Numbers chosen to examine both sides
+// Individual bitLen tests. Numbers chosen to examine both sides
 // of powers-of-two boundaries.
 func BenchmarkBitLen0(b *testing.B)  { benchmarkBitLenN(b, 0) }
 func BenchmarkBitLen1(b *testing.B)  { benchmarkBitLenN(b, 1) }

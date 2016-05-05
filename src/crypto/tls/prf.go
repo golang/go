@@ -85,7 +85,7 @@ func prf30(result, secret, label, seed []byte) {
 
 	done := 0
 	i := 0
-	// RFC5246 section 6.3 says that the largest PRF output needed is 128
+	// RFC 5246 section 6.3 says that the largest PRF output needed is 128
 	// bytes. Since no more ciphersuites will be added to SSLv3, this will
 	// remain true. Each iteration gives us 16 bytes so 10 iterations will
 	// be sufficient.

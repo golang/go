@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -506,7 +506,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 }
 
 // A Reader allows reading Entry structures from a DWARF ``info'' section.
-// The Entry structures are arranged in a tree.  The Reader's Next function
+// The Entry structures are arranged in a tree. The Reader's Next function
 // return successive entries from a pre-order traversal of the tree.
 // If an entry has children, its Children field will be true, and the children
 // follow, terminated by an Entry with Tag 0.
@@ -598,7 +598,7 @@ func (r *Reader) Next() (*Entry, error) {
 }
 
 // SkipChildren skips over the child entries associated with
-// the last Entry returned by Next.  If that Entry did not have
+// the last Entry returned by Next. If that Entry did not have
 // children or Next has not been called, SkipChildren is a no-op.
 func (r *Reader) SkipChildren() {
 	if r.err != nil || !r.lastChildren {
@@ -625,14 +625,134 @@ func (r *Reader) SkipChildren() {
 	}
 }
 
-// clone returns a copy of the reader.  This is used by the typeReader
+// clone returns a copy of the reader. This is used by the typeReader
 // interface.
 func (r *Reader) clone() typeReader {
 	return r.d.Reader()
 }
 
-// offset returns the current buffer offset.  This is used by the
+// offset returns the current buffer offset. This is used by the
 // typeReader interface.
 func (r *Reader) offset() Offset {
 	return r.b.off
+}
+
+// SeekPC returns the Entry for the compilation unit that includes pc,
+// and positions the reader to read the children of that unit.  If pc
+// is not covered by any unit, SeekPC returns ErrUnknownPC and the
+// position of the reader is undefined.
+//
+// Because compilation units can describe multiple regions of the
+// executable, in the worst case SeekPC must search through all the
+// ranges in all the compilation units. Each call to SeekPC starts the
+// search at the compilation unit of the last call, so in general
+// looking up a series of PCs will be faster if they are sorted. If
+// the caller wishes to do repeated fast PC lookups, it should build
+// an appropriate index using the Ranges method.
+func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
+	unit := r.unit
+	for i := 0; i < len(r.d.unit); i++ {
+		if unit >= len(r.d.unit) {
+			unit = 0
+		}
+		r.err = nil
+		r.lastChildren = false
+		r.unit = unit
+		u := &r.d.unit[unit]
+		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+		e, err := r.Next()
+		if err != nil {
+			return nil, err
+		}
+		ranges, err := r.d.Ranges(e)
+		if err != nil {
+			return nil, err
+		}
+		for _, pcs := range ranges {
+			if pcs[0] <= pc && pc < pcs[1] {
+				return e, nil
+			}
+		}
+		unit++
+	}
+	return nil, ErrUnknownPC
+}
+
+// Ranges returns the PC ranges covered by e, a slice of [low,high) pairs.
+// Only some entry types, such as TagCompileUnit or TagSubprogram, have PC
+// ranges; for others, this will return nil with no error.
+func (d *Data) Ranges(e *Entry) ([][2]uint64, error) {
+	var ret [][2]uint64
+
+	low, lowOK := e.Val(AttrLowpc).(uint64)
+
+	var high uint64
+	var highOK bool
+	highField := e.AttrField(AttrHighpc)
+	if highField != nil {
+		switch highField.Class {
+		case ClassAddress:
+			high, highOK = highField.Val.(uint64)
+		case ClassConstant:
+			off, ok := highField.Val.(int64)
+			if ok {
+				high = low + uint64(off)
+				highOK = true
+			}
+		}
+	}
+
+	if lowOK && highOK {
+		ret = append(ret, [2]uint64{low, high})
+	}
+
+	ranges, rangesOK := e.Val(AttrRanges).(int64)
+	if rangesOK && d.ranges != nil {
+		// The initial base address is the lowpc attribute
+		// of the enclosing compilation unit.
+		// Although DWARF specifies the lowpc attribute,
+		// comments in gdb/dwarf2read.c say that some versions
+		// of GCC use the entrypc attribute, so we check that too.
+		var cu *Entry
+		if e.Tag == TagCompileUnit {
+			cu = e
+		} else {
+			i := d.offsetToUnit(e.Offset)
+			if i == -1 {
+				return nil, errors.New("no unit for entry")
+			}
+			u := &d.unit[i]
+			b := makeBuf(d, u, "info", u.off, u.data)
+			cu = b.entry(u.atable, u.base)
+			if b.err != nil {
+				return nil, b.err
+			}
+		}
+
+		var base uint64
+		if cuEntry, cuEntryOK := cu.Val(AttrEntrypc).(uint64); cuEntryOK {
+			base = cuEntry
+		} else if cuLow, cuLowOK := cu.Val(AttrLowpc).(uint64); cuLowOK {
+			base = cuLow
+		}
+
+		u := &d.unit[d.offsetToUnit(e.Offset)]
+		buf := makeBuf(d, u, "ranges", Offset(ranges), d.ranges[ranges:])
+		for len(buf.data) > 0 {
+			low = buf.addr()
+			high = buf.addr()
+
+			if low == 0 && high == 0 {
+				break
+			}
+
+			if low == ^uint64(0)>>uint((8-u.addrsize())*8) {
+				base = high
+			} else {
+				ret = append(ret, [2]uint64{base + low, base + high})
+			}
+		}
+	}
+
+	return ret, nil
 }

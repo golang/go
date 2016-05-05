@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 package gosym
 
 // The table format is a variant of the format used in Plan 9's a.out
-// format, documented at http://plan9.bell-labs.com/magic/man2html/6/a.out.
+// format, documented at https://9p.io/magic/man2html/6/a.out.
 // The best reference for the differences between the Plan 9 format
 // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
 
@@ -103,7 +103,7 @@ type Obj struct {
  * Symbol tables
  */
 
-// Table represents a Go symbol table.  It stores all of the
+// Table represents a Go symbol table. It stores all of the
 // symbols decoded from the program and provides methods to translate
 // between symbols, names, and addresses.
 type Table struct {
@@ -294,8 +294,8 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 		t.Syms = t.Syms[0 : n+1]
 		ts := &t.Syms[n]
 		ts.Type = s.typ
-		ts.Value = uint64(s.value)
-		ts.GoType = uint64(s.gotype)
+		ts.Value = s.value
+		ts.GoType = s.gotype
 		switch s.typ {
 		default:
 			// rewrite name to use . instead of · (c2 b7)
@@ -353,7 +353,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, error) {
 	}
 
 	// Count text symbols and attach frame sizes, parameters, and
-	// locals to them.  Also, find object file boundaries.
+	// locals to them. Also, find object file boundaries.
 	lastf := 0
 	for i := 0; i < len(t.Syms); i++ {
 		sym := &t.Syms[i]
@@ -503,7 +503,7 @@ func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
 }
 
 // LineToPC looks up the first program counter on the given line in
-// the named file.  It returns UnknownPathError or UnknownLineError if
+// the named file. It returns UnknownPathError or UnknownLineError if
 // there is an error looking up this line.
 func (t *Table) LineToPC(file string, line int) (pc uint64, fn *Func, err error) {
 	obj, ok := t.Files[file]

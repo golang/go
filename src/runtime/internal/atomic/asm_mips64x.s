@@ -83,7 +83,7 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 TEXT ·Loadint64(SB), NOSPLIT, $0-16
 	JMP	·Load64(SB)
 
-TEXT ·Xaddint64(SB), NOSPLIT, $0-16
+TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
 // bool casp(void **val, void *old, void *new)
@@ -155,7 +155,7 @@ TEXT ·Xchg64(SB), NOSPLIT, $0-24
 TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
 	JMP	·Xchg64(SB)
 
-TEXT ·Storep1(SB), NOSPLIT, $0-16
+TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
 	JMP	·Store64(SB)
 
 TEXT ·Store(SB), NOSPLIT, $0-12
@@ -189,7 +189,7 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	// R4 = ((ptr & 3) * 8)
 	AND	$3, R1, R4
 	SLLV	$3, R4
-	// Shift val for aligned ptr.  R2 = val << R4
+	// Shift val for aligned ptr. R2 = val << R4
 	SLLV	R4, R2
 
 	SYNC
@@ -215,7 +215,7 @@ TEXT ·And8(SB), NOSPLIT, $0-9
 	// R4 = ((ptr & 3) * 8)
 	AND	$3, R1, R4
 	SLLV	$3, R4
-	// Shift val for aligned ptr.  R2 = val << R4 | ^(0xFF << R4)
+	// Shift val for aligned ptr. R2 = val << R4 | ^(0xFF << R4)
 	MOVV	$0xFF, R5
 	SLLV	R4, R2
 	SLLV	R4, R5

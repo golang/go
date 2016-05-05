@@ -95,6 +95,6 @@ func TestServerCloseClientConnections(t *testing.T) {
 	res, err := http.Get(s.URL)
 	if err == nil {
 		res.Body.Close()
-		t.Fatal("Unexpected response: %#v", res)
+		t.Fatalf("Unexpected response: %#v", res)
 	}
 }

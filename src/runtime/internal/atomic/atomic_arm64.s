@@ -25,7 +25,7 @@ TEXT ·Loadp(SB),NOSPLIT,$-8-16
 	MOVD	R0, ret+8(FP)
 	RET
 
-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-16
+TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-16
 	B	runtime∕internal∕atomic·Store64(SB)
 
 TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12

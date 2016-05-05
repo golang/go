@@ -64,30 +64,49 @@ func mkbuiltin(w io.Writer, name string) {
 		log.Fatal(err)
 	}
 
-	// Look for $$ that introduces imports.
-	i := bytes.Index(b, []byte("\n$$\n"))
+	// Look for $$B that introduces binary export data.
+	textual := false // TODO(gri) remove once we switched to binary export format
+	i := bytes.Index(b, []byte("\n$$B\n"))
 	if i < 0 {
-		log.Fatal("did not find beginning of imports")
-	}
-	i += 4
-
-	// Look for $$ that closes imports.
-	j := bytes.Index(b[i:], []byte("\n$$\n"))
-	if j < 0 {
-		log.Fatal("did not find end of imports")
-	}
-	j += i + 4
-
-	// Process and reformat imports.
-	fmt.Fprintf(w, "\nconst %simport = \"\"", name)
-	for _, p := range bytes.SplitAfter(b[i:j], []byte("\n")) {
-		// Chop leading white space.
-		p = bytes.TrimLeft(p, " \t")
-		if len(p) == 0 {
-			continue
+		// Look for $$ that introduces textual export data.
+		i = bytes.Index(b, []byte("\n$$\n"))
+		if i < 0 {
+			log.Fatal("did not find beginning of export data")
 		}
+		textual = true
+		i-- // textual data doesn't have B
+	}
+	b = b[i+5:]
 
-		fmt.Fprintf(w, " +\n\t%q", p)
+	// Look for $$ that closes export data.
+	i = bytes.Index(b, []byte("\n$$\n"))
+	if i < 0 {
+		log.Fatal("did not find end of export data")
+	}
+	b = b[:i+4]
+
+	// Process and reformat export data.
+	fmt.Fprintf(w, "\nconst %simport = \"\"", name)
+	if textual {
+		for _, p := range bytes.SplitAfter(b, []byte("\n")) {
+			// Chop leading white space.
+			p = bytes.TrimLeft(p, " \t")
+			if len(p) == 0 {
+				continue
+			}
+
+			fmt.Fprintf(w, " +\n\t%q", p)
+		}
+	} else {
+		const n = 40 // number of bytes per line
+		for len(b) > 0 {
+			i := len(b)
+			if i > n {
+				i = n
+			}
+			fmt.Fprintf(w, " +\n\t%q", b[:i])
+			b = b[i:]
+		}
 	}
 	fmt.Fprintf(w, "\n")
 }

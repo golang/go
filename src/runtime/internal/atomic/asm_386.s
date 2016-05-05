@@ -102,7 +102,7 @@ TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-12
 	JMP	runtime∕internal∕atomic·Xchg(SB)
 
 
-TEXT runtime∕internal∕atomic·Storep1(SB), NOSPLIT, $0-8
+TEXT runtime∕internal∕atomic·StorepNoWB(SB), NOSPLIT, $0-8
 	MOVL	ptr+0(FP), BX
 	MOVL	val+4(FP), AX
 	XCHGL	AX, 0(BX)

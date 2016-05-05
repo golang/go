@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -230,6 +230,32 @@ func TestVendorTest2(t *testing.T) {
 
 	// external tests should observe internal test exports (golang.org/issue/11977)
 	tg.run("test", "github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2")
+}
+
+func TestVendorTest3(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "github.com/clsung/go-vendor-issue-14613")
+
+	tg.run("build", "-o", tg.path("a.out"), "-i", "github.com/clsung/go-vendor-issue-14613")
+
+	// test folder should work
+	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613")
+	tg.run("test", "github.com/clsung/go-vendor-issue-14613")
+
+	// test with specified _test.go should work too
+	tg.cd(filepath.Join(tg.path("."), "src"))
+	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613/vendor_test.go")
+	tg.run("test", "github.com/clsung/go-vendor-issue-14613/vendor_test.go")
+
+	// test with imported and not used
+	tg.run("test", "-i", "github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go")
+	tg.runFail("test", "github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go")
+	tg.grepStderr("imported and not used:", `should say "imported and not used"`)
 }
 
 func TestVendorList(t *testing.T) {

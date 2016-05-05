@@ -1275,15 +1275,19 @@ func TestOpenNoName(t *testing.T) {
 	}
 }
 
-func run(t *testing.T, cmd []string) string {
+func runBinHostname(t *testing.T) string {
 	// Run /bin/hostname and collect output.
 	r, w, err := Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	p, err := StartProcess("/bin/hostname", []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+	const path = "/bin/hostname"
+	p, err := StartProcess(path, []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
+		if _, err := Stat(path); IsNotExist(err) {
+			t.Skipf("skipping test; test requires %s but it does not exist", path)
+		}
 		t.Fatal(err)
 	}
 	w.Close()
@@ -1303,7 +1307,7 @@ func run(t *testing.T, cmd []string) string {
 		output = output[0 : n-1]
 	}
 	if output == "" {
-		t.Fatalf("%v produced no output", cmd)
+		t.Fatalf("/bin/hostname produced no output")
 	}
 
 	return output
@@ -1345,7 +1349,7 @@ func TestHostname(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	want := run(t, []string{"/bin/hostname"})
+	want := runBinHostname(t)
 	if hostname != want {
 		i := strings.Index(hostname, ".")
 		if i < 0 || hostname[0:i] != want {
@@ -1576,6 +1580,42 @@ func TestStatDirModeExec(t *testing.T) {
 	}
 	if dir.Mode()&mode != mode {
 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode()&mode, mode)
+	}
+}
+
+func TestStatStdin(t *testing.T) {
+	switch runtime.GOOS {
+	case "android", "plan9":
+		t.Skipf("%s doesn't have /bin/sh", runtime.GOOS)
+	}
+
+	testenv.MustHaveExec(t)
+
+	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		st, err := Stdin.Stat()
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		fmt.Println(st.Mode() & ModeNamedPipe)
+		Exit(0)
+	}
+
+	var cmd *osexec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+	} else {
+		cmd = osexec.Command("/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+	}
+	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
+	}
+
+	// result will be like "prw-rw-rw"
+	if len(output) < 1 || output[0] != 'p' {
+		t.Fatalf("Child process reports stdin is not pipe '%v'", string(output))
 	}
 }
 

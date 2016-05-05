@@ -15,24 +15,37 @@ func RGBToYCbCr(r, g, b uint8) (uint8, uint8, uint8) {
 	r1 := int32(r)
 	g1 := int32(g)
 	b1 := int32(b)
+
+	// yy is in range [0,0xff].
 	yy := (19595*r1 + 38470*g1 + 7471*b1 + 1<<15) >> 16
-	cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
-	cr := (32768*r1 - 27440*g1 - 5328*b1 + 257<<15) >> 16
-	if yy < 0 {
-		yy = 0
-	} else if yy > 0xff {
-		yy = 0xff
+
+	// The bit twiddling below is equivalent to
+	//
+	// cb := (-11056*r1 - 21712*g1 + 32768*b1 + 257<<15) >> 16
+	// if cb < 0 {
+	//     cb = 0
+	// } else if cb > 0xff {
+	//     cb = ^int32(0)
+	// }
+	//
+	// but uses fewer branches and is faster.
+	// Note that the uint8 type conversion in the return
+	// statement will convert ^int32(0) to 0xff.
+	// The code below to compute cr uses a similar pattern.
+	cb := -11056*r1 - 21712*g1 + 32768*b1 + 257<<15
+	if uint32(cb)&0xff000000 == 0 {
+		cb >>= 16
+	} else {
+		cb = ^(cb >> 31)
 	}
-	if cb < 0 {
-		cb = 0
-	} else if cb > 0xff {
-		cb = 0xff
+
+	cr := 32768*r1 - 27440*g1 - 5328*b1 + 257<<15
+	if uint32(cr)&0xff000000 == 0 {
+		cr >>= 16
+	} else {
+		cr = ^(cr >> 31)
 	}
-	if cr < 0 {
-		cr = 0
-	} else if cr > 0xff {
-		cr = 0xff
-	}
+
 	return uint8(yy), uint8(cb), uint8(cr)
 }
 
@@ -44,27 +57,44 @@ func YCbCrToRGB(y, cb, cr uint8) (uint8, uint8, uint8) {
 	//	B = Y' + 1.77200*(Cb-128)
 	// http://www.w3.org/Graphics/JPEG/jfif3.pdf says Y but means Y'.
 
-	yy1 := int32(y) * 0x10100 // Convert 0x12 to 0x121200.
+	yy1 := int32(y) * 0x010100 // Convert 0x12 to 0x121200.
 	cb1 := int32(cb) - 128
 	cr1 := int32(cr) - 128
-	r := (yy1 + 91881*cr1) >> 16
-	g := (yy1 - 22554*cb1 - 46802*cr1) >> 16
-	b := (yy1 + 116130*cb1) >> 16
-	if r < 0 {
-		r = 0
-	} else if r > 0xff {
-		r = 0xff
+
+	// The bit twiddling below is equivalent to
+	//
+	// r := (yy1 + 91881*cr1) >> 16
+	// if r < 0 {
+	//     r = 0
+	// } else if r > 0xff {
+	//     r = ^int32(0)
+	// }
+	//
+	// but uses fewer branches and is faster.
+	// Note that the uint8 type conversion in the return
+	// statement will convert ^int32(0) to 0xff.
+	// The code below to compute g and b uses a similar pattern.
+	r := yy1 + 91881*cr1
+	if uint32(r)&0xff000000 == 0 {
+		r >>= 16
+	} else {
+		r = ^(r >> 31)
 	}
-	if g < 0 {
-		g = 0
-	} else if g > 0xff {
-		g = 0xff
+
+	g := yy1 - 22554*cb1 - 46802*cr1
+	if uint32(g)&0xff000000 == 0 {
+		g >>= 16
+	} else {
+		g = ^(g >> 31)
 	}
-	if b < 0 {
-		b = 0
-	} else if b > 0xff {
-		b = 0xff
+
+	b := yy1 + 116130*cb1
+	if uint32(b)&0xff000000 == 0 {
+		b >>= 16
+	} else {
+		b = ^(b >> 31)
 	}
+
 	return uint8(r), uint8(g), uint8(b)
 }
 
@@ -220,10 +250,10 @@ func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
 
 // CMYKToRGB converts a CMYK quadruple to an RGB triple.
 func CMYKToRGB(c, m, y, k uint8) (uint8, uint8, uint8) {
-	w := uint32(0xffff - uint32(k)*0x101)
-	r := uint32(0xffff-uint32(c)*0x101) * w / 0xffff
-	g := uint32(0xffff-uint32(m)*0x101) * w / 0xffff
-	b := uint32(0xffff-uint32(y)*0x101) * w / 0xffff
+	w := 0xffff - uint32(k)*0x101
+	r := (0xffff - uint32(c)*0x101) * w / 0xffff
+	g := (0xffff - uint32(m)*0x101) * w / 0xffff
+	b := (0xffff - uint32(y)*0x101) * w / 0xffff
 	return uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)
 }
 
@@ -239,11 +269,11 @@ func (c CMYK) RGBA() (uint32, uint32, uint32, uint32) {
 	// This code is a copy of the CMYKToRGB function above, except that it
 	// returns values in the range [0, 0xffff] instead of [0, 0xff].
 
-	w := uint32(0xffff - uint32(c.K)*0x101)
-	r := uint32(0xffff-uint32(c.C)*0x101) * w / 0xffff
-	g := uint32(0xffff-uint32(c.M)*0x101) * w / 0xffff
-	b := uint32(0xffff-uint32(c.Y)*0x101) * w / 0xffff
-	return uint32(r), uint32(g), uint32(b), 0xffff
+	w := 0xffff - uint32(c.K)*0x101
+	r := (0xffff - uint32(c.C)*0x101) * w / 0xffff
+	g := (0xffff - uint32(c.M)*0x101) * w / 0xffff
+	b := (0xffff - uint32(c.Y)*0x101) * w / 0xffff
+	return r, g, b, 0xffff
 }
 
 // CMYKModel is the Model for CMYK colors.

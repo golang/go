@@ -10,6 +10,10 @@ import (
 	"testing"
 )
 
+// Strings and slices that don't escape and fit into tmpBuf are stack allocated,
+// which defeats using AllocsPerRun to test other optimizations.
+const sizeNoStack = 100
+
 func BenchmarkCompareStringEqual(b *testing.B) {
 	bytes := []byte("Hello Gophers!")
 	s1, s2 := string(bytes), string(bytes)
@@ -158,7 +162,7 @@ func TestGostringnocopy(t *testing.T) {
 }
 
 func TestCompareTempString(t *testing.T) {
-	s := "foo"
+	s := strings.Repeat("x", sizeNoStack)
 	b := []byte(s)
 	n := testing.AllocsPerRun(1000, func() {
 		if string(b) != s {
@@ -221,7 +225,7 @@ func TestIntStringAllocs(t *testing.T) {
 }
 
 func TestRangeStringCast(t *testing.T) {
-	s := "abc"
+	s := strings.Repeat("x", sizeNoStack)
 	n := testing.AllocsPerRun(1000, func() {
 		for i, c := range []byte(s) {
 			if c != s[i] {
@@ -234,17 +238,35 @@ func TestRangeStringCast(t *testing.T) {
 	}
 }
 
+func isZeroed(b []byte) bool {
+	for _, x := range b {
+		if x != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func isZeroedR(r []rune) bool {
+	for _, x := range r {
+		if x != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestString2Slice(t *testing.T) {
 	// Make sure we don't return slices that expose
 	// an unzeroed section of stack-allocated temp buf
-	// between len and cap.  See issue 14232.
+	// between len and cap. See issue 14232.
 	s := "foož"
 	b := ([]byte)(s)
-	if cap(b) != 5 {
-		t.Errorf("want cap of 5, got %d", cap(b))
+	if !isZeroed(b[len(b):cap(b)]) {
+		t.Errorf("extra bytes not zeroed")
 	}
 	r := ([]rune)(s)
-	if cap(r) != 4 {
-		t.Errorf("want cap of 4, got %d", cap(r))
+	if !isZeroedR(r[len(r):cap(r)]) {
+		t.Errorf("extra runes not zeroed")
 	}
 }

@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,9 @@
 package ld
 
 import (
+	"bufio"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"os"
@@ -44,13 +46,12 @@ var (
 )
 
 func Ldmain() {
-	Ctxt = linknew(Thelinkarch)
-	Ctxt.Thechar = int32(Thearch.Thechar)
-	Ctxt.Thestring = Thestring
-	Ctxt.Diag = Diag
-	Ctxt.Bso = &Bso
+	Bso = bufio.NewWriter(os.Stdout)
 
-	Bso = *obj.Binitw(os.Stdout)
+	Ctxt = linknew(SysArch)
+	Ctxt.Diag = Diag
+	Ctxt.Bso = Bso
+
 	Debug = [128]int{}
 	nerrors = 0
 	outfile = ""
@@ -70,7 +71,7 @@ func Ldmain() {
 		}
 	}
 
-	if Thearch.Thechar == '6' && obj.Getgoos() == "plan9" {
+	if SysArch.Family == sys.AMD64 && obj.Getgoos() == "plan9" {
 		obj.Flagcount("8", "use 64-bit addresses in symbol table", &Debug['8'])
 	}
 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
@@ -89,6 +90,7 @@ func Ldmain() {
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
 	obj.Flagcount("c", "dump call graph", &Debug['c'])
 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
+	flag.BoolVar(&flag_dumpdep, "dumpdep", false, "dump symbol dependency graph")
 	obj.Flagstr("extar", "archive program for buildmode=c-archive", &extar)
 	obj.Flagstr("extld", "use `linker` when linking in external mode", &extld)
 	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)
@@ -107,7 +109,7 @@ func Ldmain() {
 	obj.Flagcount("race", "enable race detector", &flag_race)
 	obj.Flagcount("s", "disable symbol table", &Debug['s'])
 	var flagShared int
-	if Thearch.Thechar == '5' || Thearch.Thechar == '6' {
+	if SysArch.InFamily(sys.ARM, sys.AMD64) {
 		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &flagShared)
 	}
 	obj.Flagstr("tmpdir", "use `directory` for temporary files", &tmpdir)
@@ -122,7 +124,7 @@ func Ldmain() {
 	obj.Flagparse(usage)
 
 	startProfile()
-	Ctxt.Bso = &Bso
+	Ctxt.Bso = Bso
 	Ctxt.Debugvlog = int32(Debug['v'])
 	if flagShared != 0 {
 		if Buildmode == BuildmodeUnset {
@@ -163,7 +165,7 @@ func Ldmain() {
 	}
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
+		fmt.Fprintf(Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
 	}
 	Bso.Flush()
 
@@ -186,17 +188,9 @@ func Ldmain() {
 	}
 	loadlib()
 
-	if Thearch.Thechar == '5' {
-		// mark some functions that are only referenced after linker code editing
-		if Ctxt.Goarm == 5 {
-			mark(Linkrlookup(Ctxt, "_sfloat", 0))
-		}
-		mark(Linklookup(Ctxt, "runtime.read_tls_fallback", 0))
-	}
-
-	checkgo()
 	checkstrdata()
-	deadcode()
+	deadcode(Ctxt)
+	fieldtrack(Ctxt)
 	callgraph()
 
 	doelf()
@@ -216,16 +210,15 @@ func Ldmain() {
 	symtab()
 	dodata()
 	address()
-	doweak()
 	reloc()
 	Thearch.Asmb()
 	undef()
 	hostlink()
 	archive()
 	if Debug['v'] != 0 {
-		fmt.Fprintf(&Bso, "%5.2f cpu time\n", obj.Cputime())
-		fmt.Fprintf(&Bso, "%d symbols\n", Ctxt.Nsymbol)
-		fmt.Fprintf(&Bso, "%d liveness data\n", liveness)
+		fmt.Fprintf(Bso, "%5.2f cpu time\n", obj.Cputime())
+		fmt.Fprintf(Bso, "%d symbols\n", len(Ctxt.Allsym))
+		fmt.Fprintf(Bso, "%d liveness data\n", liveness)
 	}
 
 	Bso.Flush()

@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/arm64"
 	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
+	"cmd/link/internal/s390x"
 	"cmd/link/internal/x86"
 	"fmt"
 	"os"
@@ -33,5 +34,7 @@ func main() {
 		mips64.Main()
 	case "ppc64", "ppc64le":
 		ppc64.Main()
+	case "s390x":
+		s390x.Main()
 	}
 }

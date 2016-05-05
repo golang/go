@@ -6,6 +6,8 @@ package x509
 
 import (
 	"encoding/pem"
+	"errors"
+	"runtime"
 )
 
 // CertPool is a set of certificates.
@@ -18,10 +20,20 @@ type CertPool struct {
 // NewCertPool returns a new, empty CertPool.
 func NewCertPool() *CertPool {
 	return &CertPool{
-		make(map[string][]int),
-		make(map[string][]int),
-		nil,
+		bySubjectKeyId: make(map[string][]int),
+		byName:         make(map[string][]int),
 	}
+}
+
+// SystemCertPool returns a copy of the system cert pool.
+//
+// Any mutations to the returned pool are not written to disk and do
+// not affect any other pool.
+func SystemCertPool() (*CertPool, error) {
+	if runtime.GOOS == "windows" {
+		return nil, errors.New("crypto/x509: system root pool is not available on Windows")
+	}
+	return loadSystemRoots()
 }
 
 // findVerifiedParents attempts to find certificates in s which have signed the
@@ -107,10 +119,10 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 
 // Subjects returns a list of the DER-encoded subjects of
 // all of the certificates in the pool.
-func (s *CertPool) Subjects() (res [][]byte) {
-	res = make([][]byte, len(s.certs))
+func (s *CertPool) Subjects() [][]byte {
+	res := make([][]byte, len(s.certs))
 	for i, c := range s.certs {
 		res[i] = c.RawSubject
 	}
-	return
+	return res
 }

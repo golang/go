@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,6 +9,7 @@ package http
 
 import (
 	"net"
+	"sort"
 	"sync"
 	"time"
 )
@@ -35,9 +36,8 @@ func init() {
 }
 
 var (
-	SetEnterRoundTripHook  = hookSetter(&testHookEnterRoundTrip)
-	SetTestHookWaitResLoop = hookSetter(&testHookWaitResLoop)
-	SetRoundTripRetried    = hookSetter(&testHookRoundTripRetried)
+	SetEnterRoundTripHook = hookSetter(&testHookEnterRoundTrip)
+	SetRoundTripRetried   = hookSetter(&testHookRoundTripRetried)
 )
 
 func SetReadLoopBeforeNextReadHook(f func()) {
@@ -59,9 +59,9 @@ func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServ
 
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	return &timeoutHandler{
-		handler: handler,
-		timeout: func() <-chan time.Time { return ch },
-		// (no body and nil cancelTimer)
+		handler:     handler,
+		testTimeout: ch,
+		// (no body)
 	}
 }
 
@@ -81,21 +81,29 @@ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
 	keys = make([]string, 0)
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	if t.idleConn == nil {
-		return
-	}
 	for key := range t.idleConn {
 		keys = append(keys, key.String())
 	}
+	sort.Strings(keys)
 	return
+}
+
+func (t *Transport) IdleConnStrsForTesting() []string {
+	var ret []string
+	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
+	for _, conns := range t.idleConn {
+		for _, pc := range conns {
+			ret = append(ret, pc.conn.LocalAddr().String()+"/"+pc.conn.RemoteAddr().String())
+		}
+	}
+	sort.Strings(ret)
+	return ret
 }
 
 func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	if t.idleConn == nil {
-		return 0
-	}
 	for k, conns := range t.idleConn {
 		if k.String() == cacheKey {
 			return len(conns)

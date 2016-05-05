@@ -399,7 +399,7 @@ func readTestFile(t *testing.T, zt ZipTest, ft ZipTestFile, f *File) {
 	// Don't bother uncompressing: too big.
 	if ft.Content == nil && ft.File == "" && ft.Size > 0 {
 		if size != ft.Size {
-			t.Errorf("%v: uncompressed size %#x, want %#x", size, ft.Size)
+			t.Errorf("%v: uncompressed size %#x, want %#x", ft.Name, size, ft.Size)
 		}
 		r.Close()
 		return

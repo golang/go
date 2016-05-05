@@ -80,7 +80,7 @@ func semasleep(ns int64) int32 {
 		//
 		// From OpenBSD's __thrsleep(2) manual:
 		// "The abort argument, if not NULL, points to an int that will
-		// be examined [...] immediately before blocking.  If that int
+		// be examined [...] immediately before blocking. If that int
 		// is non-zero then __thrsleep() will immediately return EINTR
 		// without blocking."
 		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &_g_.m.waitsemacount)

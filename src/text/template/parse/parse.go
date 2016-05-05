@@ -48,12 +48,12 @@ func (t *Tree) Copy() *Tree {
 // templates described in the argument string. The top-level template will be
 // given the specified name. If an error is encountered, parsing stops and an
 // empty map is returned with the error.
-func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (treeSet map[string]*Tree, err error) {
-	treeSet = make(map[string]*Tree)
+func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (map[string]*Tree, error) {
+	treeSet := make(map[string]*Tree)
 	t := New(name)
 	t.text = text
-	_, err = t.Parse(text, leftDelim, rightDelim, treeSet, funcs...)
-	return
+	_, err := t.Parse(text, leftDelim, rightDelim, treeSet, funcs...)
+	return treeSet, err
 }
 
 // next returns the next token.
@@ -556,7 +556,7 @@ func (t *Tree) blockControl() Node {
 
 // Template:
 //	{{template stringValue pipeline}}
-// Template keyword is past.  The name must be something that can evaluate
+// Template keyword is past. The name must be something that can evaluate
 // to a string.
 func (t *Tree) templateControl() Node {
 	const context = "template clause"

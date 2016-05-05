@@ -5,7 +5,7 @@
 package sys
 
 const (
-	TheChar       = '8'
+	ArchFamily    = I386
 	BigEndian     = 0
 	CacheLineSize = 64
 	PhysPageSize  = GoosNacl*65536 + (1-GoosNacl)*4096 // 4k normally; 64k on NaCl

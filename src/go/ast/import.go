@@ -31,7 +31,7 @@ func SortImports(fset *token.FileSet, f *File) {
 		specs := d.Specs[:0]
 		for j, s := range d.Specs {
 			if j > i && fset.Position(s.Pos()).Line > 1+fset.Position(d.Specs[j-1].End()).Line {
-				// j begins a new run.  End this one.
+				// j begins a new run. End this one.
 				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
 				i = j
 			}

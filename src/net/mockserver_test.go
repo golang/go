@@ -152,13 +152,6 @@ func (dss *dualStackServer) buildup(handler func(*dualStackServer, Listener)) er
 	return nil
 }
 
-func (dss *dualStackServer) putConn(c Conn) error {
-	dss.cmu.Lock()
-	dss.cs = append(dss.cs, c)
-	dss.cmu.Unlock()
-	return nil
-}
-
 func (dss *dualStackServer) teardownNetwork(network string) error {
 	dss.lnmu.Lock()
 	for i := range dss.lns {
@@ -343,10 +336,18 @@ func timeoutTransmitter(c Conn, d, min, max time.Duration, ch chan<- error) {
 
 func newLocalPacketListener(network string) (PacketConn, error) {
 	switch network {
-	case "udp", "udp4", "udp6":
+	case "udp":
 		if supportsIPv4 {
 			return ListenPacket("udp4", "127.0.0.1:0")
 		}
+		if supportsIPv6 {
+			return ListenPacket("udp6", "[::1]:0")
+		}
+	case "udp4":
+		if supportsIPv4 {
+			return ListenPacket("udp4", "127.0.0.1:0")
+		}
+	case "udp6":
 		if supportsIPv6 {
 			return ListenPacket("udp6", "[::1]:0")
 		}

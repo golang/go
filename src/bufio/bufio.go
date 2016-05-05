@@ -124,14 +124,16 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, ErrNegativeCount
 	}
-	if n > len(b.buf) {
-		return nil, ErrBufferFull
-	}
-	// 0 <= n <= len(b.buf)
-	for b.w-b.r < n && b.err == nil {
+
+	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
 	}
 
+	if n > len(b.buf) {
+		return b.buf[b.r:b.w], ErrBufferFull
+	}
+
+	// 0 <= n <= len(b.buf)
 	var err error
 	if avail := b.w - b.r; avail < n {
 		// not enough data in buffer
@@ -220,7 +222,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 
 // ReadByte reads and returns a single byte.
 // If no byte is available, returns an error.
-func (b *Reader) ReadByte() (c byte, err error) {
+func (b *Reader) ReadByte() (byte, error) {
 	b.lastRuneSize = -1
 	for b.r == b.w {
 		if b.err != nil {
@@ -228,13 +230,13 @@ func (b *Reader) ReadByte() (c byte, err error) {
 		}
 		b.fill() // buffer is empty
 	}
-	c = b.buf[b.r]
+	c := b.buf[b.r]
 	b.r++
 	b.lastByte = int(c)
 	return c, nil
 }
 
-// UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
+// UnreadByte unreads the last byte. Only the most recently read byte can be unread.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -264,7 +266,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 		return 0, 0, b.readErr()
 	}
 	r, size = rune(b.buf[b.r]), 1
-	if r >= 0x80 {
+	if r >= utf8.RuneSelf {
 		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	}
 	b.r += size
@@ -273,7 +275,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	return r, size, nil
 }
 
-// UnreadRune unreads the last rune.  If the most recent read operation on
+// UnreadRune unreads the last rune. If the most recent read operation on
 // the buffer was not a ReadRune, UnreadRune returns an error.  (In this
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
@@ -395,12 +397,12 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 // For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
+func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 	// Use ReadSlice to look for array,
 	// accumulating full buffers.
 	var frag []byte
 	var full [][]byte
-
+	var err error
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -442,10 +444,9 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString returns err != nil if and only if the returned data does not end in
 // delim.
 // For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadString(delim byte) (line string, err error) {
+func (b *Reader) ReadString(delim byte) (string, error) {
 	bytes, err := b.ReadBytes(delim)
-	line = string(bytes)
-	return line, err
+	return string(bytes), err
 }
 
 // WriteTo implements io.WriterTo.

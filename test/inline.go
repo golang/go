@@ -1,6 +1,6 @@
 // errorcheck -0 -m
 
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -30,4 +30,45 @@ func g(x int) int {
 
 func h(x int) int { // ERROR "can inline h"
 	return x + 2
+}
+
+func i(x int) int { // ERROR "can inline i"
+	const y = 2
+	return x + y
+}
+
+func j(x int) int { // ERROR "can inline j"
+	switch {
+	case x > 0:
+		return x + 2
+	default:
+		return x + 1
+	}
+}
+
+// can't currently inline functions with a break statement
+func switchBreak(x, y int) int {
+	var n int
+	switch x {
+	case 0:
+		n = 1
+	Done:
+		switch y {
+		case 0:
+			n += 10
+			break Done
+		}
+		n = 2
+	}
+	return n
+}
+
+// can't currently inline functions with a type switch
+func switchType(x interface{}) int { // ERROR "switchType x does not escape"
+	switch x.(type) {
+	case int:
+		return x.(int)
+	default:
+		return 0
+	}
 }

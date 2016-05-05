@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,8 +10,8 @@ package cgo
 import _ "unsafe"
 
 // When using cgo, call the C library for mmap, so that we call into
-// any sanitizer interceptors.  This supports using the memory
-// sanitizer with Go programs.  The memory sanitizer only applies to
+// any sanitizer interceptors. This supports using the memory
+// sanitizer with Go programs. The memory sanitizer only applies to
 // C/C++ code; this permits that code to see the Go code as normal
 // program addresses that have been initialized.
 

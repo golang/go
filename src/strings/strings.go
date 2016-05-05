@@ -12,32 +12,25 @@ import (
 	"unicode/utf8"
 )
 
-// explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n < 0 means no limit).
-// Invalid UTF-8 sequences become correct encodings of U+FFF8.
+// explode splits s into a slice of UTF-8 strings,
+// one string per Unicode character up to a maximum of n (n < 0 means no limit).
+// Invalid UTF-8 sequences become correct encodings of U+FFFD.
 func explode(s string, n int) []string {
-	if n == 0 {
-		return nil
-	}
 	l := utf8.RuneCountInString(s)
-	if n <= 0 || n > l {
+	if n < 0 || n > l {
 		n = l
 	}
 	a := make([]string, n)
-	var size int
-	var ch rune
-	i, cur := 0, 0
-	for ; i+1 < n; i++ {
-		ch, size = utf8.DecodeRuneInString(s[cur:])
+	for i := 0; i < n-1; i++ {
+		ch, size := utf8.DecodeRuneInString(s)
+		a[i] = s[:size]
+		s = s[size:]
 		if ch == utf8.RuneError {
 			a[i] = string(utf8.RuneError)
-		} else {
-			a[i] = s[cur : cur+size]
 		}
-		cur += size
 	}
-	// add the rest, if there is any
-	if cur < len(s) {
-		a[i] = s[cur:]
+	if n > 0 {
+		a[n-1] = s
 	}
 	return a
 }
@@ -346,7 +339,7 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 	return a
 }
 
-// Join concatenates the elements of a to create a single string.   The separator string
+// Join concatenates the elements of a to create a single string. The separator string
 // sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
 	if len(a) == 0 {
@@ -384,8 +377,8 @@ func HasSuffix(s, suffix string) bool {
 // dropped from the string with no replacement.
 func Map(mapping func(rune) rune, s string) string {
 	// In the worst case, the string can grow when mapped, making
-	// things unpleasant.  But it's so rare we barge in assuming it's
-	// fine.  It could also shrink but that falls out naturally.
+	// things unpleasant. But it's so rare we barge in assuming it's
+	// fine. It could also shrink but that falls out naturally.
 	maxbytes := len(s) // length of b
 	nbytes := 0        // number of bytes encoded in b
 	// The output buffer b is initialized on demand, the first
@@ -714,7 +707,7 @@ func EqualFold(s, t string) bool {
 			return false
 		}
 
-		// General case.  SimpleFold(x) returns the next equivalent rune > x
+		// General case. SimpleFold(x) returns the next equivalent rune > x
 		// or wraps around to smaller values.
 		r := unicode.SimpleFold(sr)
 		for r != sr && r < tr {
@@ -726,6 +719,6 @@ func EqualFold(s, t string) bool {
 		return false
 	}
 
-	// One string is empty.  Are both?
+	// One string is empty. Are both?
 	return s == t
 }

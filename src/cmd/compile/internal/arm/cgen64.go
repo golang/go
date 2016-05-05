@@ -19,7 +19,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
 		gc.Dump("n", n)
 		gc.Dump("res", res)
-		gc.Fatalf("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
+		gc.Fatalf("cgen64 %v of %v", n.Op, res.Op)
 	}
 
 	l := n.Left
@@ -35,7 +35,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	split64(l, &lo1, &hi1)
 	switch n.Op {
 	default:
-		gc.Fatalf("cgen64 %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen64 %v", n.Op)
 
 	case gc.OMINUS:
 		var lo2 gc.Node
@@ -126,7 +126,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	var ah gc.Node
 	gc.Regalloc(&ah, hi1.Type, nil)
 
-	// Do op.  Leave result in ah:al.
+	// Do op. Leave result in ah:al.
 	switch n.Op {
 	default:
 		gc.Fatalf("cgen64: not implemented: %v\n", n)
@@ -237,7 +237,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	//	shld hi:lo, c
 	//	shld lo:t, c
 	case gc.OLROT:
-		v := uint64(r.Int())
+		v := uint64(r.Int64())
 
 		var bl gc.Node
 		gc.Regalloc(&bl, lo1.Type, nil)
@@ -291,7 +291,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		var p4 *obj.Prog
 		var p5 *obj.Prog
 		if r.Op == gc.OLITERAL {
-			v := uint64(r.Int())
+			v := uint64(r.Int64())
 			if v >= 64 {
 				// TODO(kaib): replace with gins(AMOVW, nodintconst(0), &al)
 				// here and below (verify it optimizes to EOR)
@@ -452,7 +452,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		var creg gc.Node
 		var p3 *obj.Prog
 		if r.Op == gc.OLITERAL {
-			v := uint64(r.Int())
+			v := uint64(r.Int64())
 			if v >= 64 {
 				if bh.Type.Etype == gc.TINT32 {
 					//	MOVW	bh->31, al
@@ -793,7 +793,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
 	var br *obj.Prog
 	switch op {
 	default:
-		gc.Fatalf("cmp64 %v %v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("cmp64 %v %v", op, t)
 
 		// cmp hi
 	// bne L

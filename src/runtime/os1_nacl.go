@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -54,6 +54,13 @@ func osinit() {
 	ncpu = 1
 	getg().m.procid = 2
 	//nacl_exception_handler(funcPC(sigtramp), nil);
+}
+
+func signame(sig uint32) string {
+	if sig >= uint32(len(sigtable)) {
+		return ""
+	}
+	return sigtable[sig].name
 }
 
 func crash() {
@@ -172,7 +179,23 @@ func memlimit() uintptr {
 	return 0
 }
 
-// This runs on a foreign stack, without an m or a g.  No stack split.
+// This runs on a foreign stack, without an m or a g. No stack split.
+//go:nosplit
+//go:norace
+//go:nowritebarrierrec
+func badsignal(sig uintptr) {
+	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
+}
+
+func badsignalgo(sig uintptr) {
+	if !sigsend(uint32(sig)) {
+		// A foreign thread received the signal sig, and the
+		// Go code does not want to handle it.
+		raisebadsignal(int32(sig))
+	}
+}
+
+// This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 func badsignal2() {
 	write(2, unsafe.Pointer(&badsignal1[0]), int32(len(badsignal1)))

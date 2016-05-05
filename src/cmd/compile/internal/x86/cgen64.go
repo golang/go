@@ -19,12 +19,12 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
 		gc.Dump("n", n)
 		gc.Dump("res", res)
-		gc.Fatalf("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
+		gc.Fatalf("cgen64 %v of %v", n.Op, res.Op)
 	}
 
 	switch n.Op {
 	default:
-		gc.Fatalf("cgen64 %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen64 %v", n.Op)
 
 	case gc.OMINUS:
 		gc.Cgen(n.Left, res)
@@ -95,7 +95,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		split64(r, &lo2, &hi2)
 	}
 
-	// Do op.  Leave result in DX:AX.
+	// Do op. Leave result in DX:AX.
 	switch n.Op {
 	// TODO: Constants
 	case gc.OADD:
@@ -162,7 +162,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	//	shld hi:lo, c
 	//	shld lo:t, c
 	case gc.OLROT:
-		v := uint64(r.Int())
+		v := uint64(r.Int64())
 
 		if v >= 32 {
 			// reverse during load to do the first 32 bits of rotate
@@ -189,7 +189,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.OLSH:
 		if r.Op == gc.OLITERAL {
-			v := uint64(r.Int())
+			v := uint64(r.Int64())
 			if v >= 64 {
 				if gc.Is64(r.Type) {
 					splitclean()
@@ -278,7 +278,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 	case gc.ORSH:
 		if r.Op == gc.OLITERAL {
-			v := uint64(r.Int())
+			v := uint64(r.Int64())
 			if v >= 64 {
 				if gc.Is64(r.Type) {
 					splitclean()
@@ -400,8 +400,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		if lo2.Op == gc.OLITERAL {
 			// special cases for constants.
-			lv := uint32(lo2.Int())
-			hv := uint32(hi2.Int())
+			lv := uint32(lo2.Int64())
+			hv := uint32(hi2.Int64())
 			splitclean() // right side
 			split64(res, &lo2, &hi2)
 			switch n.Op {
@@ -531,7 +531,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
 	var br *obj.Prog
 	switch op {
 	default:
-		gc.Fatalf("cmp64 %v %v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("cmp64 %v %v", op, t)
 
 		// cmp hi
 	// jne L

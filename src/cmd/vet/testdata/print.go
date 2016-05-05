@@ -11,6 +11,9 @@ import (
 	"math"
 	"os"
 	"unsafe" // just for test case printing unsafe.Pointer
+
+	// For testing printf-like functions from external package.
+	"github.com/foobar/externalprintf"
 )
 
 func UnsafePointerPrintfTest() {
@@ -182,11 +185,11 @@ func PrintfTests() {
 	// Something that looks like an error interface but isn't, such as the (*T).Error method
 	// in the testing package.
 	var et1 errorTest1
-	fmt.Println(et1.Error())        // ERROR "no args in Error call"
+	fmt.Println(et1.Error())        // ok
 	fmt.Println(et1.Error("hi"))    // ok
 	fmt.Println(et1.Error("%d", 3)) // ERROR "possible formatting directive in Error call"
 	var et2 errorTest2
-	et2.Error()        // ERROR "no args in Error call"
+	et2.Error()        // ok
 	et2.Error("hi")    // ok, not an error method.
 	et2.Error("%d", 3) // ERROR "possible formatting directive in Error call"
 	var et3 errorTest3
@@ -211,21 +214,83 @@ func PrintfTests() {
 	Log(3)       // OK
 	Log("%d", 3) // ERROR "possible formatting directive in Log call"
 	Logf("%d", 3)
-	Logf("%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: untyped string"
+	Logf("%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: string"
 
+	Errorf(1, "%d", 3)    // OK
+	Errorf(1, "%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: string"
+
+	// Multiple string arguments before variadic args
+	errorf("WARNING", "foobar")            // OK
+	errorf("INFO", "s=%s, n=%d", "foo", 1) // OK
+	errorf("ERROR", "%d")                  // ERROR "format reads arg 1, have only 0 args"
+
+	// Printf from external package
+	externalprintf.Printf("%d", 42) // OK
+	externalprintf.Printf("foobar") // OK
+	level := 123
+	externalprintf.Logf(level, "%d", 42)                        // OK
+	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
+	externalprintf.Logf(level, "%d")                            // ERROR "format reads arg 1, have only 0 args"
+
+	// user-defined Println-like functions
+	ss := &someStruct{}
+	ss.Log(someFunction, "foo")          // OK
+	ss.Error(someFunction, someFunction) // OK
+	ss.Println()                         // OK
+	ss.Println(1.234, "foo")             // OK
+	ss.Println(1, someFunction)          // ERROR "arg someFunction in Println call is a function value, not a function call"
+	ss.log(someFunction)                 // OK
+	ss.log(someFunction, "bar", 1.33)    // OK
+	ss.log(someFunction, someFunction)   // ERROR "arg someFunction in log call is a function value, not a function call"
 }
+
+type someStruct struct{}
+
+// Log is non-variadic user-define Println-like function.
+// Calls to this func must be skipped when checking
+// for Println-like arguments.
+func (ss *someStruct) Log(f func(), s string) {}
+
+// Error is variadic user-define Println-like function.
+// Calls to this func mustn't be checked for Println-like arguments,
+// since variadic arguments type isn't interface{}.
+func (ss *someStruct) Error(args ...func()) {}
+
+// Println is variadic user-defined Println-like function.
+// Calls to this func must be checked for Println-like arguments.
+func (ss *someStruct) Println(args ...interface{}) {}
+
+// log is variadic user-defined Println-like function.
+// Calls to this func must be checked for Println-like arguments.
+func (ss *someStruct) log(f func(), args ...interface{}) {}
 
 // A function we use as a function value; it has no other purpose.
-func someFunction() {
-}
+func someFunction() {}
 
 // Printf is used by the test so we must declare it.
 func Printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
+// Logf is used by the test so we must declare it.
+func Logf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
 // printf is used by the test so we must declare it.
 func printf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
+// Errorf is used by the test for a case in which the first parameter
+// is not a format string.
+func Errorf(i int, format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
+// errorf is used by the test for a case in which the function accepts multiple
+// string parameters before variadic arguments
+func errorf(level, format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 

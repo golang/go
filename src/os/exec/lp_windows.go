@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -46,7 +46,7 @@ func findExecutable(file string, exts []string) (string, error) {
 			return f, nil
 		}
 	}
-	return ``, os.ErrNotExist
+	return "", os.ErrNotExist
 }
 
 // LookPath searches for an executable binary named file
@@ -55,9 +55,9 @@ func findExecutable(file string, exts []string) (string, error) {
 // LookPath also uses PATHEXT environment variable to match
 // a suitable candidate.
 // The result may be an absolute path or a path relative to the current directory.
-func LookPath(file string) (f string, err error) {
+func LookPath(file string) (string, error) {
 	x := os.Getenv(`PATHEXT`)
-	if x == `` {
+	if x == "" {
 		x = `.COM;.EXE;.BAT;.CMD`
 	}
 	exts := []string{}
@@ -71,22 +71,23 @@ func LookPath(file string) (f string, err error) {
 		exts = append(exts, e)
 	}
 	if strings.ContainsAny(file, `:\/`) {
-		if f, err = findExecutable(file, exts); err == nil {
-			return
+		if f, err := findExecutable(file, exts); err == nil {
+			return f, nil
+		} else {
+			return "", &Error{file, err}
 		}
-		return ``, &Error{file, err}
 	}
-	if f, err = findExecutable(`.\`+file, exts); err == nil {
-		return
+	if f, err := findExecutable(`.\`+file, exts); err == nil {
+		return f, nil
 	}
-	if pathenv := os.Getenv(`PATH`); pathenv != `` {
+	if pathenv := os.Getenv(`PATH`); pathenv != "" {
 		for _, dir := range splitList(pathenv) {
-			if f, err = findExecutable(dir+`\`+file, exts); err == nil {
-				return
+			if f, err := findExecutable(dir+`\`+file, exts); err == nil {
+				return f, nil
 			}
 		}
 	}
-	return ``, &Error{file, ErrNotFound}
+	return "", &Error{file, ErrNotFound}
 }
 
 func splitList(path string) []string {
@@ -115,7 +116,7 @@ func splitList(path string) []string {
 	// Remove quotes.
 	for i, s := range list {
 		if strings.Contains(s, `"`) {
-			list[i] = strings.Replace(s, `"`, ``, -1)
+			list[i] = strings.Replace(s, `"`, "", -1)
 		}
 	}
 

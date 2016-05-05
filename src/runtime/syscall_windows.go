@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -45,15 +45,15 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		panic("compileCallback: not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
-	if len(ft.out) != 1 {
+	if len(ft.out()) != 1 {
 		panic("compileCallback: function must have one output parameter")
 	}
 	uintptrSize := unsafe.Sizeof(uintptr(0))
-	if ft.out[0].size != uintptrSize {
+	if ft.out()[0].size != uintptrSize {
 		panic("compileCallback: output parameter size is wrong")
 	}
 	argsize := uintptr(0)
-	for _, t := range ft.in {
+	for _, t := range ft.in() {
 		if t.size > uintptrSize {
 			panic("compileCallback: input parameter size is wrong")
 		}
@@ -86,6 +86,41 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 	cbs.n++
 
 	return callbackasmAddr(n)
+}
+
+const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
+
+//go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
+//go:nosplit
+func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
+	c := &getg().m.syscall
+
+	if useLoadLibraryEx {
+		c.fn = getLoadLibraryEx()
+		c.n = 3
+		args := struct {
+			lpFileName *uint16
+			hFile      uintptr // always 0
+			flags      uint32
+		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
+		c.args = uintptr(noescape(unsafe.Pointer(&args)))
+	} else {
+		// User is on Windows XP or something ancient.
+		// The caller wanted to only load the filename DLL
+		// from the System32 directory but that facility
+		// doesn't exist, so just load it the normal way. This
+		// is a potential security risk, but so is Windows XP.
+		c.fn = getLoadLibrary()
+		c.n = 1
+		c.args = uintptr(noescape(unsafe.Pointer(&filename)))
+	}
+
+	cgocall(asmstdcallAddr, unsafe.Pointer(c))
+	handle = c.r1
+	if handle == 0 {
+		err = c.err
+	}
+	return
 }
 
 //go:linkname syscall_loadlibrary syscall.loadlibrary

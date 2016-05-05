@@ -32,6 +32,8 @@ func (s *sparseMap) contains(k ID) bool {
 	return i < len(s.dense) && s.dense[i].key == k
 }
 
+// get returns the value for key k, or -1 if k does
+// not appear in the map.
 func (s *sparseMap) get(k ID) int32 {
 	i := s.sparse[k]
 	if i < len(s.dense) && s.dense[i].key == k {
@@ -47,6 +49,20 @@ func (s *sparseMap) set(k ID, v int32) {
 		return
 	}
 	s.dense = append(s.dense, sparseEntry{k, v})
+	s.sparse[k] = len(s.dense) - 1
+}
+
+// setBit sets the v'th bit of k's value, where 0 <= v < 32
+func (s *sparseMap) setBit(k ID, v uint) {
+	if v >= 32 {
+		panic("bit index too large.")
+	}
+	i := s.sparse[k]
+	if i < len(s.dense) && s.dense[i].key == k {
+		s.dense[i].val |= 1 << v
+		return
+	}
+	s.dense = append(s.dense, sparseEntry{k, 1 << v})
 	s.sparse[k] = len(s.dense) - 1
 }
 

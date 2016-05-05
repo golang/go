@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -1056,7 +1056,7 @@ func p256ScalarBaseMult(xOut, yOut, zOut *[p256Limbs]uint32, scalar *[32]uint8) 
 			p256CopyConditional(yOut, &ty, mask)
 			p256CopyConditional(zOut, &tz, mask)
 			// If p was not zero, then n is now non-zero.
-			nIsInfinityMask &= ^pIsNoninfiniteMask
+			nIsInfinityMask &^= pIsNoninfiniteMask
 		}
 	}
 }
@@ -1136,7 +1136,7 @@ func p256ScalarMult(xOut, yOut, zOut, x, y *[p256Limbs]uint32, scalar *[32]uint8
 		p256CopyConditional(xOut, &tx, mask)
 		p256CopyConditional(yOut, &ty, mask)
 		p256CopyConditional(zOut, &tz, mask)
-		nIsInfinityMask &= ^pIsNoninfiniteMask
+		nIsInfinityMask &^= pIsNoninfiniteMask
 	}
 }
 

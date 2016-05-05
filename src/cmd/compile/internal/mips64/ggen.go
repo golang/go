@@ -15,7 +15,7 @@ func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
@@ -36,7 +36,7 @@ func defframe(ptxt *obj.Prog) {
 			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 
 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
@@ -101,15 +101,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int64, ttype int, treg int, toffset int64) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
-	q.From.Type = int16(ftype)
+	q.From.Type = ftype
 	q.From.Reg = int16(freg)
 	q.From.Offset = foffset
-	q.To.Type = int16(ttype)
+	q.To.Type = ttype
 	q.To.Reg = int16(treg)
 	q.To.Offset = toffset
 	q.Link = p.Link
@@ -138,7 +138,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t0 := t
 
 	if t.Width < 8 {
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			t = gc.Types[gc.TINT64]
 		} else {
 			t = gc.Types[gc.TUINT64]
@@ -203,8 +203,8 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		nl, nr = nr, nl
 	}
 
-	t := (*gc.Type)(nl.Type)
-	w := int(int(t.Width * 8))
+	t := nl.Type
+	w := t.Width * 8
 	var n1 gc.Node
 	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
@@ -217,9 +217,9 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		var lo gc.Node
 		gc.Nodreg(&lo, gc.Types[gc.TUINT64], mips.REG_LO)
 		gins(mips.AMOVV, &lo, &n1)
-		p := (*obj.Prog)(gins(mips.ASRAV, nil, &n1))
+		p := gins(mips.ASRAV, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(w)
+		p.From.Offset = w
 
 	case gc.TUINT8,
 		gc.TUINT16,
@@ -228,13 +228,13 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		var lo gc.Node
 		gc.Nodreg(&lo, gc.Types[gc.TUINT64], mips.REG_LO)
 		gins(mips.AMOVV, &lo, &n1)
-		p := (*obj.Prog)(gins(mips.ASRLV, nil, &n1))
+		p := gins(mips.ASRLV, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(w)
+		p.From.Offset = w
 
 	case gc.TINT64,
 		gc.TUINT64:
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			gins3(mips.AMULV, &n2, &n1, nil)
 		} else {
 			gins3(mips.AMULVU, &n2, &n1, nil)
@@ -258,13 +258,13 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl >> nr
  */
 func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	a := int(optoas(op, nl.Type))
+	a := optoas(op, nl.Type)
 
 	if nr.Op == gc.OLITERAL {
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc >= uint64(nl.Type.Width*8) {
 			// large shift gets 2 shifts by width-1
 			var n3 gc.Node
@@ -330,7 +330,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins3(mips.ASGTU, &n3, &n1, &rtmp)
 		p1 := ginsbranch(mips.ABNE, nil, &rtmp, nil, 0)
-		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+		if op == gc.ORSH && nl.Type.IsSigned() {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
 		} else {
@@ -355,15 +355,15 @@ func clearfat(nl *gc.Node) {
 		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
 	}
 
-	w := uint64(uint64(nl.Type.Width))
+	w := uint64(nl.Type.Width)
 
 	// Avoid taking the address for simple enough types.
 	if gc.Componentgen(nil, nl) {
 		return
 	}
 
-	c := uint64(w % 8) // bytes
-	q := uint64(w / 8) // dwords
+	c := w % 8 // bytes
+	q := w / 8 // dwords
 
 	if gc.Reginuse(mips.REGRT1) {
 		gc.Fatalf("%v in use during clearfat", obj.Rconv(mips.REGRT1))
@@ -391,7 +391,7 @@ func clearfat(nl *gc.Node) {
 		p = gins(mips.AMOVV, &r0, &dst)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = 8
-		pl := (*obj.Prog)(p)
+		pl := p
 
 		p = gins(mips.AADDV, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
@@ -410,7 +410,7 @@ func clearfat(nl *gc.Node) {
 		p := gins(mips.ASUBV, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
-		f := (*gc.Node)(gc.Sysfunc("duffzero"))
+		f := gc.Sysfunc("duffzero")
 		p = gins(obj.ADUFFZERO, nil, f)
 		gc.Afunclit(&p.To, f)
 
@@ -445,7 +445,7 @@ func clearfat(nl *gc.Node) {
 func expandchecks(firstp *obj.Prog) {
 	var p1 *obj.Prog
 
-	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
 			fmt.Printf("expandchecks: %v\n", p)
 		}
@@ -453,7 +453,7 @@ func expandchecks(firstp *obj.Prog) {
 			continue
 		}
 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
-			gc.Warnl(int(p.Lineno), "generated nil check")
+			gc.Warnl(p.Lineno, "generated nil check")
 		}
 		if p.From.Type != obj.TYPE_REG {
 			gc.Fatalf("invalid nil check %v\n", p)

@@ -94,11 +94,11 @@ func (rw *RWMutex) Lock() {
 	}
 }
 
-// Unlock unlocks rw for writing.  It is a run-time error if rw is
+// Unlock unlocks rw for writing. It is a run-time error if rw is
 // not locked for writing on entry to Unlock.
 //
 // As with Mutexes, a locked RWMutex is not associated with a particular
-// goroutine.  One goroutine may RLock (Lock) an RWMutex and then
+// goroutine. One goroutine may RLock (Lock) an RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
 func (rw *RWMutex) Unlock() {
 	if race.Enabled {

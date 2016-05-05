@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,7 +21,7 @@ import (
 )
 
 // pkgDeps defines the expected dependencies between packages in
-// the Go source tree.  It is a statement of policy.
+// the Go source tree. It is a statement of policy.
 // Changes should not be made to this map without prior discussion.
 //
 // The map contains two kinds of entries:
@@ -132,15 +132,15 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":                           {"L0", "internal/race", "unicode/utf16"},
+	"syscall":                           {"L0", "internal/race", "internal/syscall/windows/sysdll", "unicode/utf16"},
 	"internal/syscall/unix":             {"L0", "syscall"},
-	"internal/syscall/windows":          {"L0", "syscall"},
-	"internal/syscall/windows/registry": {"L0", "syscall", "unicode/utf16"},
+	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
+	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
 	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
-	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
+	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
 	"os/signal":     {"L2", "os", "syscall"},
 
 	// OS enables basic operating system functionality,
@@ -168,7 +168,7 @@ var pkgDeps = map[string][]string{
 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
-	"internal/testenv": {"L2", "os", "testing"},
+	"internal/testenv": {"L2", "OS", "flag", "testing"},
 
 	// L4 is defined as L3+fmt+log+time, because in general once
 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
@@ -215,6 +215,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":            {"L4", "compress/flate"},
 	"compress/lzw":             {"L4"},
 	"compress/zlib":            {"L4", "compress/flate"},
+	"context":                  {"errors", "fmt", "reflect", "sync", "time"},
 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
 	"database/sql/driver":      {"L4", "time"},
 	"debug/dwarf":              {"L4"},
@@ -279,7 +280,10 @@ var pkgDeps = map[string][]string{
 	// Basic networking.
 	// Because net must be used by any package that wants to
 	// do networking portably, it must have a small dependency set: just L0+basic os.
-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight", "internal/race"},
+	"net": {"L0", "CGO",
+		"context", "math/rand", "os", "sort", "syscall", "time",
+		"internal/nettrace",
+		"internal/syscall/windows", "internal/singleflight", "internal/race"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {
@@ -356,11 +360,15 @@ var pkgDeps = map[string][]string{
 	// HTTP, kingpin of dependencies.
 	"net/http": {
 		"L4", "NET", "OS",
-		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
+		"context", "compress/gzip", "container/list", "crypto/tls",
+		"mime/multipart", "runtime/debug",
 		"net/http/internal",
-		"internal/golang.org/x/net/http2/hpack",
+		"golang.org/x/net/http2/hpack",
+		"internal/nettrace",
+		"net/http/httptrace",
 	},
-	"net/http/internal": {"L4"},
+	"net/http/internal":  {"L4"},
+	"net/http/httptrace": {"context", "internal/nettrace", "net", "reflect", "time"},
 
 	// HTTP-using packages.
 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},
@@ -400,21 +408,6 @@ func allowed(pkg string) map[string]bool {
 		allow(pp)
 	}
 	return m
-}
-
-var bools = []bool{false, true}
-var geese = []string{"android", "darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
-var goarches = []string{"386", "amd64", "arm"}
-
-type osPkg struct {
-	goos, pkg string
-}
-
-// allowedErrors are the operating systems and packages known to contain errors
-// (currently just "no Go source files")
-var allowedErrors = map[osPkg]bool{
-	osPkg{"windows", "log/syslog"}: true,
-	osPkg{"plan9", "log/syslog"}:   true,
 }
 
 // listStdPkgs returns the same list of packages as "go list std".

@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -41,13 +41,12 @@ var gactive uint32
 
 // UNUSED
 func peep(firstp *obj.Prog) {
-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
+	g := gc.Flowstart(firstp, nil)
 	if g == nil {
 		return
 	}
 	gactive = 0
 
-	var r *gc.Flow
 	var p *obj.Prog
 	var t int
 loop1:
@@ -56,7 +55,7 @@ loop1:
 	}
 
 	t = 0
-	for r = g.Start; r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		/*
@@ -119,7 +118,7 @@ loop1:
 		goto loop1
 	}
 
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		/*
@@ -139,7 +138,7 @@ loop1:
 		}
 	}
 
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		case arm.AMOVW,
@@ -248,12 +247,12 @@ func regtyp(a *obj.Addr) bool {
  * will be eliminated by copy propagation.
  */
 func subprop(r0 *gc.Flow) bool {
-	p := (*obj.Prog)(r0.Prog)
-	v1 := (*obj.Addr)(&p.From)
+	p := r0.Prog
+	v1 := &p.From
 	if !regtyp(v1) {
 		return false
 	}
-	v2 := (*obj.Addr)(&p.To)
+	v2 := &p.To
 	if !regtyp(v2) {
 		return false
 	}
@@ -289,7 +288,7 @@ func subprop(r0 *gc.Flow) bool {
 			if p.To.Type == v1.Type {
 				if p.To.Reg == v1.Reg {
 					if p.Scond == arm.C_SCOND_NONE {
-						copysub(&p.To, v1, v2, 1)
+						copysub(&p.To, v1, v2, true)
 						if gc.Debug['P'] != 0 {
 							fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
 							if p.From.Type == v2.Type {
@@ -300,17 +299,15 @@ func subprop(r0 *gc.Flow) bool {
 
 						for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
 							p = r.Prog
-							copysub(&p.From, v1, v2, 1)
-							copysub1(p, v1, v2, 1)
-							copysub(&p.To, v1, v2, 1)
+							copysub(&p.From, v1, v2, true)
+							copysub1(p, v1, v2, true)
+							copysub(&p.To, v1, v2, true)
 							if gc.Debug['P'] != 0 {
 								fmt.Printf("%v\n", r.Prog)
 							}
 						}
 
-						t := int(int(v1.Reg))
-						v1.Reg = v2.Reg
-						v2.Reg = int16(t)
+						v1.Reg, v2.Reg = v2.Reg, v1.Reg
 						if gc.Debug['P'] != 0 {
 							fmt.Printf("%v last\n", r.Prog)
 						}
@@ -323,7 +320,7 @@ func subprop(r0 *gc.Flow) bool {
 		if copyau(&p.From, v2) || copyau1(p, v2) || copyau(&p.To, v2) {
 			break
 		}
-		if copysub(&p.From, v1, v2, 0) != 0 || copysub1(p, v1, v2, 0) != 0 || copysub(&p.To, v1, v2, 0) != 0 {
+		if copysub(&p.From, v1, v2, false) || copysub1(p, v1, v2, false) || copysub(&p.To, v1, v2, false) {
 			break
 		}
 	}
@@ -344,17 +341,17 @@ func subprop(r0 *gc.Flow) bool {
  *	set v2	return success
  */
 func copyprop(g *gc.Graph, r0 *gc.Flow) bool {
-	p := (*obj.Prog)(r0.Prog)
-	v1 := (*obj.Addr)(&p.From)
-	v2 := (*obj.Addr)(&p.To)
+	p := r0.Prog
+	v1 := &p.From
+	v2 := &p.To
 	if copyas(v1, v2) {
 		return true
 	}
 	gactive++
-	return copy1(v1, v2, r0.S1, 0)
+	return copy1(v1, v2, r0.S1, false)
 }
 
-func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
+func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f bool) bool {
 	if uint32(r.Active) == gactive {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("act set; return 1\n")
@@ -364,24 +361,21 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 
 	r.Active = int32(gactive)
 	if gc.Debug['P'] != 0 {
-		fmt.Printf("copy %v->%v f=%d\n", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), f)
+		fmt.Printf("copy %v->%v f=%v\n", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), f)
 	}
-	var t int
-	var p *obj.Prog
 	for ; r != nil; r = r.S1 {
-		p = r.Prog
+		p := r.Prog
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("%v", p)
 		}
-		if f == 0 && gc.Uniqp(r) == nil {
-			f = 1
+		if !f && gc.Uniqp(r) == nil {
+			f = true
 			if gc.Debug['P'] != 0 {
-				fmt.Printf("; merge; f=%d", f)
+				fmt.Printf("; merge; f=%v", f)
 			}
 		}
 
-		t = copyu(p, v2, nil)
-		switch t {
+		switch t := copyu(p, v2, nil); t {
 		case 2: /* rar, can't split */
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("; %vrar; return 0\n", gc.Ctxt.Dconv(v2))
@@ -396,14 +390,14 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 
 		case 1, /* used, substitute */
 			4: /* use and set */
-			if f != 0 {
+			if f {
 				if gc.Debug['P'] == 0 {
 					return false
 				}
 				if t == 4 {
-					fmt.Printf("; %vused+set and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+					fmt.Printf("; %vused+set and f=%v; return 0\n", gc.Ctxt.Dconv(v2), f)
 				} else {
-					fmt.Printf("; %vused and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+					fmt.Printf("; %vused and f=%v; return 0\n", gc.Ctxt.Dconv(v2), f)
 				}
 				return false
 			}
@@ -426,12 +420,12 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 			}
 		}
 
-		if f == 0 {
-			t = copyu(p, v1, nil)
-			if f == 0 && (t == 2 || t == 3 || t == 4) {
-				f = 1
+		if !f {
+			t := copyu(p, v1, nil)
+			if t == 2 || t == 3 || t == 4 {
+				f = true
 				if gc.Debug['P'] != 0 {
-					fmt.Printf("; %vset and !f; f=%d", gc.Ctxt.Dconv(v1), f)
+					fmt.Printf("; %vset and !f; f=%v", gc.Ctxt.Dconv(v1), f)
 				}
 			}
 		}
@@ -445,7 +439,6 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 			}
 		}
 	}
-
 	return true
 }
 
@@ -511,13 +504,13 @@ func constprop(c1 *obj.Addr, v1 *obj.Addr, r *gc.Flow) {
  * MOVBS above can be a MOVBS, MOVBU, MOVHS or MOVHU.
  */
 func shortprop(r *gc.Flow) bool {
-	p := (*obj.Prog)(r.Prog)
-	r1 := (*gc.Flow)(findpre(r, &p.From))
+	p := r.Prog
+	r1 := findpre(r, &p.From)
 	if r1 == nil {
 		return false
 	}
 
-	p1 := (*obj.Prog)(r1.Prog)
+	p1 := r1.Prog
 	if p1.As == p.As {
 		// Two consecutive extensions.
 		goto gotit
@@ -545,7 +538,7 @@ gotit:
 	}
 
 	if gc.Debug['P'] != 0 {
-		fmt.Printf(" => %v\n", obj.Aconv(int(p.As)))
+		fmt.Printf(" => %v\n", obj.Aconv(p.As))
 	}
 	return true
 }
@@ -563,7 +556,7 @@ gotit:
  * ..
  */
 func shiftprop(r *gc.Flow) bool {
-	p := (*obj.Prog)(r.Prog)
+	p := r.Prog
 	if p.To.Type != obj.TYPE_REG {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("\tBOTCH: result not reg; FAILURE\n")
@@ -571,8 +564,8 @@ func shiftprop(r *gc.Flow) bool {
 		return false
 	}
 
-	n := int(int(p.To.Reg))
-	a := obj.Addr(obj.Addr{})
+	n := p.To.Reg
+	var a obj.Addr
 	if p.Reg != 0 && p.Reg != p.To.Reg {
 		a.Type = obj.TYPE_REG
 		a.Reg = p.Reg
@@ -581,7 +574,7 @@ func shiftprop(r *gc.Flow) bool {
 	if gc.Debug['P'] != 0 {
 		fmt.Printf("shiftprop\n%v", p)
 	}
-	r1 := (*gc.Flow)(r)
+	r1 := r
 	var p1 *obj.Prog
 	for {
 		/* find first use of shift result; abort if shift operands or result are changed */
@@ -644,7 +637,7 @@ func shiftprop(r *gc.Flow) bool {
 		arm.ASBC,
 		arm.ARSB,
 		arm.ARSC:
-		if int(p1.Reg) == n || (p1.Reg == 0 && p1.To.Type == obj.TYPE_REG && int(p1.To.Reg) == n) {
+		if p1.Reg == n || (p1.Reg == 0 && p1.To.Type == obj.TYPE_REG && p1.To.Reg == n) {
 			if p1.From.Type != obj.TYPE_REG {
 				if gc.Debug['P'] != 0 {
 					fmt.Printf("\tcan't swap; FAILURE\n")
@@ -653,7 +646,7 @@ func shiftprop(r *gc.Flow) bool {
 			}
 
 			p1.Reg = p1.From.Reg
-			p1.From.Reg = int16(n)
+			p1.From.Reg = n
 			switch p1.As {
 			case arm.ASUB:
 				p1.As = arm.ARSB
@@ -678,14 +671,14 @@ func shiftprop(r *gc.Flow) bool {
 		arm.ATST,
 		arm.ACMP,
 		arm.ACMN:
-		if int(p1.Reg) == n {
+		if p1.Reg == n {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("\tcan't swap; FAILURE\n")
 			}
 			return false
 		}
 
-		if p1.Reg == 0 && int(p1.To.Reg) == n {
+		if p1.Reg == 0 && p1.To.Reg == n {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("\tshift result used twice; FAILURE\n")
 			}
@@ -700,7 +693,7 @@ func shiftprop(r *gc.Flow) bool {
 			return false
 		}
 
-		if p1.From.Type != obj.TYPE_REG || int(p1.From.Reg) != n {
+		if p1.From.Type != obj.TYPE_REG || p1.From.Reg != n {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("\tBOTCH: where is it used?; FAILURE\n")
 			}
@@ -709,9 +702,9 @@ func shiftprop(r *gc.Flow) bool {
 	}
 
 	/* check whether shift result is used subsequently */
-	p2 := (*obj.Prog)(p1)
+	p2 := p1
 
-	if int(p1.To.Reg) != n {
+	if p1.To.Reg != n {
 		var p1 *obj.Prog
 		for {
 			r1 = gc.Uniqs(r1)
@@ -746,19 +739,18 @@ func shiftprop(r *gc.Flow) bool {
 
 	/* make the substitution */
 	p2.From.Reg = 0
-
-	o := int(int(p.Reg))
+	o := p.Reg
 	if o == 0 {
-		o = int(p.To.Reg)
+		o = p.To.Reg
 	}
 	o &= 15
 
 	switch p.From.Type {
 	case obj.TYPE_CONST:
-		o |= int((p.From.Offset & 0x1f) << 7)
+		o |= int16(p.From.Offset&0x1f) << 7
 
 	case obj.TYPE_REG:
-		o |= 1<<4 | (int(p.From.Reg)&15)<<8
+		o |= 1<<4 | (p.From.Reg&15)<<8
 	}
 
 	switch p.As {
@@ -911,7 +903,7 @@ func findu1(r *gc.Flow, v *obj.Addr) bool {
 }
 
 func finduse(g *gc.Graph, r *gc.Flow, v *obj.Addr) bool {
-	for r1 := (*gc.Flow)(g.Start); r1 != nil; r1 = r1.Link {
+	for r1 := g.Start; r1 != nil; r1 = r1.Link {
 		r1.Active = 0
 	}
 	return findu1(r, v)
@@ -931,10 +923,10 @@ func finduse(g *gc.Graph, r *gc.Flow, v *obj.Addr) bool {
  *   MOVBU  R0<<0(R1),R0
  */
 func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
-	p := (*obj.Prog)(r.Prog)
-	v := obj.Addr(*a)
+	p := r.Prog
+	v := *a
 	v.Type = obj.TYPE_REG
-	r1 := (*gc.Flow)(findpre(r, &v))
+	r1 := findpre(r, &v)
 	if r1 != nil {
 		p1 := r1.Prog
 		if p1.To.Type == obj.TYPE_REG && p1.To.Reg == v.Reg {
@@ -993,7 +985,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
 
 			case arm.AMOVW:
 				if p1.From.Type == obj.TYPE_REG {
-					r2 := (*gc.Flow)(findinc(r1, r, &p1.From))
+					r2 := findinc(r1, r, &p1.From)
 					if r2 != nil {
 						var r3 *gc.Flow
 						for r3 = gc.Uniqs(r2); r3.Prog.As == obj.ANOP; r3 = gc.Uniqs(r3) {
@@ -1018,7 +1010,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
 	}
 
 	if a != &p.From || a.Reg != p.To.Reg {
-		r1 := (*gc.Flow)(findinc(r, nil, &v))
+		r1 := findinc(r, nil, &v)
 		if r1 != nil {
 			/* post-indexing */
 			p1 := r1.Prog
@@ -1044,7 +1036,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
 func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
+		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
 		return 2
 
 	case arm.AMOVM:
@@ -1056,7 +1048,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 				if p.From.Offset&(1<<uint(v.Reg)) != 0 {
 					return 1
 				}
-				if copysub(&p.To, v, s, 1) != 0 {
+				if copysub(&p.To, v, s, true) {
 					return 1
 				}
 				return 0
@@ -1077,7 +1069,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 				if p.To.Offset&(1<<uint(v.Reg)) != 0 {
 					return 1
 				}
-				if copysub(&p.From, v, s, 1) != 0 {
+				if copysub(&p.From, v, s, true) {
 					return 1
 				}
 				return 0
@@ -1132,11 +1124,11 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 
 		if s != nil {
-			if copysub(&p.From, v, s, 1) != 0 {
+			if copysub(&p.From, v, s, true) {
 				return 1
 			}
 			if !copyas(&p.To, v) {
-				if copysub(&p.To, v, s, 1) != 0 {
+				if copysub(&p.To, v, s, true) {
 					return 1
 				}
 			}
@@ -1201,14 +1193,14 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		arm.ATST:
 		/* read,, */
 		if s != nil {
-			if copysub(&p.From, v, s, 1) != 0 {
+			if copysub(&p.From, v, s, true) {
 				return 1
 			}
-			if copysub1(p, v, s, 1) != 0 {
+			if copysub1(p, v, s, true) {
 				return 1
 			}
 			if !copyas(&p.To, v) {
-				if copysub(&p.To, v, s, 1) != 0 {
+				if copysub(&p.To, v, s, true) {
 					return 1
 				}
 			}
@@ -1259,10 +1251,13 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		arm.ABGT,
 		arm.ABLE:
 		if s != nil {
-			if copysub(&p.From, v, s, 1) != 0 {
+			if copysub(&p.From, v, s, true) {
 				return 1
 			}
-			return copysub1(p, v, s, 1)
+			if copysub1(p, v, s, true) {
+				return 1
+			}
+			return 0
 		}
 
 		if copyau(&p.From, v) {
@@ -1275,12 +1270,11 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	case arm.AB: /* funny */
 		if s != nil {
-			if copysub(&p.To, v, s, 1) != 0 {
+			if copysub(&p.To, v, s, true) {
 				return 1
 			}
 			return 0
 		}
-
 		if copyau(&p.To, v) {
 			return 1
 		}
@@ -1315,7 +1309,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 
 		if s != nil {
-			if copysub(&p.To, v, s, 1) != 0 {
+			if copysub(&p.To, v, s, true) {
 				return 1
 			}
 			return 0
@@ -1326,7 +1320,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 		return 3
 
-		// R0 is zero, used by DUFFZERO, cannot be substituted.
+	// R0 is zero, used by DUFFZERO, cannot be substituted.
 	// R1 is ptr to memory, used and set, cannot be substituted.
 	case obj.ADUFFZERO:
 		if v.Type == obj.TYPE_REG {
@@ -1340,7 +1334,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 		return 0
 
-		// R0 is scratch, set by DUFFCOPY, cannot be substituted.
+	// R0 is scratch, set by DUFFCOPY, cannot be substituted.
 	// R1, R2 areptr to src, dst, used and set, cannot be substituted.
 	case obj.ADUFFCOPY:
 		if v.Type == obj.TYPE_REG {
@@ -1464,48 +1458,43 @@ func copyau1(p *obj.Prog, v *obj.Addr) bool {
 	return p.Reg == v.Reg
 }
 
-/*
- * substitute s for v in a
- * return failure to substitute
- */
-func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
-	if f != 0 {
-		if copyau(a, v) {
-			if a.Type == obj.TYPE_SHIFT {
-				if a.Offset&0xf == int64(v.Reg-arm.REG_R0) {
-					a.Offset = a.Offset&^0xf | int64(s.Reg)&0xf
-				}
-				if (a.Offset&(1<<4) != 0) && (a.Offset>>8)&0xf == int64(v.Reg-arm.REG_R0) {
-					a.Offset = a.Offset&^(0xf<<8) | (int64(s.Reg)&0xf)<<8
-				}
-			} else if a.Type == obj.TYPE_REGREG || a.Type == obj.TYPE_REGREG2 {
-				if a.Offset == int64(v.Reg) {
-					a.Offset = int64(s.Reg)
-				}
-				if a.Reg == v.Reg {
-					a.Reg = s.Reg
-				}
-			} else {
+// copysub substitute s for v in a.
+// copysub returns true on failure to substitute.
+// TODO(dfc) remove unused return value, remove calls with f=false as they do nothing.
+func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f bool) bool {
+	if f && copyau(a, v) {
+		if a.Type == obj.TYPE_SHIFT {
+			if a.Offset&0xf == int64(v.Reg-arm.REG_R0) {
+				a.Offset = a.Offset&^0xf | int64(s.Reg)&0xf
+			}
+			if (a.Offset&(1<<4) != 0) && (a.Offset>>8)&0xf == int64(v.Reg-arm.REG_R0) {
+				a.Offset = a.Offset&^(0xf<<8) | (int64(s.Reg)&0xf)<<8
+			}
+		} else if a.Type == obj.TYPE_REGREG || a.Type == obj.TYPE_REGREG2 {
+			if a.Offset == int64(v.Reg) {
+				a.Offset = int64(s.Reg)
+			}
+			if a.Reg == v.Reg {
 				a.Reg = s.Reg
 			}
+		} else {
+			a.Reg = s.Reg
 		}
 	}
-
-	return 0
+	return false
 }
 
-func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f int) int {
-	if f != 0 {
-		if copyau1(p1, v) {
-			p1.Reg = s.Reg
-		}
+// TODO(dfc) remove unused return value, remove calls with f=false as they do nothing.
+func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f bool) bool {
+	if f && copyau1(p1, v) {
+		p1.Reg = s.Reg
 	}
-	return 0
+	return false
 }
 
 var predinfo = []struct {
-	opcode    int
-	notopcode int
+	opcode    obj.As
+	notopcode obj.As
 	scond     int
 	notscond  int
 }{
@@ -1558,7 +1547,6 @@ func predicable(p *obj.Prog) bool {
 	switch p.As {
 	case obj.ANOP,
 		obj.AXXX,
-		obj.ADATA,
 		obj.AGLOBL,
 		obj.ATEXT,
 		arm.AWORD:
@@ -1653,9 +1641,8 @@ func joinsplit(r *gc.Flow, j *Joininfo) int {
 func successor(r *gc.Flow) *gc.Flow {
 	if r.S1 != nil {
 		return r.S1
-	} else {
-		return r.S2
 	}
+	return r.S2
 }
 
 func applypred(rstart *gc.Flow, j *Joininfo, cond int, branch int) {
@@ -1669,15 +1656,15 @@ func applypred(rstart *gc.Flow, j *Joininfo, cond int, branch int) {
 		pred = predinfo[rstart.Prog.As-arm.ABEQ].notscond
 	}
 
-	for r := (*gc.Flow)(j.start); ; r = successor(r) {
+	for r := j.start; ; r = successor(r) {
 		if r.Prog.As == arm.AB {
 			if r != j.last || branch == Delbranch {
 				excise(r)
 			} else {
 				if cond == Truecond {
-					r.Prog.As = int16(predinfo[rstart.Prog.As-arm.ABEQ].opcode)
+					r.Prog.As = predinfo[rstart.Prog.As-arm.ABEQ].opcode
 				} else {
-					r.Prog.As = int16(predinfo[rstart.Prog.As-arm.ABEQ].notopcode)
+					r.Prog.As = predinfo[rstart.Prog.As-arm.ABEQ].notopcode
 				}
 			}
 		} else if predicable(r.Prog) {
@@ -1700,7 +1687,7 @@ func predicate(g *gc.Graph) {
 	var j1 Joininfo
 	var j2 Joininfo
 
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		if isbranch(r.Prog) {
 			t1 = joinsplit(r.S1, &j1)
 			t2 = joinsplit(r.S2, &j2)
@@ -1742,6 +1729,6 @@ func smallindir(a *obj.Addr, reg *obj.Addr) bool {
 }
 
 func excise(r *gc.Flow) {
-	p := (*obj.Prog)(r.Prog)
+	p := r.Prog
 	obj.Nopout(p)
 }

@@ -137,7 +137,7 @@ func issue6487() {
 
 	type M map[string]S
 	var m M
-	m /* ERROR "cannot assign" */ ["foo"].x = 0
+	m /* ERROR "cannot directly assign to struct field" */ ["foo"].x = 0
 	_ = &( /* ERROR "cannot take address" */ m["foo"].x)
 	_ = &m /* ERROR "cannot take address" */ ["foo"].x
 }
@@ -164,7 +164,7 @@ func incdecs() {
 	const c = 3.14
 	c /* ERROR "cannot assign" */ ++
 	s := "foo"
-	s /* ERROR "cannot convert" */ --
+	s /* ERROR "invalid operation" */ --
 	3.14 /* ERROR "cannot assign" */ ++
 	var (
 		x int
@@ -531,16 +531,18 @@ func switches1() {
 	case 1:
 		fallthrough
 	case 2:
-	default:
-		fallthrough
+		fallthrough; ; ; // trailing empty statements are ok
 	case 3:
+	default:
+		fallthrough; ;
+	case 4:
 		fallthrough /* ERROR "fallthrough statement out of place" */
 	}
 
 	var y interface{}
 	switch y.(type) {
 	case int:
-		fallthrough /* ERROR "fallthrough statement out of place" */
+		fallthrough /* ERROR "fallthrough statement out of place" */ ; ; ;
 	default:
 	}
 
@@ -554,7 +556,7 @@ func switches1() {
 	switch x {
 	case 0:
 		goto L1
-		L1: fallthrough
+		L1: fallthrough; ;
 	case 1:
 		goto L2
 		goto L3
@@ -576,9 +578,16 @@ func switches1() {
 
 	switch x {
 	case 0:
+		fallthrough; ;
+	case 1:
 		{
 			fallthrough /* ERROR "fallthrough statement out of place" */
 		}
+	case 2:
+		fallthrough
+	case 3:
+		fallthrough /* ERROR "fallthrough statement out of place" */
+		{ /* empty block is not an empty statement */ }; ;
 	default:
 	}
 }

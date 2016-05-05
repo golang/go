@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -634,10 +634,10 @@ func drawPaletted(dst Image, r image.Rectangle, src image.Image, sp image.Point,
 				if !floydSteinberg {
 					continue
 				}
-				er -= int32(palette[bestIndex][0])
-				eg -= int32(palette[bestIndex][1])
-				eb -= int32(palette[bestIndex][2])
-				ea -= int32(palette[bestIndex][3])
+				er -= palette[bestIndex][0]
+				eg -= palette[bestIndex][1]
+				eb -= palette[bestIndex][2]
+				ea -= palette[bestIndex][3]
 
 			} else {
 				out.R = uint16(er)

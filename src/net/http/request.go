@@ -9,6 +9,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -17,6 +18,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
+	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -247,7 +249,47 @@ type Request struct {
 	// RoundTripper may support Cancel.
 	//
 	// For server requests, this field is not applicable.
+	//
+	// Deprecated: Use the Context and WithContext methods
+	// instead. If a Request's Cancel field and context are both
+	// set, it is undefined whether Cancel is respected.
 	Cancel <-chan struct{}
+
+	// ctx is either the client or server context. It should only
+	// be modified via copying the whole Request using WithContext.
+	// It is unexported to prevent people from using Context wrong
+	// and mutating the contexts held by callers of the same request.
+	ctx context.Context
+}
+
+// Context returns the request's context. To change the context, use
+// WithContext.
+//
+// The returned context is always non-nil; it defaults to the
+// background context.
+//
+// For outgoing client requests, the context controls cancelation.
+//
+// For incoming server requests, the context is canceled when either
+// the client's connection closes, or when the ServeHTTP method
+// returns.
+func (r *Request) Context() context.Context {
+	if r.ctx != nil {
+		return r.ctx
+	}
+	return context.Background()
+}
+
+// WithContext returns a shallow copy of r with its context changed
+// to ctx. The provided ctx must be non-nil.
+func (r *Request) WithContext(ctx context.Context) *Request {
+	if ctx == nil {
+		panic("nil context")
+	}
+	r2 := new(Request)
+	*r2 = *r
+	r2.ctx = ctx
+	return r2
 }
 
 // ProtoAtLeast reports whether the HTTP protocol used
@@ -279,8 +321,8 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 	return nil, ErrNoCookie
 }
 
-// AddCookie adds a cookie to the request.  Per RFC 6265 section 5.4,
-// AddCookie does not attach more than one Cookie header field.  That
+// AddCookie adds a cookie to the request. Per RFC 6265 section 5.4,
+// AddCookie does not attach more than one Cookie header field. That
 // means all cookies, if any, are written into the same line,
 // separated by semicolon.
 func (r *Request) AddCookie(c *Cookie) {
@@ -343,6 +385,12 @@ func (r *Request) multipartReader() (*multipart.Reader, error) {
 	return multipart.NewReader(r.Body, boundary), nil
 }
 
+// isH2Upgrade reports whether r represents the http2 "client preface"
+// magic string.
+func (r *Request) isH2Upgrade() bool {
+	return r.Method == "PRI" && len(r.Header) == 0 && r.URL.Path == "*" && r.Proto == "HTTP/2.0"
+}
+
 // Return value if nonempty, def otherwise.
 func valueOrDefault(value, def string) string {
 	if value != "" {
@@ -375,7 +423,7 @@ func (r *Request) Write(w io.Writer) error {
 }
 
 // WriteProxy is like Write but writes the request in the form
-// expected by an HTTP proxy.  In particular, WriteProxy writes the
+// expected by an HTTP proxy. In particular, WriteProxy writes the
 // initial Request-URI line of the request with an absolute URI, per
 // section 5.1.2 of RFC 2616, including the scheme and host.
 // In either case, WriteProxy also writes a Host header, using
@@ -390,7 +438,16 @@ var errMissingHost = errors.New("http: Request.Write on Request with no Host or 
 
 // extraHeaders may be nil
 // waitForContinue may be nil
-func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) error {
+func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) (err error) {
+	trace := httptrace.ContextClientTrace(req.Context())
+	if trace != nil && trace.WroteRequest != nil {
+		defer func() {
+			trace.WroteRequest(httptrace.WroteRequestInfo{
+				Err: err,
+			})
+		}()
+	}
+
 	// Find the target host. Prefer the Host: header, but if that
 	// is not given, use the host from the request URL.
 	//
@@ -427,7 +484,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 		w = bw
 	}
 
-	_, err := fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
+	_, err = fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
 	if err != nil {
 		return err
 	}
@@ -478,6 +535,10 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 		return err
 	}
 
+	if trace != nil && trace.WroteHeaders != nil {
+		trace.WroteHeaders()
+	}
+
 	// Flush and wait for 100-continue if expected.
 	if waitForContinue != nil {
 		if bw, ok := w.(*bufio.Writer); ok {
@@ -486,7 +547,9 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 				return err
 			}
 		}
-
+		if trace != nil && trace.Wait100Continue != nil {
+			trace.Wait100Continue()
+		}
 		if !waitForContinue() {
 			req.closeBody()
 			return nil
@@ -613,6 +676,8 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
 	if !ok && body != nil {
 		rc = ioutil.NopCloser(body)
 	}
+	// The host's colon:port should be normalized. See Issue 14836.
+	u.Host = removeEmptyPort(u.Host)
 	req := &Request{
 		Method:     method,
 		URL:        u,
@@ -704,7 +769,9 @@ func putTextprotoReader(r *textproto.Reader) {
 }
 
 // ReadRequest reads and parses an incoming request from b.
-func ReadRequest(b *bufio.Reader) (req *Request, err error) { return readRequest(b, deleteHostHeader) }
+func ReadRequest(b *bufio.Reader) (*Request, error) {
+	return readRequest(b, deleteHostHeader)
+}
 
 // Constants for readRequest's deleteHostHeader parameter.
 const (
@@ -768,13 +835,13 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	}
 	req.Header = Header(mimeHeader)
 
-	// RFC2616: Must treat
+	// RFC 2616: Must treat
 	//	GET /index.html HTTP/1.1
 	//	Host: www.google.com
 	// and
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
-	// the same.  In the second case, any Host line is ignored.
+	// the same. In the second case, any Host line is ignored.
 	req.Host = req.URL.Host
 	if req.Host == "" {
 		req.Host = req.Header.get("Host")
@@ -792,6 +859,16 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 		return nil, err
 	}
 
+	if req.isH2Upgrade() {
+		// Because it's neither chunked, nor declared:
+		req.ContentLength = -1
+
+		// We want to give handlers a chance to hijack the
+		// connection, but we need to prevent the Server from
+		// dealing with the connection further if it's not
+		// hijacked. Set Close to ensure that:
+		req.Close = true
+	}
 	return req, nil
 }
 
@@ -818,7 +895,18 @@ type maxBytesReader struct {
 func (l *maxBytesReader) tooLarge() (n int, err error) {
 	if !l.stopped {
 		l.stopped = true
-		if res, ok := l.w.(*response); ok {
+
+		// The server code and client code both use
+		// maxBytesReader. This "requestTooLarge" check is
+		// only used by the server code. To prevent binaries
+		// which only using the HTTP Client code (such as
+		// cmd/go) from also linking in the HTTP server, don't
+		// use a static type assertion to the server
+		// "*response" type. Check this interface instead:
+		type requestTooLarger interface {
+			requestTooLarge()
+		}
+		if res, ok := l.w.(requestTooLarger); ok {
 			res.requestTooLarge()
 		}
 	}
@@ -995,9 +1083,16 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if err != nil {
 		return err
 	}
+
+	if r.PostForm == nil {
+		r.PostForm = make(url.Values)
+	}
 	for k, v := range f.Value {
 		r.Form[k] = append(r.Form[k], v...)
+		// r.PostForm should also be populated. See Issue 9305.
+		r.PostForm[k] = append(r.PostForm[k], v...)
 	}
+
 	r.MultipartForm = f
 
 	return nil
@@ -1085,93 +1180,4 @@ func (r *Request) isReplayable() bool {
 		}
 	}
 	return false
-}
-
-func validHostHeader(h string) bool {
-	// The latests spec is actually this:
-	//
-	// http://tools.ietf.org/html/rfc7230#section-5.4
-	//     Host = uri-host [ ":" port ]
-	//
-	// Where uri-host is:
-	//     http://tools.ietf.org/html/rfc3986#section-3.2.2
-	//
-	// But we're going to be much more lenient for now and just
-	// search for any byte that's not a valid byte in any of those
-	// expressions.
-	for i := 0; i < len(h); i++ {
-		if !validHostByte[h[i]] {
-			return false
-		}
-	}
-	return true
-}
-
-// See the validHostHeader comment.
-var validHostByte = [256]bool{
-	'0': true, '1': true, '2': true, '3': true, '4': true, '5': true, '6': true, '7': true,
-	'8': true, '9': true,
-
-	'a': true, 'b': true, 'c': true, 'd': true, 'e': true, 'f': true, 'g': true, 'h': true,
-	'i': true, 'j': true, 'k': true, 'l': true, 'm': true, 'n': true, 'o': true, 'p': true,
-	'q': true, 'r': true, 's': true, 't': true, 'u': true, 'v': true, 'w': true, 'x': true,
-	'y': true, 'z': true,
-
-	'A': true, 'B': true, 'C': true, 'D': true, 'E': true, 'F': true, 'G': true, 'H': true,
-	'I': true, 'J': true, 'K': true, 'L': true, 'M': true, 'N': true, 'O': true, 'P': true,
-	'Q': true, 'R': true, 'S': true, 'T': true, 'U': true, 'V': true, 'W': true, 'X': true,
-	'Y': true, 'Z': true,
-
-	'!':  true, // sub-delims
-	'$':  true, // sub-delims
-	'%':  true, // pct-encoded (and used in IPv6 zones)
-	'&':  true, // sub-delims
-	'(':  true, // sub-delims
-	')':  true, // sub-delims
-	'*':  true, // sub-delims
-	'+':  true, // sub-delims
-	',':  true, // sub-delims
-	'-':  true, // unreserved
-	'.':  true, // unreserved
-	':':  true, // IPv6address + Host expression's optional port
-	';':  true, // sub-delims
-	'=':  true, // sub-delims
-	'[':  true,
-	'\'': true, // sub-delims
-	']':  true,
-	'_':  true, // unreserved
-	'~':  true, // unreserved
-}
-
-func validHeaderName(v string) bool {
-	if len(v) == 0 {
-		return false
-	}
-	return strings.IndexFunc(v, isNotToken) == -1
-}
-
-// validHeaderValue reports whether v is a valid "field-value" according to
-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
-//
-//        message-header = field-name ":" [ field-value ]
-//        field-value    = *( field-content | LWS )
-//        field-content  = <the OCTETs making up the field-value
-//                         and consisting of either *TEXT or combinations
-//                         of token, separators, and quoted-string>
-//
-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
-//
-//        TEXT           = <any OCTET except CTLs,
-//                          but including LWS>
-//        LWS            = [CRLF] 1*( SP | HT )
-//        CTL            = <any US-ASCII control character
-//                         (octets 0 - 31) and DEL (127)>
-func validHeaderValue(v string) bool {
-	for i := 0; i < len(v); i++ {
-		b := v[i]
-		if isCTL(b) && !isLWS(b) {
-			return false
-		}
-	}
-	return true
 }

@@ -196,7 +196,7 @@ var numErrorTests = []numErrorTest{
 
 func init() {
 	// The atoi routines return NumErrors wrapping
-	// the error and the string.  Convert the tables above.
+	// the error and the string. Convert the tables above.
 	for i := range atoui64tests {
 		test := &atoui64tests[i]
 		if test.err != nil {

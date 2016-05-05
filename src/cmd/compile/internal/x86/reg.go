@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@ func regnames(n *int) []string {
 }
 
 func excludedregs() uint64 {
-	if gc.Ctxt.Flag_shared != 0 {
+	if gc.Ctxt.Flag_shared {
 		return RtoB(x86.REG_SP) | RtoB(x86.REG_CX)
 	} else {
 		return RtoB(x86.REG_SP)

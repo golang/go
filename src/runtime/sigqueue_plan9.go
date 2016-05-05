@@ -115,7 +115,7 @@ func signal_recv() string {
 func signal_enable(s uint32) {
 	if !sig.inuse {
 		// The first call to signal_enable is for us
-		// to use for initialization.  It does not pass
+		// to use for initialization. It does not pass
 		// signal information in m.
 		sig.inuse = true // enable reception of signals; cannot disable
 		noteclear(&sig.note)

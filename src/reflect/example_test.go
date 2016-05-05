@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -65,6 +65,34 @@ func ExampleStructTag() {
 
 	// Output:
 	// blue gopher
+}
+
+func ExampleStructTag_Lookup() {
+	type S struct {
+		F0 string `alias:"field_0"`
+		F1 string `alias:""`
+		F2 string
+	}
+
+	s := S{}
+	st := reflect.TypeOf(s)
+	for i := 0; i < st.NumField(); i++ {
+		field := st.Field(i)
+		if alias, ok := field.Tag.Lookup("alias"); ok {
+			if alias == "" {
+				fmt.Println("(blank)")
+			} else {
+				fmt.Println(alias)
+			}
+		} else {
+			fmt.Println("(not specified)")
+		}
+	}
+
+	// Output:
+	// field_0
+	// (blank)
+	// (not specified)
 }
 
 func ExampleTypeOf() {

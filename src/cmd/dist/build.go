@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -31,6 +31,7 @@ var (
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
+	gogcflags        string // For running built compiler
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -59,6 +60,7 @@ var okgoarch = []string{
 	"mips64le",
 	"ppc64",
 	"ppc64le",
+	"s390x",
 }
 
 // The known operating systems.
@@ -165,6 +167,8 @@ func xinit() {
 		}
 		goextlinkenabled = b
 	}
+
+	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 
 	b = os.Getenv("CC")
 	if b == "" {
@@ -284,7 +288,7 @@ func findgoversion() string {
 	}
 
 	// The $GOROOT/VERSION.cache file is a cache to avoid invoking
-	// git every time we run this command.  Unlike VERSION, it gets
+	// git every time we run this command. Unlike VERSION, it gets
 	// deleted by the clean command.
 	path = pathf("%s/VERSION.cache", goroot)
 	if isfile(path) {
@@ -399,8 +403,8 @@ func setup() {
 
 	// Create object directory.
 	// We keep it in pkg/ so that all the generated binaries
-	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
-	// before we used subdirectories of obj.  Delete all of obj
+	// are in one tree. If pkg/obj/libgc.a exists, it is a dreg from
+	// before we used subdirectories of obj. Delete all of obj
 	// to clean up.
 	if p := pathf("%s/pkg/obj/libgc.a", goroot); isfile(p) {
 		xremoveall(pathf("%s/pkg/obj", goroot))
@@ -687,6 +691,9 @@ func install(dir string) {
 		archive = b
 	}
 	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+	if gogcflags != "" {
+		compile = append(compile, strings.Fields(gogcflags)...)
+	}
 	if dir == "runtime" {
 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
@@ -1089,8 +1096,9 @@ var cgoEnabled = map[string]bool{
 	"linux/arm64":     true,
 	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
-	"linux/mips64":    false,
-	"linux/mips64le":  false,
+	"linux/mips64":    true,
+	"linux/mips64le":  true,
+	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,

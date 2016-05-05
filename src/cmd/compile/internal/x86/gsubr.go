@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ const (
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -91,7 +91,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", op, t)
 
 	case OADDR_ | gc.TPTR32:
 		a = x86.ALEAL
@@ -436,7 +436,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	return a
 }
 
-func foptoas(op gc.Op, t *gc.Type, flg int) int {
+func foptoas(op gc.Op, t *gc.Type, flg int) obj.As {
 	a := obj.AXXX
 	et := gc.Simtype[t.Etype]
 
@@ -454,7 +454,7 @@ func foptoas(op gc.Op, t *gc.Type, flg int) int {
 	if !gc.Thearch.Use387 {
 		switch uint32(op)<<16 | uint32(et) {
 		default:
-			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
+			gc.Fatalf("foptoas-sse: no entry %v-%v", op, t)
 
 		case OCMP_ | gc.TFLOAT32:
 			a = x86.AUCOMISS
@@ -587,7 +587,7 @@ func foptoas(op gc.Op, t *gc.Type, flg int) int {
 		return x86.AFCHS
 	}
 
-	gc.Fatalf("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
+	gc.Fatalf("foptoas %v %v %#x", op, t, flg)
 	return 0
 }
 
@@ -605,7 +605,7 @@ var resvd = []int{
  * generate
  *	as $c, reg
  */
-func gconreg(as int, c int64, reg int) {
+func gconreg(as obj.As, c int64, reg int) {
 	var n1 gc.Node
 	var n2 gc.Node
 
@@ -618,14 +618,14 @@ func gconreg(as int, c int64, reg int) {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 	gc.Nodconst(&n1, gc.Types[gc.TINT32], c)
 	gins(as, &n1, n2)
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if gc.Isint[t.Etype] || t.Etype == gc.Tptr {
+	if t.IsInteger() || t.Etype == gc.Tptr {
 		if (n1.Op == gc.OLITERAL || n1.Op == gc.OADDR && n1.Left.Op == gc.ONAME) && n2.Op != gc.OLITERAL {
 			// Reverse comparison to place constant (including address constant) last.
 			op = gc.Brrev(op)
@@ -639,7 +639,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	// A special case to make write barriers more efficient.
 	// Comparing the first field of a named struct can be done directly.
 	base := n1
-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Type.Sym == n1.Right.Sym {
+	if n1.Op == gc.ODOT && n1.Left.Type.IsStruct() && n1.Left.Type.Field(0).Sym == n1.Sym {
 		base = n1.Left
 	}
 
@@ -651,7 +651,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 		gc.Cgen(n1, &g1)
 		gmove(&g1, &r1)
 	}
-	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
+	if n2.Op == gc.OLITERAL && t.IsInteger() || n2.Op == gc.OADDR && n2.Left.Op == gc.ONAME && n2.Left.Class == gc.PEXTERN {
 		r2 = *n2
 	} else {
 		gc.Regalloc(&r2, t, n2)
@@ -750,7 +750,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	case gc.OLITERAL:
 		var n1 gc.Node
 		n.Convconst(&n1, n.Type)
-		i := n1.Int()
+		i := n1.Int64()
 		gc.Nodconst(lo, gc.Types[gc.TUINT32], int64(uint32(i)))
 		i >>= 32
 		if n.Type.Etype == gc.TINT64 {
@@ -831,7 +831,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// cannot have two integer memory operands;
 	// except 64-bit, which always copies via registers anyway.
 	var r1 gc.Node
-	var a int
+	var a obj.As
 	if gc.Isint[ft] && gc.Isint[tt] && !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -1360,7 +1360,7 @@ hardmem:
 
 func floatmove_387(f *gc.Node, t *gc.Node) {
 	var r1 gc.Node
-	var a int
+	var a obj.As
 
 	ft := gc.Simsimtype(f.Type)
 	tt := gc.Simsimtype(t.Type)
@@ -1511,7 +1511,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		// The way the code generator uses floating-point
 	// registers, a move from F0 to F0 is intended as a no-op.
 	// On the x86, it's not: it pushes a second copy of F0
-	// on the floating point stack.  So toss it away here.
+	// on the floating point stack. So toss it away here.
 	// Also, F0 is the *only* register we ever evaluate
 	// into, so we should only see register/register as F0/F0.
 	/*
@@ -1603,7 +1603,7 @@ hardmem:
 
 	// should not happen
 fatal:
-	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
 
 	return
 }
@@ -1611,7 +1611,7 @@ fatal:
 func floatmove_sse(f *gc.Node, t *gc.Node) {
 	var r1 gc.Node
 	var cvt *gc.Type
-	var a int
+	var a obj.As
 
 	ft := gc.Simsimtype(f.Type)
 	tt := gc.Simsimtype(t.Type)
@@ -1753,7 +1753,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  * generate one instruction:
  *	as f, t
  */
-func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	if as == x86.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
 		gc.Fatalf("gins MOVF reg, reg")
 	}
@@ -1847,7 +1847,7 @@ func dotaddable(n *gc.Node, n1 *gc.Node) bool {
 func sudoclean() {
 }
 
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	*a = obj.Addr{}
 	return false
 }

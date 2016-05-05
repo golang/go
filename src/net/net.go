@@ -79,6 +79,7 @@ On Windows, the resolver always uses C library functions, such as GetAddrInfo an
 package net
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -297,7 +298,7 @@ func (c *conn) File() (f *os.File, err error) {
 // Multiple goroutines may invoke methods on a PacketConn simultaneously.
 type PacketConn interface {
 	// ReadFrom reads a packet from the connection,
-	// copying the payload into b.  It returns the number of
+	// copying the payload into b. It returns the number of
 	// bytes copied into b and the return address that
 	// was on the packet.
 	// ReadFrom can be made to time out and return
@@ -364,6 +365,9 @@ type Error interface {
 
 // Various errors contained in OpError.
 var (
+	// For connection setup operations.
+	errNoSuitableAddress = errors.New("no suitable address found")
+
 	// For connection setup and write operations.
 	errMissingAddress = errors.New("missing address")
 
@@ -373,6 +377,22 @@ var (
 	errClosing                = errors.New("use of closed network connection")
 	ErrWriteToConnected       = errors.New("use of WriteTo with pre-connected connection")
 )
+
+// mapErr maps from the context errors to the historical internal net
+// error values.
+//
+// TODO(bradfitz): get rid of this after adjusting tests and making
+// context.DeadlineExceeded implement net.Error?
+func mapErr(err error) error {
+	switch err {
+	case context.Canceled:
+		return errCanceled
+	case context.DeadlineExceeded:
+		return errTimeout
+	default:
+		return err
+	}
+}
 
 // OpError is the error type usually returned by functions in the net
 // package. It describes the operation, network type, and address of

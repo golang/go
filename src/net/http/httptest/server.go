@@ -158,7 +158,7 @@ func (s *Server) Close() {
 			// previously-flaky tests) in the case of
 			// socket-late-binding races from the http Client
 			// dialing this server and then getting an idle
-			// connection before the dial completed.  There is thus
+			// connection before the dial completed. There is thus
 			// a connected connection in StateNew with no
 			// associated Request. We only close StateIdle and
 			// StateNew because they're not doing anything. It's
@@ -202,12 +202,10 @@ func (s *Server) logCloseHangDebugInfo() {
 
 // CloseClientConnections closes any open HTTP connections to the test Server.
 func (s *Server) CloseClientConnections() {
-	var conns int
-	ch := make(chan bool)
-
 	s.mu.Lock()
+	nconn := len(s.conns)
+	ch := make(chan struct{}, nconn)
 	for c := range s.conns {
-		conns++
 		s.closeConnChan(c, ch)
 	}
 	s.mu.Unlock()
@@ -220,7 +218,7 @@ func (s *Server) CloseClientConnections() {
 	// in tests.
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
-	for i := 0; i < conns; i++ {
+	for i := 0; i < nconn; i++ {
 		select {
 		case <-ch:
 		case <-timer.C:
@@ -294,30 +292,20 @@ func (s *Server) closeConn(c net.Conn) { s.closeConnChan(c, nil) }
 
 // closeConnChan is like closeConn, but takes an optional channel to receive a value
 // when the goroutine closing c is done.
-func (s *Server) closeConnChan(c net.Conn, done chan<- bool) {
+func (s *Server) closeConnChan(c net.Conn, done chan<- struct{}) {
 	if runtime.GOOS == "plan9" {
 		// Go's Plan 9 net package isn't great at unblocking reads when
-		// their underlying TCP connections are closed.  Don't trust
+		// their underlying TCP connections are closed. Don't trust
 		// that that the ConnState state machine will get to
 		// StateClosed. Instead, just go there directly. Plan 9 may leak
 		// resources if the syscall doesn't end up returning. Oh well.
 		s.forgetConn(c)
 	}
 
-	// Somewhere in the chaos of https://golang.org/cl/15151 we found that
-	// some types of conns were blocking in Close too long (or deadlocking?)
-	// and we had to call Close in a goroutine. I (bradfitz) forget what
-	// that was at this point, but I suspect it was *tls.Conns, which
-	// were later fixed in https://golang.org/cl/18572, so this goroutine
-	// is _probably_ unnecessary now. But it's too late in Go 1.6 too remove
-	// it with confidence.
-	// TODO(bradfitz): try to remove it for Go 1.7. (golang.org/issue/14291)
-	go func() {
-		c.Close()
-		if done != nil {
-			done <- true
-		}
-	}()
+	c.Close()
+	if done != nil {
+		done <- struct{}{}
+	}
 }
 
 // forgetConn removes c from the set of tracked conns and decrements it from the

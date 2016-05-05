@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -31,7 +31,7 @@ import (
 //
 // A Profile's methods can be called from multiple goroutines simultaneously.
 //
-// Each Profile has a unique name.  A few profiles are predefined:
+// Each Profile has a unique name. A few profiles are predefined:
 //
 //	goroutine    - stack traces of all current goroutines
 //	heap         - a sampling of all heap allocations
@@ -48,7 +48,7 @@ import (
 // all known allocations. This exception helps mainly in programs running
 // without garbage collection enabled, usually for debugging purposes.
 //
-// The CPU profile is not available as a Profile.  It has a special API,
+// The CPU profile is not available as a Profile. It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
 // output to a writer during profiling.
 //
@@ -173,11 +173,11 @@ func (p *Profile) Count() int {
 // Add adds the current execution stack to the profile, associated with value.
 // Add stores value in an internal map, so value must be suitable for use as
 // a map key and will not be garbage collected until the corresponding
-// call to Remove.  Add panics if the profile already contains a stack for value.
+// call to Remove. Add panics if the profile already contains a stack for value.
 //
 // The skip parameter has the same meaning as runtime.Caller's skip
-// and controls where the stack trace begins.  Passing skip=0 begins the
-// trace in the function calling Add.  For example, given this
+// and controls where the stack trace begins. Passing skip=0 begins the
+// trace in the function calling Add. For example, given this
 // execution stack:
 //
 //	Add
@@ -266,7 +266,7 @@ func (x stackProfile) Less(i, j int) bool {
 }
 
 // A countProfile is a set of stack traces to be printed as counts
-// grouped by stack trace.  There are multiple implementations:
+// grouped by stack trace. There are multiple implementations:
 // all that matters is that we can find out how many traces there are
 // and obtain each trace in turn.
 type countProfile interface {
@@ -296,22 +296,25 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		}
 		return buf.String()
 	}
-	m := map[string]int{}
+	count := map[string]int{}
+	index := map[string]int{}
+	var keys []string
 	n := p.Len()
 	for i := 0; i < n; i++ {
-		m[key(p.Stack(i))]++
+		k := key(p.Stack(i))
+		if count[k] == 0 {
+			index[k] = i
+			keys = append(keys, k)
+		}
+		count[k]++
 	}
 
-	// Print stacks, listing count on first occurrence of a unique stack.
-	for i := 0; i < n; i++ {
-		stk := p.Stack(i)
-		s := key(stk)
-		if count := m[s]; count != 0 {
-			fmt.Fprintf(w, "%d %s\n", count, s)
-			if debug > 0 {
-				printStackRecord(w, stk, false)
-			}
-			delete(m, s)
+	sort.Sort(&keysByCount{keys, count})
+
+	for _, k := range keys {
+		fmt.Fprintf(w, "%d %s\n", count[k], k)
+		if debug > 0 {
+			printStackRecord(w, p.Stack(index[k]), false)
 		}
 	}
 
@@ -319,6 +322,23 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		tw.Flush()
 	}
 	return b.Flush()
+}
+
+// keysByCount sorts keys with higher counts first, breaking ties by key string order.
+type keysByCount struct {
+	keys  []string
+	count map[string]int
+}
+
+func (x *keysByCount) Len() int      { return len(x.keys) }
+func (x *keysByCount) Swap(i, j int) { x.keys[i], x.keys[j] = x.keys[j], x.keys[i] }
+func (x *keysByCount) Less(i, j int) bool {
+	ki, kj := x.keys[i], x.keys[j]
+	ci, cj := x.count[ki], x.count[kj]
+	if ci != cj {
+		return ci > cj
+	}
+	return ki < kj
 }
 
 // printStackRecord prints the function + source line information
@@ -465,7 +485,6 @@ func writeHeap(w io.Writer, debug int) error {
 	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
 	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
-	fmt.Fprintf(w, "# EnableGC = %v\n", s.EnableGC)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
 	if tw != nil {
@@ -500,7 +519,7 @@ func writeGoroutine(w io.Writer, debug int) error {
 
 func writeGoroutineStacks(w io.Writer) error {
 	// We don't know how big the buffer needs to be to collect
-	// all the goroutines.  Start with 1 MB and try a few times, doubling each time.
+	// all the goroutines. Start with 1 MB and try a few times, doubling each time.
 	// Give up and use a truncated trace if 64 MB is not enough.
 	buf := make([]byte, 1<<20)
 	for i := 0; ; i++ {
@@ -563,7 +582,7 @@ var cpu struct {
 // Go code built with -buildmode=c-archive or -buildmode=c-shared.
 // StartCPUProfile relies on the SIGPROF signal, but that signal will
 // be delivered to the main program's SIGPROF signal handler (if any)
-// not to the one used by Go.  To make it work, call os/signal.Notify
+// not to the one used by Go. To make it work, call os/signal.Notify
 // for syscall.SIGPROF, but note that doing so may break any profiling
 // being done by the main program.
 func StartCPUProfile(w io.Writer) error {
@@ -574,7 +593,7 @@ func StartCPUProfile(w io.Writer) error {
 	// 100 Hz is a reasonable choice: it is frequent enough to
 	// produce useful data, rare enough not to bog down the
 	// system, and a nice round number to make it easy to
-	// convert sample counts to seconds.  Instead of requiring
+	// convert sample counts to seconds. Instead of requiring
 	// each client to specify the frequency, we hard code it.
 	const hz = 100
 

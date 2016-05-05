@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -375,41 +376,45 @@ func TestDuplicatedFieldDisappears(t *testing.T) {
 
 func TestStringBytes(t *testing.T) {
 	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
-	es := &encodeState{}
 	var r []rune
 	for i := '\u0000'; i <= unicode.MaxRune; i++ {
 		r = append(r, i)
 	}
 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
-	es.string(s)
 
-	esBytes := &encodeState{}
-	esBytes.stringBytes([]byte(s))
+	for _, escapeHTML := range []bool{true, false} {
+		es := &encodeState{}
+		es.string(s, escapeHTML)
 
-	enc := es.Buffer.String()
-	encBytes := esBytes.Buffer.String()
-	if enc != encBytes {
-		i := 0
-		for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
-			i++
-		}
-		enc = enc[i:]
-		encBytes = encBytes[i:]
-		i = 0
-		for i < len(enc) && i < len(encBytes) && enc[len(enc)-i-1] == encBytes[len(encBytes)-i-1] {
-			i++
-		}
-		enc = enc[:len(enc)-i]
-		encBytes = encBytes[:len(encBytes)-i]
+		esBytes := &encodeState{}
+		esBytes.stringBytes([]byte(s), escapeHTML)
 
-		if len(enc) > 20 {
-			enc = enc[:20] + "..."
-		}
-		if len(encBytes) > 20 {
-			encBytes = encBytes[:20] + "..."
-		}
+		enc := es.Buffer.String()
+		encBytes := esBytes.Buffer.String()
+		if enc != encBytes {
+			i := 0
+			for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
+				i++
+			}
+			enc = enc[i:]
+			encBytes = encBytes[i:]
+			i = 0
+			for i < len(enc) && i < len(encBytes) && enc[len(enc)-i-1] == encBytes[len(encBytes)-i-1] {
+				i++
+			}
+			enc = enc[:len(enc)-i]
+			encBytes = encBytes[:len(encBytes)-i]
 
-		t.Errorf("encodings differ at %#q vs %#q", enc, encBytes)
+			if len(enc) > 20 {
+				enc = enc[:20] + "..."
+			}
+			if len(encBytes) > 20 {
+				encBytes = encBytes[:20] + "..."
+			}
+
+			t.Errorf("with escapeHTML=%t, encodings differ at %#q vs %#q",
+				escapeHTML, enc, encBytes)
+		}
 	}
 }
 
@@ -534,5 +539,75 @@ func TestEncodeString(t *testing.T) {
 		if out != tt.out {
 			t.Errorf("Marshal(%q) = %#q, want %#q", tt.in, out, tt.out)
 		}
+	}
+}
+
+type jsonbyte byte
+
+func (b jsonbyte) MarshalJSON() ([]byte, error) { return tenc(`{"JB":%d}`, b) }
+
+type textbyte byte
+
+func (b textbyte) MarshalText() ([]byte, error) { return tenc(`TB:%d`, b) }
+
+type jsonint int
+
+func (i jsonint) MarshalJSON() ([]byte, error) { return tenc(`{"JI":%d}`, i) }
+
+type textint int
+
+func (i textint) MarshalText() ([]byte, error) { return tenc(`TI:%d`, i) }
+
+func tenc(format string, a ...interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, format, a...)
+	return buf.Bytes(), nil
+}
+
+// Issue 13783
+func TestEncodeBytekind(t *testing.T) {
+	testdata := []struct {
+		data interface{}
+		want string
+	}{
+		{byte(7), "7"},
+		{jsonbyte(7), `{"JB":7}`},
+		{textbyte(4), `"TB:4"`},
+		{jsonint(5), `{"JI":5}`},
+		{textint(1), `"TI:1"`},
+		{[]byte{0, 1}, `"AAE="`},
+		{[]jsonbyte{0, 1}, `[{"JB":0},{"JB":1}]`},
+		{[][]jsonbyte{{0, 1}, {3}}, `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
+		{[]textbyte{2, 3}, `["TB:2","TB:3"]`},
+		{[]jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
+		{[]textint{9, 3}, `["TI:9","TI:3"]`},
+		{[]int{9, 3}, `[9,3]`},
+	}
+	for _, d := range testdata {
+		js, err := Marshal(d.data)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		got, want := string(js), d.want
+		if got != want {
+			t.Errorf("got %s, want %s", got, want)
+		}
+	}
+}
+
+func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
+	b, err := Marshal(map[unmarshalerText]int{
+		{"x", "y"}: 1,
+		{"y", "x"}: 2,
+		{"a", "z"}: 3,
+		{"z", "a"}: 4,
+	})
+	if err != nil {
+		t.Fatalf("Failed to Marshal text.Marshaler: %v", err)
+	}
+	const want = `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`
+	if string(b) != want {
+		t.Errorf("Marshal map with text.Marshaler keys: got %#q, want %#q", b, want)
 	}
 }

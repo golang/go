@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,8 @@ package objfile
 
 import (
 	"cmd/internal/goobj"
+	"debug/dwarf"
+	"errors"
 	"fmt"
 	"os"
 )
@@ -41,7 +43,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 		switch s.Kind {
 		case goobj.STEXT, goobj.SELFRXSECT:
 			sym.Code = 'T'
-		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
+		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SITABLINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
 			sym.Code = 'R'
 		case goobj.SMACHOPLT, goobj.SELFSECT, goobj.SMACHO, goobj.SMACHOGOT, goobj.SNOPTRDATA, goobj.SINITARR, goobj.SDATA, goobj.SWINDOWS:
 			sym.Code = 'D'
@@ -90,4 +92,8 @@ func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
 // and we don't need it yet for any users of internal/objfile.
 func (f *goobjFile) goarch() string {
 	return "GOARCH unimplemented for debug/goobj files"
+}
+
+func (f *goobjFile) dwarf() (*dwarf.Data, error) {
+	return nil, errors.New("no DWARF data in go object file")
 }

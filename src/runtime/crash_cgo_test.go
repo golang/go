@@ -7,8 +7,10 @@
 package runtime_test
 
 import (
+	"bytes"
 	"fmt"
 	"internal/testenv"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -49,6 +51,8 @@ func TestCgoCallbackGC(t *testing.T) {
 			t.Skip("see golang.org/issue/11990")
 		case runtime.GOOS == "linux" && runtime.GOARCH == "arm":
 			t.Skip("too slow for arm builders")
+		case runtime.GOOS == "linux" && (runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le"):
+			t.Skip("too slow for mips64x builders")
 		}
 	}
 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
@@ -199,5 +203,63 @@ func TestCgoPanicDeadlock(t *testing.T) {
 	want := "panic: cgo error\n\n"
 	if !strings.HasPrefix(got, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, got)
+	}
+}
+
+func TestCgoCCodeSIGPROF(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoCCodeSIGPROF")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoCrashTraceback(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	got := runTestProg(t, "testprogcgo", "CrashTraceback")
+	for i := 1; i <= 3; i++ {
+		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
+			t.Errorf("missing cgo symbolizer:%d", i)
+		}
+	}
+}
+
+func TestCgoTracebackContext(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "TracebackContext")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func TestCgoPprof(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprogcgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "CgoPprof")).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := strings.TrimSpace(string(got))
+	defer os.Remove(fn)
+
+	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%s", top)
+
+	if !bytes.Contains(top, []byte("cpuHog")) {
+		t.Error("missing cpuHog in pprof output")
 	}
 }

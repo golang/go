@@ -18,7 +18,7 @@ goos=$(go env GOOS)
 goarch=$(go env GOARCH)
 goroot=$(go env GOROOT)
 if [ ! -d "$goroot" ]; then
-	echo 'misc/cgo/testcshared/test.bash cannnot find GOROOT' 1>&2
+	echo 'misc/cgo/testcshared/test.bash cannot find GOROOT' 1>&2
 	echo '$GOROOT:' "$GOROOT" 1>&2
 	echo 'go env GOROOT:' "$goroot" 1>&2
 	exit 1

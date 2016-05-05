@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -53,10 +53,100 @@ func GCMask(x interface{}) (ret []byte) {
 }
 
 func RunSchedLocalQueueTest() {
-	testSchedLocalQueue()
+	_p_ := new(p)
+	gs := make([]g, len(_p_.runq))
+	for i := 0; i < len(_p_.runq); i++ {
+		if g, _ := runqget(_p_); g != nil {
+			throw("runq is not empty initially")
+		}
+		for j := 0; j < i; j++ {
+			runqput(_p_, &gs[i], false)
+		}
+		for j := 0; j < i; j++ {
+			if g, _ := runqget(_p_); g != &gs[i] {
+				print("bad element at iter ", i, "/", j, "\n")
+				throw("bad element")
+			}
+		}
+		if g, _ := runqget(_p_); g != nil {
+			throw("runq is not empty afterwards")
+		}
+	}
 }
+
 func RunSchedLocalQueueStealTest() {
-	testSchedLocalQueueSteal()
+	p1 := new(p)
+	p2 := new(p)
+	gs := make([]g, len(p1.runq))
+	for i := 0; i < len(p1.runq); i++ {
+		for j := 0; j < i; j++ {
+			gs[j].sig = 0
+			runqput(p1, &gs[j], false)
+		}
+		gp := runqsteal(p2, p1, true)
+		s := 0
+		if gp != nil {
+			s++
+			gp.sig++
+		}
+		for {
+			gp, _ = runqget(p2)
+			if gp == nil {
+				break
+			}
+			s++
+			gp.sig++
+		}
+		for {
+			gp, _ = runqget(p1)
+			if gp == nil {
+				break
+			}
+			gp.sig++
+		}
+		for j := 0; j < i; j++ {
+			if gs[j].sig != 1 {
+				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
+				throw("bad element")
+			}
+		}
+		if s != i/2 && s != i/2+1 {
+			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
+			throw("bad steal")
+		}
+	}
+}
+
+func RunSchedLocalQueueEmptyTest(iters int) {
+	// Test that runq is not spuriously reported as empty.
+	// Runq emptiness affects scheduling decisions and spurious emptiness
+	// can lead to underutilization (both runnable Gs and idle Ps coexist
+	// for arbitrary long time).
+	done := make(chan bool, 1)
+	p := new(p)
+	gs := make([]g, 2)
+	ready := new(uint32)
+	for i := 0; i < iters; i++ {
+		*ready = 0
+		next0 := (i & 1) == 0
+		next1 := (i & 2) == 0
+		runqput(p, &gs[0], next0)
+		go func() {
+			for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+			}
+			if runqempty(p) {
+				println("next:", next0, next1)
+				throw("queue is empty")
+			}
+			done <- true
+		}()
+		for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+		}
+		runqput(p, &gs[1], next1)
+		runqget(p)
+		<-done
+		runqget(p)
+	}
 }
 
 var StringHash = stringHash
@@ -134,4 +224,23 @@ var ForceGCPeriod = &forcegcperiod
 func SetTracebackEnv(level string) {
 	setTraceback(level)
 	traceback_env = traceback_cache
+}
+
+var ReadUnaligned32 = readUnaligned32
+var ReadUnaligned64 = readUnaligned64
+
+func CountPagesInUse() (pagesInUse, counted uintptr) {
+	stopTheWorld("CountPagesInUse")
+
+	pagesInUse = uintptr(mheap_.pagesInUse)
+
+	for _, s := range h_allspans {
+		if s.state == mSpanInUse {
+			counted += s.npages
+		}
+	}
+
+	startTheWorld()
+
+	return
 }

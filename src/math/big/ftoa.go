@@ -333,9 +333,9 @@ func (x *Float) fmtB(buf []byte) []byte {
 	return strconv.AppendInt(buf, e, 10)
 }
 
-// fmtP appends the string of x in the format 0x." mantissa "p" exponent
-// with a hexadecimal mantissa and a binary exponent, or 0" if x is zero,
-// ad returns the extended buffer.
+// fmtP appends the string of x in the format "0x." mantissa "p" exponent
+// with a hexadecimal mantissa and a binary exponent, or "0" if x is zero,
+// and returns the extended buffer.
 // The mantissa is normalized such that 0.5 <= 0.mantissa < 1.0.
 // The sign of x is ignored, and x must not be an Inf.
 func (x *Float) fmtP(buf []byte) []byte {
@@ -374,12 +374,11 @@ func min(x, y int) int {
 }
 
 // Format implements fmt.Formatter. It accepts all the regular
-// formats for floating-point numbers ('e', 'E', 'f', 'F', 'g',
-// 'G') as well as 'b', 'p', and 'v'. See (*Float).Text for the
-// interpretation of 'b' and 'p'. The 'v' format is handled like
-// 'g'.
+// formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
+// 'g', 'G') as well as 'p' and 'v'. See (*Float).Text for the
+// interpretation of 'p'. The 'v' format is handled like 'g'.
 // Format also supports specification of the minimum precision
-// in digits, the output field width, as well as the format verbs
+// in digits, the output field width, as well as the format flags
 // '+' and ' ' for sign control, '0' for space or zero padding,
 // and '-' for left or right justification. See the fmt package
 // for details.

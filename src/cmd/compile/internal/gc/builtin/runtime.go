@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // NOTE: If you change this file you must run "go generate"
-// to update builtin.go.  This is not done automatically
+// to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
 // +build ignore
@@ -60,11 +60,10 @@ func slicecopy(to any, fr any, wid uintptr) int
 func slicestringcopy(to any, fr any) int
 
 // interface conversions
-func typ2Itab(typ *byte, typ2 *byte, cache **byte) (ret *byte)
 func convI2E(elem any) (ret any)
 func convI2I(typ *byte, elem any) (ret any)
 func convT2E(typ *byte, elem, buf *any) (ret any)
-func convT2I(typ *byte, typ2 *byte, cache **byte, elem, buf *any) (ret any)
+func convT2I(tab *byte, elem, buf *any) (ret any)
 
 // interface type assertions  x.(T)
 func assertE2E(typ *byte, iface any, ret *any)
@@ -90,10 +89,12 @@ func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
+func mapaccess1_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any)
 func mapaccess2(mapType *byte, hmap map[any]any, key *any) (val *any, pres bool)
 func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
+func mapaccess2_fat(mapType *byte, hmap map[any]any, key *any, zero *byte) (val *any, pres bool)
 func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
 func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
@@ -113,39 +114,6 @@ var writeBarrier struct {
 }
 
 func writebarrierptr(dst *any, src any)
-func writebarrierstring(dst *any, src any)
-func writebarrierslice(dst *any, src any)
-func writebarrieriface(dst *any, src any)
-
-// The unused *byte argument makes sure that src is 2-pointer-aligned,
-// which is the maximum alignment on NaCl amd64p32
-// (and possibly on 32-bit systems if we start 64-bit aligning uint64s).
-// The bitmap in the name tells which words being copied are pointers.
-func writebarrierfat01(dst *any, _ uintptr, src any)
-func writebarrierfat10(dst *any, _ uintptr, src any)
-func writebarrierfat11(dst *any, _ uintptr, src any)
-func writebarrierfat001(dst *any, _ uintptr, src any)
-func writebarrierfat010(dst *any, _ uintptr, src any)
-func writebarrierfat011(dst *any, _ uintptr, src any)
-func writebarrierfat100(dst *any, _ uintptr, src any)
-func writebarrierfat101(dst *any, _ uintptr, src any)
-func writebarrierfat110(dst *any, _ uintptr, src any)
-func writebarrierfat111(dst *any, _ uintptr, src any)
-func writebarrierfat0001(dst *any, _ uintptr, src any)
-func writebarrierfat0010(dst *any, _ uintptr, src any)
-func writebarrierfat0011(dst *any, _ uintptr, src any)
-func writebarrierfat0100(dst *any, _ uintptr, src any)
-func writebarrierfat0101(dst *any, _ uintptr, src any)
-func writebarrierfat0110(dst *any, _ uintptr, src any)
-func writebarrierfat0111(dst *any, _ uintptr, src any)
-func writebarrierfat1000(dst *any, _ uintptr, src any)
-func writebarrierfat1001(dst *any, _ uintptr, src any)
-func writebarrierfat1010(dst *any, _ uintptr, src any)
-func writebarrierfat1011(dst *any, _ uintptr, src any)
-func writebarrierfat1100(dst *any, _ uintptr, src any)
-func writebarrierfat1101(dst *any, _ uintptr, src any)
-func writebarrierfat1110(dst *any, _ uintptr, src any)
-func writebarrierfat1111(dst *any, _ uintptr, src any)
 
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
@@ -165,7 +133,6 @@ func block()
 
 func makeslice(typ *byte, nel int64, cap int64) (ary []any)
 func growslice(typ *byte, old []any, cap int) (ary []any)
-func growslice_n(typ *byte, old []any, n int) (ary []any)
 func memmove(to *any, frm *any, length uintptr)
 func memclr(ptr *byte, length uintptr)
 

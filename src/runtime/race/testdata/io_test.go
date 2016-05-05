@@ -7,9 +7,11 @@ package race_test
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -41,29 +43,34 @@ func TestNoRaceIOFile(t *testing.T) {
 	_ = x
 }
 
+var (
+	regHandler  sync.Once
+	handlerData int
+)
+
 func TestNoRaceIOHttp(t *testing.T) {
-	x := 0
-	go func() {
+	regHandler.Do(func() {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			x = 41
+			handlerData++
 			fmt.Fprintf(w, "test")
-			x = 42
+			handlerData++
 		})
-		err := http.ListenAndServe("127.0.0.1:23651", nil)
-		if err != nil {
-			t.Fatalf("http.ListenAndServe: %v", err)
-		}
-	}()
-	time.Sleep(1e7)
-	x = 1
-	_, err := http.Get("http://127.0.0.1:23651")
+	})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	defer ln.Close()
+	go http.Serve(ln, nil)
+	handlerData++
+	_, err = http.Get("http://" + ln.Addr().String())
 	if err != nil {
 		t.Fatalf("http.Get: %v", err)
 	}
-	x = 2
-	_, err = http.Get("http://127.0.0.1:23651")
+	handlerData++
+	_, err = http.Get("http://" + ln.Addr().String())
 	if err != nil {
 		t.Fatalf("http.Get: %v", err)
 	}
-	x = 3
+	handlerData++
 }

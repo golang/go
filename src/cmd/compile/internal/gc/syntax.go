@@ -15,10 +15,10 @@ type Node struct {
 	// Generic recursive walks should follow these fields.
 	Left  *Node
 	Right *Node
-	Ninit *NodeList
-	Nbody *NodeList
-	List  *NodeList
-	Rlist *NodeList
+	Ninit Nodes
+	Nbody Nodes
+	List  Nodes
+	Rlist Nodes
 
 	// most nodes
 	Type *Type
@@ -33,6 +33,13 @@ type Node struct {
 	Sym *Sym        // various
 	E   interface{} // Opt or Val, see methods below
 
+	// Various. Usually an offset into a struct. For example, ONAME nodes
+	// that refer to local variables use it to identify their stack frame
+	// position. ODOT, ODOTPTR, and OINDREG use it to indicate offset
+	// relative to their base address. ONAME nodes on the left side of an
+	// OKEY within an OSTRUCTLIT use it to store the named field's offset.
+	// OXCASE and OXFALL use it to validate the use of fallthrough.
+	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
 	Lineno int32
@@ -42,30 +49,30 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op          Op
-	Nointerface bool
-	Ullman      uint8 // sethi/ullman number
-	Addable     bool  // addressable
-	Etype       EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
-	Bounded     bool  // bounds check unnecessary
-	Class       Class // PPARAM, PAUTO, PEXTERN, etc
-	Embedded    uint8 // ODCLFIELD embedded type
-	Colas       bool  // OAS resulting from :=
-	Diag        uint8 // already printed error about this
-	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	Walkdef     uint8
-	Typecheck   uint8
-	Local       bool
-	Dodata      uint8
-	Initorder   uint8
-	Used        bool
-	Isddd       bool // is the argument variadic
-	Implicit    bool
-	Addrtaken   bool // address taken, even if not moved to heap
-	Assigned    bool // is the variable ever assigned to
-	Likely      int8 // likeliness of if statement
-	Hasbreak    bool // has break statement
-	hasVal      int8 // +1 for Val, -1 for Opt, 0 for not yet set
+	Op        Op
+	Ullman    uint8 // sethi/ullman number
+	Addable   bool  // addressable
+	Etype     EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg, ChanDir for OTCHAN
+	Bounded   bool  // bounds check unnecessary
+	NonNil    bool  // guaranteed to be non-nil
+	Class     Class // PPARAM, PAUTO, PEXTERN, etc
+	Embedded  uint8 // ODCLFIELD embedded type
+	Colas     bool  // OAS resulting from :=
+	Diag      uint8 // already printed error about this
+	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	Walkdef   uint8
+	Typecheck uint8
+	Local     bool
+	Dodata    uint8
+	Initorder uint8
+	Used      bool
+	Isddd     bool // is the argument variadic
+	Implicit  bool
+	Addrtaken bool // address taken, even if not moved to heap
+	Assigned  bool // is the variable ever assigned to
+	Likely    int8 // likeliness of if statement
+	Hasbreak  bool // has break statement
+	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
 }
 
 // Val returns the Val for the node.
@@ -139,7 +146,7 @@ type Param struct {
 	Stackparam *Node // OPARAM node referring to stack copy of param
 
 	// ONAME PPARAM
-	Field *Type // TFIELD in arg struct
+	Field *Field // TFIELD in arg struct
 
 	// ONAME closure param with PPARAMREF
 	Outer   *Node // outer PPARAMREF in nested closure
@@ -151,12 +158,12 @@ type Func struct {
 	Shortname  *Node
 	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
 	Exit       Nodes
-	Cvars      Nodes    // closure params
-	Dcl        []*Node  // autodcl for this func/closure
-	Inldcl     *[]*Node // copy of dcl for use in inlining
+	Cvars      Nodes   // closure params
+	Dcl        []*Node // autodcl for this func/closure
+	Inldcl     Nodes   // copy of dcl for use in inlining
 	Closgen    int
 	Outerfunc  *Node
-	Fieldtrack []*Type
+	FieldTrack map[*Sym]struct{}
 	Outer      *Node // outer func for closure
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
@@ -164,17 +171,18 @@ type Func struct {
 	FCurfn     *Node
 	Nname      *Node
 
-	Inl     *NodeList // copy of the body for use in inlining
+	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
 	Depth   int32
 
 	Endlineno int32
 	WBLineno  int32 // line number of first write barrier
 
-	Pragma   Pragma // go:xxx function annotations
-	Dupok    bool   // duplicate definitions ok
-	Wrapper  bool   // is method wrapper
-	Needctxt bool   // function uses context register (has closure variables)
+	Pragma        Pragma // go:xxx function annotations
+	Dupok         bool   // duplicate definitions ok
+	Wrapper       bool   // is method wrapper
+	Needctxt      bool   // function uses context register (has closure variables)
+	ReflectMethod bool   // function calls reflect.Type.Method or MethodByName
 }
 
 type Op uint8
@@ -195,7 +203,7 @@ const (
 	OSUB             // Left - Right
 	OOR              // Left | Right
 	OXOR             // Left ^ Right
-	OADDSTR          // Left + Right (string addition)
+	OADDSTR          // +{List} (string addition, list elements are strings)
 	OADDR            // &Left
 	OANDAND          // Left && Right
 	OAPPEND          // append(List)
@@ -241,11 +249,11 @@ const (
 	ODCLTYPE  // type Int int
 
 	ODELETE    // delete(Left, Right)
-	ODOT       // Left.Right (Left is of struct type)
-	ODOTPTR    // Left.Right (Left is of pointer to struct type)
-	ODOTMETH   // Left.Right (Left is non-interface, Right is method name)
-	ODOTINTER  // Left.Right (Left is interface, Right is method name)
-	OXDOT      // Left.Right (before rewrite to one of the preceding)
+	ODOT       // Left.Sym (Left is of struct type)
+	ODOTPTR    // Left.Sym (Left is of pointer to struct type)
+	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
+	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
+	OXDOT      // Left.Sym (before rewrite to one of the preceding)
 	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved)
 	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE)
 	OEQ        // Left == Right
@@ -360,132 +368,6 @@ const (
 	OEND
 )
 
-// A NodeList is a linked list of nodes.
-// TODO(rsc): Some uses of NodeList should be made into slices.
-// The remaining ones probably just need a simple linked list,
-// not one with concatenation support.
-type NodeList struct {
-	N    *Node
-	Next *NodeList
-	End  *NodeList
-}
-
-// concat returns the concatenation of the lists a and b.
-// The storage taken by both is reused for the result.
-func concat(a *NodeList, b *NodeList) *NodeList {
-	if a == nil {
-		return b
-	}
-	if b == nil {
-		return a
-	}
-
-	a.End.Next = b
-	a.End = b.End
-	b.End = nil
-	return a
-}
-
-// list1 returns a one-element list containing n.
-func list1(n *Node) *NodeList {
-	if n == nil {
-		return nil
-	}
-	if n.Op == OBLOCK && n.Ninit == nil {
-		// Flatten list and steal storage.
-		// Poison pointer to catch errant uses.
-		l := n.List
-
-		n.List = nil
-		return l
-	}
-
-	l := new(NodeList)
-	l.N = n
-	l.End = l
-	return l
-}
-
-// list returns the result of appending n to l.
-func list(l *NodeList, n *Node) *NodeList {
-	return concat(l, list1(n))
-}
-
-// listsort sorts *l in place according to the comparison function lt.
-// The algorithm expects lt(a, b) to be equivalent to a < b.
-// The algorithm is mergesort, so it is guaranteed to be O(n log n).
-func listsort(l **NodeList, lt func(*Node, *Node) bool) {
-	if *l == nil || (*l).Next == nil {
-		return
-	}
-
-	l1 := *l
-	l2 := *l
-	for {
-		l2 = l2.Next
-		if l2 == nil {
-			break
-		}
-		l2 = l2.Next
-		if l2 == nil {
-			break
-		}
-		l1 = l1.Next
-	}
-
-	l2 = l1.Next
-	l1.Next = nil
-	l2.End = (*l).End
-	(*l).End = l1
-
-	l1 = *l
-	listsort(&l1, lt)
-	listsort(&l2, lt)
-
-	if lt(l1.N, l2.N) {
-		*l = l1
-	} else {
-		*l = l2
-		l2 = l1
-		l1 = *l
-	}
-
-	// now l1 == *l; and l1 < l2
-
-	var le *NodeList
-	for (l1 != nil) && (l2 != nil) {
-		for (l1.Next != nil) && lt(l1.Next.N, l2.N) {
-			l1 = l1.Next
-		}
-
-		// l1 is last one from l1 that is < l2
-		le = l1.Next // le is the rest of l1, first one that is >= l2
-		if le != nil {
-			le.End = (*l).End
-		}
-
-		(*l).End = l1       // cut *l at l1
-		*l = concat(*l, l2) // glue l2 to *l's tail
-
-		l1 = l2 // l1 is the first element of *l that is < the new l2
-		l2 = le // ... because l2 now is the old tail of l1
-	}
-
-	*l = concat(*l, l2) // any remainder
-}
-
-// count returns the length of the list l.
-func count(l *NodeList) int {
-	n := int64(0)
-	for ; l != nil; l = l.Next {
-		n++
-	}
-	if int64(int(n)) != n { // Overflow.
-		Yyerror("too many elements in list")
-	}
-	return int(n)
-}
-
 // Nodes is a pointer to a slice of *Node.
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.
@@ -494,36 +376,74 @@ type Nodes struct{ slice *[]*Node }
 // Slice returns the entries in Nodes as a slice.
 // Changes to the slice entries (as in s[i] = n) will be reflected in
 // the Nodes.
-func (n *Nodes) Slice() []*Node {
+func (n Nodes) Slice() []*Node {
 	if n.slice == nil {
 		return nil
 	}
 	return *n.slice
 }
 
-// NodeList returns the entries in Nodes as a NodeList.
-// Changes to the NodeList entries (as in l.N = n) will *not* be
-// reflect in the Nodes.
-// This wastes memory and should be used as little as possible.
-func (n *Nodes) NodeList() *NodeList {
+// Len returns the number of entries in Nodes.
+func (n Nodes) Len() int {
 	if n.slice == nil {
-		return nil
+		return 0
 	}
-	var ret *NodeList
-	for _, n := range *n.slice {
-		ret = list(ret, n)
-	}
-	return ret
+	return len(*n.slice)
 }
 
-// Set sets Nodes to a slice.
+// Index returns the i'th element of Nodes.
+// It panics if n does not have at least i+1 elements.
+func (n Nodes) Index(i int) *Node {
+	return (*n.slice)[i]
+}
+
+// First returns the first element of Nodes (same as n.Index(0)).
+// It panics if n has no elements.
+func (n Nodes) First() *Node {
+	return (*n.slice)[0]
+}
+
+// Second returns the second element of Nodes (same as n.Index(1)).
+// It panics if n has fewer than two elements.
+func (n Nodes) Second() *Node {
+	return (*n.slice)[1]
+}
+
+// Set sets n to a slice.
 // This takes ownership of the slice.
 func (n *Nodes) Set(s []*Node) {
 	if len(s) == 0 {
 		n.slice = nil
 	} else {
-		n.slice = &s
+		// Copy s and take address of t rather than s to avoid
+		// allocation in the case where len(s) == 0 (which is
+		// over 3x more common, dynamically, for make.bash).
+		t := s
+		n.slice = &t
 	}
+}
+
+// Set1 sets n to a slice containing a single node.
+func (n *Nodes) Set1(node *Node) {
+	n.slice = &[]*Node{node}
+}
+
+// MoveNodes sets n to the contents of n2, then clears n2.
+func (n *Nodes) MoveNodes(n2 *Nodes) {
+	n.slice = n2.slice
+	n2.slice = nil
+}
+
+// SetIndex sets the i'th element of Nodes to node.
+// It panics if n does not have at least i+1 elements.
+func (n Nodes) SetIndex(i int, node *Node) {
+	(*n.slice)[i] = node
+}
+
+// Addr returns the address of the i'th element of Nodes.
+// It panics if n does not have at least i+1 elements.
+func (n Nodes) Addr(i int) **Node {
+	return &(*n.slice)[i]
 }
 
 // Append appends entries to Nodes.
@@ -536,4 +456,16 @@ func (n *Nodes) Append(a ...*Node) {
 	} else {
 		*n.slice = append(*n.slice, a...)
 	}
+}
+
+// AppendNodes appends the contents of *n2 to n, then clears n2.
+func (n *Nodes) AppendNodes(n2 *Nodes) {
+	switch {
+	case n2.slice == nil:
+	case n.slice == nil:
+		n.slice = n2.slice
+	default:
+		*n.slice = append(*n.slice, *n2.slice...)
+	}
+	n2.slice = nil
 }

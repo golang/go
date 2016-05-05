@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -40,9 +40,7 @@ func TestLineHist(t *testing.T) {
 	}
 
 	for i, want := range expect {
-		var f *LSym
-		var l int32
-		linkgetline(ctxt, int32(i), &f, &l)
+		f, l := linkgetline(ctxt, int32(i))
 		have := fmt.Sprintf("%s:%d", f.Name, l)
 		if have != want {
 			t.Errorf("linkgetline(%d) = %q, want %q", i, have, want)

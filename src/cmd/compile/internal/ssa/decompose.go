@@ -21,6 +21,7 @@ func decomposeBuiltIn(f *Func) {
 	// NOTE: the component values we are making are dead at this point.
 	// We must do the opt pass before any deadcode elimination or we will
 	// lose the name->value correspondence.
+	var newNames []LocalSlot
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
@@ -31,34 +32,32 @@ func decomposeBuiltIn(f *Func) {
 			} else {
 				elemType = f.Config.fe.TypeFloat32()
 			}
-			rName := LocalSlot{name.N, elemType, name.Off}
-			iName := LocalSlot{name.N, elemType, name.Off + elemType.Size()}
-			f.Names = append(f.Names, rName, iName)
+			rName, iName := f.Config.fe.SplitComplex(name)
+			newNames = append(newNames, rName, iName)
 			for _, v := range f.NamedValues[name] {
 				r := v.Block.NewValue1(v.Line, OpComplexReal, elemType, v)
 				i := v.Block.NewValue1(v.Line, OpComplexImag, elemType, v)
 				f.NamedValues[rName] = append(f.NamedValues[rName], r)
 				f.NamedValues[iName] = append(f.NamedValues[iName], i)
 			}
+			delete(f.NamedValues, name)
 		case t.IsString():
 			ptrType := f.Config.fe.TypeBytePtr()
 			lenType := f.Config.fe.TypeInt()
-			ptrName := LocalSlot{name.N, ptrType, name.Off}
-			lenName := LocalSlot{name.N, lenType, name.Off + f.Config.PtrSize}
-			f.Names = append(f.Names, ptrName, lenName)
+			ptrName, lenName := f.Config.fe.SplitString(name)
+			newNames = append(newNames, ptrName, lenName)
 			for _, v := range f.NamedValues[name] {
 				ptr := v.Block.NewValue1(v.Line, OpStringPtr, ptrType, v)
 				len := v.Block.NewValue1(v.Line, OpStringLen, lenType, v)
 				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], ptr)
 				f.NamedValues[lenName] = append(f.NamedValues[lenName], len)
 			}
+			delete(f.NamedValues, name)
 		case t.IsSlice():
 			ptrType := f.Config.fe.TypeBytePtr()
 			lenType := f.Config.fe.TypeInt()
-			ptrName := LocalSlot{name.N, ptrType, name.Off}
-			lenName := LocalSlot{name.N, lenType, name.Off + f.Config.PtrSize}
-			capName := LocalSlot{name.N, lenType, name.Off + 2*f.Config.PtrSize}
-			f.Names = append(f.Names, ptrName, lenName, capName)
+			ptrName, lenName, capName := f.Config.fe.SplitSlice(name)
+			newNames = append(newNames, ptrName, lenName, capName)
 			for _, v := range f.NamedValues[name] {
 				ptr := v.Block.NewValue1(v.Line, OpSlicePtr, ptrType, v)
 				len := v.Block.NewValue1(v.Line, OpSliceLen, lenType, v)
@@ -67,21 +66,25 @@ func decomposeBuiltIn(f *Func) {
 				f.NamedValues[lenName] = append(f.NamedValues[lenName], len)
 				f.NamedValues[capName] = append(f.NamedValues[capName], cap)
 			}
+			delete(f.NamedValues, name)
 		case t.IsInterface():
 			ptrType := f.Config.fe.TypeBytePtr()
-			typeName := LocalSlot{name.N, ptrType, name.Off}
-			dataName := LocalSlot{name.N, ptrType, name.Off + f.Config.PtrSize}
-			f.Names = append(f.Names, typeName, dataName)
+			typeName, dataName := f.Config.fe.SplitInterface(name)
+			newNames = append(newNames, typeName, dataName)
 			for _, v := range f.NamedValues[name] {
 				typ := v.Block.NewValue1(v.Line, OpITab, ptrType, v)
 				data := v.Block.NewValue1(v.Line, OpIData, ptrType, v)
 				f.NamedValues[typeName] = append(f.NamedValues[typeName], typ)
 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
 			}
+			delete(f.NamedValues, name)
 		case t.Size() > f.Config.IntSize:
-			f.Unimplementedf("undecomposed named type %s", t)
+			f.Unimplementedf("undecomposed named type %s %s", name, t)
+		default:
+			newNames = append(newNames, name)
 		}
 	}
+	f.Names = newNames
 }
 
 func decomposeBuiltInPhi(v *Value) {
@@ -186,25 +189,32 @@ func decomposeUser(f *Func) {
 	// We must do the opt pass before any deadcode elimination or we will
 	// lose the name->value correspondence.
 	i := 0
+	var fnames []LocalSlot
+	var newNames []LocalSlot
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
 		case t.IsStruct():
 			n := t.NumFields()
+			fnames = fnames[:0]
+			for i := 0; i < n; i++ {
+				fnames = append(fnames, f.Config.fe.SplitStruct(name, i))
+			}
 			for _, v := range f.NamedValues[name] {
-				for i := int64(0); i < n; i++ {
-					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
-					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
-					f.NamedValues[fname] = append(f.NamedValues[fname], x)
+				for i := 0; i < n; i++ {
+					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), v)
+					f.NamedValues[fnames[i]] = append(f.NamedValues[fnames[i]], x)
 				}
 			}
 			delete(f.NamedValues, name)
+			newNames = append(newNames, fnames...)
 		default:
 			f.Names[i] = name
 			i++
 		}
 	}
 	f.Names = f.Names[:i]
+	f.Names = append(f.Names, newNames...)
 }
 
 func decomposeUserPhi(v *Value) {
@@ -219,12 +229,12 @@ func decomposeStructPhi(v *Value) {
 	t := v.Type
 	n := t.NumFields()
 	var fields [MaxStruct]*Value
-	for i := int64(0); i < n; i++ {
+	for i := 0; i < n; i++ {
 		fields[i] = v.Block.NewValue0(v.Line, OpPhi, t.FieldType(i))
 	}
 	for _, a := range v.Args {
-		for i := int64(0); i < n; i++ {
-			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, a))
+		for i := 0; i < n; i++ {
+			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
 	v.reset(StructMakeOp(n))
@@ -244,7 +254,7 @@ const MaxStruct = 4
 
 // StructMakeOp returns the opcode to construct a struct with the
 // given number of fields.
-func StructMakeOp(nf int64) Op {
+func StructMakeOp(nf int) Op {
 	switch nf {
 	case 0:
 		return OpStructMake0

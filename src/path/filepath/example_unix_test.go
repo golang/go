@@ -65,3 +65,17 @@ func ExampleSplit() {
 	// 	dir: "/usr/local//"
 	// 	file: "go"
 }
+
+func ExampleJoin() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Join("a", "b", "c"))
+	fmt.Println(filepath.Join("a", "b/c"))
+	fmt.Println(filepath.Join("a/b", "c"))
+	fmt.Println(filepath.Join("a/b", "/c"))
+	// Output:
+	// On Unix:
+	// a/b/c
+	// a/b/c
+	// a/b/c
+	// a/b/c
+}

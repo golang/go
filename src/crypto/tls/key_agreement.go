@@ -51,7 +51,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 	if err != nil {
 		return nil, err
 	}
-	// We don't check the version number in the premaster secret.  For one,
+	// We don't check the version number in the premaster secret. For one,
 	// by checking it, we would leak information about the validity of the
 	// encrypted pre-master secret. Secondly, it provides only a small
 	// benefit against a downgrade attack and some implementations send the
@@ -242,19 +242,19 @@ NextCandidate:
 	case signatureECDSA:
 		_, ok := priv.Public().(*ecdsa.PublicKey)
 		if !ok {
-			return nil, errors.New("ECDHE ECDSA requires an ECDSA server key")
+			return nil, errors.New("tls: ECDHE ECDSA requires an ECDSA server key")
 		}
 	case signatureRSA:
 		_, ok := priv.Public().(*rsa.PublicKey)
 		if !ok {
-			return nil, errors.New("ECDHE RSA requires a RSA server key")
+			return nil, errors.New("tls: ECDHE RSA requires a RSA server key")
 		}
 	default:
-		return nil, errors.New("unknown ECDHE signature algorithm")
+		return nil, errors.New("tls: unknown ECDHE signature algorithm")
 	}
 	sig, err = priv.Sign(config.rand(), digest, hashFunc)
 	if err != nil {
-		return nil, errors.New("failed to sign ECDHE parameters: " + err.Error())
+		return nil, errors.New("tls: failed to sign ECDHE parameters: " + err.Error())
 	}
 
 	skx := new(serverKeyExchangeMsg)
@@ -354,28 +354,28 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	case signatureECDSA:
 		pubKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
 		if !ok {
-			return errors.New("ECDHE ECDSA requires a ECDSA server public key")
+			return errors.New("tls: ECDHE ECDSA requires a ECDSA server public key")
 		}
 		ecdsaSig := new(ecdsaSignature)
 		if _, err := asn1.Unmarshal(sig, ecdsaSig); err != nil {
 			return err
 		}
 		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("ECDSA signature contained zero or negative values")
+			return errors.New("tls: ECDSA signature contained zero or negative values")
 		}
 		if !ecdsa.Verify(pubKey, digest, ecdsaSig.R, ecdsaSig.S) {
-			return errors.New("ECDSA verification failure")
+			return errors.New("tls: ECDSA verification failure")
 		}
 	case signatureRSA:
 		pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
 		if !ok {
-			return errors.New("ECDHE RSA requires a RSA server public key")
+			return errors.New("tls: ECDHE RSA requires a RSA server public key")
 		}
 		if err := rsa.VerifyPKCS1v15(pubKey, hashFunc, digest, sig); err != nil {
 			return err
 		}
 	default:
-		return errors.New("unknown ECDHE signature algorithm")
+		return errors.New("tls: unknown ECDHE signature algorithm")
 	}
 
 	return nil
@@ -383,7 +383,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 
 func (ka *ecdheKeyAgreement) generateClientKeyExchange(config *Config, clientHello *clientHelloMsg, cert *x509.Certificate) ([]byte, *clientKeyExchangeMsg, error) {
 	if ka.curve == nil {
-		return nil, nil, errors.New("missing ServerKeyExchange message")
+		return nil, nil, errors.New("tls: missing ServerKeyExchange message")
 	}
 	priv, mx, my, err := elliptic.GenerateKey(ka.curve, config.rand())
 	if err != nil {

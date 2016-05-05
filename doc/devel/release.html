@@ -37,6 +37,22 @@ Go 1.6 is a major release of Go.
 Read the <a href="/doc/go1.6">Go 1.6 Release Notes</a> for more information.
 </p>
 
+<h3 id="go1.6.minor">Minor revisions</h3>
+
+<p>
+go1.6.1 (released 2016/04/12) includes two security fixes.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.1">Go
+1.6.1 milestone</a> on our issue tracker for details.
+</p>
+
+<p>
+go1.6.2 (released 2016/04/20) includes fixes to the compiler, runtime, tools,
+documentation, and the <code>mime/multipart</code>, <code>net/http</code>, and
+<code>sort</code> packages.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.2">Go
+1.6.2 milestone</a> on our issue tracker for details.
+</p>
+
 <h2 id="go1.5">go1.5 (released 2015/08/19)</h2>
 
 <p>
@@ -65,8 +81,14 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.2">Go
 <p>
 go1.5.3 (released 2016/01/13) includes a security fix to the <code>math/big</code> package
 affecting the <code>crypto/tls</code> package.
-See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.3">Go 1.5.3 milestone on our issue tracker</a>
-and the <a href="https://golang.org/s/go153announce">release announcement</a> for details.
+See the <a href="https://golang.org/s/go153announce">release announcement</a> for details.
+</p>
+
+<p>
+go1.5.4 (released 2016/04/12) includes two security fixes.
+It contains the same fixes as Go 1.6.1 and was released at the same time.
+See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.6.1">Go
+1.6.1 milestone</a> on our issue tracker for details.
 </p>
 
 <h2 id="go1.4">go1.4 (released 2014/12/10)</h2>
@@ -104,17 +126,17 @@ Read the <a href="/doc/go1.3">Go 1.3 Release Notes</a> for more information.
 
 <p>
 go1.3.1 (released 2014/08/13) includes bug fixes to the compiler and the <code>runtime</code>, <code>net</code>, and <code>crypto/rsa</code> packages.
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=073fc578434bf3e1e22749b559d273c8da728ebb">change history</a> for details.
+See the <a href="https://github.com/golang/go/commits/go1.3.1">change history</a> for details.
 </p>
 
 <p>
 go1.3.2 (released 2014/09/25) includes bug fixes to cgo and the crypto/tls packages.
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=go1.3.2">change history</a> for details.
+See the <a href="https://github.com/golang/go/commits/go1.3.2">change history</a> for details.
 </p>
 
 <p>
 go1.3.3 (released 2014/09/30) includes further bug fixes to cgo, the runtime package, and the nacl port. 
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.3&r=go1.3.3">change history</a> for details.
+See the <a href="https://github.com/golang/go/commits/go1.3.3">change history</a> for details.
 </p>
 
 <h2 id="go1.2">go1.2 (released 2013/12/01)</h2>
@@ -128,12 +150,12 @@ Read the <a href="/doc/go1.2">Go 1.2 Release Notes</a> for more information.
 
 <p>
 go1.2.1 (released 2014/03/02) includes bug fixes to the <code>runtime</code>, <code>net</code>, and <code>database/sql</code> packages.
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.2&r=7ada9e760ce34e78aee5b476c9621556d0fa5d31">change history</a> for details.
+See the <a href="https://github.com/golang/go/commits/go1.2.1">change history</a> for details.
 </p>
 
 <p>
 go1.2.2 (released 2014/05/05) includes a
-<a href="//code.google.com/p/go/source/detail?r=bda3619e7a2c&repo=tools">security fix</a>
+<a href="https://github.com/golang/go/commits/go1.2.2">security fix</a>
 that affects the tour binary included in the binary distributions (thanks to Guillaume T).
 </p>
 
@@ -148,17 +170,17 @@ Read the <a href="/doc/go1.1">Go 1.1 Release Notes</a> for more information.
 
 <p>
 go1.1.1 (released 2013/06/13) includes several compiler and runtime bug fixes.
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.1&r=43c4a41d24382a56a90e924800c681e435d9e399">change history</a> for details.
+See the <a href="https://github.com/golang/go/commits/go1.1.1">change history</a> for details.
 </p>
 
 <p>
 go1.1.2 (released 2013/08/13) includes fixes to the <code>gc</code> compiler
 and <code>cgo</code>, and the <code>bufio</code>, <code>runtime</code>,
 <code>syscall</code>, and <code>time</code> packages.
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1.1&r=a6a9792f94acd4ff686b2bc57383d163608b91cf">change history</a> for details.
+See the <a href="https://github.com/golang/go/commits/go1.1.2">change history</a> for details.
 If you use package syscall's <code>Getrlimit</code> and <code>Setrlimit</code>
 functions under Linux on the ARM or 386 architectures, please note change
-<a href="//golang.org/change/55ac276af5a7">55ac276af5a7</a>
+<a href="//golang.org/cl/11803043">11803043</a>
 that fixes <a href="//golang.org/issue/5949">issue 5949</a>.
 </p>
 
@@ -185,7 +207,7 @@ The go1 release corresponds to
 
 <p>
 go1.0.1 (released 2012/04/25) was issued to
-<a href="//golang.org/change/a890477d3dfb">fix</a> an
+<a href="//golang.org/cl/6061043">fix</a> an
 <a href="//golang.org/issue/3545">escape analysis bug</a>
 that can lead to memory corruption.
 It also includes several minor code and documentation fixes.
@@ -204,7 +226,7 @@ go1.0.3 (released 2012/09/21) includes minor code and documentation fixes.
 </p>
 
 <p>
-See the <a href="//code.google.com/p/go/source/list?name=release-branch.go1">go1 release branch history</a> for the complete list of changes.
+See the <a href="https://github.com/golang/go/commits/release-branch.go1">go1 release branch history</a> for the complete list of changes.
 </p>
 
 <h2 id="pre.go1">Older releases</h2>

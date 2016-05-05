@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -23,17 +22,18 @@ func TestReader(t *testing.T) {
 		n       int
 		want    string
 		wantpos int64
+		readerr error
 		seekerr string
 	}{
-		{seek: os.SEEK_SET, off: 0, n: 20, want: "0123456789"},
-		{seek: os.SEEK_SET, off: 1, n: 1, want: "1"},
-		{seek: os.SEEK_CUR, off: 1, wantpos: 3, n: 2, want: "34"},
-		{seek: os.SEEK_SET, off: -1, seekerr: "strings.Reader.Seek: negative position"},
-		{seek: os.SEEK_SET, off: 1 << 33, wantpos: 1 << 33},
-		{seek: os.SEEK_CUR, off: 1, wantpos: 1<<33 + 1},
-		{seek: os.SEEK_SET, n: 5, want: "01234"},
-		{seek: os.SEEK_CUR, n: 5, want: "56789"},
-		{seek: os.SEEK_END, off: -1, n: 1, wantpos: 9, want: "9"},
+		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
+		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
+		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
+		{seek: io.SeekStart, off: -1, seekerr: "strings.Reader.Seek: negative position"},
+		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
+		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
+		{seek: io.SeekStart, n: 5, want: "01234"},
+		{seek: io.SeekCurrent, n: 5, want: "56789"},
+		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
 	}
 
 	for i, tt := range tests {
@@ -51,8 +51,8 @@ func TestReader(t *testing.T) {
 		}
 		buf := make([]byte, tt.n)
 		n, err := r.Read(buf)
-		if err != nil {
-			t.Errorf("%d. read = %v", i, err)
+		if err != tt.readerr {
+			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
 			continue
 		}
 		got := string(buf[:n])
@@ -64,7 +64,7 @@ func TestReader(t *testing.T) {
 
 func TestReadAfterBigSeek(t *testing.T) {
 	r := strings.NewReader("0123456789")
-	if _, err := r.Seek(1<<31+5, os.SEEK_SET); err != nil {
+	if _, err := r.Seek(1<<31+5, io.SeekStart); err != nil {
 		t.Fatal(err)
 	}
 	if n, err := r.Read(make([]byte, 10)); n != 0 || err != io.EOF {
@@ -168,5 +168,25 @@ func TestReaderLenSize(t *testing.T) {
 	}
 	if r.Size() != 3 {
 		t.Errorf("Size = %d; want 3", r.Size())
+	}
+}
+
+func TestReaderReset(t *testing.T) {
+	r := strings.NewReader("世界")
+	if _, _, err := r.ReadRune(); err != nil {
+		t.Errorf("ReadRune: unexpected error: %v", err)
+	}
+
+	const want = "abcdef"
+	r.Reset(want)
+	if err := r.UnreadRune(); err == nil {
+		t.Errorf("UnreadRune: expected error, got nil")
+	}
+	buf, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Errorf("ReadAll: unexpected error: %v", err)
+	}
+	if got := string(buf); got != want {
+		t.Errorf("ReadAll: got %q, want %q", got, want)
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,11 +21,6 @@ func maybeSkip(t *testing.T) {
 		t.Skip("darwin/arm does not have a full file tree")
 	}
 }
-
-const (
-	dataDir = "testdata"
-	binary  = "testdoc"
-)
 
 type test struct {
 	name string

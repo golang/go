@@ -178,18 +178,6 @@ func isWindowsXP(t *testing.T) bool {
 	return major < 6
 }
 
-var (
-	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
-	procGetACP  = modkernel32.NewProc("GetACP")
-)
-
-func isEnglishOS(t *testing.T) bool {
-	const windows_1252 = 1252 // ANSI Latin 1; Western European (Windows)
-	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
-	acp := uint32(r0)
-	return acp == windows_1252
-}
-
 func runCmd(args ...string) ([]byte, error) {
 	removeUTF8BOM := func(b []byte) []byte {
 		if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
@@ -224,6 +212,14 @@ func runCmd(args ...string) ([]byte, error) {
 		return nil, err
 	}
 	return removeUTF8BOM(out), nil
+}
+
+func netshSpeaksEnglish(t *testing.T) bool {
+	out, err := runCmd("netsh", "help")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bytes.Contains(out, []byte("The following commands are available:"))
 }
 
 func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
@@ -273,8 +269,8 @@ func TestInterfacesWithNetsh(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}
-	if !isEnglishOS(t) {
-		t.Skip("English version of OS required for this test")
+	if !netshSpeaksEnglish(t) {
+		t.Skip("English version of netsh required for this test")
 	}
 
 	toString := func(name string, isup bool) string {
@@ -447,8 +443,8 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}
-	if !isEnglishOS(t) {
-		t.Skip("English version of OS required for this test")
+	if !netshSpeaksEnglish(t) {
+		t.Skip("English version of netsh required for this test")
 	}
 
 	outIPV4, err := runCmd("netsh", "interface", "ipv4", "show", "address")
@@ -507,12 +503,20 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 	}
 }
 
+func getmacSpeaksEnglish(t *testing.T) bool {
+	out, err := runCmd("getmac", "/?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bytes.Contains(out, []byte("network adapters on a system"))
+}
+
 func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP does not have powershell command")
 	}
-	if !isEnglishOS(t) {
-		t.Skip("English version of OS required for this test")
+	if !getmacSpeaksEnglish(t) {
+		t.Skip("English version of getmac required for this test")
 	}
 
 	ift, err := Interfaces()
@@ -561,24 +565,24 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 		if bytes.Contains(line, []byte("Connection Name:")) {
 			f := bytes.Split(line, []byte{':'})
 			if len(f) != 2 {
-				t.Fatal("unexpected \"Connection Name\" line: %q", line)
+				t.Fatalf("unexpected \"Connection Name\" line: %q", line)
 			}
 			name = string(bytes.TrimSpace(f[1]))
 			if name == "" {
-				t.Fatal("empty name on \"Connection Name\" line: %q", line)
+				t.Fatalf("empty name on \"Connection Name\" line: %q", line)
 			}
 		}
 		if bytes.Contains(line, []byte("Physical Address:")) {
 			if name == "" {
-				t.Fatal("no matching name found: %q", string(out))
+				t.Fatalf("no matching name found: %q", string(out))
 			}
 			f := bytes.Split(line, []byte{':'})
 			if len(f) != 2 {
-				t.Fatal("unexpected \"Physical Address\" line: %q", line)
+				t.Fatalf("unexpected \"Physical Address\" line: %q", line)
 			}
 			addr := string(bytes.ToLower(bytes.TrimSpace(f[1])))
 			if addr == "" {
-				t.Fatal("empty address on \"Physical Address\" line: %q", line)
+				t.Fatalf("empty address on \"Physical Address\" line: %q", line)
 			}
 			if addr == "disabled" || addr == "n/a" {
 				continue

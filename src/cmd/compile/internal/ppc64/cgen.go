@@ -17,7 +17,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// for example moving [4]byte must use 4 MOVB not 1 MOVW.
 	align := int(n.Type.Align)
 
-	var op int
+	var op obj.As
 	switch align {
 	default:
 		gc.Fatalf("sgen: invalid alignment %d for %v", align, n.Type)
@@ -44,7 +44,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// the src and dst overlap, then reverse direction
 	dir := align
 
-	if osrc < odst && int64(odst) < int64(osrc)+w {
+	if osrc < odst && odst < osrc+w {
 		dir = -dir
 	}
 
@@ -123,7 +123,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 		// TODO(austin): Instead of generating ADD $-8,R8; ADD
 		// $-8,R7; n*(MOVDU 8(R8),R9; MOVDU R9,8(R7);) just
 		// generate the offsets directly and eliminate the
-		// ADDs.  That will produce shorter, more
+		// ADDs. That will produce shorter, more
 		// pipeline-able code.
 		var p *obj.Prog
 		for ; c > 0; c-- {

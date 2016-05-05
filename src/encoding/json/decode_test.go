@@ -7,6 +7,7 @@ package json
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"image"
 	"net"
@@ -68,16 +69,20 @@ type ustruct struct {
 }
 
 type unmarshalerText struct {
-	T bool
+	A, B string
 }
 
 // needed for re-marshaling tests
-func (u *unmarshalerText) MarshalText() ([]byte, error) {
-	return []byte(""), nil
+func (u unmarshalerText) MarshalText() ([]byte, error) {
+	return []byte(u.A + ":" + u.B), nil
 }
 
 func (u *unmarshalerText) UnmarshalText(b []byte) error {
-	*u = unmarshalerText{true} // All we need to see that UnmarshalText is called.
+	pos := bytes.Index(b, []byte(":"))
+	if pos == -1 {
+		return errors.New("missing separator")
+	}
+	u.A, u.B = string(b[:pos]), string(b[pos+1:])
 	return nil
 }
 
@@ -95,12 +100,16 @@ var (
 	umslicep = new([]unmarshaler)
 	umstruct = ustruct{unmarshaler{true}}
 
-	um0T, um1T unmarshalerText // target2 of unmarshaling
-	umpT       = &um1T
-	umtrueT    = unmarshalerText{true}
-	umsliceT   = []unmarshalerText{{true}}
-	umslicepT  = new([]unmarshalerText)
-	umstructT  = ustructText{unmarshalerText{true}}
+	um0T, um1T   unmarshalerText // target2 of unmarshaling
+	umpType      = &um1T
+	umtrueXY     = unmarshalerText{"x", "y"}
+	umsliceXY    = []unmarshalerText{{"x", "y"}}
+	umslicepType = new([]unmarshalerText)
+	umstructType = new(ustructText)
+	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
+
+	ummapType = map[unmarshalerText]bool{}
+	ummapXY   = map[unmarshalerText]bool{unmarshalerText{"x", "y"}: true}
 )
 
 // Test data structures for anonymous fields.
@@ -302,14 +311,19 @@ var unmarshalTests = []unmarshalTest{
 	{in: `{"T":false}`, ptr: &ump, out: &umtrue},
 	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
 	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
-	{in: `{"M":{"T":false}}`, ptr: &umstruct, out: umstruct},
+	{in: `{"M":{"T":"x:y"}}`, ptr: &umstruct, out: umstruct},
 
 	// UnmarshalText interface test
-	{in: `"X"`, ptr: &um0T, out: umtrueT}, // use "false" so test will fail if custom unmarshaler is not called
-	{in: `"X"`, ptr: &umpT, out: &umtrueT},
-	{in: `["X"]`, ptr: &umsliceT, out: umsliceT},
-	{in: `["X"]`, ptr: &umslicepT, out: &umsliceT},
-	{in: `{"M":"X"}`, ptr: &umstructT, out: umstructT},
+	{in: `"x:y"`, ptr: &um0T, out: umtrueXY},
+	{in: `"x:y"`, ptr: &umpType, out: &umtrueXY},
+	{in: `["x:y"]`, ptr: &umsliceXY, out: umsliceXY},
+	{in: `["x:y"]`, ptr: &umslicepType, out: &umsliceXY},
+	{in: `{"M":"x:y"}`, ptr: umstructType, out: umstructXY},
+
+	// Map keys can be encoding.TextUnmarshalers
+	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
+	// If multiple values for the same key exists, only the most recent value is used.
+	{in: `{"x:y":false,"x:y":true}`, ptr: &ummapType, out: ummapXY},
 
 	// Overwriting of data.
 	// This is different from package xml, but it's what we've always done.
@@ -426,11 +440,23 @@ var unmarshalTests = []unmarshalTest{
 		out: "hello\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdworld",
 	},
 
-	// issue 8305
+	// Used to be issue 8305, but time.Time implements encoding.TextUnmarshaler so this works now.
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
 		ptr: &map[time.Time]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[time.Time]string{}), 1},
+		out: map[time.Time]string{time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC): "hello world"},
+	},
+
+	// issue 8305
+	{
+		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
+		ptr: &map[Point]string{},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[Point]string{}), 1},
+	},
+	{
+		in:  `{"asdf": "hello world"}`,
+		ptr: &map[unmarshaler]string{},
+		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1},
 	},
 }
 
@@ -1270,7 +1296,7 @@ func TestSliceOfCustomByte(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(a, b) {
-		t.Fatal("expected %v == %v", a, b)
+		t.Fatalf("expected %v == %v", a, b)
 	}
 }
 

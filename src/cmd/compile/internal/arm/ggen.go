@@ -14,7 +14,7 @@ func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
-	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.Argwid, int64(gc.Widthptr)))
+	ptxt.To.Val = int32(gc.Rnd(gc.Curfn.Type.ArgWidth(), int64(gc.Widthptr)))
 	frame := uint32(gc.Rnd(gc.Stksize+gc.Maxarg, int64(gc.Widthreg)))
 	ptxt.To.Offset = int64(frame)
 
@@ -34,7 +34,7 @@ func defframe(ptxt *obj.Prog) {
 			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, gc.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
 			// merge with range we already have
@@ -95,15 +95,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int32, ttype int, treg int, toffset int32) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int32, ttype obj.AddrType, treg int, toffset int32) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
-	q.From.Type = int16(ftype)
+	q.From.Type = ftype
 	q.From.Reg = int16(freg)
 	q.From.Offset = int64(foffset)
-	q.To.Type = int16(ttype)
+	q.To.Type = ttype
 	q.To.Reg = int16(treg)
 	q.To.Offset = int64(toffset)
 	q.Link = p.Link
@@ -121,7 +121,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	t := nl.Type
-	w := int(t.Width * 8)
+	w := t.Width * 8
 	var n1 gc.Node
 	gc.Regalloc(&n1, t, res)
 	gc.Cgen(nl, &n1)
@@ -143,7 +143,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	case gc.TINT32,
 		gc.TUINT32:
 		var p *obj.Prog
-		if gc.Issigned[t.Etype] {
+		if t.IsSigned() {
 			p = gins(arm.AMULL, &n2, nil)
 		} else {
 			p = gins(arm.AMULLU, &n2, nil)
@@ -178,7 +178,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 	w := int(nl.Type.Width * 8)
 
 	if op == gc.OLROT {
-		v := nr.Int()
+		v := nr.Int64()
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		if w == 32 {
@@ -205,17 +205,17 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		var n1 gc.Node
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
-		sc := uint64(nr.Int())
+		sc := uint64(nr.Int64())
 		if sc == 0 {
 		} else // nothing to do
 		if sc >= uint64(nl.Type.Width*8) {
-			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+			if op == gc.ORSH && nl.Type.IsSigned() {
 				gshift(arm.AMOVW, &n1, arm.SHIFT_AR, int32(w), &n1)
 			} else {
 				gins(arm.AEOR, &n1, &n1)
 			}
 		} else {
-			if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
+			if op == gc.ORSH && nl.Type.IsSigned() {
 				gshift(arm.AMOVW, &n1, arm.SHIFT_AR, int32(sc), &n1)
 			} else if op == gc.ORSH {
 				gshift(arm.AMOVW, &n1, arm.SHIFT_LR, int32(sc), &n1) // OLSH
@@ -294,7 +294,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 	if op == gc.ORSH {
 		var p1 *obj.Prog
 		var p2 *obj.Prog
-		if gc.Issigned[nl.Type.Etype] {
+		if nl.Type.IsSigned() {
 			p1 = gshift(arm.AMOVW, &n2, arm.SHIFT_AR, int32(w)-1, &n2)
 			p2 = gregshift(arm.AMOVW, &n2, arm.SHIFT_AR, &n1, &n2)
 		} else {
@@ -421,7 +421,7 @@ func expandchecks(firstp *obj.Prog) {
 			continue
 		}
 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
-			gc.Warnl(int(p.Lineno), "generated nil check")
+			gc.Warnl(p.Lineno, "generated nil check")
 		}
 		if p.From.Type != obj.TYPE_REG {
 			gc.Fatalf("invalid nil check %v", p)
@@ -464,7 +464,7 @@ func ginsnop() {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n *gc.Node) {
+func ginscon(as obj.As, c int64, n *gc.Node) {
 	var n1 gc.Node
 	gc.Nodconst(&n1, gc.Types[gc.TINT32], c)
 	var n2 gc.Node
@@ -475,7 +475,7 @@ func ginscon(as int, c int64, n *gc.Node) {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n1.Int() == 0 && n2.Op != gc.OLITERAL {
+	if t.IsInteger() && n1.Op == gc.OLITERAL && n1.Int64() == 0 && n2.Op != gc.OLITERAL {
 		op = gc.Brrev(op)
 		n1, n2 = n2, n1
 	}
@@ -484,7 +484,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	gc.Regalloc(&g1, n1.Type, &r1)
 	gc.Cgen(n1, &g1)
 	gmove(&g1, &r1)
-	if gc.Isint[t.Etype] && n2.Op == gc.OLITERAL && n2.Int() == 0 {
+	if t.IsInteger() && n2.Op == gc.OLITERAL && n2.Int64() == 0 {
 		gins(arm.ACMP, &r1, n2)
 	} else {
 		gc.Regalloc(&r2, t, n2)

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,11 +8,9 @@ package pe
 import (
 	"debug/dwarf"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 )
 
 // A File represents an open PE file.
@@ -20,81 +18,11 @@ type File struct {
 	FileHeader
 	OptionalHeader interface{} // of type *OptionalHeader32 or *OptionalHeader64
 	Sections       []*Section
-	Symbols        []*Symbol
+	Symbols        []*Symbol    // COFF symbols with auxiliary symbol records removed
+	_COFFSymbols   []COFFSymbol // all COFF symbols (including auxiliary symbol records)
+	_StringTable   _StringTable
 
 	closer io.Closer
-}
-
-type SectionHeader struct {
-	Name                 string
-	VirtualSize          uint32
-	VirtualAddress       uint32
-	Size                 uint32
-	Offset               uint32
-	PointerToRelocations uint32
-	PointerToLineNumbers uint32
-	NumberOfRelocations  uint16
-	NumberOfLineNumbers  uint16
-	Characteristics      uint32
-}
-
-type Section struct {
-	SectionHeader
-
-	// Embed ReaderAt for ReadAt method.
-	// Do not embed SectionReader directly
-	// to avoid having Read and Seek.
-	// If a client wants Read and Seek it must use
-	// Open() to avoid fighting over the seek offset
-	// with other clients.
-	io.ReaderAt
-	sr *io.SectionReader
-}
-
-type Symbol struct {
-	Name          string
-	Value         uint32
-	SectionNumber int16
-	Type          uint16
-	StorageClass  uint8
-}
-
-type ImportDirectory struct {
-	OriginalFirstThunk uint32
-	TimeDateStamp      uint32
-	ForwarderChain     uint32
-	Name               uint32
-	FirstThunk         uint32
-
-	dll string
-}
-
-// Data reads and returns the contents of the PE section.
-func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.sr.Size())
-	n, err := s.sr.ReadAt(dat, 0)
-	if n == len(dat) {
-		err = nil
-	}
-	return dat[0:n], err
-}
-
-// Open returns a new ReadSeeker reading the PE section.
-func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
-
-type FormatError struct {
-	off int64
-	msg string
-	val interface{}
-}
-
-func (e *FormatError) Error() string {
-	msg := e.msg
-	if e.val != nil {
-		msg += fmt.Sprintf(" '%v'", e.val)
-	}
-	msg += fmt.Sprintf(" in record at byte %#x", e.off)
-	return msg
 }
 
 // Open opens the named file using os.Open and prepares it for use as a PE binary.
@@ -129,6 +57,8 @@ var (
 	sizeofOptionalHeader64 = uint16(binary.Size(OptionalHeader64{}))
 )
 
+// TODO(brainman): add Load function, as a replacement for NewFile, that does not call removeAuxSymbols (for performance)
+
 // NewFile creates a new File for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
@@ -144,66 +74,42 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		var sign [4]byte
 		r.ReadAt(sign[:], signoff)
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
-			return nil, errors.New("Invalid PE File Format.")
+			return nil, fmt.Errorf("Invalid PE COFF file signature of %v.", sign)
 		}
 		base = signoff + 4
 	} else {
 		base = int64(0)
 	}
-	sr.Seek(base, os.SEEK_SET)
+	sr.Seek(base, io.SeekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
-	if f.FileHeader.Machine != IMAGE_FILE_MACHINE_UNKNOWN && f.FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64 && f.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 {
-		return nil, errors.New("Invalid PE File Format.")
+	switch f.FileHeader.Machine {
+	case IMAGE_FILE_MACHINE_UNKNOWN, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386:
+	default:
+		return nil, fmt.Errorf("Unrecognised COFF file header machine value of 0x%x.", f.FileHeader.Machine)
 	}
 
-	var ss []byte
-	if f.FileHeader.NumberOfSymbols > 0 {
-		// Get COFF string table, which is located at the end of the COFF symbol table.
-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols), os.SEEK_SET)
-		var l uint32
-		if err := binary.Read(sr, binary.LittleEndian, &l); err != nil {
-			return nil, err
-		}
-		ss = make([]byte, l)
-		if _, err := r.ReadAt(ss, int64(f.FileHeader.PointerToSymbolTable+COFFSymbolSize*f.FileHeader.NumberOfSymbols)); err != nil {
-			return nil, err
-		}
+	var err error
 
-		// Process COFF symbol table.
-		sr.Seek(int64(f.FileHeader.PointerToSymbolTable), os.SEEK_SET)
-		aux := uint8(0)
-		for i := 0; i < int(f.FileHeader.NumberOfSymbols); i++ {
-			cs := new(COFFSymbol)
-			if err := binary.Read(sr, binary.LittleEndian, cs); err != nil {
-				return nil, err
-			}
-			if aux > 0 {
-				aux--
-				continue
-			}
-			var name string
-			if cs.Name[0] == 0 && cs.Name[1] == 0 && cs.Name[2] == 0 && cs.Name[3] == 0 {
-				si := int(binary.LittleEndian.Uint32(cs.Name[4:]))
-				name, _ = getString(ss, si)
-			} else {
-				name = cstring(cs.Name[:])
-			}
-			aux = cs.NumberOfAuxSymbols
-			s := &Symbol{
-				Name:          name,
-				Value:         cs.Value,
-				SectionNumber: cs.SectionNumber,
-				Type:          cs.Type,
-				StorageClass:  cs.StorageClass,
-			}
-			f.Symbols = append(f.Symbols, s)
-		}
+	// Read string table.
+	f._StringTable, err = readStringTable(&f.FileHeader, sr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read symbol table.
+	f._COFFSymbols, err = readCOFFSymbols(&f.FileHeader, sr)
+	if err != nil {
+		return nil, err
+	}
+	f.Symbols, err = removeAuxSymbols(f._COFFSymbols, f._StringTable)
+	if err != nil {
+		return nil, err
 	}
 
 	// Read optional header.
-	sr.Seek(base, os.SEEK_SET)
+	sr.Seek(base, io.SeekStart)
 	if err := binary.Read(sr, binary.LittleEndian, &f.FileHeader); err != nil {
 		return nil, err
 	}
@@ -235,12 +141,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		if err := binary.Read(sr, binary.LittleEndian, sh); err != nil {
 			return nil, err
 		}
-		var name string
-		if sh.Name[0] == '\x2F' {
-			si, _ := strconv.Atoi(cstring(sh.Name[1:]))
-			name, _ = getString(ss, si)
-		} else {
-			name = cstring(sh.Name[0:])
+		name, err := sh.fullName(f._StringTable)
+		if err != nil {
+			return nil, err
 		}
 		s := new(Section)
 		s.SectionHeader = SectionHeader{
@@ -255,18 +158,34 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			NumberOfLineNumbers:  sh.NumberOfLineNumbers,
 			Characteristics:      sh.Characteristics,
 		}
-		s.sr = io.NewSectionReader(r, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
+		r2 := r
+		if sh.PointerToRawData == 0 { // .bss must have all 0s
+			r2 = zeroReaderAt{}
+		}
+		s.sr = io.NewSectionReader(r2, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
 		s.ReaderAt = s.sr
 		f.Sections[i] = s
 	}
+	for i := range f.Sections {
+		var err error
+		f.Sections[i]._Relocs, err = readRelocs(&f.Sections[i].SectionHeader, sr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return f, nil
 }
 
-func cstring(b []byte) string {
-	var i int
-	for i = 0; i < len(b) && b[i] != 0; i++ {
+// zeroReaderAt is ReaderAt that reads 0s.
+type zeroReaderAt struct{}
+
+// ReadAt writes len(p) 0s into p.
+func (w zeroReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+	for i := range p {
+		p[i] = 0
 	}
-	return string(b[0:i])
+	return len(p), nil
 }
 
 // getString extracts a string from symbol string table.
@@ -298,7 +217,7 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	// There are many other DWARF sections, but these
 	// are the ones the debug/dwarf package uses.
 	// Don't bother loading others.
-	var names = [...]string{"abbrev", "info", "line", "str"}
+	var names = [...]string{"abbrev", "info", "line", "ranges", "str"}
 	var dat [len(names)][]byte
 	for i, name := range names {
 		name = ".debug_" + name
@@ -316,8 +235,20 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		dat[i] = b
 	}
 
-	abbrev, info, line, str := dat[0], dat[1], dat[2], dat[3]
-	return dwarf.New(abbrev, nil, nil, info, line, nil, nil, str)
+	abbrev, info, line, ranges, str := dat[0], dat[1], dat[2], dat[3], dat[4]
+	return dwarf.New(abbrev, nil, nil, info, line, nil, ranges, str)
+}
+
+// TODO(brainman): document ImportDirectory once we decide what to do with it.
+
+type ImportDirectory struct {
+	OriginalFirstThunk uint32
+	TimeDateStamp      uint32
+	ForwarderChain     uint32
+	Name               uint32
+	FirstThunk         uint32
+
+	dll string
 }
 
 // ImportedSymbols returns the names of all symbols
@@ -347,6 +278,12 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		}
 		ida = append(ida, dt)
 	}
+	// TODO(brainman): this needs to be rewritten
+	//  ds.Data() return contets of .idata section. Why store in variable called "names"?
+	//  Why we are retrieving it second time? We already have it in "d", and it is not modified anywhere.
+	//  getString does not extracts a string from symbol string table (as getString doco says).
+	//  Why ds.Data() called again and again in the loop?
+	//  Needs test before rewrite.
 	names, _ := ds.Data()
 	var all []string
 	for _, dt := range ida {
@@ -394,4 +331,13 @@ func (f *File) ImportedLibraries() ([]string, error) {
 	// TODO
 	// cgo -dynimport don't use this for windows PE, so just return.
 	return nil, nil
+}
+
+// FormatError is unused.
+// The type is retained for compatibility.
+type FormatError struct {
+}
+
+func (e *FormatError) Error() string {
+	return "unknown error"
 }

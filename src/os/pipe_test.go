@@ -88,7 +88,7 @@ func TestStdPipe(t *testing.T) {
 	}
 }
 
-// This is a helper for TestStdPipe.  It's not a test in itself.
+// This is a helper for TestStdPipe. It's not a test in itself.
 func TestStdPipeHelper(t *testing.T) {
 	if os.Getenv("GO_TEST_STD_PIPE_HELPER_SIGNAL") != "" {
 		signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)

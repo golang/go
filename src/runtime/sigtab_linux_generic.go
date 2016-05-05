@@ -45,7 +45,7 @@ var sigtable = [...]sigTabT{
 	/* 28 */ {_SigNotify, "SIGWINCH: window size change"},
 	/* 29 */ {_SigNotify, "SIGIO: i/o now possible"},
 	/* 30 */ {_SigNotify, "SIGPWR: power failure restart"},
-	/* 31 */ {_SigNotify, "SIGSYS: bad system call"},
+	/* 31 */ {_SigThrow, "SIGSYS: bad system call"},
 	/* 32 */ {_SigSetStack + _SigUnblock, "signal 32"}, /* SIGCANCEL; see issue 6997 */
 	/* 33 */ {_SigSetStack + _SigUnblock, "signal 33"}, /* SIGSETXID; see issues 3871, 9400, 12498 */
 	/* 34 */ {_SigNotify, "signal 34"},

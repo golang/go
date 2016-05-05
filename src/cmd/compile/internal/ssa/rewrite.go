@@ -26,12 +26,9 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 	for {
 		change := false
 		for _, b := range f.Blocks {
-			if b.Kind == BlockDead {
-				continue
-			}
 			if b.Control != nil && b.Control.Op == OpCopy {
 				for b.Control.Op == OpCopy {
-					b.Control = b.Control.Args[0]
+					b.SetControl(b.Control.Args[0])
 				}
 			}
 			curb = b
@@ -40,8 +37,27 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			curb = nil
 			for _, v := range b.Values {
-				copyelimValue(v)
 				change = phielimValue(v) || change
+
+				// Eliminate copy inputs.
+				// If any copy input becomes unused, mark it
+				// as invalid and discard its argument. Repeat
+				// recursively on the discarded argument.
+				// This phase helps remove phantom "dead copy" uses
+				// of a value so that a x.Uses==1 rule condition
+				// fires reliably.
+				for i, a := range v.Args {
+					if a.Op != OpCopy {
+						continue
+					}
+					v.SetArg(i, copySource(a))
+					change = true
+					for a.Uses == 0 {
+						b := a.Args[0]
+						a.reset(OpInvalid)
+						a = b
+					}
+				}
 
 				// apply rewrite function
 				curv = v
@@ -52,7 +68,28 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 		}
 		if !change {
-			return
+			break
+		}
+	}
+	// remove clobbered values
+	for _, b := range f.Blocks {
+		j := 0
+		for i, v := range b.Values {
+			if v.Op == OpInvalid {
+				f.freeValue(v)
+				continue
+			}
+			if i != j {
+				b.Values[j] = v
+			}
+			j++
+		}
+		if j != len(b.Values) {
+			tail := b.Values[j:]
+			for j := range tail {
+				tail[j] = nil
+			}
+			b.Values = b.Values[:j]
 		}
 	}
 }
@@ -84,7 +121,7 @@ func is8BitInt(t Type) bool {
 }
 
 func isPtr(t Type) bool {
-	return t.IsPtr()
+	return t.IsPtrShaped()
 }
 
 func isSigned(t Type) bool {
@@ -95,17 +132,7 @@ func typeSize(t Type) int64 {
 	return t.Size()
 }
 
-// addOff adds two int64 offsets. Fails if wraparound happens.
-func addOff(x, y int64) int64 {
-	z := x + y
-	// x and y have same sign and z has a different sign => overflow
-	if x^y >= 0 && x^z < 0 {
-		panic(fmt.Sprintf("offset overflow %d %d", x, y))
-	}
-	return z
-}
-
-// mergeSym merges two symbolic offsets.  There is no real merging of
+// mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y interface{}) interface{} {
 	if x == nil {
@@ -115,18 +142,10 @@ func mergeSym(x, y interface{}) interface{} {
 		return x
 	}
 	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
-	return nil
 }
 func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
-
-func inBounds8(idx, len int64) bool       { return int8(idx) >= 0 && int8(idx) < int8(len) }
-func inBounds16(idx, len int64) bool      { return int16(idx) >= 0 && int16(idx) < int16(len) }
-func inBounds32(idx, len int64) bool      { return int32(idx) >= 0 && int32(idx) < int32(len) }
-func inBounds64(idx, len int64) bool      { return idx >= 0 && idx < len }
-func sliceInBounds32(idx, len int64) bool { return int32(idx) >= 0 && int32(idx) <= int32(len) }
-func sliceInBounds64(idx, len int64) bool { return idx >= 0 && idx <= len }
 
 // nlz returns the number of leading zeros.
 func nlz(x int64) int64 {
@@ -192,6 +211,16 @@ func b2i(b bool) int64 {
 	return 0
 }
 
+// i2f is used in rules for converting from an AuxInt to a float.
+func i2f(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+
+// i2f32 is used in rules for converting from an AuxInt to a float32.
+func i2f32(i int64) float32 {
+	return float32(math.Float64frombits(uint64(i)))
+}
+
 // f2i is used in the rules for storing a float in AuxInt.
 func f2i(f float64) int64 {
 	return int64(math.Float64bits(f))
@@ -207,11 +236,20 @@ func isSamePtr(p1, p2 *Value) bool {
 	if p1 == p2 {
 		return true
 	}
-	// Aux isn't used  in OffPtr, and AuxInt isn't currently used in
-	// Addr, but this still works as the values will be null/0
-	return (p1.Op == OpOffPtr || p1.Op == OpAddr) && p1.Op == p2.Op &&
-		p1.Aux == p2.Aux && p1.AuxInt == p2.AuxInt &&
-		p1.Args[0] == p2.Args[0]
+	if p1.Op != p2.Op {
+		return false
+	}
+	switch p1.Op {
+	case OpOffPtr:
+		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
+	case OpAddr:
+		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
+		// Checking for value equality only works after [z]cse has run.
+		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
+	case OpAddPtr:
+		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
+	}
+	return false
 }
 
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
@@ -258,4 +296,64 @@ func duff(size int64) (int64, int64) {
 		adj -= dzClearStep * (dzBlockLen - steps)
 	}
 	return off, adj
+}
+
+// mergePoint finds a block among a's blocks which dominates b and is itself
+// dominated by all of a's blocks. Returns nil if it can't find one.
+// Might return nil even if one does exist.
+func mergePoint(b *Block, a ...*Value) *Block {
+	// Walk backward from b looking for one of the a's blocks.
+
+	// Max distance
+	d := 100
+
+	for d > 0 {
+		for _, x := range a {
+			if b == x.Block {
+				goto found
+			}
+		}
+		if len(b.Preds) > 1 {
+			// Don't know which way to go back. Abort.
+			return nil
+		}
+		b = b.Preds[0].b
+		d--
+	}
+	return nil // too far away
+found:
+	// At this point, r is the first value in a that we find by walking backwards.
+	// if we return anything, r will be it.
+	r := b
+
+	// Keep going, counting the other a's that we find. They must all dominate r.
+	na := 0
+	for d > 0 {
+		for _, x := range a {
+			if b == x.Block {
+				na++
+			}
+		}
+		if na == len(a) {
+			// Found all of a in a backwards walk. We can return r.
+			return r
+		}
+		if len(b.Preds) > 1 {
+			return nil
+		}
+		b = b.Preds[0].b
+		d--
+
+	}
+	return nil // too far away
+}
+
+// clobber invalidates v.  Returns true.
+// clobber is used by rewrite rules to:
+//   A) make sure v is really dead and never used again.
+//   B) decrement use counts of v's args.
+func clobber(v *Value) bool {
+	v.reset(OpInvalid)
+	// Note: leave v.Block intact.  The Block field is used after clobber.
+	return true
 }

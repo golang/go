@@ -17,9 +17,9 @@ const ecPrivKeyVersion = 1
 
 // ecPrivateKey reflects an ASN.1 Elliptic Curve Private Key Structure.
 // References:
-//   RFC5915
+//   RFC 5915
 //   SEC1 - http://www.secg.org/sec1-v2.pdf
-// Per RFC5915 the NamedCurveOID is marked as ASN.1 OPTIONAL, however in
+// Per RFC 5915 the NamedCurveOID is marked as ASN.1 OPTIONAL, however in
 // most cases it is not.
 type ecPrivateKey struct {
 	Version       int
@@ -29,7 +29,7 @@ type ecPrivateKey struct {
 }
 
 // ParseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
-func ParseECPrivateKey(der []byte) (key *ecdsa.PrivateKey, err error) {
+func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
 	return parseECPrivateKey(nil, der)
 }
 

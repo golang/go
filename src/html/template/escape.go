@@ -15,8 +15,8 @@ import (
 
 // escapeTemplate rewrites the named template, which must be
 // associated with t, to guarantee that the output of any of the named
-// templates is properly escaped.  If no error is returned, then the named templates have
-// been modified.  Otherwise the named templates have been rendered
+// templates is properly escaped. If no error is returned, then the named templates have
+// been modified. Otherwise the named templates have been rendered
 // unusable.
 func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 	e := newEscaper(tmpl)
@@ -46,30 +46,30 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 
 // funcMap maps command names to functions that render their inputs safe.
 var funcMap = template.FuncMap{
-	"html_template_attrescaper":     attrEscaper,
-	"html_template_commentescaper":  commentEscaper,
-	"html_template_cssescaper":      cssEscaper,
-	"html_template_cssvaluefilter":  cssValueFilter,
-	"html_template_htmlnamefilter":  htmlNameFilter,
-	"html_template_htmlescaper":     htmlEscaper,
-	"html_template_jsregexpescaper": jsRegexpEscaper,
-	"html_template_jsstrescaper":    jsStrEscaper,
-	"html_template_jsvalescaper":    jsValEscaper,
-	"html_template_nospaceescaper":  htmlNospaceEscaper,
-	"html_template_rcdataescaper":   rcdataEscaper,
-	"html_template_urlescaper":      urlEscaper,
-	"html_template_urlfilter":       urlFilter,
-	"html_template_urlnormalizer":   urlNormalizer,
+	"_html_template_attrescaper":     attrEscaper,
+	"_html_template_commentescaper":  commentEscaper,
+	"_html_template_cssescaper":      cssEscaper,
+	"_html_template_cssvaluefilter":  cssValueFilter,
+	"_html_template_htmlnamefilter":  htmlNameFilter,
+	"_html_template_htmlescaper":     htmlEscaper,
+	"_html_template_jsregexpescaper": jsRegexpEscaper,
+	"_html_template_jsstrescaper":    jsStrEscaper,
+	"_html_template_jsvalescaper":    jsValEscaper,
+	"_html_template_nospaceescaper":  htmlNospaceEscaper,
+	"_html_template_rcdataescaper":   rcdataEscaper,
+	"_html_template_urlescaper":      urlEscaper,
+	"_html_template_urlfilter":       urlFilter,
+	"_html_template_urlnormalizer":   urlNormalizer,
 }
 
 // equivEscapers matches contextual escapers to equivalent template builtins.
 var equivEscapers = map[string]string{
-	"html_template_attrescaper":    "html",
-	"html_template_htmlescaper":    "html",
-	"html_template_nospaceescaper": "html",
-	"html_template_rcdataescaper":  "html",
-	"html_template_urlescaper":     "urlquery",
-	"html_template_urlnormalizer":  "urlquery",
+	"_html_template_attrescaper":    "html",
+	"_html_template_htmlescaper":    "html",
+	"_html_template_nospaceescaper": "html",
+	"_html_template_rcdataescaper":  "html",
+	"_html_template_urlescaper":     "urlquery",
+	"_html_template_urlnormalizer":  "urlquery",
 }
 
 // escaper collects type inferences about templates and changes needed to make
@@ -147,17 +147,17 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case stateURL, stateCSSDqStr, stateCSSSqStr, stateCSSDqURL, stateCSSSqURL, stateCSSURL:
 		switch c.urlPart {
 		case urlPartNone:
-			s = append(s, "html_template_urlfilter")
+			s = append(s, "_html_template_urlfilter")
 			fallthrough
 		case urlPartPreQuery:
 			switch c.state {
 			case stateCSSDqStr, stateCSSSqStr:
-				s = append(s, "html_template_cssescaper")
+				s = append(s, "_html_template_cssescaper")
 			default:
-				s = append(s, "html_template_urlnormalizer")
+				s = append(s, "_html_template_urlnormalizer")
 			}
 		case urlPartQueryOrFrag:
-			s = append(s, "html_template_urlescaper")
+			s = append(s, "_html_template_urlescaper")
 		case urlPartUnknown:
 			return context{
 				state: stateError,
@@ -167,27 +167,27 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 			panic(c.urlPart.String())
 		}
 	case stateJS:
-		s = append(s, "html_template_jsvalescaper")
+		s = append(s, "_html_template_jsvalescaper")
 		// A slash after a value starts a div operator.
 		c.jsCtx = jsCtxDivOp
 	case stateJSDqStr, stateJSSqStr:
-		s = append(s, "html_template_jsstrescaper")
+		s = append(s, "_html_template_jsstrescaper")
 	case stateJSRegexp:
-		s = append(s, "html_template_jsregexpescaper")
+		s = append(s, "_html_template_jsregexpescaper")
 	case stateCSS:
-		s = append(s, "html_template_cssvaluefilter")
+		s = append(s, "_html_template_cssvaluefilter")
 	case stateText:
-		s = append(s, "html_template_htmlescaper")
+		s = append(s, "_html_template_htmlescaper")
 	case stateRCDATA:
-		s = append(s, "html_template_rcdataescaper")
+		s = append(s, "_html_template_rcdataescaper")
 	case stateAttr:
 		// Handled below in delim check.
 	case stateAttrName, stateTag:
 		c.state = stateAttrName
-		s = append(s, "html_template_htmlnamefilter")
+		s = append(s, "_html_template_htmlnamefilter")
 	default:
 		if isComment(c.state) {
-			s = append(s, "html_template_commentescaper")
+			s = append(s, "_html_template_commentescaper")
 		} else {
 			panic("unexpected state " + c.state.String())
 		}
@@ -196,9 +196,9 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case delimNone:
 		// No extra-escaping needed for raw text content.
 	case delimSpaceOrTagEnd:
-		s = append(s, "html_template_nospaceescaper")
+		s = append(s, "_html_template_nospaceescaper")
 	default:
-		s = append(s, "html_template_attrescaper")
+		s = append(s, "_html_template_attrescaper")
 	}
 	e.editActionNode(n, s)
 	return c
@@ -276,22 +276,22 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 // redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
 // for all x.
 var redundantFuncs = map[string]map[string]bool{
-	"html_template_commentescaper": {
-		"html_template_attrescaper":    true,
-		"html_template_nospaceescaper": true,
-		"html_template_htmlescaper":    true,
+	"_html_template_commentescaper": {
+		"_html_template_attrescaper":    true,
+		"_html_template_nospaceescaper": true,
+		"_html_template_htmlescaper":    true,
 	},
-	"html_template_cssescaper": {
-		"html_template_attrescaper": true,
+	"_html_template_cssescaper": {
+		"_html_template_attrescaper": true,
 	},
-	"html_template_jsregexpescaper": {
-		"html_template_attrescaper": true,
+	"_html_template_jsregexpescaper": {
+		"_html_template_attrescaper": true,
 	},
-	"html_template_jsstrescaper": {
-		"html_template_attrescaper": true,
+	"_html_template_jsstrescaper": {
+		"_html_template_attrescaper": true,
 	},
-	"html_template_urlescaper": {
-		"html_template_urlnormalizer": true,
+	"_html_template_urlescaper": {
+		"_html_template_urlnormalizer": true,
 	},
 }
 

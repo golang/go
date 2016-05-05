@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,7 +13,7 @@ import (
 )
 
 // If the ifindex is zero, interfaceTable returns mappings of all
-// network interfaces.  Otherwise it returns a mapping of a specific
+// network interfaces. Otherwise it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
@@ -61,13 +61,13 @@ func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
 		m.Data = m.Data[unsafe.Offsetof(sa.Data):]
 		var name [syscall.IFNAMSIZ]byte
 		for i := 0; i < int(sa.Nlen); i++ {
-			name[i] = byte(m.Data[i])
+			name[i] = m.Data[i]
 		}
 		ifi.Name = string(name[:sa.Nlen])
 		ifi.MTU = int(m.Header.Data.Mtu)
 		addr := make([]byte, sa.Alen)
 		for i := 0; i < int(sa.Alen); i++ {
-			addr[i] = byte(m.Data[int(sa.Nlen)+i])
+			addr[i] = m.Data[int(sa.Nlen)+i]
 		}
 		ifi.HardwareAddr = addr[:sa.Alen]
 	}
@@ -95,7 +95,7 @@ func linkFlags(rawFlags int32) Flags {
 }
 
 // If the ifi is nil, interfaceAddrTable returns addresses for all
-// network interfaces.  Otherwise it returns addresses for a specific
+// network interfaces. Otherwise it returns addresses for a specific
 // interface.
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	index := 0
@@ -166,6 +166,7 @@ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
 		// link-local address as the kernel-internal form.
 		if ifa.IP.IsLinkLocalUnicast() {
 			ifa.IP[2], ifa.IP[3] = 0, 0
+			ifa.Zone = ifi.Name
 		}
 	}
 	if ifa.IP == nil || ifa.Mask == nil {

@@ -33,6 +33,11 @@ func TestReverseProxy(t *testing.T) {
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.FormValue("mode") == "hangup" {
+			c, _, _ := w.(http.Hijacker).Hijack()
+			c.Close()
+			return
+		}
 		if len(r.TransferEncoding) > 0 {
 			t.Errorf("backend got unexpected TransferEncoding: %v", r.TransferEncoding)
 		}
@@ -69,6 +74,7 @@ func TestReverseProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
@@ -113,6 +119,20 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
 		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
 	}
+
+	// Test that a backend failing to be reached or one which doesn't return
+	// a response results in a StatusBadGateway.
+	getReq, _ = http.NewRequest("GET", frontend.URL+"/?mode=hangup", nil)
+	getReq.Close = true
+	res, err = http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusBadGateway {
+		t.Errorf("request to bad proxy = %v; want 502 StatusBadGateway", res.Status)
+	}
+
 }
 
 func TestXForwardedFor(t *testing.T) {

@@ -673,8 +673,8 @@ func TestPeek(t *testing.T) {
 	if _, err := buf.Peek(-1); err != ErrNegativeCount {
 		t.Fatalf("want ErrNegativeCount got %v", err)
 	}
-	if _, err := buf.Peek(32); err != ErrBufferFull {
-		t.Fatalf("want ErrBufFull got %v", err)
+	if s, err := buf.Peek(32); string(s) != "abcdefghijklmnop" || err != ErrBufferFull {
+		t.Fatalf("want %q, ErrBufFull got %q, err=%v", "abcdefghijklmnop", string(s), err)
 	}
 	if _, err := buf.Read(p[0:3]); string(p[0:3]) != "abc" || err != nil {
 		t.Fatalf("want %q got %q, err=%v", "abc", string(p[0:3]), err)

@@ -1,14 +1,12 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package obj
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -24,165 +22,6 @@ func Cputime() float64 {
 		start = time.Now()
 	}
 	return time.Since(start).Seconds()
-}
-
-type Biobuf struct {
-	f       *os.File
-	r       *bufio.Reader
-	w       *bufio.Writer
-	linelen int
-}
-
-func Bopenw(name string) (*Biobuf, error) {
-	f, err := os.Create(name)
-	if err != nil {
-		return nil, err
-	}
-	return &Biobuf{f: f, w: bufio.NewWriter(f)}, nil
-}
-
-func Bopenr(name string) (*Biobuf, error) {
-	f, err := os.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	return &Biobuf{f: f, r: bufio.NewReader(f)}, nil
-}
-
-func Binitw(w io.Writer) *Biobuf {
-	return &Biobuf{w: bufio.NewWriter(w)}
-}
-
-func Binitr(r io.Reader) *Biobuf {
-	return &Biobuf{r: bufio.NewReader(r)}
-}
-
-func (b *Biobuf) Write(p []byte) (int, error) {
-	return b.w.Write(p)
-}
-
-func Bwritestring(b *Biobuf, p string) (int, error) {
-	return b.w.WriteString(p)
-}
-
-func Bseek(b *Biobuf, offset int64, whence int) int64 {
-	if b.w != nil {
-		if err := b.w.Flush(); err != nil {
-			log.Fatalf("writing output: %v", err)
-		}
-	} else if b.r != nil {
-		if whence == 1 {
-			offset -= int64(b.r.Buffered())
-		}
-	}
-	off, err := b.f.Seek(offset, whence)
-	if err != nil {
-		log.Fatalf("seeking in output: %v", err)
-	}
-	if b.r != nil {
-		b.r.Reset(b.f)
-	}
-	return off
-}
-
-func Boffset(b *Biobuf) int64 {
-	if b.w != nil {
-		if err := b.w.Flush(); err != nil {
-			log.Fatalf("writing output: %v", err)
-		}
-	}
-	off, err := b.f.Seek(0, 1)
-	if err != nil {
-		log.Fatalf("seeking in output [0, 1]: %v", err)
-	}
-	if b.r != nil {
-		off -= int64(b.r.Buffered())
-	}
-	return off
-}
-
-func (b *Biobuf) Flush() error {
-	return b.w.Flush()
-}
-
-func Bputc(b *Biobuf, c byte) {
-	b.w.WriteByte(c)
-}
-
-const Beof = -1
-
-func Bread(b *Biobuf, p []byte) int {
-	n, err := io.ReadFull(b.r, p)
-	if n == 0 {
-		if err != nil && err != io.EOF {
-			n = -1
-		}
-	}
-	return n
-}
-
-func Bgetc(b *Biobuf) int {
-	c, err := b.r.ReadByte()
-	if err != nil {
-		return -1
-	}
-	return int(c)
-}
-
-func Bgetrune(b *Biobuf) int {
-	r, _, err := b.r.ReadRune()
-	if err != nil {
-		return -1
-	}
-	return int(r)
-}
-
-func Bungetrune(b *Biobuf) {
-	b.r.UnreadRune()
-}
-
-func (b *Biobuf) Read(p []byte) (int, error) {
-	return b.r.Read(p)
-}
-
-func (b *Biobuf) Peek(n int) ([]byte, error) {
-	return b.r.Peek(n)
-}
-
-func Brdline(b *Biobuf, delim int) string {
-	s, err := b.r.ReadBytes(byte(delim))
-	if err != nil {
-		log.Fatalf("reading input: %v", err)
-	}
-	b.linelen = len(s)
-	return string(s)
-}
-
-func Brdstr(b *Biobuf, delim int, cut int) string {
-	s, err := b.r.ReadString(byte(delim))
-	if err != nil {
-		log.Fatalf("reading input: %v", err)
-	}
-	if len(s) > 0 && cut > 0 {
-		s = s[:len(s)-1]
-	}
-	return s
-}
-
-func Blinelen(b *Biobuf) int {
-	return b.linelen
-}
-
-func Bterm(b *Biobuf) error {
-	var err error
-	if b.w != nil {
-		err = b.w.Flush()
-	}
-	err1 := b.f.Close()
-	if err == nil {
-		err = err1
-	}
-	return err
 }
 
 func envOr(key, value string) string {
@@ -299,7 +138,7 @@ func (p *Prog) String() string {
 
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(int(p.As)), sc)
+	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(p.As), sc)
 	sep := "\t"
 	if p.From.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
@@ -311,7 +150,7 @@ func (p *Prog) String() string {
 		sep = ", "
 	}
 	if p.From3Type() != TYPE_NONE {
-		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
+		if p.From3.Type == TYPE_CONST && (p.As == ATEXT || p.As == AGLOBL) {
 			// Special case - omit $.
 			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
 		} else {
@@ -383,7 +222,7 @@ func Dconv(p *Prog, a *Addr) string {
 		}
 
 		str = Rconv(int(a.Reg))
-		if a.Name != TYPE_NONE || a.Sym != nil {
+		if a.Name != NAME_NONE || a.Sym != nil {
 			str = fmt.Sprintf("%v(%v)(REG)", Mconv(a), Rconv(int(a.Reg)))
 		}
 
@@ -406,7 +245,7 @@ func Dconv(p *Prog, a *Addr) string {
 		if a.Index != REG_NONE {
 			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
 		}
-		if p.As == ATYPE && a.Gotype != nil {
+		if p != nil && p.As == ATYPE && a.Gotype != nil {
 			str += fmt.Sprintf("%s", a.Gotype.Name)
 		}
 
@@ -440,7 +279,7 @@ func Dconv(p *Prog, a *Addr) string {
 
 	case TYPE_SHIFT:
 		v := int(a.Offset)
-		op := string("<<>>->@>"[((v>>5)&3)<<1:])
+		op := "<<>>->@>"[((v>>5)&3)<<1:]
 		if v&(1<<4) != 0 {
 			str = fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
 		} else {
@@ -550,10 +389,11 @@ const (
 	RBasePPC64  = 4 * 1024  // range [4k, 8k)
 	RBaseARM64  = 8 * 1024  // range [8k, 13k)
 	RBaseMIPS64 = 13 * 1024 // range [13k, 14k)
+	RBaseS390X  = 14 * 1024 // range [14k, 15k)
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
-// numbers to a given register number range.  Lo is inclusive,
+// numbers to a given register number range. Lo is inclusive,
 // hi exclusive (valid registers are lo through hi-1).
 func RegisterRegister(lo, hi int, Rconv func(int) string) {
 	regSpace = append(regSpace, regSet{lo, hi, Rconv})
@@ -595,26 +435,8 @@ func regListConv(list int) string {
 	return str
 }
 
-/*
-	Each architecture defines an instruction (A*) space as a unique
-	integer range.
-	Global opcodes like CALL start at 0; the architecture-specific ones
-	start at a distinct, big-maskable offsets.
-	Here is the list of architectures and the base of their opcode spaces.
-*/
-
-const (
-	ABase386 = (1 + iota) << 12
-	ABaseARM
-	ABaseAMD64
-	ABasePPC64
-	ABaseARM64
-	ABaseMIPS64
-	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
-)
-
 type opSet struct {
-	lo    int
+	lo    As
 	names []string
 }
 
@@ -623,17 +445,17 @@ var aSpace []opSet
 
 // RegisterOpcode binds a list of instruction names
 // to a given instruction number range.
-func RegisterOpcode(lo int, Anames []string) {
+func RegisterOpcode(lo As, Anames []string) {
 	aSpace = append(aSpace, opSet{lo, Anames})
 }
 
-func Aconv(a int) string {
-	if 0 <= a && a < len(Anames) {
+func Aconv(a As) string {
+	if 0 <= a && int(a) < len(Anames) {
 		return Anames[a]
 	}
 	for i := range aSpace {
 		as := &aSpace[i]
-		if as.lo <= a && a < as.lo+len(as.names) {
+		if as.lo <= a && int(a-as.lo) < len(as.names) {
 			return as.names[a-as.lo]
 		}
 	}
@@ -644,7 +466,6 @@ var Anames = []string{
 	"XXX",
 	"CALL",
 	"CHECKNIL",
-	"DATA",
 	"DUFFCOPY",
 	"DUFFZERO",
 	"END",

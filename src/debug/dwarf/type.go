@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -356,7 +356,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	}
 
 	// Get Type referred to by Entry's AttrType field.
-	// Set err if error happens.  Not having a type is an error.
+	// Set err if error happens. Not having a type is an error.
 	typeOf := func(e *Entry) Type {
 		tval := e.Val(AttrType)
 		var t Type
@@ -549,7 +549,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 					bito = f.ByteOffset * 8
 				}
 				if bito == lastFieldBitOffset && t.Kind != "union" {
-					// Last field was zero width.  Fix array length.
+					// Last field was zero width. Fix array length.
 					// (DWARF writes out 0-length arrays as if they were 1-length arrays.)
 					zeroArray(lastFieldType)
 				}
@@ -560,7 +560,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		if t.Kind != "union" {
 			b, ok := e.Val(AttrByteSize).(int64)
 			if ok && b*8 == lastFieldBitOffset {
-				// Final field must be zero width.  Fix array length.
+				// Final field must be zero width. Fix array length.
 				zeroArray(lastFieldType)
 			}
 		}

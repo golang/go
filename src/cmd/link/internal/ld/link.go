@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,59 +31,43 @@
 package ld
 
 import (
-	"cmd/internal/obj"
+	"bufio"
+	"cmd/internal/sys"
 	"debug/elf"
-	"encoding/binary"
 	"fmt"
 )
 
 type LSym struct {
-	Name       string
-	Extname    string
-	Type       int16
-	Version    int16
-	Dupok      uint8
-	Cfunc      uint8
-	External   uint8
-	Nosplit    uint8
-	Reachable  bool
-	Cgoexport  uint8
-	Special    uint8
-	Stkcheck   uint8
-	Hide       uint8
-	Leaf       uint8
-	Localentry uint8
-	Onlist     uint8
-	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
-	// is not set for symbols defined by the packages being linked or by symbols
-	// read by ldelf (and so is left as elf.STT_NOTYPE).
-	ElfType     elf.SymType
+	Name        string
+	Extname     string
+	Type        int16
+	Version     int16
+	Attr        Attribute
+	Localentry  uint8
 	Dynid       int32
 	Plt         int32
 	Got         int32
 	Align       int32
 	Elfsym      int32
 	LocalElfsym int32
-	Args        int32
-	Locals      int32
 	Value       int64
 	Size        int64
-	Allsym      *LSym
+	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+	// is not set for symbols defined by the packages being linked or by symbols
+	// read by ldelf (and so is left as elf.STT_NOTYPE).
+	ElfType     elf.SymType
 	Next        *LSym
 	Sub         *LSym
 	Outer       *LSym
 	Gotype      *LSym
 	Reachparent *LSym
-	Queue       *LSym
 	File        string
 	Dynimplib   string
 	Dynimpvers  string
 	Sect        *Section
-	Autom       *Auto
-	Pcln        *Pcln
+	FuncInfo    *FuncInfo
 	P           []byte
 	R           []Reloc
-	Local       bool
 }
 
 func (s *LSym) String() string {
@@ -103,6 +87,49 @@ func (s *LSym) ElfsymForReloc() int32 {
 	}
 }
 
+// Attribute is a set of common symbol attributes.
+type Attribute int16
+
+const (
+	AttrDuplicateOK Attribute = 1 << iota
+	AttrExternal
+	AttrNoSplit
+	AttrReachable
+	AttrCgoExportDynamic
+	AttrCgoExportStatic
+	AttrSpecial
+	AttrStackCheck
+	AttrHidden
+	AttrOnList
+	AttrLocal
+	AttrReflectMethod
+)
+
+func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+func (a Attribute) External() bool         { return a&AttrExternal != 0 }
+func (a Attribute) NoSplit() bool          { return a&AttrNoSplit != 0 }
+func (a Attribute) Reachable() bool        { return a&AttrReachable != 0 }
+func (a Attribute) CgoExportDynamic() bool { return a&AttrCgoExportDynamic != 0 }
+func (a Attribute) CgoExportStatic() bool  { return a&AttrCgoExportStatic != 0 }
+func (a Attribute) Special() bool          { return a&AttrSpecial != 0 }
+func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
+func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
+func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
+func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
+func (a Attribute) ReflectMethod() bool    { return a&AttrReflectMethod != 0 }
+
+func (a Attribute) CgoExport() bool {
+	return a.CgoExportDynamic() || a.CgoExportStatic()
+}
+
+func (a *Attribute) Set(flag Attribute, value bool) {
+	if value {
+		*a |= flag
+	} else {
+		*a &^= flag
+	}
+}
+
 type Reloc struct {
 	Off     int32
 	Siz     uint8
@@ -117,10 +144,9 @@ type Reloc struct {
 
 type Auto struct {
 	Asym    *LSym
-	Link    *Auto
+	Gotype  *LSym
 	Aoffset int32
 	Name    int16
-	Gotype  *LSym
 }
 
 type Shlib struct {
@@ -132,19 +158,18 @@ type Shlib struct {
 }
 
 type Link struct {
-	Thechar    int32
-	Thestring  string
-	Goarm      int32
-	Headtype   int
-	Arch       *LinkArch
-	Debugasm   int32
-	Debugvlog  int32
-	Bso        *obj.Biobuf
-	Windows    int32
-	Goroot     string
-	Hash       map[symVer]*LSym
-	Allsym     *LSym
-	Nsymbol    int32
+	Goarm     int32
+	Headtype  int
+	Arch      *sys.Arch
+	Debugvlog int32
+	Bso       *bufio.Writer
+	Windows   int32
+	Goroot    string
+
+	// Symbol lookup based on name and indexed by version.
+	Hash []map[string]*LSym
+
+	Allsym     []*LSym
 	Tlsg       *LSym
 	Libdir     []string
 	Library    []*Library
@@ -153,11 +178,10 @@ type Link struct {
 	Diag       func(string, ...interface{})
 	Cursym     *LSym
 	Version    int
-	Textp      *LSym
-	Etextp     *LSym
-	Nhistfile  int32
-	Filesyms   *LSym
+	Textp      []*LSym
+	Filesyms   []*LSym
 	Moduledata *LSym
+	LSymBatch  []LSym
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
@@ -165,25 +189,21 @@ type Link struct {
 // on the stack in the function prologue and so always have a pointer between
 // the hardware stack pointer and the local variable area.
 func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Thechar {
-	case '6', '8':
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
 		return 0
-	case '9':
+	case sys.PPC64:
 		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
 		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.Ptrsize)
+		return int64(4 * ctxt.Arch.PtrSize)
 	default:
-		return int64(ctxt.Arch.Ptrsize)
+		return int64(ctxt.Arch.PtrSize)
 	}
 }
 
-type LinkArch struct {
-	ByteOrder binary.ByteOrder
-	Name      string
-	Thechar   int
-	Minlc     int
-	Ptrsize   int
-	Regsize   int
+func (l *Link) IncVersion() {
+	l.Version++
+	l.Hash = append(l.Hash, make(map[string]*LSym))
 }
 
 type Library struct {
@@ -195,20 +215,17 @@ type Library struct {
 	hash   []byte
 }
 
-type Pcln struct {
+type FuncInfo struct {
+	Args        int32
+	Locals      int32
+	Autom       []Auto
 	Pcsp        Pcdata
 	Pcfile      Pcdata
 	Pcline      Pcdata
 	Pcdata      []Pcdata
-	Npcdata     int
 	Funcdata    []*LSym
 	Funcdataoff []int64
-	Nfuncdata   int
 	File        []*LSym
-	Nfile       int
-	Mfile       int
-	Lastfile    *LSym
-	Lastindex   int
 }
 
 type Pcdata struct {
@@ -233,6 +250,12 @@ const (
 	RV_POWER_HI
 	RV_POWER_HA
 	RV_POWER_DS
+
+	// RV_390_DBL is a s390x-specific relocation variant that indicates that
+	// the value to be placed into the relocatable field should first be
+	// divided by 2.
+	RV_390_DBL
+
 	RV_CHECK_OVERFLOW = 1 << 8
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )

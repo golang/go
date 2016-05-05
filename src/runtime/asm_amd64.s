@@ -28,6 +28,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// find out information about the processor we're on
 	MOVQ	$0, AX
 	CPUID
+	MOVQ	AX, SI
 	CMPQ	AX, $0
 	JE	nocpuinfo
 
@@ -42,15 +43,25 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	JNE	notintel
 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
-	// Do nothing.
 
+	// Load EAX=1 cpuid flags
 	MOVQ	$1, AX
 	CPUID
 	MOVL	CX, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
+
+	// Load EAX=7/ECX=0 cpuid flags
+	CMPQ	SI, $7
+	JLT	no7
+	MOVL	$7, AX
+	MOVL	$0, CX
+	CPUID
+	MOVL	BX, runtime·cpuid_ebx7(SB)
+no7:
 	// Detect AVX and AVX2 as per 14.7.1  Detection of AVX2 chapter of [1]
 	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
 	// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
+	MOVL	runtime·cpuid_ecx(SB), CX
 	ANDL    $0x18000000, CX // check for OSXSAVE and AVX bits
 	CMPL    CX, $0x18000000
 	JNE     noavx
@@ -61,12 +72,8 @@ notintel:
 	CMPL    AX, $6 // Check for OS support of YMM registers
 	JNE     noavx
 	MOVB    $1, runtime·support_avx(SB)
-	MOVL    $7, AX
-	MOVL    $0, CX
-	CPUID
-	ANDL    $0x20, BX // check for AVX2 bit
-	CMPL    BX, $0x20
-	JNE     noavx2
+	TESTL   $(1<<5), runtime·cpuid_ebx7(SB) // check for AVX2 bit
+	JEQ     noavx2
 	MOVB    $1, runtime·support_avx2(SB)
 	JMP     nocpuinfo
 noavx:
@@ -203,7 +210,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 
 // func mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI
@@ -237,7 +244,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	RET
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -268,7 +275,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	CALL	AX
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVQ	$runtime·systemstack_switch(SB), SI
 	MOVQ	SI, (g_sched+gobuf_pc)(AX)
@@ -615,23 +622,25 @@ nosave:
 	MOVL	AX, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
 	LEAQ	fn+0(FP), AX
 	MOVQ	AX, 0(SP)
 	MOVQ	frame+8(FP), AX
 	MOVQ	AX, 8(SP)
 	MOVQ	framesize+16(FP), AX
 	MOVQ	AX, 16(SP)
+	MOVQ	ctxt+24(FP), AX
+	MOVQ	AX, 24(SP)
 	MOVQ	$runtime·cgocallback_gofunc(SB), AX
 	CALL	AX
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$8-24
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
 
 	// If g is nil, Go did not create the current thread.
@@ -699,7 +708,7 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, 0(SP) holds the saved R8.
+	// In the new goroutine, 8(SP) holds the saved R8.
 	MOVQ	m_curg(BX), SI
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
@@ -707,16 +716,18 @@ havem:
 	MOVQ	BX, -8(DI)
 	// Compute the size of the frame, including return PC and, if
 	// GOEXPERIMENT=framepointer, the saved based pointer
+	MOVQ	ctxt+24(FP), BX
 	LEAQ	fv+0(FP), AX
 	SUBQ	SP, AX
 	SUBQ	AX, DI
 	MOVQ	DI, SP
 
-	MOVQ	R8, 0(SP)
+	MOVQ	R8, 8(SP)
+	MOVQ	BX, 0(SP)
 	CALL	runtime·cgocallbackg(SB)
-	MOVQ	0(SP), R8
+	MOVQ	8(SP), R8
 
-	// Compute the size of the frame again.  FP and SP have
+	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,
 	// but only their difference matters.
 	LEAQ	fv+0(FP), AX
@@ -909,7 +920,7 @@ final1:
 	RET
 
 endofpage:
-	// address ends in 1111xxxx.  Might be up against
+	// address ends in 1111xxxx. Might be up against
 	// a page boundary, so load ending at last byte.
 	// Then shift bytes down using pshufb.
 	MOVOU	-32(AX)(CX*1), X1
@@ -1232,7 +1243,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	SETEQ	ret+0(FP)
 	RET
 
-// these are arguments to pshufb.  They move data down from
+// these are arguments to pshufb. They move data down from
 // the high bytes of the register to the low bytes of the register.
 // index is how many bytes to move.
 DATA shifts<>+0x00(SB)/8, $0x0000000000000000
@@ -1412,7 +1423,7 @@ small:
 	MOVQ	(SI), SI
 	JMP	si_finish
 si_high:
-	// address ends in 11111xxx.  Load up to bytes we want, move to correct position.
+	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
 	MOVQ	-8(SI)(BX*1), SI
 	SHRQ	CX, SI
 si_finish:
@@ -1659,122 +1670,126 @@ big_loop_avx2_exit:
 // TODO: Also use this in bytes.Index
 TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), DI
-	MOVQ s_len+8(FP), CX
-	MOVQ c+16(FP), AX
-	MOVQ c_len+24(FP), BX
-	CMPQ BX, CX
+	// We want len in DX and AX, because PCMPESTRI implicitly consumes them
+	MOVQ s_len+8(FP), DX
+	MOVQ c+16(FP), BP
+	MOVQ c_len+24(FP), AX
+	CMPQ AX, DX
 	JA fail
-	CMPQ BX, $2
+	CMPQ DX, $16
+	JAE sse42
+no_sse42:
+	CMPQ AX, $2
 	JA   _3_or_more
-	MOVW (AX), AX
-	LEAQ -1(DI)(CX*1), CX
+	MOVW (BP), BP
+	LEAQ -1(DI)(DX*1), DX
 loop2:
 	MOVW (DI), SI
-	CMPW SI,AX
+	CMPW SI,BP
 	JZ success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop2
 	JMP fail
 _3_or_more:
-	CMPQ BX, $3
+	CMPQ AX, $3
 	JA   _4_or_more
-	MOVW 1(AX), DX
-	MOVW (AX), AX
-	LEAQ -2(DI)(CX*1), CX
+	MOVW 1(BP), BX
+	MOVW (BP), BP
+	LEAQ -2(DI)(DX*1), DX
 loop3:
 	MOVW (DI), SI
-	CMPW SI,AX
+	CMPW SI,BP
 	JZ   partial_success3
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop3
 	JMP fail
 partial_success3:
 	MOVW 1(DI), SI
-	CMPW SI,DX
+	CMPW SI,BX
 	JZ success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop3
 	JMP fail
 _4_or_more:
-	CMPQ BX, $4
+	CMPQ AX, $4
 	JA   _5_or_more
-	MOVL (AX), AX
-	LEAQ -3(DI)(CX*1), CX
+	MOVL (BP), BP
+	LEAQ -3(DI)(DX*1), DX
 loop4:
 	MOVL (DI), SI
-	CMPL SI,AX
+	CMPL SI,BP
 	JZ   success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop4
 	JMP fail
 _5_or_more:
-	CMPQ BX, $7
+	CMPQ AX, $7
 	JA   _8_or_more
-	LEAQ 1(DI)(CX*1), CX
-	SUBQ BX, CX
-	MOVL -4(AX)(BX*1), DX
-	MOVL (AX), AX
+	LEAQ 1(DI)(DX*1), DX
+	SUBQ AX, DX
+	MOVL -4(BP)(AX*1), BX
+	MOVL (BP), BP
 loop5to7:
 	MOVL (DI), SI
-	CMPL SI,AX
+	CMPL SI,BP
 	JZ   partial_success5to7
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop5to7
 	JMP fail
 partial_success5to7:
-	MOVL -4(BX)(DI*1), SI
-	CMPL SI,DX
+	MOVL -4(AX)(DI*1), SI
+	CMPL SI,BX
 	JZ success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop5to7
 	JMP fail
 _8_or_more:
-	CMPQ BX, $8
+	CMPQ AX, $8
 	JA   _9_or_more
-	MOVQ (AX), AX
-	LEAQ -7(DI)(CX*1), CX
+	MOVQ (BP), BP
+	LEAQ -7(DI)(DX*1), DX
 loop8:
 	MOVQ (DI), SI
-	CMPQ SI,AX
+	CMPQ SI,BP
 	JZ   success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop8
 	JMP fail
 _9_or_more:
-	CMPQ BX, $16
+	CMPQ AX, $16
 	JA   _16_or_more
-	LEAQ 1(DI)(CX*1), CX
-	SUBQ BX, CX
-	MOVQ -8(AX)(BX*1), DX
-	MOVQ (AX), AX
+	LEAQ 1(DI)(DX*1), DX
+	SUBQ AX, DX
+	MOVQ -8(BP)(AX*1), BX
+	MOVQ (BP), BP
 loop9to15:
 	MOVQ (DI), SI
-	CMPQ SI,AX
+	CMPQ SI,BP
 	JZ   partial_success9to15
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop9to15
 	JMP fail
 partial_success9to15:
-	MOVQ -8(BX)(DI*1), SI
-	CMPQ SI,DX
+	MOVQ -8(AX)(DI*1), SI
+	CMPQ SI,BX
 	JZ success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop9to15
 	JMP fail
 _16_or_more:
-	CMPQ BX, $16
+	CMPQ AX, $17
 	JA   _17_to_31
-	MOVOU (AX), X1
-	LEAQ -15(DI)(CX*1), CX
+	MOVOU (BP), X1
+	LEAQ -15(DI)(DX*1), DX
 loop16:
 	MOVOU (DI), X2
 	PCMPEQB X1, X2
@@ -1782,14 +1797,14 @@ loop16:
 	CMPQ  SI, $0xffff
 	JE   success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop16
 	JMP fail
 _17_to_31:
-	LEAQ 1(DI)(CX*1), CX
-	SUBQ BX, CX
-	MOVOU -16(AX)(BX*1), X0
-	MOVOU (AX), X1
+	LEAQ 1(DI)(DX*1), DX
+	SUBQ AX, DX
+	MOVOU -16(BP)(AX*1), X0
+	MOVOU (BP), X1
 loop17to31:
 	MOVOU (DI), X2
 	PCMPEQB X1,X2
@@ -1797,21 +1812,58 @@ loop17to31:
 	CMPQ  SI, $0xffff
 	JE   partial_success17to31
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop17to31
 	JMP fail
 partial_success17to31:
-	MOVOU -16(BX)(DI*1), X3
+	MOVOU -16(AX)(DI*1), X3
 	PCMPEQB X0, X3
 	PMOVMSKB X3, SI
 	CMPQ  SI, $0xffff
 	JE success
 	ADDQ $1,DI
-	CMPQ DI,CX
+	CMPQ DI,DX
 	JB loop17to31
 fail:
 	MOVQ $-1, ret+32(FP)
 	RET
+sse42:
+	MOVL runtime·cpuid_ecx(SB), CX
+	ANDL $0x100000, CX
+	JZ no_sse42
+	CMPQ AX, $12
+	// PCMPESTRI is slower than normal compare,
+	// so using it makes sense only if we advance 4+ bytes per compare
+	// This value was determined experimentally and is the ~same
+	// on Nehalem (first with SSE42) and Haswell.
+	JAE _9_or_more
+	LEAQ 16(BP), SI
+	TESTW $0xff0, SI
+	JEQ no_sse42
+	MOVOU (BP), X1
+	LEAQ -15(DI)(DX*1), SI
+	MOVQ $16, R9
+	SUBQ AX, R9 // We advance by 16-len(sep) each iteration, so precalculate it into R9
+loop_sse42:
+	// 0x0c means: unsigned byte compare (bits 0,1 are 00)
+	// for equality (bits 2,3 are 11)
+	// result is not masked or inverted (bits 4,5 are 00)
+	// and corresponds to first matching byte (bit 6 is 0)
+	PCMPESTRI $0x0c, (DI), X1
+	// CX == 16 means no match,
+	// CX > R9 means partial match at the end of the string,
+	// otherwise sep is at offset CX from X1 start
+	CMPQ CX, R9
+	JBE sse42_success
+	ADDQ R9, DI
+	CMPQ DI, SI
+	JB loop_sse42
+	PCMPESTRI $0x0c, -1(SI), X1
+	CMPQ CX, R9
+	JA fail
+	LEAQ -1(SI), DI
+sse42_success:
+	ADDQ CX, DI
 success:
 	SUBQ s+0(FP), DI
 	MOVQ DI, ret+32(FP)
@@ -1872,7 +1924,7 @@ sseloopentry:
 	CMPQ	DI, AX
 	JB	sseloop
 
-	// Search the last 16-byte chunk.  This chunk may overlap with the
+	// Search the last 16-byte chunk. This chunk may overlap with the
 	// chunks we've already searched, but that's ok.
 	MOVQ	AX, DI
 	MOVOU	(AX), X1

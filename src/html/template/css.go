@@ -243,13 +243,13 @@ func cssValueFilter(args ...interface{}) string {
 				return filterFailsafe
 			}
 		default:
-			if c < 0x80 && isCSSNmchar(rune(c)) {
+			if c < utf8.RuneSelf && isCSSNmchar(rune(c)) {
 				id = append(id, c)
 			}
 		}
 	}
 	id = bytes.ToLower(id)
-	if bytes.Index(id, expressionBytes) != -1 || bytes.Index(id, mozBindingBytes) != -1 {
+	if bytes.Contains(id, expressionBytes) || bytes.Contains(id, mozBindingBytes) {
 		return filterFailsafe
 	}
 	return string(b)

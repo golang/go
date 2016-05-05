@@ -10,21 +10,21 @@ import (
 )
 
 // A Value represents a value in the SSA representation of the program.
-// The ID and Type fields must not be modified.  The remainder may be modified
+// The ID and Type fields must not be modified. The remainder may be modified
 // if they preserve the value of the Value (e.g. changing a (mul 2 x) to an (add x x)).
 type Value struct {
-	// A unique identifier for the value.  For performance we allocate these IDs
+	// A unique identifier for the value. For performance we allocate these IDs
 	// densely starting at 1.  There is no guarantee that there won't be occasional holes, though.
 	ID ID
 
-	// The operation that computes this value.  See op.go.
+	// The operation that computes this value. See op.go.
 	Op Op
 
-	// The type of this value.  Normally this will be a Go type, but there
+	// The type of this value. Normally this will be a Go type, but there
 	// are a few other pseudo-types, see type.go.
 	Type Type
 
-	// Auxiliary info for this value.  The type of this information depends on the opcode and type.
+	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.
 	AuxInt int64
 	Aux    interface{}
@@ -38,8 +38,11 @@ type Value struct {
 	// Source line number
 	Line int32
 
-	// Storage for the first two args
-	argstorage [2]*Value
+	// Use count. Each appearance in Value.Args and Block.Control counts once.
+	Uses int32
+
+	// Storage for the first three args
+	argstorage [3]*Value
 }
 
 // Examples:
@@ -49,7 +52,7 @@ type Value struct {
 //  OpConst      int64      0    int64 constant
 //  OpAddcq      int64      1    amd64 op: v = arg[0] + constant
 
-// short form print.  Just v#.
+// short form print. Just v#.
 func (v *Value) String() string {
 	if v == nil {
 		return "nil" // should never happen, but not panicking helps with debugging
@@ -78,26 +81,8 @@ func (v *Value) AuxInt32() int32 {
 	return int32(v.AuxInt)
 }
 
-// AuxInt2Int64 is used to sign extend the lower bits of AuxInt according to
-// the size of AuxInt specified in the opcode table.
-func (v *Value) AuxInt2Int64() int64 {
-	switch opcodeTable[v.Op].auxType {
-	case auxInt64:
-		return v.AuxInt
-	case auxInt32:
-		return int64(int32(v.AuxInt))
-	case auxInt16:
-		return int64(int16(v.AuxInt))
-	case auxInt8:
-		return int64(int8(v.AuxInt))
-	default:
-		v.Fatalf("op %s doesn't have an aux int field", v.Op)
-		return -1
-	}
-}
-
 func (v *Value) AuxFloat() float64 {
-	if opcodeTable[v.Op].auxType != auxFloat {
+	if opcodeTable[v.Op].auxType != auxFloat32 && opcodeTable[v.Op].auxType != auxFloat64 {
 		v.Fatalf("op %s doesn't have a float aux field", v.Op)
 	}
 	return math.Float64frombits(uint64(v.AuxInt))
@@ -113,40 +98,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
 	s += " <" + v.Type.String() + ">"
-	switch opcodeTable[v.Op].auxType {
-	case auxBool:
-		if v.AuxInt == 0 {
-			s += " [false]"
-		} else {
-			s += " [true]"
-		}
-	case auxInt8:
-		s += fmt.Sprintf(" [%d]", v.AuxInt8())
-	case auxInt16:
-		s += fmt.Sprintf(" [%d]", v.AuxInt16())
-	case auxInt32:
-		s += fmt.Sprintf(" [%d]", v.AuxInt32())
-	case auxInt64:
-		s += fmt.Sprintf(" [%d]", v.AuxInt)
-	case auxFloat:
-		s += fmt.Sprintf(" [%g]", v.AuxFloat())
-	case auxString:
-		s += fmt.Sprintf(" {%s}", v.Aux)
-	case auxSym:
-		if v.Aux != nil {
-			s += fmt.Sprintf(" {%s}", v.Aux)
-		}
-	case auxSymOff:
-		if v.Aux != nil {
-			s += fmt.Sprintf(" {%s}", v.Aux)
-		}
-		s += fmt.Sprintf(" [%d]", v.AuxInt)
-	case auxSymValAndOff:
-		if v.Aux != nil {
-			s += fmt.Sprintf(" {%s}", v.Aux)
-		}
-		s += fmt.Sprintf(" [%s]", v.AuxValAndOff())
-	}
+	s += v.auxString()
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
@@ -157,22 +109,72 @@ func (v *Value) LongString() string {
 	return s
 }
 
+func (v *Value) auxString() string {
+	switch opcodeTable[v.Op].auxType {
+	case auxBool:
+		if v.AuxInt == 0 {
+			return " [false]"
+		} else {
+			return " [true]"
+		}
+	case auxInt8:
+		return fmt.Sprintf(" [%d]", v.AuxInt8())
+	case auxInt16:
+		return fmt.Sprintf(" [%d]", v.AuxInt16())
+	case auxInt32:
+		return fmt.Sprintf(" [%d]", v.AuxInt32())
+	case auxInt64, auxInt128:
+		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxFloat32, auxFloat64:
+		return fmt.Sprintf(" [%g]", v.AuxFloat())
+	case auxString:
+		return fmt.Sprintf(" {%q}", v.Aux)
+	case auxSym:
+		if v.Aux != nil {
+			return fmt.Sprintf(" {%s}", v.Aux)
+		}
+	case auxSymOff, auxSymInt32:
+		s := ""
+		if v.Aux != nil {
+			s = fmt.Sprintf(" {%s}", v.Aux)
+		}
+		if v.AuxInt != 0 {
+			s += fmt.Sprintf(" [%v]", v.AuxInt)
+		}
+		return s
+	case auxSymValAndOff:
+		s := ""
+		if v.Aux != nil {
+			s = fmt.Sprintf(" {%s}", v.Aux)
+		}
+		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
+	}
+	return ""
+}
+
 func (v *Value) AddArg(w *Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, w)
+	w.Uses++
 }
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, a...)
+	for _, x := range a {
+		x.Uses++
+	}
 }
 func (v *Value) SetArg(i int, w *Value) {
+	v.Args[i].Uses--
 	v.Args[i] = w
+	w.Uses++
 }
 func (v *Value) RemoveArg(i int) {
+	v.Args[i].Uses--
 	copy(v.Args[i:], v.Args[i+1:])
 	v.Args[len(v.Args)-1] = nil // aid GC
 	v.Args = v.Args[:len(v.Args)-1]
@@ -188,8 +190,12 @@ func (v *Value) SetArgs2(a *Value, b *Value) {
 }
 
 func (v *Value) resetArgs() {
+	for _, a := range v.Args {
+		a.Uses--
+	}
 	v.argstorage[0] = nil
 	v.argstorage[1] = nil
+	v.argstorage[2] = nil
 	v.Args = v.argstorage[:0]
 }
 
@@ -221,6 +227,11 @@ func (v *Value) Fatalf(msg string, args ...interface{}) {
 }
 func (v *Value) Unimplementedf(msg string, args ...interface{}) {
 	v.Block.Func.Config.Unimplementedf(v.Line, msg, args...)
+}
+
+// isGenericIntConst returns whether v is a generic integer constant.
+func (v *Value) isGenericIntConst() bool {
+	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
 }
 
 // ExternSymbol is an aux value that encodes a variable's

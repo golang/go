@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -79,11 +79,6 @@ func (c *count) IsBoolFlag() bool {
 }
 
 type int32Value int32
-
-func newIntValue(val int32, p *int32) *int32Value {
-	*p = val
-	return (*int32Value)(p)
-}
 
 func (i *int32Value) Set(s string) error {
 	v, err := strconv.ParseInt(s, 0, 64)

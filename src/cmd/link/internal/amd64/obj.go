@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@ package amd64
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
 	"log"
@@ -45,19 +46,14 @@ func Main() {
 }
 
 func linkarchinit() {
-	ld.Thestring = "amd64"
-	ld.Thelinkarch = &ld.Linkamd64
+	ld.SysArch = sys.ArchAMD64
 	if obj.Getgoarch() == "amd64p32" {
-		ld.Thelinkarch = &ld.Linkamd64p32
+		ld.SysArch = sys.ArchAMD64P32
 	}
 
-	ld.Thearch.Thechar = thechar
-	ld.Thearch.Ptrsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Intsize = ld.Thelinkarch.Ptrsize
-	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
 	ld.Thearch.Funcalign = FuncAlign
 	ld.Thearch.Maxalign = MaxAlign
-	ld.Thearch.Minlc = MINLC
+	ld.Thearch.Minalign = MinAlign
 	ld.Thearch.Dwarfregsp = DWARFREGSP
 	ld.Thearch.Dwarfreglr = DWARFREGLR
 
@@ -74,6 +70,9 @@ func linkarchinit() {
 	ld.Thearch.Lput = ld.Lputl
 	ld.Thearch.Wput = ld.Wputl
 	ld.Thearch.Vput = ld.Vputl
+	ld.Thearch.Append16 = ld.Append16l
+	ld.Thearch.Append32 = ld.Append32l
+	ld.Thearch.Append64 = ld.Append64l
 
 	ld.Thearch.Linuxdynld = "/lib64/ld-linux-x86-64.so.2"
 	ld.Thearch.Freebsddynld = "/libexec/ld-elf.so.1"
@@ -130,19 +129,6 @@ func archinit() {
 		}
 		if ld.INITRND == -1 {
 			ld.INITRND = 0x200000
-		}
-
-	case obj.Helf: /* elf32 executable */
-		ld.HEADR = int32(ld.Rnd(52+3*32, 16))
-
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = 0x80110000
-		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
-		}
-		if ld.INITRND == -1 {
-			ld.INITRND = 4096
 		}
 
 	case obj.Hdarwin: /* apple MACH */

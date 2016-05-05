@@ -153,7 +153,7 @@ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
 
 // func mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	// Save caller state in g->sched.
@@ -185,7 +185,7 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
 	RET
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -217,7 +217,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
 	BL	(R0)
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVW	$runtime·systemstack_switch(SB), R3
 #ifdef GOOS_nacl
@@ -530,23 +530,25 @@ g0:
 	MOVW	R0, ret+8(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$12-12
+TEXT runtime·cgocallback(SB),NOSPLIT,$16-16
 	MOVW	$fn+0(FP), R0
 	MOVW	R0, 4(R13)
 	MOVW	frame+4(FP), R0
 	MOVW	R0, 8(R13)
 	MOVW	framesize+8(FP), R0
 	MOVW	R0, 12(R13)
+	MOVW	ctxt+12(FP), R0
+	MOVW	R0, 16(R13)
 	MOVW	$runtime·cgocallback_gofunc(SB), R0
 	BL	(R0)
 	RET
 
-// cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback_gofunc(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
+TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-16
 	NO_LOCAL_POINTERS
 	
 	// Load m and g from thread-local storage.
@@ -611,17 +613,20 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, -8(SP) and -4(SP) are unused.
+	// In the new goroutine, -4(SP) is unused (where SP refers to
+	// m->curg's SP while we're setting it up, before we've adjusted it).
 	MOVW	m_curg(R8), R0
 	BL	setg<>(SB)
 	MOVW	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVW	(g_sched+gobuf_pc)(g), R5
 	MOVW	R5, -12(R4)
+	MOVW	ctxt+12(FP), R0
+	MOVW	R0, -8(R4)
 	MOVW	$-12(R4), R13
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
-	MOVW	0(R13), R5
+	MOVW	4(R13), R5
 	MOVW	R5, (g_sched+gobuf_pc)(g)
 	MOVW	$12(R13), R4
 	MOVW	R4, (g_sched+gobuf_sp)(g)
@@ -973,7 +978,7 @@ yieldloop:
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
 TEXT _cgo_topofstack(SB),NOSPLIT,$8
-	// R11 and g register are clobbered by load_g.  They are
+	// R11 and g register are clobbered by load_g. They are
 	// callee-save in the gcc calling convention, so save them here.
 	MOVW	R11, saveR11-4(SP)
 	MOVW	g, saveG-8(SP)

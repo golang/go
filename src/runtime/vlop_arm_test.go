@@ -82,3 +82,47 @@ func TestUsplit(t *testing.T) {
 		}
 	}
 }
+
+//go:noinline
+func armFloatWrite(a *[129]float64) {
+	// This used to miscompile on arm5.
+	// The offset is too big to fit in a load.
+	// So the code does:
+	//   ldr     r0, [sp, #8]
+	//   bl      6f690 <_sfloat>
+	//   ldr     fp, [pc, #32]   ; (address of 128.0)
+	//   vldr    d0, [fp]
+	//   ldr     fp, [pc, #28]   ; (1024)
+	//   add     fp, fp, r0
+	//   vstr    d0, [fp]
+	// The software floating-point emulator gives up on the add.
+	// This causes the store to not work.
+	// See issue 15440.
+	a[128] = 128.0
+}
+func TestArmFloatBigOffsetWrite(t *testing.T) {
+	var a [129]float64
+	for i := 0; i < 128; i++ {
+		a[i] = float64(i)
+	}
+	armFloatWrite(&a)
+	for i, x := range a {
+		if x != float64(i) {
+			t.Errorf("bad entry %d:%f\n", i, x)
+		}
+	}
+}
+
+//go:noinline
+func armFloatRead(a *[129]float64) float64 {
+	return a[128]
+}
+func TestArmFloatBigOffsetRead(t *testing.T) {
+	var a [129]float64
+	for i := 0; i < 129; i++ {
+		a[i] = float64(i)
+	}
+	if x := armFloatRead(&a); x != 128.0 {
+		t.Errorf("bad value %f\n", x)
+	}
+}

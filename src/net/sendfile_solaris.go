@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -26,8 +26,6 @@ const maxSendfileSize int = 4 << 20
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	return // Solaris sendfile is disabled until Issue 13892 is understood and fixed
-
 	// Solaris uses 0 as the "until EOF" value. If you pass in more bytes than the
 	// file contains, it will loop back to the beginning ad nauseam until it's sent
 	// exactly the number of bytes told to. As such, we need to know exactly how many
@@ -59,7 +57,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 	// use the current position of the file -- if you pass it offset 0, it starts
 	// from offset 0. There's no way to tell it "start from current position", so
 	// we have to manage that explicitly.
-	pos, err := f.Seek(0, os.SEEK_CUR)
+	pos, err := f.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return 0, err, false
 	}
@@ -78,6 +76,13 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 		}
 		pos1 := pos
 		n, err1 := syscall.Sendfile(dst, src, &pos1, n)
+		if err1 == syscall.EAGAIN || err1 == syscall.EINTR {
+			// partial write may have occurred
+			if n = int(pos1 - pos); n == 0 {
+				// nothing more to write
+				err1 = nil
+			}
+		}
 		if n > 0 {
 			pos += int64(n)
 			written += int64(n)
@@ -87,7 +92,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			break
 		}
 		if err1 == syscall.EAGAIN {
-			if err1 = c.pd.WaitWrite(); err1 == nil {
+			if err1 = c.pd.waitWrite(); err1 == nil {
 				continue
 			}
 		}

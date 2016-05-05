@@ -6,42 +6,14 @@ package arm64
 
 import (
 	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 )
 
-var thechar int = '7'
-
-var thestring string = "arm64"
-
-var thelinkarch *obj.LinkArch = &arm64.Linkarm64
-
-func linkarchinit() {
-}
-
-var MAXWIDTH int64 = 1 << 50
-
-/*
- * go declares several platform-specific type aliases:
- * int, uint, and uintptr
- */
-var typedefs = []gc.Typedef{
-	{"int", gc.TINT, gc.TINT64},
-	{"uint", gc.TUINT, gc.TUINT64},
-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
-}
-
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
-	gc.Thearch.Typedefs = typedefs
+	gc.Thearch.LinkArch = &arm64.Linkarm64
 	gc.Thearch.REGSP = arm64.REGSP
 	gc.Thearch.REGCTXT = arm64.REGCTXT
 	gc.Thearch.REGCALLX = arm64.REGRT1
@@ -52,11 +24,13 @@ func Main() {
 	gc.Thearch.REGZERO = arm64.REGZERO
 	gc.Thearch.FREGMIN = arm64.REG_F0
 	gc.Thearch.FREGMAX = arm64.REG_F31
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Cgen_hmul = cgen_hmul
+	gc.Thearch.AddSetCarry = AddSetCarry
+	gc.Thearch.RightShiftWithCarry = RightShiftWithCarry
 	gc.Thearch.Cgen_shift = cgen_shift
 	gc.Thearch.Clearfat = clearfat
 	gc.Thearch.Defframe = defframe
@@ -69,7 +43,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp

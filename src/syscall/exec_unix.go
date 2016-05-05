@@ -17,31 +17,31 @@ import (
 // Lock synchronizing creation of new file descriptors with fork.
 //
 // We want the child in a fork/exec sequence to inherit only the
-// file descriptors we intend.  To do that, we mark all file
+// file descriptors we intend. To do that, we mark all file
 // descriptors close-on-exec and then, in the child, explicitly
 // unmark the ones we want the exec'ed program to keep.
 // Unix doesn't make this easy: there is, in general, no way to
-// allocate a new file descriptor close-on-exec.  Instead you
+// allocate a new file descriptor close-on-exec. Instead you
 // have to allocate the descriptor and then mark it close-on-exec.
 // If a fork happens between those two events, the child's exec
 // will inherit an unwanted file descriptor.
 //
 // This lock solves that race: the create new fd/mark close-on-exec
 // operation is done holding ForkLock for reading, and the fork itself
-// is done holding ForkLock for writing.  At least, that's the idea.
+// is done holding ForkLock for writing. At least, that's the idea.
 // There are some complications.
 //
 // Some system calls that create new file descriptors can block
 // for arbitrarily long times: open on a hung NFS server or named
-// pipe, accept on a socket, and so on.  We can't reasonably grab
+// pipe, accept on a socket, and so on. We can't reasonably grab
 // the lock across those operations.
 //
 // It is worse to inherit some file descriptors than others.
 // If a non-malicious child accidentally inherits an open ordinary file,
-// that's not a big deal.  On the other hand, if a long-lived child
+// that's not a big deal. On the other hand, if a long-lived child
 // accidentally inherits the write end of a pipe, then the reader
 // of that pipe will not see EOF until that child exits, potentially
-// causing the parent program to hang.  This is a common problem
+// causing the parent program to hang. This is a common problem
 // in threaded C programs that use popen.
 //
 // Luckily, the file descriptors that are most important not to
@@ -51,13 +51,13 @@ import (
 // The rules for which file descriptor-creating operations use the
 // ForkLock are as follows:
 //
-// 1) Pipe.    Does not block.  Use the ForkLock.
-// 2) Socket.  Does not block.  Use the ForkLock.
-// 3) Accept.  If using non-blocking mode, use the ForkLock.
+// 1) Pipe. Does not block. Use the ForkLock.
+// 2) Socket. Does not block. Use the ForkLock.
+// 3) Accept. If using non-blocking mode, use the ForkLock.
 //             Otherwise, live with the race.
-// 4) Open.    Can block.  Use O_CLOEXEC if available (Linux).
+// 4) Open. Can block. Use O_CLOEXEC if available (Linux).
 //             Otherwise, live with the race.
-// 5) Dup.     Does not block.  Use the ForkLock.
+// 5) Dup. Does not block. Use the ForkLock.
 //             On Linux, could use fcntl F_DUPFD_CLOEXEC
 //             instead of the ForkLock, but only for dup(fd, -1).
 
@@ -103,7 +103,7 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 	if nonblocking {
 		flag |= O_NONBLOCK
 	} else {
-		flag &= ^O_NONBLOCK
+		flag &^= O_NONBLOCK
 	}
 	_, err = fcntl(fd, F_SETFL, flag)
 	return err

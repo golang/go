@@ -34,7 +34,7 @@ import (
 // level untyped constants will return an untyped type rather then the
 // respective context-specific type.
 //
-func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (tv TypeAndValue, err error) {
+func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (TypeAndValue, error) {
 	// determine scope
 	var scope *Scope
 	if pkg == nil {

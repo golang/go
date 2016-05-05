@@ -163,7 +163,7 @@ func Getgroups() (gids []int, err error) {
 		return nil, nil
 	}
 
-	// Sanity check group count.  Max is 1<<16 on Linux.
+	// Sanity check group count. Max is 1<<16 on Linux.
 	if n < 0 || n > 1<<20 {
 		return nil, EINVAL
 	}
@@ -198,8 +198,8 @@ type WaitStatus uint32
 // 0x7F (stopped), or a signal number that caused an exit.
 // The 0x80 bit is whether there was a core dump.
 // An extra number (exit code, signal causing a stop)
-// is in the high bits.  At least that's the idea.
-// There are various irregularities.  For example, the
+// is in the high bits. At least that's the idea.
+// There are various irregularities. For example, the
 // "continued" status is 0xFFFF, distinguishing itself
 // from stopped via the core dump bit.
 
@@ -620,7 +620,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, err erro
 
 	var buf [sizeofPtr]byte
 
-	// Leading edge.  PEEKTEXT/PEEKDATA don't require aligned
+	// Leading edge. PEEKTEXT/PEEKDATA don't require aligned
 	// access (PEEKUSER warns that it might), but if we don't
 	// align our reads, we might straddle an unmapped page
 	// boundary and not get the bytes leading up to the page

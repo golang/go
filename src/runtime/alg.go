@@ -64,7 +64,7 @@ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
 }
 
 // memhash_varlen is defined in assembly because it needs access
-// to the closure.  It appears here to provide an argument
+// to the closure. It appears here to provide an argument
 // signature for the assembly routine.
 func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
 
@@ -146,7 +146,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	t := tab._type
 	fn := t.alg.hash
 	if fn == nil {
-		panic(errorString("hash of unhashable type " + t._string))
+		panic(errorString("hash of unhashable type " + t.string()))
 	}
 	if isDirectIface(t) {
 		return c1 * fn(unsafe.Pointer(&a.data), h^c0)
@@ -163,7 +163,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	}
 	fn := t.alg.hash
 	if fn == nil {
-		panic(errorString("hash of unhashable type " + t._string))
+		panic(errorString("hash of unhashable type " + t.string()))
 	}
 	if isDirectIface(t) {
 		return c1 * fn(unsafe.Pointer(&a.data), h^c0)
@@ -221,7 +221,7 @@ func efaceeq(x, y eface) bool {
 	}
 	eq := t.alg.equal
 	if eq == nil {
-		panic(errorString("comparing uncomparable type " + t._string))
+		panic(errorString("comparing uncomparable type " + t.string()))
 	}
 	if isDirectIface(t) {
 		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)))
@@ -239,7 +239,7 @@ func ifaceeq(x, y iface) bool {
 	t := xtab._type
 	eq := t.alg.equal
 	if eq == nil {
-		panic(errorString("comparing uncomparable type " + t._string))
+		panic(errorString("comparing uncomparable type " + t.string()))
 	}
 	if isDirectIface(t) {
 		return eq(noescape(unsafe.Pointer(&x.data)), noescape(unsafe.Pointer(&y.data)))

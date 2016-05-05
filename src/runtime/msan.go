@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -24,10 +24,10 @@ func MSanWrite(addr unsafe.Pointer, len int) {
 const msanenabled = true
 
 // If we are running on the system stack, the C program may have
-// marked part of that stack as uninitialized.  We don't instrument
+// marked part of that stack as uninitialized. We don't instrument
 // the runtime, but operations like a slice copy can call msanread
-// anyhow for values on the stack.  Just ignore msanread when running
-// on the system stack.  The other msan functions are fine.
+// anyhow for values on the stack. Just ignore msanread when running
+// on the system stack. The other msan functions are fine.
 func msanread(addr unsafe.Pointer, sz uintptr) {
 	g := getg()
 	if g == g.m.g0 || g == g.m.gsignal {

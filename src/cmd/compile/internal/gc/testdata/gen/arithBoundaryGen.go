@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This program generates a test to verify that the standard arithmetic
-// operators properly handle some special cases.  The test file should be
+// operators properly handle some special cases. The test file should be
 // generated with a known working version of go.
 // launch with `go run arithBoundaryGen.go` a file called arithBoundary_ssa.go
 // will be written into the parent directory containing the tests

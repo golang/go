@@ -33,6 +33,7 @@ func (w *HTMLWriter) start(name string) {
 	}
 	w.WriteString("<html>")
 	w.WriteString(`<head>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
 <style>
 
 #helplink {
@@ -352,16 +353,7 @@ func (v *Value) LongHTML() string {
 	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
 	s += fmt.Sprintf("%s = %s", v.HTML(), v.Op.String())
 	s += " &lt;" + html.EscapeString(v.Type.String()) + "&gt;"
-	if v.AuxInt != 0 {
-		s += fmt.Sprintf(" [%d]", v.AuxInt)
-	}
-	if v.Aux != nil {
-		if _, ok := v.Aux.(string); ok {
-			s += html.EscapeString(fmt.Sprintf(" {%q}", v.Aux))
-		} else {
-			s += html.EscapeString(fmt.Sprintf(" {%v}", v.Aux))
-		}
-	}
+	s += html.EscapeString(v.auxString())
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %s", a.HTML())
 	}
@@ -369,7 +361,6 @@ func (v *Value) LongHTML() string {
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].Name()
 	}
-
 	s += "</span>"
 	return s
 }
@@ -392,7 +383,8 @@ func (b *Block) LongHTML() string {
 	}
 	if len(b.Succs) > 0 {
 		s += " &#8594;" // right arrow
-		for _, c := range b.Succs {
+		for _, e := range b.Succs {
+			c := e.b
 			s += " " + c.HTML()
 		}
 	}
@@ -432,7 +424,8 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	fmt.Fprintf(p.w, "<li class=\"ssa-start-block\">%s:", b.HTML())
 	if len(b.Preds) > 0 {
 		io.WriteString(p.w, " &#8592;") // left arrow
-		for _, pred := range b.Preds {
+		for _, e := range b.Preds {
+			pred := e.b
 			fmt.Fprintf(p.w, " %s", pred.HTML())
 		}
 	}

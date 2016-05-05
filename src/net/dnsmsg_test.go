@@ -28,7 +28,7 @@ func TestStructPackUnpack(t *testing.T) {
 		t.Fatal("unpacking failed")
 	}
 	if n != len(buf) {
-		t.Error("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
+		t.Errorf("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got = %+v, want = %+v", got, want)
@@ -69,7 +69,7 @@ func TestDomainNamePackUnpack(t *testing.T) {
 			continue
 		}
 		if n != len(buf) {
-			t.Error(
+			t.Errorf(
 				"unpacked different amount than packed for %s: got n = %d, want = %d",
 				test.in,
 				n,
@@ -276,6 +276,124 @@ func TestDNSParseTXTCorruptTXTLengthReply(t *testing.T) {
 		rr := msg.answer[0]
 		if _, justHeader := rr.(*dnsRR_Header); !justHeader {
 			t.Errorf("test %d: rr = %T; expected *dnsRR_Header", i, rr)
+		}
+	}
+}
+
+func TestIsResponseTo(t *testing.T) {
+	// Sample DNS query.
+	query := dnsMsg{
+		dnsMsgHdr: dnsMsgHdr{
+			id: 42,
+		},
+		question: []dnsQuestion{
+			{
+				Name:   "www.example.com.",
+				Qtype:  dnsTypeA,
+				Qclass: dnsClassINET,
+			},
+		},
+	}
+
+	resp := query
+	resp.response = true
+	if !resp.IsResponseTo(&query) {
+		t.Error("got false, want true")
+	}
+
+	badResponses := []dnsMsg{
+		// Different ID.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       43,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+
+		// Different query name.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.google.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+
+		// Different query type.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeAAAA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+
+		// Different query class.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassCSNET,
+				},
+			},
+		},
+
+		// No questions.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+		},
+
+		// Extra questions.
+		{
+			dnsMsgHdr: dnsMsgHdr{
+				id:       42,
+				response: true,
+			},
+			question: []dnsQuestion{
+				{
+					Name:   "www.example.com.",
+					Qtype:  dnsTypeA,
+					Qclass: dnsClassINET,
+				},
+				{
+					Name:   "www.golang.org.",
+					Qtype:  dnsTypeAAAA,
+					Qclass: dnsClassINET,
+				},
+			},
+		},
+	}
+
+	for i := range badResponses {
+		if badResponses[i].IsResponseTo(&query) {
+			t.Error("%v: got true, want false", i)
 		}
 	}
 }

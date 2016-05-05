@@ -178,7 +178,14 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 		}
 		if netpoll {
 			// Enable netpoller, affects schedler behavior.
-			ln, err := net.Listen("tcp", "localhost:0")
+			laddr := "localhost:0"
+			if runtime.GOOS == "android" {
+				// On some Android devices, there are no records for localhost,
+				// see https://golang.org/issues/14486.
+				// Don't use 127.0.0.1 for every case, it won't work on IPv6-only systems.
+				laddr = "127.0.0.1:0"
+			}
+			ln, err := net.Listen("tcp", laddr)
 			if err != nil {
 				defer ln.Close() // yup, defer in a loop
 			}
@@ -421,6 +428,9 @@ func TestPingPongHog(t *testing.T) {
 }
 
 func BenchmarkPingPongHog(b *testing.B) {
+	if b.N == 0 {
+		return
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
 	// Create a CPU hog
@@ -541,6 +551,24 @@ func TestSchedLocalQueue(t *testing.T) {
 
 func TestSchedLocalQueueSteal(t *testing.T) {
 	runtime.RunSchedLocalQueueStealTest()
+}
+
+func TestSchedLocalQueueEmpty(t *testing.T) {
+	if runtime.NumCPU() == 1 {
+		// Takes too long and does not trigger the race.
+		t.Skip("skipping on uniprocessor")
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+
+	// If runtime triggers a forced GC during this test then it will deadlock,
+	// since the goroutines can't be stopped/preempted during spin wait.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	iters := int(1e5)
+	if testing.Short() {
+		iters = 1e2
+	}
+	runtime.RunSchedLocalQueueEmptyTest(iters)
 }
 
 func benchmarkStackGrowth(b *testing.B, rec int) {
@@ -678,4 +706,8 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
 	if done != nil {
 		done <- struct{}{}
 	}
+}
+
+func TestStealOrder(t *testing.T) {
+	runtime.RunStealOrderTest()
 }

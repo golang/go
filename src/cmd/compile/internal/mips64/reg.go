@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -111,7 +111,7 @@ func regnames(n *int) []string {
 
 func excludedregs() uint64 {
 	// Exclude registers with fixed functions
-	regbits := uint64(1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27))
+	regbits := 1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGSB) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27)
 
 	// Also exclude floating point registers with fixed constants
 	regbits |= RtoB(mips.FREGZERO) | RtoB(mips.FREGHALF) | RtoB(mips.FREGONE) | RtoB(mips.FREGTWO)

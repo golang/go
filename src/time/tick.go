@@ -39,7 +39,7 @@ func NewTicker(d Duration) *Ticker {
 	return t
 }
 
-// Stop turns off a ticker.  After Stop, no more ticks will be sent.
+// Stop turns off a ticker. After Stop, no more ticks will be sent.
 // Stop does not close the channel, to prevent a read from the channel succeeding
 // incorrectly.
 func (t *Ticker) Stop() {
@@ -50,6 +50,7 @@ func (t *Ticker) Stop() {
 // channel only. While Tick is useful for clients that have no need to shut down
 // the Ticker, be aware that without a way to shut it down the underlying
 // Ticker cannot be recovered by the garbage collector; it "leaks".
+// Unlike NewTicker, Tick will return nil if d <= 0.
 func Tick(d Duration) <-chan Time {
 	if d <= 0 {
 		return nil

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build mips64 mips64le
 // +build linux
+// +build mips64 mips64le
 
 package runtime
 
@@ -15,4 +15,39 @@ func cputicks() int64 {
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
 	// randomNumber provides better seeding of fastrand1.
 	return nanotime() + int64(randomNumber)
+}
+
+const (
+	_SS_DISABLE  = 2
+	_NSIG        = 65
+	_SI_USER     = 0
+	_SIG_BLOCK   = 1
+	_SIG_UNBLOCK = 2
+	_SIG_SETMASK = 3
+	_RLIMIT_AS   = 6
+)
+
+type sigset [2]uint64
+
+type rlimit struct {
+	rlim_cur uintptr
+	rlim_max uintptr
+}
+
+var sigset_all = sigset{^uint64(0), ^uint64(0)}
+
+func sigaddset(mask *sigset, i int) {
+	(*mask)[(i-1)/64] |= 1 << ((uint32(i) - 1) & 63)
+}
+
+func sigdelset(mask *sigset, i int) {
+	(*mask)[(i-1)/64] &^= 1 << ((uint32(i) - 1) & 63)
+}
+
+func sigfillset(mask *[2]uint64) {
+	(*mask)[0], (*mask)[1] = ^uint64(0), ^uint64(0)
+}
+
+func sigcopyset(mask *sigset, m sigmask) {
+	(*mask)[0] = uint64(m[0]) | uint64(m[1])<<32
 }

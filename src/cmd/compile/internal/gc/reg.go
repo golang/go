@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@ package gc
 import (
 	"bytes"
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"fmt"
 	"sort"
 	"strings"
@@ -246,11 +247,11 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	else if(a->sym == nil)
 		a->type = TYPE_CONST;
 	*/
-	p1.As = int16(Thearch.Optoas(OAS, Types[uint8(v.etype)]))
+	p1.As = Thearch.Optoas(OAS, Types[uint8(v.etype)])
 
 	// TODO(rsc): Remove special case here.
-	if (Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && v.etype == TBOOL {
-		p1.As = int16(Thearch.Optoas(OAS, Types[TUINT8]))
+	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) && v.etype == TBOOL {
+		p1.As = Thearch.Optoas(OAS, Types[TUINT8])
 	}
 	p1.From.Type = obj.TYPE_REG
 	p1.From.Reg = int16(rn)
@@ -302,7 +303,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 		// TODO(rsc): Remove special case here.
 	case obj.TYPE_ADDR:
 		var bit Bits
-		if Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+		if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64) {
 			goto memcase
 		}
 		a.Type = obj.TYPE_MEM
@@ -368,7 +369,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 				if v.etype == et {
 					if int64(v.width) == w {
 						// TODO(rsc): Remove special case for arm here.
-						if flag == 0 || Thearch.Thechar != '5' {
+						if flag == 0 || Thearch.LinkArch.Family != sys.ARM {
 							return blsh(uint(i))
 						}
 					}
@@ -392,10 +393,10 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	if nvar >= NVAR {
 		if Debug['w'] > 1 && node != nil {
-			Fatalf("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+			Fatalf("variable not optimized: %v", Nconv(node, FmtSharp))
 		}
 		if Debug['v'] > 0 {
-			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+			Warn("variable not optimized: %v", Nconv(node, FmtSharp))
 		}
 
 		// If we're not tracking a word in a variable, mark the rest as
@@ -487,7 +488,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	if Debug['R'] != 0 {
-		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, Econv(et), o, w, Nconv(node, obj.FmtSharp), Ctxt.Dconv(a), v.addr)
+		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, et, o, w, Nconv(node, FmtSharp), Ctxt.Dconv(a), v.addr)
 	}
 	Ostats.Nvar++
 
@@ -651,7 +652,7 @@ func allreg(b uint64, r *Rgn) uint64 {
 	r.regno = 0
 	switch v.etype {
 	default:
-		Fatalf("unknown etype %d/%v", Bitno(b), Econv(v.etype))
+		Fatalf("unknown etype %d/%v", Bitno(b), v.etype)
 
 	case TINT8,
 		TUINT8,
@@ -1114,7 +1115,7 @@ func regopt(firstp *obj.Prog) {
 
 		// Currently we never generate three register forms.
 		// If we do, this will need to change.
-		if p.From3Type() != obj.TYPE_NONE {
+		if p.From3Type() != obj.TYPE_NONE && p.From3Type() != obj.TYPE_CONST {
 			Fatalf("regopt not implemented for from3")
 		}
 
@@ -1146,7 +1147,7 @@ func regopt(firstp *obj.Prog) {
 		}
 
 		if Debug['R'] != 0 && Debug['v'] != 0 {
-			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, Econv(v.etype), v.width, v.node, v.offset)
+			fmt.Printf("bit=%2d addr=%d et=%v w=%-2d s=%v + %d\n", i, v.addr, v.etype, v.width, v.node, v.offset)
 		}
 	}
 
@@ -1286,7 +1287,6 @@ loop2:
 	}
 	nregion = 0
 	region = region[:0]
-	var rgp *Rgn
 	for f := firstf; f != nil; f = f.Link {
 		r := f.Data.(*Reg)
 		for z := 0; z < BITS; z++ {
@@ -1347,20 +1347,18 @@ loop2:
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\nregisterizing\n")
 	}
-	var usedreg uint64
-	var vreg uint64
 	for i := 0; i < nregion; i++ {
-		rgp = &region[i]
+		rgp := &region[i]
 		if Debug['R'] != 0 && Debug['v'] != 0 {
 			fmt.Printf("region %d: cost %d varno %d enter %d\n", i, rgp.cost, rgp.varno, rgp.enter.Prog.Pc)
 		}
 		bit = blsh(uint(rgp.varno))
-		usedreg = paint2(rgp.enter, int(rgp.varno), 0)
-		vreg = allreg(usedreg, rgp)
+		usedreg := paint2(rgp.enter, int(rgp.varno), 0)
+		vreg := allreg(usedreg, rgp)
 		if rgp.regno != 0 {
 			if Debug['R'] != 0 && Debug['v'] != 0 {
 				v := &vars[rgp.varno]
-				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, Econv(v.etype), obj.Rconv(int(rgp.regno)), usedreg, vreg)
+				fmt.Printf("registerize %v+%d (bit=%2d et=%v) in %v usedreg=%#x vreg=%#x\n", v.node, v.offset, rgp.varno, v.etype, obj.Rconv(int(rgp.regno)), usedreg, vreg)
 			}
 
 			paint3(rgp.enter, int(rgp.varno), vreg, int(rgp.regno))
@@ -1525,7 +1523,7 @@ func (bits Bits) String() string {
 		} else {
 			fmt.Fprintf(&buf, "%s(%d)", v.node.Sym.Name, i)
 			if v.offset != 0 {
-				fmt.Fprintf(&buf, "%+d", int64(v.offset))
+				fmt.Fprintf(&buf, "%+d", v.offset)
 			}
 		}
 		biclr(&bits, uint(i))

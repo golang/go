@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -36,7 +36,7 @@
 // GO_RESULTS_INITIALIZED indicates that the assembly function
 // has initialized the stack space for its results and that those results
 // should be considered live for the remainder of the function.
-#define GO_RESULTS_INITIALIZED	FUNCDATA PCDATA $PCDATA_StackMapIndex, 1
+#define GO_RESULTS_INITIALIZED	PCDATA $PCDATA_StackMapIndex, $1
 
 // NO_LOCAL_POINTERS indicates that the assembly function stores
 // no pointers to heap objects in its local stack variables.

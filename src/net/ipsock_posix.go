@@ -1,17 +1,15 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
 
-// Internet protocol family sockets for POSIX
-
 package net
 
 import (
+	"context"
 	"runtime"
 	"syscall"
-	"time"
 )
 
 // BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
@@ -35,15 +33,15 @@ func probeIPv4Stack() bool {
 // Should we try to use the IPv4 socket interface if we're
 // only dealing with IPv4 sockets?  As long as the host system
 // understands IPv6, it's okay to pass IPv4 addresses to the IPv6
-// interface.  That simplifies our code and is most general.
+// interface. That simplifies our code and is most general.
 // Unfortunately, we need to run on kernels built without IPv6
-// support too.  So probe the kernel to figure it out.
+// support too. So probe the kernel to figure it out.
 //
 // probeIPv6Stack probes both basic IPv6 capability and IPv6 IPv4-
 // mapping capability which is controlled by IPV6_V6ONLY socket
 // option and/or kernel state "net.inet6.ip6.v6only".
-// It returns two boolean values.  If the first boolean value is
-// true, kernel supports basic IPv6 functionality.  If the second
+// It returns two boolean values. If the first boolean value is
+// true, kernel supports basic IPv6 functionality. If the second
 // boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	var probes = []struct {
@@ -52,7 +50,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	}{
 		// IPv6 communication capability
 		{laddr: TCPAddr{IP: ParseIP("::1")}, value: 1},
-		// IPv6 IPv4-mapped address communication capability
+		// IPv4-mapped IPv6 address communication capability
 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
 	}
 	var supps [2]bool
@@ -93,8 +91,8 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 }
 
 // favoriteAddrFamily returns the appropriate address family to
-// the given net, laddr, raddr and mode.  At first it figures
-// address family out from the net.  If mode indicates "listen"
+// the given net, laddr, raddr and mode. At first it figures
+// address family out from the net. If mode indicates "listen"
 // and laddr is a wildcard, it assumes that the user wants to
 // make a passive connection with a wildcard address family, both
 // AF_INET and AF_INET6, and a wildcard address like following:
@@ -155,10 +153,9 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 }
 
 // Internet sockets (TCP, UDP, IP)
-
-func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, cancel <-chan struct{}) (fd *netFD, err error) {
+func internetSocket(ctx context.Context, net string, laddr, raddr sockaddr, sotype, proto int, mode string) (fd *netFD, err error) {
 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
-	return socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, cancel)
+	return socket(ctx, net, family, sotype, proto, ipv6only, laddr, raddr)
 }
 
 func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, error) {
@@ -167,34 +164,35 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		if len(ip) == 0 {
 			ip = IPv4zero
 		}
-		if ip = ip.To4(); ip == nil {
+		ip4 := ip.To4()
+		if ip4 == nil {
 			return nil, &AddrError{Err: "non-IPv4 address", Addr: ip.String()}
 		}
-		sa := new(syscall.SockaddrInet4)
-		for i := 0; i < IPv4len; i++ {
-			sa.Addr[i] = ip[i]
-		}
-		sa.Port = port
+		sa := &syscall.SockaddrInet4{Port: port}
+		copy(sa.Addr[:], ip4)
 		return sa, nil
 	case syscall.AF_INET6:
-		if len(ip) == 0 {
+		// In general, an IP wildcard address, which is either
+		// "0.0.0.0" or "::", means the entire IP addressing
+		// space. For some historical reason, it is used to
+		// specify "any available address" on some operations
+		// of IP node.
+		//
+		// When the IP node supports IPv4-mapped IPv6 address,
+		// we allow an listener to listen to the wildcard
+		// address of both IP addressing spaces by specifying
+		// IPv6 wildcard address.
+		if len(ip) == 0 || ip.Equal(IPv4zero) {
 			ip = IPv6zero
 		}
-		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
-		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
-		// which it refuses to do.  Rewrite to the IPv6 unspecified address.
-		if ip.Equal(IPv4zero) {
-			ip = IPv6zero
-		}
-		if ip = ip.To16(); ip == nil {
+		// We accept any IPv6 address including IPv4-mapped
+		// IPv6 address.
+		ip6 := ip.To16()
+		if ip6 == nil {
 			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
 		}
-		sa := new(syscall.SockaddrInet6)
-		for i := 0; i < IPv6len; i++ {
-			sa.Addr[i] = ip[i]
-		}
-		sa.Port = port
-		sa.ZoneId = uint32(zoneToInt(zone))
+		sa := &syscall.SockaddrInet6{Port: port, ZoneId: uint32(zoneToInt(zone))}
+		copy(sa.Addr[:], ip6)
 		return sa, nil
 	}
 	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}

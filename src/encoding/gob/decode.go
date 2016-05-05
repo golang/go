@@ -216,10 +216,10 @@ func ignoreTwoUints(i *decInstr, state *decoderState, v reflect.Value) {
 }
 
 // Since the encoder writes no zeros, if we arrive at a decoder we have
-// a value to extract and store.  The field number has already been read
+// a value to extract and store. The field number has already been read
 // (it's how we knew to call this decoder).
 // Each decoder is responsible for handling any indirections associated
-// with the data structure.  If any pointer so reached is nil, allocation must
+// with the data structure. If any pointer so reached is nil, allocation must
 // be done.
 
 // decAlloc takes a value and returns a settable value that can
@@ -308,9 +308,9 @@ func decUint64(i *decInstr, state *decoderState, value reflect.Value) {
 }
 
 // Floating-point numbers are transmitted as uint64s holding the bits
-// of the underlying representation.  They are sent byte-reversed, with
+// of the underlying representation. They are sent byte-reversed, with
 // the exponent end coming out first, so integer floating point numbers
-// (for example) transmit more compactly.  This routine does the
+// (for example) transmit more compactly. This routine does the
 // unswizzling.
 func float64FromBits(u uint64) float64 {
 	var v uint64
@@ -332,7 +332,7 @@ func float32FromBits(u uint64, ovfl error) float64 {
 	if av < 0 {
 		av = -av
 	}
-	// +Inf is OK in both 32- and 64-bit floats.  Underflow is always OK.
+	// +Inf is OK in both 32- and 64-bit floats. Underflow is always OK.
 	if math.MaxFloat32 < av && av <= math.MaxFloat64 {
 		error_(ovfl)
 	}
@@ -421,7 +421,7 @@ func ignoreUint8Array(i *decInstr, state *decoderState, value reflect.Value) {
 // Execution engine
 
 // The encoder engine is an array of instructions indexed by field number of the incoming
-// decoder.  It is executed with random access according to field number.
+// decoder. It is executed with random access according to field number.
 type decEngine struct {
 	instr    []decInstr
 	numInstr int // the number of active instructions
@@ -442,7 +442,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, value refl
 }
 
 // decodeStruct decodes a top-level struct and stores it in value.
-// Indir is for the value, not the type.  At the time of the call it may
+// Indir is for the value, not the type. At the time of the call it may
 // differ from ut.indir, which was computed when the engine was built.
 // This state cannot arise for decodeSingle, which is called directly
 // from the user's value, not from the innards of an engine.
@@ -536,7 +536,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 }
 
 // decodeArray decodes an array and stores it in value.
-// The length is an unsigned integer preceding the elements.  Even though the length is redundant
+// The length is an unsigned integer preceding the elements. Even though the length is redundant
 // (it's part of the type), it's a useful check and is included in the encoding.
 func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, value reflect.Value, elemOp decOp, length int, ovfl error, helper decHelper) {
 	if n := state.decodeUint(); n != uint64(length) {
@@ -1075,7 +1075,7 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
 	return
 }
 
-// compileDec compiles the decoder engine for a value.  If the value is not a struct,
+// compileDec compiles the decoder engine for a value. If the value is not a struct,
 // it calls out to compileSingle.
 func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err error) {
 	defer catchError(&err)

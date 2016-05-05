@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -266,7 +266,7 @@ func TestBlankFields(t *testing.T) {
 }
 
 // An attempt to read into a struct with an unexported field will
-// panic.  This is probably not the best choice, but at this point
+// panic. This is probably not the best choice, but at this point
 // anything else would be an API change.
 
 type Unexported struct {
@@ -339,6 +339,33 @@ func TestReadTruncated(t *testing.T) {
 	}
 }
 
+func testUint64SmallSliceLengthPanics() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	b := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	LittleEndian.Uint64(b[:4])
+	return false
+}
+
+func testPutUint64SmallSliceLengthPanics() (panicked bool) {
+	defer func() {
+		panicked = recover() != nil
+	}()
+	b := [8]byte{}
+	LittleEndian.PutUint64(b[:4], 0x0102030405060708)
+	return false
+}
+
+func TestEarlyBoundsChecks(t *testing.T) {
+	if testUint64SmallSliceLengthPanics() != true {
+		t.Errorf("binary.LittleEndian.Uint64 expected to panic for small slices, but didn't")
+	}
+	if testPutUint64SmallSliceLengthPanics() != true {
+		t.Errorf("binary.LittleEndian.PutUint64 expected to panic for small slices, but didn't")
+	}
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
@@ -373,8 +400,8 @@ func BenchmarkReadStruct(b *testing.B) {
 		Read(bsr, BigEndian, &t)
 	}
 	b.StopTimer()
-	if !reflect.DeepEqual(s, t) {
-		b.Fatal("no match")
+	if b.N > 0 && !reflect.DeepEqual(s, t) {
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
 	}
 }
 
@@ -405,8 +432,8 @@ func BenchmarkReadInts(b *testing.B) {
 		want.Array[i] = 0
 	}
 	b.StopTimer()
-	if !reflect.DeepEqual(ls, want) {
-		panic("no match")
+	if b.N > 0 && !reflect.DeepEqual(ls, want) {
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
 	}
 }
 
@@ -427,7 +454,7 @@ func BenchmarkWriteInts(b *testing.B) {
 		Write(w, BigEndian, s.Uint64)
 	}
 	b.StopTimer()
-	if !bytes.Equal(buf.Bytes(), big[:30]) {
+	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[:30]) {
 		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
 	}
 }

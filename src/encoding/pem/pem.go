@@ -150,7 +150,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 func decodeError(data, rest []byte) (*Block, []byte) {
 	// If we get here then we have rejected a likely looking, but
 	// ultimately invalid PEM block. We need to start over from a new
-	// position.  We have consumed the preamble line and will have consumed
+	// position. We have consumed the preamble line and will have consumed
 	// any lines which could be header lines. However, a valid preamble
 	// line is not a valid header line, therefore we cannot have consumed
 	// the preamble line for the any subsequent block. Thus, we will always

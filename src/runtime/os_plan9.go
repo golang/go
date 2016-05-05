@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -78,7 +78,15 @@ func sigpanic() {
 	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
 	switch g.sig {
 	case _SIGRFAULT, _SIGWFAULT:
-		addr := note[index(note, "addr=")+5:]
+		i := index(note, "addr=")
+		if i >= 0 {
+			i += 5
+		} else if i = index(note, "va="); i >= 0 {
+			i += 3
+		} else {
+			panicmem()
+		}
+		addr := note[i:]
 		g.sigcode1 = uintptr(atolwhex(addr))
 		if g.sigcode1 < 0x1000 || g.paniconfault {
 			panicmem()

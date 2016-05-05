@@ -8,7 +8,10 @@
 
 package arch
 
-import "cmd/internal/obj/mips"
+import (
+	"cmd/internal/obj"
+	"cmd/internal/obj/mips"
+)
 
 func jumpMIPS64(word string) bool {
 	switch word {
@@ -20,7 +23,7 @@ func jumpMIPS64(word string) bool {
 
 // IsMIPS64CMP reports whether the op (as defined by an mips.A* constant) is
 // one of the CMP instructions that require special handling.
-func IsMIPS64CMP(op int) bool {
+func IsMIPS64CMP(op obj.As) bool {
 	switch op {
 	case mips.ACMPEQF, mips.ACMPEQD, mips.ACMPGEF, mips.ACMPGED,
 		mips.ACMPGTF, mips.ACMPGTD:
@@ -31,7 +34,7 @@ func IsMIPS64CMP(op int) bool {
 
 // IsMIPS64MUL reports whether the op (as defined by an mips.A* constant) is
 // one of the MUL/DIV/REM instructions that require special handling.
-func IsMIPS64MUL(op int) bool {
+func IsMIPS64MUL(op obj.As) bool {
 	switch op {
 	case mips.AMUL, mips.AMULU, mips.AMULV, mips.AMULVU,
 		mips.ADIV, mips.ADIVU, mips.ADIVV, mips.ADIVVU,

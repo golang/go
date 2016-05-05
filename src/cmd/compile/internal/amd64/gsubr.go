@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@ var resvd = []int{
  * generate
  *	as $c, reg
  */
-func gconreg(as int, c int64, reg int) {
+func gconreg(as obj.As, c int64, reg int) {
 	var nr gc.Node
 
 	switch as {
@@ -72,7 +72,7 @@ func gconreg(as int, c int64, reg int) {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 
 	switch as {
@@ -101,7 +101,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
 }
 
 func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
-	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
+	if t.IsInteger() && n1.Op == gc.OLITERAL && gc.Smallintconst(n1) && n2.Op != gc.OLITERAL {
 		// Reverse comparison to place constant last.
 		op = gc.Brrev(op)
 		n1, n2 = n2, n1
@@ -112,7 +112,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	// A special case to make write barriers more efficient.
 	// Comparing the first field of a named struct can be done directly.
 	base := n1
-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Type.Sym == n1.Right.Sym {
+	if n1.Op == gc.ODOT && n1.Left.Type.IsStruct() && n1.Left.Type.Field(0).Sym == n1.Sym {
 		base = n1.Left
 	}
 
@@ -124,7 +124,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 		gc.Cgen(n1, &g1)
 		gmove(&g1, &r1)
 	}
-	if n2.Op == gc.OLITERAL && gc.Isint[t.Etype] && gc.Smallintconst(n2) {
+	if n2.Op == gc.OLITERAL && t.IsInteger() && gc.Smallintconst(n2) {
 		r2 = *n2
 	} else {
 		gc.Regalloc(&r2, t, n2)
@@ -144,7 +144,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	return gc.Gbranch(optoas(op, t), nil, likely)
 }
 
-func ginsboolval(a int, n *gc.Node) {
+func ginsboolval(a obj.As, n *gc.Node) {
 	gins(jmptoset(a), nil, n)
 }
 
@@ -178,7 +178,7 @@ func bignodes() {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
 	}
 
 	ft := gc.Simsimtype(f.Type)
@@ -191,7 +191,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	}
 
 	// cannot have two memory operands
-	var a int
+	var a obj.As
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -213,7 +213,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 			// 64-bit immediates are really 32-bit sign-extended
 			// unless moving into a register.
 			if gc.Isint[tt] {
-				if i := con.Int(); int64(int32(i)) != i {
+				if i := con.Int64(); int64(int32(i)) != i {
 					goto hard
 				}
 			}
@@ -229,7 +229,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
 
 		/*
 		 * integer copy and truncate
@@ -583,7 +583,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  * generate one instruction:
  *	as f, t
  */
-func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	//	Node nod;
 
 	//	if(f != N && f->op == OINDEX) {
@@ -681,7 +681,7 @@ func ginsnop() {
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -722,7 +722,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", op, t)
 
 	case OADDR_ | gc.TPTR32:
 		a = x86.ALEAL
@@ -1229,7 +1229,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 }
 
 // jmptoset returns ASETxx for AJxx.
-func jmptoset(jmp int) int {
+func jmptoset(jmp obj.As) obj.As {
 	switch jmp {
 	case x86.AJEQ:
 		return x86.ASETEQ
@@ -1264,7 +1264,7 @@ func jmptoset(jmp int) int {
 	case x86.AJPS:
 		return x86.ASETPS
 	}
-	gc.Fatalf("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
+	gc.Fatalf("jmptoset: no entry for %v", jmp)
 	panic("unreachable")
 }
 
@@ -1298,7 +1298,7 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	if n.Type == nil {
 		return false
 	}
@@ -1310,7 +1310,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		if !gc.Isconst(n, gc.CTINT) {
 			break
 		}
-		v := n.Int()
+		v := n.Int64()
 		if v >= 32000 || v <= -32000 {
 			break
 		}
@@ -1408,7 +1408,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 		}
 
 		a.Type = obj.TYPE_NONE
-		a.Index = obj.TYPE_NONE
+		a.Index = x86.REG_NONE
 		gc.Fixlargeoffset(&n1)
 		gc.Naddr(a, &n1)
 		return true

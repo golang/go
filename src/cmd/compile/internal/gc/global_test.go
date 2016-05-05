@@ -17,7 +17,7 @@ import (
 )
 
 // Make sure "hello world" does not link in all the
-// fmt.scanf routines.  See issue 6853.
+// fmt.scanf routines. See issue 6853.
 func TestScanfRemoval(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -59,12 +59,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not read target: %v", err)
 	}
-	if bytes.Index(out, []byte("scanInt")) != -1 {
+	if bytes.Contains(out, []byte("scanInt")) {
 		log.Fatalf("scanf code not removed from helloworld")
 	}
 }
 
-// Make sure -S prints assembly code.  See issue 14515.
+// Make sure -S prints assembly code. See issue 14515.
 func TestDashS(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
@@ -99,7 +99,7 @@ func main() {
 
 	patterns := []string{
 		// It is hard to look for actual instructions in an
-		// arch-independent way.  So we'll just look for
+		// arch-independent way. So we'll just look for
 		// pseudo-ops that are arch-independent.
 		"\tTEXT\t",
 		"\tFUNCDATA\t",

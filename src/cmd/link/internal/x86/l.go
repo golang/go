@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,11 +31,9 @@
 package x86
 
 const (
-	thechar   = '8'
-	PtrSize   = 4
 	MaxAlign  = 32 // max data alignment
+	MinAlign  = 1  // min data alignment
 	FuncAlign = 16
-	MINLC     = 1
 )
 
 /* Used by ../internal/ld/dwarf.go */

@@ -657,6 +657,9 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 }
 
 func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
+	if b.N == 0 {
+		return
+	}
 	const MaxConcurrentCalls = 100
 	once.Do(startServer)
 	client, err := dial()

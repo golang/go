@@ -15,13 +15,12 @@ import (
 // escape analysis decisions about the pointer value being stored.
 // Instead, these are wrappers around the actual atomics (casp1 and so on)
 // that use noescape to convey which arguments do not escape.
-//
-// Additionally, these functions must update the shadow heap for
-// write barrier checking.
 
+// atomicstorep performs *ptr = new atomically and invokes a write barrier.
+//
 //go:nosplit
 func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
-	atomic.Storep1(noescape(ptr), new)
+	atomic.StorepNoWB(noescape(ptr), new)
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
 }
 
@@ -45,7 +44,6 @@ func sync_atomic_StoreUintptr(ptr *uintptr, new uintptr)
 //go:nosplit
 func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	atomic.Storep1(noescape(unsafe.Pointer(ptr)), new)
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 }
 
@@ -54,9 +52,9 @@ func sync_atomic_SwapUintptr(ptr *uintptr, new uintptr) uintptr
 
 //go:linkname sync_atomic_SwapPointer sync/atomic.SwapPointer
 //go:nosplit
-func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
-	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(ptr)), uintptr(new)))
-	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
+func sync_atomic_SwapPointer(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
+	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(unsafe.Pointer(ptr))), uintptr(new)))
+	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 	return old
 }
 

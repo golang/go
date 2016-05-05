@@ -1,4 +1,4 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -361,7 +361,7 @@ func (r *LineReader) step(entry *LineEntry) bool {
 		// Special opcode [DWARF2 6.2.5.1, DWARF4 6.2.5.1]
 		adjustedOpcode := opcode - r.opcodeBase
 		r.advancePC(adjustedOpcode / r.lineRange)
-		lineDelta := r.lineBase + int(adjustedOpcode)%r.lineRange
+		lineDelta := r.lineBase + adjustedOpcode%r.lineRange
 		r.state.Line += lineDelta
 		goto emit
 	}

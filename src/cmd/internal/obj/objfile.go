@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,13 +15,23 @@
 //
 // The file format is:
 //
-//	- magic header: "\x00\x00go13ld"
+//	- magic header: "\x00\x00go17ld"
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
+//	- sequence of symbol references used by the defined symbols
+//	- byte 0xff (marks end of sequence)
+//	- sequence of integer lengths:
+//		- total data length
+//		- total number of relocations
+//		- total number of pcdata
+//		- total number of automatics
+//		- total number of funcdata
+//		- total number of files
+//	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xff\xffgo13ld"
+//	- magic footer: "\xff\xffgo17ld"
 //
 // All integers are stored in a zigzag varint format.
 // See golang.org/s/go12symtab for a definition.
@@ -30,18 +40,21 @@
 // followed by that many bytes.
 //
 // A symbol reference is a string name followed by a version.
-// An empty name corresponds to a nil LSym* pointer.
+//
+// A symbol points to other symbols using an index into the symbol
+// reference sequence. Index 0 corresponds to a nil LSym* pointer.
+// In the symbol layout described below "symref index" stands for this
+// index.
 //
 // Each symbol is laid out as the following fields (taken from LSym*):
 //
 //	- byte 0xfe (sanity check for synchronization)
 //	- type [int]
-//	- name [string]
-//	- version [int]
+//	- name & version [symref index]
 //	- flags [int]
 //		1 dupok
 //	- size [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //	- p [data block]
 //	- nr [int]
 //	- r [nr relocations, sorted by off]
@@ -52,8 +65,9 @@
 //	- locals [int]
 //	- nosplit [int]
 //	- flags [int]
-//		1 leaf
-//		2 C function
+//		1<<0 leaf
+//		1<<1 C function
+//		1<<2 function may call reflect.Type.Method
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]
@@ -64,16 +78,14 @@
 //	- siz [int]
 //	- type [int]
 //	- add [int]
-//	- xadd [int]
-//	- sym [symbol reference]
-//	- xsym [symbol reference]
+//	- sym [symref index]
 //
 // Each local has the encoding:
 //
-//	- asym [symbol reference]
+//	- asym [symref index]
 //	- offset [int]
 //	- type [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //
 // The pcln table has the encoding:
 //
@@ -83,475 +95,414 @@
 //	- npcdata [int]
 //	- pcdata [npcdata data blocks]
 //	- nfuncdata [int]
-//	- funcdata [nfuncdata symbol references]
+//	- funcdata [nfuncdata symref index]
 //	- funcdatasym [nfuncdata ints]
 //	- nfile [int]
-//	- file [nfile symbol references]
+//	- file [nfile symref index]
 //
 // The file layout and meaning of type integers are architecture-independent.
 //
 // TODO(rsc): The file format is good for a first pass but needs work.
 //	- There are SymID in the object file that should really just be strings.
-//	- The actual symbol memory images are interlaced with the symbol
-//	  metadata. They should be separated, to reduce the I/O required to
-//	  load just the metadata.
-//	- The symbol references should be shortened, either with a symbol
-//	  table or by using a simple backward index to an earlier mentioned symbol.
 
 package obj
 
 import (
+	"bufio"
+	"cmd/internal/sys"
 	"fmt"
 	"log"
 	"path/filepath"
-	"strings"
+	"sort"
 )
 
 // The Go and C compilers, and the assembler, call writeobj to write
-// out a Go object file.  The linker does not call this; the linker
+// out a Go object file. The linker does not call this; the linker
 // does not write out object files.
-func Writeobjdirect(ctxt *Link, b *Biobuf) {
+func Writeobjdirect(ctxt *Link, b *bufio.Writer) {
 	Flushplist(ctxt)
-	Writeobjfile(ctxt, b)
+	WriteObjFile(ctxt, b)
 }
 
-func Flushplist(ctxt *Link) {
-	flushplist(ctxt, ctxt.Debugasm == 0)
+// objWriter writes Go object files.
+type objWriter struct {
+	wr   *bufio.Writer
+	ctxt *Link
+	// Temporary buffer for zigzag int writing.
+	varintbuf [10]uint8
+
+	// Provide the the index of a symbol reference by symbol name.
+	// One map for versioned symbols and one for unversioned symbols.
+	// Used for deduplicating the symbol reference list.
+	refIdx  map[string]int
+	vrefIdx map[string]int
+
+	// Number of objects written of each type.
+	nRefs     int
+	nData     int
+	nReloc    int
+	nPcdata   int
+	nAutom    int
+	nFuncdata int
+	nFile     int
 }
-func FlushplistNoFree(ctxt *Link) {
-	flushplist(ctxt, false)
+
+func (w *objWriter) addLengths(s *LSym) {
+	w.nData += len(s.P)
+	w.nReloc += len(s.R)
+
+	if s.Type != STEXT {
+		return
+	}
+
+	pc := s.Pcln
+
+	data := 0
+	data += len(pc.Pcsp.P)
+	data += len(pc.Pcfile.P)
+	data += len(pc.Pcline.P)
+	for i := 0; i < len(pc.Pcdata); i++ {
+		data += len(pc.Pcdata[i].P)
+	}
+
+	w.nData += data
+	w.nPcdata += len(pc.Pcdata)
+
+	autom := 0
+	for a := s.Autom; a != nil; a = a.Link {
+		autom++
+	}
+	w.nAutom += autom
+	w.nFuncdata += len(pc.Funcdataoff)
+	w.nFile += len(pc.File)
 }
-func flushplist(ctxt *Link, freeProgs bool) {
-	var flag int
-	var s *LSym
-	var p *Prog
-	var plink *Prog
-	var a *Auto
 
-	// Build list of symbols, and assign instructions to lists.
-	// Ignore ctxt->plist boundaries. There are no guarantees there,
-	// and the assemblers just use one big list.
-	var curtext *LSym
-	var text *LSym
-	var etext *LSym
+func (w *objWriter) writeLengths() {
+	w.writeInt(int64(w.nData))
+	w.writeInt(int64(w.nReloc))
+	w.writeInt(int64(w.nPcdata))
+	w.writeInt(int64(w.nAutom))
+	w.writeInt(int64(w.nFuncdata))
+	w.writeInt(int64(w.nFile))
+}
 
-	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
-		for p = pl.Firstpc; p != nil; p = plink {
-			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
-				fmt.Printf("obj: %v\n", p)
-			}
-			plink = p.Link
-			p.Link = nil
-
-			if p.As == AEND {
-				continue
-			}
-
-			if p.As == ATYPE {
-				// Assume each TYPE instruction describes
-				// a different local variable or parameter,
-				// so no dedup.
-				// Using only the TYPE instructions means
-				// that we discard location information about local variables
-				// in C and assembly functions; that information is inferred
-				// from ordinary references, because there are no TYPE
-				// instructions there. Without the type information, gdb can't
-				// use the locations, so we don't bother to save them.
-				// If something else could use them, we could arrange to
-				// preserve them.
-				if curtext == nil {
-					continue
-				}
-				a = new(Auto)
-				a.Asym = p.From.Sym
-				a.Aoffset = int32(p.From.Offset)
-				a.Name = int16(p.From.Name)
-				a.Gotype = p.From.Gotype
-				a.Link = curtext.Autom
-				curtext.Autom = a
-				continue
-			}
-
-			if p.As == AGLOBL {
-				s = p.From.Sym
-				tmp6 := s.Seenglobl
-				s.Seenglobl++
-				if tmp6 != 0 {
-					fmt.Printf("duplicate %v\n", p)
-				}
-				if s.Onlist != 0 {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Onlist = 1
-				if ctxt.Data == nil {
-					ctxt.Data = s
-				} else {
-					ctxt.Edata.Next = s
-				}
-				s.Next = nil
-				s.Size = p.To.Offset
-				if s.Type == 0 || s.Type == SXREF {
-					s.Type = SBSS
-				}
-				flag = int(p.From3.Offset)
-				if flag&DUPOK != 0 {
-					s.Dupok = 1
-				}
-				if flag&RODATA != 0 {
-					s.Type = SRODATA
-				} else if flag&NOPTR != 0 {
-					s.Type = SNOPTRBSS
-				} else if flag&TLSBSS != 0 {
-					s.Type = STLSBSS
-				}
-				ctxt.Edata = s
-				continue
-			}
-
-			if p.As == ADATA {
-				savedata(ctxt, p.From.Sym, p, "<input>")
-				continue
-			}
-
-			if p.As == ATEXT {
-				s = p.From.Sym
-				if s == nil {
-					// func _() { }
-					curtext = nil
-
-					continue
-				}
-
-				if s.Text != nil {
-					log.Fatalf("duplicate TEXT for %s", s.Name)
-				}
-				if s.Onlist != 0 {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Onlist = 1
-				if text == nil {
-					text = s
-				} else {
-					etext.Next = s
-				}
-				etext = s
-				flag = int(p.From3Offset())
-				if flag&DUPOK != 0 {
-					s.Dupok = 1
-				}
-				if flag&NOSPLIT != 0 {
-					s.Nosplit = 1
-				}
-				s.Next = nil
-				s.Type = STEXT
-				s.Text = p
-				s.Etext = p
-				curtext = s
-				continue
-			}
-
-			if p.As == AFUNCDATA {
-				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
-				if curtext == nil { // func _() {}
-					continue
-				}
-				if p.To.Sym.Name == "go_args_stackmap" {
-					if p.From.Type != TYPE_CONST || p.From.Offset != FUNCDATA_ArgsPointerMaps {
-						ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
-					}
-					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
-				}
-			}
-
-			if curtext == nil {
-				continue
-			}
-			s = curtext
-			s.Etext.Link = p
-			s.Etext = p
-		}
-	}
-
-	// Add reference to Go arguments for C or assembly functions without them.
-	var found int
-	for s := text; s != nil; s = s.Next {
-		if !strings.HasPrefix(s.Name, "\"\".") {
-			continue
-		}
-		found = 0
-		for p = s.Text; p != nil; p = p.Link {
-			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
-				found = 1
-				break
-			}
-		}
-
-		if found == 0 {
-			p = Appendp(ctxt, s.Text)
-			p.As = AFUNCDATA
-			p.From.Type = TYPE_CONST
-			p.From.Offset = FUNCDATA_ArgsPointerMaps
-			p.To.Type = TYPE_MEM
-			p.To.Name = NAME_EXTERN
-			p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", s.Name), int(s.Version))
-		}
-	}
-
-	// Turn functions into machine code images.
-	for s := text; s != nil; s = s.Next {
-		mkfwd(s)
-		linkpatch(ctxt, s)
-		if ctxt.Flag_optimize {
-			ctxt.Arch.Follow(ctxt, s)
-		}
-		ctxt.Arch.Preprocess(ctxt, s)
-		ctxt.Arch.Assemble(ctxt, s)
-		fieldtrack(ctxt, s)
-		linkpcln(ctxt, s)
-		if freeProgs {
-			s.Text = nil
-			s.Etext = nil
-		}
-	}
-
-	// Add to running list in ctxt.
-	if text != nil {
-		if ctxt.Text == nil {
-			ctxt.Text = text
-		} else {
-			ctxt.Etext.Next = text
-		}
-		ctxt.Etext = etext
-	}
-	ctxt.Plist = nil
-	ctxt.Plast = nil
-	ctxt.Curp = nil
-	if freeProgs {
-		ctxt.freeProgs()
+func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
+	return &objWriter{
+		ctxt:    ctxt,
+		wr:      b,
+		vrefIdx: make(map[string]int),
+		refIdx:  make(map[string]int),
 	}
 }
 
-func Writeobjfile(ctxt *Link, b *Biobuf) {
-	// Emit header.
-	Bputc(b, 0)
+func WriteObjFile(ctxt *Link, b *bufio.Writer) {
+	w := newObjWriter(ctxt, b)
 
-	Bputc(b, 0)
-	fmt.Fprintf(b, "go13ld")
-	Bputc(b, 1) // version
+	// Magic header
+	w.wr.WriteString("\x00\x00go17ld")
 
-	// Emit autolib.
+	// Version
+	w.wr.WriteByte(1)
+
+	// Autolib
 	for _, pkg := range ctxt.Imports {
-		wrstring(b, pkg)
+		w.writeString(pkg)
 	}
-	wrstring(b, "")
+	w.writeString("")
 
-	// Emit symbols.
-	for s := ctxt.Text; s != nil; s = s.Next {
-		writesym(ctxt, b, s)
+	// Symbol references
+	for _, s := range ctxt.Text {
+		w.writeRefs(s)
+		w.addLengths(s)
 	}
-	for s := ctxt.Data; s != nil; s = s.Next {
-		writesym(ctxt, b, s)
+	for _, s := range ctxt.Data {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	// End symbol references
+	w.wr.WriteByte(0xff)
+
+	// Lengths
+	w.writeLengths()
+
+	// Data block
+	for _, s := range ctxt.Text {
+		w.wr.Write(s.P)
+		pc := s.Pcln
+		w.wr.Write(pc.Pcsp.P)
+		w.wr.Write(pc.Pcfile.P)
+		w.wr.Write(pc.Pcline.P)
+		for i := 0; i < len(pc.Pcdata); i++ {
+			w.wr.Write(pc.Pcdata[i].P)
+		}
+	}
+	for _, s := range ctxt.Data {
+		w.wr.Write(s.P)
 	}
 
-	// Emit footer.
-	Bputc(b, 0xff)
+	// Symbols
+	for _, s := range ctxt.Text {
+		w.writeSym(s)
+	}
+	for _, s := range ctxt.Data {
+		w.writeSym(s)
+	}
 
-	Bputc(b, 0xff)
-	fmt.Fprintf(b, "go13ld")
+	// Magic footer
+	w.wr.WriteString("\xff\xffgo17ld")
 }
 
-func writesym(ctxt *Link, b *Biobuf, s *LSym) {
-	if ctxt.Debugasm != 0 {
-		fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
-		if s.Version != 0 {
-			fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
+// Symbols are prefixed so their content doesn't get confused with the magic footer.
+const symPrefix = 0xfe
+
+func (w *objWriter) writeRef(s *LSym, isPath bool) {
+	if s == nil || s.RefIdx != 0 {
+		return
+	}
+	var m map[string]int
+	switch s.Version {
+	case 0:
+		m = w.refIdx
+	case 1:
+		m = w.vrefIdx
+	default:
+		log.Fatalf("%s: invalid version number %d", s.Name, s.Version)
+	}
+
+	idx := m[s.Name]
+	if idx != 0 {
+		s.RefIdx = idx
+		return
+	}
+	w.wr.WriteByte(symPrefix)
+	if isPath {
+		w.writeString(filepath.ToSlash(s.Name))
+	} else {
+		w.writeString(s.Name)
+	}
+	w.writeInt(int64(s.Version))
+	w.nRefs++
+	s.RefIdx = w.nRefs
+	m[s.Name] = w.nRefs
+}
+
+func (w *objWriter) writeRefs(s *LSym) {
+	w.writeRef(s, false)
+	w.writeRef(s.Gotype, false)
+	for i := range s.R {
+		w.writeRef(s.R[i].Sym, false)
+	}
+
+	if s.Type == STEXT {
+		for a := s.Autom; a != nil; a = a.Link {
+			w.writeRef(a.Asym, false)
+			w.writeRef(a.Gotype, false)
 		}
-		if s.Type != 0 {
-			fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
+		pc := s.Pcln
+		for _, d := range pc.Funcdata {
+			w.writeRef(d, false)
 		}
-		if s.Dupok != 0 {
-			fmt.Fprintf(ctxt.Bso, "dupok ")
+		for _, f := range pc.File {
+			w.writeRef(f, true)
 		}
-		if s.Cfunc != 0 {
-			fmt.Fprintf(ctxt.Bso, "cfunc ")
+	}
+}
+
+func (w *objWriter) writeSymDebug(s *LSym) {
+	ctxt := w.ctxt
+	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
+	if s.Version != 0 {
+		fmt.Fprintf(ctxt.Bso, "v=%d ", s.Version)
+	}
+	if s.Type != 0 {
+		fmt.Fprintf(ctxt.Bso, "t=%d ", s.Type)
+	}
+	if s.Dupok {
+		fmt.Fprintf(ctxt.Bso, "dupok ")
+	}
+	if s.Cfunc {
+		fmt.Fprintf(ctxt.Bso, "cfunc ")
+	}
+	if s.Nosplit {
+		fmt.Fprintf(ctxt.Bso, "nosplit ")
+	}
+	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+	if s.Type == STEXT {
+		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
+		if s.Leaf {
+			fmt.Fprintf(ctxt.Bso, " leaf")
 		}
-		if s.Nosplit != 0 {
-			fmt.Fprintf(ctxt.Bso, "nosplit ")
+	}
+
+	fmt.Fprintf(ctxt.Bso, "\n")
+	for p := s.Text; p != nil; p = p.Link {
+		fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
+	}
+	var c int
+	var j int
+	for i := 0; i < len(s.P); {
+		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
+		for j = i; j < i+16 && j < len(s.P); j++ {
+			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
 		}
-		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
-		if s.Type == STEXT {
-			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
-			if s.Leaf != 0 {
-				fmt.Fprintf(ctxt.Bso, " leaf")
+		for ; j < i+16; j++ {
+			fmt.Fprintf(ctxt.Bso, "   ")
+		}
+		fmt.Fprintf(ctxt.Bso, "  ")
+		for j = i; j < i+16 && j < len(s.P); j++ {
+			c = int(s.P[j])
+			if ' ' <= c && c <= 0x7e {
+				fmt.Fprintf(ctxt.Bso, "%c", c)
+			} else {
+				fmt.Fprintf(ctxt.Bso, ".")
 			}
 		}
 
 		fmt.Fprintf(ctxt.Bso, "\n")
-		for p := s.Text; p != nil; p = p.Link {
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
-		}
-		var c int
-		var j int
-		for i := 0; i < len(s.P); {
-			fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
-			for j = i; j < i+16 && j < len(s.P); j++ {
-				fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
-			}
-			for ; j < i+16; j++ {
-				fmt.Fprintf(ctxt.Bso, "   ")
-			}
-			fmt.Fprintf(ctxt.Bso, "  ")
-			for j = i; j < i+16 && j < len(s.P); j++ {
-				c = int(s.P[j])
-				if ' ' <= c && c <= 0x7e {
-					fmt.Fprintf(ctxt.Bso, "%c", c)
-				} else {
-					fmt.Fprintf(ctxt.Bso, ".")
-				}
-			}
-
-			fmt.Fprintf(ctxt.Bso, "\n")
-			i += 16
-		}
-
-		var r *Reloc
-		var name string
-		for i := 0; i < len(s.R); i++ {
-			r = &s.R[i]
-			name = ""
-			if r.Sym != nil {
-				name = r.Sym.Name
-			}
-			if ctxt.Arch.Thechar == '5' || ctxt.Arch.Thechar == '9' {
-				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(int64(r.Add)))
-			} else {
-				fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, int64(r.Add))
-			}
-		}
+		i += 16
 	}
 
-	Bputc(b, 0xfe)
-	wrint(b, int64(s.Type))
-	wrstring(b, s.Name)
-	wrint(b, int64(s.Version))
-	flags := int64(s.Dupok)
-	if s.Local {
-		flags |= 2
-	}
-	wrint(b, flags)
-	wrint(b, s.Size)
-	wrsym(b, s.Gotype)
-	wrdata(b, s.P)
-
-	wrint(b, int64(len(s.R)))
-	var r *Reloc
-	for i := 0; i < len(s.R); i++ {
-		r = &s.R[i]
-		wrint(b, int64(r.Off))
-		wrint(b, int64(r.Siz))
-		wrint(b, int64(r.Type))
-		wrint(b, r.Add)
-		wrint(b, 0) // Xadd, ignored
-		wrsym(b, r.Sym)
-		wrsym(b, nil) // Xsym, ignored
-	}
-
-	if s.Type == STEXT {
-		wrint(b, int64(s.Args))
-		wrint(b, int64(s.Locals))
-		wrint(b, int64(s.Nosplit))
-		wrint(b, int64(s.Leaf)|int64(s.Cfunc)<<1)
-		n := 0
-		for a := s.Autom; a != nil; a = a.Link {
-			n++
+	sort.Sort(relocByOff(s.R)) // generate stable output
+	for _, r := range s.R {
+		name := ""
+		if r.Sym != nil {
+			name = r.Sym.Name
+		} else if r.Type == R_TLS_LE {
+			name = "TLS"
 		}
-		wrint(b, int64(n))
-		for a := s.Autom; a != nil; a = a.Link {
-			wrsym(b, a.Asym)
-			wrint(b, int64(a.Aoffset))
-			if a.Name == NAME_AUTO {
-				wrint(b, A_AUTO)
-			} else if a.Name == NAME_PARAM {
-				wrint(b, A_PARAM)
-			} else {
-				log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
-			}
-			wrsym(b, a.Gotype)
-		}
-
-		pc := s.Pcln
-		wrdata(b, pc.Pcsp.P)
-		wrdata(b, pc.Pcfile.P)
-		wrdata(b, pc.Pcline.P)
-		wrint(b, int64(len(pc.Pcdata)))
-		for i := 0; i < len(pc.Pcdata); i++ {
-			wrdata(b, pc.Pcdata[i].P)
-		}
-		wrint(b, int64(len(pc.Funcdataoff)))
-		for i := 0; i < len(pc.Funcdataoff); i++ {
-			wrsym(b, pc.Funcdata[i])
-		}
-		for i := 0; i < len(pc.Funcdataoff); i++ {
-			wrint(b, pc.Funcdataoff[i])
-		}
-		wrint(b, int64(len(pc.File)))
-		for i := 0; i < len(pc.File); i++ {
-			wrpathsym(ctxt, b, pc.File[i])
+		if ctxt.Arch.InFamily(sys.ARM, sys.PPC64) {
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%x\n", int(r.Off), r.Siz, r.Type, name, uint64(r.Add))
+		} else {
+			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, r.Add)
 		}
 	}
 }
 
-// Reusable buffer to avoid allocations.
-// This buffer was responsible for 15% of gc's allocations.
-var varintbuf [10]uint8
+func (w *objWriter) writeSym(s *LSym) {
+	ctxt := w.ctxt
+	if ctxt.Debugasm != 0 {
+		w.writeSymDebug(s)
+	}
 
-func wrint(b *Biobuf, sval int64) {
+	w.wr.WriteByte(symPrefix)
+	w.writeInt(int64(s.Type))
+	w.writeRefIndex(s)
+	flags := int64(0)
+	if s.Dupok {
+		flags |= 1
+	}
+	if s.Local {
+		flags |= 1 << 1
+	}
+	w.writeInt(flags)
+	w.writeInt(s.Size)
+	w.writeRefIndex(s.Gotype)
+	w.writeInt(int64(len(s.P)))
+
+	w.writeInt(int64(len(s.R)))
+	var r *Reloc
+	for i := 0; i < len(s.R); i++ {
+		r = &s.R[i]
+		w.writeInt(int64(r.Off))
+		w.writeInt(int64(r.Siz))
+		w.writeInt(int64(r.Type))
+		w.writeInt(r.Add)
+		w.writeRefIndex(r.Sym)
+	}
+
+	if s.Type != STEXT {
+		return
+	}
+
+	w.writeInt(int64(s.Args))
+	w.writeInt(int64(s.Locals))
+	if s.Nosplit {
+		w.writeInt(1)
+	} else {
+		w.writeInt(0)
+	}
+	flags = int64(0)
+	if s.Leaf {
+		flags |= 1
+	}
+	if s.Cfunc {
+		flags |= 1 << 1
+	}
+	if s.ReflectMethod {
+		flags |= 1 << 2
+	}
+	w.writeInt(flags)
+	n := 0
+	for a := s.Autom; a != nil; a = a.Link {
+		n++
+	}
+	w.writeInt(int64(n))
+	for a := s.Autom; a != nil; a = a.Link {
+		w.writeRefIndex(a.Asym)
+		w.writeInt(int64(a.Aoffset))
+		if a.Name == NAME_AUTO {
+			w.writeInt(A_AUTO)
+		} else if a.Name == NAME_PARAM {
+			w.writeInt(A_PARAM)
+		} else {
+			log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
+		}
+		w.writeRefIndex(a.Gotype)
+	}
+
+	pc := s.Pcln
+	w.writeInt(int64(len(pc.Pcsp.P)))
+	w.writeInt(int64(len(pc.Pcfile.P)))
+	w.writeInt(int64(len(pc.Pcline.P)))
+	w.writeInt(int64(len(pc.Pcdata)))
+	for i := 0; i < len(pc.Pcdata); i++ {
+		w.writeInt(int64(len(pc.Pcdata[i].P)))
+	}
+	w.writeInt(int64(len(pc.Funcdataoff)))
+	for i := 0; i < len(pc.Funcdataoff); i++ {
+		w.writeRefIndex(pc.Funcdata[i])
+	}
+	for i := 0; i < len(pc.Funcdataoff); i++ {
+		w.writeInt(pc.Funcdataoff[i])
+	}
+	w.writeInt(int64(len(pc.File)))
+	for _, f := range pc.File {
+		w.writeRefIndex(f)
+	}
+}
+
+func (w *objWriter) writeInt(sval int64) {
 	var v uint64
-	uv := (uint64(sval) << 1) ^ uint64(int64(sval>>63))
-	p := varintbuf[:]
+	uv := (uint64(sval) << 1) ^ uint64(sval>>63)
+	p := w.varintbuf[:]
 	for v = uv; v >= 0x80; v >>= 7 {
 		p[0] = uint8(v | 0x80)
 		p = p[1:]
 	}
 	p[0] = uint8(v)
 	p = p[1:]
-	b.Write(varintbuf[:len(varintbuf)-len(p)])
+	w.wr.Write(w.varintbuf[:len(w.varintbuf)-len(p)])
 }
 
-func wrstring(b *Biobuf, s string) {
-	wrint(b, int64(len(s)))
-	b.w.WriteString(s)
+func (w *objWriter) writeString(s string) {
+	w.writeInt(int64(len(s)))
+	w.wr.WriteString(s)
 }
 
-// wrpath writes a path just like a string, but on windows, it
-// translates '\\' to '/' in the process.
-func wrpath(ctxt *Link, b *Biobuf, p string) {
-	wrstring(b, filepath.ToSlash(p))
-}
-
-func wrdata(b *Biobuf, v []byte) {
-	wrint(b, int64(len(v)))
-	b.Write(v)
-}
-
-func wrpathsym(ctxt *Link, b *Biobuf, s *LSym) {
+func (w *objWriter) writeRefIndex(s *LSym) {
 	if s == nil {
-		wrint(b, 0)
-		wrint(b, 0)
+		w.writeInt(0)
 		return
 	}
-
-	wrpath(ctxt, b, s.Name)
-	wrint(b, int64(s.Version))
-}
-
-func wrsym(b *Biobuf, s *LSym) {
-	if s == nil {
-		wrint(b, 0)
-		wrint(b, 0)
-		return
+	if s.RefIdx == 0 {
+		log.Fatalln("writing an unreferenced symbol", s.Name)
 	}
-
-	wrstring(b, s.Name)
-	wrint(b, int64(s.Version))
+	w.writeInt(int64(s.RefIdx))
 }
+
+// relocByOff sorts relocations by their offsets.
+type relocByOff []Reloc
+
+func (x relocByOff) Len() int           { return len(x) }
+func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
+func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }

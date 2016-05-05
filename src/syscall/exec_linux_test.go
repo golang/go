@@ -31,6 +31,9 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 		if os.IsNotExist(err) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
+		if os.IsPermission(err) {
+			t.Skip("unable to test user namespaces due to permissions")
+		}
 		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
 	}
 	if isChrooted(t) {

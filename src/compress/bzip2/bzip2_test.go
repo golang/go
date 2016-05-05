@@ -6,193 +6,221 @@ package bzip2
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"testing"
 )
 
-func TestBitReader(t *testing.T) {
-	buf := bytes.NewReader([]byte{0xaa})
-	br := newBitReader(buf)
-	if n := br.ReadBits(1); n != 1 {
-		t.Errorf("read 1 wrong")
-	}
-	if n := br.ReadBits(1); n != 0 {
-		t.Errorf("read 2 wrong")
-	}
-	if n := br.ReadBits(1); n != 1 {
-		t.Errorf("read 3 wrong")
-	}
-	if n := br.ReadBits(1); n != 0 {
-		t.Errorf("read 4 wrong")
-	}
-}
-
-func TestBitReaderLarge(t *testing.T) {
-	buf := bytes.NewReader([]byte{0x12, 0x34, 0x56, 0x78})
-	br := newBitReader(buf)
-	if n := br.ReadBits(32); n != 0x12345678 {
-		t.Errorf("got: %x want: %x", n, 0x12345678)
-	}
-}
-
-func readerFromHex(s string) io.Reader {
-	data, err := hex.DecodeString(s)
+func mustDecodeHex(s string) []byte {
+	b, err := hex.DecodeString(s)
 	if err != nil {
-		panic("readerFromHex: bad input")
+		panic(err)
 	}
-	return bytes.NewReader(data)
+	return b
 }
 
-func decompressHex(s string) (out []byte, err error) {
-	r := NewReader(readerFromHex(s))
-	return ioutil.ReadAll(r)
-}
-
-func TestHelloWorldBZ2(t *testing.T) {
-	out, err := decompressHex(helloWorldBZ2Hex)
+func mustLoadFile(f string) []byte {
+	b, err := ioutil.ReadFile(f)
 	if err != nil {
-		t.Errorf("error from Read: %s", err)
-		return
+		panic(err)
 	}
-
-	if !bytes.Equal(helloWorld, out) {
-		t.Errorf("got %x, want %x", out, helloWorld)
-	}
+	return b
 }
 
-func TestConcat(t *testing.T) {
-	out, err := decompressHex(helloWorldBZ2Hex + helloWorldBZ2Hex)
-	if err != nil {
-		t.Errorf("error from Read: %s", err)
-		return
+func trim(b []byte) string {
+	const limit = 1024
+	if len(b) < limit {
+		return fmt.Sprintf("%q", b)
 	}
-
-	hello2 := bytes.Repeat(helloWorld, 2)
-	if !bytes.Equal(hello2, out) {
-		t.Errorf("got %x, want %x", out, hello2)
-	}
+	return fmt.Sprintf("%q...", b[:limit])
 }
 
-func testZeros(t *testing.T, inHex string, n int) {
-	out, err := decompressHex(inHex)
-	if err != nil {
-		t.Errorf("error from Read: %s", err)
-		return
-	}
+func TestReader(t *testing.T) {
+	var vectors = []struct {
+		desc   string
+		input  []byte
+		output []byte
+		fail   bool
+	}{{
+		desc: "hello world",
+		input: mustDecodeHex("" +
+			"425a68393141592653594eece83600000251800010400006449080200031064c" +
+			"4101a7a9a580bb9431f8bb9229c28482776741b0",
+		),
+		output: []byte("hello world\n"),
+	}, {
+		desc: "concatenated files",
+		input: mustDecodeHex("" +
+			"425a68393141592653594eece83600000251800010400006449080200031064c" +
+			"4101a7a9a580bb9431f8bb9229c28482776741b0425a68393141592653594eec" +
+			"e83600000251800010400006449080200031064c4101a7a9a580bb9431f8bb92" +
+			"29c28482776741b0",
+		),
+		output: []byte("hello world\nhello world\n"),
+	}, {
+		desc: "32B zeros",
+		input: mustDecodeHex("" +
+			"425a6839314159265359b5aa5098000000600040000004200021008283177245" +
+			"385090b5aa5098",
+		),
+		output: make([]byte, 32),
+	}, {
+		desc: "1MiB zeros",
+		input: mustDecodeHex("" +
+			"425a683931415926535938571ce50008084000c0040008200030cc0529a60806" +
+			"c4201e2ee48a70a12070ae39ca",
+		),
+		output: make([]byte, 1<<20),
+	}, {
+		desc:   "random data",
+		input:  mustLoadFile("testdata/pass-random1.bz2"),
+		output: mustLoadFile("testdata/pass-random1.bin"),
+	}, {
+		desc:   "random data - full symbol range",
+		input:  mustLoadFile("testdata/pass-random2.bz2"),
+		output: mustLoadFile("testdata/pass-random2.bin"),
+	}, {
+		desc: "random data - uses RLE1 stage",
+		input: mustDecodeHex("" +
+			"425a6839314159265359d992d0f60000137dfe84020310091c1e280e100e0428" +
+			"01099210094806c0110002e70806402000546034000034000000f28300000320" +
+			"00d3403264049270eb7a9280d308ca06ad28f6981bee1bf8160727c7364510d7" +
+			"3a1e123083421b63f031f63993a0f40051fbf177245385090d992d0f60",
+		),
+		output: mustDecodeHex("" +
+			"92d5652616ac444a4a04af1a8a3964aca0450d43d6cf233bd03233f4ba92f871" +
+			"9e6c2a2bd4f5f88db07ecd0da3a33b263483db9b2c158786ad6363be35d17335" +
+			"ba",
+		),
+	}, {
+		desc:  "1MiB sawtooth",
+		input: mustLoadFile("testdata/pass-sawtooth.bz2"),
+		output: func() []byte {
+			b := make([]byte, 1<<20)
+			for i := range b {
+				b[i] = byte(i)
+			}
+			return b
+		}(),
+	}, {
+		desc:  "RLE2 buffer overrun - issue 5747",
+		input: mustLoadFile("testdata/fail-issue5747.bz2"),
+		fail:  true,
+	}, {
+		desc: "out-of-range selector - issue 8363",
+		input: mustDecodeHex("" +
+			"425a68393141592653594eece83600000251800010400006449080200031064c" +
+			"4101a7a9a580bb943117724538509000000000",
+		),
+		fail: true,
+	}, {
+		desc: "bad block size - issue 13941",
+		input: mustDecodeHex("" +
+			"425a683131415926535936dc55330063ffc0006000200020a40830008b0008b8" +
+			"bb9229c28481b6e2a998",
+		),
+		fail: true,
+	}, {
+		desc: "bad huffman delta",
+		input: mustDecodeHex("" +
+			"425a6836314159265359b1f7404b000000400040002000217d184682ee48a70a" +
+			"12163ee80960",
+		),
+		fail: true,
+	}}
 
-	expected := make([]byte, n)
+	for i, v := range vectors {
+		rd := NewReader(bytes.NewReader(v.input))
+		buf, err := ioutil.ReadAll(rd)
 
-	if !bytes.Equal(expected, out) {
-		allZeros := true
-		for _, b := range out {
-			if b != 0 {
-				allZeros = false
-				break
+		if fail := bool(err != nil); fail != v.fail {
+			if fail {
+				t.Errorf("test %d (%s), unexpected failure: %v", i, v.desc, err)
+			} else {
+				t.Errorf("test %d (%s), unexpected success", i, v.desc)
 			}
 		}
-		t.Errorf("incorrect result, got %d bytes (allZeros: %t)", len(out), allZeros)
+		if !v.fail && !bytes.Equal(buf, v.output) {
+			t.Errorf("test %d (%s), output mismatch:\ngot  %s\nwant %s", i, v.desc, trim(buf), trim(v.output))
+		}
 	}
 }
 
-func Test32Zeros(t *testing.T) {
-	testZeros(t, thirtyTwoZerosBZ2Hex, 32)
-}
-
-func Test1MBZeros(t *testing.T) {
-	testZeros(t, oneMBZerosBZ2Hex, 1024*1024)
-}
-
-func testRandomData(t *testing.T, compressedHex, uncompressedHex string) {
-	out, err := decompressHex(compressedHex)
-	if err != nil {
-		t.Errorf("error from Read: %s", err)
-		return
+func TestBitReader(t *testing.T) {
+	var vectors = []struct {
+		nbits uint // Number of bits to read
+		value int  // Expected output value (0 for error)
+		fail  bool // Expected operation failure?
+	}{
+		{nbits: 1, value: 1},
+		{nbits: 1, value: 0},
+		{nbits: 1, value: 1},
+		{nbits: 5, value: 11},
+		{nbits: 32, value: 0x12345678},
+		{nbits: 15, value: 14495},
+		{nbits: 3, value: 6},
+		{nbits: 6, value: 13},
+		{nbits: 1, fail: true},
 	}
 
-	expected, _ := hex.DecodeString(uncompressedHex)
-
-	if !bytes.Equal(out, expected) {
-		t.Errorf("incorrect result\ngot:  %x\nwant: %x", out, expected)
-	}
-}
-
-func TestRandomData1(t *testing.T) {
-	testRandomData(t, randBZ2Hex, randHex)
-}
-
-func TestRandomData2(t *testing.T) {
-	// This test involves several repeated bytes in the output, but they
-	// should trigger RLE decoding.
-	testRandomData(t, rand2BZ2Hex, rand2Hex)
-}
-
-func TestRandomData3(t *testing.T) {
-	// This test uses the full range of symbols.
-	testRandomData(t, rand3BZ2Hex, rand3Hex)
-}
-
-func Test1MBSawtooth(t *testing.T) {
-	out, err := decompressHex(oneMBSawtoothBZ2Hex)
-	if err != nil {
-		t.Errorf("error from Read: %s", err)
-		return
-	}
-
-	expected := make([]byte, 1024*1024)
-
-	for i := range expected {
-		expected[i] = byte(i)
-	}
-
-	if !bytes.Equal(out, expected) {
-		t.Error("incorrect result")
+	rd := bytes.NewReader([]byte{0xab, 0x12, 0x34, 0x56, 0x78, 0x71, 0x3f, 0x8d})
+	br := newBitReader(rd)
+	for i, v := range vectors {
+		val := br.ReadBits(v.nbits)
+		if fail := bool(br.err != nil); fail != v.fail {
+			if fail {
+				t.Errorf("test %d, unexpected failure: ReadBits(%d) = %v", i, v.nbits, br.err)
+			} else {
+				t.Errorf("test %d, unexpected success: ReadBits(%d) = nil", i, v.nbits)
+			}
+		}
+		if !v.fail && val != v.value {
+			t.Errorf("test %d, mismatching value: ReadBits(%d) = %d, want %d", i, v.nbits, val, v.value)
+		}
 	}
 }
 
-const helloWorldBZ2Hex = "425a68393141592653594eece83600000251800010400006449080200031064c4101a7a9a580bb9431f8bb9229c28482776741b0"
+func TestMTF(t *testing.T) {
+	var vectors = []struct {
+		idx int   // Input index
+		sym uint8 // Expected output symbol
+	}{
+		{idx: 1, sym: 1}, // [1 0 2 3 4]
+		{idx: 0, sym: 1}, // [1 0 2 3 4]
+		{idx: 1, sym: 0}, // [0 1 2 3 4]
+		{idx: 4, sym: 4}, // [4 0 1 2 3]
+		{idx: 1, sym: 0}, // [0 4 1 2 3]
+	}
 
-var helloWorld = []byte("hello world\n")
+	mtf := newMTFDecoderWithRange(5)
+	for i, v := range vectors {
+		sym := mtf.Decode(v.idx)
+		t.Log(mtf)
+		if sym != v.sym {
+			t.Errorf("test %d, symbol mismatch: Decode(%d) = %d, want %d", i, v.idx, sym, v.sym)
+		}
+	}
+}
 
-const thirtyTwoZerosBZ2Hex = "425a6839314159265359b5aa5098000000600040000004200021008283177245385090b5aa5098"
-const oneMBZerosBZ2Hex = "425a683931415926535938571ce50008084000c0040008200030cc0529a60806c4201e2ee48a70a12070ae39ca"
-
-const randBZ2Hex = "425a6839314159265359905d990d0001957fffffffffffafffffffffffffffffbfff6fffdfffffffffffffffffffffffffffffc002b6dd75676ed5b77720098320d11a64626981323d4da47a83131a13d09e8040f534cd4f4d27a464d193008cd09804601347a980026350c9886234d36864193d1351b44c136919e90340d26127a4cd264c32023009898981310c0344c340027a8303427a99a04c00003534c230d034f5006468d268cf54d36a3009a69a62626261311b40026013d34201a6934c9a604c98ca6c8460989fa9346234d30d3469a2604fd4131a7aa6d0046043d4c62098479269e89e835190d018d4c046001a11e801a0264792321932308c43a130688c260d46686804cd01a9e80981193684c6a68c00000004c4c20c04627a4c0000260003400d04c0681a01334026009a6f48041466132581ec5212b081d96b0effc16543e2228b052fcd30f2567ee8d970e0f10aabca68dd8270591c376cfc1baae0dba00aaff2d6caf6b211322c997cc18eaee5927f75185336bf907021324c71626c1dd20e22b9b0977f05d0f901eaa51db9fbaf7c603b4c87bc82890e6dd7e61d0079e27ec050dd788fd958152061cd01e222f9547cb9efc465d775b6fc98bac7d387bffd151ae09dadf19494f7a638e2eae58e550faba5fe6820ea520eb986096de4e527d80def3ba625e71fbefdcf7e7844e0a25d29b52dcd1344fca083737d42692aab38d230485f3c8ed54c2ed31f15cf0270c8143765b10b92157233fa1dfe0d7ce8ffe70b8b8f7250071701dfe9f1c94de362c9031455951c93eb098a6b50ee45c6131fefc3b6f9643e21f4adc59497138e246f5c57d834aa67c4f10d8bd8b3908d8130dd7388409c299a268eab3664fa4907c5c31574874bd8d388a4ab22b339660804e53e1b8d05867d40e3082560608d35d5d2c6054e8bab23da28f61f83efd41d25529ad6ea15fb50505cacfabb0902166427354ca3830a2c8415f21b19e592690fbe447020d685a4bcd16ecc4ff1a1c0e572627d0ef6265c008a43fc243240541061ed7840606be466d1c0dac2c53250ed567507d926c844154560d631960c65e15157829b2c7f16859f111a3a8cb72bf24ffa57a680c3be67b1be67c8dd8aea73ac2437a78df5b686d427080ebc01bd30b71a49f6ea31dc0f08e4849e38face96717690239538bc08b6cc5aa8d467cb9c36aa83d40ac7e58bddbfa185b22065e89a86c0145569d9e23726651aec49e31588d70f40fe9a4449dcf4f89eac220171e9c938e803dc195679651004b79ad33cc0c13aeeba5941b33ffeeb8fbe16e76c7811445c67b4269c90479433ddf9e8ed1d00c166b6c17217fb22c3ef1b0c1c7e28e185446a111c37f1ea6c07a59fbcc6546ecc6968d36ba58bc5489a5640647e426b0c39350cb6f07d5dc7a717648c4ec7f841467597ae1f65f408fd2d9940a4b1b860b3c9ae351dcae0b4425f7e8538710f2e40b7f70d13b51ac05ccc6ecda8264a88cad2d721d18132a9b9110a9e759c2483c77dcefc7e464ec88588174cb0c9abff93230ea0bed8decdd8ed8bfe2b5df0a253803678df04fab44c03b9ab7cc97d6e6d6fd0c4c840ce0efc498436f453bbb181603459471f2b588724592b222ec990614db530e10cadd84705621cfdd9261fa44a5f5806a2d74b575056b3c915255c65678f9c16e6dc00a99180fef1a840aff0e842ac02731080cc92782538360a60a727991013984da4fad95f79d5030677b7528d076b2483685fca4429edf804682fdc110dfc2f7c30e23e20a72e039108a0ad6fdee2f76985a4b4be4f5afc6101bf9d5042b657a05dc914e1424241766434"
-const randHex = "c95138082bdf2b9bfa5b1072b23f729735d42c785eeb94320fb14c265b9c2ca421d01a3db986df1ac2acde5a0e6bf955d6f95e61261540905928e195f1a66644cc7f37281744fff4dc6df35566a494c41a8167151950eb74f5fc45f85ad0e5ed28b49adfe218aa7ec1707e8e1d55825f61f72beda3b4c006b8c9188d7336a5d875329b1b58c27cc4e89ecbae02c7712400c39dd131d2c6de82e2863da51d472bdfb21ecce62cc9cf769ed28aedc7583d755da45a0d90874bda269dd53283a9bdfd05f95fc8e9a304bb338ea1a2111894678c18134f17d31a15d9bfc1237894650f3e715e2548639ecbddb845cfe4a46a7b3a3c540f48629488e8c869f1e9f3f4c552243a8105b20eb8e264994214349dae83b165fd6c2a5b8e83fce09fc0a80d3281c8d53a9a08095bd19cbc1388df23975646ed259e003d39261ee68cbece8bcf32971f7fe7e588e8ba8f5e8597909abaea693836a79a1964050ed910a45a0f13a58cd2d3ae18992c5b23082407fd920d0bf01e33118a017bb5e39f44931346845af52128f7965206759433a346034ea481671f501280067567619f5ecef6cded077f92ed7f3b3ce8e308c80f34ba06939e9303f91b4318c8c1dd4cc223c1f057ac0c91211c629cd30e46ee9ec1d9fd493086b7bc2bc83e33f08749a5d430b0ed4f79d70f481940c9b0930b16321886a0df4fa5a1465d5208c7d3494a7987d9a5e42aa256f0c9523947f8318d0ef0af3d59a45cfc2418d0785c9a548b32b81e7de18be7d55a69a4c156bbb3d7579c0ac8e9c72b24646e54b0d0e8725f8f49fb44ae3c6b9d0287be118586255a90a4a83483ed0328518037e52aa959c5748ed83e13023e532306be98b8288da306bbb040bcf5d92176f84a9306dc6b274b040370b61d71fde58dd6d20e6fee348eae0c54bd0a5a487b2d005f329794f2a902c296af0a4c1f638f63292a1fa18e006c1b1838636f4de71c73635b25660d32e88a0917e1a5677f6a02ca65585b82cbd99fb4badbfa97a585da1e6cadf6737b4ec6ca33f245d66ee6a9fae6785d69b003c17b9fc6ec34fe5824ab8caae5e8e14dc6f9e116e7bf4a60c04388783c8ae929e1b46b3ef3bbe81b38f2fa6da771bf39dfba2374d3d2ed356b8e2c42081d885a91a3afb2f31986d2f9873354c48cf5448492c32e62385af423aa4f83db6d1b2669650379a1134b0a04cbca0862d6f9743c791cbb527d36cd5d1f0fc7f503831c8bd1b7a0ef8ae1a5ed1155dfdd9e32b6bb33138112d3d476b802179cb85a2a6c354ccfed2f31604fbd8d6ec4baf9f1c8454f72c6588c06a7df3178c43a6970bfa02dd6f74cb5ec3b63f9eddaa17db5cbf27fac6de8e57c384afd0954179f7b5690c3bee42abc4fa79b4b12101a9cf5f0b9aecdda945def0bd04163237247d3539850e123fe18139f316fa0256d5bd2faa8"
-
-const oneMBSawtoothBZ2Hex = "425a683931415926535971931ea00006ddffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe007de00000000000000024c00130001300000000000000000000000000000000000000000000000000000000126000980009800000000000000000000000000000000000000000000000000000000930004c0004c000000000000000000000000000000000000000000000000000000004980026000260000000000000000000000000000000000000000000000000000000009aaaaa0000000000000000000000000000000000000000000000000000000000000000498002600026000000000000000000000000000000000000000000000000000000007fc42271980d044c0a822607411304a08982d044c1a82260f411308a08984d044c2a82261741130ca08986d044c3a82261f411310a08988d044c4a822627411314a0898ad044c5a82262f411318a0898cd044c6a82263741131ca0898ed044c7a82263f411320a08990d044c8a822647411324a08992d044c9a82264f411328a08994d044caa82265741132ca08996d044cba82265f411330a08998d044cca822667411334a0899ad044cda82266f411338a0899cd044cea82267741133ca0899ed044cfa82267f411340a089a0d044d0a822687411344a089a2d044d1a82268f411348a089a4d044d2a82269741134ca089a6d044d3a82269f411350a089a8d044d4a8226a7411354a089aad044d5a8226af411358a089acd044d6a8226b741135ca089aed044d7a8226bf411360a089b0d044d8a8226c7411364a089b2d044d9a8226cf411368a089b4d044daa8226d741136ca089b6d044dba8226df411370a089b8d044dca8226e7411374a089bad044dda8226ef411378a089bcd044dea8226f741137ca089bed044dfa8226ff411380a089c0d044e0a822707411384a089c2d044e1a82270f411388a089c4d044e2a82271741138ca089c59089c69089c71089c79089c81089c89089c91089c99089ca1089ca9089cb1089cb9089cc1089cc9089cd1089cd9089ce1089ce9089cf1089cf9089d01089d09089d11089d19089d21089d29089d31089d39089d41089d49089d51089d59089d61089d69089d71089d79089d81089d89089d91089d99089da1089da9089db1089db9089dc1089dc9089dd1089dd9089de1089de9089df1089df9089e01089e09089e11089e19089e21089e29089e31089e39089e41089e49089e51089e59089e61089e69089e71089e79089e81089e89089e91089e99089ea1089ea9089eb1089eb9089ec1089ec9089ed1089ed9089ee1089ee9089ef1089ef9089f01089f09089f11089f19089f21089f29089f31089f39089f41089f49089f51089f59089f61089f69089f71089f79089f81089f89089f91089f99089fa1089fa9089fb1089fb9089fc1089fc9089fd1089fd9089fe1089fe9089ff1089ff98a0ac9329acf23ba884804fdd3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0034f800000000000024c00130001300000000000000000000000000000000000000000000000000000000126000980009800000000000000000000000000000000000000000000000000000000930004c0004c000000000000000000000000000000000000000000000000000000004980026000260000000000000000000000000000000000000000000000000000000024c0013000130000000000000000000000000000000000000000000000000000000002955540000000000000000000000000000000000000000000000000000000000000001ff108c00846024230221181908c108460a4230621183908c20846124230a21185908c308461a4230e21187908c40846224231221189908c508462a423162118b908c60846324231a2118d908c708463a4231e2118f908c80846424232221191908c908464a4232621193908ca0846524232a21195908cb08465a4232e21197908cc0846624233221199908cd08466a423362119b908ce0846724233a2119d908cf08467a4233e2119f908d008468242342211a1908d108468a42346211a3908d20846924234a211a5908d308469a4234e211a7908d40846a242352211a9908d50846aa42356211ab908d60846b24235a211ad908d70846ba4235e211af908d80846c242362211b1908d90846ca42366211b3908da0846d24236a211b5908db0846da4236e211b7908dc0846e242372211b9908dd0846ea42376211bb908de0846f24237a211bd908df0846fa4237e211bf908e008470242382211c1908e108470a42386211c3908e20847124238a211c5908e2f8c211c6c8471d211c7c84721211c8c84725211c9c84729211cac8472d211cbc84731211ccc84735211cdc84739211cec8473d211cfc84741211d0c84745211d1c84749211d2c8474d211d3c84751211d4c84755211d5c84759211d6c8475d211d7c84761211d8c84765211d9c84769211dac8476d211dbc84771211dcc84775211ddc84779211dec8477d211dfc84781211e0c84785211e1c84789211e2c8478d211e3c84791211e4c84795211e5c84799211e6c8479d211e7c847a1211e8c847a5211e9c847a9211eac847ad211ebc847b1211ecc847b5211edc847b9211eec847bd211efc847c1211f0c847c5211f1c847c9211f2c847cd211f3c847d1211f4c847d5211f5c847d9211f6c847dd211f7c847e1211f8c847e5211f9c847e9211fac847ed211fbc847f1211fcc847f5211fdc847f9211fec847fd211ff8bb9229c284803a8b6248"
-
-const rand2BZ2Hex = "425a6839314159265359d992d0f60000137dfe84020310091c1e280e100e042801099210094806c0110002e70806402000546034000034000000f2830000032000d3403264049270eb7a9280d308ca06ad28f6981bee1bf8160727c7364510d73a1e123083421b63f031f63993a0f40051fbf177245385090d992d0f60"
-const rand2Hex = "92d5652616ac444a4a04af1a8a3964aca0450d43d6cf233bd03233f4ba92f8719e6c2a2bd4f5f88db07ecd0da3a33b263483db9b2c158786ad6363be35d17335ba"
-
-const rand3BZ2Hex = "425a68393141592653593be669d00000327ffffffffffffffffffffffffffffffffffff7ffffffffffffffffffffffffffffffc002b3b2b1b6e2bae400004c00132300004c0d268c004c08c0130026001a008683234c0684c34008c230261a04c0260064d07a8d00034000d27a1268c9931a8d327a3427a41faa69ea0da264c1a34219326869b51b49a6469a3268c689fa53269a62794687a9a68f5189994c9e487a8f534fd49a3d34043629e8c93d04da4f4648d30d4f44d3234c4d3023d0840680984d309934c234d3131a000640984f536a6132601300130130c8d00d04d1841ea7a8d31a02609b40023460010c01a34d4c1a0d04d3069306810034d0d0d4c0046130d034d0131a9a64d321804c68003400098344c13000991808c0001a00000000098004d3d4da4604c47a13012140aadf8d673c922c607ef6212a8c0403adea4b28aee578900e653b9cdeb8d11e6b838815f3ebaad5a01c5408d84a332170aff8734d4e06612d3c2889f31925fb89e33561f5100ae89b1f7047102e729373d3667e58d73aaa80fa7be368a1cc2dadd81d81ec8e1b504bd772ca31d03649269b01ceddaca07bf3d4eba24de141be3f86f93601e03714c0f64654671684f9f9528626fd4e1b76753dc0c54b842486b8d59d8ab314e86ca818e7a1f079463cbbd70d9b79b283c7edc419406311022e4be98c2c1374df9cdde2d008ce1d00e5f06ad1024baf555631f70831fc1023034e62be7c4bcb648caf276963ffa20e96bb50377fe1c113da0db4625b50741c35a058edb009c6ee5dbf93b8a6b060eec568180e8db791b82aab96cbf4326ca98361461379425ba8dcc347be670bdba7641883e5526ae3d833f6e9cb9bac9557747c79e206151072f7f0071dff3880411846f66bf4075c7462f302b53cb3400a74cf35652ad5641ed33572fd54e7ed7f85f58a0acba89327e7c6be5c58cb71528b99df2431f1d0358f8d28d81d95292da631fb06701decabb205fac59ff0fb1df536afc681eece6ea658c4d9eaa45f1342aa1ff70bdaff2ddaf25ec88c22f12829a0553db1ec2505554cb17d7b282e213a5a2aa30431ded2bce665bb199d023840832fedb2c0c350a27291407ff77440792872137df281592e82076a05c64c345ffb058c64f7f7c207ef78420b7010520610f17e302cc4dfcfaef72a0ed091aab4b541eb0531bbe941ca2f792bf7b31ca6162882b68054a8470115bc2c19f2df2023f7800432b39b04d3a304e8085ba3f1f0ca5b1ba4d38d339e6084de979cdea6d0e244c6c9fa0366bd890621e3d30846f5e8497e21597b8f29bbf52c961a485dfbea647600da0fc1f25ce4d203a8352ece310c39073525044e7ac46acf2ed9120bae1b4f6f02364abfe343f80b290983160c103557af1c68416480d024cc31b6c06cfec011456f1e95c420a12b48b1c3fe220c2879a982fb099948ac440db844b9a112a5188c7783fd3b19593290785f908d95c9db4b280bafe89c1313aeec24772046d9bc089645f0d182a21184e143823c5f52de50e5d7e98d3d7ab56f5413bbccd1415c9bcff707def475b643fb7f29842582104d4cc1dbaaca8f10a2f44273c339e0984f2b1e06ab2f0771db01fafa8142298345f3196f23e5847bda024034b6f59b11c29e981c881456e40d211929fd4f766200258aad8212016322bd5c605790dcfdf1bd2a93d99c9b8f498722d311d7eae7ff420496a31804c55f4759a7b13aaaf5f7ce006c3a8a998897d5e0a504398c2b627852545baf440798bcc5cc049357cf3f17d9771e4528a1af3d77dc794a11346e1bdf5efe37a405b127b4c43b616d61fbc5dc914e14240ef99a7400"
-const rand3Hex = "1744b384d68c042371244e13500d4bfb98c6244e3d71a5b700224420b59c593553f33bd786e3d0ce31626f511bc985f59d1a88aa38ba8ad6218d306abee60dd9172540232b95be1af146c69e72e5fde667a090dc3f93bdc5c5af0ab80acdbaa7a505f628c59dc0247b31a439cacf5010a94376d71521df08c178b02fb96fdb1809144ea38c68536187c53201fea8631fb0a880b4451ccdca7cc61f6aafca21cc7449d920599db61789ac3b1e164b3390124f95022aeea39ccca3ec1053f4fa10de2978e2861ea58e477085c2220021a0927aa94c5d0006b5055abba340e4f9eba22e969978dfd18e278a8b89d877328ae34268bc0174cfe211954c0036f078025217d1269fac1932a03b05a0b616012271bbe1fb554171c7a59b196d8a4479f45a77931b5d97aaf6c0c673cbe597b79b96e2a0c1eae2e66e46ccc8c85798e23ffe972ebdaa3f6caea243c004e60321eb47cd79137d78fd0613be606feacc5b3637bdc96a89c13746db8cad886f3ccf912b2178c823bcac395f06d28080269bdca2debf3419c66c690fd1adcfbd53e32e79443d7a42511a84cb22ca94fffad9149275a075b2f8ae0b021dcde9bf62b102db920733b897560518b06e1ad7f4b03458493ddaa7f4fa2c1609f7a1735aeeb1b3e2cea3ab45fc376323cc91873b7e9c90d07c192e38d3f5dfc9bfab1fd821c854da9e607ea596c391c7ec4161c6c4493929a8176badaa5a5af7211c623f29643a937677d3df0da9266181b7c4da5dd40376db677fe8f4a1dc456adf6f33c1e37cec471dd318c2647644fe52f93707a77da7d1702380a80e14cc0fdce7bf2eed48a529090bae0388ee277ce6c7018c5fb00b88362554362205c641f0d0fab94fd5b8357b5ff08b207fee023709bc126ec90cfb17c006754638f8186aaeb1265e80be0c1189ec07d01d5f6f96cb9ce82744147d18490de7dc72862f42f024a16968891a356f5e7e0e695d8c933ba5b5e43ad4c4ade5399bc2cae9bb6189b7870d7f22956194d277f28b10e01c10c6ffe3e065f7e2d6d056aa790db5649ca84dc64c35566c0af1b68c32b5b7874aaa66467afa44f40e9a0846a07ae75360a641dd2acc69d93219b2891f190621511e62a27f5e4fbe641ece1fa234fc7e9a74f48d2a760d82160d9540f649256b169d1fed6fbefdc491126530f3cbad7913e19fbd7aa53b1e243fbf28d5f38c10ebd77c8b986775975cc1d619efb27cdcd733fa1ca36cffe9c0a33cc9f02463c91a886601fd349efee85ef1462065ef9bd2c8f533220ad93138b8382d5938103ab25b2d9af8ae106e1211eb9b18793fba033900c809c02cd6d17e2f3e6fc84dae873411f8e87c3f0a8f1765b7825d185ce3730f299c3028d4a62da9ee95c2b870fb70c79370d485f9d5d9acb78926d20444033d960524d2776dc31988ec7c0dbf23b9905d"
-
-const (
-	digits = iota
-	twain
-	random
+var (
+	digits = mustLoadFile("testdata/e.txt.bz2")
+	twain  = mustLoadFile("testdata/Mark.Twain-Tom.Sawyer.txt.bz2")
+	random = mustLoadFile("testdata/random.data.bz2")
 )
 
-var testfiles = []string{
-	// Digits is the digits of the irrational number e. Its decimal representation
-	// does not repeat, but there are only 10 possible digits, so it should be
-	// reasonably compressible.
-	digits: "testdata/e.txt.bz2",
-	// Twain is Mark Twain's classic English novel.
-	twain: "testdata/Mark.Twain-Tom.Sawyer.txt.bz2",
-	// 16KB of random data from /dev/urandom
-	random: "testdata/random.data.bz2",
-}
-
-func benchmarkDecode(b *testing.B, testfile int) {
-	compressed, err := ioutil.ReadFile(testfiles[testfile])
+func benchmarkDecode(b *testing.B, compressed []byte) {
+	// Determine the uncompressed size of testfile.
+	uncompressedSize, err := io.Copy(ioutil.Discard, NewReader(bytes.NewReader(compressed)))
 	if err != nil {
 		b.Fatal(err)
 	}
-	b.SetBytes(int64(len(compressed)))
+
+	b.SetBytes(uncompressedSize)
+	b.ReportAllocs()
+	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		r := bytes.NewReader(compressed)
 		io.Copy(ioutil.Discard, NewReader(r))
@@ -202,222 +230,3 @@ func benchmarkDecode(b *testing.B, testfile int) {
 func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
 func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
 func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }
-
-func TestBufferOverrun(t *testing.T) {
-	// Tests https://golang.org/issue/5747.
-	buffer := bytes.NewReader([]byte(bufferOverrunBase64))
-	decoder := base64.NewDecoder(base64.StdEncoding, buffer)
-	decompressor := NewReader(decoder)
-	// This shouldn't panic.
-	ioutil.ReadAll(decompressor)
-}
-
-func TestOutOfRangeSelector(t *testing.T) {
-	// Tests https://golang.org/issue/8363.
-	buffer := bytes.NewReader(outOfRangeSelector)
-	decompressor := NewReader(buffer)
-	// This shouldn't panic.
-	ioutil.ReadAll(decompressor)
-}
-
-func TestMTF(t *testing.T) {
-	mtf := newMTFDecoderWithRange(5)
-
-	// 0 1 2 3 4
-	expect := byte(1)
-	x := mtf.Decode(1)
-	if x != expect {
-		t.Errorf("expected %v, got %v", expect, x)
-	}
-
-	// 1 0 2 3 4
-	x = mtf.Decode(0)
-	if x != expect {
-		t.Errorf("expected %v, got %v", expect, x)
-	}
-
-	// 1 0 2 3 4
-	expect = byte(0)
-	x = mtf.Decode(1)
-	if x != expect {
-		t.Errorf("expected %v, got %v", expect, x)
-	}
-
-	// 0 1 2 3 4
-	expect = byte(4)
-	x = mtf.Decode(4)
-	if x != expect {
-		t.Errorf("expected %v, got %v", expect, x)
-	}
-
-	// 4 0 1 2 3
-	expect = byte(0)
-	x = mtf.Decode(1)
-	if x != expect {
-		t.Errorf("expected %v, got %v", expect, x)
-	}
-}
-
-var bufferOverrunBase64 string = `
-QlpoNTFBWSZTWTzyiGcACMP/////////////////////////////////3/7f3///
-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
-/kjw4156GJnzoXtydKJE53t6PHfZWO+3ujsfI6iAdshc7OFzGXiZB9PtItKodhYq
-nABkTKdcpu4+TOpf9h5piX5slsaBjkeTnj/Ba02ilboQfcDVigxrYn/iTH5ySWUW
-/lHtg78s5UZM8sErwhNe3N3w+6ZOMnU+5i86/xFNtqZfDdXTGy1H3PzGbdtZXYT+
-Ixx2vpwBYzbPVYHxKosM5rPiVmcTllI9nuoSfeh9ib4foFWauOpvdmhBDqpTpKTX
-u8EO2l2Z195G2RIV7TlKSxGWjR5sl/nALu1uzBeLd9zpSujzMTd1uTX9Qk/Q1S+r
-vaW6bm8qqPO4jb6Wx6XIkm321nrIF6Ae25d1+Dpv/P5G4NoLd2j6/EtENC3FeR5z
-oo7bA+tI8yEQRhiF0z1FlJXLD5ZbhNNWQm/j/IbzRfh8JtOFZU7ruShLvHXysW9S
-9V909tr9jn8/E/Hb5N/1NVNHnZu2HIUvJvHJiHd2ucmeI9PWUMnppmE65GQ5E9xV
-ZRlGEH0X85EvmHyEupkMrCC0oMv9RCq+/H8gcfpe00Hs/S+regT5p58cyYomh93v
-qvuw/A06BE/wzJESuYbN9pqYpoXqXFemW1NksHEJ2w+PYMJ27WJyD5FpaXB85VaW
-qMOhDfO8E3QdH8ybyKt/UgI8/tDGpFbyOlaVdIv1FXJhoLp8soAA4Djg6/KZ066N
-ZFYuS8WdjpSZGP4/Lw+1yaXlzNznc/k2uHe2uXP3uFuPcHx+Dm44utxldoO1uBPy
-+jzOs14+MIgOjOHMVNqAbMd8fUedLlhJMCfMtm4uz01enLNKcMrtLlPIR37Yukh1
-YEMXYpm7eU4XU+j+Jj3pDyaXtXs+p1fWfTN/cy9/Oxs4umUXQ4uHh1kObtayDJ56
-/QMxiHobjHNKuKfMxsrYEwN+QVIyVjAwMDYuMjQ1AAA9IwJniiBLRkZDAAAXt0Ja
-aDQxQVkmU1lZtwytAACLf///////////////////+//////v//////////bv78//
-/+AXO133uwO2xB2UxIvbKXrCqCoURUBL2ytFI82AFdcOwMhVTHtk5rD3szEVNYD4
-aIQINCaMRoTaSn7SbSMJiYmEwieTEp+psqbMCp+VNPaFNpqbBNR7UmanlPUeKfqm
-j1PU0/VPU08o9Q9EeKHlPJtKbYqeTCYhN6U9T1NH6mp+lPyoGNTI/Knkyg1MggAg
-CaMEyQnqZoaaRtRtJpppppoDaTR6hpphGh6mmgHpMQBpkGTTEAAaAAAA00AZDag0
-ADIBkGgABqemiRNTI0k8aU0PRGRoAZlP0UAAAGgAAAyAADQaAAAaAAAAAAAAAAAA
-AaAAAAM0kgRBJ5MlPFP1Gj0jTTTUaekxNAbUGjTQMgaZANNAAAAaAADTQAAAAAAA
-ANAA0AAANADQ0QAAAAAAAAAaGgAAAAAAABoA0AAA0AAAAAAAAAAAAANAAAAAkSEI
-aTRpomp5DUxNNDTJPTKaep6T09Kemmo2JG0aTQ9ENogaaGhkABo0NHqaBoDTI0DC
-Gj0gNAMhoDQ9QMQNAGQAaDDwyMPIMlbG1vhRBTFo6JksSupgpAjPbY0ec02IGXjb
-eS+FBsh01+O4ZOaD+srUZCFaT4DRjVDLx7uKIsFtESIDUg1ZkhyCSYov05C00MtR
-BdNNa/AYPGOQZWcs+VegXOPrkushFbZ3mBoRD6WamClkpBaHZrUhUl02bIfRXX4w
-b3/9cW9nHDVxh2qFBxqgRKfmq7/Jc/tdJk05nVrGbckGVy2PnIy30CDhpWmqrSot
-K2bOnX0NbP1iy2cd0Na0ZmbRstm4MzMzbbMySTd35F7f+zPP8DC+NJLYcakkkkRd
-NZlupJt3OMFoDAD2g+N3FAMCydhIpoRHRQAdFI5nNg4ugEXHCYxkMyGCwtaJmial
-y0IMlpSYYM/weXNJAhFqS0GNmvaPEtYGjbvaucMdklOTmBX1vfVAkTYB1uXCSK64
-UNIixOqRKLuRCFtqIQtgwqaFrCkIYbbewErWABa+VGADWsJXJjfx5SJViLuwiGXq
-Ru6vCuwmU5CJiJz3UiBpmLv0r2wskxUhY4tzPVGQ9RMXJl65eLSNwZVwaSyGZ9Cm
-A3jztQUUpFeUryBTskW95iVwRMFrhBCwZBAFJBZvhMEMNoDJJlUoIhQkAkjbExp2
-YZio+ZYeAZUwmH1qUbdQixmxf0+61+aVgJ1hwxsO1yG3hFx4pfjc09ITVht0pG8u
-FtVFhPa1KE0gTRUSVXywkITucqk0Waz5Fs6qJpVHYdNrbYRFxnFsQGY1qmsTLjK6
-4QX5Rddo6krM/Bx9CqIAKq4CzVQYHrmIAd2EBhYmwVYwLvhzKIUrc2EirnGIvyuD
-O4YZDSwsVTA0BpVvUOjDErkCraBoSutcKwUSSLGhVvNYHLz3klgZD++wWsa/swLw
-gvNDY2De+sncOv8X2lq4HD95ZdwPuTIMXCwSbg4RrIqv+L0y6F17pqDecyQYPEj3
-iN/0BBeWZlJAyBMi5U3Q1zAlsK8IlDhaXGmvZrgISq5CfNjmUgxDeMggOKqxu4sI
-OrilS49Lkl1J3u3GjXTuH+rX+4ccyFAQnizCpPClcY77F59j63S6fr5vr+y99tuO
-7Ox7Wg/ljwhdyaK4xMmXczeJbx7x07htJNtC4xcQfAtvzeznLrN6MN/ILIBOI65I
-qIA2D5fHHj1XN4aN6TvOjWDaSbSWqxCSCvXUpzkNJAkWXAuTwF8k5uSJvQj/rVo0
-hAhEMEIYkCRGx9AX+byIuXWlLMbbVeliHNUL5AQYmNwLFu4SkmGD+UWtBMyVHQOQ
-ss0ggoVKSKOBUgnVS6ljt7WE1qXqJJ4QA1pEwYNLEaguEE1LtPNoVr5WzjbSbWPk
-V9OW3y9IneUDLoIV5pAkEFTEFGFVjeTFxtpzBBfGgycBxVCdz8eESBIzsamRchAa
-TQunQH8DHnpfod9QuAuRvc7JBlKUCYmCjMvynLcxIFohxCaYrDvGw4QbXZB7oWQ7
-hpoGlz23ayDfB8NrRRzdilsEQyQniu9ASLQg7RrGZnoTr1ai12IbCEUCGdFq03P5
-nBnRFAGmisQGcyykV9gKtcVMWLhCuVmXg86dndn7slUpRNSSEAU20oaWIm1maFTu
-E0DT4gTbg0nuhjtz3kNOz+i7sBm0bkXjxQWuLqlZEmp60ZTyRZJDUqKSEKg6hqcy
-ERxdU22CSNOO10RYUUiDVpKhPNdKTOIE1thp02sBNoNTFSht8WJtaBQ09qN3jd5r
-dOLX4IA5fevRyCCzDgRXfV4wzik4KROjmxmTMglBySlIMEzcXehnDXCRiZSlvwA2
-0YsIOROcm4UrIRFxJHctJH7OdN5u1aHVHb5UaLHpv48NgmFRE56KTSoaWunqm2st
-S0mrAdOiqcR12PWVbdVRJKcQ0DQuhwlAPcRtpxN3D4kbXJjToSYJIFw406G2CSaK
-jQMIJPZGlQmgyFhoCSzeGS1VSq5SKKQQxs5RqKUcVUNY57YUETb4mXzV84SPngKi
-nsce0mXByZq5BKUA9puHZWLNwQIYuDaJUNgG+E01E3pDYVNLKYQ0hsVesgV5gZY0
-htDsRdGtm0+iGnkN6+Ea9YJtUZNAkx2GgSoix12nTW0avTUfxR3oYcpvZ7IdtABE
-UhBcjG4qZtDZsS1JQHys243vhLaDTSvvTeBiJA2tmokqECTBcSOCAGkAxMKlVAva
-4IsLRaBBqhxDbcGtgdw03mFcLUaFuhtKuuEIEkUleJQwby/zwu9uvvZK4xTV+ECM
-a8lmzxKmqkBggYK1+xPdbmJclm6tSZhE/OSJtCEjs+unJIQkT9hCWgBJqGMS07Eh
-AJNmBiuVEVdTyjkIJkavuZmx2sJF13htgEZUCC23lZFOE6gWbM9WyYNJTM8yCQrb
-0Sx3OQvBML5cRATAQkSQkAJOAhoxpQkNi4ZiEVDbdtJAME0RXNDXGHA3M3Q0mm1o
-IEwbWpaM1DQCSMbGRCAu3iRIQiT6RlBpT1n3tfwvUXz3gIVlx3mEximY/kZW1kNG
-sgEJIrBisaEoGYPJ+1CQUYFBw+eGEHJQBpNHjErXUJY2iWHQ30hXwFBuMSxQ2lB5
-bg+/LX3euG6HsHUB1lFvBvaiaBrITVwkCTa1d0s9CHZCiDZjbWReKyrpPE2oSa7o
-LPrR4BJvys9ttjUpzETSSMxh8vsr9dXTwKBtK+1xCTGDQmNIaE29HmHdS5GSxpya
-MismcAUSEgSxHBrKtgsZzduG7vHZn16l3kFkVITtENIzS2JsiBwFTDlhgexsjBHv
-5HXOYxHBzoSDCcPZ0ctvkY9aS5XpoQuFYkGJgCsqjJZeUMNUEpDSbKcnUc1PifIA
-CbR2UoXawBlspkEBr9HBfvUi/MUakZVOf1WKYrqSaIXce62JOyhJLq3qJBloTA0F
-VbILEtM+heFmNRCFt70GJrExVJri0ArYbCRbADSGDBpBXxxb/6fo+s3C7uaL7RjM
-LV2IQBNrAJrKFeJwTsPnxbAsemirUx2lk1kaxschzdK4TQNJN5wQnolIFg401OZ4
-2na11LnT3lR+1k1TMJhiAjXMk0F1ooHnYlt9LKfJ3ZIOmeY+2l9bUQHWFNGyEyfj
-EAcu3kpGLq0Ez7XOS+EpAASRQTAYMATfVQibHLTT30zG732+pNe9za1JNt8sNJYn
-RjWuJ6jL5ILV0rcd9vT7X9fObvcXitpvJ2XBJE+PhX2HaTkyWeF9pwnlQNrTe9hV
-tzhA+ihZrDrHNmLcQjZbnv/IMubqq8egxY80t5n6vZ6U5TR6U9uZJvai1xtqAyCR
-NWkW52m00rDTEuO6BA4q2RHDWwbETF55rRsWLIgNW9qJCyMHPbTM/dMBmWMQSMxz
-4M2pRzt47SICxA327UqSCEERqMFybmYi3nUxePtLgHYplqRiw4ynMbXd/kiQ0LE0
-PKJSSCXA42ymziCpAxNWflzpzQdJZusahRFr6t6m+4p273/Taj7k+hZyNgBAgXAY
-8F7pTts6orLb8IA6o4TOwkwQYmKvKu9VwMrE7+GUhVIAgY9a8DyQMiDBkEAwh7S1
-KgCBfao8DK1CwSS8Z3WjL5MEgt93z2koUQCD/YxMBppiCMp7SDVSmkkIHptfGpeh
-t+M13Ccv1tavIASFiaQl6rBz3K4N3DSGwNkCibrvEAC0fQirOWnc4NVbcLKpFG1l
-NQXF/eqdT79wq1Mvlap3QSCLhcD2D3fCkKVWid4aSjtp9FOX1Uaf7P9eT93zd9Sv
-mj2yNLRUGzyI/0oONNSzmmkvJ5Cq2X2CdldIWMGZO57RJ8oyATAWTQmRmNkfh0Sx
-uuR/J9oUsomVy1AEntc0dlPivkqBkBqrxU3j5PnWkaI3ZRGc0gg9spCQEISh4xEU
-pMhVrnmDQLfLP8Ouqpx917MAw7hkjQk6BJFTAbXDsz3LSHIxo/gB8qrA1vbvdZZh
-LtR0frJdfdppX8nAQX/TAxOQ8+H6yw8a9i7/zJEfSYIhop59N/fhcWW2F14cj2Xc
-fyHaZ04lTO4uPnly91jwuFPaREuZVp8AxImIhlkxkAN61tWdWG7tEbaCgszh6VIz
-ThFnHo2Vi8SQXPrXCN7J9Tc9ZYiAYqoThV/u6SYsea5aZL8deOvKBQCgZZuIxX1z
-4EnfcqG176vY4VqMBIC4pMJz0WcHJYqN+j7BiwGoMBwExrIdTB7q4XIFLotcIpS0
-1MqyVsesvoQq7WObmGQXdMliMirSLcDuSx8Qy+4pIBgGDIyMp1qbonnGdcHYvU8S
-O0A8s/iua5oFdNZTWvbVI4FUH9sKcLiB3/fIAF+sB4n8q6L+UCfmbPcAo/crQ6b3
-HqhDBMY9J0q/jdz9GNYZ/1fbXdkUqAQKFePhtzJDRBZba27+LPQNMCcrHMq06F1T
-4QmLmkHt7LxB2pAczUO+T2O9bHEw/HWw+dYf2MoRDUw=
-`
-
-var outOfRangeSelector = []byte{
-	0x42, 0x5a, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26,
-	0x53, 0x59, 0x4e, 0xec, 0xe8, 0x36, 0x00, 0x00,
-	0x02, 0x51, 0x80, 0x00, 0x10, 0x40, 0x00, 0x06,
-	0x44, 0x90, 0x80, 0x20, 0x00, 0x31, 0x06, 0x4c,
-	0x41, 0x01, 0xa7, 0xa9, 0xa5, 0x80, 0xbb, 0x94,
-	0x31, 0x17, 0x72, 0x45, 0x38, 0x50, 0x90, 0x00,
-	0x00, 0x00, 0x00,
-}

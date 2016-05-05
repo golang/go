@@ -350,6 +350,33 @@ func TestIncompleteIDATOnRowBoundary(t *testing.T) {
 	}
 }
 
+func TestTrailingIDATChunks(t *testing.T) {
+	// The following is a valid 1x1 PNG image containing color.Gray{255} and
+	// a trailing zero-length IDAT chunk (see PNG specification section 12.9):
+	const (
+		ihdr      = "\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x00\x00\x00\x00\x3a\x7e\x9b\x55"
+		idatWhite = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\xfa\x0f\x08\x00\x00\xff\xff\x01\x05\x01\x02\x5a\xdd\x39\xcd"
+		idatZero  = "\x00\x00\x00\x00IDAT\x35\xaf\x06\x1e"
+		iend      = "\x00\x00\x00\x00IEND\xae\x42\x60\x82"
+	)
+	_, err := Decode(strings.NewReader(pngHeader + ihdr + idatWhite + idatZero + iend))
+	if err != nil {
+		t.Fatalf("decoding valid image: %v", err)
+	}
+
+	// Non-zero-length trailing IDAT chunks should be ignored (recoverable error).
+	// The following chunk contains a single pixel with color.Gray{0}.
+	const idatBlack = "\x00\x00\x00\x0eIDAT\x78\x9c\x62\x62\x00\x04\x00\x00\xff\xff\x00\x06\x00\x03\xfa\xd0\x59\xae"
+
+	img, err := Decode(strings.NewReader(pngHeader + ihdr + idatWhite + idatBlack + iend))
+	if err != nil {
+		t.Fatalf("trailing IDAT not ignored: %v", err)
+	}
+	if img.At(0, 0) == (color.Gray{0}) {
+		t.Fatal("decoded image from trailing IDAT chunk")
+	}
+}
+
 func TestMultipletRNSChunks(t *testing.T) {
 	/*
 		The following is a valid 1x1 paletted PNG image with a 1-element palette

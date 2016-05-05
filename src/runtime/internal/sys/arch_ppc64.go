@@ -5,7 +5,7 @@
 package sys
 
 const (
-	TheChar       = '9'
+	ArchFamily    = PPC64
 	BigEndian     = 1
 	CacheLineSize = 64
 	PhysPageSize  = 65536

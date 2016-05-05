@@ -76,7 +76,6 @@ func parseTestData(t *testing.T) *ParsedTestData {
 }
 
 var spaces_re *regexp.Regexp = regexp.MustCompile("\\s+")
-var marker_re *regexp.Regexp = regexp.MustCompile("MOVQ \\$([0-9]+), AX")
 
 func normalize(s string) string {
 	return spaces_re.ReplaceAllLiteralString(strings.TrimSpace(s), " ")

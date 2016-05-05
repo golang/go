@@ -178,7 +178,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 			}
 			break // i > 0
 		}
-		digits = append(digits, byte(ch))
+		digits = append(digits, ch)
 	}
 	// i > 0 => we have at least one digit
 

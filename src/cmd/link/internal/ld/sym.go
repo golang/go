@@ -9,7 +9,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/sys"
 	"log"
 	"strconv"
 )
@@ -43,7 +44,6 @@ var headers = []struct {
 }{
 	{"darwin", obj.Hdarwin},
 	{"dragonfly", obj.Hdragonfly},
-	{"elf", obj.Helf},
 	{"freebsd", obj.Hfreebsd},
 	{"linux", obj.Hlinux},
 	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
@@ -56,12 +56,17 @@ var headers = []struct {
 	{"windowsgui", obj.Hwindows},
 }
 
-func linknew(arch *LinkArch) *Link {
-	ctxt := new(Link)
-	ctxt.Hash = make(map[symVer]*LSym)
-	ctxt.Arch = arch
-	ctxt.Version = obj.HistVersion
-	ctxt.Goroot = obj.Getgoroot()
+func linknew(arch *sys.Arch) *Link {
+	ctxt := &Link{
+		Hash: []map[string]*LSym{
+			// preallocate about 2mb for hash of
+			// non static symbols
+			make(map[string]*LSym, 100000),
+		},
+		Allsym: make([]*LSym, 0, 100000),
+		Arch:   arch,
+		Goroot: obj.Getgoroot(),
+	}
 
 	p := obj.Getgoarch()
 	if p != arch.Name {
@@ -94,33 +99,33 @@ func linknew(arch *LinkArch) *Link {
 		obj.Hdragonfly,
 		obj.Hsolaris:
 		if obj.Getgoos() == "android" {
-			switch ctxt.Arch.Thechar {
-			case '6':
+			switch ctxt.Arch.Family {
+			case sys.AMD64:
 				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
 				// Explained in src/runtime/cgo/gcc_android_*.c
 				ctxt.Tlsoffset = 0x1d0
-			case '8':
+			case sys.I386:
 				// Android/386 constant - offset from 0(GS) to our TLS slot.
 				ctxt.Tlsoffset = 0xf8
 			default:
-				ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+				ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 			}
 		} else {
-			ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+			ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 		}
 
 	case obj.Hnacl:
-		switch ctxt.Arch.Thechar {
+		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
 
-		case '5':
+		case sys.ARM:
 			ctxt.Tlsoffset = 0
 
-		case '6':
+		case sys.AMD64:
 			ctxt.Tlsoffset = 0
 
-		case '8':
+		case sys.I386:
 			ctxt.Tlsoffset = -8
 		}
 
@@ -129,79 +134,65 @@ func linknew(arch *LinkArch) *Link {
 		 * Explained in src/runtime/cgo/gcc_darwin_*.c.
 		 */
 	case obj.Hdarwin:
-		switch ctxt.Arch.Thechar {
+		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
 
-		case '5':
+		case sys.ARM:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
 
-		case '6':
+		case sys.AMD64:
 			ctxt.Tlsoffset = 0x8a0
 
-		case '7':
+		case sys.ARM64:
 			ctxt.Tlsoffset = 0 // dummy value, not needed
 
-		case '8':
+		case sys.I386:
 			ctxt.Tlsoffset = 0x468
 		}
 	}
 
 	// On arm, record goarm.
-	if ctxt.Arch.Thechar == '5' {
+	if ctxt.Arch.Family == sys.ARM {
 		ctxt.Goarm = obj.Getgoarm()
 	}
 
 	return ctxt
 }
 
-func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	s := new(LSym)
-	*s = LSym{}
+func linknewsym(ctxt *Link, name string, v int) *LSym {
+	batch := ctxt.LSymBatch
+	if len(batch) == 0 {
+		batch = make([]LSym, 1000)
+	}
+	s := &batch[0]
+	ctxt.LSymBatch = batch[1:]
 
 	s.Dynid = -1
 	s.Plt = -1
 	s.Got = -1
-	s.Name = symb
-	s.Type = 0
+	s.Name = name
 	s.Version = int16(v)
-	s.Value = 0
-	s.Size = 0
-	ctxt.Nsymbol++
+	ctxt.Allsym = append(ctxt.Allsym, s)
 
-	s.Allsym = ctxt.Allsym
-	ctxt.Allsym = s
-
-	return s
-}
-
-type symVer struct {
-	sym string
-	ver int
-}
-
-func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
-	s := ctxt.Hash[symVer{symb, v}]
-	if s != nil {
-		return s
-	}
-	if creat == 0 {
-		return nil
-	}
-
-	s = linknewsym(ctxt, symb, v)
-	s.Extname = s.Name
-	ctxt.Hash[symVer{symb, v}] = s
 	return s
 }
 
 func Linklookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 1)
+	m := ctxt.Hash[v]
+	s := m[name]
+	if s != nil {
+		return s
+	}
+	s = linknewsym(ctxt, name, v)
+	s.Extname = s.Name
+	m[name] = s
+	return s
 }
 
 // read-only lookup
 func Linkrlookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, 0)
+	return ctxt.Hash[v][name]
 }
 
 func Headstr(v int) string {

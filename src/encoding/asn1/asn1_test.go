@@ -364,7 +364,7 @@ var tagAndLengthData = []tagAndLengthTest{
 	{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true}},
 	{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false}},
 	{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true}},
-	{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
+	{[]byte{0x1f, 0x1f, 0x00}, true, tagAndLength{0, 31, 0, false}},
 	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
 	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
 	{[]byte{0x00, 0x81, 0x80}, true, tagAndLength{0, 0, 128, false}},
@@ -382,6 +382,8 @@ var tagAndLengthData = []tagAndLengthTest{
 	{[]byte{0xa0, 0x81, 0x7f}, false, tagAndLength{}},
 	// Tag numbers which would overflow int32 are rejected. (The value below is 2^31.)
 	{[]byte{0x1f, 0x88, 0x80, 0x80, 0x80, 0x00, 0x00}, false, tagAndLength{}},
+	// Long tag number form may not be used for tags that fit in short form.
+	{[]byte{0x1f, 0x1e, 0x00}, false, tagAndLength{}},
 }
 
 func TestParseTagAndLength(t *testing.T) {

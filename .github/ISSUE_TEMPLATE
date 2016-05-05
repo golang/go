@@ -7,7 +7,9 @@ Please answer these questions before submitting your issue. Thanks!
 
 
 3. What did you do?
-(Use play.golang.org to provide a runnable example, if possible.)
+If possible, provide a recipe for reproducing the error.
+A complete runnable program is good.
+A link on play.golang.org is best.
 
 
 4. What did you expect to see?

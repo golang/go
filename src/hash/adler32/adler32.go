@@ -42,7 +42,7 @@ func New() hash.Hash32 {
 
 func (d *digest) Size() int { return Size }
 
-func (d *digest) BlockSize() int { return 1 }
+func (d *digest) BlockSize() int { return 4 }
 
 // Add p to the running checksum d.
 func update(d digest, p []byte) digest {
@@ -51,6 +51,17 @@ func update(d digest, p []byte) digest {
 		var q []byte
 		if len(p) > nmax {
 			p, q = p[:nmax], p[nmax:]
+		}
+		for len(p) >= 4 {
+			s1 += uint32(p[0])
+			s2 += s1
+			s1 += uint32(p[1])
+			s2 += s1
+			s1 += uint32(p[2])
+			s2 += s1
+			s1 += uint32(p[3])
+			s2 += s1
+			p = p[4:]
 		}
 		for _, x := range p {
 			s1 += uint32(x)

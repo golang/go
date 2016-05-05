@@ -2,22 +2,25 @@
 
 package syscall
 
-import "unsafe"
+import (
+	"internal/syscall/windows/sysdll"
+	"unsafe"
+)
 
 var _ unsafe.Pointer
 
 var (
-	modkernel32 = NewLazyDLL("kernel32.dll")
-	modadvapi32 = NewLazyDLL("advapi32.dll")
-	modshell32  = NewLazyDLL("shell32.dll")
-	modmswsock  = NewLazyDLL("mswsock.dll")
-	modcrypt32  = NewLazyDLL("crypt32.dll")
-	modws2_32   = NewLazyDLL("ws2_32.dll")
-	moddnsapi   = NewLazyDLL("dnsapi.dll")
-	modiphlpapi = NewLazyDLL("iphlpapi.dll")
-	modsecur32  = NewLazyDLL("secur32.dll")
-	modnetapi32 = NewLazyDLL("netapi32.dll")
-	moduserenv  = NewLazyDLL("userenv.dll")
+	modkernel32 = NewLazyDLL(sysdll.Add("kernel32.dll"))
+	modadvapi32 = NewLazyDLL(sysdll.Add("advapi32.dll"))
+	modshell32  = NewLazyDLL(sysdll.Add("shell32.dll"))
+	modmswsock  = NewLazyDLL(sysdll.Add("mswsock.dll"))
+	modcrypt32  = NewLazyDLL(sysdll.Add("crypt32.dll"))
+	modws2_32   = NewLazyDLL(sysdll.Add("ws2_32.dll"))
+	moddnsapi   = NewLazyDLL(sysdll.Add("dnsapi.dll"))
+	modiphlpapi = NewLazyDLL(sysdll.Add("iphlpapi.dll"))
+	modsecur32  = NewLazyDLL(sysdll.Add("secur32.dll"))
+	modnetapi32 = NewLazyDLL(sysdll.Add("netapi32.dll"))
+	moduserenv  = NewLazyDLL(sysdll.Add("userenv.dll"))
 
 	procGetLastError                       = modkernel32.NewProc("GetLastError")
 	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")

@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -234,6 +234,34 @@ func fixjmp(firstp *obj.Prog) {
 // The second argument (newData) to Flowstart specifies a func to create object
 // for every f.Data field, for use by the client.
 // If newData is nil, f.Data will be nil.
+
+type Graph struct {
+	Start *Flow
+	Num   int
+
+	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
+	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
+	Rpo []*Flow
+}
+
+type Flow struct {
+	Prog   *obj.Prog // actual instruction
+	P1     *Flow     // predecessors of this instruction: p1,
+	P2     *Flow     // and then p2 linked though p2link.
+	P2link *Flow
+	S1     *Flow // successors of this instruction (at most two: s1 and s2).
+	S2     *Flow
+	Link   *Flow // next instruction in function code
+
+	Active int32 // usable by client
+
+	Id     int32  // sequence number in flow graph
+	Rpo    int32  // reverse post ordering
+	Loop   uint16 // x5 for every loop
+	Refset bool   // diagnostic generated
+
+	Data interface{} // for use by client
+}
 
 var flowmark int
 
@@ -718,7 +746,7 @@ func mergetemp(firstp *obj.Prog) {
 	nfree := len(bystart)
 	for _, v := range bystart {
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, obj.FmtSharp), v.removed)
+			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, FmtSharp), v.removed)
 		}
 
 		if v.removed {
@@ -733,7 +761,7 @@ func mergetemp(firstp *obj.Prog) {
 		}
 
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(bystart))
+			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, FmtSharp), v.removed, nfree, len(bystart))
 		}
 
 		// Find old temp to reuse if possible.
@@ -742,7 +770,7 @@ func mergetemp(firstp *obj.Prog) {
 		for j := nfree; j < len(inuse); j++ {
 			v1 := inuse[j]
 			if debugmerge > 0 && Debug['v'] != 0 {
-				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
+				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, FmtSharp), Nconv(v1.node, FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
 			}
 
 			// Require the types to match but also require the addrtaken bits to match.
@@ -778,7 +806,7 @@ func mergetemp(firstp *obj.Prog) {
 	if debugmerge > 0 && Debug['v'] != 0 {
 		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(vars), nkill)
 		for _, v := range vars {
-			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
+			fmt.Printf("var %v %v %d-%d", Nconv(v.node, FmtSharp), v.node.Type, v.start, v.end)
 			if v.addr {
 				fmt.Printf(" addr=true")
 			}
@@ -786,7 +814,7 @@ func mergetemp(firstp *obj.Prog) {
 				fmt.Printf(" removed=true")
 			}
 			if v.merge != nil {
-				fmt.Printf(" merge %v", Nconv(v.merge.node, obj.FmtSharp))
+				fmt.Printf(" merge %v", Nconv(v.merge.node, FmtSharp))
 			}
 			if v.start == v.end && v.def != nil {
 				fmt.Printf(" %v", v.def.Prog)
@@ -927,7 +955,7 @@ func nilopt(firstp *obj.Prog) {
 		ncheck++
 		if Thearch.Stackaddr(&p.From) {
 			if Debug_checknil != 0 && p.Lineno > 1 {
-				Warnl(int(p.Lineno), "removed nil check of SP address")
+				Warnl(p.Lineno, "removed nil check of SP address")
 			}
 			f.Data = &killed
 			continue
@@ -936,7 +964,7 @@ func nilopt(firstp *obj.Prog) {
 		nilwalkfwd(f)
 		if f.Data != nil {
 			if Debug_checknil != 0 && p.Lineno > 1 {
-				Warnl(int(p.Lineno), "removed nil check before indirect")
+				Warnl(p.Lineno, "removed nil check before indirect")
 			}
 			continue
 		}
@@ -944,7 +972,7 @@ func nilopt(firstp *obj.Prog) {
 		nilwalkback(f)
 		if f.Data != nil {
 			if Debug_checknil != 0 && p.Lineno > 1 {
-				Warnl(int(p.Lineno), "removed repeated nil check")
+				Warnl(p.Lineno, "removed repeated nil check")
 			}
 			continue
 		}

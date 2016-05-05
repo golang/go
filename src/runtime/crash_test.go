@@ -273,6 +273,52 @@ func TestGoexitInPanic(t *testing.T) {
 	}
 }
 
+// Issue 14965: Runtime panics should be of type runtime.Error
+func TestRuntimePanicWithRuntimeError(t *testing.T) {
+	testCases := [...]func(){
+		0: func() {
+			var m map[uint64]bool
+			m[1234] = true
+		},
+		1: func() {
+			ch := make(chan struct{})
+			close(ch)
+			close(ch)
+		},
+		2: func() {
+			var ch = make(chan struct{})
+			close(ch)
+			ch <- struct{}{}
+		},
+		3: func() {
+			var s = make([]int, 2)
+			_ = s[2]
+		},
+		4: func() {
+			n := -1
+			_ = make(chan bool, n)
+		},
+		5: func() {
+			close((chan bool)(nil))
+		},
+	}
+
+	for i, fn := range testCases {
+		got := panicValue(fn)
+		if _, ok := got.(runtime.Error); !ok {
+			t.Errorf("test #%d: recovered value %v(type %T) does not implement runtime.Error", i, got, got)
+		}
+	}
+}
+
+func panicValue(fn func()) (recovered interface{}) {
+	defer func() {
+		recovered = recover()
+	}()
+	fn()
+	return
+}
+
 func TestPanicAfterGoexit(t *testing.T) {
 	// an uncaught panic should still work after goexit
 	output := runTestProg(t, "testprog", "PanicAfterGoexit")
@@ -294,9 +340,9 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	// 1. defer a function that recovers
 	// 2. defer a function that panics
 	// 3. call goexit
-	// Goexit should run the #2 defer.  Its panic
+	// Goexit should run the #2 defer. Its panic
 	// should be caught by the #1 defer, and execution
-	// should resume in the caller.  Like the Goexit
+	// should resume in the caller. Like the Goexit
 	// never happened!
 	defer func() {
 		r := recover()

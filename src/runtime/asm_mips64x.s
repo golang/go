@@ -12,26 +12,34 @@
 #define	REGCTXT	R22
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
-	// R29 = stack; R1 = argc; R2 = argv
+	// R29 = stack; R4 = argc; R5 = argv
 
 	// initialize essential registers
 	JAL	runtime·reginit(SB)
 
 	ADDV	$-24, R29
-	MOVW	R1, 8(R29) // argc
-	MOVV	R2, 16(R29) // argv
+	MOVW	R4, 8(R29) // argc
+	MOVV	R5, 16(R29) // argv
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
 	MOVV	$runtime·g0(SB), g
-	MOVV	$(-64*1024), R28
-	ADDV	R28, R29, R1
+	MOVV	$(-64*1024), R23
+	ADDV	R23, R29, R1
 	MOVV	R1, g_stackguard0(g)
 	MOVV	R1, g_stackguard1(g)
 	MOVV	R1, (g_stack+stack_lo)(g)
 	MOVV	R29, (g_stack+stack_hi)(g)
 
-	// no cgo yet
+	// if there is a _cgo_init, call it using the gcc ABI.
+	MOVV	_cgo_init(SB), R25
+	BEQ	R25, nocgo
+
+	MOVV	R0, R7	// arg 3: not used
+	MOVV	R0, R6	// arg 2: not used
+	MOVV	$setg_gcc<>(SB), R5	// arg 1: setg
+	MOVV	g, R4	// arg 0: G
+	JAL	(R25)
 
 nocgo:
 	// update stackguard after _cgo_init
@@ -81,7 +89,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$-8-0
 	RET
 
 TEXT _cgo_reginit(SB),NOSPLIT,$-8-0
-	// crosscall_ppc64 and crosscall2 need to reginit, but can't
+	// crosscall1 needs to reginit, but can't
 	// get at the 'runtime.reginit' symbol.
 	JMP	runtime·reginit(SB)
 
@@ -130,7 +138,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-8-8
 
 // void mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	// Save caller state in g->sched
@@ -156,7 +164,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	JMP	runtime·badmcall2(SB)
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -186,7 +194,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	JAL	(R4)
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVV	$runtime·systemstack_switch(SB), R4
 	ADDV	$8, R4	// get past prologue
@@ -299,9 +307,9 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
 // Caution: ugly multiline assembly macros in your future!
 
 #define DISPATCH(NAME,MAXSIZE)		\
-	MOVV	$MAXSIZE, R28;		\
-	SGTU	R1, R28, R28;		\
-	BNE	R28, 3(PC);			\
+	MOVV	$MAXSIZE, R23;		\
+	SGTU	R1, R23, R23;		\
+	BNE	R23, 3(PC);			\
 	MOVV	$NAME(SB), R4;	\
 	JMP	(R4)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
@@ -453,26 +461,64 @@ TEXT gosave<>(SB),NOSPLIT,$-8
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
 TEXT ·asmcgocall(SB),NOSPLIT,$0-20
-	UNDEF	// no cgo yet
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+
+	MOVV	R29, R3	// save original stack pointer
+	MOVV	g, R2
+
+	// Figure out if we need to switch to m->g0 stack.
+	// We get called to create new OS threads too, and those
+	// come in on the m->g0 stack already.
+	MOVV	g_m(g), R5
+	MOVV	m_g0(R5), R6
+	BEQ	R6, g, g0
+
+	JAL	gosave<>(SB)
+	MOVV	R6, g
+	JAL	runtime·save_g(SB)
+	MOVV	(g_sched+gobuf_sp)(g), R29
+
+	// Now on a scheduling stack (a pthread-created stack).
+g0:
+	// Save room for two of our pointers.
+	ADDV	$-16, R29
+	MOVV	R2, 0(R29)	// save old g on stack
+	MOVV	(g_stack+stack_hi)(R2), R2
+	SUBVU	R3, R2
+	MOVV	R2, 8(R29)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
+	JAL	(R25)
+
+	// Restore g, stack pointer. R2 is return value.
+	MOVV	0(R29), g
+	JAL	runtime·save_g(SB)
+	MOVV	(g_stack+stack_hi)(g), R5
+	MOVV	8(R29), R6
+	SUBVU	R6, R5
+	MOVV	R5, R29
+
+	MOVW	R2, ret+16(FP)
 	RET
 
-// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
+// cgocallback(void (*fn)(void*), void *frame, uintptr framesize, uintptr ctxt)
 // Turn the fn into a Go func (by taking its address) and call
 // cgocallback_gofunc.
-TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
+TEXT runtime·cgocallback(SB),NOSPLIT,$32-32
 	MOVV	$fn+0(FP), R1
 	MOVV	R1, 8(R29)
 	MOVV	frame+8(FP), R1
 	MOVV	R1, 16(R29)
 	MOVV	framesize+16(FP), R1
 	MOVV	R1, 24(R29)
+	MOVV	ctxt+24(FP), R1
+	MOVV	R1, 32(R29)
 	MOVV	$runtime·cgocallback_gofunc(SB), R1
 	JAL	(R1)
 	RET
 
-// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize, uintptr ctxt)
 // See cgocall.go for more details.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-24
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$16-32
 	NO_LOCAL_POINTERS
 
 	// Load m and g from thread-local storage.
@@ -508,8 +554,8 @@ needm:
 	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
-	MOVV	g_m(g), R1
-	MOVV	m_g0(R1), R1
+	MOVV	g_m(g), R3
+	MOVV	m_g0(R3), R1
 	MOVV	R29, (g_sched+gobuf_sp)(R1)
 
 havem:
@@ -537,18 +583,21 @@ havem:
 	// so that the traceback will seamlessly trace back into
 	// the earlier calls.
 	//
-	// In the new goroutine, -16(SP) and -8(SP) are unused.
+	// In the new goroutine, -8(SP) is unused (where SP refers to
+	// m->curg's SP while we're setting it up, before we've adjusted it).
 	MOVV	m_curg(R3), g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R2 // prepare stack as R2
-	MOVV	(g_sched+gobuf_pc)(g), R3
-	MOVV	R3, -24(R2)
+	MOVV	(g_sched+gobuf_pc)(g), R4
+	MOVV	R4, -24(R2)
+	MOVV    ctxt+24(FP), R1
+	MOVV    R1, -16(R2)
 	MOVV	$-24(R2), R29
 	JAL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
-	MOVV	0(R29), R3
-	MOVV	R3, (g_sched+gobuf_pc)(g)
+	MOVV	0(R29), R4
+	MOVV	R4, (g_sched+gobuf_pc)(g)
 	MOVV	$24(R29), R2
 	MOVV	R2, (g_sched+gobuf_sp)(g)
 
@@ -580,10 +629,10 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 	JAL	runtime·save_g(SB)
 	RET
 
-// void setg_gcc(G*); set g in C TLS.
-// Must obey the gcc calling convention.
-TEXT setg_gcc<>(SB),NOSPLIT,$-8-0
-	UNDEF	// no cgo yet
+// void setg_gcc(G*); set g called from gcc with g in R1
+TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+	MOVV	R1, g
+	JAL	runtime·save_g(SB)
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
@@ -805,8 +854,19 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT,$-8
-	UNDEF	// no cgo yet
+TEXT _cgo_topofstack(SB),NOSPLIT,$16
+	// g (R30) and REGTMP (R23)  might be clobbered by load_g. They
+	// are callee-save in the gcc calling convention, so save them.
+	MOVV	R23, savedR23-16(SP)
+	MOVV	g, savedG-8(SP)
+
+	JAL	runtime·load_g(SB)
+	MOVV	g_m(g), R1
+	MOVV	m_curg(R1), R1
+	MOVV	(g_stack+stack_hi)(R1), R2 // return value in R2
+
+	MOVV	savedG-8(SP), g
+	MOVV	savedR23-16(SP), R23
 	RET
 
 // The top-most function running on a goroutine

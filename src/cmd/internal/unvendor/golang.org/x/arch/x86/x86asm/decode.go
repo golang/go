@@ -1041,7 +1041,7 @@ Decode:
 
 		case xArgMoffs8, xArgMoffs16, xArgMoffs32, xArgMoffs64:
 			// TODO(rsc): Can address be 64 bits?
-			mem = Mem{Disp: int64(immc)}
+			mem = Mem{Disp: immc}
 			if segIndex >= 0 {
 				mem.Segment = prefixToSegment(inst.Prefix[segIndex])
 				inst.Prefix[segIndex] |= PrefixImplicit

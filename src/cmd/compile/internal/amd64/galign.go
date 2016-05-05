@@ -11,53 +11,18 @@ import (
 )
 
 var (
-	thechar     int           = '6'
-	thestring   string        = "amd64"
-	thelinkarch *obj.LinkArch = &x86.Linkamd64
+	addptr = x86.AADDQ
+	movptr = x86.AMOVQ
+	leaptr = x86.ALEAQ
+	cmpptr = x86.ACMPQ
 )
-
-func linkarchinit() {
-	if obj.Getgoarch() == "amd64p32" {
-		thelinkarch = &x86.Linkamd64p32
-		gc.Thearch.Thelinkarch = thelinkarch
-		thestring = "amd64p32"
-		gc.Thearch.Thestring = "amd64p32"
-	}
-}
-
-var MAXWIDTH int64 = 1 << 50
-
-var (
-	addptr int = x86.AADDQ
-	movptr int = x86.AMOVQ
-	leaptr int = x86.ALEAQ
-	cmpptr int = x86.ACMPQ
-)
-
-/*
- * go declares several platform-specific type aliases:
- * int, uint, and uintptr
- */
-var typedefs = []gc.Typedef{
-	{"int", gc.TINT, gc.TINT64},
-	{"uint", gc.TUINT, gc.TUINT64},
-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
-}
 
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 	if obj.Getgoarch() == "amd64p32" {
-		gc.Widthptr = 4
-		gc.Widthint = 4
 		addptr = x86.AADDL
 		movptr = x86.AMOVL
 		leaptr = x86.ALEAL
 		cmpptr = x86.ACMPL
-		typedefs[0].Sameas = gc.TINT32
-		typedefs[1].Sameas = gc.TUINT32
-		typedefs[2].Sameas = gc.TUINT32
 	}
 
 	if gc.Ctxt.Flag_dynlink {
@@ -72,10 +37,10 @@ func Main() {
 		resvd = append(resvd, x86.REG_BP)
 	}
 
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
-	gc.Thearch.Typedefs = typedefs
+	gc.Thearch.LinkArch = &x86.Linkamd64
+	if obj.Getgoarch() == "amd64p32" {
+		gc.Thearch.LinkArch = &x86.Linkamd64p32
+	}
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.REGCALLX = x86.REG_BX
@@ -85,7 +50,7 @@ func Main() {
 	gc.Thearch.REGMAX = x86.REG_R15
 	gc.Thearch.FREGMIN = x86.REG_X0
 	gc.Thearch.FREGMAX = x86.REG_X15
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.AddIndex = addindex
@@ -105,7 +70,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp
@@ -123,6 +87,11 @@ func Main() {
 	gc.Thearch.Optoas = optoas
 	gc.Thearch.Doregbits = doregbits
 	gc.Thearch.Regnames = regnames
+
+	gc.Thearch.SSARegToReg = ssaRegToReg
+	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+	gc.Thearch.SSAGenValue = ssaGenValue
+	gc.Thearch.SSAGenBlock = ssaGenBlock
 
 	gc.Main()
 	gc.Exit(0)
