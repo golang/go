@@ -530,7 +530,7 @@ execute:
 	case 0xeeb80ac0: // D[regd] = S[regm] (MOVWF)
 		cmp := int32(m.freglo[regm])
 		if cmp < 0 {
-			fputf(regd, f64to32(fintto64(int64(-cmp))))
+			fputf(regd, f64to32(fintto64(-int64(cmp))))
 			m.freglo[regd] ^= 0x80000000
 		} else {
 			fputf(regd, f64to32(fintto64(int64(cmp))))
@@ -552,7 +552,7 @@ execute:
 	case 0xeeb80bc0: // D[regd] = S[regm] (MOVWD)
 		cmp := int32(m.freglo[regm])
 		if cmp < 0 {
-			fputd(regd, fintto64(int64(-cmp)))
+			fputd(regd, fintto64(-int64(cmp)))
 			m.freghi[regd] ^= 0x80000000
 		} else {
 			fputd(regd, fintto64(int64(cmp)))
