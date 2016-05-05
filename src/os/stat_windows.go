@@ -5,6 +5,7 @@
 package os
 
 import (
+	"internal/syscall/windows"
 	"syscall"
 	"unsafe"
 )
@@ -95,7 +96,23 @@ func Lstat(name string) (FileInfo, error) {
 	}
 	e = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fs.sys)))
 	if e != nil {
-		return nil, &PathError{"GetFileAttributesEx", name, e}
+		if e != windows.ERROR_SHARING_VIOLATION {
+			return nil, &PathError{"GetFileAttributesEx", name, e}
+		}
+		// try FindFirstFile now that GetFileAttributesEx failed
+		var fd syscall.Win32finddata
+		h, e2 := syscall.FindFirstFile(namep, &fd)
+		if e2 != nil {
+			return nil, &PathError{"FindFirstFile", name, e}
+		}
+		syscall.FindClose(h)
+
+		fs.sys.FileAttributes = fd.FileAttributes
+		fs.sys.CreationTime = fd.CreationTime
+		fs.sys.LastAccessTime = fd.LastAccessTime
+		fs.sys.LastWriteTime = fd.LastWriteTime
+		fs.sys.FileSizeHigh = fd.FileSizeHigh
+		fs.sys.FileSizeLow = fd.FileSizeLow
 	}
 	fs.path = name
 	if !isAbs(fs.path) {

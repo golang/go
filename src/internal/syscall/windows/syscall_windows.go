@@ -7,6 +7,7 @@ package windows
 import "syscall"
 
 const (
+	ERROR_SHARING_VIOLATION      syscall.Errno = 32
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 

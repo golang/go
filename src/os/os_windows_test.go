@@ -630,3 +630,14 @@ func TestReadStdin(t *testing.T) {
 		}
 	}
 }
+
+func TestStatPagefile(t *testing.T) {
+	_, err := os.Stat(`c:\pagefile.sys`)
+	if err == nil {
+		return
+	}
+	if os.IsNotExist(err) {
+		t.Skip(`skipping because c:\pagefile.sys is not found`)
+	}
+	t.Fatal(err)
+}
