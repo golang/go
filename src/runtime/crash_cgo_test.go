@@ -51,6 +51,8 @@ func TestCgoCallbackGC(t *testing.T) {
 			t.Skip("see golang.org/issue/11990")
 		case runtime.GOOS == "linux" && runtime.GOARCH == "arm":
 			t.Skip("too slow for arm builders")
+		case runtime.GOOS == "linux" && (runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le"):
+			t.Skip("too slow for mips64x builders")
 		}
 	}
 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
