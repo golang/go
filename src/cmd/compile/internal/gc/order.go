@@ -569,18 +569,24 @@ func orderstmt(n *Node, order *Order) {
 
 		orderexprlist(n.List, order)
 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // i in i.(T)
-		if isblank(n.List.First()) {
-			order.out = append(order.out, n)
-		} else {
-			typ := n.Rlist.First().Type
-			tmp1 := ordertemp(typ, order, haspointers(typ))
-			order.out = append(order.out, n)
-			r := Nod(OAS, n.List.First(), tmp1)
-			r = typecheck(r, Etop)
-			ordermapassign(r, order)
-			n.List.Set([]*Node{tmp1, n.List.Second()})
-		}
 
+		results := n.List.Slice()
+		var assigns [2]*Node
+
+		for r, res := range results {
+			if !isblank(res) {
+				results[r] = ordertemp(res.Type, order, haspointers(res.Type))
+				assigns[r] = Nod(OAS, res, results[r])
+			}
+		}
+		order.out = append(order.out, n)
+
+		for _, assign := range assigns {
+			if assign != nil {
+				assign = typecheck(assign, Etop)
+				ordermapassign(assign, order)
+			}
+		}
 		cleantemp(t, order)
 
 		// Special: use temporary variables to hold result,
