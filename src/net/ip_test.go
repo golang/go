@@ -327,9 +327,6 @@ var parseCIDRTests = []struct {
 	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
 	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
 	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
-	{"fe80::%en0/64", ParseIP("fe80::"), &IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, nil},
-	{"fe80::1%en0/64", ParseIP("fe80::1"), &IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, nil},
-
 	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
 	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
 	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
@@ -376,13 +373,8 @@ var ipNetStringTests = []struct {
 	out string
 }{
 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: CIDRMask(26, 32)}, "192.168.1.0/26"},
-	{&IPNet{IP: IPv4(192, 168, 1, 1), Mask: CIDRMask(26, 32)}, "192.168.1.1/26"},
 	{&IPNet{IP: IPv4(192, 168, 1, 0), Mask: IPv4Mask(255, 0, 255, 0)}, "192.168.1.0/ff00ff00"},
-	{&IPNet{IP: ParseIP("fe80::"), Mask: CIDRMask(64, 128), Zone: "en0"}, "fe80::%en0/64"},
-	{&IPNet{IP: ParseIP("fe80::1"), Mask: CIDRMask(64, 128), Zone: "en0"}, "fe80::1%en0/64"},
-	{&IPNet{IP: ParseIP("fe80::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::")), Zone: "en0"}, "fe80::%en0/8000f1230000cafe0000000000000000"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: CIDRMask(55, 128)}, "2001:db8::/55"},
-	{&IPNet{IP: ParseIP("2001:db8::1"), Mask: CIDRMask(55, 128)}, "2001:db8::1/55"},
 	{&IPNet{IP: ParseIP("2001:db8::"), Mask: IPMask(ParseIP("8000:f123:0:cafe::"))}, "2001:db8::/8000f1230000cafe0000000000000000"},
 }
 
