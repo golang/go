@@ -228,7 +228,7 @@ func transponder(ln Listener, ch chan<- error) {
 	defer c.Close()
 
 	network := ln.Addr().Network()
-	if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
+	if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
 		ch <- fmt.Errorf("got %v->%v; expected %v->%v", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
 		return
 	}
