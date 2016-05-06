@@ -4268,7 +4268,7 @@ func BenchmarkClient(b *testing.B) {
 	// Wait for the server process to respond.
 	url := "http://localhost:" + port + "/"
 	for i := 0; i < 100; i++ {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		if _, err := getNoBody(url); err == nil {
 			break
 		}
