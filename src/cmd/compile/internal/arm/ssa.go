@@ -16,7 +16,21 @@ var ssaRegToReg = []int16{
 	arm.REG_R1,
 	arm.REG_R2,
 	arm.REG_R3,
+	arm.REG_R4,
+	arm.REG_R5,
+	arm.REG_R6,
+	arm.REG_R7,
+	arm.REG_R8,
+	arm.REG_R9,
+	arm.REG_R10,
+	arm.REG_R11,
+	arm.REG_R12,
 	arm.REGSP, // aka R13
+	arm.REG_R14,
+	arm.REG_R15,
+
+	arm.REG_CPSR, // flag
+	0,            // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
@@ -45,7 +59,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-
+	case ssa.OpPhi:
+		// just check to make sure regalloc and stackalloc did it right
+		if v.Type.IsMemory() {
+			return
+		}
+		f := v.Block.Func
+		loc := f.RegAlloc[v.ID]
+		for _, a := range v.Args {
+			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
+				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+			}
+		}
 	case ssa.OpStoreReg:
 		// TODO: by type
 		p := gc.Prog(arm.AMOVW)
@@ -62,14 +87,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		} else {
 			p.To.Name = obj.NAME_AUTO
 		}
-	case ssa.OpARMADD:
+	case ssa.OpARMADD,
+		ssa.OpARMSUB,
+		ssa.OpARMRSB,
+		ssa.OpARMAND,
+		ssa.OpARMOR,
+		ssa.OpARMXOR,
+		ssa.OpARMBIC:
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r1
-		p.Reg = r2
+		p.From.Reg = r2
+		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpARMADDconst:
@@ -101,6 +132,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = gc.SSARegNum(v)
 			break
 		}
+		fallthrough
+	case ssa.OpARMSUBconst,
+		ssa.OpARMRSBconst,
+		ssa.OpARMANDconst,
+		ssa.OpARMORconst,
+		ssa.OpARMXORconst,
+		ssa.OpARMBICconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -113,27 +151,57 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.OpARMCMP:
+	case ssa.OpARMCMP,
+		ssa.OpARMCMN,
+		ssa.OpARMTST,
+		ssa.OpARMTEQ:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		// Special layout in ARM assembly
 		// Comparing to x86, the operands of ARM's CMP are reversed.
 		p.From.Reg = gc.SSARegNum(v.Args[1])
 		p.Reg = gc.SSARegNum(v.Args[0])
-	case ssa.OpARMMOVWload:
+	case ssa.OpARMCMPconst,
+		ssa.OpARMCMNconst,
+		ssa.OpARMTSTconst,
+		ssa.OpARMTEQconst:
+		// Special layout in ARM assembly
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARMMOVBload,
+		ssa.OpARMMOVBUload,
+		ssa.OpARMMOVHload,
+		ssa.OpARMMOVHUload,
+		ssa.OpARMMOVWload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.OpARMMOVWstore:
+	case ssa.OpARMMOVBstore,
+		ssa.OpARMMOVHstore,
+		ssa.OpARMMOVWstore:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[1])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
+	case ssa.OpARMMOVBreg,
+		ssa.OpARMMOVBUreg,
+		ssa.OpARMMOVHreg,
+		ssa.OpARMMOVHUreg:
+		if v.Type.IsMemory() {
+			v.Fatalf("memory operand for %s", v.LongString())
+		}
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMCALLstatic:
 		// TODO: deferreturn
 		p := gc.Prog(obj.ACALL)
@@ -143,37 +211,126 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
+	case ssa.OpARMCALLclosure:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = 0
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpARMCALLdefer:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpARMCALLgo:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpARMCALLinter:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = 0
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpARMLoweredNilCheck:
+		// Issue a load which will fault if arg is nil.
+		p := gc.Prog(arm.AMOVB)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = arm.REGTMP
+		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+			gc.Warnl(v.Line, "generated nil check")
+		}
 	case ssa.OpVarDef:
 		gc.Gvardef(v.Aux.(*gc.Node))
 	case ssa.OpVarKill:
 		gc.Gvarkill(v.Aux.(*gc.Node))
 	case ssa.OpVarLive:
 		gc.Gvarlive(v.Aux.(*gc.Node))
-	case ssa.OpARMLessThan:
+	case ssa.OpARMEqual,
+		ssa.OpARMNotEqual,
+		ssa.OpARMLessThan,
+		ssa.OpARMLessEqual,
+		ssa.OpARMGreaterThan,
+		ssa.OpARMGreaterEqual,
+		ssa.OpARMLessThanU,
+		ssa.OpARMLessEqualU,
+		ssa.OpARMGreaterThanU,
+		ssa.OpARMGreaterEqualU:
 		v.Fatalf("pseudo-op made it to output: %s", v.LongString())
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
 }
 
+var blockJump = map[ssa.BlockKind]struct {
+	asm, invasm obj.As
+}{
+	ssa.BlockARMEQ:  {arm.ABEQ, arm.ABNE},
+	ssa.BlockARMNE:  {arm.ABNE, arm.ABEQ},
+	ssa.BlockARMLT:  {arm.ABLT, arm.ABGE},
+	ssa.BlockARMGE:  {arm.ABGE, arm.ABLT},
+	ssa.BlockARMLE:  {arm.ABLE, arm.ABGT},
+	ssa.BlockARMGT:  {arm.ABGT, arm.ABLE},
+	ssa.BlockARMULT: {arm.ABCS, arm.ABCC},
+	ssa.BlockARMUGE: {arm.ABCC, arm.ABCS},
+	ssa.BlockARMUGT: {arm.ABHI, arm.ABLS},
+	ssa.BlockARMULE: {arm.ABLS, arm.ABHI},
+}
+
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
-	case ssa.BlockCall:
+	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
+
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)
-	case ssa.BlockARMLT:
-		p := gc.Prog(arm.ABLT)
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
-		p = gc.Prog(obj.AJMP)
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+
+	case ssa.BlockARMEQ, ssa.BlockARMNE,
+		ssa.BlockARMLT, ssa.BlockARMGE,
+		ssa.BlockARMLE, ssa.BlockARMGT,
+		ssa.BlockARMULT, ssa.BlockARMUGT,
+		ssa.BlockARMULE, ssa.BlockARMUGE:
+		jmp := blockJump[b.Kind]
+		var p *obj.Prog
+		switch next {
+		case b.Succs[0].Block():
+			p = gc.Prog(jmp.invasm)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		case b.Succs[1].Block():
+			p = gc.Prog(jmp.asm)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+		default:
+			p = gc.Prog(jmp.asm)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			q := gc.Prog(obj.AJMP)
+			q.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+		}
+
+	default:
+		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
 }

@@ -3,30 +3,138 @@
 // license that can be found in the LICENSE file.
 
 (Add32 x y) -> (ADD x y)
+(Sub32 x y) -> (SUB x y)
+(And32 x y) -> (AND x y)
+(Or32 x y)  -> (OR x y)
+(Xor32 x y) -> (XOR x y)
 
+(Const8 [val]) -> (MOVWconst [val])
+(Const16 [val]) -> (MOVWconst [val])
 (Const32 [val]) -> (MOVWconst [val])
+(ConstNil) -> (MOVWconst [0])
+(ConstBool [b]) -> (MOVWconst [b])
 
+(Trunc16to8 x) -> x
+(Trunc32to8 x) -> x
+(Trunc32to16 x) -> x
+
+(ZeroExt8to16 x) -> (MOVBUreg x)
+(ZeroExt8to32 x) -> (MOVBUreg x)
+(ZeroExt16to32 x) -> (MOVHUreg x)
+
+(SignExt8to16 x) -> (MOVBreg x)
+(SignExt8to32 x) -> (MOVBreg x)
+(SignExt16to32 x) -> (MOVHreg x)
+
+(Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Eq32 x y) -> (Equal (CMP x y))
+
+(Neq8 x y)  -> (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Neq16 x y) -> (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Neq32 x y) -> (NotEqual (CMP x y))
+
+(Less8 x y)  -> (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+(Less16 x y) -> (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Less32 x y) -> (LessThan (CMP x y))
+
+(Less8U x y)  -> (LessThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Less16U x y) -> (LessThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Less32U x y) -> (LessThanU (CMP x y))
+
+(Leq8 x y)  -> (LessEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
+(Leq16 x y) -> (LessEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
+(Leq32 x y) -> (LessEqual (CMP x y))
+
+(Leq8U x y)  -> (LessEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Leq32U x y) -> (LessEqualU (CMP x y))
+
+(Greater8 x y)  -> (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+(Greater16 x y) -> (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
+(Greater32 x y) -> (GreaterThan (CMP x y))
+
+(Greater8U x y)  -> (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Greater16U x y) -> (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Greater32U x y) -> (GreaterThanU (CMP x y))
+
+(Geq8 x y)  -> (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
+(Geq16 x y) -> (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
+(Geq32 x y) -> (GreaterEqual (CMP x y))
+
+(Geq8U x y)  -> (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Geq32U x y) -> (GreaterEqualU (CMP x y))
 
 (OffPtr [off] ptr) -> (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
 
 (Addr {sym} base) -> (ADDconst {sym} base)
 
-(Load <t> ptr mem) && is32BitInt(t) -> (MOVWload ptr mem)
+(Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) -> (MOVBload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) -> (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) -> (MOVHload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVWload ptr mem)
+
+(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
 (Store [4] ptr val mem) -> (MOVWstore ptr val mem)
 
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
-// Absorb LessThan into blocks.
+// checks
+(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+
+// Absorb pseudo-ops into blocks.
+(If (Equal cc) yes no) -> (EQ cc yes no)
+(If (NotEqual cc) yes no) -> (NE cc yes no)
 (If (LessThan cc) yes no) -> (LT cc yes no)
+(If (LessThanU cc) yes no) -> (ULT cc yes no)
+(If (LessEqual cc) yes no) -> (LE cc yes no)
+(If (LessEqualU cc) yes no) -> (ULE cc yes no)
+(If (GreaterThan cc) yes no) -> (GT cc yes no)
+(If (GreaterThanU cc) yes no) -> (UGT cc yes no)
+(If (GreaterEqual cc) yes no) -> (GE cc yes no)
+(If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
 
+(If cond yes no) -> (NE (CMPconst [0] cond) yes no)
 
+// Absorb boolean tests into block
+(NE (CMPconst [0] (Equal cc)) yes no) -> (EQ cc yes no)
+(NE (CMPconst [0] (NotEqual cc)) yes no) -> (NE cc yes no)
+(NE (CMPconst [0] (LessThan cc)) yes no) -> (LT cc yes no)
+(NE (CMPconst [0] (LessThanU cc)) yes no) -> (ULT cc yes no)
+(NE (CMPconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
+(NE (CMPconst [0] (LessEqualU cc)) yes no) -> (ULE cc yes no)
+(NE (CMPconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
+(NE (CMPconst [0] (GreaterThanU cc)) yes no) -> (UGT cc yes no)
+(NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+(NE (CMPconst [0] (GreaterEqualU cc)) yes no) -> (UGE cc yes no)
 
 // Optimizations
 
 (ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
 (ADD x (MOVWconst [c])) -> (ADDconst [c] x)
+
+(MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
   (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+
+(MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+  (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+  (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
   (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
