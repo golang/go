@@ -70,6 +70,7 @@ func TestLookupGoogleSRV(t *testing.T) {
 	for _, tt := range lookupGoogleSRVTests {
 		cname, srvs, err := LookupSRV(tt.service, tt.proto, tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
 			t.Fatal(err)
 		}
 		if len(srvs) == 0 {
@@ -137,6 +138,7 @@ func TestLookupGmailNS(t *testing.T) {
 	for _, tt := range lookupGmailNSTests {
 		nss, err := LookupNS(tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
 			t.Fatal(err)
 		}
 		if len(nss) == 0 {
