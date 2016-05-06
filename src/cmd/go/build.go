@@ -669,6 +669,12 @@ var (
 func init() {
 	goarch = buildContext.GOARCH
 	goos = buildContext.GOOS
+
+	if _, ok := osArchSupportsCgo[goos+"/"+goarch]; !ok {
+		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", goos, goarch)
+		os.Exit(2)
+	}
+
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
