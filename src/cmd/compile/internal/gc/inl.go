@@ -179,7 +179,7 @@ func ishairy(n *Node, budget *int32) bool {
 			break
 		}
 
-		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+		if n.isMethodCalledAsFunction() {
 			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
 				*budget -= d.Func.InlCost
 				break
@@ -458,10 +458,8 @@ func inlnode(n *Node) *Node {
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall1(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd)
-		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
-			if n.Left.Sym.Def != nil {
-				n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)
-			}
+		} else if n.isMethodCalledAsFunction() && n.Left.Sym.Def != nil {
+			n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)
 		}
 
 	case OCALLMETH:
@@ -1003,4 +1001,8 @@ func setlno(n *Node, lno int32) {
 	setlnolist(n.Rlist, lno)
 	setlnolist(n.Ninit, lno)
 	setlnolist(n.Nbody, lno)
+}
+
+func (n *Node) isMethodCalledAsFunction() bool {
+	return n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME
 }
