@@ -283,8 +283,16 @@ func raceinit() (gctx, pctx uintptr) {
 	return
 }
 
+var raceFiniLock mutex
+
 //go:nosplit
 func racefini() {
+	// racefini() can only be called once to avoid races.
+	// This eventually (via __tsan_fini) calls C.exit which has
+	// undefined behavior if called more than once. If the lock is
+	// already held it's assumed that the first caller exits the program
+	// so other calls can hang forever without an issue.
+	lock(&raceFiniLock)
 	racecall(&__tsan_fini, 0, 0, 0, 0)
 }
 
