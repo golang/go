@@ -73,12 +73,37 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpARMADDconst:
+		if v.Aux != nil {
+			switch v.Aux.(type) {
+			default:
+				v.Fatalf("aux is of unknown type %T", v.Aux)
+			case *ssa.ExternSymbol:
+				reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+				if reg.Name() != "SB" {
+					v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
+				}
+			case *ssa.ArgSymbol,
+				*ssa.AutoSymbol:
+				reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
+				if reg.Name() != "SP" {
+					v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
+				}
+			}
+			// MOVW $sym+off(base), R
+			// the assembler expands it as the following:
+			// - base is SP: add constant offset to SP (R13)
+			//               when constant is large, tmp register (R11) may be used
+			// - base is SB: load external address from constant pool (use relocation)
+			p := gc.Prog(arm.AMOVW)
+			p.From.Type = obj.TYPE_ADDR
+			gc.AddAux(&p.From, v)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = gc.SSARegNum(v)
+			break
+		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
-		if v.Aux != nil {
-			panic("can't handle symbolic constant yet")
-		}
 		p.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
