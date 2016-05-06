@@ -5,6 +5,6 @@
 package c
 
 import (
-	_ "./a"
 	_ "./b"
+	_ "./a"
 )
