@@ -146,11 +146,9 @@ func (file *file) close() error {
 		return ErrInvalid
 	}
 	var err error
-	syscall.ForkLock.RLock()
 	if e := syscall.Close(file.fd); e != nil {
 		err = &PathError{"close", file.name, e}
 	}
-	syscall.ForkLock.RUnlock()
 	file.fd = -1 // so it can't be closed again
 
 	// no need for a finalizer anymore
@@ -420,12 +418,9 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
-	syscall.ForkLock.RLock()
 	if e := syscall.Pipe(p[0:]); e != nil {
-		syscall.ForkLock.RUnlock()
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	syscall.ForkLock.RUnlock()
 
 	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
 }

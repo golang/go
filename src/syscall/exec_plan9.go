@@ -12,53 +12,7 @@ import (
 	"unsafe"
 )
 
-// Lock synchronizing creation of new file descriptors with fork.
-//
-// We want the child in a fork/exec sequence to inherit only the
-// file descriptors we intend. To do that, we mark all file
-// descriptors close-on-exec and then, in the child, explicitly
-// unmark the ones we want the exec'ed program to keep.
-// Unix doesn't make this easy: there is, in general, no way to
-// allocate a new file descriptor close-on-exec. Instead you
-// have to allocate the descriptor and then mark it close-on-exec.
-// If a fork happens between those two events, the child's exec
-// will inherit an unwanted file descriptor.
-//
-// This lock solves that race: the create new fd/mark close-on-exec
-// operation is done holding ForkLock for reading, and the fork itself
-// is done holding ForkLock for writing. At least, that's the idea.
-// There are some complications.
-//
-// Some system calls that create new file descriptors can block
-// for arbitrarily long times: open on a hung NFS server or named
-// pipe, accept on a socket, and so on. We can't reasonably grab
-// the lock across those operations.
-//
-// It is worse to inherit some file descriptors than others.
-// If a non-malicious child accidentally inherits an open ordinary file,
-// that's not a big deal. On the other hand, if a long-lived child
-// accidentally inherits the write end of a pipe, then the reader
-// of that pipe will not see EOF until that child exits, potentially
-// causing the parent program to hang. This is a common problem
-// in threaded C programs that use popen.
-//
-// Luckily, the file descriptors that are most important not to
-// inherit are not the ones that can take an arbitrarily long time
-// to create: pipe returns instantly, and the net package uses
-// non-blocking I/O to accept on a listening socket.
-// The rules for which file descriptor-creating operations use the
-// ForkLock are as follows:
-//
-// 1) Pipe. Does not block. Use the ForkLock.
-// 2) Socket. Does not block. Use the ForkLock.
-// 3) Accept. If using non-blocking mode, use the ForkLock.
-//             Otherwise, live with the race.
-// 4) Open. Can block. Use O_CLOEXEC if available (Linux).
-//             Otherwise, live with the race.
-// 5) Dup. Does not block. Use the ForkLock.
-//             On Linux, could use fcntl F_DUPFD_CLOEXEC
-//             instead of the ForkLock, but only for dup(fd, -1).
-
+// ForkLock is not used on plan9.
 var ForkLock sync.RWMutex
 
 // gstringb reads a non-empty string from b, prefixed with a 16-bit length in little-endian order.
@@ -147,35 +101,6 @@ func readdirnames(dirfd int) (names []string, err error) {
 			}
 			names = append(names, string(s))
 		}
-	}
-	return
-}
-
-// readdupdevice returns a list of currently opened fds (excluding stdin, stdout, stderr) from the dup device #d.
-// ForkLock should be write locked before calling, so that no new fds would be created while the fd list is being read.
-func readdupdevice() (fds []int, err error) {
-	dupdevfd, err := Open("#d", O_RDONLY)
-	if err != nil {
-		return
-	}
-	defer Close(dupdevfd)
-
-	names, err := readdirnames(dupdevfd)
-	if err != nil {
-		return
-	}
-
-	fds = make([]int, 0, len(names)/2)
-	for _, name := range names {
-		if n := len(name); n > 3 && name[n-3:n] == "ctl" {
-			continue
-		}
-		fd := int(atoi([]byte(name)))
-		switch fd {
-		case 0, 1, 2, dupdevfd:
-			continue
-		}
-		fds = append(fds, fd)
 	}
 	return
 }
@@ -492,9 +417,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 		}
 	}
 
-	// Acquire the fork lock to prevent other threads from creating new fds before we fork.
-	ForkLock.Lock()
-
 	// Allocate child status pipe close on exec.
 	e := cexecPipe(p[:])
 
@@ -510,10 +432,8 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) 
 			Close(p[0])
 			Close(p[1])
 		}
-		ForkLock.Unlock()
 		return 0, err
 	}
-	ForkLock.Unlock()
 
 	// Read child error status from pipe.
 	Close(p[1])

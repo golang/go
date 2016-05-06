@@ -50,9 +50,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
 	name := comp[2]
 	switch file := comp[n-1]; file {
 	case "ctl", "clone":
-		syscall.ForkLock.RLock()
 		fd, err := syscall.Dup(int(f.Fd()), -1)
-		syscall.ForkLock.RUnlock()
 		if err != nil {
 			return nil, os.NewSyscallError("dup", err)
 		}
