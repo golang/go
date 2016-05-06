@@ -351,9 +351,9 @@ func TestIssue13898(t *testing.T) {
 	}
 
 	// lookup go/types.Object.Pkg method
-	m, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Pkg")
+	m, index, indirect := types.LookupFieldOrMethod(typ, false, nil, "Pkg")
 	if m == nil {
-		t.Fatal("go/types.Object.Pkg not found")
+		t.Fatalf("go/types.Object.Pkg not found (index = %v, indirect = %v)", index, indirect)
 	}
 
 	// the method must belong to go/types

@@ -24,10 +24,11 @@ type importer struct {
 	buf []byte // reused for reading strings
 
 	// object lists, in order of deserialization
-	strList  []string
-	pkgList  []*Pkg
-	typList  []*Type
-	funcList []*Node // nil entry means already declared
+	strList       []string
+	pkgList       []*Pkg
+	typList       []*Type
+	funcList      []*Node // nil entry means already declared
+	trackAllTypes bool
 
 	// for delayed type verification
 	cmpList []struct{ pt, t *Type }
@@ -58,6 +59,8 @@ func Import(in *bufio.Reader) {
 	default:
 		Fatalf("importer: invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.trackAllTypes = p.rawByte() == 'a'
 
 	p.posInfoFormat = p.bool()
 
@@ -331,7 +334,9 @@ func (p *importer) pos() {
 
 func (p *importer) newtyp(etype EType) *Type {
 	t := typ(etype)
-	p.typList = append(p.typList, t)
+	if p.trackAllTypes {
+		p.typList = append(p.typList, t)
+	}
 	return t
 }
 
@@ -389,7 +394,13 @@ func (p *importer) typ() *Type {
 		// read underlying type
 		// parser.go:hidden_type
 		t0 := p.typ()
-		p.importtype(t, t0) // parser.go:hidden_import
+		if p.trackAllTypes {
+			// If we track all types, we cannot check equality of previously
+			// imported types until later. Use customized version of importtype.
+			p.importtype(t, t0)
+		} else {
+			importtype(t, t0)
+		}
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {

@@ -125,6 +125,17 @@ const exportVersion = "v0"
 // Leave for debugging.
 const exportInlined = true // default: true
 
+// trackAllTypes enables cycle tracking for all types, not just named
+// types. The existing compiler invariants assume that unnamed types
+// that are not completely set up are not used, or else there are spurious
+// errors.
+// If disabled, only named types are tracked, possibly leading to slightly
+// less efficient encoding in rare cases. It also prevents the export of
+// some corner-case type declarations (but those are not handled correctly
+// with with the textual export format either).
+// TODO(gri) enable and remove once issues caused by it are fixed
+const trackAllTypes = false
+
 type exporter struct {
 	out *bufio.Writer
 
@@ -159,10 +170,20 @@ func export(out *bufio.Writer, trace bool) int {
 		trace:         trace,
 	}
 
+	// TODO(gri) clean up the ad-hoc encoding of the file format below
+	// (we need this so we can read the builtin package export data
+	// easily w/o being affected by format changes)
+
 	// first byte indicates low-level encoding format
 	var format byte = 'c' // compact
 	if debugFormat {
 		format = 'd'
+	}
+	p.rawByte(format)
+
+	format = 'n' // track named types only
+	if trackAllTypes {
+		format = 'a'
 	}
 	p.rawByte(format)
 
@@ -585,14 +606,21 @@ func (p *exporter) typ(t *Type) {
 	}
 
 	// otherwise, remember the type, write the type tag (< 0) and type data
-	if p.trace {
-		p.tracef("T%d = {>\n", len(p.typIndex))
-		defer p.tracef("<\n} ")
+	if trackAllTypes {
+		if p.trace {
+			p.tracef("T%d = {>\n", len(p.typIndex))
+			defer p.tracef("<\n} ")
+		}
+		p.typIndex[t] = len(p.typIndex)
 	}
-	p.typIndex[t] = len(p.typIndex)
 
 	// pick off named types
 	if tsym := t.Sym; tsym != nil {
+		if !trackAllTypes {
+			// if we don't track all types, track named types now
+			p.typIndex[t] = len(p.typIndex)
+		}
+
 		// Predeclared types should have been found in the type map.
 		if t.Orig == t {
 			Fatalf("exporter: predeclared type missing from type map?")
