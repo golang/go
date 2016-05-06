@@ -4094,7 +4094,7 @@ func AddAux(a *obj.Addr, v *ssa.Value) {
 	AddAux2(a, v, v.AuxInt)
 }
 func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
-	if a.Type != obj.TYPE_MEM {
+	if a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR {
 		v.Fatalf("bad AddAux addr %v", a)
 	}
 	// add integer offset
