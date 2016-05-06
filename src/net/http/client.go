@@ -442,7 +442,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 		req.closeBody()
 		method := valueOrDefault(reqs[0].Method, "GET")
 		var urlStr string
-		if resp != nil {
+		if resp != nil && resp.Request != nil {
 			urlStr = resp.Request.URL.String()
 		} else {
 			urlStr = req.URL.String()
