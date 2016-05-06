@@ -26,6 +26,7 @@ misc/cgo/stdio/run.out
 misc/cgo/testso/main
 src/cmd/cgo/zdefaultcc.go
 src/cmd/go/zdefaultcc.go
+src/cmd/go/zosarch.go
 src/cmd/internal/obj/zbootstrap.go
 src/go/build/zcgo.go
 src/go/doc/headscan
