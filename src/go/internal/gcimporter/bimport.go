@@ -23,9 +23,10 @@ type importer struct {
 	buf     []byte // for reading strings
 
 	// object lists
-	strList []string         // in order of appearance
-	pkgList []*types.Package // in order of appearance
-	typList []types.Type     // in order of appearance
+	strList       []string         // in order of appearance
+	pkgList       []*types.Package // in order of appearance
+	typList       []types.Type     // in order of appearance
+	trackAllTypes bool
 
 	// position encoding
 	posInfoFormat bool
@@ -58,6 +59,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	default:
 		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.trackAllTypes = p.rawByte() == 'a'
 
 	p.posInfoFormat = p.int() != 0
 
@@ -93,7 +96,12 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 
 	// complete interfaces
 	for _, typ := range p.typList {
-		if it, ok := typ.(*types.Interface); ok {
+		// If we only record named types (!p.trackAllTypes),
+		// we must check the underlying types here. If we
+		// track all types, the Underlying() method call is
+		// not needed.
+		// TODO(gri) Remove if p.trackAllTypes is gone.
+		if it, ok := typ.Underlying().(*types.Interface); ok {
 			it.Complete()
 		}
 	}
@@ -304,7 +312,9 @@ func (p *importer) typ(parent *types.Package) types.Type {
 
 	case arrayTag:
 		t := new(types.Array)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		n := p.int64()
 		*t = *types.NewArray(p.typ(parent), n)
@@ -312,35 +322,45 @@ func (p *importer) typ(parent *types.Package) types.Type {
 
 	case sliceTag:
 		t := new(types.Slice)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		*t = *types.NewSlice(p.typ(parent))
 		return t
 
 	case dddTag:
 		t := new(dddSlice)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		t.elem = p.typ(parent)
 		return t
 
 	case structTag:
 		t := new(types.Struct)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		*t = *types.NewStruct(p.fieldList(parent))
 		return t
 
 	case pointerTag:
 		t := new(types.Pointer)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		*t = *types.NewPointer(p.typ(parent))
 		return t
 
 	case signatureTag:
 		t := new(types.Signature)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		params, isddd := p.paramList()
 		result, _ := p.paramList()
@@ -353,7 +373,9 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		// such cycle must contain a named type which would have been
 		// first defined earlier.
 		n := len(p.typList)
-		p.record(nil)
+		if p.trackAllTypes {
+			p.record(nil)
+		}
 
 		// no embedded interfaces with gc compiler
 		if p.int() != 0 {
@@ -361,12 +383,16 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		}
 
 		t := types.NewInterface(p.methodList(parent), nil)
-		p.typList[n] = t
+		if p.trackAllTypes {
+			p.typList[n] = t
+		}
 		return t
 
 	case mapTag:
 		t := new(types.Map)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		key := p.typ(parent)
 		val := p.typ(parent)
@@ -375,7 +401,9 @@ func (p *importer) typ(parent *types.Package) types.Type {
 
 	case chanTag:
 		t := new(types.Chan)
-		p.record(t)
+		if p.trackAllTypes {
+			p.record(t)
+		}
 
 		var dir types.ChanDir
 		// tag values must match the constants in cmd/compile/internal/gc/go.go
