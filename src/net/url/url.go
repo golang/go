@@ -573,12 +573,8 @@ func parseHost(host string) (string, error) {
 			}
 			return host1 + host2 + host3, nil
 		}
-	} else if i := strings.LastIndex(host, ":"); i > 0 {
-		colonPort := host[i:]
-		if !validOptionalPort(colonPort) {
-			return "", fmt.Errorf("invalid port %q after host", colonPort)
-		}
 	}
+
 	var err error
 	if host, err = unescape(host, encodeHost); err != nil {
 		return "", err
