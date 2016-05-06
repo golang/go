@@ -1080,6 +1080,47 @@ func TestClientAuth(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
+func TestSNIGivenOnFailure(t *testing.T) {
+	const expectedServerName = "test.testing"
+
+	clientHello := &clientHelloMsg{
+		vers:               VersionTLS10,
+		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
+		compressionMethods: []uint8{compressionNone},
+		serverName:         expectedServerName,
+	}
+
+	serverConfig := testConfig.clone()
+	// Erase the server's cipher suites to ensure the handshake fails.
+	serverConfig.CipherSuites = nil
+
+	c, s := net.Pipe()
+	go func() {
+		cli := Client(c, testConfig)
+		cli.vers = clientHello.vers
+		cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+		c.Close()
+	}()
+	hs := serverHandshakeState{
+		c: Server(s, serverConfig),
+	}
+	_, err := hs.readClientHello()
+	defer s.Close()
+
+	if err == nil {
+		t.Error("No error reported from server")
+	}
+
+	cs := hs.c.ConnectionState()
+	if cs.HandshakeComplete {
+		t.Error("Handshake registered as complete")
+	}
+
+	if cs.ServerName != expectedServerName {
+		t.Errorf("Expected ServerName of %q, but got %q", expectedServerName, cs.ServerName)
+	}
+}
+
 func bigFromString(s string) *big.Int {
 	ret := new(big.Int)
 	ret.SetString(s, 10)
