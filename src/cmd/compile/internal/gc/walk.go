@@ -195,7 +195,7 @@ func walkstmt(n *Node) *Node {
 			n.Op = OEMPTY // don't leave plain values as statements.
 		}
 
-		// special case for a receive where we throw away
+	// special case for a receive where we throw away
 	// the value received.
 	case ORECV:
 		if n.Typecheck == 0 {

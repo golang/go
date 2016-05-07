@@ -449,8 +449,18 @@ func casebody(sw *Node, typeswvar *Node) {
 		}
 		stat = append(stat, n.Nbody.Slice()...)
 
+		// Search backwards for the index of the fallthrough
+		// statement. Do not assume it'll be in the last
+		// position, since in some cases (e.g. when the statement
+		// list contains autotmp_ variables), one or more OVARKILL
+		// nodes will be at the end of the list.
+		fallIndex := len(stat) - 1
+		for stat[fallIndex].Op == OVARKILL {
+			fallIndex--
+		}
+		last := stat[fallIndex]
+
 		// botch - shouldn't fall through declaration
-		last := stat[len(stat)-1]
 		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
 			if typeswvar != nil {
 				setlineno(last)
