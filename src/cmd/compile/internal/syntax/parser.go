@@ -517,7 +517,7 @@ func (p *parser) unaryExpr() Expr {
 		}
 
 		// x is not a channel type => we have a receive op
-		return &Operation{expr{}, Recv, x, nil}
+		return &Operation{Op: Recv, X: x}
 	}
 
 	return p.pexpr(false)
@@ -850,7 +850,7 @@ func (p *parser) type_() Expr {
 }
 
 func indirect(typ Expr) Expr {
-	return &Operation{expr{}, Mul, typ, nil}
+	return &Operation{Op: Mul, X: typ}
 }
 
 // tryType is like type_ but it returns nil if there was no type
@@ -1843,10 +1843,11 @@ func (p *parser) stmt() Stmt {
 		// return stmt
 
 	case _Break, _Continue:
+		tok := p.tok
 		p.next()
 		s := new(BranchStmt)
 		s.init(p)
-		s.Tok = _Break
+		s.Tok = tok
 		if p.tok == _Name {
 			s.Label = p.name()
 		}

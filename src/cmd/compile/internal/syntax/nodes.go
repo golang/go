@@ -12,12 +12,12 @@ type Node interface {
 }
 
 type node struct {
+	doc  *Comment // nil means no comment(s) attached
 	pos  uint32
 	line uint32
-	doc  *Comment // nil means no comment(s) attached
 }
 
-func (node) aNode() {}
+func (*node) aNode() {}
 
 func (n *node) init(p *parser) {
 	n.pos = uint32(p.pos)
@@ -28,10 +28,10 @@ func (n *node) init(p *parser) {
 // Files
 
 type File struct {
-	node
 	PkgName  *Name
 	DeclList []Decl
 	Lines    int
+	node
 }
 
 // ----------------------------------------------------------------------------
@@ -44,48 +44,48 @@ type (
 	}
 
 	ImportDecl struct {
-		decl
 		LocalPkgName *Name // including "."; nil means no rename present
 		Path         *BasicLit
 		Group        *Group // nil means not part of a group
+		decl
 	}
 
 	ConstDecl struct {
-		decl
 		NameList []*Name
 		Type     Expr   // nil means no type
 		Values   Expr   // nil means no values
 		Group    *Group // nil means not part of a group
+		decl
 	}
 
 	TypeDecl struct {
-		decl
 		Name  *Name
 		Type  Expr
 		Group *Group // nil means not part of a group
+		decl
 	}
 
 	VarDecl struct {
-		decl
 		NameList []*Name
 		Type     Expr   // nil means no type
 		Values   Expr   // nil means no values
 		Group    *Group // nil means not part of a group
+		decl
 	}
 
 	FuncDecl struct {
-		decl
 		Attr map[string]bool // go:attr map
 		Recv *Field          // nil means regular function
 		Name *Name
 		Type *FuncType
 		Body []Stmt // nil means no body (forward declaration)
+		decl
 	}
 )
 
 type decl struct{ node }
 
-func (decl) aDecl() {}
+func (*decl) aDecl() {}
 
 // All declarations belonging to the same group point to the same Group node.
 type Group struct {
@@ -103,159 +103,159 @@ type (
 
 	// Value
 	Name struct {
-		expr
 		Value string
+		expr
 	}
 
 	// Value
 	BasicLit struct {
-		expr
 		Value string
+		expr
 	}
 
 	// Type { ElemList[0], ElemList[1], ... }
 	CompositeLit struct {
-		expr
 		Type     Expr // nil means no literal type
 		ElemList []Expr
 		NKeys    int // number of elements with keys
+		expr
 	}
 
 	// Key: Value
 	KeyValueExpr struct {
-		expr
 		Key, Value Expr
+		expr
 	}
 
 	// func Type { Body }
 	FuncLit struct {
-		expr
 		Type *FuncType
 		Body []Stmt
+		expr
 	}
 
 	// (X)
 	ParenExpr struct {
-		expr
 		X Expr
+		expr
 	}
 
 	// X.Sel
 	SelectorExpr struct {
-		expr
 		X   Expr
 		Sel *Name
+		expr
 	}
 
 	// X[Index]
 	IndexExpr struct {
-		expr
 		X     Expr
 		Index Expr
+		expr
 	}
 
 	// X[Index[0] : Index[1] : Index[2]]
 	SliceExpr struct {
-		expr
 		X     Expr
 		Index [3]Expr
+		expr
 	}
 
 	// X.(Type)
 	AssertExpr struct {
-		expr
 		X Expr
 		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
 		Type Expr // nil means x.(type) (for use in type switch)
+		expr
 	}
 
 	Operation struct {
-		expr
 		Op   Operator
 		X, Y Expr // Y == nil means unary expression
+		expr
 	}
 
 	// Fun(ArgList[0], ArgList[1], ...)
 	CallExpr struct {
-		expr
 		Fun     Expr
 		ArgList []Expr
 		HasDots bool // last argument is followed by ...
+		expr
 	}
 
 	// ElemList[0], ElemList[1], ...
 	ListExpr struct {
-		expr
 		ElemList []Expr
+		expr
 	}
 
 	// [Len]Elem
 	ArrayType struct {
-		expr
 		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
 		Len  Expr // nil means Len is ...
 		Elem Expr
+		expr
 	}
 
 	// []Elem
 	SliceType struct {
-		expr
 		Elem Expr
+		expr
 	}
 
 	// ...Elem
 	DotsType struct {
-		expr
 		Elem Expr
+		expr
 	}
 
 	// struct { FieldList[0] TagList[0]; FieldList[1] TagList[1]; ... }
 	StructType struct {
-		expr
 		FieldList []*Field
 		TagList   []*BasicLit // i >= len(TagList) || TagList[i] == nil means no tag for field i
+		expr
 	}
 
 	// Name Type
 	//      Type
 	Field struct {
-		node
 		Name *Name // nil means anonymous field/parameter (structs/parameters), or embedded interface (interfaces)
 		Type Expr  // field names declared in a list share the same Type (identical pointers)
+		node
 	}
 
 	// interface { MethodList[0]; MethodList[1]; ... }
 	InterfaceType struct {
-		expr
 		MethodList []*Field
+		expr
 	}
 
 	FuncType struct {
-		expr
 		ParamList  []*Field
 		ResultList []*Field
+		expr
 	}
 
 	// map[Key]Value
 	MapType struct {
-		expr
 		Key   Expr
 		Value Expr
+		expr
 	}
 
 	//   chan Elem
 	// <-chan Elem
 	// chan<- Elem
 	ChanType struct {
-		expr
 		Dir  ChanDir // 0 means no direction
 		Elem Expr
+		expr
 	}
 )
 
 type expr struct{ node }
 
-func (expr) aExpr() {}
+func (*expr) aExpr() {}
 
 type ChanDir uint
 
@@ -284,108 +284,108 @@ type (
 	}
 
 	LabeledStmt struct {
-		stmt
 		Label *Name
 		Stmt  Stmt
+		stmt
 	}
 
 	BlockStmt struct {
-		stmt
 		Body []Stmt
+		stmt
 	}
 
 	ExprStmt struct {
-		simpleStmt
 		X Expr
+		simpleStmt
 	}
 
 	SendStmt struct {
-		simpleStmt
 		Chan, Value Expr // Chan <- Value
+		simpleStmt
 	}
 
 	DeclStmt struct {
-		stmt
 		DeclList []Decl
+		stmt
 	}
 
 	AssignStmt struct {
-		simpleStmt
 		Op       Operator // 0 means no operation
 		Lhs, Rhs Expr
+		simpleStmt
 	}
 
 	BranchStmt struct {
-		stmt
 		Tok   token // TODO(gri) token values are not yet exported
 		Label *Name
+		stmt
 	}
 
 	CallStmt struct {
-		stmt
 		Tok  token // _Go, or _Defer -- TODO(gri) token values are not yet exported
 		Call *CallExpr
+		stmt
 	}
 
 	ReturnStmt struct {
-		stmt
 		Results Expr // nil means no (explicit) results
+		stmt
 	}
 
 	IfStmt struct {
-		stmt
 		Init SimpleStmt
 		Cond Expr
 		Then []Stmt
 		Else []Stmt
+		stmt
 	}
 
 	ForStmt struct {
-		stmt
 		Init SimpleStmt // incl. *RangeClause
 		Cond Expr
 		Post SimpleStmt
 		Body []Stmt
+		stmt
 	}
 
 	SwitchStmt struct {
-		stmt
 		Init SimpleStmt
 		Tag  Expr
 		Body []*CaseClause
+		stmt
 	}
 
 	SelectStmt struct {
-		stmt
 		Body []*CommClause
+		stmt
 	}
 )
 
 type (
 	RangeClause struct {
-		simpleStmt
 		Lhs Expr // nil means no Lhs = or Lhs :=
 		Def bool // means :=
 		X   Expr // range X
+		simpleStmt
 	}
 
 	TypeSwitchGuard struct {
-		expr
 		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
 		Lhs *Name // nil means no Lhs :=
 		X   Expr  // X.(type)
+		expr
 	}
 
 	CaseClause struct {
-		node
 		Cases Expr // nil means default clause
 		Body  []Stmt
+		node
 	}
 
 	CommClause struct {
-		node
 		Comm SimpleStmt // send or receive stmt; nil means default clause
 		Body []Stmt
+		node
 	}
 )
 

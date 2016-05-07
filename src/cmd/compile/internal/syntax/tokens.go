@@ -68,6 +68,16 @@ const (
 	tokenCount
 )
 
+const (
+	Go    = _Go
+	Defer = _Defer
+
+	Break       = _Break
+	Continue    = _Continue
+	Fallthrough = _Fallthrough
+	Goto        = _Goto
+)
+
 var tokstrings = [...]string{
 	// source control
 	_EOF: "EOF",
