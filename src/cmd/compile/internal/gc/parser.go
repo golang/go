@@ -15,6 +15,7 @@ package gc
 import (
 	"bufio"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -26,8 +27,20 @@ func parse_import(bin *bufio.Reader, indent []byte) {
 	newparser(bin, indent).import_package()
 }
 
-// parse_file parses a single Go source file.
-func parse_file(bin *bufio.Reader) {
+// oldParseFile parses a single Go source file.
+func oldParseFile(infile string) {
+	f, err := os.Open(infile)
+	if err != nil {
+		fmt.Printf("open %s: %v\n", infile, err)
+		errorexit()
+	}
+	defer f.Close()
+	bin := bufio.NewReader(f)
+
+	// Skip initial BOM if present.
+	if r, _, _ := bin.ReadRune(); r != BOM {
+		bin.UnreadRune()
+	}
 	newparser(bin, nil).file()
 }
 
