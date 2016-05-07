@@ -335,7 +335,7 @@ func buildModeInit() {
 			return p
 		}
 		switch platform {
-		case "darwin/arm":
+		case "darwin/arm", "darwin/arm64":
 			codegenArg = "-shared"
 		default:
 		}
@@ -361,6 +361,9 @@ func buildModeInit() {
 		case "android/arm", "android/arm64", "android/amd64", "android/386":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
+		case "darwin/arm", "darwin/arm64":
+			codegenArg = "-shared"
+			fallthrough
 		default:
 			ldBuildmode = "exe"
 		}
