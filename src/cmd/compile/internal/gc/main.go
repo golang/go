@@ -30,6 +30,8 @@ var (
 	goarch  string
 	goroot  string
 	buildid string
+
+	flag_newparser bool
 )
 
 var (
@@ -189,6 +191,7 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+	flag.BoolVar(&flag_newparser, "newparser", false, "use new parser")
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
@@ -321,25 +324,14 @@ func Main() {
 		}
 
 		linehistpush(infile)
-
-		f, err := os.Open(infile)
-		if err != nil {
-			fmt.Printf("open %s: %v\n", infile, err)
-			errorexit()
-		}
-		bin := bufio.NewReader(f)
-
-		// Skip initial BOM if present.
-		if r, _, _ := bin.ReadRune(); r != BOM {
-			bin.UnreadRune()
-		}
-
 		block = 1
 		iota_ = -1000000
-
 		imported_unsafe = false
-
-		parse_file(bin)
+		if flag_newparser {
+			parseFile(infile)
+		} else {
+			oldParseFile(infile)
+		}
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
@@ -348,9 +340,7 @@ func Main() {
 		// for the line history to work, and which then has to be corrected elsewhere,
 		// just add a line here.
 		lexlineno++
-
 		linehistpop()
-		f.Close()
 	}
 	timings.Stop()
 	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
