@@ -186,7 +186,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	MOVL	BX, 0(SP)
 	MOVL	$runtime·badsignal(SB), AX
 	CALL	AX
-	JMP 	sigtramp_ret
+	RET
 
 	// save g
 	MOVL	DI, 20(SP)
@@ -211,15 +211,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$44
 	get_tls(CX)
 	MOVL	20(SP), BX
 	MOVL	BX, g(CX)
-
-sigtramp_ret:
-	// call sigreturn
-	MOVL	context+8(FP), AX
-	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	AX, 4(SP)		// arg 1 - sigcontext
-	MOVL	$103, AX		// sys_sigreturn
-	INT	$0x80
-	MOVL	$0xf1, 0xf1		// crash
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
