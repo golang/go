@@ -220,7 +220,7 @@ value (argument) or a function or method call, possibly with multiple arguments:
 		Functions and function names are described below.
 
 A pipeline may be "chained" by separating a sequence of commands with pipeline
-characters '|'. In a chained pipeline, the result of the each command is
+characters '|'. In a chained pipeline, the result of each command is
 passed as the last argument of the following command. The output of the final
 command in the pipeline is the value of the pipeline.
 
