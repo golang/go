@@ -5,6 +5,7 @@
 package net
 
 import (
+	"fmt"
 	"internal/testenv"
 	"reflect"
 	"runtime"
@@ -48,24 +49,16 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 	return ""
 }
 
-type routeStats struct {
-	loop  int // # of active loopback interfaces
-	other int // # of active other interfaces
-
-	uni4, uni6     int // # of active connected unicast, anycast routes
-	multi4, multi6 int // # of active connected multicast route clones
-}
-
 func TestInterfaces(t *testing.T) {
 	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
-		// 100% flaky, actually, at least on some FreeBSD versions
-		testenv.SkipFlaky(t, 15262)
+		// 100% flaky on FreeBSD 11-CURRENT and above.
+		testenv.SkipFlaky(t, 7849)
 	}
+
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var stats routeStats
 	for _, ifi := range ift {
 		ifxi, err := InterfaceByIndex(ifi.Index)
 		if err != nil {
@@ -81,65 +74,110 @@ func TestInterfaces(t *testing.T) {
 		if !reflect.DeepEqual(ifxn, &ifi) {
 			t.Errorf("got %v; want %v", ifxn, ifi)
 		}
-		t.Logf("%q: flags %q, ifindex %v, mtu %v", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
-		t.Logf("hardware address %q", ifi.HardwareAddr.String())
-		if ifi.Flags&FlagUp != 0 {
-			if ifi.Flags&FlagLoopback != 0 {
-				stats.loop++
-			} else {
-				stats.other++
-			}
-		}
-		n4, n6 := testInterfaceAddrs(t, &ifi)
-		stats.uni4 += n4
-		stats.uni6 += n6
-		n4, n6 = testInterfaceMulticastAddrs(t, &ifi)
-		stats.multi4 += n4
-		stats.multi6 += n6
-	}
-	switch runtime.GOOS {
-	case "nacl", "plan9", "solaris":
-	default:
-		// Test the existence of connected unicast routes for
-		// IPv4.
-		if supportsIPv4 && stats.loop+stats.other > 0 && stats.uni4 == 0 {
-			t.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v", stats)
-		}
-		// Test the existence of connected unicast routes for
-		// IPv6. We can assume the existence of ::1/128 when
-		// at least one loopback interface is installed.
-		if supportsIPv6 && stats.loop > 0 && stats.uni6 == 0 {
-			t.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v", stats)
-		}
-	}
-	switch runtime.GOOS {
-	case "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
-	default:
-		// Test the existence of connected multicast route
-		// clones for IPv4. Unlike IPv6, IPv4 multicast
-		// capability is not a mandatory feature, and so this
-		// test is disabled.
-		//if supportsIPv4 && stats.loop > 0 && stats.uni4 > 1 && stats.multi4 == 0 {
-		//	t.Errorf("num IPv4 multicast route clones = 0; want >0; summary: %+v", stats)
-		//}
-		// Test the existence of connected multicast route
-		// clones for IPv6. Some platform never uses loopback
-		// interface as the nexthop for multicast routing.
-		// We can assume the existence of connected multicast
-		// route clones when at least two connected unicast
-		// routes, ::1/128 and other, are installed.
-		if supportsIPv6 && stats.loop > 0 && stats.uni6 > 1 && stats.multi6 == 0 {
-			t.Errorf("num IPv6 multicast route clones = 0; want >0; summary: %+v", stats)
-		}
+		t.Logf("%s: flags=%v index=%d mtu=%d hwaddr=%v", ifi.Name, ifi.Flags, ifi.Index, ifi.MTU, ifi.HardwareAddr)
 	}
 }
 
 func TestInterfaceAddrs(t *testing.T) {
+	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+		// 100% flaky on FreeBSD 11-CURRENT and above.
+		testenv.SkipFlaky(t, 7849)
+	}
+
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var stats routeStats
+	ifStats := interfaceStats(ift)
+	ifat, err := InterfaceAddrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uniStats, err := validateInterfaceUnicastAddrs(ifat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkUnicastStats(ifStats, uniStats); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInterfaceUnicastAddrs(t *testing.T) {
+	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+		// 100% flaky on FreeBSD 11-CURRENT and above.
+		testenv.SkipFlaky(t, 7849)
+	}
+
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ifStats := interfaceStats(ift)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var uniStats routeStats
+	for _, ifi := range ift {
+		ifat, err := ifi.Addrs()
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		stats, err := validateInterfaceUnicastAddrs(ifat)
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		uniStats.ipv4 += stats.ipv4
+		uniStats.ipv6 += stats.ipv6
+	}
+	if err := checkUnicastStats(ifStats, &uniStats); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInterfaceMulticastAddrs(t *testing.T) {
+	if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+		// 100% flaky on FreeBSD 11-CURRENT and above.
+		testenv.SkipFlaky(t, 7849)
+	}
+
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ifStats := interfaceStats(ift)
+	ifat, err := InterfaceAddrs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uniStats, err := validateInterfaceUnicastAddrs(ifat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var multiStats routeStats
+	for _, ifi := range ift {
+		ifmat, err := ifi.MulticastAddrs()
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		stats, err := validateInterfaceMulticastAddrs(ifmat)
+		if err != nil {
+			t.Fatal(ifi, err)
+		}
+		multiStats.ipv4 += stats.ipv4
+		multiStats.ipv6 += stats.ipv6
+	}
+	if err := checkMulticastStats(ifStats, uniStats, &multiStats); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type ifStats struct {
+	loop  int // # of active loopback interfaces
+	other int // # of active other interfaces
+}
+
+func interfaceStats(ift []Interface) *ifStats {
+	var stats ifStats
 	for _, ifi := range ift {
 		if ifi.Flags&FlagUp != 0 {
 			if ifi.Flags&FlagLoopback != 0 {
@@ -149,128 +187,128 @@ func TestInterfaceAddrs(t *testing.T) {
 			}
 		}
 	}
-	ifat, err := InterfaceAddrs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stats.uni4, stats.uni6 = testAddrs(t, ifat)
-	// Test the existence of connected unicast routes for IPv4.
-	if supportsIPv4 && stats.loop+stats.other > 0 && stats.uni4 == 0 {
-		t.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v", stats)
-	}
-	// Test the existence of connected unicast routes for IPv6.
-	// We can assume the existence of ::1/128 when at least one
-	// loopback interface is installed.
-	if supportsIPv6 && stats.loop > 0 && stats.uni6 == 0 {
-		t.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v", stats)
-	}
+	return &stats
 }
 
-func testInterfaceAddrs(t *testing.T, ifi *Interface) (naf4, naf6 int) {
-	ifat, err := ifi.Addrs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return testAddrs(t, ifat)
+type routeStats struct {
+	ipv4, ipv6 int // # of active connected unicast, anycast or multicast routes
 }
 
-func testInterfaceMulticastAddrs(t *testing.T, ifi *Interface) (nmaf4, nmaf6 int) {
-	ifmat, err := ifi.MulticastAddrs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return testMulticastAddrs(t, ifmat)
-}
-
-func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
+func validateInterfaceUnicastAddrs(ifat []Addr) (*routeStats, error) {
 	// Note: BSD variants allow assigning any IPv4/IPv6 address
 	// prefix to IP interface. For example,
 	//   - 0.0.0.0/0 through 255.255.255.255/32
 	//   - ::/0 through ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128
 	// In other words, there is no tightly-coupled combination of
 	// interface address prefixes and connected routes.
+	stats := new(routeStats)
 	for _, ifa := range ifat {
 		switch ifa := ifa.(type) {
 		case *IPNet:
 			if ifa == nil || ifa.IP == nil || ifa.IP.IsMulticast() || ifa.Mask == nil {
-				t.Errorf("unexpected value: %#v", ifa)
-				continue
+				return nil, fmt.Errorf("unexpected value: %#v", ifa)
 			}
 			if len(ifa.IP) != IPv6len {
-				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
-				continue
+				return nil, fmt.Errorf("should be internal representation either IPv6 or IPv4-mapped IPv6 address: %#v", ifa)
 			}
 			prefixLen, maxPrefixLen := ifa.Mask.Size()
 			if ifa.IP.To4() != nil {
 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
-					t.Errorf("unexpected prefix length: %d/%d", prefixLen, maxPrefixLen)
-					continue
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
 				if ifa.IP.IsLoopback() && (prefixLen != 8 && prefixLen != 8*IPv4len) { // see RFC 1122
-					t.Errorf("unexpected prefix length for IPv4 loopback: %d/%d", prefixLen, maxPrefixLen)
-					continue
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
-				naf4++
+				stats.ipv4++
 			}
 			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
 				if 0 >= prefixLen || prefixLen > 8*IPv6len || maxPrefixLen != 8*IPv6len {
-					t.Errorf("unexpected prefix length: %d/%d", prefixLen, maxPrefixLen)
-					continue
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
 				if ifa.IP.IsLoopback() && prefixLen != 8*IPv6len { // see RFC 4291
-					t.Errorf("unexpected prefix length for IPv6 loopback: %d/%d", prefixLen, maxPrefixLen)
-					continue
+					return nil, fmt.Errorf("unexpected prefix length: %d/%d for %#v", prefixLen, maxPrefixLen, ifa)
 				}
-				naf6++
+				stats.ipv6++
 			}
-			t.Logf("interface address %q", ifa.String())
 		case *IPAddr:
 			if ifa == nil || ifa.IP == nil || ifa.IP.IsMulticast() {
-				t.Errorf("unexpected value: %#v", ifa)
-				continue
+				return nil, fmt.Errorf("unexpected value: %#v", ifa)
 			}
 			if len(ifa.IP) != IPv6len {
-				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
-				continue
+				return nil, fmt.Errorf("should be internal representation either IPv6 or IPv4-mapped IPv6 address: %#v", ifa)
 			}
 			if ifa.IP.To4() != nil {
-				naf4++
+				stats.ipv4++
 			}
 			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
-				naf6++
+				stats.ipv6++
 			}
-			t.Logf("interface address %s", ifa.String())
 		default:
-			t.Errorf("unexpected type: %T", ifa)
+			return nil, fmt.Errorf("unexpected type: %T", ifa)
 		}
 	}
-	return
+	return stats, nil
 }
 
-func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
-	for _, ifma := range ifmat {
-		switch ifma := ifma.(type) {
+func validateInterfaceMulticastAddrs(ifat []Addr) (*routeStats, error) {
+	stats := new(routeStats)
+	for _, ifa := range ifat {
+		switch ifa := ifa.(type) {
 		case *IPAddr:
-			if ifma == nil || ifma.IP == nil || ifma.IP.IsUnspecified() || !ifma.IP.IsMulticast() {
-				t.Errorf("unexpected value: %+v", ifma)
-				continue
+			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || !ifa.IP.IsMulticast() {
+				return nil, fmt.Errorf("unexpected value: %#v", ifa)
 			}
-			if len(ifma.IP) != IPv6len {
-				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifma)
-				continue
+			if len(ifa.IP) != IPv6len {
+				return nil, fmt.Errorf("should be internal representation either IPv6 or IPv4-mapped IPv6 address: %#v", ifa)
 			}
-			if ifma.IP.To4() != nil {
-				nmaf4++
+			if ifa.IP.To4() != nil {
+				stats.ipv4++
 			}
-			if ifma.IP.To16() != nil && ifma.IP.To4() == nil {
-				nmaf6++
+			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+				stats.ipv6++
 			}
-			t.Logf("joined group address %q", ifma.String())
 		default:
-			t.Errorf("unexpected type: %T", ifma)
+			return nil, fmt.Errorf("unexpected type: %T", ifa)
 		}
 	}
-	return
+	return stats, nil
+}
+
+func checkUnicastStats(ifStats *ifStats, uniStats *routeStats) error {
+	// Test the existence of connected unicast routes for IPv4.
+	if supportsIPv4 && ifStats.loop+ifStats.other > 0 && uniStats.ipv4 == 0 {
+		return fmt.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
+	}
+	// Test the existence of connected unicast routes for IPv6.
+	// We can assume the existence of ::1/128 when at least one
+	// loopback interface is installed.
+	if supportsIPv6 && ifStats.loop > 0 && uniStats.ipv6 == 0 {
+		return fmt.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v, %+v", ifStats, uniStats)
+	}
+	return nil
+}
+
+func checkMulticastStats(ifStats *ifStats, uniStats, multiStats *routeStats) error {
+	switch runtime.GOOS {
+	case "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
+	default:
+		// Test the existence of connected multicast route
+		// clones for IPv4. Unlike IPv6, IPv4 multicast
+		// capability is not a mandatory feature, and so IPv4
+		// multicast validation is ignored and we only check
+		// IPv6 below.
+		//
+		// Test the existence of connected multicast route
+		// clones for IPv6. Some platform never uses loopback
+		// interface as the nexthop for multicast routing.
+		// We can assume the existence of connected multicast
+		// route clones when at least two connected unicast
+		// routes, ::1/128 and other, are installed.
+		if supportsIPv6 && ifStats.loop > 0 && uniStats.ipv6 > 1 && multiStats.ipv6 == 0 {
+			return fmt.Errorf("num IPv6 multicast route clones = 0; want >0; summary: %+v, %+v, %+v", ifStats, uniStats, multiStats)
+		}
+	}
+	return nil
 }
 
 func BenchmarkInterfaces(b *testing.B) {
