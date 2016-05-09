@@ -9,13 +9,13 @@ package ssa
 
 type sparseSet struct {
 	dense  []ID
-	sparse []int
+	sparse []int32
 }
 
 // newSparseSet returns a sparseSet that can represent
 // integers between 0 and n-1
 func newSparseSet(n int) *sparseSet {
-	return &sparseSet{nil, make([]int, n)}
+	return &sparseSet{dense: nil, sparse: make([]int32, n)}
 }
 
 func (s *sparseSet) cap() int {
@@ -28,16 +28,16 @@ func (s *sparseSet) size() int {
 
 func (s *sparseSet) contains(x ID) bool {
 	i := s.sparse[x]
-	return i < len(s.dense) && s.dense[i] == x
+	return i < int32(len(s.dense)) && s.dense[i] == x
 }
 
 func (s *sparseSet) add(x ID) {
 	i := s.sparse[x]
-	if i < len(s.dense) && s.dense[i] == x {
+	if i < int32(len(s.dense)) && s.dense[i] == x {
 		return
 	}
 	s.dense = append(s.dense, x)
-	s.sparse[x] = len(s.dense) - 1
+	s.sparse[x] = int32(len(s.dense)) - 1
 }
 
 func (s *sparseSet) addAll(a []ID) {
@@ -54,7 +54,7 @@ func (s *sparseSet) addAllValues(a []*Value) {
 
 func (s *sparseSet) remove(x ID) {
 	i := s.sparse[x]
-	if i < len(s.dense) && s.dense[i] == x {
+	if i < int32(len(s.dense)) && s.dense[i] == x {
 		y := s.dense[len(s.dense)-1]
 		s.dense[i] = y
 		s.sparse[y] = i
