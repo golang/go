@@ -136,7 +136,19 @@ var pkgDeps = map[string][]string{
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
-	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
+	"time": {
+		// "L0" without the "io" package:
+		"errors",
+		"runtime",
+		"runtime/internal/atomic",
+		"sync",
+		"sync/atomic",
+		"unsafe",
+		// Other time dependencies:
+		"internal/syscall/windows/registry",
+		"syscall",
+	},
+
 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},

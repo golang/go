@@ -8,7 +8,6 @@ package time
 
 import (
 	"errors"
-	"io"
 	"syscall"
 )
 
@@ -56,9 +55,9 @@ func closefd(fd uintptr) {
 }
 
 func preadn(fd uintptr, buf []byte, off int) error {
-	whence := io.SeekStart
+	whence := seekStart
 	if off < 0 {
-		whence = io.SeekEnd
+		whence = seekEnd
 	}
 	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
 		return err
