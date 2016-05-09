@@ -843,13 +843,6 @@ func inlvar(var_ *Node) *Node {
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	n.Addrtaken = var_.Addrtaken
 
-	// This may no longer be necessary now that we run escape analysis
-	// after wrapper generation, but for 1.5 this is conservatively left
-	// unchanged. See bugs 11053 and 9537.
-	if var_.Esc == EscHeap {
-		addrescapes(n)
-	}
-
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
 }
