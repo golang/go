@@ -861,9 +861,6 @@ func (s *mspan) countFree() int {
 // bits that belong to neighboring objects. Also, on weakly-ordered
 // machines, callers must execute a store/store (publication) barrier
 // between calling this function and making the object reachable.
-//
-// TODO: This still has atomic accesses left over from when it could
-// race with GC accessing mark bits in the bitmap. Remove these.
 func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	const doubleCheck = false // slow but helpful; enable to test modifications to this code
 
@@ -877,11 +874,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 
 	if sys.PtrSize == 8 && size == sys.PtrSize {
 		// It's one word and it has pointers, it must be a pointer.
-		// In general we'd need an atomic update here if the
-		// concurrent GC were marking objects in this span,
-		// because each bitmap byte describes 3 other objects
-		// in addition to the one being allocated.
-		// However, since all allocated one-word objects are pointers
+		// Since all allocated one-word objects are pointers
 		// (non-pointers are aggregated into tinySize allocations),
 		// initSpan sets the pointer bits for us. Nothing to do here.
 		if doubleCheck {
@@ -900,7 +893,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	ptrmask := typ.gcdata // start of 1-bit pointer mask (or GC program, handled below)
 
 	// Heap bitmap bits for 2-word object are only 4 bits,
-	// so also shared with objects next to it; use atomic updates.
+	// so also shared with objects next to it.
 	// This is called out as a special case primarily for 32-bit systems,
 	// so that on 32-bit systems the code below can assume all objects
 	// are 4-word aligned (because they're all 16-byte aligned).
@@ -917,20 +910,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			if sys.PtrSize == 4 && dataSize == sys.PtrSize {
 				// 1 pointer object. On 32-bit machines clear the bit for the
 				// unused second word.
-				if gcphase == _GCoff {
-					*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
-					*h.bitp |= (bitPointer | bitScan) << h.shift
-				} else {
-					atomic.And8(h.bitp, ^uint8((bitPointer|bitScan|((bitPointer|bitScan)<<heapBitsShift))<<h.shift))
-					atomic.Or8(h.bitp, (bitPointer|bitScan)<<h.shift)
-				}
+				*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
+				*h.bitp |= (bitPointer | bitScan) << h.shift
 			} else {
 				// 2-element slice of pointer.
-				if gcphase == _GCoff {
-					*h.bitp |= (bitPointer | bitScan | bitPointer<<heapBitsShift) << h.shift
-				} else {
-					atomic.Or8(h.bitp, (bitPointer|bitScan|bitPointer<<heapBitsShift)<<h.shift)
-				}
+				*h.bitp |= (bitPointer | bitScan | bitPointer<<heapBitsShift) << h.shift
 			}
 			return
 		}
@@ -944,22 +928,12 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		}
 		b := uint32(*ptrmask)
 		hb := (b & 3) | bitScan
-		if gcphase == _GCoff {
-			// bitPointer == 1, bitScan is 1 << 4, heapBitsShift is 1.
-			// 110011 is shifted h.shift and complemented.
-			// This clears out the bits that are about to be
-			// ored into *h.hbitp in the next instructions.
-			*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
-			*h.bitp |= uint8(hb << h.shift)
-		} else {
-			// TODO:(rlh) since the GC is not concurrently setting the
-			// mark bits in the heap map anymore and malloc
-			// owns the span we are allocating in why does this have
-			// to be atomic?
-
-			atomic.And8(h.bitp, ^uint8((bitPointer|bitScan|((bitPointer|bitScan)<<heapBitsShift))<<h.shift))
-			atomic.Or8(h.bitp, uint8(hb<<h.shift))
-		}
+		// bitPointer == 1, bitScan is 1 << 4, heapBitsShift is 1.
+		// 110011 is shifted h.shift and complemented.
+		// This clears out the bits that are about to be
+		// ored into *h.hbitp in the next instructions.
+		*h.bitp &^= (bitPointer | bitScan | ((bitPointer | bitScan) << heapBitsShift)) << h.shift
+		*h.bitp |= uint8(hb << h.shift)
 		return
 	}
 
@@ -1129,8 +1103,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	// Phase 1: Special case for leading byte (shift==0) or half-byte (shift==4).
 	// The leading byte is special because it contains the bits for word 1,
 	// which does not have the scan bit set.
-	// The leading half-byte is special because it's a half a byte and must be
-	// manipulated atomically.
+	// The leading half-byte is special because it's a half a byte,
+	// so we have to be careful with the bits already there.
 	switch {
 	default:
 		throw("heapBitsSetType: unexpected shift")
@@ -1162,15 +1136,11 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 
 	case sys.PtrSize == 8 && h.shift == 2:
 		// Ptrmask and heap bitmap are misaligned.
-		// The bits for the first two words are in a byte shared with another object
-		// and must be updated atomically.
-		// NOTE(rsc): The atomic here may not be necessary.
+		// The bits for the first two words are in a byte shared
+		// with another object, so we must be careful with the bits
+		// already there.
 		// We took care of 1-word and 2-word objects above,
-		// so this is at least a 6-word object, so our start bits
-		// are shared only with the type bits of another object,
-		// not with its mark bit. Since there is only one allocation
-		// from a given span at a time, we should be able to set
-		// these bits non-atomically. Not worth the risk right now.
+		// so this is at least a 6-word object.
 		hb = (b & (bitPointer | bitPointer<<heapBitsShift)) << (2 * heapBitsShift)
 		// This is not noscan, so set the scan bit in the
 		// first word.
@@ -1179,13 +1149,8 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		nb -= 2
 		// Note: no bitScan for second word because that's
 		// the checkmark.
-		if gcphase == _GCoff {
-			*hbitp &^= uint8((bitPointer | bitScan | (bitPointer << heapBitsShift)) << (2 * heapBitsShift))
-			*hbitp |= uint8(hb)
-		} else {
-			atomic.And8(hbitp, ^(uint8(bitPointer|bitScan|bitPointer<<heapBitsShift) << (2 * heapBitsShift)))
-			atomic.Or8(hbitp, uint8(hb))
-		}
+		*hbitp &^= uint8((bitPointer | bitScan | (bitPointer << heapBitsShift)) << (2 * heapBitsShift))
+		*hbitp |= uint8(hb)
 		hbitp = subtract1(hbitp)
 		if w += 2; w >= nw {
 			// We know that there is more data, because we handled 2-word objects above.
@@ -1299,14 +1264,10 @@ Phase3:
 	// If w == nw+4 then there's nothing left to do: we wrote all nw entries
 	// and can discard the 4 sitting in hb.
 	// But if w == nw+2, we need to write first two in hb.
-	// The byte is shared with the next object so we may need an atomic.
+	// The byte is shared with the next object, so be careful with
+	// existing bits.
 	if w == nw+2 {
-		if gcphase == _GCoff {
-			*hbitp = *hbitp&^(bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift) | uint8(hb)
-		} else {
-			atomic.And8(hbitp, ^uint8(bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift))
-			atomic.Or8(hbitp, uint8(hb))
-		}
+		*hbitp = *hbitp&^(bitPointer|bitScan|(bitPointer|bitScan)<<heapBitsShift) | uint8(hb)
 	}
 
 Phase4:
@@ -1394,7 +1355,7 @@ var debugPtrmask struct {
 // GC programs are only used for large allocations.
 // heapBitsSetType requires that allocSize is a multiple of 4 words,
 // so that the relevant bitmap bytes are not shared with surrounding
-// objects and need not be accessed with atomic instructions.
+// objects.
 func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize uintptr, prog *byte) {
 	if sys.PtrSize == 8 && allocSize%(4*sys.PtrSize) != 0 {
 		// Alignment will be wrong.
