@@ -60,6 +60,8 @@ Flags:
 	-installsuffix suffix
 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
+	-l
+		Disable inlining.
 	-largemodel
 		Generate code that assumes a large memory model.
 	-linkobj file
