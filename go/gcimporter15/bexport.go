@@ -42,6 +42,17 @@ const trace = false // default: false
 
 const exportVersion = "v0"
 
+// trackAllTypes enables cycle tracking for all types, not just named
+// types. The existing compiler invariants assume that unnamed types
+// that are not completely set up are not used, or else there are spurious
+// errors.
+// If disabled, only named types are tracked, possibly leading to slightly
+// less efficient encoding in rare cases. It also prevents the export of
+// some corner-case type declarations (but those are not handled correctly
+// with with the textual export format either).
+// TODO(gri) enable and remove once issues caused by it are fixed
+const trackAllTypes = false
+
 type exporter struct {
 	fset *token.FileSet
 	out  bytes.Buffer
@@ -76,6 +87,12 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 	var format byte = 'c' // compact
 	if debugFormat {
 		format = 'd'
+	}
+	p.rawByte(format)
+
+	format = 'n' // track named types only
+	if trackAllTypes {
+		format = 'a'
 	}
 	p.rawByte(format)
 
@@ -283,15 +300,21 @@ func (p *exporter) typ(t types.Type) {
 	}
 
 	// otherwise, remember the type, write the type tag (< 0) and type data
-	index := len(p.typIndex)
-	if trace {
-		p.tracef("T%d = {>\n", index)
-		defer p.tracef("<\n} ")
+	if trackAllTypes {
+		if trace {
+			p.tracef("T%d = {>\n", len(p.typIndex))
+			defer p.tracef("<\n} ")
+		}
+		p.typIndex[t] = len(p.typIndex)
 	}
-	p.typIndex[t] = index
 
 	switch t := t.(type) {
 	case *types.Named:
+		if !trackAllTypes {
+			// if we don't track all types, track named types now
+			p.typIndex[t] = len(p.typIndex)
+		}
+
 		p.tag(namedTag)
 		p.pos(t.Obj())
 		p.qualifiedName(t.Obj())
