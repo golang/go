@@ -326,7 +326,6 @@ label4:
 // WORD
 //
 	WORD	$1
-	WORD	$foo(SB)
 
 //
 // NOP

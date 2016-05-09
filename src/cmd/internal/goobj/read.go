@@ -290,9 +290,9 @@ func importPathToPrefix(s string) string {
 func (r *objReader) init(f io.ReadSeeker, p *Package) {
 	r.f = f
 	r.p = p
-	r.offset, _ = f.Seek(0, 1)
-	r.limit, _ = f.Seek(0, 2)
-	f.Seek(r.offset, 0)
+	r.offset, _ = f.Seek(0, io.SeekCurrent)
+	r.limit, _ = f.Seek(0, io.SeekEnd)
+	f.Seek(r.offset, io.SeekStart)
 	r.b = bufio.NewReader(f)
 	r.pkgprefix = importPathToPrefix(p.ImportPath) + "."
 }
@@ -440,7 +440,7 @@ func (r *objReader) skip(n int64) {
 		r.readFull(r.tmp[:n])
 	} else {
 		// Seek, giving up buffered data.
-		_, err := r.f.Seek(r.offset+n, 0)
+		_, err := r.f.Seek(r.offset+n, io.SeekStart)
 		if err != nil {
 			r.error(err)
 		}
@@ -580,7 +580,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 
 	r.readFull(r.tmp[:8])
-	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go13ld")) {
+	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go17ld")) {
 		return r.error(errCorruptObject)
 	}
 
@@ -687,7 +687,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 
 	r.readFull(r.tmp[:7])
-	if !bytes.Equal(r.tmp[:7], []byte("\xffgo13ld")) {
+	if !bytes.Equal(r.tmp[:7], []byte("\xffgo17ld")) {
 		return r.error(errCorruptObject)
 	}
 

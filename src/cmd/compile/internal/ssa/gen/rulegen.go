@@ -173,17 +173,25 @@ func genRules(arch arch) {
 		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value, config *Config) bool {\n", arch.name, opName(op, arch))
 		fmt.Fprintln(w, "b := v.Block")
 		fmt.Fprintln(w, "_ = b")
-		for _, rule := range oprules[op] {
+		var canFail bool
+		for i, rule := range oprules[op] {
 			match, cond, result := rule.parse()
 			fmt.Fprintf(w, "// match: %s\n", match)
 			fmt.Fprintf(w, "// cond: %s\n", cond)
 			fmt.Fprintf(w, "// result: %s\n", result)
 
+			canFail = false
 			fmt.Fprintf(w, "for {\n")
-			genMatch(w, arch, match, rule.loc)
+			if genMatch(w, arch, match, rule.loc) {
+				canFail = true
+			}
 
 			if cond != "" {
 				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
+				canFail = true
+			}
+			if !canFail && i != len(oprules[op])-1 {
+				log.Fatalf("unconditional rule %s is followed by other rules", match)
 			}
 
 			genResult(w, arch, result, rule.loc)
@@ -194,7 +202,9 @@ func genRules(arch arch) {
 
 			fmt.Fprintf(w, "}\n")
 		}
-		fmt.Fprintf(w, "return false\n")
+		if canFail {
+			fmt.Fprintf(w, "return false\n")
+		}
 		fmt.Fprintf(w, "}\n")
 	}
 
@@ -263,35 +273,30 @@ func genRules(arch arch) {
 				log.Fatalf("unmatched successors %v in %s", m, rule)
 			}
 
-			// Modify predecessor lists for no-longer-reachable blocks
-			for succ := range m {
-				fmt.Fprintf(w, "b.Func.removePredecessor(b, %s)\n", succ)
-			}
-
 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
 			if t[1] == "nil" {
 				fmt.Fprintf(w, "b.SetControl(nil)\n")
 			} else {
 				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false, rule.loc))
 			}
-			if len(newsuccs) < len(succs) {
-				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
+
+			succChanged := false
+			for i := 0; i < len(succs); i++ {
+				if succs[i] != newsuccs[i] {
+					succChanged = true
+				}
 			}
-			for i, a := range newsuccs {
-				fmt.Fprintf(w, "b.Succs[%d] = %s\n", i, a)
+			if succChanged {
+				if len(succs) != 2 {
+					log.Fatalf("changed successors, len!=2 in %s", rule)
+				}
+				if succs[0] != newsuccs[1] || succs[1] != newsuccs[0] {
+					log.Fatalf("can only handle swapped successors in %s", rule)
+				}
+				fmt.Fprintln(w, "b.swapSuccessors()")
 			}
-			// Update branch prediction
-			switch {
-			case len(newsuccs) != 2:
-				fmt.Fprintln(w, "b.Likely = BranchUnknown")
-			case newsuccs[0] == succs[0] && newsuccs[1] == succs[1]:
-				// unchanged
-			case newsuccs[0] == succs[1] && newsuccs[1] == succs[0]:
-				// flipped
-				fmt.Fprintln(w, "b.Likely *= -1")
-			default:
-				// unknown
-				fmt.Fprintln(w, "b.Likely = BranchUnknown")
+			for i := 0; i < len(succs); i++ {
+				fmt.Fprintf(w, "_ = %s\n", newsuccs[i])
 			}
 
 			if *genLog {
@@ -321,14 +326,16 @@ func genRules(arch arch) {
 	}
 }
 
-func genMatch(w io.Writer, arch arch, match string, loc string) {
-	genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
+// genMatch returns true if the match can fail.
+func genMatch(w io.Writer, arch arch, match string, loc string) bool {
+	return genMatch0(w, arch, match, "v", map[string]struct{}{}, true, loc)
 }
 
-func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) {
+func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, top bool, loc string) bool {
 	if match[0] != '(' || match[len(match)-1] != ')' {
 		panic("non-compound expr in genMatch0: " + match)
 	}
+	canFail := false
 
 	// split body up into regions. Split by spaces/tabs, except those
 	// contained in () or {}.
@@ -355,6 +362,7 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 	// check op
 	if !top {
 		fmt.Fprintf(w, "if %s.Op != %s {\nbreak\n}\n", v, opName(s[0], arch))
+		canFail = true
 	}
 
 	// check type/aux/args
@@ -366,11 +374,13 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			if !isVariable(t) {
 				// code. We must match the results of this code.
 				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
+				canFail = true
 			} else {
 				// variable
 				if _, ok := m[t]; ok {
 					// must match previous variable
 					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
+					canFail = true
 				} else {
 					m[t] = struct{}{}
 					fmt.Fprintf(w, "%s := %s.Type\n", t, v)
@@ -387,10 +397,12 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			if !isVariable(x) {
 				// code
 				fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
+				canFail = true
 			} else {
 				// variable
 				if _, ok := m[x]; ok {
 					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
+					canFail = true
 				} else {
 					m[x] = struct{}{}
 					fmt.Fprintf(w, "%s := %s.AuxInt\n", x, v)
@@ -407,10 +419,12 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 			if !isVariable(x) {
 				// code
 				fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
+				canFail = true
 			} else {
 				// variable
 				if _, ok := m[x]; ok {
 					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
+					canFail = true
 				} else {
 					m[x] = struct{}{}
 					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
@@ -426,6 +440,7 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 				// For example, (add x x).  Equality is just pointer equality
 				// on Values (so cse is important to do before lowering).
 				fmt.Fprintf(w, "if %s != %s.Args[%d] {\nbreak\n}\n", a, v, argnum)
+				canFail = true
 			} else {
 				// remember that this variable references the given value
 				m[a] = struct{}{}
@@ -446,15 +461,19 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 				argname = fmt.Sprintf("%s_%d", v, argnum)
 			}
 			fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, argnum)
-			genMatch0(w, arch, a, argname, m, false, loc)
+			if genMatch0(w, arch, a, argname, m, false, loc) {
+				canFail = true
+			}
 			argnum++
 		}
 	}
 	if op.argLength == -1 {
 		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, argnum)
+		canFail = true
 	} else if int(op.argLength) != argnum {
 		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
 	}
+	return canFail
 }
 
 func genResult(w io.Writer, arch arch, result string, loc string) {

@@ -1182,14 +1182,14 @@ func TestSeek(t *testing.T) {
 		out    int64
 	}
 	var tests = []test{
-		{0, 1, int64(len(data))},
-		{0, 0, 0},
-		{5, 0, 5},
-		{0, 2, int64(len(data))},
-		{0, 0, 0},
-		{-1, 2, int64(len(data)) - 1},
-		{1 << 33, 0, 1 << 33},
-		{1 << 33, 2, 1<<33 + int64(len(data))},
+		{0, io.SeekCurrent, int64(len(data))},
+		{0, io.SeekStart, 0},
+		{5, io.SeekStart, 5},
+		{0, io.SeekEnd, int64(len(data))},
+		{0, io.SeekStart, 0},
+		{-1, io.SeekEnd, int64(len(data)) - 1},
+		{1 << 33, io.SeekStart, 1 << 33},
+		{1 << 33, io.SeekEnd, 1<<33 + int64(len(data))},
 	}
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
@@ -1726,7 +1726,7 @@ var nilFileMethodTests = []struct {
 	{"ReadAt", func(f *File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
 	{"Readdir", func(f *File) error { _, err := f.Readdir(1); return err }},
 	{"Readdirnames", func(f *File) error { _, err := f.Readdirnames(1); return err }},
-	{"Seek", func(f *File) error { _, err := f.Seek(0, 0); return err }},
+	{"Seek", func(f *File) error { _, err := f.Seek(0, io.SeekStart); return err }},
 	{"Stat", func(f *File) error { _, err := f.Stat(); return err }},
 	{"Sync", func(f *File) error { return f.Sync() }},
 	{"Truncate", func(f *File) error { return f.Truncate(0) }},

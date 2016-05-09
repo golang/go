@@ -10,6 +10,7 @@ package exec_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -659,10 +660,6 @@ func TestHelperProcess(*testing.T) {
 			// the cloned file descriptors that result from opening
 			// /dev/urandom.
 			// https://golang.org/issue/3955
-		case "plan9":
-			// TODO(0intro): Determine why Plan 9 is leaking
-			// file descriptors.
-			// https://golang.org/issue/7118
 		case "solaris":
 			// TODO(aram): This fails on Solaris because libc opens
 			// its own files, as it sees fit. Darwin does the same,
@@ -833,5 +830,43 @@ func TestOutputStderrCapture(t *testing.T) {
 	want := "some stderr text\n"
 	if got != want {
 		t.Errorf("ExitError.Stderr = %q; want %q", got, want)
+	}
+}
+
+func TestContext(t *testing.T) {
+	c := helperCommand(t, "pipetest")
+	stdin, err := c.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := stdin.Write([]byte("O:hi\n")); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 5)
+	n, err := io.ReadFull(stdout, buf)
+	if n != len(buf) || err != nil || string(buf) != "O:hi\n" {
+		t.Fatalf("ReadFull = %d, %v, %q", n, err, buf[:n])
+	}
+	waitErr := make(chan error, 1)
+	go func() {
+		waitErr <- c.WaitContext(ctx)
+	}()
+	cancel()
+	select {
+	case err := <-waitErr:
+		if err == nil {
+			t.Fatal("expected Wait failure")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for child process death")
 	}
 }

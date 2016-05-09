@@ -992,6 +992,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 				return ssa.CMPlt // bucket maps are least
 			}
 			return t.StructType().Map.cmp(x.StructType().Map)
+		} else if x.StructType().Map.MapType().Bucket == x {
+			return ssa.CMPgt // bucket maps are least
 		} // If t != t.Map.Bucket, fall through to general case
 
 		fallthrough

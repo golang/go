@@ -19,10 +19,10 @@ func cstring(b []byte) string {
 	return string(b[:i])
 }
 
-// StringTable is a COFF string table.
-type StringTable []byte
+// _StringTable is a COFF string table.
+type _StringTable []byte
 
-func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
+func readStringTable(fh *FileHeader, r io.ReadSeeker) (_StringTable, error) {
 	// COFF string table is located right after COFF symbol table.
 	offset := fh.PointerToSymbolTable + COFFSymbolSize*fh.NumberOfSymbols
 	_, err := r.Seek(int64(offset), io.SeekStart)
@@ -44,13 +44,13 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to read string table: %v", err)
 	}
-	return StringTable(buf), nil
+	return _StringTable(buf), nil
 }
 
 // TODO(brainman): decide if start parameter should be int instead of uint32
 
 // String extracts string from COFF string table st at offset start.
-func (st StringTable) String(start uint32) (string, error) {
+func (st _StringTable) String(start uint32) (string, error) {
 	// start includes 4 bytes of string table length
 	if start < 4 {
 		return "", fmt.Errorf("offset %d is before the start of string table", start)

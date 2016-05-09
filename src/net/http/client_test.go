@@ -1168,3 +1168,26 @@ func TestReferer(t *testing.T) {
 		}
 	}
 }
+
+// issue15577Tripper returns a Response with a redirect response
+// header and doesn't populate its Response.Request field.
+type issue15577Tripper struct{}
+
+func (issue15577Tripper) RoundTrip(*Request) (*Response, error) {
+	resp := &Response{
+		StatusCode: 303,
+		Header:     map[string][]string{"Location": {"http://www.example.com/"}},
+		Body:       ioutil.NopCloser(strings.NewReader("")),
+	}
+	return resp, nil
+}
+
+// Issue 15577: don't assume the roundtripper's response populates its Request field.
+func TestClientRedirectResponseWithoutRequest(t *testing.T) {
+	c := &Client{
+		CheckRedirect: func(*Request, []*Request) error { return fmt.Errorf("no redirects!") },
+		Transport:     issue15577Tripper{},
+	}
+	// Check that this doesn't crash:
+	c.Get("http://dummy.tld")
+}

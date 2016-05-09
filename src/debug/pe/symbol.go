@@ -46,17 +46,17 @@ func isSymNameOffset(name [8]byte) (bool, uint32) {
 	return false, 0
 }
 
-// FullName finds real name of symbol sym. Normally name is stored
+// _FullName finds real name of symbol sym. Normally name is stored
 // in sym.Name, but if it is longer then 8 characters, it is stored
 // in COFF string table st instead.
-func (sym *COFFSymbol) FullName(st StringTable) (string, error) {
+func (sym *COFFSymbol) _FullName(st _StringTable) (string, error) {
 	if ok, offset := isSymNameOffset(sym.Name); ok {
 		return st.String(offset)
 	}
 	return cstring(sym.Name[:]), nil
 }
 
-func removeAuxSymbols(allsyms []COFFSymbol, st StringTable) ([]*Symbol, error) {
+func removeAuxSymbols(allsyms []COFFSymbol, st _StringTable) ([]*Symbol, error) {
 	if len(allsyms) == 0 {
 		return nil, nil
 	}
@@ -67,7 +67,7 @@ func removeAuxSymbols(allsyms []COFFSymbol, st StringTable) ([]*Symbol, error) {
 			aux--
 			continue
 		}
-		name, err := sym.FullName(st)
+		name, err := sym._FullName(st)
 		if err != nil {
 			return nil, err
 		}

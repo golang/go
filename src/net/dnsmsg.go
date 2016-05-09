@@ -109,7 +109,7 @@ const (
 
 // DNS queries.
 type dnsQuestion struct {
-	Name   string `net:"domain-name"` // `net:"domain-name"` specifies encoding; see packers below
+	Name   string
 	Qtype  uint16
 	Qclass uint16
 }
@@ -124,7 +124,7 @@ func (q *dnsQuestion) Walk(f func(v interface{}, name, tag string) bool) bool {
 // There are many types of messages,
 // but they all share the same header.
 type dnsRR_Header struct {
-	Name     string `net:"domain-name"`
+	Name     string
 	Rrtype   uint16
 	Class    uint16
 	Ttl      uint32
@@ -152,7 +152,7 @@ type dnsRR interface {
 
 type dnsRR_CNAME struct {
 	Hdr   dnsRR_Header
-	Cname string `net:"domain-name"`
+	Cname string
 }
 
 func (rr *dnsRR_CNAME) Header() *dnsRR_Header {
@@ -163,77 +163,10 @@ func (rr *dnsRR_CNAME) Walk(f func(v interface{}, name, tag string) bool) bool {
 	return rr.Hdr.Walk(f) && f(&rr.Cname, "Cname", "domain")
 }
 
-type dnsRR_HINFO struct {
-	Hdr dnsRR_Header
-	Cpu string
-	Os  string
-}
-
-func (rr *dnsRR_HINFO) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_HINFO) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Cpu, "Cpu", "") && f(&rr.Os, "Os", "")
-}
-
-type dnsRR_MB struct {
-	Hdr dnsRR_Header
-	Mb  string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MB) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MB) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Mb, "Mb", "domain")
-}
-
-type dnsRR_MG struct {
-	Hdr dnsRR_Header
-	Mg  string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MG) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MG) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Mg, "Mg", "domain")
-}
-
-type dnsRR_MINFO struct {
-	Hdr   dnsRR_Header
-	Rmail string `net:"domain-name"`
-	Email string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MINFO) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MINFO) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Rmail, "Rmail", "domain") && f(&rr.Email, "Email", "domain")
-}
-
-type dnsRR_MR struct {
-	Hdr dnsRR_Header
-	Mr  string `net:"domain-name"`
-}
-
-func (rr *dnsRR_MR) Header() *dnsRR_Header {
-	return &rr.Hdr
-}
-
-func (rr *dnsRR_MR) Walk(f func(v interface{}, name, tag string) bool) bool {
-	return rr.Hdr.Walk(f) && f(&rr.Mr, "Mr", "domain")
-}
-
 type dnsRR_MX struct {
 	Hdr  dnsRR_Header
 	Pref uint16
-	Mx   string `net:"domain-name"`
+	Mx   string
 }
 
 func (rr *dnsRR_MX) Header() *dnsRR_Header {
@@ -246,7 +179,7 @@ func (rr *dnsRR_MX) Walk(f func(v interface{}, name, tag string) bool) bool {
 
 type dnsRR_NS struct {
 	Hdr dnsRR_Header
-	Ns  string `net:"domain-name"`
+	Ns  string
 }
 
 func (rr *dnsRR_NS) Header() *dnsRR_Header {
@@ -259,7 +192,7 @@ func (rr *dnsRR_NS) Walk(f func(v interface{}, name, tag string) bool) bool {
 
 type dnsRR_PTR struct {
 	Hdr dnsRR_Header
-	Ptr string `net:"domain-name"`
+	Ptr string
 }
 
 func (rr *dnsRR_PTR) Header() *dnsRR_Header {
@@ -272,8 +205,8 @@ func (rr *dnsRR_PTR) Walk(f func(v interface{}, name, tag string) bool) bool {
 
 type dnsRR_SOA struct {
 	Hdr     dnsRR_Header
-	Ns      string `net:"domain-name"`
-	Mbox    string `net:"domain-name"`
+	Ns      string
+	Mbox    string
 	Serial  uint32
 	Refresh uint32
 	Retry   uint32
@@ -330,7 +263,7 @@ type dnsRR_SRV struct {
 	Priority uint16
 	Weight   uint16
 	Port     uint16
-	Target   string `net:"domain-name"`
+	Target   string
 }
 
 func (rr *dnsRR_SRV) Header() *dnsRR_Header {
@@ -347,7 +280,7 @@ func (rr *dnsRR_SRV) Walk(f func(v interface{}, name, tag string) bool) bool {
 
 type dnsRR_A struct {
 	Hdr dnsRR_Header
-	A   uint32 `net:"ipv4"`
+	A   uint32
 }
 
 func (rr *dnsRR_A) Header() *dnsRR_Header {
@@ -360,7 +293,7 @@ func (rr *dnsRR_A) Walk(f func(v interface{}, name, tag string) bool) bool {
 
 type dnsRR_AAAA struct {
 	Hdr  dnsRR_Header
-	AAAA [16]byte `net:"ipv6"`
+	AAAA [16]byte
 }
 
 func (rr *dnsRR_AAAA) Header() *dnsRR_Header {
@@ -382,11 +315,6 @@ func (rr *dnsRR_AAAA) Walk(f func(v interface{}, name, tag string) bool) bool {
 // Map of constructors for each RR wire type.
 var rr_mk = map[int]func() dnsRR{
 	dnsTypeCNAME: func() dnsRR { return new(dnsRR_CNAME) },
-	dnsTypeHINFO: func() dnsRR { return new(dnsRR_HINFO) },
-	dnsTypeMB:    func() dnsRR { return new(dnsRR_MB) },
-	dnsTypeMG:    func() dnsRR { return new(dnsRR_MG) },
-	dnsTypeMINFO: func() dnsRR { return new(dnsRR_MINFO) },
-	dnsTypeMR:    func() dnsRR { return new(dnsRR_MR) },
 	dnsTypeMX:    func() dnsRR { return new(dnsRR_MX) },
 	dnsTypeNS:    func() dnsRR { return new(dnsRR_NS) },
 	dnsTypePTR:   func() dnsRR { return new(dnsRR_PTR) },

@@ -480,11 +480,11 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
 		return 0, errWhence
-	case 0:
+	case SeekStart:
 		offset += s.base
-	case 1:
+	case SeekCurrent:
 		offset += s.off
-	case 2:
+	case SeekEnd:
 		offset += s.limit
 	}
 	if offset < s.base {

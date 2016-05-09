@@ -4,7 +4,7 @@
 // Same reason for mips64x and s390x.
 // +build !ppc64,!ppc64le,!mips64,!mips64le,!amd64,!s390x
 
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 

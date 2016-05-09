@@ -70,6 +70,7 @@ func TestLookupGoogleSRV(t *testing.T) {
 	for _, tt := range lookupGoogleSRVTests {
 		cname, srvs, err := LookupSRV(tt.service, tt.proto, tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
 			t.Fatal(err)
 		}
 		if len(srvs) == 0 {
@@ -137,6 +138,7 @@ func TestLookupGmailNS(t *testing.T) {
 	for _, tt := range lookupGmailNSTests {
 		nss, err := LookupNS(tt.name)
 		if err != nil {
+			testenv.SkipFlakyNet(t)
 			t.Fatal(err)
 		}
 		if len(nss) == 0 {
@@ -498,6 +500,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 func testDots(t *testing.T, mode string) {
 	names, err := LookupAddr("8.8.8.8") // Google dns server
 	if err != nil {
+		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
 	} else {
 		for _, name := range names {
@@ -509,12 +512,16 @@ func testDots(t *testing.T, mode string) {
 	}
 
 	cname, err := LookupCNAME("www.mit.edu")
-	if err != nil || !strings.HasSuffix(cname, ".") {
-		t.Errorf("LookupCNAME(www.mit.edu) = %v, %v, want cname ending in . with trailing dot (mode=%v)", cname, err, mode)
+	if err != nil {
+		testenv.SkipFlakyNet(t)
+		t.Errorf("LookupCNAME(www.mit.edu, mode=%v): %v", mode, err)
+	} else if !strings.HasSuffix(cname, ".") {
+		t.Errorf("LookupCNAME(www.mit.edu) = %v, want cname ending in . with trailing dot (mode=%v)", cname, mode)
 	}
 
 	mxs, err := LookupMX("google.com")
 	if err != nil {
+		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupMX(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, mx := range mxs {
@@ -527,6 +534,7 @@ func testDots(t *testing.T, mode string) {
 
 	nss, err := LookupNS("google.com")
 	if err != nil {
+		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupNS(google.com): %v (mode=%v)", err, mode)
 	} else {
 		for _, ns := range nss {
@@ -539,6 +547,7 @@ func testDots(t *testing.T, mode string) {
 
 	cname, srvs, err := LookupSRV("xmpp-server", "tcp", "google.com")
 	if err != nil {
+		testenv.SkipFlakyNet(t)
 		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
 	} else {
 		if !strings.HasSuffix(cname, ".google.com.") {

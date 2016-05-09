@@ -154,9 +154,7 @@ func (l *TCPListener) dup() (*os.File, error) {
 }
 
 func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
-	syscall.ForkLock.RLock()
 	dfd, err := syscall.Dup(int(f.Fd()), -1)
-	syscall.ForkLock.RUnlock()
 	if err != nil {
 		return nil, os.NewSyscallError("dup", err)
 	}

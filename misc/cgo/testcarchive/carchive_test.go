@@ -1,4 +1,4 @@
-// Copyright 2016 The Go Authors.  All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -31,6 +31,7 @@ var gopathEnv []string
 var exeSuffix string
 
 var GOOS, GOARCH string
+var libgodir string
 
 func init() {
 	bin = []string{"./testp"}
@@ -78,13 +79,15 @@ func init() {
 	}
 
 	if GOOS == "darwin" {
-		cc = append(cc, "-Wl,-no_pie")
-
 		// For Darwin/ARM.
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
-	cc = append(cc, "-I", filepath.Join("pkg", GOOS+"_"+GOARCH))
+	libgodir = GOOS + "_" + GOARCH
+	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") {
+		libgodir = GOOS + "_" + GOARCH + "_shared"
+	}
+	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
 	// Build an environment with GOPATH=$(pwd)
 	env := os.Environ()
@@ -147,11 +150,7 @@ func TestInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	libgopath := filepath.Join("pkg", GOOS+"_"+GOARCH, "libgo.a")
-	if GOOS == "darwin" && GOARCH == "arm" {
-		libgopath = filepath.Join("pkg", GOOS+"_"+GOARCH+"_shared", "libgo.a")
-	}
-	compilemain(t, libgopath)
+	compilemain(t, filepath.Join("pkg", libgodir, "libgo.a"))
 
 	binArgs := append(bin, "arg1", "arg2")
 	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {

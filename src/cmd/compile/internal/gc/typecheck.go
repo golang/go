@@ -861,7 +861,7 @@ OpSwitch:
 			}
 
 			if n.Type.Etype != TFUNC || n.Type.Recv() == nil {
-				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, FmtShort))
+				Yyerror("type %v has no method %v", n.Left.Type, sconv(n.Right.Sym, FmtShort))
 				n.Type = nil
 				return n
 			}
@@ -2366,7 +2366,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 
 	// disallow T.m if m requires *T receiver
 	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
-		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, FmtShort))
+		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, sconv(f2.Sym, FmtShort))
 		return false
 	}
 

@@ -4,8 +4,6 @@
 
 // Binary package export.
 // (see fmt.go, parser.go as "documentation" for how to use/setup data structures)
-//
-// Use "-newexport" flag to enable.
 
 /*
 Export data encoding:
@@ -127,6 +125,17 @@ const exportVersion = "v0"
 // Leave for debugging.
 const exportInlined = true // default: true
 
+// trackAllTypes enables cycle tracking for all types, not just named
+// types. The existing compiler invariants assume that unnamed types
+// that are not completely set up are not used, or else there are spurious
+// errors.
+// If disabled, only named types are tracked, possibly leading to slightly
+// less efficient encoding in rare cases. It also prevents the export of
+// some corner-case type declarations (but those are not handled correctly
+// with with the textual export format either).
+// TODO(gri) enable and remove once issues caused by it are fixed
+const trackAllTypes = false
+
 type exporter struct {
 	out *bufio.Writer
 
@@ -161,10 +170,20 @@ func export(out *bufio.Writer, trace bool) int {
 		trace:         trace,
 	}
 
+	// TODO(gri) clean up the ad-hoc encoding of the file format below
+	// (we need this so we can read the builtin package export data
+	// easily w/o being affected by format changes)
+
 	// first byte indicates low-level encoding format
 	var format byte = 'c' // compact
 	if debugFormat {
 		format = 'd'
+	}
+	p.rawByte(format)
+
+	format = 'n' // track named types only
+	if trackAllTypes {
+		format = 'a'
 	}
 	p.rawByte(format)
 
@@ -355,7 +374,7 @@ func export(out *bufio.Writer, trace bool) int {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
-				p.tracef("\n----\nfunc { %s }\n", Hconv(f.Inl, FmtSharp))
+				p.tracef("\n----\nfunc { %s }\n", hconv(f.Inl, FmtSharp))
 			}
 			p.int(i)
 			p.stmtList(f.Inl)
@@ -508,23 +527,50 @@ func (p *exporter) pos(n *Node) {
 		return
 	}
 
-	var file string
-	var line int
+	file, line := fileLine(n)
+	if file == p.prevFile {
+		// common case: write line delta
+		// delta == 0 means different file or no line change
+		delta := line - p.prevLine
+		p.int(delta)
+		if delta == 0 {
+			p.int(-1) // -1 means no file change
+		}
+	} else {
+		// different file
+		p.int(0)
+		// Encode filename as length of common prefix with previous
+		// filename, followed by (possibly empty) suffix. Filenames
+		// frequently share path prefixes, so this can save a lot
+		// of space and make export data size less dependent on file
+		// path length. The suffix is unlikely to be empty because
+		// file names tend to end in ".go".
+		n := commonPrefixLen(p.prevFile, file)
+		p.int(n)           // n >= 0
+		p.string(file[n:]) // write suffix only
+		p.prevFile = file
+		p.int(line)
+	}
+	p.prevLine = line
+}
+
+func fileLine(n *Node) (file string, line int) {
 	if n != nil {
 		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno))
 	}
+	return
+}
 
-	if file == p.prevFile && line != p.prevLine {
-		// common case: write delta-encoded line number
-		p.int(line - p.prevLine) // != 0
-	} else {
-		// uncommon case: filename changed, or line didn't change
-		p.int(0)
-		p.string(file)
-		p.int(line)
-		p.prevFile = file
+func commonPrefixLen(a, b string) int {
+	if len(a) > len(b) {
+		a, b = b, a
 	}
-	p.prevLine = line
+	// len(a) <= len(b)
+	i := 0
+	for i < len(a) && a[i] == b[i] {
+		i++
+	}
+	return i
 }
 
 func isInlineable(n *Node) bool {
@@ -560,14 +606,21 @@ func (p *exporter) typ(t *Type) {
 	}
 
 	// otherwise, remember the type, write the type tag (< 0) and type data
-	if p.trace {
-		p.tracef("T%d = {>\n", len(p.typIndex))
-		defer p.tracef("<\n} ")
+	if trackAllTypes {
+		if p.trace {
+			p.tracef("T%d = {>\n", len(p.typIndex))
+			defer p.tracef("<\n} ")
+		}
+		p.typIndex[t] = len(p.typIndex)
 	}
-	p.typIndex[t] = len(p.typIndex)
 
 	// pick off named types
 	if tsym := t.Sym; tsym != nil {
+		if !trackAllTypes {
+			// if we don't track all types, track named types now
+			p.typIndex[t] = len(p.typIndex)
+		}
+
 		// Predeclared types should have been found in the type map.
 		if t.Orig == t {
 			Fatalf("exporter: predeclared type missing from type map?")
@@ -612,7 +665,7 @@ func (p *exporter) typ(t *Type) {
 				Fatalf("invalid symbol name: %s (%v)", m.Sym.Name, m.Sym)
 			}
 
-			p.pos(m.Sym.Def)
+			p.pos(m.Nname)
 			p.fieldSym(m.Sym, false)
 
 			sig := m.Type
@@ -717,7 +770,7 @@ func (p *exporter) fieldList(t *Type) {
 }
 
 func (p *exporter) field(f *Field) {
-	p.pos(f.Sym.Def)
+	p.pos(f.Nname)
 	p.fieldName(f.Sym, f)
 	p.typ(f.Type)
 	p.string(f.Note)
@@ -739,7 +792,7 @@ func (p *exporter) methodList(t *Type) {
 }
 
 func (p *exporter) method(m *Field) {
-	p.pos(m.Sym.Def)
+	p.pos(m.Nname)
 	p.fieldName(m.Sym, m)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
@@ -819,19 +872,34 @@ func (p *exporter) param(q *Field, n int, numbered bool) {
 	}
 	p.typ(t)
 	if n > 0 {
-		p.string(parName(q, numbered))
-		// Because of (re-)exported inlined functions
-		// the importpkg may not be the package to which this
-		// function (and thus its parameter) belongs. We need to
-		// supply the parameter package here. We need the package
-		// when the function is inlined so we can properly resolve
-		// the name.
-		// TODO(gri) This is compiler-specific. Try using importpkg
-		// here and then update the symbols if we find an inlined
-		// body only. Otherwise, the parameter name is ignored and
-		// the package doesn't matter. This would remove an int
-		// (likely 1 byte) for each named parameter.
-		p.pkg(q.Sym.Pkg)
+		name := parName(q, numbered)
+		if name == "" {
+			// Sometimes we see an empty name even for n > 0.
+			// This appears to happen for interface methods
+			// with _ (blank) parameter names. Make sure we
+			// have a proper name and package so we don't crash
+			// during import (see also issue #15470).
+			// (parName uses "" instead of "?" as in fmt.go)
+			// TODO(gri) review parameter name encoding
+			name = "_"
+		}
+		p.string(name)
+		if name != "_" {
+			// Because of (re-)exported inlined functions
+			// the importpkg may not be the package to which this
+			// function (and thus its parameter) belongs. We need to
+			// supply the parameter package here. We need the package
+			// when the function is inlined so we can properly resolve
+			// the name. The _ (blank) parameter cannot be accessed, so
+			// we don't need to export a package.
+			//
+			// TODO(gri) This is compiler-specific. Try using importpkg
+			// here and then update the symbols if we find an inlined
+			// body only. Otherwise, the parameter name is ignored and
+			// the package doesn't matter. This would remove an int
+			// (likely 1 byte) for each named parameter.
+			p.pkg(q.Sym.Pkg)
+		}
 	}
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
@@ -854,7 +922,7 @@ func parName(f *Field, numbered bool) string {
 				if s.Name[1] == 'r' { // originally an unnamed result
 					return "" // s = nil
 				} else if s.Name[1] == 'b' { // originally the blank identifier _
-					return "_"
+					return "_" // belongs to localpkg
 				}
 			}
 		} else {
@@ -869,7 +937,7 @@ func parName(f *Field, numbered bool) string {
 	// print symbol with Vargen number or not as desired
 	name := s.Name
 	if strings.Contains(name, ".") {
-		panic("invalid symbol name: " + name)
+		Fatalf("invalid symbol name: %s", name)
 	}
 
 	// Functions that can be inlined use numbered parameters so we can distingish them
@@ -972,6 +1040,8 @@ func (p *exporter) float(x *Mpflt) {
 // but instead of emitting the information textually, emit the node tree in
 // binary form.
 
+// TODO(gri) Improve tracing output. The current format is difficult to read.
+
 // stmtList may emit more (or fewer) than len(list) nodes.
 func (p *exporter) stmtList(list Nodes) {
 	if p.trace {
@@ -1048,6 +1118,16 @@ func (p *exporter) expr(n *Node) {
 		defer p.tracef(") ")
 	}
 
+	// from nodefmt (fmt.go)
+	//
+	// nodefmt reverts nodes back to their original - we don't need to do
+	// it because we are not bound to produce valid Go syntax when exporting
+	//
+	// if (fmtmode != FExp || n.Op != OLITERAL) && n.Orig != nil {
+	// 	n = n.Orig
+	// }
+
+	// from exprfmt (fmt.go)
 	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
 		n = n.Left
 	}
@@ -1120,14 +1200,14 @@ func (p *exporter) expr(n *Node) {
 			p.typ(n.Type)
 		}
 
-	case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
-		panic("unreachable") // should have been resolved by typechecking
+	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+	// 	should have been resolved by typechecking - handled by default case
 
 	// case OCLOSURE:
 	//	unimplemented - handled by default case
 
 	// case OCOMPLIT:
-	//	unimplemented - handled by default case
+	// 	should have been resolved by typechecking - handled by default case
 
 	case OPTRLIT:
 		p.op(OPTRLIT)
@@ -1136,16 +1216,12 @@ func (p *exporter) expr(n *Node) {
 
 	case OSTRUCTLIT:
 		p.op(OSTRUCTLIT)
-		if !p.bool(n.Implicit) {
-			p.typ(n.Type)
-		}
+		p.typ(n.Type)
 		p.elemList(n.List) // special handling of field names
 
 	case OARRAYLIT, OMAPLIT:
-		p.op(op)
-		if !p.bool(n.Implicit) {
-			p.typ(n.Type)
-		}
+		p.op(OCOMPLIT)
+		p.typ(n.Type)
 		p.exprList(n.List)
 
 	case OKEY:
@@ -1158,9 +1234,6 @@ func (p *exporter) expr(n *Node) {
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		p.op(OXDOT)
 		p.expr(n.Left)
-		if n.Sym == nil {
-			panic("unreachable") // can this happen during export?
-		}
 		p.fieldSym(n.Sym, true)
 
 	case ODOTTYPE, ODOTTYPE2:
@@ -1266,7 +1339,8 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODCLCONST)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
+		Fatalf("cannot export %s (%d) node\n"+
+			"==> please file an issue and assign to gri@\n", n.Op, n.Op)
 	}
 }
 
@@ -1342,9 +1416,8 @@ func (p *exporter) stmt(n *Node) {
 		p.op(ORETURN)
 		p.exprList(n.List)
 
-	case ORETJMP:
-		// generated by compiler for trampolin routines - not exported
-		panic("unreachable")
+	// case ORETJMP:
+	// 	unreachable - generated by compiler for trampolin routines
 
 	case OPROC, ODEFER:
 		p.op(op)
@@ -1389,7 +1462,7 @@ func (p *exporter) stmt(n *Node) {
 		p.exprsOrNil(n.Left, nil)
 
 	case OEMPTY:
-	// nothing to emit
+		// nothing to emit
 
 	case OLABEL:
 		p.op(OLABEL)
@@ -1427,6 +1500,8 @@ func (p *exporter) fieldSym(s *Sym, short bool) {
 		}
 	}
 
+	// we should never see a _ (blank) here - these are accessible ("read") fields
+	// TODO(gri) can we assert this with an explicit check?
 	p.string(name)
 	if !exportname(name) {
 		p.pkg(s.Pkg)

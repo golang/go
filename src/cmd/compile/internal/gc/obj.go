@@ -138,11 +138,6 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-func Bputname(b *bio.Writer, s *obj.LSym) {
-	b.WriteString(s.Name)
-	b.WriteByte(0)
-}
-
 func Linksym(s *Sym) *obj.LSym {
 	if s == nil {
 		return nil

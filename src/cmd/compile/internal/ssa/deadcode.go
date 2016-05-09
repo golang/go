@@ -25,7 +25,8 @@ func reachableBlocks(f *Func) []bool {
 		if b.Kind == BlockFirst {
 			s = s[:1]
 		}
-		for _, c := range s {
+		for _, e := range s {
+			c := e.b
 			if !reachable[c.ID] {
 				reachable[c.ID] = true
 				p = append(p, c) // push
@@ -69,7 +70,7 @@ func liveValues(f *Func, reachable []bool) []bool {
 		v := q[len(q)-1]
 		q = q[:len(q)-1]
 		for i, x := range v.Args {
-			if v.Op == OpPhi && !reachable[v.Block.Preds[i].ID] {
+			if v.Op == OpPhi && !reachable[v.Block.Preds[i].b.ID] {
 				continue
 			}
 			if !live[x.ID] {
@@ -100,9 +101,12 @@ func deadcode(f *Func) {
 		if reachable[b.ID] {
 			continue
 		}
-		for _, c := range b.Succs {
-			if reachable[c.ID] {
-				c.removePred(b)
+		for i := 0; i < len(b.Succs); {
+			e := b.Succs[i]
+			if reachable[e.b.ID] {
+				b.removeEdge(i)
+			} else {
+				i++
 			}
 		}
 	}
@@ -115,16 +119,9 @@ func deadcode(f *Func) {
 		if b.Kind != BlockFirst {
 			continue
 		}
-		c := b.Succs[1]
-		b.Succs[1] = nil
-		b.Succs = b.Succs[:1]
+		b.removeEdge(1)
 		b.Kind = BlockPlain
 		b.Likely = BranchUnknown
-
-		if reachable[c.ID] {
-			// Note: c must be reachable through some other edge.
-			c.removePred(b)
-		}
 	}
 
 	// Splice out any copies introduced during dead block removal.
@@ -217,35 +214,28 @@ func deadcode(f *Func) {
 	f.Blocks = f.Blocks[:i]
 }
 
-// removePred removes the predecessor p from b's predecessor list.
-func (b *Block) removePred(p *Block) {
-	var i int
-	found := false
-	for j, q := range b.Preds {
-		if q == p {
-			i = j
-			found = true
-			break
-		}
-	}
-	// TODO: the above loop could make the deadcode pass take quadratic time
-	if !found {
-		b.Fatalf("can't find predecessor %v of %v\n", p, b)
-	}
+// removeEdge removes the i'th outgoing edge from b (and
+// the corresponding incoming edge from b.Succs[i].b).
+func (b *Block) removeEdge(i int) {
+	e := b.Succs[i]
+	c := e.b
+	j := e.i
 
-	n := len(b.Preds) - 1
-	b.Preds[i] = b.Preds[n]
-	b.Preds[n] = nil // aid GC
-	b.Preds = b.Preds[:n]
+	// Adjust b.Succs
+	b.removeSucc(i)
 
-	// rewrite phi ops to match the new predecessor list
-	for _, v := range b.Values {
+	// Adjust c.Preds
+	c.removePred(j)
+
+	// Remove phi args from c's phis.
+	n := len(c.Preds)
+	for _, v := range c.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		v.Args[i].Uses--
-		v.Args[i] = v.Args[n]
-		v.Args[n] = nil // aid GC
+		v.Args[j].Uses--
+		v.Args[j] = v.Args[n]
+		v.Args[n] = nil
 		v.Args = v.Args[:n]
 		phielimValue(v)
 		// Note: this is trickier than it looks. Replacing

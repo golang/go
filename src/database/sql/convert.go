@@ -217,7 +217,12 @@ func convertAssign(dest, src interface{}) error {
 
 	dv := reflect.Indirect(dpv)
 	if sv.IsValid() && sv.Type().AssignableTo(dv.Type()) {
-		dv.Set(sv)
+		switch b := src.(type) {
+		case []byte:
+			dv.Set(reflect.ValueOf(cloneBytes(b)))
+		default:
+			dv.Set(sv)
+		}
 		return nil
 	}
 

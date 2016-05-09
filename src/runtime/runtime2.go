@@ -352,7 +352,8 @@ type g struct {
 	gopc           uintptr // pc of go statement that created this goroutine
 	startpc        uintptr // pc of goroutine function
 	racectx        uintptr
-	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+	waiting        *sudog    // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+	cgoCtxt        []uintptr // cgo traceback context
 
 	// Per-G GC state
 
@@ -450,6 +451,7 @@ type p struct {
 	syscalltick uint32   // incremented on every system call
 	m           muintptr // back-link to associated m (nil if idle)
 	mcache      *mcache
+	racectx     uintptr
 
 	deferpool    [5][]*_defer // pool of available defer structs of different sizes (see panic.go)
 	deferpoolbuf [5][32]*_defer

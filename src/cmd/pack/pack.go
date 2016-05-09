@@ -286,7 +286,7 @@ func (ar *Archive) output(entry *Entry, w io.Writer) {
 		log.Fatal("short file")
 	}
 	if entry.size&1 == 1 {
-		_, err := ar.fd.Seek(1, 1)
+		_, err := ar.fd.Seek(1, io.SeekCurrent)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -299,7 +299,7 @@ func (ar *Archive) skip(entry *Entry) {
 	if size&1 == 1 {
 		size++
 	}
-	_, err := ar.fd.Seek(size, 1)
+	_, err := ar.fd.Seek(size, io.SeekCurrent)
 	if err != nil {
 		log.Fatal(err)
 	}

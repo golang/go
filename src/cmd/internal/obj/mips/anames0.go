@@ -26,6 +26,7 @@ var cnames0 = []string{
 	"LACON",
 	"LECON",
 	"DACON",
+	"STCON",
 	"SBRA",
 	"LBRA",
 	"SAUTO",
@@ -37,6 +38,7 @@ var cnames0 = []string{
 	"LOREG",
 	"GOK",
 	"ADDR",
+	"TLS",
 	"TEXTSIZE",
 	"NCLASS",
 }

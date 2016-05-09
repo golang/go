@@ -22,14 +22,15 @@ func TestReader(t *testing.T) {
 		n       int
 		want    string
 		wantpos int64
+		readerr error
 		seekerr string
 	}{
 		{seek: io.SeekStart, off: 0, n: 20, want: "0123456789"},
 		{seek: io.SeekStart, off: 1, n: 1, want: "1"},
 		{seek: io.SeekCurrent, off: 1, wantpos: 3, n: 2, want: "34"},
 		{seek: io.SeekStart, off: -1, seekerr: "strings.Reader.Seek: negative position"},
-		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33},
-		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1},
+		{seek: io.SeekStart, off: 1 << 33, wantpos: 1 << 33, readerr: io.EOF},
+		{seek: io.SeekCurrent, off: 1, wantpos: 1<<33 + 1, readerr: io.EOF},
 		{seek: io.SeekStart, n: 5, want: "01234"},
 		{seek: io.SeekCurrent, n: 5, want: "56789"},
 		{seek: io.SeekEnd, off: -1, n: 1, wantpos: 9, want: "9"},
@@ -50,8 +51,8 @@ func TestReader(t *testing.T) {
 		}
 		buf := make([]byte, tt.n)
 		n, err := r.Read(buf)
-		if err != nil {
-			t.Errorf("%d. read = %v", i, err)
+		if err != tt.readerr {
+			t.Errorf("%d. read = %v; want %v", i, err, tt.readerr)
 			continue
 		}
 		got := string(buf[:n])

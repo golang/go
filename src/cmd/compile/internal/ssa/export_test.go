@@ -13,8 +13,9 @@ var CheckFunc = checkFunc
 var PrintFunc = printFunc
 var Opt = opt
 var Deadcode = deadcode
+var Copyelim = copyelim
 
-func testConfig(t *testing.T) *Config {
+func testConfig(t testing.TB) *Config {
 	testCtxt := &obj.Link{}
 	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
 }

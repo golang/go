@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "libcgo.h"
+
 static volatile long runtime_init_once_gate = 0;
 static volatile long runtime_init_once_done = 0;
 
@@ -66,12 +68,20 @@ _cgo_is_runtime_initialized() {
 	 return status;
 }
 
-void
+uintptr_t
 _cgo_wait_runtime_init_done() {
 	 _cgo_maybe_run_preinit();
 	while (!_cgo_is_runtime_initialized()) {
 			WaitForSingleObject(runtime_init_wait, INFINITE);
 	}
+	if (x_cgo_context_function != nil) {
+		struct context_arg arg;
+
+		arg.Context = 0;
+		(*x_cgo_context_function)(&arg);
+		return arg.Context;
+	}
+	return 0;
 }
 
 void

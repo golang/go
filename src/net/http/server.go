@@ -29,12 +29,26 @@ import (
 	"time"
 )
 
-// Errors introduced by the HTTP server.
+// Errors used by the HTTP server.
 var (
-	ErrWriteAfterFlush = errors.New("Conn.Write called after Flush")
-	ErrBodyNotAllowed  = errors.New("http: request method or response status code does not allow body")
-	ErrHijacked        = errors.New("Conn has been hijacked")
-	ErrContentLength   = errors.New("Conn.Write wrote more than the declared Content-Length")
+	// ErrBodyNotAllowed is returned by ResponseWriter.Write calls
+	// when the HTTP method or response code does not permit a
+	// body.
+	ErrBodyNotAllowed = errors.New("http: request method or response status code does not allow body")
+
+	// ErrHijacked is returned by ResponseWriter.Write calls when
+	// the underlying connection has been hijacked using the
+	// Hijacker interfaced.
+	ErrHijacked = errors.New("http: connection has been hijacked")
+
+	// ErrContentLength is returned by ResponseWriter.Write calls
+	// when a Handler set a Content-Length response header with a
+	// declared size and then attempted to write more bytes than
+	// declared.
+	ErrContentLength = errors.New("http: wrote more than the declared Content-Length")
+
+	// Deprecated: ErrWriteAfterFlush is no longer used.
+	ErrWriteAfterFlush = errors.New("unused")
 )
 
 // A Handler responds to an HTTP request.
@@ -162,6 +176,12 @@ var (
 	// started the handler. The associated value will be of
 	// type *Server.
 	ServerContextKey = &contextKey{"http-server"}
+
+	// LocalAddrContextKey is a context key. It can be used in
+	// HTTP handlers with context.WithValue to access the address
+	// the local address the connection arrived on.
+	// The associated value will be of type net.Addr.
+	LocalAddrContextKey = &contextKey{"local-addr"}
 )
 
 // A conn represents the server side of an HTTP connection.
@@ -2031,12 +2051,18 @@ func Serve(l net.Listener, handler Handler) error {
 // A Server defines parameters for running an HTTP server.
 // The zero value for Server is a valid configuration.
 type Server struct {
-	Addr           string        // TCP address to listen on, ":http" if empty
-	Handler        Handler       // handler to invoke, http.DefaultServeMux if nil
-	ReadTimeout    time.Duration // maximum duration before timing out read of the request
-	WriteTimeout   time.Duration // maximum duration before timing out write of the response
-	MaxHeaderBytes int           // maximum size of request headers, DefaultMaxHeaderBytes if 0
-	TLSConfig      *tls.Config   // optional TLS config, used by ListenAndServeTLS
+	Addr         string        // TCP address to listen on, ":http" if empty
+	Handler      Handler       // handler to invoke, http.DefaultServeMux if nil
+	ReadTimeout  time.Duration // maximum duration before timing out read of the request
+	WriteTimeout time.Duration // maximum duration before timing out write of the response
+	TLSConfig    *tls.Config   // optional TLS config, used by ListenAndServeTLS
+
+	// MaxHeaderBytes controls the maximum number of bytes the
+	// server will read parsing the request header's keys and
+	// values, including the request line. It does not limit the
+	// size of the request body.
+	// If zero, DefaultMaxHeaderBytes is used.
+	MaxHeaderBytes int
 
 	// TLSNextProto optionally specifies a function to take over
 	// ownership of the provided TLS connection when an NPN
@@ -2169,6 +2195,7 @@ func (srv *Server) Serve(l net.Listener) error {
 	// use cases yet.
 	baseCtx := context.Background()
 	ctx := context.WithValue(baseCtx, ServerContextKey, srv)
+	ctx = context.WithValue(ctx, LocalAddrContextKey, l.Addr())
 	for {
 		rw, e := l.Accept()
 		if e != nil {

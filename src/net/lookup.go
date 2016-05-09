@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/nettrace"
 	"internal/singleflight"
 )
 
@@ -85,16 +86,37 @@ func lookupIPReturn(addrsi interface{}, err error, shared bool) ([]IPAddr, error
 	return addrs, nil
 }
 
+// ipAddrsEface returns an empty interface slice of addrs.
+func ipAddrsEface(addrs []IPAddr) []interface{} {
+	s := make([]interface{}, len(addrs))
+	for i, v := range addrs {
+		s[i] = v
+	}
+	return s
+}
+
 // lookupIPContext looks up a hostname with a context.
+//
+// TODO(bradfitz): rename this function. All the other
+// build-tag-specific lookupIP funcs also take a context now, so this
+// name is no longer great. Maybe make this lookupIPMerge and ditch
+// the other one, making its callers call this instead with a
+// context.Background().
 func lookupIPContext(ctx context.Context, host string) (addrs []IPAddr, err error) {
-	// TODO(bradfitz): when adding trace hooks later here, make
-	// sure the tracing is done outside of the singleflight
-	// merging. Both callers should see the DNS lookup delay, even
-	// if it's only being done once. The r.Shared bit can be
-	// included in the trace for callers who need it.
+	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
+	if trace != nil && trace.DNSStart != nil {
+		trace.DNSStart(host)
+	}
+	// The underlying resolver func is lookupIP by default but it
+	// can be overridden by tests. This is needed by net/http, so it
+	// uses a context key instead of unexported variables.
+	resolverFunc := lookupIP
+	if alt, _ := ctx.Value(nettrace.LookupIPAltResolverKey{}).(func(context.Context, string) ([]IPAddr, error)); alt != nil {
+		resolverFunc = alt
+	}
 
 	ch := lookupGroup.DoChan(host, func() (interface{}, error) {
-		return testHookLookupIP(ctx, lookupIP, host)
+		return testHookLookupIP(ctx, resolverFunc, host)
 	})
 
 	select {
@@ -103,9 +125,17 @@ func lookupIPContext(ctx context.Context, host string) (addrs []IPAddr, err erro
 		// future requests to start the DNS lookup again
 		// rather than waiting for the current lookup to
 		// complete. See issue 8602.
+		err := mapErr(ctx.Err())
 		lookupGroup.Forget(host)
-		return nil, mapErr(ctx.Err())
+		if trace != nil && trace.DNSDone != nil {
+			trace.DNSDone(nil, false, err)
+		}
+		return nil, err
 	case r := <-ch:
+		if trace != nil && trace.DNSDone != nil {
+			addrs, _ := r.Val.([]IPAddr)
+			trace.DNSDone(ipAddrsEface(addrs), r.Shared, r.Err)
+		}
 		return lookupIPReturn(r.Val, r.Err, r.Shared)
 	}
 }

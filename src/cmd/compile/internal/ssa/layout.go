@@ -39,7 +39,8 @@ blockloop:
 			break
 		}
 
-		for _, c := range b.Succs {
+		for _, e := range b.Succs {
+			c := e.b
 			indegree[c.ID]--
 			if indegree[c.ID] == 0 {
 				posdegree.remove(c.ID)
@@ -54,9 +55,9 @@ blockloop:
 		var likely *Block
 		switch b.Likely {
 		case BranchLikely:
-			likely = b.Succs[0]
+			likely = b.Succs[0].b
 		case BranchUnlikely:
-			likely = b.Succs[1]
+			likely = b.Succs[1].b
 		}
 		if likely != nil && !scheduled[likely.ID] {
 			bid = likely.ID
@@ -66,7 +67,8 @@ blockloop:
 		// Use degree for now.
 		bid = 0
 		mindegree := f.NumBlocks()
-		for _, c := range order[len(order)-1].Succs {
+		for _, e := range order[len(order)-1].Succs {
+			c := e.b
 			if scheduled[c.ID] {
 				continue
 			}

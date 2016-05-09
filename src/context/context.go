@@ -32,7 +32,7 @@
 // The same Context may be passed to functions running in different goroutines;
 // Contexts are safe for simultaneous use by multiple goroutines.
 //
-// See http://blog.golang.org/context for example code for a server that uses
+// See https://blog.golang.org/context for example code for a server that uses
 // Contexts.
 package context
 
@@ -81,7 +81,7 @@ type Context interface {
 	//  	}
 	//  }
 	//
-	// See http://blog.golang.org/pipelines for more examples of how to use
+	// See https://blog.golang.org/pipelines for more examples of how to use
 	// a Done channel for cancelation.
 	Done() <-chan struct{}
 
@@ -428,6 +428,9 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 //
 // The provided key must be comparable.
 func WithValue(parent Context, key, val interface{}) Context {
+	if key == nil {
+		panic("nil key")
+	}
 	if !reflect.TypeOf(key).Comparable() {
 		panic("key is not comparable")
 	}

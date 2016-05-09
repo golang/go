@@ -583,6 +583,10 @@ func TestWithValueChecksKey(t *testing.T) {
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
+	panicVal = recoveredValue(func() { WithValue(Background(), nil, "bar") })
+	if got, want := fmt.Sprint(panicVal), "nil key"; got != want {
+		t.Errorf("panic = %q; want %q", got, want)
+	}
 }
 
 func recoveredValue(fn func()) (v interface{}) {

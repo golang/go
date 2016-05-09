@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -244,7 +245,7 @@ func passFDChild() {
 	}
 
 	f.Write([]byte("Hello from child process!\n"))
-	f.Seek(0, 0)
+	f.Seek(0, io.SeekStart)
 
 	rights := syscall.UnixRights(int(f.Fd()))
 	dummyByte := []byte("x")
@@ -344,7 +345,7 @@ func TestRlimit(t *testing.T) {
 }
 
 func TestSeekFailure(t *testing.T) {
-	_, err := syscall.Seek(-1, 0, 0)
+	_, err := syscall.Seek(-1, 0, io.SeekStart)
 	if err == nil {
 		t.Fatalf("Seek(-1, 0, 0) did not fail")
 	}

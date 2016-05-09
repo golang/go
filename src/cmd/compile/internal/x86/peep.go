@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -249,6 +249,10 @@ func excise(r *gc.Flow) {
 }
 
 func regtyp(a *obj.Addr) bool {
+	if gc.Ctxt.Flag_shared && a.Type == obj.TYPE_REG && a.Reg == x86.REG_CX {
+		// don't propagate CX, it is used implicitly by PIC global references
+		return false
+	}
 	return a.Type == obj.TYPE_REG && (x86.REG_AX <= a.Reg && a.Reg <= x86.REG_DI || x86.REG_X0 <= a.Reg && a.Reg <= x86.REG_X7)
 }
 

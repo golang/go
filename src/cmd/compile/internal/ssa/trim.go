@@ -7,31 +7,26 @@ package ssa
 // trim removes blocks with no code in them.
 // These blocks were inserted to remove critical edges.
 func trim(f *Func) {
-	i := 0
+	n := 0
 	for _, b := range f.Blocks {
 		if b.Kind != BlockPlain || len(b.Values) != 0 || len(b.Preds) != 1 {
-			f.Blocks[i] = b
-			i++
+			f.Blocks[n] = b
+			n++
 			continue
 		}
 		// TODO: handle len(b.Preds)>1 case.
 
 		// Splice b out of the graph.
-		pred := b.Preds[0]
-		succ := b.Succs[0]
-		for j, s := range pred.Succs {
-			if s == b {
-				pred.Succs[j] = succ
-			}
-		}
-		for j, p := range succ.Preds {
-			if p == b {
-				succ.Preds[j] = pred
-			}
-		}
+		p := b.Preds[0].b
+		i := b.Preds[0].i
+		s := b.Succs[0].b
+		j := b.Succs[0].i
+		p.Succs[i] = Edge{s, j}
+		s.Preds[j] = Edge{p, i}
 	}
-	for j := i; j < len(f.Blocks); j++ {
-		f.Blocks[j] = nil
+	tail := f.Blocks[n:]
+	for i := range tail {
+		tail[i] = nil
 	}
-	f.Blocks = f.Blocks[:i]
+	f.Blocks = f.Blocks[:n]
 }

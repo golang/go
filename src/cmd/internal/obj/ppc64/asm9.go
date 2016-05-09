@@ -7,7 +7,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -933,6 +933,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AECOWX: /* indexed store: op s,(b+a); op s,(b) */
 			opset(ASTWCCC, r0)
+			opset(ASTBCCC, r0)
 
 			opset(ASTDCCC, r0)
 
@@ -1105,6 +1106,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFCTIDZCC, r0)
 			opset(AFCFID, r0)
 			opset(AFCFIDCC, r0)
+			opset(AFCFIDU, r0)
+			opset(AFCFIDUCC, r0)
 			opset(AFRES, r0)
 			opset(AFRESCC, r0)
 			opset(AFRSQRTE, r0)
@@ -1200,6 +1203,7 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYNC:
 			opset(AISYNC, r0)
+			opset(ALWSYNC, r0)
 			opset(APTESYNC, r0)
 			opset(ATLBSYNC, r0)
 
@@ -1226,6 +1230,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AFMOVSU, r0)
 
 		case AECIWX:
+			opset(ALBAR, r0)
 			opset(ALWAR, r0)
 			opset(ALDAR, r0)
 
@@ -2716,6 +2721,10 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(63, 846, 0, 0)
 	case AFCFIDCC:
 		return OPVCC(63, 846, 0, 1)
+	case AFCFIDU:
+		return OPVCC(63, 974, 0, 0)
+	case AFCFIDUCC:
+		return OPVCC(63, 974, 0, 1)
 	case AFCTIW:
 		return OPVCC(63, 14, 0, 0)
 	case AFCTIWCC:
@@ -2995,6 +3004,9 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 
 	case ASYNC:
 		return OPVCC(31, 598, 0, 0)
+	case ALWSYNC:
+		return OPVCC(31, 598, 0, 0) | 1<<21
+
 	case APTESYNC:
 		return OPVCC(31, 598, 0, 0) | 2<<21
 
@@ -3240,6 +3252,8 @@ func oploadx(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(31, 311, 0, 0) /* lhzux */
 	case AECIWX:
 		return OPVCC(31, 310, 0, 0) /* eciwx */
+	case ALBAR:
+		return OPVCC(31, 52, 0, 0) /* lbarx */
 	case ALWAR:
 		return OPVCC(31, 20, 0, 0) /* lwarx */
 	case ALDAR:
@@ -3336,6 +3350,8 @@ func opstorex(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVCC(31, 661, 0, 0) /* stswx */
 	case AMOVWBR:
 		return OPVCC(31, 662, 0, 0) /* stwbrx */
+	case ASTBCCC:
+		return OPVCC(31, 694, 0, 1) /* stbcx. */
 	case ASTWCCC:
 		return OPVCC(31, 150, 0, 1) /* stwcx. */
 	case ASTDCCC:

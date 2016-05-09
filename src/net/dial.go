@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"internal/nettrace"
 	"time"
 )
 
@@ -284,7 +285,10 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 // DialContext connects to the address on the named network using
 // the provided context.
 //
-// The provided Context must be non-nil.
+// The provided Context must be non-nil. If the context expires before
+// the connection is complete, an error is returned. Once successfully
+// connected, any expiration of the context will not affect the
+// connection.
 //
 // See func Dial for a description of the network and address
 // parameters.
@@ -471,6 +475,16 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error) 
 // dialSingle attempts to establish and returns a single connection to
 // the destination address.
 func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error) {
+	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
+	if trace != nil {
+		raStr := ra.String()
+		if trace.ConnectStart != nil {
+			trace.ConnectStart(dp.network, raStr)
+		}
+		if trace.ConnectDone != nil {
+			defer func() { trace.ConnectDone(dp.network, raStr, err) }()
+		}
+	}
 	la := dp.LocalAddr
 	switch ra := ra.(type) {
 	case *TCPAddr:

@@ -63,6 +63,8 @@ var (
 	asmArchArm64    = asmArch{"arm64", 8, 8, 8, false, "RSP", true}
 	asmArchAmd64    = asmArch{"amd64", 8, 8, 8, false, "SP", false}
 	asmArchAmd64p32 = asmArch{"amd64p32", 4, 4, 8, false, "SP", false}
+	asmArchMips64   = asmArch{"mips64", 8, 8, 8, true, "R29", true}
+	asmArchMips64LE = asmArch{"mips64", 8, 8, 8, false, "R29", true}
 	asmArchPpc64    = asmArch{"ppc64", 8, 8, 8, true, "R1", true}
 	asmArchPpc64LE  = asmArch{"ppc64le", 8, 8, 8, false, "R1", true}
 
@@ -72,6 +74,8 @@ var (
 		&asmArchArm64,
 		&asmArchAmd64,
 		&asmArchAmd64p32,
+		&asmArchMips64,
+		&asmArchMips64LE,
 		&asmArchPpc64,
 		&asmArchPpc64LE,
 	}
@@ -608,6 +612,17 @@ func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr stri
 				case 'D':
 					src = 8
 				}
+			}
+		case "mips64", "mips64le":
+			switch op {
+			case "MOVB", "MOVBU":
+				src = 1
+			case "MOVH", "MOVHU":
+				src = 2
+			case "MOVW", "MOVWU", "MOVF":
+				src = 4
+			case "MOVV", "MOVD":
+				src = 8
 			}
 		}
 	}

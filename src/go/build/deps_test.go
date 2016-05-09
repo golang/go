@@ -140,7 +140,7 @@ var pkgDeps = map[string][]string{
 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
 	"path/filepath": {"L2", "os", "syscall"},
 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
-	"os/exec":       {"L2", "os", "path/filepath", "syscall"},
+	"os/exec":       {"L2", "os", "context", "path/filepath", "syscall"},
 	"os/signal":     {"L2", "os", "syscall"},
 
 	// OS enables basic operating system functionality,
@@ -282,6 +282,7 @@ var pkgDeps = map[string][]string{
 	// do networking portably, it must have a small dependency set: just L0+basic os.
 	"net": {"L0", "CGO",
 		"context", "math/rand", "os", "sort", "syscall", "time",
+		"internal/nettrace",
 		"internal/syscall/windows", "internal/singleflight", "internal/race"},
 
 	// NET enables use of basic network-related packages.
@@ -359,12 +360,15 @@ var pkgDeps = map[string][]string{
 	// HTTP, kingpin of dependencies.
 	"net/http": {
 		"L4", "NET", "OS",
-		"context", "compress/gzip", "crypto/tls",
+		"context", "compress/gzip", "container/list", "crypto/tls",
 		"mime/multipart", "runtime/debug",
 		"net/http/internal",
 		"golang.org/x/net/http2/hpack",
+		"internal/nettrace",
+		"net/http/httptrace",
 	},
-	"net/http/internal": {"L4"},
+	"net/http/internal":  {"L4"},
+	"net/http/httptrace": {"context", "internal/nettrace", "net", "reflect", "time"},
 
 	// HTTP-using packages.
 	"expvar":             {"L4", "OS", "encoding/json", "net/http"},

@@ -227,6 +227,12 @@ func main() {
 
 	goFiles := args[i:]
 
+	for _, arg := range args[:i] {
+		if arg == "-fsanitize=thread" {
+			tsanProlog = yesTsanProlog
+		}
+	}
+
 	p := newPackage(args[:i])
 
 	// Record CGO_LDFLAGS from the environment for external linking.

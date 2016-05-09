@@ -393,6 +393,9 @@ func archMips64() *Arch {
 	// Avoid unintentionally clobbering g using R30.
 	delete(register, "R30")
 	register["g"] = mips.REG_R30
+	// Avoid unintentionally clobbering RSB using R28.
+	delete(register, "R28")
+	register["RSB"] = mips.REG_R28
 	registerPrefix := map[string]bool{
 		"F":   true,
 		"FCR": true,

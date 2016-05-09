@@ -58,7 +58,7 @@ func racereadpc(addr unsafe.Pointer, callpc, pc uintptr)
 //go:noescape
 func racewritepc(addr unsafe.Pointer, callpc, pc uintptr)
 
-type symbolizeContext struct {
+type symbolizeCodeContext struct {
 	pc   uintptr
 	fn   *byte
 	file *byte
@@ -70,8 +70,27 @@ type symbolizeContext struct {
 var qq = [...]byte{'?', '?', 0}
 var dash = [...]byte{'-', 0}
 
+const (
+	raceGetProcCmd = iota
+	raceSymbolizeCodeCmd
+	raceSymbolizeDataCmd
+)
+
 // Callback from C into Go, runs on g0.
-func racesymbolize(ctx *symbolizeContext) {
+func racecallback(cmd uintptr, ctx unsafe.Pointer) {
+	switch cmd {
+	case raceGetProcCmd:
+		throw("should have been handled by racecallbackthunk")
+	case raceSymbolizeCodeCmd:
+		raceSymbolizeCode((*symbolizeCodeContext)(ctx))
+	case raceSymbolizeDataCmd:
+		raceSymbolizeData((*symbolizeDataContext)(ctx))
+	default:
+		throw("unknown command")
+	}
+}
+
+func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	f := findfunc(ctx.pc)
 	if f == nil {
 		ctx.fn = &qq[0]
@@ -91,12 +110,38 @@ func racesymbolize(ctx *symbolizeContext) {
 	return
 }
 
+type symbolizeDataContext struct {
+	addr  uintptr
+	heap  uintptr
+	start uintptr
+	size  uintptr
+	name  *byte
+	file  *byte
+	line  uintptr
+	res   uintptr
+}
+
+func raceSymbolizeData(ctx *symbolizeDataContext) {
+	if _, x, n := findObject(unsafe.Pointer(ctx.addr)); x != nil {
+		ctx.heap = 1
+		ctx.start = uintptr(x)
+		ctx.size = n
+		ctx.res = 1
+	}
+}
+
 // Race runtime functions called via runtime·racecall.
 //go:linkname __tsan_init __tsan_init
 var __tsan_init byte
 
 //go:linkname __tsan_fini __tsan_fini
 var __tsan_fini byte
+
+//go:linkname __tsan_proc_create __tsan_proc_create
+var __tsan_proc_create byte
+
+//go:linkname __tsan_proc_destroy __tsan_proc_destroy
+var __tsan_proc_destroy byte
 
 //go:linkname __tsan_map_shadow __tsan_map_shadow
 var __tsan_map_shadow byte
@@ -112,6 +157,9 @@ var __tsan_go_end byte
 
 //go:linkname __tsan_malloc __tsan_malloc
 var __tsan_malloc byte
+
+//go:linkname __tsan_free __tsan_free
+var __tsan_free byte
 
 //go:linkname __tsan_acquire __tsan_acquire
 var __tsan_acquire byte
@@ -131,11 +179,14 @@ var __tsan_go_ignore_sync_end byte
 // Mimic what cmd/cgo would do.
 //go:cgo_import_static __tsan_init
 //go:cgo_import_static __tsan_fini
+//go:cgo_import_static __tsan_proc_create
+//go:cgo_import_static __tsan_proc_destroy
 //go:cgo_import_static __tsan_map_shadow
 //go:cgo_import_static __tsan_finalizer_goroutine
 //go:cgo_import_static __tsan_go_start
 //go:cgo_import_static __tsan_go_end
 //go:cgo_import_static __tsan_malloc
+//go:cgo_import_static __tsan_free
 //go:cgo_import_static __tsan_acquire
 //go:cgo_import_static __tsan_release
 //go:cgo_import_static __tsan_release_merge
@@ -175,7 +226,7 @@ func racefuncenter(uintptr)
 func racefuncexit()
 func racereadrangepc1(uintptr, uintptr, uintptr)
 func racewriterangepc1(uintptr, uintptr, uintptr)
-func racesymbolizethunk(uintptr)
+func racecallbackthunk(uintptr)
 
 // racecall allows calling an arbitrary function f from C race runtime
 // with up to 4 uintptr arguments.
@@ -189,14 +240,13 @@ func isvalidaddr(addr unsafe.Pointer) bool {
 }
 
 //go:nosplit
-func raceinit() uintptr {
+func raceinit() (gctx, pctx uintptr) {
 	// cgo is required to initialize libc, which is used by race runtime
 	if !iscgo {
 		throw("raceinit: race build must use cgo")
 	}
 
-	var racectx uintptr
-	racecall(&__tsan_init, uintptr(unsafe.Pointer(&racectx)), funcPC(racesymbolizethunk), 0, 0)
+	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), funcPC(racecallbackthunk), 0)
 
 	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)
@@ -230,12 +280,24 @@ func raceinit() uintptr {
 	racedatastart = start
 	racedataend = start + size
 
-	return racectx
+	return
 }
 
 //go:nosplit
 func racefini() {
 	racecall(&__tsan_fini, 0, 0, 0, 0)
+}
+
+//go:nosplit
+func raceproccreate() uintptr {
+	var ctx uintptr
+	racecall(&__tsan_proc_create, uintptr(unsafe.Pointer(&ctx)), 0, 0, 0)
+	return ctx
+}
+
+//go:nosplit
+func raceprocdestroy(ctx uintptr) {
+	racecall(&__tsan_proc_destroy, ctx, 0, 0, 0)
 }
 
 //go:nosplit
@@ -251,7 +313,12 @@ func racemapshadow(addr unsafe.Pointer, size uintptr) {
 
 //go:nosplit
 func racemalloc(p unsafe.Pointer, sz uintptr) {
-	racecall(&__tsan_malloc, uintptr(p), sz, 0, 0)
+	racecall(&__tsan_malloc, 0, 0, uintptr(p), sz)
+}
+
+//go:nosplit
+func racefree(p unsafe.Pointer, sz uintptr) {
+	racecall(&__tsan_free, uintptr(p), sz, 0, 0)
 }
 
 //go:nosplit
@@ -323,11 +390,7 @@ func raceacquireg(gp *g, addr unsafe.Pointer) {
 
 //go:nosplit
 func racerelease(addr unsafe.Pointer) {
-	_g_ := getg()
-	if _g_.raceignore != 0 || !isvalidaddr(addr) {
-		return
-	}
-	racereleaseg(_g_, addr)
+	racereleaseg(getg(), addr)
 }
 
 //go:nosplit

@@ -28,7 +28,7 @@ type SectionHeader32 struct {
 // fullName finds real name of section sh. Normally name is stored
 // in sh.Name, but if it is longer then 8 characters, it is stored
 // in COFF string table st instead.
-func (sh *SectionHeader32) fullName(st StringTable) (string, error) {
+func (sh *SectionHeader32) fullName(st _StringTable) (string, error) {
 	if sh.Name[0] != '/' {
 		return cstring(sh.Name[:]), nil
 	}
@@ -41,15 +41,15 @@ func (sh *SectionHeader32) fullName(st StringTable) (string, error) {
 
 // TODO(brainman): copy all IMAGE_REL_* consts from ldpe.go here
 
-// Reloc represents a PE COFF relocation.
+// _Reloc represents a PE COFF relocation.
 // Each section contains its own relocation list.
-type Reloc struct {
+type _Reloc struct {
 	VirtualAddress   uint32
 	SymbolTableIndex uint32
 	Type             uint16
 }
 
-func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
+func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]_Reloc, error) {
 	if sh.NumberOfRelocations <= 0 {
 		return nil, nil
 	}
@@ -57,7 +57,7 @@ func readRelocs(sh *SectionHeader, r io.ReadSeeker) ([]Reloc, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to %q section relocations: %v", sh.Name, err)
 	}
-	relocs := make([]Reloc, sh.NumberOfRelocations)
+	relocs := make([]_Reloc, sh.NumberOfRelocations)
 	err = binary.Read(r, binary.LittleEndian, relocs)
 	if err != nil {
 		return nil, fmt.Errorf("fail to read section relocations: %v", err)
@@ -83,7 +83,7 @@ type SectionHeader struct {
 // Section provides access to PE COFF section.
 type Section struct {
 	SectionHeader
-	Relocs []Reloc
+	_Relocs []_Reloc
 
 	// Embed ReaderAt for ReadAt method.
 	// Do not embed SectionReader directly

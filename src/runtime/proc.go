@@ -76,8 +76,9 @@ var buildVersion = sys.TheVersion
 // for nmspinning manipulation.
 
 var (
-	m0 m
-	g0 g
+	m0           m
+	g0           g
+	raceprocctx0 uintptr
 )
 
 //go:linkname runtime_init runtime.init
@@ -434,7 +435,7 @@ func schedinit() {
 	// In particular, it must be done before mallocinit below calls racemapshadow.
 	_g_ := getg()
 	if raceenabled {
-		_g_.racectx = raceinit()
+		_g_.racectx, raceprocctx0 = raceinit()
 	}
 
 	sched.maxmcount = 10000
@@ -3084,12 +3085,24 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	var haveStackLock *g
 	n := 0
 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
-		// Cgo, we can't unwind and symbolize arbitrary C code,
-		// so instead collect Go stack that leads to the cgo call.
-		// This is especially important on windows, since all syscalls are cgo calls.
+		cgoOff := 0
+		// Check cgoCallersUse to make sure that we are not
+		// interrupting other code that is fiddling with
+		// cgoCallers.  We are running in a signal handler
+		// with all signals blocked, so we don't have to worry
+		// about any other code interrupting us.
+		if atomic.Load(&mp.cgoCallersUse) == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
+			for cgoOff < len(mp.cgoCallers) && mp.cgoCallers[cgoOff] != 0 {
+				cgoOff++
+			}
+			copy(stk[:], mp.cgoCallers[:cgoOff])
+			mp.cgoCallers[0] = 0
+		}
+
+		// Collect Go stack that leads to the cgo call.
 		if gcTryLockStackBarriers(mp.curg) {
 			haveStackLock = mp.curg
-			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
+			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
 		}
 	} else if traceback {
 		var flags uint = _TraceTrap
@@ -3251,6 +3264,14 @@ func procresize(nprocs int32) *p {
 				pp.mcache = allocmcache()
 			}
 		}
+		if raceenabled && pp.racectx == 0 {
+			if old == 0 && i == 0 {
+				pp.racectx = raceprocctx0
+				raceprocctx0 = 0 // bootstrap
+			} else {
+				pp.racectx = raceproccreate()
+			}
+		}
 	}
 
 	// free unused P's
@@ -3302,6 +3323,10 @@ func procresize(nprocs int32) *p {
 		p.mcache = nil
 		gfpurge(p)
 		traceProcFree(p)
+		if raceenabled {
+			raceprocdestroy(p.racectx)
+			p.racectx = 0
+		}
 		p.status = _Pdead
 		// can't free P itself because it can be referenced by an M in syscall
 	}
@@ -3921,9 +3946,20 @@ func pidleget() *p {
 }
 
 // runqempty returns true if _p_ has no Gs on its local run queue.
-// Note that this test is generally racy.
+// It never returns true spuriously.
 func runqempty(_p_ *p) bool {
-	return _p_.runqhead == _p_.runqtail && _p_.runnext == 0
+	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
+	// 2) runqput on _p_ kicks G1 to the runq, 3) runqget on _p_ empties runqnext.
+	// Simply observing that runqhead == runqtail and then observing that runqnext == nil
+	// does not mean the queue is empty.
+	for {
+		head := atomic.Load(&_p_.runqhead)
+		tail := atomic.Load(&_p_.runqtail)
+		runnext := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&_p_.runnext)))
+		if tail == atomic.Load(&_p_.runqtail) {
+			return head == tail && runnext == 0
+		}
+	}
 }
 
 // To shake out latent assumptions about scheduling order,

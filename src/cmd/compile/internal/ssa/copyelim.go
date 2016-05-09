@@ -4,18 +4,21 @@
 
 package ssa
 
-// copyelim removes all copies from f.
+// copyelim removes all uses of OpCopy values from f.
+// A subsequent deadcode pass is needed to actually remove the copies.
 func copyelim(f *Func) {
+	// Modify all values so no arg (including args
+	// of OpCopy) is a copy.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			copyelimValue(v)
 		}
-		v := b.Control
-		if v != nil && v.Op == OpCopy {
-			for v.Op == OpCopy {
-				v = v.Args[0]
-			}
-			b.SetControl(v)
+	}
+
+	// Update block control values.
+	for _, b := range f.Blocks {
+		if v := b.Control; v != nil && v.Op == OpCopy {
+			b.SetControl(v.Args[0])
 		}
 	}
 
@@ -23,41 +26,57 @@ func copyelim(f *Func) {
 	for _, name := range f.Names {
 		values := f.NamedValues[name]
 		for i, v := range values {
-			x := v
-			for x.Op == OpCopy {
-				x = x.Args[0]
-			}
-			if x != v {
-				values[i] = x
+			if v.Op == OpCopy {
+				values[i] = v.Args[0]
 			}
 		}
 	}
 }
 
-func copyelimValue(v *Value) bool {
-	// elide any copies generated during rewriting
-	changed := false
-	for i, a := range v.Args {
-		if a.Op != OpCopy {
-			continue
+// copySource returns the (non-copy) op which is the
+// ultimate source of v.  v must be a copy op.
+func copySource(v *Value) *Value {
+	w := v.Args[0]
+
+	// This loop is just:
+	// for w.Op == OpCopy {
+	//     w = w.Args[0]
+	// }
+	// but we take some extra care to make sure we
+	// don't get stuck in an infinite loop.
+	// Infinite copy loops may happen in unreachable code.
+	// (TODO: or can they?  Needs a test.)
+	slow := w
+	var advance bool
+	for w.Op == OpCopy {
+		w = w.Args[0]
+		if w == slow {
+			w.reset(OpUnknown)
+			break
 		}
-		// Rewriting can generate OpCopy loops.
-		// They are harmless (see removePredecessor),
-		// but take care to stop if we find a cycle.
-		slow := a // advances every other iteration
-		var advance bool
-		for a.Op == OpCopy {
-			a = a.Args[0]
-			if slow == a {
-				break
-			}
-			if advance {
-				slow = slow.Args[0]
-			}
-			advance = !advance
+		if advance {
+			slow = slow.Args[0]
 		}
-		v.SetArg(i, a)
-		changed = true
+		advance = !advance
 	}
-	return changed
+
+	// The answer is w.  Update all the copies we saw
+	// to point directly to w.  Doing this update makes
+	// sure that we don't end up doing O(n^2) work
+	// for a chain of n copies.
+	for v != w {
+		x := v.Args[0]
+		v.SetArg(0, w)
+		v = x
+	}
+	return w
+}
+
+// copyelimValue ensures that no args of v are copies.
+func copyelimValue(v *Value) {
+	for i, a := range v.Args {
+		if a.Op == OpCopy {
+			v.SetArg(i, copySource(a))
+		}
+	}
 }

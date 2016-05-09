@@ -4062,7 +4062,12 @@ func TestServerContext_ServerContextKey(t *testing.T) {
 		ctx := r.Context()
 		got := ctx.Value(ServerContextKey)
 		if _, ok := got.(*Server); !ok {
-			t.Errorf("context value = %T; want *http.Server")
+			t.Errorf("context value = %T; want *http.Server", got)
+		}
+
+		got = ctx.Value(LocalAddrContextKey)
+		if _, ok := got.(net.Addr); !ok {
+			t.Errorf("local addr value = %T; want net.Addr", got)
 		}
 	}))
 	defer ts.Close()
@@ -4263,7 +4268,7 @@ func BenchmarkClient(b *testing.B) {
 	// Wait for the server process to respond.
 	url := "http://localhost:" + port + "/"
 	for i := 0; i < 100; i++ {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		if _, err := getNoBody(url); err == nil {
 			break
 		}

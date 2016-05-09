@@ -641,7 +641,13 @@ var deadlock mutex
 
 func dopanic_m(gp *g, pc, sp uintptr) {
 	if gp.sig != 0 {
-		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
+		signame := signame(gp.sig)
+		if signame != "" {
+			print("[signal ", signame)
+		} else {
+			print("[signal ", hex(gp.sig))
+		}
+		print(" code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
 	}
 
 	level, all, docrash := gotraceback()

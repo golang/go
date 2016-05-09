@@ -285,17 +285,20 @@ func TestRaceChanWrongClose(t *testing.T) {
 	v1 := 0
 	v2 := 0
 	c := make(chan int, 1)
+	done := make(chan bool)
 	go func() {
 		defer func() {
 			recover()
 		}()
 		v1 = 1
 		c <- 1
+		done <- true
 	}()
 	go func() {
 		time.Sleep(1e7)
 		v2 = 2
 		close(c)
+		done <- true
 	}()
 	time.Sleep(2e7)
 	if _, who := <-c; who {
@@ -303,6 +306,8 @@ func TestRaceChanWrongClose(t *testing.T) {
 	} else {
 		v1 = 2
 	}
+	<-done
+	<-done
 }
 
 func TestRaceChanSendClose(t *testing.T) {

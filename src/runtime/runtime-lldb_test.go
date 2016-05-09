@@ -232,7 +232,7 @@ func verifyAranges(t *testing.T, byteorder binary.ByteOrder, data io.ReadSeeker)
 		SegmentSize uint8
 	}
 	for {
-		offset, err := data.Seek(0, 1)
+		offset, err := data.Seek(0, io.SeekCurrent)
 		if err != nil {
 			t.Fatalf("Seek error: %v", err)
 		}
@@ -246,7 +246,7 @@ func verifyAranges(t *testing.T, byteorder binary.ByteOrder, data io.ReadSeeker)
 		if lastTupleOffset%tupleSize != 0 {
 			t.Fatalf("Invalid arange length %d, (addr %d, seg %d)", header.UnitLength, header.AddressSize, header.SegmentSize)
 		}
-		if _, err = data.Seek(lastTupleOffset, 0); err != nil {
+		if _, err = data.Seek(lastTupleOffset, io.SeekStart); err != nil {
 			t.Fatalf("Seek error: %v", err)
 		}
 		buf := make([]byte, tupleSize)

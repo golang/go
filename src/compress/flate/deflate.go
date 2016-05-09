@@ -19,12 +19,20 @@ const (
 	logWindowSize      = 15
 	windowSize         = 1 << logWindowSize
 	windowMask         = windowSize - 1
-	logMaxOffsetSize   = 15  // Standard DEFLATE
-	minMatchLength     = 4   // The smallest match that the compressor looks for
-	maxMatchLength     = 258 // The longest match for the compressor
-	minOffsetSize      = 1   // The shortest offset that makes any sense
 
-	// The maximum number of tokens we put into a single flat block, just to
+	// The LZ77 step produces a sequence of literal tokens and <length, offset>
+	// pair tokens. The offset is also known as distance. The underlying wire
+	// format limits the range of lengths and offsets. For example, there are
+	// 256 legitimate lengths: those in the range [3, 258]. This package's
+	// compressor uses a higher minimum match length, enabling optimizations
+	// such as finding matches via 32-bit loads and compares.
+	baseMatchLength = 3       // The smallest match length per the RFC section 3.2.5
+	minMatchLength  = 4       // The smallest match length that the compressor actually emits
+	maxMatchLength  = 258     // The largest match length
+	baseMatchOffset = 1       // The smallest match offset
+	maxMatchOffset  = 1 << 15 // The largest match offset
+
+	// The maximum number of tokens we put into a single flate block, just to
 	// stop things from getting too large.
 	maxFlateBlockTokens = 1 << 14
 	maxStoreBlockSize   = 65535
@@ -41,9 +49,9 @@ type compressionLevel struct {
 }
 
 var levels = []compressionLevel{
-	{}, // 0
-	// For levels 1-3 we don't bother trying with lazy matches
-	{1, 4, 0, 8, 4, 4},
+	{0, 0, 0, 0, 0, 0}, // NoCompression.
+	{1, 0, 0, 0, 0, 0}, // BestSpeed uses a custom algorithm; see deflatefast.go.
+	// For levels 2-3 we don't bother trying with lazy matches.
 	{2, 4, 0, 16, 8, 5},
 	{3, 4, 0, 32, 32, 6},
 	// Levels 4-9 use increasingly more lazy matching
@@ -154,7 +162,7 @@ func (d *compressor) writeBlock(tokens []token, index int) error {
 // Should only be used after a reset.
 func (d *compressor) fillWindow(b []byte) {
 	// Do not fill window if we are in store-only mode.
-	if d.compressionLevel.level == 0 {
+	if d.compressionLevel.level < 2 {
 		return
 	}
 	if d.index != 0 || d.windowEnd != 0 {
@@ -303,6 +311,45 @@ func matchLen(a, b []byte, max int) int {
 	return max
 }
 
+// encSpeed will compress and store the currently added data,
+// if enough has been accumulated or we at the end of the stream.
+// Any error that occurred will be in d.err
+func (d *compressor) encSpeed() {
+	// We only compress if we have maxStoreBlockSize.
+	if d.windowEnd < maxStoreBlockSize {
+		if !d.sync {
+			return
+		}
+
+		// Handle small sizes.
+		if d.windowEnd < 128 {
+			switch {
+			case d.windowEnd == 0:
+				return
+			case d.windowEnd <= 16:
+				d.err = d.writeStoredBlock(d.window[:d.windowEnd])
+			default:
+				d.w.writeBlockHuff(false, d.window[:d.windowEnd])
+				d.err = d.w.err
+			}
+			d.windowEnd = 0
+			return
+		}
+
+	}
+	// Encode the block.
+	d.tokens = encodeBestSpeed(d.tokens[:0], d.window[:d.windowEnd])
+
+	// If we removed less than 1/16th, Huffman compress the block.
+	if len(d.tokens) > d.windowEnd-(d.windowEnd>>4) {
+		d.w.writeBlockHuff(false, d.window[:d.windowEnd])
+	} else {
+		d.w.writeBlockDynamic(d.tokens, false, d.window[:d.windowEnd])
+	}
+	d.err = d.w.err
+	d.windowEnd = 0
+}
+
 func (d *compressor) initDeflate() {
 	d.window = make([]byte, 2*windowSize)
 	d.hashOffset = 1
@@ -385,9 +432,9 @@ Loop:
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			if d.fastSkipHashing != skipNever {
-				d.tokens = append(d.tokens, matchToken(uint32(d.length-3), uint32(d.offset-minOffsetSize)))
+				d.tokens = append(d.tokens, matchToken(uint32(d.length-baseMatchLength), uint32(d.offset-baseMatchOffset)))
 			} else {
-				d.tokens = append(d.tokens, matchToken(uint32(prevLength-3), uint32(prevOffset-minOffsetSize)))
+				d.tokens = append(d.tokens, matchToken(uint32(prevLength-baseMatchLength), uint32(prevOffset-baseMatchOffset)))
 			}
 			// Insert in the hash table all strings up to the end of the match.
 			// index and index-1 are already inserted. If there is not enough
@@ -519,10 +566,16 @@ func (d *compressor) init(w io.Writer, level int) (err error) {
 		d.window = make([]byte, maxStoreBlockSize)
 		d.fill = (*compressor).fillStore
 		d.step = (*compressor).storeHuff
+	case level == BestSpeed:
+		d.compressionLevel = levels[level]
+		d.window = make([]byte, maxStoreBlockSize)
+		d.fill = (*compressor).fillStore
+		d.step = (*compressor).encSpeed
+		d.tokens = make([]token, maxStoreBlockSize)
 	case level == DefaultCompression:
 		level = 6
 		fallthrough
-	case 1 <= level && level <= 9:
+	case 2 <= level && level <= 9:
 		d.compressionLevel = levels[level]
 		d.initDeflate()
 		d.fill = (*compressor).fillDeflate
@@ -540,6 +593,9 @@ func (d *compressor) reset(w io.Writer) {
 	switch d.compressionLevel.level {
 	case NoCompression:
 		d.windowEnd = 0
+	case BestSpeed:
+		d.windowEnd = 0
+		d.tokens = d.tokens[:0]
 	default:
 		d.chainHead = -1
 		for i := range d.hashHead {

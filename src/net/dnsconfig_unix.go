@@ -14,28 +14,28 @@ import (
 )
 
 var (
-	defaultNS   = []string{"127.0.0.1", "::1"}
+	defaultNS   = []string{"127.0.0.1:53", "[::1]:53"}
 	getHostname = os.Hostname // variable for testing
 )
 
 type dnsConfig struct {
-	servers    []string  // servers to use
-	search     []string  // suffixes to append to local name
-	ndots      int       // number of dots in name to trigger absolute lookup
-	timeout    int       // seconds before giving up on packet
-	attempts   int       // lost packets before giving up on server
-	rotate     bool      // round robin among servers
-	unknownOpt bool      // anything unknown was encountered
-	lookup     []string  // OpenBSD top-level database "lookup" order
-	err        error     // any error that occurs during open of resolv.conf
-	mtime      time.Time // time of resolv.conf modification
+	servers    []string      // server addresses (in host:port form) to use
+	search     []string      // rooted suffixes to append to local name
+	ndots      int           // number of dots in name to trigger absolute lookup
+	timeout    time.Duration // wait before giving up on a query, including retries
+	attempts   int           // lost packets before giving up on server
+	rotate     bool          // round robin among servers
+	unknownOpt bool          // anything unknown was encountered
+	lookup     []string      // OpenBSD top-level database "lookup" order
+	err        error         // any error that occurs during open of resolv.conf
+	mtime      time.Time     // time of resolv.conf modification
 }
 
 // See resolv.conf(5) on a Linux machine.
 func dnsReadConfig(filename string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,
-		timeout:  5,
+		timeout:  5 * time.Second,
 		attempts: 2,
 	}
 	file, err := open(filename)
@@ -70,21 +70,21 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// just an IP address. Otherwise we need DNS
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
-					conf.servers = append(conf.servers, f[1])
+					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				} else if ip, _ := parseIPv6(f[1], true); ip != nil {
-					conf.servers = append(conf.servers, f[1])
+					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
 				}
 			}
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
-				conf.search = []string{f[1]}
+				conf.search = []string{ensureRooted(f[1])}
 			}
 
 		case "search": // set search path to given servers
 			conf.search = make([]string, len(f)-1)
 			for i := 0; i < len(conf.search); i++ {
-				conf.search[i] = f[i+1]
+				conf.search[i] = ensureRooted(f[i+1])
 			}
 
 		case "options": // magic options
@@ -101,7 +101,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 					if n < 1 {
 						n = 1
 					}
-					conf.timeout = n
+					conf.timeout = time.Duration(n) * time.Second
 				case hasPrefix(s, "attempts:"):
 					n, _, _ := dtoi(s, 9)
 					if n < 1 {
@@ -141,11 +141,18 @@ func dnsDefaultSearch() []string {
 		return nil
 	}
 	if i := byteIndex(hn, '.'); i >= 0 && i < len(hn)-1 {
-		return []string{hn[i+1:]}
+		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil
 }
 
 func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func ensureRooted(s string) string {
+	if len(s) > 0 && s[len(s)-1] == '.' {
+		return s
+	}
+	return s + "."
 }

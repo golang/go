@@ -464,6 +464,7 @@ var deptab = []struct {
 }{
 	{"cmd/go", []string{
 		"zdefaultcc.go",
+		"zosarch.go",
 	}},
 	{"runtime/internal/sys", []string{
 		"zversion.go",
@@ -485,6 +486,7 @@ var gentab = []struct {
 	gen        func(string, string)
 }{
 	{"zdefaultcc.go", mkzdefaultcc},
+	{"zosarch.go", mkzosarch},
 	{"zversion.go", mkzversion},
 	{"zcgo.go", mkzcgo},
 
@@ -1096,8 +1098,8 @@ var cgoEnabled = map[string]bool{
 	"linux/arm64":     true,
 	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
-	"linux/mips64":    false,
-	"linux/mips64le":  false,
+	"linux/mips64":    true,
+	"linux/mips64le":  true,
 	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,

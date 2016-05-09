@@ -257,13 +257,10 @@ func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
 	if v.Op == OpPhi && v.Block != w.Block {
 		return lt2Cmp(v.Block.ID < w.Block.ID)
 	}
-
-	switch v.Op {
-	case OpStaticCall, OpAMD64CALLstatic, OpARMCALLstatic:
-		sym := v.Aux.(GCSym)
-		if sym.IsRuntimeCall("newobject") {
-			return lt2Cmp(v.ID < w.ID)
-		}
+	if v.Type.IsMemory() {
+		// We will never be able to CSE two values
+		// that generate memory.
+		return lt2Cmp(v.ID < w.ID)
 	}
 
 	if tc := v.Type.Compare(w.Type); tc != CMPeq {

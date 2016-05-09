@@ -7,7 +7,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2008 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,10 @@ func Rconv(r int) string {
 	if r == REGG {
 		// Special case.
 		return "g"
+	}
+	if r == REGSB {
+		// Special case.
+		return "RSB"
 	}
 	if REG_R0 <= r && r <= REG_R31 {
 		return fmt.Sprintf("R%d", r-REG_R0)

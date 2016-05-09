@@ -180,8 +180,7 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
 	}
 
-	timeout := time.Duration(cfg.timeout) * time.Second
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(cfg.timeout)
 	if old, ok := ctx.Deadline(); !ok || deadline.Before(old) {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithDeadline(ctx, deadline)
@@ -191,7 +190,6 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 	var lastErr error
 	for i := 0; i < cfg.attempts; i++ {
 		for _, server := range cfg.servers {
-			server = JoinHostPort(server, "53")
 			msg, err := exchange(ctx, server, name, qtype)
 			if err != nil {
 				lastErr = &DNSError{
@@ -363,23 +361,23 @@ func (conf *dnsConfig) nameList(name string) []string {
 	if rooted {
 		return []string{name}
 	}
+
+	hasNdots := count(name, '.') >= conf.ndots
+	name += "."
+
 	// Build list of search choices.
 	names := make([]string, 0, 1+len(conf.search))
 	// If name has enough dots, try unsuffixed first.
-	if count(name, '.') >= conf.ndots {
-		names = append(names, name+".")
+	if hasNdots {
+		names = append(names, name)
 	}
 	// Try suffixes.
 	for _, suffix := range conf.search {
-		suffixed := name + "." + suffix
-		if suffixed[len(suffixed)-1] != '.' {
-			suffixed += "."
-		}
-		names = append(names, suffixed)
+		names = append(names, name+suffix)
 	}
 	// Try unsuffixed, if not tried first above.
-	if count(name, '.') < conf.ndots {
-		names = append(names, name+".")
+	if !hasNdots {
+		names = append(names, name)
 	}
 	return names
 }

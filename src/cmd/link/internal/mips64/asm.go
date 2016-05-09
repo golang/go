@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"encoding/binary"
 	"fmt"
 	"log"
 )
@@ -46,7 +45,52 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 }
 
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
-	return -1
+	// mips64 ELF relocation (endian neutral)
+	//		offset	uint64
+	//		sym		uint32
+	//		ssym	uint8
+	//		type3	uint8
+	//		type2	uint8
+	//		type	uint8
+	//		addend	int64
+
+	ld.Thearch.Vput(uint64(sectoff))
+
+	elfsym := r.Xsym.ElfsymForReloc()
+	ld.Thearch.Lput(uint32(elfsym))
+	ld.Cput(0)
+	ld.Cput(0)
+	ld.Cput(0)
+	switch r.Type {
+	default:
+		return -1
+
+	case obj.R_ADDR:
+		switch r.Siz {
+		case 4:
+			ld.Cput(ld.R_MIPS_32)
+		case 8:
+			ld.Cput(ld.R_MIPS_64)
+		default:
+			return -1
+		}
+
+	case obj.R_ADDRMIPS:
+		ld.Cput(ld.R_MIPS_LO16)
+
+	case obj.R_ADDRMIPSU:
+		ld.Cput(ld.R_MIPS_HI16)
+
+	case obj.R_ADDRMIPSTLS:
+		ld.Cput(ld.R_MIPS_TLS_TPREL_LO16)
+
+	case obj.R_CALLMIPS,
+		obj.R_JMPMIPS:
+		ld.Cput(ld.R_MIPS_26)
+	}
+	ld.Thearch.Vput(uint64(r.Xadd))
+
+	return 0
 }
 
 func elfsetupplt() {
@@ -59,7 +103,37 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
-		return -1
+		switch r.Type {
+		default:
+			return -1
+
+		case obj.R_ADDRMIPS,
+			obj.R_ADDRMIPSU:
+			r.Done = 0
+
+			// set up addend for eventual relocation via outer symbol.
+			rs := r.Sym
+			r.Xadd = r.Add
+			for rs.Outer != nil {
+				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
+				rs = rs.Outer
+			}
+
+			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+				ld.Diag("missing section for %s", rs.Name)
+			}
+			r.Xsym = rs
+
+			return 0
+
+		case obj.R_ADDRMIPSTLS,
+			obj.R_CALLMIPS,
+			obj.R_JMPMIPS:
+			r.Done = 0
+			r.Xsym = r.Sym
+			r.Xadd = r.Add
+			return 0
+		}
 	}
 
 	switch r.Type {
@@ -71,25 +145,25 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-	case obj.R_ADDRMIPS:
+	case obj.R_ADDRMIPS,
+		obj.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		if t >= 1<<32 || t < -1<<32 {
-			ld.Diag("program too large, address relocation = %v", t)
-		}
-
-		// the first instruction is always at the lower address, this is endian neutral;
-		// but note that o1 and o2 should still use the target endian.
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
-		o2 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off+4:])
-		o1 = o1&0xffff0000 | uint32(t>>16)&0xffff
-		o2 = o2&0xffff0000 | uint32(t)&0xffff
-
-		// when laid out, the instruction order must always be o1, o2.
-		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-			*val = int64(o1)<<32 | int64(o2)
+		if r.Type == obj.R_ADDRMIPS {
+			*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		} else {
-			*val = int64(o2)<<32 | int64(o1)
+			*val = int64(o1&0xffff0000 | uint32((t+1<<15)>>16)&0xffff)
 		}
+		return 0
+
+	case obj.R_ADDRMIPSTLS:
+		// thread pointer is at 0x7000 offset from the start of TLS data area
+		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
+		if t < -32768 || t >= 32678 {
+			ld.Diag("TLS offset out of range %d", t)
+		}
+		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
+		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
 		return 0
 
 	case obj.R_CALLMIPS,

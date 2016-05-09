@@ -35,6 +35,7 @@ type serverHandshakeState struct {
 }
 
 // serverHandshake performs a TLS handshake as a server.
+// c.out.Mutex <= L; c.handshakeMutex <= L.
 func (c *Conn) serverHandshake() error {
 	config := c.config
 
@@ -67,9 +68,10 @@ func (c *Conn) serverHandshake() error {
 				return err
 			}
 		}
-		if err := hs.sendFinished(c.firstFinished[:]); err != nil {
+		if err := hs.sendFinished(c.serverFinished[:]); err != nil {
 			return err
 		}
+		c.clientFinishedIsFirst = false
 		if err := hs.readFinished(nil); err != nil {
 			return err
 		}
@@ -83,9 +85,10 @@ func (c *Conn) serverHandshake() error {
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
-		if err := hs.readFinished(c.firstFinished[:]); err != nil {
+		if err := hs.readFinished(c.clientFinished[:]); err != nil {
 			return err
 		}
+		c.clientFinishedIsFirst = true
 		if err := hs.sendSessionTicket(); err != nil {
 			return err
 		}
@@ -165,7 +168,13 @@ Curves:
 		c.sendAlert(alertInternalError)
 		return false, err
 	}
-	hs.hello.secureRenegotiation = hs.clientHello.secureRenegotiation
+
+	if len(hs.clientHello.secureRenegotiation) != 0 {
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: initial handshake had non-empty renegotiation extension")
+	}
+
+	hs.hello.secureRenegotiationSupported = hs.clientHello.secureRenegotiationSupported
 	hs.hello.compressionMethod = compressionNone
 	if len(hs.clientHello.serverName) > 0 {
 		c.serverName = hs.clientHello.serverName
@@ -586,8 +595,8 @@ func (hs *serverHandshakeState) readFinished(out []byte) error {
 	c := hs.c
 
 	c.readRecord(recordTypeChangeCipherSpec)
-	if err := c.in.error(); err != nil {
-		return err
+	if c.in.err != nil {
+		return c.in.err
 	}
 
 	if hs.hello.nextProtoNeg {

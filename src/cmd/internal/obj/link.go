@@ -8,7 +8,7 @@
 //	Portions Copyright © 2004,2006 Bruce Ellis
 //	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 //	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -454,8 +454,8 @@ const (
 	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
 	// referenced symbol.
 	R_ADDRARM64
-	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
-	// by loading the address into a register with two instructions (lui, ori).
+	// R_ADDRMIPS (only used on mips64) resolves to the low 16 bits of an external
+	// address, by encoding it into the instruction.
 	R_ADDRMIPS
 	// R_ADDROFF resolves to a 32-bit offset from the beginning of the section
 	// holding the data being relocated to the referenced symbol.
@@ -581,6 +581,13 @@ const (
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL
+
+	// R_ADDRMIPSU (only used on mips64) resolves to the sign-adjusted "upper" 16
+	// bits (bit 16-31) of an external address, by encoding it into the instruction.
+	R_ADDRMIPSU
+	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
+	// address (offset from thread pointer), by encoding it into the instruction.
+	R_ADDRMIPSTLS
 )
 
 type Auto struct {

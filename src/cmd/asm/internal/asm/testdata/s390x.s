@@ -59,8 +59,12 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	SUBC	R2, R3, R4            // b9eb2043
 	MULLW	R6, R7                // b91c0076
 	MULLW	R6, R7, R8            // b9040087b91c0086
-	MULLW	$8192, R6             // c26000002000
-	MULLW	$8192, R6, R7         // b9040076c27000002000
+	MULLW	$8192, R6             // a76d2000
+	MULLW	$8192, R6, R7         // b9040076a77d2000
+	MULLW	$-65537, R8           // c280fffeffff
+	MULLW   $-65537, R8, R9       // b9040098c290fffeffff
+	MULLD	$-2147483648, R1      // c21080000000
+	MULLD   $-2147483648, R1, R2  // b9040021c22080000000
 	MULHD	R9, R8                // b90400b8b98600a9ebb9003f000ab98000b8b90900abebb8003f000ab98000b9b9e9b08a
 	MULHD	R7, R2, R1            // b90400b2b98600a7ebb7003f000ab98000b2b90900abebb2003f000ab98000b7b9e9b01a
 	MULHDU	R3, R4                // b90400b4b98600a3b904004a

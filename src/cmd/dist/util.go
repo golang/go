@@ -6,9 +6,8 @@ package main
 
 import (
 	"bytes"
-	"debug/elf"
-	"encoding/binary"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -442,13 +441,8 @@ func main() {
 		case strings.Contains(out, "ppc64"):
 			gohostarch = "ppc64"
 		case strings.Contains(out, "mips64"):
-			file, err := elf.Open(os.Args[0])
-			if err != nil {
-				fatal("failed to open %s to determine endianness: %v", os.Args[0], err)
-			}
-			if file.FileHeader.ByteOrder == binary.BigEndian {
-				gohostarch = "mips64"
-			} else {
+			gohostarch = "mips64"
+			if elfIsLittleEndian(os.Args[0]) {
 				gohostarch = "mips64le"
 			}
 		case strings.Contains(out, "s390x"):
@@ -555,4 +549,29 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// elfIsLittleEndian detects if the ELF file is little endian.
+func elfIsLittleEndian(fn string) bool {
+	// read the ELF file header to determine the endianness without using the
+	// debug/elf package.
+	file, err := os.Open(fn)
+	if err != nil {
+		fatal("failed to open file to determine endianness: %v", err)
+	}
+	defer file.Close()
+	var hdr [16]byte
+	if _, err := io.ReadFull(file, hdr[:]); err != nil {
+		fatal("failed to read ELF header to determine endianness: %v", err)
+	}
+	// hdr[5] is EI_DATA byte, 1 is ELFDATA2LSB and 2 is ELFDATA2MSB
+	switch hdr[5] {
+	default:
+		fatal("unknown ELF endianness of %s: EI_DATA = %d", fn, hdr[5])
+	case 1:
+		return true
+	case 2:
+		return false
+	}
+	panic("unreachable")
 }
