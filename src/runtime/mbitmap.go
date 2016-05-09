@@ -498,7 +498,6 @@ func (h heapBits) morePointers() bool {
 }
 
 // isPointer reports whether the heap bits describe a pointer word.
-// h must describe the initial word of the object.
 //
 // nosplit because it is used during write barriers and must not be preempted.
 //go:nosplit
@@ -507,8 +506,7 @@ func (h heapBits) isPointer() bool {
 }
 
 // hasPointers reports whether the given object has any pointers.
-// It must be told how large the object at h is, so that it does not read too
-// far into the bitmap.
+// It must be told how large the object at h is for efficiency.
 // h must describe the initial word of the object.
 func (h heapBits) hasPointers(size uintptr) bool {
 	if size == sys.PtrSize { // 1-word objects are always pointers
