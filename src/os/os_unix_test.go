@@ -145,6 +145,9 @@ func TestLchown(t *testing.T) {
 
 	linkname := f.Name() + "2"
 	if err := Symlink(f.Name(), linkname); err != nil {
+		if runtime.GOOS == "android" && IsPermission(err) {
+			t.Skip("skipping test on Android; permission error creating symlink")
+		}
 		t.Fatalf("link %s -> %s: %v", f.Name(), linkname, err)
 	}
 	defer Remove(linkname)
