@@ -88,12 +88,6 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
 	if err != nil {
 		return
 	}
-	// reset to offset 0 - needed on Plan 9 (see issue #11265)
-	// TODO: remove once issue #11265 has been resolved.
-	_, err = f.Seek(0, io.SeekStart)
-	if err != nil {
-		return
-	}
 
 	var elfreader io.ReaderAt
 	switch string(magic[:]) {
