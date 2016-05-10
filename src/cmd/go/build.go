@@ -3000,9 +3000,19 @@ func (b *builder) gfortran(p *Package, out string, flags []string, ffile string)
 }
 
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
-func (b *builder) ccompile(p *Package, out string, flags []string, file string, compiler []string) error {
+func (b *builder) ccompile(p *Package, outfile string, flags []string, file string, compiler []string) error {
 	file = mkAbs(p.Dir, file)
-	return b.run(p.Dir, p.ImportPath, nil, compiler, flags, "-o", out, "-c", file)
+	desc := p.ImportPath
+	output, err := b.runOut(p.Dir, desc, nil, compiler, flags, "-o", outfile, "-c", file)
+	if len(output) > 0 {
+		b.showOutput(p.Dir, desc, b.processOutput(output))
+		if err != nil {
+			err = errPrintedOutput
+		} else if os.Getenv("GO_BUILDER_NAME") != "" {
+			return errors.New("C compiler warning promoted to error on Go builders")
+		}
+	}
+	return err
 }
 
 // gccld runs the gcc linker to create an executable from a set of object files.
