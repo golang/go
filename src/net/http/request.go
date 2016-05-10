@@ -885,68 +885,56 @@ func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
 }
 
 type maxBytesReader struct {
-	w       ResponseWriter
-	r       io.ReadCloser // underlying reader
-	n       int64         // max bytes remaining
-	stopped bool
-	sawEOF  bool
+	w   ResponseWriter
+	r   io.ReadCloser // underlying reader
+	n   int64         // max bytes remaining
+	err error         // sticky error
 }
 
 func (l *maxBytesReader) tooLarge() (n int, err error) {
-	if !l.stopped {
-		l.stopped = true
-
-		// The server code and client code both use
-		// maxBytesReader. This "requestTooLarge" check is
-		// only used by the server code. To prevent binaries
-		// which only using the HTTP Client code (such as
-		// cmd/go) from also linking in the HTTP server, don't
-		// use a static type assertion to the server
-		// "*response" type. Check this interface instead:
-		type requestTooLarger interface {
-			requestTooLarge()
-		}
-		if res, ok := l.w.(requestTooLarger); ok {
-			res.requestTooLarge()
-		}
-	}
-	return 0, errors.New("http: request body too large")
+	l.err = errors.New("http: request body too large")
+	return 0, l.err
 }
 
 func (l *maxBytesReader) Read(p []byte) (n int, err error) {
-	toRead := l.n
-	if l.n == 0 {
-		if l.sawEOF {
-			return l.tooLarge()
-		}
-		// The underlying io.Reader may not return (0, io.EOF)
-		// at EOF if the requested size is 0, so read 1 byte
-		// instead. The io.Reader docs are a bit ambiguous
-		// about the return value of Read when 0 bytes are
-		// requested, and {bytes,strings}.Reader gets it wrong
-		// too (it returns (0, nil) even at EOF).
-		toRead = 1
+	if l.err != nil {
+		return 0, l.err
 	}
-	if int64(len(p)) > toRead {
-		p = p[:toRead]
+	if len(p) == 0 {
+		return 0, nil
+	}
+	// If they asked for a 32KB byte read but only 5 bytes are
+	// remaining, no need to read 32KB. 6 bytes will answer the
+	// question of the whether we hit the limit or go past it.
+	if int64(len(p)) > l.n+1 {
+		p = p[:l.n+1]
 	}
 	n, err = l.r.Read(p)
-	if err == io.EOF {
-		l.sawEOF = true
+
+	if int64(n) <= l.n {
+		l.n -= int64(n)
+		l.err = err
+		return n, err
 	}
-	if l.n == 0 {
-		// If we had zero bytes to read remaining (but hadn't seen EOF)
-		// and we get a byte here, that means we went over our limit.
-		if n > 0 {
-			return l.tooLarge()
-		}
-		return 0, err
+
+	n = int(l.n)
+	l.n = 0
+
+	// The server code and client code both use
+	// maxBytesReader. This "requestTooLarge" check is
+	// only used by the server code. To prevent binaries
+	// which only using the HTTP Client code (such as
+	// cmd/go) from also linking in the HTTP server, don't
+	// use a static type assertion to the server
+	// "*response" type. Check this interface instead:
+	type requestTooLarger interface {
+		requestTooLarge()
 	}
-	l.n -= int64(n)
-	if l.n < 0 {
-		l.n = 0
+	if res, ok := l.w.(requestTooLarger); ok {
+		res.requestTooLarge()
 	}
-	return
+	l.err = errors.New("http: request body too large")
+	return n, l.err
 }
 
 func (l *maxBytesReader) Close() error {
