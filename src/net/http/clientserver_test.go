@@ -229,11 +229,6 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
 	}
 	slurp, err := ioutil.ReadAll(res.Body)
 
-	// TODO(bradfitz): short-term hack. Fix the
-	// http2 side of golang.org/issue/15366 once
-	// the http1 part is submitted.
-	res.Uncompressed = false
-
 	res.Body.Close()
 	res.Body = slurpResult{
 		ReadCloser: ioutil.NopCloser(bytes.NewReader(slurp)),
@@ -1176,12 +1171,6 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
 			io.WriteString(w, "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00")
 		},
 		EarlyCheckResponse: func(proto string, res *Response) {
-			if proto == "HTTP/2.0" {
-				// TODO(bradfitz): Fix the http2 side
-				// of golang.org/issue/15366 once the
-				// http1 part is submitted.
-				return
-			}
 			if !res.Uncompressed {
 				t.Errorf("%s: expected Uncompressed to be set", proto)
 			}
