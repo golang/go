@@ -16,8 +16,6 @@ import (
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
-
-extern int mygetgrouplist(const char* user, gid_t group, gid_t* groups, int* ngroups);
 */
 import "C"
 
@@ -32,7 +30,7 @@ func listGroups(u *User) ([]string, error) {
 
 	n := C.int(256)
 	gidsC := make([]C.gid_t, n)
-	rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
+	rv := getGroupList(nameC, userGID, &gidsC[0], &n)
 	if rv == -1 {
 		// More than initial buffer, but now n contains the correct size.
 		const maxGroups = 2048
@@ -40,7 +38,7 @@ func listGroups(u *User) ([]string, error) {
 			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
 		}
 		gidsC = make([]C.gid_t, n)
-		rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
+		rv := getGroupList(nameC, userGID, &gidsC[0], &n)
 		if rv == -1 {
 			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
 		}
