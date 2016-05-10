@@ -12,7 +12,9 @@ func blockAVX2(dig *digest, p []byte)
 func blockAMD64(dig *digest, p []byte)
 func checkAVX2() bool
 
-var hasAVX2 = checkAVX2()
+// TODO(TocarIP): fix AVX2 crash (golang.org/issue/15617) and
+// then re-enable this:
+var hasAVX2 = false // checkAVX2()
 
 func block(dig *digest, p []byte) {
 	if hasAVX2 && len(p) >= 256 {
