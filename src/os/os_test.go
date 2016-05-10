@@ -1705,6 +1705,11 @@ func TestKillStartProcess(t *testing.T) {
 }
 
 func TestGetppid(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// TODO: golang.org/issue/8206
+		t.Skipf("skipping test on plan9; see issue 8206")
+	}
+
 	testenv.MustHaveExec(t)
 
 	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
