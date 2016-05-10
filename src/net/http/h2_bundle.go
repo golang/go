@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
@@ -1086,7 +1087,14 @@ func http2parseDataFrame(fh http2FrameHeader, payload []byte) (http2Frame, error
 	return f, nil
 }
 
-var http2errStreamID = errors.New("invalid streamid")
+var (
+	http2errStreamID    = errors.New("invalid stream ID")
+	http2errDepStreamID = errors.New("invalid dependent stream ID")
+)
+
+func http2validStreamIDOrZero(streamID uint32) bool {
+	return streamID&(1<<31) == 0
+}
 
 func http2validStreamID(streamID uint32) bool {
 	return streamID != 0 && streamID&(1<<31) == 0
@@ -1452,8 +1460,8 @@ func (f *http2Framer) WriteHeaders(p http2HeadersFrameParam) error {
 	}
 	if !p.Priority.IsZero() {
 		v := p.Priority.StreamDep
-		if !http2validStreamID(v) && !f.AllowIllegalWrites {
-			return errors.New("invalid dependent stream id")
+		if !http2validStreamIDOrZero(v) && !f.AllowIllegalWrites {
+			return http2errDepStreamID
 		}
 		if p.Priority.Exclusive {
 			v |= 1 << 31
@@ -1520,6 +1528,9 @@ func http2parsePriorityFrame(fh http2FrameHeader, payload []byte) (http2Frame, e
 func (f *http2Framer) WritePriority(streamID uint32, p http2PriorityParam) error {
 	if !http2validStreamID(streamID) && !f.AllowIllegalWrites {
 		return http2errStreamID
+	}
+	if !http2validStreamIDOrZero(p.StreamDep) {
+		return http2errDepStreamID
 	}
 	f.startWrite(http2FramePriority, 0, streamID)
 	v := p.StreamDep
@@ -1962,7 +1973,9 @@ func http2summarizeFrame(f http2Frame) string {
 	return buf.String()
 }
 
-func http2requestCancel(req *Request) <-chan struct{} { return req.Cancel }
+func http2reqContext(r *Request) context.Context { return r.Context() }
+
+func http2setResponseUncompressed(res *Response) { res.Uncompressed = true }
 
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
 
@@ -2476,7 +2489,7 @@ func http2mustUint31(v int32) uint32 {
 }
 
 // bodyAllowedForStatus reports whether a given response status code
-// permits a body. See RFC2616, section 4.4.
+// permits a body. See RFC 2616, section 4.4.
 func http2bodyAllowedForStatus(status int) bool {
 	switch {
 	case status >= 100 && status <= 199:
@@ -3989,6 +4002,8 @@ func (sc *http2serverConn) processHeaders(f *http2MetaHeadersFrame) error {
 	if f.Truncated {
 
 		handler = http2handleHeaderListTooLong
+	} else if err := http2checkValidHTTP2Request(req); err != nil {
+		handler = http2new400Handler(err)
 	}
 
 	go sc.runHandler(rw, req, handler)
@@ -4707,6 +4722,37 @@ func http2foreachHeaderElement(v string, fn func(string)) {
 	}
 }
 
+// From http://httpwg.org/specs/rfc7540.html#rfc.section.8.1.2.2
+var http2connHeaders = []string{
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Connection",
+	"Transfer-Encoding",
+	"Upgrade",
+}
+
+// checkValidHTTP2Request checks whether req is a valid HTTP/2 request,
+// per RFC 7540 Section 8.1.2.2.
+// The returned error is reported to users.
+func http2checkValidHTTP2Request(req *Request) error {
+	for _, h := range http2connHeaders {
+		if _, ok := req.Header[h]; ok {
+			return fmt.Errorf("request header %q is not valid in HTTP/2", h)
+		}
+	}
+	te := req.Header["Te"]
+	if len(te) > 0 && (len(te) > 1 || (te[0] != "trailers" && te[0] != "")) {
+		return errors.New(`request header "TE" may only be "trailers" in HTTP/2`)
+	}
+	return nil
+}
+
+func http2new400Handler(err error) HandlerFunc {
+	return func(w ResponseWriter, r *Request) {
+		Error(w, err.Error(), StatusBadRequest)
+	}
+}
+
 const (
 	// transportDefaultConnFlow is how many connection-level flow control
 	// tokens we give the server at start-up, past the default 64k.
@@ -4875,17 +4921,21 @@ type http2clientStream struct {
 }
 
 // awaitRequestCancel runs in its own goroutine and waits for the user
-// to either cancel a RoundTrip request (using the provided
-// Request.Cancel channel), or for the request to be done (any way it
-// might be removed from the cc.streams map: peer reset, successful
-// completion, TCP connection breakage, etc)
-func (cs *http2clientStream) awaitRequestCancel(cancel <-chan struct{}) {
-	if cancel == nil {
+// to cancel a RoundTrip request, its context to expire, or for the
+// request to be done (any way it might be removed from the cc.streams
+// map: peer reset, successful completion, TCP connection breakage,
+// etc)
+func (cs *http2clientStream) awaitRequestCancel(req *Request) {
+	ctx := http2reqContext(req)
+	if req.Cancel == nil && ctx.Done() == nil {
 		return
 	}
 	select {
-	case <-cancel:
+	case <-req.Cancel:
 		cs.bufPipe.CloseWithError(http2errRequestCanceled)
+		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+	case <-ctx.Done():
+		cs.bufPipe.CloseWithError(ctx.Err())
 		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
 	case <-cs.done:
 	}
@@ -5334,8 +5384,8 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	}
 
 	readLoopResCh := cs.resc
-	requestCanceledCh := http2requestCancel(req)
 	bodyWritten := false
+	ctx := http2reqContext(req)
 
 	for {
 		select {
@@ -5360,7 +5410,15 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
 			}
 			return nil, http2errTimeout
-		case <-requestCanceledCh:
+		case <-ctx.Done():
+			cc.forgetStreamID(cs.ID)
+			if !hasBody || bodyWritten {
+				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+			} else {
+				cs.abortRequestBodyWrite(http2errStopReqBodyWriteAndCancel)
+			}
+			return nil, ctx.Err()
+		case <-req.Cancel:
 			cc.forgetStreamID(cs.ID)
 			if !hasBody || bodyWritten {
 				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
@@ -5568,7 +5626,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 		case "host", "content-length":
 
 			continue
-		case "connection", "proxy-connection", "transfer-encoding", "upgrade":
+		case "connection", "proxy-connection", "transfer-encoding", "upgrade", "keep-alive":
 
 			continue
 		case "user-agent":
@@ -5892,13 +5950,14 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 	cs.bufPipe = http2pipe{b: buf}
 	cs.bytesRemain = res.ContentLength
 	res.Body = http2transportResponseBody{cs}
-	go cs.awaitRequestCancel(http2requestCancel(cs.req))
+	go cs.awaitRequestCancel(cs.req)
 
 	if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
 		res.Header.Del("Content-Encoding")
 		res.Header.Del("Content-Length")
 		res.ContentLength = -1
 		res.Body = &http2gzipReader{body: res.Body}
+		http2setResponseUncompressed(res)
 	}
 	return res, nil
 }
