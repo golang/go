@@ -1178,7 +1178,7 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 // Field returns the i'th struct field.
 func (t *structType) Field(i int) (f StructField) {
 	if i < 0 || i >= len(t.fields) {
-		return
+		panic("reflect: Field index out of bounds")
 	}
 	p := &t.fields[i]
 	f.Type = toType(p.typ)

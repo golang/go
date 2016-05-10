@@ -5221,6 +5221,41 @@ func TestLargeGCProg(t *testing.T) {
 	fv.Call([]Value{ValueOf([256]*byte{})})
 }
 
+func fieldIndexRecover(t Type, i int) (recovered interface{}) {
+	defer func() {
+		recovered = recover()
+	}()
+
+	t.Field(i)
+	return
+}
+
+// Issue 15046.
+func TestTypeFieldOutOfRangePanic(t *testing.T) {
+	typ := TypeOf(struct{ X int }{10})
+	testIndices := [...]struct {
+		i         int
+		mustPanic bool
+	}{
+		0: {-2, true},
+		1: {0, false},
+		2: {1, true},
+		3: {1 << 10, true},
+	}
+	for i, tt := range testIndices {
+		recoveredErr := fieldIndexRecover(typ, tt.i)
+		if tt.mustPanic {
+			if recoveredErr == nil {
+				t.Errorf("#%d: fieldIndex %d expected to panic", i, tt.i)
+			}
+		} else {
+			if recoveredErr != nil {
+				t.Errorf("#%d: got err=%v, expected no panic", i, recoveredErr)
+			}
+		}
+	}
+}
+
 // Issue 9179.
 func TestCallGC(t *testing.T) {
 	f := func(a, b, c, d, e string) {
