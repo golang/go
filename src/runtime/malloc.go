@@ -699,15 +699,15 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			scanSize = typ.ptrdata
 		}
 		c.local_scan += scanSize
-
-		// Ensure that the stores above that initialize x to
-		// type-safe memory and set the heap bits occur before
-		// the caller can make x observable to the garbage
-		// collector. Otherwise, on weakly ordered machines,
-		// the garbage collector could follow a pointer to x,
-		// but see uninitialized memory or stale heap bits.
-		publicationBarrier()
 	}
+
+	// Ensure that the stores above that initialize x to
+	// type-safe memory and set the heap bits occur before
+	// the caller can make x observable to the garbage
+	// collector. Otherwise, on weakly ordered machines,
+	// the garbage collector could follow a pointer to x,
+	// but see uninitialized memory or stale heap bits.
+	publicationBarrier()
 
 	// Allocate black during GC.
 	// All slots hold nil so no scanning is needed.
