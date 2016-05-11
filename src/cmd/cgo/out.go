@@ -1360,10 +1360,8 @@ func _cgoCheckResult(interface{})
 `
 
 const gccgoGoProlog = `
-//extern runtime.cgoCheckPointer
 func _cgoCheckPointer(interface{}, ...interface{}) interface{}
 
-//extern runtime.cgoCheckResult
 func _cgoCheckResult(interface{})
 `
 
