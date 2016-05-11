@@ -57,6 +57,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -67,7 +69,6 @@ var (
 	filename       = flag.String("output", "", "output file name (standard output if omitted)")
 	printTraceFlag = flag.Bool("trace", false, "generate print statement after every syscall")
 	systemDLL      = flag.Bool("systemdll", false, "whether all DLLs should be loaded from the Windows system directory")
-	sysRepo        = flag.Bool("xsys", false, "whether this code is for the x/sys subrepo")
 )
 
 func trim(s string) string {
@@ -686,6 +687,23 @@ func (src *Source) ParseFile(path string) error {
 	return nil
 }
 
+// IsStdRepo returns true if src is part of standard library.
+func (src *Source) IsStdRepo() (bool, error) {
+	if len(src.Files) == 0 {
+		return false, errors.New("no input files provided")
+	}
+	abspath, err := filepath.Abs(src.Files[0])
+	if err != nil {
+		return false, err
+	}
+	goroot := runtime.GOROOT()
+	if runtime.GOOS == "windows" {
+		abspath = strings.ToLower(abspath)
+		goroot = strings.ToLower(goroot)
+	}
+	return strings.HasPrefix(abspath, goroot), nil
+}
+
 // Generate output source file from a source set src.
 func (src *Source) Generate(w io.Writer) error {
 	const (
@@ -693,9 +711,13 @@ func (src *Source) Generate(w io.Writer) error {
 		pkgXSysWindows        // x/sys/windows package
 		pkgOther
 	)
+	isStdRepo, err := src.IsStdRepo()
+	if err != nil {
+		return err
+	}
 	var pkgtype int
 	switch {
-	case !*sysRepo:
+	case isStdRepo:
 		pkgtype = pkgStd
 	case packageName == "windows":
 		// TODO: this needs better logic than just using package name
@@ -734,7 +756,7 @@ func (src *Source) Generate(w io.Writer) error {
 		},
 	}
 	t := template.Must(template.New("main").Funcs(funcMap).Parse(srcTemplate))
-	err := t.Execute(w, src)
+	err = t.Execute(w, src)
 	if err != nil {
 		return errors.New("Failed to execute template: " + err.Error())
 	}
