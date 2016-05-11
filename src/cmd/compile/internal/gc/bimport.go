@@ -884,29 +884,18 @@ func (p *importer) node() *Node {
 		n.SetSliceBounds(low, high, max)
 		return n
 
-	case OCOPY, OCOMPLEX:
-		n := builtinCall(op)
-		n.List.Set([]*Node{p.expr(), p.expr()})
-		return n
-
 	// case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case OCONV:
 		n := Nod(OCALL, typenod(p.typ()), nil)
-		if p.bool() {
-			n.List.Set1(p.expr())
-		} else {
-			n.List.Set(p.exprList())
-		}
+		n.List.Set(p.exprList())
 		return n
 
-	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		n := builtinCall(op)
-		if p.bool() {
-			n.List.Set1(p.expr())
-		} else {
-			n.List.Set(p.exprList())
+		n.List.Set(p.exprList())
+		if op == OAPPEND {
 			n.Isddd = p.bool()
 		}
 		return n
