@@ -246,12 +246,16 @@ func Main() {
 				continue
 			}
 			val := 1
+			valstring := ""
 			if i := strings.Index(name, "="); i >= 0 {
 				var err error
 				val, err = strconv.Atoi(name[i+1:])
 				if err != nil {
 					log.Fatalf("invalid debug value %v", name)
 				}
+				name = name[:i]
+			} else if i := strings.Index(name, ":"); i >= 0 {
+				valstring = name[i+1:]
 				name = name[:i]
 			}
 			for _, t := range debugtab {
@@ -273,7 +277,7 @@ func Main() {
 					flag = phase[i+1:]
 					phase = phase[:i]
 				}
-				err := ssa.PhaseOption(phase, flag, val)
+				err := ssa.PhaseOption(phase, flag, val, valstring)
 				if err != "" {
 					log.Fatalf(err)
 				}
