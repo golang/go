@@ -5,6 +5,7 @@
 package build
 
 import (
+	"fmt"
 	"internal/testenv"
 	"io"
 	"os"
@@ -343,5 +344,15 @@ func TestImportVendorParentFailure(t *testing.T) {
 	e := err.Error()
 	if !strings.Contains(e, " (vendor tree)") {
 		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
+	}
+}
+
+// Issue 3248
+func TestBogusDirectory(t *testing.T) {
+	const dir = "/foo/bar/baz/gopher"
+	_, err := ImportDir(dir, FindOnly)
+	want := fmt.Sprintf("%q is not a directory", filepath.FromSlash(dir))
+	if err == nil || err.Error() != want {
+		t.Errorf("got error %q, want %q", err, want)
 	}
 }
