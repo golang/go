@@ -7,6 +7,7 @@ package ssa
 import (
 	"fmt"
 	"math"
+	"strings"
 )
 
 // A Func represents a Go func declaration (or function literal) and
@@ -113,7 +114,7 @@ func (f *Func) LogStat(key string, args ...interface{}) {
 	}
 	n := "missing_pass"
 	if f.pass != nil {
-		n = f.pass.name
+		n = strings.Replace(f.pass.name, " ", "_", -1)
 	}
 	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
