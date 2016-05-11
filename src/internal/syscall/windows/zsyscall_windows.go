@@ -2,9 +2,11 @@
 
 package windows
 
-import "unsafe"
-import "syscall"
-import "internal/syscall/windows/sysdll"
+import (
+	"internal/syscall/windows/sysdll"
+	"syscall"
+	"unsafe"
+)
 
 var _ unsafe.Pointer
 
