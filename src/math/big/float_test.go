@@ -1762,3 +1762,41 @@ func TestFloatCmpSpecialValues(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkFloatAdd(b *testing.B) {
+	x := new(Float)
+	y := new(Float)
+	z := new(Float)
+
+	for _, prec := range []uint{10, 1e2, 1e3, 1e4, 1e5} {
+		x.SetPrec(prec).SetRat(NewRat(1, 3))
+		y.SetPrec(prec).SetRat(NewRat(1, 6))
+		z.SetPrec(prec)
+
+		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				z.Add(x, y)
+			}
+		})
+	}
+}
+
+func BenchmarkFloatSub(b *testing.B) {
+	x := new(Float)
+	y := new(Float)
+	z := new(Float)
+
+	for _, prec := range []uint{10, 1e2, 1e3, 1e4, 1e5} {
+		x.SetPrec(prec).SetRat(NewRat(1, 3))
+		y.SetPrec(prec).SetRat(NewRat(1, 6))
+		z.SetPrec(prec)
+
+		b.Run(fmt.Sprintf("%v", prec), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				z.Sub(x, y)
+			}
+		})
+	}
+}
