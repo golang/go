@@ -68,7 +68,7 @@ import (
 var (
 	filename       = flag.String("output", "", "output file name (standard output if omitted)")
 	printTraceFlag = flag.Bool("trace", false, "generate print statement after every syscall")
-	systemDLL      = flag.Bool("systemdll", false, "whether all DLLs should be loaded from the Windows system directory")
+	systemDLL      = flag.Bool("systemdll", true, "whether all DLLs should be loaded from the Windows system directory")
 )
 
 func trim(s string) string {
