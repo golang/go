@@ -798,11 +798,11 @@ func (p *importer) node() *Node {
 		}
 		return n
 
-	// case ONAME, OPACK, ONONAME:
-	// 	unreachable - mapped to case OPACK below by exporter
-
-	case OPACK:
+	case ONAME:
 		return mkname(p.sym())
+
+	// case OPACK, ONONAME:
+	// 	unreachable - should have been resolved by typechecking
 
 	case OTYPE:
 		if p.bool() {
@@ -854,14 +854,7 @@ func (p *importer) node() *Node {
 
 	case OXDOT:
 		// see parser.new_dotname
-		obj := p.expr()
-		sel := p.fieldSym()
-		if obj.Op == OPACK {
-			s := restrictlookup(sel.Name, obj.Name.Pkg)
-			obj.Used = true
-			return oldname(s)
-		}
-		return NodSym(OXDOT, obj, sel)
+		return NodSym(OXDOT, p.expr(), p.fieldSym())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
