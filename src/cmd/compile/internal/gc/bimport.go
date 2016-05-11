@@ -798,15 +798,10 @@ func (p *importer) node() *Node {
 		}
 		return n
 
-	case ONAME:
-		if p.bool() {
-			// "_"
-			// TODO(gri) avoid repeated "_" lookup
-			return mkname(Pkglookup("_", localpkg))
-		}
-		return NodSym(OXDOT, typenod(p.typ()), p.fieldSym())
+	// case ONAME, OPACK, ONONAME:
+	// 	unreachable - mapped to case OPACK below by exporter
 
-	case OPACK, ONONAME:
+	case OPACK:
 		return mkname(p.sym())
 
 	case OTYPE:
