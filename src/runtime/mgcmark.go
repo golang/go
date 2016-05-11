@@ -1096,7 +1096,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 // scanobject scans the object starting at b, adding pointers to gcw.
 // b must point to the beginning of a heap object; scanobject consults
 // the GC bitmap for the pointer mask and the spans for the size of the
-// object (it ignores n).
+// object.
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
 	// Note that arena_used may change concurrently during
