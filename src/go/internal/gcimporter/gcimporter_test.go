@@ -361,3 +361,42 @@ func TestIssue13898(t *testing.T) {
 		t.Fatalf("found %v; want go/types", m.Pkg())
 	}
 }
+
+func TestIssue15517(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+		return
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	if f := compile(t, "testdata", "p.go"); f != "" {
+		defer os.Remove(f)
+	}
+
+	// Multiple imports of p must succeed without redeclaration errors.
+	// We use an import path that's not cleaned up so that the eventual
+	// file path for the package is different from the package path; this
+	// will expose the error if it is present.
+	//
+	// (Issue: Both the textual and the binary importer used the file path
+	// of the package to be imported as key into the shared packages map.
+	// However, the binary importer then used the package path to identify
+	// the imported package to mark it as complete; effectively marking the
+	// wrong package as complete. By using an "unclean" package path, the
+	// file and package path are different, exposing the problem if present.
+	// The same issue occurs with vendoring.)
+	imports := make(map[string]*types.Package)
+	for i := 0; i < 3; i++ {
+		if _, err := Import(imports, "./././testdata/p", "."); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
