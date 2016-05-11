@@ -714,6 +714,31 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
 	}
 }
 
+func testTCPConnectionStaysOpen(t *testing.T, req string, handler Handler) {
+	defer afterTest(t)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	br := bufio.NewReader(conn)
+	for i := 0; i < 2; i++ {
+		if _, err := io.WriteString(conn, req); err != nil {
+			t.Fatal(err)
+		}
+		res, err := ReadResponse(br, nil)
+		if err != nil {
+			t.Fatalf("res %d: %v", i+1, err)
+		}
+		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+			t.Fatalf("res %d body copy: %v", i+1, err)
+		}
+		res.Body.Close()
+	}
+}
+
 // TestServeHTTP10Close verifies that HTTP/1.0 requests won't be kept alive.
 func TestServeHTTP10Close(t *testing.T) {
 	testTCPConnectionCloses(t, "GET / HTTP/1.0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -747,6 +772,24 @@ func TestHTTP2UpgradeClosesConnection(t *testing.T) {
 		// Nothing. (if not hijacked, the server should close the connection
 		// afterwards)
 	}))
+}
+
+func send204(w ResponseWriter, r *Request) { w.WriteHeader(204) }
+func send304(w ResponseWriter, r *Request) { w.WriteHeader(304) }
+
+// Issue 15647: 204 responses can't have bodies, so HTTP/1.0 keep-alive conns should stay open.
+func TestHTTP10KeepAlive204Response(t *testing.T) {
+	testTCPConnectionStaysOpen(t, "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n", HandlerFunc(send204))
+}
+
+func TestHTTP11KeepAlive204Response(t *testing.T) {
+	testTCPConnectionStaysOpen(t, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n", HandlerFunc(send204))
+}
+
+func TestHTTP10KeepAlive304Response(t *testing.T) {
+	testTCPConnectionStaysOpen(t,
+		"GET / HTTP/1.0\r\nConnection: keep-alive\r\nIf-Modified-Since: Mon, 02 Jan 2006 15:04:05 GMT\r\n\r\n",
+		HandlerFunc(send304))
 }
 
 func TestSetsRemoteAddr_h1(t *testing.T) { testSetsRemoteAddr(t, h1Mode) }
