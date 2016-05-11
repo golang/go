@@ -1157,9 +1157,9 @@ func (p *exporter) expr(n *Node) {
 		// Special case: name used as local variable in export.
 		// _ becomes ~b%d internally; print as _ for export
 		if n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
-			// case 0: mapped to ONAME
-			p.op(ONAME)
-			p.bool(true) // indicate blank identifier
+			// case 0: mapped to OPACK
+			p.op(OPACK)
+			p.string("_") // inlined and customized version of p.sym(n)
 			break
 		}
 
@@ -1174,22 +1174,18 @@ func (p *exporter) expr(n *Node) {
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
-			// case 2: mapped to ONAME
-			p.op(ONAME)
-			// TODO(gri) can we map this case directly to OXDOT
-			//           and then get rid of the bool here?
-			p.bool(false) // indicate non-blank identifier
-			p.typ(n.Left.Type)
+			// case 2: mapped to OXDOT
+			p.op(OXDOT)
+			p.expr(n.Left) // n.Left.Op == OTYPE
 			p.fieldSym(n.Right.Sym, true)
 			break
 		}
 
 		// case 3: mapped to OPACK
-		p.op(OPACK)
-		p.sym(n) // fallthrough inlined here
+		fallthrough
 
 	case OPACK, ONONAME:
-		p.op(op)
+		p.op(OPACK)
 		p.sym(n)
 
 	case OTYPE:
@@ -1508,6 +1504,8 @@ func (p *exporter) fieldSym(s *Sym, short bool) {
 	}
 }
 
+// sym must encode the _ (blank) identifier as a single string "_" since
+// encoding for some nodes is based on this assumption (e.g. ONAME nodes).
 func (p *exporter) sym(n *Node) {
 	s := n.Sym
 	if s.Pkg != nil {
