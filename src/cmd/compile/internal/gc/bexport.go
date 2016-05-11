@@ -1256,26 +1256,35 @@ func (p *exporter) expr(n *Node) {
 		p.expr(max)
 
 	case OCOPY, OCOMPLEX:
+		// treated like other builtin calls (see e.g., OREAL)
 		p.op(op)
 		p.expr(n.Left)
 		p.expr(n.Right)
+		p.op(OEND)
 
 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 		p.op(OCONV)
 		p.typ(n.Type)
-		if p.bool(n.Left != nil) {
+		if n.Left != nil {
 			p.expr(n.Left)
+			p.op(OEND)
 		} else {
-			p.exprList(n.List)
+			p.exprList(n.List) // emits terminating OEND
 		}
 
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		p.op(op)
-		if p.bool(n.Left != nil) {
+		if n.Left != nil {
 			p.expr(n.Left)
+			p.op(OEND)
 		} else {
-			p.exprList(n.List)
+			p.exprList(n.List) // emits terminating OEND
+		}
+		// only append() calls may contain '...' arguments
+		if op == OAPPEND {
 			p.bool(n.Isddd)
+		} else if n.Isddd {
+			Fatalf("exporter: unexpected '...' with %s call", opnames[op])
 		}
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
