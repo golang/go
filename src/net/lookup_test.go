@@ -604,31 +604,16 @@ var lookupPortTests = []struct {
 	port    int
 	ok      bool
 }{
-	{"tcp", "0", 0, true},
-	{"tcp", "echo", 7, true},
-	{"tcp", "discard", 9, true},
-	{"tcp", "systat", 11, true},
-	{"tcp", "daytime", 13, true},
-	{"tcp", "chargen", 19, true},
-	{"tcp", "ftp-data", 20, true},
-	{"tcp", "ftp", 21, true},
-	{"tcp", "telnet", 23, true},
-	{"tcp", "smtp", 25, true},
-	{"tcp", "time", 37, true},
-	{"tcp", "domain", 53, true},
-	{"tcp", "finger", 79, true},
-	{"tcp", "42", 42, true},
+	// See http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+	//
+	// Please be careful about adding new mappings for testings.
+	// There are platforms having incomplete mappings for
+	// restricted resource access and security reasons.
 
+	{"tcp", "0", 0, true},
+	{"tcp", "http", 80, true},
 	{"udp", "0", 0, true},
-	{"udp", "echo", 7, true},
-	{"udp", "tftp", 69, true},
-	{"udp", "bootpc", 68, true},
-	{"udp", "bootps", 67, true},
 	{"udp", "domain", 53, true},
-	{"udp", "ntp", 123, true},
-	{"udp", "snmp", 161, true},
-	{"udp", "syslog", 514, true},
-	{"udp", "42", 42, true},
 
 	{"--badnet--", "zzz", 0, false},
 	{"tcp", "--badport--", 0, false},
@@ -640,9 +625,11 @@ var lookupPortTests = []struct {
 
 	// Issue 13610: LookupPort("tcp", "")
 	{"tcp", "", 0, true},
-	{"tcp6", "", 0, true},
 	{"tcp4", "", 0, true},
+	{"tcp6", "", 0, true},
 	{"udp", "", 0, true},
+	{"udp4", "", 0, true},
+	{"udp6", "", 0, true},
 }
 
 func TestLookupPort(t *testing.T) {
@@ -656,8 +643,14 @@ func TestLookupPort(t *testing.T) {
 	}
 
 	for _, tt := range lookupPortTests {
-		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
+		port, err := LookupPort(tt.network, tt.name)
+		if port != tt.port || (err == nil) != tt.ok {
 			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d, error=%t", tt.network, tt.name, port, err, tt.port, !tt.ok)
+		}
+		if err != nil {
+			if perr := parseLookupPortError(err); perr != nil {
+				t.Error(perr)
+			}
 		}
 	}
 }
