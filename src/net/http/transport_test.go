@@ -3292,6 +3292,7 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	wantSub("Getting conn for dns-is-faked.golang:" + port)
 	wantSub("DNS start: {Host:dns-is-faked.golang}")
 	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
+	wantSub("Connecting to tcp " + ts.Listener.Addr().String())
 	wantSub("connected to tcp " + ts.Listener.Addr().String() + " = <nil>")
 	wantSub("Reused:false WasIdle:false IdleTime:0s")
 	wantSub("first response byte")
@@ -3299,6 +3300,9 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	wantSub("WroteRequest: {Err:<nil>}")
 	wantSub("Wait100Continue")
 	wantSub("Got100Continue")
+	if strings.Contains(got, " to udp ") {
+		t.Errorf("should not see UDP (DNS) connections")
+	}
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
 	}
