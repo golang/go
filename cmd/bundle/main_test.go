@@ -29,6 +29,9 @@ func TestBundle(t *testing.T) {
 			"a.go": load("testdata/src/initial/a.go"),
 			"b.go": load("testdata/src/initial/b.go"),
 		},
+		"domain.name/importdecl": {
+			"p.go": load("testdata/src/domain.name/importdecl/p.go"),
+		},
 		"fmt": {
 			"print.go": `package fmt; func Println(...interface{})`,
 		},

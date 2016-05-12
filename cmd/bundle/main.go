@@ -176,6 +176,16 @@ func main() {
 	}
 }
 
+// isStandardImportPath is copied from cmd/go in the standard library.
+func isStandardImportPath(path string) bool {
+	i := strings.Index(path, "/")
+	if i < 0 {
+		i = len(path)
+	}
+	elem := path[:i]
+	return !strings.Contains(elem, ".")
+}
+
 var ctxt = &build.Default
 
 func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
@@ -259,16 +269,32 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 			}
 		}
 	}
-	fmt.Fprintln(&out, "import (")
+
+	var pkgStd, pkgExt []string
 	for _, p := range info.Pkg.Imports() {
 		if p.Path() == dst {
 			continue
 		}
-		if x, ok := importMap[p.Path()]; ok {
-			fmt.Fprintf(&out, "\t%q\n", x)
-			continue
+		x, ok := importMap[p.Path()]
+		if !ok {
+			x = p.Path()
 		}
-		fmt.Fprintf(&out, "\t%q\n", p.Path())
+		if isStandardImportPath(x) {
+			pkgStd = append(pkgStd, x)
+		} else {
+			pkgExt = append(pkgExt, x)
+		}
+	}
+
+	fmt.Fprintln(&out, "import (")
+	for _, p := range pkgStd {
+		fmt.Fprintf(&out, "\t%q\n", p)
+	}
+	if len(pkgExt) > 0 {
+		fmt.Fprintln(&out)
+		for _, p := range pkgExt {
+			fmt.Fprintf(&out, "\t%q\n", p)
+		}
 	}
 	fmt.Fprintln(&out, ")\n")
 
