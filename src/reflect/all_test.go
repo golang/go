@@ -4210,7 +4210,7 @@ func TestStructOfExportRules(t *testing.T) {
 			}
 			exported := isExported(n)
 			if exported != test.exported {
-				t.Errorf("test-%d: got exported=%v want exported=%v", exported, test.exported)
+				t.Errorf("test-%d: got exported=%v want exported=%v", i, exported, test.exported)
 			}
 		})
 	}
@@ -4520,7 +4520,7 @@ func TestStructOfWithInterface(t *testing.T) {
 			if table.impl {
 				t.Errorf("test-%d: type=%v fails to implement Iface.\n", i, table.typ)
 			} else {
-				t.Errorf("test-%d: type=%v should NOT implement Iface\n", table.typ)
+				t.Errorf("test-%d: type=%v should NOT implement Iface\n", i, table.typ)
 			}
 			continue
 		}
@@ -4748,7 +4748,7 @@ func TestFuncOf(t *testing.T) {
 		if len(args) != 1 {
 			t.Errorf("args == %v, want exactly one arg", args)
 		} else if args[0].Type() != TypeOf(K("")) {
-			t.Errorf("args[0] is type %v, want %v", args[0].Type, TypeOf(K("")))
+			t.Errorf("args[0] is type %v, want %v", args[0].Type(), TypeOf(K("")))
 		} else if args[0].String() != "gopher" {
 			t.Errorf("args[0] = %q, want %q", args[0].String(), "gopher")
 		}
@@ -4760,7 +4760,7 @@ func TestFuncOf(t *testing.T) {
 	if len(outs) != 1 {
 		t.Fatalf("v.Call returned %v, want exactly one result", outs)
 	} else if outs[0].Type() != TypeOf(V(0)) {
-		t.Fatalf("c.Call[0] is type %v, want %v", outs[0].Type, TypeOf(V(0)))
+		t.Fatalf("c.Call[0] is type %v, want %v", outs[0].Type(), TypeOf(V(0)))
 	}
 	f := outs[0].Float()
 	if f != 3.14 {
