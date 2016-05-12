@@ -2758,7 +2758,6 @@ func typeptrdata(t *rtype) uintptr {
 	default:
 		panic("reflect.typeptrdata: unexpected type, " + t.String())
 	}
-	return 0
 }
 
 // See cmd/compile/internal/gc/reflect.go for derivation of constant.
