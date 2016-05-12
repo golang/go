@@ -762,3 +762,17 @@ func TestFileError(t *testing.T) {
 		ln.Close()
 	}
 }
+
+func parseLookupPortError(nestedErr error) error {
+	if nestedErr == nil {
+		return nil
+	}
+
+	switch nestedErr.(type) {
+	case *AddrError, *DNSError:
+		return nil
+	case *os.PathError: // for Plan 9
+		return nil
+	}
+	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
+}
