@@ -472,11 +472,21 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error) 
 	return nil, firstErr
 }
 
+// traceDialType reports whether ra is an address type for which
+// nettrace.Trace should trace.
+func traceDialType(ra Addr) bool {
+	switch ra.(type) {
+	case *TCPAddr, *UnixAddr:
+		return true
+	}
+	return false
+}
+
 // dialSingle attempts to establish and returns a single connection to
 // the destination address.
 func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error) {
 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
-	if trace != nil {
+	if trace != nil && traceDialType(ra) {
 		raStr := ra.String()
 		if trace.ConnectStart != nil {
 			trace.ConnectStart(dp.network, raStr)
