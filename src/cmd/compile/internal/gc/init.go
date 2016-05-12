@@ -31,21 +31,22 @@ func renameinit() *Sym {
 }
 
 // hand-craft the following initialization code
-//	var initdone· uint8 				(1)
-//	func init()					(2)
+//      var initdone· uint8                             (1)
+//      func init() {                                   (2)
 //              if initdone· > 1 {                      (3)
 //                      return                          (3a)
-//		if initdone· == 1 {			(4)
-//			throw();			(4a)
-//		}
-//		initdone· = 1;				(6)
-//		// over all matching imported symbols
-//			<pkg>.init()			(7)
-//		{ <init stmts> }			(8)
-//		init.<n>() // if any			(9)
-//		initdone· = 2;				(10)
-//		return					(11)
-//	}
+//              }
+//              if initdone· == 1 {                     (4)
+//                      throw()                         (4a)
+//              }
+//              initdone· = 1                           (5)
+//              // over all matching imported symbols
+//                      <pkg>.init()                    (6)
+//              { <init stmts> }                        (7)
+//              init.<n>() // if any                    (8)
+//              initdone· = 2                           (9)
+//              return                                  (10)
+//      }
 func anyinit(n []*Node) bool {
 	// are there any interesting init statements
 	for _, ln := range n {
@@ -132,12 +133,12 @@ func fninit(n []*Node) {
 	// (4a)
 	b.Nbody.Set1(Nod(OCALL, syslook("throwinit"), nil))
 
-	// (6)
+	// (5)
 	a = Nod(OAS, gatevar, Nodintconst(1))
 
 	r = append(r, a)
 
-	// (7)
+	// (6)
 	for _, s := range initSyms {
 		if s.Def != nil && s != initsym {
 			// could check that it is fn of no args/returns
@@ -146,10 +147,10 @@ func fninit(n []*Node) {
 		}
 	}
 
-	// (8)
+	// (7)
 	r = append(r, nf...)
 
-	// (9)
+	// (8)
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
 		s := LookupN("init.", i)
@@ -160,12 +161,12 @@ func fninit(n []*Node) {
 		r = append(r, a)
 	}
 
-	// (10)
+	// (9)
 	a = Nod(OAS, gatevar, Nodintconst(2))
 
 	r = append(r, a)
 
-	// (11)
+	// (10)
 	a = Nod(ORETURN, nil, nil)
 
 	r = append(r, a)
