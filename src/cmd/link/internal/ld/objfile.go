@@ -538,7 +538,7 @@ func (r *objReader) readSymName() string {
 		origName = make([]byte, n)
 		r.readFull(origName)
 	} else if err != nil {
-		log.Fatalf("%s: error reading symbol: %v", err)
+		log.Fatalf("%s: error reading symbol: %v", r.pn, err)
 	}
 	adjName := r.rdBuf[:0]
 	for {
