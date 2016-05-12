@@ -597,14 +597,20 @@ func (f *Fn) HelperName() string {
 
 // Source files and functions.
 type Source struct {
-	Funcs   []*Fn
-	Files   []string
-	Imports []string
+	Funcs           []*Fn
+	Files           []string
+	StdLibImports   []string
+	ExternalImports []string
 }
 
 func (src *Source) Import(pkg string) {
-	src.Imports = append(src.Imports, pkg)
-	sort.Strings(src.Imports)
+	src.StdLibImports = append(src.StdLibImports, pkg)
+	sort.Strings(src.StdLibImports)
+}
+
+func (src *Source) ExternalImport(pkg string) {
+	src.ExternalImports = append(src.ExternalImports, pkg)
+	sort.Strings(src.ExternalImports)
 }
 
 // ParseFiles parses files listed in fs and extracts all syscall
@@ -614,9 +620,10 @@ func ParseFiles(fs []string) (*Source, error) {
 	src := &Source{
 		Funcs: make([]*Fn, 0),
 		Files: make([]string, 0),
-		Imports: []string{
+		StdLibImports: []string{
 			"unsafe",
 		},
+		ExternalImports: make([]string, 0),
 	}
 	for _, file := range fs {
 		if err := src.ParseFile(file); err != nil {
@@ -731,7 +738,7 @@ func (src *Source) Generate(w io.Writer) error {
 			src.Import("internal/syscall/windows/sysdll")
 		case pkgXSysWindows:
 		default:
-			src.Import("golang.org/x/sys/windows")
+			src.ExternalImport("golang.org/x/sys/windows")
 		}
 	}
 	if packageName != "syscall" {
@@ -809,7 +816,10 @@ const srcTemplate = `
 package {{packagename}}
 
 import (
-{{range .Imports}}"{{.}}"
+{{range .StdLibImports}}"{{.}}"
+{{end}}
+
+{{range .ExternalImports}}"{{.}}"
 {{end}}
 )
 
