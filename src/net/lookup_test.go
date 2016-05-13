@@ -371,12 +371,23 @@ func TestReverseAddress(t *testing.T) {
 	}
 }
 
-func TestLookupIPDeadline(t *testing.T) {
+func TestDNSFlood(t *testing.T) {
 	if !*testDNSFlood {
 		t.Skip("test disabled; use -dnsflood to enable")
 	}
 
-	const N = 5000
+	var N = 5000
+	if runtime.GOOS == "darwin" {
+		// On Darwin this test consumes kernel threads much
+		// than other platforms for some reason.
+		// When we monitor the number of allocated Ms by
+		// observing on runtime.newm calls, we can see that it
+		// easily reaches the per process ceiling
+		// kern.num_threads when CGO_ENABLED=1 and
+		// GODEBUG=netdns=go.
+		N = 500
+	}
+
 	const timeout = 3 * time.Second
 	ctxHalfTimeout, cancel := context.WithTimeout(context.Background(), timeout/2)
 	defer cancel()
