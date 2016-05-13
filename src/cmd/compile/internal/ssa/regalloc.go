@@ -985,7 +985,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			args = append(args[:0], v.Args...)
 			for _, i := range regspec.inputs {
 				mask := i.regs
-				if mask == flagRegMask {
+				if mask == f.Config.flagRegMask {
 					// TODO: remove flag input from regspec.inputs.
 					continue
 				}

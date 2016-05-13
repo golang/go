@@ -4,8 +4,6 @@
 
 package ssa
 
-const flagRegMask = regMask(1) << 33 // TODO: arch-specific
-
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
 // spilled/restored.
@@ -33,7 +31,7 @@ func flagalloc(f *Func) {
 				if v == flag {
 					flag = nil
 				}
-				if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
+				if opcodeTable[v.Op].reg.clobbers&f.Config.flagRegMask != 0 {
 					flag = nil
 				}
 				for _, a := range v.Args {
@@ -105,7 +103,7 @@ func flagalloc(f *Func) {
 			}
 			// Issue v.
 			b.Values = append(b.Values, v)
-			if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
+			if opcodeTable[v.Op].reg.clobbers&f.Config.flagRegMask != 0 {
 				flag = nil
 			}
 			if v.Type.IsFlags() {

@@ -27,6 +27,7 @@ type arch struct {
 	ops      []opData
 	blocks   []blockData
 	regnames []string
+	flagmask regMask
 	generic  bool
 }
 
@@ -223,6 +224,7 @@ func genOp() {
 			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
 		}
 		fmt.Fprintln(w, "}")
+		fmt.Fprintf(w, "var flagRegMask%s = regMask(%d)\n", a.name, a.flagmask)
 	}
 
 	// gofmt result

@@ -193,7 +193,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMMOVBreg,
 		ssa.OpARMMOVBUreg,
 		ssa.OpARMMOVHreg,
-		ssa.OpARMMOVHUreg:
+		ssa.OpARMMOVHUreg,
+		ssa.OpARMMVN:
 		if v.Type.IsMemory() {
 			v.Fatalf("memory operand for %s", v.LongString())
 		}
@@ -270,10 +271,35 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMLessEqualU,
 		ssa.OpARMGreaterThanU,
 		ssa.OpARMGreaterEqualU:
-		v.Fatalf("pseudo-op made it to output: %s", v.LongString())
+		// generate boolean values
+		// use conditional move
+		p := gc.Prog(arm.AMOVW)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+		p = gc.Prog(arm.AMOVW)
+		p.Scond = condBits[v.Op]
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
+}
+
+var condBits = map[ssa.Op]uint8{
+	ssa.OpARMEqual:         arm.C_SCOND_EQ,
+	ssa.OpARMNotEqual:      arm.C_SCOND_NE,
+	ssa.OpARMLessThan:      arm.C_SCOND_LT,
+	ssa.OpARMLessThanU:     arm.C_SCOND_LO,
+	ssa.OpARMLessEqual:     arm.C_SCOND_LE,
+	ssa.OpARMLessEqualU:    arm.C_SCOND_LS,
+	ssa.OpARMGreaterThan:   arm.C_SCOND_GT,
+	ssa.OpARMGreaterThanU:  arm.C_SCOND_HI,
+	ssa.OpARMGreaterEqual:  arm.C_SCOND_GE,
+	ssa.OpARMGreaterEqualU: arm.C_SCOND_HS,
 }
 
 var blockJump = map[ssa.BlockKind]struct {
@@ -285,8 +311,8 @@ var blockJump = map[ssa.BlockKind]struct {
 	ssa.BlockARMGE:  {arm.ABGE, arm.ABLT},
 	ssa.BlockARMLE:  {arm.ABLE, arm.ABGT},
 	ssa.BlockARMGT:  {arm.ABGT, arm.ABLE},
-	ssa.BlockARMULT: {arm.ABCS, arm.ABCC},
-	ssa.BlockARMUGE: {arm.ABCC, arm.ABCS},
+	ssa.BlockARMULT: {arm.ABLO, arm.ABHS},
+	ssa.BlockARMUGE: {arm.ABHS, arm.ABLO},
 	ssa.BlockARMUGT: {arm.ABHI, arm.ABLS},
 	ssa.BlockARMULE: {arm.ABLS, arm.ABHI},
 }

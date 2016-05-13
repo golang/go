@@ -2,11 +2,43 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+(AddPtr x y) -> (ADD x y)
 (Add32 x y) -> (ADD x y)
+(Add16 x y) -> (ADD x y)
+(Add8 x y) -> (ADD x y)
+
+(SubPtr x y) -> (SUB x y)
 (Sub32 x y) -> (SUB x y)
+(Sub16 x y) -> (SUB x y)
+(Sub8 x y) -> (SUB x y)
+
 (And32 x y) -> (AND x y)
-(Or32 x y)  -> (OR x y)
+(And16 x y) -> (AND x y)
+(And8 x y) -> (AND x y)
+
+(Or32 x y) -> (OR x y)
+(Or16 x y) -> (OR x y)
+(Or8 x y) -> (OR x y)
+
 (Xor32 x y) -> (XOR x y)
+(Xor16 x y) -> (XOR x y)
+(Xor8 x y) -> (XOR x y)
+
+// unary ops
+(Neg32 x) -> (RSBconst [0] x)
+(Neg16 x) -> (RSBconst [0] x)
+(Neg8 x) -> (RSBconst [0] x)
+
+(Com32 x) -> (MVN x)
+(Com16 x) -> (MVN x)
+(Com8 x) -> (MVN x)
+
+// boolean ops -- booleans are represented with 0=false, 1=true
+(AndB x y) -> (AND x y)
+(OrB x y) -> (OR x y)
+(EqB x y) -> (XORconst [1] (XOR <config.fe.TypeBool()> x y))
+(NeqB x y) -> (XOR x y)
+(Not x) -> (XORconst [1] x)
 
 (Const8 [val]) -> (MOVWconst [val])
 (Const16 [val]) -> (MOVWconst [val])
@@ -29,10 +61,12 @@
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMP x y))
+(EqPtr x y) -> (Equal (CMP x y))
 
 (Neq8 x y)  -> (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Neq16 x y) -> (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Neq32 x y) -> (NotEqual (CMP x y))
+(NeqPtr x y) -> (NotEqual (CMP x y))
 
 (Less8 x y)  -> (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Less16 x y) -> (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
@@ -89,6 +123,9 @@
 
 // checks
 (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+(IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
+(IsInBounds idx len) -> (LessThanU (CMP idx len))
+(IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
