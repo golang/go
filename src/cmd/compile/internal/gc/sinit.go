@@ -4,9 +4,7 @@
 
 package gc
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // static initialization
 const (
@@ -479,6 +477,67 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		} else {
 			closuredebugruntimecheck(r)
 		}
+
+	case OCONVIFACE:
+		// This logic is mirrored in isStaticCompositeLiteral.
+		// If you change something here, change it there, and vice versa.
+
+		// Determine the underlying concrete type and value we are converting from.
+		val := r
+		for val.Op == OCONVIFACE {
+			val = val.Left
+		}
+		if val.Type.IsInterface() {
+			// val is an interface type.
+			// If val is nil, we can statically initialize l;
+			// both words are zero and so there no work to do, so report success.
+			// If val is non-nil, we have no concrete type to record,
+			// and we won't be able to statically initialize its value, so report failure.
+			return Isconst(val, CTNIL)
+		}
+
+		var itab *Node
+		if l.Type.IsEmptyInterface() {
+			itab = typename(val.Type)
+		} else {
+			itab = itabname(val.Type, l.Type)
+		}
+
+		// Create a copy of l to modify while we emit data.
+		n := *l
+
+		// Emit itab, advance offset.
+		gdata(&n, itab, Widthptr)
+		n.Xoffset += int64(Widthptr)
+
+		// Emit data.
+		if isdirectiface(val.Type) {
+			if Isconst(val, CTNIL) {
+				// Nil is zero, nothing to do.
+				return true
+			}
+			// Copy val directly into n.
+			n.Type = val.Type
+			setlineno(val)
+			a := Nod(OXXX, nil, nil)
+			*a = n
+			a.Orig = a
+			if !staticassign(a, val, out) {
+				*out = append(*out, Nod(OAS, a, val))
+			}
+		} else {
+			// Construct temp to hold val, write pointer to temp into n.
+			a := staticname(val.Type)
+			inittemps[val] = a
+			if !staticassign(a, val, out) {
+				*out = append(*out, Nod(OAS, a, val))
+			}
+			ptr := Nod(OADDR, a, nil)
+			n.Type = Ptrto(val.Type)
+			gdata(&n, ptr, Widthptr)
+		}
+
+		return true
 	}
 
 	//dump("not static", r);
@@ -593,6 +652,19 @@ func isStaticCompositeLiteral(n *Node) bool {
 		return true
 	case OLITERAL:
 		return true
+	case OCONVIFACE:
+		// See staticassign's OCONVIFACE case for comments.
+		val := n
+		for val.Op == OCONVIFACE {
+			val = val.Left
+		}
+		if val.Type.IsInterface() {
+			return Isconst(val, CTNIL)
+		}
+		if isdirectiface(val.Type) && Isconst(val, CTNIL) {
+			return true
+		}
+		return isStaticCompositeLiteral(val)
 	}
 	return false
 }
