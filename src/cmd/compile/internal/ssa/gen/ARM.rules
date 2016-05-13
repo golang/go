@@ -113,16 +113,20 @@
 (Rsh16x64 <t> x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <t> x [16]) [31])
 (Rsh8x64 <t> x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <t> x [24]) [31])
 
+// constants
 (Const8 [val]) -> (MOVWconst [val])
 (Const16 [val]) -> (MOVWconst [val])
 (Const32 [val]) -> (MOVWconst [val])
 (ConstNil) -> (MOVWconst [0])
 (ConstBool [b]) -> (MOVWconst [b])
 
+// truncations
+// Because we ignore high parts of registers, truncates are just copies.
 (Trunc16to8 x) -> x
 (Trunc32to8 x) -> x
 (Trunc32to16 x) -> x
 
+// Zero-/Sign-extensions
 (ZeroExt8to16 x) -> (MOVBUreg x)
 (ZeroExt8to32 x) -> (MOVBUreg x)
 (ZeroExt16to32 x) -> (MOVHUreg x)
@@ -131,6 +135,7 @@
 (SignExt8to32 x) -> (MOVBreg x)
 (SignExt16to32 x) -> (MOVHreg x)
 
+// comparisons
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMP x y))
@@ -177,6 +182,7 @@
 
 (Addr {sym} base) -> (ADDconst {sym} base)
 
+// loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
 (Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) -> (MOVBload ptr mem)
 (Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) -> (MOVBUload ptr mem)
@@ -184,10 +190,62 @@
 (Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
 (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVWload ptr mem)
 
+// stores
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
 (Store [4] ptr val mem) -> (MOVWstore ptr val mem)
 
+// zero instructions
+//TODO: check alignment?
+(Zero [0] _ mem) -> mem
+(Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
+(Zero [2] ptr mem) -> (MOVHstore ptr (MOVWconst [0]) mem)
+(Zero [4] ptr mem) -> (MOVWstore ptr (MOVWconst [0]) mem)
+
+(Zero [3] ptr mem) ->
+	(MOVBstore [2] ptr (MOVWconst [0])
+		(MOVHstore [0] ptr (MOVWconst [0]) mem))
+
+// Strip off fractional word zeroing.
+(Zero [size] ptr mem) && size%4 != 0 && size > 4 ->
+	(Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4])
+		(Zero <TypeMem> [size-size%4] ptr mem))
+
+// Medium zeroing uses a duff device
+// 4 and 128 are magic constants, see runtime/mkduff.go
+(Zero [size] ptr mem) && size%4 == 0 && size > 4 && size <= 512 ->
+	(DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
+
+// Large zeroing uses a loop
+(Zero [size] ptr mem) && size%4 == 0 && size > 512 ->
+	(LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
+
+// moves
+//TODO: check alignment?
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
+(Move [2] dst src mem) -> (MOVHstore dst (MOVHUload src mem) mem)
+(Move [4] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
+
+(Move [3] dst src mem) ->
+	(MOVBstore [2] dst (MOVBUload [2] src mem)
+		(MOVHstore dst (MOVHUload src mem) mem))
+
+// Strip off fractional word move
+(Move [size] dst src mem) && size%4!=0 && size > 4 ->
+	(Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4])
+		(Move <TypeMem> [size-size%4] dst src mem))
+
+// Medium move uses a duff device
+// 8 and 128 are magic constants, see runtime/mkduff.go
+(Move [size] dst src mem) && size%4 == 0 && size > 4 && size <= 512 ->
+	(DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
+
+// Large move uses a loop
+(Move [size] dst src mem) && size%4 == 0 && size > 512 ->
+	(LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
+
+// calls
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
 (DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)

@@ -170,6 +170,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMMOVWload(v, config)
 	case OpARMMOVWstore:
 		return rewriteValueARM_OpARMMOVWstore(v, config)
+	case OpMove:
+		return rewriteValueARM_OpMove(v, config)
 	case OpMul16:
 		return rewriteValueARM_OpMul16(v, config)
 	case OpMul32:
@@ -284,6 +286,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpXor32(v, config)
 	case OpXor8:
 		return rewriteValueARM_OpXor8(v, config)
+	case OpZero:
+		return rewriteValueARM_OpZero(v, config)
 	case OpZeroExt16to32:
 		return rewriteValueARM_OpZeroExt16to32(v, config)
 	case OpZeroExt8to16:
@@ -1951,6 +1955,177 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpMove(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Move [0] _ _ mem)
+	// cond:
+	// result: mem
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [1] dst src mem)
+	// cond:
+	// result: (MOVBstore dst (MOVBUload src mem) mem)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVBstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [2] dst src mem)
+	// cond:
+	// result: (MOVHstore dst (MOVHUload src mem) mem)
+	for {
+		if v.AuxInt != 2 {
+			break
+		}
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVHstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpARMMOVHUload, config.fe.TypeUInt16())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [4] dst src mem)
+	// cond:
+	// result: (MOVWstore dst (MOVWload src mem) mem)
+	for {
+		if v.AuxInt != 4 {
+			break
+		}
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVWstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpARMMOVWload, config.fe.TypeUInt32())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [3] dst src mem)
+	// cond:
+	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) 		(MOVHstore dst (MOVHUload src mem) mem))
+	for {
+		if v.AuxInt != 3 {
+			break
+		}
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVBstore)
+		v.AuxInt = 2
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
+		v0.AuxInt = 2
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMMOVHstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpARMMOVHUload, config.fe.TypeUInt16())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [size] dst src mem)
+	// cond: size%4!=0 && size > 4
+	// result: (Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4]) 		(Move <TypeMem> [size-size%4] dst src mem))
+	for {
+		size := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(size%4 != 0 && size > 4) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = size % 4
+		v0 := b.NewValue0(v.Line, OpARMADDconst, dst.Type)
+		v0.AddArg(dst)
+		v0.AuxInt = size - size%4
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
+		v1.AddArg(src)
+		v1.AuxInt = size - size%4
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpMove, TypeMem)
+		v2.AuxInt = size - size%4
+		v2.AddArg(dst)
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Move [size] dst src mem)
+	// cond: size%4 == 0 && size > 4 && size <= 512
+	// result: (DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
+	for {
+		size := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(size%4 == 0 && size > 4 && size <= 512) {
+			break
+		}
+		v.reset(OpARMDUFFCOPY)
+		v.AuxInt = 8 * (128 - int64(size/4))
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [size] dst src mem)
+	// cond: size%4 == 0 && size > 512
+	// result: (LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
+	for {
+		size := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(size%4 == 0 && size > 512) {
+			break
+		}
+		v.reset(OpARMLoweredMove)
+		v.AddArg(dst)
+		v.AddArg(src)
+		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
+		v0.AddArg(src)
+		v0.AuxInt = size
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
 func rewriteValueARM_OpMul16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -3048,6 +3223,164 @@ func rewriteValueARM_OpXor8(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
+}
+func rewriteValueARM_OpZero(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Zero [0] _ mem)
+	// cond:
+	// result: mem
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[1]
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Zero [1] ptr mem)
+	// cond:
+	// result: (MOVBstore ptr (MOVWconst [0]) mem)
+	for {
+		if v.AuxInt != 1 {
+			break
+		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVBstore)
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v0.AuxInt = 0
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Zero [2] ptr mem)
+	// cond:
+	// result: (MOVHstore ptr (MOVWconst [0]) mem)
+	for {
+		if v.AuxInt != 2 {
+			break
+		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVHstore)
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v0.AuxInt = 0
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Zero [4] ptr mem)
+	// cond:
+	// result: (MOVWstore ptr (MOVWconst [0]) mem)
+	for {
+		if v.AuxInt != 4 {
+			break
+		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVWstore)
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v0.AuxInt = 0
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Zero [3] ptr mem)
+	// cond:
+	// result: (MOVBstore [2] ptr (MOVWconst [0]) 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
+	for {
+		if v.AuxInt != 3 {
+			break
+		}
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVBstore)
+		v.AuxInt = 2
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v0.AuxInt = 0
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMMOVHstore, TypeMem)
+		v1.AuxInt = 0
+		v1.AddArg(ptr)
+		v2 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v2.AuxInt = 0
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Zero [size] ptr mem)
+	// cond: size%4 != 0 && size > 4
+	// result: (Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4]) 		(Zero <TypeMem> [size-size%4] ptr mem))
+	for {
+		size := v.AuxInt
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(size%4 != 0 && size > 4) {
+			break
+		}
+		v.reset(OpZero)
+		v.AuxInt = size % 4
+		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
+		v0.AddArg(ptr)
+		v0.AuxInt = size - size%4
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpZero, TypeMem)
+		v1.AuxInt = size - size%4
+		v1.AddArg(ptr)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Zero [size] ptr mem)
+	// cond: size%4 == 0 && size > 4 && size <= 512
+	// result: (DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
+	for {
+		size := v.AuxInt
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(size%4 == 0 && size > 4 && size <= 512) {
+			break
+		}
+		v.reset(OpARMDUFFZERO)
+		v.AuxInt = 4 * (128 - int64(size/4))
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v0.AuxInt = 0
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Zero [size] ptr mem)
+	// cond: size%4 == 0 && size > 512
+	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
+	for {
+		size := v.AuxInt
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(size%4 == 0 && size > 512) {
+			break
+		}
+		v.reset(OpARMLoweredZero)
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
+		v0.AddArg(ptr)
+		v0.AuxInt = size
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
+		v1.AuxInt = 0
+		v.AddArg(v1)
+		v.AddArg(mem)
+		return true
+	}
+	return false
 }
 func rewriteValueARM_OpZeroExt16to32(v *Value, config *Config) bool {
 	b := v.Block
