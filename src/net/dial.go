@@ -317,7 +317,16 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		ctx = subCtx
 	}
 
-	addrs, err := resolveAddrList(ctx, "dial", network, address, d.LocalAddr)
+	// Shadow the nettrace (if any) during resolve so Connect events don't fire for DNS lookups.
+	resolveCtx := ctx
+	if trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace); trace != nil {
+		shadow := *trace
+		shadow.ConnectStart = nil
+		shadow.ConnectDone = nil
+		resolveCtx = context.WithValue(resolveCtx, nettrace.TraceKey{}, &shadow)
+	}
+
+	addrs, err := resolveAddrList(resolveCtx, "dial", network, address, d.LocalAddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
 	}
@@ -472,21 +481,11 @@ func dialSerial(ctx context.Context, dp *dialParam, ras addrList) (Conn, error) 
 	return nil, firstErr
 }
 
-// traceDialType reports whether ra is an address type for which
-// nettrace.Trace should trace.
-func traceDialType(ra Addr) bool {
-	switch ra.(type) {
-	case *TCPAddr, *UnixAddr:
-		return true
-	}
-	return false
-}
-
 // dialSingle attempts to establish and returns a single connection to
 // the destination address.
 func dialSingle(ctx context.Context, dp *dialParam, ra Addr) (c Conn, err error) {
 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
-	if trace != nil && traceDialType(ra) {
+	if trace != nil {
 		raStr := ra.String()
 		if trace.ConnectStart != nil {
 			trace.ConnectStart(dp.network, raStr)
