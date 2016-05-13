@@ -7,6 +7,9 @@ cmd/compile: smaller binaries (many CLs)
 cmd/go, go/build: add support for Fortran (CL 19670, CL 4114)
 cmd/doc: group constructors with types (CL 22354)
 cmd/go, go/build: binary-only package support (CL 22433)
+cmd/trace: file:line is embed into traces (CL 21732) which makes binary argument optional (CL 22410)
+cmd/trace: now supports visualization of very large traces by splitting them into parts (CL 22731)
+cmd/trace: tracing has become significantly faster (CL 21512)
 
 Ports:
 
