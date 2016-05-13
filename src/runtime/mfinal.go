@@ -259,6 +259,24 @@ func runfinq() {
 // in initializers for package-level variables. Such objects may be
 // linker-allocated, not heap-allocated.
 //
+// A finalizer may run as soon as an object becomes unreachable.
+// In order to use finalizers correctly, the program must ensure that
+// the object is reachable until it is no longer required.
+// Objects stored in global variables, or that can be found by tracing
+// pointers from a global variable, are reachable. For other objects,
+// pass the object to a call of the KeepAlive function to mark the
+// last point in the function where the object must be reachable.
+//
+// For example, if p points to a struct that contains a file descriptor d,
+// and p has a finalizer that closes that file descriptor, and if the last
+// use of p in a function is a call to syscall.Write(p.d, buf, size), then
+// p may be unreachable as soon as the program enters syscall.Write. The
+// finalizer may run at that moment, closing p.d, causing syscall.Write
+// to fail because it is writing to a closed file descriptor (or, worse,
+// to an entirely different file descriptor opened by a different goroutine).
+// To avoid this problem, call runtime.KeepAlive(p) after the call to
+// syscall.Write.
+//
 // A single goroutine runs all finalizers for a program, sequentially.
 // If a finalizer must run for a long time, it should do so by starting
 // a new goroutine.
@@ -416,3 +434,31 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	}
 	return
 }
+
+// Mark KeepAlive as noinline so that the current compiler will ensure
+// that the argument is alive at the point of the function call.
+// If it were inlined, it would disappear, and there would be nothing
+// keeping the argument alive. Perhaps a future compiler will recognize
+// runtime.KeepAlive specially and do something more efficient.
+//go:noinline
+
+// KeepAlive marks its argument as currently reachable.
+// This ensures that the object is not freed, and its finalizer is not run,
+// before the point in the program where KeepAlive is called.
+//
+// A very simplified example showing where KeepAlive is required:
+// 	type File struct { d int }
+// 	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
+// 	// ... do something if err != nil ...
+// 	p := &FILE{d}
+// 	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
+// 	var buf [10]byte
+// 	n, err := syscall.Read(p.d, buf[:])
+// 	// Ensure p is not finalized until Read returns.
+// 	runtime.KeepAlive(p)
+// 	// No more uses of p after this point.
+//
+// Without the KeepAlive call, the finalizer could run at the start of
+// syscall.Read, closing the file descriptor before syscall.Read makes
+// the actual system call.
+func KeepAlive(interface{}) {}
