@@ -1985,6 +1985,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	if len(args) > 50 {
 		panic("reflect.FuncOf does not support more than 50 arguments")
 	}
+	ft.tflag = 0
 	ft.hash = hash
 	ft.inCount = uint16(len(in))
 	ft.outCount = uint16(len(out))
