@@ -80,12 +80,12 @@ func init() {
 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
 		gp11      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
-		gp11flags = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp | flags}}
+		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp | flags}}
+		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
-		flagsgp   = regInfo{inputs: []regMask{gp | flags}, outputs: []regMask{gp}}
+		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
 	)
 	ops := []opData{
 		// binary ops
@@ -105,14 +105,17 @@ func init() {
 		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
 		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int32"}, // arg0 &^ auxInt
 
-		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                     // arg0 compare to arg1
-		{name: "CMPconst", argLength: 1, reg: gp11flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt
-		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                     // arg0 compare to -arg1
-		{name: "CMNconst", argLength: 1, reg: gp11flags, asm: "CMN", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt
-		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true},  // arg0 & arg1 compare to 0
-		{name: "TSTconst", argLength: 1, reg: gp11flags, asm: "TST", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0
-		{name: "TEQ", argLength: 2, reg: gp2flags, asm: "TEQ", typ: "Flags", commutative: true},  // arg0 ^ arg1 compare to 0
-		{name: "TEQconst", argLength: 1, reg: gp11flags, asm: "TEQ", aux: "Int32", typ: "Flags"}, // arg0 ^ auxInt compare to 0
+		// unary ops
+		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
+
+		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                    // arg0 compare to arg1
+		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt
+		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                    // arg0 compare to -arg1
+		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt
+		{name: "TST", argLength: 2, reg: gp2flags, asm: "TST", typ: "Flags", commutative: true}, // arg0 & arg1 compare to 0
+		{name: "TSTconst", argLength: 1, reg: gp1flags, asm: "TST", aux: "Int32", typ: "Flags"}, // arg0 & auxInt compare to 0
+		{name: "TEQ", argLength: 2, reg: gp2flags, asm: "TEQ", typ: "Flags", commutative: true}, // arg0 ^ arg1 compare to 0
+		{name: "TEQconst", argLength: 1, reg: gp1flags, asm: "TEQ", aux: "Int32", typ: "Flags"}, // arg0 ^ auxInt compare to 0
 
 		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", rematerializeable: true}, // 32 low bits of auxint
 
@@ -140,16 +143,16 @@ func init() {
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}, clobbers: flags}}, // panic if arg0 is nil.  arg1=mem.
 
-		{name: "Equal", argLength: 1, reg: flagsgp},         // bool, true flags encode x==y false otherwise.
-		{name: "NotEqual", argLength: 1, reg: flagsgp},      // bool, true flags encode x!=y false otherwise.
-		{name: "LessThan", argLength: 1, reg: flagsgp},      // bool, true flags encode signed x<y false otherwise.
-		{name: "LessEqual", argLength: 1, reg: flagsgp},     // bool, true flags encode signed x<=y false otherwise.
-		{name: "GreaterThan", argLength: 1, reg: flagsgp},   // bool, true flags encode signed x>y false otherwise.
-		{name: "GreaterEqual", argLength: 1, reg: flagsgp},  // bool, true flags encode signed x>=y false otherwise.
-		{name: "LessThanU", argLength: 1, reg: flagsgp},     // bool, true flags encode unsigned x<y false otherwise.
-		{name: "LessEqualU", argLength: 1, reg: flagsgp},    // bool, true flags encode unsigned x<=y false otherwise.
-		{name: "GreaterThanU", argLength: 1, reg: flagsgp},  // bool, true flags encode unsigned x>y false otherwise.
-		{name: "GreaterEqualU", argLength: 1, reg: flagsgp}, // bool, true flags encode unsigned x>=y false otherwise.
+		{name: "Equal", argLength: 1, reg: readflags},         // bool, true flags encode x==y false otherwise.
+		{name: "NotEqual", argLength: 1, reg: readflags},      // bool, true flags encode x!=y false otherwise.
+		{name: "LessThan", argLength: 1, reg: readflags},      // bool, true flags encode signed x<y false otherwise.
+		{name: "LessEqual", argLength: 1, reg: readflags},     // bool, true flags encode signed x<=y false otherwise.
+		{name: "GreaterThan", argLength: 1, reg: readflags},   // bool, true flags encode signed x>y false otherwise.
+		{name: "GreaterEqual", argLength: 1, reg: readflags},  // bool, true flags encode signed x>=y false otherwise.
+		{name: "LessThanU", argLength: 1, reg: readflags},     // bool, true flags encode unsigned x<y false otherwise.
+		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
+		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
+		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
 	}
 
 	blocks := []blockData{
@@ -172,5 +175,6 @@ func init() {
 		ops:      ops,
 		blocks:   blocks,
 		regnames: regNamesARM,
+		flagmask: flags,
 	})
 }

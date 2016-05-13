@@ -551,5 +551,6 @@ func init() {
 		ops:      AMD64ops,
 		blocks:   AMD64blocks,
 		regnames: regNamesAMD64,
+		flagmask: flags,
 	})
 }

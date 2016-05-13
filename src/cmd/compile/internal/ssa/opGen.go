@@ -337,6 +337,7 @@ const (
 	OpARMXORconst
 	OpARMBIC
 	OpARMBICconst
+	OpARMMVN
 	OpARMCMP
 	OpARMCMPconst
 	OpARMCMN
@@ -4041,6 +4042,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MVN",
+		argLen: 1,
+		asm:    arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:   "CMP",
 		argLen: 2,
 		asm:    arm.ACMP,
@@ -4050,7 +4064,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4064,7 +4078,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4078,7 +4092,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4092,7 +4106,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4107,7 +4121,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4121,7 +4135,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4136,7 +4150,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4150,7 +4164,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				65536, // FLAGS
 			},
 		},
 	},
@@ -4386,7 +4400,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4398,7 +4412,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4410,7 +4424,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4422,7 +4436,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4434,7 +4448,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4446,7 +4460,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4458,7 +4472,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4470,7 +4484,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4482,7 +4496,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4494,7 +4508,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 70655}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+				{0, 65536}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -6027,6 +6041,7 @@ var registersAMD64 = [...]Register{
 	{32, "SB"},
 	{33, "FLAGS"},
 }
+var flagRegMaskAMD64 = regMask(8589934592)
 var registersARM = [...]Register{
 	{0, "R0"},
 	{1, "R1"},
@@ -6047,3 +6062,4 @@ var registersARM = [...]Register{
 	{16, "FLAGS"},
 	{17, "SB"},
 }
+var flagRegMaskARM = regMask(65536)
