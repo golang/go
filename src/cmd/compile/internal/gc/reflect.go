@@ -978,8 +978,8 @@ func typename(t *Type) *Node {
 }
 
 func itabname(t, itype *Type) *Node {
-	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
-		Fatalf("itabname %v", t)
+	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
+		Fatalf("itabname(%v, %v)", t, itype)
 	}
 	s := Pkglookup(fmt.Sprintf("%-v,%-v", t, itype), itabpkg)
 	if s.Def == nil {
