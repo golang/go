@@ -403,11 +403,7 @@ func (p *Package) IsCommand() bool {
 // ImportDir is like Import but processes the Go package found in
 // the named directory.
 func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
-	p, err := ctxt.Import(".", dir, mode)
-	if err == nil && !ctxt.isDir(p.Dir) {
-		err = fmt.Errorf("%q is not a directory", p.Dir)
-	}
-	return p, err
+	return ctxt.Import(".", dir, mode)
 }
 
 // NoGoError is the error used by Import to describe a directory
