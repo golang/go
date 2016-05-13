@@ -5782,3 +5782,24 @@ func TestMethodPkgPathReadable(t *testing.T) {
 		t.Errorf(`PkgPath=%q, want "reflect"`, m.PkgPath)
 	}
 }
+
+func TestTypeStrings(t *testing.T) {
+	type stringTest struct {
+		typ  Type
+		want string
+	}
+	stringTests := []stringTest{
+		{TypeOf(func(int) {}), "func(int)"},
+		{FuncOf([]Type{TypeOf(int(0))}, nil, false), "func(int)"},
+		{TypeOf(XM{}), "reflect_test.XM"},
+		{TypeOf(new(XM)), "*reflect_test.XM"},
+		{TypeOf(new(XM).String), "func() string"},
+		{TypeOf(new(XM)).Method(0).Type, "func(*reflect_test.XM) string"},
+	}
+
+	for i, test := range stringTests {
+		if got, want := test.typ.String(), test.want; got != want {
+			t.Errorf("type %d String()=%q, want %q", i, got, want)
+		}
+	}
+}
