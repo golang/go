@@ -93,11 +93,65 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMAND,
 		ssa.OpARMOR,
 		ssa.OpARMXOR,
-		ssa.OpARMBIC:
+		ssa.OpARMBIC,
+		ssa.OpARMMUL:
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
 		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r2
+		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpARMSLL,
+		ssa.OpARMSRL:
+		// ARM shift instructions uses only the low-order byte of the shift amount
+		// generate conditional instructions to deal with large shifts
+		// CMP	$32, Rarg1
+		// SLL	Rarg1, Rarg0, Rdst
+		// MOVW.HS	$0, Rdst
+		r := gc.SSARegNum(v)
+		r1 := gc.SSARegNum(v.Args[0])
+		r2 := gc.SSARegNum(v.Args[1])
+		p := gc.Prog(arm.ACMP)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 32
+		p.Reg = r2
+		p = gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r2
+		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		p = gc.Prog(arm.AMOVW)
+		p.Scond = arm.C_SCOND_HS
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpARMSRA:
+		// ARM shift instructions uses only the low-order byte of the shift amount
+		// generate conditional instructions to deal with large shifts
+		// CMP	$32, Rarg1
+		// SRA.HS	$31, Rarg0, Rdst // shift 31 bits to get the sign bit
+		// SRA.LO	Rarg1, Rarg0, Rdst
+		r := gc.SSARegNum(v)
+		r1 := gc.SSARegNum(v.Args[0])
+		r2 := gc.SSARegNum(v.Args[1])
+		p := gc.Prog(arm.ACMP)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 32
+		p.Reg = r2
+		p = gc.Prog(arm.ASRA)
+		p.Scond = arm.C_SCOND_HS
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 31
+		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		p = gc.Prog(arm.ASRA)
+		p.Scond = arm.C_SCOND_LO
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
@@ -138,13 +192,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMANDconst,
 		ssa.OpARMORconst,
 		ssa.OpARMXORconst,
-		ssa.OpARMBICconst:
+		ssa.OpARMBICconst,
+		ssa.OpARMSLLconst,
+		ssa.OpARMSRLconst,
+		ssa.OpARMSRAconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMHMUL,
+		ssa.OpARMHMULU:
+		// 32-bit high multiplication
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.Reg = gc.SSARegNum(v.Args[1])
+		p.To.Type = obj.TYPE_REGREG
+		p.To.Reg = gc.SSARegNum(v)
+		p.To.Offset = arm.REGTMP // throw away low 32-bit into tmp register
 	case ssa.OpARMMOVWconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -327,6 +394,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
+
+	case ssa.BlockExit:
+		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)

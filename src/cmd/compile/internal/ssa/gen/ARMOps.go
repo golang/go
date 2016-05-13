@@ -82,6 +82,7 @@ func init() {
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
 		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
 		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
@@ -89,12 +90,15 @@ func init() {
 	)
 	ops := []opData{
 		// binary ops
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},    // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sb, asm: "ADD", aux: "SymOff"}, // arg0 + auxInt + aux.(*gc.Sym)
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                       // arg0 - arg1
-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},    // arg0 - auxInt
-		{name: "RSB", argLength: 2, reg: gp21, asm: "RSB"},                       // arg1 - arg0
-		{name: "RSBconst", argLength: 1, reg: gp11, asm: "RSB", aux: "Int32"},    // auxInt - arg0
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11sb, asm: "ADD", aux: "SymOff"},  // arg0 + auxInt + aux.(*gc.Sym)
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
+		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},     // arg0 - auxInt
+		{name: "RSB", argLength: 2, reg: gp21, asm: "RSB"},                        // arg1 - arg0
+		{name: "RSBconst", argLength: 1, reg: gp11, asm: "RSB", aux: "Int32"},     // auxInt - arg0
+		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
+		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
+		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
@@ -107,6 +111,14 @@ func init() {
 
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
+
+		// shifts
+		{name: "SLL", argLength: 2, reg: gp21cf, asm: "SLL"},                  // arg0 << arg1, results 0 for large shift
+		{name: "SLLconst", argLength: 1, reg: gp11, asm: "SLL", aux: "Int32"}, // arg0 << auxInt
+		{name: "SRL", argLength: 2, reg: gp21cf, asm: "SRL"},                  // arg0 >> arg1, unsigned, results 0 for large shift
+		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
+		{name: "SRA", argLength: 2, reg: gp21cf, asm: "SRA"},                  // arg0 >> arg1, signed, results 0/-1 for large shift
+		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
 
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                    // arg0 compare to arg1
 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt

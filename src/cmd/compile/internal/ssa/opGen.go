@@ -329,6 +329,9 @@ const (
 	OpARMSUBconst
 	OpARMRSB
 	OpARMRSBconst
+	OpARMMUL
+	OpARMHMUL
+	OpARMHMULU
 	OpARMAND
 	OpARMANDconst
 	OpARMOR
@@ -338,6 +341,12 @@ const (
 	OpARMBIC
 	OpARMBICconst
 	OpARMMVN
+	OpARMSLL
+	OpARMSLLconst
+	OpARMSRL
+	OpARMSRLconst
+	OpARMSRA
+	OpARMSRAconst
 	OpARMCMP
 	OpARMCMPconst
 	OpARMCMN
@@ -3927,6 +3936,51 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "MUL",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AMUL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:        "HMUL",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AMULL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:        "HMULU",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AMULLU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:        "AND",
 		argLen:      2,
 		commutative: true,
@@ -4045,6 +4099,93 @@ var opcodeTable = [...]opInfo{
 		name:   "MVN",
 		argLen: 1,
 		asm:    arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SLL",
+		argLen: 2,
+		asm:    arm.ASLL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SLLconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.ASLL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SRL",
+		argLen: 2,
+		asm:    arm.ASRL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SRLconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.ASRL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SRA",
+		argLen: 2,
+		asm:    arm.ASRA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SRAconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.ASRA,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
