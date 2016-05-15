@@ -1800,6 +1800,7 @@ loop16:
 	CMPQ DI,DX
 	JB loop16
 	JMP fail
+//TODO: the code below is wrong.  Fix it.  See #15679.
 _17_to_31:
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX
