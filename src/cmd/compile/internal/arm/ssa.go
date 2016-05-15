@@ -33,6 +33,48 @@ var ssaRegToReg = []int16{
 	0,            // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 }
 
+// loadByType returns the load instruction of the given type.
+func loadByType(t ssa.Type) obj.As {
+	if t.IsFloat() {
+		panic("load floating point register is not implemented")
+	} else {
+		switch t.Size() {
+		case 1:
+			if t.IsSigned() {
+				return arm.AMOVB
+			} else {
+				return arm.AMOVBU
+			}
+		case 2:
+			if t.IsSigned() {
+				return arm.AMOVH
+			} else {
+				return arm.AMOVHU
+			}
+		case 4:
+			return arm.AMOVW
+		}
+	}
+	panic("bad load type")
+}
+
+// storeByType returns the store instruction of the given type.
+func storeByType(t ssa.Type) obj.As {
+	if t.IsFloat() {
+		panic("store floating point register is not implemented")
+	} else {
+		switch t.Size() {
+		case 1:
+			return arm.AMOVB
+		case 2:
+			return arm.AMOVH
+		case 4:
+			return arm.AMOVW
+		}
+	}
+	panic("bad store type")
+}
+
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	s.SetLineno(v.Line)
 	switch v.Op {
@@ -57,8 +99,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
 	case ssa.OpLoadReg:
-		// TODO: by type
-		p := gc.Prog(arm.AMOVW)
+		if v.Type.IsFlags() {
+			v.Unimplementedf("load flags not implemented: %v", v.LongString())
+			return
+		}
+		p := gc.Prog(loadByType(v.Type))
 		n, off := gc.AutoVar(v.Args[0])
 		p.From.Type = obj.TYPE_MEM
 		p.From.Node = n
@@ -85,8 +130,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			}
 		}
 	case ssa.OpStoreReg:
-		// TODO: by type
-		p := gc.Prog(arm.AMOVW)
+		if v.Type.IsFlags() {
+			v.Unimplementedf("store flags not implemented: %v", v.LongString())
+			return
+		}
+		p := gc.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		n, off := gc.AutoVar(v)
@@ -284,7 +332,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMCALLstatic:
-		// TODO: deferreturn
+		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
+			// Deferred calls will appear to be returning to
+			// the CALL deferreturn(SB) that we are about to emit.
+			// However, the stack trace code will show the line
+			// of the instruction byte before the return PC.
+			// To avoid that being an unrelated instruction,
+			// insert an actual hardware NOP that will have the right line number.
+			// This is different from obj.ANOP, which is a virtual no-op
+			// that doesn't make it into the instruction stream.
+			ginsnop()
+		}
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
@@ -467,11 +525,34 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
+	case ssa.BlockDefer:
+		// defer returns in R0:
+		// 0 if we should continue executing
+		// 1 if we should jump to deferreturn call
+		p := gc.Prog(arm.ACMP)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.Reg = arm.REG_R0
+		p = gc.Prog(arm.ABNE)
+		p.To.Type = obj.TYPE_BRANCH
+		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		if b.Succs[0].Block() != next {
+			p := gc.Prog(obj.AJMP)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+		}
+
 	case ssa.BlockExit:
 		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)
+
+	case ssa.BlockRetJmp:
+		p := gc.Prog(obj.AJMP)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(b.Aux.(*gc.Sym))
 
 	case ssa.BlockARMEQ, ssa.BlockARMNE,
 		ssa.BlockARMLT, ssa.BlockARMGE,

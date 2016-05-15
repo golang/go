@@ -2597,9 +2597,11 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	// Defer/go args
 	if k != callNormal {
 		// Write argsize and closure (args to Newproc/Deferproc).
+		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
-		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Types[TUINTPTR], argStart, s.sp)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, addr, argsize, s.mem())
+		addr = s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), argStart+int64(Widthptr), s.sp)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
 		stksize += 2 * int64(Widthptr)
 	}
@@ -2956,7 +2958,7 @@ func (s *state) check(cmp *ssa.Value, fn *Node) {
 // is started to load the return values.
 func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Value) []*ssa.Value {
 	// Write args to the stack
-	var off int64 // TODO: arch-dependent starting offset?
+	off := Ctxt.FixedFrameSize()
 	for _, arg := range args {
 		t := arg.Type
 		off = Rnd(off, t.Alignment())
