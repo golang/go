@@ -2445,7 +2445,12 @@ func exitsyscall(dummy int32) {
 
 	_g_.m.locks++ // see comment in entersyscall
 	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
-		throw("exitsyscall: syscall frame is no longer valid")
+		// throw calls print which may try to grow the stack,
+		// but throwsplit == true so the stack can not be grown;
+		// use systemstack to avoid that possible problem.
+		systemstack(func() {
+			throw("exitsyscall: syscall frame is no longer valid")
+		})
 	}
 
 	_g_.waitsince = 0
