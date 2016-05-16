@@ -348,6 +348,49 @@ func TestNilBody(t *testing.T) {
 	}
 }
 
+// Issue 15524
+func TestUserAgentHeader(t *testing.T) {
+	const explicitUA = "explicit UA"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/noua" {
+			if c := r.Header.Get("User-Agent"); c != "" {
+				t.Errorf("handler got non-empty User-Agent header %q", c)
+			}
+			return
+		}
+		if c := r.Header.Get("User-Agent"); c != explicitUA {
+			t.Errorf("handler got unexpected User-Agent header %q", c)
+		}
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Header.Set("User-Agent", explicitUA)
+	getReq.Close = true
+	res, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close()
+
+	getReq, _ = http.NewRequest("GET", frontend.URL+"/noua", nil)
+	getReq.Header.Set("User-Agent", "")
+	getReq.Close = true
+	res, err = http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close()
+}
+
 type bufferPool struct {
 	get func() []byte
 	put func([]byte)
