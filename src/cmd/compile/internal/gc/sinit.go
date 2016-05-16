@@ -641,7 +641,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 			if a.Op != OAS {
 				Fatalf("structlit: not as")
 			}
-			a.Dodata = 2
+			a.IsStatic = true
 		} else {
 			a = orderstmtinplace(a)
 			a = walkstmt(a)
@@ -703,7 +703,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 			if a.Op != OAS {
 				Fatalf("arraylit: not as")
 			}
-			a.Dodata = 2
+			a.IsStatic = true
 		} else {
 			a = orderstmtinplace(a)
 			a = walkstmt(a)
@@ -730,7 +730,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 
 		a = Nod(OAS, var_, a)
 		a = typecheck(a, Etop)
-		a.Dodata = 2
+		a.IsStatic = true
 		init.Append(a)
 		return
 	}
@@ -910,7 +910,7 @@ func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
 				as := Nod(OAS, lhs, index)
 				as = typecheck(as, Etop)
 				as = walkexpr(as, init)
-				as.Dodata = 2
+				as.IsStatic = true
 				init.Append(as)
 
 				// build vstatv[b] = value
@@ -919,7 +919,7 @@ func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
 				as = Nod(OAS, lhs, value)
 				as = typecheck(as, Etop)
 				as = walkexpr(as, init)
-				as.Dodata = 2
+				as.IsStatic = true
 				init.Append(as)
 
 				b++
@@ -1326,15 +1326,15 @@ func isvaluelit(n *Node) bool {
 // If reportOnly is true, it does not emit static data and does not modify the AST.
 func gen_as_init(n *Node, reportOnly bool) bool {
 	success := genAsInitNoCheck(n, reportOnly)
-	if !success && n.Dodata == 2 {
+	if !success && n.IsStatic {
 		Dump("\ngen_as_init", n)
-		Fatalf("gen_as_init couldn't make data statement")
+		Fatalf("gen_as_init couldn't generate static data")
 	}
 	return success
 }
 
 func genAsInitNoCheck(n *Node, reportOnly bool) bool {
-	if n.Dodata == 0 {
+	if !n.IsStatic {
 		return false
 	}
 

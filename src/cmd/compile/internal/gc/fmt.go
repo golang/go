@@ -299,8 +299,8 @@ func jconv(n *Node, flag FmtFlag) string {
 		fmt.Fprintf(&buf, " tc(%d)", n.Typecheck)
 	}
 
-	if c == 0 && n.Dodata != 0 {
-		fmt.Fprintf(&buf, " dd(%d)", n.Dodata)
+	if c == 0 && n.IsStatic {
+		buf.WriteString(" static")
 	}
 
 	if n.Isddd {

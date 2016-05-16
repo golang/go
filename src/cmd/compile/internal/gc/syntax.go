@@ -63,7 +63,7 @@ type Node struct {
 	Walkdef   uint8
 	Typecheck uint8
 	Local     bool
-	Dodata    uint8
+	IsStatic  bool // whether this Node will be converted to purely static data
 	Initorder uint8
 	Used      bool
 	Isddd     bool // is the argument variadic
