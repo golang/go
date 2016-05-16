@@ -12,7 +12,7 @@ TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
 
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
-TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
+TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$104
 	// Preserve callee-save registers. Raspberry Pi's dlopen(), for example,
 	// actually cares that R11 is preserved.
 	MOVW	R4, 12(R13)
@@ -22,6 +22,19 @@ TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
 	MOVW	R8, 28(R13)
 	MOVW	R11, 32(R13)
 
+	// Skip floating point registers on GOARM < 6.
+	MOVB    runtime·goarm(SB), R11
+	CMP $6, R11
+	BLT skipfpsave
+	MOVD	F8, (32+8*1)(R13)
+	MOVD	F9, (32+8*2)(R13)
+	MOVD	F10, (32+8*3)(R13)
+	MOVD	F11, (32+8*4)(R13)
+	MOVD	F12, (32+8*5)(R13)
+	MOVD	F13, (32+8*6)(R13)
+	MOVD	F14, (32+8*7)(R13)
+	MOVD	F15, (32+8*8)(R13)
+skipfpsave:
 	// Save argc/argv.
 	MOVW	R0, _rt0_arm_linux_lib_argc<>(SB)
 	MOVW	R1, _rt0_arm_linux_lib_argv<>(SB)
@@ -46,6 +59,18 @@ nocgo:
 	BL	runtime·newosproc0(SB)
 rr:
 	// Restore callee-save registers and return.
+	MOVB    runtime·goarm(SB), R11
+	CMP $6, R11
+	BLT skipfprest
+	MOVD	(32+8*1)(R13), F8
+	MOVD	(32+8*2)(R13), F9
+	MOVD	(32+8*3)(R13), F10
+	MOVD	(32+8*4)(R13), F11
+	MOVD	(32+8*5)(R13), F12
+	MOVD	(32+8*6)(R13), F13
+	MOVD	(32+8*7)(R13), F14
+	MOVD	(32+8*8)(R13), F15
+skipfprest:
 	MOVW	12(R13), R4
 	MOVW	16(R13), R5
 	MOVW	20(R13), R6
