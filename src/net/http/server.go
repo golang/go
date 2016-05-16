@@ -2082,7 +2082,7 @@ type Server struct {
 	MaxHeaderBytes int
 
 	// TLSNextProto optionally specifies a function to take over
-	// ownership of the provided TLS connection when an NPN
+	// ownership of the provided TLS connection when an NPN/ALPN
 	// protocol upgrade has occurred. The map key is the protocol
 	// name negotiated. The Handler argument should be used to
 	// handle HTTP requests and will initialize the Request's TLS
