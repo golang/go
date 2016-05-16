@@ -2127,18 +2127,9 @@ func isstack(n *Node) bool {
 	return false
 }
 
-func isglobal(n *Node) bool {
+func (n *Node) isGlobal() bool {
 	n = outervalue(n)
-
-	switch n.Op {
-	case ONAME:
-		switch n.Class {
-		case PEXTERN:
-			return true
-		}
-	}
-
-	return false
+	return n.Op == ONAME && n.Class == PEXTERN
 }
 
 // Do we need a write barrier for the assignment l = r?
@@ -2193,7 +2184,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 
 	// No write barrier for storing address of global, which
 	// is live no matter what.
-	if r.Op == OADDR && isglobal(r.Left) {
+	if r.Op == OADDR && r.Left.isGlobal() {
 		return false
 	}
 
