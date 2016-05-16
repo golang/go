@@ -20,10 +20,6 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseInterfaceTable(ifindex, msgs)
-}
-
-func parseInterfaceTable(ifindex int, msgs []route.Message) ([]Interface, error) {
 	n := len(msgs)
 	if ifindex != 0 {
 		n = 1
