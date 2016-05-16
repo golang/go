@@ -119,8 +119,8 @@ import (
 //
 // Map values encode as JSON objects. The map's key type must either be a
 // string, an integer type, or implement encoding.TextMarshaler. The map keys
-// are used as JSON object keys by applying the following rules, subject to the
-// UTF-8 coercion described for string values above:
+// are sorted and used as JSON object keys by applying the following rules,
+// subject to the UTF-8 coercion described for string values above:
 //   - string keys are used directly
 //   - encoding.TextMarshalers are marshaled
 //   - integer keys are converted to strings
