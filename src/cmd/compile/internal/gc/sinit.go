@@ -473,7 +473,6 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		return true
 
 	case OMAPLIT:
-		// TODO: Table-driven map insert.
 		break
 
 	case OCLOSURE:
@@ -859,7 +858,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	init.Append(a)
 }
 
-func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
 	ctxt = 0
 
 	// make the map var
@@ -867,7 +866,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 
 	a := Nod(OMAKE, nil, nil)
 	a.List.Set2(typenod(n.Type), Nodintconst(int64(len(n.List.Slice()))))
-	litas(var_, a, init)
+	litas(m, a, init)
 
 	// count the initializers
 	b := 0
@@ -884,32 +883,17 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	if b != 0 {
-		// build type [count]struct { a Tindex, b Tvalue }
-		t := n.Type
-		tk := t.Key()
-		tv := t.Val()
-
-		syma := Lookup("a")
-		symb := Lookup("b")
-
-		var fields [2]*Field
-		fields[0] = newField()
-		fields[0].Type = tk
-		fields[0].Sym = syma
-		fields[1] = newField()
-		fields[1].Type = tv
-		fields[1].Sym = symb
-
-		tstruct := typ(TSTRUCT)
-		tstruct.SetFields(fields[:])
-
-		tarr := typArray(tstruct, int64(b))
+		// build types [count]Tindex and [count]Tvalue
+		tk := typArray(n.Type.Key(), int64(b))
+		tv := typArray(n.Type.Val(), int64(b))
 
 		// TODO(josharian): suppress alg generation for these types?
-		dowidth(tarr)
+		dowidth(tk)
+		dowidth(tv)
 
-		// make and initialize static array
-		vstat := staticname(tarr, ctxt)
+		// make and initialize static arrays
+		vstatk := staticname(tk, ctxt)
+		vstatv := staticname(tv, ctxt)
 
 		b := int64(0)
 		for _, r := range n.List.Slice() {
@@ -920,61 +904,52 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 			value := r.Right
 
 			if isliteral(index) && isliteral(value) {
-				// build vstat[b].a = key;
+				// build vstatk[b] = index
 				setlineno(index)
-				a = Nodintconst(b)
+				lhs := Nod(OINDEX, vstatk, Nodintconst(b))
+				as := Nod(OAS, lhs, index)
+				as = typecheck(as, Etop)
+				as = walkexpr(as, init)
+				as.Dodata = 2
+				init.Append(as)
 
-				a = Nod(OINDEX, vstat, a)
-				a = NodSym(ODOT, a, syma)
-				a = Nod(OAS, a, index)
-				a = typecheck(a, Etop)
-				a = walkexpr(a, init)
-				a.Dodata = 2
-				init.Append(a)
-
-				// build vstat[b].b = value;
+				// build vstatv[b] = value
 				setlineno(value)
-				a = Nodintconst(b)
-
-				a = Nod(OINDEX, vstat, a)
-				a = NodSym(ODOT, a, symb)
-				a = Nod(OAS, a, value)
-				a = typecheck(a, Etop)
-				a = walkexpr(a, init)
-				a.Dodata = 2
-				init.Append(a)
+				lhs = Nod(OINDEX, vstatv, Nodintconst(b))
+				as = Nod(OAS, lhs, value)
+				as = typecheck(as, Etop)
+				as = walkexpr(as, init)
+				as.Dodata = 2
+				init.Append(as)
 
 				b++
 			}
 		}
 
 		// loop adding structure elements to map
-		// for i = 0; i < len(vstat); i++ {
-		//	map[vstat[i].a] = vstat[i].b
+		// for i = 0; i < len(vstatk); i++ {
+		//	map[vstatk[i]] = vstatv[i]
 		// }
-		index := temp(Types[TINT])
+		i := temp(Types[TINT])
+		rhs := Nod(OINDEX, vstatv, i)
+		rhs.Bounded = true
 
-		a = Nod(OINDEX, vstat, index)
-		a.Bounded = true
-		a = NodSym(ODOT, a, symb)
+		kidx := Nod(OINDEX, vstatk, i)
+		kidx.Bounded = true
+		lhs := Nod(OINDEX, m, kidx)
 
-		r := Nod(OINDEX, vstat, index)
-		r.Bounded = true
-		r = NodSym(ODOT, r, syma)
-		r = Nod(OINDEX, var_, r)
+		zero := Nod(OAS, i, Nodintconst(0))
+		cond := Nod(OLT, i, Nodintconst(tk.NumElem()))
+		incr := Nod(OAS, i, Nod(OADD, i, Nodintconst(1)))
+		body := Nod(OAS, lhs, rhs)
 
-		r = Nod(OAS, r, a)
+		loop := Nod(OFOR, cond, incr)
+		loop.Nbody.Set1(body)
+		loop.Ninit.Set1(zero)
 
-		a = Nod(OFOR, nil, nil)
-		a.Nbody.Set1(r)
-
-		a.Ninit.Set1(Nod(OAS, index, Nodintconst(0)))
-		a.Left = Nod(OLT, index, Nodintconst(tarr.NumElem()))
-		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
-
-		a = typecheck(a, Etop)
-		a = walkstmt(a)
-		init.Append(a)
+		loop = typecheck(loop, Etop)
+		loop = walkstmt(loop)
+		init.Append(loop)
 	}
 
 	// put in dynamic entries one-at-a-time
@@ -993,8 +968,8 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		// build list of var[c] = expr.
 		// use temporary so that mapassign1 can have addressable key, val.
 		if key == nil {
-			key = temp(var_.Type.Key())
-			val = temp(var_.Type.Val())
+			key = temp(m.Type.Key())
+			val = temp(m.Type.Val())
 		}
 
 		setlineno(r.Left)
@@ -1009,7 +984,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		init.Append(a)
 
 		setlineno(val)
-		a = Nod(OAS, Nod(OINDEX, var_, key), val)
+		a = Nod(OAS, Nod(OINDEX, m, key), val)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
