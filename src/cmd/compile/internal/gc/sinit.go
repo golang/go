@@ -533,7 +533,9 @@ const (
 	initConst                           // contains some constant values, which may be written into data symbols
 )
 
-func getdyn(n *Node, top int) initGenType {
+// getdyn calculates the initGenType for n.
+// If top is false, getdyn is recursing.
+func getdyn(n *Node, top bool) initGenType {
 	switch n.Op {
 	default:
 		if isliteral(n) {
@@ -542,7 +544,7 @@ func getdyn(n *Node, top int) initGenType {
 		return initDynamic
 
 	case OARRAYLIT:
-		if top == 0 && n.Type.IsSlice() {
+		if !top && n.Type.IsSlice() {
 			return initDynamic
 		}
 
@@ -552,7 +554,7 @@ func getdyn(n *Node, top int) initGenType {
 	var mode initGenType
 	for _, n1 := range n.List.Slice() {
 		value := n1.Right
-		mode |= getdyn(value, 0)
+		mode |= getdyn(value, false)
 		if mode == initDynamic|initConst {
 			break
 		}
@@ -758,7 +760,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	// make static initialized array (1),(2)
 	var vstat *Node
 
-	mode := getdyn(n, 1)
+	mode := getdyn(n, true)
 	if mode&initConst != 0 {
 		vstat = staticname(t, ctxt)
 		arraylit(ctxt, 1, n, vstat, init)
