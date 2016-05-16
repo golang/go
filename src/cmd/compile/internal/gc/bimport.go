@@ -799,15 +799,10 @@ func (p *importer) node() *Node {
 		return n
 
 	case ONAME:
-		if p.bool() {
-			// "_"
-			// TODO(gri) avoid repeated "_" lookup
-			return mkname(Pkglookup("_", localpkg))
-		}
-		return NodSym(OXDOT, typenod(p.typ()), p.fieldSym())
-
-	case OPACK, ONONAME:
 		return mkname(p.sym())
+
+	// case OPACK, ONONAME:
+	// 	unreachable - should have been resolved by typechecking
 
 	case OTYPE:
 		if p.bool() {
@@ -859,14 +854,7 @@ func (p *importer) node() *Node {
 
 	case OXDOT:
 		// see parser.new_dotname
-		obj := p.expr()
-		sel := p.fieldSym()
-		if obj.Op == OPACK {
-			s := restrictlookup(sel.Name, obj.Name.Pkg)
-			obj.Used = true
-			return oldname(s)
-		}
-		return NodSym(OXDOT, obj, sel)
+		return NodSym(OXDOT, p.expr(), p.fieldSym())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
@@ -896,29 +884,18 @@ func (p *importer) node() *Node {
 		n.SetSliceBounds(low, high, max)
 		return n
 
-	case OCOPY, OCOMPLEX:
-		n := builtinCall(op)
-		n.List.Set([]*Node{p.expr(), p.expr()})
-		return n
-
 	// case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case OCONV:
 		n := Nod(OCALL, typenod(p.typ()), nil)
-		if p.bool() {
-			n.List.Set1(p.expr())
-		} else {
-			n.List.Set(p.exprList())
-		}
+		n.List.Set(p.exprList())
 		return n
 
-	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		n := builtinCall(op)
-		if p.bool() {
-			n.List.Set1(p.expr())
-		} else {
-			n.List.Set(p.exprList())
+		n.List.Set(p.exprList())
+		if op == OAPPEND {
 			n.Isddd = p.bool()
 		}
 		return n

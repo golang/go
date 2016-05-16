@@ -91,10 +91,24 @@ type ResponseWriter interface {
 	Header() Header
 
 	// Write writes the data to the connection as part of an HTTP reply.
-	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
-	// before writing the data. If the Header does not contain a
-	// Content-Type line, Write adds a Content-Type set to the result of passing
-	// the initial 512 bytes of written data to DetectContentType.
+	//
+	// If WriteHeader has not yet been called, Write calls
+	// WriteHeader(http.StatusOK) before writing the data. If the Header
+	// does not contain a Content-Type line, Write adds a Content-Type set
+	// to the result of passing the initial 512 bytes of written data to
+	// DetectContentType.
+	//
+	// Depending on the HTTP protocol version and the client, calling
+	// Write or WriteHeader may prevent future reads on the
+	// Request.Body. For HTTP/1.x requests, handlers should read any
+	// needed request body data before writing the response. Once the
+	// headers have been flushed (due to either an explicit Flusher.Flush
+	// call or writing enough data to trigger a flush), the request body
+	// may be unavailable. For HTTP/2 requests, the Go HTTP server permits
+	// handlers to continue to read the request body while concurrently
+	// writing the response. However, such behavior may not be supported
+	// by all HTTP/2 clients. Handlers should read before writing if
+	// possible to maximize compatibility.
 	Write([]byte) (int, error)
 
 	// WriteHeader sends an HTTP response header with status code.
@@ -994,7 +1008,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// Check for a explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
-	if w.wants10KeepAlive && (isHEAD || hasCL) {
+	if w.wants10KeepAlive && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {
 		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"
@@ -1027,6 +1041,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// replying, if the handler hasn't already done so. But we
 	// don't want to do an unbounded amount of reading here for
 	// DoS reasons, so we only try up to a threshold.
+	// TODO(bradfitz): where does RFC 2616 say that? See Issue 15527
+	// about HTTP/1.x Handlers concurrently reading and writing, like
+	// HTTP/2 handlers can do. Maybe this code should be relaxed?
 	if w.req.ContentLength != 0 && !w.closeAfterReply {
 		var discard, tooBig bool
 
@@ -2065,7 +2082,7 @@ type Server struct {
 	MaxHeaderBytes int
 
 	// TLSNextProto optionally specifies a function to take over
-	// ownership of the provided TLS connection when an NPN
+	// ownership of the provided TLS connection when an NPN/ALPN
 	// protocol upgrade has occurred. The map key is the protocol
 	// name negotiated. The Handler argument should be used to
 	// handle HTTP requests and will initialize the Request's TLS

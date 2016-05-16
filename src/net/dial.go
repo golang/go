@@ -317,7 +317,16 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		ctx = subCtx
 	}
 
-	addrs, err := resolveAddrList(ctx, "dial", network, address, d.LocalAddr)
+	// Shadow the nettrace (if any) during resolve so Connect events don't fire for DNS lookups.
+	resolveCtx := ctx
+	if trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace); trace != nil {
+		shadow := *trace
+		shadow.ConnectStart = nil
+		shadow.ConnectDone = nil
+		resolveCtx = context.WithValue(resolveCtx, nettrace.TraceKey{}, &shadow)
+	}
+
+	addrs, err := resolveAddrList(resolveCtx, "dial", network, address, d.LocalAddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
 	}

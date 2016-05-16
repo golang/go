@@ -55,7 +55,7 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
 func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	order := systemConf().hostLookupOrder(host)
 	if order == hostLookupCgo {
-		if addrs, err, ok := cgoLookupHost(host); ok {
+		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
 			return addrs, err
 		}
 		// cgo not available (or netgo); fall back to Go's DNS resolver
@@ -67,8 +67,7 @@ func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 	order := systemConf().hostLookupOrder(host)
 	if order == hostLookupCgo {
-		// TODO(bradfitz): push down ctx, or at least its deadline to start
-		if addrs, err, ok := cgoLookupIP(host); ok {
+		if addrs, err, ok := cgoLookupIP(ctx, host); ok {
 			return addrs, err
 		}
 		// cgo not available (or netgo); fall back to Go's DNS resolver
@@ -84,7 +83,7 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
 	// files might be on a remote filesystem, though. This should
 	// probably race goroutines if ctx != context.Background().
 	if systemConf().canUseCgo() {
-		if port, err, ok := cgoLookupPort(network, service); ok {
+		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
 			return port, err
 		}
 	}
@@ -93,8 +92,7 @@ func lookupPort(ctx context.Context, network, service string) (int, error) {
 
 func lookupCNAME(ctx context.Context, name string) (string, error) {
 	if systemConf().canUseCgo() {
-		// TODO: use ctx. issue 15321. Or race goroutines.
-		if cname, err, ok := cgoLookupCNAME(name); ok {
+		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
 			return cname, err
 		}
 	}
@@ -161,7 +159,7 @@ func lookupTXT(ctx context.Context, name string) ([]string, error) {
 
 func lookupAddr(ctx context.Context, addr string) ([]string, error) {
 	if systemConf().canUseCgo() {
-		if ptrs, err, ok := cgoLookupPTR(addr); ok {
+		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
 			return ptrs, err
 		}
 	}

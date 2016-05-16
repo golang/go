@@ -140,6 +140,8 @@ func pseudoUnix(year int, d *syscall.Systemtime) int64 {
 func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	l := &localLoc
 
+	l.name = "Local"
+
 	nzone := 1
 	if i.StandardDate.Month > 0 {
 		nzone++

@@ -8,7 +8,7 @@
 
 void gopanic(void);
 
-static unsigned int
+static unsigned int __attribute__((__stdcall__))
 die(void* x)
 {
 	gopanic();

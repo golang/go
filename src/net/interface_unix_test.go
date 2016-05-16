@@ -7,6 +7,7 @@
 package net
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -24,8 +25,8 @@ type testInterface struct {
 
 func (ti *testInterface) setup() error {
 	for _, cmd := range ti.setupCmds {
-		if err := cmd.Run(); err != nil {
-			return err
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("args=%v out=%q err=%v", cmd.Args, string(out), err)
 		}
 	}
 	return nil
@@ -33,8 +34,8 @@ func (ti *testInterface) setup() error {
 
 func (ti *testInterface) teardown() error {
 	for _, cmd := range ti.teardownCmds {
-		if err := cmd.Run(); err != nil {
-			return err
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("args=%v out=%q err=%v ", cmd.Args, string(out), err)
 		}
 	}
 	return nil
@@ -51,6 +52,8 @@ func TestPointToPointInterface(t *testing.T) {
 		t.Skip("must be root")
 	}
 
+	// We suppose that using IPv4 link-local addresses doesn't
+	// harm anyone.
 	local, remote := "169.254.0.1", "169.254.0.254"
 	ip := ParseIP(remote)
 	for i := 0; i < 3; i++ {
@@ -100,15 +103,17 @@ func TestInterfaceArrivalAndDeparture(t *testing.T) {
 		t.Skip("must be root")
 	}
 
+	// We suppose that using IPv4 link-local addresses and the
+	// dot1Q ID for Token Ring and FDDI doesn't harm anyone.
 	local, remote := "169.254.0.1", "169.254.0.254"
 	ip := ParseIP(remote)
-	for i := 0; i < 3; i++ {
+	for _, vid := range []int{1002, 1003, 1004, 1005} {
 		ift1, err := Interfaces()
 		if err != nil {
 			t.Fatal(err)
 		}
 		ti := &testInterface{local: local, remote: remote}
-		if err := ti.setBroadcast(5682 + i); err != nil {
+		if err := ti.setBroadcast(vid); err != nil {
 			t.Skipf("test requires external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {

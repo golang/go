@@ -1157,15 +1157,13 @@ func (p *exporter) expr(n *Node) {
 		// Special case: name used as local variable in export.
 		// _ becomes ~b%d internally; print as _ for export
 		if n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
-			// case 0: mapped to ONAME
 			p.op(ONAME)
-			p.bool(true) // indicate blank identifier
+			p.string("_") // inlined and customized version of p.sym(n)
 			break
 		}
 
 		if n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
-			// case 1: mapped to OPACK
-			p.op(OPACK)
+			p.op(ONAME)
 			p.sym(n)
 			break
 		}
@@ -1174,23 +1172,17 @@ func (p *exporter) expr(n *Node) {
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
-			// case 2: mapped to ONAME
-			p.op(ONAME)
-			// TODO(gri) can we map this case directly to OXDOT
-			//           and then get rid of the bool here?
-			p.bool(false) // indicate non-blank identifier
-			p.typ(n.Left.Type)
+			p.op(OXDOT)
+			p.expr(n.Left) // n.Left.Op == OTYPE
 			p.fieldSym(n.Right.Sym, true)
 			break
 		}
 
-		// case 3: mapped to OPACK
-		p.op(OPACK)
-		p.sym(n) // fallthrough inlined here
-
-	case OPACK, ONONAME:
-		p.op(op)
+		p.op(ONAME)
 		p.sym(n)
+
+	// case OPACK, ONONAME:
+	// 	should have been resolved by typechecking - handled by default case
 
 	case OTYPE:
 		p.op(OTYPE)
@@ -1264,26 +1256,35 @@ func (p *exporter) expr(n *Node) {
 		p.expr(max)
 
 	case OCOPY, OCOMPLEX:
+		// treated like other builtin calls (see e.g., OREAL)
 		p.op(op)
 		p.expr(n.Left)
 		p.expr(n.Right)
+		p.op(OEND)
 
 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 		p.op(OCONV)
 		p.typ(n.Type)
-		if p.bool(n.Left != nil) {
+		if n.Left != nil {
 			p.expr(n.Left)
+			p.op(OEND)
 		} else {
-			p.exprList(n.List)
+			p.exprList(n.List) // emits terminating OEND
 		}
 
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		p.op(op)
-		if p.bool(n.Left != nil) {
+		if n.Left != nil {
 			p.expr(n.Left)
+			p.op(OEND)
 		} else {
-			p.exprList(n.List)
+			p.exprList(n.List) // emits terminating OEND
+		}
+		// only append() calls may contain '...' arguments
+		if op == OAPPEND {
 			p.bool(n.Isddd)
+		} else if n.Isddd {
+			Fatalf("exporter: unexpected '...' with %s call", opnames[op])
 		}
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
@@ -1404,10 +1405,7 @@ func (p *exporter) stmt(n *Node) {
 			p.expr(n.Right)
 		}
 
-	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		fallthrough
-
-	case OAS2:
+	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		p.op(OAS2)
 		p.exprList(n.List)
 		p.exprList(n.Rlist)
@@ -1508,6 +1506,8 @@ func (p *exporter) fieldSym(s *Sym, short bool) {
 	}
 }
 
+// sym must encode the _ (blank) identifier as a single string "_" since
+// encoding for some nodes is based on this assumption (e.g. ONAME nodes).
 func (p *exporter) sym(n *Node) {
 	s := n.Sym
 	if s.Pkg != nil {

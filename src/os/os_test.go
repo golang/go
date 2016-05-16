@@ -1376,6 +1376,38 @@ func TestReadAt(t *testing.T) {
 	}
 }
 
+// Verify that ReadAt doesn't affect seek offset.
+// In the Plan 9 kernel, there used to be a bug in the implementation of
+// the pread syscall, where the channel offset was erroneously updated after
+// calling pread on a file.
+func TestReadAtOffset(t *testing.T) {
+	f := newFile("TestReadAtOffset", t)
+	defer Remove(f.Name())
+	defer f.Close()
+
+	const data = "hello, world\n"
+	io.WriteString(f, data)
+
+	f.Seek(0, 0)
+	b := make([]byte, 5)
+
+	n, err := f.ReadAt(b, 7)
+	if err != nil || n != len(b) {
+		t.Fatalf("ReadAt 7: %d, %v", n, err)
+	}
+	if string(b) != "world" {
+		t.Fatalf("ReadAt 7: have %q want %q", string(b), "world")
+	}
+
+	n, err = f.Read(b)
+	if err != nil || n != len(b) {
+		t.Fatalf("Read: %d, %v", n, err)
+	}
+	if string(b) != "hello" {
+		t.Fatalf("Read: have %q want %q", string(b), "hello")
+	}
+}
+
 func TestWriteAt(t *testing.T) {
 	f := newFile("TestWriteAt", t)
 	defer Remove(f.Name())

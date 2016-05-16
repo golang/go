@@ -1311,20 +1311,25 @@ func (s *regAllocState) regalloc(f *Func) {
 						// Start with live at end.
 						for _, li := range s.live[ss.ID] {
 							if s.isLoopSpillCandidate(loop, s.orig[li.ID]) {
+								// s.live contains original IDs, use s.orig above to map back to *Value
 								entryCandidates.setBit(li.ID, uint(whichExit))
 							}
 						}
 						// Control can also be live.
-						if ss.Control != nil && s.isLoopSpillCandidate(loop, ss.Control) {
-							entryCandidates.setBit(ss.Control.ID, uint(whichExit))
+						if ss.Control != nil && s.orig[ss.Control.ID] != nil && s.isLoopSpillCandidate(loop, s.orig[ss.Control.ID]) {
+							entryCandidates.setBit(s.orig[ss.Control.ID].ID, uint(whichExit))
 						}
 						// Walk backwards, filling in locally live values, removing those defined.
 						for i := len(ss.Values) - 1; i >= 0; i-- {
 							v := ss.Values[i]
-							entryCandidates.remove(v.ID) // Cannot be an issue, only keeps the sets smaller.
+							vorig := s.orig[v.ID]
+							if vorig != nil {
+								entryCandidates.remove(vorig.ID) // Cannot be an issue, only keeps the sets smaller.
+							}
 							for _, a := range v.Args {
-								if s.isLoopSpillCandidate(loop, a) {
-									entryCandidates.setBit(a.ID, uint(whichExit))
+								aorig := s.orig[a.ID]
+								if aorig != nil && s.isLoopSpillCandidate(loop, aorig) {
+									entryCandidates.setBit(aorig.ID, uint(whichExit))
 								}
 							}
 						}

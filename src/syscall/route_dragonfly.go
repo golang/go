@@ -31,6 +31,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
 
 // InterfaceAnnounceMessage represents a routing message containing
 // network interface arrival and departure information.
+//
+// Deprecated: Use golang.org/x/net/route instead.
 type InterfaceAnnounceMessage struct {
 	Header IfAnnounceMsghdr
 }
@@ -39,6 +41,8 @@ func (m *InterfaceAnnounceMessage) sockaddr() ([]Sockaddr, error) { return nil, 
 
 // InterfaceMulticastAddrMessage represents a routing message
 // containing network interface address entries.
+//
+// Deprecated: Use golang.org/x/net/route instead.
 type InterfaceMulticastAddrMessage struct {
 	Header IfmaMsghdr
 	Data   []byte

@@ -3292,6 +3292,7 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	wantSub("Getting conn for dns-is-faked.golang:" + port)
 	wantSub("DNS start: {Host:dns-is-faked.golang}")
 	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
+	wantSub("Connecting to tcp " + ts.Listener.Addr().String())
 	wantSub("connected to tcp " + ts.Listener.Addr().String() + " = <nil>")
 	wantSub("Reused:false WasIdle:false IdleTime:0s")
 	wantSub("first response byte")
@@ -3299,6 +3300,55 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	wantSub("WroteRequest: {Err:<nil>}")
 	wantSub("Wait100Continue")
 	wantSub("Got100Continue")
+	if strings.Contains(got, " to udp ") {
+		t.Errorf("should not see UDP (DNS) connections")
+	}
+	if t.Failed() {
+		t.Errorf("Output:\n%s", got)
+	}
+}
+
+func TestTransportEventTraceRealDNS(t *testing.T) {
+	defer afterTest(t)
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	logf := func(format string, args ...interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(&buf, format, args...)
+		buf.WriteByte('\n')
+	}
+
+	req, _ := NewRequest("GET", "http://dns-should-not-resolve.golang:80", nil)
+	trace := &httptrace.ClientTrace{
+		DNSStart:     func(e httptrace.DNSStartInfo) { logf("DNSStart: %+v", e) },
+		DNSDone:      func(e httptrace.DNSDoneInfo) { logf("DNSDone: %+v", e) },
+		ConnectStart: func(network, addr string) { logf("ConnectStart: %s %s", network, addr) },
+		ConnectDone:  func(network, addr string, err error) { logf("ConnectDone: %s %s %v", network, addr, err) },
+	}
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+
+	resp, err := c.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("expected error during DNS lookup")
+	}
+
+	got := buf.String()
+	wantSub := func(sub string) {
+		if !strings.Contains(got, sub) {
+			t.Errorf("expected substring %q in output.", sub)
+		}
+	}
+	wantSub("DNSStart: {Host:dns-should-not-resolve.golang}")
+	wantSub("DNSDone: {Addrs:[] Err:")
+	if strings.Contains(got, "ConnectStart") || strings.Contains(got, "ConnectDone") {
+		t.Errorf("should not see Connect events")
+	}
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
 	}

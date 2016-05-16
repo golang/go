@@ -57,6 +57,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -66,8 +68,7 @@ import (
 var (
 	filename       = flag.String("output", "", "output file name (standard output if omitted)")
 	printTraceFlag = flag.Bool("trace", false, "generate print statement after every syscall")
-	systemDLL      = flag.Bool("systemdll", false, "whether all DLLs should be loaded from the Windows system directory")
-	sysRepo        = flag.Bool("xsys", false, "whether this code is for the x/sys subrepo")
+	systemDLL      = flag.Bool("systemdll", true, "whether all DLLs should be loaded from the Windows system directory")
 )
 
 func trim(s string) string {
@@ -596,14 +597,20 @@ func (f *Fn) HelperName() string {
 
 // Source files and functions.
 type Source struct {
-	Funcs   []*Fn
-	Files   []string
-	Imports []string
+	Funcs           []*Fn
+	Files           []string
+	StdLibImports   []string
+	ExternalImports []string
 }
 
 func (src *Source) Import(pkg string) {
-	src.Imports = append(src.Imports, pkg)
-	sort.Strings(src.Imports)
+	src.StdLibImports = append(src.StdLibImports, pkg)
+	sort.Strings(src.StdLibImports)
+}
+
+func (src *Source) ExternalImport(pkg string) {
+	src.ExternalImports = append(src.ExternalImports, pkg)
+	sort.Strings(src.ExternalImports)
 }
 
 // ParseFiles parses files listed in fs and extracts all syscall
@@ -613,12 +620,10 @@ func ParseFiles(fs []string) (*Source, error) {
 	src := &Source{
 		Funcs: make([]*Fn, 0),
 		Files: make([]string, 0),
-		Imports: []string{
+		StdLibImports: []string{
 			"unsafe",
 		},
-	}
-	if *systemDLL {
-		src.Import("internal/syscall/windows/sysdll")
+		ExternalImports: make([]string, 0),
 	}
 	for _, file := range fs {
 		if err := src.ParseFile(file); err != nil {
@@ -689,10 +694,52 @@ func (src *Source) ParseFile(path string) error {
 	return nil
 }
 
+// IsStdRepo returns true if src is part of standard library.
+func (src *Source) IsStdRepo() (bool, error) {
+	if len(src.Files) == 0 {
+		return false, errors.New("no input files provided")
+	}
+	abspath, err := filepath.Abs(src.Files[0])
+	if err != nil {
+		return false, err
+	}
+	goroot := runtime.GOROOT()
+	if runtime.GOOS == "windows" {
+		abspath = strings.ToLower(abspath)
+		goroot = strings.ToLower(goroot)
+	}
+	return strings.HasPrefix(abspath, goroot), nil
+}
+
 // Generate output source file from a source set src.
 func (src *Source) Generate(w io.Writer) error {
-	if *sysRepo && packageName != "windows" {
-		src.Import("golang.org/x/sys/windows")
+	const (
+		pkgStd         = iota // any package in std library
+		pkgXSysWindows        // x/sys/windows package
+		pkgOther
+	)
+	isStdRepo, err := src.IsStdRepo()
+	if err != nil {
+		return err
+	}
+	var pkgtype int
+	switch {
+	case isStdRepo:
+		pkgtype = pkgStd
+	case packageName == "windows":
+		// TODO: this needs better logic than just using package name
+		pkgtype = pkgXSysWindows
+	default:
+		pkgtype = pkgOther
+	}
+	if *systemDLL {
+		switch pkgtype {
+		case pkgStd:
+			src.Import("internal/syscall/windows/sysdll")
+		case pkgXSysWindows:
+		default:
+			src.ExternalImport("golang.org/x/sys/windows")
+		}
 	}
 	if packageName != "syscall" {
 		src.Import("syscall")
@@ -702,22 +749,21 @@ func (src *Source) Generate(w io.Writer) error {
 		"syscalldot":  syscalldot,
 		"newlazydll": func(dll string) string {
 			arg := "\"" + dll + ".dll\""
-			if *systemDLL {
-				arg = "sysdll.Add(" + arg + ")"
-			}
-			if *sysRepo {
-				if packageName == "windows" {
-					return "NewLazySystemDLL(" + arg + ")"
-				} else {
-					return "windows.NewLazySystemDLL(" + arg + ")"
-				}
-			} else {
+			if !*systemDLL {
 				return syscalldot() + "NewLazyDLL(" + arg + ")"
+			}
+			switch pkgtype {
+			case pkgStd:
+				return syscalldot() + "NewLazyDLL(sysdll.Add(" + arg + "))"
+			case pkgXSysWindows:
+				return "NewLazySystemDLL(" + arg + ")"
+			default:
+				return "windows.NewLazySystemDLL(" + arg + ")"
 			}
 		},
 	}
 	t := template.Must(template.New("main").Funcs(funcMap).Parse(srcTemplate))
-	err := t.Execute(w, src)
+	err = t.Execute(w, src)
 	if err != nil {
 		return errors.New("Failed to execute template: " + err.Error())
 	}
@@ -770,7 +816,10 @@ const srcTemplate = `
 package {{packagename}}
 
 import (
-{{range .Imports}}"{{.}}"
+{{range .StdLibImports}}"{{.}}"
+{{end}}
+
+{{range .ExternalImports}}"{{.}}"
 {{end}}
 )
 

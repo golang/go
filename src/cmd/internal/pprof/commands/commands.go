@@ -197,6 +197,7 @@ func makeVizTmpDir() error {
 	if err != nil {
 		return err
 	}
+	tempfile.DeferDelete(name)
 	vizTmpDir = name
 	return nil
 }

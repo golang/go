@@ -170,7 +170,7 @@ func (p *importer) declare(obj types.Object) {
 		// imported.
 		// (See also the comment in cmd/compile/internal/gc/bimport.go importer.obj,
 		// switch case importing functions).
-		panic(fmt.Sprintf("%s already declared", alt.Name()))
+		panic(fmt.Sprintf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj))
 	}
 }
 

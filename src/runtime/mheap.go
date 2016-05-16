@@ -1243,7 +1243,7 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr) {
 	}
 }
 
-const gcBitsChunkBytes = uintptr(1 << 16)
+const gcBitsChunkBytes = uintptr(64 << 10)
 const gcBitsHeaderBytes = unsafe.Sizeof(gcBitsHeader{})
 
 type gcBitsHeader struct {

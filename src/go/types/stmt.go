@@ -123,7 +123,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
 		}
 		if d != nil {
 			if first != nil {
-				check.errorf(d.Pos(), "multiple defaults (first at %s)", first.Pos())
+				check.errorf(d.Pos(), "multiple defaults (first at %s)", check.fset.Position(first.Pos()))
 			} else {
 				first = d
 			}
