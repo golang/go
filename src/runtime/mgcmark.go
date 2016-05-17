@@ -601,7 +601,7 @@ func gcFlushBgCredit(scanWork int64) {
 			gp.gcAssistBytes = 0
 			xgp := gp
 			gp = gp.schedlink.ptr()
-			ready(xgp, 0)
+			ready(xgp, 0, true)
 		} else {
 			// Partially satisfy this assist.
 			gp.gcAssistBytes += scanBytes
