@@ -98,6 +98,7 @@ func TestGdbPython(t *testing.T) {
 
 	args := []string{"-nx", "-q", "--batch", "-iex",
 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+		"-ex", "set startup-with-shell off",
 		"-ex", "info auto-load python-scripts",
 		"-ex", "br main.go:10",
 		"-ex", "run",
@@ -226,6 +227,7 @@ func TestGdbBacktrace(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
+		"-ex", "set startup-with-shell off",
 		"-ex", "break main.eee",
 		"-ex", "run",
 		"-ex", "backtrace",
