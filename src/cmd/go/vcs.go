@@ -848,6 +848,15 @@ var vcsPaths = []*vcsPath{
 		repo:   "https://{root}",
 	},
 
+	// Git at OpenStack
+	{
+		prefix: "git.openstack.org",
+		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+		check:  noVCSSuffix,
+	},
+
 	// General syntax for any server.
 	// Must be last.
 	{
