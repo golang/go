@@ -1704,7 +1704,7 @@ func gcSweep(mode gcMode) {
 	lock(&sweep.lock)
 	if sweep.parked {
 		sweep.parked = false
-		ready(sweep.g, 0)
+		ready(sweep.g, 0, true)
 	}
 	unlock(&sweep.lock)
 	mProf_GC()
