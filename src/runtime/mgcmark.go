@@ -601,7 +601,13 @@ func gcFlushBgCredit(scanWork int64) {
 			gp.gcAssistBytes = 0
 			xgp := gp
 			gp = gp.schedlink.ptr()
-			ready(xgp, 0, true)
+			// It's important that we *not* put xgp in
+			// runnext. Otherwise, it's possible for user
+			// code to exploit the GC worker's high
+			// scheduler priority to get itself always run
+			// before other goroutines and always in the
+			// fresh quantum started by GC.
+			ready(xgp, 0, false)
 		} else {
 			// Partially satisfy this assist.
 			gp.gcAssistBytes += scanBytes
