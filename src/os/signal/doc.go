@@ -205,8 +205,8 @@ before raising the signal.
 Windows
 
 On Windows a ^C (Control-C) or ^BREAK (Control-Break) normally cause
-the program to exit. If Notify is called for os.SIGINT, ^C or ^BREAK
-will cause os.SIGINT to be sent on the channel, and the program will
+the program to exit. If Notify is called for os.Interrupt, ^C or ^BREAK
+will cause os.Interrupt to be sent on the channel, and the program will
 not exit. If Reset is called, or Stop is called on all channels passed
 to Notify, then the default behavior will be restored.
 
