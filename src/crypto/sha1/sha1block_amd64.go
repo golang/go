@@ -12,13 +12,22 @@ func blockAVX2(dig *digest, p []byte)
 func blockAMD64(dig *digest, p []byte)
 func checkAVX2() bool
 
-// TODO(TocarIP): fix AVX2 crash (golang.org/issue/15617) and
-// then re-enable this:
-var hasAVX2 = false // checkAVX2()
+var hasAVX2 = checkAVX2()
 
 func block(dig *digest, p []byte) {
 	if hasAVX2 && len(p) >= 256 {
-		blockAVX2(dig, p)
+		// blockAVX2 calculates sha1 for 2 block per iteration
+		// it also interleaves precalculation for next block.
+		// So it may read up-to 192 bytes past end of p
+		// We may add checks inside blockAVX2, but this will
+		// just turn it into a copy of blockAMD64,
+		// so call it directly, instead.
+		safeLen := len(p) - 128
+		if safeLen%128 != 0 {
+			safeLen -= 64
+		}
+		blockAVX2(dig, p[:safeLen])
+		blockAMD64(dig, p[safeLen:])
 	} else {
 		blockAMD64(dig, p)
 	}
