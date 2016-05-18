@@ -4334,6 +4334,25 @@ func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSl
 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
 }
 
+func (e *ssaExport) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+	n := name.N.(*Node)
+	var t *Type
+	if name.Type.IsSigned() {
+		t = Types[TINT32]
+	} else {
+		t = Types[TUINT32]
+	}
+	if n.Class == PAUTO && !n.Addrtaken {
+		// Split this int64 up into two separate variables.
+		h := e.namedAuto(n.Sym.Name+".hi", t)
+		l := e.namedAuto(n.Sym.Name+".lo", Types[TUINT32])
+		return ssa.LocalSlot{N: h, Type: t, Off: 0}, ssa.LocalSlot{N: l, Type: Types[TUINT32], Off: 0}
+	}
+	// Return the two parts of the larger variable.
+	// Assuming little endian (we don't support big endian 32-bit architecture yet)
+	return ssa.LocalSlot{N: n, Type: t, Off: name.Off + 4}, ssa.LocalSlot{N: n, Type: Types[TUINT32], Off: name.Off}
+}
+
 func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 	n := name.N.(*Node)
 	st := name.Type

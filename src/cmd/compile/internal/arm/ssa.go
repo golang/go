@@ -149,7 +149,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Name = obj.NAME_AUTO
 		}
 	case ssa.OpARMADD,
+		ssa.OpARMADC,
 		ssa.OpARMSUB,
+		ssa.OpARMSBC,
 		ssa.OpARMRSB,
 		ssa.OpARMAND,
 		ssa.OpARMOR,
@@ -160,6 +162,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
 		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r2
+		p.Reg = r1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	case ssa.OpARMADDS,
+		ssa.OpARMSUBS:
+		r := gc.SSARegNum(v)
+		r1 := gc.SSARegNum(v.Args[0])
+		r2 := gc.SSARegNum(v.Args[1])
+		p := gc.Prog(v.Op.Asm())
+		p.Scond = arm.C_SBIT
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
@@ -273,6 +287,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REGREG
 		p.To.Reg = gc.SSARegNum(v)
 		p.To.Offset = arm.REGTMP // throw away low 32-bit into tmp register
+	case ssa.OpARMMULLU:
+		// 32-bit multiplication, results 64-bit, low 32-bit in reg(v), high 32-bit in R0
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.Reg = gc.SSARegNum(v.Args[1])
+		p.To.Type = obj.TYPE_REGREG
+		p.To.Reg = arm.REG_R0                // high 32-bit
+		p.To.Offset = int64(gc.SSARegNum(v)) // low 32-bit
+	case ssa.OpARMMULA:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.Reg = gc.SSARegNum(v.Args[1])
+		p.To.Type = obj.TYPE_REGREG2
+		p.To.Reg = gc.SSARegNum(v)                   // result
+		p.To.Offset = int64(gc.SSARegNum(v.Args[2])) // addend
 	case ssa.OpARMMOVWconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -458,6 +489,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Gvarkill(v.Aux.(*gc.Node))
 	case ssa.OpVarLive:
 		gc.Gvarlive(v.Aux.(*gc.Node))
+	case ssa.OpKeepAlive:
+		if !v.Args[0].Type.IsPtrShaped() {
+			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+		}
+		n, off := gc.AutoVar(v.Args[0])
+		if n == nil {
+			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+		}
+		if off != 0 {
+			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+		}
+		gc.Gvarlive(n)
 	case ssa.OpARMEqual,
 		ssa.OpARMNotEqual,
 		ssa.OpARMLessThan,
@@ -481,6 +524,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = 1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMCarry,
+		ssa.OpARMLoweredSelect0,
+		ssa.OpARMLoweredSelect1:
+		// nothing to do
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}

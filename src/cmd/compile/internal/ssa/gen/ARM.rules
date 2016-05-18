@@ -7,10 +7,16 @@
 (Add16 x y) -> (ADD x y)
 (Add8 x y) -> (ADD x y)
 
+(Add32carry x y) -> (ADDS x y)
+(Add32withcarry x y c) -> (ADC x y c)
+
 (SubPtr x y) -> (SUB x y)
 (Sub32 x y) -> (SUB x y)
 (Sub16 x y) -> (SUB x y)
 (Sub8 x y) -> (SUB x y)
+
+(Sub32carry x y) -> (SUBS x y)
+(Sub32withcarry x y c) -> (SBC x y c)
 
 (Mul32 x y) -> (MUL x y)
 (Mul16 x y) -> (MUL x y)
@@ -22,6 +28,8 @@
 (Hmul16u x y) -> (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
 (Hmul8 x y) -> (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
 (Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+
+(Mul32uhilo x y) -> (MULLU x y)
 
 (And32 x y) -> (AND x y)
 (And16 x y) -> (AND x y)
@@ -134,6 +142,8 @@
 (SignExt8to16 x) -> (MOVBreg x)
 (SignExt8to32 x) -> (MOVBreg x)
 (SignExt16to32 x) -> (MOVHreg x)
+
+(Signmask x) -> (SRAconst x [31])
 
 // comparisons
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -258,6 +268,11 @@
 (IsInBounds idx len) -> (LessThanU (CMP idx len))
 (IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
 
+// pseudo-ops
+(Select0 <t> x) && t.IsFlags() -> (Carry x)
+(Select0 <t> x) && !t.IsFlags() -> (LoweredSelect0 x)
+(Select1 x) -> (LoweredSelect1 x)
+
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
 (If (NotEqual cc) yes no) -> (NE cc yes no)
@@ -306,3 +321,6 @@
   (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
   (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+
+(ADD (MUL x y) a) -> (MULA x y a)
+(ADD a (MUL x y)) -> (MULA x y a)
