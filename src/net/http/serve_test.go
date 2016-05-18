@@ -4064,10 +4064,16 @@ func TestServerValidatesHeaders(t *testing.T) {
 	}
 }
 
-func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
+func TestServerRequestContextCancel_ServeHTTPDone_h1(t *testing.T) {
+	testServerRequestContextCancel_ServeHTTPDone(t, h1Mode)
+}
+func TestServerRequestContextCancel_ServeHTTPDone_h2(t *testing.T) {
+	testServerRequestContextCancel_ServeHTTPDone(t, h2Mode)
+}
+func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	ctxc := make(chan context.Context, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctx := r.Context()
 		select {
 		case <-ctx.Done():
@@ -4076,8 +4082,8 @@ func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
 		}
 		ctxc <- ctx
 	}))
-	defer ts.Close()
-	res, err := Get(ts.URL)
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4130,9 +4136,15 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	}
 }
 
-func TestServerContext_ServerContextKey(t *testing.T) {
+func TestServerContext_ServerContextKey_h1(t *testing.T) {
+	testServerContext_ServerContextKey(t, h1Mode)
+}
+func TestServerContext_ServerContextKey_h2(t *testing.T) {
+	testServerContext_ServerContextKey(t, h2Mode)
+}
+func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctx := r.Context()
 		got := ctx.Value(ServerContextKey)
 		if _, ok := got.(*Server); !ok {
@@ -4140,12 +4152,14 @@ func TestServerContext_ServerContextKey(t *testing.T) {
 		}
 
 		got = ctx.Value(LocalAddrContextKey)
-		if _, ok := got.(net.Addr); !ok {
+		if addr, ok := got.(net.Addr); !ok {
 			t.Errorf("local addr value = %T; want net.Addr", got)
+		} else if fmt.Sprint(addr) != r.Host {
+			t.Errorf("local addr = %v; want %v", addr, r.Host)
 		}
 	}))
-	defer ts.Close()
-	res, err := Get(ts.URL)
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
