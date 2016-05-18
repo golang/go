@@ -3193,26 +3193,26 @@ func TestTransportResponseHeaderLength(t *testing.T) {
 	}
 }
 
-func TestTransportEventTrace(t *testing.T) { testTransportEventTrace(t, false) }
+func TestTransportEventTrace(t *testing.T)    { testTransportEventTrace(t, h1Mode, false) }
+func TestTransportEventTrace_h2(t *testing.T) { testTransportEventTrace(t, h2Mode, false) }
 
 // test a non-nil httptrace.ClientTrace but with all hooks set to zero.
-func TestTransportEventTrace_NoHooks(t *testing.T) { testTransportEventTrace(t, true) }
+func TestTransportEventTrace_NoHooks(t *testing.T)    { testTransportEventTrace(t, h1Mode, true) }
+func TestTransportEventTrace_NoHooks_h2(t *testing.T) { testTransportEventTrace(t, h2Mode, true) }
 
-func testTransportEventTrace(t *testing.T, noHooks bool) {
+func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	defer afterTest(t)
 	const resBody = "some body"
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if _, err := ioutil.ReadAll(r.Body); err != nil {
 			t.Error(err)
 		}
 		io.WriteString(w, resBody)
 	}))
-	defer ts.Close()
-	tr := &Transport{
-		ExpectContinueTimeout: 1 * time.Second,
+	defer cst.close()
+	if !h2 {
+		cst.tr.ExpectContinueTimeout = 1 * time.Second
 	}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
 
 	var mu sync.Mutex
 	var buf bytes.Buffer
@@ -3223,7 +3223,8 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 		buf.WriteByte('\n')
 	}
 
-	ip, port, err := net.SplitHostPort(ts.Listener.Addr().String())
+	addrStr := cst.ts.Listener.Addr().String()
+	ip, port, err := net.SplitHostPort(addrStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3237,7 +3238,7 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
-	req, _ := NewRequest("POST", "http://dns-is-faked.golang:"+port, strings.NewReader("some body"))
+	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader("some body"))
 	trace := &httptrace.ClientTrace{
 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
@@ -3263,7 +3264,7 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 
 	req.Header.Set("Expect", "100-continue")
-	res, err := c.Do(req)
+	res, err := cst.c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3292,14 +3293,17 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	wantSub("Getting conn for dns-is-faked.golang:" + port)
 	wantSub("DNS start: {Host:dns-is-faked.golang}")
 	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
-	wantSub("Connecting to tcp " + ts.Listener.Addr().String())
-	wantSub("connected to tcp " + ts.Listener.Addr().String() + " = <nil>")
+	wantSub("Connecting to tcp " + addrStr)
+	wantSub("connected to tcp " + addrStr + " = <nil>")
 	wantSub("Reused:false WasIdle:false IdleTime:0s")
 	wantSub("first response byte")
-	wantSub("PutIdleConn = <nil>")
+	if !h2 {
+		wantSub("PutIdleConn = <nil>")
+		// TODO: implement these next two for Issue 13851
+		wantSub("Wait100Continue")
+		wantSub("Got100Continue")
+	}
 	wantSub("WroteRequest: {Err:<nil>}")
-	wantSub("Wait100Continue")
-	wantSub("Got100Continue")
 	if strings.Contains(got, " to udp ") {
 		t.Errorf("should not see UDP (DNS) connections")
 	}
