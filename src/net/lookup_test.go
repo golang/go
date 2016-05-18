@@ -598,41 +598,40 @@ func srvString(srvs []*SRV) string {
 	return buf.String()
 }
 
-var lookupPortTests = []struct {
-	network string
-	name    string
-	port    int
-	ok      bool
-}{
+func TestLookupPort(t *testing.T) {
 	// See http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
 	//
 	// Please be careful about adding new mappings for testings.
 	// There are platforms having incomplete mappings for
 	// restricted resource access and security reasons.
+	type test struct {
+		network string
+		name    string
+		port    int
+		ok      bool
+	}
+	var tests = []test{
+		{"tcp", "0", 0, true},
+		{"udp", "0", 0, true},
+		{"udp", "domain", 53, true},
 
-	{"tcp", "0", 0, true},
-	{"tcp", "http", 80, true},
-	{"udp", "0", 0, true},
-	{"udp", "domain", 53, true},
+		{"--badnet--", "zzz", 0, false},
+		{"tcp", "--badport--", 0, false},
+		{"tcp", "-1", 0, false},
+		{"tcp", "65536", 0, false},
+		{"udp", "-1", 0, false},
+		{"udp", "65536", 0, false},
+		{"tcp", "123456789", 0, false},
 
-	{"--badnet--", "zzz", 0, false},
-	{"tcp", "--badport--", 0, false},
-	{"tcp", "-1", 0, false},
-	{"tcp", "65536", 0, false},
-	{"udp", "-1", 0, false},
-	{"udp", "65536", 0, false},
-	{"tcp", "123456789", 0, false},
+		// Issue 13610: LookupPort("tcp", "")
+		{"tcp", "", 0, true},
+		{"tcp4", "", 0, true},
+		{"tcp6", "", 0, true},
+		{"udp", "", 0, true},
+		{"udp4", "", 0, true},
+		{"udp6", "", 0, true},
+	}
 
-	// Issue 13610: LookupPort("tcp", "")
-	{"tcp", "", 0, true},
-	{"tcp4", "", 0, true},
-	{"tcp6", "", 0, true},
-	{"udp", "", 0, true},
-	{"udp4", "", 0, true},
-	{"udp6", "", 0, true},
-}
-
-func TestLookupPort(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl":
 		t.Skipf("not supported on %s", runtime.GOOS)
@@ -640,9 +639,11 @@ func TestLookupPort(t *testing.T) {
 		if netGo {
 			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
 		}
+	default:
+		tests = append(tests, test{"tcp", "http", 80, true})
 	}
 
-	for _, tt := range lookupPortTests {
+	for _, tt := range tests {
 		port, err := LookupPort(tt.network, tt.name)
 		if port != tt.port || (err == nil) != tt.ok {
 			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d, error=%t", tt.network, tt.name, port, err, tt.port, !tt.ok)
