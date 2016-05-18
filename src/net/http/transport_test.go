@@ -2986,6 +2986,21 @@ func TestTransportAutomaticHTTP2_ExpectContinueTimeout(t *testing.T) {
 	}, false)
 }
 
+func TestTransportAutomaticHTTP2_Dial(t *testing.T) {
+	var d net.Dialer
+	testTransportAutoHTTP(t, &Transport{
+		Dial: d.Dial,
+	}, false)
+}
+
+func TestTransportAutomaticHTTP2_DialTLS(t *testing.T) {
+	testTransportAutoHTTP(t, &Transport{
+		DialTLS: func(network, addr string) (net.Conn, error) {
+			panic("unused")
+		},
+	}, false)
+}
+
 func testTransportAutoHTTP(t *testing.T, tr *Transport, wantH2 bool) {
 	_, err := tr.RoundTrip(new(Request))
 	if err == nil {
