@@ -1039,7 +1039,7 @@ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
 		if arg.file != nil {
 			print(gostringnocopy(arg.file), ":", arg.lineno, " ")
 		}
-		print("pc=", hex(c), "\n")
+		print("pc=", hex(pc), "\n")
 		c++
 		if arg.more == 0 {
 			break
