@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -790,6 +791,36 @@ func TestHTTP10KeepAlive304Response(t *testing.T) {
 	testTCPConnectionStaysOpen(t,
 		"GET / HTTP/1.0\r\nConnection: keep-alive\r\nIf-Modified-Since: Mon, 02 Jan 2006 15:04:05 GMT\r\n\r\n",
 		HandlerFunc(send304))
+}
+
+// Issue 15703
+func TestKeepAliveFinalChunkWithEOF(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, false /* h1 */, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.(Flusher).Flush() // force chunked encoding
+		w.Write([]byte("{\"Addr\": \"" + r.RemoteAddr + "\"}"))
+	}))
+	defer cst.close()
+	type data struct {
+		Addr string
+	}
+	var addrs [2]data
+	for i := range addrs {
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.NewDecoder(res.Body).Decode(&addrs[i]); err != nil {
+			t.Fatal(err)
+		}
+		if addrs[i].Addr == "" {
+			t.Fatal("no address")
+		}
+		res.Body.Close()
+	}
+	if addrs[0] != addrs[1] {
+		t.Fatalf("connection not reused")
+	}
 }
 
 func TestSetsRemoteAddr_h1(t *testing.T) { testSetsRemoteAddr(t, h1Mode) }
