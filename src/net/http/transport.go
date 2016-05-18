@@ -195,13 +195,12 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// Transport.
 		return
 	}
-	if t.TLSClientConfig != nil {
-		// Be conservative for now (for Go 1.6) at least and
-		// don't automatically enable http2 if they've
-		// specified a custom TLS config. Let them opt-in
-		// themselves via http2.ConfigureTransport so we don't
-		// surprise them by modifying their tls.Config.
-		// Issue 14275.
+	if t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil {
+		// Be conservative and don't automatically enable
+		// http2 if they've specified a custom TLS config or
+		// custom dialers. Let them opt-in themselves via
+		// http2.ConfigureTransport so we don't surprise them
+		// by modifying their tls.Config. Issue 14275.
 		return
 	}
 	if t.ExpectContinueTimeout != 0 && t != DefaultTransport {
