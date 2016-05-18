@@ -25,6 +25,22 @@ func decomposeBuiltIn(f *Func) {
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
+		case t.IsInteger() && t.Size() == 8 && f.Config.IntSize == 4:
+			var elemType Type
+			if t.IsSigned() {
+				elemType = f.Config.fe.TypeInt32()
+			} else {
+				elemType = f.Config.fe.TypeUInt32()
+			}
+			hiName, loName := f.Config.fe.SplitInt64(name)
+			newNames = append(newNames, hiName, loName)
+			for _, v := range f.NamedValues[name] {
+				hi := v.Block.NewValue1(v.Line, OpInt64Hi, elemType, v)
+				lo := v.Block.NewValue1(v.Line, OpInt64Lo, f.Config.fe.TypeUInt32(), v)
+				f.NamedValues[hiName] = append(f.NamedValues[hiName], hi)
+				f.NamedValues[loName] = append(f.NamedValues[loName], lo)
+			}
+			delete(f.NamedValues, name)
 		case t.IsComplex():
 			var elemType Type
 			if t.Size() == 16 {
@@ -88,8 +104,9 @@ func decomposeBuiltIn(f *Func) {
 }
 
 func decomposeBuiltInPhi(v *Value) {
-	// TODO: decompose 64-bit ops on 32-bit archs?
 	switch {
+	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.IntSize == 4:
+		decomposeInt64Phi(v)
 	case v.Type.IsComplex():
 		decomposeComplexPhi(v)
 	case v.Type.IsString():
@@ -136,6 +153,26 @@ func decomposeSlicePhi(v *Value) {
 	v.AddArg(ptr)
 	v.AddArg(len)
 	v.AddArg(cap)
+}
+
+func decomposeInt64Phi(v *Value) {
+	fe := v.Block.Func.Config.fe
+	var partType Type
+	if v.Type.IsSigned() {
+		partType = fe.TypeInt32()
+	} else {
+		partType = fe.TypeUInt32()
+	}
+
+	hi := v.Block.NewValue0(v.Line, OpPhi, partType)
+	lo := v.Block.NewValue0(v.Line, OpPhi, fe.TypeUInt32())
+	for _, a := range v.Args {
+		hi.AddArg(a.Block.NewValue1(v.Line, OpInt64Hi, partType, a))
+		lo.AddArg(a.Block.NewValue1(v.Line, OpInt64Lo, fe.TypeUInt32(), a))
+	}
+	v.reset(OpInt64Make)
+	v.AddArg(hi)
+	v.AddArg(lo)
 }
 
 func decomposeComplexPhi(v *Value) {

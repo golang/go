@@ -8,6 +8,7 @@ import "container/heap"
 
 const (
 	ScorePhi = iota // towards top of block
+	ScoreReadTuple
 	ScoreVarDef
 	ScoreMemory
 	ScoreDefault
@@ -43,6 +44,21 @@ func (h ValHeap) Less(i, j int) bool {
 	sy := h.score[y.ID]
 	if c := sx - sy; c != 0 {
 		return c > 0 // higher score comes later.
+	}
+	if sx == ScoreReadTuple {
+		// both are tuple-reading ops
+		// if they read same tuple, flag-reading op comes earlier
+		if x.Args[0] == y.Args[0] {
+			if x.Op == OpARMCarry || x.Op == OpARMLoweredSelect0 { //TODO: abstract this condition?
+				return false
+			} else {
+				return true
+			}
+		}
+		// if they read different tuples, order them as
+		// tuple-generating order to avoid interleaving
+		x = x.Args[0]
+		y = y.Args[0]
 	}
 	if x.Line != y.Line { // Favor in-order line stepping
 		return x.Line > y.Line
@@ -103,7 +119,14 @@ func schedule(f *Func) {
 				// reduce register pressure. It also helps make sure
 				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = ScoreMemory
-			case v.Type.IsFlags():
+			case v.Op == OpARMCarry || v.Op == OpARMLoweredSelect0 || v.Op == OpARMLoweredSelect1:
+				// Schedule the pseudo-op of reading part of a tuple
+				// immediately after the tuple-generating op, since
+				// this value is already live. This also removes its
+				// false dependency on the other part of the tuple.
+				// Also ensures tuple is never spilled.
+				score[v.ID] = ScoreReadTuple
+			case v.Type.IsFlags() || v.Type.IsTuple():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.

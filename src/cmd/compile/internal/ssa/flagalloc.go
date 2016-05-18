@@ -95,9 +95,18 @@ func flagalloc(f *Func) {
 					continue
 				}
 				// Recalculate a
+				var c1 *Value
+				if a.Op == OpARMCarry {
+					// Pseudo-op does not generate flags, its arg actually does
+					//TODO: generalize this condition?
+					c1 = a.Args[0].copyInto(b)
+				}
 				c := a.copyInto(b)
 				// Update v.
 				v.SetArg(i, c)
+				if c1 != nil {
+					c.SetArg(0, c1)
+				}
 				// Remember the most-recently computed flag value.
 				flag = a
 			}

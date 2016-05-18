@@ -84,6 +84,8 @@ func init() {
 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
 		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
+		gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
+		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
 		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
@@ -99,6 +101,14 @@ func init() {
 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
 		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
 		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+
+		{name: "ADDS", argLength: 2, reg: gp21cf, asm: "ADD", commutative: true},   // arg0 + arg1, set carry flag
+		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true}, // arg0 + arg1 + carry, arg2=flags
+		{name: "SUBS", argLength: 2, reg: gp21cf, asm: "SUB"},                      // arg0 - arg1, set carry flag
+		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                    // arg0 - arg1 - carry, arg2=flags
+
+		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp &^ buildReg("R0")}, clobbers: buildReg("R0")}, asm: "MULLU", commutative: true}, // arg0 * arg1, results 64-bit, high 32-bit in R0
+		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                                                                                                                        // arg0 * arg1 + arg2
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
@@ -165,6 +175,10 @@ func init() {
 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
+
+		{name: "Carry", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{flags}}, typ: "Flags"},     // flags of a (Flags,UInt32)
+		{name: "LoweredSelect0", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{buildReg("R0")}}}, // the first component of a tuple, implicitly in R0, arg0=tuple
+		{name: "LoweredSelect1", argLength: 1, reg: gp11, resultInArg0: true},                                         // the second component of a tuple, arg0=tuple
 
 		// duffzero
 		// arg0 = address of memory to zero (in R1, changed as side effect)

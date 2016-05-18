@@ -27,6 +27,7 @@ type Type interface {
 	IsMemory() bool // special ssa-package-only types
 	IsFlags() bool
 	IsVoid() bool
+	IsTuple() bool
 
 	ElemType() Type // given []T or *T or [n]T, return T
 	PtrTo() Type    // given T, return *T
@@ -69,6 +70,7 @@ func (t *CompilerType) IsInterface() bool      { return false }
 func (t *CompilerType) IsMemory() bool         { return t.Memory }
 func (t *CompilerType) IsFlags() bool          { return t.Flags }
 func (t *CompilerType) IsVoid() bool           { return t.Void }
+func (t *CompilerType) IsTuple() bool          { return false }
 func (t *CompilerType) String() string         { return t.Name }
 func (t *CompilerType) SimpleString() string   { return t.Name }
 func (t *CompilerType) ElemType() Type         { panic("not implemented") }
@@ -78,6 +80,38 @@ func (t *CompilerType) FieldType(i int) Type   { panic("not implemented") }
 func (t *CompilerType) FieldOff(i int) int64   { panic("not implemented") }
 func (t *CompilerType) FieldName(i int) string { panic("not implemented") }
 func (t *CompilerType) NumElem() int64         { panic("not implemented") }
+
+type TupleType struct {
+	first  Type
+	second Type
+}
+
+func (t *TupleType) Size() int64            { panic("not implemented") }
+func (t *TupleType) Alignment() int64       { panic("not implemented") }
+func (t *TupleType) IsBoolean() bool        { return false }
+func (t *TupleType) IsInteger() bool        { return false }
+func (t *TupleType) IsSigned() bool         { return false }
+func (t *TupleType) IsFloat() bool          { return false }
+func (t *TupleType) IsComplex() bool        { return false }
+func (t *TupleType) IsPtrShaped() bool      { return false }
+func (t *TupleType) IsString() bool         { return false }
+func (t *TupleType) IsSlice() bool          { return false }
+func (t *TupleType) IsArray() bool          { return false }
+func (t *TupleType) IsStruct() bool         { return false }
+func (t *TupleType) IsInterface() bool      { return false }
+func (t *TupleType) IsMemory() bool         { return false }
+func (t *TupleType) IsFlags() bool          { return false }
+func (t *TupleType) IsVoid() bool           { return false }
+func (t *TupleType) IsTuple() bool          { return true }
+func (t *TupleType) String() string         { return t.first.String() + "," + t.second.String() }
+func (t *TupleType) SimpleString() string   { return "Tuple" }
+func (t *TupleType) ElemType() Type         { panic("not implemented") }
+func (t *TupleType) PtrTo() Type            { panic("not implemented") }
+func (t *TupleType) NumFields() int         { panic("not implemented") }
+func (t *TupleType) FieldType(i int) Type   { panic("not implemented") }
+func (t *TupleType) FieldOff(i int) int64   { panic("not implemented") }
+func (t *TupleType) FieldName(i int) string { panic("not implemented") }
+func (t *TupleType) NumElem() int64         { panic("not implemented") }
 
 // Cmp is a comparison between values a and b.
 // -1 if a < b
@@ -116,6 +150,25 @@ func (t *CompilerType) Compare(u Type) Cmp {
 	return CMPlt
 }
 
+func (t *TupleType) Compare(u Type) Cmp {
+	// ssa.TupleType is greater than ssa.CompilerType
+	if _, ok := u.(*CompilerType); ok {
+		return CMPgt
+	}
+	// ssa.TupleType is smaller than any other type
+	x, ok := u.(*TupleType)
+	if !ok {
+		return CMPlt
+	}
+	if t == x {
+		return CMPeq
+	}
+	if c := t.first.Compare(x.first); c != CMPeq {
+		return c
+	}
+	return t.second.Compare(x.second)
+}
+
 var (
 	TypeInvalid = &CompilerType{Name: "invalid"}
 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
@@ -123,3 +176,7 @@ var (
 	TypeVoid    = &CompilerType{Name: "void", Void: true}
 	TypeInt128  = &CompilerType{Name: "int128", size: 16, Int128: true}
 )
+
+func MakeTuple(t0, t1 Type) *TupleType {
+	return &TupleType{first: t0, second: t1}
+}

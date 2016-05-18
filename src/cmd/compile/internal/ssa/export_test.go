@@ -49,6 +49,12 @@ func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
 	}
 	return LocalSlot{s.N, d.TypeFloat32(), s.Off}, LocalSlot{s.N, d.TypeFloat32(), s.Off + 4}
 }
+func (d DummyFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
+	if s.Type.IsSigned() {
+		return LocalSlot{s.N, d.TypeInt32(), s.Off + 4}, LocalSlot{s.N, d.TypeUInt32(), s.Off}
+	}
+	return LocalSlot{s.N, d.TypeUInt32(), s.Off + 4}, LocalSlot{s.N, d.TypeUInt32(), s.Off}
+}
 func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
 	return LocalSlot{s.N, s.Type.FieldType(i), s.Off + s.Type.FieldOff(i)}
 }

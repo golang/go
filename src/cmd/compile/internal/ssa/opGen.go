@@ -332,6 +332,12 @@ const (
 	OpARMMUL
 	OpARMHMUL
 	OpARMHMULU
+	OpARMADDS
+	OpARMADC
+	OpARMSUBS
+	OpARMSBC
+	OpARMMULLU
+	OpARMMULA
 	OpARMAND
 	OpARMANDconst
 	OpARMOR
@@ -384,6 +390,9 @@ const (
 	OpARMLessEqualU
 	OpARMGreaterThanU
 	OpARMGreaterEqualU
+	OpARMCarry
+	OpARMLoweredSelect0
+	OpARMLoweredSelect1
 	OpARMDUFFZERO
 	OpARMDUFFCOPY
 	OpARMLoweredZero
@@ -675,6 +684,17 @@ const (
 	OpVarKill
 	OpVarLive
 	OpKeepAlive
+	OpInt64Make
+	OpInt64Hi
+	OpInt64Lo
+	OpAdd32carry
+	OpAdd32withcarry
+	OpSub32carry
+	OpSub32withcarry
+	OpMul32uhilo
+	OpSignmask
+	OpSelect0
+	OpSelect1
 )
 
 var opcodeTable = [...]opInfo{
@@ -3986,6 +4006,99 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "ADDS",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:        "ADC",
+		argLen:      3,
+		commutative: true,
+		asm:         arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 65536}, // FLAGS
+				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBS",
+		argLen: 2,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SBC",
+		argLen: 3,
+		asm:    arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 65536}, // FLAGS
+				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:        "MULLU",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AMULLU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 1, // R0
+			outputs: []regMask{
+				5118, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MULA",
+		argLen: 3,
+		asm:    arm.AMULA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:        "AND",
 		argLen:      2,
 		commutative: true,
@@ -4655,6 +4768,37 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65536}, // FLAGS
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "Carry",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []regMask{
+				65536, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "LoweredSelect0",
+		argLen: 1,
+		reg: regInfo{
+			outputs: []regMask{
+				1, // R0
+			},
+		},
+	},
+	{
+		name:         "LoweredSelect1",
+		argLen:       1,
+		resultInArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -6198,6 +6342,63 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "KeepAlive",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Int64Make",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Int64Hi",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Int64Lo",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:        "Add32carry",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "Add32withcarry",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:    "Sub32carry",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Sub32withcarry",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "Mul32uhilo",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Signmask",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Select0",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Select1",
+		argLen:  1,
 		generic: true,
 	},
 }

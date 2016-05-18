@@ -689,6 +689,13 @@ func blockName(name string, arch arch) string {
 
 // typeName returns the string to use to generate a type.
 func typeName(typ string) string {
+	if typ[0] == '(' {
+		ts := strings.Split(typ[1:len(typ)-1], ",")
+		if len(ts) != 2 {
+			panic("Tuple expect 2 arguments")
+		}
+		return "MakeTuple(" + typeName(ts[0]) + ", " + typeName(ts[1]) + ")"
+	}
 	switch typ {
 	case "Flags", "Mem", "Void", "Int128":
 		return "Type" + typ

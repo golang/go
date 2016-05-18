@@ -1,0 +1,185 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules to decompose [u]int32 types on 32-bit
+// architectures. These rules work together with the decomposeBuiltIn
+// pass which handles phis of these types.
+
+(Int64Hi (Int64Make hi _)) -> hi
+(Int64Lo (Int64Make _ lo)) -> lo
+
+// Assuming little endian (we don't support big endian 32-bit architecture yet)
+(Load <t> ptr mem) && is64BitInt(t) && t.IsSigned() ->
+	(Int64Make
+		(Load <config.fe.TypeInt32()> (OffPtr <config.fe.TypeInt32().PtrTo()> [4] ptr) mem)
+		(Load <config.fe.TypeUInt32()> ptr mem))
+(Load <t> ptr mem) && is64BitInt(t) && !t.IsSigned() ->
+	(Int64Make
+		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem)
+		(Load <config.fe.TypeUInt32()> ptr mem))
+
+(Store [8] dst (Int64Make hi lo) mem) ->
+	(Store [4]
+		(OffPtr <hi.Type.PtrTo()> [4] dst)
+		hi
+		(Store [4] dst lo mem))
+
+(Arg {n} [off]) && is64BitInt(v.Type) && v.Type.IsSigned() ->
+  (Int64Make
+    (Arg <config.fe.TypeInt32()> {n} [off+4])
+    (Arg <config.fe.TypeUInt32()> {n} [off]))
+(Arg {n} [off]) && is64BitInt(v.Type) && !v.Type.IsSigned() ->
+  (Int64Make
+    (Arg <config.fe.TypeUInt32()> {n} [off+4])
+    (Arg <config.fe.TypeUInt32()> {n} [off]))
+
+(Add64 x y) ->
+	(Int64Make
+		(Add32withcarry <config.fe.TypeInt32()>
+			(Int64Hi x)
+			(Int64Hi y)
+			(Select0 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y))))
+		(Select1 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
+
+(Sub64 x y) ->
+	(Int64Make
+		(Sub32withcarry <config.fe.TypeInt32()>
+			(Int64Hi x)
+			(Int64Hi y)
+			(Select0 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y))))
+		(Select1 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
+
+(Mul64 x y) ->
+	(Int64Make
+		(Add32 <config.fe.TypeUInt32()>
+			(Mul32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Hi y))
+			(Add32 <config.fe.TypeUInt32()>
+				(Mul32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Lo y))
+				(Select0 <config.fe.TypeUInt32()> (Mul32uhilo (Int64Lo x) (Int64Lo y)))))
+		(Select1 <config.fe.TypeUInt32()> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
+
+(And64 x y) ->
+	(Int64Make
+		(And32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y))
+		(And32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
+
+(Or64 x y) ->
+	(Int64Make
+		(Or32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y))
+		(Or32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
+
+(Xor64 x y) ->
+	(Int64Make
+		(Xor32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y))
+		(Xor32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
+
+(Neg64 <t> x) -> (Sub64 (Const64 <t> [0]) x)
+
+(Com64 x) ->
+	(Int64Make
+		(Com32 <config.fe.TypeUInt32()> (Int64Hi x))
+		(Com32 <config.fe.TypeUInt32()> (Int64Lo x)))
+
+(SignExt32to64 x) -> (Int64Make (Signmask x) x)
+(SignExt16to64 x) -> (SignExt32to64 (SignExt16to32 x))
+(SignExt8to64 x) -> (SignExt32to64 (SignExt8to32 x))
+
+(ZeroExt32to64 x) -> (Int64Make (Const32 <config.fe.TypeUInt32()> [0]) x)
+(ZeroExt16to64 x) -> (ZeroExt32to64 (ZeroExt16to32 x))
+(ZeroExt8to64 x) -> (ZeroExt32to64 (ZeroExt8to32 x))
+
+(Trunc64to32 (Int64Make _ lo)) -> lo
+(Trunc64to16 (Int64Make _ lo)) -> (Trunc32to16 lo)
+(Trunc64to8 (Int64Make _ lo)) -> (Trunc32to8 lo)
+
+(Lsh32x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
+(Rsh32x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask x)
+(Rsh32Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
+(Lsh16x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
+(Rsh16x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask (SignExt16to32 x))
+(Rsh16Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
+(Lsh8x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
+(Rsh8x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask (SignExt8to32 x))
+(Rsh8Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
+
+(Lsh32x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh32x32 x lo)
+(Rsh32x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh32x32 x lo)
+(Rsh32Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh32Ux32 x lo)
+(Lsh16x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh16x32 x lo)
+(Rsh16x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh16x32 x lo)
+(Rsh16Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh16Ux32 x lo)
+(Lsh8x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh8x32 x lo)
+(Rsh8x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh8x32 x lo)
+(Rsh8Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh8Ux32 x lo)
+
+(Const64 <t> [c]) && t.IsSigned() ->
+	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
+(Const64 <t> [c]) && !t.IsSigned() ->
+	(Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
+
+(Eq64 x y) ->
+	(AndB
+		(Eq32 (Int64Hi x) (Int64Hi y))
+		(Eq32 (Int64Lo x) (Int64Lo y)))
+
+(Neq64 x y) ->
+	(OrB
+		(Neq32 (Int64Hi x) (Int64Hi y))
+		(Neq32 (Int64Lo x) (Int64Lo y)))
+
+(Less64U x y) ->
+	(OrB
+		(Less32U (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Less32U (Int64Lo x) (Int64Lo y))))
+
+(Leq64U x y) ->
+	(OrB
+		(Less32U (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Leq32U (Int64Lo x) (Int64Lo y))))
+
+(Greater64U x y) ->
+	(OrB
+		(Greater32U (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Greater32U (Int64Lo x) (Int64Lo y))))
+
+(Geq64U x y) ->
+	(OrB
+		(Greater32U (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Geq32U (Int64Lo x) (Int64Lo y))))
+
+(Less64 x y) ->
+	(OrB
+		(Less32 (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Less32U (Int64Lo x) (Int64Lo y))))
+
+(Leq64 x y) ->
+	(OrB
+		(Less32 (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Leq32U (Int64Lo x) (Int64Lo y))))
+
+(Greater64 x y) ->
+	(OrB
+		(Greater32 (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Greater32U (Int64Lo x) (Int64Lo y))))
+
+(Geq64 x y) ->
+	(OrB
+		(Greater32 (Int64Hi x) (Int64Hi y))
+		(AndB
+			(Eq32 (Int64Hi x) (Int64Hi y))
+			(Geq32U (Int64Lo x) (Int64Lo y))))
