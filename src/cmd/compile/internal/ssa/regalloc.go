@@ -948,13 +948,14 @@ func (s *regAllocState) regalloc(f *Func) {
 				if vi.spillUsed {
 					// Use the spill location.
 					v.SetArg(0, vi.spill)
-					b.Values = append(b.Values, v)
 				} else {
 					// No need to keep unspilled values live.
 					// These are typically rematerializeable constants like nil,
 					// or values of a variable that were modified since the last call.
-					v.Args[0].Uses--
+					v.Op = OpCopy
+					v.SetArgs1(v.Args[1])
 				}
+				b.Values = append(b.Values, v)
 				continue
 			}
 			regspec := opcodeTable[v.Op].reg
