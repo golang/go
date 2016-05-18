@@ -524,6 +524,47 @@ func testDecodeSeries(t *testing.T, size uint32, steps []encAndWant) {
 	}
 }
 
+func TestHuffmanDecodeExcessPadding(t *testing.T) {
+	tests := [][]byte{
+		{0xff},                                   // Padding Exceeds 7 bits
+		{0x1f, 0xff},                             // {"a", 1 byte excess padding}
+		{0x1f, 0xff, 0xff},                       // {"a", 2 byte excess padding}
+		{0x1f, 0xff, 0xff, 0xff},                 // {"a", 3 byte excess padding}
+		{0xff, 0x9f, 0xff, 0xff, 0xff},           // {"a", 29 bit excess padding}
+		{'R', 0xbc, '0', 0xff, 0xff, 0xff, 0xff}, // Padding ends on partial symbol.
+	}
+	for i, in := range tests {
+		var buf bytes.Buffer
+		if _, err := HuffmanDecode(&buf, in); err != ErrInvalidHuffman {
+			t.Errorf("test-%d: decode(%q) = %v; want ErrInvalidHuffman", i, in, err)
+		}
+	}
+}
+
+func TestHuffmanDecodeEOS(t *testing.T) {
+	in := []byte{0xff, 0xff, 0xff, 0xff, 0xfc} // {EOS, "?"}
+	var buf bytes.Buffer
+	if _, err := HuffmanDecode(&buf, in); err != ErrInvalidHuffman {
+		t.Errorf("error = %v; want ErrInvalidHuffman", err)
+	}
+}
+
+func TestHuffmanDecodeMaxLengthOnTrailingByte(t *testing.T) {
+	in := []byte{0x00, 0x01} // {"0", "0", "0"}
+	var buf bytes.Buffer
+	if err := huffmanDecode(&buf, 2, in); err != ErrStringLength {
+		t.Errorf("error = %v; want ErrStringLength", err)
+	}
+}
+
+func TestHuffmanDecodeCorruptPadding(t *testing.T) {
+	in := []byte{0x00}
+	var buf bytes.Buffer
+	if _, err := HuffmanDecode(&buf, in); err != ErrInvalidHuffman {
+		t.Errorf("error = %v; want ErrInvalidHuffman", err)
+	}
+}
+
 func TestHuffmanDecode(t *testing.T) {
 	tests := []struct {
 		inHex, want string
