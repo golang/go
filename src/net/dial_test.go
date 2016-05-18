@@ -151,10 +151,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 			c.Close()
 		}
 	}
-	dss, err := newDualStackServer([]streamListener{
-		{network: "tcp4", address: "127.0.0.1"},
-		{network: "tcp6", address: "::1"},
-	})
+	dss, err := newDualStackServer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,10 +326,7 @@ func TestDialParallel(t *testing.T) {
 	}
 
 	for i, tt := range testCases {
-		dss, err := newDualStackServer([]streamListener{
-			{network: "tcp4", address: "127.0.0.1"},
-			{network: "tcp6", address: "::1"},
-		})
+		dss, err := newDualStackServer()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -449,9 +443,7 @@ func TestDialerFallbackDelay(t *testing.T) {
 			c.Close()
 		}
 	}
-	dss, err := newDualStackServer([]streamListener{
-		{network: "tcp", address: "127.0.0.1"},
-	})
+	dss, err := newDualStackServer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,10 +496,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		c.Close()
 		wg.Done()
 	}
-	dss, err := newDualStackServer([]streamListener{
-		{network: "tcp4", address: "127.0.0.1"},
-		{network: "tcp6", address: "::1"},
-	})
+	dss, err := newDualStackServer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -733,10 +722,7 @@ func TestDialerDualStack(t *testing.T) {
 
 	var timeout = 150*time.Millisecond + closedPortDelay
 	for _, dualstack := range []bool{false, true} {
-		dss, err := newDualStackServer([]streamListener{
-			{network: "tcp4", address: "127.0.0.1"},
-			{network: "tcp6", address: "::1"},
-		})
+		dss, err := newDualStackServer()
 		if err != nil {
 			t.Fatal(err)
 		}
