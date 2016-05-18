@@ -427,7 +427,9 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	if race.Enabled {
 		race.Acquire(unsafe.Pointer(&ioSync))
 	}
-	err = fd.eofError(n, err)
+	if len(buf) != 0 {
+		err = fd.eofError(n, err)
+	}
 	if _, ok := err.(syscall.Errno); ok {
 		err = os.NewSyscallError("wsarecv", err)
 	}
