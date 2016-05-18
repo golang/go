@@ -27,6 +27,7 @@ API additions and behavior changes:
 crypto/tls: allow renegotiation to be handled by a client (CL 22475)
 runtime: support symbolic backtrace of C code in a cgo crash (CL 17761)
 runtime: add CallerFrames and Frames (CL 19869)
+runtime: add KeepAlive (CL 23102)
 testing/quick: now generates nil values (CL 16470)
 net/http/httptest: ResponseRecorder supports trailer (CL 20047) (compat impact: issue 14928)
 net/url: support query string without values (CL 19931)
