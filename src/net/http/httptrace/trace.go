@@ -90,6 +90,7 @@ type ClientTrace struct {
 	// connection reuse is disabled via Transport.DisableKeepAlives.
 	// PutIdleConn is called before the caller's Response.Body.Close
 	// call returns.
+	// For HTTP/2, this hook is not currently used.
 	PutIdleConn func(err error)
 
 	// GotFirstResponseByte is called when the first byte of the response
