@@ -255,6 +255,11 @@ type Request struct {
 	// set, it is undefined whether Cancel is respected.
 	Cancel <-chan struct{}
 
+	// Response is the redirect response which caused this request
+	// to be created. This field is only populated during client
+	// redirects.
+	Response *Response
+
 	// ctx is either the client or server context. It should only
 	// be modified via copying the whole Request using WithContext.
 	// It is unexported to prevent people from using Context wrong

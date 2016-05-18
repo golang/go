@@ -366,6 +366,44 @@ func TestPostRedirects(t *testing.T) {
 	}
 }
 
+func TestClientRedirectUseResponse(t *testing.T) {
+	defer afterTest(t)
+	const body = "Hello, world."
+	var ts *httptest.Server
+	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if strings.Contains(r.URL.Path, "/other") {
+			io.WriteString(w, "wrong body")
+		} else {
+			w.Header().Set("Location", ts.URL+"/other")
+			w.WriteHeader(StatusFound)
+			io.WriteString(w, body)
+		}
+	}))
+	defer ts.Close()
+
+	c := &Client{CheckRedirect: func(req *Request, via []*Request) error {
+		if req.Response == nil {
+			t.Error("expected non-nil Request.Response")
+		}
+		return ErrUseLastResponse
+	}}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != StatusFound {
+		t.Errorf("status = %d; want %d", res.StatusCode, StatusFound)
+	}
+	defer res.Body.Close()
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != body {
+		t.Errorf("body = %q; want %q", slurp, body)
+	}
+}
+
 var expectedCookies = []*Cookie{
 	{Name: "ChocolateChip", Value: "tasty"},
 	{Name: "First", Value: "Hit"},
