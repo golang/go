@@ -54,22 +54,32 @@ func main() {
 	fmt.Fprintf(buf, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
 	fmt.Fprintf(buf, "!\n")
 
-	lexer := lex.NewLexer(flag.Arg(0), ctxt)
-	parser := asm.NewParser(ctxt, architecture, lexer)
-	diag := false
-	ctxt.DiagFunc = func(format string, args ...interface{}) {
-		diag = true
-		log.Printf(format, args...)
+	var ok, diag bool
+	var failedFile string
+	for _, f := range flag.Args() {
+		lexer := lex.NewLexer(f, ctxt)
+		parser := asm.NewParser(ctxt, architecture, lexer)
+		ctxt.DiagFunc = func(format string, args ...interface{}) {
+			diag = true
+			log.Printf(format, args...)
+		}
+		pList := obj.Linknewplist(ctxt)
+		pList.Firstpc, ok = parser.Parse()
+		if !ok {
+			failedFile = f
+			break
+		}
 	}
-	pList := obj.Linknewplist(ctxt)
-	var ok bool
-	pList.Firstpc, ok = parser.Parse()
 	if ok {
 		// reports errors to parser.Errorf
 		obj.Writeobjdirect(ctxt, buf)
 	}
 	if !ok || diag {
-		log.Printf("assembly of %s failed", flag.Arg(0))
+		if failedFile != "" {
+			log.Printf("assembly of %s failed", failedFile)
+		} else {
+			log.Print("assembly failed")
+		}
 		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
