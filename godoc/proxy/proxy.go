@@ -49,7 +49,7 @@ const (
 	// sensitive and it only travels across Google's internal network
 	// so we should be OK.
 	sandboxURL    = "http://sandbox.golang.org/compile"
-	playgroundURL = "http://play.golang.org"
+	playgroundURL = "https://play.golang.org"
 )
 
 const expires = 7 * 24 * time.Hour // 1 week
