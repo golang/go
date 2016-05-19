@@ -128,11 +128,14 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
 	case "windows":
 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
-	case "openbsd":
-		testenv.SkipFlaky(t, 15157)
 	}
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
+	}
+
+	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	if closedPortDelay > expectClosedPortDelay {
+		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
 	}
 
 	before := sw.Sockets()
@@ -163,7 +166,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 	const N = 10
 	var wg sync.WaitGroup
 	wg.Add(N)
-	d := &Dialer{DualStack: true, Timeout: 100 * time.Millisecond}
+	d := &Dialer{DualStack: true, Timeout: 100*time.Millisecond + closedPortDelay}
 	for i := 0; i < N; i++ {
 		go func() {
 			defer wg.Done()
