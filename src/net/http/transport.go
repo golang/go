@@ -205,15 +205,6 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// by modifying their tls.Config. Issue 14275.
 		return
 	}
-	if t.ExpectContinueTimeout != 0 && t != DefaultTransport {
-		// ExpectContinueTimeout is unsupported in http2, so
-		// if they explicitly asked for it (as opposed to just
-		// using the DefaultTransport, which sets it), then
-		// disable http2 for now.
-		//
-		// Issue 13851. (and changed in Issue 14391)
-		return
-	}
 	t2, err := http2configureTransport(t)
 	if err != nil {
 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
@@ -854,7 +845,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 	select {
 	case v := <-dialc:
 		// Our dial finished.
-		if trace != nil && trace.GotConn != nil && v.pc != nil {
+		if trace != nil && trace.GotConn != nil && v.pc != nil && v.pc.alt == nil {
 			trace.GotConn(httptrace.GotConnInfo{Conn: v.pc.conn})
 		}
 		return v.pc, v.err
@@ -1243,7 +1234,9 @@ func (pc *persistConn) gotIdleConnTrace(idleAt time.Time) (t httptrace.GotConnIn
 	t.Reused = pc.reused
 	t.Conn = pc.conn
 	t.WasIdle = true
-	t.IdleTime = time.Since(idleAt)
+	if !idleAt.IsZero() {
+		t.IdleTime = time.Since(idleAt)
+	}
 	return
 }
 
