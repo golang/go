@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http
+package httplex
 
 import (
 	"testing"
@@ -24,7 +24,7 @@ func TestIsToken(t *testing.T) {
 	for i := 0; i <= 130; i++ {
 		r := rune(i)
 		expected := isChar(r) && !isCtl(r) && !isSeparator(r)
-		if isToken(r) != expected {
+		if IsTokenRune(r) != expected {
 			t.Errorf("isToken(0x%x) = %v", r, !expected)
 		}
 	}
@@ -93,7 +93,7 @@ func TestHeaderValuesContainsToken(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		got := headerValuesContainsToken(tt.vals, tt.token)
+		got := HeaderValuesContainsToken(tt.vals, tt.token)
 		if got != tt.want {
 			t.Errorf("headerValuesContainsToken(%q, %q) = %v; want %v", tt.vals, tt.token, got, tt.want)
 		}

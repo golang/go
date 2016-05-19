@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/net/http2/hpack"
+	"golang.org/x/net/lex/httplex"
 	"io"
 	"io/ioutil"
 	"log"
@@ -1864,7 +1865,7 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
 	hdec.SetEmitEnabled(true)
 	hdec.SetMaxStringLength(fr.maxHeaderStringLen())
 	hdec.SetEmitFunc(func(hf hpack.HeaderField) {
-		if !http2validHeaderFieldValue(hf.Value) {
+		if !httplex.ValidHeaderFieldValue(hf.Value) {
 			invalid = http2headerFieldValueError(hf.Value)
 		}
 		isPseudo := strings.HasPrefix(hf.Name, ":")
@@ -1874,7 +1875,7 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
 			}
 		} else {
 			sawRegular = true
-			if !http2validHeaderFieldName(hf.Name) {
+			if !http2validWireHeaderFieldName(hf.Name) {
 				invalid = http2headerFieldNameError(hf.Name)
 			}
 		}
@@ -2397,58 +2398,23 @@ var (
 	http2errInvalidHeaderFieldValue = errors.New("http2: invalid header field value")
 )
 
-// validHeaderFieldName reports whether v is a valid header field name (key).
-//  RFC 7230 says:
-//   header-field   = field-name ":" OWS field-value OWS
-//   field-name     = token
-//   token          = 1*tchar
-//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+// validWireHeaderFieldName reports whether v is a valid header field
+// name (key). See httplex.ValidHeaderName for the base rules.
+//
 // Further, http2 says:
 //   "Just as in HTTP/1.x, header field names are strings of ASCII
 //   characters that are compared in a case-insensitive
 //   fashion. However, header field names MUST be converted to
 //   lowercase prior to their encoding in HTTP/2. "
-func http2validHeaderFieldName(v string) bool {
+func http2validWireHeaderFieldName(v string) bool {
 	if len(v) == 0 {
 		return false
 	}
 	for _, r := range v {
-		if int(r) >= len(http2isTokenTable) || ('A' <= r && r <= 'Z') {
+		if !httplex.IsTokenRune(r) {
 			return false
 		}
-		if !http2isTokenTable[byte(r)] {
-			return false
-		}
-	}
-	return true
-}
-
-// validHeaderFieldValue reports whether v is a valid header field value.
-//
-// RFC 7230 says:
-//  field-value    = *( field-content / obs-fold )
-//  obj-fold       =  N/A to http2, and deprecated
-//  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
-//  field-vchar    = VCHAR / obs-text
-//  obs-text       = %x80-FF
-//  VCHAR          = "any visible [USASCII] character"
-//
-// http2 further says: "Similarly, HTTP/2 allows header field values
-// that are not valid. While most of the values that can be encoded
-// will not alter header field parsing, carriage return (CR, ASCII
-// 0xd), line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII
-// 0x0) might be exploited by an attacker if they are translated
-// verbatim. Any request or response that contains a character not
-// permitted in a header field value MUST be treated as malformed
-// (Section 8.1.2.6). Valid characters are defined by the
-// field-content ABNF rule in Section 3.2 of [RFC7230]."
-//
-// This function does not (yet?) properly handle the rejection of
-// strings that begin or end with SP or HTAB.
-func http2validHeaderFieldValue(v string) bool {
-	for i := 0; i < len(v); i++ {
-		if b := v[i]; b < ' ' && b != '\t' || b == 0x7f {
+		if 'A' <= r && r <= 'Z' {
 			return false
 		}
 	}
@@ -2578,86 +2544,6 @@ func (e *http2httpError) Timeout() bool { return e.timeout }
 func (e *http2httpError) Temporary() bool { return true }
 
 var http2errTimeout error = &http2httpError{msg: "http2: timeout awaiting response headers", timeout: true}
-
-var http2isTokenTable = [127]bool{
-	'!':  true,
-	'#':  true,
-	'$':  true,
-	'%':  true,
-	'&':  true,
-	'\'': true,
-	'*':  true,
-	'+':  true,
-	'-':  true,
-	'.':  true,
-	'0':  true,
-	'1':  true,
-	'2':  true,
-	'3':  true,
-	'4':  true,
-	'5':  true,
-	'6':  true,
-	'7':  true,
-	'8':  true,
-	'9':  true,
-	'A':  true,
-	'B':  true,
-	'C':  true,
-	'D':  true,
-	'E':  true,
-	'F':  true,
-	'G':  true,
-	'H':  true,
-	'I':  true,
-	'J':  true,
-	'K':  true,
-	'L':  true,
-	'M':  true,
-	'N':  true,
-	'O':  true,
-	'P':  true,
-	'Q':  true,
-	'R':  true,
-	'S':  true,
-	'T':  true,
-	'U':  true,
-	'W':  true,
-	'V':  true,
-	'X':  true,
-	'Y':  true,
-	'Z':  true,
-	'^':  true,
-	'_':  true,
-	'`':  true,
-	'a':  true,
-	'b':  true,
-	'c':  true,
-	'd':  true,
-	'e':  true,
-	'f':  true,
-	'g':  true,
-	'h':  true,
-	'i':  true,
-	'j':  true,
-	'k':  true,
-	'l':  true,
-	'm':  true,
-	'n':  true,
-	'o':  true,
-	'p':  true,
-	'q':  true,
-	'r':  true,
-	's':  true,
-	't':  true,
-	'u':  true,
-	'v':  true,
-	'w':  true,
-	'x':  true,
-	'y':  true,
-	'z':  true,
-	'|':  true,
-	'~':  true,
-}
 
 type http2connectionStater interface {
 	ConnectionState() tls.ConnectionState
@@ -4103,6 +3989,10 @@ func (st *http2stream) processTrailerHeaders(f *http2MetaHeadersFrame) error {
 	if st.trailer != nil {
 		for _, hf := range f.RegularFields() {
 			key := sc.canonicalHeader(hf.Name)
+			if !http2ValidTrailerHeader(key) {
+
+				return http2StreamError{st.id, http2ErrCodeProtocol}
+			}
 			st.trailer[key] = append(st.trailer[key], hf.Value)
 		}
 	}
@@ -4508,9 +4398,9 @@ func (rws *http2responseWriterState) hasTrailers() bool { return len(rws.trailer
 // written in the trailers at the end of the response.
 func (rws *http2responseWriterState) declareTrailer(k string) {
 	k = CanonicalHeaderKey(k)
-	switch k {
-	case "Transfer-Encoding", "Content-Length", "Trailer":
+	if !http2ValidTrailerHeader(k) {
 
+		rws.conn.logf("ignoring invalid trailer %q", k)
 		return
 	}
 	if !http2strSliceContains(rws.trailers, k) {
@@ -4829,6 +4719,41 @@ func http2new400Handler(err error) HandlerFunc {
 	return func(w ResponseWriter, r *Request) {
 		Error(w, err.Error(), StatusBadRequest)
 	}
+}
+
+// ValidTrailerHeader reports whether name is a valid header field name to appear
+// in trailers.
+// See: http://tools.ietf.org/html/rfc7230#section-4.1.2
+func http2ValidTrailerHeader(name string) bool {
+	name = CanonicalHeaderKey(name)
+	if strings.HasPrefix(name, "If-") || http2badTrailer[name] {
+		return false
+	}
+	return true
+}
+
+var http2badTrailer = map[string]bool{
+	"Authorization":       true,
+	"Cache-Control":       true,
+	"Connection":          true,
+	"Content-Encoding":    true,
+	"Content-Length":      true,
+	"Content-Range":       true,
+	"Content-Type":        true,
+	"Expect":              true,
+	"Host":                true,
+	"Keep-Alive":          true,
+	"Max-Forwards":        true,
+	"Pragma":              true,
+	"Proxy-Authenticate":  true,
+	"Proxy-Authorization": true,
+	"Proxy-Connection":    true,
+	"Range":               true,
+	"Realm":               true,
+	"Te":                  true,
+	"Trailer":             true,
+	"Transfer-Encoding":   true,
+	"Www-Authenticate":    true,
 }
 
 const (
@@ -5423,20 +5348,28 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		return nil, http2errClientConnUnusable
 	}
 
-	cs := cc.newStream()
-	cs.req = req
-	cs.trace = http2requestTrace(req)
-	hasBody := body != nil
-
+	// TODO(bradfitz): this is a copy of the logic in net/http. Unify somewhere?
+	var requestedGzip bool
 	if !cc.t.disableCompression() &&
 		req.Header.Get("Accept-Encoding") == "" &&
 		req.Header.Get("Range") == "" &&
 		req.Method != "HEAD" {
 
-		cs.requestedGzip = true
+		requestedGzip = true
 	}
 
-	hdrs := cc.encodeHeaders(req, cs.requestedGzip, trailers, contentLen)
+	hdrs, err := cc.encodeHeaders(req, requestedGzip, trailers, contentLen)
+	if err != nil {
+		cc.mu.Unlock()
+		return nil, err
+	}
+
+	cs := cc.newStream()
+	cs.req = req
+	cs.trace = http2requestTrace(req)
+	hasBody := body != nil
+	cs.requestedGzip = requestedGzip
+
 	cc.wmu.Lock()
 	endStream := !hasBody && !hasTrailers
 	werr := cc.writeHeaders(cs.ID, endStream, hdrs)
@@ -5689,12 +5622,23 @@ type http2badStringError struct {
 func (e *http2badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
 // requires cc.mu be held.
-func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) []byte {
+func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) ([]byte, error) {
 	cc.hbuf.Reset()
 
 	host := req.Host
 	if host == "" {
 		host = req.URL.Host
+	}
+
+	for k, vv := range req.Header {
+		if !httplex.ValidHeaderFieldName(k) {
+			return nil, fmt.Errorf("invalid HTTP header name %q", k)
+		}
+		for _, v := range vv {
+			if !httplex.ValidHeaderFieldValue(v) {
+				return nil, fmt.Errorf("invalid HTTP header value %q for header %q", v, k)
+			}
+		}
 	}
 
 	cc.writeHeader(":authority", host)
@@ -5741,7 +5685,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	if !didUA {
 		cc.writeHeader("user-agent", http2defaultUserAgent)
 	}
-	return cc.hbuf.Bytes()
+	return cc.hbuf.Bytes(), nil
 }
 
 // shouldSendReqContentLength reports whether the http2.Transport should send
@@ -6622,13 +6566,13 @@ func http2encodeHeaders(enc *hpack.Encoder, h Header, keys []string) {
 	for _, k := range keys {
 		vv := h[k]
 		k = http2lowerHeader(k)
-		if !http2validHeaderFieldName(k) {
+		if !http2validWireHeaderFieldName(k) {
 
 			continue
 		}
 		isTE := k == "transfer-encoding"
 		for _, v := range vv {
-			if !http2validHeaderFieldValue(v) {
+			if !httplex.ValidHeaderFieldValue(v) {
 
 				continue
 			}

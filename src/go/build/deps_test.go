@@ -379,6 +379,7 @@ var pkgDeps = map[string][]string{
 		"mime/multipart", "runtime/debug",
 		"net/http/internal",
 		"golang.org/x/net/http2/hpack",
+		"golang.org/x/net/lex/httplex",
 		"internal/nettrace",
 		"net/http/httptrace",
 	},
