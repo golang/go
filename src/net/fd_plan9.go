@@ -76,6 +76,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 		return 0, err
 	}
 	defer fd.readUnlock()
+	if len(b) == 0 {
+		return 0, nil
+	}
 	n, err = fd.data.Read(b)
 	if isHangup(err) {
 		err = io.EOF
