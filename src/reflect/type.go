@@ -763,16 +763,63 @@ func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
 
 func (t *rtype) common() *rtype { return t }
 
+var methodCache struct {
+	sync.RWMutex
+	m map[*rtype][]method
+}
+
+// satisfiedMethods returns methods of t that satisfy an interface.
+// This may include unexported methods that satisfy an interface
+// defined with unexported methods in the same package as t.
+func (t *rtype) satisfiedMethods() []method {
+	methodCache.RLock()
+	methods, found := methodCache.m[t]
+	methodCache.RUnlock()
+
+	if found {
+		return methods
+	}
+
+	ut := t.uncommon()
+	if ut == nil {
+		return nil
+	}
+	allm := ut.methods()
+	allSatisfied := true
+	for _, m := range allm {
+		if m.mtyp == 0 {
+			allSatisfied = false
+			break
+		}
+	}
+	if allSatisfied {
+		methods = allm
+	} else {
+		methods = make([]method, 0, len(allm))
+		for _, m := range allm {
+			if m.mtyp != 0 {
+				methods = append(methods, m)
+			}
+		}
+		methods = methods[:len(methods):len(methods)]
+	}
+
+	methodCache.Lock()
+	if methodCache.m == nil {
+		methodCache.m = make(map[*rtype][]method)
+	}
+	methodCache.m[t] = methods
+	methodCache.Unlock()
+
+	return methods
+}
+
 func (t *rtype) NumMethod() int {
 	if t.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
 	}
-	ut := t.uncommon()
-	if ut == nil {
-		return 0
-	}
-	return int(ut.mcount)
+	return len(t.satisfiedMethods())
 }
 
 func (t *rtype) Method(i int) (m Method) {
@@ -780,40 +827,39 @@ func (t *rtype) Method(i int) (m Method) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.Method(i)
 	}
-	ut := t.uncommon()
-
-	if ut == nil || i < 0 || i >= int(ut.mcount) {
+	methods := t.satisfiedMethods()
+	if i < 0 || i >= len(methods) {
 		panic("reflect: Method index out of range")
 	}
-	p := ut.methods()[i]
+	p := methods[i]
 	pname := t.nameOff(p.name)
 	m.Name = pname.name()
 	fl := flag(Func)
 	if !pname.isExported() {
 		m.PkgPath = pname.pkgPath()
 		if m.PkgPath == "" {
+			ut := t.uncommon()
 			m.PkgPath = t.nameOff(ut.pkgPath).name()
 		}
 		fl |= flagStickyRO
 	}
-	if p.mtyp != 0 {
-		mtyp := t.typeOff(p.mtyp)
-		ft := (*funcType)(unsafe.Pointer(mtyp))
-		in := make([]Type, 0, 1+len(ft.in()))
-		in = append(in, t)
-		for _, arg := range ft.in() {
-			in = append(in, arg)
-		}
-		out := make([]Type, 0, len(ft.out()))
-		for _, ret := range ft.out() {
-			out = append(out, ret)
-		}
-		mt := FuncOf(in, out, ft.IsVariadic())
-		m.Type = mt
-		tfn := t.textOff(p.tfn)
-		fn := unsafe.Pointer(&tfn)
-		m.Func = Value{mt.(*rtype), fn, fl}
+	mtyp := t.typeOff(p.mtyp)
+	ft := (*funcType)(unsafe.Pointer(mtyp))
+	in := make([]Type, 0, 1+len(ft.in()))
+	in = append(in, t)
+	for _, arg := range ft.in() {
+		in = append(in, arg)
 	}
+	out := make([]Type, 0, len(ft.out()))
+	for _, ret := range ft.out() {
+		out = append(out, ret)
+	}
+	mt := FuncOf(in, out, ft.IsVariadic())
+	m.Type = mt
+	tfn := t.textOff(p.tfn)
+	fn := unsafe.Pointer(&tfn)
+	m.Func = Value{mt.(*rtype), fn, fl}
+
 	m.Index = i
 	return m
 }
@@ -831,7 +877,7 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	for i := 0; i < int(ut.mcount); i++ {
 		p := utmethods[i]
 		pname := t.nameOff(p.name)
-		if pname.name() == name {
+		if pname.isExported() && pname.name() == name {
 			return t.Method(i), true
 		}
 	}
