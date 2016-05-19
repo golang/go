@@ -2983,7 +2983,7 @@ func TestTransportAutomaticHTTP2_TLSConfig(t *testing.T) {
 func TestTransportAutomaticHTTP2_ExpectContinueTimeout(t *testing.T) {
 	testTransportAutoHTTP(t, &Transport{
 		ExpectContinueTimeout: 1 * time.Second,
-	}, false)
+	}, true)
 }
 
 func TestTransportAutomaticHTTP2_Dial(t *testing.T) {
@@ -3225,9 +3225,8 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		io.WriteString(w, resBody)
 	}))
 	defer cst.close()
-	if !h2 {
-		cst.tr.ExpectContinueTimeout = 1 * time.Second
-	}
+
+	cst.tr.ExpectContinueTimeout = 1 * time.Second
 
 	var mu sync.Mutex
 	var buf bytes.Buffer
@@ -3283,10 +3282,12 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	logf("got roundtrip.response")
 	slurp, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
+	logf("consumed body")
 	if string(slurp) != resBody || res.StatusCode != 200 {
 		t.Fatalf("Got %q, %v; want %q, 200 OK", slurp, res.Status, resBody)
 	}
@@ -3305,6 +3306,9 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 			t.Errorf("expected substring %q in output.", sub)
 		}
 	}
+	if strings.Count(got, "got conn: {") != 1 {
+		t.Errorf("expected exactly 1 \"got conn\" event.")
+	}
 	wantSub("Getting conn for dns-is-faked.golang:" + port)
 	wantSub("DNS start: {Host:dns-is-faked.golang}")
 	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
@@ -3314,10 +3318,9 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	wantSub("first response byte")
 	if !h2 {
 		wantSub("PutIdleConn = <nil>")
-		// TODO: implement these next two for Issue 13851
-		wantSub("Wait100Continue")
-		wantSub("Got100Continue")
 	}
+	wantSub("Wait100Continue")
+	wantSub("Got100Continue")
 	wantSub("WroteRequest: {Err:<nil>}")
 	if strings.Contains(got, " to udp ") {
 		t.Errorf("should not see UDP (DNS) connections")
