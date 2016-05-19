@@ -545,12 +545,15 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:     "AMD64",
-		pkg:      "cmd/internal/obj/x86",
-		genfile:  "../../amd64/ssa.go",
-		ops:      AMD64ops,
-		blocks:   AMD64blocks,
-		regnames: regNamesAMD64,
-		flagmask: flags,
+		name:            "AMD64",
+		pkg:             "cmd/internal/obj/x86",
+		genfile:         "../../amd64/ssa.go",
+		ops:             AMD64ops,
+		blocks:          AMD64blocks,
+		regnames:        regNamesAMD64,
+		gpregmask:       gp,
+		fpregmask:       fp,
+		flagmask:        flags,
+		framepointerreg: int8(num["BP"]),
 	})
 }

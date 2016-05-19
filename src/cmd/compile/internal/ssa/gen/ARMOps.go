@@ -264,12 +264,15 @@ func init() {
 	}
 
 	archs = append(archs, arch{
-		name:     "ARM",
-		pkg:      "cmd/internal/obj/arm",
-		genfile:  "../../arm/ssa.go",
-		ops:      ops,
-		blocks:   blocks,
-		regnames: regNamesARM,
-		flagmask: flags,
+		name:            "ARM",
+		pkg:             "cmd/internal/obj/arm",
+		genfile:         "../../arm/ssa.go",
+		ops:             ops,
+		blocks:          blocks,
+		regnames:        regNamesARM,
+		gpregmask:       gp,
+		fpregmask:       0, // fp not implemented yet
+		flagmask:        flags,
+		framepointerreg: -1, // not used
 	})
 }

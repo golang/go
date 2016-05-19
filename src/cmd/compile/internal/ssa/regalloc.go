@@ -452,13 +452,13 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	// Figure out which registers we're allowed to use.
-	s.allocatable = regMask(1)<<s.numRegs - 1
+	s.allocatable = s.f.Config.gpRegMask | s.f.Config.fpRegMask | s.f.Config.flagRegMask
 	s.allocatable &^= 1 << s.SPReg
 	s.allocatable &^= 1 << s.SBReg
-	if s.f.Config.ctxt.Framepointer_enabled {
-		s.allocatable &^= 1 << 5 // BP
+	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
+		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
-	if s.f.Config.ctxt.Flag_dynlink {
+	if s.f.Config.ctxt.Flag_dynlink && s.f.Config.arch == "amd64" {
 		s.allocatable &^= 1 << 15 // R15
 	}
 
@@ -564,9 +564,9 @@ func (s *regAllocState) setState(regs []endReg) {
 func (s *regAllocState) compatRegs(t Type) regMask {
 	var m regMask
 	if t.IsFloat() || t == TypeInt128 {
-		m = 0xffff << 16 // X0-X15
+		m = s.f.Config.fpRegMask
 	} else {
-		m = 0xffff << 0 // AX-R15
+		m = s.f.Config.gpRegMask
 	}
 	return m & s.allocatable
 }

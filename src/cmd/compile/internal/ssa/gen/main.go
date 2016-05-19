@@ -21,14 +21,17 @@ import (
 )
 
 type arch struct {
-	name     string
-	pkg      string // obj package to import for this arch.
-	genfile  string // source file containing opcode code generation.
-	ops      []opData
-	blocks   []blockData
-	regnames []string
-	flagmask regMask
-	generic  bool
+	name            string
+	pkg             string // obj package to import for this arch.
+	genfile         string // source file containing opcode code generation.
+	ops             []opData
+	blocks          []blockData
+	regnames        []string
+	gpregmask       regMask
+	fpregmask       regMask
+	flagmask        regMask
+	framepointerreg int8
+	generic         bool
 }
 
 type opData struct {
@@ -224,7 +227,10 @@ func genOp() {
 			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
 		}
 		fmt.Fprintln(w, "}")
+		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
+		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
 		fmt.Fprintf(w, "var flagRegMask%s = regMask(%d)\n", a.name, a.flagmask)
+		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
 	}
 
 	// gofmt result
