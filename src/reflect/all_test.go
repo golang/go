@@ -2388,13 +2388,13 @@ type outer struct {
 	inner
 }
 
-func (*inner) m() {}
-func (*outer) m() {}
+func (*inner) M() {}
+func (*outer) M() {}
 
 func TestNestedMethods(t *testing.T) {
 	typ := TypeOf((*outer)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != ValueOf((*outer).m).Pointer() {
-		t.Errorf("Wrong method table for outer: (m=%p)", (*outer).m)
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != ValueOf((*outer).M).Pointer() {
+		t.Errorf("Wrong method table for outer: (M=%p)", (*outer).M)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
 			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
@@ -2416,17 +2416,14 @@ var unexpi unexpI = new(unexp)
 func TestUnexportedMethods(t *testing.T) {
 	typ := TypeOf(unexpi)
 
+	if got := typ.NumMethod(); got != 1 {
+		t.Error("NumMethod=%d, want 1 satisfied method", got)
+	}
 	if typ.Method(0).Type == nil {
 		t.Error("missing type for satisfied method 'f'")
 	}
 	if !typ.Method(0).Func.IsValid() {
 		t.Error("missing func for satisfied method 'f'")
-	}
-	if typ.Method(1).Type != nil {
-		t.Error("found type for unsatisfied method 'g'")
-	}
-	if typ.Method(1).Func.IsValid() {
-		t.Error("found func for unsatisfied method 'g'")
 	}
 }
 
@@ -5187,7 +5184,7 @@ func useStack(n int) {
 
 type Impl struct{}
 
-func (Impl) f() {}
+func (Impl) F() {}
 
 func TestValueString(t *testing.T) {
 	rv := ValueOf(Impl{})
