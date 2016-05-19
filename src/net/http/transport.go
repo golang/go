@@ -26,6 +26,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/lex/httplex"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -324,11 +326,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	isHTTP := scheme == "http" || scheme == "https"
 	if isHTTP {
 		for k, vv := range req.Header {
-			if !validHeaderName(k) {
+			if !httplex.ValidHeaderFieldName(k) {
 				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
 			}
 			for _, v := range vv {
-				if !validHeaderValue(v) {
+				if !httplex.ValidHeaderFieldValue(v) {
 					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
 				}
 			}

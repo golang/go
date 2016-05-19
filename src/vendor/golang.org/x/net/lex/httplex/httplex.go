@@ -1,15 +1,18 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package http
+// Package httplex contains rules around lexical matters of various
+// HTTP-related specifications.
+//
+// This package is shared by the standard library (which vendors it)
+// and x/net/http2. It comes with no API stability promise.
+package httplex
 
 import (
 	"strings"
 	"unicode/utf8"
 )
-
-// This file deals with lexical matters of HTTP
 
 var isTokenTable = [127]bool{
 	'!':  true,
@@ -91,18 +94,18 @@ var isTokenTable = [127]bool{
 	'~':  true,
 }
 
-func isToken(r rune) bool {
+func IsTokenRune(r rune) bool {
 	i := int(r)
 	return i < len(isTokenTable) && isTokenTable[i]
 }
 
 func isNotToken(r rune) bool {
-	return !isToken(r)
+	return !IsTokenRune(r)
 }
 
-// headerValuesContainsToken reports whether any string in values
+// HeaderValuesContainsToken reports whether any string in values
 // contains the provided token, ASCII case-insensitively.
-func headerValuesContainsToken(values []string, token string) bool {
+func HeaderValuesContainsToken(values []string, token string) bool {
 	for _, v := range values {
 		if headerValueContainsToken(v, token) {
 			return true
@@ -182,20 +185,31 @@ func isCTL(b byte) bool {
 	return b < ' ' || b == del
 }
 
-func validHeaderName(v string) bool {
+// ValidHeaderFieldName reports whether v is a valid HTTP/1.x header name.
+// HTTP/2 imposes the additional restriction that uppercase ASCII
+// letters are not allowed.
+//
+//  RFC 7230 says:
+//   header-field   = field-name ":" OWS field-value OWS
+//   field-name     = token
+//   token          = 1*tchar
+//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+//           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+func ValidHeaderFieldName(v string) bool {
 	if len(v) == 0 {
 		return false
 	}
 	for _, r := range v {
-		if !isToken(r) {
+		if !IsTokenRune(r) {
 			return false
 		}
 	}
 	return true
 }
 
-func validHostHeader(h string) bool {
-	// The latests spec is actually this:
+// ValidHostHeader reports whether h is a valid host header.
+func ValidHostHeader(h string) bool {
+	// The latest spec is actually this:
 	//
 	// http://tools.ietf.org/html/rfc7230#section-5.4
 	//     Host = uri-host [ ":" port ]
@@ -250,7 +264,7 @@ var validHostByte = [256]bool{
 	'~':  true, // unreserved
 }
 
-// validHeaderValue reports whether v is a valid "field-value" according to
+// ValidHeaderFieldValue reports whether v is a valid "field-value" according to
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
 //
 //        message-header = field-name ":" [ field-value ]
@@ -266,7 +280,28 @@ var validHostByte = [256]bool{
 //        LWS            = [CRLF] 1*( SP | HT )
 //        CTL            = <any US-ASCII control character
 //                         (octets 0 - 31) and DEL (127)>
-func validHeaderValue(v string) bool {
+//
+// RFC 7230 says:
+//  field-value    = *( field-content / obs-fold )
+//  obj-fold       =  N/A to http2, and deprecated
+//  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+//  field-vchar    = VCHAR / obs-text
+//  obs-text       = %x80-FF
+//  VCHAR          = "any visible [USASCII] character"
+//
+// http2 further says: "Similarly, HTTP/2 allows header field values
+// that are not valid. While most of the values that can be encoded
+// will not alter header field parsing, carriage return (CR, ASCII
+// 0xd), line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII
+// 0x0) might be exploited by an attacker if they are translated
+// verbatim. Any request or response that contains a character not
+// permitted in a header field value MUST be treated as malformed
+// (Section 8.1.2.6). Valid characters are defined by the
+// field-content ABNF rule in Section 3.2 of [RFC7230]."
+//
+// This function does not (yet?) properly handle the rejection of
+// strings that begin or end with SP or HTAB.
+func ValidHeaderFieldValue(v string) bool {
 	for i := 0; i < len(v); i++ {
 		b := v[i]
 		if isCTL(b) && !isLWS(b) {
