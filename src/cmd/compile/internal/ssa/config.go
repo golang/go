@@ -20,7 +20,10 @@ type Config struct {
 	lowerBlock      func(*Block) bool          // lowering function
 	lowerValue      func(*Value, *Config) bool // lowering function
 	registers       []Register                 // machine registers
+	gpRegMask       regMask                    // general purpose integer register mask
+	fpRegMask       regMask                    // floating point register mask
 	flagRegMask     regMask                    // flag register mask
+	FPReg           int8                       // register number of frame pointer, -1 if not used
 	fe              Frontend                   // callbacks into compiler frontend
 	HTML            *HTMLWriter                // html writer, for debugging
 	ctxt            *obj.Link                  // Generic arch information
@@ -130,7 +133,10 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
 		c.registers = registersAMD64[:]
+		c.gpRegMask = gpRegMaskAMD64
+		c.fpRegMask = fpRegMaskAMD64
 		c.flagRegMask = flagRegMaskAMD64
+		c.FPReg = framepointerRegAMD64
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
@@ -142,7 +148,10 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.lowerBlock = rewriteBlockARM
 		c.lowerValue = rewriteValueARM
 		c.registers = registersARM[:]
+		c.gpRegMask = gpRegMaskARM
+		c.fpRegMask = fpRegMaskARM
 		c.flagRegMask = flagRegMaskARM
+		c.FPReg = framepointerRegARM
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}

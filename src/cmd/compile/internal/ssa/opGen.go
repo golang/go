@@ -6442,7 +6442,10 @@ var registersAMD64 = [...]Register{
 	{32, "SB"},
 	{33, "FLAGS"},
 }
+var gpRegMaskAMD64 = regMask(65519)
+var fpRegMaskAMD64 = regMask(4294901760)
 var flagRegMaskAMD64 = regMask(8589934592)
+var framepointerRegAMD64 = int8(5)
 var registersARM = [...]Register{
 	{0, "R0"},
 	{1, "R1"},
@@ -6463,4 +6466,7 @@ var registersARM = [...]Register{
 	{16, "FLAGS"},
 	{17, "SB"},
 }
+var gpRegMaskARM = regMask(5119)
+var fpRegMaskARM = regMask(0)
 var flagRegMaskARM = regMask(65536)
+var framepointerRegARM = int8(-1)
