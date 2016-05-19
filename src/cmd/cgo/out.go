@@ -560,6 +560,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 
 	// Gcc wrapper unpacks the C argument struct
 	// and calls the actual C function.
+	fmt.Fprintf(fgcc, "CGO_NO_SANITIZE_THREAD\n")
 	if n.AddError {
 		fmt.Fprintf(fgcc, "int\n")
 	} else {
@@ -635,6 +636,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 // wrapper, we can't refer to the function, since the reference is in
 // a different file.
 func (p *Package) writeGccgoOutputFunc(fgcc *os.File, n *Name) {
+	fmt.Fprintf(fgcc, "CGO_NO_SANITIZE_THREAD\n")
 	if t := n.FuncType.Result; t != nil {
 		fmt.Fprintf(fgcc, "%s\n", t.C.String())
 	} else {
@@ -817,6 +819,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int, __SIZE_TYPE__);\n", cPrefix, exp.ExpName)
+		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
 		fmt.Fprintf(fgcc, "\n%s\n", s)
 		fmt.Fprintf(fgcc, "{\n")
 		fmt.Fprintf(fgcc, "\t__SIZE_TYPE__ _cgo_ctxt = _cgo_wait_runtime_init_done();\n")
@@ -1020,7 +1023,7 @@ func (p *Package) writeGccgoExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fmt.Fprintf(fgcc, `extern %s %s %s __asm__("%s.%s");`, cRet, goName, cParams, gccgoSymbolPrefix, goName)
 		fmt.Fprint(fgcc, "\n")
 
-		fmt.Fprint(fgcc, "\n")
+		fmt.Fprint(fgcc, "\nCGO_NO_SANITIZE_THREAD\n")
 		fmt.Fprintf(fgcc, "%s %s %s {\n", cRet, exp.ExpName, cParams)
 		if resultCount > 0 {
 			fmt.Fprintf(fgcc, "\t%s r;\n", cRet)
@@ -1304,11 +1307,14 @@ extern char* _cgo_topofstack(void);
 
 // Prologue defining TSAN functions in C.
 const noTsanProlog = `
+#define CGO_NO_SANITIZE_THREAD
 #define _cgo_tsan_acquire()
 #define _cgo_tsan_release()
 `
 
 const yesTsanProlog = `
+#define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
+
 long long _cgo_sync __attribute__ ((common));
 
 extern void __tsan_acquire(void*);

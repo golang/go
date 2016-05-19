@@ -134,6 +134,16 @@ if test "$tsan" = "yes"; then
 	status=1
     fi
 
+    if ! go run tsan3.go 2>$err; then
+	cat $err
+	echo "FAIL: tsan3"
+	status=1
+    elif grep -i warning $err >/dev/null 2>&1; then
+	cat $err
+	echo "FAIL: tsan3"
+	status=1
+    fi
+
     rm -f $err
 fi
 
