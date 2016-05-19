@@ -175,10 +175,11 @@ func (p *Package) writeDefs() {
 	}
 	fmt.Fprintf(fgo2, "\n")
 
+	callsMalloc := false
 	for _, key := range nameKeys(p.Name) {
 		n := p.Name[key]
 		if n.FuncType != nil {
-			p.writeDefsFunc(fgo2, n)
+			p.writeDefsFunc(fgo2, n, &callsMalloc)
 		}
 	}
 
@@ -189,6 +190,12 @@ func (p *Package) writeDefs() {
 	} else {
 		p.writeExports(fgo2, fm, fgcc, fgcch)
 	}
+
+	if callsMalloc && !*gccgo {
+		fmt.Fprint(fgo2, strings.Replace(cMallocDefGo, "PREFIX", cPrefix, -1))
+		fmt.Fprint(fgcc, strings.Replace(strings.Replace(cMallocDefC, "PREFIX", cPrefix, -1), "PACKED", p.packedAttribute(), -1))
+	}
+
 	if err := fgcc.Close(); err != nil {
 		fatalf("%s", err)
 	}
@@ -352,7 +359,7 @@ func (p *Package) structType(n *Name) (string, int64) {
 	return buf.String(), off
 }
 
-func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
+func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name, callsMalloc *bool) {
 	name := n.Go
 	gtype := n.FuncType.Go
 	void := gtype.Results == nil || len(gtype.Results.List) == 0
@@ -441,6 +448,9 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
 
 	if inProlog {
 		fmt.Fprint(fgo2, builtinDefs[name])
+		if strings.Contains(builtinDefs[name], "_cgo_cmalloc") {
+			*callsMalloc = true
+		}
 		return
 	}
 
@@ -712,11 +722,13 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 	p.writeExportHeader(fgcch)
 
 	fmt.Fprintf(fgcc, "/* Created by cgo - DO NOT EDIT. */\n")
+	fmt.Fprintf(fgcc, "#include <stdlib.h>\n")
 	fmt.Fprintf(fgcc, "#include \"_cgo_export.h\"\n\n")
 
 	fmt.Fprintf(fgcc, "extern void crosscall2(void (*fn)(void *, int, __SIZE_TYPE__), void *, int, __SIZE_TYPE__);\n")
 	fmt.Fprintf(fgcc, "extern __SIZE_TYPE__ _cgo_wait_runtime_init_done();\n")
 	fmt.Fprintf(fgcc, "extern void _cgo_release_context(__SIZE_TYPE__);\n\n")
+	fmt.Fprintf(fgcc, "extern char* _cgo_topofstack(void);")
 	fmt.Fprintf(fgcc, "%s\n", tsanProlog)
 
 	for _, exp := range p.ExpFunc {
@@ -1352,9 +1364,6 @@ const goProlog = `
 //go:linkname _cgo_runtime_cgocall runtime.cgocall
 func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 
-//go:linkname _cgo_runtime_cmalloc runtime.cmalloc
-func _cgo_runtime_cmalloc(uintptr) unsafe.Pointer
-
 //go:linkname _cgo_runtime_cgocallback runtime.cgocallback
 func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 
@@ -1400,7 +1409,7 @@ func _Cfunc_GoBytes(p unsafe.Pointer, l _Ctype_int) []byte {
 
 const cStringDef = `
 func _Cfunc_CString(s string) *_Ctype_char {
-	p := _cgo_runtime_cmalloc(uintptr(len(s)+1))
+	p := _cgo_cmalloc(uint64(len(s)+1))
 	pp := (*[1<<30]byte)(p)
 	copy(pp[:], s)
 	pp[len(s)] = 0
@@ -1410,7 +1419,7 @@ func _Cfunc_CString(s string) *_Ctype_char {
 
 const cBytesDef = `
 func _Cfunc_CBytes(b []byte) unsafe.Pointer {
-	p := _cgo_runtime_cmalloc(uintptr(len(b)))
+	p := _cgo_cmalloc(uint64(len(b)))
 	pp := (*[1<<30]byte)(p)
 	copy(pp[:], b)
 	return p
@@ -1419,7 +1428,7 @@ func _Cfunc_CBytes(b []byte) unsafe.Pointer {
 
 const cMallocDef = `
 func _Cfunc__CMalloc(n _Ctype_size_t) unsafe.Pointer {
-	return _cgo_runtime_cmalloc(uintptr(n))
+	return _cgo_cmalloc(uint64(n))
 }
 `
 
@@ -1431,6 +1440,50 @@ var builtinDefs = map[string]string{
 	"CBytes":    cBytesDef,
 	"_CMalloc":  cMallocDef,
 }
+
+// Definitions for C.malloc in Go and in C. We define it ourselves
+// since we call it from functions we define, such as C.CString.
+// Also, we have historically ensured that C.malloc does not return
+// nil even for an allocation of 0.
+
+const cMallocDefGo = `
+//go:cgo_import_static _cgoPREFIX_Cfunc__Cmalloc
+//go:linkname __cgofn__cgoPREFIX_Cfunc__Cmalloc _cgoPREFIX_Cfunc__Cmalloc
+var __cgofn__cgoPREFIX_Cfunc__Cmalloc byte
+var _cgoPREFIX_Cfunc__Cmalloc = unsafe.Pointer(&__cgofn__cgoPREFIX_Cfunc__Cmalloc)
+
+//go:cgo_unsafe_args
+func _cgo_cmalloc(p0 uint64) (r1 unsafe.Pointer) {
+	_cgo_runtime_cgocall(_cgoPREFIX_Cfunc__Cmalloc, uintptr(unsafe.Pointer(&p0)))
+	return
+}
+`
+
+// cMallocDefC defines the C version of C.malloc for the gc compiler.
+// It is defined here because C.CString and friends need a definition.
+// We define it by hand, rather than simply inventing a reference to
+// C.malloc, because <stdlib.h> may not have been included.
+// This is approximately what writeOutputFunc would generate, but
+// skips the cgo_topofstack code (which is only needed if the C code
+// calls back into Go). This also avoids returning nil for an
+// allocation of 0 bytes.
+const cMallocDefC = `
+CGO_NO_SANITIZE_THREAD
+void _cgoPREFIX_Cfunc__Cmalloc(void *v) {
+	struct {
+		unsigned long long p0;
+		void *r1;
+	} PACKED *a = v;
+	void *ret;
+	_cgo_tsan_acquire();
+	ret = malloc(a->p0);
+	if (ret == 0 && a->p0 == 0) {
+		ret = malloc(1);
+	}
+	a->r1 = ret;
+	_cgo_tsan_release();
+}
+`
 
 func (p *Package) cPrologGccgo() string {
 	return strings.Replace(strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1),

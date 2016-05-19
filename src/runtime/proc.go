@@ -155,12 +155,6 @@ func main() {
 		if _cgo_thread_start == nil {
 			throw("_cgo_thread_start missing")
 		}
-		if _cgo_malloc == nil {
-			throw("_cgo_malloc missing")
-		}
-		if _cgo_free == nil {
-			throw("_cgo_free missing")
-		}
 		if GOOS != "windows" {
 			if _cgo_setenv == nil {
 				throw("_cgo_setenv missing")
