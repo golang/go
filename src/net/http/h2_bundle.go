@@ -4351,7 +4351,7 @@ type http2requestBody struct {
 
 func (b *http2requestBody) Close() error {
 	if b.pipe != nil {
-		b.pipe.CloseWithError(http2errClosedBody)
+		b.pipe.BreakWithError(http2errClosedBody)
 	}
 	b.closed = true
 	return nil
@@ -4976,12 +4976,14 @@ func (cs *http2clientStream) awaitRequestCancel(req *Request) {
 	}
 }
 
-// checkReset reports any error sent in a RST_STREAM frame by the
-// server.
-func (cs *http2clientStream) checkReset() error {
+// checkResetOrDone reports any error sent in a RST_STREAM frame by the
+// server, or errStreamClosed if the stream is complete.
+func (cs *http2clientStream) checkResetOrDone() error {
 	select {
 	case <-cs.peerReset:
 		return cs.resetErr
+	case <-cs.done:
+		return http2errStreamClosed
 	default:
 		return nil
 	}
@@ -5641,7 +5643,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int) (taken int32, err er
 		if cs.stopReqBody != nil {
 			return 0, cs.stopReqBody
 		}
-		if err := cs.checkReset(); err != nil {
+		if err := cs.checkResetOrDone(); err != nil {
 			return 0, err
 		}
 		if a := cs.flow.available(); a > 0 {
@@ -5810,6 +5812,7 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
 		cc.lastActive = time.Now()
 		delete(cc.streams, id)
 		close(cs.done)
+		cc.cond.Broadcast()
 	}
 	return cs
 }
