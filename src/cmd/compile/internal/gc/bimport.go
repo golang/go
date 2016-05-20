@@ -103,7 +103,9 @@ func Import(in *bufio.Reader) {
 	// --- compiler-specific export data ---
 
 	// read compiler-specific flags
-	importpkg.Safe = p.bool()
+
+	// read but ignore safemode bit (see issue #15772)
+	p.bool() // formerly: importpkg.Safe = p.bool()
 
 	// phase 2
 	objcount = 0

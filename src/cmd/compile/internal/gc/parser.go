@@ -398,11 +398,8 @@ func (p *parser) import_package() {
 		p.import_error()
 	}
 
-	importsafe := false
+	// read but skip "safe" bit (see issue #15772)
 	if p.tok == LNAME {
-		if p.sym_.Name == "safe" {
-			importsafe = true
-		}
 		p.next()
 	}
 	p.want(';')
@@ -413,7 +410,6 @@ func (p *parser) import_package() {
 	} else if importpkg.Name != name {
 		Yyerror("conflicting names %s and %s for package %q", importpkg.Name, name, importpkg.Path)
 	}
-	importpkg.Safe = importsafe
 
 	typecheckok = true
 	defercheckwidth()
