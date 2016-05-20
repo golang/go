@@ -3218,9 +3218,17 @@ func TestTransportEventTrace_NoHooks_h2(t *testing.T) { testTransportEventTrace(
 func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	defer afterTest(t)
 	const resBody = "some body"
+	gotWroteReqEvent := make(chan struct{})
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if _, err := ioutil.ReadAll(r.Body); err != nil {
 			t.Error(err)
+		}
+		if !noHooks {
+			select {
+			case <-gotWroteReqEvent:
+			case <-time.After(5 * time.Second):
+				t.Error("timeout waiting for WroteRequest event")
+			}
 		}
 		io.WriteString(w, resBody)
 	}))
@@ -3269,7 +3277,10 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		},
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
-		WroteRequest:    func(e httptrace.WroteRequestInfo) { logf("WroteRequest: %+v", e) },
+		WroteRequest: func(e httptrace.WroteRequestInfo) {
+			close(gotWroteReqEvent)
+			logf("WroteRequest: %+v", e)
+		},
 	}
 	if noHooks {
 		// zero out all func pointers, trying to get some path to crash
