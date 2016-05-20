@@ -141,7 +141,7 @@ func TestUnshare(t *testing.T) {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
-	cmd := exec.Command("ip", "a")
+	cmd := exec.Command("cat", "/proc/net/dev")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Unshare: syscall.CLONE_NEWNET,
 	}
@@ -152,12 +152,12 @@ func TestUnshare(t *testing.T) {
 
 	// Check there is only the local network interface
 	sout := strings.TrimSpace(string(out))
-	if !strings.Contains(sout, "lo") {
+	if !strings.Contains(sout, "lo:") {
 		t.Fatalf("Expected lo network interface to exist, got %s", sout)
 	}
 
 	lines := strings.Split(sout, "\n")
-	if len(lines) != 2 {
-		t.Fatalf("Expected 2 lines of output, got %d", len(lines))
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines of output, got %d", len(lines))
 	}
 }
