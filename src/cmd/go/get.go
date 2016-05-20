@@ -139,7 +139,7 @@ func runGet(cmd *Command, args []string) {
 		return
 	}
 
-	runInstall(cmd, args)
+	installPackages(args, true)
 }
 
 // downloadPaths prepares the list of paths to pass to download.
