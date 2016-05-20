@@ -106,6 +106,9 @@ func sendTime(c interface{}, seq uintptr) {
 // After waits for the duration to elapse and then sends the current time
 // on the returned channel.
 // It is equivalent to NewTimer(d).C.
+// The underlying Timer is not recovered by the garbage collector
+// until the timer fires. If efficiency is a concern, use NewTimer
+// instead and call Timer.Stop if the timer is no longer needed.
 func After(d Duration) <-chan Time {
 	return NewTimer(d).C
 }
