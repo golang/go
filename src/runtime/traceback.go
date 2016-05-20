@@ -256,6 +256,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			sp := frame.sp
 			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
 				sp = gp.m.curg.sched.sp
+				frame.sp = sp
 				stkbarG = gp.m.curg
 				stkbar = stkbarG.stkbar[stkbarG.stkbarPos:]
 				cgoCtxt = gp.m.curg.cgoCtxt
