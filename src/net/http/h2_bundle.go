@@ -50,6 +50,18 @@ type http2ClientConnPool interface {
 	MarkDead(*http2ClientConn)
 }
 
+// clientConnPoolIdleCloser is the interface implemented by ClientConnPool
+// implementations which can close their idle connections.
+type http2clientConnPoolIdleCloser interface {
+	http2ClientConnPool
+	closeIdleConnections()
+}
+
+var (
+	_ http2clientConnPoolIdleCloser = (*http2clientConnPool)(nil)
+	_ http2clientConnPoolIdleCloser = http2noDialClientConnPool{}
+)
+
 // TODO: use singleflight for dialing and addConnCalls?
 type http2clientConnPool struct {
 	t *http2Transport
@@ -250,6 +262,15 @@ func http2filterOutClientConn(in []*http2ClientConn, exclude *http2ClientConn) [
 	return out
 }
 
+// noDialClientConnPool is an implementation of http2.ClientConnPool
+// which never dials.  We let the HTTP/1.1 client dial and use its TLS
+// connection instead.
+type http2noDialClientConnPool struct{ *http2clientConnPool }
+
+func (p http2noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
+	return p.getClientConn(req, addr, http2noDialOnMiss)
+}
+
 func http2configureTransport(t1 *Transport) (*http2Transport, error) {
 	connPool := new(http2clientConnPool)
 	t2 := &http2Transport{
@@ -300,15 +321,6 @@ func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
 	}()
 	t.RegisterProtocol("https", rt)
 	return nil
-}
-
-// noDialClientConnPool is an implementation of http2.ClientConnPool
-// which never dials.  We let the HTTP/1.1 client dial and use its TLS
-// connection instead.
-type http2noDialClientConnPool struct{ *http2clientConnPool }
-
-func (p http2noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
-	return p.getClientConn(req, addr, http2noDialOnMiss)
 }
 
 // noDialH2RoundTripper is a RoundTripper which only tries to complete the request
@@ -5054,7 +5066,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 // connected from previous requests but are now sitting idle.
 // It does not interrupt any connections currently in use.
 func (t *http2Transport) CloseIdleConnections() {
-	if cp, ok := t.connPool().(*http2clientConnPool); ok {
+	if cp, ok := t.connPool().(http2clientConnPoolIdleCloser); ok {
 		cp.closeIdleConnections()
 	}
 }
