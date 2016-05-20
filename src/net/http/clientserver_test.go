@@ -1196,6 +1196,35 @@ func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
 	}.run(t)
 }
 
+// Issue 14607
+func TestCloseIdleConnections_h1(t *testing.T) { testCloseIdleConnections(t, h1Mode) }
+func TestCloseIdleConnections_h2(t *testing.T) { testCloseIdleConnections(t, h2Mode) }
+func testCloseIdleConnections(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+	}))
+	defer cst.close()
+	get := func() string {
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		v := res.Header.Get("X-Addr")
+		if v == "" {
+			t.Fatal("didn't get X-Addr")
+		}
+		return v
+	}
+	a1 := get()
+	cst.tr.CloseIdleConnections()
+	a2 := get()
+	if a1 == a2 {
+		t.Errorf("didn't close connection")
+	}
+}
+
 type noteCloseConn struct {
 	net.Conn
 	closeFunc func()
