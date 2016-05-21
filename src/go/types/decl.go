@@ -141,6 +141,14 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	// determine type, if any
 	if typ != nil {
 		obj.typ = check.typ(typ)
+		// We cannot spread the type to all lhs variables if there
+		// are more than one since that would mark them as checked
+		// (see Checker.objDecl) and the assignment of init exprs,
+		// if any, would not be checked.
+		//
+		// TODO(gri) If we have no init expr, we should distribute
+		// a given type otherwise we need to re-evalate the type
+		// expr for each lhs variable, leading to duplicate work.
 	}
 
 	// check initialization
@@ -173,6 +181,17 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 			panic("inconsistent lhs")
 		}
 	}
+
+	// We have multiple variables on the lhs and one init expr.
+	// Make sure all variables have been given the same type if
+	// one was specified, otherwise they assume the type of the
+	// init expression values (was issue #15755).
+	if typ != nil {
+		for _, lhs := range lhs {
+			lhs.typ = obj.typ
+		}
+	}
+
 	check.initVars(lhs, []ast.Expr{init}, token.NoPos)
 }
 
