@@ -170,3 +170,19 @@ func issue14229() {
 		_ = b % a
 	)
 }
+
+// Check that in a n:1 variable declaration with type and initialization
+// expression the type is distributed to all variables of the lhs before
+// the initialization expression assignment is checked.
+func issue15755() {
+	// from issue
+	var i interface{}
+	type b bool
+	var x, y b = i.(b)
+	_ = x == y
+
+	// related: we should see an error since the result of f1 is ([]int, int)
+	var u, v []int = f1 /* ERROR cannot use f1 */ ()
+	_ = u
+	_ = v
+}
