@@ -3111,6 +3111,7 @@ type http2stream struct {
 	sentReset        bool // only true once detached from streams map
 	gotReset         bool // only true once detacted from streams map
 	gotTrailerHeader bool // HEADER frame for trailers was seen
+	wroteHeaders     bool // whether we wrote headers (not status 100)
 	reqBuf           []byte
 
 	trailer    Header // accumulated trailers
@@ -3474,7 +3475,21 @@ func (sc *http2serverConn) writeFrameFromHandler(wm http2frameWriteMsg) error {
 // If you're not on the serve goroutine, use writeFrameFromHandler instead.
 func (sc *http2serverConn) writeFrame(wm http2frameWriteMsg) {
 	sc.serveG.check()
-	sc.writeSched.add(wm)
+
+	var ignoreWrite bool
+
+	switch wm.write.(type) {
+	case *http2writeResHeaders:
+		wm.stream.wroteHeaders = true
+	case http2write100ContinueHeadersFrame:
+		if wm.stream.wroteHeaders {
+			ignoreWrite = true
+		}
+	}
+
+	if !ignoreWrite {
+		sc.writeSched.add(wm)
+	}
 	sc.scheduleFrameWrite()
 }
 
