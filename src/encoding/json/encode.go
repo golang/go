@@ -698,10 +698,11 @@ func (se *sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 
 func newSliceEncoder(t reflect.Type) encoderFunc {
 	// Byte slices get special treatment; arrays don't.
-	if t.Elem().Kind() == reflect.Uint8 &&
-		!t.Elem().Implements(marshalerType) &&
-		!t.Elem().Implements(textMarshalerType) {
-		return encodeByteSlice
+	if t.Elem().Kind() == reflect.Uint8 {
+		p := reflect.PtrTo(t.Elem())
+		if !p.Implements(marshalerType) && !p.Implements(textMarshalerType) {
+			return encodeByteSlice
+		}
 	}
 	enc := &sliceEncoder{newArrayEncoder(t)}
 	return enc.encode
