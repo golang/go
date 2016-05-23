@@ -44,6 +44,9 @@ func TestEncoder(t *testing.T) {
 	for i := 0; i <= len(streamTest); i++ {
 		var buf bytes.Buffer
 		enc := NewEncoder(&buf)
+		// Check that enc.SetIndent("", "") turns off indentation.
+		enc.SetIndent(">", ".")
+		enc.SetIndent("", "")
 		for j, v := range streamTest[0:i] {
 			if err := enc.Encode(v); err != nil {
 				t.Fatalf("encode #%d: %v", j, err)
@@ -77,7 +80,7 @@ false
 func TestEncoderIndent(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
-	enc.Indent(">", ".")
+	enc.SetIndent(">", ".")
 	for _, v := range streamTest {
 		enc.Encode(v)
 	}
