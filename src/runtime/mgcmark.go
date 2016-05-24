@@ -642,7 +642,17 @@ func gcFlushBgCredit(scanWork int64) {
 	unlock(&work.assistQueue.lock)
 }
 
+// scanstack scans gp's stack, greying all pointers found on the stack.
+//
+// During mark phase, it also installs stack barriers while traversing
+// gp's stack. During mark termination, it stops scanning when it
+// reaches an unhit stack barrier.
+//
+// scanstack is marked go:systemstack because it must not be preempted
+// while using a workbuf.
+//
 //go:nowritebarrier
+//go:systemstack
 func scanstack(gp *g) {
 	if gp.gcscanvalid {
 		return
