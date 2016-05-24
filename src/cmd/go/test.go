@@ -59,6 +59,9 @@ Each listed package causes the execution of a separate test binary.
 Test files that declare a package with the suffix "_test" will be compiled as a
 separate package, and then linked and run with the main test binary.
 
+The go tool will ignore a directory named "testdata", making it available
+to hold ancillary data needed by the tests.
+
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
 
