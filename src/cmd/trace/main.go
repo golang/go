@@ -15,6 +15,14 @@ Generate a trace file with 'go test':
 	go test -trace trace.out pkg
 View the trace in a web browser:
 	go tool trace trace.out
+Generate a pprof-like profile from the trace:
+	go tool trace -pprof=TYPE trace.out > TYPE.pprof
+
+Supported profile types are:
+	- net: network blocking profile
+	- sync: synchronization blocking profile
+	- syscall: syscall blocking profile
+	- sched: scheduler latency profile
 */
 package main
 
@@ -25,6 +33,7 @@ import (
 	"fmt"
 	"html/template"
 	"internal/trace"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -39,15 +48,27 @@ Given a trace file produced by 'go test':
 
 Open a web browser displaying trace:
 	go tool trace [flags] [pkg.test] trace.out
+
+Generate a pprof-like profile from the trace:
+    go tool trace -pprof=TYPE [pkg.test] trace.out
+
 [pkg.test] argument is required for traces produced by Go 1.6 and below.
 Go 1.7 does not require the binary argument.
 
+Supported profile types are:
+    - net: network blocking profile
+    - sync: synchronization blocking profile
+    - syscall: syscall blocking profile
+    - sched: scheduler latency profile
+
 Flags:
 	-http=addr: HTTP service address (e.g., ':6060')
+	-pprof=type: print a pprof-like profile instead
 `
 
 var (
-	httpFlag = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
+	httpFlag  = flag.String("http", "localhost:0", "HTTP service address (e.g., ':6060')")
+	pprofFlag = flag.String("pprof", "", "print a pprof-like profile instead")
 
 	// The binary file name, left here for serveSVGProfile.
 	programBinary string
@@ -71,6 +92,27 @@ func main() {
 		traceFile = flag.Arg(1)
 	default:
 		flag.Usage()
+	}
+
+	var pprofFunc func(io.Writer) error
+	switch *pprofFlag {
+	case "net":
+		pprofFunc = pprofIO
+	case "sync":
+		pprofFunc = pprofBlock
+	case "syscall":
+		pprofFunc = pprofSyscall
+	case "sched":
+		pprofFunc = pprofSched
+	}
+	if pprofFunc != nil {
+		if err := pprofFunc(os.Stdout); err != nil {
+			dief("failed to generate pprof: %v\n", err)
+		}
+		os.Exit(0)
+	}
+	if *pprofFlag != "" {
+		dief("unknown pprof type %s\n", *pprofFlag)
 	}
 
 	ln, err := net.Listen("tcp", *httpFlag)
