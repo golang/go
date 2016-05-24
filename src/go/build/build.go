@@ -1151,7 +1151,7 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binary
 		}
 		line = bytes.TrimSpace(line)
 		if bytes.HasPrefix(line, slashslash) {
-			if bytes.HasPrefix(line, binaryOnlyComment) {
+			if bytes.Equal(line, binaryOnlyComment) {
 				sawBinaryOnly = true
 			}
 			line = bytes.TrimSpace(line[len(slashslash):])
