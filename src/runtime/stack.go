@@ -1010,7 +1010,13 @@ func newstack() {
 				// return.
 			}
 			if !gp.gcscandone {
-				scanstack(gp)
+				// gcw is safe because we're on the
+				// system stack.
+				gcw := &gp.m.p.ptr().gcw
+				scanstack(gp, gcw)
+				if gcBlackenPromptly {
+					gcw.dispose()
+				}
 				gp.gcscandone = true
 			}
 			gp.preemptscan = false
