@@ -179,7 +179,8 @@ var globalRand = New(&lockedSource{src: NewSource(1)})
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
-// if seeded by Seed(1).
+// if seeded by Seed(1). Only uses the bottom 31 bits of seed; the top 33
+// bits are ignored.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64
