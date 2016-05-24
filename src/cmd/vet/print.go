@@ -587,22 +587,24 @@ func (f *File) argCanBeChecked(call *ast.CallExpr, formatArg int, isStar bool, s
 func (f *File) checkPrint(call *ast.CallExpr, name string) {
 	firstArg := 0
 	typ := f.pkg.types[call.Fun].Type
-	if typ != nil {
-		if sig, ok := typ.(*types.Signature); ok {
-			if !sig.Variadic() {
-				// Skip checking non-variadic functions.
-				return
-			}
-			params := sig.Params()
-			firstArg = params.Len() - 1
+	if typ == nil {
+		// Skip checking functions with unknown type.
+		return
+	}
+	if sig, ok := typ.(*types.Signature); ok {
+		if !sig.Variadic() {
+			// Skip checking non-variadic functions.
+			return
+		}
+		params := sig.Params()
+		firstArg = params.Len() - 1
 
-			typ := params.At(firstArg).Type()
-			typ = typ.(*types.Slice).Elem()
-			it, ok := typ.(*types.Interface)
-			if !ok || !it.Empty() {
-				// Skip variadic functions accepting non-interface{} args.
-				return
-			}
+		typ := params.At(firstArg).Type()
+		typ = typ.(*types.Slice).Elem()
+		it, ok := typ.(*types.Interface)
+		if !ok || !it.Empty() {
+			// Skip variadic functions accepting non-interface{} args.
+			return
 		}
 	}
 	args := call.Args
