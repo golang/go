@@ -37,14 +37,11 @@ func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 func (pos Position) String() string {
 	s := pos.Filename
-	if pos.IsValid() {
-		if s != "" {
-			s += ":"
-		}
-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
-	}
 	if s == "" {
-		s = "???"
+		s = "<input>"
+	}
+	if pos.IsValid() {
+		s += fmt.Sprintf(":%d:%d", pos.Line, pos.Column)
 	}
 	return s
 }
@@ -333,7 +330,7 @@ func (s *Scanner) error(msg string) {
 	if !pos.IsValid() {
 		pos = s.Pos()
 	}
-	fmt.Fprintf(os.Stderr, "text/scanner: %s: %s\n", pos, msg)
+	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
 }
 
 func (s *Scanner) isIdentRune(ch rune, i int) bool {

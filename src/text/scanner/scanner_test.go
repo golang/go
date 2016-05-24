@@ -451,37 +451,37 @@ func testError(t *testing.T, src, pos, msg string, tok rune) {
 }
 
 func TestError(t *testing.T) {
-	testError(t, "\x00", "1:1", "illegal character NUL", 0)
-	testError(t, "\x80", "1:1", "illegal UTF-8 encoding", utf8.RuneError)
-	testError(t, "\xff", "1:1", "illegal UTF-8 encoding", utf8.RuneError)
+	testError(t, "\x00", "<input>:1:1", "illegal character NUL", 0)
+	testError(t, "\x80", "<input>:1:1", "illegal UTF-8 encoding", utf8.RuneError)
+	testError(t, "\xff", "<input>:1:1", "illegal UTF-8 encoding", utf8.RuneError)
 
-	testError(t, "a\x00", "1:2", "illegal character NUL", Ident)
-	testError(t, "ab\x80", "1:3", "illegal UTF-8 encoding", Ident)
-	testError(t, "abc\xff", "1:4", "illegal UTF-8 encoding", Ident)
+	testError(t, "a\x00", "<input>:1:2", "illegal character NUL", Ident)
+	testError(t, "ab\x80", "<input>:1:3", "illegal UTF-8 encoding", Ident)
+	testError(t, "abc\xff", "<input>:1:4", "illegal UTF-8 encoding", Ident)
 
-	testError(t, `"a`+"\x00", "1:3", "illegal character NUL", String)
-	testError(t, `"ab`+"\x80", "1:4", "illegal UTF-8 encoding", String)
-	testError(t, `"abc`+"\xff", "1:5", "illegal UTF-8 encoding", String)
+	testError(t, `"a`+"\x00", "<input>:1:3", "illegal character NUL", String)
+	testError(t, `"ab`+"\x80", "<input>:1:4", "illegal UTF-8 encoding", String)
+	testError(t, `"abc`+"\xff", "<input>:1:5", "illegal UTF-8 encoding", String)
 
-	testError(t, "`a"+"\x00", "1:3", "illegal character NUL", String)
-	testError(t, "`ab"+"\x80", "1:4", "illegal UTF-8 encoding", String)
-	testError(t, "`abc"+"\xff", "1:5", "illegal UTF-8 encoding", String)
+	testError(t, "`a"+"\x00", "<input>:1:3", "illegal character NUL", String)
+	testError(t, "`ab"+"\x80", "<input>:1:4", "illegal UTF-8 encoding", String)
+	testError(t, "`abc"+"\xff", "<input>:1:5", "illegal UTF-8 encoding", String)
 
-	testError(t, `'\"'`, "1:3", "illegal char escape", Char)
-	testError(t, `"\'"`, "1:3", "illegal char escape", String)
+	testError(t, `'\"'`, "<input>:1:3", "illegal char escape", Char)
+	testError(t, `"\'"`, "<input>:1:3", "illegal char escape", String)
 
-	testError(t, `01238`, "1:6", "illegal octal number", Int)
-	testError(t, `01238123`, "1:9", "illegal octal number", Int)
-	testError(t, `0x`, "1:3", "illegal hexadecimal number", Int)
-	testError(t, `0xg`, "1:3", "illegal hexadecimal number", Int)
-	testError(t, `'aa'`, "1:4", "illegal char literal", Char)
+	testError(t, `01238`, "<input>:1:6", "illegal octal number", Int)
+	testError(t, `01238123`, "<input>:1:9", "illegal octal number", Int)
+	testError(t, `0x`, "<input>:1:3", "illegal hexadecimal number", Int)
+	testError(t, `0xg`, "<input>:1:3", "illegal hexadecimal number", Int)
+	testError(t, `'aa'`, "<input>:1:4", "illegal char literal", Char)
 
-	testError(t, `'`, "1:2", "literal not terminated", Char)
-	testError(t, `'`+"\n", "1:2", "literal not terminated", Char)
-	testError(t, `"abc`, "1:5", "literal not terminated", String)
-	testError(t, `"abc`+"\n", "1:5", "literal not terminated", String)
-	testError(t, "`abc\n", "2:1", "literal not terminated", String)
-	testError(t, `/*/`, "1:4", "comment not terminated", EOF)
+	testError(t, `'`, "<input>:1:2", "literal not terminated", Char)
+	testError(t, `'`+"\n", "<input>:1:2", "literal not terminated", Char)
+	testError(t, `"abc`, "<input>:1:5", "literal not terminated", String)
+	testError(t, `"abc`+"\n", "<input>:1:5", "literal not terminated", String)
+	testError(t, "`abc\n", "<input>:2:1", "literal not terminated", String)
+	testError(t, `/*/`, "<input>:1:4", "comment not terminated", EOF)
 }
 
 // An errReader returns (0, err) where err is not io.EOF.
