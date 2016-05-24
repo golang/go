@@ -7,6 +7,8 @@ package ssa
 import (
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 )
 
 func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
@@ -357,3 +359,28 @@ func clobber(v *Value) bool {
 	// Note: leave v.Block intact.  The Block field is used after clobber.
 	return true
 }
+
+// logRule logs the use of the rule s. This will only be enabled if
+// rewrite rules were generated with the -log option, see gen/rulegen.go.
+func logRule(s string) {
+	if ruleFile == nil {
+		// Open a log file to write log to. We open in append
+		// mode because all.bash runs the compiler lots of times,
+		// and we want the concatenation of all of those logs.
+		// This means, of course, that users need to rm the old log
+		// to get fresh data.
+		// TODO: all.bash runs compilers in parallel. Need to synchronize logging somehow?
+		w, err := os.OpenFile(filepath.Join(os.Getenv("GOROOT"), "src", "rulelog"),
+			os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			panic(err)
+		}
+		ruleFile = w
+	}
+	_, err := fmt.Fprintf(ruleFile, "rewrite %s\n", s)
+	if err != nil {
+		panic(err)
+	}
+}
+
+var ruleFile *os.File
