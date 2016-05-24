@@ -118,6 +118,61 @@
 // example function, at least one other function, type, variable, or constant
 // declaration, and no test or benchmark functions.
 //
+// Subtests and Sub-benchmarks
+//
+// The Run methods of T and B allow defining subtests and sub-benchmarks,
+// without having to define separate functions for each. This enables uses
+// like table-driven benchmarks and creating hierarchical tests.
+// It also provides a way to share common setup and tear-down code:
+//
+//     func TestFoo(t *testing.T) {
+//         // <setup code>
+//         t.Run("A=1", func(t *testing.T) { ... })
+//         t.Run("A=2", func(t *testing.T) { ... })
+//         t.Run("B=1", func(t *testing.T) { ... })
+//         // <tear-down code>
+//     }
+//
+// Each subtest and sub-benchmark has a unique name: the combination of the name
+// of the top-level test and the sequence of names passed to Run, separated by
+// slashes, with an optional trailing sequence number for disambiguation.
+//
+// The argument to the -run and -bench command-line flags is a slash-separated
+// list of regular expressions that match each name element in turn.
+// For example:
+//
+//     go test -run Foo     # Run top-level tests matching "Foo".
+//     go test -run Foo/A=  # Run subtests of Foo matching "A=".
+//     go test -run /A=1    # Run all subtests of a top-level test matching "A=1".
+//
+// Subtests can also be used to control parallelism. A parent test will only
+// complete once all of its subtests complete. In this example, all tests are
+// run in parallel with each other, and only with each other, regardless of
+// other top-level tests that may be defined:
+//
+//     func TestGroupedParallel(t *testing.T) {
+//         for _, tc := range tests {
+//             tc := tc // capture range variable
+//             t.Run(tc.Name, func(t *testing.T) {
+//                 t.Parallel()
+//                 ...
+//             })
+//         }
+//     }
+//
+// Run does not return until parallel subtests have completed, providing a way
+// to clean up after a group of parallel tests:
+//
+//     func TestTeardownParallel(t *testing.T) {
+//         // This Run will not return until the parallel tests finish.
+//         t.Run("group", func(t *testing.T) {
+//             t.Run("Test1", parallelTest1)
+//             t.Run("Test2", parallelTest2)
+//             t.Run("Test3", parallelTest3)
+//         })
+//         // <tear-down code>
+//     }
+//
 // Main
 //
 // It is sometimes necessary for a test program to do extra setup or teardown
