@@ -768,10 +768,7 @@ var methodCache struct {
 	m map[*rtype][]method
 }
 
-// satisfiedMethods returns methods of t that satisfy an interface.
-// This may include unexported methods that satisfy an interface
-// defined with unexported methods in the same package as t.
-func (t *rtype) satisfiedMethods() []method {
+func (t *rtype) exportedMethods() []method {
 	methodCache.RLock()
 	methods, found := methodCache.m[t]
 	methodCache.RUnlock()
@@ -785,19 +782,21 @@ func (t *rtype) satisfiedMethods() []method {
 		return nil
 	}
 	allm := ut.methods()
-	allSatisfied := true
+	allExported := true
 	for _, m := range allm {
-		if m.mtyp == 0 {
-			allSatisfied = false
+		name := t.nameOff(m.name)
+		if !name.isExported() {
+			allExported = false
 			break
 		}
 	}
-	if allSatisfied {
+	if allExported {
 		methods = allm
 	} else {
 		methods = make([]method, 0, len(allm))
 		for _, m := range allm {
-			if m.mtyp != 0 {
+			name := t.nameOff(m.name)
+			if name.isExported() {
 				methods = append(methods, m)
 			}
 		}
@@ -819,7 +818,7 @@ func (t *rtype) NumMethod() int {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
 	}
-	return len(t.satisfiedMethods())
+	return len(t.exportedMethods())
 }
 
 func (t *rtype) Method(i int) (m Method) {
@@ -827,7 +826,7 @@ func (t *rtype) Method(i int) (m Method) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.Method(i)
 	}
-	methods := t.satisfiedMethods()
+	methods := t.exportedMethods()
 	if i < 0 || i >= len(methods) {
 		panic("reflect: Method index out of range")
 	}
@@ -835,14 +834,6 @@ func (t *rtype) Method(i int) (m Method) {
 	pname := t.nameOff(p.name)
 	m.Name = pname.name()
 	fl := flag(Func)
-	if !pname.isExported() {
-		m.PkgPath = pname.pkgPath()
-		if m.PkgPath == "" {
-			ut := t.uncommon()
-			m.PkgPath = t.nameOff(ut.pkgPath).name()
-		}
-		fl |= flagStickyRO
-	}
 	mtyp := t.typeOff(p.mtyp)
 	ft := (*funcType)(unsafe.Pointer(mtyp))
 	in := make([]Type, 0, 1+len(ft.in()))
