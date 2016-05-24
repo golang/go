@@ -3153,7 +3153,7 @@ func checkassign(stmt *Node, n *Node) {
 	}
 
 	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
-		Yyerror("cannot directly assign to struct field %v in map", n)
+		Yyerror("cannot assign to struct field %v in map", n)
 		return
 	}
 
