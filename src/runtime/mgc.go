@@ -1388,7 +1388,7 @@ func gcBgMarkWorker(_p_ *p) {
 	notewakeup(&work.bgMarkReady)
 
 	for {
-		// Go to sleep until woken by gcContoller.findRunnable.
+		// Go to sleep until woken by gcController.findRunnable.
 		// We can't releasem yet since even the call to gopark
 		// may be preempted.
 		gopark(func(g *g, parkp unsafe.Pointer) bool {
