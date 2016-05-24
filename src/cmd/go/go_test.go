@@ -2804,7 +2804,8 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	os.Remove(tg.path("src/p1/p1.go"))
 	tg.mustNotExist(tg.path("src/p1/p1.go"))
 
-	tg.tempFile("src/p2/p2.go", `
+	tg.tempFile("src/p2/p2.go", `//go:binary-only-packages-are-not-great
+
 		package p2
 		import "p1"
 		func F() { p1.F(true) }
