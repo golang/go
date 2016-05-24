@@ -231,7 +231,7 @@ func markroot(gcw *gcWork, i uint32) {
 			// we scan the stacks we can and ask running
 			// goroutines to scan themselves; and the
 			// second blocks.
-			scang(gp)
+			scang(gp, gcw)
 
 			if selfScan {
 				casgstatus(userG, _Gwaiting, _Grunning)
@@ -653,7 +653,7 @@ func gcFlushBgCredit(scanWork int64) {
 //
 //go:nowritebarrier
 //go:systemstack
-func scanstack(gp *g) {
+func scanstack(gp *g, gcw *gcWork) {
 	if gp.gcscanvalid {
 		return
 	}
@@ -742,7 +742,6 @@ func scanstack(gp *g) {
 
 	// Scan the stack.
 	var cache pcvalueCache
-	gcw := &getg().m.p.ptr().gcw
 	n := 0
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		scanframeworker(frame, &cache, gcw)
@@ -770,9 +769,6 @@ func scanstack(gp *g) {
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
-	if gcphase == _GCmarktermination {
-		gcw.dispose()
-	}
 	gcUnlockStackBarriers(gp)
 	if gcphase == _GCmark {
 		// gp may have added itself to the rescan list between
