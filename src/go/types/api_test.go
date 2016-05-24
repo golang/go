@@ -572,6 +572,47 @@ func TestInitOrderInfo(t *testing.T) {
 		`, []string{
 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
 		}},
+		// test case for issue 10709
+		// TODO(gri) enable once the issue is fixed
+		// {`package p13
+
+		// var (
+		//     v = t.m()
+		//     t = makeT(0)
+		// )
+
+		// type T struct{}
+
+		// func (T) m() int { return 0 }
+
+		// func makeT(n int) T {
+		//     if n > 0 {
+		//         return makeT(n-1)
+		//     }
+		//     return T{}
+		// }`, []string{
+		// 	"t = makeT(0)", "v = t.m()",
+		// }},
+		// test case for issue 10709: same as test before, but variable decls swapped
+		{`package p14
+
+		var (
+		    t = makeT(0)
+		    v = t.m()
+		)
+
+		type T struct{}
+
+		func (T) m() int { return 0 }
+
+		func makeT(n int) T {
+		    if n > 0 {
+		        return makeT(n-1)
+		    }
+		    return T{}
+		}`, []string{
+			"t = makeT(0)", "v = t.m()",
+		}},
 	}
 
 	for _, test := range tests {

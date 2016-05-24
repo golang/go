@@ -32,7 +32,7 @@ func (d *declInfo) hasInitializer() bool {
 	return d.init != nil || d.fdecl != nil && d.fdecl.Body != nil
 }
 
-// addDep adds obj as a dependency to d.
+// addDep adds obj to the set of objects d's init expression depends on.
 func (d *declInfo) addDep(obj Object) {
 	m := d.deps
 	if m == nil {
