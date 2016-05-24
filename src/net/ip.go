@@ -272,7 +272,7 @@ func (ip IP) String() string {
 			uitoa(uint(p4[3]))
 	}
 	if len(p) != IPv6len {
-		return hexString(ip)
+		return "?" + hexString(ip)
 	}
 
 	// Find longest run of zeros.
@@ -338,7 +338,7 @@ func (ip IP) MarshalText() ([]byte, error) {
 		return []byte(""), nil
 	}
 	if len(ip) != IPv4len && len(ip) != IPv6len {
-		return nil, &AddrError{Err: "invalid IP address", Addr: ip.String()}
+		return nil, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
 	}
 	return []byte(ip.String()), nil
 }

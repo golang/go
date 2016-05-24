@@ -225,7 +225,7 @@ var ipStringTests = []struct {
 	// Opaque byte sequence
 	{
 		IP{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
-		"0123456789abcdef",
+		"?0123456789abcdef",
 		nil,
 		&AddrError{Err: "invalid IP address", Addr: "0123456789abcdef"},
 	},
