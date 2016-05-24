@@ -167,9 +167,6 @@ pkg io, const SeekEnd = 2
 pkg io, const SeekEnd ideal-int
 pkg io, const SeekStart = 0
 pkg io, const SeekStart ideal-int
-pkg io, type SizedReaderAt interface { ReadAt, Size }
-pkg io, type SizedReaderAt interface, ReadAt([]uint8, int64) (int, error)
-pkg io, type SizedReaderAt interface, Size() int64
 pkg math/big, method (*Float) GobDecode([]uint8) error
 pkg math/big, method (*Float) GobEncode() ([]uint8, error)
 pkg net, method (*Dialer) DialContext(context.Context, string, string) (Conn, error)
