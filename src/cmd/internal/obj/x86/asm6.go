@@ -3765,7 +3765,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 					ctxt.Diag("directly calling duff when dynamically linking Go")
 				}
 
-				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
+				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && p.Mode == 64 {
 					// Maintain BP around call, since duffcopy/duffzero can't do it
 					// (the call jumps into the middle of the function).
 					// This makes it possible to see call sites for duffcopy/duffzero in
@@ -3784,7 +3784,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				r.Siz = 4
 				ctxt.AsmBuf.PutInt32(0)
 
-				if obj.Framepointer_enabled != 0 && yt.zcase == Zcallduff && p.Mode == 64 {
+				if ctxt.Framepointer_enabled && yt.zcase == Zcallduff && p.Mode == 64 {
 					// Pop BP pushed above.
 					// MOVQ 0(BP), BP
 					ctxt.AsmBuf.Put(bpduff2)

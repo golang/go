@@ -639,10 +639,16 @@ func loadlib() {
 		// recording the value of GOARM.
 		if SysArch.Family == sys.ARM {
 			s := Linklookup(Ctxt, "runtime.goarm", 0)
-
 			s.Type = obj.SRODATA
 			s.Size = 0
 			Adduint8(Ctxt, s, uint8(Ctxt.Goarm))
+		}
+
+		if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
+			s := Linklookup(Ctxt, "runtime.framepointer_enabled", 0)
+			s.Type = obj.SRODATA
+			s.Size = 0
+			Adduint8(Ctxt, s, 1)
 		}
 	} else {
 		// If OTOH the module does not contain the runtime package,

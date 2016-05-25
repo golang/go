@@ -13,7 +13,7 @@ import (
 // go-specific code shared across loaders (5l, 6l, 8l).
 
 var (
-	Framepointer_enabled int
+	framepointer_enabled int
 	Fieldtrack_enabled   int
 )
 
@@ -26,14 +26,21 @@ var exper = []struct {
 	val  *int
 }{
 	{"fieldtrack", &Fieldtrack_enabled},
-	{"framepointer", &Framepointer_enabled},
+	{"framepointer", &framepointer_enabled},
 }
 
 func addexp(s string) {
+	// Could do general integer parsing here, but the runtime copy doesn't yet.
+	v := 1
+	name := s
+	if len(name) > 2 && name[:2] == "no" {
+		v = 0
+		name = name[2:]
+	}
 	for i := 0; i < len(exper); i++ {
-		if exper[i].name == s {
+		if exper[i].name == name {
 			if exper[i].val != nil {
-				*exper[i].val = 1
+				*exper[i].val = v
 			}
 			return
 		}
@@ -44,11 +51,16 @@ func addexp(s string) {
 }
 
 func init() {
+	framepointer_enabled = 1 // default
 	for _, f := range strings.Split(goexperiment, ",") {
 		if f != "" {
 			addexp(f)
 		}
 	}
+}
+
+func Framepointer_enabled(goos, goarch string) bool {
+	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
 }
 
 func Nopout(p *Prog) {
