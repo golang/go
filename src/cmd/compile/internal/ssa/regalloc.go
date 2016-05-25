@@ -106,7 +106,6 @@
 package ssa
 
 import (
-	"cmd/internal/obj"
 	"fmt"
 	"unsafe"
 )
@@ -456,7 +455,7 @@ func (s *regAllocState) init(f *Func) {
 	s.allocatable = regMask(1)<<s.numRegs - 1
 	s.allocatable &^= 1 << s.SPReg
 	s.allocatable &^= 1 << s.SBReg
-	if obj.Framepointer_enabled != 0 {
+	if s.f.Config.ctxt.Framepointer_enabled {
 		s.allocatable &^= 1 << 5 // BP
 	}
 	if s.f.Config.ctxt.Flag_dynlink {

@@ -155,9 +155,6 @@ var stackLarge struct {
 	free [_MHeapMap_Bits]mSpanList // free lists by log_2(s.npages)
 }
 
-// Cached value of haveexperiment("framepointer")
-var framepointer_enabled bool
-
 func stackinit() {
 	if _StackCacheSize&_PageMask != 0 {
 		throw("cache size must be a multiple of page size")

@@ -1558,7 +1558,7 @@ func writelines(prev *LSym) *LSym {
 				if !haslinkregister() {
 					offs -= int64(SysArch.PtrSize)
 				}
-				if obj.Framepointer_enabled != 0 {
+				if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
 					// The frame pointer is saved
 					// between the CFA and the
 					// autos.
