@@ -84,7 +84,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// input args need no code
 	case ssa.OpSP, ssa.OpSB:
 		// nothing to do
-	case ssa.OpCopy:
+	case ssa.OpCopy, ssa.OpARMMOVWconvert:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -148,6 +148,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		} else {
 			p.To.Name = obj.NAME_AUTO
 		}
+	case ssa.OpARMDIV,
+		ssa.OpARMDIVU,
+		ssa.OpARMMOD,
+		ssa.OpARMMODU:
+		// Note: for software division the assembler rewrite these
+		// instructions to sequence of instructions:
+		// - it puts numerator in R11 and denominator in g.m.divmod
+		//	and call (say) _udiv
+		// - _udiv saves R0-R3 on stack and call udiv, restores R0-R3
+		//	before return
+		// - udiv does the actual work
+		//TODO: set approperiate regmasks and call udiv directly?
+		// need to be careful for negative case
+		// Or, as soft div is already expensive, we don't care?
+		fallthrough
 	case ssa.OpARMADD,
 		ssa.OpARMADC,
 		ssa.OpARMSUB,
@@ -552,6 +567,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMLoweredSelect0,
 		ssa.OpARMLoweredSelect1:
 		// nothing to do
+	case ssa.OpARMLoweredGetClosurePtr:
+		// Output is hardwired to R7 (arm.REGCTXT) only,
+		// and R7 contains the closure pointer on
+		// closure entry, and this "instruction"
+		// is scheduled to the very beginning
+		// of the entry block.
+		// nothing to do here.
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
