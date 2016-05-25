@@ -43,52 +43,39 @@ func addrescapes(n *Node) {
 			break
 		}
 
-		switch n.Class {
-		case PPARAMREF:
+		// A PPARAMREF is a closure reference.
+		// Mark the thing it refers to as escaping.
+		if n.Class == PPARAMREF {
 			addrescapes(n.Name.Defn)
-
-		// if func param, need separate temporary
-		// to hold heap pointer.
-		// the function type has already been checked
-		// (we're in the function body)
-		// so the param already has a valid xoffset.
-
-		// expression to refer to stack copy
-		case PPARAM, PPARAMOUT:
-			n.Name.Param.Stackparam = Nod(OPARAM, n, nil)
-
-			n.Name.Param.Stackparam.Type = n.Type
-			n.Name.Param.Stackparam.Addable = true
-			if n.Xoffset == BADWIDTH {
-				Fatalf("addrescapes before param assignment")
-			}
-			n.Name.Param.Stackparam.Xoffset = n.Xoffset
-			fallthrough
-
-		case PAUTO:
-			n.Class |= PHEAP
-
-			n.Addable = false
-			n.Ullman = 2
-			n.Xoffset = 0
-
-			// create stack variable to hold pointer to heap
-			oldfn := Curfn
-
-			Curfn = n.Name.Curfn
-			if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
-				Curfn = Curfn.Func.Closure
-			}
-			n.Name.Heapaddr = temp(Ptrto(n.Type))
-			buf := fmt.Sprintf("&%v", n.Sym)
-			n.Name.Heapaddr.Sym = Lookup(buf)
-			n.Name.Heapaddr.Orig.Sym = n.Name.Heapaddr.Sym
-			n.Esc = EscHeap
-			if Debug['m'] != 0 {
-				fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
-			}
-			Curfn = oldfn
+			break
 		}
+
+		if n.Class != PPARAM && n.Class != PPARAMOUT && n.Class != PAUTO {
+			break
+		}
+
+		// This is a plain parameter or local variable that needs to move to the heap,
+		// but possibly for the function outside the one we're compiling.
+		// That is, if we have:
+		//
+		//	func f(x int) {
+		//		func() {
+		//			global = &x
+		//		}
+		//	}
+		//
+		// then we're analyzing the inner closure but we need to move x to the
+		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
+		oldfn := Curfn
+		Curfn = n.Name.Curfn
+		if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+			Curfn = Curfn.Func.Closure
+		}
+		ln := lineno
+		lineno = Curfn.Lineno
+		moveToHeap(n)
+		Curfn = oldfn
+		lineno = ln
 
 	case OIND, ODOTPTR:
 		break
@@ -102,6 +89,110 @@ func addrescapes(n *Node) {
 		if !n.Left.Type.IsSlice() {
 			addrescapes(n.Left)
 		}
+	}
+}
+
+// isParamStackCopy reports whether this is the on-stack copy of a
+// function parameter that moved to the heap.
+func (n *Node) isParamStackCopy() bool {
+	return n.Op == ONAME && (n.Class == PPARAM || n.Class == PPARAMOUT) && n.Name.Heapaddr != nil
+}
+
+// isParamHeapCopy reports whether this is the on-heap copy of
+// a function parameter that moved to the heap.
+func (n *Node) isParamHeapCopy() bool {
+	return n.Op == ONAME && n.Class == PAUTOHEAP && n.Name.Param.Stackcopy != nil
+}
+
+// paramClass reports the parameter class (PPARAM or PPARAMOUT)
+// of the node, which may be an unmoved on-stack parameter
+// or the on-heap or on-stack copy of a parameter that moved to the heap.
+// If the node is not a parameter, paramClass returns Pxxx.
+func (n *Node) paramClass() Class {
+	if n.Op != ONAME {
+		return Pxxx
+	}
+	if n.Class == PPARAM || n.Class == PPARAMOUT {
+		return n.Class
+	}
+	if n.isParamHeapCopy() {
+		return n.Name.Param.Stackcopy.Class
+	}
+	return Pxxx
+}
+
+// moveToHeap records the parameter or local variable n as moved to the heap.
+func moveToHeap(n *Node) {
+	if Debug['r'] != 0 {
+		Dump("MOVE", n)
+	}
+	if compiling_runtime {
+		Yyerror("%v escapes to heap, not allowed in runtime.", n)
+	}
+	if n.Class == PAUTOHEAP {
+		Dump("n", n)
+		Fatalf("double move to heap")
+	}
+
+	// Allocate a local stack variable to hold the pointer to the heap copy.
+	// temp will add it to the function declaration list automatically.
+	heapaddr := temp(Ptrto(n.Type))
+	heapaddr.Sym = Lookup("&" + n.Sym.Name)
+	heapaddr.Orig.Sym = heapaddr.Sym
+
+	// Parameters have a local stack copy used at function start/end
+	// in addition to the copy in the heap that may live longer than
+	// the function.
+	if n.Class == PPARAM || n.Class == PPARAMOUT {
+		if n.Xoffset == BADWIDTH {
+			Fatalf("addrescapes before param assignment")
+		}
+
+		// We rewrite n below to be a heap variable (indirection of heapaddr).
+		// Preserve a copy so we can still write code referring to the original,
+		// and substitute that copy into the function declaration list
+		// so that analyses of the local (on-stack) variables use it.
+		stackcopy := Nod(ONAME, nil, nil)
+		stackcopy.Sym = n.Sym
+		stackcopy.Type = n.Type
+		stackcopy.Xoffset = n.Xoffset
+		stackcopy.Class = n.Class
+		stackcopy.Name.Heapaddr = heapaddr
+		if n.Class == PPARAM {
+			stackcopy.SetNotLiveAtEnd(true)
+		}
+		n.Name.Param.Stackcopy = stackcopy
+
+		// Substitute the stackcopy into the function variable list so that
+		// liveness and other analyses use the underlying stack slot
+		// and not the now-pseudo-variable n.
+		found := false
+		for i, d := range Curfn.Func.Dcl {
+			if d == n {
+				Curfn.Func.Dcl[i] = stackcopy
+				found = true
+				break
+			}
+			// Parameters are before locals, so can stop early.
+			// This limits the search even in functions with many local variables.
+			if d.Class == PAUTO {
+				break
+			}
+		}
+		if !found {
+			Fatalf("cannot find %v in local variable list", n)
+		}
+		Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
+	}
+
+	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+	n.Class = PAUTOHEAP
+	n.Ullman = 2
+	n.Xoffset = 0
+	n.Name.Heapaddr = heapaddr
+	n.Esc = EscHeap
+	if Debug['m'] != 0 {
+		fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
 	}
 }
 
@@ -243,16 +334,9 @@ func cgen_dcl(n *Node) {
 		Fatalf("cgen_dcl")
 	}
 
-	if n.Class&PHEAP == 0 {
-		return
+	if n.Class == PAUTOHEAP {
+		Fatalf("cgen_dcl %v", n)
 	}
-	if compiling_runtime {
-		Yyerror("%v escapes to heap, not allowed in runtime.", n)
-	}
-	if prealloc[n] == nil {
-		prealloc[n] = callnew(n.Type)
-	}
-	Cgen_as(n.Name.Heapaddr, prealloc[n])
 }
 
 // generate discard of value
@@ -263,7 +347,7 @@ func cgen_discard(nr *Node) {
 
 	switch nr.Op {
 	case ONAME:
-		if nr.Class&PHEAP == 0 && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
+		if nr.Class != PAUTOHEAP && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
 			gused(nr)
 		}
 
@@ -908,11 +992,6 @@ func Cgen_as_wb(nl, nr *Node, wb bool) {
 	}
 
 	if nr == nil || iszero(nr) {
-		// heaps should already be clear
-		if nr == nil && (nl.Class&PHEAP != 0) {
-			return
-		}
-
 		tl := nl.Type
 		if tl == nil {
 			return

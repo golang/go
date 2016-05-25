@@ -1068,7 +1068,6 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		OIND,    // dst = *x
 		ODOTPTR, // dst = (*x).f
 		ONAME,
-		OPARAM,
 		ODDDARG,
 		OPTRLIT,
 		OARRAYLIT,
@@ -1835,20 +1834,20 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		}
 		if leaks {
 			src.Esc = EscHeap
-			addrescapes(src.Left)
 			if Debug['m'] != 0 && osrcesc != src.Esc {
 				p := src
 				if p.Left.Op == OCLOSURE {
 					p = p.Left // merely to satisfy error messages in tests
 				}
 				if Debug['m'] > 2 {
-					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
-						Nconv(p, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
+					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
+						Nconv(p, FmtShort), level, dst, dstE.Escloopdepth, modSrcLoopdepth)
 				} else {
 					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, FmtShort))
 					step.describe(src)
 				}
 			}
+			addrescapes(src.Left)
 			escwalkBody(e, level.dec(), dst, src.Left, e.stepWalk(dst, src.Left, why, step), modSrcLoopdepth)
 			extraloopdepth = modSrcLoopdepth // passes to recursive case, seems likely a no-op
 		} else {

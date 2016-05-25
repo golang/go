@@ -1408,8 +1408,8 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		switch n.Left.Class &^ PHEAP {
-		case PPARAM, PPARAMOUT, PAUTO:
+		switch n.Left.Class {
+		case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
 			// TODO(gri) when is this not PAUTO?
 			// Also, originally this didn't look like
 			// the default case. Investigate.

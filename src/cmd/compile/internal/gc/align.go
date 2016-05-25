@@ -55,12 +55,15 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 		f.Offset = o
 		if f.Nname != nil {
-			// this same stackparam logic is in addrescapes
-			// in typecheck.go.  usually addrescapes runs after
-			// widstruct, in which case we could drop this,
+			// addrescapes has similar code to update these offsets.
+			// Usually addrescapes runs after widstruct,
+			// in which case we could drop this,
 			// but function closure functions are the exception.
-			if f.Nname.Name.Param.Stackparam != nil {
-				f.Nname.Name.Param.Stackparam.Xoffset = o
+			// NOTE(rsc): This comment may be stale.
+			// It's possible the ordering has changed and this is
+			// now the common case. I'm not sure.
+			if f.Nname.Name.Param.Stackcopy != nil {
+				f.Nname.Name.Param.Stackcopy.Xoffset = o
 				f.Nname.Xoffset = 0
 			} else {
 				f.Nname.Xoffset = o

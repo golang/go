@@ -519,7 +519,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		ODOTPTR,
 		OINDEX,
 		OIND,
-		ONAME: // PHEAP or PPARAMREF var
+		ONAME: // PPARAMREF var
 		var n1 Node
 		Igen(n, &n1, res)
 
@@ -1579,7 +1579,7 @@ func Agen(n *Node, res *Node) {
 		}
 
 		// should only get here for heap vars or paramref
-		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
+		if n.Class != PPARAMREF {
 			Dump("bad agen", n)
 			Fatalf("agen: bad ONAME class %#x", n.Class)
 		}
@@ -1646,7 +1646,7 @@ func Igen(n *Node, a *Node, res *Node) {
 
 	switch n.Op {
 	case ONAME:
-		if (n.Class&PHEAP != 0) || n.Class == PPARAMREF {
+		if n.Class == PPARAMREF {
 			break
 		}
 		*a = *n

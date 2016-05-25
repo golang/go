@@ -1231,7 +1231,7 @@ func ullmancalc(n *Node) {
 	switch n.Op {
 	case OREGISTER, OLITERAL, ONAME:
 		ul = 1
-		if n.Class == PPARAMREF || (n.Class&PHEAP != 0) {
+		if n.Class == PPARAMREF || n.Class == PAUTOHEAP {
 			ul++
 		}
 		goto out
@@ -2257,6 +2257,7 @@ func isbadimport(path string) bool {
 }
 
 func checknil(x *Node, init *Nodes) {
+	x = walkexpr(x, nil) // caller has not done this yet
 	if x.Type.IsInterface() {
 		x = Nod(OITAB, x, nil)
 		x = typecheck(x, Erv)

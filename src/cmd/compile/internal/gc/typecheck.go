@@ -3099,7 +3099,7 @@ func islvalue(n *Node) bool {
 			return false
 		}
 		fallthrough
-	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
+	case OIND, ODOTPTR, OCLOSUREVAR:
 		return true
 
 	case ODOT:
