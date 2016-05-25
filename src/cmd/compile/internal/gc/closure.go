@@ -303,7 +303,7 @@ func transformclosure(xfunc *Node) {
 				continue
 			}
 			fld := newField()
-			fld.Funarg = true
+			fld.Funarg = FunargParams
 			if v.Name.Byval {
 				// If v is captured by value, we merely downgrade it to PPARAM.
 				v.Class = PPARAM
