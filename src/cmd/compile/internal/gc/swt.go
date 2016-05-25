@@ -352,22 +352,22 @@ func casebody(sw *Node, typeswvar *Node) {
 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
 
 		jmp := Nod(OGOTO, autolabel(".s"), nil)
-		if n.List.Len() == 0 {
+		switch n.List.Len() {
+		case 0:
+			// default
 			if def != nil {
 				Yyerror("more than one default case")
 			}
 			// reuse original default case
 			n.Right = jmp
 			def = n
-		}
-
-		if n.List.Len() == 1 {
+		case 1:
 			// one case -- reuse OCASE node
 			n.Left = n.List.First()
 			n.Right = jmp
 			n.List.Set(nil)
 			cas = append(cas, n)
-		} else {
+		default:
 			// expand multi-valued cases
 			for _, n1 := range n.List.Slice() {
 				cas = append(cas, Nod(OCASE, n1, jmp))
