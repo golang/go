@@ -2569,16 +2569,16 @@ func vmatch1(l *Node, r *Node) bool {
 // and to copy non-result prameters' values from the stack.
 // If out is true, then code is also produced to zero-initialize their
 // stack memory addresses.
-func paramstoheap(params *Type, out bool) []*Node {
+func paramstoheap(params *Type) []*Node {
 	var nn []*Node
 	for _, t := range params.Fields().Slice() {
 		// For precise stacks, the garbage collector assumes results
 		// are always live, so zero them always.
-		if out {
+		if params.StructType().Funarg == FunargResults {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = append(nn, Nod(OAS, nodarg(t, -1), nil))
+			nn = append(nn, Nod(OAS, nodarg(t, 1), nil))
 		}
 
 		v := t.Nname
@@ -2623,9 +2623,9 @@ func returnsfromheap(params *Type) []*Node {
 func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
-	nn := paramstoheap(Curfn.Type.Recvs(), false)
-	nn = append(nn, paramstoheap(Curfn.Type.Params(), false)...)
-	nn = append(nn, paramstoheap(Curfn.Type.Results(), true)...)
+	nn := paramstoheap(Curfn.Type.Recvs())
+	nn = append(nn, paramstoheap(Curfn.Type.Params())...)
+	nn = append(nn, paramstoheap(Curfn.Type.Results())...)
 	Curfn.Func.Enter.Append(nn...)
 	lineno = Curfn.Func.Endlineno
 	Curfn.Func.Exit.Append(returnsfromheap(Curfn.Type.Results())...)

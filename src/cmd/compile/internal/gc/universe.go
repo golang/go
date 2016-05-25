@@ -362,16 +362,16 @@ func lexinit1() {
 	// t = interface { Error() string }
 
 	rcvr := typ(TSTRUCT)
-	rcvr.StructType().Funarg = true
+	rcvr.StructType().Funarg = FunargRcvr
 	field := newField()
 	field.Type = Ptrto(typ(TSTRUCT))
 	rcvr.SetFields([]*Field{field})
 
 	in := typ(TSTRUCT)
-	in.StructType().Funarg = true
+	in.StructType().Funarg = FunargParams
 
 	out := typ(TSTRUCT)
-	out.StructType().Funarg = true
+	out.StructType().Funarg = FunargResults
 	field = newField()
 	field.Type = Types[TSTRING]
 	out.SetFields([]*Field{field})

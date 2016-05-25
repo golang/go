@@ -1659,7 +1659,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 		}
 
 		if s != nil && f.Embedded == 0 {
-			if f.Funarg {
+			if f.Funarg != FunargNone {
 				name = Nconv(f.Nname, 0)
 			} else if flag&FmtLong != 0 {
 				name = sconv(s, FmtShort|FmtByte) // qualify non-exported names (used on structs, not on funarg)
@@ -1692,7 +1692,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	// (The escape analysis tags do not apply to func vars.)
 	// But it must not suppress struct field tags.
 	// See golang.org/issue/13777 and golang.org/issue/14331.
-	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != "" {
+	if flag&FmtShort == 0 && (!fmtbody || f.Funarg == FunargNone) && f.Note != "" {
 		str += " " + strconv.Quote(f.Note)
 	}
 
