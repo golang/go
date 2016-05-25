@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Binary package import.
-// Based loosely on x/tools/go/importer.
+// See bexport.go for the export data format and how
+// to make a format change.
 
 package gc
 

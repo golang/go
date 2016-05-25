@@ -6,7 +6,7 @@
 // (see fmt.go, parser.go as "documentation" for how to use/setup data structures)
 
 /*
-Export data encoding:
+1) Export data encoding principles:
 
 The export data is a serialized description of the graph of exported
 "objects": constants, types, variables, and functions. In general,
@@ -49,7 +49,7 @@ Before exporting or importing, the type tables are populated with the
 predeclared types (int, string, error, unsafe.Pointer, etc.). This way
 they are automatically encoded with a known and fixed type index.
 
-Encoding format:
+2) Encoding format:
 
 The export data starts with a single byte indicating the encoding format
 (compact, or with debugging information), followed by a version string
@@ -84,6 +84,43 @@ each encoding routine there is a matching and symmetric decoding routine.
 This symmetry makes it very easy to change or extend the format: If a new
 field needs to be encoded, a symmetric change can be made to exporter and
 importer.
+
+3) Making changes to the encoding format:
+
+Any change to the encoding format requires a respective change in the
+exporter below and a corresponding symmetric change to the importer in
+bimport.go.
+
+Furthermore, it requires a corresponding change to go/internal/gcimporter
+and golang.org/x/tools/go/gcimporter15. Changes to the latter must preserve
+compatibility with both the last release of the compiler, and with the
+corresponding compiler at tip. That change is necessarily more involved,
+as it must switch based on the version number in the export data file.
+
+It is recommended to turn on debugFormat when working on format changes
+as it will help finding encoding/decoding inconsistencies quickly.
+
+Special care must be taken to update builtin.go when the export format
+changes: builtin.go contains the export data obtained by compiling the
+builtin/runtime.go and builtin/unsafe.go files; those compilations in
+turn depend on importing the data in builtin.go. Thus, when the export
+data format changes, the compiler must be able to import the data in
+builtin.go even if its format has not yet changed. Proceed in several
+steps as follows:
+
+- Change the exporter to use the new format, and use a different version
+  string as well.
+- Update the importer accordingly, but accept both the old and the new
+  format depending on the version string.
+- all.bash should pass at this point.
+- Run mkbuiltin.go: this will create a new builtin.go using the new
+  export format.
+- go test -run Builtin should pass at this point.
+- Remove importer support for the old export format and (maybe) revert
+  the version string again (it's only needed to mark the transition).
+- all.bash should still pass.
+
+Don't forget to set debugFormat to false.
 */
 
 package gc
