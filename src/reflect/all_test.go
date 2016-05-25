@@ -5722,3 +5722,18 @@ func TestTypeStrings(t *testing.T) {
 		}
 	}
 }
+
+func TestOffsetLock(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			for j := 0; j < 50; j++ {
+				ResolveReflectName(fmt.Sprintf("OffsetLockName:%d:%d", i, j))
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
