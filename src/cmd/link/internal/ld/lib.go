@@ -1142,7 +1142,7 @@ func hostlink() {
 			// back to ld.bfd. So we parse the version information
 			// and provide a useful error if gold is missing.
 			cmd := exec.Command(extld, "-fuse-ld=gold", "-Wl,--version")
-			if out, err := cmd.CombinedOutput(); err != nil {
+			if out, err := cmd.CombinedOutput(); err == nil {
 				if !bytes.Contains(out, []byte("GNU gold")) {
 					log.Fatalf("ARM external linker must be gold (issue #15696), but is not: %s", out)
 				}
