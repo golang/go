@@ -405,7 +405,7 @@ func Complexgen(n *Node, res *Node) {
 		ODOTPTR,
 		OINDEX,
 		OIND,
-		ONAME, // PHEAP or PPARAMREF var
+		ONAME, // PPARAMREF var
 		OCALLFUNC,
 		OCALLMETH,
 		OCALLINTER:

@@ -165,23 +165,15 @@ func buildssa(fn *Node) *ssa.Func {
 				s.ptrargs = append(s.ptrargs, n)
 				n.SetNotLiveAtEnd(true) // SSA takes care of this explicitly
 			}
-		case PAUTO | PHEAP:
-			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
-			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
-		case PPARAM | PHEAP, PPARAMOUT | PHEAP:
-		// This ends up wrong, have to do it at the PARAM node instead.
 		case PAUTO:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
+		case PAUTOHEAP:
+			// moved to heap - already handled by frontend
 		case PFUNC:
 			// local function - already handled by frontend
 		default:
-			str := ""
-			if n.Class&PHEAP != 0 {
-				str = ",heap"
-			}
-			s.Unimplementedf("local variable with class %s%s unimplemented", classnames[n.Class&^PHEAP], str)
+			s.Unimplementedf("local variable with class %s unimplemented", classnames[n.Class])
 		}
 	}
 
@@ -294,7 +286,7 @@ type state struct {
 	// list of FwdRef values.
 	fwdRefs []*ssa.Value
 
-	// list of PPARAMOUT (return) variables. Does not include PPARAM|PHEAP vars.
+	// list of PPARAMOUT (return) variables.
 	returns []*Node
 
 	// list of PPARAM SSA-able pointer-shaped args. We ensure these are live
@@ -593,24 +585,9 @@ func (s *state) stmt(n *Node) {
 		return
 
 	case ODCL:
-		if n.Left.Class&PHEAP == 0 {
-			return
+		if n.Left.Class == PAUTOHEAP {
+			Fatalf("DCL %v", n)
 		}
-		if compiling_runtime {
-			Fatalf("%v escapes to heap, not allowed in runtime.", n)
-		}
-
-		// TODO: the old pass hides the details of PHEAP
-		// variables behind ONAME nodes. Figure out if it's better
-		// to rewrite the tree and make the heapaddr construct explicit
-		// or to keep this detail hidden behind the scenes.
-		palloc := prealloc[n.Left]
-		if palloc == nil {
-			palloc = callnew(n.Left.Type)
-			prealloc[n.Left] = palloc
-		}
-		r := s.expr(palloc)
-		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno, 0)
 
 	case OLABEL:
 		sym := n.Left.Sym
@@ -1451,9 +1428,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OCFUNC:
 		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
-	case OPARAM:
-		addr := s.addr(n, false)
-		return s.newValue2(ssa.OpLoad, n.Left.Type, addr, s.mem())
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
@@ -2749,10 +2723,10 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			// that cse works on their addresses
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
-		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
+		case PPARAMREF:
 			return s.expr(n.Name.Heapaddr)
 		default:
-			s.Unimplementedf("variable address class %v not implemented", n.Class)
+			s.Unimplementedf("variable address class %v not implemented", classnames[n.Class])
 			return nil
 		}
 	case OINDREG:
@@ -2795,17 +2769,6 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 	case OCLOSUREVAR:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
 			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])))
-	case OPARAM:
-		p := n.Left
-		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
-			s.Fatalf("OPARAM not of ONAME,{PPARAM,PPARAMOUT}|PHEAP, instead %s", nodedump(p, 0))
-		}
-
-		// Recover original offset to address passed-in param value.
-		original_p := *p
-		original_p.Xoffset = n.Xoffset
-		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
-		return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
 	case OCONVNOP:
 		addr := s.addr(n.Left, bounded)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
@@ -2833,8 +2796,11 @@ func (s *state) canSSA(n *Node) bool {
 	if n.Addrtaken {
 		return false
 	}
-	if n.Class&PHEAP != 0 {
+	if n.isParamHeapCopy() {
 		return false
+	}
+	if n.Class == PAUTOHEAP {
+		Fatalf("canSSA of PAUTOHEAP %v", n)
 	}
 	switch n.Class {
 	case PEXTERN, PPARAMREF:

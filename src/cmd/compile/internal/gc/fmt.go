@@ -218,6 +218,7 @@ var classnames = []string{
 	"Pxxx",
 	"PEXTERN",
 	"PAUTO",
+	"PAUTOHEAP",
 	"PPARAM",
 	"PPARAMOUT",
 	"PPARAMREF",
@@ -251,14 +252,10 @@ func jconv(n *Node, flag FmtFlag) string {
 	}
 
 	if n.Class != 0 {
-		s := ""
-		if n.Class&PHEAP != 0 {
-			s = ",heap"
-		}
-		if int(n.Class&^PHEAP) < len(classnames) {
-			fmt.Fprintf(&buf, " class(%s%s)", classnames[n.Class&^PHEAP], s)
+		if int(n.Class) < len(classnames) {
+			fmt.Fprintf(&buf, " class(%s)", classnames[n.Class])
 		} else {
-			fmt.Fprintf(&buf, " class(%d?%s)", n.Class&^PHEAP, s)
+			fmt.Fprintf(&buf, " class(%d?)", n.Class)
 		}
 	}
 
@@ -798,8 +795,8 @@ func stmtfmt(n *Node) string {
 	switch n.Op {
 	case ODCL:
 		if fmtmode == FExp {
-			switch n.Left.Class &^ PHEAP {
-			case PPARAM, PPARAMOUT, PAUTO:
+			switch n.Left.Class {
+			case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
 				f += fmt.Sprintf("var %v %v", n.Left, n.Left.Type)
 				goto ret
 			}

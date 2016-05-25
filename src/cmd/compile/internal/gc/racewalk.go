@@ -419,7 +419,6 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	case OPRINT, // don't bother instrumenting it
 		OPRINTN,     // don't bother instrumenting it
 		OCHECKNIL,   // always followed by a read.
-		OPARAM,      // it appears only in fn->exit to copy heap params back
 		OCLOSUREVAR, // immutable pointer to captured variable
 		ODOTMETH,    // either part of CALLMETH or CALLPART (lowered to PTRLIT)
 		OINDREG,     // at this stage, only n(SP) nodes from nodarg
@@ -496,7 +495,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 	// e.g. if we've got a local variable/method receiver
 	// that has got a pointer inside. Whether it points to
 	// the heap or not is impossible to know at compile time
-	if (class&PHEAP != 0) || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
+	if class == PAUTOHEAP || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
 		hascalls := 0
 		foreach(n, hascallspred, &hascalls)
 		if hascalls != 0 {

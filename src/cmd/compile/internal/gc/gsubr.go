@@ -53,7 +53,6 @@ func Ismem(n *Node) bool {
 		OCAP,
 		OINDREG,
 		ONAME,
-		OPARAM,
 		OCLOSUREVAR:
 		return true
 
@@ -348,18 +347,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
 			a.Width = 0
 		}
-
-		// n->left is PHEAP ONAME for stack parameter.
-	// compute address of actual parameter on stack.
-	case OPARAM:
-		a.Etype = uint8(Simtype[n.Left.Type.Etype])
-
-		a.Width = n.Left.Type.Width
-		a.Offset = n.Xoffset
-		a.Sym = Linksym(n.Left.Sym)
-		a.Type = obj.TYPE_MEM
-		a.Name = obj.NAME_PARAM
-		a.Node = n.Left.Orig
 
 	case OCLOSUREVAR:
 		if !Curfn.Func.Needctxt {

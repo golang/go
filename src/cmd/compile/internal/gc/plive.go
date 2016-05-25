@@ -203,6 +203,14 @@ func getvariables(fn *Node) []*Node {
 	var result []*Node
 	for _, ln := range fn.Func.Dcl {
 		if ln.Op == ONAME {
+			switch ln.Class {
+			case PAUTO, PPARAM, PPARAMOUT, PFUNC, PAUTOHEAP:
+				// ok
+			default:
+				Dump("BAD NODE", ln)
+				Fatalf("getvariables")
+			}
+
 			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
 			// to contain information about all variables covered by the bitmap.
 			// For local variables, the bitmap only covers the stkptrsize
@@ -567,7 +575,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		// read the out arguments - they won't be set until the new
 		// function runs.
 		for i, node := range vars {
-			switch node.Class &^ PHEAP {
+			switch node.Class {
 			case PPARAM:
 				if !node.NotLiveAtEnd() {
 					bvset(uevar, int32(i))
@@ -595,7 +603,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		// A text instruction marks the entry point to a function and
 		// the definition point of all in arguments.
 		for i, node := range vars {
-			switch node.Class &^ PHEAP {
+			switch node.Class {
 			case PPARAM:
 				if node.Addrtaken {
 					bvset(avarinit, int32(i))
@@ -610,23 +618,24 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
 		from := &prog.From
 		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
-			switch ((from.Node).(*Node)).Class &^ PHEAP {
+			switch ((from.Node).(*Node)).Class {
 			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := from.Node.(*Node).Opt().(int32) // index in vars
+				n := from.Node.(*Node).Orig // orig needed for certain nodarg results
+				pos, ok := n.Opt().(int32) // index in vars
 				if !ok {
 					break
 				}
-				if pos >= int32(len(vars)) || vars[pos] != from.Node {
-					Fatalf("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
+				if pos >= int32(len(vars)) || vars[pos] != n {
+					Fatalf("bad bookkeeping in liveness %v %d", Nconv(n, 0), pos)
 				}
-				if ((from.Node).(*Node)).Addrtaken {
+				if n.Addrtaken {
 					bvset(avarinit, pos)
 				} else {
 					if prog.Info.Flags&(LeftRead|LeftAddr) != 0 {
 						bvset(uevar, pos)
 					}
 					if prog.Info.Flags&LeftWrite != 0 {
-						if from.Node != nil && !Isfat(((from.Node).(*Node)).Type) {
+						if !Isfat(n.Type) {
 							bvset(varkill, pos)
 						}
 					}
@@ -638,16 +647,17 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
 		to := &prog.To
 		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
-			switch ((to.Node).(*Node)).Class &^ PHEAP {
+			switch ((to.Node).(*Node)).Class {
 			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := to.Node.(*Node).Opt().(int32) // index in vars
+				n := to.Node.(*Node).Orig // orig needed for certain nodarg results
+				pos, ok := n.Opt().(int32) // index in vars
 				if !ok {
 					return
 				}
-				if pos >= int32(len(vars)) || vars[pos] != to.Node {
-					Fatalf("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
+				if pos >= int32(len(vars)) || vars[pos] != n {
+					Fatalf("bad bookkeeping in liveness %v %d", Nconv(n, 0), pos)
 				}
-				if ((to.Node).(*Node)).Addrtaken {
+				if n.Addrtaken {
 					if prog.As != obj.AVARKILL {
 						bvset(avarinit, pos)
 					}
@@ -667,7 +677,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 						bvset(uevar, pos)
 					}
 					if prog.Info.Flags&RightWrite != 0 {
-						if to.Node != nil && (!Isfat(((to.Node).(*Node)).Type) || prog.As == obj.AVARDEF) {
+						if !Isfat(n.Type) || prog.As == obj.AVARDEF {
 							bvset(varkill, pos)
 						}
 					}
@@ -814,8 +824,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 		return
 	}
 	for _, a := range fn.Func.Dcl {
-		class := a.Class &^ PHEAP
-		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
+		if a.Op == ONAME && (a.Class == PPARAM || a.Class == PPARAMOUT) && a == n {
 			return
 		}
 	}

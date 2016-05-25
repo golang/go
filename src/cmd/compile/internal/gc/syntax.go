@@ -143,7 +143,7 @@ func (n *Node) SetOpt(x interface{}) {
 	n.E = x
 }
 
-// Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
+// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, ODCLFIELD, some OLITERAL).
 type Name struct {
 	Pack      *Node // real package for import . names
 	Pkg       *Pkg  // pkg for OPACK nodes
@@ -151,7 +151,7 @@ type Name struct {
 	Inlvar    *Node // ONAME substitute while inlining
 	Defn      *Node // initializing assignment
 	Curfn     *Node // function for local variables
-	Param     *Param
+	Param     *Param // additional fields for ONAME, ODCLFIELD
 	Decldepth int32 // declaration loop depth, increased for every loop or label
 	Vargen    int32 // unique name for ONAME within a function.  Function outputs are numbered starting at one.
 	Iota      int32 // value if this name is iota
@@ -167,16 +167,16 @@ type Name struct {
 type Param struct {
 	Ntype *Node
 
-	// ONAME func param with PHEAP
-	Outerexpr  *Node // expression copied into closure for variable
-	Stackparam *Node // OPARAM node referring to stack copy of param
+	// ONAME PAUTOHEAP
+	Outerexpr *Node // expression copied into closure for variable
+	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
 
 	// ONAME PPARAM
 	Field *Field // TFIELD in arg struct
 
 	// ONAME closure param with PPARAMREF
 	Outer   *Node // outer PPARAMREF in nested closure
-	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
+	Closure *Node // ONAME/PAUTOHEAP <-> ONAME/PPARAMREF
 }
 
 // Func holds Node fields used only with function-like nodes.
@@ -292,7 +292,7 @@ const (
 	OINDEX     // Left[Right] (index of array or slice)
 	OINDEXMAP  // Left[Right] (index of map)
 	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
-	OPARAM     // variant of ONAME for on-stack copy of a parameter or return value that escapes.
+	_          // was OPARAM, but cannot remove without breaking binary blob in builtin.go
 	OLEN       // len(Left)
 	OMAKE      // make(List) (before type checking converts to one of the following)
 	OMAKECHAN  // make(Type, Left) (type is chan)
