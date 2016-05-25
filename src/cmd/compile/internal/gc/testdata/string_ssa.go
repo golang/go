@@ -111,6 +111,67 @@ func testSmallIndexType() {
 }
 
 //go:noinline
+func testInt64Index_ssa(s string, i int64) byte {
+	return s[i]
+}
+
+//go:noinline
+func testInt64Slice_ssa(s string, i, j int64) string {
+	return s[i:j]
+}
+
+func testInt64Index() {
+	tests := []struct {
+		i int64
+		j int64
+		b byte
+		s string
+	}{
+		{0, 5, 'B', "Below"},
+		{5, 10, 'E', "Exact"},
+		{10, 15, 'A', "Above"},
+	}
+
+	str := "BelowExactAbove"
+	for i, t := range tests {
+		if got := testInt64Index_ssa(str, t.i); got != t.b {
+			println("#", i, "got ", got, ", wanted", t.b)
+			failed = true
+		}
+		if got := testInt64Slice_ssa(str, t.i, t.j); got != t.s {
+			println("#", i, "got ", got, ", wanted", t.s)
+			failed = true
+		}
+	}
+}
+
+func testInt64IndexPanic() {
+	defer func() {
+		if r := recover(); r != nil {
+			println("paniced as expected")
+		}
+	}()
+
+	str := "foobar"
+	println("got ", testInt64Index_ssa(str, 1<<32+1))
+	println("expected to panic, but didn't")
+	failed = true
+}
+
+func testInt64SlicePanic() {
+	defer func() {
+		if r := recover(); r != nil {
+			println("paniced as expected")
+		}
+	}()
+
+	str := "foobar"
+	println("got ", testInt64Slice_ssa(str, 1<<32, 1<<32+1))
+	println("expected to panic, but didn't")
+	failed = true
+}
+
+//go:noinline
 func testStringElem_ssa(s string, i int) byte {
 	return s[i]
 }
@@ -153,6 +214,9 @@ func main() {
 	testSmallIndexType()
 	testStringElem()
 	testStringElemConst()
+	testInt64Index()
+	testInt64IndexPanic()
+	testInt64SlicePanic()
 
 	if failed {
 		panic("failed")

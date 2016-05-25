@@ -31,6 +31,20 @@
 
 (Mul32uhilo x y) -> (MULLU x y)
 
+(Div32 x y) -> (DIV x y)
+(Div32u x y) -> (DIVU x y)
+(Div16 x y) -> (DIV (SignExt16to32 x) (SignExt16to32 y))
+(Div16u x y) -> (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
+(Div8 x y) -> (DIV (SignExt8to32 x) (SignExt8to32 y))
+(Div8u x y) -> (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
+
+(Mod32 x y) -> (MOD x y)
+(Mod32u x y) -> (MODU x y)
+(Mod16 x y) -> (MOD (SignExt16to32 x) (SignExt16to32 y))
+(Mod16u x y) -> (MODU (ZeroExt16to32 x) (ZeroExt16to32 y))
+(Mod8 x y) -> (MOD (SignExt8to32 x) (SignExt8to32 y))
+(Mod8u x y) -> (MODU (ZeroExt8to32 x) (ZeroExt8to32 y))
+
 (And32 x y) -> (AND x y)
 (And16 x y) -> (AND x y)
 (And8 x y) -> (AND x y)
@@ -277,6 +291,9 @@
 (Select0 <t> x) && t.IsFlags() -> (Carry x)
 (Select0 <t> x) && !t.IsFlags() -> (LoweredSelect0 x)
 (Select1 x) -> (LoweredSelect1 x)
+
+(GetClosurePtr) -> (LoweredGetClosurePtr)
+(Convert x mem) -> (MOVWconvert x mem)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)

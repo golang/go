@@ -332,6 +332,10 @@ const (
 	OpARMMUL
 	OpARMHMUL
 	OpARMHMULU
+	OpARMDIV
+	OpARMDIVU
+	OpARMMOD
+	OpARMMODU
 	OpARMADDS
 	OpARMADC
 	OpARMSUBS
@@ -399,6 +403,8 @@ const (
 	OpARMDUFFCOPY
 	OpARMLoweredZero
 	OpARMLoweredMove
+	OpARMLoweredGetClosurePtr
+	OpARMMOVWconvert
 
 	OpAdd8
 	OpAdd16
@@ -4009,6 +4015,66 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "DIV",
+		argLen: 2,
+		asm:    arm.ADIV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "DIVU",
+		argLen: 2,
+		asm:    arm.ADIVU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOD",
+		argLen: 2,
+		asm:    arm.AMOD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MODU",
+		argLen: 2,
+		asm:    arm.AMODU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 65536, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:        "ADDS",
 		argLen:      2,
 		commutative: true,
@@ -4618,7 +4684,7 @@ var opcodeTable = [...]opInfo{
 		auxType: auxSymOff,
 		argLen:  1,
 		reg: regInfo{
-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
 		},
 	},
 	{
@@ -4630,7 +4696,7 @@ var opcodeTable = [...]opInfo{
 				{1, 128},   // R7
 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
 			},
-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
 		},
 	},
 	{
@@ -4638,7 +4704,7 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		reg: regInfo{
-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
 		},
 	},
 	{
@@ -4646,7 +4712,7 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		reg: regInfo{
-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
 		},
 	},
 	{
@@ -4657,7 +4723,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
 		},
 	},
 	{
@@ -4879,6 +4945,28 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			clobbers: 65542, // R1 R2 FLAGS
+		},
+	},
+	{
+		name:   "LoweredGetClosurePtr",
+		argLen: 0,
+		reg: regInfo{
+			outputs: []regMask{
+				128, // R7
+			},
+		},
+	},
+	{
+		name:   "MOVWconvert",
+		argLen: 2,
+		asm:    arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
 		},
 	},
 

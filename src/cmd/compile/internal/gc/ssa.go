@@ -1945,7 +1945,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case n.Left.Type.IsString():
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i)
+			i = s.extendIndex(i, Panicindex)
 			if !n.Bounded {
 				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
 				s.boundsCheck(i, len)
@@ -2034,13 +2034,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		var i, j, k *ssa.Value
 		low, high, max := n.SliceBounds()
 		if low != nil {
-			i = s.extendIndex(s.expr(low))
+			i = s.extendIndex(s.expr(low), panicslice)
 		}
 		if high != nil {
-			j = s.extendIndex(s.expr(high))
+			j = s.extendIndex(s.expr(high), panicslice)
 		}
 		if max != nil {
-			k = s.extendIndex(s.expr(max))
+			k = s.extendIndex(s.expr(max), panicslice)
 		}
 		p, l, c := s.slice(n.Left.Type, v, i, j, k)
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
@@ -2050,10 +2050,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		var i, j *ssa.Value
 		low, high, _ := n.SliceBounds()
 		if low != nil {
-			i = s.extendIndex(s.expr(low))
+			i = s.extendIndex(s.expr(low), panicslice)
 		}
 		if high != nil {
-			j = s.extendIndex(s.expr(high))
+			j = s.extendIndex(s.expr(high), panicslice)
 		}
 		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
@@ -2743,7 +2743,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i)
+			i = s.extendIndex(i, Panicindex)
 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
 			if !n.Bounded {
 				s.boundsCheck(i, len)
@@ -2753,7 +2753,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		} else { // array
 			a := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i)
+			i = s.extendIndex(i, Panicindex)
 			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
 			if !n.Bounded {
 				s.boundsCheck(i, len)
@@ -2894,12 +2894,11 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
 // Starts a new block on return.
+// idx is already converted to full int width.
 func (s *state) boundsCheck(idx, len *ssa.Value) {
 	if Debug['B'] != 0 {
 		return
 	}
-	// TODO: convert index to full width?
-	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
 
 	// bounds check
 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
@@ -2908,19 +2907,18 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 
 // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
 // Starts a new block on return.
+// idx and len are already converted to full int width.
 func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 	if Debug['B'] != 0 {
 		return
 	}
-	// TODO: convert index to full width?
-	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
 
 	// bounds check
 	cmp := s.newValue2(ssa.OpIsSliceInBounds, Types[TBOOL], idx, len)
 	s.check(cmp, panicslice)
 }
 
-// If cmp (a bool) is true, panic using the given function.
+// If cmp (a bool) is false, panic using the given function.
 func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
@@ -4134,16 +4132,21 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 }
 
 // extendIndex extends v to a full int width.
-func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
+// panic using the given function if v does not fit in an int (only on 32-bit archs).
+func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
 	size := v.Type.Size()
 	if size == s.config.IntSize {
 		return v
 	}
 	if size > s.config.IntSize {
-		// TODO: truncate 64-bit indexes on 32-bit pointer archs. We'd need to test
-		// the high word and branch to out-of-bounds failure if it is not 0.
-		s.Unimplementedf("64->32 index truncation not implemented")
-		return v
+		// truncate 64-bit indexes on 32-bit pointer archs. Test the
+		// high word and branch to out-of-bounds failure if it is not 0.
+		if Debug['B'] == 0 {
+			hi := s.newValue1(ssa.OpInt64Hi, Types[TUINT32], v)
+			cmp := s.newValue2(ssa.OpEq32, Types[TBOOL], hi, s.constInt32(Types[TUINT32], 0))
+			s.check(cmp, panicfn)
+		}
+		return s.newValue1(ssa.OpTrunc64to32, Types[TINT], v)
 	}
 
 	// Extend value to the required size

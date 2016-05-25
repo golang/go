@@ -73,7 +73,7 @@ func init() {
 		gpsp       = gp | buildReg("SP")
 		gpspsb     = gpsp | buildReg("SB")
 		flags      = buildReg("FLAGS")
-		callerSave = gp
+		callerSave = gp | flags
 	)
 	// Common regInfo
 	var (
@@ -101,6 +101,10 @@ func init() {
 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
 		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
 		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+		{name: "DIV", argLength: 2, reg: gp21cf, asm: "DIV"},                      // arg0 / arg1, signed, soft div clobbers flags
+		{name: "DIVU", argLength: 2, reg: gp21cf, asm: "DIVU"},                    // arg0 / arg1, unsighed
+		{name: "MOD", argLength: 2, reg: gp21cf, asm: "MOD"},                      // arg0 % arg1, signed
+		{name: "MODU", argLength: 2, reg: gp21cf, asm: "MODU"},                    // arg0 % arg1, unsigned
 
 		{name: "ADDS", argLength: 2, reg: gp21cf, asm: "ADD", commutative: true},   // arg0 + arg1, set carry flag
 		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true}, // arg0 + arg1 + carry, arg2=flags
@@ -251,6 +255,18 @@ func init() {
 				clobbers: buildReg("R1 R2 FLAGS"),
 			},
 		},
+
+		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+		// and sorts it to the very beginning of the block to prevent other
+		// use of R7 (arm.REGCTXT, the closure pointer)
+		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}},
+
+		// MOVWconvert converts between pointers and integers.
+		// We have a special op for this so as to not confuse GC
+		// (particularly stack maps).  It takes a memory arg so it
+		// gets correctly ordered with respect to GC safepoints.
+		// arg0=ptr/int arg1=mem, output=int/ptr
+		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
 	}
 
 	blocks := []blockData{
