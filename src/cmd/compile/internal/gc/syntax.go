@@ -425,7 +425,7 @@ const (
 	// statements
 	OBLOCK    // { List } (block of code)
 	OBREAK    // break
-	OCASE     // case List: Nbody (select case after processing; List==nil means default)
+	OCASE     // case Left: Nbody (select case after processing; Left==nil means default)
 	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
 	OCONTINUE // continue
 	ODEFER    // defer Left (Left must be call)
