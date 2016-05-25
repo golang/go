@@ -1428,6 +1428,47 @@ func TestGoRootPrefixOfGoPath(t *testing.T) {
 
 }
 
+const testGlobalImportsUsesGlobal = `package globalimporttest
+
+func doSomething() {
+	t := time.Now()
+}
+`
+
+const testGlobalImportsGlobalDecl = `package globalimporttest
+
+type Time struct{}
+
+func (t Time) Now() Time {
+	return Time{}
+}
+
+var time Time
+`
+
+// Tests that package global variables with the same name and function name as
+// a function in a separate package do not result in an import which masks
+// the global variable
+func TestGlobalImports(t *testing.T) {
+	const pkg = "globalimporttest"
+	const usesGlobalFile = pkg + "/uses_global.go"
+	testConfig{
+		gopathFiles: map[string]string{
+			usesGlobalFile:     testGlobalImportsUsesGlobal,
+			pkg + "/global.go": testGlobalImportsGlobalDecl,
+		},
+	}.test(t, func(t *goimportTest) {
+		buf, err := Process(
+			t.gopath+"/src/"+usesGlobalFile, []byte(testGlobalImportsUsesGlobal), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != testGlobalImportsUsesGlobal {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, testGlobalImportsUsesGlobal)
+		}
+	})
+}
+
 func strSet(ss []string) map[string]bool {
 	m := make(map[string]bool)
 	for _, s := range ss {
