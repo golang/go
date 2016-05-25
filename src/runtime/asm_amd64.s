@@ -1787,7 +1787,7 @@ partial_success9to15:
 	JB loop9to15
 	JMP fail
 _16_or_more:
-	CMPQ AX, $17
+	CMPQ AX, $16
 	JA   _17_to_31
 	MOVOU (BP), X1
 	LEAQ -15(DI)(DX*1), DX
@@ -1801,7 +1801,6 @@ loop16:
 	CMPQ DI,DX
 	JB loop16
 	JMP fail
-//TODO: the code below is wrong.  Fix it.  See #15679.
 _17_to_31:
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX
