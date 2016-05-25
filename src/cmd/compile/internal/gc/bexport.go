@@ -1488,19 +1488,18 @@ func (p *exporter) stmt(n *Node) {
 		p.stmtList(n.List)
 		p.stmtList(n.Nbody)
 
-	case OFALL:
-		op = OXFALL
-		fallthrough
+	case OFALL, OXFALL:
+		p.op(OXFALL)
 
-	case OBREAK, OCONTINUE, OGOTO, OXFALL:
+	case OBREAK, OCONTINUE:
 		p.op(op)
 		p.exprsOrNil(n.Left, nil)
 
 	case OEMPTY:
 		// nothing to emit
 
-	case OLABEL:
-		p.op(OLABEL)
+	case OGOTO, OLABEL:
+		p.op(op)
 		p.expr(n.Left)
 
 	default:
