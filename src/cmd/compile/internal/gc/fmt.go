@@ -886,9 +886,16 @@ func stmtfmt(n *Node) string {
 
 		f += fmt.Sprintf(" { %v }", n.List)
 
-	case OCASE, OXCASE:
+	case OXCASE:
 		if n.List.Len() != 0 {
 			f += fmt.Sprintf("case %v: %v", hconv(n.List, FmtComma), n.Nbody)
+		} else {
+			f += fmt.Sprintf("default: %v", n.Nbody)
+		}
+
+	case OCASE:
+		if n.Left != nil {
+			f += fmt.Sprintf("case %v: %v", n.Left, n.Nbody)
 		} else {
 			f += fmt.Sprintf("default: %v", n.Nbody)
 		}
