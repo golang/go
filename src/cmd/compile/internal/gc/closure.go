@@ -313,7 +313,7 @@ func transformclosure(xfunc *Node) {
 			} else {
 				// If v of type T is captured by reference,
 				// we introduce function param &v *T
-				// and v remains PPARAMREF with &v heapaddr
+				// and v remains PAUTOHEAP with &v heapaddr
 				// (accesses will implicitly deref &v).
 				addr := newname(Lookupf("&%s", v.Sym.Name))
 				addr.Type = Ptrto(v.Type)

@@ -43,9 +43,8 @@ func addrescapes(n *Node) {
 			break
 		}
 
-		// A PPARAMREF is a closure reference.
-		// Mark the thing it refers to as escaping.
-		if n.Class == PPARAMREF {
+		// If a closure reference escapes, mark the outer variable as escaping.
+		if n.isClosureParam() {
 			addrescapes(n.Name.Defn)
 			break
 		}
@@ -347,7 +346,7 @@ func cgen_discard(nr *Node) {
 
 	switch nr.Op {
 	case ONAME:
-		if nr.Class != PAUTOHEAP && nr.Class != PEXTERN && nr.Class != PFUNC && nr.Class != PPARAMREF {
+		if nr.Class != PAUTOHEAP && nr.Class != PEXTERN && nr.Class != PFUNC {
 			gused(nr)
 		}
 

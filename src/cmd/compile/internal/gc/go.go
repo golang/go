@@ -94,7 +94,6 @@ const (
 	PAUTOHEAP       // local variable or parameter moved to heap
 	PPARAM          // input arguments
 	PPARAMOUT       // output results
-	PPARAMREF       // closure variable reference
 	PFUNC           // global function
 
 	PDISCARD // discard during parse of duplicate import

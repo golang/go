@@ -396,7 +396,8 @@ func oldname(s *Sym) *Node {
 			c := Nod(ONAME, nil, nil)
 
 			c.Sym = s
-			c.Class = PPARAMREF
+			c.Class = PAUTOHEAP
+			c.setIsClosureParam(true)
 			c.Isddd = n.Isddd
 			c.Name.Defn = n
 			c.Addable = false

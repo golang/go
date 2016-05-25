@@ -78,6 +78,7 @@ type Node struct {
 const (
 	hasBreak = 1 << iota
 	notLiveAtEnd
+	isClosureParam
 )
 
 func (n *Node) HasBreak() bool {
@@ -98,6 +99,16 @@ func (n *Node) SetNotLiveAtEnd(b bool) {
 		n.flags |= notLiveAtEnd
 	} else {
 		n.flags &^= notLiveAtEnd
+	}
+}
+func (n *Node) isClosureParam() bool {
+	return n.flags&isClosureParam != 0
+}
+func (n *Node) setIsClosureParam(b bool) {
+	if b {
+		n.flags |= isClosureParam
+	} else {
+		n.flags &^= isClosureParam
 	}
 }
 
@@ -174,9 +185,9 @@ type Param struct {
 	// ONAME PPARAM
 	Field *Field // TFIELD in arg struct
 
-	// ONAME closure param with PPARAMREF
-	Outer   *Node // outer PPARAMREF in nested closure
-	Closure *Node // ONAME/PAUTOHEAP <-> ONAME/PPARAMREF
+	// ONAME closure linkage
+	Outer   *Node
+	Closure *Node
 }
 
 // Func holds Node fields used only with function-like nodes.

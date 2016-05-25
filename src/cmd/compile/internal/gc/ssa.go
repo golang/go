@@ -2723,8 +2723,6 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			// that cse works on their addresses
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
-		case PPARAMREF:
-			return s.expr(n.Name.Heapaddr)
 		default:
 			s.Unimplementedf("variable address class %v not implemented", classnames[n.Class])
 			return nil
@@ -2803,8 +2801,7 @@ func (s *state) canSSA(n *Node) bool {
 		Fatalf("canSSA of PAUTOHEAP %v", n)
 	}
 	switch n.Class {
-	case PEXTERN, PPARAMREF:
-		// TODO: maybe treat PPARAMREF with an Arg-like op to read from closure?
+	case PEXTERN:
 		return false
 	case PPARAMOUT:
 		if hasdefer {
