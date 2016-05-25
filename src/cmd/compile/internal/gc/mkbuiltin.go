@@ -8,6 +8,7 @@
 // Run this after changing builtin/runtime.go and builtin/unsafe.go
 // or after changing the export metadata format in the compiler.
 // Either way, you need to have a working compiler binary first.
+// See bexport.go for how to make an export metadata format change.
 package main
 
 import (
