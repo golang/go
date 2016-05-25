@@ -647,9 +647,7 @@ opswitch:
 		n.Addable = true
 
 	case ONAME:
-		if n.Class != PPARAMREF {
-			n.Addable = true
-		}
+		n.Addable = true
 
 	case OCALLINTER:
 		usemethod(n)
@@ -2536,7 +2534,7 @@ func vmatch1(l *Node, r *Node) bool {
 	switch l.Op {
 	case ONAME:
 		switch l.Class {
-		case PPARAM, PPARAMREF, PAUTO:
+		case PPARAM, PAUTO:
 			break
 
 			// assignment to non-stack variable

@@ -221,7 +221,6 @@ var classnames = []string{
 	"PAUTOHEAP",
 	"PPARAM",
 	"PPARAMOUT",
-	"PPARAMREF",
 	"PFUNC",
 }
 

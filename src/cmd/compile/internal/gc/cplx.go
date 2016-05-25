@@ -405,7 +405,6 @@ func Complexgen(n *Node, res *Node) {
 		ODOTPTR,
 		OINDEX,
 		OIND,
-		ONAME, // PPARAMREF var
 		OCALLFUNC,
 		OCALLMETH,
 		OCALLINTER:

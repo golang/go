@@ -495,7 +495,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 	// e.g. if we've got a local variable/method receiver
 	// that has got a pointer inside. Whether it points to
 	// the heap or not is impossible to know at compile time
-	if class == PAUTOHEAP || class == PPARAMREF || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
+	if class == PAUTOHEAP || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
 		hascalls := 0
 		foreach(n, hascallspred, &hascalls)
 		if hascalls != 0 {

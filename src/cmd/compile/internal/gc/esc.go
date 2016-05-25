@@ -1817,9 +1817,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 			}
 		}
 
-		// Treat a PPARAMREF closure variable as equivalent to the
+		// Treat a captured closure variable as equivalent to the
 		// original variable.
-		if src.Class == PPARAMREF {
+		if src.isClosureParam() {
 			if leaks && Debug['m'] != 0 {
 				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, FmtShort))
 				step.describe(src)
