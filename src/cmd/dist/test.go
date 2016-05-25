@@ -680,7 +680,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
-			"linux-amd64", "linux-386", "windows-amd64", "windows-386":
+			"linux-amd64", "linux-386", "windows-amd64", "windows-386",
+			"linux-ppc64le":
 			return true
 		}
 		return false
@@ -688,7 +689,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
 			"darwin-amd64", "darwin-386",
-			"android-arm", "android-arm64", "android-386":
+			"android-arm", "android-arm64", "android-386",
+			"linux-ppc64le":
 			return true
 		}
 		return false
