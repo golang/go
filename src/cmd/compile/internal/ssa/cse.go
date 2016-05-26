@@ -137,10 +137,9 @@ func cse(f *Func) {
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
-		sort.Sort(sortbyentry{e, f.sdom})
+		sort.Sort(partitionByDom{e, f.sdom})
 		for i := 0; i < len(e)-1; i++ {
-			// e is sorted by entry value so maximal dominant element should be
-			// found first in the slice
+			// e is sorted by domorder, so a maximal dominant element is first in the slice
 			v := e[i]
 			if v == nil {
 				continue
@@ -157,9 +156,7 @@ func cse(f *Func) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {
-					// since the blocks are assorted in ascending order by entry number
-					// once we know that we don't dominate a block we can't dominate any
-					// 'later' block
+					// e is sorted by domorder, so v.Block doesn't dominate any subsequent blocks in e
 					break
 				}
 			}
@@ -311,15 +308,15 @@ func (sv sortvalues) Less(i, j int) bool {
 	return v.ID < w.ID
 }
 
-type sortbyentry struct {
+type partitionByDom struct {
 	a    []*Value // array of values
 	sdom SparseTree
 }
 
-func (sv sortbyentry) Len() int      { return len(sv.a) }
-func (sv sortbyentry) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
-func (sv sortbyentry) Less(i, j int) bool {
+func (sv partitionByDom) Len() int      { return len(sv.a) }
+func (sv partitionByDom) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+func (sv partitionByDom) Less(i, j int) bool {
 	v := sv.a[i]
 	w := sv.a[j]
-	return sv.sdom.maxdomorder(v.Block) < sv.sdom.maxdomorder(w.Block)
+	return sv.sdom.domorder(v.Block) < sv.sdom.domorder(w.Block)
 }
