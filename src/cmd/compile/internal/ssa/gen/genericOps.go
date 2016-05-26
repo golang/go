@@ -430,7 +430,8 @@ var genericOps = []opData{
 
 	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
 
-	{name: "Signmask", argLength: 1, typ: "Int32"}, // 0 if arg0 >= 0, -1 if arg0 < 0
+	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
+	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
 
 	// pseudo-ops for breaking Tuple
 	{name: "Select0", argLength: 1}, // the first component of a tuple

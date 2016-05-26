@@ -277,6 +277,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMSRRconst:
+		p := gc.Prog(arm.AMOVW)
+		p.From.Type = obj.TYPE_SHIFT
+		p.From.Offset = int64(gc.SSARegNum(v.Args[0])&0xf) | arm.SHIFT_RR | (v.AuxInt&31)<<7
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMHMUL,
 		ssa.OpARMHMULU:
 		// 32-bit high multiplication
@@ -483,6 +489,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4 := gc.Prog(arm.ABLT)
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p)
+	case ssa.OpARMLoweredZeromask:
+		// int32(arg0>>1 - arg0) >> 31
+		// RSB	r0>>1, r0, r
+		// SRA	$31, r, r
+		r0 := gc.SSARegNum(v.Args[0])
+		r := gc.SSARegNum(v)
+		p := gc.Prog(arm.ARSB)
+		p.From.Type = obj.TYPE_SHIFT
+		p.From.Offset = int64(r0&0xf) | arm.SHIFT_LR | 1<<7 // unsigned r0>>1
+		p.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		p = gc.Prog(arm.ASRA)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 31
+		p.Reg = r
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 	case ssa.OpVarDef:
 		gc.Gvardef(v.Aux.(*gc.Node))
 	case ssa.OpVarKill:

@@ -129,6 +129,7 @@ func init() {
 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
 		{name: "SRA", argLength: 2, reg: gp21cf, asm: "SRA"},                  // arg0 >> arg1, signed, results 0/-1 for large shift
 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
+		{name: "SRRconst", argLength: 1, reg: gp11, aux: "Int32"},             // arg0 right rotate by auxInt bits
 
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                    // arg0 compare to arg1
 		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt
@@ -179,6 +180,8 @@ func init() {
 		{name: "Carry", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{flags}}, typ: "Flags"},     // flags of a (Flags,UInt32)
 		{name: "LoweredSelect0", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{buildReg("R0")}}}, // the first component of a tuple, implicitly in R0, arg0=tuple
 		{name: "LoweredSelect1", argLength: 1, reg: gp11, resultInArg0: true},                                         // the second component of a tuple, arg0=tuple
+
+		{name: "LoweredZeromask", argLength: 1, reg: gp11}, // 0 if arg0 == 1, 0xffffffff if arg0 != 0
 
 		// duffzero
 		// arg0 = address of memory to zero (in R1, changed as side effect)
