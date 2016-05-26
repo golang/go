@@ -526,6 +526,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-16
 	MOVQ	fv+0(FP), DX	// fn
 	MOVQ	argp+8(FP), BX	// caller sp
 	LEAQ	-8(BX), SP	// caller sp after CALL
+	MOVQ	-8(SP), BP	// restore BP as if deferreturn returned (harmless if framepointers not in use)
 	SUBQ	$5, (SP)	// return to CALL again
 	MOVQ	0(DX), BX
 	JMP	BX	// but first run the deferred function
