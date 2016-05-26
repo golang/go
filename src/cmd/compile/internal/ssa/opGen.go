@@ -353,6 +353,7 @@ const (
 	OpARMSRLconst
 	OpARMSRA
 	OpARMSRAconst
+	OpARMSRRconst
 	OpARMCMP
 	OpARMCMPconst
 	OpARMCMN
@@ -393,6 +394,7 @@ const (
 	OpARMCarry
 	OpARMLoweredSelect0
 	OpARMLoweredSelect1
+	OpARMLoweredZeromask
 	OpARMDUFFZERO
 	OpARMDUFFCOPY
 	OpARMLoweredZero
@@ -693,6 +695,7 @@ const (
 	OpSub32withcarry
 	OpMul32uhilo
 	OpSignmask
+	OpZeromask
 	OpSelect0
 	OpSelect1
 )
@@ -4314,6 +4317,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "SRRconst",
+		auxType: auxInt32,
+		argLen:  1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:   "CMP",
 		argLen: 2,
 		asm:    arm.ACMP,
@@ -4796,6 +4812,18 @@ var opcodeTable = [...]opInfo{
 		name:         "LoweredSelect1",
 		argLen:       1,
 		resultInArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "LoweredZeromask",
+		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -6388,6 +6416,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Signmask",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Zeromask",
 		argLen:  1,
 		generic: true,
 	},
