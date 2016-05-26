@@ -119,29 +119,15 @@ func rndV(n int) []Word {
 	return v
 }
 
-var benchSizes = []struct {
-	name string
-	n    int
-}{
-	{"1", 1},
-	{"2", 2},
-	{"3", 3},
-	{"4", 4},
-	{"5", 5},
-	{"1e1", 1e1},
-	{"1e2", 1e2},
-	{"1e3", 1e3},
-	{"1e4", 1e4},
-	{"1e5", 1e5},
-}
+var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
 
 func BenchmarkAddVV(b *testing.B) {
-	for _, tc := range benchSizes {
-		x := rndV(tc.n)
-		y := rndV(tc.n)
-		z := make([]Word, tc.n)
-		b.Run(fmt.Sprint(tc.name), func(b *testing.B) {
-			b.SetBytes(int64(tc.n * _W))
+	for _, n := range benchSizes {
+		x := rndV(n)
+		y := rndV(n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addVV(z, x, y)
 			}
@@ -246,12 +232,12 @@ func TestFunVW(t *testing.T) {
 }
 
 func BenchmarkAddVW(b *testing.B) {
-	for _, tc := range benchSizes {
-		x := rndV(tc.n)
+	for _, n := range benchSizes {
+		x := rndV(n)
 		y := rndW()
-		z := make([]Word, tc.n)
-		b.Run(fmt.Sprint(tc.name), func(b *testing.B) {
-			b.SetBytes(int64(tc.n * _S))
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
 			for i := 0; i < b.N; i++ {
 				addVW(z, x, y)
 			}
@@ -384,12 +370,12 @@ func TestMulAddWWW(t *testing.T) {
 }
 
 func BenchmarkAddMulVVW(b *testing.B) {
-	for _, tc := range benchSizes {
-		x := rndV(tc.n)
+	for _, n := range benchSizes {
+		x := rndV(n)
 		y := rndW()
-		z := make([]Word, tc.n)
-		b.Run(fmt.Sprint(tc.n), func(b *testing.B) {
-			b.SetBytes(int64(tc.n * _W))
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _W))
 			for i := 0; i < b.N; i++ {
 				addMulVVW(z, x, y)
 			}
