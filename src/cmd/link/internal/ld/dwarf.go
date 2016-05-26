@@ -1558,6 +1558,12 @@ func writelines(prev *LSym) *LSym {
 				if !haslinkregister() {
 					offs -= int64(SysArch.PtrSize)
 				}
+				if obj.Framepointer_enabled != 0 {
+					// The frame pointer is saved
+					// between the CFA and the
+					// autos.
+					offs -= int64(SysArch.PtrSize)
+				}
 
 			case obj.A_PARAM:
 				dt = DW_ABRV_PARAM
