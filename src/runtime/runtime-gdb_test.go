@@ -100,6 +100,7 @@ func TestGdbPython(t *testing.T) {
 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
 		"-ex", "set startup-with-shell off",
 		"-ex", "info auto-load python-scripts",
+		"-ex", "set python print-stack full",
 		"-ex", "br main.go:10",
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
