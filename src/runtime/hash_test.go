@@ -681,3 +681,23 @@ func BenchmarkUnalignedLoad(b *testing.B) {
 	}
 	sink = s
 }
+
+func TestCollisions(t *testing.T) {
+	for i := 0; i < 16; i++ {
+		for j := 0; j < 16; j++ {
+			if j == i {
+				continue
+			}
+			var a [16]byte
+			m := make(map[uint16]struct{}, 1<<16)
+			for n := 0; n < 1<<16; n++ {
+				a[i] = byte(n)
+				a[j] = byte(n >> 8)
+				m[uint16(BytesHash(a[:], 0))] = struct{}{}
+			}
+			if len(m) <= 1<<15 {
+				t.Errorf("too many collisions i=%d j=%d outputs=%d out of 65536\n", i, j, len(m))
+			}
+		}
+	}
+}
