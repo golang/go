@@ -532,8 +532,11 @@ using small record sizes, gradually increasing to the TLS maximum record size.
 This heuristic reduces the amount of data that must be received before
 the first packet can be decrypted, improving communication latency over
 low-bandwidth networks.
+Setting
 <a href="/pkg/crypto/tls/#Config"><code>Config</code></a>'s
-<code>DynamicRecordSizingDisabled</code> field to true.
+<code>DynamicRecordSizingDisabled</code> field to true
+forces the behavior of Go 1.6 and earlier, where packets are
+as large as possible from the start of the connection.
 </p>
 
 <p>
