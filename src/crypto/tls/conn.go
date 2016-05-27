@@ -78,9 +78,9 @@ type Conn struct {
 
 	// bytesSent counts the bytes of application data sent.
 	// packetsSent counts packets.
-	bytesSent int64
+	bytesSent   int64
 	packetsSent int64
-	
+
 	// activeCall is an atomic int32; the low bit is whether Close has
 	// been called. the rest of the bits are the number of goroutines
 	// in Conn.Write.
@@ -788,15 +788,15 @@ func (c *Conn) maxPayloadSizeForWrite(typ recordType, explicitIVLen int) int {
 			panic("unknown cipher type")
 		}
 	}
-	
+
 	// Allow packet growth in arithmetic progression up to max.
 	pkt := c.packetsSent
 	c.packetsSent++
 	if pkt > 1000 {
 		return maxPlaintext // avoid overflow in multiply below
 	}
-	
-	n := payloadBytes * int(pkt + 1)
+
+	n := payloadBytes * int(pkt+1)
 	if n > maxPlaintext {
 		n = maxPlaintext
 	}
