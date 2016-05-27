@@ -763,16 +763,62 @@ func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
 
 func (t *rtype) common() *rtype { return t }
 
+var methodCache struct {
+	sync.RWMutex
+	m map[*rtype][]method
+}
+
+func (t *rtype) exportedMethods() []method {
+	methodCache.RLock()
+	methods, found := methodCache.m[t]
+	methodCache.RUnlock()
+
+	if found {
+		return methods
+	}
+
+	ut := t.uncommon()
+	if ut == nil {
+		return nil
+	}
+	allm := ut.methods()
+	allExported := true
+	for _, m := range allm {
+		name := t.nameOff(m.name)
+		if !name.isExported() {
+			allExported = false
+			break
+		}
+	}
+	if allExported {
+		methods = allm
+	} else {
+		methods = make([]method, 0, len(allm))
+		for _, m := range allm {
+			name := t.nameOff(m.name)
+			if name.isExported() {
+				methods = append(methods, m)
+			}
+		}
+		methods = methods[:len(methods):len(methods)]
+	}
+
+	methodCache.Lock()
+	if methodCache.m == nil {
+		methodCache.m = make(map[*rtype][]method)
+	}
+	methodCache.m[t] = methods
+	methodCache.Unlock()
+
+	return methods
+}
+
 func (t *rtype) NumMethod() int {
 	if t.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
 	}
-	ut := t.uncommon()
-	if ut == nil {
-		return 0
-	}
-	return int(ut.mcount)
+	return len(t.exportedMethods())
 }
 
 func (t *rtype) Method(i int) (m Method) {
@@ -780,40 +826,31 @@ func (t *rtype) Method(i int) (m Method) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.Method(i)
 	}
-	ut := t.uncommon()
-
-	if ut == nil || i < 0 || i >= int(ut.mcount) {
+	methods := t.exportedMethods()
+	if i < 0 || i >= len(methods) {
 		panic("reflect: Method index out of range")
 	}
-	p := ut.methods()[i]
+	p := methods[i]
 	pname := t.nameOff(p.name)
 	m.Name = pname.name()
 	fl := flag(Func)
-	if !pname.isExported() {
-		m.PkgPath = pname.pkgPath()
-		if m.PkgPath == "" {
-			m.PkgPath = t.nameOff(ut.pkgPath).name()
-		}
-		fl |= flagStickyRO
+	mtyp := t.typeOff(p.mtyp)
+	ft := (*funcType)(unsafe.Pointer(mtyp))
+	in := make([]Type, 0, 1+len(ft.in()))
+	in = append(in, t)
+	for _, arg := range ft.in() {
+		in = append(in, arg)
 	}
-	if p.mtyp != 0 {
-		mtyp := t.typeOff(p.mtyp)
-		ft := (*funcType)(unsafe.Pointer(mtyp))
-		in := make([]Type, 0, 1+len(ft.in()))
-		in = append(in, t)
-		for _, arg := range ft.in() {
-			in = append(in, arg)
-		}
-		out := make([]Type, 0, len(ft.out()))
-		for _, ret := range ft.out() {
-			out = append(out, ret)
-		}
-		mt := FuncOf(in, out, ft.IsVariadic())
-		m.Type = mt
-		tfn := t.textOff(p.tfn)
-		fn := unsafe.Pointer(&tfn)
-		m.Func = Value{mt.(*rtype), fn, fl}
+	out := make([]Type, 0, len(ft.out()))
+	for _, ret := range ft.out() {
+		out = append(out, ret)
 	}
+	mt := FuncOf(in, out, ft.IsVariadic())
+	m.Type = mt
+	tfn := t.textOff(p.tfn)
+	fn := unsafe.Pointer(&tfn)
+	m.Func = Value{mt.(*rtype), fn, fl}
+
 	m.Index = i
 	return m
 }
@@ -831,7 +868,7 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	for i := 0; i < int(ut.mcount); i++ {
 		p := utmethods[i]
 		pname := t.nameOff(p.name)
-		if pname.name() == name {
+		if pname.isExported() && pname.name() == name {
 			return t.Method(i), true
 		}
 	}
@@ -1178,7 +1215,7 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
 // Field returns the i'th struct field.
 func (t *structType) Field(i int) (f StructField) {
 	if i < 0 || i >= len(t.fields) {
-		return
+		panic("reflect: Field index out of bounds")
 	}
 	p := &t.fields[i]
 	f.Type = toType(p.typ)
@@ -1985,6 +2022,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	if len(args) > 50 {
 		panic("reflect.FuncOf does not support more than 50 arguments")
 	}
+	ft.tflag = 0
 	ft.hash = hash
 	ft.inCount = uint16(len(in))
 	ft.outCount = uint16(len(out))
@@ -2313,10 +2351,6 @@ type structTypeFixed32 struct {
 // StructOf returns the struct type containing fields.
 // The Offset and Index fields are ignored and computed as they would be
 // by the compiler.
-//
-// StructOf does not support creating structs with UTF-8 field names or
-// UTF-8 (embedded) type names.
-// This limitation may be lifted eventually.
 func StructOf(fields []StructField) Type {
 	var (
 		hash       = fnv1(0, []byte("struct {")...)
@@ -2758,7 +2792,6 @@ func typeptrdata(t *rtype) uintptr {
 	default:
 		panic("reflect.typeptrdata: unexpected type, " + t.String())
 	}
-	return 0
 }
 
 // See cmd/compile/internal/gc/reflect.go for derivation of constant.

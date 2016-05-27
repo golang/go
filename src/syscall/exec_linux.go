@@ -32,6 +32,7 @@ type SysProcAttr struct {
 	Pgid        int            // Child's process group ID if Setpgid.
 	Pdeathsig   Signal         // Signal that the process will get when its parent dies (Linux only)
 	Cloneflags  uintptr        // Flags for clone calls (Linux only)
+	Unshare     uintptr        // Flags for unshare calls (Linux only)
 	UidMappings []SysProcIDMap // User ID mappings for user namespaces.
 	GidMappings []SysProcIDMap // Group ID mappings for user namespaces.
 	// GidMappingsEnableSetgroups enabling setgroups syscall.
@@ -189,6 +190,14 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Chroot
 	if chroot != nil {
 		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Unshare
+	if sys.Unshare != 0 {
+		_, _, err1 = RawSyscall(SYS_UNSHARE, sys.Unshare, 0, 0)
 		if err1 != 0 {
 			goto childerror
 		}

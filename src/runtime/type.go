@@ -169,6 +169,20 @@ var reflectOffs struct {
 	minv map[unsafe.Pointer]int32
 }
 
+func reflectOffsLock() {
+	lock(&reflectOffs.lock)
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&reflectOffs.lock))
+	}
+}
+
+func reflectOffsUnlock() {
+	if raceenabled {
+		racerelease(unsafe.Pointer(&reflectOffs.lock))
+	}
+	unlock(&reflectOffs.lock)
+}
+
 func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 	if off == 0 {
 		return name{}
@@ -182,9 +196,9 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 		}
 	}
 	if md == nil {
-		lock(&reflectOffs.lock)
+		reflectOffsLock()
 		res, found := reflectOffs.m[int32(off)]
-		unlock(&reflectOffs.lock)
+		reflectOffsUnlock()
 		if !found {
 			println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
 			for next := &firstmoduledata; next != nil; next = next.next {
@@ -219,9 +233,9 @@ func (t *_type) typeOff(off typeOff) *_type {
 		}
 	}
 	if md == nil {
-		lock(&reflectOffs.lock)
+		reflectOffsLock()
 		res := reflectOffs.m[int32(off)]
-		unlock(&reflectOffs.lock)
+		reflectOffsUnlock()
 		if res == nil {
 			println("runtime: typeOff", hex(off), "base", hex(base), "not in ranges:")
 			for next := &firstmoduledata; next != nil; next = next.next {
@@ -252,9 +266,9 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 		}
 	}
 	if md == nil {
-		lock(&reflectOffs.lock)
+		reflectOffsLock()
 		res := reflectOffs.m[int32(off)]
-		unlock(&reflectOffs.lock)
+		reflectOffsUnlock()
 		if res == nil {
 			println("runtime: textOff", hex(off), "base", hex(base), "not in ranges:")
 			for next := &firstmoduledata; next != nil; next = next.next {

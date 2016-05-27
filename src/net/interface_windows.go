@@ -159,9 +159,6 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 					}
 					ifa := &IPNet{IP: make(IP, IPv6len), Mask: CIDRMask(l, 8*IPv6len)}
 					copy(ifa.IP, sa.Addr[:])
-					if ifa.IP.IsLinkLocalUnicast() {
-						ifa.Zone = syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:])
-					}
 					ifat = append(ifat, ifa)
 				}
 			}

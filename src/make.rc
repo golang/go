@@ -80,7 +80,7 @@ if(~ $sysname vx32)
 
 if(! ~ $GOHOSTARCH $GOARCH || ! ~ $GOHOSTOS $GOOS){
 	echo '##### Building packages and commands for host,' $GOHOSTOS/$GOHOSTARCH^.
-	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH \
+	GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN= \
 		$GOTOOLDIR/go_bootstrap install -gcflags $"GO_GCFLAGS -ldflags $"GO_LDFLAGS -v $pflag std cmd
 	echo
 }

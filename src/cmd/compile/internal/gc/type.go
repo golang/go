@@ -223,9 +223,19 @@ type StructType struct {
 	// Map links such structs back to their map type.
 	Map *Type
 
-	Funarg      bool  // whether this struct represents function parameters
-	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+	Funarg      Funarg // type of function arguments for arg struct
+	Haspointers uint8  // 0 unknown, 1 no, 2 yes
 }
+
+// Fnstruct records the kind of function argument
+type Funarg uint8
+
+const (
+	FunargNone    Funarg = iota
+	FunargRcvr           // receiver
+	FunargParams         // input parameters
+	FunargResults        // output results
+)
 
 // StructType returns t's extra struct-specific fields.
 func (t *Type) StructType() *StructType {
@@ -287,7 +297,7 @@ type SliceType struct {
 type Field struct {
 	Nointerface bool
 	Embedded    uint8 // embedded field
-	Funarg      bool
+	Funarg      Funarg
 	Broke       bool // broken field definition
 	Isddd       bool // field is ... argument
 
@@ -786,7 +796,7 @@ func (t *Type) SetNname(n *Node) {
 
 // IsFuncArgStruct reports whether t is a struct representing function parameters.
 func (t *Type) IsFuncArgStruct() bool {
-	return t.Etype == TSTRUCT && t.Extra.(*StructType).Funarg
+	return t.Etype == TSTRUCT && t.Extra.(*StructType).Funarg != FunargNone
 }
 
 func (t *Type) Methods() *Fields {

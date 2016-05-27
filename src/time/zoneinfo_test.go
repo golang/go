@@ -61,3 +61,12 @@ func TestFirstZone(t *testing.T) {
 		}
 	}
 }
+
+func TestLocationNames(t *testing.T) {
+	if time.Local.String() != "Local" {
+		t.Errorf(`invalid Local location name: got %q want "Local"`, time.Local)
+	}
+	if time.UTC.String() != "UTC" {
+		t.Errorf(`invalid UTC location name: got %q want "UTC"`, time.UTC)
+	}
+}

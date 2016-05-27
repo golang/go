@@ -640,7 +640,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	// "Big" conditions that were scattered around in walk have been gathered here
 	if n.Esc != EscHeap && n.Type != nil &&
 		(n.Type.Width > MaxStackVarSize ||
-			n.Op == ONEW && n.Type.Elem().Width >= 1<<16 ||
+			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 2 {
 			Warnl(n.Lineno, "%v is too large for stack", n)
@@ -900,13 +900,13 @@ func esc(e *EscState, n *Node, up *Node) {
 			escassignSinkNilWhy(e, n, n7.Right, "map literal value")
 		}
 
-		// Link addresses of captured variables to closure.
 	case OCLOSURE:
+		// Link addresses of captured variables to closure.
 		for _, v := range n.Func.Cvars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
-			a := v.Name.Param.Closure
+			a := v.Name.Defn
 			if !v.Name.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
@@ -1068,7 +1068,6 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		OIND,    // dst = *x
 		ODOTPTR, // dst = (*x).f
 		ONAME,
-		OPARAM,
 		ODDDARG,
 		OPTRLIT,
 		OARRAYLIT,
@@ -1818,14 +1817,14 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 			}
 		}
 
-		// Treat a PPARAMREF closure variable as equivalent to the
+		// Treat a captured closure variable as equivalent to the
 		// original variable.
-		if src.Class == PPARAMREF {
+		if src.isClosureVar() {
 			if leaks && Debug['m'] != 0 {
 				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, FmtShort))
 				step.describe(src)
 			}
-			escwalk(e, level, dst, src.Name.Param.Closure, e.stepWalk(dst, src.Name.Param.Closure, "closure-var", step))
+			escwalk(e, level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
 		}
 
 	case OPTRLIT, OADDR:
@@ -1835,20 +1834,20 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		}
 		if leaks {
 			src.Esc = EscHeap
-			addrescapes(src.Left)
 			if Debug['m'] != 0 && osrcesc != src.Esc {
 				p := src
 				if p.Left.Op == OCLOSURE {
 					p = p.Left // merely to satisfy error messages in tests
 				}
 				if Debug['m'] > 2 {
-					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
-						Nconv(p, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
+					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
+						Nconv(p, FmtShort), level, dst, dstE.Escloopdepth, modSrcLoopdepth)
 				} else {
 					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, FmtShort))
 					step.describe(src)
 				}
 			}
+			addrescapes(src.Left)
 			escwalkBody(e, level.dec(), dst, src.Left, e.stepWalk(dst, src.Left, why, step), modSrcLoopdepth)
 			extraloopdepth = modSrcLoopdepth // passes to recursive case, seems likely a no-op
 		} else {

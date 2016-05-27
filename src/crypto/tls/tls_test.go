@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"math"
 	"net"
 	"strings"
 	"testing"
@@ -146,7 +147,7 @@ func TestX509MixedKeyPair(t *testing.T) {
 	}
 }
 
-func newLocalListener(t *testing.T) net.Listener {
+func newLocalListener(t testing.TB) net.Listener {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		ln, err = net.Listen("tcp6", "[::1]:0")
@@ -472,4 +473,157 @@ func (w *changeImplConn) Close() error {
 		return w.closeFunc()
 	}
 	return w.Conn.Close()
+}
+
+func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool) {
+	ln := newLocalListener(b)
+	defer ln.Close()
+
+	N := b.N
+
+	var serr error
+	go func() {
+		for i := 0; i < N; i++ {
+			sconn, err := ln.Accept()
+			if err != nil {
+				serr = err
+				return
+			}
+			serverConfig := *testConfig
+			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+			srv := Server(sconn, &serverConfig)
+			if err := srv.Handshake(); err != nil {
+				serr = fmt.Errorf("handshake: %v", err)
+				return
+			}
+			io.Copy(srv, srv)
+		}
+	}()
+
+	b.SetBytes(totalBytes)
+	clientConfig := *testConfig
+	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+
+	buf := make([]byte, 1<<16)
+	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
+	for i := 0; i < N; i++ {
+		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+		if err != nil {
+			b.Fatal(err)
+		}
+		for j := 0; j < chunks; j++ {
+			_, err := conn.Write(buf)
+			if err != nil {
+				b.Fatal(err)
+			}
+			_, err = io.ReadFull(conn, buf)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		conn.Close()
+	}
+}
+
+func BenchmarkThroughput(b *testing.B) {
+	for _, mode := range []string{"Max", "Dynamic"} {
+		for size := 1; size <= 64; size <<= 1 {
+			name := fmt.Sprintf("%sPacket/%dMB", mode, size)
+			b.Run(name, func(b *testing.B) {
+				throughput(b, int64(size<<20), mode == "Max")
+			})
+		}
+	}
+}
+
+type slowConn struct {
+	net.Conn
+	bps int
+}
+
+func (c *slowConn) Write(p []byte) (int, error) {
+	if c.bps == 0 {
+		panic("too slow")
+	}
+	t0 := time.Now()
+	wrote := 0
+	for wrote < len(p) {
+		time.Sleep(100 * time.Microsecond)
+		allowed := int(time.Since(t0).Seconds()*float64(c.bps)) / 8
+		if allowed > len(p) {
+			allowed = len(p)
+		}
+		if wrote < allowed {
+			n, err := c.Conn.Write(p[wrote:allowed])
+			wrote += n
+			if err != nil {
+				return wrote, err
+			}
+		}
+	}
+	return len(p), nil
+}
+
+func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
+	ln := newLocalListener(b)
+	defer ln.Close()
+
+	N := b.N
+
+	var serr error
+	go func() {
+		for i := 0; i < N; i++ {
+			sconn, err := ln.Accept()
+			if err != nil {
+				serr = err
+				return
+			}
+			serverConfig := *testConfig
+			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+			srv := Server(&slowConn{sconn, bps}, &serverConfig)
+			if err := srv.Handshake(); err != nil {
+				serr = fmt.Errorf("handshake: %v", err)
+				return
+			}
+			io.Copy(srv, srv)
+		}
+	}()
+
+	clientConfig := *testConfig
+	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
+
+	buf := make([]byte, 16384)
+	peek := make([]byte, 1)
+
+	for i := 0; i < N; i++ {
+		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+		if err != nil {
+			b.Fatal(err)
+		}
+		// make sure we're connected and previous connection has stopped
+		if _, err := conn.Write(buf[:1]); err != nil {
+			b.Fatal(err)
+		}
+		if _, err := io.ReadFull(conn, peek); err != nil {
+			b.Fatal(err)
+		}
+		if _, err := conn.Write(buf); err != nil {
+			b.Fatal(err)
+		}
+		if _, err = io.ReadFull(conn, peek); err != nil {
+			b.Fatal(err)
+		}
+		conn.Close()
+	}
+}
+
+func BenchmarkLatency(b *testing.B) {
+	for _, mode := range []string{"Max", "Dynamic"} {
+		for _, kbps := range []int{200, 500, 1000, 2000, 5000} {
+			name := fmt.Sprintf("%sPacket/%dkbps", mode, kbps)
+			b.Run(name, func(b *testing.B) {
+				latency(b, kbps*1000, mode == "Max")
+			})
+		}
+	}
 }

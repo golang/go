@@ -125,3 +125,39 @@ func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUnshare(t *testing.T) {
+	// Make sure we are running as root so we have permissions to use unshare
+	// and create a network namespace.
+	if os.Getuid() != 0 {
+		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
+	}
+
+	// When running under the Go continuous build, skip tests for
+	// now when under Kubernetes. (where things are root but not quite)
+	// Both of these are our own environment variables.
+	// See Issue 12815.
+	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+	}
+
+	cmd := exec.Command("cat", "/proc/net/dev")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Unshare: syscall.CLONE_NEWNET,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+
+	// Check there is only the local network interface
+	sout := strings.TrimSpace(string(out))
+	if !strings.Contains(sout, "lo:") {
+		t.Fatalf("Expected lo network interface to exist, got %s", sout)
+	}
+
+	lines := strings.Split(sout, "\n")
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines of output, got %d", len(lines))
+	}
+}

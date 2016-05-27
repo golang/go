@@ -16,7 +16,7 @@ func TestCompose(t *testing.T) {
 	connectStart := func(b byte) func(network, addr string) {
 		return func(network, addr string) {
 			if addr != "addr" {
-				t.Errorf(`%d. args for %Q case = %q, %q; want addr of "addr"`, testNum, b, network, addr)
+				t.Errorf(`%d. args for %q case = %q, %q; want addr of "addr"`, testNum, b, network, addr)
 			}
 			buf.WriteByte(b)
 		}

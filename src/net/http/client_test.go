@@ -366,6 +366,44 @@ func TestPostRedirects(t *testing.T) {
 	}
 }
 
+func TestClientRedirectUseResponse(t *testing.T) {
+	defer afterTest(t)
+	const body = "Hello, world."
+	var ts *httptest.Server
+	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		if strings.Contains(r.URL.Path, "/other") {
+			io.WriteString(w, "wrong body")
+		} else {
+			w.Header().Set("Location", ts.URL+"/other")
+			w.WriteHeader(StatusFound)
+			io.WriteString(w, body)
+		}
+	}))
+	defer ts.Close()
+
+	c := &Client{CheckRedirect: func(req *Request, via []*Request) error {
+		if req.Response == nil {
+			t.Error("expected non-nil Request.Response")
+		}
+		return ErrUseLastResponse
+	}}
+	res, err := c.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != StatusFound {
+		t.Errorf("status = %d; want %d", res.StatusCode, StatusFound)
+	}
+	defer res.Body.Close()
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != body {
+		t.Errorf("body = %q; want %q", slurp, body)
+	}
+}
+
 var expectedCookies = []*Cookie{
 	{Name: "ChocolateChip", Value: "tasty"},
 	{Name: "First", Value: "Hit"},
@@ -1167,4 +1205,27 @@ func TestReferer(t *testing.T) {
 			t.Errorf("refererForURL(%q, %q) = %q; want %q", tt.lastReq, tt.newReq, r, tt.want)
 		}
 	}
+}
+
+// issue15577Tripper returns a Response with a redirect response
+// header and doesn't populate its Response.Request field.
+type issue15577Tripper struct{}
+
+func (issue15577Tripper) RoundTrip(*Request) (*Response, error) {
+	resp := &Response{
+		StatusCode: 303,
+		Header:     map[string][]string{"Location": {"http://www.example.com/"}},
+		Body:       ioutil.NopCloser(strings.NewReader("")),
+	}
+	return resp, nil
+}
+
+// Issue 15577: don't assume the roundtripper's response populates its Request field.
+func TestClientRedirectResponseWithoutRequest(t *testing.T) {
+	c := &Client{
+		CheckRedirect: func(*Request, []*Request) error { return fmt.Errorf("no redirects!") },
+		Transport:     issue15577Tripper{},
+	}
+	// Check that this doesn't crash:
+	c.Get("http://dummy.tld")
 }

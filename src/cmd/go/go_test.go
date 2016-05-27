@@ -580,32 +580,6 @@ func (tg *testgoData) cleanup() {
 	}
 }
 
-// resetReadOnlyFlagAll resets windows read-only flag
-// set on path and any children it contains.
-// The flag is set by git and has to be removed.
-// os.Remove refuses to remove files with read-only flag set.
-func (tg *testgoData) resetReadOnlyFlagAll(path string) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		tg.t.Fatalf("resetReadOnlyFlagAll(%q) failed: %v", path, err)
-	}
-	if !fi.IsDir() {
-		err := os.Chmod(path, 0666)
-		if err != nil {
-			tg.t.Fatalf("resetReadOnlyFlagAll(%q) failed: %v", path, err)
-		}
-	}
-	fd, err := os.Open(path)
-	if err != nil {
-		tg.t.Fatalf("resetReadOnlyFlagAll(%q) failed: %v", path, err)
-	}
-	defer fd.Close()
-	names, _ := fd.Readdirnames(-1)
-	for _, name := range names {
-		tg.resetReadOnlyFlagAll(path + string(filepath.Separator) + name)
-	}
-}
-
 // failSSH puts an ssh executable in the PATH that always fails.
 // This is to stub out uses of ssh by go get.
 func (tg *testgoData) failSSH() {
@@ -1177,7 +1151,7 @@ func TestImportCommentConflict(t *testing.T) {
 	tg.grepStderr("found import comments", "go build did not mention comment conflict")
 }
 
-// cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
+// cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	if _, err := exec.LookPath("git"); err != nil {
@@ -1192,9 +1166,36 @@ func TestIssue10952(t *testing.T) {
 	const importPath = "github.com/zombiezen/go-get-issue-10952"
 	tg.run("get", "-d", "-u", importPath)
 	repoDir := tg.path("src/" + importPath)
-	defer tg.resetReadOnlyFlagAll(repoDir)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
 	tg.run("get", "-d", "-u", importPath)
+}
+
+// Test git clone URL that uses SCP-like syntax and custom import path checking.
+func TestIssue11457(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+	const importPath = "github.com/rsc/go-get-issue-11457"
+	tg.run("get", "-d", "-u", importPath)
+	repoDir := tg.path("src/" + importPath)
+	tg.runGit(repoDir, "remote", "set-url", "origin", "git@github.com:rsc/go-get-issue-11457")
+
+	// At this time, custom import path checking compares remotes verbatim (rather than
+	// just the host and path, skipping scheme and user), so we expect go get -u to fail.
+	// However, the goal of this test is to verify that gitRemoteRepo correctly parsed
+	// the SCP-like syntax, and we expect it to appear in the error message.
+	tg.runFail("get", "-d", "-u", importPath)
+	want := " is checked out from ssh://git@github.com/rsc/go-get-issue-11457"
+	if !strings.HasSuffix(strings.TrimSpace(tg.getStderr()), want) {
+		t.Error("expected clone URL to appear in stderr")
+	}
 }
 
 func TestGetGitDefaultBranch(t *testing.T) {
@@ -1216,7 +1217,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
 
 	tg.run("get", "-d", importPath)
 	repoDir := tg.path("src/" + importPath)
-	defer tg.resetReadOnlyFlagAll(repoDir)
 	tg.runGit(repoDir, "branch", "--contains", "HEAD")
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 
@@ -2832,7 +2832,8 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	os.Remove(tg.path("src/p1/p1.go"))
 	tg.mustNotExist(tg.path("src/p1/p1.go"))
 
-	tg.tempFile("src/p2/p2.go", `
+	tg.tempFile("src/p2/p2.go", `//go:binary-only-packages-are-not-great
+
 		package p2
 		import "p1"
 		func F() { p1.F(true) }
@@ -2841,7 +2842,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.grepStderr("no buildable Go source files", "did not complain about missing sources")
 
 	tg.tempFile("src/p1/missing.go", `//go:binary-only-package
-	
+
 		package p1
 		func G()
 	`)

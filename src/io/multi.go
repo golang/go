@@ -10,6 +10,13 @@ type multiReader struct {
 
 func (mr *multiReader) Read(p []byte) (n int, err error) {
 	for len(mr.readers) > 0 {
+		// Optimization to flatten nested multiReaders (Issue 13558)
+		if len(mr.readers) == 1 {
+			if r, ok := mr.readers[0].(*multiReader); ok {
+				mr.readers = r.readers
+				continue
+			}
+		}
 		n, err = mr.readers[0].Read(p)
 		if n > 0 || err != EOF {
 			if err == EOF {

@@ -466,7 +466,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	//return;
 	// algorithm is:
 	//	if small enough, use native int64 -> float64 conversion.
-	//	otherwise, halve (rounding to odd?), convert, and double.
+	//	otherwise, halve (x -> (x>>1)|(x&1)), convert, and double.
 	/*
 	 * integer to float
 	 */
@@ -496,9 +496,16 @@ func gmove(f *gc.Node, t *gc.Node) {
 			gmove(&bigi, &rtmp)
 			gins(mips.AAND, &r1, &rtmp)
 			p1 := ginsbranch(mips.ABEQ, nil, &rtmp, nil, 0)
-			p2 := gins(mips.ASRLV, nil, &r1)
+			var r3 gc.Node
+			gc.Regalloc(&r3, gc.Types[gc.TUINT64], nil)
+			p2 := gins3(mips.AAND, nil, &r1, &r3)
 			p2.From.Type = obj.TYPE_CONST
 			p2.From.Offset = 1
+			p3 := gins(mips.ASRLV, nil, &r1)
+			p3.From.Type = obj.TYPE_CONST
+			p3.From.Offset = 1
+			gins(mips.AOR, &r3, &r1)
+			gc.Regfree(&r3)
 			gc.Patch(p1, gc.Pc)
 		}
 

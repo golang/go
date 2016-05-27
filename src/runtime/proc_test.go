@@ -344,6 +344,14 @@ func TestGCFairness(t *testing.T) {
 	}
 }
 
+func TestGCFairness2(t *testing.T) {
+	output := runTestProg(t, "testprog", "GCFairness2")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
 func TestNumGoroutine(t *testing.T) {
 	output := runTestProg(t, "testprog", "NumGoroutine")
 	want := "1\n"

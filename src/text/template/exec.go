@@ -15,14 +15,21 @@ import (
 	"text/template/parse"
 )
 
+// maxExecDepth specifies the maximum stack depth of templates within
+// templates. This limit is only practically reached by accidentally
+// recursive template invocations. This limit allows us to return
+// an error instead of triggering a stack overflow.
+const maxExecDepth = 100000
+
 // state represents the state of an execution. It's not part of the
 // template so that multiple executions of the same template
 // can execute in parallel.
 type state struct {
-	tmpl *Template
-	wr   io.Writer
-	node parse.Node // current node, for errors
-	vars []variable // push-down stack of variable values.
+	tmpl  *Template
+	wr    io.Writer
+	node  parse.Node // current node, for errors
+	vars  []variable // push-down stack of variable values.
+	depth int        // the height of the stack of executing templates.
 }
 
 // variable holds the dynamic value of a variable such as $, $x etc.
@@ -363,9 +370,13 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	if tmpl == nil {
 		s.errorf("template %q not defined", t.Name)
 	}
+	if s.depth == maxExecDepth {
+		s.errorf("exceeded maximum template depth (%v)", maxExecDepth)
+	}
 	// Variables declared by the pipeline persist.
 	dot = s.evalPipeline(dot, t.Pipe)
 	newState := *s
+	newState.depth++
 	newState.tmpl = tmpl
 	// No dynamic scoping: template invocations inherit no variables.
 	newState.vars = []variable{{"$", dot}}

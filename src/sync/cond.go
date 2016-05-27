@@ -20,6 +20,8 @@ import (
 // A Cond can be created as part of other structures.
 // A Cond must not be copied after first use.
 type Cond struct {
+	noCopy noCopy
+
 	// L is held while observing or changing the condition
 	L Locker
 
@@ -84,3 +86,13 @@ func (c *copyChecker) check() {
 		panic("sync.Cond is copied")
 	}
 }
+
+// noCopy may be embedded into structs which must not be copied
+// after the first use.
+//
+// See https://github.com/golang/go/issues/8005#issuecomment-190753527
+// for details.
+type noCopy struct{}
+
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock() {}

@@ -124,7 +124,7 @@ func TestDialTimeoutMaxDuration(t *testing.T) {
 
 	for i, tt := range dialTimeoutMaxDurationTests {
 		ch := make(chan error)
-		max := time.NewTimer(100 * time.Millisecond)
+		max := time.NewTimer(250 * time.Millisecond)
 		defer max.Stop()
 		go func() {
 			d := Dialer{Timeout: tt.timeout}

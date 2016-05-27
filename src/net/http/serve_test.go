@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/testenv"
@@ -714,6 +715,31 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
 	}
 }
 
+func testTCPConnectionStaysOpen(t *testing.T, req string, handler Handler) {
+	defer afterTest(t)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	br := bufio.NewReader(conn)
+	for i := 0; i < 2; i++ {
+		if _, err := io.WriteString(conn, req); err != nil {
+			t.Fatal(err)
+		}
+		res, err := ReadResponse(br, nil)
+		if err != nil {
+			t.Fatalf("res %d: %v", i+1, err)
+		}
+		if _, err := io.Copy(ioutil.Discard, res.Body); err != nil {
+			t.Fatalf("res %d body copy: %v", i+1, err)
+		}
+		res.Body.Close()
+	}
+}
+
 // TestServeHTTP10Close verifies that HTTP/1.0 requests won't be kept alive.
 func TestServeHTTP10Close(t *testing.T) {
 	testTCPConnectionCloses(t, "GET / HTTP/1.0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -747,6 +773,54 @@ func TestHTTP2UpgradeClosesConnection(t *testing.T) {
 		// Nothing. (if not hijacked, the server should close the connection
 		// afterwards)
 	}))
+}
+
+func send204(w ResponseWriter, r *Request) { w.WriteHeader(204) }
+func send304(w ResponseWriter, r *Request) { w.WriteHeader(304) }
+
+// Issue 15647: 204 responses can't have bodies, so HTTP/1.0 keep-alive conns should stay open.
+func TestHTTP10KeepAlive204Response(t *testing.T) {
+	testTCPConnectionStaysOpen(t, "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n", HandlerFunc(send204))
+}
+
+func TestHTTP11KeepAlive204Response(t *testing.T) {
+	testTCPConnectionStaysOpen(t, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n", HandlerFunc(send204))
+}
+
+func TestHTTP10KeepAlive304Response(t *testing.T) {
+	testTCPConnectionStaysOpen(t,
+		"GET / HTTP/1.0\r\nConnection: keep-alive\r\nIf-Modified-Since: Mon, 02 Jan 2006 15:04:05 GMT\r\n\r\n",
+		HandlerFunc(send304))
+}
+
+// Issue 15703
+func TestKeepAliveFinalChunkWithEOF(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, false /* h1 */, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.(Flusher).Flush() // force chunked encoding
+		w.Write([]byte("{\"Addr\": \"" + r.RemoteAddr + "\"}"))
+	}))
+	defer cst.close()
+	type data struct {
+		Addr string
+	}
+	var addrs [2]data
+	for i := range addrs {
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.NewDecoder(res.Body).Decode(&addrs[i]); err != nil {
+			t.Fatal(err)
+		}
+		if addrs[i].Addr == "" {
+			t.Fatal("no address")
+		}
+		res.Body.Close()
+	}
+	if addrs[0] != addrs[1] {
+		t.Fatalf("connection not reused")
+	}
 }
 
 func TestSetsRemoteAddr_h1(t *testing.T) { testSetsRemoteAddr(t, h1Mode) }
@@ -3990,10 +4064,16 @@ func TestServerValidatesHeaders(t *testing.T) {
 	}
 }
 
-func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
+func TestServerRequestContextCancel_ServeHTTPDone_h1(t *testing.T) {
+	testServerRequestContextCancel_ServeHTTPDone(t, h1Mode)
+}
+func TestServerRequestContextCancel_ServeHTTPDone_h2(t *testing.T) {
+	testServerRequestContextCancel_ServeHTTPDone(t, h2Mode)
+}
+func testServerRequestContextCancel_ServeHTTPDone(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	ctxc := make(chan context.Context, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctx := r.Context()
 		select {
 		case <-ctx.Done():
@@ -4002,8 +4082,8 @@ func TestServerRequestContextCancel_ServeHTTPDone(t *testing.T) {
 		}
 		ctxc <- ctx
 	}))
-	defer ts.Close()
-	res, err := Get(ts.URL)
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4056,9 +4136,15 @@ func TestServerRequestContextCancel_ConnClose(t *testing.T) {
 	}
 }
 
-func TestServerContext_ServerContextKey(t *testing.T) {
+func TestServerContext_ServerContextKey_h1(t *testing.T) {
+	testServerContext_ServerContextKey(t, h1Mode)
+}
+func TestServerContext_ServerContextKey_h2(t *testing.T) {
+	testServerContext_ServerContextKey(t, h2Mode)
+}
+func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ctx := r.Context()
 		got := ctx.Value(ServerContextKey)
 		if _, ok := got.(*Server); !ok {
@@ -4066,12 +4152,14 @@ func TestServerContext_ServerContextKey(t *testing.T) {
 		}
 
 		got = ctx.Value(LocalAddrContextKey)
-		if _, ok := got.(net.Addr); !ok {
+		if addr, ok := got.(net.Addr); !ok {
 			t.Errorf("local addr value = %T; want net.Addr", got)
+		} else if fmt.Sprint(addr) != r.Host {
+			t.Errorf("local addr = %v; want %v", addr, r.Host)
 		}
 	}))
-	defer ts.Close()
-	res, err := Get(ts.URL)
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4268,7 +4356,7 @@ func BenchmarkClient(b *testing.B) {
 	// Wait for the server process to respond.
 	url := "http://localhost:" + port + "/"
 	for i := 0; i < 100; i++ {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		if _, err := getNoBody(url); err == nil {
 			break
 		}

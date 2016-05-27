@@ -17,7 +17,15 @@ pkg context, type Context interface, Err() error
 pkg context, type Context interface, Value(interface{}) interface{}
 pkg context, var Canceled error
 pkg context, var DeadlineExceeded error
+pkg crypto/tls, const RenegotiateFreelyAsClient = 2
+pkg crypto/tls, const RenegotiateFreelyAsClient RenegotiationSupport
+pkg crypto/tls, const RenegotiateNever = 0
+pkg crypto/tls, const RenegotiateNever RenegotiationSupport
+pkg crypto/tls, const RenegotiateOnceAsClient = 1
+pkg crypto/tls, const RenegotiateOnceAsClient RenegotiationSupport
 pkg crypto/tls, type Config struct, DynamicRecordSizingDisabled bool
+pkg crypto/tls, type Config struct, Renegotiation RenegotiationSupport
+pkg crypto/tls, type RenegotiationSupport int
 pkg crypto/x509, func SystemCertPool() (*CertPool, error)
 pkg crypto/x509, type SystemRootsError struct, Err error
 pkg debug/dwarf, method (*Data) Ranges(*Entry) ([][2]uint64, error)
@@ -147,8 +155,9 @@ pkg debug/elf, const R_390_TLS_TPOFF R_390
 pkg debug/elf, method (R_390) GoString() string
 pkg debug/elf, method (R_390) String() string
 pkg debug/elf, type R_390 int
-pkg encoding/json, method (*Encoder) DisableHTMLEscaping()
-pkg encoding/json, method (*Encoder) Indent(string, string)
+pkg encoding/json, method (*Encoder) SetEscapeHTML(bool)
+pkg encoding/json, method (*Encoder) SetIndent(string, string)
+pkg go/build, type Package struct, BinaryOnly bool
 pkg go/build, type Package struct, CgoFFLAGS []string
 pkg go/build, type Package struct, FFiles []string
 pkg go/doc, type Example struct, Unordered bool
@@ -158,22 +167,54 @@ pkg io, const SeekEnd = 2
 pkg io, const SeekEnd ideal-int
 pkg io, const SeekStart = 0
 pkg io, const SeekStart ideal-int
-pkg io, type SizedReaderAt interface { ReadAt, Size }
-pkg io, type SizedReaderAt interface, ReadAt([]uint8, int64) (int, error)
-pkg io, type SizedReaderAt interface, Size() int64
 pkg math/big, method (*Float) GobDecode([]uint8) error
 pkg math/big, method (*Float) GobEncode() ([]uint8, error)
 pkg net, method (*Dialer) DialContext(context.Context, string, string) (Conn, error)
-pkg net, type IPNet struct, Zone string
 pkg net/http, method (*Request) Context() context.Context
 pkg net/http, method (*Request) WithContext(context.Context) *Request
+pkg net/http, type Request struct, Response *Response
+pkg net/http, type Response struct, Uncompressed bool
 pkg net/http, type Transport struct, Dialer *net.Dialer
+pkg net/http, type Transport struct, IdleConnTimeout time.Duration
+pkg net/http, type Transport struct, MaxIdleConns int
 pkg net/http, type Transport struct, MaxResponseHeaderBytes int64
+pkg net/http, var ErrUseLastResponse error
+pkg net/http, var LocalAddrContextKey *contextKey
 pkg net/http, var ServerContextKey *contextKey
 pkg net/http/cgi, type Handler struct, Stderr io.Writer
 pkg net/http/httptest, func NewRequest(string, string, io.Reader) *http.Request
-pkg net/http/httptest, method (*ResponseRecorder) Trailers() http.Header
+pkg net/http/httptest, method (*ResponseRecorder) Result() *http.Response
+pkg net/http/httptrace, func ContextClientTrace(context.Context) *ClientTrace
+pkg net/http/httptrace, func WithClientTrace(context.Context, *ClientTrace) context.Context
+pkg net/http/httptrace, type ClientTrace struct
+pkg net/http/httptrace, type ClientTrace struct, ConnectDone func(string, string, error)
+pkg net/http/httptrace, type ClientTrace struct, ConnectStart func(string, string)
+pkg net/http/httptrace, type ClientTrace struct, DNSDone func(DNSDoneInfo)
+pkg net/http/httptrace, type ClientTrace struct, DNSStart func(DNSStartInfo)
+pkg net/http/httptrace, type ClientTrace struct, GetConn func(string)
+pkg net/http/httptrace, type ClientTrace struct, Got100Continue func()
+pkg net/http/httptrace, type ClientTrace struct, GotConn func(GotConnInfo)
+pkg net/http/httptrace, type ClientTrace struct, GotFirstResponseByte func()
+pkg net/http/httptrace, type ClientTrace struct, PutIdleConn func(error)
+pkg net/http/httptrace, type ClientTrace struct, Wait100Continue func()
+pkg net/http/httptrace, type ClientTrace struct, WroteHeaders func()
+pkg net/http/httptrace, type ClientTrace struct, WroteRequest func(WroteRequestInfo)
+pkg net/http/httptrace, type DNSDoneInfo struct
+pkg net/http/httptrace, type DNSDoneInfo struct, Addrs []net.IPAddr
+pkg net/http/httptrace, type DNSDoneInfo struct, Coalesced bool
+pkg net/http/httptrace, type DNSDoneInfo struct, Err error
+pkg net/http/httptrace, type DNSStartInfo struct
+pkg net/http/httptrace, type DNSStartInfo struct, Host string
+pkg net/http/httptrace, type GotConnInfo struct
+pkg net/http/httptrace, type GotConnInfo struct, Conn net.Conn
+pkg net/http/httptrace, type GotConnInfo struct, IdleTime time.Duration
+pkg net/http/httptrace, type GotConnInfo struct, Reused bool
+pkg net/http/httptrace, type GotConnInfo struct, WasIdle bool
+pkg net/http/httptrace, type WroteRequestInfo struct
+pkg net/http/httptrace, type WroteRequestInfo struct, Err error
 pkg net/url, type URL struct, ForceQuery bool
+pkg os, method (*File) Size() (int64, error)
+pkg os/exec, func CommandContext(context.Context, string, ...string) *Cmd
 pkg os/user, func LookupGroup(string) (*Group, error)
 pkg os/user, func LookupGroupId(string) (*Group, error)
 pkg os/user, method (*User) GroupIds() ([]string, error)
@@ -187,6 +228,7 @@ pkg os/user, type UnknownGroupIdError string
 pkg reflect, func StructOf([]StructField) Type
 pkg reflect, method (StructTag) Lookup(string) (string, bool)
 pkg runtime, func CallersFrames([]uintptr) *Frames
+pkg runtime, func KeepAlive(interface{})
 pkg runtime, func SetCgoTraceback(int, unsafe.Pointer, unsafe.Pointer, unsafe.Pointer)
 pkg runtime, method (*Frames) Next() (Frame, bool)
 pkg runtime, type Frame struct
@@ -198,6 +240,12 @@ pkg runtime, type Frame struct, Line int
 pkg runtime, type Frame struct, PC uintptr
 pkg runtime, type Frames struct
 pkg strings, method (*Reader) Reset(string)
+pkg syscall (linux-386), type SysProcAttr struct, Unshare uintptr
+pkg syscall (linux-386-cgo), type SysProcAttr struct, Unshare uintptr
+pkg syscall (linux-amd64), type SysProcAttr struct, Unshare uintptr
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Unshare uintptr
+pkg syscall (linux-arm), type SysProcAttr struct, Unshare uintptr
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, Unshare uintptr
 pkg testing, method (*B) Run(string, func(*B)) bool
 pkg testing, method (*T) Run(string, func(*T)) bool
 pkg testing, type InternalExample struct, Unordered bool

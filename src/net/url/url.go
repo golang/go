@@ -3,8 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Package url parses URLs and implements query escaping.
-// See RFC 3986.
 package url
+
+// See RFC 3986. This package generally follows RFC 3986, except where
+// it deviates for compatibility reasons. When sending changes, first
+// search old issues for history on decisions. Unit tests should also
+// contain references to issue numbers with details.
 
 import (
 	"bytes"
@@ -573,12 +577,8 @@ func parseHost(host string) (string, error) {
 			}
 			return host1 + host2 + host3, nil
 		}
-	} else if i := strings.LastIndex(host, ":"); i > 0 {
-		colonPort := host[i:]
-		if !validOptionalPort(colonPort) {
-			return "", fmt.Errorf("invalid port %q after host", colonPort)
-		}
 	}
+
 	var err error
 	if host, err = unescape(host, encodeHost); err != nil {
 		return "", err

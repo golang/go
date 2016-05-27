@@ -79,14 +79,12 @@ func init() {
 	}
 
 	if GOOS == "darwin" {
-		cc = append(cc, "-Wl,-no_pie")
-
 		// For Darwin/ARM.
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
 	libgodir = GOOS + "_" + GOARCH
-	if GOOS == "darwin" && GOARCH == "arm" {
+	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") {
 		libgodir = GOOS + "_" + GOARCH + "_shared"
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))

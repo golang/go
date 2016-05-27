@@ -11,5 +11,5 @@ package main
 func main() {
 	type person struct{ age, weight, height int }
 	students := map[string]person{"sally": person{12, 50, 32}}
-	students["sally"].age = 3 // ERROR "cannot directly assign to struct field .* in map"
+	students["sally"].age = 3 // ERROR "cannot assign to struct field .* in map"
 }

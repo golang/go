@@ -725,7 +725,8 @@ var (
 	support_avx       bool
 	support_avx2      bool
 
-	goarm uint8 // set by cmd/link on arm systems
+	goarm                uint8 // set by cmd/link on arm systems
+	framepointer_enabled bool  // set by cmd/link
 )
 
 // Set by the linker so the runtime can determine the buildmode.

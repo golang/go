@@ -274,16 +274,6 @@ type RuneScanner interface {
 	UnreadRune() error
 }
 
-// SizedReaderAt is the interface that groups the basic ReadAt method
-// with a Size method that reports the total size of the underlying
-// object. It represents a fixed-size data source that supports random
-// access by multiple concurrent goroutines.
-type SizedReaderAt interface {
-	ReaderAt
-	// Size reports the length of the data source in bytes.
-	Size() int64
-}
-
 // stringWriter is the interface that wraps the WriteString method.
 type stringWriter interface {
 	WriteString(s string) (n int, err error)
@@ -480,11 +470,11 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
 		return 0, errWhence
-	case 0:
+	case SeekStart:
 		offset += s.base
-	case 1:
+	case SeekCurrent:
 		offset += s.off
-	case 2:
+	case SeekEnd:
 		offset += s.limit
 	}
 	if offset < s.base {

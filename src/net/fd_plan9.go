@@ -76,6 +76,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
 		return 0, err
 	}
 	defer fd.readUnlock()
+	if len(b) == 0 {
+		return 0, nil
+	}
 	n, err = fd.data.Read(b)
 	if isHangup(err) {
 		err = io.EOF
@@ -154,9 +157,7 @@ func (l *TCPListener) dup() (*os.File, error) {
 }
 
 func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
-	syscall.ForkLock.RLock()
 	dfd, err := syscall.Dup(int(f.Fd()), -1)
-	syscall.ForkLock.RUnlock()
 	if err != nil {
 		return nil, os.NewSyscallError("dup", err)
 	}

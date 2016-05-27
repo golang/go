@@ -296,3 +296,26 @@ func TestVectors(t *testing.T) {
 		}
 	}
 }
+
+func testNegativeInputs(t *testing.T, curve elliptic.Curve, tag string) {
+	key, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		t.Errorf("failed to generate key for %q", tag)
+	}
+
+	var hash [32]byte
+	r := new(big.Int).SetInt64(1)
+	r.Lsh(r, 550 /* larger than any supported curve */)
+	r.Neg(r)
+
+	if Verify(&key.PublicKey, hash[:], r, r) {
+		t.Errorf("bogus signature accepted for %q", tag)
+	}
+}
+
+func TestNegativeInputs(t *testing.T) {
+	testNegativeInputs(t, elliptic.P224(), "p224")
+	testNegativeInputs(t, elliptic.P256(), "p256")
+	testNegativeInputs(t, elliptic.P384(), "p384")
+	testNegativeInputs(t, elliptic.P521(), "p521")
+}

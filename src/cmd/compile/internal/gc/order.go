@@ -1082,6 +1082,20 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			n.Left = orderaddrtemp(n.Left, order)
 		}
 
+	case OCONVNOP:
+		if n.Type.IsKind(TUNSAFEPTR) && n.Left.Type.IsKind(TUINTPTR) && (n.Left.Op == OCALLFUNC || n.Left.Op == OCALLINTER || n.Left.Op == OCALLMETH) {
+			// When reordering unsafe.Pointer(f()) into a separate
+			// statement, the conversion and function call must stay
+			// together. See golang.org/issue/15329.
+			orderinit(n.Left, order)
+			ordercall(n.Left, order)
+			if lhs == nil || lhs.Op != ONAME || instrumenting {
+				n = ordercopyexpr(n, n.Type, order, 0)
+			}
+		} else {
+			n.Left = orderexpr(n.Left, order, nil)
+		}
+
 	case OANDAND, OOROR:
 		mark := marktemp(order)
 		n.Left = orderexpr(n.Left, order, nil)

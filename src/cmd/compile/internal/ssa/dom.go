@@ -20,9 +20,9 @@ const (
 // postorder computes a postorder traversal ordering for the
 // basic blocks in f. Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
-	return postorderWithNumbering(f, []int{})
+	return postorderWithNumbering(f, []int32{})
 }
-func postorderWithNumbering(f *Func, ponums []int) []*Block {
+func postorderWithNumbering(f *Func, ponums []int32) []*Block {
 	mark := make([]markKind, f.NumBlocks())
 
 	// result ordering
@@ -40,7 +40,7 @@ func postorderWithNumbering(f *Func, ponums []int) []*Block {
 			s = s[:len(s)-1]
 			mark[b.ID] = done
 			if len(ponums) > 0 {
-				ponums[b.ID] = len(order)
+				ponums[b.ID] = int32(len(order))
 			}
 			order = append(order, b)
 		case notExplored:

@@ -53,7 +53,6 @@ func Ismem(n *Node) bool {
 		OCAP,
 		OINDREG,
 		ONAME,
-		OPARAM,
 		OCLOSUREVAR:
 		return true
 
@@ -349,18 +348,6 @@ func Naddr(a *obj.Addr, n *Node) {
 			a.Width = 0
 		}
 
-		// n->left is PHEAP ONAME for stack parameter.
-	// compute address of actual parameter on stack.
-	case OPARAM:
-		a.Etype = uint8(Simtype[n.Left.Type.Etype])
-
-		a.Width = n.Left.Type.Width
-		a.Offset = n.Xoffset
-		a.Sym = Linksym(n.Left.Sym)
-		a.Type = obj.TYPE_MEM
-		a.Name = obj.NAME_PARAM
-		a.Node = n.Left.Orig
-
 	case OCLOSUREVAR:
 		if !Curfn.Func.Needctxt {
 			Fatalf("closurevar without needctxt")
@@ -528,25 +515,36 @@ func newplist() *obj.Plist {
 	return pl
 }
 
-// nodarg does something that depends on the value of
-// fp (this was previously completely undocumented).
+// nodarg returns a Node for the function argument denoted by t,
+// which is either the entire function argument or result struct (t is a  struct *Type)
+// or a specific argument (t is a *Field within a struct *Type).
 //
-// fp=1 corresponds to input args
-// fp=0 corresponds to output args
-// fp=-1 is a special case of output args for a
-// specific call from walk that previously (and
-// incorrectly) passed a 1; the behavior is exactly
-// the same as it is for 1, except that PARAMOUT is
-// generated instead of PARAM.
+// If fp is 0, the node is for use by a caller invoking the given
+// function, preparing the arguments before the call
+// or retrieving the results after the call.
+// In this case, the node will correspond to an outgoing argument
+// slot like 8(SP).
+//
+// If fp is 1, the node is for use by the function itself
+// (the callee), to retrieve its arguments or write its results.
+// In this case the node will be an ONAME with an appropriate
+// type and offset.
 func nodarg(t interface{}, fp int) *Node {
 	var n *Node
 
+	var funarg Funarg
 	switch t := t.(type) {
+	default:
+		Fatalf("bad nodarg %T(%v)", t, t)
+
 	case *Type:
-		// entire argument struct, not just one arg
+		// Entire argument struct, not just one arg
 		if !t.IsFuncArgStruct() {
 			Fatalf("nodarg: bad type %v", t)
 		}
+		funarg = t.StructType().Funarg
+
+		// Build fake variable name for whole arg struct.
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t
@@ -559,15 +557,43 @@ func nodarg(t interface{}, fp int) *Node {
 		}
 		n.Xoffset = first.Offset
 		n.Addable = true
+
 	case *Field:
-		if fp == 1 || fp == -1 {
+		funarg = t.Funarg
+		if fp == 1 {
+			// NOTE(rsc): This should be using t.Nname directly,
+			// except in the case where t.Nname.Sym is the blank symbol and
+			// so the assignment would be discarded during code generation.
+			// In that case we need to make a new node, and there is no harm
+			// in optimization passes to doing so. But otherwise we should
+			// definitely be using the actual declaration and not a newly built node.
+			// The extra Fatalf checks here are verifying that this is the case,
+			// without changing the actual logic (at time of writing, it's getting
+			// toward time for the Go 1.7 beta).
+			// At some quieter time (assuming we've never seen these Fatalfs happen)
+			// we could change this code to use "expect" directly.
+			expect := t.Nname
+			if expect.isParamHeapCopy() {
+				expect = expect.Name.Param.Stackcopy
+			}
+
 			for _, n := range Curfn.Func.Dcl {
 				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
+					if n != expect {
+						Fatalf("nodarg: unexpected node: %v (%p %v) vs %v (%p %v)", n, n, n.Op, t.Nname, t.Nname, t.Nname.Op)
+					}
 					return n
 				}
 			}
+
+			if !isblanksym(expect.Sym) {
+				Fatalf("nodarg: did not find node in dcl list: %v", expect)
+			}
 		}
 
+		// Build fake name for individual variable.
+		// This is safe because if there was a real declared name
+		// we'd have used it above.
 		n = Nod(ONAME, nil, nil)
 		n.Type = t.Type
 		n.Sym = t.Sym
@@ -577,8 +603,6 @@ func nodarg(t interface{}, fp int) *Node {
 		n.Xoffset = t.Offset
 		n.Addable = true
 		n.Orig = t.Nname
-	default:
-		panic("unreachable")
 	}
 
 	// Rewrite argument named _ to __,
@@ -589,23 +613,23 @@ func nodarg(t interface{}, fp int) *Node {
 	}
 
 	switch fp {
-	case 0: // output arg
-		n.Op = OINDREG
+	default:
+		Fatalf("bad fp")
 
+	case 0: // preparing arguments for call
+		n.Op = OINDREG
 		n.Reg = int16(Thearch.REGSP)
 		n.Xoffset += Ctxt.FixedFrameSize()
 
-	case 1: // input arg
+	case 1: // reading arguments inside call
 		n.Class = PPARAM
-
-	case -1: // output arg from paramstoheap
-		n.Class = PPARAMOUT
-
-	case 2: // offset output arg
-		Fatalf("shouldn't be used")
+		if funarg == FunargResults {
+			n.Class = PPARAMOUT
+		}
 	}
 
 	n.Typecheck = 1
+	n.Addrtaken = true // keep optimizers at bay
 	return n
 }
 

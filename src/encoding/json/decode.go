@@ -62,10 +62,10 @@ import (
 // the additional Go array elements are set to zero values.
 //
 // To unmarshal a JSON object into a map, Unmarshal first establishes a map to
-// use, If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
+// use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
 // reuses the existing map, keeping existing entries. Unmarshal then stores key-
-// value pairs from the JSON object into the map.  The map's key type must
-// either be a string or implement encoding.TextUnmarshaler.
+// value pairs from the JSON object into the map. The map's key type must
+// either be a string, an integer, or implement encoding.TextUnmarshaler.
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
@@ -581,17 +581,24 @@ func (d *decodeState) object(v reflect.Value) {
 
 	// Check type of target:
 	//   struct or
-	//   map[string]T or map[encoding.TextUnmarshaler]T
+	//   map[T1]T2 where T1 is string, an integer type,
+	//             or an encoding.TextUnmarshaler
 	switch v.Kind() {
 	case reflect.Map:
-		// Map key must either have string kind or be an encoding.TextUnmarshaler.
+		// Map key must either have string kind, have an integer kind,
+		// or be an encoding.TextUnmarshaler.
 		t := v.Type()
-		if t.Key().Kind() != reflect.String &&
-			!reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
-			d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
-			d.off--
-			d.next() // skip over { } in input
-			return
+		switch t.Key().Kind() {
+		case reflect.String,
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		default:
+			if !reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
+				d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
+				d.off--
+				d.next() // skip over { } in input
+				return
+			}
 		}
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
@@ -696,13 +703,32 @@ func (d *decodeState) object(v reflect.Value) {
 			var kv reflect.Value
 			switch {
 			case kt.Kind() == reflect.String:
-				kv = reflect.ValueOf(key).Convert(v.Type().Key())
+				kv = reflect.ValueOf(key).Convert(kt)
 			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
 				kv = reflect.New(v.Type().Key())
 				d.literalStore(item, kv, true)
 				kv = kv.Elem()
 			default:
-				panic("json: Unexpected key type") // should never occur
+				switch kt.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					s := string(key)
+					n, err := strconv.ParseInt(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowInt(n) {
+						d.saveError(&UnmarshalTypeError{"number " + s, kt, int64(start + 1)})
+						return
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					s := string(key)
+					n, err := strconv.ParseUint(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowUint(n) {
+						d.saveError(&UnmarshalTypeError{"number " + s, kt, int64(start + 1)})
+						return
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				default:
+					panic("json: Unexpected key type") // should never occur
+				}
 			}
 			v.SetMapIndex(kv, subv)
 		}

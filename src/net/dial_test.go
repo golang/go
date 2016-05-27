@@ -128,11 +128,14 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
 	case "windows":
 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
-	case "openbsd":
-		testenv.SkipFlaky(t, 15157)
 	}
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
+	}
+
+	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	if closedPortDelay > expectClosedPortDelay {
+		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
 	}
 
 	before := sw.Sockets()
@@ -148,10 +151,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 			c.Close()
 		}
 	}
-	dss, err := newDualStackServer([]streamListener{
-		{network: "tcp4", address: "127.0.0.1"},
-		{network: "tcp6", address: "::1"},
-	})
+	dss, err := newDualStackServer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
 	const N = 10
 	var wg sync.WaitGroup
 	wg.Add(N)
-	d := &Dialer{DualStack: true, Timeout: 100 * time.Millisecond}
+	d := &Dialer{DualStack: true, Timeout: 100*time.Millisecond + closedPortDelay}
 	for i := 0; i < N; i++ {
 		go func() {
 			defer wg.Done()
@@ -326,10 +326,7 @@ func TestDialParallel(t *testing.T) {
 	}
 
 	for i, tt := range testCases {
-		dss, err := newDualStackServer([]streamListener{
-			{network: "tcp4", address: "127.0.0.1"},
-			{network: "tcp6", address: "::1"},
-		})
+		dss, err := newDualStackServer()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -446,9 +443,7 @@ func TestDialerFallbackDelay(t *testing.T) {
 			c.Close()
 		}
 	}
-	dss, err := newDualStackServer([]streamListener{
-		{network: "tcp", address: "127.0.0.1"},
-	})
+	dss, err := newDualStackServer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -501,10 +496,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		c.Close()
 		wg.Done()
 	}
-	dss, err := newDualStackServer([]streamListener{
-		{network: "tcp4", address: "127.0.0.1"},
-		{network: "tcp6", address: "::1"},
-	})
+	dss, err := newDualStackServer()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,68 +583,67 @@ func TestDialerPartialDeadline(t *testing.T) {
 	}
 }
 
-type dialerLocalAddrTest struct {
-	network, raddr string
-	laddr          Addr
-	error
-}
-
-var dialerLocalAddrTests = []dialerLocalAddrTest{
-	{"tcp4", "127.0.0.1", nil, nil},
-	{"tcp4", "127.0.0.1", &TCPAddr{}, nil},
-	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
-	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
-	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, &AddrError{Err: "some error"}},
-	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, nil},
-	{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, nil},
-	{"tcp4", "127.0.0.1", &TCPAddr{IP: IPv6loopback}, errNoSuitableAddress},
-	{"tcp4", "127.0.0.1", &UDPAddr{}, &AddrError{Err: "some error"}},
-	{"tcp4", "127.0.0.1", &UnixAddr{}, &AddrError{Err: "some error"}},
-
-	{"tcp6", "::1", nil, nil},
-	{"tcp6", "::1", &TCPAddr{}, nil},
-	{"tcp6", "::1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
-	{"tcp6", "::1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
-	{"tcp6", "::1", &TCPAddr{IP: ParseIP("::")}, nil},
-	{"tcp6", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, errNoSuitableAddress},
-	{"tcp6", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, errNoSuitableAddress},
-	{"tcp6", "::1", &TCPAddr{IP: IPv6loopback}, nil},
-	{"tcp6", "::1", &UDPAddr{}, &AddrError{Err: "some error"}},
-	{"tcp6", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
-
-	{"tcp", "127.0.0.1", nil, nil},
-	{"tcp", "127.0.0.1", &TCPAddr{}, nil},
-	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
-	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
-	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, nil},
-	{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, nil},
-	{"tcp", "127.0.0.1", &TCPAddr{IP: IPv6loopback}, errNoSuitableAddress},
-	{"tcp", "127.0.0.1", &UDPAddr{}, &AddrError{Err: "some error"}},
-	{"tcp", "127.0.0.1", &UnixAddr{}, &AddrError{Err: "some error"}},
-
-	{"tcp", "::1", nil, nil},
-	{"tcp", "::1", &TCPAddr{}, nil},
-	{"tcp", "::1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
-	{"tcp", "::1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
-	{"tcp", "::1", &TCPAddr{IP: ParseIP("::")}, nil},
-	{"tcp", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, errNoSuitableAddress},
-	{"tcp", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, errNoSuitableAddress},
-	{"tcp", "::1", &TCPAddr{IP: IPv6loopback}, nil},
-	{"tcp", "::1", &UDPAddr{}, &AddrError{Err: "some error"}},
-	{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
-}
-
 func TestDialerLocalAddr(t *testing.T) {
 	if !supportsIPv4 || !supportsIPv6 {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
+	type test struct {
+		network, raddr string
+		laddr          Addr
+		error
+	}
+	var tests = []test{
+		{"tcp4", "127.0.0.1", nil, nil},
+		{"tcp4", "127.0.0.1", &TCPAddr{}, nil},
+		{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+		{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+		{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, &AddrError{Err: "some error"}},
+		{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, nil},
+		{"tcp4", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, nil},
+		{"tcp4", "127.0.0.1", &TCPAddr{IP: IPv6loopback}, errNoSuitableAddress},
+		{"tcp4", "127.0.0.1", &UDPAddr{}, &AddrError{Err: "some error"}},
+		{"tcp4", "127.0.0.1", &UnixAddr{}, &AddrError{Err: "some error"}},
+
+		{"tcp6", "::1", nil, nil},
+		{"tcp6", "::1", &TCPAddr{}, nil},
+		{"tcp6", "::1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+		{"tcp6", "::1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+		{"tcp6", "::1", &TCPAddr{IP: ParseIP("::")}, nil},
+		{"tcp6", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, errNoSuitableAddress},
+		{"tcp6", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, errNoSuitableAddress},
+		{"tcp6", "::1", &TCPAddr{IP: IPv6loopback}, nil},
+		{"tcp6", "::1", &UDPAddr{}, &AddrError{Err: "some error"}},
+		{"tcp6", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
+
+		{"tcp", "127.0.0.1", nil, nil},
+		{"tcp", "127.0.0.1", &TCPAddr{}, nil},
+		{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+		{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+		{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, nil},
+		{"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, nil},
+		{"tcp", "127.0.0.1", &TCPAddr{IP: IPv6loopback}, errNoSuitableAddress},
+		{"tcp", "127.0.0.1", &UDPAddr{}, &AddrError{Err: "some error"}},
+		{"tcp", "127.0.0.1", &UnixAddr{}, &AddrError{Err: "some error"}},
+
+		{"tcp", "::1", nil, nil},
+		{"tcp", "::1", &TCPAddr{}, nil},
+		{"tcp", "::1", &TCPAddr{IP: ParseIP("0.0.0.0")}, nil},
+		{"tcp", "::1", &TCPAddr{IP: ParseIP("0.0.0.0").To4()}, nil},
+		{"tcp", "::1", &TCPAddr{IP: ParseIP("::")}, nil},
+		{"tcp", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To4()}, errNoSuitableAddress},
+		{"tcp", "::1", &TCPAddr{IP: ParseIP("127.0.0.1").To16()}, errNoSuitableAddress},
+		{"tcp", "::1", &TCPAddr{IP: IPv6loopback}, nil},
+		{"tcp", "::1", &UDPAddr{}, &AddrError{Err: "some error"}},
+		{"tcp", "::1", &UnixAddr{}, &AddrError{Err: "some error"}},
+	}
+
 	if supportsIPv4map {
-		dialerLocalAddrTests = append(dialerLocalAddrTests, dialerLocalAddrTest{
+		tests = append(tests, test{
 			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, nil,
 		})
 	} else {
-		dialerLocalAddrTests = append(dialerLocalAddrTests, dialerLocalAddrTest{
+		tests = append(tests, test{
 			"tcp", "127.0.0.1", &TCPAddr{IP: ParseIP("::")}, &AddrError{Err: "some error"},
 		})
 	}
@@ -682,7 +673,7 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 	}
 
-	for _, tt := range dialerLocalAddrTests {
+	for _, tt := range tests {
 		d := &Dialer{LocalAddr: tt.laddr}
 		var addr string
 		ip := ParseIP(tt.raddr)
@@ -731,10 +722,7 @@ func TestDialerDualStack(t *testing.T) {
 
 	var timeout = 150*time.Millisecond + closedPortDelay
 	for _, dualstack := range []bool{false, true} {
-		dss, err := newDualStackServer([]streamListener{
-			{network: "tcp4", address: "127.0.0.1"},
-			{network: "tcp6", address: "::1"},
-		})
+		dss, err := newDualStackServer()
 		if err != nil {
 			t.Fatal(err)
 		}

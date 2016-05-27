@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -29,17 +30,11 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	params := ""
-	if goids := r.FormValue("goid"); goids != "" {
-		goid, err := strconv.ParseUint(goids, 10, 64)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to parse goid parameter '%v': %v", goids, err), http.StatusInternalServerError)
-			return
-		}
-		params = fmt.Sprintf("?goid=%v", goid)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	html := strings.Replace(templTrace, "{{PARAMS}}", params, -1)
+	html := strings.Replace(templTrace, "{{PARAMS}}", r.Form.Encode(), -1)
 	w.Write([]byte(html))
 
 }
@@ -118,7 +113,7 @@ var templTrace = `
     viewer.globalMode = true;
     document.body.appendChild(viewer);
 
-    url = '/jsontrace{{PARAMS}}';
+    url = '/jsontrace?{{PARAMS}}';
     load();
   });
 }());
@@ -150,6 +145,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if goids := r.FormValue("goid"); goids != "" {
+		// If goid argument is present, we are rendering a trace for this particular goroutine.
 		goid, err := strconv.ParseUint(goids, 10, 64)
 		if err != nil {
 			log.Printf("failed to parse goid parameter '%v': %v", goids, err)
@@ -164,11 +160,79 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
 		params.gs = trace.RelatedGoroutines(events, goid)
 	}
 
-	err = json.NewEncoder(w).Encode(generateTrace(params))
+	data := generateTrace(params)
+
+	if startStr, endStr := r.FormValue("start"), r.FormValue("end"); startStr != "" && endStr != "" {
+		// If start/end arguments are present, we are rendering a range of the trace.
+		start, err := strconv.ParseUint(startStr, 10, 64)
+		if err != nil {
+			log.Printf("failed to parse start parameter '%v': %v", startStr, err)
+			return
+		}
+		end, err := strconv.ParseUint(endStr, 10, 64)
+		if err != nil {
+			log.Printf("failed to parse end parameter '%v': %v", endStr, err)
+			return
+		}
+		if start >= uint64(len(data.Events)) || end <= start || end > uint64(len(data.Events)) {
+			log.Printf("bogus start/end parameters: %v/%v, trace size %v", start, end, len(data.Events))
+			return
+		}
+		data.Events = append(data.Events[start:end], data.Events[data.footer:]...)
+	}
+	err = json.NewEncoder(w).Encode(data)
 	if err != nil {
 		log.Printf("failed to serialize trace: %v", err)
 		return
 	}
+}
+
+type Range struct {
+	Name  string
+	Start int
+	End   int
+}
+
+// splitTrace splits the trace into a number of ranges,
+// each resulting in approx 100MB of json output (trace viewer can hardly handle more).
+func splitTrace(data ViewerData) []Range {
+	const rangeSize = 100 << 20
+	var ranges []Range
+	cw := new(countingWriter)
+	enc := json.NewEncoder(cw)
+	// First calculate size of the mandatory part of the trace.
+	// This includes stack traces and thread names.
+	data1 := data
+	data1.Events = data.Events[data.footer:]
+	enc.Encode(data1)
+	auxSize := cw.size
+	cw.size = 0
+	// Then calculate size of each individual event and group them into ranges.
+	for i, start := 0, 0; i < data.footer; i++ {
+		enc.Encode(data.Events[i])
+		if cw.size+auxSize > rangeSize || i == data.footer-1 {
+			ranges = append(ranges, Range{
+				Name:  fmt.Sprintf("%v-%v", time.Duration(data.Events[start].Time*1000), time.Duration(data.Events[i].Time*1000)),
+				Start: start,
+				End:   i + 1,
+			})
+			start = i + 1
+			cw.size = 0
+		}
+	}
+	if len(ranges) == 1 {
+		ranges = nil
+	}
+	return ranges
+}
+
+type countingWriter struct {
+	size int
+}
+
+func (cw *countingWriter) Write(data []byte) (int, error) {
+	cw.size += len(data)
+	return len(data), nil
 }
 
 type traceParams struct {
@@ -204,6 +268,9 @@ type ViewerData struct {
 	Events   []*ViewerEvent         `json:"traceEvents"`
 	Frames   map[string]ViewerFrame `json:"stackFrames"`
 	TimeUnit string                 `json:"displayTimeUnit"`
+
+	// This is where mandatory part of the trace starts (e.g. thread names)
+	footer int
 }
 
 type ViewerEvent struct {
@@ -355,6 +422,7 @@ func generateTrace(params *traceParams) ViewerData {
 		}
 	}
 
+	ctx.data.footer = len(ctx.data.Events)
 	ctx.emit(&ViewerEvent{Name: "process_name", Phase: "M", Pid: 0, Arg: &NameArg{"PROCS"}})
 	ctx.emit(&ViewerEvent{Name: "process_sort_index", Phase: "M", Pid: 0, Arg: &SortIndexArg{1}})
 

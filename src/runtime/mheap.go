@@ -46,7 +46,7 @@ type mheap struct {
 	nsmallfree [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
 	// range of addresses we might see in the heap
-	bitmap         uintptr
+	bitmap         uintptr // Points to one byte past the end of the bitmap
 	bitmap_mapped  uintptr
 	arena_start    uintptr
 	arena_used     uintptr // always mHeap_Map{Bits,Spans} before updating
@@ -266,6 +266,28 @@ func inheap(b uintptr) bool {
 		return false
 	}
 	return true
+}
+
+// inHeapOrStack is a variant of inheap that returns true for pointers into stack spans.
+//go:nowritebarrier
+//go:nosplit
+func inHeapOrStack(b uintptr) bool {
+	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
+		return false
+	}
+	// Not a beginning of a block, consult span table to find the block beginning.
+	s := h_spans[(b-mheap_.arena_start)>>_PageShift]
+	if s == nil || b < s.base() {
+		return false
+	}
+	switch s.state {
+	case mSpanInUse:
+		return b < s.limit
+	case _MSpanStack:
+		return b < s.base()+s.npages<<_PageShift
+	default:
+		return false
+	}
 }
 
 // TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
@@ -1221,7 +1243,7 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr) {
 	}
 }
 
-const gcBitsChunkBytes = uintptr(1 << 16)
+const gcBitsChunkBytes = uintptr(64 << 10)
 const gcBitsHeaderBytes = unsafe.Sizeof(gcBitsHeader{})
 
 type gcBitsHeader struct {

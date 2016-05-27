@@ -699,7 +699,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		return false
 	default:
-		log.Fatal("internal error: unknown buildmode %s", mode)
+		log.Fatalf("internal error: unknown buildmode %s", mode)
 		return false
 	}
 }

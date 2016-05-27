@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Binary package import.
-// Based loosely on x/tools/go/importer.
+// See bexport.go for the export data format and how
+// to make a format change.
 
 package gc
 
@@ -24,10 +25,11 @@ type importer struct {
 	buf []byte // reused for reading strings
 
 	// object lists, in order of deserialization
-	strList  []string
-	pkgList  []*Pkg
-	typList  []*Type
-	funcList []*Node // nil entry means already declared
+	strList       []string
+	pkgList       []*Pkg
+	typList       []*Type
+	funcList      []*Node // nil entry means already declared
+	trackAllTypes bool
 
 	// for delayed type verification
 	cmpList []struct{ pt, t *Type }
@@ -58,6 +60,8 @@ func Import(in *bufio.Reader) {
 	default:
 		Fatalf("importer: invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
+
+	p.trackAllTypes = p.rawByte() == 'a'
 
 	p.posInfoFormat = p.bool()
 
@@ -100,7 +104,9 @@ func Import(in *bufio.Reader) {
 	// --- compiler-specific export data ---
 
 	// read compiler-specific flags
-	importpkg.Safe = p.bool()
+
+	// read but ignore safemode bit (see issue #15772)
+	p.bool() // formerly: importpkg.Safe = p.bool()
 
 	// phase 2
 	objcount = 0
@@ -230,7 +236,7 @@ func (p *importer) pkg() *Pkg {
 	// an empty path denotes the package we are currently importing;
 	// it must be the first package we see
 	if (path == "") != (len(p.pkgList) == 0) {
-		panic(fmt.Sprintf("package path %q for pkg index %d", path, len(p.pkgList)))
+		Fatalf("importer: package path %q for pkg index %d", path, len(p.pkgList))
 	}
 
 	pkg := importpkg
@@ -331,7 +337,9 @@ func (p *importer) pos() {
 
 func (p *importer) newtyp(etype EType) *Type {
 	t := typ(etype)
-	p.typList = append(p.typList, t)
+	if p.trackAllTypes {
+		p.typList = append(p.typList, t)
+	}
 	return t
 }
 
@@ -389,7 +397,13 @@ func (p *importer) typ() *Type {
 		// read underlying type
 		// parser.go:hidden_type
 		t0 := p.typ()
-		p.importtype(t, t0) // parser.go:hidden_import
+		if p.trackAllTypes {
+			// If we track all types, we cannot check equality of previously
+			// imported types until later. Use customized version of importtype.
+			p.importtype(t, t0)
+		} else {
+			importtype(t, t0)
+		}
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {
@@ -788,15 +802,10 @@ func (p *importer) node() *Node {
 		return n
 
 	case ONAME:
-		if p.bool() {
-			// "_"
-			// TODO(gri) avoid repeated "_" lookup
-			return mkname(Pkglookup("_", localpkg))
-		}
-		return NodSym(OXDOT, typenod(p.typ()), p.fieldSym())
-
-	case OPACK, ONONAME:
 		return mkname(p.sym())
+
+	// case OPACK, ONONAME:
+	// 	unreachable - should have been resolved by typechecking
 
 	case OTYPE:
 		if p.bool() {
@@ -810,12 +819,9 @@ func (p *importer) node() *Node {
 	// case OCLOSURE:
 	//	unimplemented
 
-	// case OCOMPLIT:
-	//	unimplemented
-
 	case OPTRLIT:
 		n := p.expr()
-		if !p.bool() /* !implicit, i.e. '&' operator*/ {
+		if !p.bool() /* !implicit, i.e. '&' operator */ {
 			if n.Op == OCOMPLIT {
 				// Special case for &T{...}: turn into (*T){...}.
 				n.Right = Nod(OIND, n.Right, nil)
@@ -827,18 +833,15 @@ func (p *importer) node() *Node {
 		return n
 
 	case OSTRUCTLIT:
-		n := Nod(OCOMPLIT, nil, nil)
-		if !p.bool() {
-			n.Right = typenod(p.typ())
-		}
-		n.List.Set(p.elemList())
+		n := Nod(OCOMPLIT, nil, typenod(p.typ()))
+		n.List.Set(p.elemList()) // special handling of field names
 		return n
 
-	case OARRAYLIT, OMAPLIT:
-		n := Nod(OCOMPLIT, nil, nil)
-		if !p.bool() {
-			n.Right = typenod(p.typ())
-		}
+	// case OARRAYLIT, OMAPLIT:
+	// 	unreachable - mapped to case OCOMPLIT below by exporter
+
+	case OCOMPLIT:
+		n := Nod(OCOMPLIT, nil, typenod(p.typ()))
 		n.List.Set(p.exprList())
 		return n
 
@@ -854,14 +857,7 @@ func (p *importer) node() *Node {
 
 	case OXDOT:
 		// see parser.new_dotname
-		obj := p.expr()
-		sel := p.fieldSym()
-		if obj.Op == OPACK {
-			s := restrictlookup(sel.Name, obj.Name.Pkg)
-			obj.Used = true
-			return oldname(s)
-		}
-		return NodSym(OXDOT, obj, sel)
+		return NodSym(OXDOT, p.expr(), p.fieldSym())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter
@@ -891,29 +887,18 @@ func (p *importer) node() *Node {
 		n.SetSliceBounds(low, high, max)
 		return n
 
-	case OCOPY, OCOMPLEX:
-		n := builtinCall(op)
-		n.List.Set([]*Node{p.expr(), p.expr()})
-		return n
-
 	// case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 	// 	unreachable - mapped to OCONV case below by exporter
 
 	case OCONV:
 		n := Nod(OCALL, typenod(p.typ()), nil)
-		if p.bool() {
-			n.List.Set1(p.expr())
-		} else {
-			n.List.Set(p.exprList())
-		}
+		n.List.Set(p.exprList())
 		return n
 
-	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		n := builtinCall(op)
-		if p.bool() {
-			n.List.Set1(p.expr())
-		} else {
-			n.List.Set(p.exprList())
+		n.List.Set(p.exprList())
+		if op == OAPPEND {
 			n.Isddd = p.bool()
 		}
 		return n
@@ -1053,6 +1038,7 @@ func (p *importer) node() *Node {
 	case OXCASE:
 		markdcl()
 		n := Nod(OXCASE, nil, nil)
+		n.Xoffset = int64(block)
 		n.List.Set(p.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
@@ -1063,23 +1049,32 @@ func (p *importer) node() *Node {
 	// case OFALL:
 	// 	unreachable - mapped to OXFALL case below by exporter
 
-	case OBREAK, OCONTINUE, OGOTO, OXFALL:
+	case OXFALL:
+		n := Nod(OXFALL, nil, nil)
+		n.Xoffset = int64(block)
+		return n
+
+	case OBREAK, OCONTINUE:
 		left, _ := p.exprsOrNil()
+		if left != nil {
+			left = newname(left.Sym)
+		}
 		return Nod(op, left, nil)
 
 	// case OEMPTY:
 	// 	unreachable - not emitted by exporter
 
-	case OLABEL:
-		n := Nod(OLABEL, p.expr(), nil)
-		n.Left.Sym = dclstack // context, for goto restrictions
+	case OGOTO, OLABEL:
+		n := Nod(op, newname(p.expr().Sym), nil)
+		n.Sym = dclstack // context, for goto restrictions
 		return n
 
 	case OEND:
 		return nil
 
 	default:
-		Fatalf("importer: %s (%d) node not yet supported", op, op)
+		Fatalf("cannot import %s (%d) node\n"+
+			"==> please file an issue and assign to gri@\n", op, op)
 		panic("unreachable") // satisfy compiler
 	}
 }

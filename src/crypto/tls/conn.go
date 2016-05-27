@@ -76,9 +76,10 @@ type Conn struct {
 	input    *block       // application data waiting to be read
 	hand     bytes.Buffer // handshake data waiting to be read
 
-	// bytesSent counts the number of bytes of application data that have
-	// been sent.
-	bytesSent int64
+	// bytesSent counts the bytes of application data sent.
+	// packetsSent counts packets.
+	bytesSent   int64
+	packetsSent int64
 
 	// activeCall is an atomic int32; the low bit is whether Close has
 	// been called. the rest of the bits are the number of goroutines
@@ -732,7 +733,7 @@ const (
 	// recordSizeBoostThreshold is the number of bytes of application data
 	// sent after which the TLS record size will be increased to the
 	// maximum.
-	recordSizeBoostThreshold = 1 * 1024 * 1024
+	recordSizeBoostThreshold = 128 * 1024
 )
 
 // maxPayloadSizeForWrite returns the maximum TLS payload size to use for the
@@ -788,7 +789,18 @@ func (c *Conn) maxPayloadSizeForWrite(typ recordType, explicitIVLen int) int {
 		}
 	}
 
-	return payloadBytes
+	// Allow packet growth in arithmetic progression up to max.
+	pkt := c.packetsSent
+	c.packetsSent++
+	if pkt > 1000 {
+		return maxPlaintext // avoid overflow in multiply below
+	}
+
+	n := payloadBytes * int(pkt+1)
+	if n > maxPlaintext {
+		n = maxPlaintext
+	}
+	return n
 }
 
 // writeRecordLocked writes a TLS record with the given type and payload to the

@@ -14,14 +14,15 @@ import (
 
 func TestGoLookupIP(t *testing.T) {
 	host := "localhost"
-	_, err, ok := cgoLookupIP(host)
+	ctx := context.Background()
+	_, err, ok := cgoLookupIP(ctx, host)
 	if ok {
 		t.Errorf("cgoLookupIP must be a placeholder")
 	}
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := goLookupIP(context.Background(), host); err != nil {
+	if _, err := goLookupIP(ctx, host); err != nil {
 		t.Error(err)
 	}
 }

@@ -515,7 +515,7 @@ func prove(f *Func) {
 
 // getBranch returns the range restrictions added by p
 // when reaching b. p is the immediate dominator of b.
-func getBranch(sdom sparseTree, p *Block, b *Block) branch {
+func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 	if p == nil || p.Kind != BlockIf {
 		return unknown
 	}

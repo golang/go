@@ -94,6 +94,14 @@ func cgoCheckSliceCopy(typ *_type, dst, src slice, n int) {
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+	// Anything past typ.ptrdata is not a pointer.
+	if typ.ptrdata <= off {
+		return
+	}
+	if ptrdataSize := typ.ptrdata - off; size > ptrdataSize {
+		size = ptrdataSize
+	}
+
 	if typ.kind&kindGCProg == 0 {
 		cgoCheckBits(src, typ.gcdata, off, size)
 		return
@@ -184,7 +192,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
 
 // cgoCheckUsingType is like cgoCheckTypedBlock, but is a last ditch
 // fall back to look for pointers in src using the type information.
-// We only this when looking at a value on the stack when the type
+// We only use this when looking at a value on the stack when the type
 // uses a GC program, because otherwise it's more efficient to use the
 // GC bits. This is called on the system stack.
 //go:nowritebarrier
@@ -193,6 +201,15 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 	if typ.kind&kindNoPointers != 0 {
 		return
 	}
+
+	// Anything past typ.ptrdata is not a pointer.
+	if typ.ptrdata <= off {
+		return
+	}
+	if ptrdataSize := typ.ptrdata - off; size > ptrdataSize {
+		size = ptrdataSize
+	}
+
 	if typ.kind&kindGCProg == 0 {
 		cgoCheckBits(src, typ.gcdata, off, size)
 		return

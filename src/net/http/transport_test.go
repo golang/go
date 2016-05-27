@@ -2983,6 +2983,21 @@ func TestTransportAutomaticHTTP2_TLSConfig(t *testing.T) {
 func TestTransportAutomaticHTTP2_ExpectContinueTimeout(t *testing.T) {
 	testTransportAutoHTTP(t, &Transport{
 		ExpectContinueTimeout: 1 * time.Second,
+	}, true)
+}
+
+func TestTransportAutomaticHTTP2_Dial(t *testing.T) {
+	var d net.Dialer
+	testTransportAutoHTTP(t, &Transport{
+		Dial: d.Dial,
+	}, false)
+}
+
+func TestTransportAutomaticHTTP2_DialTLS(t *testing.T) {
+	testTransportAutoHTTP(t, &Transport{
+		DialTLS: func(network, addr string) (net.Conn, error) {
+			panic("unused")
+		},
 	}, false)
 }
 
@@ -3193,26 +3208,33 @@ func TestTransportResponseHeaderLength(t *testing.T) {
 	}
 }
 
-func TestTransportEventTrace(t *testing.T) { testTransportEventTrace(t, false) }
+func TestTransportEventTrace(t *testing.T)    { testTransportEventTrace(t, h1Mode, false) }
+func TestTransportEventTrace_h2(t *testing.T) { testTransportEventTrace(t, h2Mode, false) }
 
 // test a non-nil httptrace.ClientTrace but with all hooks set to zero.
-func TestTransportEventTrace_NoHooks(t *testing.T) { testTransportEventTrace(t, true) }
+func TestTransportEventTrace_NoHooks(t *testing.T)    { testTransportEventTrace(t, h1Mode, true) }
+func TestTransportEventTrace_NoHooks_h2(t *testing.T) { testTransportEventTrace(t, h2Mode, true) }
 
-func testTransportEventTrace(t *testing.T, noHooks bool) {
+func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	defer afterTest(t)
 	const resBody = "some body"
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	gotWroteReqEvent := make(chan struct{})
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if _, err := ioutil.ReadAll(r.Body); err != nil {
 			t.Error(err)
 		}
+		if !noHooks {
+			select {
+			case <-gotWroteReqEvent:
+			case <-time.After(5 * time.Second):
+				t.Error("timeout waiting for WroteRequest event")
+			}
+		}
 		io.WriteString(w, resBody)
 	}))
-	defer ts.Close()
-	tr := &Transport{
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-	defer tr.CloseIdleConnections()
-	c := &Client{Transport: tr}
+	defer cst.close()
+
+	cst.tr.ExpectContinueTimeout = 1 * time.Second
 
 	var mu sync.Mutex
 	var buf bytes.Buffer
@@ -3223,7 +3245,8 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 		buf.WriteByte('\n')
 	}
 
-	ip, port, err := net.SplitHostPort(ts.Listener.Addr().String())
+	addrStr := cst.ts.Listener.Addr().String()
+	ip, port, err := net.SplitHostPort(addrStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3237,7 +3260,7 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
 	})
 
-	req, _ := NewRequest("POST", "http://dns-is-faked.golang:"+port, strings.NewReader("some body"))
+	req, _ := NewRequest("POST", cst.scheme()+"://dns-is-faked.golang:"+port, strings.NewReader("some body"))
 	trace := &httptrace.ClientTrace{
 		GetConn:              func(hostPort string) { logf("Getting conn for %v ...", hostPort) },
 		GotConn:              func(ci httptrace.GotConnInfo) { logf("got conn: %+v", ci) },
@@ -3254,7 +3277,10 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 		},
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
-		WroteRequest:    func(e httptrace.WroteRequestInfo) { logf("WroteRequest: %+v", e) },
+		WroteRequest: func(e httptrace.WroteRequestInfo) {
+			close(gotWroteReqEvent)
+			logf("WroteRequest: %+v", e)
+		},
 	}
 	if noHooks {
 		// zero out all func pointers, trying to get some path to crash
@@ -3263,14 +3289,16 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 
 	req.Header.Set("Expect", "100-continue")
-	res, err := c.Do(req)
+	res, err := cst.c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
+	logf("got roundtrip.response")
 	slurp, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
+	logf("consumed body")
 	if string(slurp) != resBody || res.StatusCode != 200 {
 		t.Fatalf("Got %q, %v; want %q, 200 OK", slurp, res.Status, resBody)
 	}
@@ -3289,16 +3317,71 @@ func testTransportEventTrace(t *testing.T, noHooks bool) {
 			t.Errorf("expected substring %q in output.", sub)
 		}
 	}
+	if strings.Count(got, "got conn: {") != 1 {
+		t.Errorf("expected exactly 1 \"got conn\" event.")
+	}
 	wantSub("Getting conn for dns-is-faked.golang:" + port)
 	wantSub("DNS start: {Host:dns-is-faked.golang}")
 	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
-	wantSub("connected to tcp " + ts.Listener.Addr().String() + " = <nil>")
+	wantSub("Connecting to tcp " + addrStr)
+	wantSub("connected to tcp " + addrStr + " = <nil>")
 	wantSub("Reused:false WasIdle:false IdleTime:0s")
 	wantSub("first response byte")
-	wantSub("PutIdleConn = <nil>")
-	wantSub("WroteRequest: {Err:<nil>}")
+	if !h2 {
+		wantSub("PutIdleConn = <nil>")
+	}
 	wantSub("Wait100Continue")
 	wantSub("Got100Continue")
+	wantSub("WroteRequest: {Err:<nil>}")
+	if strings.Contains(got, " to udp ") {
+		t.Errorf("should not see UDP (DNS) connections")
+	}
+	if t.Failed() {
+		t.Errorf("Output:\n%s", got)
+	}
+}
+
+func TestTransportEventTraceRealDNS(t *testing.T) {
+	defer afterTest(t)
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr}
+
+	var mu sync.Mutex
+	var buf bytes.Buffer
+	logf := func(format string, args ...interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		fmt.Fprintf(&buf, format, args...)
+		buf.WriteByte('\n')
+	}
+
+	req, _ := NewRequest("GET", "http://dns-should-not-resolve.golang:80", nil)
+	trace := &httptrace.ClientTrace{
+		DNSStart:     func(e httptrace.DNSStartInfo) { logf("DNSStart: %+v", e) },
+		DNSDone:      func(e httptrace.DNSDoneInfo) { logf("DNSDone: %+v", e) },
+		ConnectStart: func(network, addr string) { logf("ConnectStart: %s %s", network, addr) },
+		ConnectDone:  func(network, addr string, err error) { logf("ConnectDone: %s %s %v", network, addr, err) },
+	}
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+
+	resp, err := c.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		t.Fatal("expected error during DNS lookup")
+	}
+
+	got := buf.String()
+	wantSub := func(sub string) {
+		if !strings.Contains(got, sub) {
+			t.Errorf("expected substring %q in output.", sub)
+		}
+	}
+	wantSub("DNSStart: {Host:dns-should-not-resolve.golang}")
+	wantSub("DNSDone: {Addrs:[] Err:")
+	if strings.Contains(got, "ConnectStart") || strings.Contains(got, "ConnectDone") {
+		t.Errorf("should not see Connect events")
+	}
 	if t.Failed() {
 		t.Errorf("Output:\n%s", got)
 	}

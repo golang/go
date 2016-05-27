@@ -639,10 +639,16 @@ func loadlib() {
 		// recording the value of GOARM.
 		if SysArch.Family == sys.ARM {
 			s := Linklookup(Ctxt, "runtime.goarm", 0)
-
 			s.Type = obj.SRODATA
 			s.Size = 0
 			Adduint8(Ctxt, s, uint8(Ctxt.Goarm))
+		}
+
+		if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
+			s := Linklookup(Ctxt, "runtime.framepointer_enabled", 0)
+			s.Type = obj.SRODATA
+			s.Size = 0
+			Adduint8(Ctxt, s, 1)
 		}
 	} else {
 		// If OTOH the module does not contain the runtime package,
@@ -1137,6 +1143,16 @@ func hostlink() {
 			//
 			// In both cases, switch to gold.
 			argv = append(argv, "-fuse-ld=gold")
+
+			// If gold is not installed, gcc will silently switch
+			// back to ld.bfd. So we parse the version information
+			// and provide a useful error if gold is missing.
+			cmd := exec.Command(extld, "-fuse-ld=gold", "-Wl,--version")
+			if out, err := cmd.CombinedOutput(); err == nil {
+				if !bytes.Contains(out, []byte("GNU gold")) {
+					log.Fatalf("ARM external linker must be gold (issue #15696), but is not: %s", out)
+				}
+			}
 		}
 	}
 

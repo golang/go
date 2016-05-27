@@ -5,10 +5,12 @@
 package filepath_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	. "path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -206,6 +208,167 @@ func TestGlobSymlink(t *testing.T) {
 		}
 		if !contains(matches, dest) {
 			t.Errorf("Glob(%#q) = %#v want %v", dest, matches, dest)
+		}
+	}
+}
+
+type globTest struct {
+	pattern string
+	matches []string
+}
+
+func (test *globTest) buildWant(root string) []string {
+	want := make([]string, 0)
+	for _, m := range test.matches {
+		want = append(want, root+FromSlash(m))
+	}
+	sort.Strings(want)
+	return want
+}
+
+func (test *globTest) globAbs(root, rootPattern string) error {
+	p := FromSlash(rootPattern + `\` + test.pattern)
+	have, err := Glob(p)
+	if err != nil {
+		return err
+	}
+	sort.Strings(have)
+	want := test.buildWant(root + `\`)
+	if strings.Join(want, "_") == strings.Join(have, "_") {
+		return nil
+	}
+	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
+}
+
+func (test *globTest) globRel(root string) error {
+	p := root + FromSlash(test.pattern)
+	have, err := Glob(p)
+	if err != nil {
+		return err
+	}
+	sort.Strings(have)
+	want := test.buildWant(root)
+	if strings.Join(want, "_") == strings.Join(have, "_") {
+		return nil
+	}
+	// try also matching version without root prefix
+	wantWithNoRoot := test.buildWant("")
+	if strings.Join(wantWithNoRoot, "_") == strings.Join(have, "_") {
+		return nil
+	}
+	return fmt.Errorf("Glob(%q) returns %q, but %q expected", p, have, want)
+}
+
+func TestWindowsGlob(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skipf("skipping windows specific test")
+	}
+
+	tmpDir, err := ioutil.TempDir("", "TestWindowsGlob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// /tmp may itself be a symlink
+	tmpDir, err = EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal("eval symlink for tmp dir:", err)
+	}
+
+	if len(tmpDir) < 3 {
+		t.Fatalf("tmpDir path %q is too short", tmpDir)
+	}
+	if tmpDir[1] != ':' {
+		t.Fatalf("tmpDir path %q must have drive letter in it", tmpDir)
+	}
+
+	dirs := []string{
+		"a",
+		"b",
+		"dir/d/bin",
+	}
+	files := []string{
+		"dir/d/bin/git.exe",
+	}
+	for _, dir := range dirs {
+		err := os.MkdirAll(Join(tmpDir, dir), 0777)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, file := range files {
+		err := ioutil.WriteFile(Join(tmpDir, file), nil, 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []globTest{
+		{"a", []string{"a"}},
+		{"b", []string{"b"}},
+		{"c", []string{}},
+		{"*", []string{"a", "b", "dir"}},
+		{"d*", []string{"dir"}},
+		{"*i*", []string{"dir"}},
+		{"*r", []string{"dir"}},
+		{"?ir", []string{"dir"}},
+		{"?r", []string{}},
+		{"d*/*/bin/git.exe", []string{"dir/d/bin/git.exe"}},
+	}
+
+	// test absolute paths
+	for _, test := range tests {
+		var p string
+		err = test.globAbs(tmpDir, tmpDir)
+		if err != nil {
+			t.Error(err)
+		}
+		// test C:\*Documents and Settings\...
+		p = tmpDir
+		p = strings.Replace(p, `:\`, `:\*`, 1)
+		err = test.globAbs(tmpDir, p)
+		if err != nil {
+			t.Error(err)
+		}
+		// test C:\Documents and Settings*\...
+		p = tmpDir
+		p = strings.Replace(p, `:\`, `:`, 1)
+		p = strings.Replace(p, `\`, `*\`, 1)
+		p = strings.Replace(p, `:`, `:\`, 1)
+		err = test.globAbs(tmpDir, p)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// test relative paths
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := os.Chdir(wd)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+	for _, test := range tests {
+		err := test.globRel("")
+		if err != nil {
+			t.Error(err)
+		}
+		err = test.globRel(`.\`)
+		if err != nil {
+			t.Error(err)
+		}
+		err = test.globRel(tmpDir[:2]) // C:
+		if err != nil {
+			t.Error(err)
 		}
 	}
 }

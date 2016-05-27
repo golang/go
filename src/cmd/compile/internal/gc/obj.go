@@ -22,7 +22,34 @@ func formathdr(arhdr []byte, name string, size int64) {
 	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
 }
 
+// These modes say which kind of object file to generate.
+// The default use of the toolchain is to set both bits,
+// generating a combined compiler+linker object, one that
+// serves to describe the package to both the compiler and the linker.
+// In fact the compiler and linker read nearly disjoint sections of
+// that file, though, so in a distributed build setting it can be more
+// efficient to split the output into two files, supplying the compiler
+// object only to future compilations and the linker object only to
+// future links.
+//
+// By default a combined object is written, but if -linkobj is specified
+// on the command line then the default -o output is a compiler object
+// and the -linkobj output is a linker object.
+const (
+	modeCompilerObj = 1 << iota
+	modeLinkerObj
+)
+
 func dumpobj() {
+	if linkobj == "" {
+		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
+	} else {
+		dumpobj1(outfile, modeCompilerObj)
+		dumpobj1(linkobj, modeLinkerObj)
+	}
+}
+
+func dumpobj1(outfile string, mode int) {
 	var err error
 	bout, err = bio.Create(outfile)
 	if err != nil {
@@ -40,8 +67,27 @@ func dumpobj() {
 		startobj = bout.Offset()
 	}
 
-	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
-	dumpexport()
+	printheader := func() {
+		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		if buildid != "" {
+			fmt.Fprintf(bout, "build id %q\n", buildid)
+		}
+		if localpkg.Name == "main" {
+			fmt.Fprintf(bout, "main\n")
+		}
+		if safemode {
+			fmt.Fprintf(bout, "safe\n")
+		} else {
+			fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
+		}
+		fmt.Fprintf(bout, "\n") // header ends with blank line
+	}
+
+	printheader()
+
+	if mode&modeCompilerObj != 0 {
+		dumpexport()
+	}
 
 	if writearchive {
 		bout.Flush()
@@ -53,12 +99,20 @@ func dumpobj() {
 		formathdr(arhdr[:], "__.PKGDEF", size)
 		bout.Write(arhdr[:])
 		bout.Flush()
-
 		bout.Seek(startobj+size+(size&1), 0)
+	}
+
+	if mode&modeLinkerObj == 0 {
+		bout.Close()
+		return
+	}
+
+	if writearchive {
+		// start object file
 		arhdr = [ArhdrSize]byte{}
 		bout.Write(arhdr[:])
 		startobj = bout.Offset()
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		printheader()
 	}
 
 	if pragcgobuf != "" {

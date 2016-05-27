@@ -116,7 +116,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 		base = n1.Left
 	}
 
-	if base.Op == gc.ONAME && base.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
+	if base.Op == gc.ONAME && base.Class != gc.PAUTOHEAP || n1.Op == gc.OINDREG {
 		r1 = *n1
 	} else {
 		gc.Regalloc(&r1, t, n1)
@@ -229,6 +229,8 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
+		gc.Dump("f", f)
+		gc.Dump("t", t)
 		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
 
 		/*

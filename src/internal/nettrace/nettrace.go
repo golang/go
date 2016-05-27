@@ -32,12 +32,14 @@ type Trace struct {
 	// actually be for circular dependency reasons.
 	DNSDone func(netIPs []interface{}, coalesced bool, err error)
 
-	// ConnectStart is called before a Dial. In the case of
-	// DualStack (Happy Eyeballs) dialing, this may be called
-	// multiple times, from multiple goroutines.
+	// ConnectStart is called before a Dial, excluding Dials made
+	// during DNS lookups. In the case of DualStack (Happy Eyeballs)
+	// dialing, this may be called multiple times, from multiple
+	// goroutines.
 	ConnectStart func(network, addr string)
 
-	// ConnectStart is called after a Dial with the results. It
-	// may also be called multiple times, like ConnectStart.
+	// ConnectStart is called after a Dial with the results, excluding
+	// Dials made during DNS lookups. It may also be called multiple
+	// times, like ConnectStart.
 	ConnectDone func(network, addr string, err error)
 }

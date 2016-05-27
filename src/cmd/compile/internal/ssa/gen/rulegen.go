@@ -150,9 +150,6 @@ func genRules(arch arch) {
 	fmt.Fprintln(w, "// generated with: cd gen; go run *.go")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
-	if *genLog {
-		fmt.Fprintln(w, "import \"fmt\"")
-	}
 	fmt.Fprintln(w, "import \"math\"")
 	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
 
@@ -196,7 +193,7 @@ func genRules(arch arch) {
 
 			genResult(w, arch, result, rule.loc)
 			if *genLog {
-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
+				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
 			}
 			fmt.Fprintf(w, "return true\n")
 
@@ -300,7 +297,7 @@ func genRules(arch arch) {
 			}
 
 			if *genLog {
-				fmt.Fprintf(w, "fmt.Println(\"rewrite %s\")\n", rule.loc)
+				fmt.Fprintf(w, "logRule(\"%s\")\n", rule.loc)
 			}
 			fmt.Fprintf(w, "return true\n")
 

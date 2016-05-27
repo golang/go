@@ -205,7 +205,9 @@ func nodesPerSymbol(ns nodes, symbols []*objSymbol) map[*objSymbol]nodes {
 // offset to adjust the sample addresses.
 func annotateAssembly(insns []plugin.Inst, samples nodes, base uint64) nodes {
 	// Add end marker to simplify printing loop.
-	insns = append(insns, plugin.Inst{^uint64(0), "", "", 0})
+	insns = append(insns, plugin.Inst{
+		Addr: ^uint64(0),
+	})
 
 	// Ensure samples are sorted by address.
 	samples.sort(addressOrder)

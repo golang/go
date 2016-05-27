@@ -878,6 +878,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.Gvarkill(v.Aux.(*gc.Node))
 	case ssa.OpVarLive:
 		gc.Gvarlive(v.Aux.(*gc.Node))
+	case ssa.OpKeepAlive:
+		if !v.Args[0].Type.IsPtrShaped() {
+			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+		}
+		n, off := gc.AutoVar(v.Args[0])
+		if n == nil {
+			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+		}
+		if off != 0 {
+			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+		}
+		gc.Gvarlive(n)
 	case ssa.OpAMD64LoweredNilCheck:
 		// Optimization - if the subsequent block has a load or store
 		// at the same address, we don't need to issue this instruction.

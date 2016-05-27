@@ -1297,3 +1297,16 @@ func TestMissingFieldOnNil(t *testing.T) {
 		t.Errorf("got error %q, want %q", got, want)
 	}
 }
+
+func TestMaxExecDepth(t *testing.T) {
+	tmpl := Must(New("tmpl").Parse(`{{template "tmpl" .}}`))
+	err := tmpl.Execute(ioutil.Discard, nil)
+	got := "<nil>"
+	if err != nil {
+		got = err.Error()
+	}
+	const want = "exceeded maximum template depth"
+	if !strings.Contains(got, want) {
+		t.Errorf("got error %q; want %q", got, want)
+	}
+}

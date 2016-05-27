@@ -664,6 +664,8 @@ type Link struct {
 	Etextp        *LSym
 	Errors        int
 
+	Framepointer_enabled bool
+
 	// state for writing objects
 	Text []*LSym
 	Data []*LSym

@@ -360,3 +360,57 @@ func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestZeroByteRead(t *testing.T) {
+	for _, network := range []string{"tcp", "unix", "unixpacket"} {
+		if !testableNetwork(network) {
+			t.Logf("skipping %s test", network)
+			continue
+		}
+
+		ln, err := newLocalListener(network)
+		if err != nil {
+			t.Fatal(err)
+		}
+		connc := make(chan Conn, 1)
+		go func() {
+			defer ln.Close()
+			c, err := ln.Accept()
+			if err != nil {
+				t.Error(err)
+			}
+			connc <- c // might be nil
+		}()
+		c, err := Dial(network, ln.Addr().String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		sc := <-connc
+		if sc == nil {
+			continue
+		}
+		defer sc.Close()
+
+		if runtime.GOOS == "windows" {
+			// A zero byte read on Windows caused a wait for readability first.
+			// Rather than change that behavior, satisfy it in this test.
+			// See Issue 15735.
+			go io.WriteString(sc, "a")
+		}
+
+		n, err := c.Read(nil)
+		if n != 0 || err != nil {
+			t.Errorf("%s: zero byte client read = %v, %v; want 0, nil", network, n, err)
+		}
+
+		if runtime.GOOS == "windows" {
+			// Same as comment above.
+			go io.WriteString(c, "a")
+		}
+		n, err = sc.Read(nil)
+		if n != 0 || err != nil {
+			t.Errorf("%s: zero byte server read = %v, %v; want 0, nil", network, n, err)
+		}
+	}
+}

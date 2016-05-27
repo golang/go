@@ -106,6 +106,7 @@ func Linknew(arch *LinkArch) *Link {
 	}
 
 	ctxt.Flag_optimize = true
+	ctxt.Framepointer_enabled = Framepointer_enabled(Getgoos(), arch.Name)
 	return ctxt
 }
 

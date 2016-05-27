@@ -106,7 +106,6 @@
 package ssa
 
 import (
-	"cmd/internal/obj"
 	"fmt"
 	"unsafe"
 )
@@ -456,7 +455,7 @@ func (s *regAllocState) init(f *Func) {
 	s.allocatable = regMask(1)<<s.numRegs - 1
 	s.allocatable &^= 1 << s.SPReg
 	s.allocatable &^= 1 << s.SBReg
-	if obj.Framepointer_enabled != 0 {
+	if s.f.Config.ctxt.Framepointer_enabled {
 		s.allocatable &^= 1 << 5 // BP
 	}
 	if s.f.Config.ctxt.Flag_dynlink {
@@ -941,11 +940,29 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.advanceUses(v)
 				continue
 			}
+			if v.Op == OpKeepAlive {
+				// Make sure the argument to v is still live here.
+				s.advanceUses(v)
+				vi := &s.values[v.Args[0].ID]
+				if vi.spillUsed {
+					// Use the spill location.
+					v.SetArg(0, vi.spill)
+				} else {
+					// No need to keep unspilled values live.
+					// These are typically rematerializeable constants like nil,
+					// or values of a variable that were modified since the last call.
+					v.Op = OpCopy
+					v.SetArgs1(v.Args[1])
+				}
+				b.Values = append(b.Values, v)
+				continue
+			}
 			regspec := opcodeTable[v.Op].reg
 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
 				// No register allocation required (or none specified yet)
 				s.freeRegs(regspec.clobbers)
 				b.Values = append(b.Values, v)
+				s.advanceUses(v)
 				continue
 			}
 
@@ -1311,20 +1328,25 @@ func (s *regAllocState) regalloc(f *Func) {
 						// Start with live at end.
 						for _, li := range s.live[ss.ID] {
 							if s.isLoopSpillCandidate(loop, s.orig[li.ID]) {
+								// s.live contains original IDs, use s.orig above to map back to *Value
 								entryCandidates.setBit(li.ID, uint(whichExit))
 							}
 						}
 						// Control can also be live.
-						if ss.Control != nil && s.isLoopSpillCandidate(loop, ss.Control) {
-							entryCandidates.setBit(ss.Control.ID, uint(whichExit))
+						if ss.Control != nil && s.orig[ss.Control.ID] != nil && s.isLoopSpillCandidate(loop, s.orig[ss.Control.ID]) {
+							entryCandidates.setBit(s.orig[ss.Control.ID].ID, uint(whichExit))
 						}
 						// Walk backwards, filling in locally live values, removing those defined.
 						for i := len(ss.Values) - 1; i >= 0; i-- {
 							v := ss.Values[i]
-							entryCandidates.remove(v.ID) // Cannot be an issue, only keeps the sets smaller.
+							vorig := s.orig[v.ID]
+							if vorig != nil {
+								entryCandidates.remove(vorig.ID) // Cannot be an issue, only keeps the sets smaller.
+							}
 							for _, a := range v.Args {
-								if s.isLoopSpillCandidate(loop, a) {
-									entryCandidates.setBit(a.ID, uint(whichExit))
+								aorig := s.orig[a.ID]
+								if aorig != nil && s.isLoopSpillCandidate(loop, aorig) {
+									entryCandidates.setBit(aorig.ID, uint(whichExit))
 								}
 							}
 						}
@@ -1524,7 +1546,7 @@ sinking:
 	}
 
 	if f.pass.stats > 0 {
-		f.logStat("spills_info",
+		f.LogStat("spills_info",
 			nSpills, "spills", nSpillsInner, "inner_spills_remaining", nSpillsSunk, "inner_spills_sunk", nSpillsSunkUnused, "inner_spills_unused", nSpillsNotSunkLateUse, "inner_spills_shuffled", nSpillsChanged, "inner_spills_changed")
 	}
 }

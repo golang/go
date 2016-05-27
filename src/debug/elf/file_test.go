@@ -655,7 +655,7 @@ func TestCompressedSection(t *testing.T) {
 	// Test Open method and seeking.
 	buf, have, count := make([]byte, len(b)), make([]bool, len(b)), 0
 	sf := sec.Open()
-	if got, err := sf.Seek(0, 2); got != int64(len(b)) || err != nil {
+	if got, err := sf.Seek(0, io.SeekEnd); got != int64(len(b)) || err != nil {
 		t.Fatalf("want seek end %d, got %d error %v", len(b), got, err)
 	}
 	if n, err := sf.Read(buf); n != 0 || err != io.EOF {
@@ -668,11 +668,11 @@ func TestCompressedSection(t *testing.T) {
 		target := rand.Int63n(int64(len(buf)))
 		var offset int64
 		switch whence {
-		case 0:
+		case io.SeekStart:
 			offset = target
-		case 1:
+		case io.SeekCurrent:
 			offset = target - pos
-		case 2:
+		case io.SeekEnd:
 			offset = target - int64(len(buf))
 		}
 		pos, err = sf.Seek(offset, whence)

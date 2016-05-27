@@ -156,7 +156,7 @@ func (h *mheap) mapBits(arena_used uintptr) {
 		return
 	}
 
-	sysMap(unsafe.Pointer(h.arena_start-n), n-h.bitmap_mapped, h.arena_reserved, &memstats.gc_sys)
+	sysMap(unsafe.Pointer(h.bitmap-n), n-h.bitmap_mapped, h.arena_reserved, &memstats.gc_sys)
 	h.bitmap_mapped = n
 }
 
@@ -364,7 +364,7 @@ func (m *markBits) advance() {
 func heapBitsForAddr(addr uintptr) heapBits {
 	// 2 bits per work, 4 pairs per byte, and a mask is hard coded.
 	off := (addr - mheap_.arena_start) / sys.PtrSize
-	return heapBits{(*uint8)(unsafe.Pointer(mheap_.arena_start - off/4 - 1)), uint32(off & 3)}
+	return heapBits{(*uint8)(unsafe.Pointer(mheap_.bitmap - off/4 - 1)), uint32(off & 3)}
 }
 
 // heapBitsForSpan returns the heapBits for the span base address base.
@@ -498,7 +498,6 @@ func (h heapBits) morePointers() bool {
 }
 
 // isPointer reports whether the heap bits describe a pointer word.
-// h must describe the initial word of the object.
 //
 // nosplit because it is used during write barriers and must not be preempted.
 //go:nosplit
@@ -507,8 +506,7 @@ func (h heapBits) isPointer() bool {
 }
 
 // hasPointers reports whether the given object has any pointers.
-// It must be told how large the object at h is, so that it does not read too
-// far into the bitmap.
+// It must be told how large the object at h is for efficiency.
 // h must describe the initial word of the object.
 func (h heapBits) hasPointers(size uintptr) bool {
 	if size == sys.PtrSize { // 1-word objects are always pointers
@@ -849,10 +847,20 @@ func (s *mspan) countFree() int {
 // malloc does not call heapBitsSetType when there are no pointers,
 // because all free objects are marked as noscan during
 // heapBitsSweepSpan.
+//
 // There can only be one allocation from a given span active at a time,
-// so this code is not racing with other instances of itself, and
-// the bitmap for a span always falls on byte boundaries.
-// Hence, it can access the bitmap with racing.
+// and the bitmap for a span always falls on byte boundaries,
+// so there are no write-write races for access to the heap bitmap.
+// Hence, heapBitsSetType can access the bitmap without atomics.
+//
+// There can be read-write races between heapBitsSetType and things
+// that read the heap bitmap like scanobject. However, since
+// heapBitsSetType is only used for objects that have not yet been
+// made reachable, readers will ignore bits being modified by this
+// function. This does mean this function cannot transiently modify
+// bits that belong to neighboring objects. Also, on weakly-ordered
+// machines, callers must execute a store/store (publication) barrier
+// between calling this function and making the object reachable.
 //
 // TODO: This still has atomic accesses left over from when it could
 // race with GC accessing mark bits in the bitmap. Remove these.

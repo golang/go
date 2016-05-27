@@ -201,6 +201,14 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
 		return 0, err
 	}
 	defer fd.readUnlock()
+	if len(p) == 0 {
+		// If the caller wanted a zero byte read, return immediately
+		// without trying. (But after acquiring the readLock.) Otherwise
+		// syscall.Read returns 0, nil and eofError turns that into
+		// io.EOF.
+		// TODO(bradfitz): make it wait for readability? (Issue 15735)
+		return 0, nil
+	}
 	if err := fd.pd.prepareRead(); err != nil {
 		return 0, err
 	}

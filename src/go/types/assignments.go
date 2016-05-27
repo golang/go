@@ -183,7 +183,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(z.pos(), "cannot directly assign to struct field %s in map", ExprString(z.expr))
+				check.errorf(z.pos(), "cannot assign to struct field %s in map", ExprString(z.expr))
 				return nil
 			}
 		}

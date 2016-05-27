@@ -59,71 +59,33 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 	}
 	data := string(bdata)
 
-	// first \n$$ marks beginning of exports - skip rest of line
-	p0 = strings.Index(data, "\n$$")
-	if p0 < 0 {
-		if Debug['u'] != 0 && whence != ArchiveObj {
-			Exitf("cannot find export data in %s", filename)
+	// process header lines
+	isSafe := false
+	isMain := false
+	for data != "" {
+		var line string
+		if i := strings.Index(data, "\n"); i >= 0 {
+			line, data = data[:i], data[i+1:]
+		} else {
+			line, data = data, ""
 		}
-		return
+		if line == "safe" {
+			isSafe = true
+		}
+		if line == "main" {
+			isMain = true
+		}
+		if line == "" {
+			break
+		}
 	}
 
-	// \n$$B marks the beginning of binary export data - don't skip over the B
-	p0 += 3
-	for p0 < len(data) && data[p0] != '\n' && data[p0] != 'B' {
-		p0++
-	}
-
-	// second marks end of exports / beginning of local data
-	p1 = strings.Index(data[p0:], "\n$$\n")
-	if p1 < 0 && whence == Pkgdef {
-		p1 = len(data) - p0
-	}
-	if p1 < 0 {
-		fmt.Fprintf(os.Stderr, "%s: cannot find end of exports in %s\n", os.Args[0], filename)
-		if Debug['u'] != 0 {
-			errorexit()
+	if whence == Pkgdef || whence == FileObj {
+		if pkg == "main" && !isMain {
+			Exitf("%s: not package main", filename)
 		}
-		return
-	}
-	p1 += p0
-
-	for p0 < p1 && data[p0] != 'B' && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
-		p0++
-	}
-	// don't check this section if we have binary (B) export data
-	// TODO fix this eventually
-	if p0 < p1 && data[p0] != 'B' {
-		if !strings.HasPrefix(data[p0:], "package ") {
-			fmt.Fprintf(os.Stderr, "%s: bad package section in %s - %.20s\n", os.Args[0], filename, data[p0:])
-			if Debug['u'] != 0 {
-				errorexit()
-			}
-			return
-		}
-
-		p0 += 8
-		for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
-			p0++
-		}
-		pname := p0
-		for p0 < p1 && data[p0] != ' ' && data[p0] != '\t' && data[p0] != '\n' {
-			p0++
-		}
-		if Debug['u'] != 0 && whence != ArchiveObj && (p0+6 > p1 || !strings.HasPrefix(data[p0:], " safe\n")) {
+		if Debug['u'] != 0 && whence != ArchiveObj && !isSafe {
 			Exitf("load of unsafe package %s", filename)
-		}
-
-		name := data[pname:p0]
-		for p0 < p1 && data[p0] != '\n' {
-			p0++
-		}
-		if p0 < p1 {
-			p0++
-		}
-
-		if pkg == "main" && name != "main" {
-			Exitf("%s: not package main (package %s)", filename, name)
 		}
 	}
 
@@ -133,7 +95,7 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 	}
 
 	// look for cgo section
-	p0 = strings.Index(data[p1:], "\n$$  // cgo")
+	p0 = strings.Index(data, "\n$$  // cgo")
 	if p0 >= 0 {
 		p0 += p1
 		i := strings.IndexByte(data[p0+1:], '\n')

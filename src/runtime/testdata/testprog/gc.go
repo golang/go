@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/debug"
+	"sync/atomic"
 	"time"
 )
 
 func init() {
 	register("GCFairness", GCFairness)
+	register("GCFairness2", GCFairness2)
 	register("GCSys", GCSys)
 }
 
@@ -70,5 +73,37 @@ func GCFairness() {
 		}()
 	}
 	time.Sleep(10 * time.Millisecond)
+	fmt.Println("OK")
+}
+
+func GCFairness2() {
+	// Make sure user code can't exploit the GC's high priority
+	// scheduling to make scheduling of user code unfair. See
+	// issue #15706.
+	runtime.GOMAXPROCS(1)
+	debug.SetGCPercent(1)
+	var count [3]int64
+	var sink [3]interface{}
+	for i := range count {
+		go func(i int) {
+			for {
+				sink[i] = make([]byte, 1024)
+				atomic.AddInt64(&count[i], 1)
+			}
+		}(i)
+	}
+	// Note: If the unfairness is really bad, it may not even get
+	// past the sleep.
+	//
+	// If the scheduling rules change, this may not be enough time
+	// to let all goroutines run, but for now we cycle through
+	// them rapidly.
+	time.Sleep(30 * time.Millisecond)
+	for i := range count {
+		if atomic.LoadInt64(&count[i]) == 0 {
+			fmt.Printf("goroutine %d did not run\n", i)
+			return
+		}
+	}
 	fmt.Println("OK")
 }

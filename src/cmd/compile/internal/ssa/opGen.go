@@ -674,6 +674,7 @@ const (
 	OpVarDef
 	OpVarKill
 	OpVarLive
+	OpKeepAlive
 )
 
 var opcodeTable = [...]opInfo{
@@ -6167,6 +6168,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "FwdRef",
+		auxType: auxSym,
 		argLen:  0,
 		generic: true,
 	},
@@ -6191,6 +6193,11 @@ var opcodeTable = [...]opInfo{
 		name:    "VarLive",
 		auxType: auxSym,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "KeepAlive",
+		argLen:  2,
 		generic: true,
 	},
 }

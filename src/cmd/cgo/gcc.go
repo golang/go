@@ -1089,6 +1089,8 @@ func (p *Package) gccMachine() []string {
 		return []string{"-m31"}
 	case "s390x":
 		return []string{"-m64"}
+	case "mips64", "mips64le":
+		return []string{"-mabi=64"}
 	}
 	return nil
 }
@@ -1241,12 +1243,20 @@ func (p *Package) gccErrors(stdin []byte) string {
 	// TODO(rsc): require failure
 	args := p.gccCmd()
 
+	// Optimization options can confuse the error messages; remove them.
+	nargs := make([]string, 0, len(args))
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-O") {
+			nargs = append(nargs, arg)
+		}
+	}
+
 	if *debugGcc {
-		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
+		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(nargs, " "))
 		os.Stderr.Write(stdin)
 		fmt.Fprint(os.Stderr, "EOF\n")
 	}
-	stdout, stderr, _ := run(stdin, args)
+	stdout, stderr, _ := run(stdin, nargs)
 	if *debugGcc {
 		os.Stderr.Write(stdout)
 		os.Stderr.Write(stderr)

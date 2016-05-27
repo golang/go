@@ -11,6 +11,13 @@ package time
 
 import "errors"
 
+// Copies of io.Seek* constants to avoid importing "io":
+const (
+	seekStart   = 0
+	seekCurrent = 1
+	seekEnd     = 2
+)
+
 // Simple I/O interface to binary blob of data.
 type data struct {
 	p     []byte

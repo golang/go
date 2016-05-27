@@ -508,7 +508,7 @@ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 // reflect_addReflectOff adds a pointer to the reflection offset lookup map.
 //go:linkname reflect_addReflectOff reflect.addReflectOff
 func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
-	lock(&reflectOffs.lock)
+	reflectOffsLock()
 	if reflectOffs.m == nil {
 		reflectOffs.m = make(map[int32]unsafe.Pointer)
 		reflectOffs.minv = make(map[unsafe.Pointer]int32)
@@ -521,6 +521,6 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 		reflectOffs.m[id] = ptr
 		reflectOffs.minv[ptr] = id
 	}
-	unlock(&reflectOffs.lock)
+	reflectOffsUnlock()
 	return id
 }

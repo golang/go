@@ -135,8 +135,8 @@ func TestMatcher(t *T) {
 			parent.level = 1
 		}
 		if n, ok := m.fullName(parent, tc.sub); ok != tc.ok {
-			t.Errorf("pattern: %q, parent: %q, sub %q: got %v; want %v",
-				tc.pattern, tc.parent, tc.sub, ok, tc.ok, n)
+			t.Errorf("for pattern %q, fullName(parent=%q, sub=%q) = %q, ok %v; want ok %v",
+				tc.pattern, tc.parent, tc.sub, n, ok, tc.ok)
 		}
 	}
 }

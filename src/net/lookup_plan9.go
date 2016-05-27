@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 )
 
@@ -17,7 +18,7 @@ func query(ctx context.Context, filename, query string, bufSize int) (res []stri
 	}
 	defer file.Close()
 
-	_, err = file.Seek(0, 0)
+	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return
 	}
@@ -25,7 +26,7 @@ func query(ctx context.Context, filename, query string, bufSize int) (res []stri
 	if err != nil {
 		return
 	}
-	_, err = file.Seek(0, 0)
+	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		return
 	}

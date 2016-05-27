@@ -15,17 +15,16 @@ import (
 )
 
 var (
-	DefaultUserAgent              = defaultUserAgent
-	NewLoggingConn                = newLoggingConn
-	ExportAppendTime              = appendTime
-	ExportRefererForURL           = refererForURL
-	ExportServerNewConn           = (*Server).newConn
-	ExportCloseWriteAndWait       = (*conn).closeWriteAndWait
-	ExportErrRequestCanceled      = errRequestCanceled
-	ExportErrRequestCanceledConn  = errRequestCanceledConn
-	ExportServeFile               = serveFile
-	ExportHttp2ConfigureTransport = http2ConfigureTransport
-	ExportHttp2ConfigureServer    = http2ConfigureServer
+	DefaultUserAgent             = defaultUserAgent
+	NewLoggingConn               = newLoggingConn
+	ExportAppendTime             = appendTime
+	ExportRefererForURL          = refererForURL
+	ExportServerNewConn          = (*Server).newConn
+	ExportCloseWriteAndWait      = (*conn).closeWriteAndWait
+	ExportErrRequestCanceled     = errRequestCanceled
+	ExportErrRequestCanceledConn = errRequestCanceledConn
+	ExportServeFile              = serveFile
+	ExportHttp2ConfigureServer   = http2ConfigureServer
 )
 
 func init() {
@@ -151,4 +150,13 @@ func hookSetter(dst *func()) func(func()) {
 		unnilTestHook(&fn)
 		*dst = fn
 	}
+}
+
+func ExportHttp2ConfigureTransport(t *Transport) error {
+	t2, err := http2configureTransport(t)
+	if err != nil {
+		return err
+	}
+	t.h2transport = t2
+	return nil
 }

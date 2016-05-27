@@ -464,6 +464,7 @@ var deptab = []struct {
 }{
 	{"cmd/go", []string{
 		"zdefaultcc.go",
+		"zosarch.go",
 	}},
 	{"runtime/internal/sys", []string{
 		"zversion.go",
@@ -485,6 +486,7 @@ var gentab = []struct {
 	gen        func(string, string)
 }{
 	{"zdefaultcc.go", mkzdefaultcc},
+	{"zosarch.go", mkzosarch},
 	{"zversion.go", mkzversion},
 	{"zcgo.go", mkzcgo},
 
