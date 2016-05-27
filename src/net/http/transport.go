@@ -37,10 +37,10 @@ import (
 // $no_proxy) environment variables.
 var DefaultTransport RoundTripper = &Transport{
 	Proxy: ProxyFromEnvironment,
-	Dialer: &net.Dialer{
+	DialContext: (&net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
-	},
+	}).DialContext,
 	MaxIdleConns:          100,
 	IdleConnTimeout:       90 * time.Second,
 	TLSHandshakeTimeout:   10 * time.Second,
@@ -87,17 +87,17 @@ type Transport struct {
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
 
-	// Dial specifies the dial function for creating unencrypted
-	// TCP connections. If Dial and Dialer are both nil, net.Dial
-	// is used.
-	//
-	// Deprecated: Use Dialer instead. If both are specified, Dialer
-	// takes precedence.
-	Dial func(network, addr string) (net.Conn, error)
+	// DialContext specifies the dial function for creating unencrypted TCP connections.
+	// If DialContext is nil (and the deprecated Dial below is also nil),
+	// then the transport dials using package net.
+	DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
-	// Dialer optionally specifies a dialer configuration to use
-	// for new connections.
-	Dialer *net.Dialer
+	// Dial specifies the dial function for creating unencrypted TCP connections.
+	//
+	// Deprecated: Use DialContext instead, which allows the transport
+	// to cancel dials as soon as they are no longer needed.
+	// If both are set, DialContext takes priority.
+	Dial func(network, addr string) (net.Conn, error)
 
 	// DialTLS specifies an optional dial function for creating
 	// TLS connections for non-proxied HTTPS requests.
@@ -777,8 +777,8 @@ func (t *Transport) replaceReqCanceler(r *Request, fn func()) bool {
 var zeroDialer net.Dialer
 
 func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, error) {
-	if t.Dialer != nil {
-		return t.Dialer.DialContext(ctx, network, addr)
+	if t.DialContext != nil {
+		return t.DialContext(ctx, network, addr)
 	}
 	if t.Dial != nil {
 		c, err := t.Dial(network, addr)
