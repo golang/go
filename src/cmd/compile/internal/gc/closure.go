@@ -69,7 +69,7 @@ func closurebody(body []*Node) *Node {
 		// Unlink from v1; see comment in syntax.go type Param for these fields.
 		v1 := v.Name.Defn
 		v1.Name.Param.Innermost = v.Name.Param.Outer
-		
+
 		// If the closure usage of v is not dense,
 		// we need to make it dense; now that we're out
 		// of the function in which v appeared,
