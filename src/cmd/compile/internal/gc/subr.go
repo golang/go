@@ -2130,37 +2130,6 @@ func powtwo(n *Node) int {
 	return -1
 }
 
-// return the unsigned type for
-// a signed integer type.
-// returns T if input is not a
-// signed integer type.
-func tounsigned(t *Type) *Type {
-	// this is types[et+1], but not sure
-	// that this relation is immutable
-	switch t.Etype {
-	default:
-		fmt.Printf("tounsigned: unknown type %v\n", t)
-		t = nil
-
-	case TINT:
-		t = Types[TUINT]
-
-	case TINT8:
-		t = Types[TUINT8]
-
-	case TINT16:
-		t = Types[TUINT16]
-
-	case TINT32:
-		t = Types[TUINT32]
-
-	case TINT64:
-		t = Types[TUINT64]
-	}
-
-	return t
-}
-
 func ngotype(n *Node) *Sym {
 	if n.Type != nil {
 		return typenamesym(n.Type)
