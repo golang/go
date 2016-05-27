@@ -259,8 +259,6 @@ var Widthreg int
 
 var nblank *Node
 
-var Funcdepth int32
-
 var typecheckok bool
 
 var compiling_runtime bool
