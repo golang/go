@@ -208,13 +208,10 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 	seenLargeRecord := false
 	for i, size := range recordSizes {
 		if !seenLargeRecord {
-			if size > tcpMSSEstimate {
-				if i < 100 {
-					t.Fatalf("Record #%d has size %d, which is too large too soon", i, size)
-				}
-				if size <= maxPlaintext {
-					t.Fatalf("Record #%d has odd size %d", i, size)
-				}
+			if size > (i+1)*tcpMSSEstimate {
+				t.Fatalf("Record #%d has size %d, which is too large too soon", i, size)
+			}
+			if size >= maxPlaintext {
 				seenLargeRecord = true
 			}
 		} else if size <= maxPlaintext {
