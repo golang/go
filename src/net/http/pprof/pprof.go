@@ -5,7 +5,7 @@
 // Package pprof serves via its HTTP server runtime profiling data
 // in the format expected by the pprof visualization tool.
 // For more information about pprof, see
-// http://code.google.com/p/google-perftools/.
+// https://github.com/google/pprof
 //
 // The package is typically only imported for the side effect of
 // registering its HTTP handlers.
