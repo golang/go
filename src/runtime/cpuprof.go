@@ -149,7 +149,7 @@ func SetCPUProfileRate(hz int) {
 
 		cpuprof.on = true
 		// pprof binary header format.
-		// http://code.google.com/p/google-perftools/source/browse/trunk/src/profiledata.cc#117
+		// https://github.com/gperftools/gperftools/blob/master/src/profiledata.cc#L119
 		p := &cpuprof.log[0]
 		p[0] = 0                 // count for header
 		p[1] = 3                 // depth for header
