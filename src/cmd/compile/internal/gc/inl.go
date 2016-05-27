@@ -778,8 +778,9 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 
 	body := subst.list(fn.Func.Inl)
 
-	body = append(body, Nod(OGOTO, retlabel, nil)) // avoid 'not used' when function doesn't have return
-	body = append(body, Nod(OLABEL, retlabel, nil))
+	lab := Nod(OLABEL, retlabel, nil)
+	lab.Used = true // avoid 'not used' when function doesn't have return
+	body = append(body, lab)
 
 	typecheckslice(body, Etop)
 
