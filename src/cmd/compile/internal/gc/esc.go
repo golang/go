@@ -900,13 +900,13 @@ func esc(e *EscState, n *Node, up *Node) {
 			escassignSinkNilWhy(e, n, n7.Right, "map literal value")
 		}
 
-		// Link addresses of captured variables to closure.
 	case OCLOSURE:
+		// Link addresses of captured variables to closure.
 		for _, v := range n.Func.Cvars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
-			a := v.Name.Param.Closure
+			a := v.Name.Defn
 			if !v.Name.Byval {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
@@ -1819,12 +1819,12 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 
 		// Treat a captured closure variable as equivalent to the
 		// original variable.
-		if src.isClosureParam() {
+		if src.isClosureVar() {
 			if leaks && Debug['m'] != 0 {
 				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, FmtShort))
 				step.describe(src)
 			}
-			escwalk(e, level, dst, src.Name.Param.Closure, e.stepWalk(dst, src.Name.Param.Closure, "closure-var", step))
+			escwalk(e, level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
 		}
 
 	case OPTRLIT, OADDR:

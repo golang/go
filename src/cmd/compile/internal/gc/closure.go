@@ -66,8 +66,39 @@ func closurebody(body []*Node) *Node {
 	// unhook them.
 	// make the list of pointers for the closure call.
 	for _, v := range func_.Func.Cvars.Slice() {
-		v.Name.Param.Closure.Name.Param.Closure = v.Name.Param.Outer
-		v.Name.Param.Outerexpr = oldname(v.Sym)
+		// Unlink from v1; see comment in syntax.go type Param for these fields.
+		v1 := v.Name.Defn
+		v1.Name.Param.Innermost = v.Name.Param.Outer
+		
+		// If the closure usage of v is not dense,
+		// we need to make it dense; now that we're out
+		// of the function in which v appeared,
+		// look up v.Sym in the enclosing function
+		// and keep it around for use in the compiled code.
+		//
+		// That is, suppose we just finished parsing the innermost
+		// closure f4 in this code:
+		//
+		//	func f() {
+		//		v := 1
+		//		func() { // f2
+		//			use(v)
+		//			func() { // f3
+		//				func() { // f4
+		//					use(v)
+		//				}()
+		//			}()
+		//		}()
+		//	}
+		//
+		// At this point v.Outer is f2's v; there is no f3's v.
+		// To construct the closure f4 from within f3,
+		// we need to use f3's v and in this case we need to create f3's v.
+		// We are now in the context of f3, so calling oldname(v.Sym)
+		// obtains f3's v, creating it if necessary (as it is in the example).
+		//
+		// capturevars will decide whether to use v directly or &v.
+		v.Name.Param.Outer = oldname(v.Sym)
 	}
 
 	return func_
@@ -75,7 +106,7 @@ func closurebody(body []*Node) *Node {
 
 func typecheckclosure(func_ *Node, top int) {
 	for _, ln := range func_.Func.Cvars.Slice() {
-		n := ln.Name.Param.Closure
+		n := ln.Name.Defn
 		if !n.Name.Captured {
 			n.Name.Captured = true
 			if n.Name.Decldepth == 0 {
@@ -215,8 +246,6 @@ func makeclosure(func_ *Node) *Node {
 // We use value capturing for values <= 128 bytes that are never reassigned
 // after capturing (effectively constant).
 func capturevars(xfunc *Node) {
-	var outer *Node
-
 	lno := lineno
 	lineno = xfunc.Lineno
 
@@ -239,14 +268,14 @@ func capturevars(xfunc *Node) {
 		// so that the outer frame also grabs them and knows they escape.
 		dowidth(v.Type)
 
-		outer = v.Name.Param.Outerexpr
-		v.Name.Param.Outerexpr = nil
+		outer := v.Name.Param.Outer
+		outermost := v.Name.Defn
 
 		// out parameters will be assigned to implicitly upon return.
-		if outer.Class != PPARAMOUT && !v.Name.Param.Closure.Addrtaken && !v.Name.Param.Closure.Assigned && v.Type.Width <= 128 {
+		if outer.Class != PPARAMOUT && !outermost.Addrtaken && !outermost.Assigned && v.Type.Width <= 128 {
 			v.Name.Byval = true
 		} else {
-			v.Name.Param.Closure.Addrtaken = true
+			outermost.Addrtaken = true
 			outer = Nod(OADDR, outer, nil)
 		}
 
@@ -259,7 +288,7 @@ func capturevars(xfunc *Node) {
 			if v.Name.Byval {
 				how = "value"
 			}
-			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
+			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken, outermost.Assigned, int32(v.Type.Width))
 		}
 
 		outer = typecheck(outer, Erv)

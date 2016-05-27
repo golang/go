@@ -385,33 +385,36 @@ func oldname(s *Sym) *Node {
 	}
 
 	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
-		// inner func is referring to var in outer func.
+		// Inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		if n.Name.Param.Closure == nil || n.Name.Param.Closure.Name.Funcdepth != Funcdepth {
-			// create new closure var.
-			c := Nod(ONAME, nil, nil)
-
+		c := n.Name.Param.Innermost
+		if c == nil || c.Name.Funcdepth != Funcdepth {
+			// Do not have a closure var for the active closure yet; make one.
+			c = Nod(ONAME, nil, nil)
 			c.Sym = s
 			c.Class = PAUTOHEAP
-			c.setIsClosureParam(true)
+			c.setIsClosureVar(true)
 			c.Isddd = n.Isddd
 			c.Name.Defn = n
 			c.Addable = false
 			c.Ullman = 2
 			c.Name.Funcdepth = Funcdepth
-			c.Name.Param.Outer = n.Name.Param.Closure
-			n.Name.Param.Closure = c
-			c.Name.Param.Closure = n
+			
+			// Link into list of active closure variables.
+			// Popped from list in func closurebody.
+			c.Name.Param.Outer = n.Name.Param.Innermost
+			n.Name.Param.Innermost = c
+
 			c.Xoffset = 0
 			Curfn.Func.Cvars.Append(c)
 		}
 
 		// return ref to closure var, not original
-		return n.Name.Param.Closure
+		return c
 	}
 
 	return n
