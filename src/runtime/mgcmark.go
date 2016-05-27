@@ -174,7 +174,9 @@ func markroot(gcw *gcWork, i uint32) {
 		// Only do this once per GC cycle; preferably
 		// concurrently.
 		if !work.markrootDone {
-			markrootFreeGStacks()
+			// Switch to the system stack so we can call
+			// stackfree.
+			systemstack(markrootFreeGStacks)
 		}
 
 	case baseSpans <= i && i < baseStacks:
