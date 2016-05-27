@@ -154,6 +154,17 @@ if test "$tsan" = "yes"; then
 	status=1
     fi
 
+    # This test requires rebuilding os/user with -fsanitize=thread.
+    if ! CGO_CFLAGS="-fsanitize=thread" CGO_LDFLAGS="-fsanitize=thread" go run -installsuffix=tsan tsan5.go 2>$err; then
+	cat $err
+	echo "FAIL: tsan5"
+	status=1
+    elif grep -i warning $err >/dev/null 2>&1; then
+	cat $err
+	echo "FAIL: tsan5"
+	status=1
+    fi
+
     rm -f $err
 fi
 

@@ -11,7 +11,9 @@ x_cgo_thread_start(ThreadStart *arg)
 	ThreadStart *ts;
 
 	/* Make our own copy that can persist after we return. */
+	_cgo_tsan_acquire();
 	ts = malloc(sizeof *ts);
+	_cgo_tsan_release();
 	if(ts == nil) {
 		fprintf(stderr, "runtime/cgo: out of memory in thread_start\n");
 		abort();
