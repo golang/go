@@ -1860,7 +1860,13 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
 
 	// generate call
-	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) {
+	// It's not possible to use a tail call when dynamic linking on ppc64le. The
+	// bad scenario is when a local call is made to the wrapper: the wrapper will
+	// call the implementation, which might be in a different module and so set
+	// the TOC to the appropriate value for that module. But if it returns
+	// directly to the wrapper's caller, nothing will reset it to the correct
+	// value for that function.
+	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(Thearch.LinkArch.Name == "ppc64le" && Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		dot = dot.Left // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
