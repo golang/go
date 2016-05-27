@@ -147,6 +147,10 @@ func (f *plan9File) goarch() string {
 	return ""
 }
 
+func (f *plan9File) loadAddress() (uint64, error) {
+	return 0, fmt.Errorf("unknown load address")
+}
+
 func (f *plan9File) dwarf() (*dwarf.Data, error) {
 	return nil, errors.New("no DWARF data in Plan 9 file")
 }
