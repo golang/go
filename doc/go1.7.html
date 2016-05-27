@@ -185,6 +185,17 @@ built with Go 1.6,
 sometimes by as much as 20-30%.
 </p>
 
+<p>
+On x86-64 systems, Go programs now maintain stack frame pointers
+as expected by profiling tools like Linux's perf and Intel's VTune,
+making it easier to analyze and optimize Go programs using these tools.
+The frame pointer maintenance has a small run-time overhead that varies
+but averages around 2%. We hope to reduce this cost in future releases.
+To build a toolchain that does not use frame pointers, set
+<code>GOEXPERIMENT=noframepointer</code> when running
+<code>make.bash</code>, <code>make.bat</code>, or <code>make.rc</code>.
+</p>
+
 <h3 id="cmd/cgo">Cgo</h3>
 
 <p>
