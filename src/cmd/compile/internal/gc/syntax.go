@@ -199,9 +199,8 @@ type Func struct {
 	Dcl        []*Node // autodcl for this func/closure
 	Inldcl     Nodes   // copy of dcl for use in inlining
 	Closgen    int
-	Outerfunc  *Node
+	Outerfunc  *Node // outer function (for closure)
 	FieldTrack map[*Sym]struct{}
-	Outer      *Node // outer func for closure
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC

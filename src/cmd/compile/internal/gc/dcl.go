@@ -505,10 +505,8 @@ func ifacedcl(n *Node) {
 	n.Func = new(Func)
 	n.Func.FCurfn = Curfn
 	dclcontext = PPARAM
-	markdcl()
-	Funcdepth++
-	n.Func.Outer = Curfn
-	Curfn = n
+	
+	funcstart(n)
 	funcargs(n.Right)
 
 	// funcbody is normally called after the parser has
@@ -535,11 +533,7 @@ func funchdr(n *Node) {
 	}
 
 	dclcontext = PAUTO
-	markdcl()
-	Funcdepth++
-
-	n.Func.Outer = Curfn
-	Curfn = n
+	funcstart(n)
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -672,6 +666,19 @@ func funcargs2(t *Type) {
 	}
 }
 
+var funcstack []*Node // stack of previous values of Curfn
+var Funcdepth int32 // len(funcstack) during parsing, but then forced to be the same later during compilation
+
+
+// start the function.
+// called before funcargs; undone at end of funcbody.
+func funcstart(n *Node) {
+	markdcl()
+	funcstack = append(funcstack, Curfn)
+	Funcdepth++
+	Curfn = n
+}
+
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
@@ -681,9 +688,8 @@ func funcbody(n *Node) {
 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
 	}
 	popdcl()
+	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
 	Funcdepth--
-	Curfn = n.Func.Outer
-	n.Func.Outer = nil
 	if Funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
