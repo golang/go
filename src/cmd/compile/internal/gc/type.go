@@ -1076,6 +1076,28 @@ func (t *Type) IsBoolean() bool {
 	return t.Etype == TBOOL
 }
 
+var unsignedEType = [...]EType{
+	TINT8:    TUINT8,
+	TUINT8:   TUINT8,
+	TINT16:   TUINT16,
+	TUINT16:  TUINT16,
+	TINT32:   TUINT32,
+	TUINT32:  TUINT32,
+	TINT64:   TUINT64,
+	TUINT64:  TUINT64,
+	TINT:     TUINT,
+	TUINT:    TUINT,
+	TUINTPTR: TUINTPTR,
+}
+
+// toUnsigned returns the unsigned equivalent of integer type t.
+func (t *Type) toUnsigned() *Type {
+	if !t.IsInteger() {
+		Fatalf("unsignedType(%v)", t)
+	}
+	return Types[unsignedEType[t.Etype]]
+}
+
 func (t *Type) IsInteger() bool {
 	switch t.Etype {
 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TINT, TUINT, TUINTPTR:

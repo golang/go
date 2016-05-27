@@ -631,6 +631,7 @@ opswitch:
 
 		n.Right = walkexpr(n.Right, &ll)
 		n.Right = addinit(n.Right, ll.Slice())
+		n = walkinrange(n, init)
 
 	case OPRINT, OPRINTN:
 		walkexprlist(n.List.Slice(), init)
@@ -3406,6 +3407,134 @@ func walkrotate(n *Node) *Node {
 	return n
 }
 
+// isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.
+func (n *Node) isIntOrdering() bool {
+	switch n.Op {
+	case OLE, OLT, OGE, OGT:
+	default:
+		return false
+	}
+	return n.Left.Type.IsInteger() && n.Right.Type.IsInteger()
+}
+
+// walkinrange optimizes integer-in-range checks, such as 4 <= x && x < 10.
+// n must be an OANDAND or OOROR node.
+// The result of walkinrange MUST be assigned back to n, e.g.
+// 	n.Left = walkinrange(n.Left)
+func walkinrange(n *Node, init *Nodes) *Node {
+	// We are looking for something equivalent to a opl b OP b opr c, where:
+	// * a, b, and c have integer type
+	// * b is side-effect-free
+	// * opl and opr are each < or ≤
+	// * OP is &&
+	l := n.Left
+	r := n.Right
+	if !l.isIntOrdering() || !r.isIntOrdering() {
+		return n
+	}
+
+	// Find b, if it exists, and rename appropriately.
+	// Input is: l.Left l.Op l.Right ANDAND/OROR r.Left r.Op r.Right
+	// Output is: a opl b(==x) ANDAND/OROR b(==x) opr c
+	a, opl, b := l.Left, l.Op, l.Right
+	x, opr, c := r.Left, r.Op, r.Right
+	for i := 0; ; i++ {
+		if samesafeexpr(b, x) {
+			break
+		}
+		if i == 3 {
+			// Tried all permutations and couldn't find an appropriate b == x.
+			return n
+		}
+		if i&1 == 0 {
+			a, opl, b = b, Brrev(opl), a
+		} else {
+			x, opr, c = c, Brrev(opr), x
+		}
+	}
+
+	// If n.Op is ||, apply de Morgan.
+	// Negate the internal ops now; we'll negate the top level op at the end.
+	// Henceforth assume &&.
+	negateResult := n.Op == OOROR
+	if negateResult {
+		opl = Brcom(opl)
+		opr = Brcom(opr)
+	}
+
+	cmpdir := func(o Op) int {
+		switch o {
+		case OLE, OLT:
+			return -1
+		case OGE, OGT:
+			return +1
+		}
+		Fatalf("walkinrange cmpdir %v", o)
+		return 0
+	}
+	if cmpdir(opl) != cmpdir(opr) {
+		// Not a range check; something like b < a && b < c.
+		return n
+	}
+
+	switch opl {
+	case OGE, OGT:
+		// We have something like a > b && b ≥ c.
+		// Switch and reverse ops and rename constants,
+		// to make it look like a ≤ b && b < c.
+		a, c = c, a
+		opl, opr = Brrev(opr), Brrev(opl)
+	}
+
+	// We must ensure that c-a is non-negative.
+	// For now, require a and c to be constants.
+	// In the future, we could also support a == 0 and c == len/cap(...).
+	// Unfortunately, by this point, most len/cap expressions have been
+	// stored into temporary variables.
+	if !Isconst(a, CTINT) || !Isconst(c, CTINT) {
+		return n
+	}
+
+	if opl == OLT {
+		// We have a < b && ...
+		// We need a ≤ b && ... to safely use unsigned comparison tricks.
+		// If a is not the maximum constant for b's type,
+		// we can increment a and switch to ≤.
+		if a.Int64() >= Maxintval[b.Type.Etype].Int64() {
+			return n
+		}
+		a = Nodintconst(a.Int64() + 1)
+		opl = OLE
+	}
+
+	bound := c.Int64() - a.Int64()
+	if bound < 0 {
+		// Bad news. Something like 5 <= x && x < 3.
+		// Rare in practice, and we still need to generate side-effects,
+		// so just leave it alone.
+		return n
+	}
+
+	// We have a ≤ b && b < c (or a ≤ b && b ≤ c).
+	// This is equivalent to (a-a) ≤ (b-a) && (b-a) < (c-a),
+	// which is equivalent to 0 ≤ (b-a) && (b-a) < (c-a),
+	// which is equivalent to uint(b-a) < uint(c-a).
+	ut := b.Type.toUnsigned()
+	lhs := conv(Nod(OSUB, b, a), ut)
+	rhs := Nodintconst(bound)
+	if negateResult {
+		// Negate top level.
+		opr = Brcom(opr)
+	}
+	cmp := Nod(opr, lhs, rhs)
+	cmp.Lineno = n.Lineno
+	cmp = addinit(cmp, l.Ninit.Slice())
+	cmp = addinit(cmp, r.Ninit.Slice())
+	cmp = typecheck(cmp, Erv)
+	cmp = walkexpr(cmp, init)
+	return cmp
+}
+
 // walkmul rewrites integer multiplication by powers of two as shifts.
 // The result of walkmul MUST be assigned back to n, e.g.
 // 	n.Left = walkmul(n.Left, init)
@@ -3694,7 +3823,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 					var nc Node
 
 					Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-int64(pow))
-					n2 := Nod(ORSH, conv(n1, tounsigned(nl.Type)), &nc)
+					n2 := Nod(ORSH, conv(n1, nl.Type.toUnsigned()), &nc)
 					n.Left = Nod(OADD, nl, conv(n2, nl.Type))
 				}
 
