@@ -403,7 +403,7 @@ func oldname(s *Sym) *Node {
 			c.Addable = false
 			c.Ullman = 2
 			c.Name.Funcdepth = Funcdepth
-			
+
 			// Link into list of active closure variables.
 			// Popped from list in func closurebody.
 			c.Name.Param.Outer = n.Name.Param.Innermost
@@ -508,7 +508,7 @@ func ifacedcl(n *Node) {
 	n.Func = new(Func)
 	n.Func.FCurfn = Curfn
 	dclcontext = PPARAM
-	
+
 	funcstart(n)
 	funcargs(n.Right)
 
@@ -670,8 +670,7 @@ func funcargs2(t *Type) {
 }
 
 var funcstack []*Node // stack of previous values of Curfn
-var Funcdepth int32 // len(funcstack) during parsing, but then forced to be the same later during compilation
-
+var Funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
 
 // start the function.
 // called before funcargs; undone at end of funcbody.
