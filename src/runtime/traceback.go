@@ -858,15 +858,17 @@ func isSystemGoroutine(gp *g) bool {
 // pointer to a struct:
 //
 //	struct {
-//		Context uintptr
-//		Buf     *uintptr
-//		Max     uintptr
+//		Context    uintptr
+//		SigContext uintptr
+//		Buf        *uintptr
+//		Max        uintptr
 //	}
 //
 // In C syntax, this struct will be
 //
 //	struct {
 //		uintptr_t  Context;
+//		uintptr_t  SigContext;
 //		uintptr_t* Buf;
 //		uintptr_t  Max;
 //	};
@@ -886,6 +888,13 @@ func isSystemGoroutine(gp *g) bool {
 // the same Context value; it will usually be appropriate to cache the
 // result, if possible, the first time this is called for a specific
 // context value.
+//
+// If the traceback function is called from a signal handler on a Unix
+// system, SigContext will be the signal context argument passed to
+// the signal handler (a C ucontext_t* cast to uintptr_t). This may be
+// used to start tracing at the point where the signal occurred. If
+// the traceback function is not called from a signal handler,
+// SigContext will be zero.
 //
 // Buf is where the traceback information should be stored. It should
 // be PC values, such that Buf[0] is the PC of the caller, Buf[1] is
@@ -973,9 +982,10 @@ var cgoSymbolizer unsafe.Pointer
 
 // cgoTracebackArg is the type passed to cgoTraceback.
 type cgoTracebackArg struct {
-	context uintptr
-	buf     *uintptr
-	max     uintptr
+	context    uintptr
+	sigContext uintptr
+	buf        *uintptr
+	max        uintptr
 }
 
 // cgoContextArg is the type passed to the context function.
