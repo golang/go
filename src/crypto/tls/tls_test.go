@@ -479,9 +479,11 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	ln := newLocalListener(b)
 	defer ln.Close()
 
+	N := b.N
+
 	var serr error
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < N; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
 				serr = err
@@ -504,7 +506,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 
 	buf := make([]byte, 1<<16)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < N; i++ {
 		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
 		if err != nil {
 			b.Fatal(err)
@@ -566,9 +568,11 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 	ln := newLocalListener(b)
 	defer ln.Close()
 
+	N := b.N
+
 	var serr error
 	go func() {
-		for i := 0; i < b.N; i++ {
+		for i := 0; i < N; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
 				serr = err
@@ -591,7 +595,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 	buf := make([]byte, 16384)
 	peek := make([]byte, 1)
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < N; i++ {
 		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
 		if err != nil {
 			b.Fatal(err)
