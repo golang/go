@@ -251,6 +251,8 @@ func stackpoolfree(x gclinkptr, order uint8) {
 
 // stackcacherefill/stackcacherelease implement a global pool of stack segments.
 // The pool is required to prevent unlimited growth of per-thread caches.
+//
+//go:systemstack
 func stackcacherefill(c *mcache, order uint8) {
 	if stackDebug >= 1 {
 		print("stackcacherefill order=", order, "\n")
@@ -272,6 +274,7 @@ func stackcacherefill(c *mcache, order uint8) {
 	c.stackcache[order].size = size
 }
 
+//go:systemstack
 func stackcacherelease(c *mcache, order uint8) {
 	if stackDebug >= 1 {
 		print("stackcacherelease order=", order, "\n")
@@ -290,6 +293,7 @@ func stackcacherelease(c *mcache, order uint8) {
 	c.stackcache[order].size = size
 }
 
+//go:systemstack
 func stackcache_clear(c *mcache) {
 	if stackDebug >= 1 {
 		print("stackcache clear\n")
@@ -308,6 +312,12 @@ func stackcache_clear(c *mcache) {
 	unlock(&stackpoolmu)
 }
 
+// stackalloc allocates an n byte stack.
+//
+// stackalloc must run on the system stack because it uses per-P
+// resources and must not split the stack.
+//
+//go:systemstack
 func stackalloc(n uint32) (stack, []stkbar) {
 	// Stackalloc must be called on scheduler stack, so that we
 	// never try to grow the stack during the code that stackalloc runs.
@@ -405,6 +415,12 @@ func stackalloc(n uint32) (stack, []stkbar) {
 	return stack{uintptr(v), uintptr(v) + top}, *(*[]stkbar)(unsafe.Pointer(&stkbarSlice))
 }
 
+// stackfree frees an n byte stack allocation at stk.
+//
+// stackfree must run on the system stack because it uses per-P
+// resources and must not split the stack.
+//
+//go:systemstack
 func stackfree(stk stack, n uintptr) {
 	gp := getg()
 	v := unsafe.Pointer(stk.lo)
