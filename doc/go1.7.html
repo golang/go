@@ -398,6 +398,11 @@ as
 </p>
 
 <p>
+During panics, if a signal's name is known, it will be printed in the stack trace.
+Otherwise, the signal's number will be used, as it was before Go1.7.
+</p>
+
+<p>
 The new function
 <a href="/pkg/runtime/#KeepAlive"><code>KeepAlive</code></a>
 provides an explicit mechanism for declaring
