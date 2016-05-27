@@ -534,14 +534,7 @@ func (p *printer) printRawNode(n Node) {
 		p.print(n.Cond, blank)
 		p.printBody(n.Then)
 		if n.Else != nil {
-			p.print(blank, _Else, blank)
-			if len(n.Else) == 1 {
-				if n, ok := n.Else[0].(*IfStmt); ok {
-					p.print(n)
-					break
-				}
-			}
-			p.printBody(n.Else)
+			p.print(blank, _Else, blank, n.Else)
 		}
 
 	case *SwitchStmt:

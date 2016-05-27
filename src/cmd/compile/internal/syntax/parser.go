@@ -1634,9 +1634,9 @@ func (p *parser) ifStmt() *IfStmt {
 
 	if p.got(_Else) {
 		if p.tok == _If {
-			s.Else = []Stmt{p.ifStmt()}
+			s.Else = p.ifStmt()
 		} else {
-			s.Else = p.stmtBody("else clause")
+			s.Else = p.blockStmt()
 		}
 	}
 

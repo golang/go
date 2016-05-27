@@ -336,7 +336,7 @@ type (
 		Init SimpleStmt
 		Cond Expr
 		Then []Stmt
-		Else []Stmt
+		Else Stmt // either *IfStmt or *BlockStmt
 		stmt
 	}
 
