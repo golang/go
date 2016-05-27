@@ -9,10 +9,15 @@ package net
 import (
 	"fmt"
 	"os/exec"
+	"runtime"
 )
 
-func (ti *testInterface) setBroadcast(suffix int) error {
-	ti.name = fmt.Sprintf("vlan%d", suffix)
+func (ti *testInterface) setBroadcast(vid int) error {
+	if runtime.GOOS == "openbsd" {
+		ti.name = fmt.Sprintf("vether%d", vid)
+	} else {
+		ti.name = fmt.Sprintf("vlan%d", vid)
+	}
 	xname, err := exec.LookPath("ifconfig")
 	if err != nil {
 		return err

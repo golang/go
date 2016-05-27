@@ -418,10 +418,10 @@ var urltests = []URLTest{
 	},
 	// worst case host, still round trips
 	{
-		"scheme://!$&'()*+,;=hello!:8080/path",
+		"scheme://!$&'()*+,;=hello!:port/path",
 		&URL{
 			Scheme: "scheme",
-			Host:   "!$&'()*+,;=hello!:8080",
+			Host:   "!$&'()*+,;=hello!:port",
 			Path:   "/path",
 		},
 		"",
@@ -636,10 +636,8 @@ var parseRequestURLTests = []struct {
 	{"*", true},
 	{"http://192.168.0.1/", true},
 	{"http://192.168.0.1:8080/", true},
-	{"http://192.168.0.1:foo/", false},
 	{"http://[fe80::1]/", true},
 	{"http://[fe80::1]:8080/", true},
-	{"http://[fe80::1]:foo/", false},
 
 	// Tests exercising RFC 6874 compliance:
 	{"http://[fe80::1%25en0]/", true},                 // with alphanum zone identifier

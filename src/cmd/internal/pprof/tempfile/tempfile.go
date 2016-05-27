@@ -27,18 +27,19 @@ func New(dir, prefix, suffix string) (*os.File, error) {
 var tempFiles []string
 var tempFilesMu = sync.Mutex{}
 
-// DeferDelete marks a file to be deleted by next call to Cleanup()
+// DeferDelete marks a file or directory to be deleted by next call to Cleanup.
 func DeferDelete(path string) {
 	tempFilesMu.Lock()
 	tempFiles = append(tempFiles, path)
 	tempFilesMu.Unlock()
 }
 
-// Cleanup removes any temporary files selected for deferred cleaning.
+// Cleanup removes any temporary files or directories selected for deferred cleaning.
+// Similar to defer semantics, the nodes are deleted in LIFO order.
 func Cleanup() {
 	tempFilesMu.Lock()
-	for _, f := range tempFiles {
-		os.Remove(f)
+	for i := len(tempFiles) - 1; i >= 0; i-- {
+		os.Remove(tempFiles[i])
 	}
 	tempFiles = nil
 	tempFilesMu.Unlock()

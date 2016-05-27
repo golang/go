@@ -43,7 +43,7 @@ func TestConnAndListener(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer c.Close()
-		if c.LocalAddr().Network() != network || c.LocalAddr().Network() != network {
+		if c.LocalAddr().Network() != network || c.RemoteAddr().Network() != network {
 			t.Fatalf("got %s->%s; want %s->%s", c.LocalAddr().Network(), c.RemoteAddr().Network(), network, network)
 		}
 		c.SetDeadline(time.Now().Add(someTimeout))

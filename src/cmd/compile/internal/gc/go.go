@@ -91,14 +91,12 @@ const (
 	Pxxx      Class = iota
 	PEXTERN         // global variable
 	PAUTO           // local variables
+	PAUTOHEAP       // local variable or parameter moved to heap
 	PPARAM          // input arguments
 	PPARAMOUT       // output results
-	PPARAMREF       // closure variable reference
 	PFUNC           // global function
 
 	PDISCARD // discard during parse of duplicate import
-
-	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
 )
 
 // note this is the runtime representation
@@ -133,6 +131,7 @@ var pragcgobuf string
 var infile string
 
 var outfile string
+var linkobj string
 
 var bout *bio.Writer
 
@@ -259,8 +258,6 @@ var Widthint int
 var Widthreg int
 
 var nblank *Node
-
-var Funcdepth int32
 
 var typecheckok bool
 

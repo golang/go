@@ -57,12 +57,7 @@ func TestArithmetic(t *testing.T) {
 }
 
 // TestFP tests that both backends have the same result for floating point expressions.
-func TestFP(t *testing.T) {
-	if runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le" {
-		t.Skip("legacy mips64 compiler doesn't handle uint->float conversion correctly (issue 15552)")
-	}
-	runTest(t, "fp_ssa.go")
-}
+func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
 
 // TestArithmeticBoundary tests boundary results for arithmetic operations.
 func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary_ssa.go") }

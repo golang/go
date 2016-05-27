@@ -96,7 +96,7 @@ type Response struct {
 	// any trailer values sent by the server.
 	Trailer Header
 
-	// The Request that was sent to obtain this Response.
+	// Request is the request that was sent to obtain this Response.
 	// Request's Body is nil (having already been consumed).
 	// This is only populated for Client requests.
 	Request *Request

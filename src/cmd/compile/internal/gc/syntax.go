@@ -68,11 +68,48 @@ type Node struct {
 	Used      bool
 	Isddd     bool // is the argument variadic
 	Implicit  bool
-	Addrtaken bool // address taken, even if not moved to heap
-	Assigned  bool // is the variable ever assigned to
-	Likely    int8 // likeliness of if statement
-	Hasbreak  bool // has break statement
-	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
+	Addrtaken bool  // address taken, even if not moved to heap
+	Assigned  bool  // is the variable ever assigned to
+	Likely    int8  // likeliness of if statement
+	hasVal    int8  // +1 for Val, -1 for Opt, 0 for not yet set
+	flags     uint8 // TODO: store more bool fields in this flag field
+}
+
+const (
+	hasBreak = 1 << iota
+	notLiveAtEnd
+	isClosureVar
+)
+
+func (n *Node) HasBreak() bool {
+	return n.flags&hasBreak != 0
+}
+func (n *Node) SetHasBreak(b bool) {
+	if b {
+		n.flags |= hasBreak
+	} else {
+		n.flags &^= hasBreak
+	}
+}
+func (n *Node) NotLiveAtEnd() bool {
+	return n.flags&notLiveAtEnd != 0
+}
+func (n *Node) SetNotLiveAtEnd(b bool) {
+	if b {
+		n.flags |= notLiveAtEnd
+	} else {
+		n.flags &^= notLiveAtEnd
+	}
+}
+func (n *Node) isClosureVar() bool {
+	return n.flags&isClosureVar != 0
+}
+func (n *Node) setIsClosureVar(b bool) {
+	if b {
+		n.flags |= isClosureVar
+	} else {
+		n.flags &^= isClosureVar
+	}
 }
 
 // Val returns the Val for the node.
@@ -117,18 +154,18 @@ func (n *Node) SetOpt(x interface{}) {
 	n.E = x
 }
 
-// Name holds Node fields used only by named nodes (ONAME, OPACK, some OLITERAL).
+// Name holds Node fields used only by named nodes (ONAME, OPACK, OLABEL, ODCLFIELD, some OLITERAL).
 type Name struct {
-	Pack      *Node // real package for import . names
-	Pkg       *Pkg  // pkg for OPACK nodes
-	Heapaddr  *Node // temp holding heap address of param
-	Inlvar    *Node // ONAME substitute while inlining
-	Defn      *Node // initializing assignment
-	Curfn     *Node // function for local variables
-	Param     *Param
-	Decldepth int32 // declaration loop depth, increased for every loop or label
-	Vargen    int32 // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	Iota      int32 // value if this name is iota
+	Pack      *Node  // real package for import . names
+	Pkg       *Pkg   // pkg for OPACK nodes
+	Heapaddr  *Node  // temp holding heap address of param (could move to Param?)
+	Inlvar    *Node  // ONAME substitute while inlining (could move to Param?)
+	Defn      *Node  // initializing assignment
+	Curfn     *Node  // function for local variables
+	Param     *Param // additional fields for ONAME, ODCLFIELD
+	Decldepth int32  // declaration loop depth, increased for every loop or label
+	Vargen    int32  // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+	Iota      int32  // value if this name is iota
 	Funcdepth int32
 	Method    bool // OCALLMETH name
 	Readonly  bool
@@ -141,16 +178,83 @@ type Name struct {
 type Param struct {
 	Ntype *Node
 
-	// ONAME func param with PHEAP
-	Outerexpr  *Node // expression copied into closure for variable
-	Stackparam *Node // OPARAM node referring to stack copy of param
+	// ONAME PAUTOHEAP
+	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
 
 	// ONAME PPARAM
 	Field *Field // TFIELD in arg struct
 
-	// ONAME closure param with PPARAMREF
-	Outer   *Node // outer PPARAMREF in nested closure
-	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
+	// ONAME closure linkage
+	// Consider:
+	//
+	//	func f() {
+	//		x := 1 // x1
+	//		func() {
+	//			use(x) // x2
+	//			func() {
+	//				use(x) // x3
+	//				--- parser is here ---
+	//			}()
+	//		}()
+	//	}
+	//
+	// There is an original declaration of x and then a chain of mentions of x
+	// leading into the current function. Each time x is mentioned in a new closure,
+	// we create a variable representing x for use in that specific closure,
+	// since the way you get to x is different in each closure.
+	//
+	// Let's number the specific variables as shown in the code:
+	// x1 is the original x, x2 is when mentioned in the closure,
+	// and x3 is when mentioned in the closure in the closure.
+	//
+	// We keep these linked (assume N > 1):
+	//
+	//   - x1.Defn = original declaration statement for x (like most variables)
+	//   - x1.Innermost = current innermost closure x (in this case x3), or nil for none
+	//   - x1.isClosureVar() = false
+	//
+	//   - xN.Defn = x1, N > 1
+	//   - xN.isClosureVar() = true, N > 1
+	//   - x2.Outer = nil
+	//   - xN.Outer = x(N-1), N > 2
+	//
+	//
+	// When we look up x in the symbol table, we always get x1.
+	// Then we can use x1.Innermost (if not nil) to get the x
+	// for the innermost known closure function,
+	// but the first reference in a closure will find either no x1.Innermost
+	// or an x1.Innermost with .Funcdepth < Funcdepth.
+	// In that case, a new xN must be created, linked in with:
+	//
+	//     xN.Defn = x1
+	//     xN.Outer = x1.Innermost
+	//     x1.Innermost = xN
+	//
+	// When we finish the function, we'll process its closure variables
+	// and find xN and pop it off the list using:
+	//
+	//     x1 := xN.Defn
+	//     x1.Innermost = xN.Outer
+	//
+	// We leave xN.Innermost set so that we can still get to the original
+	// variable quickly. Not shown here, but once we're
+	// done parsing a function and no longer need xN.Outer for the
+	// lexical x reference links as described above, closurebody
+	// recomputes xN.Outer as the semantic x reference link tree,
+	// even filling in x in intermediate closures that might not
+	// have mentioned it along the way to inner closures that did.
+	// See closurebody for details.
+	//
+	// During the eventual compilation, then, for closure variables we have:
+	//
+	//     xN.Defn = original variable
+	//     xN.Outer = variable captured in next outward scope
+	//                to make closure where xN appears
+	//
+	// Because of the sharding of pieces of the node, x.Defn means x.Name.Defn
+	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
+	Innermost *Node
+	Outer     *Node
 }
 
 // Func holds Node fields used only with function-like nodes.
@@ -162,9 +266,8 @@ type Func struct {
 	Dcl        []*Node // autodcl for this func/closure
 	Inldcl     Nodes   // copy of dcl for use in inlining
 	Closgen    int
-	Outerfunc  *Node
+	Outerfunc  *Node // outer function (for closure)
 	FieldTrack map[*Sym]struct{}
-	Outer      *Node // outer func for closure
 	Ntype      *Node // signature
 	Top        int   // top context (Ecall, Eproc, etc)
 	Closure    *Node // OCLOSURE <-> ODCLFUNC
@@ -266,7 +369,7 @@ const (
 	OINDEX     // Left[Right] (index of array or slice)
 	OINDEXMAP  // Left[Right] (index of map)
 	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
-	OPARAM     // variant of ONAME for on-stack copy of a parameter or return value that escapes.
+	_          // was OPARAM, but cannot remove without breaking binary blob in builtin.go
 	OLEN       // len(Left)
 	OMAKE      // make(List) (before type checking converts to one of the following)
 	OMAKECHAN  // make(Type, Left) (type is chan)

@@ -582,11 +582,11 @@ func TestIgnoreLameReferrals(t *testing.T) {
 	}
 
 	if got := len(addrs); got != 1 {
-		t.Fatal("got %d addresses, want 1", got)
+		t.Fatalf("got %d addresses, want 1", got)
 	}
 
 	if got, want := addrs[0].String(), "192.0.2.1"; got != want {
-		t.Fatal("got address %v, want %v", got, want)
+		t.Fatalf("got address %v, want %v", got, want)
 	}
 }
 
@@ -721,6 +721,6 @@ func TestIgnoreDNSForgeries(t *testing.T) {
 	}
 
 	if got := resp.answer[0].(*dnsRR_A).A; got != TestAddr {
-		t.Error("got address %v, want %v", got, TestAddr)
+		t.Errorf("got address %v, want %v", got, TestAddr)
 	}
 }

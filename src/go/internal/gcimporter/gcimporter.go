@@ -163,7 +163,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 		var data []byte
 		data, err = ioutil.ReadAll(buf)
 		if err == nil {
-			_, pkg, err = BImportData(packages, data, path)
+			_, pkg, err = BImportData(packages, data, id)
 			return
 		}
 	default:

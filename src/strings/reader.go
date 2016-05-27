@@ -107,11 +107,11 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	r.prevRune = -1
 	var abs int64
 	switch whence {
-	case 0:
+	case io.SeekStart:
 		abs = offset
-	case 1:
+	case io.SeekCurrent:
 		abs = r.i + offset
-	case 2:
+	case io.SeekEnd:
 		abs = int64(len(r.s)) + offset
 	default:
 		return 0, errors.New("strings.Reader.Seek: invalid whence")

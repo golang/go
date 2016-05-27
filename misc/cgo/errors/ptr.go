@@ -290,6 +290,30 @@ var ptrTests = []ptrTest{
 		},
 		fail: true,
 	},
+	{
+		// Don't check non-pointer data.
+		// Uses unsafe code to get a pointer we shouldn't check.
+		// Although we use unsafe, the uintptr represents an integer
+		// that happens to have the same representation as a pointer;
+		// that is, we are testing something that is not unsafe.
+		name: "ptrdata1",
+		c: `#include <stdlib.h>
+                    void f(void* p) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { p *int; a [8*8]byte; u uintptr }`,
+		body:    `i := 0; p := &S{u:uintptr(unsafe.Pointer(&i))}; q := (*S)(C.malloc(C.size_t(unsafe.Sizeof(*p)))); *q = *p; C.f(unsafe.Pointer(q))`,
+		fail:    false,
+	},
+	{
+		// Like ptrdata1, but with a type that uses a GC program.
+		name: "ptrdata2",
+		c: `#include <stdlib.h>
+                    void f(void* p) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { p *int; a [32769*8]byte; q *int; u uintptr }`,
+		body:    `i := 0; p := S{u:uintptr(unsafe.Pointer(&i))}; q := (*S)(C.malloc(C.size_t(unsafe.Sizeof(p)))); *q = p; C.f(unsafe.Pointer(q))`,
+		fail:    false,
+	},
 }
 
 func main() {

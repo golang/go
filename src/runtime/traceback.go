@@ -241,6 +241,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		//	stk is the stack containing sp.
 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
 		f = frame.fn
+		if f.pcsp == 0 {
+			// No frame information, must be external function, like race support.
+			// See golang.org/issue/13568.
+			break
+		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
@@ -251,6 +256,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			sp := frame.sp
 			if flags&_TraceJumpStack != 0 && f.entry == systemstackPC && gp == g.m.g0 && gp.m.curg != nil {
 				sp = gp.m.curg.sched.sp
+				frame.sp = sp
 				stkbarG = gp.m.curg
 				stkbar = stkbarG.stkbar[stkbarG.stkbarPos:]
 				cgoCtxt = gp.m.curg.cgoCtxt
@@ -1034,7 +1040,7 @@ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
 		if arg.file != nil {
 			print(gostringnocopy(arg.file), ":", arg.lineno, " ")
 		}
-		print("pc=", hex(c), "\n")
+		print("pc=", hex(pc), "\n")
 		c++
 		if arg.more == 0 {
 			break

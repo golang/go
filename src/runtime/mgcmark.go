@@ -174,7 +174,9 @@ func markroot(gcw *gcWork, i uint32) {
 		// Only do this once per GC cycle; preferably
 		// concurrently.
 		if !work.markrootDone {
-			markrootFreeGStacks()
+			// Switch to the system stack so we can call
+			// stackfree.
+			systemstack(markrootFreeGStacks)
 		}
 
 	case baseSpans <= i && i < baseStacks:
@@ -231,7 +233,7 @@ func markroot(gcw *gcWork, i uint32) {
 			// we scan the stacks we can and ask running
 			// goroutines to scan themselves; and the
 			// second blocks.
-			scang(gp)
+			scang(gp, gcw)
 
 			if selfScan {
 				casgstatus(userG, _Gwaiting, _Grunning)
@@ -601,7 +603,13 @@ func gcFlushBgCredit(scanWork int64) {
 			gp.gcAssistBytes = 0
 			xgp := gp
 			gp = gp.schedlink.ptr()
-			ready(xgp, 0)
+			// It's important that we *not* put xgp in
+			// runnext. Otherwise, it's possible for user
+			// code to exploit the GC worker's high
+			// scheduler priority to get itself always run
+			// before other goroutines and always in the
+			// fresh quantum started by GC.
+			ready(xgp, 0, false)
 		} else {
 			// Partially satisfy this assist.
 			gp.gcAssistBytes += scanBytes
@@ -636,8 +644,18 @@ func gcFlushBgCredit(scanWork int64) {
 	unlock(&work.assistQueue.lock)
 }
 
+// scanstack scans gp's stack, greying all pointers found on the stack.
+//
+// During mark phase, it also installs stack barriers while traversing
+// gp's stack. During mark termination, it stops scanning when it
+// reaches an unhit stack barrier.
+//
+// scanstack is marked go:systemstack because it must not be preempted
+// while using a workbuf.
+//
 //go:nowritebarrier
-func scanstack(gp *g) {
+//go:systemstack
+func scanstack(gp *g, gcw *gcWork) {
 	if gp.gcscanvalid {
 		return
 	}
@@ -726,7 +744,6 @@ func scanstack(gp *g) {
 
 	// Scan the stack.
 	var cache pcvalueCache
-	gcw := &getg().m.p.ptr().gcw
 	n := 0
 	scanframe := func(frame *stkframe, unused unsafe.Pointer) bool {
 		scanframeworker(frame, &cache, gcw)
@@ -754,9 +771,6 @@ func scanstack(gp *g) {
 	}
 	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, scanframe, nil, 0)
 	tracebackdefers(gp, scanframe, nil)
-	if gcphase == _GCmarktermination {
-		gcw.dispose()
-	}
 	gcUnlockStackBarriers(gp)
 	if gcphase == _GCmark {
 		// gp may have added itself to the rescan list between
@@ -1096,7 +1110,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 // scanobject scans the object starting at b, adding pointers to gcw.
 // b must point to the beginning of a heap object; scanobject consults
 // the GC bitmap for the pointer mask and the spans for the size of the
-// object (it ignores n).
+// object.
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
 	// Note that arena_used may change concurrently during

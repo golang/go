@@ -27,9 +27,7 @@
 
 package gc
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
@@ -180,6 +178,7 @@ func ishairy(n *Node, budget *int32) bool {
 			*budget -= fn.InlCost
 			break
 		}
+
 		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
 				*budget -= d.Func.InlCost
@@ -568,14 +567,13 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		if ln.Class == PPARAMOUT { // return values handled below.
 			continue
 		}
+		if ln.isParamStackCopy() { // ignore the on-stack copy of a parameter that moved to the heap
+			continue
+		}
 		if ln.Op == ONAME {
-			ln.Name.Inlvar = inlvar(ln)
-
-			// Typecheck because inlvar is not necessarily a function parameter.
-			ln.Name.Inlvar = typecheck(ln.Name.Inlvar, Erv)
-
-			if ln.Class&^PHEAP != PAUTO {
-				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+			ln.Name.Inlvar = typecheck(inlvar(ln), Erv)
+			if ln.Class == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class == PPARAM {
+				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil))
 			}
 		}
 	}

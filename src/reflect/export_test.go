@@ -109,3 +109,7 @@ func IsExported(t Type) bool {
 	n := typ.nameOff(typ.str)
 	return n.isExported()
 }
+
+func ResolveReflectName(s string) {
+	resolveReflectName(newName(s, "", "", false))
+}

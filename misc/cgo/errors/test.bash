@@ -45,6 +45,13 @@ expect issue13129.go C.ushort
 check issue13423.go
 expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
 
+if ! go build issue14669.go; then
+	exit 1
+fi
+if ! CGO_CFLAGS="-O" go build issue14669.go; then
+	exit 1
+fi
+
 if ! go run ptr.go; then
 	exit 1
 fi

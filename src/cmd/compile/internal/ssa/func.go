@@ -37,7 +37,7 @@ type Func struct {
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
 	idom []*Block   // precomputed immediate dominators
-	sdom sparseTree // precomputed dominator tree
+	sdom SparseTree // precomputed dominator tree
 
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
@@ -104,12 +104,16 @@ func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
 // context to allow item-by-item comparisons across runs.
 // For example:
 // awk 'BEGIN {FS="\t"} $3~/TIME/{sum+=$4} END{print "t(ns)=",sum}' t.log
-func (f *Func) logStat(key string, args ...interface{}) {
+func (f *Func) LogStat(key string, args ...interface{}) {
 	value := ""
 	for _, a := range args {
 		value += fmt.Sprintf("\t%v", a)
 	}
-	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
+	n := "missing_pass"
+	if f.pass != nil {
+		n = f.pass.name
+	}
+	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", n, key, value, f.Name)
 }
 
 // freeValue frees a value. It must no longer be referenced.

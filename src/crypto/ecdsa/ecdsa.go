@@ -228,7 +228,7 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 	c := pub.Curve
 	N := c.Params().N
 
-	if r.Sign() == 0 || s.Sign() == 0 {
+	if r.Sign() <= 0 || s.Sign() <= 0 {
 		return false
 	}
 	if r.Cmp(N) >= 0 || s.Cmp(N) >= 0 {

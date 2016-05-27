@@ -16,7 +16,7 @@ TEXT _rt0_arm_darwin(SB),7,$-4
 //
 // Note that all currently shipping darwin/arm platforms require
 // cgo and do not support c-shared.
-TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$32
+TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$104
 	// Preserve callee-save registers.
 	MOVW    R4, 12(R13)
 	MOVW    R5, 16(R13)
@@ -24,6 +24,15 @@ TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$32
 	MOVW    R7, 24(R13)
 	MOVW    R8, 28(R13)
 	MOVW    R11, 32(R13)
+
+	MOVD	F8, (32+8*1)(R13)
+	MOVD	F9, (32+8*2)(R13)
+	MOVD	F10, (32+8*3)(R13)
+	MOVD	F11, (32+8*4)(R13)
+	MOVD	F12, (32+8*5)(R13)
+	MOVD	F13, (32+8*6)(R13)
+	MOVD	F14, (32+8*7)(R13)
+	MOVD	F15, (32+8*8)(R13)
 
 	MOVW  R0, _rt0_arm_darwin_lib_argc<>(SB)
 	MOVW  R1, _rt0_arm_darwin_lib_argv<>(SB)
@@ -57,6 +66,14 @@ rr:
 	MOVW    24(R13), R7
 	MOVW    28(R13), R8
 	MOVW    32(R13), R11
+	MOVD	(32+8*1)(R13), F8
+	MOVD	(32+8*2)(R13), F9
+	MOVD	(32+8*3)(R13), F10
+	MOVD	(32+8*4)(R13), F11
+	MOVD	(32+8*5)(R13), F12
+	MOVD	(32+8*6)(R13), F13
+	MOVD	(32+8*7)(R13), F14
+	MOVD	(32+8*8)(R13), F15
 	RET
 
 

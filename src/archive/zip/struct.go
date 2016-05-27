@@ -5,7 +5,7 @@
 /*
 Package zip provides support for reading and writing ZIP archives.
 
-See: http://www.pkware.com/documents/casestudies/APPNOTE.TXT
+See: https://www.pkware.com/documents/casestudies/APPNOTE.TXT
 
 This package does not support disk spanning.
 

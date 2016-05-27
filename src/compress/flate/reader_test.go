@@ -22,82 +22,77 @@ func TestNlitOutOfRange(t *testing.T) {
 			"\x75\xc4\xf8\x0f\x12\x11\xb9\xb4\x4b\x09\xa0\xbe\x8b\x91\x4c")))
 }
 
-const (
-	digits = iota
-	twain
-)
-
-var testfiles = []string{
+var suites = []struct{ name, file string }{
 	// Digits is the digits of the irrational number e. Its decimal representation
 	// does not repeat, but there are only 10 possible digits, so it should be
 	// reasonably compressible.
-	digits: "../testdata/e.txt",
+	{"Digits", "../testdata/e.txt"},
 	// Twain is Mark Twain's classic English novel.
-	twain: "../testdata/Mark.Twain-Tom.Sawyer.txt",
+	{"Twain", "../testdata/Mark.Twain-Tom.Sawyer.txt"},
 }
 
-func benchmarkDecode(b *testing.B, testfile, level, n int) {
-	b.ReportAllocs()
-	b.StopTimer()
-	b.SetBytes(int64(n))
-	buf0, err := ioutil.ReadFile(testfiles[testfile])
-	if err != nil {
-		b.Fatal(err)
-	}
-	if len(buf0) == 0 {
-		b.Fatalf("test file %q has no data", testfiles[testfile])
-	}
-	compressed := new(bytes.Buffer)
-	w, err := NewWriter(compressed, level)
-	if err != nil {
-		b.Fatal(err)
-	}
-	for i := 0; i < n; i += len(buf0) {
-		if len(buf0) > n-i {
-			buf0 = buf0[:n-i]
+func BenchmarkDecode(b *testing.B) {
+	doBench(b, func(b *testing.B, buf0 []byte, level, n int) {
+		b.ReportAllocs()
+		b.StopTimer()
+		b.SetBytes(int64(n))
+
+		compressed := new(bytes.Buffer)
+		w, err := NewWriter(compressed, level)
+		if err != nil {
+			b.Fatal(err)
 		}
-		io.Copy(w, bytes.NewReader(buf0))
-	}
-	w.Close()
-	buf1 := compressed.Bytes()
-	buf0, compressed, w = nil, nil, nil
-	runtime.GC()
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1)))
-	}
+		for i := 0; i < n; i += len(buf0) {
+			if len(buf0) > n-i {
+				buf0 = buf0[:n-i]
+			}
+			io.Copy(w, bytes.NewReader(buf0))
+		}
+		w.Close()
+		buf1 := compressed.Bytes()
+		buf0, compressed, w = nil, nil, nil
+		runtime.GC()
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1)))
+		}
+	})
 }
 
-// These short names are so that gofmt doesn't break the BenchmarkXxx function
-// bodies below over multiple lines.
-const (
-	speed    = BestSpeed
-	default_ = DefaultCompression
-	compress = BestCompression
-	huffman  = HuffmanOnly
-)
+var levelTests = []struct {
+	name  string
+	level int
+}{
+	{"Huffman", HuffmanOnly},
+	{"Speed", BestSpeed},
+	{"Default", DefaultCompression},
+	{"Compression", BestCompression},
+}
 
-func BenchmarkDecodeDigitsHuffman1e4(b *testing.B)  { benchmarkDecode(b, digits, huffman, 1e4) }
-func BenchmarkDecodeDigitsHuffman1e5(b *testing.B)  { benchmarkDecode(b, digits, huffman, 1e5) }
-func BenchmarkDecodeDigitsHuffman1e6(b *testing.B)  { benchmarkDecode(b, digits, huffman, 1e6) }
-func BenchmarkDecodeDigitsSpeed1e4(b *testing.B)    { benchmarkDecode(b, digits, speed, 1e4) }
-func BenchmarkDecodeDigitsSpeed1e5(b *testing.B)    { benchmarkDecode(b, digits, speed, 1e5) }
-func BenchmarkDecodeDigitsSpeed1e6(b *testing.B)    { benchmarkDecode(b, digits, speed, 1e6) }
-func BenchmarkDecodeDigitsDefault1e4(b *testing.B)  { benchmarkDecode(b, digits, default_, 1e4) }
-func BenchmarkDecodeDigitsDefault1e5(b *testing.B)  { benchmarkDecode(b, digits, default_, 1e5) }
-func BenchmarkDecodeDigitsDefault1e6(b *testing.B)  { benchmarkDecode(b, digits, default_, 1e6) }
-func BenchmarkDecodeDigitsCompress1e4(b *testing.B) { benchmarkDecode(b, digits, compress, 1e4) }
-func BenchmarkDecodeDigitsCompress1e5(b *testing.B) { benchmarkDecode(b, digits, compress, 1e5) }
-func BenchmarkDecodeDigitsCompress1e6(b *testing.B) { benchmarkDecode(b, digits, compress, 1e6) }
-func BenchmarkDecodeTwainHuffman1e4(b *testing.B)   { benchmarkDecode(b, twain, huffman, 1e4) }
-func BenchmarkDecodeTwainHuffman1e5(b *testing.B)   { benchmarkDecode(b, twain, huffman, 1e5) }
-func BenchmarkDecodeTwainHuffman1e6(b *testing.B)   { benchmarkDecode(b, twain, huffman, 1e6) }
-func BenchmarkDecodeTwainSpeed1e4(b *testing.B)     { benchmarkDecode(b, twain, speed, 1e4) }
-func BenchmarkDecodeTwainSpeed1e5(b *testing.B)     { benchmarkDecode(b, twain, speed, 1e5) }
-func BenchmarkDecodeTwainSpeed1e6(b *testing.B)     { benchmarkDecode(b, twain, speed, 1e6) }
-func BenchmarkDecodeTwainDefault1e4(b *testing.B)   { benchmarkDecode(b, twain, default_, 1e4) }
-func BenchmarkDecodeTwainDefault1e5(b *testing.B)   { benchmarkDecode(b, twain, default_, 1e5) }
-func BenchmarkDecodeTwainDefault1e6(b *testing.B)   { benchmarkDecode(b, twain, default_, 1e6) }
-func BenchmarkDecodeTwainCompress1e4(b *testing.B)  { benchmarkDecode(b, twain, compress, 1e4) }
-func BenchmarkDecodeTwainCompress1e5(b *testing.B)  { benchmarkDecode(b, twain, compress, 1e5) }
-func BenchmarkDecodeTwainCompress1e6(b *testing.B)  { benchmarkDecode(b, twain, compress, 1e6) }
+var sizes = []struct {
+	name string
+	n    int
+}{
+	{"1e4", 1e4},
+	{"1e5", 1e5},
+	{"1e6", 1e6},
+}
+
+func doBench(b *testing.B, f func(b *testing.B, buf []byte, level, n int)) {
+	for _, suite := range suites {
+		buf, err := ioutil.ReadFile(suite.file)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(buf) == 0 {
+			b.Fatalf("test file %q has no data", suite.file)
+		}
+		for _, l := range levelTests {
+			for _, s := range sizes {
+				b.Run(suite.name+"/"+l.name+"/"+s.name, func(b *testing.B) {
+					f(b, buf, l.level, s.n)
+				})
+			}
+		}
+	}
+}

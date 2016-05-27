@@ -1182,14 +1182,14 @@ func TestSeek(t *testing.T) {
 		out    int64
 	}
 	var tests = []test{
-		{0, 1, int64(len(data))},
-		{0, 0, 0},
-		{5, 0, 5},
-		{0, 2, int64(len(data))},
-		{0, 0, 0},
-		{-1, 2, int64(len(data)) - 1},
-		{1 << 33, 0, 1 << 33},
-		{1 << 33, 2, 1<<33 + int64(len(data))},
+		{0, io.SeekCurrent, int64(len(data))},
+		{0, io.SeekStart, 0},
+		{5, io.SeekStart, 5},
+		{0, io.SeekEnd, int64(len(data))},
+		{0, io.SeekStart, 0},
+		{-1, io.SeekEnd, int64(len(data)) - 1},
+		{1 << 33, io.SeekStart, 1 << 33},
+		{1 << 33, io.SeekEnd, 1<<33 + int64(len(data))},
 	}
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
@@ -1373,6 +1373,38 @@ func TestReadAt(t *testing.T) {
 	}
 	if string(b) != "world" {
 		t.Fatalf("ReadAt 7: have %q want %q", string(b), "world")
+	}
+}
+
+// Verify that ReadAt doesn't affect seek offset.
+// In the Plan 9 kernel, there used to be a bug in the implementation of
+// the pread syscall, where the channel offset was erroneously updated after
+// calling pread on a file.
+func TestReadAtOffset(t *testing.T) {
+	f := newFile("TestReadAtOffset", t)
+	defer Remove(f.Name())
+	defer f.Close()
+
+	const data = "hello, world\n"
+	io.WriteString(f, data)
+
+	f.Seek(0, 0)
+	b := make([]byte, 5)
+
+	n, err := f.ReadAt(b, 7)
+	if err != nil || n != len(b) {
+		t.Fatalf("ReadAt 7: %d, %v", n, err)
+	}
+	if string(b) != "world" {
+		t.Fatalf("ReadAt 7: have %q want %q", string(b), "world")
+	}
+
+	n, err = f.Read(b)
+	if err != nil || n != len(b) {
+		t.Fatalf("Read: %d, %v", n, err)
+	}
+	if string(b) != "hello" {
+		t.Fatalf("Read: have %q want %q", string(b), "hello")
 	}
 }
 
@@ -1726,7 +1758,7 @@ var nilFileMethodTests = []struct {
 	{"ReadAt", func(f *File) error { _, err := f.ReadAt(make([]byte, 0), 0); return err }},
 	{"Readdir", func(f *File) error { _, err := f.Readdir(1); return err }},
 	{"Readdirnames", func(f *File) error { _, err := f.Readdirnames(1); return err }},
-	{"Seek", func(f *File) error { _, err := f.Seek(0, 0); return err }},
+	{"Seek", func(f *File) error { _, err := f.Seek(0, io.SeekStart); return err }},
 	{"Stat", func(f *File) error { _, err := f.Stat(); return err }},
 	{"Sync", func(f *File) error { return f.Sync() }},
 	{"Truncate", func(f *File) error { return f.Truncate(0) }},

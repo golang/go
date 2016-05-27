@@ -594,3 +594,15 @@ func recoveredValue(fn func()) (v interface{}) {
 	fn()
 	return
 }
+
+func TestDeadlineExceededSupportsTimeout(t *testing.T) {
+	i, ok := DeadlineExceeded.(interface {
+		Timeout() bool
+	})
+	if !ok {
+		t.Fatal("DeadlineExceeded does not support Timeout interface")
+	}
+	if !i.Timeout() {
+		t.Fatal("wrong value for timeout")
+	}
+}

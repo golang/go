@@ -36,7 +36,6 @@ type IPMask []byte
 type IPNet struct {
 	IP   IP     // network number
 	Mask IPMask // network mask
-	Zone string // IPv6 scoped addressing zone
 }
 
 // IPv4 returns the IP address (in 16-byte form) of the
@@ -256,7 +255,7 @@ func (ip IP) Mask(mask IPMask) IP {
 // It returns one of 4 forms:
 //   - "<nil>", if ip has length 0
 //   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
-//   - IPv6 ("2001:db9::1"), if ip is a valid IPv6 address
+//   - IPv6 ("2001:db8::1"), if ip is a valid IPv6 address
 //   - the hexadecimal form of ip, without punctuation, if no other cases apply
 func (ip IP) String() string {
 	p := ip
@@ -273,7 +272,7 @@ func (ip IP) String() string {
 			uitoa(uint(p4[3]))
 	}
 	if len(p) != IPv6len {
-		return hexString(ip)
+		return "?" + hexString(ip)
 	}
 
 	// Find longest run of zeros.
@@ -339,7 +338,7 @@ func (ip IP) MarshalText() ([]byte, error) {
 		return []byte(""), nil
 	}
 	if len(ip) != IPv4len && len(ip) != IPv6len {
-		return nil, &AddrError{Err: "invalid IP address", Addr: ip.String()}
+		return nil, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
 	}
 	return []byte(ip.String()), nil
 }
@@ -484,26 +483,22 @@ func (n *IPNet) Contains(ip IP) bool {
 // Network returns the address's network name, "ip+net".
 func (n *IPNet) Network() string { return "ip+net" }
 
-// String returns the CIDR notation of n like "192.168.100.1/24"
-// or "2001:DB8::/48" as defined in RFC 4632 and RFC 4291.
+// String returns the CIDR notation of n like "192.0.2.1/24"
+// or "2001:db8::/48" as defined in RFC 4632 and RFC 4291.
 // If the mask is not in the canonical form, it returns the
 // string which consists of an IP address, followed by a slash
 // character and a mask expressed as hexadecimal form with no
-// punctuation like "192.168.100.1/c000ff00".
+// punctuation like "198.51.100.1/c000ff00".
 func (n *IPNet) String() string {
 	nn, m := networkNumberAndMask(n)
 	if nn == nil || m == nil {
 		return "<nil>"
 	}
-	ip := nn.String()
-	if n.Zone != "" {
-		ip = ip + "%" + n.Zone
-	}
 	l := simpleMaskLength(m)
 	if l == -1 {
-		return ip + "/" + m.String()
+		return nn.String() + "/" + m.String()
 	}
-	return ip + "/" + uitoa(uint(l))
+	return nn.String() + "/" + uitoa(uint(l))
 }
 
 // Parse IPv4 address (d.d.d.d).
@@ -646,8 +641,8 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
 }
 
 // ParseIP parses s as an IP address, returning the result.
-// The string s can be in dotted decimal ("74.125.19.99")
-// or IPv6 ("2001:4860:0:2001::68") form.
+// The string s can be in dotted decimal ("192.0.2.1")
+// or IPv6 ("2001:db8::68") form.
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
@@ -664,29 +659,28 @@ func ParseIP(s string) IP {
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and mask,
-// like "192.168.100.1/24" or "2001:DB8::/48", as defined in
+// like "192.0.2.0/24" or "2001:db8::/32", as defined in
 // RFC 4632 and RFC 4291.
 //
 // It returns the IP address and the network implied by the IP
-// and mask. For example, ParseCIDR("192.168.100.1/16") returns
-// the IP address 192.168.100.1 and the network 192.168.0.0/16.
+// and mask. For example, ParseCIDR("198.51.100.1/24") returns
+// the IP address 198.51.100.1 and the network 198.51.100.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
 	i := byteIndex(s, '/')
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
-	var zone string
 	addr, mask := s[:i], s[i+1:]
 	iplen := IPv4len
 	ip := parseIPv4(addr)
 	if ip == nil {
 		iplen = IPv6len
-		ip, zone = parseIPv6(addr, true)
+		ip, _ = parseIPv6(addr, false)
 	}
 	n, i, ok := dtoi(mask, 0)
 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
 	m := CIDRMask(n, 8*iplen)
-	return ip, &IPNet{IP: ip.Mask(m), Mask: m, Zone: zone}, nil
+	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
 }

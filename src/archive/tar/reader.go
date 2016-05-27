@@ -29,11 +29,11 @@ const maxNanoSecondIntSize = 9
 // The Next method advances to the next file in the archive (including the first),
 // and then it can be treated as an io.Reader to access the file's data.
 type Reader struct {
-	r       io.Reader
-	err     error
-	pad     int64           // amount of padding (ignored) after current file entry
-	curr    numBytesReader  // reader for current file entry
-	hdrBuff [blockSize]byte // buffer to use in readHeader
+	r    io.Reader
+	err  error
+	pad  int64          // amount of padding (ignored) after current file entry
+	curr numBytesReader // reader for current file entry
+	blk  block          // buffer to use as temporary local storage
 }
 
 type parser struct {
@@ -96,17 +96,6 @@ const (
 	paxGNUSparseMinor     = "GNU.sparse.minor"
 	paxGNUSparseSize      = "GNU.sparse.size"
 	paxGNUSparseRealSize  = "GNU.sparse.realsize"
-)
-
-// Keywords for old GNU sparse headers
-const (
-	oldGNUSparseMainHeaderOffset               = 386
-	oldGNUSparseMainHeaderIsExtendedOffset     = 482
-	oldGNUSparseMainHeaderNumEntries           = 4
-	oldGNUSparseExtendedHeaderIsExtendedOffset = 504
-	oldGNUSparseExtendedHeaderNumEntries       = 21
-	oldGNUSparseOffsetSize                     = 12
-	oldGNUSparseNumBytesSize                   = 12
 )
 
 // NewReader creates a new Reader reading from r.
@@ -542,17 +531,6 @@ func (tr *Reader) skipUnread() error {
 	return tr.err
 }
 
-func (tr *Reader) verifyChecksum(header []byte) bool {
-	if tr.err != nil {
-		return false
-	}
-
-	var p parser
-	given := p.parseOctal(header[148:156])
-	unsigned, signed := checksum(header)
-	return p.err == nil && (given == unsigned || given == signed)
-}
-
 // readHeader reads the next block header and assumes that the underlying reader
 // is already aligned to a block boundary.
 //
@@ -561,19 +539,16 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 //	* Exactly 1 block of zeros is read and EOF is hit.
 //	* At least 2 blocks of zeros are read.
 func (tr *Reader) readHeader() *Header {
-	header := tr.hdrBuff[:]
-	copy(header, zeroBlock)
-
-	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+	if _, tr.err = io.ReadFull(tr.r, tr.blk[:]); tr.err != nil {
 		return nil // io.EOF is okay here
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
-	if bytes.Equal(header, zeroBlock[0:blockSize]) {
-		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+	if bytes.Equal(tr.blk[:], zeroBlock[:]) {
+		if _, tr.err = io.ReadFull(tr.r, tr.blk[:]); tr.err != nil {
 			return nil // io.EOF is okay here
 		}
-		if bytes.Equal(header, zeroBlock[0:blockSize]) {
+		if bytes.Equal(tr.blk[:], zeroBlock[:]) {
 			tr.err = io.EOF
 		} else {
 			tr.err = ErrHeader // zero block and then non-zero block
@@ -581,69 +556,53 @@ func (tr *Reader) readHeader() *Header {
 		return nil
 	}
 
-	if !tr.verifyChecksum(header) {
+	// Verify the header matches a known format.
+	format := tr.blk.GetFormat()
+	if format == formatUnknown {
 		tr.err = ErrHeader
 		return nil
 	}
 
-	// Unpack
 	var p parser
 	hdr := new(Header)
-	s := slicer(header)
 
-	hdr.Name = p.parseString(s.next(100))
-	hdr.Mode = p.parseNumeric(s.next(8))
-	hdr.Uid = int(p.parseNumeric(s.next(8)))
-	hdr.Gid = int(p.parseNumeric(s.next(8)))
-	hdr.Size = p.parseNumeric(s.next(12))
-	hdr.ModTime = time.Unix(p.parseNumeric(s.next(12)), 0)
-	s.next(8) // chksum
-	hdr.Typeflag = s.next(1)[0]
-	hdr.Linkname = p.parseString(s.next(100))
+	// Unpack the V7 header.
+	v7 := tr.blk.V7()
+	hdr.Name = p.parseString(v7.Name())
+	hdr.Mode = p.parseNumeric(v7.Mode())
+	hdr.Uid = int(p.parseNumeric(v7.UID()))
+	hdr.Gid = int(p.parseNumeric(v7.GID()))
+	hdr.Size = p.parseNumeric(v7.Size())
+	hdr.ModTime = time.Unix(p.parseNumeric(v7.ModTime()), 0)
+	hdr.Typeflag = v7.TypeFlag()[0]
+	hdr.Linkname = p.parseString(v7.LinkName())
 
-	// The remainder of the header depends on the value of magic.
-	// The original (v7) version of tar had no explicit magic field,
-	// so its magic bytes, like the rest of the block, are NULs.
-	magic := string(s.next(8)) // contains version field as well.
-	var format string
-	switch {
-	case magic[:6] == "ustar\x00": // POSIX tar (1003.1-1988)
-		if string(header[508:512]) == "tar\x00" {
-			format = "star"
-		} else {
-			format = "posix"
-		}
-	case magic == "ustar  \x00": // old GNU tar
-		format = "gnu"
-	}
-
-	switch format {
-	case "posix", "gnu", "star":
-		hdr.Uname = p.parseString(s.next(32))
-		hdr.Gname = p.parseString(s.next(32))
-		devmajor := s.next(8)
-		devminor := s.next(8)
+	// Unpack format specific fields.
+	if format > formatV7 {
+		ustar := tr.blk.USTAR()
+		hdr.Uname = p.parseString(ustar.UserName())
+		hdr.Gname = p.parseString(ustar.GroupName())
 		if hdr.Typeflag == TypeChar || hdr.Typeflag == TypeBlock {
-			hdr.Devmajor = p.parseNumeric(devmajor)
-			hdr.Devminor = p.parseNumeric(devminor)
+			hdr.Devmajor = p.parseNumeric(ustar.DevMajor())
+			hdr.Devminor = p.parseNumeric(ustar.DevMinor())
 		}
+
 		var prefix string
 		switch format {
-		case "posix", "gnu":
-			prefix = p.parseString(s.next(155))
-		case "star":
-			prefix = p.parseString(s.next(131))
-			hdr.AccessTime = time.Unix(p.parseNumeric(s.next(12)), 0)
-			hdr.ChangeTime = time.Unix(p.parseNumeric(s.next(12)), 0)
+		case formatUSTAR, formatGNU:
+			// TODO(dsnet): Do not use the prefix field for the GNU format!
+			// See golang.org/issues/12594
+			ustar := tr.blk.USTAR()
+			prefix = p.parseString(ustar.Prefix())
+		case formatSTAR:
+			star := tr.blk.STAR()
+			prefix = p.parseString(star.Prefix())
+			hdr.AccessTime = time.Unix(p.parseNumeric(star.AccessTime()), 0)
+			hdr.ChangeTime = time.Unix(p.parseNumeric(star.ChangeTime()), 0)
 		}
 		if len(prefix) > 0 {
 			hdr.Name = prefix + "/" + hdr.Name
 		}
-	}
-
-	if p.err != nil {
-		tr.err = p.err
-		return nil
 	}
 
 	nb := hdr.Size
@@ -662,14 +621,14 @@ func (tr *Reader) readHeader() *Header {
 	// Check for old GNU sparse format entry.
 	if hdr.Typeflag == TypeGNUSparse {
 		// Get the real size of the file.
-		hdr.Size = p.parseNumeric(header[483:495])
+		hdr.Size = p.parseNumeric(tr.blk.GNU().RealSize())
 		if p.err != nil {
 			tr.err = p.err
 			return nil
 		}
 
 		// Read the sparse map.
-		sp := tr.readOldGNUSparseMap(header)
+		sp := tr.readOldGNUSparseMap(&tr.blk)
 		if tr.err != nil {
 			return nil
 		}
@@ -681,26 +640,24 @@ func (tr *Reader) readHeader() *Header {
 		}
 	}
 
+	if p.err != nil {
+		tr.err = p.err
+		return nil
+	}
+
 	return hdr
 }
 
 // readOldGNUSparseMap reads the sparse map as stored in the old GNU sparse format.
 // The sparse map is stored in the tar header if it's small enough. If it's larger than four entries,
 // then one or more extension headers are used to store the rest of the sparse map.
-func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
+func (tr *Reader) readOldGNUSparseMap(blk *block) []sparseEntry {
 	var p parser
-	isExtended := header[oldGNUSparseMainHeaderIsExtendedOffset] != 0
-	spCap := oldGNUSparseMainHeaderNumEntries
-	if isExtended {
-		spCap += oldGNUSparseExtendedHeaderNumEntries
-	}
-	sp := make([]sparseEntry, 0, spCap)
-	s := slicer(header[oldGNUSparseMainHeaderOffset:])
-
-	// Read the four entries from the main tar header
-	for i := 0; i < oldGNUSparseMainHeaderNumEntries; i++ {
-		offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
-		numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
+	var s sparseArray = blk.GNU().Sparse()
+	var sp = make([]sparseEntry, 0, s.MaxEntries())
+	for i := 0; i < s.MaxEntries(); i++ {
+		offset := p.parseOctal(s.Entry(i).Offset())
+		numBytes := p.parseOctal(s.Entry(i).NumBytes())
 		if p.err != nil {
 			tr.err = p.err
 			return nil
@@ -711,17 +668,17 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
 		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
 	}
 
-	for isExtended {
+	for s.IsExtended()[0] > 0 {
 		// There are more entries. Read an extension header and parse its entries.
-		sparseHeader := make([]byte, blockSize)
-		if _, tr.err = io.ReadFull(tr.r, sparseHeader); tr.err != nil {
+		var blk block
+		if _, tr.err = io.ReadFull(tr.r, blk[:]); tr.err != nil {
 			return nil
 		}
-		isExtended = sparseHeader[oldGNUSparseExtendedHeaderIsExtendedOffset] != 0
-		s = slicer(sparseHeader)
-		for i := 0; i < oldGNUSparseExtendedHeaderNumEntries; i++ {
-			offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
-			numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
+		s = blk.Sparse()
+
+		for i := 0; i < s.MaxEntries(); i++ {
+			offset := p.parseOctal(s.Entry(i).Offset())
+			numBytes := p.parseOctal(s.Entry(i).NumBytes())
 			if p.err != nil {
 				tr.err = p.err
 				return nil

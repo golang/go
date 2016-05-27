@@ -155,12 +155,6 @@ func main() {
 		if _cgo_thread_start == nil {
 			throw("_cgo_thread_start missing")
 		}
-		if _cgo_malloc == nil {
-			throw("_cgo_malloc missing")
-		}
-		if _cgo_free == nil {
-			throw("_cgo_free missing")
-		}
 		if GOOS != "windows" {
 			if _cgo_setenv == nil {
 				throw("_cgo_setenv missing")
@@ -273,7 +267,7 @@ func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
 
 func goready(gp *g, traceskip int) {
 	systemstack(func() {
-		ready(gp, traceskip)
+		ready(gp, traceskip, true)
 	})
 }
 
@@ -440,9 +434,6 @@ func schedinit() {
 
 	sched.maxmcount = 10000
 
-	// Cache the framepointer experiment. This affects stack unwinding.
-	framepointer_enabled = haveexperiment("framepointer")
-
 	tracebackinit()
 	moduledataverify()
 	stackinit()
@@ -533,7 +524,7 @@ func mcommoninit(mp *m) {
 }
 
 // Mark gp ready to run.
-func ready(gp *g, traceskip int) {
+func ready(gp *g, traceskip int, next bool) {
 	if trace.enabled {
 		traceGoUnpark(gp, traceskip)
 	}
@@ -550,7 +541,7 @@ func ready(gp *g, traceskip int) {
 
 	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
 	casgstatus(gp, _Gwaiting, _Grunnable)
-	runqput(_g_.m.p.ptr(), gp, true)
+	runqput(_g_.m.p.ptr(), gp, next)
 	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 { // TODO: fast atomic
 		wakep()
 	}
@@ -792,7 +783,7 @@ func casgcopystack(gp *g) uint32 {
 // scang blocks until gp's stack has been scanned.
 // It might be scanned by scang or it might be scanned by the goroutine itself.
 // Either way, the stack scan has completed when scang returns.
-func scang(gp *g) {
+func scang(gp *g, gcw *gcWork) {
 	// Invariant; we (the caller, markroot for a specific goroutine) own gp.gcscandone.
 	// Nothing is racing with us now, but gcscandone might be set to true left over
 	// from an earlier round of stack scanning (we scan twice per GC).
@@ -833,7 +824,7 @@ loop:
 			// the goroutine until we're done.
 			if castogscanstatus(gp, s, s|_Gscan) {
 				if !gp.gcscandone {
-					scanstack(gp)
+					scanstack(gp, gcw)
 					gp.gcscandone = true
 				}
 				restartg(gp)
@@ -1835,7 +1826,7 @@ top:
 	}
 	if fingwait && fingwake {
 		if gp := wakefing(); gp != nil {
-			ready(gp, 0)
+			ready(gp, 0, true)
 		}
 	}
 
@@ -2445,7 +2436,12 @@ func exitsyscall(dummy int32) {
 
 	_g_.m.locks++ // see comment in entersyscall
 	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
-		throw("exitsyscall: syscall frame is no longer valid")
+		// throw calls print which may try to grow the stack,
+		// but throwsplit == true so the stack can not be grown;
+		// use systemstack to avoid that possible problem.
+		systemstack(func() {
+			throw("exitsyscall: syscall frame is no longer valid")
+		})
 	}
 
 	_g_.waitsince = 0
@@ -4164,6 +4160,9 @@ func setMaxThreads(in int) (out int) {
 }
 
 func haveexperiment(name string) bool {
+	if name == "framepointer" {
+		return framepointer_enabled // set by linker
+	}
 	x := sys.Goexperiment
 	for x != "" {
 		xname := ""
@@ -4175,6 +4174,9 @@ func haveexperiment(name string) bool {
 		}
 		if xname == name {
 			return true
+		}
+		if len(xname) > 2 && xname[:2] == "no" && xname[2:] == name {
+			return false
 		}
 	}
 	return false

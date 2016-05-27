@@ -19,6 +19,8 @@ import (
 // A Mutex is a mutual exclusion lock.
 // Mutexes can be created as part of other structures;
 // the zero value for a Mutex is an unlocked mutex.
+//
+// A Mutex must not be copied after first use.
 type Mutex struct {
 	state int32
 	sema  uint32

@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -131,5 +132,11 @@ var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 func SkipFlaky(t *testing.T, issue int) {
 	if !*flaky {
 		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
+	}
+}
+
+func SkipFlakyNet(t *testing.T) {
+	if v, _ := strconv.ParseBool(os.Getenv("GO_BUILDER_FLAKY_NET")); v {
+		t.Skip("skipping test on builder known to have frequent network failures")
 	}
 }

@@ -171,10 +171,10 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
 		// Eg, "git@github.com:user/repo" becomes
 		// "ssh://git@github.com/user/repo".
 		repoURL = &url.URL{
-			Scheme:  "ssh",
-			User:    url.User(m[1]),
-			Host:    m[2],
-			RawPath: m[3],
+			Scheme: "ssh",
+			User:   url.User(m[1]),
+			Host:   m[2],
+			Path:   m[3],
 		}
 	} else {
 		repoURL, err = url.Parse(out)
@@ -846,6 +846,15 @@ var vcsPaths = []*vcsPath{
 		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
+	},
+
+	// Git at OpenStack
+	{
+		prefix: "git.openstack.org",
+		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+		check:  noVCSSuffix,
 	},
 
 	// General syntax for any server.

@@ -335,7 +335,7 @@ func buildModeInit() {
 			return p
 		}
 		switch platform {
-		case "darwin/arm":
+		case "darwin/arm", "darwin/arm64":
 			codegenArg = "-shared"
 		default:
 		}
@@ -361,6 +361,9 @@ func buildModeInit() {
 		case "android/arm", "android/arm64", "android/amd64", "android/386":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
+		case "darwin/arm", "darwin/arm64":
+			codegenArg = "-shared"
+			fallthrough
 		default:
 			ldBuildmode = "exe"
 		}
@@ -669,6 +672,12 @@ var (
 func init() {
 	goarch = buildContext.GOARCH
 	goos = buildContext.GOOS
+
+	if _, ok := osArchSupportsCgo[goos+"/"+goarch]; !ok {
+		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", goos, goarch)
+		os.Exit(2)
+	}
+
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
@@ -3097,6 +3106,8 @@ func (b *builder) gccArchArgs() []string {
 		return []string{"-marm"} // not thumb
 	case "s390x":
 		return []string{"-m64", "-march=z196"}
+	case "mips64", "mips64le":
+		return []string{"-mabi=64"}
 	}
 	return nil
 }

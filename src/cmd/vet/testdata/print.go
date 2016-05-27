@@ -8,6 +8,7 @@ package testdata
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"unsafe" // just for test case printing unsafe.Pointer
@@ -272,8 +273,18 @@ func Printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
+// Println is used by the test so we must declare it.
+func Println(args ...interface{}) {
+	panic("don't call - testing only")
+}
+
 // Logf is used by the test so we must declare it.
 func Logf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
+// Log is used by the test so we must declare it.
+func Log(args ...interface{}) {
 	panic("don't call - testing only")
 }
 
@@ -414,4 +425,11 @@ var recursiveStruct1V = &RecursiveStruct1{}
 // Fix for issue 7149: Missing return type on String method caused fault.
 func (int) String() {
 	return ""
+}
+
+func (s *unknownStruct) Fprintln(w io.Writer, s string) {}
+
+func UnknownStructFprintln() {
+	s := unknownStruct{}
+	s.Fprintln(os.Stdout, "hello, world!") // OK
 }

@@ -385,32 +385,36 @@ func oldname(s *Sym) *Node {
 	}
 
 	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
-		// inner func is referring to var in outer func.
+		// Inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
 		// are parsing x := 5 inside the closure, until we get to
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
-		if n.Name.Param.Closure == nil || n.Name.Param.Closure.Name.Funcdepth != Funcdepth {
-			// create new closure var.
-			c := Nod(ONAME, nil, nil)
-
+		c := n.Name.Param.Innermost
+		if c == nil || c.Name.Funcdepth != Funcdepth {
+			// Do not have a closure var for the active closure yet; make one.
+			c = Nod(ONAME, nil, nil)
 			c.Sym = s
-			c.Class = PPARAMREF
+			c.Class = PAUTOHEAP
+			c.setIsClosureVar(true)
 			c.Isddd = n.Isddd
 			c.Name.Defn = n
 			c.Addable = false
 			c.Ullman = 2
 			c.Name.Funcdepth = Funcdepth
-			c.Name.Param.Outer = n.Name.Param.Closure
-			n.Name.Param.Closure = c
-			c.Name.Param.Closure = n
+
+			// Link into list of active closure variables.
+			// Popped from list in func closurebody.
+			c.Name.Param.Outer = n.Name.Param.Innermost
+			n.Name.Param.Innermost = c
+
 			c.Xoffset = 0
 			Curfn.Func.Cvars.Append(c)
 		}
 
 		// return ref to closure var, not original
-		return n.Name.Param.Closure
+		return c
 	}
 
 	return n
@@ -504,10 +508,8 @@ func ifacedcl(n *Node) {
 	n.Func = new(Func)
 	n.Func.FCurfn = Curfn
 	dclcontext = PPARAM
-	markdcl()
-	Funcdepth++
-	n.Func.Outer = Curfn
-	Curfn = n
+
+	funcstart(n)
 	funcargs(n.Right)
 
 	// funcbody is normally called after the parser has
@@ -534,11 +536,7 @@ func funchdr(n *Node) {
 	}
 
 	dclcontext = PAUTO
-	markdcl()
-	Funcdepth++
-
-	n.Func.Outer = Curfn
-	Curfn = n
+	funcstart(n)
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -671,6 +669,18 @@ func funcargs2(t *Type) {
 	}
 }
 
+var funcstack []*Node // stack of previous values of Curfn
+var Funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
+
+// start the function.
+// called before funcargs; undone at end of funcbody.
+func funcstart(n *Node) {
+	markdcl()
+	funcstack = append(funcstack, Curfn)
+	Funcdepth++
+	Curfn = n
+}
+
 // finish the body.
 // called in auto-declaration context.
 // returns in extern-declaration context.
@@ -680,9 +690,8 @@ func funcbody(n *Node) {
 		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
 	}
 	popdcl()
+	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
 	Funcdepth--
-	Curfn = n.Func.Outer
-	n.Func.Outer = nil
 	if Funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
@@ -827,14 +836,14 @@ func tostruct0(t *Type, l []*Node) {
 	}
 }
 
-func tofunargs(l []*Node) *Type {
+func tofunargs(l []*Node, funarg Funarg) *Type {
 	t := typ(TSTRUCT)
-	t.StructType().Funarg = true
+	t.StructType().Funarg = funarg
 
 	fields := make([]*Field, len(l))
 	for i, n := range l {
 		f := structfield(n)
-		f.Funarg = true
+		f.Funarg = funarg
 
 		// esc.go needs to find f given a PPARAM to add the tag.
 		if n.Left != nil && n.Left.Class == PPARAM {
@@ -1025,9 +1034,9 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 	if this != nil {
 		rcvr = []*Node{this}
 	}
-	*t.RecvsP() = tofunargs(rcvr)
-	*t.ResultsP() = tofunargs(out)
-	*t.ParamsP() = tofunargs(in)
+	*t.RecvsP() = tofunargs(rcvr, FunargRcvr)
+	*t.ResultsP() = tofunargs(out, FunargResults)
+	*t.ParamsP() = tofunargs(in, FunargParams)
 
 	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
 

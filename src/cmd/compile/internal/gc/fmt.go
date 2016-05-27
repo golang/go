@@ -218,9 +218,9 @@ var classnames = []string{
 	"Pxxx",
 	"PEXTERN",
 	"PAUTO",
+	"PAUTOHEAP",
 	"PPARAM",
 	"PPARAMOUT",
-	"PPARAMREF",
 	"PFUNC",
 }
 
@@ -251,14 +251,10 @@ func jconv(n *Node, flag FmtFlag) string {
 	}
 
 	if n.Class != 0 {
-		s := ""
-		if n.Class&PHEAP != 0 {
-			s = ",heap"
-		}
-		if int(n.Class&^PHEAP) < len(classnames) {
-			fmt.Fprintf(&buf, " class(%s%s)", classnames[n.Class&^PHEAP], s)
+		if int(n.Class) < len(classnames) {
+			fmt.Fprintf(&buf, " class(%s)", classnames[n.Class])
 		} else {
-			fmt.Fprintf(&buf, " class(%d?%s)", n.Class&^PHEAP, s)
+			fmt.Fprintf(&buf, " class(%d?)", n.Class)
 		}
 	}
 
@@ -798,8 +794,8 @@ func stmtfmt(n *Node) string {
 	switch n.Op {
 	case ODCL:
 		if fmtmode == FExp {
-			switch n.Left.Class &^ PHEAP {
-			case PPARAM, PPARAMOUT, PAUTO:
+			switch n.Left.Class {
+			case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
 				f += fmt.Sprintf("var %v %v", n.Left, n.Left.Type)
 				goto ret
 			}
@@ -1197,7 +1193,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Nbody.Len() != 0 {
 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
 		}
-		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
+		return fmt.Sprintf("%v { %v }", n.Type, n.Func.Closure.Nbody)
 
 	case OCOMPLIT:
 		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && n.Right.Type.IsPtr()
@@ -1663,7 +1659,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 		}
 
 		if s != nil && f.Embedded == 0 {
-			if f.Funarg {
+			if f.Funarg != FunargNone {
 				name = Nconv(f.Nname, 0)
 			} else if flag&FmtLong != 0 {
 				name = sconv(s, FmtShort|FmtByte) // qualify non-exported names (used on structs, not on funarg)
@@ -1696,7 +1692,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	// (The escape analysis tags do not apply to func vars.)
 	// But it must not suppress struct field tags.
 	// See golang.org/issue/13777 and golang.org/issue/14331.
-	if flag&FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != "" {
+	if flag&FmtShort == 0 && (!fmtbody || f.Funarg == FunargNone) && f.Note != "" {
 		str += " " + strconv.Quote(f.Note)
 	}
 

@@ -26,6 +26,8 @@ func (any *anyMessage) toRoutingMessage(b []byte) RoutingMessage {
 
 // InterfaceMulticastAddrMessage represents a routing message
 // containing network interface address entries.
+//
+// Deprecated: Use golang.org/x/net/route instead.
 type InterfaceMulticastAddrMessage struct {
 	Header IfmaMsghdr2
 	Data   []byte

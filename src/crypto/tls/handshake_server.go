@@ -284,10 +284,8 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	if hs.sessionState.vers > hs.clientHello.vers {
-		return false
-	}
-	if vers, ok := c.config.mutualVersion(hs.sessionState.vers); !ok || vers != hs.sessionState.vers {
+	// Never resume a session for a different TLS version.
+	if c.vers != hs.sessionState.vers {
 		return false
 	}
 

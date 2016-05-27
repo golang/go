@@ -2665,8 +2665,8 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
 			Addaddr(ctxt, d, s)
 		}
 
-		/* size */
-		Adduint32(ctxt, d, 0)
+		/* size of object */
+		Adduint32(ctxt, d, uint32(s.Size))
 
 		/* type */
 		t := STB_GLOBAL << 4

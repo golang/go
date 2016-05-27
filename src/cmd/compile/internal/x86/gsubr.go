@@ -643,7 +643,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 		base = n1.Left
 	}
 
-	if base.Op == gc.ONAME && base.Class&gc.PHEAP == 0 || n1.Op == gc.OINDREG {
+	if base.Op == gc.ONAME && base.Class != gc.PAUTOHEAP || n1.Op == gc.OINDREG {
 		r1 = *n1
 	} else {
 		gc.Regalloc(&r1, t, n1)
@@ -724,17 +724,8 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 
 			n = &n1
 
-		case gc.ONAME:
-			if n.Class == gc.PPARAMREF {
-				var n1 gc.Node
-				gc.Cgen(n.Name.Heapaddr, &n1)
-				sclean[nsclean-1] = n1
-				n = &n1
-			}
-
+		case gc.ONAME, gc.OINDREG:
 			// nothing
-		case gc.OINDREG:
-			break
 		}
 
 		*lo = *n

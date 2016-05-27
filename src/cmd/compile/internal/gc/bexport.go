@@ -6,7 +6,7 @@
 // (see fmt.go, parser.go as "documentation" for how to use/setup data structures)
 
 /*
-Export data encoding:
+1) Export data encoding principles:
 
 The export data is a serialized description of the graph of exported
 "objects": constants, types, variables, and functions. In general,
@@ -49,7 +49,7 @@ Before exporting or importing, the type tables are populated with the
 predeclared types (int, string, error, unsafe.Pointer, etc.). This way
 they are automatically encoded with a known and fixed type index.
 
-Encoding format:
+2) Encoding format:
 
 The export data starts with a single byte indicating the encoding format
 (compact, or with debugging information), followed by a version string
@@ -84,6 +84,43 @@ each encoding routine there is a matching and symmetric decoding routine.
 This symmetry makes it very easy to change or extend the format: If a new
 field needs to be encoded, a symmetric change can be made to exporter and
 importer.
+
+3) Making changes to the encoding format:
+
+Any change to the encoding format requires a respective change in the
+exporter below and a corresponding symmetric change to the importer in
+bimport.go.
+
+Furthermore, it requires a corresponding change to go/internal/gcimporter
+and golang.org/x/tools/go/gcimporter15. Changes to the latter must preserve
+compatibility with both the last release of the compiler, and with the
+corresponding compiler at tip. That change is necessarily more involved,
+as it must switch based on the version number in the export data file.
+
+It is recommended to turn on debugFormat when working on format changes
+as it will help finding encoding/decoding inconsistencies quickly.
+
+Special care must be taken to update builtin.go when the export format
+changes: builtin.go contains the export data obtained by compiling the
+builtin/runtime.go and builtin/unsafe.go files; those compilations in
+turn depend on importing the data in builtin.go. Thus, when the export
+data format changes, the compiler must be able to import the data in
+builtin.go even if its format has not yet changed. Proceed in several
+steps as follows:
+
+- Change the exporter to use the new format, and use a different version
+  string as well.
+- Update the importer accordingly, but accept both the old and the new
+  format depending on the version string.
+- all.bash should pass at this point.
+- Run mkbuiltin.go: this will create a new builtin.go using the new
+  export format.
+- go test -run Builtin should pass at this point.
+- Remove importer support for the old export format and (maybe) revert
+  the version string again (it's only needed to mark the transition).
+- all.bash should still pass.
+
+Don't forget to set debugFormat to false.
 */
 
 package gc
@@ -125,6 +162,17 @@ const exportVersion = "v0"
 // Leave for debugging.
 const exportInlined = true // default: true
 
+// trackAllTypes enables cycle tracking for all types, not just named
+// types. The existing compiler invariants assume that unnamed types
+// that are not completely set up are not used, or else there are spurious
+// errors.
+// If disabled, only named types are tracked, possibly leading to slightly
+// less efficient encoding in rare cases. It also prevents the export of
+// some corner-case type declarations (but those are not handled correctly
+// with with the textual export format either).
+// TODO(gri) enable and remove once issues caused by it are fixed
+const trackAllTypes = false
+
 type exporter struct {
 	out *bufio.Writer
 
@@ -159,10 +207,20 @@ func export(out *bufio.Writer, trace bool) int {
 		trace:         trace,
 	}
 
+	// TODO(gri) clean up the ad-hoc encoding of the file format below
+	// (we need this so we can read the builtin package export data
+	// easily w/o being affected by format changes)
+
 	// first byte indicates low-level encoding format
 	var format byte = 'c' // compact
 	if debugFormat {
 		format = 'd'
+	}
+	p.rawByte(format)
+
+	format = 'n' // track named types only
+	if trackAllTypes {
+		format = 'a'
 	}
 	p.rawByte(format)
 
@@ -585,14 +643,21 @@ func (p *exporter) typ(t *Type) {
 	}
 
 	// otherwise, remember the type, write the type tag (< 0) and type data
-	if p.trace {
-		p.tracef("T%d = {>\n", len(p.typIndex))
-		defer p.tracef("<\n} ")
+	if trackAllTypes {
+		if p.trace {
+			p.tracef("T%d = {>\n", len(p.typIndex))
+			defer p.tracef("<\n} ")
+		}
+		p.typIndex[t] = len(p.typIndex)
 	}
-	p.typIndex[t] = len(p.typIndex)
 
 	// pick off named types
 	if tsym := t.Sym; tsym != nil {
+		if !trackAllTypes {
+			// if we don't track all types, track named types now
+			p.typIndex[t] = len(p.typIndex)
+		}
+
 		// Predeclared types should have been found in the type map.
 		if t.Orig == t {
 			Fatalf("exporter: predeclared type missing from type map?")
@@ -909,7 +974,7 @@ func parName(f *Field, numbered bool) string {
 	// print symbol with Vargen number or not as desired
 	name := s.Name
 	if strings.Contains(name, ".") {
-		panic("invalid symbol name: " + name)
+		Fatalf("invalid symbol name: %s", name)
 	}
 
 	// Functions that can be inlined use numbered parameters so we can distingish them
@@ -1012,6 +1077,8 @@ func (p *exporter) float(x *Mpflt) {
 // but instead of emitting the information textually, emit the node tree in
 // binary form.
 
+// TODO(gri) Improve tracing output. The current format is difficult to read.
+
 // stmtList may emit more (or fewer) than len(list) nodes.
 func (p *exporter) stmtList(list Nodes) {
 	if p.trace {
@@ -1088,6 +1155,16 @@ func (p *exporter) expr(n *Node) {
 		defer p.tracef(") ")
 	}
 
+	// from nodefmt (fmt.go)
+	//
+	// nodefmt reverts nodes back to their original - we don't need to do
+	// it because we are not bound to produce valid Go syntax when exporting
+	//
+	// if (fmtmode != FExp || n.Op != OLITERAL) && n.Orig != nil {
+	// 	n = n.Orig
+	// }
+
+	// from exprfmt (fmt.go)
 	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
 		n = n.Left
 	}
@@ -1117,15 +1194,13 @@ func (p *exporter) expr(n *Node) {
 		// Special case: name used as local variable in export.
 		// _ becomes ~b%d internally; print as _ for export
 		if n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
-			// case 0: mapped to ONAME
 			p.op(ONAME)
-			p.bool(true) // indicate blank identifier
+			p.string("_") // inlined and customized version of p.sym(n)
 			break
 		}
 
 		if n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
-			// case 1: mapped to OPACK
-			p.op(OPACK)
+			p.op(ONAME)
 			p.sym(n)
 			break
 		}
@@ -1134,23 +1209,17 @@ func (p *exporter) expr(n *Node) {
 		// but for export, this should be rendered as (*pkg.T).meth.
 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
 		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
-			// case 2: mapped to ONAME
-			p.op(ONAME)
-			// TODO(gri) can we map this case directly to OXDOT
-			//           and then get rid of the bool here?
-			p.bool(false) // indicate non-blank identifier
-			p.typ(n.Left.Type)
+			p.op(OXDOT)
+			p.expr(n.Left) // n.Left.Op == OTYPE
 			p.fieldSym(n.Right.Sym, true)
 			break
 		}
 
-		// case 3: mapped to OPACK
-		p.op(OPACK)
-		p.sym(n) // fallthrough inlined here
-
-	case OPACK, ONONAME:
-		p.op(op)
+		p.op(ONAME)
 		p.sym(n)
+
+	// case OPACK, ONONAME:
+	// 	should have been resolved by typechecking - handled by default case
 
 	case OTYPE:
 		p.op(OTYPE)
@@ -1160,14 +1229,14 @@ func (p *exporter) expr(n *Node) {
 			p.typ(n.Type)
 		}
 
-	case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
-		panic("unreachable") // should have been resolved by typechecking
+	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+	// 	should have been resolved by typechecking - handled by default case
 
 	// case OCLOSURE:
 	//	unimplemented - handled by default case
 
 	// case OCOMPLIT:
-	//	unimplemented - handled by default case
+	// 	should have been resolved by typechecking - handled by default case
 
 	case OPTRLIT:
 		p.op(OPTRLIT)
@@ -1176,16 +1245,12 @@ func (p *exporter) expr(n *Node) {
 
 	case OSTRUCTLIT:
 		p.op(OSTRUCTLIT)
-		if !p.bool(n.Implicit) {
-			p.typ(n.Type)
-		}
+		p.typ(n.Type)
 		p.elemList(n.List) // special handling of field names
 
 	case OARRAYLIT, OMAPLIT:
-		p.op(op)
-		if !p.bool(n.Implicit) {
-			p.typ(n.Type)
-		}
+		p.op(OCOMPLIT)
+		p.typ(n.Type)
 		p.exprList(n.List)
 
 	case OKEY:
@@ -1198,9 +1263,6 @@ func (p *exporter) expr(n *Node) {
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		p.op(OXDOT)
 		p.expr(n.Left)
-		if n.Sym == nil {
-			panic("unreachable") // can this happen during export?
-		}
 		p.fieldSym(n.Sym, true)
 
 	case ODOTTYPE, ODOTTYPE2:
@@ -1231,26 +1293,35 @@ func (p *exporter) expr(n *Node) {
 		p.expr(max)
 
 	case OCOPY, OCOMPLEX:
+		// treated like other builtin calls (see e.g., OREAL)
 		p.op(op)
 		p.expr(n.Left)
 		p.expr(n.Right)
+		p.op(OEND)
 
 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
 		p.op(OCONV)
 		p.typ(n.Type)
-		if p.bool(n.Left != nil) {
+		if n.Left != nil {
 			p.expr(n.Left)
+			p.op(OEND)
 		} else {
-			p.exprList(n.List)
+			p.exprList(n.List) // emits terminating OEND
 		}
 
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
 		p.op(op)
-		if p.bool(n.Left != nil) {
+		if n.Left != nil {
 			p.expr(n.Left)
+			p.op(OEND)
 		} else {
-			p.exprList(n.List)
+			p.exprList(n.List) // emits terminating OEND
+		}
+		// only append() calls may contain '...' arguments
+		if op == OAPPEND {
 			p.bool(n.Isddd)
+		} else if n.Isddd {
+			Fatalf("exporter: unexpected '...' with %s call", opnames[op])
 		}
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
@@ -1306,7 +1377,8 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODCLCONST)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
+		Fatalf("cannot export %s (%d) node\n"+
+			"==> please file an issue and assign to gri@\n", n.Op, n.Op)
 	}
 }
 
@@ -1336,8 +1408,8 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		switch n.Left.Class &^ PHEAP {
-		case PPARAM, PPARAMOUT, PAUTO:
+		switch n.Left.Class {
+		case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
 			// TODO(gri) when is this not PAUTO?
 			// Also, originally this didn't look like
 			// the default case. Investigate.
@@ -1370,10 +1442,7 @@ func (p *exporter) stmt(n *Node) {
 			p.expr(n.Right)
 		}
 
-	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		fallthrough
-
-	case OAS2:
+	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
 		p.op(OAS2)
 		p.exprList(n.List)
 		p.exprList(n.Rlist)
@@ -1382,9 +1451,8 @@ func (p *exporter) stmt(n *Node) {
 		p.op(ORETURN)
 		p.exprList(n.List)
 
-	case ORETJMP:
-		// generated by compiler for trampolin routines - not exported
-		panic("unreachable")
+	// case ORETJMP:
+	// 	unreachable - generated by compiler for trampolin routines
 
 	case OPROC, ODEFER:
 		p.op(op)
@@ -1420,19 +1488,18 @@ func (p *exporter) stmt(n *Node) {
 		p.stmtList(n.List)
 		p.stmtList(n.Nbody)
 
-	case OFALL:
-		op = OXFALL
-		fallthrough
+	case OFALL, OXFALL:
+		p.op(OXFALL)
 
-	case OBREAK, OCONTINUE, OGOTO, OXFALL:
+	case OBREAK, OCONTINUE:
 		p.op(op)
 		p.exprsOrNil(n.Left, nil)
 
 	case OEMPTY:
-	// nothing to emit
+		// nothing to emit
 
-	case OLABEL:
-		p.op(OLABEL)
+	case OGOTO, OLABEL:
+		p.op(op)
 		p.expr(n.Left)
 
 	default:
@@ -1475,6 +1542,8 @@ func (p *exporter) fieldSym(s *Sym, short bool) {
 	}
 }
 
+// sym must encode the _ (blank) identifier as a single string "_" since
+// encoding for some nodes is based on this assumption (e.g. ONAME nodes).
 func (p *exporter) sym(n *Node) {
 	s := n.Sym
 	if s.Pkg != nil {

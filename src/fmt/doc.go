@@ -210,7 +210,7 @@
 		Too many arguments: %!(EXTRA type=value)
 			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
 		Too few arguments: %!verb(MISSING)
-			Printf("hi%d"):            hi %!d(MISSING)
+			Printf("hi%d"):            hi%!d(MISSING)
 		Non-int for width or precision: %!(BADWIDTH) or %!(BADPREC)
 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi

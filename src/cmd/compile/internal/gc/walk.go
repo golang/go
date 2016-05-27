@@ -27,9 +27,8 @@ func walk(fn *Node) {
 	lno := lineno
 
 	// Final typecheck for any unused variables.
-	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
 	for i, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO {
+		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) {
 			ln = typecheck(ln, Erv|Easgn)
 			fn.Func.Dcl[i] = ln
 		}
@@ -37,13 +36,13 @@ func walk(fn *Node) {
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used {
+		if ln.Op == ONAME && (ln.Class == PAUTO || ln.Class == PAUTOHEAP) && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used {
 			ln.Name.Defn.Left.Used = true
 		}
 	}
 
 	for _, ln := range fn.Func.Dcl {
-		if ln.Op != ONAME || ln.Class&^PHEAP != PAUTO || ln.Sym.Name[0] == '&' || ln.Used {
+		if ln.Op != ONAME || (ln.Class != PAUTO && ln.Class != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Used {
 			continue
 		}
 		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
@@ -97,13 +96,13 @@ func samelist(a, b []*Node) bool {
 func paramoutheap(fn *Node) bool {
 	for _, ln := range fn.Func.Dcl {
 		switch ln.Class {
-		case PPARAMOUT,
-			PPARAMOUT | PHEAP:
-			return ln.Addrtaken
+		case PPARAMOUT:
+			if ln.isParamStackCopy() || ln.Addrtaken {
+				return true
+			}
 
+		case PAUTO:
 			// stop early - parameters are over
-		case PAUTO,
-			PAUTO | PHEAP:
 			return false
 		}
 	}
@@ -212,7 +211,6 @@ func walkstmt(n *Node) *Node {
 		n = addinit(n, init.Slice())
 
 	case OBREAK,
-		ODCL,
 		OCONTINUE,
 		OFALL,
 		OGOTO,
@@ -223,6 +221,21 @@ func walkstmt(n *Node) *Node {
 		OVARKILL,
 		OVARLIVE:
 		break
+
+	case ODCL:
+		v := n.Left
+		if v.Class == PAUTOHEAP {
+			if compiling_runtime {
+				Yyerror("%v escapes to heap, not allowed in runtime.", v)
+			}
+			if prealloc[v] == nil {
+				prealloc[v] = callnew(v.Type)
+			}
+			nn := Nod(OAS, v.Name.Heapaddr, prealloc[v])
+			nn.Colas = true
+			nn = typecheck(nn, Etop)
+			return walkstmt(nn)
+		}
 
 	case OBLOCK:
 		walkstmtlist(n.List.Slice())
@@ -295,11 +308,14 @@ func walkstmt(n *Node) *Node {
 
 			var cl Class
 			for _, ln := range Curfn.Func.Dcl {
-				cl = ln.Class &^ PHEAP
-				if cl == PAUTO {
+				cl = ln.Class
+				if cl == PAUTO || cl == PAUTOHEAP {
 					break
 				}
 				if cl == PPARAMOUT {
+					if ln.isParamStackCopy() {
+						ln = walkexpr(typecheck(Nod(OIND, ln.Name.Heapaddr, nil), Erv), nil)
+					}
 					rl = append(rl, ln)
 				}
 			}
@@ -487,6 +503,12 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		Fatalf("missed typecheck: %v\n", Nconv(n, FmtSign))
 	}
 
+	if n.Op == ONAME && n.Class == PAUTOHEAP {
+		nn := Nod(OIND, n.Name.Heapaddr, nil)
+		nn = typecheck(nn, Erv)
+		return walkexpr(nn, init)
+	}
+
 opswitch:
 	switch n.Op {
 	default:
@@ -497,7 +519,6 @@ opswitch:
 		ONONAME,
 		OINDREG,
 		OEMPTY,
-		OPARAM,
 		OGETG:
 
 	case ONOT,
@@ -626,9 +647,7 @@ opswitch:
 		n.Addable = true
 
 	case ONAME:
-		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
-			n.Addable = true
-		}
+		n.Addable = true
 
 	case OCALLINTER:
 		usemethod(n)
@@ -1640,7 +1659,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 			break
 		}
 		// Do not generate 'x = x' during return. See issue 4014.
-		if op == ORETURN && nl[i] == nr[i] {
+		if op == ORETURN && samesafeexpr(nl[i], nr[i]) {
 			continue
 		}
 		nn = append(nn, ascompatee1(op, nl[i], nr[i], init))
@@ -2515,7 +2534,7 @@ func vmatch1(l *Node, r *Node) bool {
 	switch l.Op {
 	case ONAME:
 		switch l.Class {
-		case PPARAM, PPARAMREF, PAUTO:
+		case PPARAM, PAUTO:
 			break
 
 			// assignment to non-stack variable
@@ -2550,41 +2569,31 @@ func vmatch1(l *Node, r *Node) bool {
 // and to copy non-result prameters' values from the stack.
 // If out is true, then code is also produced to zero-initialize their
 // stack memory addresses.
-func paramstoheap(params *Type, out bool) []*Node {
+func paramstoheap(params *Type) []*Node {
 	var nn []*Node
 	for _, t := range params.Fields().Slice() {
+		// For precise stacks, the garbage collector assumes results
+		// are always live, so zero them always.
+		if params.StructType().Funarg == FunargResults {
+			// Defer might stop a panic and show the
+			// return values as they exist at the time of panic.
+			// Make sure to zero them on entry to the function.
+			nn = append(nn, Nod(OAS, nodarg(t, 1), nil))
+		}
+
 		v := t.Nname
 		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
 			v = nil
 		}
-
-		// For precise stacks, the garbage collector assumes results
-		// are always live, so zero them always.
-		if out {
-			// Defer might stop a panic and show the
-			// return values as they exist at the time of panic.
-			// Make sure to zero them on entry to the function.
-			nn = append(nn, Nod(OAS, nodarg(t, -1), nil))
-		}
-
-		if v == nil || v.Class&PHEAP == 0 {
+		if v == nil {
 			continue
 		}
 
-		// generate allocation & copying code
-		if compiling_runtime {
-			Yyerror("%v escapes to heap, not allowed in runtime.", v)
-		}
-		if prealloc[v] == nil {
-			prealloc[v] = callnew(v.Type)
-		}
-		nn = append(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
-		if v.Class&^PHEAP != PPARAMOUT {
-			as := Nod(OAS, v, v.Name.Param.Stackparam)
-			v.Name.Param.Stackparam.Typecheck = 1
-			as = typecheck(as, Etop)
-			as = applywritebarrier(as)
-			nn = append(nn, as)
+		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil {
+			nn = append(nn, walkstmt(Nod(ODCL, v, nil)))
+			if stackcopy.Class == PPARAM {
+				nn = append(nn, walkstmt(typecheck(Nod(OAS, v, stackcopy), Etop)))
+			}
 		}
 	}
 
@@ -2597,10 +2606,12 @@ func returnsfromheap(params *Type) []*Node {
 	var nn []*Node
 	for _, t := range params.Fields().Slice() {
 		v := t.Nname
-		if v == nil || v.Class != PHEAP|PPARAMOUT {
+		if v == nil {
 			continue
 		}
-		nn = append(nn, Nod(OAS, v.Name.Param.Stackparam, v))
+		if stackcopy := v.Name.Param.Stackcopy; stackcopy != nil && stackcopy.Class == PPARAMOUT {
+			nn = append(nn, walkstmt(typecheck(Nod(OAS, stackcopy, v), Etop)))
+		}
 	}
 
 	return nn
@@ -2612,9 +2623,9 @@ func returnsfromheap(params *Type) []*Node {
 func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
-	nn := paramstoheap(Curfn.Type.Recvs(), false)
-	nn = append(nn, paramstoheap(Curfn.Type.Params(), false)...)
-	nn = append(nn, paramstoheap(Curfn.Type.Results(), true)...)
+	nn := paramstoheap(Curfn.Type.Recvs())
+	nn = append(nn, paramstoheap(Curfn.Type.Params())...)
+	nn = append(nn, paramstoheap(Curfn.Type.Results())...)
 	Curfn.Func.Enter.Append(nn...)
 	lineno = Curfn.Func.Endlineno
 	Curfn.Func.Exit.Append(returnsfromheap(Curfn.Type.Results())...)

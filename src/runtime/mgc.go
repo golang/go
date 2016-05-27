@@ -1389,7 +1389,7 @@ func gcBgMarkWorker(_p_ *p) {
 	notewakeup(&work.bgMarkReady)
 
 	for {
-		// Go to sleep until woken by gcContoller.findRunnable.
+		// Go to sleep until woken by gcController.findRunnable.
 		// We can't releasem yet since even the call to gopark
 		// may be preempted.
 		gopark(func(g *g, parkp unsafe.Pointer) bool {
@@ -1705,7 +1705,7 @@ func gcSweep(mode gcMode) {
 	lock(&sweep.lock)
 	if sweep.parked {
 		sweep.parked = false
-		ready(sweep.g, 0)
+		ready(sweep.g, 0, true)
 	}
 	unlock(&sweep.lock)
 	mProf_GC()
