@@ -193,7 +193,7 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// Check that we used all labels
 	for name, lab := range s.labels {
-		if !lab.used() && !lab.reported {
+		if !lab.used() && !lab.reported && !lab.defNode.Used {
 			yyerrorl(lab.defNode.Lineno, "label %v defined and not used", name)
 			lab.reported = true
 		}
