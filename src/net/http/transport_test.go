@@ -3312,27 +3312,30 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 	}
 
 	got := buf.String()
-	wantSub := func(sub string) {
-		if !strings.Contains(got, sub) {
-			t.Errorf("expected substring %q in output.", sub)
+	wantOnce := func(sub string) {
+		if strings.Count(got, sub) != 1 {
+			t.Errorf("expected substring %q exactly once in output.", sub)
 		}
 	}
-	if strings.Count(got, "got conn: {") != 1 {
-		t.Errorf("expected exactly 1 \"got conn\" event.")
+	wantOnceOrMore := func(sub string) {
+		if strings.Count(got, sub) == 0 {
+			t.Errorf("expected substring %q at least once in output.", sub)
+		}
 	}
-	wantSub("Getting conn for dns-is-faked.golang:" + port)
-	wantSub("DNS start: {Host:dns-is-faked.golang}")
-	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
-	wantSub("Connecting to tcp " + addrStr)
-	wantSub("connected to tcp " + addrStr + " = <nil>")
-	wantSub("Reused:false WasIdle:false IdleTime:0s")
-	wantSub("first response byte")
+	wantOnce("Getting conn for dns-is-faked.golang:" + port)
+	wantOnce("DNS start: {Host:dns-is-faked.golang}")
+	wantOnce("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
+	wantOnce("got conn: {")
+	wantOnceOrMore("Connecting to tcp " + addrStr)
+	wantOnceOrMore("connected to tcp " + addrStr + " = <nil>")
+	wantOnce("Reused:false WasIdle:false IdleTime:0s")
+	wantOnce("first response byte")
 	if !h2 {
-		wantSub("PutIdleConn = <nil>")
+		wantOnce("PutIdleConn = <nil>")
 	}
-	wantSub("Wait100Continue")
-	wantSub("Got100Continue")
-	wantSub("WroteRequest: {Err:<nil>}")
+	wantOnce("Wait100Continue")
+	wantOnce("Got100Continue")
+	wantOnce("WroteRequest: {Err:<nil>}")
 	if strings.Contains(got, " to udp ") {
 		t.Errorf("should not see UDP (DNS) connections")
 	}
