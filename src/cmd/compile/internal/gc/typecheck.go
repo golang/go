@@ -796,8 +796,8 @@ OpSwitch:
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
 			l.Addrtaken = true
-			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-				l.Name.Param.Closure.Addrtaken = true
+			if l.isClosureVar() {
+				l.Name.Defn.Addrtaken = true
 			}
 		}
 
@@ -805,8 +805,8 @@ OpSwitch:
 			Fatalf("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
-		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-			l.Name.Param.Closure.Addrtaken = true
+		if l.isClosureVar() {
+			l.Name.Defn.Addrtaken = true
 		}
 		n.Left = defaultlit(n.Left, nil)
 		l = n.Left
@@ -3128,14 +3128,14 @@ func checkassign(stmt *Node, n *Node) {
 		var l *Node
 		for l = n; l != r; l = l.Left {
 			l.Assigned = true
-			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-				l.Name.Param.Closure.Assigned = true
+			if l.isClosureVar() {
+				l.Name.Defn.Assigned = true
 			}
 		}
 
 		l.Assigned = true
-		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-			l.Name.Param.Closure.Assigned = true
+		if l.isClosureVar() {
+			l.Name.Defn.Assigned = true
 		}
 	}
 

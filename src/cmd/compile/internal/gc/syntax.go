@@ -78,7 +78,7 @@ type Node struct {
 const (
 	hasBreak = 1 << iota
 	notLiveAtEnd
-	isClosureParam
+	isClosureVar
 )
 
 func (n *Node) HasBreak() bool {
@@ -101,14 +101,14 @@ func (n *Node) SetNotLiveAtEnd(b bool) {
 		n.flags &^= notLiveAtEnd
 	}
 }
-func (n *Node) isClosureParam() bool {
-	return n.flags&isClosureParam != 0
+func (n *Node) isClosureVar() bool {
+	return n.flags&isClosureVar != 0
 }
-func (n *Node) setIsClosureParam(b bool) {
+func (n *Node) setIsClosureVar(b bool) {
 	if b {
-		n.flags |= isClosureParam
+		n.flags |= isClosureVar
 	} else {
-		n.flags &^= isClosureParam
+		n.flags &^= isClosureVar
 	}
 }
 
@@ -158,8 +158,8 @@ func (n *Node) SetOpt(x interface{}) {
 type Name struct {
 	Pack      *Node // real package for import . names
 	Pkg       *Pkg  // pkg for OPACK nodes
-	Heapaddr  *Node // temp holding heap address of param
-	Inlvar    *Node // ONAME substitute while inlining
+	Heapaddr  *Node // temp holding heap address of param (could move to Param?)
+	Inlvar    *Node // ONAME substitute while inlining (could move to Param?)
 	Defn      *Node // initializing assignment
 	Curfn     *Node // function for local variables
 	Param     *Param // additional fields for ONAME, ODCLFIELD
@@ -179,15 +179,82 @@ type Param struct {
 	Ntype *Node
 
 	// ONAME PAUTOHEAP
-	Outerexpr *Node // expression copied into closure for variable
 	Stackcopy *Node // the PPARAM/PPARAMOUT on-stack slot (moved func params only)
 
 	// ONAME PPARAM
 	Field *Field // TFIELD in arg struct
 
 	// ONAME closure linkage
-	Outer   *Node
-	Closure *Node
+	// Consider:
+	//
+	//	func f() {
+	//		x := 1 // x1
+	//		func() {
+	//			use(x) // x2
+	//			func() {
+	//				use(x) // x3
+	//				--- parser is here ---
+	//			}()
+	//		}()
+	//	}
+	//
+	// There is an original declaration of x and then a chain of mentions of x
+	// leading into the current function. Each time x is mentioned in a new closure,
+	// we create a variable representing x for use in that specific closure,
+	// since the way you get to x is different in each closure.
+	//
+	// Let's number the specific variables as shown in the code:
+	// x1 is the original x, x2 is when mentioned in the closure,
+	// and x3 is when mentioned in the closure in the closure.
+	//
+	// We keep these linked (assume N > 1):
+	//
+	//   - x1.Defn = original declaration statement for x (like most variables)
+	//   - x1.Innermost = current innermost closure x (in this case x3), or nil for none
+	//   - x1.isClosureVar() = false
+	//
+	//   - xN.Defn = x1, N > 1
+	//   - xN.isClosureVar() = true, N > 1
+	//   - x2.Outer = nil
+	//   - xN.Outer = x(N-1), N > 2
+	//
+	//
+	// When we look up x in the symbol table, we always get x1.
+	// Then we can use x1.Innermost (if not nil) to get the x
+	// for the innermost known closure function,
+	// but the first reference in a closure will find either no x1.Innermost
+	// or an x1.Innermost with .Funcdepth < Funcdepth.
+	// In that case, a new xN must be created, linked in with:
+	//
+	//     xN.Defn = x1
+	//     xN.Outer = x1.Innermost
+	//     x1.Innermost = xN
+	//
+	// When we finish the function, we'll process its closure variables
+	// and find xN and pop it off the list using:
+	//
+	//     x1 := xN.Defn
+	//     x1.Innermost = xN.Outer
+	//
+	// We leave xN.Innermost set so that we can still get to the original
+	// variable quickly. Not shown here, but once we're
+	// done parsing a function and no longer need xN.Outer for the
+	// lexical x reference links as described above, closurebody
+	// recomputes xN.Outer as the semantic x reference link tree,
+	// even filling in x in intermediate closures that might not
+	// have mentioned it along the way to inner closures that did.
+	// See closurebody for details.
+	//
+	// During the eventual compilation, then, for closure variables we have:
+	//
+	//     xN.Defn = original variable
+	//     xN.Outer = variable captured in next outward scope
+	//                to make closure where xN appears
+	//
+	// Because of the sharding of pieces of the node, x.Defn means x.Name.Defn
+	// and x.Innermost/Outer means x.Name.Param.Innermost/Outer.
+	Innermost *Node
+	Outer *Node
 }
 
 // Func holds Node fields used only with function-like nodes.

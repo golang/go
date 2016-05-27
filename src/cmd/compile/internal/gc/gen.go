@@ -44,7 +44,7 @@ func addrescapes(n *Node) {
 		}
 
 		// If a closure reference escapes, mark the outer variable as escaping.
-		if n.isClosureParam() {
+		if n.isClosureVar() {
 			addrescapes(n.Name.Defn)
 			break
 		}
