@@ -1324,6 +1324,7 @@ const noTsanProlog = `
 #define _cgo_tsan_release()
 `
 
+// This must match the TSAN code in runtime/cgo/libcgo.h.
 const yesTsanProlog = `
 #define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
 
@@ -1332,10 +1333,12 @@ long long _cgo_sync __attribute__ ((common));
 extern void __tsan_acquire(void*);
 extern void __tsan_release(void*);
 
+__attribute__ ((unused))
 static void _cgo_tsan_acquire() {
 	__tsan_acquire(&_cgo_sync);
 }
 
+__attribute__ ((unused))
 static void _cgo_tsan_release() {
 	__tsan_release(&_cgo_sync);
 }
