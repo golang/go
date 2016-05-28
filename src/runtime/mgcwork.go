@@ -94,7 +94,7 @@ func (w *gcWork) init() {
 }
 
 // put enqueues a pointer for the garbage collector to trace.
-// obj must point to the beginning of a heap object.
+// obj must point to the beginning of a heap object or an oblet.
 //go:nowritebarrier
 func (w *gcWork) put(obj uintptr) {
 	wbuf := w.wbuf1.ptr()
