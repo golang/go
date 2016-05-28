@@ -33,7 +33,7 @@ Go 1.7 has NOT yet been released.
 By our regular schedule, it is expected some time in August 2016.
 </i>
 </p>
- 
+
 <h2 id="introduction">Introduction to Go 1.7</h2>
 
 <p>
@@ -664,23 +664,15 @@ maps using keys with string types.
 Go 1.7 adds support for maps using keys with integer types:
 the encoding uses a quoted decimal representation as the JSON key.
 Go 1.7 also adds support for encoding maps using non-string keys that implement
-<code>MarshalJSON</code>
-(see
-<a href="/pkg/encoding/json/#Marshaler"><code>Marshaler</code></a>)
-or
-<code>MarshalText</code>
+the <code>MarshalText</code>
 (see
 <a href="/pkg/encoding/#TextMarshaler"><code>encoding.TextMarshaler</code></a>)
-methods,
+method,
 as well as support for decoding maps using non-string keys that implement
-<code>UnmarshalJSON</code>
-(see
-<a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>)
-or
-<code>UnmarshalText</code>
+the <code>UnmarshalText</code>
 (see
 <a href="/pkg/encoding/#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>)
-methods.
+method.
 These methods are ignored for keys with string types in order to preserve
 the encoding and decoding used in earlier versions of Go.
 </p>
