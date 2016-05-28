@@ -10,9 +10,9 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
+	"go/format"
 	"io/ioutil"
 	"os"
 	"unicode/utf8"
@@ -83,27 +83,28 @@ func makestatic() error {
 		return err
 	}
 	defer f.Close()
-	w := bufio.NewWriter(f)
-	fmt.Fprintf(w, "%v\npackage static\n\n", warning)
-	fmt.Fprintf(w, "var Files = map[string]string{\n")
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "%v\npackage static\n\n", warning)
+	fmt.Fprintf(buf, "var Files = map[string]string{\n")
 	for _, fn := range files {
 		b, err := ioutil.ReadFile(fn)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "\t%q: ", fn)
+		fmt.Fprintf(buf, "\t%q: ", fn)
 		if utf8.Valid(b) {
-			fmt.Fprintf(w, "`%s`", sanitize(b))
+			fmt.Fprintf(buf, "`%s`", sanitize(b))
 		} else {
-			fmt.Fprintf(w, "%q", b)
+			fmt.Fprintf(buf, "%q", b)
 		}
-		fmt.Fprintln(w, ",\n")
+		fmt.Fprintln(buf, ",\n")
 	}
-	fmt.Fprintln(w, "}")
-	if err := w.Flush(); err != nil {
+	fmt.Fprintln(buf, "}")
+	fmtbuf, err := format.Source(buf.Bytes())
+	if err != nil {
 		return err
 	}
-	return f.Close()
+	return ioutil.WriteFile("static.go", fmtbuf, 0666)
 }
 
 // sanitize prepares a valid UTF-8 string as a raw string constant.
