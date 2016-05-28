@@ -1783,7 +1783,7 @@ function cgAddChild(tree, ul, cgn) {
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
 				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
-					<a class="permalink" href="#{{$tname_html}}">&#xb6;</a>
+					<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
 				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
