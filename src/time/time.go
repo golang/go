@@ -657,7 +657,7 @@ func Until(t Time) Duration {
 func (t Time) AddDate(years int, months int, days int) Time {
 	year, month, day := t.Date()
 	hour, min, sec := t.Clock()
-	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.loc)
+	return Date(year+years, month+Month(months), day+days, hour, min, sec, int(t.nsec), t.Location())
 }
 
 const (
