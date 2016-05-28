@@ -25,6 +25,15 @@ const (
 	// rootBlockSpans is the number of spans to scan per span
 	// root.
 	rootBlockSpans = 8 * 1024 // 64MB worth of spans
+
+	// maxObletBytes is the maximum bytes of an object to scan at
+	// once. Larger objects will be split up into "oblets" of at
+	// most this size. Since we can scan 1–2 MB/ms, 128 KB bounds
+	// scan preemption at ~100 µs.
+	//
+	// This must be > _MaxSmallSize so that the object base is the
+	// span base.
+	maxObletBytes = 128 << 10
 )
 
 // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
@@ -1113,9 +1122,10 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 }
 
 // scanobject scans the object starting at b, adding pointers to gcw.
-// b must point to the beginning of a heap object; scanobject consults
-// the GC bitmap for the pointer mask and the spans for the size of the
-// object.
+// b must point to the beginning of a heap object or an oblet.
+// scanobject consults the GC bitmap for the pointer mask and the
+// spans for the size of the object.
+//
 //go:nowritebarrier
 func scanobject(b uintptr, gcw *gcWork) {
 	// Note that arena_used may change concurrently during
@@ -1130,14 +1140,52 @@ func scanobject(b uintptr, gcw *gcWork) {
 	arena_start := mheap_.arena_start
 	arena_used := mheap_.arena_used
 
-	// Find bits of the beginning of the object.
-	// b must point to the beginning of a heap object, so
-	// we can get its bits and span directly.
+	// Find the bits for b and the size of the object at b.
+	//
+	// b is either the beginning of an object, in which case this
+	// is the size of the object to scan, or it points to an
+	// oblet, in which case we compute the size to scan below.
 	hbits := heapBitsForAddr(b)
 	s := spanOfUnchecked(b)
 	n := s.elemsize
 	if n == 0 {
 		throw("scanobject n == 0")
+	}
+
+	if n > maxObletBytes {
+		// Large object. Break into oblets for better
+		// parallelism and lower latency.
+		if b == s.base() {
+			// It's possible this is a noscan object (not
+			// from greyobject, but from other code
+			// paths), in which case we must *not* enqueue
+			// oblets since their bitmaps will be
+			// uninitialized.
+			if !hbits.hasPointers(n) {
+				// Bypass the whole scan.
+				gcw.bytesMarked += uint64(n)
+				return
+			}
+
+			// Enqueue the other oblets to scan later.
+			// Some oblets may be in b's scalar tail, but
+			// these will be marked as "no more pointers",
+			// so we'll drop out immediately when we go to
+			// scan those.
+			for oblet := b + maxObletBytes; oblet < s.base()+s.elemsize; oblet += maxObletBytes {
+				if !gcw.putFast(oblet) {
+					gcw.put(oblet)
+				}
+			}
+		}
+
+		// Compute the size of the oblet. Since this object
+		// must be a large object, s.base() is the beginning
+		// of the object.
+		n = s.base() + s.elemsize - b
+		if n > maxObletBytes {
+			n = maxObletBytes
+		}
 	}
 
 	var i uintptr
