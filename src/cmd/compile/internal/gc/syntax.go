@@ -545,6 +545,11 @@ func (n *Nodes) Set1(node *Node) {
 	n.slice = &[]*Node{node}
 }
 
+// Set2 sets n to a slice containing two nodes.
+func (n *Nodes) Set2(n1, n2 *Node) {
+	n.slice = &[]*Node{n1, n2}
+}
+
 // MoveNodes sets n to the contents of n2, then clears n2.
 func (n *Nodes) MoveNodes(n2 *Nodes) {
 	n.slice = n2.slice
