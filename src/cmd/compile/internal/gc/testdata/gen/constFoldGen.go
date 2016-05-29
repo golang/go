@@ -208,6 +208,89 @@ func main() {
 			}
 		}
 	}
+
+	// Constant folding for comparisons
+	for _, s := range szs {
+		fmt.Fprintf(w, "func TestConstFoldCompare%s(t *testing.T) {\n", s.name)
+		for _, x := range s.i {
+			for _, y := range s.i {
+				fmt.Fprintf(w, "\t{\n")
+				fmt.Fprintf(w, "\t\tvar x %s = %d\n", s.name, x)
+				fmt.Fprintf(w, "\t\tvar y %s = %d\n", s.name, y)
+				if x == y {
+					fmt.Fprintf(w, "\t\tif !(x == y) { t.Errorf(\"!(%%d == %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x == y { t.Errorf(\"%%d == %%d\", x, y) }\n")
+				}
+				if x != y {
+					fmt.Fprintf(w, "\t\tif !(x != y) { t.Errorf(\"!(%%d != %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x != y { t.Errorf(\"%%d != %%d\", x, y) }\n")
+				}
+				if x < y {
+					fmt.Fprintf(w, "\t\tif !(x < y) { t.Errorf(\"!(%%d < %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x < y { t.Errorf(\"%%d < %%d\", x, y) }\n")
+				}
+				if x > y {
+					fmt.Fprintf(w, "\t\tif !(x > y) { t.Errorf(\"!(%%d > %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x > y { t.Errorf(\"%%d > %%d\", x, y) }\n")
+				}
+				if x <= y {
+					fmt.Fprintf(w, "\t\tif !(x <= y) { t.Errorf(\"!(%%d <= %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x <= y { t.Errorf(\"%%d <= %%d\", x, y) }\n")
+				}
+				if x >= y {
+					fmt.Fprintf(w, "\t\tif !(x >= y) { t.Errorf(\"!(%%d >= %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x >= y { t.Errorf(\"%%d >= %%d\", x, y) }\n")
+				}
+				fmt.Fprintf(w, "\t}\n")
+			}
+		}
+		for _, x := range s.u {
+			for _, y := range s.u {
+				fmt.Fprintf(w, "\t{\n")
+				fmt.Fprintf(w, "\t\tvar x %s = %d\n", s.name, x)
+				fmt.Fprintf(w, "\t\tvar y %s = %d\n", s.name, y)
+				if x == y {
+					fmt.Fprintf(w, "\t\tif !(x == y) { t.Errorf(\"!(%%d == %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x == y { t.Errorf(\"%%d == %%d\", x, y) }\n")
+				}
+				if x != y {
+					fmt.Fprintf(w, "\t\tif !(x != y) { t.Errorf(\"!(%%d != %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x != y { t.Errorf(\"%%d != %%d\", x, y) }\n")
+				}
+				if x < y {
+					fmt.Fprintf(w, "\t\tif !(x < y) { t.Errorf(\"!(%%d < %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x < y { t.Errorf(\"%%d < %%d\", x, y) }\n")
+				}
+				if x > y {
+					fmt.Fprintf(w, "\t\tif !(x > y) { t.Errorf(\"!(%%d > %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x > y { t.Errorf(\"%%d > %%d\", x, y) }\n")
+				}
+				if x <= y {
+					fmt.Fprintf(w, "\t\tif !(x <= y) { t.Errorf(\"!(%%d <= %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x <= y { t.Errorf(\"%%d <= %%d\", x, y) }\n")
+				}
+				if x >= y {
+					fmt.Fprintf(w, "\t\tif !(x >= y) { t.Errorf(\"!(%%d >= %%d)\", x, y) }\n")
+				} else {
+					fmt.Fprintf(w, "\t\tif x >= y { t.Errorf(\"%%d >= %%d\", x, y) }\n")
+				}
+				fmt.Fprintf(w, "\t}\n")
+			}
+		}
+		fmt.Fprintf(w, "}\n")
+	}
+
 	// gofmt result
 	b := w.Bytes()
 	src, err := format.Source(b)
