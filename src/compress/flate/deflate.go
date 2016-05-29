@@ -16,9 +16,12 @@ const (
 	BestCompression    = 9
 	DefaultCompression = -1
 	HuffmanOnly        = -2 // Disables match search and only does Huffman entropy reduction.
-	logWindowSize      = 15
-	windowSize         = 1 << logWindowSize
-	windowMask         = windowSize - 1
+)
+
+const (
+	logWindowSize = 15
+	windowSize    = 1 << logWindowSize
+	windowMask    = windowSize - 1
 
 	// The LZ77 step produces a sequence of literal tokens and <length, offset>
 	// pair tokens. The offset is also known as distance. The underlying wire
