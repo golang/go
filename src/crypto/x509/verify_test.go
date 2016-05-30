@@ -260,6 +260,17 @@ var verifyTests = []verifyTest{
 
 		errorCallback: expectHostnameError,
 	},
+	{
+		// The issuer name in the leaf doesn't exactly match the
+		// subject name in the root. Go does not perform
+		// canonicalization and so should reject this. See issue 14955.
+		leaf:        issuerSubjectMatchLeaf,
+		roots:       []string{issuerSubjectMatchRoot},
+		currentTime: 1475787715,
+		systemSkip:  true,
+
+		errorCallback: expectSubjectIssuerMismatcthError,
+	},
 }
 
 func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
@@ -309,6 +320,14 @@ func expectHashError(t *testing.T, i int, err error) bool {
 	}
 	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
 		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %s", i, expected, err)
+		return false
+	}
+	return true
+}
+
+func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool) {
+	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
+		t.Errorf("#%d: error was not a NameMismatch: %s", i, err)
 		return false
 	}
 	return true
@@ -1132,6 +1151,126 @@ pl01FCBGTcncVqr6RK1r4fTpeCCfRIERD+YRJz8TtPH6ydesfLL8jIV40H8NiDfG
 vRAvOtNiKtPzFeQVdbRPOskC4rcHyPeiDAMAMixeLi63+CFty4da3r5lRezeedCE
 cw3ESZzThBwWqvPOtJdpXdm+r57pDW8qD+/0lY8wfImMNkQAyCUCLg/1Lxt/hrBj
 -----END CERTIFICATE-----`
+
+const issuerSubjectMatchRoot = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 161640039802297062 (0x23e42c281e55ae6)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: O=Golang, CN=Root ca
+        Validity
+            Not Before: Jan  1 00:00:00 2015 GMT
+            Not After : Jan  1 00:00:00 2025 GMT
+        Subject: O=Golang, CN=Root ca
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:e9:0e:7f:11:0c:e6:5a:e6:86:83:70:f6:51:07:
+                    2e:02:78:11:f5:b2:24:92:38:ee:26:62:02:c7:94:
+                    f1:3e:a1:77:6a:c0:8f:d5:22:68:b6:5d:e2:4c:da:
+                    e0:85:11:35:c2:92:72:49:8d:81:b4:88:97:6b:b7:
+                    fc:b2:44:5b:d9:4d:06:70:f9:0c:c6:8f:e9:b3:df:
+                    a3:6a:84:6c:43:59:be:9d:b2:d0:76:9b:c3:d7:fa:
+                    99:59:c3:b8:e5:f3:53:03:bd:49:d6:b3:cc:a2:43:
+                    fe:ad:c2:0b:b9:01:b8:56:29:94:03:24:a7:0d:28:
+                    21:29:a9:ae:94:5b:4a:f9:9f
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Certificate Sign
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+            X509v3 Subject Key Identifier:
+                40:37:D7:01:FB:40:2F:B8:1C:7E:54:04:27:8C:59:01
+    Signature Algorithm: sha256WithRSAEncryption
+         6f:84:df:49:e0:99:d4:71:66:1d:32:86:56:cb:ea:5a:6b:0e:
+         00:6a:d1:5a:6e:1f:06:23:07:ff:cb:d1:1a:74:e4:24:43:0b:
+         aa:2a:a0:73:75:25:82:bc:bf:3f:a9:f8:48:88:ac:ed:3a:94:
+         3b:0d:d3:88:c8:67:44:61:33:df:71:6c:c5:af:ed:16:8c:bf:
+         82:f9:49:bb:e3:2a:07:53:36:37:25:77:de:91:a4:77:09:7f:
+         6f:b2:91:58:c4:05:89:ea:8e:fa:e1:3b:19:ef:f8:f6:94:b7:
+         7b:27:e6:e4:84:dd:2b:f5:93:f5:3c:d8:86:c5:38:01:56:5c:
+         9f:6d
+-----BEGIN CERTIFICATE-----
+MIICIDCCAYmgAwIBAgIIAj5CwoHlWuYwDQYJKoZIhvcNAQELBQAwIzEPMA0GA1UE
+ChMGR29sYW5nMRAwDgYDVQQDEwdSb290IGNhMB4XDTE1MDEwMTAwMDAwMFoXDTI1
+MDEwMTAwMDAwMFowIzEPMA0GA1UEChMGR29sYW5nMRAwDgYDVQQDEwdSb290IGNh
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDpDn8RDOZa5oaDcPZRBy4CeBH1
+siSSOO4mYgLHlPE+oXdqwI/VImi2XeJM2uCFETXCknJJjYG0iJdrt/yyRFvZTQZw
++QzGj+mz36NqhGxDWb6dstB2m8PX+plZw7jl81MDvUnWs8yiQ/6twgu5AbhWKZQD
+JKcNKCEpqa6UW0r5nwIDAQABo10wWzAOBgNVHQ8BAf8EBAMCAgQwHQYDVR0lBBYw
+FAYIKwYBBQUHAwEGCCsGAQUFBwMCMA8GA1UdEwEB/wQFMAMBAf8wGQYDVR0OBBIE
+EEA31wH7QC+4HH5UBCeMWQEwDQYJKoZIhvcNAQELBQADgYEAb4TfSeCZ1HFmHTKG
+VsvqWmsOAGrRWm4fBiMH/8vRGnTkJEMLqiqgc3Ulgry/P6n4SIis7TqUOw3TiMhn
+RGEz33Fsxa/tFoy/gvlJu+MqB1M2NyV33pGkdwl/b7KRWMQFieqO+uE7Ge/49pS3
+eyfm5ITdK/WT9TzYhsU4AVZcn20=
+-----END CERTIFICATE-----`
+
+const issuerSubjectMatchLeaf = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 16785088708916013734 (0xe8f09d3fe25beaa6)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: O=Golang, CN=Root CA
+        Validity
+            Not Before: Jan  1 00:00:00 2015 GMT
+            Not After : Jan  1 00:00:00 2025 GMT
+        Subject: O=Golang, CN=Leaf
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:db:46:7d:93:2e:12:27:06:48:bc:06:28:21:ab:
+                    7e:c4:b6:a2:5d:fe:1e:52:45:88:7a:36:47:a5:08:
+                    0d:92:42:5b:c2:81:c0:be:97:79:98:40:fb:4f:6d:
+                    14:fd:2b:13:8b:c2:a5:2e:67:d8:d4:09:9e:d6:22:
+                    38:b7:4a:0b:74:73:2b:c2:34:f1:d1:93:e5:96:d9:
+                    74:7b:f3:58:9f:6c:61:3c:c0:b0:41:d4:d9:2b:2b:
+                    24:23:77:5b:1c:3b:bd:75:5d:ce:20:54:cf:a1:63:
+                    87:1d:1e:24:c4:f3:1d:1a:50:8b:aa:b6:14:43:ed:
+                    97:a7:75:62:f4:14:c8:52:d7
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication, TLS Web Client Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Subject Key Identifier:
+                9F:91:16:1F:43:43:3E:49:A6:DE:6D:B6:80:D7:9F:60
+            X509v3 Authority Key Identifier:
+                keyid:40:37:D7:01:FB:40:2F:B8:1C:7E:54:04:27:8C:59:01
+
+    Signature Algorithm: sha256WithRSAEncryption
+         8d:86:05:da:89:f5:1d:c5:16:14:41:b9:34:87:2b:5c:38:99:
+         e3:d9:5a:5b:7a:5b:de:0b:5c:08:45:09:6f:1c:9d:31:5f:08:
+         ca:7a:a3:99:da:83:0b:22:be:4f:02:35:91:4e:5d:5c:37:bf:
+         89:22:58:7d:30:76:d2:2f:d0:a0:ee:77:9e:77:c0:d6:19:eb:
+         ec:a0:63:35:6a:80:9b:80:1a:80:de:64:bc:40:38:3c:22:69:
+         ad:46:26:a2:3d:ea:f4:c2:92:49:16:03:96:ae:64:21:b9:7c:
+         ee:64:91:47:81:aa:b4:0c:09:2b:12:1a:b2:f3:af:50:b3:b1:
+         ce:24
+-----BEGIN CERTIFICATE-----
+MIICODCCAaGgAwIBAgIJAOjwnT/iW+qmMA0GCSqGSIb3DQEBCwUAMCMxDzANBgNV
+BAoTBkdvbGFuZzEQMA4GA1UEAxMHUm9vdCBDQTAeFw0xNTAxMDEwMDAwMDBaFw0y
+NTAxMDEwMDAwMDBaMCAxDzANBgNVBAoTBkdvbGFuZzENMAsGA1UEAxMETGVhZjCB
+nzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA20Z9ky4SJwZIvAYoIat+xLaiXf4e
+UkWIejZHpQgNkkJbwoHAvpd5mED7T20U/SsTi8KlLmfY1Ame1iI4t0oLdHMrwjTx
+0ZPlltl0e/NYn2xhPMCwQdTZKyskI3dbHDu9dV3OIFTPoWOHHR4kxPMdGlCLqrYU
+Q+2Xp3Vi9BTIUtcCAwEAAaN3MHUwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQG
+CCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMBkGA1UdDgQSBBCfkRYf
+Q0M+SabebbaA159gMBsGA1UdIwQUMBKAEEA31wH7QC+4HH5UBCeMWQEwDQYJKoZI
+hvcNAQELBQADgYEAjYYF2on1HcUWFEG5NIcrXDiZ49laW3pb3gtcCEUJbxydMV8I
+ynqjmdqDCyK+TwI1kU5dXDe/iSJYfTB20i/QoO53nnfA1hnr7KBjNWqAm4AagN5k
+vEA4PCJprUYmoj3q9MKSSRYDlq5kIbl87mSRR4GqtAwJKxIasvOvULOxziQ=
+-----END CERTIFICATE-----
+`
 
 var unknownAuthorityErrorTests = []struct {
 	cert     string
