@@ -250,6 +250,11 @@ func Glob(pattern string) (matches []string, err error) {
 		return glob(dir, file, nil)
 	}
 
+	// Prevent infinite recursion. See issue 15879.
+	if dir == pattern {
+		return nil, ErrBadPattern
+	}
+
 	var m []string
 	m, err = Glob(dir)
 	if err != nil {
