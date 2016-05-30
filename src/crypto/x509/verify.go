@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -33,6 +34,9 @@ const (
 	// IncompatibleUsage results when the certificate's key usage indicates
 	// that it may only be used for a different purpose.
 	IncompatibleUsage
+	// NameMismatch results when the subject name of a parent certificate
+	// does not match the issuer name in the child.
+	NameMismatch
 )
 
 // CertificateInvalidError results when an odd error occurs. Users of this
@@ -54,6 +58,8 @@ func (e CertificateInvalidError) Error() string {
 		return "x509: too many intermediates for path length constraint"
 	case IncompatibleUsage:
 		return "x509: certificate specifies an incompatible key usage"
+	case NameMismatch:
+		return "x509: issuer name does not match subject from issuing certificate"
 	}
 	return "x509: unknown error"
 }
@@ -185,6 +191,13 @@ func matchNameConstraint(domain, constraint string) bool {
 
 // isValid performs validity checks on the c.
 func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
+	if len(currentChain) > 0 {
+		child := currentChain[len(currentChain)-1]
+		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
+			return CertificateInvalidError{c, NameMismatch}
+		}
+	}
+
 	now := opts.CurrentTime
 	if now.IsZero() {
 		now = time.Now()
