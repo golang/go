@@ -104,7 +104,7 @@ func typecheckswitch(n *Node) {
 
 	n.Type = t
 
-	var def *Node
+	var def, niltype *Node
 	for _, ncase := range n.List.Slice() {
 		setlineno(n)
 		if ncase.List.Len() == 0 {
@@ -150,6 +150,12 @@ func typecheckswitch(n *Node) {
 					var ptr int
 					switch {
 					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
+						// case nil:
+						if niltype != nil {
+							Yyerror("multiple nil cases in type switch (first at %v)", niltype.Line())
+						} else {
+							niltype = ncase
+						}
 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
 						Yyerror("%v is not a type", Nconv(n1, FmtLong))
 						// reset to original type
