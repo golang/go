@@ -1235,6 +1235,7 @@ func hostlink() {
 		}
 		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
 		cmd.Dir = tmpdir
+		cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
 		out, err := cmd.CombinedOutput()
 		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
 		if supported {

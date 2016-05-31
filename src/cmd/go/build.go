@@ -3088,7 +3088,7 @@ func (b *builder) gccSupportsFlag(flag string) bool {
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.work
-	cmd.Env = envForDir(cmd.Dir, os.Environ())
+	cmd.Env = mergeEnvLists([]string{"LC_ALL=C"}, envForDir(cmd.Dir, os.Environ()))
 	out, err := cmd.CombinedOutput()
 	supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
 	b.flagCache[flag] = supported
