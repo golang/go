@@ -107,7 +107,7 @@ type Context interface {
 	// collisions.
 	//
 	// Packages that define a Context key should provide type-safe accessors
-	// for the values stores using that key:
+	// for the values stored using that key:
 	//
 	// 	// Package user defines a User type that's stored in Contexts.
 	// 	package user
