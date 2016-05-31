@@ -1323,6 +1323,15 @@ var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
 	twoTypes{TFLOAT32, TFLOAT64}: twoOpsAndType{ssa.OpCvt32Fto64F, ssa.OpCopy, TFLOAT64},
 }
 
+// this map is used only for 32-bit arch, and only includes the difference
+// on 32-bit arch, don't use int64<->float conversion for uint32
+var fpConvOpToSSA32 = map[twoTypes]twoOpsAndType{
+	twoTypes{TUINT32, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32Uto32F, TUINT32},
+	twoTypes{TUINT32, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32Uto64F, TUINT32},
+	twoTypes{TFLOAT32, TUINT32}: twoOpsAndType{ssa.OpCvt32Fto32U, ssa.OpCopy, TUINT32},
+	twoTypes{TFLOAT64, TUINT32}: twoOpsAndType{ssa.OpCvt64Fto32U, ssa.OpCopy, TUINT32},
+}
+
 var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
 	opAndTwoTypes{OLSH, TINT8, TUINT8}:   ssa.OpLsh8x8,
 	opAndTwoTypes{OLSH, TUINT8, TUINT8}:  ssa.OpLsh8x8,
@@ -1639,6 +1648,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		if ft.IsFloat() || tt.IsFloat() {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+			if s.config.IntSize == 4 {
+				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+					conv = conv1
+				}
+			}
 			if !ok {
 				s.Fatalf("weird float conversion %s -> %s", ft, tt)
 			}

@@ -1094,12 +1094,12 @@ opswitch:
 
 			if n.Type.IsFloat() {
 				if n.Left.Type.Etype == TINT64 {
-					n = mkcall("int64tofloat64", n.Type, init, conv(n.Left, Types[TINT64]))
+					n = conv(mkcall("int64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TINT64])), n.Type)
 					break
 				}
 
 				if n.Left.Type.Etype == TUINT64 {
-					n = mkcall("uint64tofloat64", n.Type, init, conv(n.Left, Types[TUINT64]))
+					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
 					break
 				}
 			}

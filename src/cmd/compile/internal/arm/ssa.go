@@ -5,6 +5,8 @@
 package arm
 
 import (
+	"math"
+
 	"cmd/compile/internal/gc"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
@@ -29,6 +31,23 @@ var ssaRegToReg = []int16{
 	arm.REG_R14,
 	arm.REG_R15,
 
+	arm.REG_F0,
+	arm.REG_F1,
+	arm.REG_F2,
+	arm.REG_F3,
+	arm.REG_F4,
+	arm.REG_F5,
+	arm.REG_F6,
+	arm.REG_F7,
+	arm.REG_F8,
+	arm.REG_F9,
+	arm.REG_F10,
+	arm.REG_F11,
+	arm.REG_F12,
+	arm.REG_F13,
+	arm.REG_F14,
+	arm.REG_F15,
+
 	arm.REG_CPSR, // flag
 	0,            // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 }
@@ -36,7 +55,12 @@ var ssaRegToReg = []int16{
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		panic("load floating point register is not implemented")
+		switch t.Size() {
+		case 4:
+			return arm.AMOVF
+		case 8:
+			return arm.AMOVD
+		}
 	} else {
 		switch t.Size() {
 		case 1:
@@ -61,7 +85,12 @@ func loadByType(t ssa.Type) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		panic("store floating point register is not implemented")
+		switch t.Size() {
+		case 4:
+			return arm.AMOVF
+		case 8:
+			return arm.AMOVD
+		}
 	} else {
 		switch t.Size() {
 		case 1:
@@ -93,7 +122,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if x == y {
 			return
 		}
-		p := gc.Prog(arm.AMOVW)
+		as := arm.AMOVW
+		if v.Type.IsFloat() {
+			switch v.Type.Size() {
+			case 4:
+				as = arm.AMOVF
+			case 8:
+				as = arm.AMOVD
+			default:
+				panic("bad float size")
+			}
+		}
+		p := gc.Prog(as)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
@@ -172,7 +212,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMOR,
 		ssa.OpARMXOR,
 		ssa.OpARMBIC,
-		ssa.OpARMMUL:
+		ssa.OpARMMUL,
+		ssa.OpARMADDF,
+		ssa.OpARMADDD,
+		ssa.OpARMSUBF,
+		ssa.OpARMSUBD,
+		ssa.OpARMMULF,
+		ssa.OpARMMULD,
+		ssa.OpARMDIVF,
+		ssa.OpARMDIVD:
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
@@ -331,10 +379,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMMOVFconst,
+		ssa.OpARMMOVDconst:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_FCONST
+		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMCMP,
 		ssa.OpARMCMN,
 		ssa.OpARMTST,
-		ssa.OpARMTEQ:
+		ssa.OpARMTEQ,
+		ssa.OpARMCMPF,
+		ssa.OpARMCMPD:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		// Special layout in ARM assembly
@@ -354,7 +411,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMMOVBUload,
 		ssa.OpARMMOVHload,
 		ssa.OpARMMOVHUload,
-		ssa.OpARMMOVWload:
+		ssa.OpARMMOVWload,
+		ssa.OpARMMOVFload,
+		ssa.OpARMMOVDload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = gc.SSARegNum(v.Args[0])
@@ -363,7 +422,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMMOVBstore,
 		ssa.OpARMMOVHstore,
-		ssa.OpARMMOVWstore:
+		ssa.OpARMMOVWstore,
+		ssa.OpARMMOVFstore,
+		ssa.OpARMMOVDstore:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[1])
@@ -374,11 +435,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMMOVBUreg,
 		ssa.OpARMMOVHreg,
 		ssa.OpARMMOVHUreg,
-		ssa.OpARMMVN:
-		if v.Type.IsMemory() {
-			v.Fatalf("memory operand for %s", v.LongString())
-		}
+		ssa.OpARMMVN,
+		ssa.OpARMSQRTD,
+		ssa.OpARMMOVWF,
+		ssa.OpARMMOVWD,
+		ssa.OpARMMOVFW,
+		ssa.OpARMMOVDW,
+		ssa.OpARMMOVFD,
+		ssa.OpARMMOVDF:
 		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMMOVWUF,
+		ssa.OpARMMOVWUD,
+		ssa.OpARMMOVFWU,
+		ssa.OpARMMOVDWU:
+		p := gc.Prog(v.Op.Asm())
+		p.Scond = arm.C_UBIT
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG

@@ -6,6 +6,8 @@
 (Add32 x y) -> (ADD x y)
 (Add16 x y) -> (ADD x y)
 (Add8 x y) -> (ADD x y)
+(Add32F x y) -> (ADDF x y)
+(Add64F x y) -> (ADDD x y)
 
 (Add32carry x y) -> (ADDS x y)
 (Add32withcarry x y c) -> (ADC x y c)
@@ -14,6 +16,8 @@
 (Sub32 x y) -> (SUB x y)
 (Sub16 x y) -> (SUB x y)
 (Sub8 x y) -> (SUB x y)
+(Sub32F x y) -> (SUBF x y)
+(Sub64F x y) -> (SUBD x y)
 
 (Sub32carry x y) -> (SUBS x y)
 (Sub32withcarry x y c) -> (SBC x y c)
@@ -21,6 +25,8 @@
 (Mul32 x y) -> (MUL x y)
 (Mul16 x y) -> (MUL x y)
 (Mul8 x y) -> (MUL x y)
+(Mul32F x y) -> (MULF x y)
+(Mul64F x y) -> (MULD x y)
 
 (Hmul32 x y) -> (HMUL x y)
 (Hmul32u x y) -> (HMULU x y)
@@ -37,6 +43,8 @@
 (Div16u x y) -> (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Div8 x y) -> (DIV (SignExt8to32 x) (SignExt8to32 y))
 (Div8u x y) -> (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
+(Div32F x y) -> (DIVF x y)
+(Div64F x y) -> (DIVD x y)
 
 (Mod32 x y) -> (MOD x y)
 (Mod32u x y) -> (MODU x y)
@@ -61,10 +69,15 @@
 (Neg32 x) -> (RSBconst [0] x)
 (Neg16 x) -> (RSBconst [0] x)
 (Neg8 x) -> (RSBconst [0] x)
+//TODO: implement NEGF, NEGD in assembler and soft float simulator, and use them.
+(Neg32F x) -> (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
+(Neg64F x) -> (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
 
 (Com32 x) -> (MVN x)
 (Com16 x) -> (MVN x)
 (Com8 x) -> (MVN x)
+
+(Sqrt x) -> (SQRTD x)
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
@@ -143,6 +156,8 @@
 (Const8 [val]) -> (MOVWconst [val])
 (Const16 [val]) -> (MOVWconst [val])
 (Const32 [val]) -> (MOVWconst [val])
+(Const32F [val]) -> (MOVFconst [val])
+(Const64F [val]) -> (MOVDconst [val])
 (ConstNil) -> (MOVWconst [0])
 (ConstBool [b]) -> (MOVWconst [b])
 
@@ -164,20 +179,38 @@
 (Signmask x) -> (SRAconst x [31])
 (Zeromask x) -> (LoweredZeromask x)
 
+// float <-> int conversion
+(Cvt32to32F x) -> (MOVWF x)
+(Cvt32to64F x) -> (MOVWD x)
+(Cvt32Uto32F x) -> (MOVWUF x)
+(Cvt32Uto64F x) -> (MOVWUD x)
+(Cvt32Fto32 x) -> (MOVFW x)
+(Cvt64Fto32 x) -> (MOVDW x)
+(Cvt32Fto32U x) -> (MOVFWU x)
+(Cvt64Fto32U x) -> (MOVDWU x)
+(Cvt32Fto64F x) -> (MOVFD x)
+(Cvt64Fto32F x) -> (MOVDF x)
+
 // comparisons
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMP x y))
 (EqPtr x y) -> (Equal (CMP x y))
+(Eq32F x y) -> (Equal (CMPF x y))
+(Eq64F x y) -> (Equal (CMPD x y))
 
 (Neq8 x y)  -> (NotEqual (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Neq16 x y) -> (NotEqual (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Neq32 x y) -> (NotEqual (CMP x y))
 (NeqPtr x y) -> (NotEqual (CMP x y))
+(Neq32F x y) -> (NotEqual (CMPF x y))
+(Neq64F x y) -> (NotEqual (CMPD x y))
 
 (Less8 x y)  -> (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Less16 x y) -> (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Less32 x y) -> (LessThan (CMP x y))
+(Less32F x y) -> (GreaterThan (CMPF y x)) // reverse operands to work around NaN
+(Less64F x y) -> (GreaterThan (CMPD y x)) // reverse operands to work around NaN
 
 (Less8U x y)  -> (LessThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Less16U x y) -> (LessThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -186,6 +219,8 @@
 (Leq8 x y)  -> (LessEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Leq16 x y) -> (LessEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Leq32 x y) -> (LessEqual (CMP x y))
+(Leq32F x y) -> (GreaterEqual (CMPF y x)) // reverse operands to work around NaN
+(Leq64F x y) -> (GreaterEqual (CMPD y x)) // reverse operands to work around NaN
 
 (Leq8U x y)  -> (LessEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -194,6 +229,8 @@
 (Greater8 x y)  -> (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Greater16 x y) -> (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Greater32 x y) -> (GreaterThan (CMP x y))
+(Greater32F x y) -> (GreaterThan (CMPF x y))
+(Greater64F x y) -> (GreaterThan (CMPD x y))
 
 (Greater8U x y)  -> (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Greater16U x y) -> (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -202,6 +239,8 @@
 (Geq8 x y)  -> (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
 (Geq16 x y) -> (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
 (Geq32 x y) -> (GreaterEqual (CMP x y))
+(Geq32F x y) -> (GreaterEqual (CMPF x y))
+(Geq64F x y) -> (GreaterEqual (CMPD x y))
 
 (Geq8U x y)  -> (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -218,11 +257,15 @@
 (Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) -> (MOVHload ptr mem)
 (Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
 (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVWload ptr mem)
+(Load <t> ptr mem) && is32BitFloat(t) -> (MOVFload ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) -> (MOVDload ptr mem)
 
 // stores
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
-(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
+(Store [4] ptr val mem) && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (MOVFstore ptr val mem)
+(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
 
 // zero instructions
 //TODO: check alignment?
@@ -336,6 +379,10 @@
   (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
   (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+  (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 (MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
   (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
@@ -343,6 +390,10 @@
   (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
   (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+  (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+  (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
 (ADD (MUL x y) a) -> (MULA x y a)
 (ADD a (MUL x y)) -> (MULA x y a)
