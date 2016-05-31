@@ -504,7 +504,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	clientConfig := *testConfig
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
-	buf := make([]byte, 1<<16)
+	buf := make([]byte, 1<<14)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
 	for i := 0; i < N; i++ {
 		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
