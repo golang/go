@@ -206,6 +206,7 @@ type regAllocState struct {
 	numRegs     register
 	SPReg       register
 	SBReg       register
+	GReg        register
 	allocatable regMask
 
 	// for each block, its primary predecessor.
@@ -449,12 +450,18 @@ func (s *regAllocState) init(f *Func) {
 		if s.registers[r].Name() == "SB" {
 			s.SBReg = r
 		}
+		if s.registers[r].Name() == "g" {
+			s.GReg = r
+		}
 	}
 
 	// Figure out which registers we're allowed to use.
 	s.allocatable = s.f.Config.gpRegMask | s.f.Config.fpRegMask | s.f.Config.flagRegMask
 	s.allocatable &^= 1 << s.SPReg
 	s.allocatable &^= 1 << s.SBReg
+	if s.f.Config.hasGReg {
+		s.allocatable &^= 1 << s.GReg
+	}
 	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
@@ -935,6 +942,26 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.assignReg(s.SBReg, v, v)
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
+				continue
+			}
+			if v.Op == OpGetG && s.f.Config.hasGReg {
+				// use hardware g register
+				if s.regs[s.GReg].v != nil {
+					s.freeReg(s.GReg) // kick out the old value
+				}
+				s.assignReg(s.GReg, v, v)
+				b.Values = append(b.Values, v)
+				s.advanceUses(v)
+				// spill unconditionally, will be deleted if never used
+				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+				s.setOrig(spill, v)
+				s.values[v.ID].spill = spill
+				s.values[v.ID].spillUsed = false
+				if loop != nil {
+					loop.spills = append(loop.spills, v)
+					nSpillsInner++
+				}
+				nSpills++
 				continue
 			}
 			if v.Op == OpArg {

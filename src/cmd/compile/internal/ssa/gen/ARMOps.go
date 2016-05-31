@@ -36,7 +36,7 @@ var regNamesARM = []string{
 	"R7",
 	"R8",
 	"R9",
-	"R10", // g
+	"g",   // aka R10
 	"R11", // tmp
 	"R12",
 	"SP",  // aka R13
@@ -89,33 +89,35 @@ func init() {
 	// Common individual register masks
 	var (
 		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12")
+		gpg        = gp | buildReg("g")
 		gpsp       = gp | buildReg("SP")
-		gpspsb     = gpsp | buildReg("SB")
+		gpspg      = gpg | buildReg("SP")
+		gpspsbg    = gpspg | buildReg("SB")
 		flags      = buildReg("FLAGS")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
-		callerSave = gp | fp | flags
+		callerSave = gp | fp | flags | buildReg("g") // runtime.setg (and anything calling it) may clobber g
 	)
 	// Common regInfo
 	var (
 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
-		gp11      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
-		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: []regMask{gp}}
-		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
-		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
-		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
+		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp1flags  = regInfo{inputs: []regMask{gpg}, outputs: []regMask{flags}}
+		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp21cf    = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags}}
 		gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
 		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
-		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
+		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{}}
 		fp01      = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp2flags  = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{flags}}
-		fpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{fp}}
-		fpstore   = regInfo{inputs: []regMask{gpspsb, fp}, outputs: []regMask{}}
+		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}, outputs: []regMask{}}
 		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
 	)
 	ops := []opData{
@@ -221,14 +223,14 @@ func init() {
 		{name: "MOVFD", argLength: 1, reg: fp11, asm: "MOVFD"},  // float32 -> float64
 		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},  // float64 -> float32
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{[]regMask{gpsp, buildReg("R7"), 0}, callerSave, nil}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                             // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R7"), 0}, clobbers: callerSave}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                               // call deferproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                                  // call newproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}, clobbers: flags}}, // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
 
 		{name: "Equal", argLength: 1, reg: readflags},         // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: readflags},      // bool, true flags encode x!=y false otherwise.
@@ -241,9 +243,9 @@ func init() {
 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
 
-		{name: "Carry", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{flags}}, typ: "Flags"},     // flags of a (Flags,UInt32)
-		{name: "LoweredSelect0", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{buildReg("R0")}}}, // the first component of a tuple, implicitly in R0, arg0=tuple
-		{name: "LoweredSelect1", argLength: 1, reg: gp11, resultInArg0: true},                                         // the second component of a tuple, arg0=tuple
+		{name: "Carry", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{flags}}, typ: "Flags"},               // flags of a (Flags,UInt32)
+		{name: "LoweredSelect0", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{buildReg("R0")}}},           // the first component of a tuple, implicitly in R0, arg0=tuple
+		{name: "LoweredSelect1", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true}, // the second component of a tuple, arg0=tuple
 
 		{name: "LoweredZeromask", argLength: 1, reg: gp11}, // 0 if arg0 == 1, 0xffffffff if arg0 != 0
 
