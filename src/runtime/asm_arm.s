@@ -626,7 +626,7 @@ havem:
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
-	MOVW	4(R13), R5
+	MOVW	0(R13), R5
 	MOVW	R5, (g_sched+gobuf_pc)(g)
 	MOVW	$12(R13), R4
 	MOVW	R4, (g_sched+gobuf_sp)(g)
