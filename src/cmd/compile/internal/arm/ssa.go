@@ -24,7 +24,7 @@ var ssaRegToReg = []int16{
 	arm.REG_R7,
 	arm.REG_R8,
 	arm.REG_R9,
-	arm.REG_R10,
+	arm.REGG, // aka R10
 	arm.REG_R11,
 	arm.REG_R12,
 	arm.REGSP, // aka R13
@@ -111,7 +111,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// memory arg needs no code
 	case ssa.OpArg:
 		// input args need no code
-	case ssa.OpSP, ssa.OpSB:
+	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
 	case ssa.OpCopy, ssa.OpARMMOVWconvert:
 		if v.Type.IsMemory() {
