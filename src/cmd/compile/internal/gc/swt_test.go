@@ -134,7 +134,7 @@ func TestExprcmp(t *testing.T) {
 		},
 	}
 	for i, d := range testdata {
-		got := exprcmp(&d.a, &d.b)
+		got := exprcmp(d.a, d.b)
 		if d.want != got {
 			t.Errorf("%d: exprcmp(a, b) = %d; want %d", i, got, d.want)
 			t.Logf("\ta = caseClause{node: %#v, typ: %#v}", d.a.node, d.a.typ)
