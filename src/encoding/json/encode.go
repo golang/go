@@ -90,8 +90,8 @@ import (
 //    Int64String int64 `json:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
-// only Unicode letters, digits, dollar signs, percent signs, hyphens,
-// underscores and slashes.
+// only Unicode letters, digits, and ASCII punctuation except quotation
+// marks, backslash, and comma.
 //
 // Anonymous struct fields are usually marshaled as if their inner exported fields
 // were fields in the outer struct, subject to the usual Go visibility rules amended
