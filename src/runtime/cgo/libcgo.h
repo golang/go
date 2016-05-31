@@ -93,7 +93,7 @@ void darwin_arm_init_mach_exception_handler(void);
 struct context_arg {
 	uintptr_t Context;
 };
-extern void (*x_cgo_context_function)(struct context_arg*);
+extern void (*(_cgo_get_context_function(void)))(struct context_arg*);
 
 /*
  * TSAN support.  This is only useful when building with
