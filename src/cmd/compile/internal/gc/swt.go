@@ -107,6 +107,7 @@ func typecheckswitch(n *Node) {
 		if ncase.List.Len() == 0 {
 			// default
 			if def != nil {
+				setlineno(ncase)
 				Yyerror("multiple defaults in switch (first at %v)", def.Line())
 			} else {
 				def = ncase
