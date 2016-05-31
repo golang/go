@@ -4,7 +4,10 @@
 
 package gc
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // Tests shifts of zero.
 
@@ -903,5 +906,126 @@ func TestShiftLargeCombine3(t *testing.T) {
 	}
 	if one8u>>N<<2>>N == 1 {
 		t.Errorf("shift overflow mishandled")
+	}
+}
+
+func TestShiftGeneric(t *testing.T) {
+	for _, test := range [...]struct {
+		valueWidth int
+		signed     bool
+		shiftWidth int
+		left       bool
+		f          interface{}
+	}{
+		{64, true, 64, true, func(n int64, s uint64) int64 { return n << s }},
+		{64, true, 64, false, func(n int64, s uint64) int64 { return n >> s }},
+		{64, false, 64, false, func(n uint64, s uint64) uint64 { return n >> s }},
+		{64, true, 32, true, func(n int64, s uint32) int64 { return n << s }},
+		{64, true, 32, false, func(n int64, s uint32) int64 { return n >> s }},
+		{64, false, 32, false, func(n uint64, s uint32) uint64 { return n >> s }},
+		{64, true, 16, true, func(n int64, s uint16) int64 { return n << s }},
+		{64, true, 16, false, func(n int64, s uint16) int64 { return n >> s }},
+		{64, false, 16, false, func(n uint64, s uint16) uint64 { return n >> s }},
+		{64, true, 8, true, func(n int64, s uint8) int64 { return n << s }},
+		{64, true, 8, false, func(n int64, s uint8) int64 { return n >> s }},
+		{64, false, 8, false, func(n uint64, s uint8) uint64 { return n >> s }},
+
+		{32, true, 64, true, func(n int32, s uint64) int32 { return n << s }},
+		{32, true, 64, false, func(n int32, s uint64) int32 { return n >> s }},
+		{32, false, 64, false, func(n uint32, s uint64) uint32 { return n >> s }},
+		{32, true, 32, true, func(n int32, s uint32) int32 { return n << s }},
+		{32, true, 32, false, func(n int32, s uint32) int32 { return n >> s }},
+		{32, false, 32, false, func(n uint32, s uint32) uint32 { return n >> s }},
+		{32, true, 16, true, func(n int32, s uint16) int32 { return n << s }},
+		{32, true, 16, false, func(n int32, s uint16) int32 { return n >> s }},
+		{32, false, 16, false, func(n uint32, s uint16) uint32 { return n >> s }},
+		{32, true, 8, true, func(n int32, s uint8) int32 { return n << s }},
+		{32, true, 8, false, func(n int32, s uint8) int32 { return n >> s }},
+		{32, false, 8, false, func(n uint32, s uint8) uint32 { return n >> s }},
+
+		{16, true, 64, true, func(n int16, s uint64) int16 { return n << s }},
+		{16, true, 64, false, func(n int16, s uint64) int16 { return n >> s }},
+		{16, false, 64, false, func(n uint16, s uint64) uint16 { return n >> s }},
+		{16, true, 32, true, func(n int16, s uint32) int16 { return n << s }},
+		{16, true, 32, false, func(n int16, s uint32) int16 { return n >> s }},
+		{16, false, 32, false, func(n uint16, s uint32) uint16 { return n >> s }},
+		{16, true, 16, true, func(n int16, s uint16) int16 { return n << s }},
+		{16, true, 16, false, func(n int16, s uint16) int16 { return n >> s }},
+		{16, false, 16, false, func(n uint16, s uint16) uint16 { return n >> s }},
+		{16, true, 8, true, func(n int16, s uint8) int16 { return n << s }},
+		{16, true, 8, false, func(n int16, s uint8) int16 { return n >> s }},
+		{16, false, 8, false, func(n uint16, s uint8) uint16 { return n >> s }},
+
+		{8, true, 64, true, func(n int8, s uint64) int8 { return n << s }},
+		{8, true, 64, false, func(n int8, s uint64) int8 { return n >> s }},
+		{8, false, 64, false, func(n uint8, s uint64) uint8 { return n >> s }},
+		{8, true, 32, true, func(n int8, s uint32) int8 { return n << s }},
+		{8, true, 32, false, func(n int8, s uint32) int8 { return n >> s }},
+		{8, false, 32, false, func(n uint8, s uint32) uint8 { return n >> s }},
+		{8, true, 16, true, func(n int8, s uint16) int8 { return n << s }},
+		{8, true, 16, false, func(n int8, s uint16) int8 { return n >> s }},
+		{8, false, 16, false, func(n uint8, s uint16) uint8 { return n >> s }},
+		{8, true, 8, true, func(n int8, s uint8) int8 { return n << s }},
+		{8, true, 8, false, func(n int8, s uint8) int8 { return n >> s }},
+		{8, false, 8, false, func(n uint8, s uint8) uint8 { return n >> s }},
+	} {
+		fv := reflect.ValueOf(test.f)
+		var args [2]reflect.Value
+		for i := 0; i < test.valueWidth; i++ {
+			// Build value to be shifted.
+			var n int64 = 1
+			for j := 0; j < i; j++ {
+				n <<= 1
+			}
+			args[0] = reflect.ValueOf(n).Convert(fv.Type().In(0))
+			for s := 0; s <= test.shiftWidth; s++ {
+				args[1] = reflect.ValueOf(s).Convert(fv.Type().In(1))
+
+				// Compute desired result. We're testing variable shifts
+				// assuming constant shifts are correct.
+				r := n
+				var op string
+				switch {
+				case test.left:
+					op = "<<"
+					for j := 0; j < s; j++ {
+						r <<= 1
+					}
+					switch test.valueWidth {
+					case 32:
+						r = int64(int32(r))
+					case 16:
+						r = int64(int16(r))
+					case 8:
+						r = int64(int8(r))
+					}
+				case test.signed:
+					op = ">>"
+					switch test.valueWidth {
+					case 32:
+						r = int64(int32(r))
+					case 16:
+						r = int64(int16(r))
+					case 8:
+						r = int64(int8(r))
+					}
+					for j := 0; j < s; j++ {
+						r >>= 1
+					}
+				default:
+					op = ">>>"
+					for j := 0; j < s; j++ {
+						r = int64(uint64(r) >> 1)
+					}
+				}
+
+				// Call function.
+				res := fv.Call(args[:])[0].Convert(reflect.ValueOf(r).Type())
+
+				if res.Int() != r {
+					t.Errorf("%s%dx%d(%x,%x)=%x, want %x", op, test.valueWidth, test.shiftWidth, n, s, res.Int(), r)
+				}
+			}
+		}
 	}
 }
