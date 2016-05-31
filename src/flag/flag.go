@@ -68,6 +68,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"time"
@@ -378,7 +379,21 @@ func Set(name, value string) error {
 
 // isZeroValue guesses whether the string represents the zero
 // value for a flag. It is not accurate but in practice works OK.
-func isZeroValue(value string) bool {
+func isZeroValue(flag *Flag, value string) bool {
+	// Build a zero value of the flag's Value type, and see if the
+	// result of calling its String method equals the value passed in.
+	// This works unless the Value type is itself an interface type.
+	typ := reflect.TypeOf(flag.Value)
+	var z reflect.Value
+	if typ.Kind() == reflect.Ptr {
+		z = reflect.New(typ.Elem())
+	} else {
+		z = reflect.Zero(typ)
+	}
+	if value == z.Interface().(Value).String() {
+		return true
+	}
+
 	switch value {
 	case "false":
 		return true
@@ -449,7 +464,7 @@ func (f *FlagSet) PrintDefaults() {
 			s += "\n    \t"
 		}
 		s += usage
-		if !isZeroValue(flag.DefValue) {
+		if !isZeroValue(flag, flag.DefValue) {
 			if _, ok := flag.Value.(*stringValue); ok {
 				// put quotes on the value
 				s += fmt.Sprintf(" (default %q)", flag.DefValue)
