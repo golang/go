@@ -342,6 +342,14 @@ const (
 	OpARMSBC
 	OpARMMULLU
 	OpARMMULA
+	OpARMADDF
+	OpARMADDD
+	OpARMSUBF
+	OpARMSUBD
+	OpARMMULF
+	OpARMMULD
+	OpARMDIVF
+	OpARMDIVD
 	OpARMAND
 	OpARMANDconst
 	OpARMOR
@@ -351,6 +359,7 @@ const (
 	OpARMBIC
 	OpARMBICconst
 	OpARMMVN
+	OpARMSQRTD
 	OpARMSLL
 	OpARMSLLconst
 	OpARMSRL
@@ -366,19 +375,37 @@ const (
 	OpARMTSTconst
 	OpARMTEQ
 	OpARMTEQconst
+	OpARMCMPF
+	OpARMCMPD
 	OpARMMOVWconst
+	OpARMMOVFconst
+	OpARMMOVDconst
 	OpARMMOVBload
 	OpARMMOVBUload
 	OpARMMOVHload
 	OpARMMOVHUload
 	OpARMMOVWload
+	OpARMMOVFload
+	OpARMMOVDload
 	OpARMMOVBstore
 	OpARMMOVHstore
 	OpARMMOVWstore
+	OpARMMOVFstore
+	OpARMMOVDstore
 	OpARMMOVBreg
 	OpARMMOVBUreg
 	OpARMMOVHreg
 	OpARMMOVHUreg
+	OpARMMOVWF
+	OpARMMOVWD
+	OpARMMOVWUF
+	OpARMMOVWUD
+	OpARMMOVFW
+	OpARMMOVDW
+	OpARMMOVFWU
+	OpARMMOVDWU
+	OpARMMOVFD
+	OpARMMOVDF
 	OpARMCALLstatic
 	OpARMCALLclosure
 	OpARMCALLdefer
@@ -702,6 +729,10 @@ const (
 	OpMul32uhilo
 	OpSignmask
 	OpZeromask
+	OpCvt32Uto32F
+	OpCvt32Uto64F
+	OpCvt32Fto32U
+	OpCvt64Fto32U
 	OpSelect0
 	OpSelect1
 )
@@ -3906,7 +3937,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AADD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4023,7 +4054,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4038,7 +4069,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4053,7 +4084,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4068,7 +4099,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4084,7 +4115,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4097,9 +4128,9 @@ var opcodeTable = [...]opInfo{
 		asm:         arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 65536}, // FLAGS
-				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4115,7 +4146,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4127,9 +4158,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 65536}, // FLAGS
-				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4164,6 +4195,122 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:        "ADDF",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AADDF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:        "ADDD",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AADDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "SUBF",
+		argLen: 2,
+		asm:    arm.ASUBF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "SUBD",
+		argLen: 2,
+		asm:    arm.ASUBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:        "MULF",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AMULF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:        "MULD",
+		argLen:      2,
+		commutative: true,
+		asm:         arm.AMULD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "DIVF",
+		argLen: 2,
+		asm:    arm.ADIVF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "DIVD",
+		argLen: 2,
+		asm:    arm.ADIVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -4296,6 +4443,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "SQRTD",
+		argLen: 1,
+		asm:    arm.ASQRTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		name:   "SLL",
 		argLen: 2,
 		asm:    arm.ASLL,
@@ -4304,7 +4464,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4333,7 +4493,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4362,7 +4522,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -4405,7 +4565,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4419,7 +4579,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4433,7 +4593,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4447,7 +4607,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4462,7 +4622,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4476,7 +4636,7 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4491,7 +4651,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4505,7 +4665,35 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPF",
+		argLen: 2,
+		asm:    arm.ACMPF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPD",
+		argLen: 2,
+		asm:    arm.ACMPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4522,13 +4710,37 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:              "MOVFconst",
+		auxType:           auxFloat64,
+		argLen:            0,
+		rematerializeable: true,
+		asm:               arm.AMOVF,
+		reg: regInfo{
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:              "MOVDconst",
+		auxType:           auxFloat64,
+		argLen:            0,
+		rematerializeable: true,
+		asm:               arm.AMOVD,
+		reg: regInfo{
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		name:    "MOVBload",
 		auxType: auxSymOff,
 		argLen:  2,
 		asm:     arm.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4542,7 +4754,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVBU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4556,7 +4768,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4570,7 +4782,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVHU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4584,10 +4796,38 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MOVFload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     arm.AMOVF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:    "MOVDload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     arm.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -4598,8 +4838,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 5119},   // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 		},
 	},
@@ -4610,8 +4850,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 5119},   // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
 			},
 		},
 	},
@@ -4622,8 +4862,32 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 5119},   // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{0, 144383}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVFstore",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     arm.AMOVF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:    "MOVDstore",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     arm.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -4680,11 +4944,141 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MOVWF",
+		argLen: 1,
+		asm:    arm.AMOVWF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "MOVWD",
+		argLen: 1,
+		asm:    arm.AMOVWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "MOVWUF",
+		argLen: 1,
+		asm:    arm.AMOVWF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "MOVWUD",
+		argLen: 1,
+		asm:    arm.AMOVWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "MOVFW",
+		argLen: 1,
+		asm:    arm.AMOVFW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOVDW",
+		argLen: 1,
+		asm:    arm.AMOVDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOVFWU",
+		argLen: 1,
+		asm:    arm.AMOVFW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOVDWU",
+		argLen: 1,
+		asm:    arm.AMOVDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOVFD",
+		argLen: 1,
+		asm:    arm.AMOVFD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:   "MOVDF",
+		argLen: 1,
+		asm:    arm.AMOVDF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		name:    "CALLstatic",
 		auxType: auxSymOff,
 		argLen:  1,
 		reg: regInfo{
-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
 		},
 	},
 	{
@@ -4696,7 +5090,7 @@ var opcodeTable = [...]opInfo{
 				{1, 128},   // R7
 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
 			},
-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
 		},
 	},
 	{
@@ -4704,7 +5098,7 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		reg: regInfo{
-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
 		},
 	},
 	{
@@ -4712,7 +5106,7 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		reg: regInfo{
-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
 		},
 	},
 	{
@@ -4723,7 +5117,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 70655, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 FLAGS
+			clobbers: 8589874175, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
 		},
 	},
 	{
@@ -4733,7 +5127,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
 			},
-			clobbers: 65536, // FLAGS
+			clobbers: 4294967296, // FLAGS
 		},
 	},
 	{
@@ -4741,7 +5135,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4753,7 +5147,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4765,7 +5159,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4777,7 +5171,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4789,7 +5183,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4801,7 +5195,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4813,7 +5207,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4825,7 +5219,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4837,7 +5231,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4849,7 +5243,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536}, // FLAGS
+				{0, 4294967296}, // FLAGS
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4861,7 +5255,7 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		reg: regInfo{
 			outputs: []regMask{
-				65536, // FLAGS
+				4294967296, // FLAGS
 			},
 		},
 	},
@@ -4932,7 +5326,7 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65538, // R1 FLAGS
+			clobbers: 4294967298, // R1 FLAGS
 		},
 	},
 	{
@@ -4944,7 +5338,7 @@ var opcodeTable = [...]opInfo{
 				{1, 2},    // R1
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 65542, // R1 R2 FLAGS
+			clobbers: 4294967302, // R1 R2 FLAGS
 		},
 	},
 	{
@@ -6513,6 +6907,26 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Cvt32Uto32F",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt32Uto64F",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt32Fto32U",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt64Fto32U",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "Select0",
 		argLen:  1,
 		generic: true,
@@ -6584,10 +6998,26 @@ var registersARM = [...]Register{
 	{13, "SP"},
 	{14, "R14"},
 	{15, "R15"},
-	{16, "FLAGS"},
-	{17, "SB"},
+	{16, "F0"},
+	{17, "F1"},
+	{18, "F2"},
+	{19, "F3"},
+	{20, "F4"},
+	{21, "F5"},
+	{22, "F6"},
+	{23, "F7"},
+	{24, "F8"},
+	{25, "F9"},
+	{26, "F10"},
+	{27, "F11"},
+	{28, "F12"},
+	{29, "F13"},
+	{30, "F14"},
+	{31, "F15"},
+	{32, "FLAGS"},
+	{33, "SB"},
 }
 var gpRegMaskARM = regMask(5119)
-var fpRegMaskARM = regMask(0)
-var flagRegMaskARM = regMask(65536)
+var fpRegMaskARM = regMask(4294901760)
+var flagRegMaskARM = regMask(4294967296)
 var framepointerRegARM = int8(-1)
