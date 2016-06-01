@@ -143,7 +143,7 @@ func TestUnshare(t *testing.T) {
 
 	cmd := exec.Command("cat", "/proc/net/dev")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Unshare: syscall.CLONE_NEWNET,
+		Unshareflags: syscall.CLONE_NEWNET,
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
