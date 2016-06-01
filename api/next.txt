@@ -170,10 +170,37 @@ pkg io, const SeekStart ideal-int
 pkg math/big, method (*Float) GobDecode([]uint8) error
 pkg math/big, method (*Float) GobEncode() ([]uint8, error)
 pkg net, method (*Dialer) DialContext(context.Context, string, string) (Conn, error)
+pkg net/http, const StatusAlreadyReported = 208
+pkg net/http, const StatusAlreadyReported ideal-int
+pkg net/http, const StatusFailedDependency = 424
+pkg net/http, const StatusFailedDependency ideal-int
+pkg net/http, const StatusIMUsed = 226
+pkg net/http, const StatusIMUsed ideal-int
+pkg net/http, const StatusInsufficientStorage = 507
+pkg net/http, const StatusInsufficientStorage ideal-int
+pkg net/http, const StatusLocked = 423
+pkg net/http, const StatusLocked ideal-int
+pkg net/http, const StatusLoopDetected = 508
+pkg net/http, const StatusLoopDetected ideal-int
+pkg net/http, const StatusMultiStatus = 207
+pkg net/http, const StatusMultiStatus ideal-int
+pkg net/http, const StatusNotExtended = 510
+pkg net/http, const StatusNotExtended ideal-int
+pkg net/http, const StatusPermanentRedirect = 308
+pkg net/http, const StatusPermanentRedirect ideal-int
+pkg net/http, const StatusProcessing = 102
+pkg net/http, const StatusProcessing ideal-int
+pkg net/http, const StatusUnprocessableEntity = 422
+pkg net/http, const StatusUnprocessableEntity ideal-int
+pkg net/http, const StatusUpgradeRequired = 426
+pkg net/http, const StatusUpgradeRequired ideal-int
+pkg net/http, const StatusVariantAlsoNegotiates = 506
+pkg net/http, const StatusVariantAlsoNegotiates ideal-int
 pkg net/http, method (*Request) Context() context.Context
 pkg net/http, method (*Request) WithContext(context.Context) *Request
 pkg net/http, type Request struct, Response *Response
 pkg net/http, type Response struct, Uncompressed bool
+pkg net/http, type Transport struct, DialContext func(context.Context, string, string) (net.Conn, error)
 pkg net/http, type Transport struct, Dialer *net.Dialer
 pkg net/http, type Transport struct, IdleConnTimeout time.Duration
 pkg net/http, type Transport struct, MaxIdleConns int
@@ -240,12 +267,12 @@ pkg runtime, type Frame struct, Line int
 pkg runtime, type Frame struct, PC uintptr
 pkg runtime, type Frames struct
 pkg strings, method (*Reader) Reset(string)
-pkg syscall (linux-386), type SysProcAttr struct, Unshare uintptr
-pkg syscall (linux-386-cgo), type SysProcAttr struct, Unshare uintptr
-pkg syscall (linux-amd64), type SysProcAttr struct, Unshare uintptr
-pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Unshare uintptr
-pkg syscall (linux-arm), type SysProcAttr struct, Unshare uintptr
-pkg syscall (linux-arm-cgo), type SysProcAttr struct, Unshare uintptr
+pkg syscall (linux-386), type SysProcAttr struct, Unshareflags uintptr
+pkg syscall (linux-386-cgo), type SysProcAttr struct, Unshareflags uintptr
+pkg syscall (linux-amd64), type SysProcAttr struct, Unshareflags uintptr
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Unshareflags uintptr
+pkg syscall (linux-arm), type SysProcAttr struct, Unshareflags uintptr
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, Unshareflags uintptr
 pkg testing, method (*B) Run(string, func(*B)) bool
 pkg testing, method (*T) Run(string, func(*T)) bool
 pkg testing, type InternalExample struct, Unordered bool
