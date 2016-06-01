@@ -1131,7 +1131,7 @@ On Linux, the
 <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a> struct
 (as used in
 <a href="/pkg/os/exec/#Cmd"><code>os/exec.Cmd</code></a>'s <code>SysProcAttr</code> field)
-has a new <code>Unshare</code> field.
+has a new <code>Unshareflags</code> field.
 If the field is nonzero, the child process created by
 <a href="/pkg/syscall/#ForkExec"><code>ForkExec</code></a>
 (as used in <code>exec.Cmd</code>'s <code>Run</code> method)
