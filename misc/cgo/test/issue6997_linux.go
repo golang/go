@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !android
+
 // Test that pthread_cancel works as expected
 // (NPTL uses SIGRTMIN to implement thread cancelation)
 // See https://golang.org/issue/6997
