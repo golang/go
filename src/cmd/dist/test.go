@@ -465,11 +465,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if t.cgoEnabled && !t.iOS() {
-		// TODO(crawshaw): reenable on iOS
-		// golang.org/issue/15919
-		//
-		// These tests are not designed to run off the host.
+	if t.cgoEnabled {
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_test",
 			heading: "../misc/cgo/test",
@@ -728,12 +724,6 @@ func (t *tester) runHostTest(dirBanner, pkg string) error {
 
 func (t *tester) cgoTest(dt *distTest) error {
 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
-
-	if t.iOS() {
-		cmd := t.dirCmd("misc/cgo/test", "go", "test", t.tags())
-		cmd.Env = env
-		return cmd.Run()
-	}
 
 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
 	cmd.Env = env
