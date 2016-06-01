@@ -17,5 +17,6 @@ func (d *Dep) Method() int {
 }
 
 func F() int {
+	defer func() {}()
 	return V
 }
