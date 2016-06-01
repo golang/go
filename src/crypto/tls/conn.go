@@ -71,10 +71,12 @@ type Conn struct {
 	clientProtocolFallback bool
 
 	// input/output
-	in, out  halfConn     // in.Mutex < out.Mutex
-	rawInput *block       // raw input, right off the wire
-	input    *block       // application data waiting to be read
-	hand     bytes.Buffer // handshake data waiting to be read
+	in, out   halfConn     // in.Mutex < out.Mutex
+	rawInput  *block       // raw input, right off the wire
+	input     *block       // application data waiting to be read
+	hand      bytes.Buffer // handshake data waiting to be read
+	buffering bool         // whether records are buffered in sendBuf
+	sendBuf   []byte       // a buffer of records waiting to be sent
 
 	// bytesSent counts the bytes of application data sent.
 	// packetsSent counts packets.
@@ -803,6 +805,30 @@ func (c *Conn) maxPayloadSizeForWrite(typ recordType, explicitIVLen int) int {
 	return n
 }
 
+// c.out.Mutex <= L.
+func (c *Conn) write(data []byte) (int, error) {
+	if c.buffering {
+		c.sendBuf = append(c.sendBuf, data...)
+		return len(data), nil
+	}
+
+	n, err := c.conn.Write(data)
+	c.bytesSent += int64(n)
+	return n, err
+}
+
+func (c *Conn) flush() (int, error) {
+	if len(c.sendBuf) == 0 {
+		return 0, nil
+	}
+
+	n, err := c.conn.Write(c.sendBuf)
+	c.bytesSent += int64(n)
+	c.sendBuf = nil
+	c.buffering = false
+	return n, err
+}
+
 // writeRecordLocked writes a TLS record with the given type and payload to the
 // connection and updates the record layer state.
 // c.out.Mutex <= L.
@@ -862,10 +888,9 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
 		}
 		copy(b.data[recordHeaderLen+explicitIVLen:], data)
 		c.out.encrypt(b, explicitIVLen)
-		if _, err := c.conn.Write(b.data); err != nil {
+		if _, err := c.write(b.data); err != nil {
 			return n, err
 		}
-		c.bytesSent += int64(m)
 		n += m
 		data = data[m:]
 	}
