@@ -57,8 +57,8 @@ func f4(e interface{}) {
 	case int:
 	case int: // ERROR "duplicate case int in type switch"
 	case int64:
-	case error: // ERROR "duplicate case error in type switch"
 	case error:
+	case error: // ERROR "duplicate case error in type switch"
 	case fmt.Stringer:
 	case fmt.Stringer: // ERROR "duplicate case fmt.Stringer in type switch"
 	case struct {
