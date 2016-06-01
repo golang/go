@@ -290,6 +290,8 @@ type Func struct {
 	InlCost int32
 	Depth   int32
 
+	Label int32 // largest auto-generated label in this function
+
 	Endlineno int32
 	WBLineno  int32 // line number of first write barrier
 

@@ -4,10 +4,7 @@
 
 package gc
 
-import (
-	"sort"
-	"strconv"
-)
+import "sort"
 
 const (
 	// expression switch
@@ -361,7 +358,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		n.Op = OCASE
 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
 
-		jmp := Nod(OGOTO, newCaseLabel(), nil)
+		jmp := Nod(OGOTO, autolabel("s"), nil)
 		if n.List.Len() == 0 {
 			if def != nil {
 				Yyerror("more than one default case")
@@ -422,16 +419,6 @@ func casebody(sw *Node, typeswvar *Node) {
 	sw.List.Set(cas)
 	sw.Nbody.Set(stat)
 	lineno = lno
-}
-
-// nSwitchLabel is the number of switch labels generated.
-// This should be per-function, but it is a global counter for now.
-var nSwitchLabel int
-
-func newCaseLabel() *Node {
-	label := strconv.Itoa(nSwitchLabel)
-	nSwitchLabel++
-	return newname(Lookup(label))
 }
 
 // caseClauses generates a slice of caseClauses
@@ -590,7 +577,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		i.Nbody.Set1(typenil)
 	} else {
 		// Jump to default case.
-		lbl := newCaseLabel()
+		lbl := autolabel("s")
 		i.Nbody.Set1(Nod(OGOTO, lbl, nil))
 		// Wrap default case with label.
 		blk := Nod(OBLOCK, nil, nil)
