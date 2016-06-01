@@ -201,7 +201,6 @@ pkg net/http, method (*Request) WithContext(context.Context) *Request
 pkg net/http, type Request struct, Response *Response
 pkg net/http, type Response struct, Uncompressed bool
 pkg net/http, type Transport struct, DialContext func(context.Context, string, string) (net.Conn, error)
-pkg net/http, type Transport struct, Dialer *net.Dialer
 pkg net/http, type Transport struct, IdleConnTimeout time.Duration
 pkg net/http, type Transport struct, MaxIdleConns int
 pkg net/http, type Transport struct, MaxResponseHeaderBytes int64
@@ -240,7 +239,6 @@ pkg net/http/httptrace, type GotConnInfo struct, WasIdle bool
 pkg net/http/httptrace, type WroteRequestInfo struct
 pkg net/http/httptrace, type WroteRequestInfo struct, Err error
 pkg net/url, type URL struct, ForceQuery bool
-pkg os, method (*File) Size() (int64, error)
 pkg os/exec, func CommandContext(context.Context, string, ...string) *Cmd
 pkg os/user, func LookupGroup(string) (*Group, error)
 pkg os/user, func LookupGroupId(string) (*Group, error)
