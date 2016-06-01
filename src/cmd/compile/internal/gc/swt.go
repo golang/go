@@ -453,8 +453,8 @@ func genCaseClauses(sw *Node, kind int) caseClauses {
 				c.typ = caseKindTypeVar
 			default:
 				c.typ = caseKindTypeConst
-				c.hash = typehash(n.Left.Type)
 			}
+			c.hash = typehash(n.Left.Type)
 		} else {
 			// expression switch
 			switch consttype(n.Left) {
@@ -477,37 +477,53 @@ func genCaseClauses(sw *Node, kind int) caseClauses {
 
 	// sort by value and diagnose duplicate cases
 	if kind == switchKindType {
-		// type switch
-		sort.Sort(caseClauseByType(cc.list))
-		for i, c1 := range cc.list {
-			for _, c2 := range cc.list[i+1:] {
-				if c1.hash != c2.hash {
-					break
-				}
-				if Eqtype(c1.node.Left.Type, c2.node.Left.Type) {
-					yyerrorl(c2.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
-				}
-			}
-		}
+		checkDupTypeCases(cc.list)
 	} else {
-		// expression switch
-		sort.Sort(caseClauseByExpr(cc.list))
-		for i, c1 := range cc.list {
-			if i+1 == len(cc.list) {
-				break
-			}
-			c2 := cc.list[i+1]
-			if exprcmp(c1, c2) != 0 {
-				continue
-			}
-			setlineno(c2.node)
-			Yyerror("duplicate case %v in switch\n\tprevious case at %v", c1.node.Left, c1.node.Line())
-		}
+		checkDupExprCases(cc.list)
 	}
 
-	// put list back in processing order
-	sort.Sort(caseClauseByOrd(cc.list))
 	return cc
+}
+
+func checkDupTypeCases(cc []caseClause) {
+	// We store seen types in a map keyed by type hash.
+	// It is possible, but very unlikely, for multiple distinct types to have the same hash.
+	seen := make(map[uint32][]*Node)
+	// To avoid many small allocations of length 1 slices,
+	// also set up a single large slice to slice into.
+	nn := make([]*Node, 0, len(cc))
+Outer:
+	for _, c := range cc {
+		prev, ok := seen[c.hash]
+		if !ok {
+			// First entry for this hash.
+			nn = append(nn, c.node)
+			seen[c.hash] = nn[len(nn)-1 : len(nn):len(nn)]
+			continue
+		}
+		for _, n := range prev {
+			if Eqtype(n.Left.Type, c.node.Left.Type) {
+				yyerrorl(c.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
+				// avoid double-reporting errors
+				continue Outer
+			}
+		}
+		seen[c.hash] = append(seen[c.hash], c.node)
+	}
+}
+
+func checkDupExprCases(cc []caseClause) {
+	sort.Sort(caseClauseByExpr(cc))
+	for i, c1 := range cc[:len(cc)-1] {
+		c2 := cc[i+1]
+		if exprcmp(c1, c2) != 0 {
+			continue
+		}
+		setlineno(c2.node)
+		Yyerror("duplicate case %v in switch\n\tprevious case at %v", c1.node.Left, c1.node.Line())
+	}
+	// put list back in processing order
+	sort.Sort(caseClauseByOrd(cc))
 }
 
 // walk generates an AST that implements sw,
@@ -801,18 +817,9 @@ func (x caseClauseByType) Len() int      { return len(x) }
 func (x caseClauseByType) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x caseClauseByType) Less(i, j int) bool {
 	c1, c2 := x[i], x[j]
-	switch {
-	// sort non-constants last
-	case c1.typ != caseKindTypeConst:
-		return false
-	case c2.typ != caseKindTypeConst:
-		return true
-
-	// sort by hash code
-	case c1.hash != c2.hash:
+	// sort by hash code, then ordinal (for the rare case of hash collisions)
+	if c1.hash != c2.hash {
 		return c1.hash < c2.hash
 	}
-
-	// sort by ordinal
 	return c1.ordinal < c2.ordinal
 }
