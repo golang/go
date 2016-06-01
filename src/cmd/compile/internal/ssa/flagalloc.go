@@ -95,18 +95,9 @@ func flagalloc(f *Func) {
 					continue
 				}
 				// Recalculate a
-				var c1 *Value
-				if a.Op == OpARMCarry {
-					// Pseudo-op does not generate flags, its arg actually does
-					//TODO: generalize this condition?
-					c1 = a.Args[0].copyInto(b)
-				}
-				c := a.copyInto(b)
+				c := copyFlags(a, b)
 				// Update v.
 				v.SetArg(i, c)
-				if c1 != nil {
-					c.SetArg(0, c1)
-				}
 				// Remember the most-recently computed flag value.
 				flag = a
 			}
@@ -128,7 +119,7 @@ func flagalloc(f *Func) {
 		if v := end[b.ID]; v != nil && v != flag {
 			// Need to reissue flag generator for use by
 			// subsequent blocks.
-			_ = v.copyInto(b)
+			copyFlags(v, b)
 			// Note: this flag generator is not properly linked up
 			// with the flag users. This breaks the SSA representation.
 			// We could fix up the users with another pass, but for now
@@ -141,4 +132,20 @@ func flagalloc(f *Func) {
 	for _, b := range f.Blocks {
 		b.FlagsLiveAtEnd = end[b.ID] != nil
 	}
+}
+
+// copyFlags copies v (flag generator) into b, returns the copy.
+// If v's arg is also flags, copy recursively.
+func copyFlags(v *Value, b *Block) *Value {
+	flagsArgs := make(map[int]*Value)
+	for i, a := range v.Args {
+		if a.Type.IsFlags() || a.Type.IsTuple() {
+			flagsArgs[i] = copyFlags(a, b)
+		}
+	}
+	c := v.copyInto(b)
+	for i, a := range flagsArgs {
+		c.SetArg(i, a)
+	}
+	return c
 }

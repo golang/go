@@ -211,6 +211,7 @@ func schedule(f *Func) {
 
 		// Schedule highest priority value, update use counts, repeat.
 		order = order[:0]
+		tuples := make(map[ID][]*Value)
 		for {
 			// Find highest priority schedulable value.
 			// Note that schedule is assembled backwards.
@@ -222,7 +223,31 @@ func schedule(f *Func) {
 			v := heap.Pop(priq).(*Value)
 
 			// Add it to the schedule.
-			order = append(order, v)
+			// Do not emit tuple-reading ops until we're ready to emit the tuple-generating op.
+			//TODO: maybe remove ReadTuple score above, if it does not help on performance
+			switch {
+			case v.Op == OpARMCarry || v.Op == OpARMLoweredSelect0:
+				if tuples[v.Args[0].ID] == nil {
+					tuples[v.Args[0].ID] = make([]*Value, 2)
+				}
+				tuples[v.Args[0].ID][0] = v
+			case v.Op == OpARMLoweredSelect1:
+				if tuples[v.Args[0].ID] == nil {
+					tuples[v.Args[0].ID] = make([]*Value, 2)
+				}
+				tuples[v.Args[0].ID][1] = v
+			case v.Type.IsTuple() && tuples[v.ID] != nil:
+				if tuples[v.ID][1] != nil {
+					order = append(order, tuples[v.ID][1])
+				}
+				if tuples[v.ID][0] != nil {
+					order = append(order, tuples[v.ID][0])
+				}
+				delete(tuples, v.ID)
+				fallthrough
+			default:
+				order = append(order, v)
+			}
 
 			// Update use counts of arguments.
 			for _, w := range v.Args {
