@@ -358,9 +358,7 @@ func typeinit() {
 	itable = typPtr(Types[TUINT8])
 }
 
-func lexinit1() {
-	// t = interface { Error() string }
-
+func makeErrorInterface() *Type {
 	rcvr := typ(TSTRUCT)
 	rcvr.StructType().Funarg = FunargRcvr
 	field := newField()
@@ -387,10 +385,18 @@ func lexinit1() {
 	field.Type = f
 	t.SetFields([]*Field{field})
 
+	return t
+}
+
+func lexinit1() {
 	// error type
 	s := Pkglookup("error", builtinpkg)
-	errortype = t
+	errortype = makeErrorInterface()
 	errortype.Sym = s
+	// TODO: If we can prove that it's safe to set errortype.Orig here
+	// than we don't need the special errortype/errorInterface case in
+	// bexport.go. See also issue #15920.
+	// errortype.Orig = makeErrorInterface()
 	s.Def = typenod(errortype)
 
 	// byte alias
