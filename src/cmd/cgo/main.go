@@ -52,7 +52,7 @@ type File struct {
 	Package  string              // Package name
 	Preamble string              // C preamble (doc comment on import "C")
 	Ref      []*Ref              // all references to C.xxx in AST
-	Calls    []*ast.CallExpr     // all calls to C.xxx in AST
+	Calls    []*Call             // all calls to C.xxx in AST
 	ExpFunc  []*ExpFunc          // exported functions for this file
 	Name     map[string]*Name    // map from Go name to Name
 }
@@ -64,6 +64,12 @@ func nameKeys(m map[string]*Name) []string {
 	}
 	sort.Strings(ks)
 	return ks
+}
+
+// A Call refers to a call of a C.xxx function in the AST.
+type Call struct {
+	Call     *ast.CallExpr
+	Deferred bool
 }
 
 // A Ref refers to an expression of the form C.xxx in the AST.
