@@ -49,7 +49,11 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64)) strin
 
 	op := inst.Op.String()
 	if plan9Suffix[inst.Op] {
-		switch inst.DataSize {
+		s := inst.DataSize
+		if inst.MemBytes != 0 {
+			s = inst.MemBytes * 8
+		}
+		switch s {
 		case 8:
 			op += "B"
 		case 16:
