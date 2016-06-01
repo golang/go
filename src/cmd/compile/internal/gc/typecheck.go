@@ -3185,6 +3185,9 @@ func samesafeexpr(l *Node, r *Node) bool {
 
 	case OINDEX:
 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
+
+	case OLITERAL:
+		return eqval(l.Val(), r.Val())
 	}
 
 	return false
