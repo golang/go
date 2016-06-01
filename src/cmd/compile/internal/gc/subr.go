@@ -246,6 +246,20 @@ func LookupN(prefix string, n int) *Sym {
 	return LookupBytes(b)
 }
 
+// autolabel generates a new Name node for use with
+// an automatically generated label.
+// prefix is a short mnemonic (e.g. "s" for switch)
+// to help with debugging.
+func autolabel(prefix string) *Node {
+	fn := Curfn
+	if Curfn == nil {
+		Fatalf("autolabel outside function")
+	}
+	n := fn.Func.Label
+	fn.Func.Label++
+	return newname(LookupN("."+prefix, int(n)))
+}
+
 var initSyms []*Sym
 
 var nopkg = &Pkg{

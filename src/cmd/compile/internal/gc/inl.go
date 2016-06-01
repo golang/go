@@ -766,7 +766,9 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		ninit.Append(as)
 	}
 
-	retlabel := newlabel_inl()
+	retlabel := autolabel("i")
+	retlabel.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
+
 	inlgen++
 
 	subst := inlsubst{
@@ -873,15 +875,6 @@ func argvar(t *Type, i int) *Node {
 	n.Used = true
 	n.Name.Curfn = Curfn // the calling function, not the called one
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
-	return n
-}
-
-var newlabel_inl_label int
-
-func newlabel_inl() *Node {
-	newlabel_inl_label++
-	n := newname(LookupN(".inlret", newlabel_inl_label))
-	n.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
 	return n
 }
 
