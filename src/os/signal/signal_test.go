@@ -139,6 +139,19 @@ func testCancel(t *testing.T, ignore bool) {
 		Reset(syscall.SIGWINCH, syscall.SIGHUP)
 	}
 
+	// At this point we do not expect any further signals on c1.
+	// However, it is just barely possible that the initial SIGWINCH
+	// at the start of this function was delivered after we called
+	// Notify on c1. In that case the waitSig for SIGWINCH may have
+	// picked up that initial SIGWINCH, and the second SIGWINCH may
+	// then have been delivered on the channel. This sequence of events
+	// may have caused issue 15661.
+	// So, read any possible signal from the channel now.
+	select {
+	case <-c1:
+	default:
+	}
+
 	// Send this process a SIGWINCH. It should be ignored.
 	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
 
