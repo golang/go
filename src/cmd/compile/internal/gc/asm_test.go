@@ -61,7 +61,7 @@ func compileToAsm(dir, arch, pkg string) string {
 
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
-	cmd.Env = append(cmd.Env, "GOARCH="+arch)
+	cmd.Env = append([]string{"GOARCH=" + arch}, os.Environ()...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
