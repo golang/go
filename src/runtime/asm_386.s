@@ -539,13 +539,20 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
-// 2. sub 5 bytes from the callers return
+// 2. sub 5 bytes (the length of CALL & a 32 bit displacement) from the callers
+//    return (when building for shared libraries, subtract 16 bytes -- 5 bytes
+//    for CALL & displacement to call __x86.get_pc_thunk.cx, 6 bytes for the
+//    LEAL to load the offset into BX, and finally 5 for the call & displacement)
 // 3. jmp to the argument
 TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVL	fv+0(FP), DX	// fn
 	MOVL	argp+4(FP), BX	// caller sp
 	LEAL	-4(BX), SP	// caller sp after CALL
+#ifdef GOBUILDMODE_shared
+	SUBL	$16, (SP)	// return to CALL again
+#else
 	SUBL	$5, (SP)	// return to CALL again
+#endif
 	MOVL	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
