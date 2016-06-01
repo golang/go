@@ -16,16 +16,6 @@ const (
 	switchKindType // switch a.(type) {...}
 )
 
-const (
-	// expression switch
-	caseKindExprConst = iota // case 5:
-	caseKindExprVar          // case x:
-
-	// type switch
-	caseKindTypeConst // case time.Time: (concrete type, has type hash)
-	caseKindTypeVar   // case io.Reader: (interface type)
-)
-
 const binarySearchMin = 4 // minimum number of cases for binary search
 
 // An exprSwitch walks an expression switch.
@@ -46,7 +36,11 @@ type caseClause struct {
 	node    *Node  // points at case statement
 	ordinal int    // position in switch
 	hash    uint32 // hash of a type switch
-	typ     uint8  // type of case
+	// isconst indicates whether this case clause is a constant,
+	// for the purposes of the switch code generation.
+	// For expression switches, that's generally literals (case 5:, not case x:).
+	// For type switches, that's concrete types (case time.Time:), not interfaces (case io.Reader:).
+	isconst bool
 }
 
 // caseClauses are all the case clauses in a switch statement.
@@ -260,7 +254,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	// handle the cases in order
 	for len(cc) > 0 {
 		// deal with expressions one at a time
-		if !okforcmp[t.Etype] || cc[0].typ != caseKindExprConst {
+		if !okforcmp[t.Etype] || !cc[0].isconst {
 			a := s.walkCases(cc[:1])
 			cas = append(cas, a)
 			cc = cc[1:]
@@ -269,7 +263,7 @@ func (s *exprSwitch) walk(sw *Node) {
 
 		// do binary search on runs of constants
 		var run int
-		for run = 1; run < len(cc) && cc[run].typ == caseKindExprConst; run++ {
+		for run = 1; run < len(cc) && cc[run].isconst; run++ {
 		}
 
 		// sort and compile constants
@@ -448,20 +442,13 @@ func genCaseClauses(sw *Node, kind int) caseClauses {
 		c := caseClause{node: n, ordinal: len(cc.list)}
 		if kind == switchKindType {
 			// type switch
-			switch {
-			case n.Left.Type.IsInterface():
-				c.typ = caseKindTypeVar
-			default:
-				c.typ = caseKindTypeConst
-			}
+			c.isconst = !n.Left.Type.IsInterface()
 			c.hash = typehash(n.Left.Type)
 		} else {
 			// expression switch
 			switch consttype(n.Left) {
 			case CTFLT, CTINT, CTRUNE, CTSTR:
-				c.typ = caseKindExprConst
-			default:
-				c.typ = caseKindExprVar
+				c.isconst = true
 			}
 		}
 		cc.list = append(cc.list, c)
@@ -619,18 +606,12 @@ func (s *typeSwitch) walk(sw *Node) {
 
 	// insert type equality check into each case block
 	for _, c := range cc {
-		n := c.node
-		switch c.typ {
-		case caseKindTypeVar, caseKindTypeConst:
-			n.Right = s.typeone(n)
-		default:
-			Fatalf("typeSwitch with bad kind: %d", c.typ)
-		}
+		c.node.Right = s.typeone(c.node)
 	}
 
 	// generate list of if statements, binary search for constant sequences
 	for len(cc) > 0 {
-		if cc[0].typ != caseKindTypeConst {
+		if !cc[0].isconst {
 			n := cc[0].node
 			cas = append(cas, n.Right)
 			cc = cc[1:]
@@ -639,7 +620,7 @@ func (s *typeSwitch) walk(sw *Node) {
 
 		// identify run of constants
 		var run int
-		for run = 1; run < len(cc) && cc[run].typ == caseKindTypeConst; run++ {
+		for run = 1; run < len(cc) && cc[run].isconst; run++ {
 		}
 
 		// sort by hash
@@ -716,7 +697,7 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 		var cas []*Node
 		for _, c := range cc {
 			n := c.node
-			if c.typ != caseKindTypeConst {
+			if !c.isconst {
 				Fatalf("typeSwitch walkCases")
 			}
 			a := Nod(OIF, nil, nil)
@@ -754,10 +735,10 @@ func (x caseClauseByExpr) Less(i, j int) bool {
 
 func exprcmp(c1, c2 caseClause) int {
 	// sort non-constants last
-	if c1.typ != caseKindExprConst {
+	if !c1.isconst {
 		return +1
 	}
-	if c2.typ != caseKindExprConst {
+	if !c2.isconst {
 		return -1
 	}
 
