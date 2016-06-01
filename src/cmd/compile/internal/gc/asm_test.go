@@ -61,7 +61,7 @@ func compileToAsm(dir, arch, pkg string) string {
 
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
-	cmd.Env = append([]string{"GOARCH=" + arch}, os.Environ()...)
+	cmd.Env = mergeEnvLists([]string{"GOARCH=" + arch}, os.Environ())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -102,4 +102,23 @@ func f(x int) int {
 }`,
 		[]string{"\tSHLQ\t\\$5,", "\tLEAQ\t\\(.*\\)\\(.*\\*2\\),"},
 	},
+}
+
+// mergeEnvLists merges the two environment lists such that
+// variables with the same name in "in" replace those in "out".
+// This always returns a newly allocated slice.
+func mergeEnvLists(in, out []string) []string {
+	out = append([]string(nil), out...)
+NextVar:
+	for _, inkv := range in {
+		k := strings.SplitAfterN(inkv, "=", 2)[0]
+		for i, outkv := range out {
+			if strings.HasPrefix(outkv, k) {
+				out[i] = inkv
+				continue NextVar
+			}
+		}
+		out = append(out, inkv)
+	}
+	return out
 }
