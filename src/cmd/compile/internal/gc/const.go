@@ -61,6 +61,34 @@ func (v Val) Ctype() Ctype {
 	}
 }
 
+func eqval(a, b Val) bool {
+	if a.Ctype() != b.Ctype() {
+		return false
+	}
+	switch x := a.U.(type) {
+	default:
+		Fatalf("unexpected Ctype for %T", a.U)
+		panic("not reached")
+	case *NilVal:
+		return true
+	case bool:
+		y := b.U.(bool)
+		return x == y
+	case *Mpint:
+		y := b.U.(*Mpint)
+		return x.Cmp(y) == 0
+	case *Mpflt:
+		y := b.U.(*Mpflt)
+		return x.Cmp(y) == 0
+	case *Mpcplx:
+		y := b.U.(*Mpcplx)
+		return x.Real.Cmp(&y.Real) == 0 && x.Imag.Cmp(&y.Imag) == 0
+	case string:
+		y := b.U.(string)
+		return x == y
+	}
+}
+
 type NilVal struct{}
 
 // IntLiteral returns the Node's literal value as an integer.
