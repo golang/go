@@ -3186,8 +3186,13 @@ func samesafeexpr(l *Node, r *Node) bool {
 	case ODOT, ODOTPTR:
 		return l.Sym != nil && r.Sym != nil && l.Sym == r.Sym && samesafeexpr(l.Left, r.Left)
 
-	case OIND:
+	case OIND, OCONVNOP:
 		return samesafeexpr(l.Left, r.Left)
+
+	case OCONV:
+		// Some conversions can't be reused, such as []byte(str).
+		// Allow only numeric-ish types. This is a bit conservative.
+		return issimple[l.Type.Etype] && samesafeexpr(l.Left, r.Left)
 
 	case OINDEX:
 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
