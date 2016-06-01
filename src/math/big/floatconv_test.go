@@ -290,6 +290,11 @@ func TestFloat64Text(t *testing.T) {
 		// Issue 2625.
 		{383260575764816448, 'f', 0, "383260575764816448"},
 		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
+
+		// Issue 15918.
+		{1, 'f', -10, "1"},
+		{1, 'f', -11, "1"},
+		{1, 'f', -12, "1"},
 	} {
 		// The test cases are from the strconv package which tests float64 values.
 		// When formatting values with prec = -1 (shortest representation),
