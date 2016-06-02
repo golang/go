@@ -844,8 +844,8 @@ func isSystemGoroutine(gp *g) bool {
 // If the Context field is not 0, then it is a value returned by a
 // previous call to the context function. This case is called when the
 // context is no longer needed; that is, when the Go code is returning
-// to its C code caller. This permits permits the context function to
-// release any associated resources.
+// to its C code caller. This permits the context function to release
+// any associated resources.
 //
 // While it would be correct for the context function to record a
 // complete a stack trace whenever it is called, and simply copy that
