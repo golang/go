@@ -703,9 +703,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	var scanSize uintptr
-	if noscan {
-		heapBitsSetTypeNoScan(uintptr(x))
-	} else {
+	if !noscan {
 		// If allocating a defer+arg block, now that we've picked a malloc size
 		// large enough to hold everything, cut the "asked for" size down to
 		// just the defer header, so that the GC bitmap will record the arg block
