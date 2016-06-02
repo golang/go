@@ -495,17 +495,6 @@ func (h heapBits) isPointer() bool {
 	return h.bits()&bitPointer != 0
 }
 
-// hasPointers reports whether the given object has any pointers.
-// It must be told how large the object at h is for efficiency.
-// h must describe the initial word of the object.
-func (h heapBits) hasPointers(size uintptr) bool {
-	// TODO: Use span.noScan instead of the heap bitmap.
-	if size == sys.PtrSize { // 1-word objects are always pointers
-		return true
-	}
-	return (*h.bitp>>h.shift)&bitScan != 0
-}
-
 // isCheckmarked reports whether the heap bits have the checkmarked bit set.
 // It must be told how large the object at h is, because the encoding of the
 // checkmark bit varies by size.
