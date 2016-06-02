@@ -975,6 +975,15 @@ the address encoder, namely
 <a href="/pkg/net/mail/#Address.String"><code>String</code></a> method,
 continues to escape all UTF-8 text following <a href="https://tools.ietf.org/html/rfc5322">RFC 5322</a>.
 </p>
+
+<p>
+The <a href="/pkg/net/mail/#ParseAddress"><code>ParseAddress</code></a>
+function and
+the <a href="/pkg/net/mail/#AddressParser.Parse"><code>AddressParser.Parse</code></a>
+method are stricter.
+They used to ignore any characters following an e-mail address, but
+will now return an error for anything other than whitespace.
+</p>
 </dd>
 
 <dl id="net/url"><a href="/pkg/net/url/">net/url</a></dl>
