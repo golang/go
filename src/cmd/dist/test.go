@@ -728,7 +728,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
 	cmd.Env = env
 
-	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" {
+	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" && (t.goos != "darwin" || t.goarch != "arm") {
 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
 		// linkmode=internal fails on ppc64le because cmd/link doesn't
 		// handle the TOC correctly (issue 15409).
