@@ -2351,6 +2351,9 @@ type structTypeFixed32 struct {
 // StructOf returns the struct type containing fields.
 // The Offset and Index fields are ignored and computed as they would be
 // by the compiler.
+//
+// StructOf currently does not generate wrapper methods for embedded fields.
+// This limitation may be lifted in a future version.
 func StructOf(fields []StructField) Type {
 	var (
 		hash       = fnv1(0, []byte("struct {")...)
