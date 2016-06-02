@@ -5794,7 +5794,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:   "MOVBQZX",
 		argLen: 1,
-		asm:    x86.AMOVBQZX,
+		asm:    x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5820,7 +5820,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:   "MOVWQZX",
 		argLen: 1,
-		asm:    x86.AMOVWQZX,
+		asm:    x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5846,7 +5846,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:   "MOVLQZX",
 		argLen: 1,
-		asm:    x86.AMOVLQZX,
+		asm:    x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
