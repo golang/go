@@ -962,12 +962,21 @@ func isSystemGoroutine(gp *g) bool {
 // traceback function will only be called with the context field set
 // to zero.  If the context function is nil, then calls from Go to C
 // to Go will not show a traceback for the C portion of the call stack.
+//
+// SetCgoTraceback should be called only once, ideally from an init function.
 func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
 	if version != 0 {
 		panic("unsupported version")
 	}
 
+	if cgoTraceback != nil && cgoTraceback != traceback ||
+		cgoContext != nil && cgoContext != context ||
+		cgoSymbolizer != nil && cgoSymbolizer != symbolizer {
+		panic("call SetCgoTraceback only once")
+	}
+
 	cgoTraceback = traceback
+	cgoContext = context
 	cgoSymbolizer = symbolizer
 
 	// The context function is called when a C function calls a Go
@@ -978,6 +987,7 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 }
 
 var cgoTraceback unsafe.Pointer
+var cgoContext unsafe.Pointer
 var cgoSymbolizer unsafe.Pointer
 
 // cgoTracebackArg is the type passed to cgoTraceback.
