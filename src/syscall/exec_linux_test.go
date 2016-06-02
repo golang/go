@@ -145,7 +145,18 @@ func TestUnshare(t *testing.T) {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
-	cmd := exec.Command("cat", "/proc/net/dev")
+	path := "/proc/net/dev"
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support proc filesystem")
+		}
+		if os.IsPermission(err) {
+			t.Skip("unable to test proc filesystem due to permissions")
+		}
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Unshareflags: syscall.CLONE_NEWNET,
 	}
