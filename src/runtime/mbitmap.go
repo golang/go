@@ -45,6 +45,11 @@
 // not checkmarked, and is the dead encoding.
 // These properties must be preserved when modifying the encoding.
 //
+// The bitmap for noscan spans is not maintained. Code must ensure
+// that an object is scannable before consulting its bitmap by
+// checking either the noscan bit in the span or by consulting its
+// type's information.
+//
 // Checkmarks
 //
 // In a concurrent garbage collector, one worries about failing to mark
@@ -1317,13 +1322,6 @@ Phase4:
 			unlock(&debugPtrmask.lock)
 		}
 	}
-}
-
-// heapBitsSetTypeNoScan marks x as noscan by setting the first word
-// of x in the heap bitmap to scalar/dead.
-func heapBitsSetTypeNoScan(x uintptr) {
-	h := heapBitsForAddr(uintptr(x))
-	*h.bitp &^= (bitPointer | bitScan) << h.shift
 }
 
 var debugPtrmask struct {
