@@ -1127,7 +1127,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 			// paths), in which case we must *not* enqueue
 			// oblets since their bitmaps will be
 			// uninitialized.
-			if !hbits.hasPointers(n) {
+			if s.spanclass.noscan() {
 				// Bypass the whole scan.
 				gcw.bytesMarked += uint64(n)
 				return
@@ -1257,7 +1257,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 		atomic.Or8(mbits.bytep, mbits.mask)
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
-		if !hbits.hasPointers(span.elemsize) {
+		if span.spanclass.noscan() {
 			gcw.bytesMarked += uint64(span.elemsize)
 			return
 		}
