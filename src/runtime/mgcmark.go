@@ -1227,7 +1227,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 		atomic.Or8(mbits.bytep, mbits.mask)
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
-		if !hbits.hasPointers(span.elemsize) {
+		if span.spanclass.noscan() {
 			gcw.bytesMarked += uint64(span.elemsize)
 			return
 		}
