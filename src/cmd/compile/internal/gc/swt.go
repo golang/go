@@ -247,7 +247,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	}
 
 	// Enumerate the cases and prepare the default case.
-	clauses := genCaseClauses(sw, s.kind)
+	clauses := s.genCaseClauses(sw.List.Slice())
 	sw.List.Set(nil)
 	cc := clauses.list
 
@@ -414,12 +414,10 @@ func casebody(sw *Node, typeswvar *Node) {
 	lineno = lno
 }
 
-// genCaseClauses generates the caseClauses value
-// corresponding to the clauses in the switch statement sw.
-// Kind is the kind of switch statement.
-func genCaseClauses(sw *Node, kind int) caseClauses {
+// genCaseClauses generates the caseClauses value for clauses.
+func (s *exprSwitch) genCaseClauses(clauses []*Node) caseClauses {
 	var cc caseClauses
-	for _, n := range sw.List.Slice() {
+	for _, n := range clauses {
 		if n.Left == nil {
 			// default case
 			if cc.defjmp != nil {
@@ -428,8 +426,36 @@ func genCaseClauses(sw *Node, kind int) caseClauses {
 			cc.defjmp = n.Right
 			continue
 		}
+		c := caseClause{node: n, ordinal: len(cc.list)}
+		switch consttype(n.Left) {
+		case CTFLT, CTINT, CTRUNE, CTSTR:
+			c.isconst = true
+		}
+		cc.list = append(cc.list, c)
+	}
 
-		if kind == switchKindType && n.Left.Op == OLITERAL {
+	if cc.defjmp == nil {
+		cc.defjmp = Nod(OBREAK, nil, nil)
+	}
+
+	// diagnose duplicate cases
+	s.checkDupCases(cc.list)
+	return cc
+}
+
+// genCaseClauses generates the caseClauses value for clauses.
+func (s *typeSwitch) genCaseClauses(clauses []*Node) caseClauses {
+	var cc caseClauses
+	for _, n := range clauses {
+		switch {
+		case n.Left == nil:
+			// default case
+			if cc.defjmp != nil {
+				Fatalf("duplicate default case not detected during typechecking")
+			}
+			cc.defjmp = n.Right
+			continue
+		case n.Left.Op == OLITERAL:
 			// nil case in type switch
 			if cc.niljmp != nil {
 				Fatalf("duplicate nil case not detected during typechecking")
@@ -439,17 +465,11 @@ func genCaseClauses(sw *Node, kind int) caseClauses {
 		}
 
 		// general case
-		c := caseClause{node: n, ordinal: len(cc.list)}
-		if kind == switchKindType {
-			// type switch
-			c.isconst = !n.Left.Type.IsInterface()
-			c.hash = typehash(n.Left.Type)
-		} else {
-			// expression switch
-			switch consttype(n.Left) {
-			case CTFLT, CTINT, CTRUNE, CTSTR:
-				c.isconst = true
-			}
+		c := caseClause{
+			node:    n,
+			ordinal: len(cc.list),
+			isconst: !n.Left.Type.IsInterface(),
+			hash:    typehash(n.Left.Type),
 		}
 		cc.list = append(cc.list, c)
 	}
@@ -458,21 +478,15 @@ func genCaseClauses(sw *Node, kind int) caseClauses {
 		cc.defjmp = Nod(OBREAK, nil, nil)
 	}
 
-	if cc.list == nil {
-		return cc
-	}
-
-	// sort by value and diagnose duplicate cases
-	if kind == switchKindType {
-		checkDupTypeCases(cc.list)
-	} else {
-		checkDupExprCases(cc.list)
-	}
-
+	// diagnose duplicate cases
+	s.checkDupCases(cc.list)
 	return cc
 }
 
-func checkDupTypeCases(cc []caseClause) {
+func (s *typeSwitch) checkDupCases(cc []caseClause) {
+	if len(cc) < 2 {
+		return
+	}
 	// We store seen types in a map keyed by type hash.
 	// It is possible, but very unlikely, for multiple distinct types to have the same hash.
 	seen := make(map[uint32][]*Node)
@@ -499,7 +513,10 @@ Outer:
 	}
 }
 
-func checkDupExprCases(cc []caseClause) {
+func (s *exprSwitch) checkDupCases(cc []caseClause) {
+	if len(cc) < 2 {
+		return
+	}
 	sort.Sort(caseClauseByExpr(cc))
 	for i, c1 := range cc[:len(cc)-1] {
 		c2 := cc[i+1]
@@ -556,7 +573,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	// set up labels and jumps
 	casebody(sw, s.facename)
 
-	clauses := genCaseClauses(sw, switchKindType)
+	clauses := s.genCaseClauses(sw.List.Slice())
 	sw.List.Set(nil)
 	def := clauses.defjmp
 
