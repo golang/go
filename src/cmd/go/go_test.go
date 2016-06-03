@@ -1332,15 +1332,31 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("test", "main_test")
 }
 
+// The runtime version string takes one of two forms:
+// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+// Determine whether we are in a released copy by
+// inspecting the version.
+var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+
 // Issue 12690
 func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+
+	// Make sure the packages below are not stale.
+	tg.run("install", "runtime", "os", "io")
+
 	goroot := runtime.GOROOT()
 	tg.setenv("GOROOT", goroot+"/")
-	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
-	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
-	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
+
+	want := ""
+	if isGoRelease {
+		want = "standard package in Go release distribution"
+	}
+
+	tg.wantNotStale("runtime", want, "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", want, "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", want, "with trailing slash in GOROOT, io listed as stale")
 }
 
 // With $GOBIN set, binaries get installed to $GOBIN.
