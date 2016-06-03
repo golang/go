@@ -757,38 +757,24 @@ func Reboot(cmd int) (err error) {
 	return reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, "")
 }
 
-func clen(n []byte) int {
-	for i := 0; i < len(n); i++ {
-		if n[i] == 0 {
-			return i
-		}
-	}
-	return len(n)
-}
-
 func ReadDirent(fd int, buf []byte) (n int, err error) {
 	return Getdents(fd, buf)
 }
 
-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
-	origlen := len(buf)
-	count = 0
-	for max != 0 && len(buf) > 0 {
-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
-		buf = buf[dirent.Reclen:]
-		if dirent.Ino == 0 { // File absent in directory.
-			continue
-		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
-		var name = string(bytes[0:clen(bytes[:])])
-		if name == "." || name == ".." { // Useless names
-			continue
-		}
-		max--
-		count++
-		names = append(names, name)
+func direntIno(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+}
+
+func direntReclen(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
+}
+
+func direntNamlen(buf []byte) (uint64, bool) {
+	reclen, ok := direntReclen(buf)
+	if !ok {
+		return 0, false
 	}
-	return origlen - len(buf), count, names
+	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }
 
 //sys	mount(source string, target string, fstype string, flags uintptr, data *byte) (err error)

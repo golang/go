@@ -56,29 +56,20 @@ func nametomib(name string) (mib []_C_int, err error) {
 	return buf[0 : n/siz], nil
 }
 
-// ParseDirent parses up to max directory entries in buf,
-// appending the names to names. It returns the number
-// bytes consumed from buf, the number of entries added
-// to names, and the new names slice.
-func ParseDirent(buf []byte, max int, names []string) (consumed int, count int, newnames []string) {
-	origlen := len(buf)
-	for max != 0 && len(buf) > 0 {
-		dirent := (*Dirent)(unsafe.Pointer(&buf[0]))
-		reclen := int(16+dirent.Namlen+1+7) & ^7
-		buf = buf[reclen:]
-		if dirent.Fileno == 0 { // File absent in directory.
-			continue
-		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&dirent.Name[0]))
-		var name = string(bytes[0:dirent.Namlen])
-		if name == "." || name == ".." { // Useless names
-			continue
-		}
-		max--
-		count++
-		names = append(names, name)
+func direntIno(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
+}
+
+func direntReclen(buf []byte) (uint64, bool) {
+	namlen, ok := direntNamlen(buf)
+	if !ok {
+		return 0, false
 	}
-	return origlen - len(buf), count, names
+	return (16 + namlen + 1 + 7) & ^7, true
+}
+
+func direntNamlen(buf []byte) (uint64, bool) {
+	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
 //sysnb pipe() (r int, w int, err error)
