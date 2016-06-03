@@ -30,8 +30,14 @@ func (n *node) init(p *parser) {
 type File struct {
 	PkgName  *Name
 	DeclList []Decl
+	Pragmas  []Pragma
 	Lines    int
 	node
+}
+
+type Pragma struct {
+	Line int
+	Text string
 }
 
 // ----------------------------------------------------------------------------

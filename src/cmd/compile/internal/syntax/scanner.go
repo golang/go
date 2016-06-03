@@ -7,6 +7,7 @@ package syntax
 import (
 	"fmt"
 	"io"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -21,6 +22,8 @@ type scanner struct {
 	lit       string   // valid if tok is _Name or _Literal
 	op        Operator // valid if tok is _Operator
 	prec      int      // valid if tok is _Operator
+
+	pragmas []Pragma
 }
 
 func (s *scanner) init(src io.Reader) {
@@ -486,55 +489,42 @@ func (s *scanner) rune() {
 	s.lit = string(s.stopLit())
 }
 
-func (s *scanner) match(r rune, prefix string) rune {
-	for _, m := range prefix {
-		if r != m {
-			return r // no match
-		}
-		r = s.getr()
-	}
-
-	// match: consume line
-	for r != '\n' && r >= 0 {
-		r = s.getr()
-	}
-	s.ungetr()
-
-	return -1
-}
-
-var pragmas = map[string]bool{
-	"noescape":          true,
-	"noinline":          true,
-	"nointerface":       true,
-	"norace":            true,
-	"nosplit":           true,
-	"nowritebarrier":    true,
-	"nowritebarrierrec": true,
-	"systemstack":       true,
-}
-
 func (s *scanner) lineComment() {
 	// recognize pragmas
+	var prefix string
 	r := s.getr()
 	switch r {
 	case 'g':
-		r = s.match(r, "go:")
-		if r < 0 {
-			// m := string(s.buf[start+3 : s.source.pos()])
-			// if pragmas[m] {
-			// 	// TODO(gri) record pragma
-			// 	//println(m)
-			// }
-			return
-		}
+		prefix = "go:"
 	case 'l':
-		r = s.match(r, "line:")
-		if r < 0 {
-			return
-		}
+		prefix = "line "
+	default:
+		goto skip
 	}
 
+	s.startLit()
+	for _, m := range prefix {
+		if r != m {
+			s.stopLit()
+			goto skip
+		}
+		r = s.getr()
+	}
+
+	for r >= 0 {
+		if r == '\n' {
+			s.ungetr()
+			break
+		}
+		r = s.getr()
+	}
+	s.pragmas = append(s.pragmas, Pragma{
+		Line: s.line,
+		Text: strings.TrimSuffix(string(s.stopLit()), "\r"),
+	})
+	return
+
+skip:
 	// consume line
 	for r != '\n' && r >= 0 {
 		r = s.getr()

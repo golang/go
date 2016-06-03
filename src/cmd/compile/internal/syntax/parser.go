@@ -241,6 +241,7 @@ func (p *parser) file() *File {
 	// p.tok == _EOF
 
 	f.Lines = p.source.line
+	f.Pragmas = p.pragmas
 
 	return f
 }
