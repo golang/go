@@ -779,15 +779,31 @@ type metaImport struct {
 // errNoMatch is returned from matchGoImport when there's no applicable match.
 var errNoMatch = errors.New("no import match")
 
+func splitPathHasPrefix(path, prefix []string) bool {
+	if len(path) < len(prefix) {
+		return false
+	}
+	for i, p := range prefix {
+		if path[i] != p {
+			return false
+		}
+	}
+	return true
+}
+
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
 // errNoMatch is returned if none match.
 func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
 	match := -1
+	imp := strings.Split(importPath, "/")
 	for i, im := range imports {
-		if !strings.HasPrefix(importPath, im.Prefix) {
+		pre := strings.Split(im.Prefix, "/")
+
+		if !splitPathHasPrefix(imp, pre) {
 			continue
 		}
+
 		if match != -1 {
 			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
 			return
