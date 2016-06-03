@@ -20,8 +20,8 @@ type scanner struct {
 	pos, line int
 	tok       token
 	lit       string   // valid if tok is _Name or _Literal
-	op        Operator // valid if tok is _Operator
-	prec      int      // valid if tok is _Operator
+	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
+	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
 
 	pragmas []Pragma
 }
@@ -119,6 +119,7 @@ redo:
 		c = s.getr()
 		if isDigit(c) {
 			s.ungetr()
+			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
 			s.number('.')
 			s.nlsemi = true
 			s.tok = _Literal
