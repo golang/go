@@ -278,7 +278,10 @@ func (p *parser) importDecl(group *Group) Decl {
 	case _Name:
 		d.LocalPkgName = p.name()
 	case _Dot:
-		d.LocalPkgName = nil
+		n := new(Name)
+		n.init(p)
+		n.Value = "."
+		d.LocalPkgName = n
 		p.next()
 	}
 	if p.tok == _Literal && (p.lit[0] == '"' || p.lit[0] == '`') {
