@@ -1873,7 +1873,7 @@ func rewriteValuedec64_OpRsh64x16(v *Value, config *Config) bool {
 	_ = b
 	// match: (Rsh64x16 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32x16 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux16 <config.fe.TypeUInt32()> lo s) 				(Lsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> (Const16 <config.fe.TypeUInt16()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))) 				(Com32 <config.fe.TypeUInt32()> 					(Signmask 						(SignExt16to32 							(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))))))))
+	// result: (Int64Make 		(Rsh32x16 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux16 <config.fe.TypeUInt32()> lo s) 				(Lsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> (Const16 <config.fe.TypeUInt16()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x16 <config.fe.TypeUInt32()> 					hi 					(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))) 				(Zeromask 					(ZeroExt16to32 						(Rsh16Ux32 <config.fe.TypeUInt16()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpInt64Make {
@@ -1913,14 +1913,12 @@ func rewriteValuedec64_OpRsh64x16(v *Value, config *Config) bool {
 		v9.AddArg(v10)
 		v8.AddArg(v9)
 		v7.AddArg(v8)
-		v11 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
-		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
-		v13 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v14 := b.NewValue0(v.Line, OpSub16, config.fe.TypeUInt16())
-		v14.AddArg(s)
-		v15 := b.NewValue0(v.Line, OpConst16, config.fe.TypeUInt16())
-		v15.AuxInt = 32
-		v14.AddArg(v15)
+		v11 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
+		v12 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v13 := b.NewValue0(v.Line, OpRsh16Ux32, config.fe.TypeUInt16())
+		v13.AddArg(s)
+		v14 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+		v14.AuxInt = 5
 		v13.AddArg(v14)
 		v12.AddArg(v13)
 		v11.AddArg(v12)
@@ -1936,7 +1934,7 @@ func rewriteValuedec64_OpRsh64x32(v *Value, config *Config) bool {
 	_ = b
 	// match: (Rsh64x32 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32x32 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux32 <config.fe.TypeUInt32()> lo s) 				(Lsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> (Const32 <config.fe.TypeUInt32()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32]))) 				(Com32 <config.fe.TypeUInt32()> 					(Signmask 						(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32])))))))
+	// result: (Int64Make 		(Rsh32x32 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux32 <config.fe.TypeUInt32()> lo s) 				(Lsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> (Const32 <config.fe.TypeUInt32()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x32 <config.fe.TypeUInt32()> 					hi 					(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32]))) 				(Zeromask 					(Rsh32Ux32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [5]))))))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpInt64Make {
@@ -1976,13 +1974,11 @@ func rewriteValuedec64_OpRsh64x32(v *Value, config *Config) bool {
 		v9.AddArg(v10)
 		v8.AddArg(v9)
 		v7.AddArg(v8)
-		v11 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
-		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
-		v13 := b.NewValue0(v.Line, OpSub32, config.fe.TypeUInt32())
-		v13.AddArg(s)
-		v14 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
-		v14.AuxInt = 32
-		v13.AddArg(v14)
+		v11 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
+		v12 := b.NewValue0(v.Line, OpRsh32Ux32, config.fe.TypeUInt32())
+		v12.AddArg(s)
+		v13 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+		v13.AuxInt = 5
 		v12.AddArg(v13)
 		v11.AddArg(v12)
 		v7.AddArg(v11)
@@ -2078,7 +2074,7 @@ func rewriteValuedec64_OpRsh64x8(v *Value, config *Config) bool {
 	_ = b
 	// match: (Rsh64x8 (Int64Make hi lo) s)
 	// cond:
-	// result: (Int64Make 		(Rsh32x8 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux8 <config.fe.TypeUInt32()> lo s) 				(Lsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> (Const8 <config.fe.TypeUInt8()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))) 				(Com32 <config.fe.TypeUInt32()> 					(Signmask 						(SignExt8to32 							(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))))))))
+	// result: (Int64Make 		(Rsh32x8 <config.fe.TypeUInt32()> hi s) 		(Or32 <config.fe.TypeUInt32()> 			(Or32 <config.fe.TypeUInt32()> 				(Rsh32Ux8 <config.fe.TypeUInt32()> lo s) 				(Lsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> (Const8 <config.fe.TypeUInt8()> [32]) s))) 			(And32 <config.fe.TypeUInt32()> 				(Rsh32x8 <config.fe.TypeUInt32()> 					hi 					(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))) 				(Zeromask 					(ZeroExt8to32 						(Rsh8Ux32 <config.fe.TypeUInt8()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
 	for {
 		v_0 := v.Args[0]
 		if v_0.Op != OpInt64Make {
@@ -2118,14 +2114,12 @@ func rewriteValuedec64_OpRsh64x8(v *Value, config *Config) bool {
 		v9.AddArg(v10)
 		v8.AddArg(v9)
 		v7.AddArg(v8)
-		v11 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
-		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
-		v13 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v14 := b.NewValue0(v.Line, OpSub8, config.fe.TypeUInt8())
-		v14.AddArg(s)
-		v15 := b.NewValue0(v.Line, OpConst8, config.fe.TypeUInt8())
-		v15.AuxInt = 32
-		v14.AddArg(v15)
+		v11 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
+		v12 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v13 := b.NewValue0(v.Line, OpRsh8Ux32, config.fe.TypeUInt8())
+		v13.AddArg(s)
+		v14 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+		v14.AuxInt = 5
 		v13.AddArg(v14)
 		v12.AddArg(v13)
 		v11.AddArg(v12)

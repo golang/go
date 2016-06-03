@@ -458,8 +458,15 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
 		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
 	}
-	if s.f.Config.ctxt.Flag_dynlink && s.f.Config.arch == "amd64" {
-		s.allocatable &^= 1 << 15 // R15
+	if s.f.Config.ctxt.Flag_dynlink {
+		switch s.f.Config.arch {
+		case "amd64":
+			s.allocatable &^= 1 << 15 // R15
+		case "arm":
+			s.allocatable &^= 1 << 9 // R9
+		default:
+			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
+		}
 	}
 
 	s.regs = make([]regState, s.numRegs)

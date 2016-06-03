@@ -129,11 +129,11 @@
 (Rsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SRAconst x [c])
 (Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 -> (SRLconst x [c])
 (Lsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SLLconst x [c])
-(Rsh16x64 <t> x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <t> x [16]) [c+16])
-(Rsh16Ux64 <t> x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <t> x [16]) [c+16])
+(Rsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [16]) [c+16])
+(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 -> (SRLconst (SLLconst <config.fe.TypeUInt32()> x [16]) [c+16])
 (Lsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SLLconst x [c])
-(Rsh8x64 <t> x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <t> x [24]) [c+24])
-(Rsh8Ux64 <t> x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <t> x [24]) [c+24])
+(Rsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [24]) [c+24])
+(Rsh8Ux64 x (Const64 [c])) && uint64(c) < 8 -> (SRLconst (SLLconst <config.fe.TypeUInt32()> x [24]) [c+24])
 
 // large constant shifts
 (Lsh32x64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
@@ -145,8 +145,8 @@
 
 // large constant signed right shift, we leave the sign bit
 (Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SRAconst x [31])
-(Rsh16x64 <t> x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <t> x [16]) [31])
-(Rsh8x64 <t> x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <t> x [24]) [31])
+(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [16]) [31])
+(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <config.fe.TypeUInt32()> x [24]) [31])
 
 (Lrot32 x [c]) -> (SRRconst x [32-c&31])
 (Lrot16 <t> x [c]) -> (OR (SLLconst <t> x [c&15]) (SRLconst <t> x [16-c&15]))
