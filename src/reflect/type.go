@@ -2640,6 +2640,7 @@ func StructOf(fields []StructField) Type {
 	}
 
 	typ.str = resolveReflectName(newName(str, "", "", false))
+	typ.tflag = 0
 	typ.hash = hash
 	typ.size = size
 	typ.align = typalign
