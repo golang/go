@@ -230,7 +230,7 @@
 
 // 64x signed right shift
 // result.hi = hi>>s
-// result.lo = lo>>s | hi<<(32-s) | (hi>>(s-32))&^signmask(s-32) // hi>>(s-32) is signed, large shifts result 0/-1
+// result.lo = lo>>s | hi<<(32-s) | (hi>>(s-32))&zeromask(s>>5) // hi>>(s-32) is signed, large shifts result 0/-1
 (Rsh64x32 (Int64Make hi lo) s) ->
 	(Int64Make
 		(Rsh32x32 <config.fe.TypeUInt32()> hi s)
@@ -244,9 +244,8 @@
 				(Rsh32x32 <config.fe.TypeUInt32()>
 					hi
 					(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32])))
-				(Com32 <config.fe.TypeUInt32()>
-					(Signmask
-						(Sub32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [32])))))))
+				(Zeromask
+					(Rsh32Ux32 <config.fe.TypeUInt32()> s (Const32 <config.fe.TypeUInt32()> [5]))))))
 (Rsh64x16 (Int64Make hi lo) s) ->
 	(Int64Make
 		(Rsh32x16 <config.fe.TypeUInt32()> hi s)
@@ -260,10 +259,9 @@
 				(Rsh32x16 <config.fe.TypeUInt32()>
 					hi
 					(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32])))
-				(Com32 <config.fe.TypeUInt32()>
-					(Signmask
-						(SignExt16to32
-							(Sub16 <config.fe.TypeUInt16()> s (Const16 <config.fe.TypeUInt16()> [32]))))))))
+				(Zeromask
+					(ZeroExt16to32
+						(Rsh16Ux32 <config.fe.TypeUInt16()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
 (Rsh64x8 (Int64Make hi lo) s) ->
 	(Int64Make
 		(Rsh32x8 <config.fe.TypeUInt32()> hi s)
@@ -277,10 +275,9 @@
 				(Rsh32x8 <config.fe.TypeUInt32()>
 					hi
 					(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32])))
-				(Com32 <config.fe.TypeUInt32()>
-					(Signmask
-						(SignExt8to32
-							(Sub8 <config.fe.TypeUInt8()> s (Const8 <config.fe.TypeUInt8()> [32]))))))))
+				(Zeromask
+					(ZeroExt8to32
+						(Rsh8Ux32 <config.fe.TypeUInt8()> s (Const32 <config.fe.TypeUInt32()> [5])))))))
 
 // 64xConst32 shifts
 // we probably do not need them -- lateopt may take care of them just fine
