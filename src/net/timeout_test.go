@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -164,10 +165,13 @@ func TestAcceptTimeout(t *testing.T) {
 	}
 	defer ln.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for i, tt := range acceptTimeoutTests {
 		if tt.timeout < 0 {
 			go func() {
-				c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+				var d Dialer
+				c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
 				if err != nil {
 					t.Error(err)
 					return
