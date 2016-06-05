@@ -221,7 +221,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// The "Trailer" header isn't included in the Transport's response,
 	// at least for *http.Transport. Build it up from Trailer.
 	if len(res.Trailer) > 0 {
-		var trailerKeys []string
+		trailerKeys := make([]string, 0, len(res.Trailer))
 		for k := range res.Trailer {
 			trailerKeys = append(trailerKeys, k)
 		}
