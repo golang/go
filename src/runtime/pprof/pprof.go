@@ -202,7 +202,7 @@ func Profiles() []*Profile {
 	lockProfiles()
 	defer unlockProfiles()
 
-	var all []*Profile
+	all := make([]*Profile, 0, len(profiles.m))
 	for _, p := range profiles.m {
 		all = append(all, p)
 	}
@@ -293,7 +293,7 @@ func (p *Profile) WriteTo(w io.Writer, debug int) error {
 	}
 
 	// Obtain consistent snapshot under lock; then process without lock.
-	var all [][]uintptr
+	all := make([][]uintptr, 0, len(p.m))
 	p.mu.Lock()
 	for _, stk := range p.m {
 		all = append(all, stk)
