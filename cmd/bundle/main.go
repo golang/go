@@ -96,6 +96,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
@@ -257,46 +258,61 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 
 	fmt.Fprintf(&out, "package %s\n\n", dstpkg)
 
-	// Print a single declaration that imports all necessary packages.
-	// TODO(adonovan):
-	// - support renaming imports.
+	// BUG(adonovan,shurcooL): bundle may generate incorrect code
+	// due to shadowing between identifiers and imported package names.
+	//
+	// The generated code will either fail to compile or
+	// (unlikely) compile successfully but have different behavior
+	// than the original package. The risk of this happening is higher
+	// when the original package has renamed imports (they're typically
+	// renamed in order to resolve a shadow inside that particular .go file).
+
+	// TODO(adonovan,shurcooL):
+	// - detect shadowing issues, and either return error or resolve them
 	// - preserve comments from the original import declarations.
+
+	// pkgStd and pkgExt are sets of printed import specs. This is done
+	// to deduplicate instances of the same import name and path.
+	var pkgStd = make(map[string]bool)
+	var pkgExt = make(map[string]bool)
 	for _, f := range info.Files {
 		for _, imp := range f.Imports {
+			path, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				log.Fatalf("invalid import path string: %v", err) // Shouldn't happen here since conf.Load succeeded.
+			}
+			if path == dst {
+				continue
+			}
+			if newPath, ok := importMap[path]; ok {
+				path = newPath
+			}
+
+			var name string
 			if imp.Name != nil {
-				return nil, fmt.Errorf("%s: renaming imports not supported",
-					lprog.Fset.Position(imp.Pos()))
+				name = imp.Name.Name
+			}
+			spec := fmt.Sprintf("%s %q", name, path)
+			if isStandardImportPath(path) {
+				pkgStd[spec] = true
+			} else {
+				pkgExt[spec] = true
 			}
 		}
 	}
 
-	var pkgStd, pkgExt []string
-	for _, p := range info.Pkg.Imports() {
-		if p.Path() == dst {
-			continue
-		}
-		x, ok := importMap[p.Path()]
-		if !ok {
-			x = p.Path()
-		}
-		if isStandardImportPath(x) {
-			pkgStd = append(pkgStd, x)
-		} else {
-			pkgExt = append(pkgExt, x)
-		}
-	}
-
+	// Print a single declaration that imports all necessary packages.
 	fmt.Fprintln(&out, "import (")
-	for _, p := range pkgStd {
-		fmt.Fprintf(&out, "\t%q\n", p)
+	for p := range pkgStd {
+		fmt.Fprintf(&out, "\t%s\n", p)
 	}
 	if len(pkgExt) > 0 {
 		fmt.Fprintln(&out)
-		for _, p := range pkgExt {
-			fmt.Fprintf(&out, "\t%q\n", p)
-		}
 	}
-	fmt.Fprintln(&out, ")\n")
+	for p := range pkgExt {
+		fmt.Fprintf(&out, "\t%s\n", p)
+	}
+	fmt.Fprint(&out, ")\n\n")
 
 	// Modify and print each file.
 	for _, f := range info.Files {

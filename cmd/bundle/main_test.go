@@ -28,6 +28,7 @@ func TestBundle(t *testing.T) {
 		"initial": {
 			"a.go": load("testdata/src/initial/a.go"),
 			"b.go": load("testdata/src/initial/b.go"),
+			"c.go": load("testdata/src/initial/c.go"),
 		},
 		"domain.name/importdecl": {
 			"p.go": load("testdata/src/domain.name/importdecl/p.go"),

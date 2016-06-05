@@ -8,6 +8,10 @@ package dest
 
 import (
 	"fmt"
+	. "fmt"
+	_ "fmt"
+	renamedfmt "fmt"
+	renamedfmt2 "fmt"
 
 	"domain.name/importdecl"
 )
@@ -30,4 +34,10 @@ const prefixc = 1
 
 func prefixfoo() {
 	fmt.Println(importdecl.F())
+}
+
+func prefixbaz() {
+	renamedfmt.Println()
+	renamedfmt2.Println()
+	Println()
 }
