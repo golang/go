@@ -317,7 +317,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	var buf bytes.Buffer
 
 	// Keys are sorted before writing to body to allow deterministic output.
-	var keys []string
+	keys := make([]string, 0, len(paxHeaders))
 	for k := range paxHeaders {
 		keys = append(keys, k)
 	}
