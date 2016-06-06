@@ -89,6 +89,27 @@ func eqval(a, b Val) bool {
 	}
 }
 
+// Interface returns the constant value stored in v as an interface{}.
+// It returns int64s for ints and runes, float64s for floats,
+// complex128s for complex values, and nil for constant nils.
+func (v Val) Interface() interface{} {
+	switch x := v.U.(type) {
+	default:
+		Fatalf("unexpected Interface for %T", v.U)
+		panic("not reached")
+	case *NilVal:
+		return nil
+	case bool, string:
+		return x
+	case *Mpint:
+		return x.Int64()
+	case *Mpflt:
+		return x.Float64()
+	case *Mpcplx:
+		return complex(x.Real.Float64(), x.Imag.Float64())
+	}
+}
+
 type NilVal struct{}
 
 // IntLiteral returns the Node's literal value as an integer.
