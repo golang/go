@@ -383,7 +383,7 @@ const (
 	OINDEX     // Left[Right] (index of array or slice)
 	OINDEXMAP  // Left[Right] (index of map)
 	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
-	_          // was OPARAM, but cannot remove without breaking binary blob in builtin.go
+	OIDATA     // data word of an interface value in Left; TODO: move next to OITAB once it is easier to regenerate the binary blob in builtin.go (issues 15835, 15839)
 	OLEN       // len(Left)
 	OMAKE      // make(List) (before type checking converts to one of the following)
 	OMAKECHAN  // make(Type, Left) (type is chan)

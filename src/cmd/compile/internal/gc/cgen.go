@@ -184,7 +184,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			n.Addable = n.Left.Addable
 		}
 
-	case OITAB:
+	case OITAB, OIDATA:
 		n.Addable = n.Left.Addable
 	}
 
@@ -525,12 +525,20 @@ func cgen_wb(n, res *Node, wb bool) {
 		Thearch.Gmove(&n1, res)
 		Regfree(&n1)
 
-		// interface table is first word of interface value
 	case OITAB:
+		// interface table is first word of interface value
 		var n1 Node
 		Igen(nl, &n1, res)
-
 		n1.Type = n.Type
+		Thearch.Gmove(&n1, res)
+		Regfree(&n1)
+
+	case OIDATA:
+		// interface data is second word of interface value
+		var n1 Node
+		Igen(nl, &n1, res)
+		n1.Type = n.Type
+		n1.Xoffset += int64(Widthptr)
 		Thearch.Gmove(&n1, res)
 		Regfree(&n1)
 

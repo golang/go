@@ -2026,6 +2026,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		return s.newValue1(ssa.OpITab, n.Type, a)
 
+	case OIDATA:
+		a := s.expr(n.Left)
+		return s.newValue1(ssa.OpIData, n.Type, a)
+
 	case OEFACE:
 		tab := s.expr(n.Left)
 		data := s.expr(n.Right)

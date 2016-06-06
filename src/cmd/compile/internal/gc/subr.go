@@ -2327,6 +2327,25 @@ func itabType(itab *Node) *Node {
 	return typ
 }
 
+// ifaceData loads the data field from an interface.
+// The concrete type must be known to have type t.
+// It follows the pointer if !isdirectiface(t).
+func ifaceData(n *Node, t *Type) *Node {
+	ptr := NodSym(OIDATA, n, nil)
+	if isdirectiface(t) {
+		ptr.Type = t
+		ptr.Typecheck = 1
+		return ptr
+	}
+	ptr.Type = Ptrto(t)
+	ptr.Bounded = true
+	ptr.Typecheck = 1
+	ind := Nod(OIND, ptr, nil)
+	ind.Type = t
+	ind.Typecheck = 1
+	return ind
+}
+
 // iet returns 'T' if t is a concrete type,
 // 'I' if t is an interface type, and 'E' if t is an empty interface type.
 // It is used to build calls to the conv* and assert* runtime routines.

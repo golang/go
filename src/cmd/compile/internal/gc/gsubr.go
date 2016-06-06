@@ -48,6 +48,7 @@ var (
 func Ismem(n *Node) bool {
 	switch n.Op {
 	case OITAB,
+		OIDATA,
 		OSPTR,
 		OLEN,
 		OCAP,
@@ -456,14 +457,27 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		a.Type = obj.TYPE_ADDR
 
-		// itable of interface value
 	case OITAB:
+		// itable of interface value
 		Naddr(a, n.Left)
-
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // itab(nil)
 		}
 		a.Etype = uint8(Tptr)
+		a.Width = int64(Widthptr)
+
+	case OIDATA:
+		// idata of interface value
+		Naddr(a, n.Left)
+		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+			break // idata(nil)
+		}
+		if isdirectiface(n.Type) {
+			a.Etype = uint8(Simtype[n.Type.Etype])
+		} else {
+			a.Etype = uint8(Tptr)
+		}
+		a.Offset += int64(Widthptr)
 		a.Width = int64(Widthptr)
 
 		// pointer in a string or slice
