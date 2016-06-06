@@ -79,3 +79,14 @@ func f5(a [1]int) {
 	case [1]int{0}: // OK -- see issue 15896
 	}
 }
+
+// Ensure duplicate const bool clauses are accepted.
+func f6() int {
+	switch {
+	case 0 == 0:
+		return 0
+	case 1 == 1: // Intentionally OK, even though a duplicate of the above const true
+		return 1
+	}
+	return 2
+}

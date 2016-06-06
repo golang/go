@@ -517,17 +517,59 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 	if len(cc) < 2 {
 		return
 	}
-	sort.Sort(caseClauseByExpr(cc))
-	for i, c1 := range cc[:len(cc)-1] {
-		c2 := cc[i+1]
-		if exprcmp(c1, c2) != 0 {
+	// The common case is that s's expression is not an interface.
+	// In that case, all constant clauses have the same type,
+	// so checking for duplicates can be done solely by value.
+	if !s.exprname.Type.IsInterface() {
+		seen := make(map[interface{}]*Node)
+		for _, c := range cc {
+			// Can't check for duplicates that aren't constants, per the spec. Issue 15896.
+			// Don't check for duplicate bools. Although the spec allows it,
+			// (1) the compiler hasn't checked it in the past, so compatibility mandates it, and
+			// (2) it would disallow useful things like
+			//       case GOARCH == "arm" && GOARM == "5":
+			//       case GOARCH == "arm":
+			//     which would both evaluate to false for non-ARM compiles.
+			if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
+				continue
+			}
+			val := c.node.Left.Val().Interface()
+			prev, dup := seen[val]
+			if !dup {
+				seen[val] = c.node
+				continue
+			}
+			setlineno(c.node)
+			Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+		}
+		return
+	}
+	// s's expression is an interface. This is fairly rare, so keep this simple.
+	// Duplicates are only duplicates if they have the same type and the same value.
+	type typeVal struct {
+		typ string
+		val interface{}
+	}
+	seen := make(map[typeVal]*Node)
+	for _, c := range cc {
+		if ct := consttype(c.node.Left); ct < 0 || ct == CTBOOL {
 			continue
 		}
-		setlineno(c2.node)
-		Yyerror("duplicate case %v in switch\n\tprevious case at %v", c1.node.Left, c1.node.Line())
+		n := c.node.Left
+		tv := typeVal{
+			// Tconv here serves to completely describe the type.
+			// See the comments in func typehash.
+			typ: Tconv(n.Type, FmtLeft|FmtUnsigned),
+			val: n.Val().Interface(),
+		}
+		prev, dup := seen[tv]
+		if !dup {
+			seen[tv] = c.node
+			continue
+		}
+		setlineno(c.node)
+		Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
 	}
-	// put list back in processing order
-	sort.Sort(caseClauseByOrd(cc))
 }
 
 // walk generates an AST that implements sw,
@@ -735,12 +777,6 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 	a.Rlist.Set1(s.walkCases(cc[half:]))
 	return a
 }
-
-type caseClauseByOrd []caseClause
-
-func (x caseClauseByOrd) Len() int           { return len(x) }
-func (x caseClauseByOrd) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x caseClauseByOrd) Less(i, j int) bool { return x[i].ordinal < x[j].ordinal }
 
 type caseClauseByExpr []caseClause
 
