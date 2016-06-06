@@ -218,20 +218,17 @@ func assertI2T(t *_type, i iface, r unsafe.Pointer) {
 	}
 }
 
+// The compiler ensures that r is non-nil.
 func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
 	tab := i.tab
 	if tab == nil || tab._type != t {
-		if r != nil {
-			memclr(r, t.size)
-		}
+		memclr(r, t.size)
 		return false
 	}
-	if r != nil {
-		if isDirectIface(t) {
-			writebarrierptr((*uintptr)(r), uintptr(i.data))
-		} else {
-			typedmemmove(t, r, i.data)
-		}
+	if isDirectIface(t) {
+		writebarrierptr((*uintptr)(r), uintptr(i.data))
+	} else {
+		typedmemmove(t, r, i.data)
 	}
 	return true
 }

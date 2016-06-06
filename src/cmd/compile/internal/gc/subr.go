@@ -2317,6 +2317,16 @@ func isdirectiface(t *Type) bool {
 	return false
 }
 
+// itabType loads the _type field from a runtime.itab struct.
+func itabType(itab *Node) *Node {
+	typ := NodSym(ODOTPTR, itab, nil)
+	typ.Type = Ptrto(Types[TUINT8])
+	typ.Typecheck = 1
+	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
+	typ.Bounded = true            // guaranteed not to fault
+	return typ
+}
+
 // iet returns 'T' if t is a concrete type,
 // 'I' if t is an interface type, and 'E' if t is an empty interface type.
 // It is used to build calls to the conv* and assert* runtime routines.

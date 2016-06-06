@@ -960,19 +960,27 @@ opswitch:
 		fromKind := from.Type.iet()
 		toKind := t.iet()
 
+		res := n.List.First()
+
 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
 		// This is faster and shorter and allows the corresponding assertX2X2
 		// routines to skip nil checks on their last argument.
-		if isblank(n.List.First()) {
+		if isblank(res) {
 			var fast *Node
-			switch {
-			case fromKind == 'E' && toKind == 'T':
-				tab := Nod(OITAB, from, nil) // type:eface::tab:iface
-				typ := Nod(OCONVNOP, typename(t), nil)
-				typ.Type = Ptrto(Types[TUINTPTR])
-				fast = Nod(OEQ, tab, typ)
-			case fromKind == 'I' && toKind == 'E',
-				fromKind == 'E' && toKind == 'E':
+			switch toKind {
+			case 'T':
+				tab := Nod(OITAB, from, nil)
+				if fromKind == 'E' {
+					typ := Nod(OCONVNOP, typename(t), nil)
+					typ.Type = Ptrto(Types[TUINTPTR])
+					fast = Nod(OEQ, tab, typ)
+					break
+				}
+				fast = Nod(OANDAND,
+					Nod(ONE, nodnil(), tab),
+					Nod(OEQ, itabType(tab), typename(t)),
+				)
+			case 'E':
 				tab := Nod(OITAB, from, nil)
 				fast = Nod(ONE, nodnil(), tab)
 			}
@@ -987,10 +995,10 @@ opswitch:
 		}
 
 		var resptr *Node // &res
-		if isblank(n.List.First()) {
+		if isblank(res) {
 			resptr = nodnil()
 		} else {
-			resptr = Nod(OADDR, n.List.First(), nil)
+			resptr = Nod(OADDR, res, nil)
 		}
 		resptr.Etype = 1 // addr does not escape
 
