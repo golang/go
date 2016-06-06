@@ -1996,6 +1996,26 @@ func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
 	}
 }
 
+// https://golang.org/issue/15948
+func TestTimeoutHandlerEmptyResponse(t *testing.T) {
+	defer afterTest(t)
+	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
+		// No response.
+	}
+	timeout := 300 * time.Millisecond
+	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
+	defer ts.Close()
+
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != StatusOK {
+		t.Errorf("got res.StatusCode %d, want %v", res.StatusCode, StatusOK)
+	}
+}
+
 // Verifies we don't path.Clean() on the wrong parts in redirects.
 func TestRedirectMunging(t *testing.T) {
 	req, _ := NewRequest("GET", "http://example.com/", nil)
