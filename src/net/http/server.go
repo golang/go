@@ -1147,6 +1147,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 			// to avoid closing the connection at EOF.
 			cw.chunking = true
 			setHeader.transferEncoding = "chunked"
+			delHeader("Transfer-Encoding")
 		}
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer

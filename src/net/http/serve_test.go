@@ -4166,6 +4166,20 @@ func testServerContext_ServerContextKey(t *testing.T, h2 bool) {
 	res.Body.Close()
 }
 
+// https://golang.org/issue/15960
+func TestHandlerSetTransferEncodingChunked(t *testing.T) {
+	defer afterTest(t)
+	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "chunked")
+		w.Write([]byte("hello"))
+	}))
+	resp := ht.rawResponse("GET / HTTP/1.1\nHost: foo")
+	const hdr = "Transfer-Encoding: chunked"
+	if n := strings.Count(resp, hdr); n != 1 {
+		t.Errorf("want 1 occurrence of %q in response, got %v\nresponse: %v", hdr, n, resp)
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
