@@ -589,11 +589,7 @@ func (s *typeSwitch) walk(sw *Node) {
 
 	if !cond.Right.Type.IsEmptyInterface() {
 		// Load type from itab.
-		typ = NodSym(ODOTPTR, typ, nil)
-		typ.Type = Ptrto(Types[TUINT8])
-		typ.Typecheck = 1
-		typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
-		typ.Bounded = true            // guaranteed not to fault
+		typ = itabType(typ)
 	}
 	// Load hash from type.
 	h := NodSym(ODOTPTR, typ, nil)
