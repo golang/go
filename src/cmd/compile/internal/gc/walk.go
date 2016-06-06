@@ -3139,14 +3139,9 @@ func eqfor(t *Type, needsize *int) *Node {
 func walkcompare(n *Node, init *Nodes) *Node {
 	// Given interface value l and concrete value r, rewrite
 	//   l == r
-	// to
-	//   x, ok := l.(type(r)); ok && x == r
-	// Handle != similarly.
-	// This avoids the allocation that would be required
-	// to convert r to l for comparison.
-	var l *Node
-
-	var r *Node
+	// into types-equal && data-equal.
+	// This is efficient, avoids allocations, and avoids runtime calls.
+	var l, r *Node
 	if n.Left.Type.IsInterface() && !n.Right.Type.IsInterface() {
 		l = n.Left
 		r = n.Right
@@ -3156,35 +3151,36 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	}
 
 	if l != nil {
-		x := temp(r.Type)
-		if haspointers(r.Type) {
-			a := Nod(OAS, x, nil)
-			a = typecheck(a, Etop)
-			init.Append(a)
-		}
-		ok := temp(Types[TBOOL])
-
-		// l.(type(r))
-		a := Nod(ODOTTYPE, l, nil)
-
-		a.Type = r.Type
-
-		// x, ok := l.(type(r))
-		expr := Nod(OAS2, nil, nil)
-
-		expr.List.Append(x)
-		expr.List.Append(ok)
-		expr.Rlist.Append(a)
-		expr = typecheck(expr, Etop)
-		expr = walkexpr(expr, init)
-
-		if n.Op == OEQ {
-			r = Nod(OANDAND, ok, Nod(OEQ, x, r))
+		// Handle both == and !=.
+		eq := n.Op
+		var andor Op
+		if eq == OEQ {
+			andor = OANDAND
 		} else {
-			r = Nod(OOROR, Nod(ONOT, ok, nil), Nod(ONE, x, r))
+			andor = OOROR
 		}
-		init.Append(expr)
-		n = finishcompare(n, r, init)
+		// Check for types equal.
+		// For empty interface, this is:
+		//   l.tab == type(r)
+		// For non-empty interface, this is:
+		//   l.tab != nil && l.tab._type == type(r)
+		var eqtype *Node
+		tab := Nod(OITAB, l, nil)
+		rtyp := typename(r.Type)
+		if l.Type.IsEmptyInterface() {
+			tab.Type = Ptrto(Types[TUINT8])
+			tab.Typecheck = 1
+			eqtype = Nod(eq, tab, rtyp)
+		} else {
+			nonnil := Nod(Brcom(eq), nodnil(), tab)
+			match := Nod(eq, itabType(tab), rtyp)
+			eqtype = Nod(andor, nonnil, match)
+		}
+		// Check for data equal.
+		eqdata := Nod(eq, ifaceData(l, r.Type), r)
+		// Put it all together.
+		expr := Nod(andor, eqtype, eqdata)
+		n = finishcompare(n, expr, init)
 		return n
 	}
 
