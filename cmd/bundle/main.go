@@ -129,7 +129,6 @@ func addImportMap(s string) {
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: bundle [options] <src>\n")
 	flag.PrintDefaults()
-	os.Exit(2)
 }
 
 func main() {
@@ -141,6 +140,7 @@ func main() {
 	args := flag.Args()
 	if len(args) != 1 {
 		usage()
+		os.Exit(2)
 	}
 
 	if *dstPath != "" {
