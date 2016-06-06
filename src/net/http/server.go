@@ -2464,6 +2464,9 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		for k, vv := range tw.h {
 			dst[k] = vv
 		}
+		if !tw.wroteHeader {
+			tw.code = StatusOK
+		}
 		w.WriteHeader(tw.code)
 		w.Write(tw.wbuf.Bytes())
 		if t != nil {
