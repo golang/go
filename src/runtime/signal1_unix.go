@@ -193,7 +193,17 @@ func dieFromSignal(sig int32) {
 	setsig(sig, _SIG_DFL, false)
 	updatesigmask(sigmask{})
 	raise(sig)
-	// That should have killed us; call exit just in case.
+
+	// That should have killed us. On some systems, though, raise
+	// sends the signal to the whole process rather than to just
+	// the current thread, which means that the signal may not yet
+	// have been delivered. Give other threads a chance to run and
+	// pick up the signal.
+	osyield()
+	osyield()
+	osyield()
+
+	// If we are still somehow running, just exit with the wrong status.
 	exit(2)
 }
 

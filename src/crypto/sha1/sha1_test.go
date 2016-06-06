@@ -94,13 +94,15 @@ func TestBlockSize(t *testing.T) {
 
 // Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
 func TestBlockGeneric(t *testing.T) {
-	gen, asm := New().(*digest), New().(*digest)
-	buf := make([]byte, BlockSize*20) // arbitrary factor
-	rand.Read(buf)
-	blockGeneric(gen, buf)
-	block(asm, buf)
-	if *gen != *asm {
-		t.Error("block and blockGeneric resulted in different states")
+	for i := 1; i < 30; i++ { // arbitrary factor
+		gen, asm := New().(*digest), New().(*digest)
+		buf := make([]byte, BlockSize*i)
+		rand.Read(buf)
+		blockGeneric(gen, buf)
+		block(asm, buf)
+		if *gen != *asm {
+			t.Errorf("For %#v block and blockGeneric resulted in different states", buf)
+		}
 	}
 }
 

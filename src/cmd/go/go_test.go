@@ -1151,7 +1151,7 @@ func TestImportCommentConflict(t *testing.T) {
 	tg.grepStderr("found import comments", "go build did not mention comment conflict")
 }
 
-// cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
+// cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	if _, err := exec.LookPath("git"); err != nil {
@@ -1168,6 +1168,34 @@ func TestIssue10952(t *testing.T) {
 	repoDir := tg.path("src/" + importPath)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
 	tg.run("get", "-d", "-u", importPath)
+}
+
+// Test git clone URL that uses SCP-like syntax and custom import path checking.
+func TestIssue11457(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+	const importPath = "github.com/rsc/go-get-issue-11457"
+	tg.run("get", "-d", "-u", importPath)
+	repoDir := tg.path("src/" + importPath)
+	tg.runGit(repoDir, "remote", "set-url", "origin", "git@github.com:rsc/go-get-issue-11457")
+
+	// At this time, custom import path checking compares remotes verbatim (rather than
+	// just the host and path, skipping scheme and user), so we expect go get -u to fail.
+	// However, the goal of this test is to verify that gitRemoteRepo correctly parsed
+	// the SCP-like syntax, and we expect it to appear in the error message.
+	tg.runFail("get", "-d", "-u", importPath)
+	want := " is checked out from ssh://git@github.com/rsc/go-get-issue-11457"
+	if !strings.HasSuffix(strings.TrimSpace(tg.getStderr()), want) {
+		t.Error("expected clone URL to appear in stderr")
+	}
 }
 
 func TestGetGitDefaultBranch(t *testing.T) {
@@ -1304,15 +1332,31 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("test", "main_test")
 }
 
+// The runtime version string takes one of two forms:
+// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+// Determine whether we are in a released copy by
+// inspecting the version.
+var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+
 // Issue 12690
 func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+
+	// Make sure the packages below are not stale.
+	tg.run("install", "runtime", "os", "io")
+
 	goroot := runtime.GOROOT()
 	tg.setenv("GOROOT", goroot+"/")
-	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
-	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
-	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
+
+	want := ""
+	if isGoRelease {
+		want = "standard package in Go release distribution"
+	}
+
+	tg.wantNotStale("runtime", want, "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", want, "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", want, "with trailing slash in GOROOT, io listed as stale")
 }
 
 // With $GOBIN set, binaries get installed to $GOBIN.
@@ -2804,7 +2848,8 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	os.Remove(tg.path("src/p1/p1.go"))
 	tg.mustNotExist(tg.path("src/p1/p1.go"))
 
-	tg.tempFile("src/p2/p2.go", `
+	tg.tempFile("src/p2/p2.go", `//go:binary-only-packages-are-not-great
+
 		package p2
 		import "p1"
 		func F() { p1.F(true) }
@@ -2813,7 +2858,7 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.grepStderr("no buildable Go source files", "did not complain about missing sources")
 
 	tg.tempFile("src/p1/missing.go", `//go:binary-only-package
-	
+
 		package p1
 		func G()
 	`)

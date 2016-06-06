@@ -184,28 +184,24 @@ func (dss *dualStackServer) teardown() error {
 	return nil
 }
 
-func newDualStackServer(lns []streamListener) (*dualStackServer, error) {
-	dss := &dualStackServer{lns: lns, port: "0"}
-	for i := range dss.lns {
-		ln, err := Listen(dss.lns[i].network, JoinHostPort(dss.lns[i].address, dss.port))
-		if err != nil {
-			for _, ln := range dss.lns[:i] {
-				ln.Listener.Close()
-			}
-			return nil, err
-		}
-		dss.lns[i].Listener = ln
-		dss.lns[i].done = make(chan bool)
-		if dss.port == "0" {
-			if _, dss.port, err = SplitHostPort(ln.Addr().String()); err != nil {
-				for _, ln := range dss.lns {
-					ln.Listener.Close()
-				}
-				return nil, err
-			}
-		}
+func newDualStackServer() (*dualStackServer, error) {
+	lns, err := newDualStackListener()
+	if err != nil {
+		return nil, err
 	}
-	return dss, nil
+	_, port, err := SplitHostPort(lns[0].Addr().String())
+	if err != nil {
+		lns[0].Close()
+		lns[1].Close()
+		return nil, err
+	}
+	return &dualStackServer{
+		lns: []streamListener{
+			{network: "tcp4", address: lns[0].Addr().String(), Listener: lns[0], done: make(chan bool)},
+			{network: "tcp6", address: lns[1].Addr().String(), Listener: lns[1], done: make(chan bool)},
+		},
+		port: port,
+	}, nil
 }
 
 func transponder(ln Listener, ch chan<- error) {

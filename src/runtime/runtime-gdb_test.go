@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package runtime_test
 
 import (
@@ -98,7 +102,9 @@ func TestGdbPython(t *testing.T) {
 
 	args := []string{"-nx", "-q", "--batch", "-iex",
 		fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
+		"-ex", "set startup-with-shell off",
 		"-ex", "info auto-load python-scripts",
+		"-ex", "set python print-stack full",
 		"-ex", "br main.go:10",
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
@@ -205,6 +211,10 @@ func TestGdbBacktrace(t *testing.T) {
 	checkGdbEnvironment(t)
 	checkGdbVersion(t)
 
+	if runtime.GOOS == "netbsd" {
+		testenv.SkipFlaky(t, 15603)
+	}
+
 	dir, err := ioutil.TempDir("", "go-build")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
@@ -226,6 +236,7 @@ func TestGdbBacktrace(t *testing.T) {
 
 	// Execute gdb commands.
 	args := []string{"-nx", "-batch",
+		"-ex", "set startup-with-shell off",
 		"-ex", "break main.eee",
 		"-ex", "run",
 		"-ex", "backtrace",

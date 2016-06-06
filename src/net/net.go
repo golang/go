@@ -14,7 +14,7 @@ the same interfaces and similar Dial and Listen functions.
 
 The Dial function connects to a server:
 
-	conn, err := net.Dial("tcp", "google.com:80")
+	conn, err := net.Dial("tcp", "golang.org:80")
 	if err != nil {
 		// handle error
 	}

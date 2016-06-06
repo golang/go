@@ -171,10 +171,10 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
 		// Eg, "git@github.com:user/repo" becomes
 		// "ssh://git@github.com/user/repo".
 		repoURL = &url.URL{
-			Scheme:  "ssh",
-			User:    url.User(m[1]),
-			Host:    m[2],
-			RawPath: m[3],
+			Scheme: "ssh",
+			User:   url.User(m[1]),
+			Host:   m[2],
+			Path:   m[3],
 		}
 	} else {
 		repoURL, err = url.Parse(out)
@@ -779,15 +779,31 @@ type metaImport struct {
 // errNoMatch is returned from matchGoImport when there's no applicable match.
 var errNoMatch = errors.New("no import match")
 
+func splitPathHasPrefix(path, prefix []string) bool {
+	if len(path) < len(prefix) {
+		return false
+	}
+	for i, p := range prefix {
+		if path[i] != p {
+			return false
+		}
+	}
+	return true
+}
+
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
 // errNoMatch is returned if none match.
 func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
 	match := -1
+	imp := strings.Split(importPath, "/")
 	for i, im := range imports {
-		if !strings.HasPrefix(importPath, im.Prefix) {
+		pre := strings.Split(im.Prefix, "/")
+
+		if !splitPathHasPrefix(imp, pre) {
 			continue
 		}
+
 		if match != -1 {
 			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
 			return
@@ -846,6 +862,15 @@ var vcsPaths = []*vcsPath{
 		re:     `^(?P<root>git.apache.org/[a-z0-9_.\-]+\.git)(/[A-Za-z0-9_.\-]+)*$`,
 		vcs:    "git",
 		repo:   "https://{root}",
+	},
+
+	// Git at OpenStack
+	{
+		prefix: "git.openstack.org",
+		re:     `^(?P<root>git\.openstack\.org/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(\.git)?(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "https://{root}",
+		check:  noVCSSuffix,
 	},
 
 	// General syntax for any server.

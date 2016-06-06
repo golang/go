@@ -238,14 +238,6 @@ type S13 struct {
 	S8
 }
 
-type unmarshalTest struct {
-	in        string
-	ptr       interface{}
-	out       interface{}
-	err       error
-	useNumber bool
-}
-
 type Ambig struct {
 	// Given "hello", the first match should win.
 	First  int `json:"HELLO"`
@@ -260,6 +252,127 @@ type XYZ struct {
 
 func sliceAddr(x []int) *[]int                 { return &x }
 func mapAddr(x map[string]int) *map[string]int { return &x }
+
+type byteWithMarshalJSON byte
+
+func (b byteWithMarshalJSON) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"Z%.2x"`, byte(b))), nil
+}
+
+func (b *byteWithMarshalJSON) UnmarshalJSON(data []byte) error {
+	if len(data) != 5 || data[0] != '"' || data[1] != 'Z' || data[4] != '"' {
+		return fmt.Errorf("bad quoted string")
+	}
+	i, err := strconv.ParseInt(string(data[2:4]), 16, 8)
+	if err != nil {
+		return fmt.Errorf("bad hex")
+	}
+	*b = byteWithMarshalJSON(i)
+	return nil
+}
+
+type byteWithPtrMarshalJSON byte
+
+func (b *byteWithPtrMarshalJSON) MarshalJSON() ([]byte, error) {
+	return byteWithMarshalJSON(*b).MarshalJSON()
+}
+
+func (b *byteWithPtrMarshalJSON) UnmarshalJSON(data []byte) error {
+	return (*byteWithMarshalJSON)(b).UnmarshalJSON(data)
+}
+
+type byteWithMarshalText byte
+
+func (b byteWithMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf(`Z%.2x`, byte(b))), nil
+}
+
+func (b *byteWithMarshalText) UnmarshalText(data []byte) error {
+	if len(data) != 3 || data[0] != 'Z' {
+		return fmt.Errorf("bad quoted string")
+	}
+	i, err := strconv.ParseInt(string(data[1:3]), 16, 8)
+	if err != nil {
+		return fmt.Errorf("bad hex")
+	}
+	*b = byteWithMarshalText(i)
+	return nil
+}
+
+type byteWithPtrMarshalText byte
+
+func (b *byteWithPtrMarshalText) MarshalText() ([]byte, error) {
+	return byteWithMarshalText(*b).MarshalText()
+}
+
+func (b *byteWithPtrMarshalText) UnmarshalText(data []byte) error {
+	return (*byteWithMarshalText)(b).UnmarshalText(data)
+}
+
+type intWithMarshalJSON int
+
+func (b intWithMarshalJSON) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf(`"Z%.2x"`, int(b))), nil
+}
+
+func (b *intWithMarshalJSON) UnmarshalJSON(data []byte) error {
+	if len(data) != 5 || data[0] != '"' || data[1] != 'Z' || data[4] != '"' {
+		return fmt.Errorf("bad quoted string")
+	}
+	i, err := strconv.ParseInt(string(data[2:4]), 16, 8)
+	if err != nil {
+		return fmt.Errorf("bad hex")
+	}
+	*b = intWithMarshalJSON(i)
+	return nil
+}
+
+type intWithPtrMarshalJSON int
+
+func (b *intWithPtrMarshalJSON) MarshalJSON() ([]byte, error) {
+	return intWithMarshalJSON(*b).MarshalJSON()
+}
+
+func (b *intWithPtrMarshalJSON) UnmarshalJSON(data []byte) error {
+	return (*intWithMarshalJSON)(b).UnmarshalJSON(data)
+}
+
+type intWithMarshalText int
+
+func (b intWithMarshalText) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf(`Z%.2x`, int(b))), nil
+}
+
+func (b *intWithMarshalText) UnmarshalText(data []byte) error {
+	if len(data) != 3 || data[0] != 'Z' {
+		return fmt.Errorf("bad quoted string")
+	}
+	i, err := strconv.ParseInt(string(data[1:3]), 16, 8)
+	if err != nil {
+		return fmt.Errorf("bad hex")
+	}
+	*b = intWithMarshalText(i)
+	return nil
+}
+
+type intWithPtrMarshalText int
+
+func (b *intWithPtrMarshalText) MarshalText() ([]byte, error) {
+	return intWithMarshalText(*b).MarshalText()
+}
+
+func (b *intWithPtrMarshalText) UnmarshalText(data []byte) error {
+	return (*intWithMarshalText)(b).UnmarshalText(data)
+}
+
+type unmarshalTest struct {
+	in        string
+	ptr       interface{}
+	out       interface{}
+	err       error
+	useNumber bool
+	golden    bool
+}
 
 var unmarshalTests = []unmarshalTest{
 	// basic types
@@ -547,6 +660,84 @@ var unmarshalTests = []unmarshalTest{
 		ptr: &map[unmarshaler]string{},
 		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1},
 	},
+
+	// related to issue 13783.
+	// Go 1.7 changed marshaling a slice of typed byte to use the methods on the byte type,
+	// similar to marshaling a slice of typed int.
+	// These tests check that, assuming the byte type also has valid decoding methods,
+	// either the old base64 string encoding or the new per-element encoding can be
+	// successfully unmarshaled. The custom unmarshalers were accessible in earlier
+	// versions of Go, even though the custom marshaler was not.
+	{
+		in:  `"AQID"`,
+		ptr: new([]byteWithMarshalJSON),
+		out: []byteWithMarshalJSON{1, 2, 3},
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]byteWithMarshalJSON),
+		out:    []byteWithMarshalJSON{1, 2, 3},
+		golden: true,
+	},
+	{
+		in:  `"AQID"`,
+		ptr: new([]byteWithMarshalText),
+		out: []byteWithMarshalText{1, 2, 3},
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]byteWithMarshalText),
+		out:    []byteWithMarshalText{1, 2, 3},
+		golden: true,
+	},
+	{
+		in:  `"AQID"`,
+		ptr: new([]byteWithPtrMarshalJSON),
+		out: []byteWithPtrMarshalJSON{1, 2, 3},
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]byteWithPtrMarshalJSON),
+		out:    []byteWithPtrMarshalJSON{1, 2, 3},
+		golden: true,
+	},
+	{
+		in:  `"AQID"`,
+		ptr: new([]byteWithPtrMarshalText),
+		out: []byteWithPtrMarshalText{1, 2, 3},
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]byteWithPtrMarshalText),
+		out:    []byteWithPtrMarshalText{1, 2, 3},
+		golden: true,
+	},
+
+	// ints work with the marshaler but not the base64 []byte case
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]intWithMarshalJSON),
+		out:    []intWithMarshalJSON{1, 2, 3},
+		golden: true,
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]intWithMarshalText),
+		out:    []intWithMarshalText{1, 2, 3},
+		golden: true,
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]intWithPtrMarshalJSON),
+		out:    []intWithPtrMarshalJSON{1, 2, 3},
+		golden: true,
+	},
+	{
+		in:     `["Z01","Z02","Z03"]`,
+		ptr:    new([]intWithPtrMarshalText),
+		out:    []intWithPtrMarshalText{1, 2, 3},
+		golden: true,
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -680,12 +871,15 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 
-		// Check round trip.
+		// Check round trip also decodes correctly.
 		if tt.err == nil {
 			enc, err := Marshal(v.Interface())
 			if err != nil {
 				t.Errorf("#%d: error re-marshaling: %v", i, err)
 				continue
+			}
+			if tt.golden && !bytes.Equal(enc, in) {
+				t.Errorf("#%d: remarshal mismatch:\nhave: %s\nwant: %s", i, enc, in)
 			}
 			vv := reflect.New(reflect.TypeOf(tt.ptr).Elem())
 			dec = NewDecoder(bytes.NewReader(enc))

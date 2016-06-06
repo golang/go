@@ -102,10 +102,12 @@ type Closer interface {
 // Seeker is the interface that wraps the basic Seek method.
 //
 // Seek sets the offset for the next Read or Write to offset,
-// interpreted according to whence: 0 means relative to the start of
-// the file, 1 means relative to the current offset, and 2 means
-// relative to the end. Seek returns the new offset relative to the
-// start of the file and an error, if any.
+// interpreted according to whence:
+// SeekStart means relative to the start of the file,
+// SeekCurrent means relative to the current offset, and
+// SeekEnd means relative to the end.
+// Seek returns the new offset relative to the start of the
+// file and an error, if any.
 //
 // Seeking to an offset before the start of the file is an error.
 // Seeking to any positive offset is legal, but the behavior of subsequent
@@ -272,16 +274,6 @@ type RuneReader interface {
 type RuneScanner interface {
 	RuneReader
 	UnreadRune() error
-}
-
-// SizedReaderAt is the interface that groups the basic ReadAt method
-// with a Size method that reports the total size of the underlying
-// object. It represents a fixed-size data source that supports random
-// access by multiple concurrent goroutines.
-type SizedReaderAt interface {
-	ReaderAt
-	// Size reports the length of the data source in bytes.
-	Size() int64
 }
 
 // stringWriter is the interface that wraps the WriteString method.

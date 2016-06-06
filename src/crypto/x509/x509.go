@@ -1853,8 +1853,8 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 	return ret, nil
 }
 
-// CreateCertificateRequest creates a new certificate based on a template. The
-// following members of template are used: Subject, Attributes,
+// CreateCertificateRequest creates a new certificate request based on a template.
+// The following members of template are used: Subject, Attributes,
 // SignatureAlgorithm, Extensions, DNSNames, EmailAddresses, and IPAddresses.
 // The private key is the private key of the signer.
 //

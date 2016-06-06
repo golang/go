@@ -784,6 +784,21 @@ func importfile(f *Val, indent []byte) {
 		}
 	}
 
+	// process header lines
+	for {
+		p, err = imp.ReadString('\n')
+		if err != nil {
+			log.Fatalf("reading input: %v", err)
+		}
+		if p == "\n" {
+			break // header ends with blank line
+		}
+		if strings.HasPrefix(p, "safe") {
+			importpkg.Safe = true
+			break // ok to ignore rest
+		}
+	}
+
 	// assume files move (get installed)
 	// so don't record the full path.
 	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib

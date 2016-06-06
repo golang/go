@@ -241,8 +241,8 @@ func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (
 // If the host is empty, as in ":80", the local system is assumed.
 //
 // Examples:
-//	Dial("tcp", "12.34.56.78:80")
-//	Dial("tcp", "google.com:http")
+//	Dial("tcp", "192.0.2.1:80")
+//	Dial("tcp", "golang.org:http")
 //	Dial("tcp", "[2001:db8::1]:http")
 //	Dial("tcp", "[fe80::1%lo0]:80")
 //	Dial("tcp", ":80")
@@ -252,8 +252,8 @@ func resolveAddrList(ctx context.Context, op, network, addr string, hint Addr) (
 // literal IP address.
 //
 // Examples:
-//	Dial("ip4:1", "127.0.0.1")
-//	Dial("ip6:ospf", "::1")
+//	Dial("ip4:1", "192.0.2.1")
+//	Dial("ip6:ipv6-icmp", "2001:db8::1")
 //
 // For Unix networks, the address must be a file system path.
 func Dial(network, address string) (Conn, error) {

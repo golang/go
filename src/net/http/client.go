@@ -47,6 +47,9 @@ type Client struct {
 	// method returns both the previous Response (with its Body
 	// closed) and CheckRedirect's error (wrapped in a url.Error)
 	// instead of issuing the Request req.
+	// As a special case, if CheckRedirect returns ErrUseLastResponse,
+	// then the most recent response is returned with its body
+	// unclosed, along with a nil error.
 	//
 	// If CheckRedirect is nil, the Client uses its default policy,
 	// which is to stop after 10 consecutive requests.
@@ -417,6 +420,12 @@ func (c *Client) Get(url string) (resp *Response, err error) {
 
 func alwaysFalse() bool { return false }
 
+// ErrUseLastResponse can be returned by Client.CheckRedirect hooks to
+// control how redirects are processed. If returned, the next request
+// is not sent and the most recent response is returned with its body
+// unclosed.
+var ErrUseLastResponse = errors.New("net/http: use last response")
+
 // checkRedirect calls either the user's configured CheckRedirect
 // function, or the default.
 func (c *Client) checkRedirect(req *Request, via []*Request) error {
@@ -467,11 +476,12 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			}
 			ireq := reqs[0]
 			req = &Request{
-				Method: ireq.Method,
-				URL:    u,
-				Header: make(Header),
-				Cancel: ireq.Cancel,
-				ctx:    ireq.ctx,
+				Method:   ireq.Method,
+				Response: resp,
+				URL:      u,
+				Header:   make(Header),
+				Cancel:   ireq.Cancel,
+				ctx:      ireq.ctx,
 			}
 			if ireq.Method == "POST" || ireq.Method == "PUT" {
 				req.Method = "GET"
@@ -481,7 +491,27 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			if ref := refererForURL(reqs[len(reqs)-1].URL, req.URL); ref != "" {
 				req.Header.Set("Referer", ref)
 			}
-			if err := c.checkRedirect(req, reqs); err != nil {
+			err = c.checkRedirect(req, reqs)
+
+			// Sentinel error to let users select the
+			// previous response, without closing its
+			// body. See Issue 10069.
+			if err == ErrUseLastResponse {
+				return resp, nil
+			}
+
+			// Close the previous response's body. But
+			// read at least some of the body so if it's
+			// small the underlying TCP connection will be
+			// re-used. No need to check for errors: if it
+			// fails, the Transport won't reuse it anyway.
+			const maxBodySlurpSize = 2 << 10
+			if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
+				io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
+			}
+			resp.Body.Close()
+
+			if err != nil {
 				// Special case for Go 1 compatibility: return both the response
 				// and an error if the CheckRedirect function failed.
 				// See https://golang.org/issue/3795
@@ -508,14 +538,6 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 		if !shouldRedirect(resp.StatusCode) {
 			return resp, nil
 		}
-
-		// Read the body if small so underlying TCP connection will be re-used.
-		// No need to check for errors: if it fails, Transport won't reuse it anyway.
-		const maxBodySlurpSize = 2 << 10
-		if resp.ContentLength == -1 || resp.ContentLength <= maxBodySlurpSize {
-			io.CopyN(ioutil.Discard, resp.Body, maxBodySlurpSize)
-		}
-		resp.Body.Close()
 	}
 }
 

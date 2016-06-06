@@ -518,8 +518,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	case ODOT,
 		ODOTPTR,
 		OINDEX,
-		OIND,
-		ONAME: // PHEAP or PPARAMREF var
+		OIND:
 		var n1 Node
 		Igen(n, &n1, res)
 
@@ -1545,6 +1544,7 @@ func Agen(n *Node, res *Node) {
 
 	switch n.Op {
 	default:
+		Dump("bad agen", n)
 		Fatalf("agen: unknown op %v", Nconv(n, FmtShort|FmtSign))
 
 	case OCALLMETH:
@@ -1570,24 +1570,6 @@ func Agen(n *Node, res *Node) {
 		Agenr(n, &n1, res)
 		Thearch.Gmove(&n1, res)
 		Regfree(&n1)
-
-	case ONAME:
-		// should only get here with names in this func.
-		if n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
-			Dump("bad agen", n)
-			Fatalf("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
-		}
-
-		// should only get here for heap vars or paramref
-		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
-			Dump("bad agen", n)
-			Fatalf("agen: bad ONAME class %#x", n.Class)
-		}
-
-		Cgen(n.Name.Heapaddr, res)
-		if n.Xoffset != 0 {
-			addOffset(res, n.Xoffset)
-		}
 
 	case OIND:
 		Cgen(nl, res)
@@ -1646,8 +1628,9 @@ func Igen(n *Node, a *Node, res *Node) {
 
 	switch n.Op {
 	case ONAME:
-		if (n.Class&PHEAP != 0) || n.Class == PPARAMREF {
-			break
+		if n.Class == PAUTOHEAP {
+			Dump("igen", n)
+			Fatalf("bad name")
 		}
 		*a = *n
 		return
@@ -1702,11 +1685,11 @@ func Igen(n *Node, a *Node, res *Node) {
 		a.Type = n.Type
 		return
 
-		// Index of fixed-size array by constant can
-	// put the offset in the addressing.
-	// Could do the same for slice except that we need
-	// to use the real index for the bounds checking.
 	case OINDEX:
+		// Index of fixed-size array by constant can
+		// put the offset in the addressing.
+		// Could do the same for slice except that we need
+		// to use the real index for the bounds checking.
 		if n.Left.Type.IsArray() || (n.Left.Type.IsPtr() && n.Left.Left.Type.IsArray()) {
 			if Isconst(n.Right, CTINT) {
 				// Compute &a.

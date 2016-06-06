@@ -70,15 +70,18 @@ _cgo_is_runtime_initialized() {
 
 uintptr_t
 _cgo_wait_runtime_init_done() {
+	void (*pfn)(struct context_arg*);
+
 	 _cgo_maybe_run_preinit();
 	while (!_cgo_is_runtime_initialized()) {
 			WaitForSingleObject(runtime_init_wait, INFINITE);
 	}
-	if (x_cgo_context_function != nil) {
+	pfn = _cgo_get_context_function();
+	if (pfn != nil) {
 		struct context_arg arg;
 
 		arg.Context = 0;
-		(*x_cgo_context_function)(&arg);
+		(*pfn)(&arg);
 		return arg.Context;
 	}
 	return 0;
@@ -98,3 +101,23 @@ x_cgo_notify_runtime_init_done(void* dummy) {
 	}
 }
 
+// The context function, used when tracing back C calls into Go.
+static void (*cgo_context_function)(struct context_arg*);
+
+// Sets the context function to call to record the traceback context
+// when calling a Go function from C code. Called from runtime.SetCgoTraceback.
+void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
+	EnterCriticalSection(&runtime_init_cs);
+	cgo_context_function = context;
+	LeaveCriticalSection(&runtime_init_cs);
+}
+
+// Gets the context function.
+void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+	void (*ret)(struct context_arg*);
+
+	EnterCriticalSection(&runtime_init_cs);
+	ret = cgo_context_function;
+	LeaveCriticalSection(&runtime_init_cs);
+	return ret;
+}

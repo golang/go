@@ -145,25 +145,6 @@ func endcgo(mp *m) {
 	unlockOSThread() // invalidates mp
 }
 
-// Helper functions for cgo code.
-
-func cmalloc(n uintptr) unsafe.Pointer {
-	var args struct {
-		n   uint64
-		ret unsafe.Pointer
-	}
-	args.n = uint64(n)
-	cgocall(_cgo_malloc, unsafe.Pointer(&args))
-	if args.ret == nil {
-		throw("C malloc failed")
-	}
-	return args.ret
-}
-
-func cfree(p unsafe.Pointer) {
-	cgocall(_cgo_free, p)
-}
-
 // Call from C back to Go.
 //go:nosplit
 func cgocallbackg(ctxt uintptr) {

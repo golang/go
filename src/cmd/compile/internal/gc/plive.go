@@ -197,54 +197,41 @@ func blockany(bb *BasicBlock, f func(*obj.Prog) bool) bool {
 	return false
 }
 
-// Collects and returns a slice of *Nodes for functions arguments and local
-// variables.
+// livenessShouldTrack reports whether the liveness analysis
+// should track the variable n.
+// We don't care about variables that have no pointers,
+// nor do we care about non-local variables,
+// nor do we care about empty structs (handled by the pointer check),
+// nor do we care about the fake PAUTOHEAP variables.
+func livenessShouldTrack(n *Node) bool {
+	return n.Op == ONAME && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && haspointers(n.Type)
+}
+
+// getvariables returns the list of on-stack variables that we need to track.
 func getvariables(fn *Node) []*Node {
-	var result []*Node
-	for _, ln := range fn.Func.Dcl {
-		if ln.Op == ONAME {
-			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
-			// to contain information about all variables covered by the bitmap.
-			// For local variables, the bitmap only covers the stkptrsize
-			// bytes in the frame where variables containing pointers live.
-			// For arguments and results, the bitmap covers all variables,
-			// so we must include all the variables, even the ones without
-			// pointers.
-			//
+	var vars []*Node
+	for _, n := range fn.Func.Dcl {
+		if n.Op == ONAME {
 			// The Node.opt field is available for use by optimization passes.
-			// We use it to hold the index of the node in the variables array, plus 1
-			// (so that 0 means the Node is not in the variables array).
-			// Each pass should clear opt when done, but you never know,
-			// so clear them all ourselves too.
+			// We use it to hold the index of the node in the variables array
+			// (nil means the Node is not in the variables array).
 			// The Node.curfn field is supposed to be set to the current function
 			// already, but for some compiler-introduced names it seems not to be,
 			// so fix that here.
 			// Later, when we want to find the index of a node in the variables list,
-			// we will check that n.curfn == curfn and n.opt > 0. Then n.opt - 1
+			// we will check that n.Curfn == Curfn and n.Opt() != nil. Then n.Opt().(int32)
 			// is the index in the variables list.
-			ln.SetOpt(nil)
+			n.SetOpt(nil)
+			n.Name.Curfn = Curfn
+		}
 
-			// The compiler doesn't emit initializations for zero-width parameters or results.
-			if ln.Type.Width == 0 {
-				continue
-			}
-
-			ln.Name.Curfn = Curfn
-			switch ln.Class {
-			case PAUTO:
-				if haspointers(ln.Type) {
-					ln.SetOpt(int32(len(result)))
-					result = append(result, ln)
-				}
-
-			case PPARAM, PPARAMOUT:
-				ln.SetOpt(int32(len(result)))
-				result = append(result, ln)
-			}
+		if livenessShouldTrack(n) {
+			n.SetOpt(int32(len(vars)))
+			vars = append(vars, n)
 		}
 	}
 
-	return result
+	return vars
 }
 
 // A pretty printer for control flow graphs. Takes a slice of *BasicBlocks.
@@ -567,9 +554,11 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		// read the out arguments - they won't be set until the new
 		// function runs.
 		for i, node := range vars {
-			switch node.Class &^ PHEAP {
+			switch node.Class {
 			case PPARAM:
-				bvset(uevar, int32(i))
+				if !node.NotLiveAtEnd() {
+					bvset(uevar, int32(i))
+				}
 
 				// If the result had its address taken, it is being tracked
 			// by the avarinit code, which does not use uevar.
@@ -593,7 +582,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		// A text instruction marks the entry point to a function and
 		// the definition point of all in arguments.
 		for i, node := range vars {
-			switch node.Class &^ PHEAP {
+			switch node.Class {
 			case PPARAM:
 				if node.Addrtaken {
 					bvset(avarinit, int32(i))
@@ -607,24 +596,17 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 
 	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
 		from := &prog.From
-		if from.Node != nil && from.Sym != nil && ((from.Node).(*Node)).Name.Curfn == Curfn {
-			switch ((from.Node).(*Node)).Class &^ PHEAP {
-			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := from.Node.(*Node).Opt().(int32) // index in vars
-				if !ok {
-					break
-				}
-				if pos >= int32(len(vars)) || vars[pos] != from.Node {
-					Fatalf("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
-				}
-				if ((from.Node).(*Node)).Addrtaken {
+		if from.Node != nil && from.Sym != nil {
+			n := from.Node.(*Node)
+			if pos := liveIndex(n, vars); pos >= 0 {
+				if n.Addrtaken {
 					bvset(avarinit, pos)
 				} else {
 					if prog.Info.Flags&(LeftRead|LeftAddr) != 0 {
 						bvset(uevar, pos)
 					}
 					if prog.Info.Flags&LeftWrite != 0 {
-						if from.Node != nil && !Isfat(((from.Node).(*Node)).Type) {
+						if !Isfat(n.Type) {
 							bvset(varkill, pos)
 						}
 					}
@@ -635,17 +617,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 
 	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
 		to := &prog.To
-		if to.Node != nil && to.Sym != nil && ((to.Node).(*Node)).Name.Curfn == Curfn {
-			switch ((to.Node).(*Node)).Class &^ PHEAP {
-			case PAUTO, PPARAM, PPARAMOUT:
-				pos, ok := to.Node.(*Node).Opt().(int32) // index in vars
-				if !ok {
-					return
-				}
-				if pos >= int32(len(vars)) || vars[pos] != to.Node {
-					Fatalf("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
-				}
-				if ((to.Node).(*Node)).Addrtaken {
+		if to.Node != nil && to.Sym != nil {
+			n := to.Node.(*Node)
+			if pos := liveIndex(n, vars); pos >= 0 {
+				if n.Addrtaken {
 					if prog.As != obj.AVARKILL {
 						bvset(avarinit, pos)
 					}
@@ -665,7 +640,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 						bvset(uevar, pos)
 					}
 					if prog.Info.Flags&RightWrite != 0 {
-						if to.Node != nil && (!Isfat(((to.Node).(*Node)).Type) || prog.As == obj.AVARDEF) {
+						if !Isfat(n.Type) || prog.As == obj.AVARDEF {
 							bvset(varkill, pos)
 						}
 					}
@@ -673,6 +648,24 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 			}
 		}
 	}
+}
+
+// liveIndex returns the index of n in the set of tracked vars.
+// If n is not a tracked var, liveIndex returns -1.
+// If n is not a tracked var but should be tracked, liveIndex crashes.
+func liveIndex(n *Node, vars []*Node) int32 {
+	if n.Name.Curfn != Curfn || !livenessShouldTrack(n) {
+		return -1
+	}
+
+	pos, ok := n.Opt().(int32) // index in vars
+	if !ok {
+		Fatalf("lost track of variable in liveness: %v (%p, %p)", n, n, n.Orig)
+	}
+	if pos >= int32(len(vars)) || vars[pos] != n {
+		Fatalf("bad bookkeeping in liveness: %v (%p, %p)", n, n, n.Orig)
+	}
+	return pos
 }
 
 // Constructs a new liveness structure used to hold the global state of the
@@ -812,8 +805,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 		return
 	}
 	for _, a := range fn.Func.Dcl {
-		class := a.Class &^ PHEAP
-		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
+		if a.Op == ONAME && (a.Class == PPARAM || a.Class == PPARAMOUT) && a == n {
 			return
 		}
 	}
@@ -979,23 +971,6 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
 			xoffset = node.Xoffset
 			onebitwalktype1(node.Type, &xoffset, args)
 		}
-	}
-
-	// The node list only contains declared names.
-	// If the receiver or arguments are unnamed, they will be omitted
-	// from the list above. Preserve those values - even though they are unused -
-	// in order to keep their addresses live for use in stack traces.
-	thisargtype := lv.fn.Type.Recvs()
-
-	if thisargtype != nil {
-		xoffset = 0
-		onebitwalktype1(thisargtype, &xoffset, args)
-	}
-
-	inargtype := lv.fn.Type.Params()
-	if inargtype != nil {
-		xoffset = 0
-		onebitwalktype1(inargtype, &xoffset, args)
 	}
 }
 

@@ -3,6 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Package csv reads and writes comma-separated values (CSV) files.
+// There are many kinds of CSV files; this package supports the format
+// described in RFC 4180.
 //
 // A csv file contains zero or more records of one or more fields per record.
 // Each record is separated by the newline character. The final record may
@@ -234,7 +236,7 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	for {
 		haveField, delim, err := r.parseField()
 		if haveField {
-			// If FieldsPerRecord is greater then 0 we can assume the final
+			// If FieldsPerRecord is greater than 0 we can assume the final
 			// length of fields to be equal to FieldsPerRecord.
 			if r.FieldsPerRecord > 0 && fields == nil {
 				fields = make([]string, 0, r.FieldsPerRecord)

@@ -52,6 +52,7 @@ func (c *Conn) serverHandshake() error {
 	}
 
 	// For an overview of TLS handshaking, see https://tools.ietf.org/html/rfc5246#section-7.3
+	c.buffering = true
 	if isResume {
 		// The client has included a session ticket and so we do an abbreviated handshake.
 		if err := hs.doResumeHandshake(); err != nil {
@@ -69,6 +70,9 @@ func (c *Conn) serverHandshake() error {
 			}
 		}
 		if err := hs.sendFinished(c.serverFinished[:]); err != nil {
+			return err
+		}
+		if _, err := c.flush(); err != nil {
 			return err
 		}
 		c.clientFinishedIsFirst = false
@@ -89,10 +93,14 @@ func (c *Conn) serverHandshake() error {
 			return err
 		}
 		c.clientFinishedIsFirst = true
+		c.buffering = true
 		if err := hs.sendSessionTicket(); err != nil {
 			return err
 		}
 		if err := hs.sendFinished(nil); err != nil {
+			return err
+		}
+		if _, err := c.flush(); err != nil {
 			return err
 		}
 	}
@@ -284,10 +292,8 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	if hs.sessionState.vers > hs.clientHello.vers {
-		return false
-	}
-	if vers, ok := c.config.mutualVersion(hs.sessionState.vers); !ok || vers != hs.sessionState.vers {
+	// Never resume a session for a different TLS version.
+	if c.vers != hs.sessionState.vers {
 		return false
 	}
 
@@ -429,6 +435,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	helloDone := new(serverHelloDoneMsg)
 	hs.finishedHash.Write(helloDone.marshal())
 	if _, err := c.writeRecord(recordTypeHandshake, helloDone.marshal()); err != nil {
+		return err
+	}
+
+	if _, err := c.flush(); err != nil {
 		return err
 	}
 

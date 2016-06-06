@@ -107,7 +107,7 @@ type Context interface {
 	// collisions.
 	//
 	// Packages that define a Context key should provide type-safe accessors
-	// for the values stores using that key:
+	// for the values stored using that key:
 	//
 	// 	// Package user defines a User type that's stored in Contexts.
 	// 	package user
@@ -144,7 +144,13 @@ var Canceled = errors.New("context canceled")
 
 // DeadlineExceeded is the error returned by Context.Err when the context's
 // deadline passes.
-var DeadlineExceeded = errors.New("context deadline exceeded")
+var DeadlineExceeded error = deadlineExceededError{}
+
+type deadlineExceededError struct{}
+
+func (deadlineExceededError) Error() string { return "context deadline exceeded" }
+
+func (deadlineExceededError) Timeout() bool { return true }
 
 // An emptyCtx is never canceled, has no values, and has no deadline.  It is not
 // struct{}, since vars of this type must have distinct addresses.

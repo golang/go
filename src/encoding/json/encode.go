@@ -90,8 +90,8 @@ import (
 //    Int64String int64 `json:",string"`
 //
 // The key name will be used if it's a non-empty string consisting of
-// only Unicode letters, digits, dollar signs, percent signs, hyphens,
-// underscores and slashes.
+// only Unicode letters, digits, and ASCII punctuation except quotation
+// marks, backslash, and comma.
 //
 // Anonymous struct fields are usually marshaled as if their inner exported fields
 // were fields in the outer struct, subject to the usual Go visibility rules amended
@@ -119,8 +119,8 @@ import (
 //
 // Map values encode as JSON objects. The map's key type must either be a
 // string, an integer type, or implement encoding.TextMarshaler. The map keys
-// are used as JSON object keys by applying the following rules, subject to the
-// UTF-8 coercion described for string values above:
+// are sorted and used as JSON object keys by applying the following rules,
+// subject to the UTF-8 coercion described for string values above:
 //   - string keys are used directly
 //   - encoding.TextMarshalers are marshaled
 //   - integer keys are converted to strings
@@ -698,10 +698,11 @@ func (se *sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 
 func newSliceEncoder(t reflect.Type) encoderFunc {
 	// Byte slices get special treatment; arrays don't.
-	if t.Elem().Kind() == reflect.Uint8 &&
-		!t.Elem().Implements(marshalerType) &&
-		!t.Elem().Implements(textMarshalerType) {
-		return encodeByteSlice
+	if t.Elem().Kind() == reflect.Uint8 {
+		p := reflect.PtrTo(t.Elem())
+		if !p.Implements(marshalerType) && !p.Implements(textMarshalerType) {
+			return encodeByteSlice
+		}
 	}
 	enc := &sliceEncoder{newArrayEncoder(t)}
 	return enc.encode

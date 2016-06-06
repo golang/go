@@ -1889,32 +1889,6 @@ type Tbigp [2]uintptr
 
 func (p *Tbigp) M(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
 
-// Again, with an unexported method.
-
-type tsmallv byte
-
-func (v tsmallv) m(x int, b byte) (byte, int) { return b, x + int(v) }
-
-type tsmallp byte
-
-func (p *tsmallp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
-
-type twordv uintptr
-
-func (v twordv) m(x int, b byte) (byte, int) { return b, x + int(v) }
-
-type twordp uintptr
-
-func (p *twordp) m(x int, b byte) (byte, int) { return b, x + int(*p) }
-
-type tbigv [2]uintptr
-
-func (v tbigv) m(x int, b byte) (byte, int) { return b, x + int(v[0]) + int(v[1]) }
-
-type tbigp [2]uintptr
-
-func (p *tbigp) m(x int, b byte) (byte, int) { return b, x + int(p[0]) + int(p[1]) }
-
 type tinter interface {
 	m(int, byte) (byte, int)
 }
@@ -1958,7 +1932,6 @@ func TestMethod5(t *testing.T) {
 	}
 
 	var TinterType = TypeOf(new(Tinter)).Elem()
-	var tinterType = TypeOf(new(tinter)).Elem()
 
 	CheckI := func(name string, i interface{}, inc int) {
 		v := ValueOf(i)
@@ -1999,39 +1972,6 @@ func TestMethod5(t *testing.T) {
 	CheckI("&t2", &t2, 40)
 	CheckI("t1", t1, 40)
 	CheckI("&t1", &t1, 40)
-
-	methodShouldPanic := func(name string, i interface{}) {
-		v := ValueOf(i)
-		m := v.Method(0)
-		shouldPanic(func() { m.Call([]Value{ValueOf(1000), ValueOf(byte(99))}) })
-		shouldPanic(func() { m.Interface() })
-
-		v = v.Convert(tinterType)
-		m = v.Method(0)
-		shouldPanic(func() { m.Call([]Value{ValueOf(1000), ValueOf(byte(99))}) })
-		shouldPanic(func() { m.Interface() })
-	}
-
-	_sv := tsmallv(1)
-	methodShouldPanic("_sv", _sv)
-	methodShouldPanic("&_sv", &_sv)
-
-	_sp := tsmallp(2)
-	methodShouldPanic("&_sp", &_sp)
-
-	_wv := twordv(3)
-	methodShouldPanic("_wv", _wv)
-	methodShouldPanic("&_wv", &_wv)
-
-	_wp := twordp(4)
-	methodShouldPanic("&_wp", &_wp)
-
-	_bv := tbigv([2]uintptr{5, 6})
-	methodShouldPanic("_bv", _bv)
-	methodShouldPanic("&_bv", &_bv)
-
-	_bp := tbigp([2]uintptr{7, 8})
-	methodShouldPanic("&_bp", &_bp)
 
 	var tnil Tinter
 	vnil := ValueOf(&tnil).Elem()
@@ -2388,13 +2328,13 @@ type outer struct {
 	inner
 }
 
-func (*inner) m() {}
-func (*outer) m() {}
+func (*inner) M() {}
+func (*outer) M() {}
 
 func TestNestedMethods(t *testing.T) {
 	typ := TypeOf((*outer)(nil))
-	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != ValueOf((*outer).m).Pointer() {
-		t.Errorf("Wrong method table for outer: (m=%p)", (*outer).m)
+	if typ.NumMethod() != 1 || typ.Method(0).Func.Pointer() != ValueOf((*outer).M).Pointer() {
+		t.Errorf("Wrong method table for outer: (M=%p)", (*outer).M)
 		for i := 0; i < typ.NumMethod(); i++ {
 			m := typ.Method(i)
 			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Pointer())
@@ -2416,17 +2356,8 @@ var unexpi unexpI = new(unexp)
 func TestUnexportedMethods(t *testing.T) {
 	typ := TypeOf(unexpi)
 
-	if typ.Method(0).Type == nil {
-		t.Error("missing type for satisfied method 'f'")
-	}
-	if !typ.Method(0).Func.IsValid() {
-		t.Error("missing func for satisfied method 'f'")
-	}
-	if typ.Method(1).Type != nil {
-		t.Error("found type for unsatisfied method 'g'")
-	}
-	if typ.Method(1).Func.IsValid() {
-		t.Error("found func for unsatisfied method 'g'")
+	if got := typ.NumMethod(); got != 0 {
+		t.Errorf("NumMethod=%d, want 0 satisfied methods", got)
 	}
 }
 
@@ -2918,12 +2849,11 @@ func TestUnexported(t *testing.T) {
 	isValid(v.Elem().Field(1))
 	isValid(v.Elem().FieldByName("x"))
 	isValid(v.Elem().FieldByName("y"))
-	isValid(v.Type().Method(0).Func)
 	shouldPanic(func() { v.Elem().Field(0).Interface() })
 	shouldPanic(func() { v.Elem().Field(1).Interface() })
 	shouldPanic(func() { v.Elem().FieldByName("x").Interface() })
 	shouldPanic(func() { v.Elem().FieldByName("y").Interface() })
-	shouldPanic(func() { v.Type().Method(0).Func.Interface() })
+	shouldPanic(func() { v.Type().Method(0) })
 }
 
 func TestSetPanic(t *testing.T) {
@@ -4003,6 +3933,10 @@ func TestStructOf(t *testing.T) {
 	want := `{ 1 0 [0 0 0]}`
 	if s != want {
 		t.Errorf("constructed struct = %s, want %s", s, want)
+	}
+	const stStr = `struct { S string "s"; X uint8 "x"; Y uint64; Z [3]uint16 }`
+	if got, want := st.String(), stStr; got != want {
+		t.Errorf("StructOf(fields).String()=%q, want %q", got, want)
 	}
 
 	// check the size, alignment and field offsets
@@ -5187,7 +5121,7 @@ func useStack(n int) {
 
 type Impl struct{}
 
-func (Impl) f() {}
+func (Impl) F() {}
 
 func TestValueString(t *testing.T) {
 	rv := ValueOf(Impl{})
@@ -5772,17 +5706,6 @@ func TestNameBytesAreAligned(t *testing.T) {
 	}
 }
 
-func TestMethodPkgPathReadable(t *testing.T) {
-	// Reading the Method type for an unexported method triggers an
-	// offset resolution via p.name.pkgPath(). Make sure it uses a
-	// valid base pointer for the offset.
-	v := ValueOf(embed{})
-	m := v.Type().Method(0)
-	if m.PkgPath != "reflect" {
-		t.Errorf(`PkgPath=%q, want "reflect"`, m.PkgPath)
-	}
-}
-
 func TestTypeStrings(t *testing.T) {
 	type stringTest struct {
 		typ  Type
@@ -5802,4 +5725,19 @@ func TestTypeStrings(t *testing.T) {
 			t.Errorf("type %d String()=%q, want %q", i, got, want)
 		}
 	}
+}
+
+func TestOffsetLock(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			for j := 0; j < 50; j++ {
+				ResolveReflectName(fmt.Sprintf("OffsetLockName:%d:%d", i, j))
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }

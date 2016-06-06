@@ -48,12 +48,16 @@ var ErrInvalidHuffman = errors.New("hpack: invalid Huffman-encoded data")
 // maxLen bytes will return ErrStringLength.
 func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error {
 	n := rootHuffmanNode
-	cur, nbits := uint(0), uint8(0)
+	// cur is the bit buffer that has not been fed into n.
+	// cbits is the number of low order bits in cur that are valid.
+	// sbits is the number of bits of the symbol prefix being decoded.
+	cur, cbits, sbits := uint(0), uint8(0), uint8(0)
 	for _, b := range v {
 		cur = cur<<8 | uint(b)
-		nbits += 8
-		for nbits >= 8 {
-			idx := byte(cur >> (nbits - 8))
+		cbits += 8
+		sbits += 8
+		for cbits >= 8 {
+			idx := byte(cur >> (cbits - 8))
 			n = n.children[idx]
 			if n == nil {
 				return ErrInvalidHuffman
@@ -63,22 +67,40 @@ func huffmanDecode(buf *bytes.Buffer, maxLen int, v []byte) error {
 					return ErrStringLength
 				}
 				buf.WriteByte(n.sym)
-				nbits -= n.codeLen
+				cbits -= n.codeLen
 				n = rootHuffmanNode
+				sbits = cbits
 			} else {
-				nbits -= 8
+				cbits -= 8
 			}
 		}
 	}
-	for nbits > 0 {
-		n = n.children[byte(cur<<(8-nbits))]
-		if n.children != nil || n.codeLen > nbits {
+	for cbits > 0 {
+		n = n.children[byte(cur<<(8-cbits))]
+		if n == nil {
+			return ErrInvalidHuffman
+		}
+		if n.children != nil || n.codeLen > cbits {
 			break
 		}
+		if maxLen != 0 && buf.Len() == maxLen {
+			return ErrStringLength
+		}
 		buf.WriteByte(n.sym)
-		nbits -= n.codeLen
+		cbits -= n.codeLen
 		n = rootHuffmanNode
+		sbits = cbits
 	}
+	if sbits > 7 {
+		// Either there was an incomplete symbol, or overlong padding.
+		// Both are decoding errors per RFC 7541 section 5.2.
+		return ErrInvalidHuffman
+	}
+	if mask := uint(1<<cbits - 1); cur&mask != mask {
+		// Trailing bits must be a prefix of EOS per RFC 7541 section 5.2.
+		return ErrInvalidHuffman
+	}
+
 	return nil
 }
 

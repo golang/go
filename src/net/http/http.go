@@ -6,6 +6,8 @@ package http
 
 import (
 	"strings"
+
+	"golang.org/x/net/lex/httplex"
 )
 
 // maxInt64 is the effective "infinite" value for the Server and
@@ -34,4 +36,8 @@ func removeEmptyPort(host string) string {
 		return strings.TrimSuffix(host, ":")
 	}
 	return host
+}
+
+func isNotToken(r rune) bool {
+	return !httplex.IsTokenRune(r)
 }

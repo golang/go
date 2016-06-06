@@ -84,7 +84,7 @@ func stackalloc(f *Func, spillLive [][]ID) [][]ID {
 
 	s.stackalloc()
 	if f.pass.stats > 0 {
-		f.logStat("stack_alloc_stats",
+		f.LogStat("stack_alloc_stats",
 			s.nArgSlot, "arg_slots", s.nNotNeed, "slot_not_needed",
 			s.nNamedSlot, "named_slots", s.nAuto, "auto_slots",
 			s.nReuse, "reused_slots", s.nSelfInterfere, "self_interfering")

@@ -41,8 +41,11 @@ import (
 // x.Prec() mantissa bits.
 // The prec value is ignored for the 'b' or 'p' format.
 func (x *Float) Text(format byte, prec int) string {
-	const extra = 10 // TODO(gri) determine a good/better value here
-	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
+	cap := 10 // TODO(gri) determine a good/better value here
+	if prec > 0 {
+		cap += prec
+	}
+	return string(x.Append(make([]byte, 0, cap), format, prec))
 }
 
 // String formats x like x.Text('g', 10).

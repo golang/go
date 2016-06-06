@@ -26,7 +26,7 @@ func isChrooted(t *testing.T) bool {
 	return root.Sys().(*syscall.Stat_t).Ino != 2
 }
 
-func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
+func checkUserNS(t *testing.T) {
 	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
 		if os.IsNotExist(err) {
 			t.Skip("kernel doesn't support user namespaces")
@@ -56,6 +56,10 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
 		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
+}
+
+func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
+	checkUserNS(t)
 	cmd := exec.Command("whoami")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER,
@@ -123,5 +127,107 @@ func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
 	cmd.SysProcAttr.Credential = &syscall.Credential{}
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUnshare(t *testing.T) {
+	// Make sure we are running as root so we have permissions to use unshare
+	// and create a network namespace.
+	if os.Getuid() != 0 {
+		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
+	}
+
+	// When running under the Go continuous build, skip tests for
+	// now when under Kubernetes. (where things are root but not quite)
+	// Both of these are our own environment variables.
+	// See Issue 12815.
+	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+	}
+
+	path := "/proc/net/dev"
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support proc filesystem")
+		}
+		if os.IsPermission(err) {
+			t.Skip("unable to test proc filesystem due to permissions")
+		}
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("cat", path)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Unshareflags: syscall.CLONE_NEWNET,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+
+	// Check there is only the local network interface
+	sout := strings.TrimSpace(string(out))
+	if !strings.Contains(sout, "lo:") {
+		t.Fatalf("Expected lo network interface to exist, got %s", sout)
+	}
+
+	lines := strings.Split(sout, "\n")
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines of output, got %d", len(lines))
+	}
+}
+
+func TestGroupCleanup(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("we need root for credential")
+	}
+	cmd := exec.Command("id")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: 0,
+			Gid: 0,
+		},
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+	strOut := strings.TrimSpace(string(out))
+	expected := "uid=0(root) gid=0(root) groups=0(root)"
+	if strOut != expected {
+		t.Fatalf("id command output: %s, expected: %s", strOut, expected)
+	}
+}
+
+func TestGroupCleanupUserNamespace(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("we need root for credential")
+	}
+	checkUserNS(t)
+	cmd := exec.Command("id")
+	uid, gid := os.Getuid(), os.Getgid()
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUSER,
+		Credential: &syscall.Credential{
+			Uid: uint32(uid),
+			Gid: uint32(gid),
+		},
+		UidMappings: []syscall.SysProcIDMap{
+			{ContainerID: 0, HostID: uid, Size: 1},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{ContainerID: 0, HostID: gid, Size: 1},
+		},
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+	strOut := strings.TrimSpace(string(out))
+	// there are two possible outs
+	expected1 := "uid=0(root) gid=0(root) groups=0(root)"
+	expected2 := "uid=0(root) gid=0(root) groups=0(root),65534(nobody)"
+	if strOut != expected1 && strOut != expected2 {
+		t.Fatalf("id command output: %s, expected: %s or %s", strOut, expected1, expected2)
 	}
 }

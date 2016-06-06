@@ -5,6 +5,7 @@
 package big
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"testing"
@@ -509,23 +510,19 @@ func TestExpNN(t *testing.T) {
 	}
 }
 
-func ExpHelper(b *testing.B, x, y Word) {
-	var z nat
-	for i := 0; i < b.N; i++ {
-		z.expWW(x, y)
+func BenchmarkExp3Power(b *testing.B) {
+	const x = 3
+	for _, y := range []Word{
+		0x10, 0x40, 0x100, 0x400, 0x1000, 0x4000, 0x10000, 0x40000, 0x100000, 0x400000,
+	} {
+		b.Run(fmt.Sprintf("%#x", y), func(b *testing.B) {
+			var z nat
+			for i := 0; i < b.N; i++ {
+				z.expWW(x, y)
+			}
+		})
 	}
 }
-
-func BenchmarkExp3Power0x10(b *testing.B)     { ExpHelper(b, 3, 0x10) }
-func BenchmarkExp3Power0x40(b *testing.B)     { ExpHelper(b, 3, 0x40) }
-func BenchmarkExp3Power0x100(b *testing.B)    { ExpHelper(b, 3, 0x100) }
-func BenchmarkExp3Power0x400(b *testing.B)    { ExpHelper(b, 3, 0x400) }
-func BenchmarkExp3Power0x1000(b *testing.B)   { ExpHelper(b, 3, 0x1000) }
-func BenchmarkExp3Power0x4000(b *testing.B)   { ExpHelper(b, 3, 0x4000) }
-func BenchmarkExp3Power0x10000(b *testing.B)  { ExpHelper(b, 3, 0x10000) }
-func BenchmarkExp3Power0x40000(b *testing.B)  { ExpHelper(b, 3, 0x40000) }
-func BenchmarkExp3Power0x100000(b *testing.B) { ExpHelper(b, 3, 0x100000) }
-func BenchmarkExp3Power0x400000(b *testing.B) { ExpHelper(b, 3, 0x400000) }
 
 func fibo(n int) nat {
 	switch n {

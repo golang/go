@@ -111,30 +111,35 @@ if test "$tsan" = "yes"; then
      rm -f ${TMPDIR}/testsanitizers$$*
 fi
 
-if test "$tsan" = "yes"; then
+# Run a TSAN test.
+# $1 test name
+# $2 environment variables
+# $3 go run args
+testtsan() {
     err=${TMPDIR}/tsanerr$$.out
-
-    if ! go run tsan.go 2>$err; then
+    if ! env $2 go run $3 $1 2>$err; then
 	cat $err
-	echo "FAIL: tsan"
+	echo "FAIL: $1"
 	status=1
     elif grep -i warning $err >/dev/null 2>&1; then
 	cat $err
-	echo "FAIL: tsan"
+	echo "FAIL: $1"
 	status=1
     fi
-
-    if ! go run tsan2.go 2>$err; then
-	cat $err
-	echo "FAIL: tsan2"
-	status=1
-    elif grep -i warning $err >/dev/null 2>&1; then
-	cat $err
-	echo "FAIL: tsan2"
-	status=1
-    fi
-
     rm -f $err
+}
+
+if test "$tsan" = "yes"; then
+    testtsan tsan.go
+    testtsan tsan2.go
+    testtsan tsan3.go
+    testtsan tsan4.go
+
+    # This test requires rebuilding os/user with -fsanitize=thread.
+    testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+
+    # This test requires rebuilding runtime/cgo with -fsanitize=thread.
+    testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
 fi
 
 exit $status

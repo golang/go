@@ -15,25 +15,40 @@ func (check *Checker) initOrder() {
 	// built from several calls to (*Checker).Files. Clear it.
 	check.Info.InitOrder = check.Info.InitOrder[:0]
 
-	// compute the object dependency graph and
-	// initialize a priority queue with the list
-	// of graph nodes
+	// Compute the transposed object dependency graph and initialize
+	// a priority queue with the list of graph nodes.
 	pq := nodeQueue(dependencyGraph(check.objMap))
 	heap.Init(&pq)
 
 	const debug = false
 	if debug {
-		fmt.Printf("package %s: object dependency graph\n", check.pkg.Name())
-		for _, n := range pq {
-			for _, o := range n.out {
-				fmt.Printf("\t%s -> %s\n", n.obj.Name(), o.obj.Name())
+		fmt.Printf("Computing initialization order for %s\n\n", check.pkg)
+		fmt.Println("Object dependency graph:")
+		for obj, d := range check.objMap {
+			if len(d.deps) > 0 {
+				fmt.Printf("\t%s depends on\n", obj.Name())
+				for dep := range d.deps {
+					fmt.Printf("\t\t%s\n", dep.Name())
+				}
+			} else {
+				fmt.Printf("\t%s has no dependencies\n", obj.Name())
 			}
 		}
 		fmt.Println()
-		fmt.Printf("package %s: initialization order\n", check.pkg.Name())
+
+		fmt.Println("Transposed object dependency graph:")
+		for _, n := range pq {
+			fmt.Printf("\t%s depends on %d nodes\n", n.obj.Name(), n.in)
+			for _, out := range n.out {
+				fmt.Printf("\t\t%s is dependent\n", out.obj.Name())
+			}
+		}
+		fmt.Println()
+
+		fmt.Println("Processing nodes:")
 	}
 
-	// determine initialization order by removing the highest priority node
+	// Determine initialization order by removing the highest priority node
 	// (the one with the fewest dependencies) and its edges from the graph,
 	// repeatedly, until there are no nodes left.
 	// In a valid Go program, those nodes always have zero dependencies (after
@@ -44,6 +59,11 @@ func (check *Checker) initOrder() {
 	for len(pq) > 0 {
 		// get the next node
 		n := heap.Pop(&pq).(*objNode)
+
+		if debug {
+			fmt.Printf("\t%s (src pos %d) depends on %d nodes now\n",
+				n.obj.Name(), n.obj.order(), n.in)
+		}
 
 		// if n still depends on other nodes, we have a cycle
 		if n.in > 0 {
@@ -86,13 +106,14 @@ func (check *Checker) initOrder() {
 		}
 		init := &Initializer{infoLhs, info.init}
 		check.Info.InitOrder = append(check.Info.InitOrder, init)
-
-		if debug {
-			fmt.Printf("\t%s\n", init)
-		}
 	}
 
 	if debug {
+		fmt.Println()
+		fmt.Println("Initialization order:")
+		for _, init := range check.Info.InitOrder {
+			fmt.Printf("\t%s\n", init)
+		}
 		fmt.Println()
 	}
 }

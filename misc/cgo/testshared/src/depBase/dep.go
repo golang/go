@@ -12,6 +12,11 @@ type Dep struct {
 	X int
 }
 
+func (d *Dep) Method() int {
+	return 10
+}
+
 func F() int {
+	defer func() {}()
 	return V
 }

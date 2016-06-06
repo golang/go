@@ -307,6 +307,27 @@ func TestTRun(t *T) {
 		f: func(t *T) {
 			t.Skip()
 		},
+	}, {
+		desc:   "panic on goroutine fail after test exit",
+		ok:     false,
+		maxPar: 4,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("", func(t *T) {
+				go func() {
+					<-ch
+					defer func() {
+						if r := recover(); r == nil {
+							realTest.Errorf("expected panic")
+						}
+						ch <- true
+					}()
+					t.Errorf("failed after success")
+				}()
+			})
+			ch <- true
+			<-ch
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))

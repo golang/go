@@ -432,8 +432,8 @@ func (t *tester) registerTests() {
 		},
 	})
 
-	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
-		// Disabled on android and iOS. golang.org/issue/8345
+	if t.cgoEnabled && !t.iOS() {
+		// Disabled on iOS. golang.org/issue/15919
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_stdio",
 			heading: "../misc/cgo/stdio",
@@ -465,11 +465,7 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
-		// TODO(crawshaw): reenable on android and iOS
-		// golang.org/issue/8345
-		//
-		// These tests are not designed to run off the host.
+	if t.cgoEnabled {
 		t.tests = append(t.tests, distTest{
 			name:    "cgo_test",
 			heading: "../misc/cgo/test",
@@ -729,16 +725,10 @@ func (t *tester) runHostTest(dirBanner, pkg string) error {
 func (t *tester) cgoTest(dt *distTest) error {
 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
 
-	if t.goos == "android" || t.iOS() {
-		cmd := t.dirCmd("misc/cgo/test", "go", "test", t.tags())
-		cmd.Env = env
-		return cmd.Run()
-	}
-
 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
 	cmd.Env = env
 
-	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" {
+	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" && (t.goos != "darwin" || t.goarch != "arm") {
 		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
 		// linkmode=internal fails on ppc64le because cmd/link doesn't
 		// handle the TOC correctly (issue 15409).
@@ -792,8 +782,10 @@ func (t *tester) cgoTest(dt *distTest) error {
 			if err := cmd.Run(); err != nil {
 				fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
 			} else {
-				cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
-				cmd.Env = env
+				if t.goos != "android" {
+					cmd = t.addCmd(dt, "misc/cgo/testtls", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					cmd.Env = env
+				}
 
 				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test")
 				cmd.Env = env
@@ -801,8 +793,10 @@ func (t *tester) cgoTest(dt *distTest) error {
 				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external`)
 				cmd.Env = env
 
-				cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
-				cmd.Env = env
+				if t.goos != "android" {
+					cmd = t.addCmd(dt, "misc/cgo/nocgo", "go", "test", "-ldflags", `-linkmode=external -extldflags "-static -pthread"`)
+					cmd.Env = env
+				}
 			}
 
 			if pair != "freebsd-amd64" { // clang -pie fails to link misc/cgo/test

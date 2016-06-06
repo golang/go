@@ -3,7 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // Binary package import.
-// Based loosely on x/tools/go/importer.
+// See bexport.go for the export data format and how
+// to make a format change.
 
 package gc
 
@@ -103,7 +104,9 @@ func Import(in *bufio.Reader) {
 	// --- compiler-specific export data ---
 
 	// read compiler-specific flags
-	importpkg.Safe = p.bool()
+
+	// read but ignore safemode bit (see issue #15772)
+	p.bool() // formerly: importpkg.Safe = p.bool()
 
 	// phase 2
 	objcount = 0
@@ -1035,6 +1038,7 @@ func (p *importer) node() *Node {
 	case OXCASE:
 		markdcl()
 		n := Nod(OXCASE, nil, nil)
+		n.Xoffset = int64(block)
 		n.List.Set(p.exprList())
 		// TODO(gri) eventually we must declare variables for type switch
 		// statements (type switch statements are not yet exported)
@@ -1045,16 +1049,24 @@ func (p *importer) node() *Node {
 	// case OFALL:
 	// 	unreachable - mapped to OXFALL case below by exporter
 
-	case OBREAK, OCONTINUE, OGOTO, OXFALL:
+	case OXFALL:
+		n := Nod(OXFALL, nil, nil)
+		n.Xoffset = int64(block)
+		return n
+
+	case OBREAK, OCONTINUE:
 		left, _ := p.exprsOrNil()
+		if left != nil {
+			left = newname(left.Sym)
+		}
 		return Nod(op, left, nil)
 
 	// case OEMPTY:
 	// 	unreachable - not emitted by exporter
 
-	case OLABEL:
-		n := Nod(OLABEL, p.expr(), nil)
-		n.Left.Sym = dclstack // context, for goto restrictions
+	case OGOTO, OLABEL:
+		n := Nod(op, newname(p.expr().Sym), nil)
+		n.Sym = dclstack // context, for goto restrictions
 		return n
 
 	case OEND:

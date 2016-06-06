@@ -29,14 +29,22 @@ import (
 	"time"
 )
 
-func helperCommand(t *testing.T, s ...string) *exec.Cmd {
+func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
 	testenv.MustHaveExec(t)
 
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
-	cmd := exec.Command(os.Args[0], cs...)
+	if ctx != nil {
+		cmd = exec.CommandContext(ctx, os.Args[0], cs...)
+	} else {
+		cmd = exec.Command(os.Args[0], cs...)
+	}
 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 	return cmd
+}
+
+func helperCommand(t *testing.T, s ...string) *exec.Cmd {
+	return helperCommandContext(t, nil, s...)
 }
 
 func TestEcho(t *testing.T) {
@@ -834,7 +842,8 @@ func TestOutputStderrCapture(t *testing.T) {
 }
 
 func TestContext(t *testing.T) {
-	c := helperCommand(t, "pipetest")
+	ctx, cancel := context.WithCancel(context.Background())
+	c := helperCommandContext(t, ctx, "pipetest")
 	stdin, err := c.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -843,7 +852,6 @@ func TestContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 	if err := c.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -858,7 +866,7 @@ func TestContext(t *testing.T) {
 	}
 	waitErr := make(chan error, 1)
 	go func() {
-		waitErr <- c.WaitContext(ctx)
+		waitErr <- c.Wait()
 	}()
 	cancel()
 	select {

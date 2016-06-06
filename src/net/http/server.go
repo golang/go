@@ -27,6 +27,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/lex/httplex"
 )
 
 // Errors used by the HTTP server.
@@ -783,15 +785,15 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	if len(hosts) > 1 {
 		return nil, badRequestError("too many Host headers")
 	}
-	if len(hosts) == 1 && !validHostHeader(hosts[0]) {
+	if len(hosts) == 1 && !httplex.ValidHostHeader(hosts[0]) {
 		return nil, badRequestError("malformed Host header")
 	}
 	for k, vv := range req.Header {
-		if !validHeaderName(k) {
+		if !httplex.ValidHeaderFieldName(k) {
 			return nil, badRequestError("invalid header name")
 		}
 		for _, v := range vv {
-			if !validHeaderValue(v) {
+			if !httplex.ValidHeaderFieldValue(v) {
 				return nil, badRequestError("invalid header value")
 			}
 		}

@@ -796,8 +796,8 @@ OpSwitch:
 		var l *Node
 		for l = n.Left; l != r; l = l.Left {
 			l.Addrtaken = true
-			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-				l.Name.Param.Closure.Addrtaken = true
+			if l.isClosureVar() {
+				l.Name.Defn.Addrtaken = true
 			}
 		}
 
@@ -805,8 +805,8 @@ OpSwitch:
 			Fatalf("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
-		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-			l.Name.Param.Closure.Addrtaken = true
+		if l.isClosureVar() {
+			l.Name.Defn.Addrtaken = true
 		}
 		n.Left = defaultlit(n.Left, nil)
 		l = n.Left
@@ -3099,7 +3099,7 @@ func islvalue(n *Node) bool {
 			return false
 		}
 		fallthrough
-	case OIND, ODOTPTR, OCLOSUREVAR, OPARAM:
+	case OIND, ODOTPTR, OCLOSUREVAR:
 		return true
 
 	case ODOT:
@@ -3128,14 +3128,14 @@ func checkassign(stmt *Node, n *Node) {
 		var l *Node
 		for l = n; l != r; l = l.Left {
 			l.Assigned = true
-			if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-				l.Name.Param.Closure.Assigned = true
+			if l.isClosureVar() {
+				l.Name.Defn.Assigned = true
 			}
 		}
 
 		l.Assigned = true
-		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
-			l.Name.Param.Closure.Assigned = true
+		if l.isClosureVar() {
+			l.Name.Defn.Assigned = true
 		}
 	}
 
@@ -3153,7 +3153,7 @@ func checkassign(stmt *Node, n *Node) {
 	}
 
 	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
-		Yyerror("cannot directly assign to struct field %v in map", n)
+		Yyerror("cannot assign to struct field %v in map", n)
 		return
 	}
 
@@ -3786,12 +3786,12 @@ func markbreak(n *Node, implicit *Node) {
 	case OBREAK:
 		if n.Left == nil {
 			if implicit != nil {
-				implicit.Hasbreak = true
+				implicit.SetHasBreak(true)
 			}
 		} else {
 			lab := n.Left.Sym.Label
 			if lab != nil {
-				lab.Def.Hasbreak = true
+				lab.Def.SetHasBreak(true)
 			}
 		}
 
@@ -3867,7 +3867,7 @@ func (n *Node) isterminating() bool {
 		if n.Left != nil {
 			return false
 		}
-		if n.Hasbreak {
+		if n.HasBreak() {
 			return false
 		}
 		return true
@@ -3876,7 +3876,7 @@ func (n *Node) isterminating() bool {
 		return n.Nbody.isterminating() && n.Rlist.isterminating()
 
 	case OSWITCH, OTYPESW, OSELECT:
-		if n.Hasbreak {
+		if n.HasBreak() {
 			return false
 		}
 		def := 0

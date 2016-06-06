@@ -69,7 +69,7 @@ func runTestProg(t *testing.T, binary, name string) string {
 	return string(got)
 }
 
-func buildTestProg(t *testing.T, binary string) (string, error) {
+func buildTestProg(t *testing.T, binary string, flags ...string) (string, error) {
 	checkStaleRuntime(t)
 
 	testprog.Lock()
@@ -86,23 +86,27 @@ func buildTestProg(t *testing.T, binary string) (string, error) {
 	if testprog.target == nil {
 		testprog.target = make(map[string]buildexe)
 	}
-	target, ok := testprog.target[binary]
+	name := binary
+	if len(flags) > 0 {
+		name += "_" + strings.Join(flags, "_")
+	}
+	target, ok := testprog.target[name]
 	if ok {
 		return target.exe, target.err
 	}
 
-	exe := filepath.Join(testprog.dir, binary+".exe")
-	cmd := exec.Command("go", "build", "-o", exe)
+	exe := filepath.Join(testprog.dir, name+".exe")
+	cmd := exec.Command("go", append([]string{"build", "-o", exe}, flags...)...)
 	cmd.Dir = "testdata/" + binary
 	out, err := testEnv(cmd).CombinedOutput()
 	if err != nil {
 		exe = ""
-		target.err = fmt.Errorf("building %s: %v\n%s", binary, err, out)
-		testprog.target[binary] = target
+		target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
+		testprog.target[name] = target
 		return "", target.err
 	}
 	target.exe = exe
-	testprog.target[binary] = target
+	testprog.target[name] = target
 	return exe, nil
 }
 

@@ -199,6 +199,10 @@ func (f *peFile) goarch() string {
 	return ""
 }
 
+func (f *peFile) loadAddress() (uint64, error) {
+	return 0, fmt.Errorf("unknown load address")
+}
+
 func (f *peFile) dwarf() (*dwarf.Data, error) {
 	return f.pe.DWARF()
 }

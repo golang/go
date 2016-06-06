@@ -25,18 +25,16 @@ func betypeinit() {
 		cmpptr = x86.ACMPL
 	}
 
-	if gc.Ctxt.Flag_dynlink {
-		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, x86.REG_R15)
+	if gc.Ctxt.Flag_dynlink || obj.Getgoos() == "nacl" {
+		resvd = append(resvd, x86.REG_R15)
 	}
+	if gc.Ctxt.Framepointer_enabled || obj.Getgoos() == "nacl" {
+		resvd = append(resvd, x86.REG_BP)
+	}
+	gc.Thearch.ReservedRegs = resvd
 }
 
 func Main() {
-	if obj.Getgoos() == "nacl" {
-		resvd = append(resvd, x86.REG_BP, x86.REG_R15)
-	} else if obj.Framepointer_enabled != 0 {
-		resvd = append(resvd, x86.REG_BP)
-	}
-
 	gc.Thearch.LinkArch = &x86.Linkamd64
 	if obj.Getgoarch() == "amd64p32" {
 		gc.Thearch.LinkArch = &x86.Linkamd64p32
@@ -51,7 +49,6 @@ func Main() {
 	gc.Thearch.FREGMIN = x86.REG_X0
 	gc.Thearch.FREGMAX = x86.REG_X15
 	gc.Thearch.MAXWIDTH = 1 << 50
-	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.AddIndex = addindex
 	gc.Thearch.Betypeinit = betypeinit

@@ -87,8 +87,39 @@ func linestr(line int32) string {
 	return Ctxt.Line(int(line))
 }
 
+// lasterror keeps track of the most recently issued error.
+// It is used to avoid multiple error messages on the same
+// line.
+var lasterror struct {
+	syntax int32  // line of last syntax error
+	other  int32  // line of last non-syntax error
+	msg    string // error message of last non-syntax error
+}
+
 func yyerrorl(line int32, format string, args ...interface{}) {
-	adderr(line, format, args...)
+	msg := fmt.Sprintf(format, args...)
+
+	if strings.HasPrefix(msg, "syntax error") {
+		nsyntaxerrors++
+		// only one syntax error per line, no matter what error
+		if lasterror.syntax == line {
+			return
+		}
+		lasterror.syntax = line
+	} else {
+		// only one of multiple equal non-syntax errors per line
+		// (Flusherrors shows only one of them, so we filter them
+		// here as best as we can (they may not appear in order)
+		// so that we don't count them here and exit early, and
+		// then have nothing to show for.)
+		if lasterror.other == line && lasterror.msg == msg {
+			return
+		}
+		lasterror.other = line
+		lasterror.msg = msg
+	}
+
+	adderr(line, "%s", msg)
 
 	hcrash()
 	nerrors++
@@ -99,32 +130,8 @@ func yyerrorl(line int32, format string, args ...interface{}) {
 	}
 }
 
-var yyerror_lastsyntax int32
-
 func Yyerror(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if strings.HasPrefix(msg, "syntax error") {
-		nsyntaxerrors++
-
-		// only one syntax error per line
-		if yyerror_lastsyntax == lineno {
-			return
-		}
-		yyerror_lastsyntax = lineno
-
-		yyerrorl(lineno, "%s", msg)
-		return
-	}
-
-	adderr(lineno, "%s", msg)
-
-	hcrash()
-	nerrors++
-	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
-		Flusherrors()
-		fmt.Printf("%v: too many errors\n", linestr(lineno))
-		errorexit()
-	}
+	yyerrorl(lineno, format, args...)
 }
 
 func Warn(fmt_ string, args ...interface{}) {
@@ -1224,7 +1231,7 @@ func ullmancalc(n *Node) {
 	switch n.Op {
 	case OREGISTER, OLITERAL, ONAME:
 		ul = 1
-		if n.Class == PPARAMREF || (n.Class&PHEAP != 0) {
+		if n.Class == PAUTOHEAP {
 			ul++
 		}
 		goto out
@@ -1853,7 +1860,13 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
 
 	// generate call
-	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) {
+	// It's not possible to use a tail call when dynamic linking on ppc64le. The
+	// bad scenario is when a local call is made to the wrapper: the wrapper will
+	// call the implementation, which might be in a different module and so set
+	// the TOC to the appropriate value for that module. But if it returns
+	// directly to the wrapper's caller, nothing will reset it to the correct
+	// value for that function.
+	if !instrumenting && rcvr.IsPtr() && methodrcvr.IsPtr() && method.Embedded != 0 && !isifacemethod(method.Type) && !(Thearch.LinkArch.Name == "ppc64le" && Ctxt.Flag_dynlink) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		dot = dot.Left // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
@@ -2250,6 +2263,7 @@ func isbadimport(path string) bool {
 }
 
 func checknil(x *Node, init *Nodes) {
+	x = walkexpr(x, nil) // caller has not done this yet
 	if x.Type.IsInterface() {
 		x = Nod(OITAB, x, nil)
 		x = typecheck(x, Erv)

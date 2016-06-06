@@ -206,6 +206,7 @@ NextCipherSuite:
 	hs.finishedHash.Write(hs.hello.marshal())
 	hs.finishedHash.Write(hs.serverHello.marshal())
 
+	c.buffering = true
 	if isResume {
 		if err := hs.establishKeys(); err != nil {
 			return err
@@ -220,6 +221,9 @@ NextCipherSuite:
 		if err := hs.sendFinished(c.clientFinished[:]); err != nil {
 			return err
 		}
+		if _, err := c.flush(); err != nil {
+			return err
+		}
 	} else {
 		if err := hs.doFullHandshake(); err != nil {
 			return err
@@ -228,6 +232,9 @@ NextCipherSuite:
 			return err
 		}
 		if err := hs.sendFinished(c.clientFinished[:]); err != nil {
+			return err
+		}
+		if _, err := c.flush(); err != nil {
 			return err
 		}
 		c.clientFinishedIsFirst = true

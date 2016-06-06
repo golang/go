@@ -399,6 +399,64 @@ func TestSCTHandshake(t *testing.T) {
 	}
 }
 
+func TestCrossVersionResume(t *testing.T) {
+	serverConfig := &Config{
+		CipherSuites: []uint16{TLS_RSA_WITH_AES_128_CBC_SHA},
+		Certificates: testConfig.Certificates,
+	}
+	clientConfig := &Config{
+		CipherSuites:       []uint16{TLS_RSA_WITH_AES_128_CBC_SHA},
+		InsecureSkipVerify: true,
+		ClientSessionCache: NewLRUClientSessionCache(1),
+		ServerName:         "servername",
+	}
+
+	// Establish a session at TLS 1.1.
+	clientConfig.MaxVersion = VersionTLS11
+	_, _, err := testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+
+	// The client session cache now contains a TLS 1.1 session.
+	state, _, err := testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if !state.DidResume {
+		t.Fatalf("handshake did not resume at the same version")
+	}
+
+	// Test that the server will decline to resume at a lower version.
+	clientConfig.MaxVersion = VersionTLS10
+	state, _, err = testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if state.DidResume {
+		t.Fatalf("handshake resumed at a lower version")
+	}
+
+	// The client session cache now contains a TLS 1.0 session.
+	state, _, err = testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if !state.DidResume {
+		t.Fatalf("handshake did not resume at the same version")
+	}
+
+	// Test that the server will decline to resume at a higher version.
+	clientConfig.MaxVersion = VersionTLS11
+	state, _, err = testHandshake(clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+	if state.DidResume {
+		t.Fatalf("handshake resumed at a higher version")
+	}
+}
+
 // Note: see comment in handshake_test.go for details of how the reference
 // tests work.
 

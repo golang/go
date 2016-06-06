@@ -570,6 +570,8 @@ syntax of package template.  The default output is equivalent to -f
         Stale         bool   // would 'go install' do anything for this package?
         StaleReason   string // explanation for Stale==true
         Root          string // Go root or Go path dir containing this package
+        ConflictDir   string // this directory shadows Dir in $GOPATH
+        BinaryOnly    bool   // binary-only package: cannot be recompiled from sources
 
         // Source files
         GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
@@ -703,6 +705,9 @@ Each listed package causes the execution of a separate test binary.
 
 Test files that declare a package with the suffix "_test" will be compiled as a
 separate package, and then linked and run with the main test binary.
+
+The go tool will ignore a directory named "testdata", making it available
+to hold ancillary data needed by the tests.
 
 By default, go test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
@@ -882,7 +887,15 @@ the extension of the file name. These extensions are:
 Files of each of these types except .syso may contain build
 constraints, but the go command stops scanning for build constraints
 at the first item in the file that is not a blank line or //-style
-line comment.
+line comment. See the go/build package documentation for
+more details.
+
+Non-test Go source files can also include a //go:binary-only-package
+comment, indicating that the package sources are included
+for documentation only and must not be used to build the
+package binary. This enables distribution of Go packages in
+their compiled form alone. See the go/build package documentation
+for more details.
 
 
 GOPATH environment variable
@@ -1457,7 +1470,6 @@ control the execution of any test:
 
 	-trace trace.out
 	    Write an execution trace to the specified file before exiting.
-	    Writes test binary as -c would.
 
 	-v
 	    Verbose output: log all tests as they are run. Also print all

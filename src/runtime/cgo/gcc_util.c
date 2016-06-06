@@ -4,31 +4,6 @@
 
 #include "libcgo.h"
 
-/* Stub for calling malloc from Go */
-void
-x_cgo_malloc(void *p)
-{
-	struct a {
-		long long n;
-		void *ret;
-	} *a = p;
-
-	a->ret = malloc(a->n);
-	if(a->ret == NULL && a->n == 0)
-		a->ret = malloc(1);
-}
-
-/* Stub for calling free from Go */
-void
-x_cgo_free(void *p)
-{
-	struct a {
-		void *arg;
-	} *a = p;
-
-	free(a->arg);
-}
-
 /* Stub for creating a new thread */
 void
 x_cgo_thread_start(ThreadStart *arg)
@@ -36,7 +11,9 @@ x_cgo_thread_start(ThreadStart *arg)
 	ThreadStart *ts;
 
 	/* Make our own copy that can persist after we return. */
+	_cgo_tsan_acquire();
 	ts = malloc(sizeof *ts);
+	_cgo_tsan_release();
 	if(ts == nil) {
 		fprintf(stderr, "runtime/cgo: out of memory in thread_start\n");
 		abort();
