@@ -1912,6 +1912,12 @@ OpSwitch:
 		n.Type = Ptrto(Types[TUINTPTR])
 		break OpSwitch
 
+	case OIDATA:
+		// Whoever creates the OIDATA node must know a priori the concrete type at that moment,
+		// usually by just having checked the OITAB.
+		Fatalf("cannot typecheck interface data %v", n)
+		break OpSwitch
+
 	case OSPTR:
 		ok |= Erv
 		n.Left = typecheck(n.Left, Erv)

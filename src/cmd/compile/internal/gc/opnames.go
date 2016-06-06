@@ -143,6 +143,7 @@ var opnames = []string{
 	OINLCALL:         "INLCALL",
 	OEFACE:           "EFACE",
 	OITAB:            "ITAB",
+	OIDATA:           "IDATA",
 	OSPTR:            "SPTR",
 	OCLOSUREVAR:      "CLOSUREVAR",
 	OCFUNC:           "CFUNC",

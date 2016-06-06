@@ -555,7 +555,7 @@ opswitch:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
 
-	case OSPTR, OITAB:
+	case OSPTR, OITAB, OIDATA:
 		n.Left = walkexpr(n.Left, init)
 
 	case OLEN, OCAP:
@@ -961,11 +961,13 @@ opswitch:
 		toKind := t.iet()
 
 		res := n.List.First()
+		scalar := !haspointers(res.Type)
 
 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
 		// This is faster and shorter and allows the corresponding assertX2X2
 		// routines to skip nil checks on their last argument.
-		if isblank(res) {
+		// Also avoid runtime calls for converting interfaces to scalar concrete types.
+		if isblank(res) || (scalar && toKind == 'T') {
 			var fast *Node
 			switch toKind {
 			case 'T':
@@ -985,11 +987,27 @@ opswitch:
 				fast = Nod(ONE, nodnil(), tab)
 			}
 			if fast != nil {
-				if Debug_typeassert > 0 {
-					Warn("type assertion (ok only) inlined")
+				if isblank(res) {
+					if Debug_typeassert > 0 {
+						Warn("type assertion (ok only) inlined")
+					}
+					n = Nod(OAS, ok, fast)
+					n = typecheck(n, Etop)
+				} else {
+					if Debug_typeassert > 0 {
+						Warn("type assertion (scalar result) inlined")
+					}
+					n = Nod(OIF, ok, nil)
+					n.Likely = 1
+					if isblank(ok) {
+						n.Left = fast
+					} else {
+						n.Ninit.Set1(Nod(OAS, ok, fast))
+					}
+					n.Nbody.Set1(Nod(OAS, res, ifaceData(from, res.Type)))
+					n.Rlist.Set1(Nod(OAS, res, nil))
+					n = typecheck(n, Etop)
 				}
-				n = Nod(OAS, ok, fast)
-				n = typecheck(n, Etop)
 				break
 			}
 		}

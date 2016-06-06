@@ -43,11 +43,25 @@ func assertbig(x interface{}) complex128 {
 }
 
 func assertbig2(x interface{}) (complex128, bool) {
-	z, ok := x.(complex128) // ERROR "type assertion not inlined"
+	z, ok := x.(complex128) // ERROR "type assertion .scalar result. inlined"
 	return z, ok
 }
 
 func assertbig2ok(x interface{}) (complex128, bool) {
 	_, ok := x.(complex128) // ERROR "type assertion [(]ok only[)] inlined"
 	return 0, ok
+}
+
+func assertslice(x interface{}) []int {
+	return x.([]int) // ERROR "type assertion not inlined"
+}
+
+func assertslice2(x interface{}) ([]int, bool) {
+	z, ok := x.([]int) // ERROR "type assertion not inlined"
+	return z, ok
+}
+
+func assertslice2ok(x interface{}) ([]int, bool) {
+	_, ok := x.([]int) // ERROR "type assertion [(]ok only[)] inlined"
+	return nil, ok
 }
