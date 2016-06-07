@@ -194,6 +194,54 @@ func (g gate) leave() { <-g }
 // Too much disk I/O -> too many threads -> swapping and bad scheduling.
 var fsgate = make(gate, 8)
 
+var visitedSymlinks struct {
+	sync.Mutex
+	m map[string]struct{}
+}
+
+// shouldTraverse checks if fi, found in dir, is a directory or a symlink to a directory.
+// It makes sure symlinks were never visited before to avoid symlink loops.
+func shouldTraverse(dir string, fi os.FileInfo) bool {
+	if fi.IsDir() {
+		return true
+	}
+
+	if fi.Mode()&os.ModeSymlink == 0 {
+		return false
+	}
+	path := filepath.Join(dir, fi.Name())
+	target, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		return false
+	}
+	ts, err := os.Stat(target)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		return false
+	}
+	if !ts.IsDir() {
+		return false
+	}
+
+	realParent, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		return false
+	}
+	realPath := filepath.Join(realParent, fi.Name())
+	visitedSymlinks.Lock()
+	defer visitedSymlinks.Unlock()
+	if visitedSymlinks.m == nil {
+		visitedSymlinks.m = make(map[string]struct{})
+	}
+	if _, ok := visitedSymlinks.m[realPath]; ok {
+		return false
+	}
+	visitedSymlinks.m[realPath] = struct{}{}
+	return true
+}
+
 func loadPkgIndex() {
 	pkgIndex.Lock()
 	pkgIndex.m = make(map[string][]pkg)
@@ -216,7 +264,7 @@ func loadPkgIndex() {
 			continue
 		}
 		for _, child := range children {
-			if child.IsDir() {
+			if shouldTraverse(path, child) {
 				wg.Add(1)
 				go func(path, name string) {
 					defer wg.Done()
@@ -257,7 +305,7 @@ func loadPkg(wg *sync.WaitGroup, root, pkgrelpath string) {
 		if strings.HasSuffix(name, ".go") {
 			hasGo = true
 		}
-		if child.IsDir() {
+		if shouldTraverse(dir, child) {
 			wg.Add(1)
 			go func(root, name string) {
 				defer wg.Done()

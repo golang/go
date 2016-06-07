@@ -823,6 +823,76 @@ func TestFixImports(t *testing.T) {
 	}
 }
 
+// Test support for packages in GOPATH that are actually symlinks.
+// Also test that a symlink loop does not block the process.
+func TestImportSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping test on Windows as there are no symlinks.")
+	}
+
+	newGoPath, err := ioutil.TempDir("", "symlinktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(newGoPath)
+
+	targetPath := newGoPath + "/target"
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(targetPath+"/f.go", []byte("package mypkg\nvar Foo = 123\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	symlinkPath := newGoPath + "/src/x/mypkg"
+	if err := os.MkdirAll(filepath.Dir(symlinkPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(targetPath, symlinkPath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a symlink loop.
+	if err := os.Symlink(newGoPath+"/src/x", newGoPath+"/src/x/apkg"); err != nil {
+		t.Fatal(err)
+	}
+
+	pkgIndexOnce = &sync.Once{}
+	oldGOPATH := build.Default.GOPATH
+	build.Default.GOPATH = newGoPath
+	defer func() {
+		build.Default.GOPATH = oldGOPATH
+		visitedSymlinks.m = nil
+	}()
+
+	input := `package p
+
+var (
+	_ = fmt.Print
+	_ = mypkg.Foo
+)
+`
+	output := `package p
+
+import (
+	"fmt"
+	"x/mypkg"
+)
+
+var (
+	_ = fmt.Print
+	_ = mypkg.Foo
+)
+`
+	buf, err := Process(newGoPath+"/src/myotherpkg/toformat.go", []byte(input), &Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(buf); got != output {
+		t.Fatalf("results differ\nGOT:\n%s\nWANT:\n%s\n", got, output)
+	}
+}
+
 // Test for correctly identifying the name of a vendored package when it
 // differs from its directory name. In this test, the import line
 // "mypkg.com/mypkg.v1" would be removed if goimports wasn't able to detect
