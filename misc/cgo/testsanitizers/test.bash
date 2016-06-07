@@ -135,11 +135,28 @@ if test "$tsan" = "yes"; then
     testtsan tsan3.go
     testtsan tsan4.go
 
-    # This test requires rebuilding os/user with -fsanitize=thread.
-    testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+    # These tests are only reliable using clang or GCC version 7 or later.
+    # Otherwise runtime/cgo/libcgo.h can't tell whether TSAN is in use.
+    ok=false
+    if ${CC} --version | grep clang >/dev/null 2>&1; then
+	ok=true
+    else
+	ver=$($CC -dumpversion)
+	major=$(echo $ver | sed -e 's/\([0-9]*\).*/\1/')
+	if test "$major" -lt 7; then
+	    echo "skipping remaining TSAN tests: GCC version $major (older than 7)"
+	else
+	    ok=true
+	fi
+    fi
 
-    # This test requires rebuilding runtime/cgo with -fsanitize=thread.
-    testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+    if test "$ok" = "true"; then
+	# This test requires rebuilding os/user with -fsanitize=thread.
+	testtsan tsan5.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+
+	# This test requires rebuilding runtime/cgo with -fsanitize=thread.
+	testtsan tsan6.go "CGO_CFLAGS=-fsanitize=thread CGO_LDFLAGS=-fsanitize=thread" "-installsuffix=tsan"
+    fi
 fi
 
 exit $status
