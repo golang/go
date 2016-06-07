@@ -11,6 +11,10 @@ import (
 )
 
 func TestPrint(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	ast, err := ReadFile(*src, 0)
 	if err != nil {
 		t.Fatal(err)

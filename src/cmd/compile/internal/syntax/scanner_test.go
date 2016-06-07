@@ -11,6 +11,10 @@ import (
 )
 
 func TestScanner(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	src, err := os.Open("parser.go")
 	if err != nil {
 		t.Fatal(err)
