@@ -99,7 +99,7 @@ func init() {
 	var (
 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
 		gp11      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: []regMask{gp}}
 		gp1flags  = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags}}
 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
@@ -121,7 +121,7 @@ func init() {
 	ops := []opData{
 		// binary ops
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sb, asm: "ADD", aux: "SymOff"},  // arg0 + auxInt + aux.(*gc.Sym)
+		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int32"},   // arg0 + auxInt
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
 		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},     // arg0 - auxInt
 		{name: "RSB", argLength: 2, reg: gp21, asm: "RSB"},                        // arg1 - arg0
@@ -188,6 +188,8 @@ func init() {
 		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", typ: "UInt32", rematerializeable: true},    // 32 low bits of auxint
 		{name: "MOVFconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVF", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
 		{name: "MOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
+
+		{name: "MOVWaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVW", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
 
 		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
