@@ -536,10 +536,10 @@ skip:
 func (s *scanner) fullComment() {
 	for {
 		r := s.getr()
-		if r == '*' {
+		for r == '*' {
 			r = s.getr()
 			if r == '/' {
-				break
+				return
 			}
 		}
 		if r < 0 {
