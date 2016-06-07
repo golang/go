@@ -1,4 +1,4 @@
-// errorcheck
+// errorcheck -newparser=0
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,6 +6,10 @@
 
 // Test an internal compiler error on ? symbol in declaration
 // following an empty import.
+
+// TODO(mdempsky): Update for new parser. New parser recovers more
+// gracefully and doesn't trigger the "cannot declare name" error.
+// Also remove "errorcheck -newparser=0" case in go/types.TestStdFixed.
 
 package a
 import""  // ERROR "import path is empty"

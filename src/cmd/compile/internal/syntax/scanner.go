@@ -46,7 +46,7 @@ redo:
 	// token start
 	s.pos, s.line = s.source.pos0(), s.source.line0
 
-	if isLetter(c) || c >= utf8.RuneSelf && unicode.IsLetter(c) {
+	if isLetter(c) || c >= utf8.RuneSelf && (unicode.IsLetter(c) || s.isCompatRune(c, true)) {
 		s.ident()
 		return
 	}
@@ -271,7 +271,7 @@ redo:
 
 	default:
 		s.tok = 0
-		s.error(fmt.Sprintf("invalid rune %q", c))
+		s.error(fmt.Sprintf("illegal character %#U", c))
 		goto redo
 	}
 
@@ -305,7 +305,7 @@ func (s *scanner) ident() {
 
 	// general case
 	if c >= utf8.RuneSelf {
-		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) {
+		for unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || s.isCompatRune(c, false) {
 			c = s.getr()
 		}
 	}
@@ -325,6 +325,18 @@ func (s *scanner) ident() {
 	s.nlsemi = true
 	s.lit = string(lit)
 	s.tok = _Name
+}
+
+func (s *scanner) isCompatRune(c rune, start bool) bool {
+	if !gcCompat || c < utf8.RuneSelf {
+		return false
+	}
+	if start && unicode.IsNumber(c) {
+		s.error(fmt.Sprintf("identifier cannot begin with digit %#U", c))
+	} else {
+		s.error(fmt.Sprintf("invalid identifier character %#U", c))
+	}
+	return true
 }
 
 // hash is a perfect hash function for keywords.
@@ -496,24 +508,26 @@ func (s *scanner) rune() {
 	s.startLit()
 
 	r := s.getr()
+	ok := false
 	if r == '\'' {
-		s.error("empty character literal")
+		s.error("empty character literal or unescaped ' in character literal")
 	} else if r == '\n' {
 		s.ungetr() // assume newline is not part of literal
 		s.error("newline in character literal")
 	} else {
-		ok := true
+		ok = true
 		if r == '\\' {
 			ok = s.escape('\'')
 		}
-		r = s.getr()
-		if r != '\'' {
-			// only report error if we're ok so far
-			if ok {
-				s.error("missing '")
-			}
-			s.ungetr()
+	}
+
+	r = s.getr()
+	if r != '\'' {
+		// only report error if we're ok so far
+		if ok {
+			s.error("missing '")
 		}
+		s.ungetr()
 	}
 
 	s.nlsemi = true
@@ -623,10 +637,18 @@ func (s *scanner) escape(quote rune) bool {
 			if c < 0 {
 				return true // complain in caller about EOF
 			}
-			if c != quote {
-				s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
+			if gcCompat {
+				name := "hex"
+				if base == 8 {
+					name = "octal"
+				}
+				s.error(fmt.Sprintf("non-%s character in escape sequence: %c", name, c))
 			} else {
-				s.error("escape sequence incomplete")
+				if c != quote {
+					s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
+				} else {
+					s.error("escape sequence incomplete")
+				}
 			}
 			s.ungetr()
 			return false
@@ -637,7 +659,7 @@ func (s *scanner) escape(quote rune) bool {
 	}
 	s.ungetr()
 
-	if x > max && n == 3 {
+	if x > max && base == 8 {
 		s.error(fmt.Sprintf("octal escape value > 255: %d", x))
 		return false
 	}

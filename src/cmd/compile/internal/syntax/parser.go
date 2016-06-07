@@ -13,6 +13,11 @@ import (
 const debug = false
 const trace = false
 
+// The old gc parser assigned line numbers very inconsistently depending
+// on when it happened to construct AST nodes. To make transitioning to the
+// new AST easier, we try to mimick the behavior as much as possible.
+const gcCompat = true
+
 type parser struct {
 	scanner
 
@@ -60,6 +65,11 @@ func (p *parser) want(tok token) {
 
 // syntax_error reports a syntax error at the current line.
 func (p *parser) syntax_error(msg string) {
+	p.syntax_error_at(p.pos, p.line, msg)
+}
+
+// Like syntax_error, but reports error at given line rather than current lexer line.
+func (p *parser) syntax_error_at(pos, line int, msg string) {
 	if trace {
 		defer p.trace("syntax_error (" + msg + ")")()
 	}
@@ -78,15 +88,17 @@ func (p *parser) syntax_error(msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		p.error("syntax error: " + msg)
+		p.error_at(pos, line, "syntax error: "+msg)
 		return
 	}
 
 	// determine token string
 	var tok string
 	switch p.tok {
-	case _Name, _Literal:
+	case _Name:
 		tok = p.lit
+	case _Literal:
+		tok = "literal " + p.lit
 	case _Operator:
 		tok = p.op.String()
 	case _AssignOp:
@@ -98,17 +110,7 @@ func (p *parser) syntax_error(msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	p.error("syntax error: unexpected " + tok + msg)
-}
-
-// Like syntax_error, but reports error at given line rather than current lexer line.
-func (p *parser) syntax_error_at(lineno uint32, msg string) {
-	// TODO(gri) fix this
-	// defer func(lineno int32) {
-	// 	lexlineno = lineno
-	// }(lexlineno)
-	// lexlineno = lineno
-	p.syntax_error(msg)
+	p.error_at(pos, line, "syntax error: unexpected "+tok+msg)
 }
 
 // The stopset contains keywords that start a statement.
@@ -195,7 +197,10 @@ func (p *parser) file() *File {
 	f.init(p)
 
 	// PackageClause
-	p.want(_Package)
+	if !p.got(_Package) {
+		p.syntax_error("package statement must be first")
+		return nil
+	}
 	f.PkgName = p.name()
 	p.want(_Semi)
 
@@ -296,7 +301,7 @@ func (p *parser) importDecl(group *Group) Decl {
 		d.LocalPkgName = n
 		p.next()
 	}
-	if p.tok == _Literal && p.kind == StringLit {
+	if p.tok == _Literal && (gcCompat || p.kind == StringLit) {
 		d.Path = p.oliteral()
 	} else {
 		p.syntax_error("missing import path; require quoted string")
@@ -384,17 +389,18 @@ func (p *parser) funcDecl() *FuncDecl {
 	f := new(FuncDecl)
 	f.init(p)
 
+	badRecv := false
 	if p.tok == _Lparen {
 		rcvr := p.paramList()
 		switch len(rcvr) {
 		case 0:
 			p.error("method has no receiver")
-			return nil // TODO(gri) better solution
+			badRecv = true
 		case 1:
 			f.Recv = rcvr[0]
 		default:
 			p.error("method has multiple receivers")
-			return nil // TODO(gri) better solution
+			badRecv = true
 		}
 	}
 
@@ -429,6 +435,9 @@ func (p *parser) funcDecl() *FuncDecl {
 	// 	p.error("can only use //go:noescape with external func implementations")
 	// }
 
+	if badRecv {
+		return nil // TODO(gri) better solution
+	}
 	return f
 }
 
@@ -510,25 +519,29 @@ func (p *parser) unaryExpr() Expr {
 		//   <-(chan E)   =>  (<-chan E)
 		//   <-(chan<-E)  =>  (<-chan (<-E))
 
-		if x, ok := x.(*ChanType); ok {
+		if _, ok := x.(*ChanType); ok {
 			// x is a channel type => re-associate <-
 			dir := SendOnly
 			t := x
-			for ok && dir == SendOnly {
-				dir = t.Dir
+			for dir == SendOnly {
+				c, ok := t.(*ChanType)
+				if !ok {
+					break
+				}
+				dir = c.Dir
 				if dir == RecvOnly {
 					// t is type <-chan E but <-<-chan E is not permitted
 					// (report same error as for "type _ <-<-chan E")
 					p.syntax_error("unexpected <-, expecting chan")
 					// already progressed, no need to advance
 				}
-				t.Dir = RecvOnly
-				t, ok = t.Elem.(*ChanType)
+				c.Dir = RecvOnly
+				t = c.Elem
 			}
 			if dir == SendOnly {
 				// channel dir is <- but channel element E is not a channel
 				// (report same error as for "type _ <-chan<-E")
-				p.syntax_error(fmt.Sprintf("unexpected %v, expecting chan", t))
+				p.syntax_error(fmt.Sprintf("unexpected %s, expecting chan", String(t)))
 				// already progressed, no need to advance
 			}
 			return x
@@ -538,7 +551,10 @@ func (p *parser) unaryExpr() Expr {
 		return &Operation{Op: Recv, X: x}
 	}
 
-	return p.pexpr(false)
+	// TODO(mdempsky): We need parens here so we can report an
+	// error for "(x) := true". It should be possible to detect
+	// and reject that more efficiently though.
+	return p.pexpr(true)
 }
 
 // callStmt parses call-like statements that can be preceded by 'defer' and 'go'.
@@ -556,6 +572,9 @@ func (p *parser) callStmt() *CallStmt {
 	switch x := x.(type) {
 	case *CallExpr:
 		s.Call = x
+		if gcCompat {
+			s.node = x.node
+		}
 	case *ParenExpr:
 		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
 		// already progressed, no need to advance
@@ -760,13 +779,7 @@ loop:
 			p.xnest--
 
 		case _Lparen:
-			// call or conversion
-			// convtype '(' expr ocomma ')'
-			c := new(CallExpr)
-			c.init(p)
-			c.Fun = x
-			c.ArgList, c.HasDots = p.argList()
-			x = c
+			x = p.call(x)
 
 		case _Lbrace:
 			// operand may have returned a parenthesized complit
@@ -1032,6 +1045,9 @@ func (p *parser) structType() *StructType {
 			break
 		}
 	}
+	if gcCompat {
+		typ.init(p)
+	}
 	p.want(_Rbrace)
 
 	return typ
@@ -1055,6 +1071,9 @@ func (p *parser) interfaceType() *InterfaceType {
 		if !p.osemi(_Rbrace) {
 			break
 		}
+	}
+	if gcCompat {
+		typ.init(p)
 	}
 	p.want(_Rbrace)
 
@@ -1446,7 +1465,8 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 		return p.newAssignStmt(0, lhs, p.exprList())
 
 	case _Define:
-		//lno := lineno
+		var n node
+		n.init(p)
 		p.next()
 
 		if rangeOk && p.got(_Range) {
@@ -1470,7 +1490,11 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 			return &ExprStmt{X: x}
 		}
 
-		return p.newAssignStmt(Def, lhs, rhs)
+		as := p.newAssignStmt(Def, lhs, rhs)
+		if gcCompat {
+			as.node = n
+		}
+		return as
 
 	default:
 		p.syntax_error("expecting := or = or comma")
@@ -1502,21 +1526,22 @@ func (p *parser) labeledStmt(label *Name) Stmt {
 		defer p.trace("labeledStmt")()
 	}
 
-	var ls Stmt // labeled statement
+	s := new(LabeledStmt)
+	s.init(p)
+	s.Label = label
+
+	p.want(_Colon)
+
 	if p.tok != _Rbrace && p.tok != _EOF {
-		ls = p.stmt()
-		if ls == missing_stmt {
+		s.Stmt = p.stmt()
+		if s.Stmt == missing_stmt {
 			// report error at line of ':' token
-			p.syntax_error_at(label.line, "missing statement after label")
+			p.syntax_error_at(int(label.pos), int(label.line), "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
 			return missing_stmt
 		}
 	}
 
-	s := new(LabeledStmt)
-	s.init(p)
-	s.Label = label
-	s.Stmt = ls
 	return s
 }
 
@@ -1590,8 +1615,8 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
-		if p.got(_Var) {
-			p.error("var declaration not allowed in initializer")
+		if forStmt && p.got(_Var) {
+			p.error("var declaration not allowed in for initializer")
 		}
 		init = p.simpleStmt(nil, forStmt)
 		// If we have a range clause, we are done.
@@ -1650,10 +1675,14 @@ func (p *parser) ifStmt() *IfStmt {
 	s.Then = p.stmtBody("if clause")
 
 	if p.got(_Else) {
-		if p.tok == _If {
+		switch p.tok {
+		case _If:
 			s.Else = p.ifStmt()
-		} else {
+		case _Lbrace:
 			s.Else = p.blockStmt()
+		default:
+			p.error("else must be followed by if or statement block")
+			p.advance(_Name, _Rbrace)
 		}
 	}
 
@@ -1725,6 +1754,9 @@ func (p *parser) caseClause() *CaseClause {
 		p.advance(_Case, _Default, _Rbrace)
 	}
 
+	if gcCompat {
+		c.init(p)
+	}
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
@@ -1769,6 +1801,9 @@ func (p *parser) commClause() *CommClause {
 		p.advance(_Case, _Default, _Rbrace)
 	}
 
+	if gcCompat {
+		c.init(p)
+	}
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
@@ -1794,7 +1829,7 @@ func (p *parser) stmt() Stmt {
 	// look for it first before doing anything more expensive.
 	if p.tok == _Name {
 		lhs := p.exprList()
-		if label, ok := lhs.(*Name); ok && p.got(_Colon) {
+		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
 			return p.labeledStmt(label)
 		}
 		return p.simpleStmt(lhs, false)
@@ -1916,26 +1951,35 @@ func (p *parser) stmtList() (l []Stmt) {
 }
 
 // Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
-func (p *parser) argList() (list []Expr, hasDots bool) {
+func (p *parser) call(fun Expr) *CallExpr {
 	if trace {
-		defer p.trace("argList")()
+		defer p.trace("call")()
 	}
+
+	// call or conversion
+	// convtype '(' expr ocomma ')'
+	c := new(CallExpr)
+	c.init(p)
+	c.Fun = fun
 
 	p.want(_Lparen)
 	p.xnest++
 
 	for p.tok != _EOF && p.tok != _Rparen {
-		list = append(list, p.expr()) // expr_or_type
-		hasDots = p.got(_DotDotDot)
-		if !p.ocomma(_Rparen) || hasDots {
+		c.ArgList = append(c.ArgList, p.expr()) // expr_or_type
+		c.HasDots = p.got(_DotDotDot)
+		if !p.ocomma(_Rparen) || c.HasDots {
 			break
 		}
 	}
 
 	p.xnest--
+	if gcCompat {
+		c.init(p)
+	}
 	p.want(_Rparen)
 
-	return
+	return c
 }
 
 // ----------------------------------------------------------------------------

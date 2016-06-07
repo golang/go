@@ -1,10 +1,14 @@
-// errorcheckoutput
+// errorcheckoutput -newparser=0
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Test source files and strings containing NUL and invalid UTF-8.
+
+// TODO(mdempsky): Update error expectations for -newparser=1. The new
+// lexer skips over NUL and invalid UTF-8 sequences, so they don't emit
+// "illegal character" or "invalid identifier character" errors.
 
 package main
 
@@ -53,4 +57,3 @@ var z` + "\xc1\x81" + ` int // ERROR "UTF-8" "invalid identifier character"
 
 `)
 }
-
