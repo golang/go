@@ -10,6 +10,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
 	switch v.Op {
 	case OpARMADD:
 		return rewriteValueARM_OpARMADD(v, config)
+	case OpARMADDconst:
+		return rewriteValueARM_OpARMADDconst(v, config)
 	case OpAdd16:
 		return rewriteValueARM_OpAdd16(v, config)
 	case OpAdd32:
@@ -496,6 +498,29 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValueARM_OpARMADDconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ADDconst [off1] (MOVWaddr [off2] {sym} ptr))
+	// cond:
+	// result: (MOVWaddr [off1+off2] {sym} ptr)
+	for {
+		off1 := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		ptr := v_0.Args[0]
+		v.reset(OpARMMOVWaddr)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		return true
+	}
+	return false
+}
 func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -623,11 +648,11 @@ func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
 	_ = b
 	// match: (Addr {sym} base)
 	// cond:
-	// result: (ADDconst {sym} base)
+	// result: (MOVWaddr {sym} base)
 	for {
 		sym := v.Aux
 		base := v.Args[0]
-		v.reset(OpARMADDconst)
+		v.reset(OpARMMOVWaddr)
 		v.Aux = sym
 		v.AddArg(base)
 		return true
@@ -2535,14 +2560,34 @@ func rewriteValueARM_OpLsh8x8(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVBUload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVBUload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2564,14 +2609,34 @@ func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVBload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVBload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVBload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2593,14 +2658,36 @@ func rewriteValueARM_OpARMMOVBload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+	// cond:
+	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVBstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2624,14 +2711,34 @@ func rewriteValueARM_OpARMMOVBstore(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVDload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVDload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVDload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2653,14 +2760,36 @@ func rewriteValueARM_OpARMMOVDload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVDstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+	// match: (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+	// cond:
+	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVDstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2684,14 +2813,34 @@ func rewriteValueARM_OpARMMOVDstore(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVFload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVFload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVFload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVFload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2713,14 +2862,36 @@ func rewriteValueARM_OpARMMOVFload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVFstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+	// match: (MOVFstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+	// cond:
+	// result: (MOVFstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVFstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2744,14 +2915,34 @@ func rewriteValueARM_OpARMMOVFstore(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVHUload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVHUload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2773,14 +2964,34 @@ func rewriteValueARM_OpARMMOVHUload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVHload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVHload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVHload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2802,14 +3013,36 @@ func rewriteValueARM_OpARMMOVHload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVHstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+	// cond:
+	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVHstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2833,14 +3066,34 @@ func rewriteValueARM_OpARMMOVHstore(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem)
+	// match: (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem)
+	// cond:
+	// result: (MOVWload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVWload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -2862,14 +3115,36 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem)
+	// match: (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+	// cond:
+	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMMOVWstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem)
 	// cond: canMergeSym(sym1,sym2)
 	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
 		sym1 := v.Aux
 		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
+		if v_0.Op != OpARMMOVWaddr {
 			break
 		}
 		off2 := v_0.AuxInt
@@ -3488,16 +3763,28 @@ func rewriteValueARM_OpNot(v *Value, config *Config) bool {
 func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (OffPtr [off] ptr)
+	// match: (OffPtr [off] ptr:(SP))
 	// cond:
-	// result: (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
+	// result: (MOVWaddr [off] ptr)
 	for {
 		off := v.AuxInt
 		ptr := v.Args[0]
-		v.reset(OpARMADD)
-		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.Frontend().TypeInt32())
-		v0.AuxInt = off
-		v.AddArg(v0)
+		if ptr.Op != OpSP {
+			break
+		}
+		v.reset(OpARMMOVWaddr)
+		v.AuxInt = off
+		v.AddArg(ptr)
+		return true
+	}
+	// match: (OffPtr [off] ptr)
+	// cond:
+	// result: (ADDconst [off] ptr)
+	for {
+		off := v.AuxInt
+		ptr := v.Args[0]
+		v.reset(OpARMADDconst)
+		v.AuxInt = off
 		v.AddArg(ptr)
 		return true
 	}

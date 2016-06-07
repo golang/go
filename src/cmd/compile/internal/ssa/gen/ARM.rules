@@ -246,9 +246,10 @@
 (Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Geq32U x y) -> (GreaterEqualU (CMP x y))
 
-(OffPtr [off] ptr) -> (ADD (MOVWconst <config.Frontend().TypeInt32()> [off]) ptr)
+(OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
+(OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
-(Addr {sym} base) -> (ADDconst {sym} base)
+(Addr {sym} base) -> (MOVWaddr {sym} base)
 
 // loads
 (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
@@ -369,31 +370,47 @@
 (ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
 (ADD x (MOVWconst [c])) -> (ADDconst [c] x)
 
-(MOVBload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVBUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVHload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVHUload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVWload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVFload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
-(MOVDload [off1] {sym1} (ADDconst [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
-  (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(ADDconst [off1] (MOVWaddr [off2] {sym} ptr)) -> (MOVWaddr [off1+off2] {sym} ptr)
 
-(MOVBstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
-  (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVHstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
-  (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
-  (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVFstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
-  (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
-(MOVDstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
-  (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBload [off1+off2] {sym} ptr mem)
+(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBUload [off1+off2] {sym} ptr mem)
+(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHload [off1+off2] {sym} ptr mem)
+(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHUload [off1+off2] {sym} ptr mem)
+(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVWload [off1+off2] {sym} ptr mem)
+(MOVFload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVFload [off1+off2] {sym} ptr mem)
+(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVDload [off1+off2] {sym} ptr mem)
+
+(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVBstore [off1+off2] {sym} ptr val mem)
+(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVHstore [off1+off2] {sym} ptr val mem)
+(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVWstore [off1+off2] {sym} ptr val mem)
+(MOVFstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVFstore [off1+off2] {sym} ptr val mem)
+(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVDstore [off1+off2] {sym} ptr val mem)
+
+(MOVBload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVBUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHUload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVFload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVDload [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+
+(MOVBstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVHstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVWstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVFstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
 (ADD (MUL x y) a) -> (MULA x y a)
 (ADD a (MUL x y)) -> (MULA x y a)

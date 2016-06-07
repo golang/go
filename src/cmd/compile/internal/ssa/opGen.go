@@ -380,6 +380,7 @@ const (
 	OpARMMOVWconst
 	OpARMMOVFconst
 	OpARMMOVDconst
+	OpARMMOVWaddr
 	OpARMMOVBload
 	OpARMMOVBUload
 	OpARMMOVHload
@@ -3932,12 +3933,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ADDconst",
-		auxType: auxSymOff,
+		auxType: auxInt32,
 		argLen:  1,
 		asm:     arm.AADD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589947903}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP SB
+				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4730,6 +4731,21 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			outputs: []regMask{
 				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:              "MOVWaddr",
+		auxType:           auxSymOff,
+		argLen:            1,
+		rematerializeable: true,
+		asm:               arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589942784}, // SP SB
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
