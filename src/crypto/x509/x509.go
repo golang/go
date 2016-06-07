@@ -1796,6 +1796,9 @@ var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
 func newRawAttributes(attributes []pkix.AttributeTypeAndValueSET) ([]asn1.RawValue, error) {
 	var rawAttributes []asn1.RawValue
 	b, err := asn1.Marshal(attributes)
+	if err != nil {
+		return nil, err
+	}
 	rest, err := asn1.Unmarshal(b, &rawAttributes)
 	if err != nil {
 		return nil, err
