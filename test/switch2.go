@@ -11,11 +11,11 @@ package main
 
 func f() {
 	switch {
-	case 0; // ERROR "expecting := or = or : or comma"
+	case 0; // ERROR "expecting := or = or : or comma|expecting :"
 	}
 
 	switch {
-	case 0; // ERROR "expecting := or = or : or comma"
+	case 0; // ERROR "expecting := or = or : or comma|expecting :"
 	default:
 	}
 
