@@ -1,4 +1,4 @@
-// +build !amd64
+// +build !amd64,!arm nacl,arm
 // errorcheck -0 -d=append,slice
 
 // Copyright 2015 The Go Authors. All rights reserved.
