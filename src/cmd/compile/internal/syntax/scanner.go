@@ -52,6 +52,10 @@ redo:
 
 	switch c {
 	case -1:
+		if nlsemi {
+			s.tok = _Semi
+			break
+		}
 		s.tok = _EOF
 
 	case '\n':
