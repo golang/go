@@ -450,10 +450,12 @@ func (s *scanner) number(c rune) {
 
 func (s *scanner) stdString() {
 	s.startLit()
+
 	for {
 		r := s.getr()
-		if r == '\\' && !s.escape('"') {
-			continue // error already reported
+		if r == '\\' {
+			s.escape('"')
+			continue
 		}
 		if r == '"' {
 			break
@@ -463,11 +465,13 @@ func (s *scanner) stdString() {
 			break
 		}
 	}
+
 	s.lit = string(s.stopLit())
 }
 
 func (s *scanner) rawString() {
 	s.startLit()
+
 	for {
 		r := s.getr()
 		if r == '`' {
@@ -477,22 +481,37 @@ func (s *scanner) rawString() {
 			s.error("string not terminated")
 			break
 		}
-		// TODO(gri) deal with CRs (or don't?)
 	}
+	// We leave CRs in the string since they are part of the
+	// literal (even though they are not part of the literal
+	// value).
+
 	s.lit = string(s.stopLit())
 }
 
 func (s *scanner) rune() {
 	s.startLit()
+
 	r := s.getr()
-	if r == '\\' && !s.escape('\'') {
-		panic(0)
+	if r != '\'' {
+		ok := true
+		if r == '\\' {
+			ok = s.escape('\'')
+		}
+		r = s.getr()
+		if r != '\'' {
+			// only report error if we're ok so far
+			if ok {
+				s.error("missing '")
+			}
+			s.ungetr()
+		}
+	} else {
+		s.error("empty character literal")
 	}
-	c := s.getr()
-	if c != '\'' {
-		panic(c)
-	}
+
 	s.lit = string(s.stopLit())
+	return
 }
 
 func (s *scanner) lineComment() {
@@ -574,19 +593,15 @@ func (s *scanner) escape(quote rune) bool {
 		c = s.getr()
 		n, base, max = 8, 16, unicode.MaxRune
 	default:
-		var msg string
-		if c >= 0 {
-			msg = "unknown escape sequence"
-		} else {
-			msg = "escape sequence not terminated"
+		if c < 0 {
+			return true // complain in caller about EOF
 		}
-		s.error(msg)
+		s.error("unknown escape sequence")
 		return false
 	}
 
 	var x uint32
-loop:
-	for ; n > 0; n-- {
+	for i := n; i > 0; i-- {
 		d := base
 		switch {
 		case isDigit(c):
@@ -597,20 +612,27 @@ loop:
 			d = uint32(c) - ('A' - 10)
 		}
 		if d >= base {
-			var msg string
-			if c >= 0 {
-				msg = fmt.Sprintf("illegal character %#U in escape sequence", c)
-			} else {
-				msg = "escape sequence not terminated"
+			if c < 0 {
+				return true // complain in caller about EOF
 			}
-			s.error(msg)
-			break loop
+			if c != quote {
+				s.error(fmt.Sprintf("illegal character %#U in escape sequence", c))
+			} else {
+				s.error("escape sequence incomplete")
+			}
+			s.ungetr()
+			return false
 		}
 		// d < base
 		x = x*base + d
 		c = s.getr()
 	}
 	s.ungetr()
+
+	if x > max && n == 3 {
+		s.error(fmt.Sprintf("octal escape value > 255: %d", x))
+		return false
+	}
 
 	if x > max || 0xD800 <= x && x < 0xE000 /* surrogate range */ {
 		s.error("escape sequence is invalid Unicode code point")

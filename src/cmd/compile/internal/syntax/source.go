@@ -58,7 +58,7 @@ func (s *source) error_at(pos, line int, msg string) {
 }
 
 func (s *source) pos() int {
-	return s.offs + s.r
+	return s.offs + s.r0
 }
 
 func (s *source) ungetr() {

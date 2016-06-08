@@ -255,44 +255,96 @@ var sampleTokens = [...]struct {
 
 func TestScanErrors(t *testing.T) {
 	for _, test := range []struct {
-		src, msg string
+		src, msg  string
+		pos, line int
 	}{
+		// Note: Positions for lexical errors are the earliest position
+		// where the error is apparent, not the beginning of the respective
+		// token.
+
 		// rune-level errors
-		{"fo\x00o", "invalid NUL character"},
-		{"fo\ufeffo", "invalid BOM in the middle of the file"},
-		{"\xff", "invalid UTF-8 encoding"},
+		{"fo\x00o", "invalid NUL character", 2, 1},
+		{"foo\n\ufeff bar", "invalid BOM in the middle of the file", 4, 2},
+		{"foo\n\n\xff    ", "invalid UTF-8 encoding", 5, 3},
 
 		// token-level errors
-		{"~", "bitwise complement operator is ^"},
-		{"$", "invalid rune '$'"},
-		{"0xyz", "malformed hex constant"},
-		{"08", "malformed octal constant"},
-		{"1.0e+x", "malformed floating-point constant exponent"},
-		{`"foo`, "string not terminated"},
-		{"`foo", "string not terminated"},
-		{"/* foo", "comment not terminated"},
-		{`"foo\z"`, "unknown escape sequence"},
-		// {`"\x`, "escape sequence not terminated"},
-		{`"\x"`, "illegal character U+0022 '\"' in escape sequence"},
-		{`"\Uffffffff"`, "escape sequence is invalid Unicode code point"},
+		{"x + ~y", "bitwise complement operator is ^", 4, 1},
+		{"foo$bar = 0", "invalid rune '$'", 3, 1},
+		{"const x = 0xyz", "malformed hex constant", 12, 1},
+		{"0123456789", "malformed octal constant", 10, 1},
+		{"0123456789. /*", "comment not terminated", 14, 1},  // valid float constant
+		{"0123456789e0 /*", "comment not terminated", 15, 1}, // valid float constant
+		{"var a, b = 08, 07\n", "malformed octal constant", 13, 1},
+		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
+
+		{`''`, "empty character literal", 1, 1},
+		{`'\`, "missing '", 2, 1},
+		{`'\'`, "missing '", 3, 1},
+		{`'\x`, "missing '", 3, 1},
+		{`'\x'`, "escape sequence incomplete", 3, 1},
+		{`'\y'`, "unknown escape sequence", 2, 1},
+		{`'\x0'`, "escape sequence incomplete", 4, 1},
+		{`'\00'`, "escape sequence incomplete", 4, 1},
+		{`'\377' /*`, "comment not terminated", 9, 1}, // valid octal escape
+		{`'\378`, "illegal character U+0038 '8' in escape sequence", 4, 1},
+		{`'\400'`, "octal escape value > 255: 256", 5, 1},
+		{`'xx`, "missing '", 2, 1},
+
+		{`"`, "string not terminated", 1, 1},
+		{`"foo`, "string not terminated", 4, 1},
+		{"`", "string not terminated", 1, 1},
+		{"`foo", "string not terminated", 4, 1},
+		{"/*/", "comment not terminated", 3, 1},
+		{"/*\n\nfoo", "comment not terminated", 7, 3},
+		{`"\`, "string not terminated", 2, 1},
+		{`"\"`, "string not terminated", 3, 1},
+		{`"\x`, "string not terminated", 3, 1},
+		{`"\x"`, "escape sequence incomplete", 3, 1},
+		{`"\y"`, "unknown escape sequence", 2, 1},
+		{`"\x0"`, "escape sequence incomplete", 4, 1},
+		{`"\00"`, "escape sequence incomplete", 4, 1},
+		{`"\377" /*`, "comment not terminated", 9, 1}, // valid octal escape
+		{`"\378"`, "illegal character U+0038 '8' in escape sequence", 4, 1},
+		{`"\400"`, "octal escape value > 255: 256", 5, 1},
+
+		{`s := "foo\z"`, "unknown escape sequence", 10, 1},
+		{`s := "foo\z00\nbar"`, "unknown escape sequence", 10, 1},
+		{`"\x`, "string not terminated", 3, 1},
+		{`"\x"`, "escape sequence incomplete", 3, 1},
+		{`var s string = "\x"`, "escape sequence incomplete", 18, 1},
+		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 18, 1},
 
 		// former problem cases
-		{"\xef", "invalid UTF-8 encoding"},
+		{"package p\n\n\xef", "invalid UTF-8 encoding", 11, 3},
 	} {
 		var s scanner
-		hasError := false
-		s.init(&bytesReader{[]byte(test.src)}, func(_, line int, msg string) {
-			hasError = true
-			// TODO(gri) test exact position as well
-			if line != 1 {
-				t.Errorf("got line = %d; want 1", line)
-			}
-			if msg != test.msg {
-				t.Errorf("got msg = %q; want %q", msg, test.msg)
+		nerrors := 0
+		s.init(&bytesReader{[]byte(test.src)}, func(pos, line int, msg string) {
+			nerrors++
+			// only check the first error
+			if nerrors == 1 {
+				if msg != test.msg {
+					t.Errorf("%q: got msg = %q; want %q", test.src, msg, test.msg)
+				}
+				if pos != test.pos {
+					t.Errorf("%q: got pos = %d; want %d", test.src, pos, test.pos)
+				}
+				if line != test.line {
+					t.Errorf("%q: got line = %d; want %d", test.src, line, test.line)
+				}
+			} else if nerrors > 1 {
+				t.Errorf("%q: got unexpected %q at pos = %d, line = %d", test.src, msg, pos, line)
 			}
 		})
-		s.next()
-		if !hasError {
+
+		for {
+			s.next()
+			if s.tok == _EOF {
+				break
+			}
+		}
+
+		if nerrors == 0 {
 			t.Errorf("%q: got no error; want %q", test.src, test.msg)
 		}
 	}
