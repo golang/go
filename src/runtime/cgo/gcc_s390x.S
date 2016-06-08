@@ -21,8 +21,11 @@ crosscall_s390x:
 	stdy	%f4, 144(%r15)
 	stdy	%f6, 152(%r15)
 
-	/* assumes this call does not clobber r2 or r15 */
+	/* set r0 to 0 */
 	xgr	%r0, %r0
+
+	/* restore g pointer */
+	lgr	%r13, %r3
 
 	/* grow stack 8 bytes and call fn */
 	agfi    %r15, -8
