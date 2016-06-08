@@ -26,8 +26,8 @@ type scanner struct {
 	pragmas []Pragma
 }
 
-func (s *scanner) init(src io.Reader) {
-	s.source.init(src)
+func (s *scanner) init(src io.Reader, errh ErrorHandler) {
+	s.source.init(src, errh)
 	s.nlsemi = false
 }
 
@@ -218,7 +218,7 @@ redo:
 		goto assignop
 
 	case '~':
-		panic("bitwise complement operator is ^")
+		s.error("bitwise complement operator is ^")
 		fallthrough
 
 	case '^':
@@ -283,8 +283,7 @@ redo:
 
 	default:
 		s.tok = 0
-		fmt.Printf("invalid rune %q\n", c)
-		panic("invalid rune")
+		s.error(fmt.Sprintf("invalid rune %q", c))
 		goto redo
 	}
 
@@ -386,7 +385,7 @@ func (s *scanner) number(c rune) {
 					hasDigit = true
 				}
 				if !hasDigit {
-					panic("malformed hex constant")
+					s.error("malformed hex constant")
 				}
 				s.ungetr()
 				s.lit = string(s.stopLit())
@@ -404,7 +403,7 @@ func (s *scanner) number(c rune) {
 			if c != '.' && c != 'e' && c != 'E' && c != 'i' {
 				// octal
 				if has8or9 {
-					panic("malformed octal constant")
+					s.error("malformed octal constant")
 				}
 				s.ungetr()
 				s.lit = string(s.stopLit())
@@ -434,7 +433,7 @@ func (s *scanner) number(c rune) {
 			c = s.getr()
 		}
 		if !isDigit(c) {
-			panic("malformed floating-point constant exponent")
+			s.error("malformed floating-point constant exponent")
 		}
 		for isDigit(c) {
 			c = s.getr()
@@ -454,13 +453,14 @@ func (s *scanner) stdString() {
 	for {
 		r := s.getr()
 		if r == '\\' && !s.escape('"') {
-			panic(0)
+			continue // error already reported
 		}
 		if r == '"' {
 			break
 		}
 		if r < 0 {
-			panic("string not terminated")
+			s.error("string not terminated")
+			break
 		}
 	}
 	s.lit = string(s.stopLit())
@@ -474,7 +474,8 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			panic("string not terminated")
+			s.error("string not terminated")
+			break
 		}
 		// TODO(gri) deal with CRs (or don't?)
 	}
@@ -547,7 +548,8 @@ func (s *scanner) fullComment() {
 			}
 		}
 		if r < 0 {
-			panic("comment not terminated")
+			s.error("comment not terminated")
+			return
 		}
 	}
 }
@@ -578,7 +580,7 @@ func (s *scanner) escape(quote rune) bool {
 		} else {
 			msg = "escape sequence not terminated"
 		}
-		panic(msg)
+		s.error(msg)
 		return false
 	}
 
@@ -601,7 +603,7 @@ loop:
 			} else {
 				msg = "escape sequence not terminated"
 			}
-			panic(msg)
+			s.error(msg)
 			break loop
 		}
 		// d < base
@@ -611,7 +613,7 @@ loop:
 	s.ungetr()
 
 	if x > max || 0xD800 <= x && x < 0xE000 /* surrogate range */ {
-		panic("escape sequence is invalid Unicode code point")
+		s.error("escape sequence is invalid Unicode code point")
 		return false
 	}
 

@@ -5,6 +5,7 @@
 package syntax
 
 import (
+	"fmt"
 	"io"
 	"unicode/utf8"
 )
@@ -15,7 +16,8 @@ import (
 //        suf     r0  r            w
 
 type source struct {
-	src io.Reader
+	src  io.Reader
+	errh ErrorHandler
 
 	// source buffer
 	buf         [4 << 10]byte
@@ -29,8 +31,10 @@ type source struct {
 	suf int    // literal suffix; suf >= 0 means we are scanning a literal
 }
 
-func (s *source) init(src io.Reader) {
+func (s *source) init(src io.Reader, errh ErrorHandler) {
 	s.src = src
+	s.errh = errh
+
 	s.buf[0] = utf8.RuneSelf // terminate with sentinel
 	s.offs = 0
 	s.r0, s.r, s.w = 0, 0, 0
@@ -39,6 +43,18 @@ func (s *source) init(src io.Reader) {
 
 	s.lit = s.lit[:0]
 	s.suf = -1
+}
+
+func (s *source) error(msg string) {
+	s.error_at(s.pos(), s.line, msg)
+}
+
+func (s *source) error_at(pos, line int, msg string) {
+	if s.errh != nil {
+		s.errh(pos, line, msg)
+		return
+	}
+	panic(fmt.Sprintf("%d: %s", line, msg))
 }
 
 func (s *source) pos() int {
@@ -57,7 +73,7 @@ func (s *source) getr() rune {
 		if b := s.buf[s.r]; b < utf8.RuneSelf {
 			s.r++
 			if b == 0 {
-				panic("invalid NUL character")
+				s.error("invalid NUL character")
 				continue
 			}
 			if b == '\n' {
@@ -73,7 +89,7 @@ func (s *source) getr() rune {
 			// BOM's are only allowed as the first character in a file
 			const BOM = 0xfeff
 			if r == BOM && s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
-				panic("invalid BOM in the middle of the file")
+				s.error("invalid BOM in the middle of the file")
 				continue
 			}
 			return r
@@ -81,14 +97,14 @@ func (s *source) getr() rune {
 
 		if w == 0 && s.err != nil {
 			if s.err != io.EOF {
-				panic(s.err)
+				s.error(s.err.Error())
 			}
 			return -1
 		}
 
 		if w == 1 && (s.r+utf8.UTFMax <= s.w || utf8.FullRune(s.buf[s.r:s.w])) {
 			s.r++
-			panic("invalid UTF-8 encoding")
+			s.error("invalid UTF-8 encoding")
 			continue
 		}
 
@@ -119,7 +135,7 @@ func (s *source) fill() {
 	for i := 100; i > 0; i-- {
 		n, err := s.src.Read(s.buf[s.w : len(s.buf)-1]) // -1 to leave space for sentinel
 		if n < 0 {
-			panic("negative read")
+			s.error("negative read")
 		}
 		s.w += n
 		if n > 0 || err != nil {
@@ -131,7 +147,7 @@ func (s *source) fill() {
 		}
 	}
 
-	panic("no progress")
+	s.error("no progress")
 }
 
 func (s *source) startLit() {

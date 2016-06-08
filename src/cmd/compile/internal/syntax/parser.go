@@ -6,26 +6,12 @@ package syntax
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
 const debug = false
 const trace = false
-
-// ----------------------------------------------------------------------------
-// "Inherited" globals - TODO(gri): eliminate
-
-var nerrors int
-
-//go:noinline
-func Yyerror(format string, args ...interface{}) {
-	fmt.Printf(format, args...)
-	fmt.Println()
-	nerrors++
-	panic(7)
-}
-
-// ----------------------------------------------------------------------------
 
 type parser struct {
 	scanner
@@ -33,6 +19,25 @@ type parser struct {
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
+
+	nerrors int // error count
+}
+
+func (p *parser) init(src io.Reader, errh ErrorHandler) {
+	p.scanner.init(src, func(pos, line int, msg string) {
+		p.nerrors++
+		if errh != nil {
+			errh(pos, line, msg)
+			return
+		}
+		fmt.Printf("%d: %s\n", line, msg)
+	})
+
+	p.fnest = 0
+	p.xnest = 0
+	p.indent = nil
+
+	p.nerrors = 0
 }
 
 func (p *parser) got(tok token) bool {
@@ -53,12 +58,13 @@ func (p *parser) want(tok token) {
 // ----------------------------------------------------------------------------
 // Error handling
 
+// syntax_error reports a syntax error at the current line.
 func (p *parser) syntax_error(msg string) {
 	if trace {
 		defer p.trace("syntax_error (" + msg + ")")()
 	}
 
-	if p.tok == _EOF && nerrors > 0 {
+	if p.tok == _EOF && p.nerrors > 0 {
 		return // avoid meaningless follow-up errors
 	}
 
@@ -72,7 +78,7 @@ func (p *parser) syntax_error(msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		Yyerror("%d: syntax error: %s", p.line, msg)
+		p.error("syntax error: " + msg)
 		return
 	}
 
@@ -92,11 +98,12 @@ func (p *parser) syntax_error(msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	Yyerror("%d: syntax error: unexpected %s%s", p.line, tok, msg)
+	p.error("syntax error: unexpected " + tok + msg)
 }
 
 // Like syntax_error, but reports error at given line rather than current lexer line.
 func (p *parser) syntax_error_at(lineno uint32, msg string) {
+	// TODO(gri) fix this
 	// defer func(lineno int32) {
 	// 	lexlineno = lineno
 	// }(lexlineno)
@@ -193,7 +200,7 @@ func (p *parser) file() *File {
 	p.want(_Semi)
 
 	// don't bother continuing if package clause has errors
-	if nerrors > 0 {
+	if p.nerrors > 0 {
 		return nil
 	}
 
@@ -376,12 +383,12 @@ func (p *parser) funcDecl() *FuncDecl {
 		rcvr := p.paramList()
 		switch len(rcvr) {
 		case 0:
-			Yyerror("method has no receiver")
+			p.error("method has no receiver")
 			return nil // TODO(gri) better solution
 		case 1:
 			f.Recv = rcvr[0]
 		default:
-			Yyerror("method has multiple receivers")
+			p.error("method has multiple receivers")
 			return nil // TODO(gri) better solution
 		}
 	}
@@ -396,13 +403,13 @@ func (p *parser) funcDecl() *FuncDecl {
 	// if name.Sym.Name == "init" {
 	// 	name = renameinit()
 	// 	if params != nil || result != nil {
-	// 		Yyerror("func init must have no arguments and no return values")
+	// 		p.error("func init must have no arguments and no return values")
 	// 	}
 	// }
 
 	// if localpkg.Name == "main" && name.Name == "main" {
 	// 	if params != nil || result != nil {
-	// 		Yyerror("func main must have no arguments and no return values")
+	// 		p.error("func main must have no arguments and no return values")
 	// 	}
 	// }
 
@@ -412,7 +419,7 @@ func (p *parser) funcDecl() *FuncDecl {
 
 	// TODO(gri) deal with function properties
 	// if noescape && body != nil {
-	// 	Yyerror("can only use //go:noescape with external func implementations")
+	// 	p.error("can only use //go:noescape with external func implementations")
 	// }
 
 	return f
@@ -543,10 +550,10 @@ func (p *parser) callStmt() *CallStmt {
 	case *CallExpr:
 		s.Call = x
 	case *ParenExpr:
-		Yyerror("expression in %s must not be parenthesized", s.Tok)
+		p.error(fmt.Sprintf("expression in %s must not be parenthesized", s.Tok))
 		// already progressed, no need to advance
 	default:
-		Yyerror("expression in %s must be function call", s.Tok)
+		p.error(fmt.Sprintf("expression in %s must be function call", s.Tok))
 		// already progressed, no need to advance
 	}
 
@@ -728,13 +735,13 @@ loop:
 			if p.got(_Colon) {
 				// x[i:j:...]
 				if t.Index[1] == nil {
-					Yyerror("middle index required in 3-index slice")
+					p.error("middle index required in 3-index slice")
 				}
 				if p.tok != _Rbrack {
 					// x[i:j:k...
 					t.Index[2] = p.expr()
 				} else {
-					Yyerror("final index required in 3-index slice")
+					p.error("final index required in 3-index slice")
 				}
 			}
 			p.want(_Rbrack)
@@ -1141,7 +1148,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, nil, typ, tag)
-			Yyerror("cannot parenthesize embedded type")
+			p.error("cannot parenthesize embedded type")
 
 		} else {
 			// '(' embed ')' oliteral
@@ -1149,7 +1156,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, nil, typ, tag)
-			Yyerror("cannot parenthesize embedded type")
+			p.error("cannot parenthesize embedded type")
 		}
 
 	case _Star:
@@ -1160,7 +1167,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			p.want(_Rparen)
 			tag := p.oliteral()
 			p.addField(styp, nil, typ, tag)
-			Yyerror("cannot parenthesize embedded type")
+			p.error("cannot parenthesize embedded type")
 
 		} else {
 			// '*' embed oliteral
@@ -1227,7 +1234,7 @@ func (p *parser) methodDecl() *Field {
 		f.init(p)
 		f.Type = p.qualifiedName(nil)
 		p.want(_Rparen)
-		Yyerror("cannot parenthesize embedded type")
+		p.error("cannot parenthesize embedded type")
 		return f
 
 	default:
@@ -1294,7 +1301,7 @@ func (p *parser) dotsType() *DotsType {
 	p.want(_DotDotDot)
 	t.Elem = p.tryType()
 	if t.Elem == nil {
-		Yyerror("final argument in variadic function missing type")
+		p.error("final argument in variadic function missing type")
 	}
 
 	return t
@@ -1441,12 +1448,12 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 		if x, ok := rhs.(*AssertExpr); ok && x.Type == nil {
 			// x.(type)
 			// if len(rhs) > 1 {
-			// 	Yyerror("expr.(type) must be alone on ths")
+			// 	p.error("expr.(type) must be alone on ths")
 			// }
 			// if len(lhs) > 1 {
-			// 	Yyerror("argument count mismatch: %d = %d", len(lhs), 1)
+			// 	p.error("argument count mismatch: %d = %d", len(lhs), 1)
 			// } else if x, ok := lhs[0].(*Name); !ok {
-			// 	Yyerror("invalid variable name %s in type switch", x)
+			// 	p.error("invalid variable name %s in type switch", x)
 			// }
 		}
 
@@ -1557,7 +1564,7 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	if p.tok != _Semi {
 		// accept potential varDecl but complain
 		if p.got(_Var) {
-			Yyerror("var declaration not allowed in initializer")
+			p.error("var declaration not allowed in initializer")
 		}
 		init = p.simpleStmt(nil, forStmt)
 		// If we have a range clause, we are done.
@@ -1597,7 +1604,7 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 			cond = p.unpackCond(name, s.Rhs)
 		}
 	default:
-		Yyerror("invalid condition, tag, or type switch guard")
+		p.error("invalid condition, tag, or type switch guard")
 	}
 
 	p.xnest = outer
@@ -1614,7 +1621,7 @@ func (p *parser) unpackCond(lhs *Name, x Expr) Expr {
 	}
 
 	if lhs != nil {
-		Yyerror("invalid type switch guard")
+		p.error("invalid type switch guard")
 	}
 
 	return x
@@ -1631,7 +1638,7 @@ func (p *parser) ifStmt() *IfStmt {
 	p.want(_If)
 	s.Init, s.Cond, _ = p.header(false)
 	if s.Cond == nil {
-		Yyerror("missing condition in if statement")
+		p.error("missing condition in if statement")
 	}
 
 	s.Then = p.stmtBody("if clause")

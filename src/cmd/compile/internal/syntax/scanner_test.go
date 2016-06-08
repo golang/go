@@ -22,7 +22,7 @@ func TestScanner(t *testing.T) {
 	defer src.Close()
 
 	var s scanner
-	s.init(src)
+	s.init(src, nil)
 	for {
 		s.next()
 		if s.tok == _EOF {
@@ -51,7 +51,7 @@ func TestTokens(t *testing.T) {
 
 	// scan source
 	var got scanner
-	got.init(&bytesReader{buf})
+	got.init(&bytesReader{buf}, nil)
 	got.next()
 	for i, want := range sampleTokens {
 		nlsemi := false
@@ -251,4 +251,46 @@ var sampleTokens = [...]struct {
 	{_Switch, "switch", 0, 0},
 	{_Type, "type", 0, 0},
 	{_Var, "var", 0, 0},
+}
+
+func TestScanErrors(t *testing.T) {
+	for _, test := range []struct {
+		src, msg string
+	}{
+		// rune-level errors
+		{"fo\x00o", "invalid NUL character"},
+		{"fo\ufeffo", "invalid BOM in the middle of the file"},
+		{"\xff", "invalid UTF-8 encoding"},
+
+		// token-level errors
+		{"~", "bitwise complement operator is ^"},
+		{"$", "invalid rune '$'"},
+		{"0xyz", "malformed hex constant"},
+		{"08", "malformed octal constant"},
+		{"1.0e+x", "malformed floating-point constant exponent"},
+		{`"foo`, "string not terminated"},
+		{"`foo", "string not terminated"},
+		{"/* foo", "comment not terminated"},
+		{`"foo\z"`, "unknown escape sequence"},
+		// {`"\x`, "escape sequence not terminated"},
+		{`"\x"`, "illegal character U+0022 '\"' in escape sequence"},
+		{`"\Uffffffff"`, "escape sequence is invalid Unicode code point"},
+	} {
+		var s scanner
+		hasError := false
+		s.init(&bytesReader{[]byte(test.src)}, func(_, line int, msg string) {
+			hasError = true
+			// TODO(gri) test exact position as well
+			if line != 1 {
+				t.Errorf("got line = %d; want 1", line)
+			}
+			if msg != test.msg {
+				t.Errorf("got msg = %q; want %q", msg, test.msg)
+			}
+		})
+		s.next()
+		if !hasError {
+			t.Errorf("%q: got no error; want %q", test.src, test.msg)
+		}
+	}
 }

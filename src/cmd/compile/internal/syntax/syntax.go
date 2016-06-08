@@ -12,15 +12,17 @@ import (
 
 type Mode uint
 
+type ErrorHandler func(pos, line int, msg string)
+
 // TODO(gri) These need a lot more work.
 
-func ReadFile(filename string, mode Mode) (*File, error) {
+func ReadFile(filename string, errh ErrorHandler, mode Mode) (*File, error) {
 	src, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer src.Close()
-	return Read(src, mode)
+	return Read(src, errh, mode)
 }
 
 type bytesReader struct {
@@ -36,13 +38,13 @@ func (r *bytesReader) Read(p []byte) (int, error) {
 	return 0, io.EOF
 }
 
-func ReadBytes(src []byte, mode Mode) (*File, error) {
-	return Read(&bytesReader{src}, mode)
+func ReadBytes(src []byte, errh ErrorHandler, mode Mode) (*File, error) {
+	return Read(&bytesReader{src}, errh, mode)
 }
 
-func Read(src io.Reader, mode Mode) (*File, error) {
+func Read(src io.Reader, errh ErrorHandler, mode Mode) (*File, error) {
 	var p parser
-	p.init(src)
+	p.init(src, errh)
 
 	// skip initial BOM if present
 	if p.getr() != '\ufeff' {
@@ -52,8 +54,8 @@ func Read(src io.Reader, mode Mode) (*File, error) {
 	p.next()
 	ast := p.file()
 
-	if nerrors > 0 {
-		return nil, fmt.Errorf("%d syntax errors", nerrors)
+	if p.nerrors > 0 {
+		return nil, fmt.Errorf("%d syntax errors", p.nerrors)
 	}
 
 	return ast, nil
