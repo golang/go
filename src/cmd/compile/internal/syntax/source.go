@@ -69,10 +69,10 @@ func (s *source) getr() rune {
 redo:
 	s.r0, s.line0 = s.r, s.line
 
-	// TODO(gri) We could avoid at least one test that is always taken
-	// in the for loop below by duplicating the common case code (ASCII)
+	// We could avoid at least one test that is always taken in the
+	// for loop below by duplicating the common case code (ASCII)
 	// here since we always have at least the sentinel (utf8.RuneSelf)
-	// in the buffer. Measure and optimize eventually.
+	// in the buffer. Measure and optimize if necessary.
 
 	// make sure we have at least one rune in buffer, or we are at EOF
 	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.err == nil && s.w-s.r < len(s.buf) {
@@ -123,7 +123,8 @@ redo:
 func (s *source) fill() {
 	// Slide unread bytes to beginning but preserve last read char
 	// (for one ungetr call) plus one extra byte (for a 2nd ungetr
-	// call, only for ".." character sequence).
+	// call, only for ".." character sequence and float literals
+	// starting with ".").
 	if s.r0 > 1 {
 		// save literal prefix, if any
 		// (We see at most one ungetr call while reading
@@ -143,7 +144,7 @@ func (s *source) fill() {
 	for i := 100; i > 0; i-- {
 		n, err := s.src.Read(s.buf[s.w : len(s.buf)-1]) // -1 to leave space for sentinel
 		if n < 0 {
-			s.error("negative read")
+			panic("negative read") // incorrect underlying io.Reader implementation
 		}
 		s.w += n
 		if n > 0 || err != nil {
@@ -155,7 +156,7 @@ func (s *source) fill() {
 		}
 	}
 
-	s.error("no progress")
+	s.err = io.ErrNoProgress
 }
 
 func (s *source) startLit() {
