@@ -2580,7 +2580,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		i := s.expr(fn.Left)
 		itab := s.newValue1(ssa.OpITab, Types[TUINTPTR], i)
 		itabidx := fn.Xoffset + 3*int64(Widthptr) + 8 // offset of fun field in runtime.itab
-		itab = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], itabidx, itab)
+		itab = s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), itabidx, itab)
 		if k == callNormal {
 			codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], itab, s.mem())
 		} else {
@@ -2603,7 +2603,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		if k != callNormal {
 			argStart += int64(2 * Widthptr)
 		}
-		addr := s.entryNewValue1I(ssa.OpOffPtr, Types[TUINTPTR], argStart, s.sp)
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), argStart, s.sp)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
 	}
 
@@ -2612,7 +2612,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// Write argsize and closure (args to Newproc/Deferproc).
 		argStart := Ctxt.FixedFrameSize()
 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
-		addr := s.entryNewValue1I(ssa.OpOffPtr, Types[TUINTPTR], argStart, s.sp)
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT32]), argStart, s.sp)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, addr, argsize, s.mem())
 		addr = s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), argStart+int64(Widthptr), s.sp)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
@@ -2968,7 +2968,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 		off = Rnd(off, t.Alignment())
 		ptr := s.sp
 		if off != 0 {
-			ptr = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], off, s.sp)
+			ptr = s.newValue1I(ssa.OpOffPtr, t.PtrTo(), off, s.sp)
 		}
 		size := t.Size()
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
@@ -3008,7 +3008,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 		off = Rnd(off, t.Alignment())
 		ptr := s.sp
 		if off != 0 {
-			ptr = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], off, s.sp)
+			ptr = s.newValue1I(ssa.OpOffPtr, Ptrto(t), off, s.sp)
 		}
 		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
 		off += t.Size()
