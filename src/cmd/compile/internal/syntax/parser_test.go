@@ -29,6 +29,10 @@ func TestParse(t *testing.T) {
 }
 
 func TestStdLib(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
 	var m1 runtime.MemStats
 	runtime.ReadMemStats(&m1)
 	start := time.Now()

@@ -275,6 +275,9 @@ func TestScanErrors(t *testing.T) {
 		// {`"\x`, "escape sequence not terminated"},
 		{`"\x"`, "illegal character U+0022 '\"' in escape sequence"},
 		{`"\Uffffffff"`, "escape sequence is invalid Unicode code point"},
+
+		// former problem cases
+		{"\xef", "invalid UTF-8 encoding"},
 	} {
 		var s scanner
 		hasError := false

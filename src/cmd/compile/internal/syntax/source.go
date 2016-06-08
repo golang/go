@@ -66,50 +66,58 @@ func (s *source) ungetr() {
 }
 
 func (s *source) getr() rune {
-	for {
-		s.r0, s.line0 = s.r, s.line
+redo:
+	s.r0, s.line0 = s.r, s.line
 
-		// common case: ASCII and enough bytes
-		if b := s.buf[s.r]; b < utf8.RuneSelf {
-			s.r++
-			if b == 0 {
-				s.error("invalid NUL character")
-				continue
-			}
-			if b == '\n' {
-				s.line++
-			}
-			return rune(b)
-		}
+	// TODO(gri) We could avoid at least one test that is always taken
+	// in the for loop below by duplicating the common case code (ASCII)
+	// here since we always have at least the sentinel (utf8.RuneSelf)
+	// in the buffer. Measure and optimize eventually.
 
-		// uncommon case: not ASCII or not enough bytes
-		r, w := utf8.DecodeRune(s.buf[s.r:s.w]) // optimistically assume valid rune
-		if r != utf8.RuneError || w > 1 {
-			s.r += w
-			// BOM's are only allowed as the first character in a file
-			const BOM = 0xfeff
-			if r == BOM && s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
-				s.error("invalid BOM in the middle of the file")
-				continue
-			}
-			return r
-		}
-
-		if w == 0 && s.err != nil {
-			if s.err != io.EOF {
-				s.error(s.err.Error())
-			}
-			return -1
-		}
-
-		if w == 1 && (s.r+utf8.UTFMax <= s.w || utf8.FullRune(s.buf[s.r:s.w])) {
-			s.r++
-			s.error("invalid UTF-8 encoding")
-			continue
-		}
-
-		s.fill()
+	// make sure we have at least one rune in buffer, or we are at EOF
+	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.err == nil && s.w-s.r < len(s.buf) {
+		s.fill() // s.w-s.r < len(s.buf) => buffer is not full
 	}
+
+	// common case: ASCII and enough bytes
+	// (invariant: s.buf[s.w] == utf8.RuneSelf)
+	if b := s.buf[s.r]; b < utf8.RuneSelf {
+		s.r++
+		if b == 0 {
+			s.error("invalid NUL character")
+			goto redo
+		}
+		if b == '\n' {
+			s.line++
+		}
+		return rune(b)
+	}
+
+	// EOF
+	if s.r == s.w {
+		if s.err != io.EOF {
+			s.error(s.err.Error())
+		}
+		return -1
+	}
+
+	// uncommon case: not ASCII
+	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
+	s.r += w
+
+	if r == utf8.RuneError && w == 1 {
+		s.error("invalid UTF-8 encoding")
+		goto redo
+	}
+
+	// BOM's are only allowed as the first character in a file
+	const BOM = 0xfeff
+	if r == BOM && s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
+		s.error("invalid BOM in the middle of the file")
+		goto redo
+	}
+
+	return r
 }
 
 func (s *source) fill() {

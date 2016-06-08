@@ -26,11 +26,11 @@ type parser struct {
 func (p *parser) init(src io.Reader, errh ErrorHandler) {
 	p.scanner.init(src, func(pos, line int, msg string) {
 		p.nerrors++
-		if errh != nil {
+		if !debug && errh != nil {
 			errh(pos, line, msg)
 			return
 		}
-		fmt.Printf("%d: %s\n", line, msg)
+		panic(fmt.Sprintf("%d: %s\n", line, msg))
 	})
 
 	p.fnest = 0
