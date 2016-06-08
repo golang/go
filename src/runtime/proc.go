@@ -3000,6 +3000,8 @@ func _ExternalCode() { _ExternalCode() }
 func _GC()           { _GC() }
 
 // Called if we receive a SIGPROF signal.
+// Called by the signal handler, may run during STW.
+//go:nowritebarrierrec
 func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	if prof.hz == 0 {
 		return
@@ -3157,6 +3159,36 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		atomic.Store(&prof.lock, 0)
 	}
 	mp.mallocing--
+}
+
+// If the signal handler receives a SIGPROF signal on a non-Go thread,
+// it tries to collect a traceback into sigprofCallers.
+// sigprofCallersUse is set to non-zero while sigprofCallers holds a traceback.
+var sigprofCallers cgoCallers
+var sigprofCallersUse uint32
+
+// Called if we receive a SIGPROF signal on a non-Go thread.
+// When this is called, sigprofCallersUse will be non-zero.
+// g is nil, and what we can do is very limited.
+//go:nosplit
+//go:nowritebarrierrec
+func sigprofNonGo() {
+	if prof.hz != 0 {
+		n := 0
+		for n < len(sigprofCallers) && sigprofCallers[n] != 0 {
+			n++
+		}
+
+		// Simple cas-lock to coordinate with setcpuprofilerate.
+		if atomic.Cas(&prof.lock, 0, 1) {
+			if prof.hz != 0 {
+				cpuprof.addNonGo(sigprofCallers[:n])
+			}
+			atomic.Store(&prof.lock, 0)
+		}
+	}
+
+	atomic.Store(&sigprofCallersUse, 0)
 }
 
 // Reports whether a function will set the SP
