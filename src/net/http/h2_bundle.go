@@ -2631,6 +2631,12 @@ type http2pipeBuffer interface {
 	io.Reader
 }
 
+func (p *http2pipe) Len() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.b.Len()
+}
+
 // Read waits until data is available and copies bytes
 // from the buffer into p.
 func (p *http2pipe) Read(d []byte) (n int, err error) {
@@ -6152,8 +6158,10 @@ func (b http2transportResponseBody) Read(p []byte) (n int, err error) {
 		cc.inflow.add(connAdd)
 	}
 	if err == nil {
-		if v := cs.inflow.available(); v < http2transportDefaultStreamFlow-http2transportDefaultStreamMinRefresh {
-			streamAdd = http2transportDefaultStreamFlow - v
+
+		v := int(cs.inflow.available()) + cs.bufPipe.Len()
+		if v < http2transportDefaultStreamFlow-http2transportDefaultStreamMinRefresh {
+			streamAdd = int32(http2transportDefaultStreamFlow - v)
 			cs.inflow.add(streamAdd)
 		}
 	}
