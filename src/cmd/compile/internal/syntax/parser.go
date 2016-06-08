@@ -1888,7 +1888,9 @@ func (p *parser) stmt() Stmt {
 		return s
 
 	case _Semi:
-		return nil
+		s := new(EmptyStmt)
+		s.init(p)
+		return s
 	}
 
 	return missing_stmt
