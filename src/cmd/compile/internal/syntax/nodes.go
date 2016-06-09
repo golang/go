@@ -317,24 +317,24 @@ type (
 
 	AssignStmt struct {
 		Op       Operator // 0 means no operation
-		Lhs, Rhs Expr
+		Lhs, Rhs Expr     // Rhs == ImplicitOne means Lhs++ (Op == Add) or Lhs-- (Op == Sub)
 		simpleStmt
 	}
 
 	BranchStmt struct {
-		Tok   token // TODO(gri) token values are not yet exported
+		Tok   token // Break, Continue, Fallthrough, or Goto
 		Label *Name
 		stmt
 	}
 
 	CallStmt struct {
-		Tok  token // _Go, or _Defer -- TODO(gri) token values are not yet exported
+		Tok  token // Go or Defer
 		Call *CallExpr
 		stmt
 	}
 
 	ReturnStmt struct {
-		Results Expr // nil means no (explicit) results
+		Results Expr // nil means no explicit return values
 		stmt
 	}
 

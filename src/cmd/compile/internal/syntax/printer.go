@@ -499,7 +499,7 @@ func (p *printer) printRawNode(n Node) {
 
 	case *AssignStmt:
 		p.print(n.Lhs)
-		if n.Rhs == one {
+		if n.Rhs == ImplicitOne {
 			// TODO(gri) This is going to break the mayCombine
 			//           check once we enable that again.
 			p.print(n.Op, n.Op) // ++ or --

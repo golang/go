@@ -69,13 +69,15 @@ const (
 )
 
 const (
-	Go    = _Go
-	Defer = _Defer
-
+	// for BranchStmt
 	Break       = _Break
 	Continue    = _Continue
 	Fallthrough = _Fallthrough
 	Goto        = _Goto
+
+	// for CallStmt
+	Go    = _Go
+	Defer = _Defer
 )
 
 var tokstrings = [...]string{

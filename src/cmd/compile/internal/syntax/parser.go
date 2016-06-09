@@ -1367,8 +1367,9 @@ func (p *parser) paramList() (list []*Field) {
 // ----------------------------------------------------------------------------
 // Statements
 
-// We represent x++, x-- as assignments x += one, x -= one.
-var one = &BasicLit{Value: "1"}
+// We represent x++, x-- as assignments x += ImplicitOne, x -= ImplicitOne.
+// ImplicitOne should not be used elsewhere.
+var ImplicitOne = &BasicLit{Value: "1"}
 
 // SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
 //
@@ -1403,7 +1404,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 			// lhs++ or lhs--
 			op := p.op
 			p.next()
-			return p.newAssignStmt(op, lhs, one)
+			return p.newAssignStmt(op, lhs, ImplicitOne)
 
 		case _Arrow:
 			// lhs <- rhs
