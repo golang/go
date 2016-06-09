@@ -1926,6 +1926,7 @@ const (
 	OpAtomicCompareAndSwap64
 	OpAtomicAnd8
 	OpAtomicOr8
+	OpClobber
 )
 
 var opcodeTable = [...]opInfo{
@@ -22606,6 +22607,13 @@ var opcodeTable = [...]opInfo{
 		argLen:         3,
 		hasSideEffects: true,
 		generic:        true,
+	},
+	{
+		name:      "Clobber",
+		auxType:   auxSymOff,
+		argLen:    0,
+		symEffect: SymNone,
+		generic:   true,
 	},
 }
 

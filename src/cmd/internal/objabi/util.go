@@ -83,6 +83,7 @@ var (
 	framepointer_enabled     int
 	Fieldtrack_enabled       int
 	Preemptibleloops_enabled int
+	Clobberdead_enabled      int
 )
 
 // Toolchain experiments.
@@ -96,6 +97,7 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
+	{"clobberdead", &Clobberdead_enabled},
 }
 
 func Expstring() string {
