@@ -171,7 +171,7 @@ type (
 	AssertExpr struct {
 		X Expr
 		// TODO(gri) consider using Name{"..."} instead of nil (permits attaching of comments)
-		Type Expr // nil means x.(type) (for use in type switch)
+		Type Expr
 		expr
 	}
 

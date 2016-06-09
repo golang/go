@@ -689,14 +689,19 @@ loop:
 
 			case _Lparen:
 				p.next()
-				t := new(AssertExpr)
-				t.init(p)
-				t.X = x
-				if !p.got(_Type) {
+				if p.got(_Type) {
+					t := new(TypeSwitchGuard)
+					t.init(p)
+					t.X = x
+					x = t
+				} else {
+					t := new(AssertExpr)
+					t.init(p)
+					t.X = x
 					t.Type = p.expr()
+					x = t
 				}
 				p.want(_Rparen)
-				x = t
 
 			default:
 				p.syntax_error("expecting name or (")
@@ -1446,16 +1451,17 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 		// expr_list ':=' expr_list
 		rhs := p.exprList()
 
-		if x, ok := rhs.(*AssertExpr); ok && x.Type == nil {
-			// x.(type)
-			// if len(rhs) > 1 {
-			// 	p.error("expr.(type) must be alone on ths")
-			// }
-			// if len(lhs) > 1 {
-			// 	p.error("argument count mismatch: %d = %d", len(lhs), 1)
-			// } else if x, ok := lhs[0].(*Name); !ok {
-			// 	p.error("invalid variable name %s in type switch", x)
-			// }
+		if x, ok := rhs.(*TypeSwitchGuard); ok {
+			switch lhs := lhs.(type) {
+			case *Name:
+				x.Lhs = lhs
+			case *ListExpr:
+				p.error(fmt.Sprintf("argument count mismatch: %d = %d", len(lhs.ElemList), 1))
+			default:
+				// TODO(mdempsky): Have Expr types implement Stringer?
+				p.error(fmt.Sprintf("invalid variable name %s in type switch", lhs))
+			}
+			return &ExprStmt{X: x}
 		}
 
 		return p.newAssignStmt(Def, lhs, rhs)
@@ -1598,34 +1604,13 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
 	case nil:
 		// nothing to do
 	case *ExprStmt:
-		cond = p.unpackCond(nil, s.X)
-	case *AssignStmt:
-		// TODO(gri) allow := and =
-		if name, ok := s.Lhs.(*Name); ok && s.Op == Def {
-			cond = p.unpackCond(name, s.Rhs)
-		}
+		cond = s.X
 	default:
 		p.error("invalid condition, tag, or type switch guard")
 	}
 
 	p.xnest = outer
 	return
-}
-
-func (p *parser) unpackCond(lhs *Name, x Expr) Expr {
-	if x, ok := x.(*AssertExpr); ok && x.Type == nil {
-		g := new(TypeSwitchGuard)
-		g.init(p) // TODO(gri) use correct position info
-		g.Lhs = lhs
-		g.X = x.X
-		return g
-	}
-
-	if lhs != nil {
-		p.error("invalid type switch guard")
-	}
-
-	return x
 }
 
 func (p *parser) ifStmt() *IfStmt {
