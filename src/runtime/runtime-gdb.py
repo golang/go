@@ -448,15 +448,15 @@ class GoroutineCmd(gdb.Command):
 		except gdb.error:
 			pc = int(str(pc).split(None, 1)[0], 16)
 		save_frame = gdb.selected_frame()
-		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$save_sp = $sp')
-		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
+		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
+		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
-			gdb.parse_and_eval('$pc = $save_pc')
 			gdb.parse_and_eval('$sp = $save_sp')
+			gdb.parse_and_eval('$pc = $save_pc')
 			save_frame.select()
 
 
