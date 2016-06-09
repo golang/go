@@ -117,7 +117,7 @@ struct my_epoll_event {
 	// alignment requirements of EABI
 	int32_t padFd;
 #endif
-#ifdef  __powerpc64__
+#if defined(__powerpc64__) || defined(__s390x__)
 	int32_t _padFd;
 #endif
 	int32_t fd;
