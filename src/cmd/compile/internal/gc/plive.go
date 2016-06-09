@@ -577,6 +577,15 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 
 		return
 	}
+	if prog.As == obj.AJMP && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
+		// This is a tail call. Ensure the arguments are still alive.
+		// See issue 16016.
+		for i, node := range vars {
+			if node.Class == PPARAM {
+				bvset(uevar, int32(i))
+			}
+		}
+	}
 
 	if prog.As == obj.ATEXT {
 		// A text instruction marks the entry point to a function and
