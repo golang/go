@@ -473,8 +473,8 @@ Usage:
 
 	go get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]
 
-Get downloads and installs the packages named by the import paths,
-along with their dependencies.
+Get downloads the packages named by the import paths, along with their
+dependencies. It then installs the named packages, like 'go install'.
 
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
