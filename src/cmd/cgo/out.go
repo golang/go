@@ -112,8 +112,14 @@ func (p *Package) writeDefs() {
 	}
 
 	for i, t := range p.CgoChecks {
-		n := p.unsafeCheckPointerNameIndex(i)
+		n := p.unsafeCheckPointerNameIndex(i, false)
 		fmt.Fprintf(fgo2, "\nfunc %s(p %s, args ...interface{}) %s {\n", n, t, t)
+		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
+		fmt.Fprintf(fgo2, "}\n")
+	}
+	for i, t := range p.DeferredCgoChecks {
+		n := p.unsafeCheckPointerNameIndex(i, true)
+		fmt.Fprintf(fgo2, "\nfunc %s(p interface{}, args ...interface{}) %s {\n", n, t)
 		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
 		fmt.Fprintf(fgo2, "}\n")
 	}

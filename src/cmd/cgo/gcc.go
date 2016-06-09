@@ -657,7 +657,7 @@ func (p *Package) rewriteCall(f *File, call *Call, name *Name) {
 		// Instead we use a local variant of _cgoCheckPointer.
 
 		var arg ast.Expr
-		if n := p.unsafeCheckPointerName(param.Go); n != "" {
+		if n := p.unsafeCheckPointerName(param.Go, call.Deferred); n != "" {
 			c.Fun = ast.NewIdent(n)
 			arg = c
 		} else {
@@ -939,20 +939,31 @@ func (p *Package) isType(t ast.Expr) bool {
 // assertion to unsafe.Pointer in our copy of user code. We return
 // the name of the _cgoCheckPointer function we are going to build, or
 // the empty string if the type does not use unsafe.Pointer.
-func (p *Package) unsafeCheckPointerName(t ast.Expr) string {
+//
+// The deferred parameter is true if this check is for the argument of
+// a deferred function. In that case we need to use an empty interface
+// as the argument type, because the deferred function we introduce in
+// rewriteCall will use an empty interface type, and we can't add a
+// type assertion. This is handled by keeping a separate list, and
+// writing out the lists separately in writeDefs.
+func (p *Package) unsafeCheckPointerName(t ast.Expr, deferred bool) string {
 	if !p.hasUnsafePointer(t) {
 		return ""
 	}
 	var buf bytes.Buffer
 	conf.Fprint(&buf, fset, t)
 	s := buf.String()
-	for i, t := range p.CgoChecks {
+	checks := &p.CgoChecks
+	if deferred {
+		checks = &p.DeferredCgoChecks
+	}
+	for i, t := range *checks {
 		if s == t {
-			return p.unsafeCheckPointerNameIndex(i)
+			return p.unsafeCheckPointerNameIndex(i, deferred)
 		}
 	}
-	p.CgoChecks = append(p.CgoChecks, s)
-	return p.unsafeCheckPointerNameIndex(len(p.CgoChecks) - 1)
+	*checks = append(*checks, s)
+	return p.unsafeCheckPointerNameIndex(len(*checks)-1, deferred)
 }
 
 // hasUnsafePointer returns whether the Go type t uses unsafe.Pointer.
@@ -980,7 +991,10 @@ func (p *Package) hasUnsafePointer(t ast.Expr) bool {
 
 // unsafeCheckPointerNameIndex returns the name to use for a
 // _cgoCheckPointer variant based on the index in the CgoChecks slice.
-func (p *Package) unsafeCheckPointerNameIndex(i int) string {
+func (p *Package) unsafeCheckPointerNameIndex(i int, deferred bool) string {
+	if deferred {
+		return fmt.Sprintf("_cgoCheckPointerInDefer%d", i)
+	}
 	return fmt.Sprintf("_cgoCheckPointer%d", i)
 }
 
