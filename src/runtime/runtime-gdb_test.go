@@ -69,6 +69,7 @@ func checkGdbPython(t *testing.T) {
 
 const helloSource = `
 import "fmt"
+import "runtime"
 var gslice []string
 func main() {
 	mapvar := make(map[string]string,5)
@@ -78,9 +79,10 @@ func main() {
 	ptrvar := &strvar
 	slicevar := make([]string, 0, 16)
 	slicevar = append(slicevar, mapvar["abc"])
-	fmt.Println("hi") // line 12
+	fmt.Println("hi") // line 13
 	_ = ptrvar
 	gslice = slicevar
+	runtime.KeepAlive(mapvar)
 }
 `
 
@@ -211,7 +213,7 @@ func testGdbPython(t *testing.T, cgo bool) {
 		t.Fatalf("info locals failed: %s", bl)
 	}
 
-	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)
+	btGoroutineRe := regexp.MustCompile(`^#0\s+(0x[0-9a-f]+\s+in\s+)?runtime.+at`)
 	if bl := blocks["goroutine 2 bt"]; !btGoroutineRe.MatchString(bl) {
 		t.Fatalf("goroutine 2 bt failed: %s", bl)
 	}

@@ -738,6 +738,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 	case ssa.Op386FCHS:
 		v.Fatalf("FCHS in non-387 mode")
+	case ssa.OpClobber:
+		p := s.Prog(x86.AMOVL)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0xdeaddead
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = x86.REG_SP
+		gc.AddAux(&p.To, v)
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
