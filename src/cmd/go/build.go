@@ -2182,7 +2182,6 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	// The compiler runs in the directory dir.
 	gc(b *builder, p *Package, archive, obj string, asmhdr bool, importArgs []string, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
