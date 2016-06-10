@@ -73,7 +73,7 @@ const (
 //
 // The mode parameter controls the amount of source text parsed and other
 // optional parser functionality. Position information is recorded in the
-// file set fset.
+// file set fset, which must not be nil.
 //
 // If the source couldn't be read, the returned AST is nil and the error
 // indicates the specific failure. If the source was read but syntax
@@ -82,6 +82,10 @@ const (
 // are returned via a scanner.ErrorList which is sorted by file position.
 //
 func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (f *ast.File, err error) {
+	if fset == nil {
+		panic("parser.ParseFile: no token.FileSet provided (fset == nil)")
+	}
+
 	// get source
 	text, err := readSource(filename, src)
 	if err != nil {
@@ -125,7 +129,8 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 //
 // If filter != nil, only the files with os.FileInfo entries passing through
 // the filter (and ending in ".go") are considered. The mode bits are passed
-// to ParseFile unchanged. Position information is recorded in fset.
+// to ParseFile unchanged. Position information is recorded in fset, which
+// must not be nil.
 //
 // If the directory couldn't be read, a nil map and the respective error are
 // returned. If a parse error occurred, a non-nil but incomplete map and the
@@ -169,9 +174,14 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 
 // ParseExprFrom is a convenience function for parsing an expression.
 // The arguments have the same meaning as for Parse, but the source must
-// be a valid Go (type or value) expression.
+// be a valid Go (type or value) expression. Specifically, fset must not
+// be nil.
 //
 func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (ast.Expr, error) {
+	if fset == nil {
+		panic("parser.ParseExprFrom: no token.FileSet provided (fset == nil)")
+	}
+
 	// get source
 	text, err := readSource(filename, src)
 	if err != nil {
