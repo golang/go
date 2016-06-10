@@ -116,6 +116,7 @@ type (
 	// Value
 	BasicLit struct {
 		Value string
+		Kind  LitKind
 		expr
 	}
 

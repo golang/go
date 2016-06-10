@@ -278,6 +278,7 @@ func TestScanErrors(t *testing.T) {
 		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
 
 		{`''`, "empty character literal", 1, 1},
+		{"'\n", "newline in character literal", 1, 1},
 		{`'\`, "missing '", 2, 1},
 		{`'\'`, "missing '", 3, 1},
 		{`'\x`, "missing '", 3, 1},
@@ -290,6 +291,7 @@ func TestScanErrors(t *testing.T) {
 		{`'\400'`, "octal escape value > 255: 256", 5, 1},
 		{`'xx`, "missing '", 2, 1},
 
+		{"\"\n", "newline in string", 1, 1},
 		{`"`, "string not terminated", 1, 1},
 		{`"foo`, "string not terminated", 4, 1},
 		{"`", "string not terminated", 1, 1},

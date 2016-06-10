@@ -157,6 +157,16 @@ func contains(tokset uint64, tok token) bool {
 	return tokset&(1<<tok) != 0
 }
 
+type LitKind uint
+
+const (
+	IntLit LitKind = iota
+	FloatLit
+	ImagLit
+	RuneLit
+	StringLit
+)
+
 type Operator uint
 
 const (

@@ -291,7 +291,7 @@ func (p *parser) importDecl(group *Group) Decl {
 		d.LocalPkgName = n
 		p.next()
 	}
-	if p.tok == _Literal && (p.lit[0] == '"' || p.lit[0] == '`') {
+	if p.tok == _Literal && p.kind == StringLit {
 		d.Path = p.oliteral()
 	} else {
 		p.syntax_error("missing import path; require quoted string")
@@ -570,15 +570,11 @@ func (p *parser) operand(keep_parens bool) Expr {
 	}
 
 	switch p.tok {
-	case _Literal:
-		x := new(BasicLit)
-		x.init(p)
-		x.Value = p.lit
-		p.next()
-		return x
-
 	case _Name:
 		return p.name()
+
+	case _Literal:
+		return p.oliteral()
 
 	case _Lparen:
 		p.next()
@@ -1192,6 +1188,7 @@ func (p *parser) oliteral() *BasicLit {
 		b := new(BasicLit)
 		b.init(p)
 		b.Value = p.lit
+		b.Kind = p.kind
 		p.next()
 		return b
 	}

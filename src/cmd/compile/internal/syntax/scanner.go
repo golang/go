@@ -20,6 +20,7 @@ type scanner struct {
 	pos, line int
 	tok       token
 	lit       string   // valid if tok is _Name or _Literal
+	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
 
@@ -66,23 +67,15 @@ redo:
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		s.number(c)
-		s.nlsemi = true
-		s.tok = _Literal
 
 	case '"':
 		s.stdString()
-		s.nlsemi = true
-		s.tok = _Literal
 
 	case '`':
 		s.rawString()
-		s.nlsemi = true
-		s.tok = _Literal
 
 	case '\'':
 		s.rune()
-		s.nlsemi = true
-		s.tok = _Literal
 
 	case '(':
 		s.tok = _Lparen
@@ -125,8 +118,6 @@ redo:
 			s.ungetr()
 			s.source.r0-- // make sure '.' is part of literal (line cannot have changed)
 			s.number('.')
-			s.nlsemi = true
-			s.tok = _Literal
 			break
 		}
 		if c == '.' {
@@ -164,7 +155,7 @@ redo:
 		// don't goto assignop - want _Star token
 		if s.getr() == '=' {
 			s.tok = _AssignOp
-			return
+			break
 		}
 		s.ungetr()
 		s.tok = _Star
@@ -335,8 +326,8 @@ func (s *scanner) ident() {
 	}
 
 	s.nlsemi = true
-	s.tok = _Name
 	s.lit = string(lit)
+	s.tok = _Name
 }
 
 // hash is a perfect hash function for keywords.
@@ -374,6 +365,7 @@ func (s *scanner) number(c rune) {
 	s.startLit()
 
 	if c != '.' {
+		s.kind = IntLit // until proven otherwise
 		if c == '0' {
 			c = s.getr()
 			if c == 'x' || c == 'X' {
@@ -387,9 +379,7 @@ func (s *scanner) number(c rune) {
 				if !hasDigit {
 					s.error("malformed hex constant")
 				}
-				s.ungetr()
-				s.lit = string(s.stopLit())
-				return
+				goto done
 			}
 
 			// decimal 0, octal, or float
@@ -405,9 +395,7 @@ func (s *scanner) number(c rune) {
 				if has8or9 {
 					s.error("malformed octal constant")
 				}
-				s.ungetr()
-				s.lit = string(s.stopLit())
-				return
+				goto done
 			}
 
 		} else {
@@ -420,6 +408,7 @@ func (s *scanner) number(c rune) {
 
 	// float
 	if c == '.' {
+		s.kind = FloatLit
 		c = s.getr()
 		for isDigit(c) {
 			c = s.getr()
@@ -428,6 +417,7 @@ func (s *scanner) number(c rune) {
 
 	// exponent
 	if c == 'e' || c == 'E' {
+		s.kind = FloatLit
 		c = s.getr()
 		if c == '-' || c == '+' {
 			c = s.getr()
@@ -441,11 +431,16 @@ func (s *scanner) number(c rune) {
 	}
 
 	// complex
-	if c != 'i' {
-		s.ungetr() // not complex
+	if c == 'i' {
+		s.kind = ImagLit
+		s.getr()
 	}
 
+done:
+	s.ungetr()
+	s.nlsemi = true
 	s.lit = string(s.stopLit())
+	s.tok = _Literal
 }
 
 func (s *scanner) stdString() {
@@ -453,20 +448,28 @@ func (s *scanner) stdString() {
 
 	for {
 		r := s.getr()
+		if r == '"' {
+			break
+		}
 		if r == '\\' {
 			s.escape('"')
 			continue
 		}
-		if r == '"' {
+		if r == '\n' {
+			s.ungetr() // assume newline is not part of literal
+			s.error("newline in string")
 			break
 		}
 		if r < 0 {
-			s.error("string not terminated")
+			s.error("string not terminated") // TODO(gri) should point at start of string
 			break
 		}
 	}
 
+	s.nlsemi = true
 	s.lit = string(s.stopLit())
+	s.kind = StringLit
+	s.tok = _Literal
 }
 
 func (s *scanner) rawString() {
@@ -478,7 +481,7 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			s.error("string not terminated")
+			s.error("string not terminated") // TODO(gri) should point at start of string
 			break
 		}
 	}
@@ -486,14 +489,22 @@ func (s *scanner) rawString() {
 	// literal (even though they are not part of the literal
 	// value).
 
+	s.nlsemi = true
 	s.lit = string(s.stopLit())
+	s.kind = StringLit
+	s.tok = _Literal
 }
 
 func (s *scanner) rune() {
 	s.startLit()
 
 	r := s.getr()
-	if r != '\'' {
+	if r == '\'' {
+		s.error("empty character literal")
+	} else if r == '\n' {
+		s.ungetr() // assume newline is not part of literal
+		s.error("newline in character literal")
+	} else {
 		ok := true
 		if r == '\\' {
 			ok = s.escape('\'')
@@ -506,12 +517,12 @@ func (s *scanner) rune() {
 			}
 			s.ungetr()
 		}
-	} else {
-		s.error("empty character literal")
 	}
 
+	s.nlsemi = true
 	s.lit = string(s.stopLit())
-	return
+	s.kind = RuneLit
+	s.tok = _Literal
 }
 
 func (s *scanner) lineComment() {
