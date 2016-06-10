@@ -44,7 +44,7 @@ redo:
 	}
 
 	// token start
-	s.pos, s.line = s.source.pos(), s.source.line
+	s.pos, s.line = s.source.pos0(), s.source.line0
 
 	if isLetter(c) || c >= utf8.RuneSelf && unicode.IsLetter(c) {
 		s.ident()
@@ -461,7 +461,7 @@ func (s *scanner) stdString() {
 			break
 		}
 		if r < 0 {
-			s.error("string not terminated") // TODO(gri) should point at start of string
+			s.error_at(s.pos, s.line, "string not terminated")
 			break
 		}
 	}
@@ -481,7 +481,7 @@ func (s *scanner) rawString() {
 			break
 		}
 		if r < 0 {
-			s.error("string not terminated") // TODO(gri) should point at start of string
+			s.error_at(s.pos, s.line, "string not terminated")
 			break
 		}
 	}
@@ -578,7 +578,7 @@ func (s *scanner) fullComment() {
 			}
 		}
 		if r < 0 {
-			s.error("comment not terminated")
+			s.error_at(s.pos, s.line, "comment not terminated")
 			return
 		}
 	}

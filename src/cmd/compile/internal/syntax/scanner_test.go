@@ -272,8 +272,8 @@ func TestScanErrors(t *testing.T) {
 		{"foo$bar = 0", "invalid rune '$'", 3, 1},
 		{"const x = 0xyz", "malformed hex constant", 12, 1},
 		{"0123456789", "malformed octal constant", 10, 1},
-		{"0123456789. /*", "comment not terminated", 14, 1},  // valid float constant
-		{"0123456789e0 /*", "comment not terminated", 15, 1}, // valid float constant
+		{"0123456789. /* foobar", "comment not terminated", 12, 1},   // valid float constant
+		{"0123456789e0 /*\nfoobar", "comment not terminated", 13, 1}, // valid float constant
 		{"var a, b = 08, 07\n", "malformed octal constant", 13, 1},
 		{"(x + 1.0e+x)", "malformed floating-point constant exponent", 10, 1},
 
@@ -286,32 +286,33 @@ func TestScanErrors(t *testing.T) {
 		{`'\y'`, "unknown escape sequence", 2, 1},
 		{`'\x0'`, "escape sequence incomplete", 4, 1},
 		{`'\00'`, "escape sequence incomplete", 4, 1},
-		{`'\377' /*`, "comment not terminated", 9, 1}, // valid octal escape
+		{`'\377' /*`, "comment not terminated", 7, 1}, // valid octal escape
 		{`'\378`, "illegal character U+0038 '8' in escape sequence", 4, 1},
 		{`'\400'`, "octal escape value > 255: 256", 5, 1},
 		{`'xx`, "missing '", 2, 1},
 
 		{"\"\n", "newline in string", 1, 1},
-		{`"`, "string not terminated", 1, 1},
-		{`"foo`, "string not terminated", 4, 1},
-		{"`", "string not terminated", 1, 1},
-		{"`foo", "string not terminated", 4, 1},
-		{"/*/", "comment not terminated", 3, 1},
-		{"/*\n\nfoo", "comment not terminated", 7, 3},
-		{`"\`, "string not terminated", 2, 1},
-		{`"\"`, "string not terminated", 3, 1},
-		{`"\x`, "string not terminated", 3, 1},
+		{`"`, "string not terminated", 0, 1},
+		{`"foo`, "string not terminated", 0, 1},
+		{"`", "string not terminated", 0, 1},
+		{"`foo", "string not terminated", 0, 1},
+		{"/*/", "comment not terminated", 0, 1},
+		{"/*\n\nfoo", "comment not terminated", 0, 1},
+		{"/*\n\nfoo", "comment not terminated", 0, 1},
+		{`"\`, "string not terminated", 0, 1},
+		{`"\"`, "string not terminated", 0, 1},
+		{`"\x`, "string not terminated", 0, 1},
 		{`"\x"`, "escape sequence incomplete", 3, 1},
 		{`"\y"`, "unknown escape sequence", 2, 1},
 		{`"\x0"`, "escape sequence incomplete", 4, 1},
 		{`"\00"`, "escape sequence incomplete", 4, 1},
-		{`"\377" /*`, "comment not terminated", 9, 1}, // valid octal escape
+		{`"\377" /*`, "comment not terminated", 7, 1}, // valid octal escape
 		{`"\378"`, "illegal character U+0038 '8' in escape sequence", 4, 1},
 		{`"\400"`, "octal escape value > 255: 256", 5, 1},
 
 		{`s := "foo\z"`, "unknown escape sequence", 10, 1},
 		{`s := "foo\z00\nbar"`, "unknown escape sequence", 10, 1},
-		{`"\x`, "string not terminated", 3, 1},
+		{`"\x`, "string not terminated", 0, 1},
 		{`"\x"`, "escape sequence incomplete", 3, 1},
 		{`var s string = "\x"`, "escape sequence incomplete", 18, 1},
 		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 18, 1},

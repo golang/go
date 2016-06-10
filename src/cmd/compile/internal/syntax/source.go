@@ -46,7 +46,7 @@ func (s *source) init(src io.Reader, errh ErrorHandler) {
 }
 
 func (s *source) error(msg string) {
-	s.error_at(s.pos(), s.line, msg)
+	s.error_at(s.pos0(), s.line0, msg)
 }
 
 func (s *source) error_at(pos, line int, msg string) {
@@ -57,7 +57,8 @@ func (s *source) error_at(pos, line int, msg string) {
 	panic(fmt.Sprintf("%d: %s", line, msg))
 }
 
-func (s *source) pos() int {
+// pos0 returns the byte position of the last character read.
+func (s *source) pos0() int {
 	return s.offs + s.r0
 }
 
