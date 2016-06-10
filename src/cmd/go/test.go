@@ -129,7 +129,7 @@ control the execution of any test:
 const testFlag2 = `
 	-bench regexp
 	    Run (sub)benchmarks matching a regular expression.
-	    The given regular expression is split into smaller ones by 
+	    The given regular expression is split into smaller ones by
 	    top-level '/', where each must match the corresponding part of a
 	    benchmark's identifier.
 	    By default, no benchmarks run. To run all benchmarks,
@@ -221,7 +221,7 @@ const testFlag2 = `
 	-run regexp
 	    Run only those tests and examples matching the regular expression.
 	    For tests the regular expression is split into smaller ones by
-	    top-level '/', where each must match the corresponding part of a 
+	    top-level '/', where each must match the corresponding part of a
 	    test's identifier.
 
 	-short
@@ -263,7 +263,7 @@ execution, not to the test itself.)
 The test flags that generate profiles (other than for coverage) also
 leave the test binary in pkg.test for use when analyzing the profiles.
 
-When 'go test' runs a test binary, it does so from within the 
+When 'go test' runs a test binary, it does so from within the
 corresponding package's source code directory. Depending on the test,
 it may be necessary to do the same when invoking a generated test
 binary directly.

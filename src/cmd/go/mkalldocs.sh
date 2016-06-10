@@ -6,7 +6,6 @@
 set -e
 
 go build -o go.latest
-./go.latest help documentation | sed 's; \*/; * /;' >alldocs.go
+./go.latest help documentation >alldocs.go
 gofmt -w alldocs.go
 rm go.latest
-
