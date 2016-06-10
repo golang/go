@@ -6,6 +6,7 @@ package os
 
 import (
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 )
@@ -13,8 +14,9 @@ import (
 // Process stores the information about a process created by StartProcess.
 type Process struct {
 	Pid    int
-	handle uintptr // handle is accessed atomically on Windows
-	isdone uint32  // process has been successfully waited on, non zero if true
+	handle uintptr      // handle is accessed atomically on Windows
+	isdone uint32       // process has been successfully waited on, non zero if true
+	sigMu  sync.RWMutex // avoid race between wait and signal
 }
 
 func newProcess(pid int, handle uintptr) *Process {
