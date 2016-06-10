@@ -112,8 +112,10 @@ redo:
 
 	// BOM's are only allowed as the first character in a file
 	const BOM = 0xfeff
-	if r == BOM && s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
-		s.error("invalid BOM in the middle of the file")
+	if r == BOM {
+		if s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
+			s.error("invalid BOM in the middle of the file")
+		}
 		goto redo
 	}
 

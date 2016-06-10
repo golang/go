@@ -46,11 +46,6 @@ func Read(src io.Reader, errh ErrorHandler, mode Mode) (*File, error) {
 	var p parser
 	p.init(src, errh)
 
-	// skip initial BOM if present
-	if p.getr() != '\ufeff' {
-		p.ungetr()
-	}
-
 	p.next()
 	ast := p.file()
 
