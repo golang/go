@@ -60,9 +60,6 @@ redo:
 		s.tok = _EOF
 
 	case '\n':
-		// ';' is before the '\n'
-		s.pos--
-		s.line--
 		s.tok = _Semi
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
