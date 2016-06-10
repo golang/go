@@ -230,12 +230,12 @@ func (p *parser) file() *File {
 			f.DeclList = append(f.DeclList, p.funcDecl())
 
 		default:
-			// if p.tok == _Lbrace && l != nil && l.End.N.Op == ODC_Func && l.End.N.Nbody == nil {
-			// 	// opening { of function declaration on next line
-			// 	p.syntax_error("unexpected semicolon or newline before {")
-			// } else {
-			// 	p.syntax_error("non-declaration statement outside function body")
-			// }
+			if p.tok == _Lbrace && len(f.DeclList) > 0 && emptyFuncDecl(f.DeclList[len(f.DeclList)-1]) {
+				// opening { of function declaration on next line
+				p.syntax_error("unexpected semicolon or newline before {")
+			} else {
+				p.syntax_error("non-declaration statement outside function body")
+			}
 			p.advance(_Const, _Type, _Var, _Func)
 			continue
 		}
@@ -251,6 +251,11 @@ func (p *parser) file() *File {
 	f.Pragmas = p.pragmas
 
 	return f
+}
+
+func emptyFuncDecl(dcl Decl) bool {
+	f, ok := dcl.(*FuncDecl)
+	return ok && f.Body == nil
 }
 
 // ----------------------------------------------------------------------------
