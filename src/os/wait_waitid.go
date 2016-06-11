@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build darwin linux
+
 package os
 
 import (
@@ -16,8 +18,11 @@ const _P_PID = 1
 // succeed immediately, and returns whether it has done so.
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
-	// waitid expects a pointer to a siginfo_t, which is 128 bytes
-	// on all systems. We don't care about the values it returns.
+	// The waitid system call expects a pointer to a siginfo_t,
+	// which is 128 bytes on all GNU/Linux systems.
+	// On Darwin, it requires greater than or equal to 64 bytes
+	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
+	// We don't care about the values it returns.
 	var siginfo [128]byte
 	psig := &siginfo[0]
 	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
