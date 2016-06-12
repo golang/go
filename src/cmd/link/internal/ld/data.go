@@ -790,11 +790,14 @@ func blk(start *LSym, addr int64, size int64) {
 }
 
 func Codeblk(addr int64, size int64) {
+	CodeblkPad(addr, size, zeros[:])
+}
+func CodeblkPad(addr int64, size int64, pad []byte) {
 	if Debug['a'] != 0 {
 		fmt.Fprintf(Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blkSlice(Ctxt.Textp, addr, size)
+	blkSlice(Ctxt.Textp, addr, size, pad)
 
 	/* again for printing */
 	if Debug['a'] == 0 {
@@ -858,7 +861,7 @@ func Codeblk(addr int64, size int64) {
 // blkSlice is a variant of blk that processes slices.
 // After text symbols are converted from a linked list to a slice,
 // delete blk and give this function its name.
-func blkSlice(syms []*LSym, addr, size int64) {
+func blkSlice(syms []*LSym, addr, size int64, pad []byte) {
 	for i, s := range syms {
 		if s.Type&obj.SSUB == 0 && s.Value >= addr {
 			syms = syms[i:]
@@ -880,13 +883,13 @@ func blkSlice(syms []*LSym, addr, size int64) {
 			errorexit()
 		}
 		if addr < s.Value {
-			strnput("", int(s.Value-addr))
+			strnputPad("", int(s.Value-addr), pad)
 			addr = s.Value
 		}
 		Cwrite(s.P)
 		addr += int64(len(s.P))
 		if addr < s.Value+s.Size {
-			strnput("", int(s.Value+s.Size-addr))
+			strnputPad("", int(s.Value+s.Size-addr), pad)
 			addr = s.Value + s.Size
 		}
 		if addr != s.Value+s.Size {
@@ -899,7 +902,7 @@ func blkSlice(syms []*LSym, addr, size int64) {
 	}
 
 	if addr < eaddr {
-		strnput("", int(eaddr-addr))
+		strnputPad("", int(eaddr-addr), pad)
 	}
 	Cflush()
 }
@@ -909,7 +912,7 @@ func Datblk(addr int64, size int64) {
 		fmt.Fprintf(Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
-	blkSlice(datap, addr, size)
+	blkSlice(datap, addr, size, zeros[:])
 
 	/* again for printing */
 	if Debug['a'] == 0 {
@@ -986,23 +989,27 @@ func Dwarfblk(addr int64, size int64) {
 var zeros [512]byte
 
 // strnput writes the first n bytes of s.
-// If n is larger then len(s),
+// If n is larger than len(s),
 // it is padded with NUL bytes.
 func strnput(s string, n int) {
+	strnputPad(s, n, zeros[:])
+}
+
+// strnput writes the first n bytes of s.
+// If n is larger than len(s),
+// it is padded with the bytes in pad (repeated as needed).
+func strnputPad(s string, n int, pad []byte) {
 	if len(s) >= n {
 		Cwritestring(s[:n])
 	} else {
 		Cwritestring(s)
 		n -= len(s)
-		for n > 0 {
-			if len(zeros) >= n {
-				Cwrite(zeros[:n])
-				return
-			} else {
-				Cwrite(zeros[:])
-				n -= len(zeros)
-			}
+		for n > len(pad) {
+			Cwrite(pad)
+			n -= len(pad)
+
 		}
+		Cwrite(pad[:n])
 	}
 }
 
