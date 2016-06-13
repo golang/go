@@ -32,7 +32,7 @@ function initNotes() {
   var slidesUrl = window.location.href;
 
   var curSlide = parseInt(localStorage.getItem('destSlide'), 10);
-  var formattedNotes;
+  var formattedNotes = '';
   var section = sections[curSlide - 1];
   // curSlide is 0 when initialized from the first page of slides.
   // Check if section is valid before retrieving Notes.
@@ -76,7 +76,6 @@ function initNotes() {
   // parent window
   w.addEventListener('storage', updateNotes, false);
 };
-
 
 function formatNotes(notes) {
   var formattedNotes = '';
