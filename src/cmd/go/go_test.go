@@ -2898,3 +2898,25 @@ func TestBinaryOnlyPackages(t *testing.T) {
 	tg.run("run", tg.path("src/p3/p3.go"))
 	tg.grepStdout("hello from p1", "did not see message from p1")
 }
+
+// Issue 16050.
+func TestAlwaysLinkSysoFiles(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src/syso")
+	tg.tempFile("src/syso/a.syso", ``)
+	tg.tempFile("src/syso/b.go", `package syso`)
+	tg.setenv("GOPATH", tg.path("."))
+
+	// We should see the .syso file regardless of the setting of
+	// CGO_ENABLED.
+
+	tg.setenv("CGO_ENABLED", "1")
+	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
+	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=1")
+
+	tg.setenv("CGO_ENABLED", "0")
+	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
+	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
+}
