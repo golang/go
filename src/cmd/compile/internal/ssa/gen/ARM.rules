@@ -399,11 +399,10 @@
 
 // Optimizations
 
-(ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
-(ADD x (MOVWconst [c])) -> (ADDconst [c] x)
-
+// fold offset into address
 (ADDconst [off1] (MOVWaddr [off2] {sym} ptr)) -> (MOVWaddr [off1+off2] {sym} ptr)
 
+// fold address into load/store
 (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBload [off1+off2] {sym} ptr mem)
 (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBUload [off1+off2] {sym} ptr mem)
 (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHload [off1+off2] {sym} ptr mem)
@@ -444,5 +443,314 @@
 (MOVDstore [off1] {sym1} (MOVWaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
+// replace load from same location as preceding store with copy
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type) -> x
+(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type) -> x
+(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && isSigned(x.Type) -> x
+(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) && !isSigned(x.Type) -> x
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+
+// fold constant into arithmatic ops
+(ADD (MOVWconst [c]) x) -> (ADDconst [c] x)
+(ADD x (MOVWconst [c])) -> (ADDconst [c] x)
+(SUB (MOVWconst [c]) x) -> (RSBconst [c] x)
+(SUB x (MOVWconst [c])) -> (SUBconst [c] x)
+(RSB (MOVWconst [c]) x) -> (SUBconst [c] x)
+(RSB x (MOVWconst [c])) -> (RSBconst [c] x)
+
+(ADDS (MOVWconst [c]) x) -> (ADDSconst [c] x)
+(ADDS x (MOVWconst [c])) -> (ADDSconst [c] x)
+(SUBS (MOVWconst [c]) x) -> (RSBSconst [c] x)
+(SUBS x (MOVWconst [c])) -> (SUBSconst [c] x)
+
+(ADC (MOVWconst [c]) x flags) -> (ADCconst [c] x flags)
+(ADC x (MOVWconst [c]) flags) -> (ADCconst [c] x flags)
+(SBC (MOVWconst [c]) x flags) -> (RSCconst [c] x flags)
+(SBC x (MOVWconst [c]) flags) -> (SBCconst [c] x flags)
+
+(AND (MOVWconst [c]) x) -> (ANDconst [c] x)
+(AND x (MOVWconst [c])) -> (ANDconst [c] x)
+(OR (MOVWconst [c]) x) -> (ORconst [c] x)
+(OR x (MOVWconst [c])) -> (ORconst [c] x)
+(XOR (MOVWconst [c]) x) -> (XORconst [c] x)
+(XOR x (MOVWconst [c])) -> (XORconst [c] x)
+(BIC x (MOVWconst [c])) -> (BICconst [c] x)
+
+(SLL x (MOVWconst [c])) -> (SLLconst x [c&31]) // Note: I don't think we ever generate bad constant shifts (i.e. c>=32)
+(SRL x (MOVWconst [c])) -> (SRLconst x [c&31])
+(SRA x (MOVWconst [c])) -> (SRAconst x [c&31])
+
+(CMP x (MOVWconst [c])) -> (CMPconst [c] x)
+(CMP (MOVWconst [c]) x) -> (InvertFlags (CMPconst [c] x))
+
+(LoweredZeromask (MOVWconst [0])) -> (MOVWconst [0])
+(LoweredZeromask (MOVWconst [c])) && c != 0 -> (MOVWconst [0xffffffff])
+
+// don't extend after proper load
+// MOVWreg instruction is not emitted if src and dst registers are same, but it ensures the type.
+(MOVBreg x:(MOVBload _ _)) -> (MOVWreg x)
+(MOVBUreg x:(MOVBUload _ _)) -> (MOVWreg x)
+(MOVHreg x:(MOVBload _ _)) -> (MOVWreg x)
+(MOVHreg x:(MOVBUload _ _)) -> (MOVWreg x)
+(MOVHreg x:(MOVHload _ _)) -> (MOVWreg x)
+(MOVHUreg x:(MOVBUload _ _)) -> (MOVWreg x)
+(MOVHUreg x:(MOVHUload _ _)) -> (MOVWreg x)
+
+// fold extensions and ANDs together
+(MOVBUreg (ANDconst [c] x)) -> (ANDconst [c&0xff] x)
+(MOVHUreg (ANDconst [c] x)) -> (ANDconst [c&0xffff] x)
+(MOVBreg (ANDconst [c] x)) && c & 0x80 == 0 -> (ANDconst [c&0x7f] x)
+(MOVHreg (ANDconst [c] x)) && c & 0x8000 == 0 -> (ANDconst [c&0x7fff] x)
+
+// don't extend before store
+(MOVBstore [off] {sym} ptr (MOVBreg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVBUreg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVHreg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVHUreg x) mem) -> (MOVBstore [off] {sym} ptr x mem)
+(MOVHstore [off] {sym} ptr (MOVHreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
+(MOVHstore [off] {sym} ptr (MOVHUreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
+
+// mul by constant
+(MUL x (MOVWconst [-1])) -> (RSBconst [0] x)
+(MUL _ (MOVWconst [0])) -> (MOVWconst [0])
+(MUL x (MOVWconst [1])) -> x
+(MUL x (MOVWconst [c])) && isPowerOfTwo(c) -> (SLLconst [log2(c)] x)
+
+(MUL (MOVWconst [-1]) x) -> (RSBconst [0] x)
+(MUL (MOVWconst [0]) _) -> (MOVWconst [0])
+(MUL (MOVWconst [1]) x) -> x
+(MUL (MOVWconst [c]) x) && isPowerOfTwo(c) -> (SLLconst [log2(c)] x)
+
+(MULA x (MOVWconst [-1]) a) -> (SUB a x)
+(MULA _ (MOVWconst [0]) a) -> a
+(MULA x (MOVWconst [1]) a) -> (ADD x a)
+(MULA x (MOVWconst [c]) a) && isPowerOfTwo(c) -> (ADD (SLLconst <x.Type> [log2(c)] x) a)
+
+(MULA (MOVWconst [-1]) x a) -> (SUB a x)
+(MULA (MOVWconst [0]) _ a) -> a
+(MULA (MOVWconst [1]) x a) -> (ADD x a)
+(MULA (MOVWconst [c]) x a) && isPowerOfTwo(c) -> (ADD (SLLconst <x.Type> [log2(c)] x) a)
+
+// div by constant
+(DIVU x (MOVWconst [1])) -> x
+(DIVU x (MOVWconst [c])) && isPowerOfTwo(c) -> (SRLconst [log2(c)] x)
+
+// constant comparisons
+(CMPconst (MOVWconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
+(CMPconst (MOVWconst [x]) [y]) && int32(x)<int32(y) && uint32(x)<uint32(y) -> (FlagLT_ULT)
+(CMPconst (MOVWconst [x]) [y]) && int32(x)<int32(y) && uint32(x)>uint32(y) -> (FlagLT_UGT)
+(CMPconst (MOVWconst [x]) [y]) && int32(x)>int32(y) && uint32(x)<uint32(y) -> (FlagGT_ULT)
+(CMPconst (MOVWconst [x]) [y]) && int32(x)>int32(y) && uint32(x)>uint32(y) -> (FlagGT_UGT)
+
+// other known comparisons
+(CMPconst (MOVBUreg _) [c]) && 0xff < c -> (FlagLT_ULT)
+(CMPconst (MOVHUreg _) [c]) && 0xffff < c -> (FlagLT_ULT)
+(CMPconst (ANDconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
+(CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) -> (FlagLT_ULT)
+
+// absorb flag constants into branches
+(EQ (FlagEQ) yes no) -> (First nil yes no)
+(EQ (FlagLT_ULT) yes no) -> (First nil no yes)
+(EQ (FlagLT_UGT) yes no) -> (First nil no yes)
+(EQ (FlagGT_ULT) yes no) -> (First nil no yes)
+(EQ (FlagGT_UGT) yes no) -> (First nil no yes)
+
+(NE (FlagEQ) yes no) -> (First nil no yes)
+(NE (FlagLT_ULT) yes no) -> (First nil yes no)
+(NE (FlagLT_UGT) yes no) -> (First nil yes no)
+(NE (FlagGT_ULT) yes no) -> (First nil yes no)
+(NE (FlagGT_UGT) yes no) -> (First nil yes no)
+
+(LT (FlagEQ) yes no) -> (First nil no yes)
+(LT (FlagLT_ULT) yes no) -> (First nil yes no)
+(LT (FlagLT_UGT) yes no) -> (First nil yes no)
+(LT (FlagGT_ULT) yes no) -> (First nil no yes)
+(LT (FlagGT_UGT) yes no) -> (First nil no yes)
+
+(LE (FlagEQ) yes no) -> (First nil yes no)
+(LE (FlagLT_ULT) yes no) -> (First nil yes no)
+(LE (FlagLT_UGT) yes no) -> (First nil yes no)
+(LE (FlagGT_ULT) yes no) -> (First nil no yes)
+(LE (FlagGT_UGT) yes no) -> (First nil no yes)
+
+(GT (FlagEQ) yes no) -> (First nil no yes)
+(GT (FlagLT_ULT) yes no) -> (First nil no yes)
+(GT (FlagLT_UGT) yes no) -> (First nil no yes)
+(GT (FlagGT_ULT) yes no) -> (First nil yes no)
+(GT (FlagGT_UGT) yes no) -> (First nil yes no)
+
+(GE (FlagEQ) yes no) -> (First nil yes no)
+(GE (FlagLT_ULT) yes no) -> (First nil no yes)
+(GE (FlagLT_UGT) yes no) -> (First nil no yes)
+(GE (FlagGT_ULT) yes no) -> (First nil yes no)
+(GE (FlagGT_UGT) yes no) -> (First nil yes no)
+
+(ULT (FlagEQ) yes no) -> (First nil no yes)
+(ULT (FlagLT_ULT) yes no) -> (First nil yes no)
+(ULT (FlagLT_UGT) yes no) -> (First nil no yes)
+(ULT (FlagGT_ULT) yes no) -> (First nil yes no)
+(ULT (FlagGT_UGT) yes no) -> (First nil no yes)
+
+(ULE (FlagEQ) yes no) -> (First nil yes no)
+(ULE (FlagLT_ULT) yes no) -> (First nil yes no)
+(ULE (FlagLT_UGT) yes no) -> (First nil no yes)
+(ULE (FlagGT_ULT) yes no) -> (First nil yes no)
+(ULE (FlagGT_UGT) yes no) -> (First nil no yes)
+
+(UGT (FlagEQ) yes no) -> (First nil no yes)
+(UGT (FlagLT_ULT) yes no) -> (First nil no yes)
+(UGT (FlagLT_UGT) yes no) -> (First nil yes no)
+(UGT (FlagGT_ULT) yes no) -> (First nil no yes)
+(UGT (FlagGT_UGT) yes no) -> (First nil yes no)
+
+(UGE (FlagEQ) yes no) -> (First nil yes no)
+(UGE (FlagLT_ULT) yes no) -> (First nil no yes)
+(UGE (FlagLT_UGT) yes no) -> (First nil yes no)
+(UGE (FlagGT_ULT) yes no) -> (First nil no yes)
+(UGE (FlagGT_UGT) yes no) -> (First nil yes no)
+
+// absorb InvertFlags into branches
+(LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
+(GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
+(LE (InvertFlags cmp) yes no) -> (GE cmp yes no)
+(GE (InvertFlags cmp) yes no) -> (LE cmp yes no)
+(ULT (InvertFlags cmp) yes no) -> (UGT cmp yes no)
+(UGT (InvertFlags cmp) yes no) -> (ULT cmp yes no)
+(ULE (InvertFlags cmp) yes no) -> (UGE cmp yes no)
+(UGE (InvertFlags cmp) yes no) -> (ULE cmp yes no)
+(EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
+(NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+
+// absorb flag constants into boolean values
+(Equal (FlagEQ)) -> (MOVWconst [1])
+(Equal (FlagLT_ULT)) -> (MOVWconst [0])
+(Equal (FlagLT_UGT)) -> (MOVWconst [0])
+(Equal (FlagGT_ULT)) -> (MOVWconst [0])
+(Equal (FlagGT_UGT)) -> (MOVWconst [0])
+
+(NotEqual (FlagEQ)) -> (MOVWconst [0])
+(NotEqual (FlagLT_ULT)) -> (MOVWconst [1])
+(NotEqual (FlagLT_UGT)) -> (MOVWconst [1])
+(NotEqual (FlagGT_ULT)) -> (MOVWconst [1])
+(NotEqual (FlagGT_UGT)) -> (MOVWconst [1])
+
+(LessThan (FlagEQ)) -> (MOVWconst [0])
+(LessThan (FlagLT_ULT)) -> (MOVWconst [1])
+(LessThan (FlagLT_UGT)) -> (MOVWconst [1])
+(LessThan (FlagGT_ULT)) -> (MOVWconst [0])
+(LessThan (FlagGT_UGT)) -> (MOVWconst [0])
+
+(LessThanU (FlagEQ)) -> (MOVWconst [0])
+(LessThanU (FlagLT_ULT)) -> (MOVWconst [1])
+(LessThanU (FlagLT_UGT)) -> (MOVWconst [0])
+(LessThanU (FlagGT_ULT)) -> (MOVWconst [1])
+(LessThanU (FlagGT_UGT)) -> (MOVWconst [0])
+
+(LessEqual (FlagEQ)) -> (MOVWconst [1])
+(LessEqual (FlagLT_ULT)) -> (MOVWconst [1])
+(LessEqual (FlagLT_UGT)) -> (MOVWconst [1])
+(LessEqual (FlagGT_ULT)) -> (MOVWconst [0])
+(LessEqual (FlagGT_UGT)) -> (MOVWconst [0])
+
+(LessEqualU (FlagEQ)) -> (MOVWconst [1])
+(LessEqualU (FlagLT_ULT)) -> (MOVWconst [1])
+(LessEqualU (FlagLT_UGT)) -> (MOVWconst [0])
+(LessEqualU (FlagGT_ULT)) -> (MOVWconst [1])
+(LessEqualU (FlagGT_UGT)) -> (MOVWconst [0])
+
+(GreaterThan (FlagEQ)) -> (MOVWconst [0])
+(GreaterThan (FlagLT_ULT)) -> (MOVWconst [0])
+(GreaterThan (FlagLT_UGT)) -> (MOVWconst [0])
+(GreaterThan (FlagGT_ULT)) -> (MOVWconst [1])
+(GreaterThan (FlagGT_UGT)) -> (MOVWconst [1])
+
+(GreaterThanU (FlagEQ)) -> (MOVWconst [0])
+(GreaterThanU (FlagLT_ULT)) -> (MOVWconst [0])
+(GreaterThanU (FlagLT_UGT)) -> (MOVWconst [1])
+(GreaterThanU (FlagGT_ULT)) -> (MOVWconst [0])
+(GreaterThanU (FlagGT_UGT)) -> (MOVWconst [1])
+
+(GreaterEqual (FlagEQ)) -> (MOVWconst [1])
+(GreaterEqual (FlagLT_ULT)) -> (MOVWconst [0])
+(GreaterEqual (FlagLT_UGT)) -> (MOVWconst [0])
+(GreaterEqual (FlagGT_ULT)) -> (MOVWconst [1])
+(GreaterEqual (FlagGT_UGT)) -> (MOVWconst [1])
+
+(GreaterEqualU (FlagEQ)) -> (MOVWconst [1])
+(GreaterEqualU (FlagLT_ULT)) -> (MOVWconst [0])
+(GreaterEqualU (FlagLT_UGT)) -> (MOVWconst [1])
+(GreaterEqualU (FlagGT_ULT)) -> (MOVWconst [0])
+(GreaterEqualU (FlagGT_UGT)) -> (MOVWconst [1])
+
+// absorb InvertFlags into boolean values
+(Equal (InvertFlags x)) -> (Equal x)
+(NotEqual (InvertFlags x)) -> (NotEqual x)
+(LessThan (InvertFlags x)) -> (GreaterThan x)
+(LessThanU (InvertFlags x)) -> (GreaterThanU x)
+(GreaterThan (InvertFlags x)) -> (LessThan x)
+(GreaterThanU (InvertFlags x)) -> (LessThanU x)
+(LessEqual (InvertFlags x)) -> (GreaterEqual x)
+(LessEqualU (InvertFlags x)) -> (GreaterEqualU x)
+(GreaterEqual (InvertFlags x)) -> (LessEqual x)
+(GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
+
+// remove redundant *const ops
+(ADDconst [0] x) -> x
+(SUBconst [0] x) -> x
+(ANDconst [0] _) -> (MOVWconst [0])
+(ANDconst [c] x) && int32(c)==-1 -> x
+(ORconst [0] x) -> x
+(ORconst [c] _) && int32(c)==-1 -> (MOVWconst [-1])
+(XORconst [0] x) -> x
+(BICconst [0] x) -> x
+(BICconst [c] _) && int32(c)==-1 -> (MOVWconst [0])
+
+// generic constant folding
+(ADDconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(c+d))])
+(ADDconst [c] (ADDconst [d] x)) -> (ADDconst [int64(int32(c+d))] x)
+(ADDconst [c] (SUBconst [d] x)) -> (ADDconst [int64(int32(c-d))] x)
+(ADDconst [c] (RSBconst [d] x)) -> (RSBconst [int64(int32(c+d))] x)
+(ADCconst [c] (ADDconst [d] x) flags) -> (ADCconst [int64(int32(c+d))] x flags)
+(ADCconst [c] (SUBconst [d] x) flags) -> (ADCconst [int64(int32(c-d))] x flags)
+(SUBconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d-c))])
+(SUBconst [c] (SUBconst [d] x)) -> (ADDconst [int64(int32(-c-d))] x)
+(SUBconst [c] (ADDconst [d] x)) -> (ADDconst [int64(int32(-c+d))] x)
+(SUBconst [c] (RSBconst [d] x)) -> (RSBconst [int64(int32(-c+d))] x)
+(SBCconst [c] (ADDconst [d] x) flags) -> (SBCconst [int64(int32(c-d))] x flags)
+(SBCconst [c] (SUBconst [d] x) flags) -> (SBCconst [int64(int32(c+d))] x flags)
+(RSBconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(c-d))])
+(RSBconst [c] (RSBconst [d] x)) -> (ADDconst [int64(int32(c-d))] x)
+(RSBconst [c] (ADDconst [d] x)) -> (RSBconst [int64(int32(c-d))] x)
+(RSBconst [c] (SUBconst [d] x)) -> (RSBconst [int64(int32(c+d))] x)
+(RSCconst [c] (ADDconst [d] x) flags) -> (RSCconst [int64(int32(c-d))] x flags)
+(RSCconst [c] (SUBconst [d] x) flags) -> (RSCconst [int64(int32(c+d))] x flags)
+(SLLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)<<uint64(c))])
+(SRLconst [c] (MOVWconst [d])) -> (MOVWconst [int64(uint32(d)>>uint64(c))])
+(SRAconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)>>uint64(c))])
+(MUL (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c*d))])
+(MULA (MOVWconst [c]) (MOVWconst [d]) a) -> (ADDconst [int64(int32(c*d))] a)
+(DIV (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c)/int32(d))])
+(DIVU (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(uint32(c)/uint32(d))])
+(ANDconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
+(ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c&d] x)
+(ORconst [c] (MOVWconst [d])) -> (MOVWconst [c|d])
+(ORconst [c] (ORconst [d] x)) -> (ORconst [c|d] x)
+(XORconst [c] (MOVWconst [d])) -> (MOVWconst [c^d])
+(XORconst [c] (XORconst [d] x)) -> (XORconst [c^d] x)
+(BICconst [c] (MOVWconst [d])) -> (MOVWconst [d&^c])
+(MVN (MOVWconst [c])) -> (MOVWconst [^c])
+
+// generic simplifications
+(ADD x (RSBconst [0] y)) -> (SUB x y)
+(SUB x x) -> (MOVWconst [0])
+(AND x x) -> x
+(OR x x) -> x
+(XOR x x) -> (MOVWconst [0])
+(BIC x x) -> (MOVWconst [0])
+
 (ADD (MUL x y) a) -> (MULA x y a)
 (ADD a (MUL x y)) -> (MULA x y a)
+
+(AND x (MVN y)) -> (BIC x y)

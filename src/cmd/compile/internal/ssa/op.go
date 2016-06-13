@@ -156,7 +156,8 @@ func MakeSizeAndAlign(size, align int64) SizeAndAlign {
 func (op Op) isTupleGenerator() bool {
 	switch op {
 	case OpAdd32carry, OpSub32carry, OpMul32uhilo,
-		OpARMADDS, OpARMSUBS, OpARMMULLU:
+		OpARMADDS, OpARMSUBS, OpARMMULLU,
+		OpARMADDSconst, OpARMSUBSconst, OpARMRSBSconst:
 		return true
 	}
 	return false

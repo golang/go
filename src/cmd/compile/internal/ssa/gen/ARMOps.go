@@ -101,8 +101,10 @@ func init() {
 	var (
 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
 		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11cf    = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
 		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp1flags  = regInfo{inputs: []regMask{gpg}, outputs: []regMask{flags}}
+		gp1flags1 = regInfo{inputs: []regMask{gp, flags}, outputs: []regMask{gp}}
 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		gp21cf    = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags}}
@@ -137,9 +139,15 @@ func init() {
 		{name: "MODU", argLength: 2, reg: gp21cf, asm: "MODU"},                    // arg0 % arg1, unsigned
 
 		{name: "ADDS", argLength: 2, reg: gp21cf, asm: "ADD", commutative: true},   // arg0 + arg1, set carry flag
+		{name: "ADDSconst", argLength: 1, reg: gp11cf, asm: "ADD", aux: "Int32"},   // arg0 + auxInt, set carry flag
 		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true}, // arg0 + arg1 + carry, arg2=flags
+		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"}, // arg0 + auxInt + carry, arg1=flags
 		{name: "SUBS", argLength: 2, reg: gp21cf, asm: "SUB"},                      // arg0 - arg1, set carry flag
+		{name: "SUBSconst", argLength: 1, reg: gp11cf, asm: "SUB", aux: "Int32"},   // arg0 - auxInt, set carry flag
+		{name: "RSBSconst", argLength: 1, reg: gp11cf, asm: "RSB", aux: "Int32"},   // auxInt - arg0, set carry flag
 		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                    // arg0 - arg1 - carry, arg2=flags
+		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"}, // arg0 - auxInt - carry, arg1=flags
+		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"}, // auxInt - arg0 - carry, arg1=flags
 
 		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp &^ buildReg("R0")}, clobbers: buildReg("R0")}, asm: "MULLU", commutative: true}, // arg0 * arg1, results 64-bit, high 32-bit in R0
 		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                                                                                                                        // arg0 * arg1 + arg2
@@ -211,6 +219,7 @@ func init() {
 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
 		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVHS"},  // move from arg0, sign-extended from half
 		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
+		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0
 
 		{name: "MOVWF", argLength: 1, reg: gpfp, asm: "MOVWF"},  // int32 -> float32
 		{name: "MOVWD", argLength: 1, reg: gpfp, asm: "MOVWD"},  // int32 -> float64
@@ -366,6 +375,23 @@ func init() {
 		// gets correctly ordered with respect to GC safepoints.
 		// arg0=ptr/int arg1=mem, output=int/ptr
 		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
+
+		// Constant flag values. For any comparison, there are 5 possible
+		// outcomes: the three from the signed total order (<,==,>) and the
+		// three from the unsigned total order. The == cases overlap.
+		// Note: there's a sixth "unordered" outcome for floating-point
+		// comparisons, but we don't use such a beast yet.
+		// These ops are for temporary use by rewrite rules. They
+		// cannot appear in the generated assembly.
+		{name: "FlagEQ"},     // equal
+		{name: "FlagLT_ULT"}, // signed < and unsigned <
+		{name: "FlagLT_UGT"}, // signed < and unsigned >
+		{name: "FlagGT_UGT"}, // signed > and unsigned <
+		{name: "FlagGT_ULT"}, // signed > and unsigned >
+
+		// (InvertFlags (CMP a b)) == (CMP b a)
+		// InvertFlags is a pseudo-op which can't appear in assembly output.
+		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
 	}
 
 	blocks := []blockData{
