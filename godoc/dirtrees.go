@@ -54,6 +54,8 @@ type treeBuilder struct {
 	maxDepth int
 }
 
+var parseFileGate = make(chan bool, 20) // parse up to 20 files concurrently
+
 func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth int) *Directory {
 	if name == testdataDirName {
 		return nil
@@ -91,40 +93,48 @@ func (b *treeBuilder) newDirTree(fset *token.FileSet, path, name string, depth i
 	var dirchs []chan *Directory
 
 	for _, d := range list {
+		filename := pathpkg.Join(path, d.Name())
 		switch {
 		case isPkgDir(d):
 			ch := make(chan *Directory, 1)
 			dirchs = append(dirchs, ch)
-			go func(d os.FileInfo) {
-				name := d.Name()
-				ch <- b.newDirTree(fset, pathpkg.Join(path, name), name, depth+1)
-			}(d)
+			name := d.Name()
+			go func() {
+				ch <- b.newDirTree(fset, filename, name, depth+1)
+			}()
 		case !haveSummary && isPkgFile(d):
 			// looks like a package file, but may just be a file ending in ".go";
 			// don't just count it yet (otherwise we may end up with hasPkgFiles even
 			// though the directory doesn't contain any real package files - was bug)
 			// no "optimal" package synopsis yet; continue to collect synopses
-			file, err := b.c.parseFile(fset, pathpkg.Join(path, d.Name()),
-				parser.ParseComments|parser.PackageClauseOnly)
-			if err == nil {
-				hasPkgFiles = true
-				if file.Doc != nil {
-					// prioritize documentation
-					i := -1
-					switch file.Name.Name {
-					case name:
-						i = 0 // normal case: directory name matches package name
-					case "main":
-						i = 1 // directory contains a main package
-					default:
-						i = 2 // none of the above
-					}
-					if 0 <= i && i < len(synopses) && synopses[i] == "" {
-						synopses[i] = doc.Synopsis(file.Doc.Text())
-					}
+			parseFileGate <- true
+			const flags = parser.ParseComments | parser.PackageClauseOnly
+			file, err := b.c.parseFile(fset, filename, flags)
+			<-parseFileGate
+			if err != nil {
+				if b.c.Verbose {
+					log.Printf("Error parsing %v: %v", filename, err)
 				}
-				haveSummary = synopses[0] != ""
+				break
 			}
+
+			hasPkgFiles = true
+			if file.Doc != nil {
+				// prioritize documentation
+				i := -1
+				switch file.Name.Name {
+				case name:
+					i = 0 // normal case: directory name matches package name
+				case "main":
+					i = 1 // directory contains a main package
+				default:
+					i = 2 // none of the above
+				}
+				if 0 <= i && i < len(synopses) && synopses[i] == "" {
+					synopses[i] = doc.Synopsis(file.Doc.Text())
+				}
+			}
+			haveSummary = synopses[0] != ""
 		}
 	}
 
