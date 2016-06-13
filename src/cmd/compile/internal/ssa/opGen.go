@@ -360,9 +360,15 @@ const (
 	OpARMMOD
 	OpARMMODU
 	OpARMADDS
+	OpARMADDSconst
 	OpARMADC
+	OpARMADCconst
 	OpARMSUBS
+	OpARMSUBSconst
+	OpARMRSBSconst
 	OpARMSBC
+	OpARMSBCconst
+	OpARMRSCconst
 	OpARMMULLU
 	OpARMMULA
 	OpARMADDF
@@ -420,6 +426,7 @@ const (
 	OpARMMOVBUreg
 	OpARMMOVHreg
 	OpARMMOVHUreg
+	OpARMMOVWreg
 	OpARMMOVWF
 	OpARMMOVWD
 	OpARMMOVWUF
@@ -458,6 +465,12 @@ const (
 	OpARMLoweredMoveU
 	OpARMLoweredGetClosurePtr
 	OpARMMOVWconvert
+	OpARMFlagEQ
+	OpARMFlagLT_ULT
+	OpARMFlagLT_UGT
+	OpARMFlagGT_UGT
+	OpARMFlagGT_ULT
+	OpARMInvertFlags
 
 	OpPPC64ADD
 	OpPPC64ADDconst
@@ -4213,6 +4226,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "ADDSconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:        "ADC",
 		argLen:      3,
 		commutative: true,
@@ -4222,6 +4250,21 @@ var opcodeTable = [...]opInfo{
 				{2, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADCconst",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -4244,6 +4287,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "SUBSconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBSconst",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:   "SBC",
 		argLen: 3,
 		asm:    arm.ASBC,
@@ -4252,6 +4325,36 @@ var opcodeTable = [...]opInfo{
 				{2, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SBCconst",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSCconst",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -5050,6 +5153,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MOVWreg",
+		argLen: 1,
+		asm:    arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:   "MOVWF",
 		argLen: 1,
 		asm:    arm.AMOVWF,
@@ -5491,6 +5607,36 @@ var opcodeTable = [...]opInfo{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
+	},
+	{
+		name:   "FlagEQ",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagLT_ULT",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagLT_UGT",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagGT_UGT",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagGT_ULT",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "InvertFlags",
+		argLen: 1,
+		reg:    regInfo{},
 	},
 
 	{
