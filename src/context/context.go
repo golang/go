@@ -7,9 +7,17 @@
 // and between processes.
 //
 // Incoming requests to a server should create a Context, and outgoing calls to
-// servers should accept a Context.  The chain of function calls between must
-// propagate the Context, optionally replacing it with a modified copy created
-// using WithDeadline, WithTimeout, WithCancel, or WithValue.
+// servers should accept a Context.  The chain of function calls between them
+// must propagate the Context, optionally replacing it with a derived Context
+// created using WithCancel, WithDeadline, WithTimeout, or WithValue.  These
+// Context values form a tree: when a Context is canceled, all Contexts derived
+// from it are also canceled.
+//
+// The WithCancel, WithDeadline, and WithTimeout functions return a derived
+// Context and a CancelFunc.  Calling the CancelFunc cancels the new Context and
+// any Contexts derived from it, removes the Context from the parent's tree, and
+// stops any associated timers.  Failing to call the CancelFunc leaks the
+// associated resources until the parent Context is canceled or the timer fires.
 //
 // Programs that use Contexts should follow these rules to keep interfaces
 // consistent across packages and enable static analysis tools to check context
