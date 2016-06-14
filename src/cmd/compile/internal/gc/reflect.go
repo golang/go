@@ -75,7 +75,7 @@ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 4 + 2 + 2
+	return 4 + 2 + 2 + 4 + 4
 }
 
 func makefield(name string, t *Type) *Field {
@@ -604,17 +604,19 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 
 	ot = dgopkgpathOffLSym(Linksym(s), ot, typePkg(t))
 
-	dataAdd += 4 + 2 + 2
+	dataAdd += uncommonSize(t)
 	mcount := len(m)
 	if mcount != int(uint16(mcount)) {
 		Fatalf("too many methods on %s: %d", t, mcount)
 	}
-	if dataAdd != int(uint16(dataAdd)) {
+	if dataAdd != int(uint32(dataAdd)) {
 		Fatalf("methods are too far away on %s: %d", t, dataAdd)
 	}
 
 	ot = duint16(s, ot, uint16(mcount))
-	ot = duint16(s, ot, uint16(dataAdd))
+	ot = duint16(s, ot, 0)
+	ot = duint32(s, ot, uint32(dataAdd))
+	ot = duint32(s, ot, 0)
 	return ot
 }
 
