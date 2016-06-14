@@ -55,15 +55,18 @@ func tighten(f *Func) {
 			for i := 0; i < len(b.Values); i++ {
 				v := b.Values[i]
 				switch v.Op {
-				case OpPhi, OpGetClosurePtr, OpConvert, OpArg, OpSelect0, OpSelect1:
+				case OpPhi, OpGetClosurePtr, OpConvert, OpArg:
 					// GetClosurePtr & Arg must stay in entry block.
 					// OpConvert must not float over call sites.
-					// Select{0,1} reads a tuple, it must stay with the tuple-generating op.
 					// TODO do we instead need a dependence edge of some sort for OpConvert?
 					// Would memory do the trick, or do we need something else that relates
 					// to safe point operations?
 					continue
 				default:
+				}
+				if v.Op.isTupleSelector() {
+					// tuple selector must stay with tuple generator
+					continue
 				}
 				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
 					// We can't move values which have a memory arg - it might
