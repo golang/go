@@ -313,7 +313,9 @@ type method struct {
 type uncommonType struct {
 	pkgPath nameOff // import path; empty for built-in types like int, string
 	mcount  uint16  // number of methods
-	moff    uint16  // offset from this uncommontype to [mcount]method
+	_       uint16  // unused
+	moff    uint32  // offset from this uncommontype to [mcount]method
+	_       uint32  // unused
 }
 
 // ChanDir represents a channel type's direction.
@@ -2584,7 +2586,7 @@ func StructOf(fields []StructField) Type {
 		panic("reflect.StructOf: too many methods")
 	}
 	ut.mcount = uint16(len(methods))
-	ut.moff = uint16(unsafe.Sizeof(uncommonType{}))
+	ut.moff = uint32(unsafe.Sizeof(uncommonType{}))
 
 	if len(fs) > 0 {
 		repr = append(repr, ' ')
