@@ -155,6 +155,12 @@ func TestUnshare(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
+	if _, err := os.Stat("/proc/self/ns/net"); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support net namespace")
+		}
+		t.Fatal(err)
+	}
 
 	cmd := exec.Command("cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
