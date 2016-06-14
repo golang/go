@@ -45,6 +45,7 @@ func uninstallTestHooks() {
 	}
 }
 
+// forceCloseSockets must be called only from TestMain.
 func forceCloseSockets() {
 	for s := range sw.Sockets() {
 		closeFunc(s)

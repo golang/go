@@ -51,6 +51,9 @@ import "errors"
 // use of "GMT" in that case.
 // In general RFC1123Z should be used instead of RFC1123 for servers
 // that insist on that format, and RFC3339 should be preferred for new protocols.
+// RFC822, RFC822Z, RFC1123, and RFC1123Z are useful for formatting;
+// when used with time.Parse they do not accept all the time formats
+// permitted by the RFCs.
 const (
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"

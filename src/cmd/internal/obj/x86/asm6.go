@@ -1986,16 +1986,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		c = naclpad(ctxt, s, c, -c&31)
 	}
 
-	// Pad functions with trap instruction, to catch invalid jumps
-	if c&(FuncAlign-1) != 0 {
-		v := -c & (FuncAlign - 1)
-		s.Grow(int64(c) + int64(v))
-		for i := c; i < c+v; i++ {
-			// 0xCC is INT $3 - breakpoint instruction
-			s.P[i] = uint8(0xCC)
-		}
-		c += v
-	}
 	s.Size = int64(c)
 
 	if false { /* debug['a'] > 1 */

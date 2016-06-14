@@ -25,8 +25,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/lex/httplex"
 	"io"
 	"io/ioutil"
 	"log"
@@ -42,6 +40,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/http2/hpack"
+	"golang.org/x/net/lex/httplex"
 )
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
@@ -291,7 +292,7 @@ func http2configureTransport(t1 *Transport) (*http2Transport, error) {
 		t1.TLSClientConfig.NextProtos = append(t1.TLSClientConfig.NextProtos, "http/1.1")
 	}
 	upgradeFn := func(authority string, c *tls.Conn) RoundTripper {
-		addr := http2authorityAddr(authority)
+		addr := http2authorityAddr("https", authority)
 		if used, err := connPool.addConnIfNeeded(addr, t2, c); err != nil {
 			go c.Close()
 			return http2erringRoundTripper{err}
@@ -2630,6 +2631,12 @@ type http2pipeBuffer interface {
 	io.Reader
 }
 
+func (p *http2pipe) Len() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.b.Len()
+}
+
 // Read waits until data is available and copies bytes
 // from the buffer into p.
 func (p *http2pipe) Read(d []byte) (n int, err error) {
@@ -4848,6 +4855,10 @@ type http2Transport struct {
 	// uncompressed.
 	DisableCompression bool
 
+	// AllowHTTP, if true, permits HTTP/2 requests using the insecure,
+	// plain-text "http" scheme. Note that this does not enable h2c support.
+	AllowHTTP bool
+
 	// MaxHeaderListSize is the http2 SETTINGS_MAX_HEADER_LIST_SIZE to
 	// send in the initial settings frame. It is how many bytes
 	// of response headers are allow. Unlike the http2 spec, zero here
@@ -4963,6 +4974,7 @@ type http2clientStream struct {
 	done chan struct{} // closed when stream remove from cc.streams map; close calls guarded by cc.mu
 
 	// owned by clientConnReadLoop:
+	firstByte    bool // got the first response byte
 	pastHeaders  bool // got first MetaHeadersFrame (actual headers)
 	pastTrailers bool // got optional second MetaHeadersFrame (trailers)
 
@@ -5046,20 +5058,24 @@ func (t *http2Transport) RoundTrip(req *Request) (*Response, error) {
 
 // authorityAddr returns a given authority (a host/IP, or host:port / ip:port)
 // and returns a host:port. The port 443 is added if needed.
-func http2authorityAddr(authority string) (addr string) {
+func http2authorityAddr(scheme string, authority string) (addr string) {
 	if _, _, err := net.SplitHostPort(authority); err == nil {
 		return authority
 	}
-	return net.JoinHostPort(authority, "443")
+	port := "443"
+	if scheme == "http" {
+		port = "80"
+	}
+	return net.JoinHostPort(authority, port)
 }
 
 // RoundTripOpt is like RoundTrip, but takes options.
 func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Response, error) {
-	if req.URL.Scheme != "https" {
+	if !(req.URL.Scheme == "https" || (req.URL.Scheme == "http" && t.AllowHTTP)) {
 		return nil, errors.New("http2: unsupported scheme")
 	}
 
-	addr := http2authorityAddr(req.URL.Host)
+	addr := http2authorityAddr(req.URL.Scheme, req.URL.Host)
 	for {
 		cc, err := t.connPool().GetClientConn(req, addr)
 		if err != nil {
@@ -5944,14 +5960,17 @@ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) erro
 
 		return nil
 	}
+	if !cs.firstByte {
+		if cs.trace != nil {
+
+			http2traceFirstResponseByte(cs.trace)
+		}
+		cs.firstByte = true
+	}
 	if !cs.pastHeaders {
 		cs.pastHeaders = true
 	} else {
 		return rl.processTrailers(cs, f)
-	}
-	if cs.trace != nil {
-
-		http2traceFirstResponseByte(cs.trace)
 	}
 
 	res, err := rl.handleResponse(cs, f)
@@ -6139,8 +6158,10 @@ func (b http2transportResponseBody) Read(p []byte) (n int, err error) {
 		cc.inflow.add(connAdd)
 	}
 	if err == nil {
-		if v := cs.inflow.available(); v < http2transportDefaultStreamFlow-http2transportDefaultStreamMinRefresh {
-			streamAdd = http2transportDefaultStreamFlow - v
+
+		v := int(cs.inflow.available()) + cs.bufPipe.Len()
+		if v < http2transportDefaultStreamFlow-http2transportDefaultStreamMinRefresh {
+			streamAdd = int32(http2transportDefaultStreamFlow - v)
 			cs.inflow.add(streamAdd)
 		}
 	}

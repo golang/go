@@ -18,6 +18,7 @@ type rawFile interface {
 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	text() (textStart uint64, text []byte, err error)
 	goarch() string
+	loadAddress() (uint64, error)
 	dwarf() (*dwarf.Data, error)
 }
 
@@ -93,6 +94,13 @@ func (f *File) Text() (uint64, []byte, error) {
 
 func (f *File) GOARCH() string {
 	return f.raw.goarch()
+}
+
+// LoadAddress returns the expected load address of the file.
+// This differs from the actual load address for a position-independent
+// executable.
+func (f *File) LoadAddress() (uint64, error) {
+	return f.raw.loadAddress()
 }
 
 // DWARF returns DWARF debug data for the file, if any.

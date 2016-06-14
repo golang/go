@@ -8,6 +8,7 @@ func installTestHooks() {}
 
 func uninstallTestHooks() {}
 
+// forceCloseSockets must be called only from TestMain.
 func forceCloseSockets() {}
 
 func enableSocketConnect() {}

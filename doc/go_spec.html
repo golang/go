@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of April 25, 2016",
+	"Subtitle": "Version of May 31, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -4672,6 +4672,8 @@ Cases then match actual types <code>T</code> against the dynamic type of the
 expression <code>x</code>. As with type assertions, <code>x</code> must be of
 <a href="#Interface_types">interface type</a>, and each non-interface type
 <code>T</code> listed in a case must implement the type of <code>x</code>.
+The types listed in the cases of a type switch must all be
+<a href="#Type_identity">different</a>.
 </p>
 
 <pre class="ebnf">
@@ -4696,6 +4698,7 @@ in the TypeSwitchGuard.
 The type in a case may be <a href="#Predeclared_identifiers"><code>nil</code></a>;
 that case is used when the expression in the TypeSwitchGuard
 is a <code>nil</code> interface value.
+There may be at most one <code>nil</code> case.
 </p>
 
 <p>

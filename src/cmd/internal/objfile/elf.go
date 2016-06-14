@@ -106,6 +106,15 @@ func (f *elfFile) goarch() string {
 	return ""
 }
 
+func (f *elfFile) loadAddress() (uint64, error) {
+	for _, p := range f.elf.Progs {
+		if p.Type == elf.PT_LOAD {
+			return p.Vaddr, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown load address")
+}
+
 func (f *elfFile) dwarf() (*dwarf.Data, error) {
 	return f.elf.DWARF()
 }

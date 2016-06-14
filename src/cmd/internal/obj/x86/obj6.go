@@ -1092,6 +1092,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	call.Mode = ctxt.Cursym.Text.Mode
 	call.As = obj.ACALL
 	call.To.Type = obj.TYPE_BRANCH
+	call.To.Name = obj.NAME_EXTERN
 	morestack := "runtime.morestack"
 	switch {
 	case ctxt.Cursym.Cfunc:
@@ -1100,8 +1101,17 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 		morestack = "runtime.morestack_noctxt"
 	}
 	call.To.Sym = obj.Linklookup(ctxt, morestack, 0)
+	// When compiling 386 code for dynamic linking, the call needs to be adjusted
+	// to follow PIC rules. This in turn can insert more instructions, so we need
+	// to keep track of the start of the call (where the jump will be to) and the
+	// end (which following instructions are appended to).
+	callend := call
+	progedit(ctxt, callend)
+	for ; callend.Link != nil; callend = callend.Link {
+		progedit(ctxt, callend.Link)
+	}
 
-	jmp := obj.Appendp(ctxt, call)
+	jmp := obj.Appendp(ctxt, callend)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = ctxt.Cursym.Text.Link

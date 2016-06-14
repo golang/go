@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows
+// +build !windows,!android
 
 // Test that the Go runtime still works if C code changes the signal stack.
 

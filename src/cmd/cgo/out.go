@@ -112,7 +112,13 @@ func (p *Package) writeDefs() {
 	}
 
 	for i, t := range p.CgoChecks {
-		n := p.unsafeCheckPointerNameIndex(i)
+		n := p.unsafeCheckPointerNameIndex(i, false)
+		fmt.Fprintf(fgo2, "\nfunc %s(p %s, args ...interface{}) %s {\n", n, t, t)
+		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
+		fmt.Fprintf(fgo2, "}\n")
+	}
+	for i, t := range p.DeferredCgoChecks {
+		n := p.unsafeCheckPointerNameIndex(i, true)
 		fmt.Fprintf(fgo2, "\nfunc %s(p interface{}, args ...interface{}) %s {\n", n, t)
 		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
 		fmt.Fprintf(fgo2, "}\n")
@@ -1324,6 +1330,7 @@ const noTsanProlog = `
 #define _cgo_tsan_release()
 `
 
+// This must match the TSAN code in runtime/cgo/libcgo.h.
 const yesTsanProlog = `
 #define CGO_NO_SANITIZE_THREAD __attribute__ ((no_sanitize_thread))
 
@@ -1332,10 +1339,12 @@ long long _cgo_sync __attribute__ ((common));
 extern void __tsan_acquire(void*);
 extern void __tsan_release(void*);
 
+__attribute__ ((unused))
 static void _cgo_tsan_acquire() {
 	__tsan_acquire(&_cgo_sync);
 }
 
+__attribute__ ((unused))
 static void _cgo_tsan_release() {
 	__tsan_release(&_cgo_sync);
 }

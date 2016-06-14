@@ -844,8 +844,8 @@ func isSystemGoroutine(gp *g) bool {
 // If the Context field is not 0, then it is a value returned by a
 // previous call to the context function. This case is called when the
 // context is no longer needed; that is, when the Go code is returning
-// to its C code caller. This permits permits the context function to
-// release any associated resources.
+// to its C code caller. This permits the context function to release
+// any associated resources.
 //
 // While it would be correct for the context function to record a
 // complete a stack trace whenever it is called, and simply copy that
@@ -858,15 +858,17 @@ func isSystemGoroutine(gp *g) bool {
 // pointer to a struct:
 //
 //	struct {
-//		Context uintptr
-//		Buf     *uintptr
-//		Max     uintptr
+//		Context    uintptr
+//		SigContext uintptr
+//		Buf        *uintptr
+//		Max        uintptr
 //	}
 //
 // In C syntax, this struct will be
 //
 //	struct {
 //		uintptr_t  Context;
+//		uintptr_t  SigContext;
 //		uintptr_t* Buf;
 //		uintptr_t  Max;
 //	};
@@ -886,6 +888,13 @@ func isSystemGoroutine(gp *g) bool {
 // the same Context value; it will usually be appropriate to cache the
 // result, if possible, the first time this is called for a specific
 // context value.
+//
+// If the traceback function is called from a signal handler on a Unix
+// system, SigContext will be the signal context argument passed to
+// the signal handler (a C ucontext_t* cast to uintptr_t). This may be
+// used to start tracing at the point where the signal occurred. If
+// the traceback function is not called from a signal handler,
+// SigContext will be zero.
 //
 // Buf is where the traceback information should be stored. It should
 // be PC values, such that Buf[0] is the PC of the caller, Buf[1] is
@@ -953,12 +962,21 @@ func isSystemGoroutine(gp *g) bool {
 // traceback function will only be called with the context field set
 // to zero.  If the context function is nil, then calls from Go to C
 // to Go will not show a traceback for the C portion of the call stack.
+//
+// SetCgoTraceback should be called only once, ideally from an init function.
 func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
 	if version != 0 {
 		panic("unsupported version")
 	}
 
+	if cgoTraceback != nil && cgoTraceback != traceback ||
+		cgoContext != nil && cgoContext != context ||
+		cgoSymbolizer != nil && cgoSymbolizer != symbolizer {
+		panic("call SetCgoTraceback only once")
+	}
+
 	cgoTraceback = traceback
+	cgoContext = context
 	cgoSymbolizer = symbolizer
 
 	// The context function is called when a C function calls a Go
@@ -969,13 +987,15 @@ func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer)
 }
 
 var cgoTraceback unsafe.Pointer
+var cgoContext unsafe.Pointer
 var cgoSymbolizer unsafe.Pointer
 
 // cgoTracebackArg is the type passed to cgoTraceback.
 type cgoTracebackArg struct {
-	context uintptr
-	buf     *uintptr
-	max     uintptr
+	context    uintptr
+	sigContext uintptr
+	buf        *uintptr
+	max        uintptr
 }
 
 // cgoContextArg is the type passed to the context function.

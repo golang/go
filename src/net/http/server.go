@@ -1147,6 +1147,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 			// to avoid closing the connection at EOF.
 			cw.chunking = true
 			setHeader.transferEncoding = "chunked"
+			delHeader("Transfer-Encoding")
 		}
 	} else {
 		// HTTP version < 1.1: cannot do chunked transfer
@@ -2462,6 +2463,9 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		dst := w.Header()
 		for k, vv := range tw.h {
 			dst[k] = vv
+		}
+		if !tw.wroteHeader {
+			tw.code = StatusOK
 		}
 		w.WriteHeader(tw.code)
 		w.Write(tw.wbuf.Bytes())

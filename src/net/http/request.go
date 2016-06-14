@@ -275,9 +275,9 @@ type Request struct {
 //
 // For outgoing client requests, the context controls cancelation.
 //
-// For incoming server requests, the context is canceled when either
-// the client's connection closes, or when the ServeHTTP method
-// returns.
+// For incoming server requests, the context is canceled when the
+// ServeHTTP method returns. For its associated values, see
+// ServerContextKey and LocalAddrContextKey.
 func (r *Request) Context() context.Context {
 	if r.ctx != nil {
 		return r.ctx

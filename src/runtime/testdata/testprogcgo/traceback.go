@@ -30,6 +30,7 @@ static int f1() {
 
 struct cgoTracebackArg {
 	uintptr_t  context;
+	uintptr_t  sigContext;
 	uintptr_t* buf;
 	uintptr_t  max;
 };

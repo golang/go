@@ -172,7 +172,7 @@ func (f *File) saveExprs(x interface{}, context string) {
 			f.saveRef(x, context)
 		}
 	case *ast.CallExpr:
-		f.saveCall(x)
+		f.saveCall(x, context)
 	}
 }
 
@@ -220,7 +220,7 @@ func (f *File) saveRef(n *ast.Expr, context string) {
 }
 
 // Save calls to C.xxx for later processing.
-func (f *File) saveCall(call *ast.CallExpr) {
+func (f *File) saveCall(call *ast.CallExpr, context string) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return
@@ -228,7 +228,8 @@ func (f *File) saveCall(call *ast.CallExpr) {
 	if l, ok := sel.X.(*ast.Ident); !ok || l.Name != "C" {
 		return
 	}
-	f.Calls = append(f.Calls, call)
+	c := &Call{Call: call, Deferred: context == "defer"}
+	f.Calls = append(f.Calls, c)
 }
 
 // If a function should be exported add it to ExpFunc.
@@ -401,7 +402,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 	case *ast.GoStmt:
 		f.walk(n.Call, "expr", visit)
 	case *ast.DeferStmt:
-		f.walk(n.Call, "expr", visit)
+		f.walk(n.Call, "defer", visit)
 	case *ast.ReturnStmt:
 		f.walk(n.Results, "expr", visit)
 	case *ast.BranchStmt:

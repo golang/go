@@ -82,6 +82,21 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	If the line ends with "(forced)", this GC was forced by a
 	runtime.GC() call and all phases are STW.
 
+	Setting gctrace to any value > 0 also causes the garbage collector
+	to emit a summary when memory is released back to the system.
+	This process of returning memory to the system is called scavenging.
+	The format of this summary is subject to change.
+	Currently it is:
+		scvg#: # MB released  printed only if non-zero
+		scvg#: inuse: # idle: # sys: # released: # consumed: # (MB)
+	where the fields are as follows:
+		scvg#        the scavenge cycle number, incremented at each scavenge
+		inuse: #     MB used or partially used spans
+		idle: #      MB spans pending scavenging
+		sys: #       MB mapped from the system
+		released: #  MB released to the system
+		consumed: #  MB allocated from the system
+
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.

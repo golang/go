@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"sort"
 	"strings"
@@ -620,6 +621,42 @@ func profileWriter(w io.Writer) {
 		}
 		w.Write(data)
 	}
+
+	// We are emitting the legacy profiling format, which permits
+	// a memory map following the CPU samples. The memory map is
+	// simply a copy of the GNU/Linux /proc/self/maps file. The
+	// profiler uses the memory map to map PC values in shared
+	// libraries to a shared library in the filesystem, in order
+	// to report the correct function and, if the shared library
+	// has debug info, file/line. This is particularly useful for
+	// PIE (position independent executables) as on ELF systems a
+	// PIE is simply an executable shared library.
+	//
+	// Because the profiling format expects the memory map in
+	// GNU/Linux format, we only do this on GNU/Linux for now. To
+	// add support for profiling PIE on other ELF-based systems,
+	// it may be necessary to map the system-specific mapping
+	// information to the GNU/Linux format. For a reasonably
+	// portable C++ version, see the FillProcSelfMaps function in
+	// https://github.com/gperftools/gperftools/blob/master/src/base/sysinfo.cc
+	//
+	// The code that parses this mapping for the pprof tool is
+	// ParseMemoryMap in cmd/internal/pprof/legacy_profile.go, but
+	// don't change that code, as similar code exists in other
+	// (non-Go) pprof readers. Change this code so that that code works.
+	//
+	// We ignore errors reading or copying the memory map; the
+	// profile is likely usable without it, and we have no good way
+	// to report errors.
+	if runtime.GOOS == "linux" {
+		f, err := os.Open("/proc/self/maps")
+		if err == nil {
+			io.WriteString(w, "\nMAPPED_LIBRARIES:\n")
+			io.Copy(w, f)
+			f.Close()
+		}
+	}
+
 	cpu.done <- true
 }
 

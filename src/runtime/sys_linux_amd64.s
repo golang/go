@@ -253,7 +253,7 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVQ	g(CX),AX
 	TESTQ	AX, AX
-	JZ	sigtramp        // g == nil
+	JZ	sigtrampnog     // g == nil
 	MOVQ	g_m(AX), AX
 	TESTQ	AX, AX
 	JZ	sigtramp        // g.m == nil
@@ -276,8 +276,8 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	// Jump to a function in runtime/cgo.
 	// That function, written in C, will call the user's traceback
 	// function with proper unwind info, and will then call back here.
-	// The first three arguments are already in registers.
-	// Set the last three arguments now.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
 	MOVQ	runtime·cgoTraceback(SB), CX
 	MOVQ	$runtime·sigtramp(SB), R9
 	MOVQ	_cgo_callers(SB), AX
@@ -285,6 +285,30 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 
 sigtramp:
 	JMP	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	CMPL	DI, $27 // 27 == SIGPROF
+	JNZ	sigtramp
+
+	// Lock sigprofCallersUse.
+	MOVL	$0, AX
+	MOVL	$1, CX
+	MOVQ	$runtime·sigprofCallersUse(SB), BX
+	LOCK
+	CMPXCHGL	CX, 0(BX)
+	JNZ	sigtramp  // Skip stack trace if already locked.
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, which will ignore the
+	// arguments passed in registers.
+	// First three arguments to traceback function are in registers already.
+	MOVQ	runtime·cgoTraceback(SB), CX
+	MOVQ	$runtime·sigprofCallers(SB), R8
+	MOVQ	$runtime·sigprofNonGo(SB), R9
+	MOVQ	_cgo_callers(SB), AX
+	JMP	AX
 
 // For cgo unwinding to work, this function must look precisely like
 // the one in glibc.  The glibc source code is:

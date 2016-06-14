@@ -18,6 +18,14 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	}
 	g := getg()
 	if g == nil {
+		if sig == _SIGPROF {
+			// Ignore profiling signals that arrive on
+			// non-Go threads. On some systems they will
+			// be handled directly by the signal handler,
+			// by calling sigprofNonGo, in which case we won't
+			// get here anyhow.
+			return
+		}
 		badsignal(uintptr(sig), &sigctxt{info, ctx})
 		return
 	}

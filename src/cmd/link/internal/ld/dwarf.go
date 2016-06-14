@@ -529,7 +529,7 @@ func walktypedef(die *DWDie) *DWDie {
 }
 
 func walksymtypedef(s *LSym) *LSym {
-	if t := Linkrlookup(Ctxt, s.Name+".def", int(s.Version)); t != nil {
+	if t := Linkrlookup(Ctxt, s.Name+"..def", int(s.Version)); t != nil {
 		return t
 	}
 	return s
@@ -819,7 +819,7 @@ func dotypedef(parent *DWDie, name string, def *DWDie) {
 		Diag("dwarf: bad def in dotypedef")
 	}
 
-	def.sym = Linklookup(Ctxt, def.sym.Name+".def", 0)
+	def.sym = Linklookup(Ctxt, def.sym.Name+"..def", 0)
 	def.sym.Attr |= AttrHidden
 	def.sym.Type = obj.SDWARFINFO
 
@@ -1021,7 +1021,7 @@ func newtype(gotype *LSym) *DWDie {
 }
 
 func nameFromDIESym(dwtype *LSym) string {
-	return strings.TrimSuffix(dwtype.Name[len(infoprefix):], ".def")
+	return strings.TrimSuffix(dwtype.Name[len(infoprefix):], "..def")
 }
 
 // Find or construct *T given T.
