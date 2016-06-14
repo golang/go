@@ -18,25 +18,20 @@ const _P_PID = 0
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
 	var errno syscall.Errno
+	// The arguments on 32-bit FreeBSD look like the following:
+	// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
+	// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on ARM, MIPS or PowerPC
 	if runtime.GOARCH == "386" {
-		// The arguments on 32-bit FreeBSD except ARM look
-		// like the following:
-		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
-		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on MIPS or PowerPC
-		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+	} else if runtime.GOARCH == "arm" {
+		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
 	} else {
 		_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
 	}
 	if errno != 0 {
 		// The wait6 system call is supported only on FreeBSD
 		// 9.3 and above, so it may return an ENOSYS error.
-		// Also the system call may return an ECHILD error
-		// when the child process has not finished the
-		// transformation using execve system call.
-		// In both cases, we just leave the care of child
-		// process to the following wait4 system call in
-		// Process.wait.
-		if errno == syscall.ENOSYS || errno == syscall.ECHILD {
+		if errno == syscall.ENOSYS {
 			return false, nil
 		}
 		return false, NewSyscallError("wait6", errno)
