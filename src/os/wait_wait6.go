@@ -18,14 +18,13 @@ const _P_PID = 0
 // It does not actually call p.Wait.
 func (p *Process) blockUntilWaitable() (bool, error) {
 	var errno syscall.Errno
-	switch runtime.GOARCH {
-	case "386", "arm":
-		// The arguments on 32-bit FreeBSD look like the
-		// following:
+	if runtime.GOARCH == "386" {
+		// The arguments on 32-bit FreeBSD except ARM look
+		// like the following:
 		// - freebsd32_wait6_args{ idtype, id1, id2, status, options, wrusage, info } or
 		// - freebsd32_wait6_args{ idtype, pad, id1, id2, status, options, wrusage, info } when PAD64_REQUIRED=1 on MIPS or PowerPC
 		_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
-	default:
+	} else {
 		_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
 	}
 	if errno != 0 {
