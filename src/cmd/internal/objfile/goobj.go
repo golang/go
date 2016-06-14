@@ -94,6 +94,10 @@ func (f *goobjFile) goarch() string {
 	return "GOARCH unimplemented for debug/goobj files"
 }
 
+func (f *goobjFile) loadAddress() (uint64, error) {
+	return 0, fmt.Errorf("unknown load address")
+}
+
 func (f *goobjFile) dwarf() (*dwarf.Data, error) {
 	return nil, errors.New("no DWARF data in go object file")
 }

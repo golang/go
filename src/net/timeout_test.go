@@ -5,6 +5,7 @@
 package net
 
 import (
+	"context"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -40,19 +41,6 @@ func TestDialTimeout(t *testing.T) {
 	origTestHookDialChannel := testHookDialChannel
 	defer func() { testHookDialChannel = origTestHookDialChannel }()
 	defer sw.Set(socktest.FilterConnect, nil)
-
-	// Avoid tracking open-close jitterbugs between netFD and
-	// socket that leads to confusion of information inside
-	// socktest.Switch.
-	// It may happen when the Dial call bumps against TCP
-	// simultaneous open. See selfConnect in tcpsock_posix.go.
-	defer func() {
-		sw.Set(socktest.FilterClose, nil)
-		forceCloseSockets()
-	}()
-	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
-		return nil, errTimedout
-	})
 
 	for i, tt := range dialTimeoutTests {
 		switch runtime.GOOS {
@@ -177,10 +165,13 @@ func TestAcceptTimeout(t *testing.T) {
 	}
 	defer ln.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for i, tt := range acceptTimeoutTests {
 		if tt.timeout < 0 {
 			go func() {
-				c, err := Dial(ln.Addr().Network(), ln.Addr().String())
+				var d Dialer
+				c, err := d.DialContext(ctx, ln.Addr().Network(), ln.Addr().String())
 				if err != nil {
 					t.Error(err)
 					return

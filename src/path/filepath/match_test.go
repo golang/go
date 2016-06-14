@@ -159,6 +159,12 @@ func TestGlobError(t *testing.T) {
 	}
 }
 
+func TestGlobUNC(t *testing.T) {
+	// Just make sure this runs without crashing for now.
+	// See issue 15879.
+	Glob(`\\?\C:\*`)
+}
+
 var globSymlinkTests = []struct {
 	path, dest string
 	brokenLink bool

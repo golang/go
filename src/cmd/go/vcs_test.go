@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -224,6 +225,99 @@ func TestIsSecure(t *testing.T) {
 		secure := test.vcs.isSecure(test.url)
 		if secure != test.secure {
 			t.Errorf("%s isSecure(%q) = %t; want %t", test.vcs, test.url, secure, test.secure)
+		}
+	}
+}
+
+func TestMatchGoImport(t *testing.T) {
+	tests := []struct {
+		imports []metaImport
+		path    string
+		mi      metaImport
+		err     error
+	}{
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo",
+			mi:   metaImport{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/fooa",
+			mi:   metaImport{Prefix: "example.com/user/fooa", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar/baz",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar/baz/qux",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com/user/foo/bar/baz/",
+			err:  errors.New("should not be allowed to create nested repo"),
+		},
+		{
+			imports: []metaImport{
+				{Prefix: "example.com/user/foo", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+				{Prefix: "example.com/user/foo/bar", VCS: "git", RepoRoot: "https://example.com/repo/target"},
+			},
+			path: "example.com",
+			err:  errors.New("pathologically short path"),
+		},
+	}
+
+	for _, test := range tests {
+		mi, err := matchGoImport(test.imports, test.path)
+		if mi != test.mi {
+			t.Errorf("unexpected metaImport; got %v, want %v", mi, test.mi)
+		}
+
+		got := err
+		want := test.err
+		if (got == nil) != (want == nil) {
+			t.Errorf("unexpected error; got %v, want %v", got, want)
 		}
 	}
 }

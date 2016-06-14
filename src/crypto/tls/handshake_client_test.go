@@ -983,7 +983,7 @@ func (b *brokenConn) Write(data []byte) (int, error) {
 
 func TestFailedWrite(t *testing.T) {
 	// Test that a write error during the handshake is returned.
-	for _, breakAfter := range []int{0, 1, 2, 3} {
+	for _, breakAfter := range []int{0, 1} {
 		c, s := net.Pipe()
 		done := make(chan bool)
 
@@ -1001,5 +1001,47 @@ func TestFailedWrite(t *testing.T) {
 		brokenC.Close()
 
 		<-done
+	}
+}
+
+// writeCountingConn wraps a net.Conn and counts the number of Write calls.
+type writeCountingConn struct {
+	net.Conn
+
+	// numWrites is the number of writes that have been done.
+	numWrites int
+}
+
+func (wcc *writeCountingConn) Write(data []byte) (int, error) {
+	wcc.numWrites++
+	return wcc.Conn.Write(data)
+}
+
+func TestBuffering(t *testing.T) {
+	c, s := net.Pipe()
+	done := make(chan bool)
+
+	clientWCC := &writeCountingConn{Conn: c}
+	serverWCC := &writeCountingConn{Conn: s}
+
+	go func() {
+		Server(serverWCC, testConfig).Handshake()
+		serverWCC.Close()
+		done <- true
+	}()
+
+	err := Client(clientWCC, testConfig).Handshake()
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientWCC.Close()
+	<-done
+
+	if n := clientWCC.numWrites; n != 2 {
+		t.Errorf("expected client handshake to complete with only two writes, but saw %d", n)
+	}
+
+	if n := serverWCC.numWrites; n != 2 {
+		t.Errorf("expected server handshake to complete with only two writes, but saw %d", n)
 	}
 }

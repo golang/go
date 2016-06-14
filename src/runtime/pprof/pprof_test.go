@@ -86,10 +86,14 @@ func TestCPUProfileMultithreaded(t *testing.T) {
 	})
 }
 
-func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
+func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []uintptr)) {
 	// Convert []byte to []uintptr.
-	l := len(bytes) / int(unsafe.Sizeof(uintptr(0)))
-	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
+	l := len(valBytes)
+	if i := bytes.Index(valBytes, []byte("\nMAPPED_LIBRARIES:\n")); i >= 0 {
+		l = i
+	}
+	l /= int(unsafe.Sizeof(uintptr(0)))
+	val := *(*[]uintptr)(unsafe.Pointer(&valBytes))
 	val = val[:l]
 
 	// 5 for the header, 3 for the trailer.

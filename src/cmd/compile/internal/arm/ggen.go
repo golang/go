@@ -341,6 +341,11 @@ func clearfat(nl *gc.Node) {
 	c := w % 4 // bytes
 	q := w / 4 // quads
 
+	if nl.Type.Align < 4 {
+		q = 0
+		c = w
+	}
+
 	var r0 gc.Node
 	r0.Op = gc.OREGISTER
 
@@ -395,6 +400,27 @@ func clearfat(nl *gc.Node) {
 		}
 	}
 
+	if c > 4 {
+		// Loop to zero unaligned memory.
+		var end gc.Node
+		gc.Regalloc(&end, gc.Types[gc.Tptr], nil)
+		p := gins(arm.AMOVW, &dst, &end)
+		p.From.Type = obj.TYPE_ADDR
+		p.From.Offset = int64(c)
+
+		p = gins(arm.AMOVB, &nz, &dst)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Offset = 1
+		p.Scond |= arm.C_PBIT
+		pl := p
+
+		p = gins(arm.ACMP, &dst, nil)
+		raddr(&end, p)
+		gc.Patch(gc.Gbranch(arm.ABNE, nil, 0), pl)
+
+		gc.Regfree(&end)
+		c = 0
+	}
 	var p *obj.Prog
 	for c > 0 {
 		p = gins(arm.AMOVB, &nz, &dst)

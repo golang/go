@@ -18,16 +18,16 @@ expect() {
 	file=$1
 	shift
 	if go build $file >errs 2>&1; then
-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail but it succeeded
+		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected cgo to fail on $file but it succeeded
 		exit 1
 	fi
 	if ! test -s errs; then
-		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output but saw none
+		echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output for $file but saw none
 		exit 1
 	fi
 	for error; do
 		if ! fgrep $error errs >/dev/null 2>&1; then
-			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output to contain \"$error\" but saw:
+			echo 1>&2 misc/cgo/errors/test.bash: BUG: expected error output for $file to contain \"$error\" but saw:
 			cat 1>&2 errs
 			exit 1
 		fi
@@ -44,6 +44,7 @@ check issue11097b.go
 expect issue13129.go C.ushort
 check issue13423.go
 expect issue13635.go C.uchar C.schar C.ushort C.uint C.ulong C.longlong C.ulonglong C.complexfloat C.complexdouble
+check issue13830.go
 
 if ! go build issue14669.go; then
 	exit 1

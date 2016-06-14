@@ -149,7 +149,7 @@ func SetCPUProfileRate(hz int) {
 
 		cpuprof.on = true
 		// pprof binary header format.
-		// http://code.google.com/p/google-perftools/source/browse/trunk/src/profiledata.cc#117
+		// https://github.com/gperftools/gperftools/blob/master/src/profiledata.cc#L119
 		p := &cpuprof.log[0]
 		p[0] = 0                 // count for header
 		p[1] = 3                 // depth for header
@@ -193,7 +193,20 @@ func SetCPUProfileRate(hz int) {
 // and cannot allocate memory or acquire locks that might be
 // held at the time of the signal, nor can it use substantial amounts
 // of stack. It is allowed to call evict.
+//go:nowritebarrierrec
 func (p *cpuProfile) add(pc []uintptr) {
+	p.addWithFlushlog(pc, p.flushlog)
+}
+
+// addWithFlushlog implements add and addNonGo.
+// It is called from signal handlers and other limited environments
+// and cannot allocate memory or acquire locks that might be
+// held at the time of the signal, nor can it use substantial amounts
+// of stack. It may be called by a signal handler with no g or m.
+// It is allowed to call evict, passing the flushlog parameter.
+//go:nosplit
+//go:nowritebarrierrec
+func (p *cpuProfile) addWithFlushlog(pc []uintptr, flushlog func() bool) {
 	if len(pc) > maxCPUProfStack {
 		pc = pc[:maxCPUProfStack]
 	}
@@ -231,7 +244,7 @@ Assoc:
 		}
 	}
 	if e.count > 0 {
-		if !p.evict(e) {
+		if !p.evict(e, flushlog) {
 			// Could not evict entry. Record lost stack.
 			p.lost++
 			return
@@ -248,15 +261,17 @@ Assoc:
 // evict copies the given entry's data into the log, so that
 // the entry can be reused.  evict is called from add, which
 // is called from the profiling signal handler, so it must not
-// allocate memory or block. It is safe to call flushlog.
-// evict returns true if the entry was copied to the log,
-// false if there was no room available.
-func (p *cpuProfile) evict(e *cpuprofEntry) bool {
+// allocate memory or block, and it may be called with no g or m.
+// It is safe to call flushlog. evict returns true if the entry was
+// copied to the log, false if there was no room available.
+//go:nosplit
+//go:nowritebarrierrec
+func (p *cpuProfile) evict(e *cpuprofEntry, flushlog func() bool) bool {
 	d := e.depth
 	nslot := d + 2
 	log := &p.log[p.toggle]
 	if p.nlog+nslot > len(log) {
-		if !p.flushlog() {
+		if !flushlog() {
 			return false
 		}
 		log = &p.log[p.toggle]
@@ -278,6 +293,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
 // flushlog is called from evict, called from add, called from the signal handler,
 // so it cannot allocate memory or block. It can try to swap logs with
 // the writing goroutine, as explained in the comment at the top of this file.
+//go:nowritebarrierrec
 func (p *cpuProfile) flushlog() bool {
 	if !atomic.Cas(&p.handoff, 0, uint32(p.nlog)) {
 		return false
@@ -297,6 +313,16 @@ func (p *cpuProfile) flushlog() bool {
 	}
 	p.nlog = q
 	return true
+}
+
+// addNonGo is like add, but runs on a non-Go thread.
+// It can't do anything that might need a g or an m.
+// With this entry point, we don't try to flush the log when evicting an
+// old entry. Instead, we just drop the stack trace if we're out of space.
+//go:nosplit
+//go:nowritebarrierrec
+func (p *cpuProfile) addNonGo(pc []uintptr) {
+	p.addWithFlushlog(pc, func() bool { return false })
 }
 
 // getprofile blocks until the next block of profiling data is available
@@ -366,7 +392,7 @@ Flush:
 		b := &p.hash[i]
 		for j := range b.entry {
 			e := &b.entry[j]
-			if e.count > 0 && !p.evict(e) {
+			if e.count > 0 && !p.evict(e, p.flushlog) {
 				// Filled the log. Stop the loop and return what we've got.
 				break Flush
 			}

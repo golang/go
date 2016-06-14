@@ -3934,6 +3934,10 @@ func TestStructOf(t *testing.T) {
 	if s != want {
 		t.Errorf("constructed struct = %s, want %s", s, want)
 	}
+	const stStr = `struct { S string "s"; X uint8 "x"; Y uint64; Z [3]uint16 }`
+	if got, want := st.String(), stStr; got != want {
+		t.Errorf("StructOf(fields).String()=%q, want %q", got, want)
+	}
 
 	// check the size, alignment and field offsets
 	stt := TypeOf(struct {

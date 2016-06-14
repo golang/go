@@ -91,11 +91,11 @@ func main() {
 
 	run("shell", "rm", "-rf", deviceGotmp) // Clean up.
 
-	output = output[strings.LastIndex(output, "\n")+1:]
-	if !strings.HasPrefix(output, exitstr) {
+	exitIdx := strings.LastIndex(output, exitstr)
+	if exitIdx == -1 {
 		log.Fatalf("no exit code: %q", output)
 	}
-	code, err := strconv.Atoi(output[len(exitstr):])
+	code, err := strconv.Atoi(output[exitIdx+len(exitstr):])
 	if err != nil {
 		log.Fatalf("bad exit code: %v", err)
 	}

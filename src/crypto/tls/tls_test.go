@@ -481,20 +481,19 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 
 	N := b.N
 
-	var serr error
 	go func() {
 		for i := 0; i < N; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
-				serr = err
-				return
+				// panic rather than synchronize to avoid benchmark overhead
+				// (cannot call b.Fatal in goroutine)
+				panic(fmt.Errorf("accept: %v", err))
 			}
 			serverConfig := *testConfig
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, &serverConfig)
 			if err := srv.Handshake(); err != nil {
-				serr = fmt.Errorf("handshake: %v", err)
-				return
+				panic(fmt.Errorf("handshake: %v", err))
 			}
 			io.Copy(srv, srv)
 		}
@@ -504,7 +503,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	clientConfig := *testConfig
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
-	buf := make([]byte, 1<<16)
+	buf := make([]byte, 1<<14)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
 	for i := 0; i < N; i++ {
 		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
@@ -570,20 +569,19 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 
 	N := b.N
 
-	var serr error
 	go func() {
 		for i := 0; i < N; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
-				serr = err
-				return
+				// panic rather than synchronize to avoid benchmark overhead
+				// (cannot call b.Fatal in goroutine)
+				panic(fmt.Errorf("accept: %v", err))
 			}
 			serverConfig := *testConfig
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(&slowConn{sconn, bps}, &serverConfig)
 			if err := srv.Handshake(); err != nil {
-				serr = fmt.Errorf("handshake: %v", err)
-				return
+				panic(fmt.Errorf("handshake: %v", err))
 			}
 			io.Copy(srv, srv)
 		}

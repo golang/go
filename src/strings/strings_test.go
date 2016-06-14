@@ -190,6 +190,43 @@ func TestLastIndexByte(t *testing.T) {
 	}
 }
 
+func simpleIndex(s, sep string) int {
+	n := len(sep)
+	for i := n; i <= len(s); i++ {
+		if s[i-n:i] == sep {
+			return i - n
+		}
+	}
+	return -1
+}
+
+func TestIndexRandom(t *testing.T) {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	for times := 0; times < 10; times++ {
+		for strLen := 5 + rand.Intn(5); strLen < 140; strLen += 10 { // Arbitrary
+			s1 := make([]byte, strLen)
+			for i := range s1 {
+				s1[i] = chars[rand.Intn(len(chars))]
+			}
+			s := string(s1)
+			for i := 0; i < 50; i++ {
+				begin := rand.Intn(len(s) + 1)
+				end := begin + rand.Intn(len(s)+1-begin)
+				sep := s[begin:end]
+				if i%4 == 0 {
+					pos := rand.Intn(len(sep) + 1)
+					sep = sep[:pos] + "A" + sep[pos:]
+				}
+				want := simpleIndex(s, sep)
+				res := Index(s, sep)
+				if res != want {
+					t.Errorf("Index(%s,%s) = %d; want %d", s, sep, res, want)
+				}
+			}
+		}
+	}
+}
+
 var indexRuneTests = []struct {
 	s    string
 	rune rune

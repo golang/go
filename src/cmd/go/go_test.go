@@ -1332,15 +1332,31 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("test", "main_test")
 }
 
+// The runtime version string takes one of two forms:
+// "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+// Determine whether we are in a released copy by
+// inspecting the version.
+var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+
 // Issue 12690
 func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+
+	// Make sure the packages below are not stale.
+	tg.run("install", "runtime", "os", "io")
+
 	goroot := runtime.GOROOT()
 	tg.setenv("GOROOT", goroot+"/")
-	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
-	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
-	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
+
+	want := ""
+	if isGoRelease {
+		want = "standard package in Go release distribution"
+	}
+
+	tg.wantNotStale("runtime", want, "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", want, "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", want, "with trailing slash in GOROOT, io listed as stale")
 }
 
 // With $GOBIN set, binaries get installed to $GOBIN.
@@ -2342,6 +2358,11 @@ func TestGoGetRscIoToolstash(t *testing.T) {
 // Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
 func TestGoGetHTTPS404(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	switch runtime.GOOS {
+	case "darwin", "linux", "freebsd":
+	default:
+		t.Skipf("test case does not work on %s", runtime.GOOS)
+	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2876,4 +2897,26 @@ func TestBinaryOnlyPackages(t *testing.T) {
 
 	tg.run("run", tg.path("src/p3/p3.go"))
 	tg.grepStdout("hello from p1", "did not see message from p1")
+}
+
+// Issue 16050.
+func TestAlwaysLinkSysoFiles(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src/syso")
+	tg.tempFile("src/syso/a.syso", ``)
+	tg.tempFile("src/syso/b.go", `package syso`)
+	tg.setenv("GOPATH", tg.path("."))
+
+	// We should see the .syso file regardless of the setting of
+	// CGO_ENABLED.
+
+	tg.setenv("CGO_ENABLED", "1")
+	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
+	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=1")
+
+	tg.setenv("CGO_ENABLED", "0")
+	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
+	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
 }

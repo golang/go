@@ -914,8 +914,9 @@ aes0to15:
 	MOVQ	$masks<>(SB), AX
 	PAND	(AX)(CX*8), X1
 final1:
-	AESENC	X0, X1	// scramble input, xor in seed
-	AESENC	X1, X1  // scramble combo 2 times
+	PXOR	X0, X1	// xor data with seed
+	AESENC	X1, X1	// scramble combo 3 times
+	AESENC	X1, X1
 	AESENC	X1, X1
 	MOVQ	X1, (DX)
 	RET
@@ -949,9 +950,13 @@ aes17to32:
 	MOVOU	(AX), X2
 	MOVOU	-16(AX)(CX*1), X3
 
+	// xor with seed
+	PXOR	X0, X2
+	PXOR	X1, X3
+
 	// scramble 3 times
-	AESENC	X0, X2
-	AESENC	X1, X3
+	AESENC	X2, X2
+	AESENC	X3, X3
 	AESENC	X2, X2
 	AESENC	X3, X3
 	AESENC	X2, X2
@@ -977,11 +982,16 @@ aes33to64:
 	MOVOU	16(AX), X5
 	MOVOU	-32(AX)(CX*1), X6
 	MOVOU	-16(AX)(CX*1), X7
+
+	PXOR	X0, X4
+	PXOR	X1, X5
+	PXOR	X2, X6
+	PXOR	X3, X7
 	
-	AESENC	X0, X4
-	AESENC	X1, X5
-	AESENC	X2, X6
-	AESENC	X3, X7
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
 	
 	AESENC	X4, X4
 	AESENC	X5, X5
@@ -1032,17 +1042,17 @@ aes65to128:
 	MOVOU	-32(AX)(CX*1), X14
 	MOVOU	-16(AX)(CX*1), X15
 
-	// scramble data, xor in seed
-	AESENC	X0, X8
-	AESENC	X1, X9
-	AESENC	X2, X10
-	AESENC	X3, X11
-	AESENC	X4, X12
-	AESENC	X5, X13
-	AESENC	X6, X14
-	AESENC	X7, X15
+	// xor with seed
+	PXOR	X0, X8
+	PXOR	X1, X9
+	PXOR	X2, X10
+	PXOR	X3, X11
+	PXOR	X4, X12
+	PXOR	X5, X13
+	PXOR	X6, X14
+	PXOR	X7, X15
 
-	// scramble twice
+	// scramble 3 times
 	AESENC	X8, X8
 	AESENC	X9, X9
 	AESENC	X10, X10
@@ -1051,7 +1061,16 @@ aes65to128:
 	AESENC	X13, X13
 	AESENC	X14, X14
 	AESENC	X15, X15
-	
+
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
+
 	AESENC	X8, X8
 	AESENC	X9, X9
 	AESENC	X10, X10
@@ -1105,21 +1124,31 @@ aes129plus:
 	MOVOU	-32(AX)(CX*1), X14
 	MOVOU	-16(AX)(CX*1), X15
 
-	// scramble input once, xor in seed
-	AESENC	X0, X8
-	AESENC	X1, X9
-	AESENC	X2, X10
-	AESENC	X3, X11
-	AESENC	X4, X12
-	AESENC	X5, X13
-	AESENC	X6, X14
-	AESENC	X7, X15
+	// xor in seed
+	PXOR	X0, X8
+	PXOR	X1, X9
+	PXOR	X2, X10
+	PXOR	X3, X11
+	PXOR	X4, X12
+	PXOR	X5, X13
+	PXOR	X6, X14
+	PXOR	X7, X15
 	
 	// compute number of remaining 128-byte blocks
 	DECQ	CX
 	SHRQ	$7, CX
 	
 aesloop:
+	// scramble state
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
+
 	// scramble state, xor in a block
 	MOVOU	(AX), X0
 	MOVOU	16(AX), X1
@@ -1138,7 +1167,11 @@ aesloop:
 	AESENC	X6, X14
 	AESENC	X7, X15
 
-	// scramble state
+	ADDQ	$128, AX
+	DECQ	CX
+	JNE	aesloop
+
+	// 3 more scrambles to finish
 	AESENC	X8, X8
 	AESENC	X9, X9
 	AESENC	X10, X10
@@ -1147,12 +1180,6 @@ aesloop:
 	AESENC	X13, X13
 	AESENC	X14, X14
 	AESENC	X15, X15
-
-	ADDQ	$128, AX
-	DECQ	CX
-	JNE	aesloop
-
-	// 2 more scrambles to finish
 	AESENC	X8, X8
 	AESENC	X9, X9
 	AESENC	X10, X10
@@ -1787,7 +1814,7 @@ partial_success9to15:
 	JB loop9to15
 	JMP fail
 _16_or_more:
-	CMPQ AX, $17
+	CMPQ AX, $16
 	JA   _17_to_31
 	MOVOU (BP), X1
 	LEAQ -15(DI)(DX*1), DX
@@ -1801,7 +1828,6 @@ loop16:
 	CMPQ DI,DX
 	JB loop16
 	JMP fail
-//TODO: the code below is wrong.  Fix it.  See #15679.
 _17_to_31:
 	LEAQ 1(DI)(DX*1), DX
 	SUBQ AX, DX

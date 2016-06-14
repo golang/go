@@ -108,6 +108,8 @@ func Main() {
 
 	localpkg = mkpkg("")
 	localpkg.Prefix = "\"\""
+	autopkg = mkpkg("")
+	autopkg.Prefix = "\"\""
 
 	// pseudo-package, for scoping
 	builtinpkg = mkpkg("go.builtin")

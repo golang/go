@@ -117,6 +117,9 @@ func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
 		name: name,
 		file: of,
 	}
+	if load, err := of.LoadAddress(); err == nil {
+		f.offset = start - load
+	}
 	return f, nil
 }
 
@@ -169,10 +172,11 @@ func (*objTool) SetConfig(config string) {
 // (instead of invoking GNU binutils).
 // A file represents a single executable being analyzed.
 type file struct {
-	name string
-	sym  []objfile.Sym
-	file *objfile.File
-	pcln *gosym.Table
+	name   string
+	offset uint64
+	sym    []objfile.Sym
+	file   *objfile.File
+	pcln   *gosym.Table
 
 	triedDwarf bool
 	dwarf      *dwarf.Data
@@ -200,6 +204,7 @@ func (f *file) SourceLine(addr uint64) ([]plugin.Frame, error) {
 		}
 		f.pcln = pcln
 	}
+	addr -= f.offset
 	file, line, fn := f.pcln.PCToLine(addr)
 	if fn != nil {
 		frame := []plugin.Frame{

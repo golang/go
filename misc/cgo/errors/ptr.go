@@ -314,6 +314,14 @@ var ptrTests = []ptrTest{
 		body:    `i := 0; p := S{u:uintptr(unsafe.Pointer(&i))}; q := (*S)(C.malloc(C.size_t(unsafe.Sizeof(p)))); *q = p; C.f(unsafe.Pointer(q))`,
 		fail:    false,
 	},
+	{
+		// Check deferred pointers when they are used, not
+		// when the defer statement is run.
+		name: "defer",
+		c:    `typedef struct s { int *p; } s; void f(s *ps) {}`,
+		body: `p := &C.s{}; defer C.f(p); p.p = new(C.int)`,
+		fail: true,
+	},
 }
 
 func main() {

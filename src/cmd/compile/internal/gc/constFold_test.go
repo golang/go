@@ -12414,3 +12414,5695 @@ func TestConstFoldint8uint8rsh(t *testing.T) {
 		t.Errorf("127 >> 255 = %d, want 0", r)
 	}
 }
+func TestConstFoldCompareuint64(t *testing.T) {
+	{
+		var x uint64 = 0
+		var y uint64 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 0
+		var y uint64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint64 = 0
+		var y uint64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint64 = 0
+		var y uint64 = 18446744073709551615
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint64 = 1
+		var y uint64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 1
+		var y uint64 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 1
+		var y uint64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint64 = 1
+		var y uint64 = 18446744073709551615
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint64 = 4294967296
+		var y uint64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 4294967296
+		var y uint64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 4294967296
+		var y uint64 = 4294967296
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 4294967296
+		var y uint64 = 18446744073709551615
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint64 = 18446744073709551615
+		var y uint64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 18446744073709551615
+		var y uint64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 18446744073709551615
+		var y uint64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint64 = 18446744073709551615
+		var y uint64 = 18446744073709551615
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareint64(t *testing.T) {
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = -9223372036854775808
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775808
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = -9223372036854775807
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -9223372036854775807
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = -4294967296
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -4294967296
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = -1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = -1
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 0
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 1
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = 4294967296
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 4294967296
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = 9223372036854775806
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775806
+		var y int64 = 9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = -9223372036854775808
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = -9223372036854775807
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = -4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = 4294967296
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = 9223372036854775806
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int64 = 9223372036854775807
+		var y int64 = 9223372036854775807
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareuint32(t *testing.T) {
+	{
+		var x uint32 = 0
+		var y uint32 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint32 = 0
+		var y uint32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint32 = 0
+		var y uint32 = 4294967295
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint32 = 1
+		var y uint32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint32 = 1
+		var y uint32 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint32 = 1
+		var y uint32 = 4294967295
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint32 = 4294967295
+		var y uint32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint32 = 4294967295
+		var y uint32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint32 = 4294967295
+		var y uint32 = 4294967295
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareint32(t *testing.T) {
+	{
+		var x int32 = -2147483648
+		var y int32 = -2147483648
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483648
+		var y int32 = -2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483648
+		var y int32 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483648
+		var y int32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483648
+		var y int32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483648
+		var y int32 = 2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483647
+		var y int32 = -2147483648
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483647
+		var y int32 = -2147483647
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483647
+		var y int32 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483647
+		var y int32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483647
+		var y int32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -2147483647
+		var y int32 = 2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -1
+		var y int32 = -2147483648
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = -1
+		var y int32 = -2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = -1
+		var y int32 = -1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = -1
+		var y int32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -1
+		var y int32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = -1
+		var y int32 = 2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = 0
+		var y int32 = -2147483648
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 0
+		var y int32 = -2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 0
+		var y int32 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 0
+		var y int32 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 0
+		var y int32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = 0
+		var y int32 = 2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = 1
+		var y int32 = -2147483648
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 1
+		var y int32 = -2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 1
+		var y int32 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 1
+		var y int32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 1
+		var y int32 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 1
+		var y int32 = 2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int32 = 2147483647
+		var y int32 = -2147483648
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 2147483647
+		var y int32 = -2147483647
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 2147483647
+		var y int32 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 2147483647
+		var y int32 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 2147483647
+		var y int32 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int32 = 2147483647
+		var y int32 = 2147483647
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareuint16(t *testing.T) {
+	{
+		var x uint16 = 0
+		var y uint16 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint16 = 0
+		var y uint16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint16 = 0
+		var y uint16 = 65535
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint16 = 1
+		var y uint16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint16 = 1
+		var y uint16 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint16 = 1
+		var y uint16 = 65535
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint16 = 65535
+		var y uint16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint16 = 65535
+		var y uint16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint16 = 65535
+		var y uint16 = 65535
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareint16(t *testing.T) {
+	{
+		var x int16 = -32768
+		var y int16 = -32768
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = -32768
+		var y int16 = -32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32768
+		var y int16 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32768
+		var y int16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32768
+		var y int16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32768
+		var y int16 = 32766
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32768
+		var y int16 = 32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = -32768
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = -32767
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = 32766
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -32767
+		var y int16 = 32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = -32768
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = -32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = -1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = 32766
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = -1
+		var y int16 = 32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = -32768
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = -32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = 32766
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 0
+		var y int16 = 32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = -32768
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = -32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = 32766
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 1
+		var y int16 = 32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = -32768
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = -32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = 32766
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32766
+		var y int16 = 32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = -32768
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = -32767
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = 32766
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int16 = 32767
+		var y int16 = 32767
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareuint8(t *testing.T) {
+	{
+		var x uint8 = 0
+		var y uint8 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint8 = 0
+		var y uint8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint8 = 0
+		var y uint8 = 255
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint8 = 1
+		var y uint8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint8 = 1
+		var y uint8 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint8 = 1
+		var y uint8 = 255
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x uint8 = 255
+		var y uint8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint8 = 255
+		var y uint8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x uint8 = 255
+		var y uint8 = 255
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}
+func TestConstFoldCompareint8(t *testing.T) {
+	{
+		var x int8 = -128
+		var y int8 = -128
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = -128
+		var y int8 = -127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -128
+		var y int8 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -128
+		var y int8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -128
+		var y int8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -128
+		var y int8 = 126
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -128
+		var y int8 = 127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = -128
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = -127
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = 126
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -127
+		var y int8 = 127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = -128
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = -127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = -1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = 126
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = -1
+		var y int8 = 127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = -128
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = -127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = 0
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = 126
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 0
+		var y int8 = 127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = -128
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = -127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = 1
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = 126
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 1
+		var y int8 = 127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = -128
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = -127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = 126
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 126
+		var y int8 = 127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if !(x < y) {
+			t.Errorf("!(%d < %d)", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if x >= y {
+			t.Errorf("%d >= %d", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = -128
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = -127
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = -1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = 0
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = 1
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = 126
+		if x == y {
+			t.Errorf("%d == %d", x, y)
+		}
+		if !(x != y) {
+			t.Errorf("!(%d != %d)", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if !(x > y) {
+			t.Errorf("!(%d > %d)", x, y)
+		}
+		if x <= y {
+			t.Errorf("%d <= %d", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+	{
+		var x int8 = 127
+		var y int8 = 127
+		if !(x == y) {
+			t.Errorf("!(%d == %d)", x, y)
+		}
+		if x != y {
+			t.Errorf("%d != %d", x, y)
+		}
+		if x < y {
+			t.Errorf("%d < %d", x, y)
+		}
+		if x > y {
+			t.Errorf("%d > %d", x, y)
+		}
+		if !(x <= y) {
+			t.Errorf("!(%d <= %d)", x, y)
+		}
+		if !(x >= y) {
+			t.Errorf("!(%d >= %d)", x, y)
+		}
+	}
+}

@@ -89,7 +89,9 @@ threadentry(void *v)
 	ThreadStart ts;
 
 	ts = *(ThreadStart*)v;
+	_cgo_tsan_acquire();
 	free(v);
+	_cgo_tsan_release();
 
 	/*
 	 * Set specific keys.

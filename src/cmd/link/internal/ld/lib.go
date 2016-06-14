@@ -1222,19 +1222,28 @@ func hostlink() {
 		}
 	}
 
+	sanitizers := flag_race != 0
+
+	for _, flag := range ldflag {
+		if strings.HasPrefix(flag, "-fsanitize=") {
+			sanitizers = true
+		}
+	}
+
 	argv = append(argv, ldflag...)
 
-	if flag_race != 0 {
+	if sanitizers {
 		// On a system where the toolchain creates position independent
-		// executables by default, tsan initialization can fail. So we pass
-		// -no-pie here, but support for that flag is quite new and we test
-		// for its support first.
+		// executables by default, tsan/msan/asan/etc initialization can
+		// fail. So we pass -no-pie here, but support for that flag is quite
+		// new and we test for its support first.
 		src := filepath.Join(tmpdir, "trivial.c")
 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
 			Ctxt.Diag("WriteFile trivial.c failed: %v", err)
 		}
 		cmd := exec.Command(argv[0], "-c", "-no-pie", "trivial.c")
 		cmd.Dir = tmpdir
+		cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
 		out, err := cmd.CombinedOutput()
 		supported := err == nil && !bytes.Contains(out, []byte("unrecognized"))
 		if supported {
