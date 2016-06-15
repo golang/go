@@ -439,19 +439,34 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
 func (s *regAllocState) init(f *Func) {
 	s.f = f
 	s.registers = f.Config.registers
-	s.numRegs = register(len(s.registers))
-	if s.numRegs > noRegister || s.numRegs > register(unsafe.Sizeof(regMask(0))*8) {
-		panic("too many registers")
+	if nr := len(s.registers); nr == 0 || nr > int(noRegister) || nr > int(unsafe.Sizeof(regMask(0))*8) {
+		s.f.Fatalf("bad number of registers: %d", nr)
+	} else {
+		s.numRegs = register(nr)
 	}
+	// Locate SP, SB, and g registers.
+	s.SPReg = noRegister
+	s.SBReg = noRegister
+	s.GReg = noRegister
 	for r := register(0); r < s.numRegs; r++ {
-		if s.registers[r].Name() == "SP" {
+		switch s.registers[r].Name() {
+		case "SP":
 			s.SPReg = r
-		}
-		if s.registers[r].Name() == "SB" {
+		case "SB":
 			s.SBReg = r
-		}
-		if s.registers[r].Name() == "g" {
+		case "g":
 			s.GReg = r
+		}
+	}
+	// Make sure we found all required registers.
+	switch noRegister {
+	case s.SPReg:
+		s.f.Fatalf("no SP register found")
+	case s.SBReg:
+		s.f.Fatalf("no SB register found")
+	case s.GReg:
+		if f.Config.hasGReg {
+			s.f.Fatalf("no g register found")
 		}
 	}
 
