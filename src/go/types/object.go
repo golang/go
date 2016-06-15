@@ -153,6 +153,8 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
 
 func (obj *Const) Val() constant.Value { return obj.val }
 
+func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
+
 // A TypeName represents a declared type.
 type TypeName struct {
 	object
@@ -187,6 +189,8 @@ func (obj *Var) Anonymous() bool { return obj.anonymous }
 
 func (obj *Var) IsField() bool { return obj.isField }
 
+func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
+
 // A Func represents a declared function, concrete method, or abstract
 // (interface) method. Its Type() is always a *Signature.
 // An abstract method may belong to many interfaces due to embedding.
@@ -214,6 +218,8 @@ func (obj *Func) FullName() string {
 func (obj *Func) Scope() *Scope {
 	return obj.typ.(*Signature).scope
 }
+
+func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
 
 // A Label represents a declared label.
 type Label struct {
