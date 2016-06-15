@@ -15,7 +15,7 @@ func (check *Checker) initOrder() {
 	// built from several calls to (*Checker).Files. Clear it.
 	check.Info.InitOrder = check.Info.InitOrder[:0]
 
-	// Compute the transposed object dependency graph and initialize
+	// Compute the object dependency graph and initialize
 	// a priority queue with the list of graph nodes.
 	pq := nodeQueue(dependencyGraph(check.objMap))
 	heap.Init(&pq)
@@ -25,22 +25,25 @@ func (check *Checker) initOrder() {
 		fmt.Printf("Computing initialization order for %s\n\n", check.pkg)
 		fmt.Println("Object dependency graph:")
 		for obj, d := range check.objMap {
-			if len(d.deps) > 0 {
-				fmt.Printf("\t%s depends on\n", obj.Name())
-				for dep := range d.deps {
-					fmt.Printf("\t\t%s\n", dep.Name())
+			// only print objects that may appear in the dependency graph
+			if obj, _ := obj.(dependency); obj != nil {
+				if len(d.deps) > 0 {
+					fmt.Printf("\t%s depends on\n", obj.Name())
+					for dep := range d.deps {
+						fmt.Printf("\t\t%s\n", dep.Name())
+					}
+				} else {
+					fmt.Printf("\t%s has no dependencies\n", obj.Name())
 				}
-			} else {
-				fmt.Printf("\t%s has no dependencies\n", obj.Name())
 			}
 		}
 		fmt.Println()
 
-		fmt.Println("Transposed object dependency graph:")
+		fmt.Println("Transposed object dependency graph (functions eliminated):")
 		for _, n := range pq {
-			fmt.Printf("\t%s depends on %d nodes\n", n.obj.Name(), n.in)
-			for _, out := range n.out {
-				fmt.Printf("\t\t%s is dependent\n", out.obj.Name())
+			fmt.Printf("\t%s depends on %d nodes\n", n.obj.Name(), n.ndeps)
+			for p := range n.pred {
+				fmt.Printf("\t\t%s is dependent\n", p.obj.Name())
 			}
 		}
 		fmt.Println()
@@ -54,34 +57,40 @@ func (check *Checker) initOrder() {
 	// In a valid Go program, those nodes always have zero dependencies (after
 	// removing all incoming dependencies), otherwise there are initialization
 	// cycles.
-	mark := 0
 	emitted := make(map[*declInfo]bool)
 	for len(pq) > 0 {
 		// get the next node
-		n := heap.Pop(&pq).(*objNode)
+		n := heap.Pop(&pq).(*graphNode)
 
 		if debug {
 			fmt.Printf("\t%s (src pos %d) depends on %d nodes now\n",
-				n.obj.Name(), n.obj.order(), n.in)
+				n.obj.Name(), n.obj.order(), n.ndeps)
 		}
 
 		// if n still depends on other nodes, we have a cycle
-		if n.in > 0 {
-			mark++ // mark nodes using a different value each time
-			cycle := findPath(n, n, mark)
-			if i := valIndex(cycle); i >= 0 {
-				check.reportCycle(cycle, i)
+		if n.ndeps > 0 {
+			cycle := findPath(check.objMap, n.obj, n.obj, make(map[Object]bool))
+			// If n.obj is not part of the cycle (e.g., n.obj->b->c->d->c),
+			// cycle will be nil. Don't report anything in that case since
+			// the cycle is reported when the algorithm gets to an object
+			// in the cycle.
+			// Furthermore, once an object in the cycle is encountered,
+			// the cycle will be broken (dependency count will be reduced
+			// below), and so the remaining nodes in the cycle don't trigger
+			// another error (unless they are part of multiple cycles).
+			if cycle != nil {
+				check.reportCycle(cycle)
 			}
-			// ok to continue, but the variable initialization order
+			// Ok to continue, but the variable initialization order
 			// will be incorrect at this point since it assumes no
-			// cycle errors
+			// cycle errors.
 		}
 
 		// reduce dependency count of all dependent nodes
 		// and update priority queue
-		for _, out := range n.out {
-			out.in--
-			heap.Fix(&pq, out.index)
+		for p := range n.pred {
+			p.ndeps--
+			heap.Fix(&pq, p.index)
 		}
 
 		// record the init order for variables with initializers only
@@ -118,102 +127,147 @@ func (check *Checker) initOrder() {
 	}
 }
 
-// findPath returns the (reversed) list of nodes z, ... c, b, a,
-// such that there is a path (list of edges) from a to z.
+// findPath returns the (reversed) list of objects []Object{to, ... from}
+// such that there is a path of object dependencies from 'from' to 'to'.
 // If there is no such path, the result is nil.
-// Nodes marked with the value mark are considered "visited";
-// unvisited nodes are marked during the graph search.
-func findPath(a, z *objNode, mark int) []*objNode {
-	if a.mark == mark {
+func findPath(objMap map[Object]*declInfo, from, to Object, visited map[Object]bool) []Object {
+	if visited[from] {
 		return nil // node already seen
 	}
-	a.mark = mark
+	visited[from] = true
 
-	for _, n := range a.out {
-		if n == z {
-			return []*objNode{z}
+	for d := range objMap[from].deps {
+		if d == to {
+			return []Object{d}
 		}
-		if P := findPath(n, z, mark); P != nil {
-			return append(P, n)
+		if P := findPath(objMap, d, to, visited); P != nil {
+			return append(P, d)
 		}
 	}
 
 	return nil
 }
 
-// valIndex returns the index of the first constant or variable in a,
-// if any; or a value < 0.
-func valIndex(a []*objNode) int {
-	for i, n := range a {
-		switch n.obj.(type) {
-		case *Const, *Var:
-			return i
-		}
-	}
-	return -1
-}
-
-// reportCycle reports an error for the cycle starting at i.
-func (check *Checker) reportCycle(cycle []*objNode, i int) {
-	obj := cycle[i].obj
+// reportCycle reports an error for the given cycle.
+func (check *Checker) reportCycle(cycle []Object) {
+	obj := cycle[0]
 	check.errorf(obj.Pos(), "initialization cycle for %s", obj.Name())
-	// print cycle
-	for _ = range cycle {
+	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+	for i := len(cycle) - 1; i >= 0; i-- {
 		check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
-		i++
-		if i >= len(cycle) {
-			i = 0
-		}
-		obj = cycle[i].obj
+		obj = cycle[i]
 	}
+	// print cycle[0] again to close the cycle
 	check.errorf(obj.Pos(), "\t%s", obj.Name())
 }
 
-// An objNode represents a node in the object dependency graph.
-// Each node b in a.out represents an edge a->b indicating that
-// b depends on a.
-// Nodes may be marked for cycle detection. A node n is marked
-// if n.mark corresponds to the current mark value.
-type objNode struct {
-	obj   Object     // object represented by this node
-	in    int        // number of nodes this node depends on
-	out   []*objNode // list of nodes that depend on this node
-	index int        // node index in list of nodes
-	mark  int        // for cycle detection
+// ----------------------------------------------------------------------------
+// Object dependency graph
+
+// A dependency is an object that may be a dependency in an initialization
+// expression. Only constants, variables, and functions can be dependencies.
+// Constants are here because constant expression cycles are reported during
+// initialization order computation.
+type dependency interface {
+	Object
+	isDependency()
 }
 
-// dependencyGraph computes the transposed object dependency graph
-// from the given objMap. The transposed graph is returned as a list
-// of nodes; an edge d->n indicates that node n depends on node d.
-func dependencyGraph(objMap map[Object]*declInfo) []*objNode {
-	// M maps each object to its corresponding node
-	M := make(map[Object]*objNode, len(objMap))
+// A graphNode represents a node in the object dependency graph.
+// Each node p in n.pred represents an edge p->n, and each node
+// s in n.succ represents an edge n->s; with a->b indicating that
+// a depends on b.
+type graphNode struct {
+	obj        dependency // object represented by this node
+	pred, succ nodeSet    // consumers and dependencies of this node (lazily initialized)
+	index      int        // node index in graph slice/priority queue
+	ndeps      int        // number of outstanding dependencies before this object can be initialized
+}
+
+type nodeSet map[*graphNode]bool
+
+func (s *nodeSet) add(p *graphNode) {
+	if *s == nil {
+		*s = make(nodeSet)
+	}
+	(*s)[p] = true
+}
+
+// dependencyGraph computes the object dependency graph from the given objMap,
+// with any function nodes removed. The resulting graph contains only constants
+// and variables.
+func dependencyGraph(objMap map[Object]*declInfo) []*graphNode {
+	// M is the dependency (Object) -> graphNode mapping
+	M := make(map[dependency]*graphNode)
 	for obj := range objMap {
-		M[obj] = &objNode{obj: obj}
+		// only consider nodes that may be an initialization dependency
+		if obj, _ := obj.(dependency); obj != nil {
+			M[obj] = &graphNode{obj: obj}
+		}
 	}
 
-	// G is the graph of nodes n
-	G := make([]*objNode, len(M))
-	i := 0
+	// compute edges for graph M
+	// (We need to include all nodes, even isolated ones, because they still need
+	// to be scheduled for initialization in correct order relative to other nodes.)
 	for obj, n := range M {
-		deps := objMap[obj].deps
-		n.in = len(deps)
-		for d := range deps {
-			d := M[d]                // node n depends on node d
-			d.out = append(d.out, n) // add edge d->n
+		// for each dependency obj -> d (= deps[i]), create graph edges n->s and s->n
+		for d := range objMap[obj].deps {
+			// only consider nodes that may be an initialization dependency
+			if d, _ := d.(dependency); d != nil {
+				d := M[d]
+				n.succ.add(d)
+				d.pred.add(n)
+			}
 		}
+	}
 
-		G[i] = n
+	// remove function nodes and collect remaining graph nodes in G
+	// (Mutually recursive functions may introduce cycles among themselves
+	// which are permitted. Yet such cycles may incorrectly inflate the dependency
+	// count for variables which in turn may not get scheduled for initialization
+	// in correct order.)
+	var G []*graphNode
+	for obj, n := range M {
+		if _, ok := obj.(*Func); ok {
+			// connect each predecessor p of n with each successor s
+			// and drop the function node (don't collect it in G)
+			for p := range n.pred {
+				// ignore self-cycles
+				if p != n {
+					// Each successor s of n becomes a successor of p, and
+					// each predecessor p of n becomes a predecessor of s.
+					for s := range n.succ {
+						// ignore self-cycles
+						if s != n {
+							p.succ.add(s)
+							s.pred.add(p)
+							delete(s.pred, n) // remove edge to n
+						}
+					}
+					delete(p.succ, n) // remove edge to n
+				}
+			}
+		} else {
+			// collect non-function nodes
+			G = append(G, n)
+		}
+	}
+
+	// fill in index and ndeps fields
+	for i, n := range G {
 		n.index = i
-		i++
+		n.ndeps = len(n.succ)
 	}
 
 	return G
 }
 
+// ----------------------------------------------------------------------------
+// Priority queue
+
 // nodeQueue implements the container/heap interface;
 // a nodeQueue may be used as a priority queue.
-type nodeQueue []*objNode
+type nodeQueue []*graphNode
 
 func (a nodeQueue) Len() int { return len(a) }
 
@@ -227,7 +281,7 @@ func (a nodeQueue) Less(i, j int) bool {
 	x, y := a[i], a[j]
 	// nodes are prioritized by number of incoming dependencies (1st key)
 	// and source order (2nd key)
-	return x.in < y.in || x.in == y.in && x.obj.order() < y.obj.order()
+	return x.ndeps < y.ndeps || x.ndeps == y.ndeps && x.obj.order() < y.obj.order()
 }
 
 func (a *nodeQueue) Push(x interface{}) {

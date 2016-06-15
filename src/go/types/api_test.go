@@ -573,26 +573,25 @@ func TestInitOrderInfo(t *testing.T) {
 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
 		}},
 		// test case for issue 10709
-		// TODO(gri) enable once the issue is fixed
-		// {`package p13
+		{`package p13
 
-		// var (
-		//     v = t.m()
-		//     t = makeT(0)
-		// )
+		var (
+		    v = t.m()
+		    t = makeT(0)
+		)
 
-		// type T struct{}
+		type T struct{}
 
-		// func (T) m() int { return 0 }
+		func (T) m() int { return 0 }
 
-		// func makeT(n int) T {
-		//     if n > 0 {
-		//         return makeT(n-1)
-		//     }
-		//     return T{}
-		// }`, []string{
-		// 	"t = makeT(0)", "v = t.m()",
-		// }},
+		func makeT(n int) T {
+		    if n > 0 {
+		        return makeT(n-1)
+		    }
+		    return T{}
+		}`, []string{
+			"t = makeT(0)", "v = t.m()",
+		}},
 		// test case for issue 10709: same as test before, but variable decls swapped
 		{`package p14
 
@@ -612,6 +611,24 @@ func TestInitOrderInfo(t *testing.T) {
 		    return T{}
 		}`, []string{
 			"t = makeT(0)", "v = t.m()",
+		}},
+		// another candidate possibly causing problems with issue 10709
+		{`package p15
+
+		var y1 = f1()
+
+		func f1() int { return g1() }
+		func g1() int { f1(); return x1 }
+
+		var x1 = 0
+
+		var y2 = f2()
+
+		func f2() int { return g2() }
+		func g2() int { return x2 }
+
+		var x2 = 0`, []string{
+			"x1 = 0", "y1 = f1()", "x2 = 0", "y2 = f2()",
 		}},
 	}
 
