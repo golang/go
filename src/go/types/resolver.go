@@ -22,9 +22,14 @@ type declInfo struct {
 	init  ast.Expr      // init expression, or nil
 	fdecl *ast.FuncDecl // func declaration, or nil
 
-	deps map[Object]bool // type and init dependencies; lazily allocated
-	mark int             // for dependency analysis
+	// The deps field tracks initialization expression dependencies.
+	// As a special (overloaded) case, it also tracks dependencies of
+	// interface types on embedded interfaces (see ordering.go).
+	deps objSet // lazily initialized
 }
+
+// An objSet is simply a set of objects.
+type objSet map[Object]bool
 
 // hasInitializer reports whether the declared object has an initialization
 // expression or function body.
@@ -36,7 +41,7 @@ func (d *declInfo) hasInitializer() bool {
 func (d *declInfo) addDep(obj Object) {
 	m := d.deps
 	if m == nil {
-		m = make(map[Object]bool)
+		m = make(objSet)
 		d.deps = m
 	}
 	m[obj] = true
