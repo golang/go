@@ -4231,17 +4231,18 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
 	return s.newValue1(op, Types[TINT], v)
 }
 
-// SSARegNum returns the register (in cmd/internal/obj numbering) to
-// which v has been allocated. Panics if v is not assigned to a
-// register.
-// TODO: Make this panic again once it stops happening routinely.
-func SSARegNum(v *ssa.Value) int16 {
+// SSAReg returns the register to which v has been allocated.
+func SSAReg(v *ssa.Value) *ssa.Register {
 	reg := v.Block.Func.RegAlloc[v.ID]
 	if reg == nil {
-		v.Unimplementedf("nil regnum for value: %s\n%s\n", v.LongString(), v.Block.Func)
-		return 0
+		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return Thearch.SSARegToReg[reg.(*ssa.Register).Num]
+	return reg.(*ssa.Register)
+}
+
+// SSARegNum returns the register number (in cmd/internal/obj numbering) to which v has been allocated.
+func SSARegNum(v *ssa.Value) int16 {
+	return Thearch.SSARegToReg[SSAReg(v).Num]
 }
 
 // AutoVar returns a *Node and int64 representing the auto variable and offset within it
