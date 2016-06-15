@@ -238,6 +238,7 @@ const (
 	PT_GNU_STACK         = 0x6474e551
 	PT_GNU_RELRO         = 0x6474e552
 	PT_PAX_FLAGS         = 0x65041580
+	PT_SUNWSTACK         = 0x6ffffffb
 	PF_X                 = 0x1
 	PF_W                 = 0x2
 	PF_R                 = 0x4
@@ -2550,6 +2551,10 @@ func Asmbelf(ctxt *Link, symo int64) {
 		ph.type_ = PT_PAX_FLAGS
 		ph.flags = 0x2a00 // mprotect, randexec, emutramp disabled
 		ph.align = uint64(SysArch.RegSize)
+	} else if Headtype == obj.Hsolaris {
+		ph := newElfPhdr()
+		ph.type_ = PT_SUNWSTACK
+		ph.flags = PF_W + PF_R
 	}
 
 elfobj:
