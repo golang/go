@@ -30,19 +30,17 @@ func GoNop() {}
 func CgoCCodeSIGPROF() {
 	c := make(chan bool)
 	go func() {
-		for {
-			<-c
-			start := time.Now()
-			for i := 0; i < 1e7; i++ {
-				if i%1000 == 0 {
-					if time.Since(start) > time.Second {
-						break
-					}
+		<-c
+		start := time.Now()
+		for i := 0; i < 1e7; i++ {
+			if i%1000 == 0 {
+				if time.Since(start) > time.Second {
+					break
 				}
-				C.GoNop()
 			}
-			c <- true
+			C.GoNop()
 		}
+		c <- true
 	}()
 
 	var buf bytes.Buffer
