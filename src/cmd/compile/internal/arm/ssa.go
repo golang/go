@@ -369,19 +369,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.Reg = gc.SSARegNum(v.Args[0])
 	case ssa.OpARMMOVWaddr:
-		if v.Aux == nil {
-			// MOVW $off(SP), R
-			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SP" {
-				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
-			}
-			p := gc.Prog(arm.AMOVW)
-			p.From.Type = obj.TYPE_ADDR
-			p.From.Reg = arm.REGSP
-			p.From.Offset = v.AuxInt
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = gc.SSARegNum(v)
-			break
-		}
+		p := gc.Prog(arm.AMOVW)
+		p.From.Type = obj.TYPE_ADDR
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
+		var wantreg string
 		// MOVW $sym+off(base), R
 		// the assembler expands it as the following:
 		// - base is SP: add constant offset to SP (R13)
@@ -391,19 +384,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		default:
 			v.Fatalf("aux is of unknown type %T", v.Aux)
 		case *ssa.ExternSymbol:
-			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SB" {
-				v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
-			}
+			wantreg = "SB"
+			gc.AddAux(&p.From, v)
 		case *ssa.ArgSymbol, *ssa.AutoSymbol:
-			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SP" {
-				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
-			}
+			wantreg = "SP"
+			gc.AddAux(&p.From, v)
+		case nil:
+			// No sym, just MOVW $off(SP), R
+			wantreg = "SP"
+			p.From.Reg = arm.REGSP
+			p.From.Offset = v.AuxInt
 		}
-		p := gc.Prog(arm.AMOVW)
-		p.From.Type = obj.TYPE_ADDR
-		gc.AddAux(&p.From, v)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		if reg := gc.SSAReg(v.Args[0]); reg.Name() != wantreg {
+			v.Fatalf("bad reg %s for symbol type %T, want %s", reg.Name(), v.Aux, wantreg)
+		}
+
 	case ssa.OpARMMOVBload,
 		ssa.OpARMMOVBUload,
 		ssa.OpARMMOVHload,
