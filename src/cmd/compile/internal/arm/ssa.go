@@ -381,8 +381,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMMOVWaddr:
 		if v.Aux == nil {
 			// MOVW $off(SP), R
-			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
-			if reg.Name() != "SP" {
+			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SP" {
 				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
 			}
 			p := gc.Prog(arm.AMOVW)
@@ -402,14 +401,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		default:
 			v.Fatalf("aux is of unknown type %T", v.Aux)
 		case *ssa.ExternSymbol:
-			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
-			if reg.Name() != "SB" {
+			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SB" {
 				v.Fatalf("extern symbol with non-SB base register %s", reg.Name())
 			}
-		case *ssa.ArgSymbol,
-			*ssa.AutoSymbol:
-			reg := v.Args[0].Block.Func.RegAlloc[v.Args[0].ID].(*ssa.Register)
-			if reg.Name() != "SP" {
+		case *ssa.ArgSymbol, *ssa.AutoSymbol:
+			if reg := gc.SSAReg(v.Args[0]); reg.Name() != "SP" {
 				v.Fatalf("arg/auto symbol with non-SP base register %s", reg.Name())
 			}
 		}
