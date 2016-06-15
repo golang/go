@@ -56,13 +56,9 @@ func (check *Checker) resolveOrder() []Object {
 	// sort interface types topologically by dependencies,
 	// and in source order if there are no dependencies
 	sort.Sort(inSourceOrder(ifaces))
-	if debug {
-		for _, obj := range ifaces {
-			assert(check.objMap[obj].mark == 0)
-		}
-	}
+	visited := make(objSet)
 	for _, obj := range ifaces {
-		check.appendInPostOrder(&order, obj)
+		check.appendInPostOrder(&order, obj, visited)
 	}
 
 	// sort everything else in source order
@@ -89,25 +85,25 @@ func (check *Checker) interfaceFor(obj Object) *ast.InterfaceType {
 	return ityp
 }
 
-func (check *Checker) appendInPostOrder(order *[]Object, obj Object) {
-	d := check.objMap[obj]
-	if d.mark != 0 {
+func (check *Checker) appendInPostOrder(order *[]Object, obj Object, visited objSet) {
+	if visited[obj] {
 		// We've already seen this object; either because it's
 		// already added to order, or because we have a cycle.
 		// In both cases we stop. Cycle errors are reported
 		// when type-checking types.
 		return
 	}
-	d.mark = 1
+	visited[obj] = true
 
+	d := check.objMap[obj]
 	for _, obj := range orderedSetObjects(d.deps) {
-		check.appendInPostOrder(order, obj)
+		check.appendInPostOrder(order, obj, visited)
 	}
 
 	*order = append(*order, obj)
 }
 
-func orderedSetObjects(set map[Object]bool) []Object {
+func orderedSetObjects(set objSet) []Object {
 	list := make([]Object, len(set))
 	i := 0
 	for obj := range set {

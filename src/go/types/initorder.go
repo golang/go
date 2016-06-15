@@ -69,7 +69,7 @@ func (check *Checker) initOrder() {
 
 		// if n still depends on other nodes, we have a cycle
 		if n.ndeps > 0 {
-			cycle := findPath(check.objMap, n.obj, n.obj, make(map[Object]bool))
+			cycle := findPath(check.objMap, n.obj, n.obj, make(objSet))
 			// If n.obj is not part of the cycle (e.g., n.obj->b->c->d->c),
 			// cycle will be nil. Don't report anything in that case since
 			// the cycle is reported when the algorithm gets to an object
@@ -130,7 +130,7 @@ func (check *Checker) initOrder() {
 // findPath returns the (reversed) list of objects []Object{to, ... from}
 // such that there is a path of object dependencies from 'from' to 'to'.
 // If there is no such path, the result is nil.
-func findPath(objMap map[Object]*declInfo, from, to Object, visited map[Object]bool) []Object {
+func findPath(objMap map[Object]*declInfo, from, to Object, visited objSet) []Object {
 	if visited[from] {
 		return nil // node already seen
 	}
