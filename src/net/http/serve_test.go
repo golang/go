@@ -9,6 +9,7 @@ package http_test
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -4197,6 +4198,24 @@ func TestHandlerSetTransferEncodingChunked(t *testing.T) {
 	const hdr = "Transfer-Encoding: chunked"
 	if n := strings.Count(resp, hdr); n != 1 {
 		t.Errorf("want 1 occurrence of %q in response, got %v\nresponse: %v", hdr, n, resp)
+	}
+}
+
+// https://golang.org/issue/16063
+func TestHandlerSetTransferEncodingGzip(t *testing.T) {
+	defer afterTest(t)
+	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		gz.Write([]byte("hello"))
+		gz.Close()
+	}))
+	resp := ht.rawResponse("GET / HTTP/1.1\nHost: foo")
+	for _, v := range []string{"gzip", "chunked"} {
+		hdr := "Transfer-Encoding: " + v
+		if n := strings.Count(resp, hdr); n != 1 {
+			t.Errorf("want 1 occurrence of %q in response, got %v\nresponse: %v", hdr, n, resp)
+		}
 	}
 }
 
