@@ -4245,6 +4245,24 @@ func SSARegNum(v *ssa.Value) int16 {
 	return Thearch.SSARegToReg[SSAReg(v).Num]
 }
 
+// CheckLoweredPhi checks that regalloc and stackalloc correctly handled phi values.
+// Called during ssaGenValue.
+func CheckLoweredPhi(v *ssa.Value) {
+	if v.Op != ssa.OpPhi {
+		v.Fatalf("CheckLoweredPhi called with non-phi value: %v", v.LongString())
+	}
+	if v.Type.IsMemory() {
+		return
+	}
+	f := v.Block.Func
+	loc := f.RegAlloc[v.ID]
+	for _, a := range v.Args {
+		if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
+			v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
+		}
+	}
+}
+
 // AutoVar returns a *Node and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *ssa.Value) (*Node, int64) {

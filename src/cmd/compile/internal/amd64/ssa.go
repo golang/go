@@ -714,17 +714,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Name = obj.NAME_AUTO
 		}
 	case ssa.OpPhi:
-		// just check to make sure regalloc and stackalloc did it right
-		if v.Type.IsMemory() {
-			return
-		}
-		f := v.Block.Func
-		loc := f.RegAlloc[v.ID]
-		for _, a := range v.Args {
-			if aloc := f.RegAlloc[a.ID]; aloc != loc { // TODO: .Equal() instead?
-				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
-			}
-		}
+		gc.CheckLoweredPhi(v)
 	case ssa.OpInitMem:
 		// memory arg needs no code
 	case ssa.OpArg:
