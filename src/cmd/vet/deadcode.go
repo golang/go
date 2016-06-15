@@ -29,6 +29,8 @@ type deadState struct {
 }
 
 // checkUnreachable checks a function body for dead code.
+//
+// TODO(adonovan): use the new cfg package, which is more precise.
 func checkUnreachable(f *File, node ast.Node) {
 	var body *ast.BlockStmt
 	switch n := node.(type) {
