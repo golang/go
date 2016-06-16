@@ -155,7 +155,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	if (Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
@@ -362,7 +362,7 @@ func (ctxt *Link) symtab() {
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *Symbol
 	var symtyperel *Symbol
-	if UseRelro() && (Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
+	if UseRelro() && (Buildmode == BuildmodeCArchive || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
 		s = Linklookup(ctxt, "type.*", 0)
 
 		s.Type = obj.STYPE
