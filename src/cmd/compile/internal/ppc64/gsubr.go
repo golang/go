@@ -441,9 +441,8 @@ func gmove(f *gc.Node, t *gc.Node) {
 		gc.Regfree(&r3)
 		return
 
-		//warn("gmove: convert int to float not implemented: %N -> %N\n", f, t);
 	/*
-	 * signed integer to float
+	 * integer to float
 	 */
 	case gc.TINT32<<16 | gc.TFLOAT32,
 		gc.TINT32<<16 | gc.TFLOAT64,
@@ -452,10 +451,42 @@ func gmove(f *gc.Node, t *gc.Node) {
 		gc.TINT16<<16 | gc.TFLOAT32,
 		gc.TINT16<<16 | gc.TFLOAT64,
 		gc.TINT8<<16 | gc.TFLOAT32,
-		gc.TINT8<<16 | gc.TFLOAT64:
+		gc.TINT8<<16 | gc.TFLOAT64,
+		gc.TUINT16<<16 | gc.TFLOAT32,
+		gc.TUINT16<<16 | gc.TFLOAT64,
+		gc.TUINT8<<16 | gc.TFLOAT32,
+		gc.TUINT8<<16 | gc.TFLOAT64,
+		gc.TUINT32<<16 | gc.TFLOAT32,
+		gc.TUINT32<<16 | gc.TFLOAT64,
+		gc.TUINT64<<16 | gc.TFLOAT32,
+		gc.TUINT64<<16 | gc.TFLOAT64:
+		bignodes()
+
+		// The algorithm is:
+		//	if small enough, use native int64 -> float64 conversion,
+		//	otherwise halve (x -> (x>>1)|(x&1)), convert, and double.
+		// Note: could use FCFIDU instead if target supports it.
 		var r1 gc.Node
 		gc.Regalloc(&r1, gc.Types[gc.TINT64], nil)
 		gmove(f, &r1)
+		if ft == gc.TUINT64 {
+			gc.Nodreg(&r2, gc.Types[gc.TUINT64], ppc64.REGTMP)
+			gmove(&bigi, &r2)
+			gins(ppc64.ACMPU, &r1, &r2)
+			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)
+			var r3 gc.Node
+			gc.Regalloc(&r3, gc.Types[gc.TUINT64], nil)
+			p2 := gins(ppc64.AANDCC, nil, &r3) // andi.
+			p2.Reg = r1.Reg
+			p2.From.Type = obj.TYPE_CONST
+			p2.From.Offset = 1
+			p3 := gins(ppc64.ASRD, nil, &r1)
+			p3.From.Type = obj.TYPE_CONST
+			p3.From.Offset = 1
+			gins(ppc64.AOR, &r3, &r1)
+			gc.Regfree(&r3)
+			gc.Patch(p1, gc.Pc)
+		}
 		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
 		p1 := gins(ppc64.AMOVD, &r1, nil)
 		p1.To.Type = obj.TYPE_MEM
@@ -467,36 +498,12 @@ func gmove(f *gc.Node, t *gc.Node) {
 		p1.From.Offset = -8
 		gins(ppc64.AFCFID, &r2, &r2)
 		gc.Regfree(&r1)
-		gmove(&r2, t)
-		gc.Regfree(&r2)
-		return
-
-	/*
-	 * unsigned integer to float
-	 */
-	case gc.TUINT16<<16 | gc.TFLOAT32,
-		gc.TUINT16<<16 | gc.TFLOAT64,
-		gc.TUINT8<<16 | gc.TFLOAT32,
-		gc.TUINT8<<16 | gc.TFLOAT64,
-		gc.TUINT32<<16 | gc.TFLOAT32,
-		gc.TUINT32<<16 | gc.TFLOAT64,
-		gc.TUINT64<<16 | gc.TFLOAT32,
-		gc.TUINT64<<16 | gc.TFLOAT64:
-
-		var r1 gc.Node
-		gc.Regalloc(&r1, gc.Types[gc.TUINT64], nil)
-		gmove(f, &r1)
-		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
-		p1 := gins(ppc64.AMOVD, &r1, nil)
-		p1.To.Type = obj.TYPE_MEM
-		p1.To.Reg = ppc64.REGSP
-		p1.To.Offset = -8
-		p1 = gins(ppc64.AFMOVD, nil, &r2)
-		p1.From.Type = obj.TYPE_MEM
-		p1.From.Reg = ppc64.REGSP
-		p1.From.Offset = -8
-		gins(ppc64.AFCFIDU, &r2, &r2)
-		gc.Regfree(&r1)
+		if ft == gc.TUINT64 {
+			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1) // use CR0 here again
+			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
+			gins(ppc64.AFMUL, &r1, &r2)
+			gc.Patch(p1, gc.Pc)
+		}
 		gmove(&r2, t)
 		gc.Regfree(&r2)
 		return
