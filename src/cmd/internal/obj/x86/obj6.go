@@ -686,17 +686,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(autoffset)
 		p.Spadj = autoffset
-	} else {
-		// zero-byte stack adjustment.
-		// Insert a fake non-zero adjustment so that stkcheck can
-		// recognize the end of the stack-splitting prolog.
-		p = obj.Appendp(ctxt, p)
-
-		p.As = obj.ANOP
-		p.Spadj = int32(-ctxt.Arch.PtrSize)
-		p = obj.Appendp(ctxt, p)
-		p.As = obj.ANOP
-		p.Spadj = int32(ctxt.Arch.PtrSize)
 	}
 
 	deltasp := autoffset
