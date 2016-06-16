@@ -163,7 +163,7 @@ func DynlinkingGo() bool {
 // relro.
 func UseRelro() bool {
 	switch Buildmode {
-	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE:
 		return Iself
 	default:
 		return *FlagLinkshared
@@ -1642,7 +1642,7 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
 		// onlyctxt.Diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
 		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() &&
-			Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
+			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
 			ctxt.Diag("call to external function %s", s.Name)
 		}
 		return -1

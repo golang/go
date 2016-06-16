@@ -6,6 +6,7 @@ package carchive_test
 
 import (
 	"bufio"
+	"debug/elf"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -84,8 +85,13 @@ func init() {
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	}
 	libgodir = GOOS + "_" + GOARCH
-	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") {
-		libgodir = GOOS + "_" + GOARCH + "_shared"
+	switch GOOS {
+	case "darwin":
+		if GOARCH == "arm" || GOARCH == "arm64" {
+			libgodir += "_shared"
+		}
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+		libgodir += "_shared"
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
@@ -486,4 +492,72 @@ func TestExtar(t *testing.T) {
 			t.Errorf("error checking testar: %v", err)
 		}
 	}
+}
+
+func TestPIE(t *testing.T) {
+	switch GOOS {
+	case "windows", "darwin", "plan9":
+		t.Skipf("skipping PIE test on %s", GOOS)
+	}
+
+	defer func() {
+		os.Remove("testp" + exeSuffix)
+		os.RemoveAll("pkg")
+	}()
+
+	cmd := exec.Command("go", "install", "-buildmode=c-archive", "libgo")
+	cmd.Env = gopathEnv
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	ccArgs := append(cc, "-fPIE", "-pie", "-o", "testp"+exeSuffix, "main.c", "main_unix.c", filepath.Join("pkg", libgodir, "libgo.a"))
+	if out, err := exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	binArgs := append(bin, "arg1", "arg2")
+	if out, err := exec.Command(binArgs[0], binArgs[1:]...).CombinedOutput(); err != nil {
+		t.Logf("%s", out)
+		t.Fatal(err)
+	}
+
+	f, err := elf.Open("testp" + exeSuffix)
+	if err != nil {
+		t.Fatal("elf.Open failed: ", err)
+	}
+	defer f.Close()
+	if hasDynTag(t, f, elf.DT_TEXTREL) {
+		t.Errorf("%s has DT_TEXTREL flag", "testp"+exeSuffix)
+	}
+}
+
+func hasDynTag(t *testing.T, f *elf.File, tag elf.DynTag) bool {
+	ds := f.SectionByType(elf.SHT_DYNAMIC)
+	if ds == nil {
+		t.Error("no SHT_DYNAMIC section")
+		return false
+	}
+	d, err := ds.Data()
+	if err != nil {
+		t.Errorf("can't read SHT_DYNAMIC contents: %v", err)
+		return false
+	}
+	for len(d) > 0 {
+		var t elf.DynTag
+		switch f.Class {
+		case elf.ELFCLASS32:
+			t = elf.DynTag(f.ByteOrder.Uint32(d[:4]))
+			d = d[8:]
+		case elf.ELFCLASS64:
+			t = elf.DynTag(f.ByteOrder.Uint64(d[:8]))
+			d = d[16:]
+		}
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }

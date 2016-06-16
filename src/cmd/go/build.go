@@ -338,6 +338,13 @@ func buildModeInit() {
 		case "darwin/arm", "darwin/arm64":
 			codegenArg = "-shared"
 		default:
+			switch goos {
+			case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+				// Use -shared so that the result is
+				// suitable for inclusion in a PIE or
+				// shared library.
+				codegenArg = "-shared"
+			}
 		}
 		exeSuffix = ".a"
 		ldBuildmode = "c-archive"

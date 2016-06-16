@@ -51,8 +51,19 @@ func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
 }
 
 func gentext(ctxt *ld.Link) {
-	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE && ld.Buildmode != ld.BuildmodeCShared {
-		return
+	if ld.DynlinkingGo() {
+		// We need get_pc_thunk.
+	} else {
+		switch ld.Buildmode {
+		case ld.BuildmodeCArchive:
+			if !ld.Iself {
+				return
+			}
+		case ld.BuildmodePIE, ld.BuildmodeCShared:
+			// We need get_pc_thunk.
+		default:
+			return
+		}
 	}
 
 	// Generate little thunks that load the PC of the next instruction into a register.
