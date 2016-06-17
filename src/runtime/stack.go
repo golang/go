@@ -127,7 +127,6 @@ const (
 
 const (
 	uintptrMask = 1<<(8*sys.PtrSize) - 1
-	poisonStack = uintptrMask & 0x6868686868686868
 
 	// Goroutine preemption request.
 	// Stored into g->stackguard0 to cause split stack check failure.
@@ -594,7 +593,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
 		retry:
 			p := *pp
-			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 || p == poisonStack {
+			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 {
 				// Looks like a junk value in a pointer slot.
 				// Live analysis wrong?
 				getg().m.traceback = 2
