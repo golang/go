@@ -5,6 +5,7 @@
 package arm
 
 import (
+	"fmt"
 	"math"
 
 	"cmd/compile/internal/gc"
@@ -106,6 +107,57 @@ func storeByType(t ssa.Type) obj.As {
 		}
 	}
 	panic("bad store type")
+}
+
+// shift type is used as Offset in obj.TYPE_SHIFT operands to encode shifted register operands
+type shift int64
+
+// copied from ../../../internal/obj/util.go:/TYPE_SHIFT
+func (v shift) String() string {
+	op := "<<>>->@>"[((v>>5)&3)<<1:]
+	if v&(1<<4) != 0 {
+		// register shift
+		return fmt.Sprintf("R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15)
+	} else {
+		// constant shift
+		return fmt.Sprintf("R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31)
+	}
+}
+
+// makeshift encodes a register shifted by a constant
+func makeshift(reg int16, typ int64, s int64) shift {
+	return shift(int64(reg&0xf) | typ | (s&31)<<7)
+}
+
+// genshift generates a Prog for r = r0 op (r1 shifted by s)
+func genshift(as obj.As, r0, r1, r int16, typ int64, s int64) *obj.Prog {
+	p := gc.Prog(as)
+	p.From.Type = obj.TYPE_SHIFT
+	p.From.Offset = int64(makeshift(r1, typ, s))
+	p.Reg = r0
+	if r != 0 {
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	}
+	return p
+}
+
+// makeregshift encodes a register shifted by a register
+func makeregshift(r1 int16, typ int64, r2 int16) shift {
+	return shift(int64(r1&0xf) | typ | int64(r2&0xf)<<8 | 1<<4)
+}
+
+// genregshift generates a Prog for r = r0 op (r1 shifted by r2)
+func genregshift(as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
+	p := gc.Prog(as)
+	p.From.Type = obj.TYPE_SHIFT
+	p.From.Offset = int64(makeregshift(r1, typ, r2))
+	p.Reg = r0
+	if r != 0 {
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	}
+	return p
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
@@ -237,45 +289,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpARMSLL,
-		ssa.OpARMSRL:
-		// ARM shift instructions uses only the low-order byte of the shift amount
-		// generate conditional instructions to deal with large shifts
-		// CMP	$32, Rarg1
-		// SLL	Rarg1, Rarg0, Rdst
-		// MOVW.HS	$0, Rdst
+		ssa.OpARMSRL,
+		ssa.OpARMSRA:
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
-		p := gc.Prog(arm.ACMP)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 32
-		p.Reg = r2
-		p = gc.Prog(v.Op.Asm())
+		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r2
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-		p = gc.Prog(arm.AMOVW)
-		p.Scond = arm.C_SCOND_HS
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-	case ssa.OpARMSRA:
+	case ssa.OpARMSRAcond:
 		// ARM shift instructions uses only the low-order byte of the shift amount
 		// generate conditional instructions to deal with large shifts
-		// CMP	$32, Rarg1
+		// flag is already set
 		// SRA.HS	$31, Rarg0, Rdst // shift 31 bits to get the sign bit
 		// SRA.LO	Rarg1, Rarg0, Rdst
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
-		p := gc.Prog(arm.ACMP)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 32
-		p.Reg = r2
-		p = gc.Prog(arm.ASRA)
+		p := gc.Prog(arm.ASRA)
 		p.Scond = arm.C_SCOND_HS
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 31
@@ -319,11 +353,115 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMSRRconst:
-		p := gc.Prog(arm.AMOVW)
-		p.From.Type = obj.TYPE_SHIFT
-		p.From.Offset = int64(gc.SSARegNum(v.Args[0])&0xf) | arm.SHIFT_RR | (v.AuxInt&31)<<7
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		genshift(arm.AMOVW, 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_RR, v.AuxInt)
+	case ssa.OpARMADDshiftLL,
+		ssa.OpARMADCshiftLL,
+		ssa.OpARMSUBshiftLL,
+		ssa.OpARMSBCshiftLL,
+		ssa.OpARMRSBshiftLL,
+		ssa.OpARMRSCshiftLL,
+		ssa.OpARMANDshiftLL,
+		ssa.OpARMORshiftLL,
+		ssa.OpARMXORshiftLL,
+		ssa.OpARMBICshiftLL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
+	case ssa.OpARMADDSshiftLL,
+		ssa.OpARMSUBSshiftLL,
+		ssa.OpARMRSBSshiftLL:
+		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
+		p.Scond = arm.C_SBIT
+	case ssa.OpARMADDshiftRL,
+		ssa.OpARMADCshiftRL,
+		ssa.OpARMSUBshiftRL,
+		ssa.OpARMSBCshiftRL,
+		ssa.OpARMRSBshiftRL,
+		ssa.OpARMRSCshiftRL,
+		ssa.OpARMANDshiftRL,
+		ssa.OpARMORshiftRL,
+		ssa.OpARMXORshiftRL,
+		ssa.OpARMBICshiftRL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LR, v.AuxInt)
+	case ssa.OpARMADDSshiftRL,
+		ssa.OpARMSUBSshiftRL,
+		ssa.OpARMRSBSshiftRL:
+		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LR, v.AuxInt)
+		p.Scond = arm.C_SBIT
+	case ssa.OpARMADDshiftRA,
+		ssa.OpARMADCshiftRA,
+		ssa.OpARMSUBshiftRA,
+		ssa.OpARMSBCshiftRA,
+		ssa.OpARMRSBshiftRA,
+		ssa.OpARMRSCshiftRA,
+		ssa.OpARMANDshiftRA,
+		ssa.OpARMORshiftRA,
+		ssa.OpARMXORshiftRA,
+		ssa.OpARMBICshiftRA:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_AR, v.AuxInt)
+	case ssa.OpARMADDSshiftRA,
+		ssa.OpARMSUBSshiftRA,
+		ssa.OpARMRSBSshiftRA:
+		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_AR, v.AuxInt)
+		p.Scond = arm.C_SBIT
+	case ssa.OpARMMVNshiftLL:
+		genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
+	case ssa.OpARMMVNshiftRL:
+		genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_LR, v.AuxInt)
+	case ssa.OpARMMVNshiftRA:
+		genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_AR, v.AuxInt)
+	case ssa.OpARMMVNshiftLLreg:
+		genregshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LL)
+	case ssa.OpARMMVNshiftRLreg:
+		genregshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LR)
+	case ssa.OpARMMVNshiftRAreg:
+		genregshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_AR)
+	case ssa.OpARMADDshiftLLreg,
+		ssa.OpARMADCshiftLLreg,
+		ssa.OpARMSUBshiftLLreg,
+		ssa.OpARMSBCshiftLLreg,
+		ssa.OpARMRSBshiftLLreg,
+		ssa.OpARMRSCshiftLLreg,
+		ssa.OpARMANDshiftLLreg,
+		ssa.OpARMORshiftLLreg,
+		ssa.OpARMXORshiftLLreg,
+		ssa.OpARMBICshiftLLreg:
+		genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_LL)
+	case ssa.OpARMADDSshiftLLreg,
+		ssa.OpARMSUBSshiftLLreg,
+		ssa.OpARMRSBSshiftLLreg:
+		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_LL)
+		p.Scond = arm.C_SBIT
+	case ssa.OpARMADDshiftRLreg,
+		ssa.OpARMADCshiftRLreg,
+		ssa.OpARMSUBshiftRLreg,
+		ssa.OpARMSBCshiftRLreg,
+		ssa.OpARMRSBshiftRLreg,
+		ssa.OpARMRSCshiftRLreg,
+		ssa.OpARMANDshiftRLreg,
+		ssa.OpARMORshiftRLreg,
+		ssa.OpARMXORshiftRLreg,
+		ssa.OpARMBICshiftRLreg:
+		genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_LR)
+	case ssa.OpARMADDSshiftRLreg,
+		ssa.OpARMSUBSshiftRLreg,
+		ssa.OpARMRSBSshiftRLreg:
+		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_LR)
+		p.Scond = arm.C_SBIT
+	case ssa.OpARMADDshiftRAreg,
+		ssa.OpARMADCshiftRAreg,
+		ssa.OpARMSUBshiftRAreg,
+		ssa.OpARMSBCshiftRAreg,
+		ssa.OpARMRSBshiftRAreg,
+		ssa.OpARMRSCshiftRAreg,
+		ssa.OpARMANDshiftRAreg,
+		ssa.OpARMORshiftRAreg,
+		ssa.OpARMXORshiftRAreg,
+		ssa.OpARMBICshiftRAreg:
+		genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_AR)
+	case ssa.OpARMADDSshiftRAreg,
+		ssa.OpARMSUBSshiftRAreg,
+		ssa.OpARMRSBSshiftRAreg:
+		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_AR)
+		p.Scond = arm.C_SBIT
 	case ssa.OpARMHMUL,
 		ssa.OpARMHMULU:
 		// 32-bit high multiplication
@@ -385,6 +523,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARMCMPshiftLL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm.SHIFT_LL, v.AuxInt)
+	case ssa.OpARMCMPshiftRL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm.SHIFT_LR, v.AuxInt)
+	case ssa.OpARMCMPshiftRA:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm.SHIFT_AR, v.AuxInt)
+	case ssa.OpARMCMPshiftLLreg:
+		genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), 0, arm.SHIFT_LL)
+	case ssa.OpARMCMPshiftRLreg:
+		genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), 0, arm.SHIFT_LR)
+	case ssa.OpARMCMPshiftRAreg:
+		genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), 0, arm.SHIFT_AR)
 	case ssa.OpARMMOVWaddr:
 		p := gc.Prog(arm.AMOVW)
 		p.From.Type = obj.TYPE_ADDR
@@ -440,11 +590,72 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
+	case ssa.OpARMMOVWloadidx:
+		// this is just shift 0 bits
+		fallthrough
+	case ssa.OpARMMOVWloadshiftLL:
+		p := genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARMMOVWloadshiftRL:
+		p := genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LR, v.AuxInt)
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARMMOVWloadshiftRA:
+		p := genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_AR, v.AuxInt)
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARMMOVWstoreidx:
+		// this is just shift 0 bits
+		fallthrough
+	case ssa.OpARMMOVWstoreshiftLL:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[2])
+		p.To.Type = obj.TYPE_SHIFT
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Offset = int64(makeshift(gc.SSARegNum(v.Args[1]), arm.SHIFT_LL, v.AuxInt))
+	case ssa.OpARMMOVWstoreshiftRL:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[2])
+		p.To.Type = obj.TYPE_SHIFT
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Offset = int64(makeshift(gc.SSARegNum(v.Args[1]), arm.SHIFT_LR, v.AuxInt))
+	case ssa.OpARMMOVWstoreshiftRA:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[2])
+		p.To.Type = obj.TYPE_SHIFT
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Offset = int64(makeshift(gc.SSARegNum(v.Args[1]), arm.SHIFT_AR, v.AuxInt))
 	case ssa.OpARMMOVBreg,
 		ssa.OpARMMOVBUreg,
 		ssa.OpARMMOVHreg,
-		ssa.OpARMMOVHUreg,
-		ssa.OpARMMVN,
+		ssa.OpARMMOVHUreg:
+		a := v.Args[0]
+		for a.Op == ssa.OpCopy || a.Op == ssa.OpARMMOVWreg {
+			a = a.Args[0]
+		}
+		if a.Op == ssa.OpLoadReg {
+			t := a.Type
+			switch {
+			case v.Op == ssa.OpARMMOVBreg && t.Size() == 1 && t.IsSigned(),
+				v.Op == ssa.OpARMMOVBUreg && t.Size() == 1 && !t.IsSigned(),
+				v.Op == ssa.OpARMMOVHreg && t.Size() == 2 && t.IsSigned(),
+				v.Op == ssa.OpARMMOVHUreg && t.Size() == 2 && !t.IsSigned():
+				// arg is a proper-typed load, already zero/sign-extended, don't extend again
+				if gc.SSARegNum(v) == gc.SSARegNum(v.Args[0]) {
+					return
+				}
+				p := gc.Prog(arm.AMOVW)
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = gc.SSARegNum(v.Args[0])
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = gc.SSARegNum(v)
+				return
+			default:
+			}
+		}
+		fallthrough
+	case ssa.OpARMMVN,
 		ssa.OpARMSQRTD,
 		ssa.OpARMMOVWF,
 		ssa.OpARMMOVWD,
@@ -465,6 +676,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Scond = arm.C_UBIT
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMCMOVWHSconst:
+		p := gc.Prog(arm.AMOVW)
+		p.Scond = arm.C_SCOND_HS
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARMCMOVWLSconst:
+		p := gc.Prog(arm.AMOVW)
+		p.Scond = arm.C_SCOND_LS
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARMCALLstatic:
@@ -657,24 +882,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p4 := gc.Prog(arm.ABLT)
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p)
-	case ssa.OpARMLoweredZeromask:
-		// int32(arg0>>1 - arg0) >> 31
-		// RSB	r0>>1, r0, r
-		// SRA	$31, r, r
-		r0 := gc.SSARegNum(v.Args[0])
-		r := gc.SSARegNum(v)
-		p := gc.Prog(arm.ARSB)
-		p.From.Type = obj.TYPE_SHIFT
-		p.From.Offset = int64(r0&0xf) | arm.SHIFT_LR | 1<<7 // unsigned r0>>1
-		p.Reg = r0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
-		p = gc.Prog(arm.ASRA)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 31
-		p.Reg = r
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
 	case ssa.OpVarDef:
 		gc.Gvardef(v.Aux.(*gc.Node))
 	case ssa.OpVarKill:

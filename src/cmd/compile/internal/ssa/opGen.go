@@ -596,6 +596,90 @@ const (
 	OpARMSRA
 	OpARMSRAconst
 	OpARMSRRconst
+	OpARMADDshiftLL
+	OpARMADDshiftRL
+	OpARMADDshiftRA
+	OpARMSUBshiftLL
+	OpARMSUBshiftRL
+	OpARMSUBshiftRA
+	OpARMRSBshiftLL
+	OpARMRSBshiftRL
+	OpARMRSBshiftRA
+	OpARMANDshiftLL
+	OpARMANDshiftRL
+	OpARMANDshiftRA
+	OpARMORshiftLL
+	OpARMORshiftRL
+	OpARMORshiftRA
+	OpARMXORshiftLL
+	OpARMXORshiftRL
+	OpARMXORshiftRA
+	OpARMBICshiftLL
+	OpARMBICshiftRL
+	OpARMBICshiftRA
+	OpARMMVNshiftLL
+	OpARMMVNshiftRL
+	OpARMMVNshiftRA
+	OpARMADCshiftLL
+	OpARMADCshiftRL
+	OpARMADCshiftRA
+	OpARMSBCshiftLL
+	OpARMSBCshiftRL
+	OpARMSBCshiftRA
+	OpARMRSCshiftLL
+	OpARMRSCshiftRL
+	OpARMRSCshiftRA
+	OpARMADDSshiftLL
+	OpARMADDSshiftRL
+	OpARMADDSshiftRA
+	OpARMSUBSshiftLL
+	OpARMSUBSshiftRL
+	OpARMSUBSshiftRA
+	OpARMRSBSshiftLL
+	OpARMRSBSshiftRL
+	OpARMRSBSshiftRA
+	OpARMADDshiftLLreg
+	OpARMADDshiftRLreg
+	OpARMADDshiftRAreg
+	OpARMSUBshiftLLreg
+	OpARMSUBshiftRLreg
+	OpARMSUBshiftRAreg
+	OpARMRSBshiftLLreg
+	OpARMRSBshiftRLreg
+	OpARMRSBshiftRAreg
+	OpARMANDshiftLLreg
+	OpARMANDshiftRLreg
+	OpARMANDshiftRAreg
+	OpARMORshiftLLreg
+	OpARMORshiftRLreg
+	OpARMORshiftRAreg
+	OpARMXORshiftLLreg
+	OpARMXORshiftRLreg
+	OpARMXORshiftRAreg
+	OpARMBICshiftLLreg
+	OpARMBICshiftRLreg
+	OpARMBICshiftRAreg
+	OpARMMVNshiftLLreg
+	OpARMMVNshiftRLreg
+	OpARMMVNshiftRAreg
+	OpARMADCshiftLLreg
+	OpARMADCshiftRLreg
+	OpARMADCshiftRAreg
+	OpARMSBCshiftLLreg
+	OpARMSBCshiftRLreg
+	OpARMSBCshiftRAreg
+	OpARMRSCshiftLLreg
+	OpARMRSCshiftRLreg
+	OpARMRSCshiftRAreg
+	OpARMADDSshiftLLreg
+	OpARMADDSshiftRLreg
+	OpARMADDSshiftRAreg
+	OpARMSUBSshiftLLreg
+	OpARMSUBSshiftRLreg
+	OpARMSUBSshiftRAreg
+	OpARMRSBSshiftLLreg
+	OpARMRSBSshiftRLreg
+	OpARMRSBSshiftRAreg
 	OpARMCMP
 	OpARMCMPconst
 	OpARMCMN
@@ -606,6 +690,12 @@ const (
 	OpARMTEQconst
 	OpARMCMPF
 	OpARMCMPD
+	OpARMCMPshiftLL
+	OpARMCMPshiftRL
+	OpARMCMPshiftRA
+	OpARMCMPshiftLLreg
+	OpARMCMPshiftRLreg
+	OpARMCMPshiftRAreg
 	OpARMMOVWconst
 	OpARMMOVFconst
 	OpARMMOVDconst
@@ -622,6 +712,14 @@ const (
 	OpARMMOVWstore
 	OpARMMOVFstore
 	OpARMMOVDstore
+	OpARMMOVWloadidx
+	OpARMMOVWloadshiftLL
+	OpARMMOVWloadshiftRL
+	OpARMMOVWloadshiftRA
+	OpARMMOVWstoreidx
+	OpARMMOVWstoreshiftLL
+	OpARMMOVWstoreshiftRL
+	OpARMMOVWstoreshiftRA
 	OpARMMOVBreg
 	OpARMMOVBUreg
 	OpARMMOVHreg
@@ -637,6 +735,9 @@ const (
 	OpARMMOVDWU
 	OpARMMOVFD
 	OpARMMOVDF
+	OpARMCMOVWHSconst
+	OpARMCMOVWLSconst
+	OpARMSRAcond
 	OpARMCALLstatic
 	OpARMCALLclosure
 	OpARMCALLdefer
@@ -656,7 +757,6 @@ const (
 	OpARMCarry
 	OpARMLoweredSelect0
 	OpARMLoweredSelect1
-	OpARMLoweredZeromask
 	OpARMDUFFZERO
 	OpARMDUFFCOPY
 	OpARMLoweredZero
@@ -7155,7 +7255,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -7184,7 +7283,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -7241,6 +7339,1296 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADDshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADDshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADDshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SUBshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SUBshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SUBshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ANDshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ANDshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ANDshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ORshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ORshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ORshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "XORshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "XORshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "XORshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "BICshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "BICshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "BICshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MVNshiftLL",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MVNshiftRL",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MVNshiftRA",
+		auxType: auxInt32,
+		argLen:  1,
+		asm:     arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADCshiftLL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADCshiftRL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADCshiftRA",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SBCshiftLL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SBCshiftRL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SBCshiftRA",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSCshiftLL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSCshiftRL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSCshiftRA",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADDSshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADDSshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "ADDSshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SUBSshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SUBSshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "SUBSshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBSshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBSshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "RSBSshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADDshiftLLreg",
+		argLen: 3,
+		asm:    arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADDshiftRLreg",
+		argLen: 3,
+		asm:    arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADDshiftRAreg",
+		argLen: 3,
+		asm:    arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBshiftLLreg",
+		argLen: 3,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBshiftRLreg",
+		argLen: 3,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBshiftRAreg",
+		argLen: 3,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSBshiftLLreg",
+		argLen: 3,
+		asm:    arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSBshiftRLreg",
+		argLen: 3,
+		asm:    arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSBshiftRAreg",
+		argLen: 3,
+		asm:    arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ANDshiftLLreg",
+		argLen: 3,
+		asm:    arm.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ANDshiftRLreg",
+		argLen: 3,
+		asm:    arm.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ANDshiftRAreg",
+		argLen: 3,
+		asm:    arm.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ORshiftLLreg",
+		argLen: 3,
+		asm:    arm.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ORshiftRLreg",
+		argLen: 3,
+		asm:    arm.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ORshiftRAreg",
+		argLen: 3,
+		asm:    arm.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "XORshiftLLreg",
+		argLen: 3,
+		asm:    arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "XORshiftRLreg",
+		argLen: 3,
+		asm:    arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "XORshiftRAreg",
+		argLen: 3,
+		asm:    arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "BICshiftLLreg",
+		argLen: 3,
+		asm:    arm.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "BICshiftRLreg",
+		argLen: 3,
+		asm:    arm.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "BICshiftRAreg",
+		argLen: 3,
+		asm:    arm.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MVNshiftLLreg",
+		argLen: 2,
+		asm:    arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MVNshiftRLreg",
+		argLen: 2,
+		asm:    arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MVNshiftRAreg",
+		argLen: 2,
+		asm:    arm.AMVN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADCshiftLLreg",
+		argLen: 4,
+		asm:    arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADCshiftRLreg",
+		argLen: 4,
+		asm:    arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADCshiftRAreg",
+		argLen: 4,
+		asm:    arm.AADC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SBCshiftLLreg",
+		argLen: 4,
+		asm:    arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SBCshiftRLreg",
+		argLen: 4,
+		asm:    arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SBCshiftRAreg",
+		argLen: 4,
+		asm:    arm.ASBC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSCshiftLLreg",
+		argLen: 4,
+		asm:    arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSCshiftRLreg",
+		argLen: 4,
+		asm:    arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSCshiftRAreg",
+		argLen: 4,
+		asm:    arm.ARSC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADDSshiftLLreg",
+		argLen: 3,
+		asm:    arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADDSshiftRLreg",
+		argLen: 3,
+		asm:    arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "ADDSshiftRAreg",
+		argLen: 3,
+		asm:    arm.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBSshiftLLreg",
+		argLen: 3,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBSshiftRLreg",
+		argLen: 3,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SUBSshiftRAreg",
+		argLen: 3,
+		asm:    arm.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSBSshiftLLreg",
+		argLen: 3,
+		asm:    arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSBSshiftRLreg",
+		argLen: 3,
+		asm:    arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "RSBSshiftRAreg",
+		argLen: 3,
+		asm:    arm.ARSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 4294967296, // FLAGS
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -7382,6 +8770,96 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:    "CMPshiftLL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:    "CMPshiftRL",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:    "CMPshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPshiftLLreg",
+		argLen: 3,
+		asm:    arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPshiftRLreg",
+		argLen: 3,
+		asm:    arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPshiftRAreg",
+		argLen: 3,
+		asm:    arm.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []regMask{
 				4294967296, // FLAGS
@@ -7598,6 +9076,116 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MOVWloadidx",
+		argLen: 3,
+		asm:    arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MOVWloadshiftLL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MOVWloadshiftRL",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "MOVWloadshiftRA",
+		auxType: auxInt32,
+		argLen:  3,
+		asm:     arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOVWstoreidx",
+		argLen: 4,
+		asm:    arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVWstoreshiftLL",
+		auxType: auxInt32,
+		argLen:  4,
+		asm:     arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVWstoreshiftRL",
+		auxType: auxInt32,
+		argLen:  4,
+		asm:     arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVWstoreshiftRA",
+		auxType: auxInt32,
+		argLen:  4,
+		asm:     arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+			},
+		},
+	},
+	{
 		name:   "MOVBreg",
 		argLen: 1,
 		asm:    arm.AMOVBS,
@@ -7789,6 +9377,53 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []regMask{
 				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		name:         "CMOVWHSconst",
+		auxType:      auxInt32,
+		argLen:       2,
+		resultInArg0: true,
+		asm:          arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:         "CMOVWLSconst",
+		auxType:      auxInt32,
+		argLen:       2,
+		resultInArg0: true,
+		asm:          arm.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "SRAcond",
+		argLen: 3,
+		asm:    arm.ASRA,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 4294967296}, // FLAGS
+				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7993,18 +9628,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-		},
-	},
-	{
-		name:   "LoweredZeromask",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []regMask{
 				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12

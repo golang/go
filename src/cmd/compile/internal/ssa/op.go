@@ -157,7 +157,13 @@ func (op Op) isTupleGenerator() bool {
 	switch op {
 	case OpAdd32carry, OpSub32carry, OpMul32uhilo,
 		OpARMADDS, OpARMSUBS, OpARMMULLU,
-		OpARMADDSconst, OpARMSUBSconst, OpARMRSBSconst:
+		OpARMADDSconst, OpARMSUBSconst, OpARMRSBSconst,
+		OpARMADDSshiftLL, OpARMSUBSshiftLL, OpARMRSBSshiftLL,
+		OpARMADDSshiftRL, OpARMSUBSshiftRL, OpARMRSBSshiftRL,
+		OpARMADDSshiftRA, OpARMSUBSshiftRA, OpARMRSBSshiftRA,
+		OpARMADDSshiftLLreg, OpARMSUBSshiftLLreg, OpARMRSBSshiftLLreg,
+		OpARMADDSshiftRLreg, OpARMSUBSshiftRLreg, OpARMRSBSshiftRLreg,
+		OpARMADDSshiftRAreg, OpARMSUBSshiftRAreg, OpARMRSBSshiftRAreg:
 		return true
 	}
 	return false

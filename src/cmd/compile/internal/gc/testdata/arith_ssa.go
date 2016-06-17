@@ -553,6 +553,445 @@ func testOrPhi() {
 	}
 }
 
+//go:noinline
+func addshiftLL_ssa(a, b uint32) uint32 {
+	return a + b<<3
+}
+
+//go:noinline
+func subshiftLL_ssa(a, b uint32) uint32 {
+	return a - b<<3
+}
+
+//go:noinline
+func rsbshiftLL_ssa(a, b uint32) uint32 {
+	return a<<3 - b
+}
+
+//go:noinline
+func andshiftLL_ssa(a, b uint32) uint32 {
+	return a & (b << 3)
+}
+
+//go:noinline
+func orshiftLL_ssa(a, b uint32) uint32 {
+	return a | b<<3
+}
+
+//go:noinline
+func xorshiftLL_ssa(a, b uint32) uint32 {
+	return a ^ b<<3
+}
+
+//go:noinline
+func bicshiftLL_ssa(a, b uint32) uint32 {
+	return a &^ (b << 3)
+}
+
+//go:noinline
+func notshiftLL_ssa(a uint32) uint32 {
+	return ^(a << 3)
+}
+
+//go:noinline
+func addshiftRL_ssa(a, b uint32) uint32 {
+	return a + b>>3
+}
+
+//go:noinline
+func subshiftRL_ssa(a, b uint32) uint32 {
+	return a - b>>3
+}
+
+//go:noinline
+func rsbshiftRL_ssa(a, b uint32) uint32 {
+	return a>>3 - b
+}
+
+//go:noinline
+func andshiftRL_ssa(a, b uint32) uint32 {
+	return a & (b >> 3)
+}
+
+//go:noinline
+func orshiftRL_ssa(a, b uint32) uint32 {
+	return a | b>>3
+}
+
+//go:noinline
+func xorshiftRL_ssa(a, b uint32) uint32 {
+	return a ^ b>>3
+}
+
+//go:noinline
+func bicshiftRL_ssa(a, b uint32) uint32 {
+	return a &^ (b >> 3)
+}
+
+//go:noinline
+func notshiftRL_ssa(a uint32) uint32 {
+	return ^(a >> 3)
+}
+
+//go:noinline
+func addshiftRA_ssa(a, b int32) int32 {
+	return a + b>>3
+}
+
+//go:noinline
+func subshiftRA_ssa(a, b int32) int32 {
+	return a - b>>3
+}
+
+//go:noinline
+func rsbshiftRA_ssa(a, b int32) int32 {
+	return a>>3 - b
+}
+
+//go:noinline
+func andshiftRA_ssa(a, b int32) int32 {
+	return a & (b >> 3)
+}
+
+//go:noinline
+func orshiftRA_ssa(a, b int32) int32 {
+	return a | b>>3
+}
+
+//go:noinline
+func xorshiftRA_ssa(a, b int32) int32 {
+	return a ^ b>>3
+}
+
+//go:noinline
+func bicshiftRA_ssa(a, b int32) int32 {
+	return a &^ (b >> 3)
+}
+
+//go:noinline
+func notshiftRA_ssa(a int32) int32 {
+	return ^(a >> 3)
+}
+
+//go:noinline
+func addshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a + b<<s
+}
+
+//go:noinline
+func subshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a - b<<s
+}
+
+//go:noinline
+func rsbshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a<<s - b
+}
+
+//go:noinline
+func andshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a & (b << s)
+}
+
+//go:noinline
+func orshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a | b<<s
+}
+
+//go:noinline
+func xorshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a ^ b<<s
+}
+
+//go:noinline
+func bicshiftLLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a &^ (b << s)
+}
+
+//go:noinline
+func notshiftLLreg_ssa(a uint32, s uint8) uint32 {
+	return ^(a << s)
+}
+
+//go:noinline
+func addshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a + b>>s
+}
+
+//go:noinline
+func subshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a - b>>s
+}
+
+//go:noinline
+func rsbshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a>>s - b
+}
+
+//go:noinline
+func andshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a & (b >> s)
+}
+
+//go:noinline
+func orshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a | b>>s
+}
+
+//go:noinline
+func xorshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a ^ b>>s
+}
+
+//go:noinline
+func bicshiftRLreg_ssa(a, b uint32, s uint8) uint32 {
+	return a &^ (b >> s)
+}
+
+//go:noinline
+func notshiftRLreg_ssa(a uint32, s uint8) uint32 {
+	return ^(a >> s)
+}
+
+//go:noinline
+func addshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a + b>>s
+}
+
+//go:noinline
+func subshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a - b>>s
+}
+
+//go:noinline
+func rsbshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a>>s - b
+}
+
+//go:noinline
+func andshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a & (b >> s)
+}
+
+//go:noinline
+func orshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a | b>>s
+}
+
+//go:noinline
+func xorshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a ^ b>>s
+}
+
+//go:noinline
+func bicshiftRAreg_ssa(a, b int32, s uint8) int32 {
+	return a &^ (b >> s)
+}
+
+//go:noinline
+func notshiftRAreg_ssa(a int32, s uint8) int32 {
+	return ^(a >> s)
+}
+
+// test ARM shifted ops
+func testShiftedOps() {
+	a, b := uint32(10), uint32(42)
+	if want, got := a+b<<3, addshiftLL_ssa(a, b); got != want {
+		println("addshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a-b<<3, subshiftLL_ssa(a, b); got != want {
+		println("subshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a<<3-b, rsbshiftLL_ssa(a, b); got != want {
+		println("rsbshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&(b<<3), andshiftLL_ssa(a, b); got != want {
+		println("andshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a|b<<3, orshiftLL_ssa(a, b); got != want {
+		println("orshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a^b<<3, xorshiftLL_ssa(a, b); got != want {
+		println("xorshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&^(b<<3), bicshiftLL_ssa(a, b); got != want {
+		println("bicshiftLL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := ^(a << 3), notshiftLL_ssa(a); got != want {
+		println("notshiftLL_ssa(10) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a+b>>3, addshiftRL_ssa(a, b); got != want {
+		println("addshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a-b>>3, subshiftRL_ssa(a, b); got != want {
+		println("subshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a>>3-b, rsbshiftRL_ssa(a, b); got != want {
+		println("rsbshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&(b>>3), andshiftRL_ssa(a, b); got != want {
+		println("andshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a|b>>3, orshiftRL_ssa(a, b); got != want {
+		println("orshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a^b>>3, xorshiftRL_ssa(a, b); got != want {
+		println("xorshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&^(b>>3), bicshiftRL_ssa(a, b); got != want {
+		println("bicshiftRL_ssa(10, 42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := ^(a >> 3), notshiftRL_ssa(a); got != want {
+		println("notshiftRL_ssa(10) =", got, " want ", want)
+		failed = true
+	}
+	c, d := int32(10), int32(-42)
+	if want, got := c+d>>3, addshiftRA_ssa(c, d); got != want {
+		println("addshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c-d>>3, subshiftRA_ssa(c, d); got != want {
+		println("subshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c>>3-d, rsbshiftRA_ssa(c, d); got != want {
+		println("rsbshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c&(d>>3), andshiftRA_ssa(c, d); got != want {
+		println("andshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c|d>>3, orshiftRA_ssa(c, d); got != want {
+		println("orshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c^d>>3, xorshiftRA_ssa(c, d); got != want {
+		println("xorshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c&^(d>>3), bicshiftRA_ssa(c, d); got != want {
+		println("bicshiftRA_ssa(10, -42) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := ^(d >> 3), notshiftRA_ssa(d); got != want {
+		println("notshiftRA_ssa(-42) =", got, " want ", want)
+		failed = true
+	}
+	s := uint8(3)
+	if want, got := a+b<<s, addshiftLLreg_ssa(a, b, s); got != want {
+		println("addshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a-b<<s, subshiftLLreg_ssa(a, b, s); got != want {
+		println("subshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a<<s-b, rsbshiftLLreg_ssa(a, b, s); got != want {
+		println("rsbshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&(b<<s), andshiftLLreg_ssa(a, b, s); got != want {
+		println("andshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a|b<<s, orshiftLLreg_ssa(a, b, s); got != want {
+		println("orshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a^b<<s, xorshiftLLreg_ssa(a, b, s); got != want {
+		println("xorshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&^(b<<s), bicshiftLLreg_ssa(a, b, s); got != want {
+		println("bicshiftLLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := ^(a << s), notshiftLLreg_ssa(a, s); got != want {
+		println("notshiftLLreg_ssa(10) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a+b>>s, addshiftRLreg_ssa(a, b, s); got != want {
+		println("addshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a-b>>s, subshiftRLreg_ssa(a, b, s); got != want {
+		println("subshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a>>s-b, rsbshiftRLreg_ssa(a, b, s); got != want {
+		println("rsbshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&(b>>s), andshiftRLreg_ssa(a, b, s); got != want {
+		println("andshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a|b>>s, orshiftRLreg_ssa(a, b, s); got != want {
+		println("orshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a^b>>s, xorshiftRLreg_ssa(a, b, s); got != want {
+		println("xorshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := a&^(b>>s), bicshiftRLreg_ssa(a, b, s); got != want {
+		println("bicshiftRLreg_ssa(10, 42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := ^(a >> s), notshiftRLreg_ssa(a, s); got != want {
+		println("notshiftRLreg_ssa(10) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c+d>>s, addshiftRAreg_ssa(c, d, s); got != want {
+		println("addshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c-d>>s, subshiftRAreg_ssa(c, d, s); got != want {
+		println("subshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c>>s-d, rsbshiftRAreg_ssa(c, d, s); got != want {
+		println("rsbshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c&(d>>s), andshiftRAreg_ssa(c, d, s); got != want {
+		println("andshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c|d>>s, orshiftRAreg_ssa(c, d, s); got != want {
+		println("orshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c^d>>s, xorshiftRAreg_ssa(c, d, s); got != want {
+		println("xorshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := c&^(d>>s), bicshiftRAreg_ssa(c, d, s); got != want {
+		println("bicshiftRAreg_ssa(10, -42, 3) =", got, " want ", want)
+		failed = true
+	}
+	if want, got := ^(d >> s), notshiftRAreg_ssa(d, s); got != want {
+		println("notshiftRAreg_ssa(-42, 3) =", got, " want ", want)
+		failed = true
+	}
+}
+
 var failed = false
 
 func main() {
@@ -573,6 +1012,7 @@ func main() {
 	testLoadCombine()
 	testLoadSymCombine()
 	testShiftRemoval()
+	testShiftedOps()
 
 	if failed {
 		panic("failed")
