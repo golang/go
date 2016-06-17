@@ -880,17 +880,27 @@ func (p *printer) stmtfmt(n *Node) *printer {
 
 	case OXCASE:
 		if n.List.Len() != 0 {
-			p.f("case %v: %v", hconv(n.List, FmtComma), n.Nbody)
+			p.f("case %v", hconv(n.List, FmtComma))
 		} else {
-			p.f("default: %v", n.Nbody)
+			p.s("default")
 		}
+		p.f(": %v", n.Nbody)
 
 	case OCASE:
-		if n.Left != nil {
-			p.f("case %v: %v", n.Left, n.Nbody)
-		} else {
-			p.f("default: %v", n.Nbody)
+		switch {
+		case n.Left != nil:
+			// single element
+			p.f("case %v", n.Left)
+		case n.List.Len() > 0:
+			// range
+			if n.List.Len() != 2 {
+				Fatalf("bad OCASE list length", n.List)
+			}
+			p.f("case %v..%v", n.List.First(), n.List.Second())
+		default:
+			p.s("default")
 		}
+		p.f(": %v", n.Nbody)
 
 	case OBREAK,
 		OCONTINUE,
