@@ -267,7 +267,7 @@ func (s *exprSwitch) walk(sw *Node) {
 		}
 
 		// sort and compile constants
-		sort.Sort(caseClauseByExpr(cc[:run]))
+		sort.Sort(caseClauseByConstVal(cc[:run]))
 		a := s.walkCases(cc[:run])
 		cas = append(cas, a)
 		cc = cc[run:]
@@ -315,7 +315,7 @@ func (s *exprSwitch) walkCases(cc []caseClause) *Node {
 	mid := cc[half-1].node.Left
 	le := Nod(OLE, s.exprname, mid)
 	if Isconst(mid, CTSTR) {
-		// Search by length and then by value; see exprcmp.
+		// Search by length and then by value; see caseClauseByConstVal.
 		lenlt := Nod(OLT, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
 		leneq := Nod(OEQ, Nod(OLEN, s.exprname, nil), Nod(OLEN, mid, nil))
 		a.Left = Nod(OOROR, lenlt, Nod(OANDAND, leneq, le))
@@ -778,71 +778,35 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 	return a
 }
 
-type caseClauseByExpr []caseClause
+// caseClauseByConstVal sorts clauses by constant value to enable binary search.
+type caseClauseByConstVal []caseClause
 
-func (x caseClauseByExpr) Len() int      { return len(x) }
-func (x caseClauseByExpr) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x caseClauseByExpr) Less(i, j int) bool {
-	return exprcmp(x[i], x[j]) < 0
-}
+func (x caseClauseByConstVal) Len() int      { return len(x) }
+func (x caseClauseByConstVal) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x caseClauseByConstVal) Less(i, j int) bool {
+	v1 := x[i].node.Left.Val().U
+	v2 := x[j].node.Left.Val().U
 
-func exprcmp(c1, c2 caseClause) int {
-	// sort non-constants last
-	if !c1.isconst {
-		return +1
-	}
-	if !c2.isconst {
-		return -1
-	}
-
-	n1 := c1.node.Left
-	n2 := c2.node.Left
-
-	// sort by type (for switches on interface)
-	ct := n1.Val().Ctype()
-	if ct > n2.Val().Ctype() {
-		return +1
-	}
-	if ct < n2.Val().Ctype() {
-		return -1
-	}
-	if !Eqtype(n1.Type, n2.Type) {
-		if n1.Type.Vargen > n2.Type.Vargen {
-			return +1
-		} else {
-			return -1
-		}
-	}
-
-	// sort by constant value to enable binary search
-	switch ct {
-	case CTFLT:
-		return n1.Val().U.(*Mpflt).Cmp(n2.Val().U.(*Mpflt))
-	case CTINT, CTRUNE:
-		return n1.Val().U.(*Mpint).Cmp(n2.Val().U.(*Mpint))
-	case CTSTR:
+	switch v1 := v1.(type) {
+	case *Mpflt:
+		return v1.Cmp(v2.(*Mpflt)) < 0
+	case *Mpint:
+		return v1.Cmp(v2.(*Mpint)) < 0
+	case string:
 		// Sort strings by length and then by value.
 		// It is much cheaper to compare lengths than values,
 		// and all we need here is consistency.
 		// We respect this sorting in exprSwitch.walkCases.
-		a := n1.Val().U.(string)
-		b := n2.Val().U.(string)
-		if len(a) < len(b) {
-			return -1
+		a := v1
+		b := v2.(string)
+		if len(a) != len(b) {
+			return len(a) < len(b)
 		}
-		if len(a) > len(b) {
-			return +1
-		}
-		if a == b {
-			return 0
-		}
-		if a < b {
-			return -1
-		}
-		return +1
+		return a < b
 	}
 
-	return 0
+	Fatalf("caseClauseByConstVal passed bad clauses %v < %v", x[i].node.Left, x[j].node.Left)
+	return false
 }
 
 type caseClauseByType []caseClause
