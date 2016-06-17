@@ -24,6 +24,9 @@ type _StringTable []byte
 
 func readStringTable(fh *FileHeader, r io.ReadSeeker) (_StringTable, error) {
 	// COFF string table is located right after COFF symbol table.
+	if fh.PointerToSymbolTable <= 0 {
+		return nil, nil
+	}
 	offset := fh.PointerToSymbolTable + COFFSymbolSize*fh.NumberOfSymbols
 	_, err := r.Seek(int64(offset), io.SeekStart)
 	if err != nil {
