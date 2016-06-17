@@ -111,7 +111,7 @@ const (
 
 	// Tiny allocator parameters, see "Tiny allocator" comment in malloc.go.
 	_TinySize      = 16
-	_TinySizeClass = 2
+	_TinySizeClass = int8(2)
 
 	_FixAllocChunk  = 16 << 10               // Chunk size for FixAlloc
 	_MaxMHeapList   = 1 << (20 - _PageShift) // Maximum page length for fixed-size list in MHeap.

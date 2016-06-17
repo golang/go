@@ -326,7 +326,7 @@ type spanClass uint8
 
 const (
 	numSpanClasses = _NumSizeClasses << 1
-	tinySpanClass  = tinySizeClass<<1 | 1
+	tinySpanClass  = spanClass(tinySizeClass<<1 | 1)
 )
 
 func makeSpanClass(sizeclass uint8, noscan bool) spanClass {
