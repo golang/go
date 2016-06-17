@@ -462,6 +462,9 @@ var aSpace []opSet
 // RegisterOpcode binds a list of instruction names
 // to a given instruction number range.
 func RegisterOpcode(lo As, Anames []string) {
+	if len(Anames) > AllowedOpCodes {
+		panic(fmt.Sprintf("too many instructions, have %d max %d", len(Anames), AllowedOpCodes))
+	}
 	aSpace = append(aSpace, opSet{lo, Anames})
 }
 
