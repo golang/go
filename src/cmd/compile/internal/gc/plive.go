@@ -1175,6 +1175,18 @@ func livenessepilogue(lv *Liveness) {
 	all := bvalloc(nvars)
 	ambig := bvalloc(localswords())
 
+	// Set ambig bit for the pointers to heap-allocated pparamout variables.
+	// These are implicitly read by post-deferreturn code and thus must be
+	// kept live throughout the function (if there is any defer that recovers).
+	if hasdefer {
+		for _, n := range lv.vars {
+			if n.IsOutputParamHeapAddr() {
+				xoffset := n.Xoffset + stkptrsize
+				onebitwalktype1(n.Type, &xoffset, ambig)
+			}
+		}
+	}
+
 	for _, bb := range lv.cfg {
 		// Compute avarinitany and avarinitall for entry to block.
 		// This duplicates information known during livenesssolve
