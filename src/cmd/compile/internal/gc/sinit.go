@@ -400,7 +400,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		switch r.Left.Op {
 		case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT:
 			// Init pointer.
-			a := staticname(r.Left.Type, 1)
+			a := staticname(r.Left.Type, inNonInitFunction)
 
 			inittemps[r] = a
 			gdata(l, Nod(OADDR, a, nil), int(l.Type.Width))
@@ -425,7 +425,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		// Init slice.
 		bound := r.Right.Int64()
 		ta := typArray(r.Type.Elem(), bound)
-		a := staticname(ta, 1)
+		a := staticname(ta, inNonInitFunction)
 		inittemps[r] = a
 		n := *l
 		n.Xoffset = l.Xoffset + int64(Array_array)
@@ -485,15 +485,32 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 	return false
 }
 
+// initContext is the context in which static data is populated.
+// It is either in an init function or in any other function.
+// Static data populated in an init function will be written either
+// zero times (as a readonly, static data symbol) or
+// one time (during init function execution).
+// Either way, there is no opportunity for races or further modification,
+// so the data can be written to a (possibly readonly) data symbol.
+// Static data populated in any other function needs to be local to
+// that function to allow multiple instances of that function
+// to execute concurrently without clobbering each others' data.
+type initContext uint8
+
+const (
+	inInitFunction initContext = iota
+	inNonInitFunction
+)
+
 // from here down is the walk analysis
 // of composite literals.
 // most of the work is to generate
 // data statements for the constant
 // part of the composite literal.
-func staticname(t *Type, ctxt int) *Node {
+func staticname(t *Type, ctxt initContext) *Node {
 	n := newname(LookupN("statictmp_", statuniqgen))
 	statuniqgen++
-	if ctxt == 0 {
+	if ctxt == inInitFunction {
 		n.Name.Readonly = true
 	}
 	addvar(n, t, PEXTERN)
@@ -579,9 +596,26 @@ func isStaticCompositeLiteral(n *Node) bool {
 	return false
 }
 
+// initKind is a kind of static initialization: static, dynamic, or local.
+// Static initialization represents literals and
+// literal components of composite literals.
+// Dynamic initialization represents non-literals and
+// non-literal components of composite literals.
+// LocalCode initializion represents initialization
+// that occurs purely in generated code local to the function of use.
+// Initialization code is sometimes generated in passes,
+// first static then dynamic.
+type initKind uint8
+
+const (
+	initKindStatic initKind = iota + 1
+	initKindDynamic
+	initKindLocalCode
+)
+
 // fixedlit handles struct, array, and slice literals.
 // TODO: expand documentation.
-func fixedlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes) {
 	var indexnode func(*Node) *Node
 	switch n.Op {
 	case OARRAYLIT, OSLICELIT:
@@ -601,7 +635,7 @@ func fixedlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		switch value.Op {
 		case OSLICELIT:
-			if (pass == 1 && ctxt != 0) || (pass == 2 && ctxt == 0) {
+			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
 				a := indexnode(index)
 				slicelit(ctxt, value, a, init)
 				continue
@@ -609,7 +643,7 @@ func fixedlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		case OARRAYLIT, OSTRUCTLIT:
 			a := indexnode(index)
-			fixedlit(ctxt, pass, value, a, init)
+			fixedlit(ctxt, kind, value, a, init)
 			continue
 		}
 
@@ -617,7 +651,7 @@ func fixedlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 		if n.Op == OARRAYLIT {
 			islit = islit && isliteral(index)
 		}
-		if (pass == 1 && !islit) || (pass == 2 && islit) {
+		if (kind == initKindStatic && !islit) || (kind == initKindDynamic && islit) {
 			continue
 		}
 
@@ -625,32 +659,35 @@ func fixedlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 		setlineno(value)
 		a := Nod(OAS, indexnode(index), value)
 		a = typecheck(a, Etop)
-		if pass == 1 {
+		switch kind {
+		case initKindStatic:
 			a = walkexpr(a, init) // add any assignments in r to top
 			if a.Op != OAS {
 				Fatalf("fixedlit: not as")
 			}
 			a.IsStatic = true
-		} else {
+		case initKindDynamic, initKindLocalCode:
 			a = orderstmtinplace(a)
 			a = walkstmt(a)
+		default:
+			Fatalf("fixedlit: bad kind %d", kind)
 		}
 
 		init.Append(a)
 	}
 }
 
-func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	// make an array type corresponding the number of elements we have
 	t := typArray(n.Type.Elem(), n.Right.Int64())
 	dowidth(t)
 
-	if ctxt != 0 {
+	if ctxt == inNonInitFunction {
 		// put everything into static array
 		vstat := staticname(t, ctxt)
 
-		fixedlit(ctxt, 1, n, vstat, init)
-		fixedlit(ctxt, 2, n, vstat, init)
+		fixedlit(ctxt, initKindStatic, n, vstat, init)
+		fixedlit(ctxt, initKindDynamic, n, vstat, init)
 
 		// copy static to slice
 		a := Nod(OSLICE, vstat, nil)
@@ -688,7 +725,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	mode := getdyn(n, true)
 	if mode&initConst != 0 {
 		vstat = staticname(t, ctxt)
-		fixedlit(ctxt, 1, n, vstat, init)
+		fixedlit(ctxt, initKindStatic, n, vstat, init)
 	}
 
 	// make new auto *array (3 declare)
@@ -754,7 +791,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 			break
 
 		case OARRAYLIT, OSTRUCTLIT:
-			fixedlit(ctxt, 2, value, a, init)
+			fixedlit(ctxt, initKindDynamic, value, a, init)
 			continue
 		}
 
@@ -781,8 +818,8 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	init.Append(a)
 }
 
-func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
-	ctxt = 0
+func maplit(ctxt initContext, n *Node, m *Node, init *Nodes) {
+	ctxt = inInitFunction
 
 	// make the map var
 	nerr := nerrors
@@ -928,7 +965,7 @@ func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
 	}
 }
 
-func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+func anylit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	t := n.Type
 	switch n.Op {
 	default:
@@ -966,15 +1003,15 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		if var_.isSimpleName() && n.List.Len() > 4 {
-			if ctxt == 0 {
+			if ctxt == inInitFunction {
 				// lay out static data
 				vstat := staticname(t, ctxt)
 
-				pass1ctxt := ctxt
+				litctxt := ctxt
 				if n.Op == OARRAYLIT {
-					pass1ctxt = 1
+					litctxt = inNonInitFunction
 				}
-				fixedlit(pass1ctxt, 1, n, vstat, init)
+				fixedlit(litctxt, initKindStatic, n, vstat, init)
 
 				// copy static to var
 				a := Nod(OAS, var_, vstat)
@@ -984,13 +1021,13 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 				init.Append(a)
 
 				// add expressions to automatic
-				fixedlit(ctxt, 2, n, var_, init)
+				fixedlit(ctxt, initKindDynamic, n, var_, init)
 
 				break
 			}
 
-			fixedlit(ctxt, 1, n, var_, init)
-			fixedlit(ctxt, 2, n, var_, init)
+			fixedlit(ctxt, initKindStatic, n, var_, init)
+			fixedlit(ctxt, initKindDynamic, n, var_, init)
 			break
 		}
 
@@ -1008,7 +1045,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 			init.Append(a)
 		}
 
-		fixedlit(ctxt, 3, n, var_, init)
+		fixedlit(ctxt, initKindLocalCode, n, var_, init)
 
 	case OSLICELIT:
 		slicelit(ctxt, n, var_, init)
@@ -1039,14 +1076,6 @@ func oaslit(n *Node, init *Nodes) bool {
 		return false
 	}
 
-	// context is init() function.
-	// implies generated data executed
-	// exactly once and not subject to races.
-	ctxt := 0
-
-	//	if(n->dodata == 1)
-	//		ctxt = 1;
-
 	switch n.Right.Op {
 	default:
 		// not a special composit literal assignment
@@ -1057,7 +1086,7 @@ func oaslit(n *Node, init *Nodes) bool {
 			// not a special composit literal assignment
 			return false
 		}
-		anylit(ctxt, n.Right, n.Left, init)
+		anylit(inInitFunction, n.Right, n.Left, init)
 	}
 
 	n.Op = OEMPTY
