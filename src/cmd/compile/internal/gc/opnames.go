@@ -48,6 +48,7 @@ var opnames = []string{
 	OMAPLIT:          "MAPLIT",
 	OSTRUCTLIT:       "STRUCTLIT",
 	OARRAYLIT:        "ARRAYLIT",
+	OSLICELIT:        "SLICELIT",
 	OPTRLIT:          "PTRLIT",
 	OCONV:            "CONV",
 	OCONVIFACE:       "CONVIFACE",

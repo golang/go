@@ -863,15 +863,17 @@ func esc(e *EscState, n *Node, up *Node) {
 		escassignNilWhy(e, n, n.Left, "interface-converted")
 
 	case OARRAYLIT:
-		why := "array literal element"
-		if n.Type.IsSlice() {
-			// Slice itself is not leaked until proven otherwise
-			e.track(n)
-			why = "slice literal element"
-		}
-		// Link values to array/slice
+		// Link values to array
 		for _, n5 := range n.List.Slice() {
-			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, why))
+			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, "array literal element"))
+		}
+
+	case OSLICELIT:
+		// Slice is not leaked until proven otherwise
+		e.track(n)
+		// Link values to slice
+		for _, n5 := range n.List.Slice() {
+			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, "slice literal element"))
 		}
 
 		// Link values to struct.
@@ -1015,6 +1017,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		Fatalf("escassign: unexpected dst")
 
 	case OARRAYLIT,
+		OSLICELIT,
 		OCLOSURE,
 		OCONV,
 		OCONVIFACE,
@@ -1071,6 +1074,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		ODDDARG,
 		OPTRLIT,
 		OARRAYLIT,
+		OSLICELIT,
 		OMAPLIT,
 		OSTRUCTLIT,
 		OMAKECHAN,
@@ -1587,6 +1591,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 					OCLOSURE,
 					ODDDARG,
 					OARRAYLIT,
+					OSLICELIT,
 					OPTRLIT,
 					OSTRUCTLIT:
 					a.Noescape = true
@@ -1881,10 +1886,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		// similar to a slice arraylit and its args.
 		level = level.dec()
 
-	case OARRAYLIT:
-		if src.Type.IsArray() {
-			break
-		}
+	case OSLICELIT:
 		for _, n1 := range src.List.Slice() {
 			escwalk(e, level.dec(), dst, n1.Right, e.stepWalk(dst, n1.Right, "slice-literal-element", step))
 		}

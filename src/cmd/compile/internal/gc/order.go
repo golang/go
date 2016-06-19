@@ -1160,7 +1160,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
-	case OARRAYLIT, OCALLPART:
+	case OARRAYLIT, OSLICELIT, OCALLPART:
 		n.Left = orderexpr(n.Left, order, nil)
 		n.Right = orderexpr(n.Right, order, nil)
 		orderexprlist(n.List, order)
