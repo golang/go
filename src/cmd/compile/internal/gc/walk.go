@@ -1637,11 +1637,7 @@ opswitch:
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
 			vstat := staticname(n.Type, 0)
-			if n.Op == OSTRUCTLIT {
-				structlit(0, 1, n, vstat, init)
-			} else {
-				arraylit(0, 1, n, vstat, init)
-			}
+			fixedlit(0, 1, n, vstat, init)
 			n = vstat
 			n = typecheck(n, Erv)
 			break
