@@ -160,6 +160,14 @@ func moveToHeap(n *Node) {
 		if n.Class == PPARAM {
 			stackcopy.SetNotLiveAtEnd(true)
 		}
+		if n.Class == PPARAMOUT {
+			// Make sure the pointer to the heap copy is kept live throughout the function.
+			// The function could panic at any point, and then a defer could recover.
+			// Thus, we need the pointer to the heap copy always available so the
+			// post-deferreturn code can copy the return value back to the stack.
+			// See issue 16095.
+			heapaddr.setIsOutputParamHeapAddr(true)
+		}
 		n.Name.Param.Stackcopy = stackcopy
 
 		// Substitute the stackcopy into the function variable list so that
