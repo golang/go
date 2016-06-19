@@ -897,7 +897,7 @@ func (p *importer) node() *Node {
 		n.List.Set(p.elemList()) // special handling of field names
 		return n
 
-	// case OARRAYLIT, OMAPLIT:
+	// case OARRAYLIT, OSLICELIT, OMAPLIT:
 	// 	unreachable - mapped to case OCOMPLIT below by exporter
 
 	case OCOMPLIT:

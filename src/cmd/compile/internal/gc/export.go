@@ -182,6 +182,7 @@ func reexportdep(n *Node) {
 		ODOTTYPE2,
 		OSTRUCTLIT,
 		OARRAYLIT,
+		OSLICELIT,
 		OPTRLIT,
 		OMAKEMAP,
 		OMAKESLICE,

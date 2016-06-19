@@ -1397,7 +1397,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		a = walkexpr(a, init)
 		return a
 
-	case OSTRUCTLIT, OARRAYLIT:
+	case OSTRUCTLIT, OARRAYLIT, OSLICELIT:
 		if isStaticCompositeLiteral(n) {
 			return n
 		}

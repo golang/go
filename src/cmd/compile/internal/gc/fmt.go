@@ -931,6 +931,7 @@ var opprec = []int{
 	OAPPEND:       8,
 	OARRAYBYTESTR: 8,
 	OARRAYLIT:     8,
+	OSLICELIT:     8,
 	OARRAYRUNESTR: 8,
 	OCALLFUNC:     8,
 	OCALLINTER:    8,
@@ -1172,7 +1173,7 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 	case OPTRLIT:
 		return p.f("&%v", n.Left)
 
-	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
+	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		if fmtmode == FErr {
 			return p.f("%v literal", n.Type)
 		}

@@ -368,6 +368,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OCLOSURE,  // lowered to PTRLIT
 		ORANGE,    // lowered to ordinary for loop
 		OARRAYLIT, // lowered to assignments
+		OSLICELIT,
 		OMAPLIT,
 		OSTRUCTLIT,
 		OAS2,

@@ -2941,8 +2941,10 @@ func typecheckcomplit(n *Node) *Node {
 		}
 		if t.IsSlice() {
 			n.Right = Nodintconst(length)
+			n.Op = OSLICELIT
+		} else {
+			n.Op = OARRAYLIT
 		}
-		n.Op = OARRAYLIT
 
 	case TMAP:
 		hash := make(map[uint32][]*Node)
