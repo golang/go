@@ -5,6 +5,7 @@
 package crc32
 
 import (
+	"hash"
 	"io"
 	"testing"
 )
@@ -81,14 +82,50 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-func BenchmarkCrc32KB(b *testing.B) {
-	b.SetBytes(1024)
-	data := make([]byte, 1024)
+func BenchmarkIEEECrc40B(b *testing.B) {
+	benchmark(b, NewIEEE(), 40)
+}
+
+func BenchmarkIEEECrc1KB(b *testing.B) {
+	benchmark(b, NewIEEE(), 1<<10)
+}
+
+func BenchmarkIEEECrc4KB(b *testing.B) {
+	benchmark(b, NewIEEE(), 4<<10)
+}
+
+func BenchmarkIEEECrc32KB(b *testing.B) {
+	benchmark(b, NewIEEE(), 32<<10)
+}
+
+func BenchmarkCastagnoliCrc40B(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 40)
+}
+
+func BenchmarkCastagnoliCrc1KB(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 1<<10)
+}
+
+func BenchmarkCastagnoliCrc4KB(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 4<<10)
+}
+
+func BenchmarkCastagnoliCrc32KB(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 32<<10)
+}
+
+func benchmark(b *testing.B, h hash.Hash32, n int64) {
+	b.SetBytes(n)
+	data := make([]byte, n)
 	for i := range data {
 		data[i] = byte(i)
 	}
-	h := NewIEEE()
 	in := make([]byte, 0, h.Size())
+
+	// Warm up
+	h.Reset()
+	h.Write(data)
+	h.Sum(in)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

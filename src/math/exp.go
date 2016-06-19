@@ -15,7 +15,7 @@ func Exp(x float64) float64
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
-// and came with this notice.  The go code is a simplified
+// and came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================

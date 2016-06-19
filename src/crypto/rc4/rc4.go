@@ -23,7 +23,7 @@ func (k KeySizeError) Error() string {
 	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k))
 }
 
-// NewCipher creates and returns a new Cipher.  The key argument should be the
+// NewCipher creates and returns a new Cipher. The key argument should be the
 // RC4 key, at least 1 byte and at most 256 bytes.
 func NewCipher(key []byte) (*Cipher, error) {
 	k := len(key)
@@ -52,7 +52,7 @@ func (c *Cipher) Reset() {
 }
 
 // xorKeyStreamGeneric sets dst to the result of XORing src with the
-// key stream.  Dst and src may be the same slice but otherwise should
+// key stream. Dst and src may be the same slice but otherwise should
 // not overlap.
 //
 // This is the pure Go version. rc4_{amd64,386,arm}* contain assembly

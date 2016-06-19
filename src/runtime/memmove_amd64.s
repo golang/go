@@ -1,7 +1,7 @@
 // Derived from Inferno's libkern/memmove-386.s (adapted for amd64)
 // http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
 //
-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
 //         Portions Copyright 2009 The Go Authors. All rights reserved.
 //
@@ -35,8 +35,8 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-24
 	MOVQ	n+16(FP), BX
 
 	// REP instructions have a high startup cost, so we handle small sizes
-	// with some straightline code.  The REP MOVSQ instruction is really fast
-	// for large sizes.  The cutover is approximately 2K.
+	// with some straightline code. The REP MOVSQ instruction is really fast
+	// for large sizes. The cutover is approximately 2K.
 tail:
 	// move_129through256 or smaller work whether or not the source and the
 	// destination memory regions overlap because they load all data into
@@ -50,7 +50,8 @@ tail:
 	CMPQ	BX, $4
 	JBE	move_3or4
 	CMPQ	BX, $8
-	JBE	move_5through8
+	JB	move_5through7
+	JE	move_8
 	CMPQ	BX, $16
 	JBE	move_9through16
 	CMPQ	BX, $32
@@ -76,6 +77,23 @@ forward:
 	CMPQ	BX, $2048
 	JLS	move_256through2048
 
+	// If REP MOVSB isn't fast, don't use it
+	TESTL	$(1<<9), runtime·cpuid_ebx7(SB) // erms, aka enhanced REP MOVSB/STOSB
+	JEQ	fwdBy8
+
+	// Check alignment
+	MOVL	SI, AX
+	ORL	DI, AX
+	TESTL	$7, AX
+	JEQ	fwdBy8
+
+	// Do 1 byte at a time
+	MOVQ	BX, CX
+	REP;	MOVSB
+	RET
+
+fwdBy8:
+	// Do 8 bytes at a time
 	MOVQ	BX, CX
 	SHRQ	$3, CX
 	ANDQ	$7, BX
@@ -131,11 +149,16 @@ move_3or4:
 	MOVW	AX, (DI)
 	MOVW	CX, -2(DI)(BX*1)
 	RET
-move_5through8:
+move_5through7:
 	MOVL	(SI), AX
 	MOVL	-4(SI)(BX*1), CX
 	MOVL	AX, (DI)
 	MOVL	CX, -4(DI)(BX*1)
+	RET
+move_8:
+	// We need a separate case for 8 to make sure we write pointers atomically.
+	MOVQ	(SI), AX
+	MOVQ	AX, (DI)
 	RET
 move_9through16:
 	MOVQ	(SI), AX

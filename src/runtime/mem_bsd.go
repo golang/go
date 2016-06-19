@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,15 +6,20 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
-	v := unsafe.Pointer(mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
+func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+	v := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if uintptr(v) < 4096 {
 		return nil
 	}
-	xadd64(stat, int64(n))
+	mSysStatInc(sysStat, n)
 	return v
 }
 
@@ -25,8 +30,11 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 }
 
-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
-	xadd64(stat, -int64(n))
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//go:nosplit
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatDec(sysStat, n)
 	munmap(v, n)
 }
 
@@ -36,14 +44,14 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 
 func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	// On 64-bit, people with ulimit -v set complain if we reserve too
-	// much address space.  Instead, assume that the reservation is okay
+	// much address space. Instead, assume that the reservation is okay
 	// and check the assumption in SysMap.
-	if ptrSize == 8 && uint64(n) > 1<<32 || goos_nacl != 0 {
+	if sys.PtrSize == 8 && uint64(n) > 1<<32 || sys.GoosNacl != 0 {
 		*reserved = false
 		return v
 	}
 
-	p := unsafe.Pointer(mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0))
+	p := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if uintptr(p) < 4096 {
 		return nil
 	}
@@ -51,10 +59,10 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return p
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
-	const _ENOMEM = 12
+const _ENOMEM = 12
 
-	xadd64(stat, int64(n))
+func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+	mSysStatInc(sysStat, n)
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
 	if !reserved {

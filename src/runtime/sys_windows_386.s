@@ -206,16 +206,19 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 	LEAL	g__size(SP), BX
 	MOVL	BX, g_m(SP)
-	LEAL	-8192(SP), CX
+
+	LEAL	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
 	MOVL	CX, (g_stack+stack_lo)(SP)
 	ADDL	$const__StackGuard, CX
 	MOVL	CX, g_stackguard0(SP)
 	MOVL	CX, g_stackguard1(SP)
 	MOVL	DX, (g_stack+stack_hi)(SP)
 
+	PUSHL	AX			// room for return value
 	PUSHL	16(BP)			// arg for handler
 	CALL	8(BP)
 	POPL	CX
+	POPL	AX			// pass return value to Windows in AX
 
 	get_tls(CX)
 	MOVL	g(CX), CX
@@ -355,10 +358,11 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
 	MOVL	CX, 0x14(FS)
 	RET
 
-// Sleep duration is in 100ns units.
-TEXT runtime·usleep1(SB),NOSPLIT,$0
-	MOVL	usec+0(FP), BX
-	MOVL	$runtime·usleep2(SB), AX // to hide from 8l
+// onosstack calls fn on OS stack.
+// func onosstack(fn unsafe.Pointer, arg uint32)
+TEXT runtime·onosstack(SB),NOSPLIT,$0
+	MOVL	fn+0(FP), AX		// to hide from 8l
+	MOVL	arg+4(FP), BX
 
 	// Execute call on m->g0 stack, in case we are not actually
 	// calling a system call wrapper, like when running under WINE.
@@ -416,6 +420,14 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
 	MOVL	$-1, handle-20(SP)
 	MOVL	SP, BP
 	MOVL	runtime·_NtWaitForSingleObject(SB), AX
+	CALL	AX
+	MOVL	BP, SP
+	RET
+
+// Runs on OS stack.
+TEXT runtime·switchtothread(SB),NOSPLIT,$0
+	MOVL	SP, BP
+	MOVL	runtime·_SwitchToThread(SB), AX
 	CALL	AX
 	MOVL	BP, SP
 	RET

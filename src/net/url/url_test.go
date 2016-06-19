@@ -6,6 +6,8 @@ package url
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,7 +15,7 @@ import (
 
 type URLTest struct {
 	in        string
-	out       *URL
+	out       *URL   // expected parse; RawPath="" means same as Path
 	roundtrip string // expected result of reserializing the URL; empty means same as "in".
 }
 
@@ -41,11 +43,12 @@ var urltests = []URLTest{
 	{
 		"http://www.google.com/file%20one%26two",
 		&URL{
-			Scheme: "http",
-			Host:   "www.google.com",
-			Path:   "/file one&two",
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/file one&two",
+			RawPath: "/file%20one%26two",
 		},
-		"http://www.google.com/file%20one&two",
+		"",
 	},
 	// user
 	{
@@ -68,6 +71,28 @@ var urltests = []URLTest{
 			Path:   "/",
 		},
 		"ftp://john%20doe@www.google.com/",
+	},
+	// empty query
+	{
+		"http://www.google.com/?",
+		&URL{
+			Scheme:     "http",
+			Host:       "www.google.com",
+			Path:       "/",
+			ForceQuery: true,
+		},
+		"",
+	},
+	// query ending in question mark (Issue 14573)
+	{
+		"http://www.google.com/?foo=bar?",
+		&URL{
+			Scheme:   "http",
+			Host:     "www.google.com",
+			Path:     "/",
+			RawQuery: "foo=bar?",
+		},
+		"",
 	},
 	// query
 	{
@@ -289,6 +314,256 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// host subcomponent; IPv4 address in RFC 3986
+	{
+		"http://192.168.0.1/",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.1",
+			Path:   "/",
+		},
+		"",
+	},
+	// host and port subcomponents; IPv4 address in RFC 3986
+	{
+		"http://192.168.0.1:8080/",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.1:8080",
+			Path:   "/",
+		},
+		"",
+	},
+	// host subcomponent; IPv6 address in RFC 3986
+	{
+		"http://[fe80::1]/",
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1]",
+			Path:   "/",
+		},
+		"",
+	},
+	// host and port subcomponents; IPv6 address in RFC 3986
+	{
+		"http://[fe80::1]:8080/",
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1]:8080",
+			Path:   "/",
+		},
+		"",
+	},
+	// host subcomponent; IPv6 address with zone identifier in RFC 6874
+	{
+		"http://[fe80::1%25en0]/", // alphanum zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en0]",
+			Path:   "/",
+		},
+		"",
+	},
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6874
+	{
+		"http://[fe80::1%25en0]:8080/", // alphanum zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en0]:8080",
+			Path:   "/",
+		},
+		"",
+	},
+	// host subcomponent; IPv6 address with zone identifier in RFC 6874
+	{
+		"http://[fe80::1%25%65%6e%301-._~]/", // percent-encoded+unreserved zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en01-._~]",
+			Path:   "/",
+		},
+		"http://[fe80::1%25en01-._~]/",
+	},
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6874
+	{
+		"http://[fe80::1%25%65%6e%301-._~]:8080/", // percent-encoded+unreserved zone identifier
+		&URL{
+			Scheme: "http",
+			Host:   "[fe80::1%en01-._~]:8080",
+			Path:   "/",
+		},
+		"http://[fe80::1%25en01-._~]:8080/",
+	},
+	// alternate escapings of path survive round trip
+	{
+		"http://rest.rsc.io/foo%2fbar/baz%2Fquux?alt=media",
+		&URL{
+			Scheme:   "http",
+			Host:     "rest.rsc.io",
+			Path:     "/foo/bar/baz/quux",
+			RawPath:  "/foo%2fbar/baz%2Fquux",
+			RawQuery: "alt=media",
+		},
+		"",
+	},
+	// issue 12036
+	{
+		"mysql://a,b,c/bar",
+		&URL{
+			Scheme: "mysql",
+			Host:   "a,b,c",
+			Path:   "/bar",
+		},
+		"",
+	},
+	// worst case host, still round trips
+	{
+		"scheme://!$&'()*+,;=hello!:port/path",
+		&URL{
+			Scheme: "scheme",
+			Host:   "!$&'()*+,;=hello!:port",
+			Path:   "/path",
+		},
+		"",
+	},
+	// worst case path, still round trips
+	{
+		"http://host/!$&'()*+,;=:@[hello]",
+		&URL{
+			Scheme:  "http",
+			Host:    "host",
+			Path:    "/!$&'()*+,;=:@[hello]",
+			RawPath: "/!$&'()*+,;=:@[hello]",
+		},
+		"",
+	},
+	// golang.org/issue/5684
+	{
+		"http://example.com/oid/[order_id]",
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/oid/[order_id]",
+			RawPath: "/oid/[order_id]",
+		},
+		"",
+	},
+	// golang.org/issue/12200 (colon with empty port)
+	{
+		"http://192.168.0.2:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.2:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://192.168.0.2:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.2:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		// Malformed IPv6 but still accepted.
+		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		// Malformed IPv6 but still accepted.
+		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	// golang.org/issue/7991 and golang.org/issue/12719 (non-ascii %-encoded in host)
+	{
+		"http://hello.世界.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+	},
+	{
+		"http://hello.%e4%b8%96%e7%95%8c.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+	},
+	{
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"",
+	},
+	// golang.org/issue/10433 (path beginning with //)
+	{
+		"http://example.com//foo",
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Path:   "//foo",
+		},
+		"",
+	},
+	// test that we can reparse the host names we accept.
+	{
+		"myscheme://authority<\"hi\">/foo",
+		&URL{
+			Scheme: "myscheme",
+			Host:   "authority<\"hi\">",
+			Path:   "/foo",
+		},
+		"",
+	},
+	// spaces in hosts are disallowed but escaped spaces in IPv6 scope IDs are grudgingly OK.
+	// This happens on Windows.
+	// golang.org/issue/14002
+	{
+		"tcp://[2020::2020:20:2020:2020%25Windows%20Loves%20Spaces]:2020",
+		&URL{
+			Scheme: "tcp",
+			Host:   "[2020::2020:20:2020:2020%Windows Loves Spaces]:2020",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -300,8 +575,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawq=%q, frag=%q",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawQuery, u.Fragment)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
@@ -336,7 +611,7 @@ func BenchmarkString(b *testing.B) {
 			g = u.String()
 		}
 		b.StopTimer()
-		if w := tt.roundtrip; g != w {
+		if w := tt.roundtrip; b.N > 0 && g != w {
 			b.Errorf("Parse(%q).String() == %q, want %q", tt.in, g, w)
 		}
 	}
@@ -358,9 +633,33 @@ var parseRequestURLTests = []struct {
 	{"/", true},
 	{pathThatLooksSchemeRelative, true},
 	{"//not.a.user@%66%6f%6f.com/just/a/path/also", true},
+	{"*", true},
+	{"http://192.168.0.1/", true},
+	{"http://192.168.0.1:8080/", true},
+	{"http://[fe80::1]/", true},
+	{"http://[fe80::1]:8080/", true},
+
+	// Tests exercising RFC 6874 compliance:
+	{"http://[fe80::1%25en0]/", true},                 // with alphanum zone identifier
+	{"http://[fe80::1%25en0]:8080/", true},            // with alphanum zone identifier
+	{"http://[fe80::1%25%65%6e%301-._~]/", true},      // with percent-encoded+unreserved zone identifier
+	{"http://[fe80::1%25%65%6e%301-._~]:8080/", true}, // with percent-encoded+unreserved zone identifier
+
 	{"foo.html", false},
 	{"../dir/", false},
-	{"*", true},
+	{"http://192.168.0.%31/", false},
+	{"http://192.168.0.%31:8080/", false},
+	{"http://[fe80::%31]/", false},
+	{"http://[fe80::%31]:8080/", false},
+	{"http://[fe80::%31%25en0]/", false},
+	{"http://[fe80::%31%25en0]:8080/", false},
+
+	// These two cases are valid as textual representations as
+	// described in RFC 4007, but are not valid as address
+	// literals with IPv6 zone identifiers in URIs as described in
+	// RFC 6874.
+	{"http://[fe80::1%en0]/", false},
+	{"http://[fe80::1%en0]:8080/", false},
 }
 
 func TestParseRequestURI(t *testing.T) {
@@ -597,11 +896,13 @@ var resolveReferenceTests = []struct {
 	// Absolute URL references
 	{"http://foo.com?a=b", "https://bar.com/", "https://bar.com/"},
 	{"http://foo.com/", "https://bar.com/?a=b", "https://bar.com/?a=b"},
+	{"http://foo.com/", "https://bar.com/?", "https://bar.com/?"},
 	{"http://foo.com/bar", "mailto:foo@example.com", "mailto:foo@example.com"},
 
 	// Path-absolute references
 	{"http://foo.com/bar", "/baz", "http://foo.com/baz"},
 	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
+	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
 
 	// Scheme-relative
@@ -869,6 +1170,25 @@ var requritests = []RequestURITest{
 		},
 		"http://other.example.com/%2F/%2F/",
 	},
+	// better fix for issue 4860
+	{
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/////",
+			RawPath: "/%2F/%2F/",
+		},
+		"/%2F/%2F/",
+	},
+	{
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/////",
+			RawPath: "/WRONG/", // ignored because doesn't match Path
+		},
+		"/////",
+	},
 	{
 		&URL{
 			Scheme:   "http",
@@ -877,6 +1197,26 @@ var requritests = []RequestURITest{
 			RawQuery: "q=go+language",
 		},
 		"/a%20b?q=go+language",
+	},
+	{
+		&URL{
+			Scheme:   "http",
+			Host:     "example.com",
+			Path:     "/a b",
+			RawPath:  "/a b", // ignored because invalid
+			RawQuery: "q=go+language",
+		},
+		"/a%20b?q=go+language",
+	},
+	{
+		&URL{
+			Scheme:   "http",
+			Host:     "example.com",
+			Path:     "/a?b",
+			RawPath:  "/a?b", // ignored because invalid
+			RawQuery: "q=go+language",
+		},
+		"/a%3Fb?q=go+language",
 	},
 	{
 		&URL{
@@ -892,6 +1232,23 @@ var requritests = []RequestURITest{
 			RawQuery: "q=go+language",
 		},
 		"opaque?q=go+language",
+	},
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Path:   "//foo",
+		},
+		"//foo",
+	},
+	{
+		&URL{
+			Scheme:     "http",
+			Host:       "example.com",
+			Path:       "/foo",
+			ForceQuery: true,
+		},
+		"/foo?",
 	},
 }
 
@@ -914,6 +1271,55 @@ func TestParseFailure(t *testing.T) {
 	}
 }
 
+func TestParseAuthority(t *testing.T) {
+	tests := []struct {
+		in      string
+		wantErr bool
+	}{
+		{"http://[::1]", false},
+		{"http://[::1]:80", false},
+		{"http://[::1]:namedport", true}, // rfc3986 3.2.3
+		{"http://[::1]/", false},
+		{"http://[::1]a", true},
+		{"http://[::1]%23", true},
+		{"http://[::1%25en0]", false},     // valid zone id
+		{"http://[::1]:", false},          // colon, but no port OK
+		{"http://[::1]:%38%30", true},     // not allowed: % encoding only for non-ASCII
+		{"http://[::1%25%41]", false},     // RFC 6874 allows over-escaping in zone
+		{"http://[%10::1]", true},         // no %xx escapes in IP address
+		{"http://[::1]/%48", false},       // %xx in path is fine
+		{"http://%41:8080/", true},        // not allowed: % encoding only for non-ASCII
+		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
+		{"mysql://x@y(1.2.3.4:123)/foo", false},
+		{"mysql://x@y([2001:db8::1]:123)/foo", false},
+		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
+		{"http://a b.com/", true},                                                                       // no space in host name please
+	}
+	for _, tt := range tests {
+		u, err := Parse(tt.in)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("Parse(%q) = %#v; want an error", tt.in, u)
+			}
+			continue
+		}
+		if err != nil {
+			t.Logf("Parse(%q) = %v; want no error", tt.in, err)
+		}
+	}
+}
+
+// Issue 11202
+func TestStarRequest(t *testing.T) {
+	u, err := Parse("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := u.RequestURI(), "*"; got != want {
+		t.Errorf("RequestURI = %q; want %q", got, want)
+	}
+}
+
 type shouldEscapeTest struct {
 	in     byte
 	mode   encoding
@@ -926,6 +1332,7 @@ var shouldEscapeTests = []shouldEscapeTest{
 	{'a', encodeUserPassword, false},
 	{'a', encodeQueryComponent, false},
 	{'a', encodeFragment, false},
+	{'a', encodeHost, false},
 	{'z', encodePath, false},
 	{'A', encodePath, false},
 	{'Z', encodePath, false},
@@ -950,12 +1357,116 @@ var shouldEscapeTests = []shouldEscapeTest{
 	{',', encodeUserPassword, false},
 	{';', encodeUserPassword, false},
 	{'=', encodeUserPassword, false},
+
+	// Host (IP address, IPv6 address, registered name, port suffix; §3.2.2)
+	{'!', encodeHost, false},
+	{'$', encodeHost, false},
+	{'&', encodeHost, false},
+	{'\'', encodeHost, false},
+	{'(', encodeHost, false},
+	{')', encodeHost, false},
+	{'*', encodeHost, false},
+	{'+', encodeHost, false},
+	{',', encodeHost, false},
+	{';', encodeHost, false},
+	{'=', encodeHost, false},
+	{':', encodeHost, false},
+	{'[', encodeHost, false},
+	{']', encodeHost, false},
+	{'0', encodeHost, false},
+	{'9', encodeHost, false},
+	{'A', encodeHost, false},
+	{'z', encodeHost, false},
+	{'_', encodeHost, false},
+	{'-', encodeHost, false},
+	{'.', encodeHost, false},
 }
 
 func TestShouldEscape(t *testing.T) {
 	for _, tt := range shouldEscapeTests {
 		if shouldEscape(tt.in, tt.mode) != tt.escape {
 			t.Errorf("shouldEscape(%q, %v) returned %v; expected %v", tt.in, tt.mode, !tt.escape, tt.escape)
+		}
+	}
+}
+
+type timeoutError struct {
+	timeout bool
+}
+
+func (e *timeoutError) Error() string { return "timeout error" }
+func (e *timeoutError) Timeout() bool { return e.timeout }
+
+type temporaryError struct {
+	temporary bool
+}
+
+func (e *temporaryError) Error() string   { return "temporary error" }
+func (e *temporaryError) Temporary() bool { return e.temporary }
+
+type timeoutTemporaryError struct {
+	timeoutError
+	temporaryError
+}
+
+func (e *timeoutTemporaryError) Error() string { return "timeout/temporary error" }
+
+var netErrorTests = []struct {
+	err       error
+	timeout   bool
+	temporary bool
+}{{
+	err:       &Error{"Get", "http://google.com/", &timeoutError{timeout: true}},
+	timeout:   true,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutError{timeout: false}},
+	timeout:   false,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &temporaryError{temporary: true}},
+	timeout:   false,
+	temporary: true,
+}, {
+	err:       &Error{"Get", "http://google.com/", &temporaryError{temporary: false}},
+	timeout:   false,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: true}, temporaryError{temporary: true}}},
+	timeout:   true,
+	temporary: true,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: false}, temporaryError{temporary: true}}},
+	timeout:   false,
+	temporary: true,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: true}, temporaryError{temporary: false}}},
+	timeout:   true,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: false}, temporaryError{temporary: false}}},
+	timeout:   false,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", io.EOF},
+	timeout:   false,
+	temporary: false,
+}}
+
+// Test that url.Error implements net.Error and that it forwards
+func TestURLErrorImplementsNetError(t *testing.T) {
+	for i, tt := range netErrorTests {
+		err, ok := tt.err.(net.Error)
+		if !ok {
+			t.Errorf("%d: %T does not implement net.Error", i+1, tt.err)
+			continue
+		}
+		if err.Timeout() != tt.timeout {
+			t.Errorf("%d: err.Timeout(): want %v, have %v", i+1, tt.timeout, err.Timeout())
+			continue
+		}
+		if err.Temporary() != tt.temporary {
+			t.Errorf("%d: err.Temporary(): want %v, have %v", i+1, tt.temporary, err.Temporary())
 		}
 	}
 }

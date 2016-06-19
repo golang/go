@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,9 +7,11 @@ package io_test
 import (
 	"bytes"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	. "io"
 	"io/ioutil"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -62,8 +64,59 @@ func TestMultiReader(t *testing.T) {
 }
 
 func TestMultiWriter(t *testing.T) {
-	sha1 := sha1.New()
 	sink := new(bytes.Buffer)
+	// Hide bytes.Buffer's WriteString method:
+	testMultiWriter(t, struct {
+		Writer
+		fmt.Stringer
+	}{sink, sink})
+}
+
+func TestMultiWriter_String(t *testing.T) {
+	testMultiWriter(t, new(bytes.Buffer))
+}
+
+// test that a multiWriter.WriteString calls results in at most 1 allocation,
+// even if multiple targets don't support WriteString.
+func TestMultiWriter_WriteStringSingleAlloc(t *testing.T) {
+	var sink1, sink2 bytes.Buffer
+	type simpleWriter struct { // hide bytes.Buffer's WriteString
+		Writer
+	}
+	mw := MultiWriter(simpleWriter{&sink1}, simpleWriter{&sink2})
+	allocs := int(testing.AllocsPerRun(1000, func() {
+		WriteString(mw, "foo")
+	}))
+	if allocs != 1 {
+		t.Errorf("num allocations = %d; want 1", allocs)
+	}
+}
+
+type writeStringChecker struct{ called bool }
+
+func (c *writeStringChecker) WriteString(s string) (n int, err error) {
+	c.called = true
+	return len(s), nil
+}
+
+func (c *writeStringChecker) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func TestMultiWriter_StringCheckCall(t *testing.T) {
+	var c writeStringChecker
+	mw := MultiWriter(&c)
+	WriteString(mw, "foo")
+	if !c.called {
+		t.Error("did not see WriteString call to writeStringChecker")
+	}
+}
+
+func testMultiWriter(t *testing.T, sink interface {
+	Writer
+	fmt.Stringer
+}) {
+	sha1 := sha1.New()
 	mw := MultiWriter(sha1, sink)
 
 	sourceString := "My input text."
@@ -111,5 +164,35 @@ func TestMultiWriterCopy(t *testing.T) {
 	}
 	if buf.String() != "hello world" {
 		t.Errorf("buf.String() = %q, want %q", buf.String(), "hello world")
+	}
+}
+
+// readerFunc is an io.Reader implemented by the underlying func.
+type readerFunc func(p []byte) (int, error)
+
+func (f readerFunc) Read(p []byte) (int, error) {
+	return f(p)
+}
+
+// Test that MultiReader properly flattens chained multiReaders when Read is called
+func TestMultiReaderFlatten(t *testing.T) {
+	pc := make([]uintptr, 1000) // 1000 should fit the full stack
+	var myDepth = runtime.Callers(0, pc)
+	var readDepth int // will contain the depth from which fakeReader.Read was called
+	var r Reader = MultiReader(readerFunc(func(p []byte) (int, error) {
+		readDepth = runtime.Callers(1, pc)
+		return 0, errors.New("irrelevant")
+	}))
+
+	// chain a bunch of multiReaders
+	for i := 0; i < 100; i++ {
+		r = MultiReader(r)
+	}
+
+	r.Read(nil) // don't care about errors, just want to check the call-depth for Read
+
+	if readDepth != myDepth+2 { // 2 should be multiReader.Read and fakeReader.Read
+		t.Errorf("multiReader did not flatten chained multiReaders: expected readDepth %d, got %d",
+			myDepth+2, readDepth)
 	}
 }

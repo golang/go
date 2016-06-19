@@ -17,8 +17,8 @@ import (
 type Buffer struct {
 	buf       []byte            // contents are the bytes buf[off : len(buf)]
 	off       int               // read at &buf[off], write at &buf[len(buf)]
-	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each WriteByte or Rune
-	bootstrap [64]byte          // memory to hold first slice; helps small buffers (Printf) avoid allocation.
+	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each call to WriteRune
+	bootstrap [64]byte          // memory to hold first slice; helps small buffers avoid allocation.
 	lastRead  readOp            // last read operation, so that Unread* can work correctly.
 }
 
@@ -36,14 +36,15 @@ const (
 // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
 var ErrTooLarge = errors.New("bytes.Buffer: too large")
 
-// Bytes returns a slice of the contents of the unread portion of the buffer;
-// len(b.Bytes()) == b.Len().  If the caller changes the contents of the
-// returned slice, the contents of the buffer will change provided there
-// are no intervening method calls on the Buffer.
+// Bytes returns a slice of length b.Len() holding the unread portion of the buffer.
+// The slice is valid for use only until the next buffer modification (that is,
+// only until the next call to a method like Read, Write, Reset, or Truncate).
+// The slice aliases the buffer content at least until the next buffer modification,
+// so immediate changes to the slice will affect the result of future reads.
 func (b *Buffer) Bytes() []byte { return b.buf[b.off:] }
 
 // String returns the contents of the unread portion of the buffer
-// as a string.  If the Buffer is a nil pointer, it returns "<nil>".
+// as a string. If the Buffer is a nil pointer, it returns "<nil>".
 func (b *Buffer) String() string {
 	if b == nil {
 		// Special case, useful in debugging.
@@ -56,7 +57,12 @@ func (b *Buffer) String() string {
 // b.Len() == len(b.Bytes()).
 func (b *Buffer) Len() int { return len(b.buf) - b.off }
 
-// Truncate discards all but the first n unread bytes from the buffer.
+// Cap returns the capacity of the buffer's underlying byte slice, that is, the
+// total space allocated for the buffer's data.
+func (b *Buffer) Cap() int { return cap(b.buf) }
+
+// Truncate discards all but the first n unread bytes from the buffer
+// but continues to use the same allocated storage.
 // It panics if n is negative or greater than the length of the buffer.
 func (b *Buffer) Truncate(n int) {
 	b.lastRead = opInvalid
@@ -70,8 +76,9 @@ func (b *Buffer) Truncate(n int) {
 	b.buf = b.buf[0 : b.off+n]
 }
 
-// Reset resets the buffer so it has no content.
-// b.Reset() is the same as b.Truncate(0).
+// Reset resets the buffer to be empty,
+// but it retains the underlying storage for use by future writes.
+// Reset is the same as Truncate(0).
 func (b *Buffer) Reset() { b.Truncate(0) }
 
 // grow grows the buffer to guarantee space for n more bytes.
@@ -138,7 +145,7 @@ func (b *Buffer) WriteString(s string) (n int, err error) {
 }
 
 // MinRead is the minimum slice size passed to a Read call by
-// Buffer.ReadFrom.  As long as the Buffer has at least MinRead bytes beyond
+// Buffer.ReadFrom. As long as the Buffer has at least MinRead bytes beyond
 // what is required to hold the contents of r, ReadFrom will not grow the
 // underlying buffer.
 const MinRead = 512
@@ -245,7 +252,7 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 }
 
 // Read reads the next len(p) bytes from the buffer or until the buffer
-// is drained.  The return value n is the number of bytes read.  If the
+// is drained. The return value n is the number of bytes read. If the
 // buffer has no data to return, err is io.EOF (unless len(p) is zero);
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err error) {
@@ -286,14 +293,14 @@ func (b *Buffer) Next(n int) []byte {
 
 // ReadByte reads and returns the next byte from the buffer.
 // If no byte is available, it returns error io.EOF.
-func (b *Buffer) ReadByte() (c byte, err error) {
+func (b *Buffer) ReadByte() (byte, error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
 		b.Truncate(0)
 		return 0, io.EOF
 	}
-	c = b.buf[b.off]
+	c := b.buf[b.off]
 	b.off++
 	b.lastRead = opRead
 	return c, nil
@@ -340,7 +347,7 @@ func (b *Buffer) UnreadRune() error {
 }
 
 // UnreadByte unreads the last byte returned by the most recent
-// read operation.  If write has happened since the last read, UnreadByte
+// read operation. If write has happened since the last read, UnreadByte
 // returns an error.
 func (b *Buffer) UnreadByte() error {
 	if b.lastRead != opReadRune && b.lastRead != opRead {
@@ -393,7 +400,7 @@ func (b *Buffer) ReadString(delim byte) (line string, err error) {
 }
 
 // NewBuffer creates and initializes a new Buffer using buf as its initial
-// contents.  It is intended to prepare a Buffer to read existing data.  It
+// contents. It is intended to prepare a Buffer to read existing data. It
 // can also be used to size the internal buffer for writing. To do that,
 // buf should have the desired capacity but a length of zero.
 //

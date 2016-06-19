@@ -46,14 +46,18 @@ func (f *File) Name() string { return f.name }
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
 // standard output, and standard error file descriptors.
+//
+// Note that the Go runtime writes to standard error for panics and crashes;
+// closing Stderr may cause those messages to go elsewhere, perhaps
+// to a file opened later.
 var (
 	Stdin  = NewFile(uintptr(syscall.Stdin), "/dev/stdin")
 	Stdout = NewFile(uintptr(syscall.Stdout), "/dev/stdout")
 	Stderr = NewFile(uintptr(syscall.Stderr), "/dev/stderr")
 )
 
-// Flags to Open wrapping those of the underlying system. Not all flags
-// may be implemented on a given system.
+// Flags to OpenFile wrapping those of the underlying system. Not all
+// flags may be implemented on a given system.
 const (
 	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
 	O_WRONLY int = syscall.O_WRONLY // open the file write-only.
@@ -66,6 +70,8 @@ const (
 )
 
 // Seek whence values.
+//
+// Deprecated: Use io.SeekStart, io.SeekCurrent, and io.SeekEnd.
 const (
 	SEEK_SET int = 0 // seek relative to the origin of the file
 	SEEK_CUR int = 1 // seek relative to the current offset
@@ -93,9 +99,6 @@ func (f *File) Read(b []byte) (n int, err error) {
 		return 0, ErrInvalid
 	}
 	n, e := f.read(b)
-	if n < 0 {
-		n = 0
-	}
 	if n == 0 && len(b) > 0 && e == nil {
 		return 0, io.EOF
 	}
@@ -176,6 +179,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
+// The behavior of Seek on a file opened with O_APPEND is not specified.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 	if f == nil {
 		return 0, ErrInvalid
@@ -192,7 +196,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 
 // WriteString is like Write, but writes the contents of string s rather than
 // a slice of bytes.
-func (f *File) WriteString(s string) (ret int, err error) {
+func (f *File) WriteString(s string) (n int, err error) {
 	if f == nil {
 		return 0, ErrInvalid
 	}
@@ -204,14 +208,15 @@ func (f *File) WriteString(s string) (ret int, err error) {
 func Mkdir(name string, perm FileMode) error {
 	e := syscall.Mkdir(name, syscallMode(perm))
 
-	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
-	if !supportsCreateWithStickyBit && e == nil && perm&ModeSticky != 0 {
-		e = Chmod(name, perm)
-	}
-
 	if e != nil {
 		return &PathError{"mkdir", name, e}
 	}
+
+	// mkdir(2) itself won't handle the sticky bit on *BSD and Solaris
+	if !supportsCreateWithStickyBit && perm&ModeSticky != 0 {
+		Chmod(name, perm)
+	}
+
 	return nil
 }
 
@@ -237,27 +242,30 @@ func (f *File) Chdir() error {
 	return nil
 }
 
-// Open opens the named file for reading.  If successful, methods on
+// Open opens the named file for reading. If successful, methods on
 // the returned file can be used for reading; the associated file
 // descriptor has mode O_RDONLY.
 // If there is an error, it will be of type *PathError.
-func Open(name string) (file *File, err error) {
+func Open(name string) (*File, error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
 
-// Create creates the named file mode 0666 (before umask), truncating
-// it if it already exists.  If successful, methods on the returned
+// Create creates the named file with mode 0666 (before umask), truncating
+// it if it already exists. If successful, methods on the returned
 // File can be used for I/O; the associated file descriptor has mode
 // O_RDWR.
 // If there is an error, it will be of type *PathError.
-func Create(name string) (file *File, err error) {
+func Create(name string) (*File, error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
 // lstat is overridden in tests.
 var lstat = Lstat
 
-// Rename renames (moves) a file. OS-specific restrictions might apply.
+// Rename renames (moves) oldpath to newpath.
+// If newpath already exists, Rename replaces it.
+// OS-specific restrictions may apply when oldpath and newpath are in different directories.
+// If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
 }

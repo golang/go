@@ -14,6 +14,7 @@ import (
 type fileStat struct {
 	name string
 	sys  syscall.Win32FileAttributeData
+	pipe bool
 
 	// used to implement SameFile
 	sync.Mutex
@@ -42,6 +43,9 @@ func (fs *fileStat) Mode() (m FileMode) {
 	if fs.sys.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
 		m |= ModeSymlink
 	}
+	if fs.pipe {
+		m |= ModeNamedPipe
+	}
 	return m
 }
 
@@ -69,7 +73,7 @@ func (fs *fileStat) loadFileId() error {
 	}
 	defer syscall.CloseHandle(h)
 	var i syscall.ByHandleFileInformation
-	err = syscall.GetFileInformationByHandle(syscall.Handle(h), &i)
+	err = syscall.GetFileInformationByHandle(h, &i)
 	if err != nil {
 		return err
 	}

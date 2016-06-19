@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -84,7 +84,7 @@ func (hr hideAgainReader) Read(p []byte) (n int, err error) {
 // systems without a reliable /dev/urandom.
 
 // newReader returns a new pseudorandom generator that
-// seeds itself by reading from entropy.  If entropy == nil,
+// seeds itself by reading from entropy. If entropy == nil,
 // the generator seeds itself by reading from the system's
 // random number generator, typically /dev/random.
 // The Read method on the returned reader always returns

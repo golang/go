@@ -7,6 +7,7 @@ package multipart
 import (
 	"bytes"
 	"io/ioutil"
+	"net/textproto"
 	"strings"
 	"testing"
 )
@@ -125,4 +126,33 @@ func TestWriterBoundaryGoroutines(t *testing.T) {
 	}()
 	w.Boundary()
 	<-done
+}
+
+func TestSortedHeader(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if err := w.SetBoundary("MIMEBOUNDARY"); err != nil {
+		t.Fatalf("Error setting mime boundary: %v", err)
+	}
+
+	header := textproto.MIMEHeader{
+		"A": {"2"},
+		"B": {"5", "7", "6"},
+		"C": {"4"},
+		"M": {"3"},
+		"Z": {"1"},
+	}
+
+	part, err := w.CreatePart(header)
+	if err != nil {
+		t.Fatalf("Unable to create part: %v", err)
+	}
+	part.Write([]byte("foo"))
+
+	w.Close()
+
+	want := "--MIMEBOUNDARY\r\nA: 2\r\nB: 5\r\nB: 7\r\nB: 6\r\nC: 4\r\nM: 3\r\nZ: 1\r\n\r\nfoo\r\n--MIMEBOUNDARY--\r\n"
+	if want != buf.String() {
+		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
+	}
 }

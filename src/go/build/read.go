@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"unicode/utf8"
 )
 
 type importReader struct {
@@ -20,7 +21,7 @@ type importReader struct {
 }
 
 func isIdent(c byte) bool {
-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= 0x80
+	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= utf8.RuneSelf
 }
 
 var (
@@ -146,11 +147,15 @@ func (r *importReader) readIdent() {
 
 // readString reads a quoted string literal from the input.
 // If an identifier is not present, readString records a syntax error.
-func (r *importReader) readString() {
+func (r *importReader) readString(save *[]string) {
 	switch r.nextByte(true) {
 	case '`':
+		start := len(r.buf) - 1
 		for r.err == nil {
 			if r.nextByte(false) == '`' {
+				if save != nil {
+					*save = append(*save, string(r.buf[start:]))
+				}
 				break
 			}
 			if r.eof {
@@ -158,9 +163,13 @@ func (r *importReader) readString() {
 			}
 		}
 	case '"':
+		start := len(r.buf) - 1
 		for r.err == nil {
 			c := r.nextByte(false)
 			if c == '"' {
+				if save != nil {
+					*save = append(*save, string(r.buf[start:]))
+				}
 				break
 			}
 			if r.eof || c == '\n' {
@@ -177,14 +186,14 @@ func (r *importReader) readString() {
 
 // readImport reads an import clause - optional identifier followed by quoted string -
 // from the input.
-func (r *importReader) readImport() {
+func (r *importReader) readImport(imports *[]string) {
 	c := r.peekByte(true)
 	if c == '.' {
 		r.peek = 0
 	} else if isIdent(c) {
 		r.readIdent()
 	}
-	r.readString()
+	r.readString(imports)
 }
 
 // readComments is like ioutil.ReadAll, except that it only reads the leading
@@ -201,7 +210,7 @@ func readComments(f io.Reader) ([]byte, error) {
 
 // readImports is like ioutil.ReadAll, except that it expects a Go file as input
 // and stops reading the input once the imports have completed.
-func readImports(f io.Reader, reportSyntaxError bool) ([]byte, error) {
+func readImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
 	r := &importReader{b: bufio.NewReader(f)}
 
 	r.readKeyword("package")
@@ -211,11 +220,11 @@ func readImports(f io.Reader, reportSyntaxError bool) ([]byte, error) {
 		if r.peekByte(true) == '(' {
 			r.nextByte(false)
 			for r.peekByte(true) != ')' && r.err == nil {
-				r.readImport()
+				r.readImport(imports)
 			}
 			r.nextByte(false)
 		} else {
-			r.readImport()
+			r.readImport(imports)
 		}
 	}
 

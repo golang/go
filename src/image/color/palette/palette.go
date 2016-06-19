@@ -19,7 +19,7 @@ import "image/color"
 // of continuous tones.
 //
 // This palette was used in the Plan 9 Operating System, described at
-// http://plan9.bell-labs.com/magic/man2html/6/color
+// https://9p.io/magic/man2html/6/color
 var Plan9 = []color.Color{
 	color.RGBA{0x00, 0x00, 0x00, 0xff},
 	color.RGBA{0x00, 0x00, 0x44, 0xff},

@@ -1,11 +1,12 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package debug
+package debug_test
 
 import (
 	"runtime"
+	. "runtime/debug"
 	"testing"
 	"time"
 )
@@ -88,6 +89,10 @@ func TestReadGCStats(t *testing.T) {
 var big = make([]byte, 1<<20)
 
 func TestFreeOSMemory(t *testing.T) {
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le" ||
+		runtime.GOOS == "nacl" {
+		t.Skip("issue 9993; scavenger temporarily disabled on systems with physical pages larger than logical pages")
+	}
 	var ms1, ms2 runtime.MemStats
 
 	if big == nil {

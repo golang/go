@@ -7,11 +7,13 @@ package expvar
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"net"
 	"net/http/httptest"
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -22,6 +24,14 @@ func RemoveAll() {
 	defer mutex.Unlock()
 	vars = make(map[string]Var)
 	varKeys = nil
+}
+
+func TestNil(t *testing.T) {
+	RemoveAll()
+	val := Get("missing")
+	if val != nil {
+		t.Errorf("got %v, want nil", val)
+	}
 }
 
 func TestInt(t *testing.T) {
@@ -70,6 +80,10 @@ func BenchmarkIntSet(b *testing.B) {
 	})
 }
 
+func (v *Float) val() float64 {
+	return math.Float64frombits(atomic.LoadUint64(&v.f))
+}
+
 func TestFloat(t *testing.T) {
 	RemoveAll()
 	reqs := NewFloat("requests-float")
@@ -82,8 +96,8 @@ func TestFloat(t *testing.T) {
 
 	reqs.Add(1.5)
 	reqs.Add(1.25)
-	if reqs.f != 2.75 {
-		t.Errorf("reqs.f = %v, want 2.75", reqs.f)
+	if v := reqs.val(); v != 2.75 {
+		t.Errorf("reqs.val() = %v, want 2.75", v)
 	}
 
 	if s := reqs.String(); s != "2.75" {
@@ -91,8 +105,8 @@ func TestFloat(t *testing.T) {
 	}
 
 	reqs.Add(-2)
-	if reqs.f != 0.75 {
-		t.Errorf("reqs.f = %v, want 0.75", reqs.f)
+	if v := reqs.val(); v != 0.75 {
+		t.Errorf("reqs.val() = %v, want 0.75", v)
 	}
 }
 
@@ -128,8 +142,14 @@ func TestString(t *testing.T) {
 		t.Errorf("name.s = %q, want \"Mike\"", name.s)
 	}
 
-	if s := name.String(); s != "\"Mike\"" {
-		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s)
+	if s, want := name.String(), `"Mike"`; s != want {
+		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
+	}
+
+	// Make sure we produce safe JSON output.
+	name.Set(`<`)
+	if s, want := name.String(), "\"\\u003c\""; s != want {
+		t.Errorf("from %q, name.String() = %q, want %q", name.s, s, want)
 	}
 }
 
@@ -157,8 +177,8 @@ func TestMapCounter(t *testing.T) {
 	if x := colors.m["blue"].(*Int).i; x != 4 {
 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
 	}
-	if x := colors.m[`green "midori"`].(*Float).f; x != 4.125 {
-		t.Errorf("colors.m[`green \"midori\"] = %v, want 3.14", x)
+	if x := colors.m[`green "midori"`].(*Float).val(); x != 4.125 {
+		t.Errorf("colors.m[`green \"midori\"] = %v, want 4.125", x)
 	}
 
 	// colors.String() should be '{"red":3, "blue":4}',

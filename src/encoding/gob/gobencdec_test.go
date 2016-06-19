@@ -376,7 +376,7 @@ func TestGobEncoderIndirectArrayField(t *testing.T) {
 }
 
 // As long as the fields have the same name and implement the
-// interface, we can cross-connect them.  Not sure it's useful
+// interface, we can cross-connect them. Not sure it's useful
 // and may even be bad but it works and it's hard to prevent
 // without exposing the contents of the object, which would
 // defeat the purpose.
@@ -434,7 +434,7 @@ func TestGobEncoderValueEncoder(t *testing.T) {
 }
 
 // Test that we can use a value then a pointer type of a GobEncoder
-// in the same encoded value.  Bug 4647.
+// in the same encoded value. Bug 4647.
 func TestGobEncoderValueThenPointer(t *testing.T) {
 	v := ValueGobber("forty-two")
 	w := ValueGobber("six-by-nine")
@@ -548,7 +548,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error for mismatched fields (encoder to non-decoder)")
 	}
-	if strings.Index(err.Error(), "type") < 0 {
+	if !strings.Contains(err.Error(), "type") {
 		t.Fatal("expected type error; got", err)
 	}
 	// Non-encoder to GobDecoder: error
@@ -562,7 +562,7 @@ func TestGobEncoderFieldTypeError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected decode error for mismatched fields (non-encoder to decoder)")
 	}
-	if strings.Index(err.Error(), "type") < 0 {
+	if !strings.Contains(err.Error(), "type") {
 		t.Fatal("expected type error; got", err)
 	}
 }

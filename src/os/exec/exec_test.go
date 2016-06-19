@@ -10,7 +10,9 @@ package exec_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -27,15 +29,22 @@ import (
 	"time"
 )
 
-func helperCommand(t *testing.T, s ...string) *exec.Cmd {
-	if runtime.GOOS == "nacl" {
-		t.Skip("skipping on nacl")
-	}
+func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
+	testenv.MustHaveExec(t)
+
 	cs := []string{"-test.run=TestHelperProcess", "--"}
 	cs = append(cs, s...)
-	cmd := exec.Command(os.Args[0], cs...)
+	if ctx != nil {
+		cmd = exec.CommandContext(ctx, os.Args[0], cs...)
+	} else {
+		cmd = exec.Command(os.Args[0], cs...)
+	}
 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 	return cmd
+}
+
+func helperCommand(t *testing.T, s ...string) *exec.Cmd {
+	return helperCommandContext(t, nil, s...)
 }
 
 func TestEcho(t *testing.T) {
@@ -49,6 +58,8 @@ func TestEcho(t *testing.T) {
 }
 
 func TestCommandRelativeName(t *testing.T) {
+	testenv.MustHaveExec(t)
+
 	// Run our own binary as a relative path
 	// (e.g. "_test/exec.test") our parent directory.
 	base := filepath.Base(os.Args[0]) // "exec.test"
@@ -246,9 +257,54 @@ func TestPipeLookPathLeak(t *testing.T) {
 }
 
 func numOpenFDS(t *testing.T) (n int, lsof []byte) {
+	if runtime.GOOS == "android" {
+		// Android's stock lsof does not obey the -p option,
+		// so extra filtering is needed. (golang.org/issue/10206)
+		return numOpenFDsAndroid(t)
+	}
+
 	lsof, err := exec.Command("lsof", "-b", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
 	if err != nil {
 		t.Skip("skipping test; error finding or running lsof")
+	}
+	return bytes.Count(lsof, []byte("\n")), lsof
+}
+
+func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
+	raw, err := exec.Command("lsof").Output()
+	if err != nil {
+		t.Skip("skipping test; error finding or running lsof")
+	}
+
+	// First find the PID column index by parsing the first line, and
+	// select lines containing pid in the column.
+	pid := []byte(strconv.Itoa(os.Getpid()))
+	pidCol := -1
+
+	s := bufio.NewScanner(bytes.NewReader(raw))
+	for s.Scan() {
+		line := s.Bytes()
+		fields := bytes.Fields(line)
+		if pidCol < 0 {
+			for i, v := range fields {
+				if bytes.Equal(v, []byte("PID")) {
+					pidCol = i
+					break
+				}
+			}
+			lsof = append(lsof, line...)
+			continue
+		}
+		if bytes.Equal(fields[pidCol], pid) {
+			lsof = append(lsof, '\n')
+			lsof = append(lsof, line...)
+		}
+	}
+	if pidCol < 0 {
+		t.Fatal("error processing lsof output: unexpected header format")
+	}
+	if err := s.Err(); err != nil {
+		t.Fatalf("error processing lsof output: %v", err)
 	}
 	return bytes.Count(lsof, []byte("\n")), lsof
 }
@@ -271,15 +327,15 @@ func closeUnexpectedFds(t *testing.T, m string) {
 }
 
 func TestExtraFilesFDShuffle(t *testing.T) {
-	t.Skip("flaky test; see http://golang.org/issue/5780")
+	t.Skip("flaky test; see https://golang.org/issue/5780")
 	switch runtime.GOOS {
 	case "darwin":
-		// TODO(cnicolaou): http://golang.org/issue/2603
+		// TODO(cnicolaou): https://golang.org/issue/2603
 		// leads to leaked file descriptors in this test when it's
 		// run from a builder.
 		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
 	case "netbsd":
-		// http://golang.org/issue/3955
+		// https://golang.org/issue/3955
 		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
 	case "windows":
 		t.Skip("no operating system support; skipping")
@@ -294,7 +350,7 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 	//
 	// We want to test that FDs in the child do not get overwritten
 	// by one another as this shuffle occurs. The original implementation
-	// was buggy in that in some data dependent cases it would ovewrite
+	// was buggy in that in some data dependent cases it would overwrite
 	// stderr in the child with one of the ExtraFile members.
 	// Testing for this case is difficult because it relies on using
 	// the same FD values as that case. In particular, an FD of 3
@@ -375,8 +431,9 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 }
 
 func TestExtraFiles(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "windows":
+	testenv.MustHaveExec(t)
+
+	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
 	}
 
@@ -431,7 +488,7 @@ func TestExtraFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	_, err = tf.Seek(0, os.SEEK_SET)
+	_, err = tf.Seek(0, io.SeekStart)
 	if err != nil {
 		t.Fatalf("Seek: %v", err)
 	}
@@ -604,21 +661,17 @@ func TestHelperProcess(*testing.T) {
 			// file descriptors...
 		case "darwin":
 			// TODO(bradfitz): broken? Sometimes.
-			// http://golang.org/issue/2603
+			// https://golang.org/issue/2603
 			// Skip this additional part of the test for now.
 		case "netbsd":
 			// TODO(jsing): This currently fails on NetBSD due to
 			// the cloned file descriptors that result from opening
 			// /dev/urandom.
-			// http://golang.org/issue/3955
-		case "plan9":
-			// TODO(0intro): Determine why Plan 9 is leaking
-			// file descriptors.
-			// http://golang.org/issue/7118
+			// https://golang.org/issue/3955
 		case "solaris":
 			// TODO(aram): This fails on Solaris because libc opens
 			// its own files, as it sees fit. Darwin does the same,
-			// see: http://golang.org/issue/2603
+			// see: https://golang.org/issue/2603
 		default:
 			// Now verify that there are no other open fds.
 			var files []*os.File
@@ -649,7 +702,7 @@ func TestHelperProcess(*testing.T) {
 		}
 		// Referring to fd3 here ensures that it is not
 		// garbage collected, and therefore closed, while
-		// executing the wantfd loop above.  It doesn't matter
+		// executing the wantfd loop above. It doesn't matter
 		// what we do with fd3 as long as we refer to it;
 		// closing it is the easy choice.
 		fd3.Close()
@@ -712,8 +765,116 @@ func TestHelperProcess(*testing.T) {
 		}
 		fmt.Print(p)
 		os.Exit(0)
+	case "stderrfail":
+		fmt.Fprintf(os.Stderr, "some stderr text\n")
+		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
+	}
+}
+
+// Issue 9173: ignore stdin pipe writes if the program completes successfully.
+func TestIgnorePipeErrorOnSuccess(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	// We really only care about testing this on Unixy things.
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on %q", runtime.GOOS)
+	}
+
+	cmd := helperCommand(t, "echo", "foo")
+	var out bytes.Buffer
+	cmd.Stdin = strings.NewReader(strings.Repeat("x", 10<<20))
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := out.String(), "foo\n"; got != want {
+		t.Errorf("output = %q; want %q", got, want)
+	}
+}
+
+type badWriter struct{}
+
+func (w *badWriter) Write(data []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
+func TestClosePipeOnCopyError(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on %s - no yes command", runtime.GOOS)
+	}
+	cmd := exec.Command("yes")
+	cmd.Stdout = new(badWriter)
+	c := make(chan int, 1)
+	go func() {
+		err := cmd.Run()
+		if err == nil {
+			t.Errorf("yes completed successfully")
+		}
+		c <- 1
+	}()
+	select {
+	case <-c:
+		// ok
+	case <-time.After(5 * time.Second):
+		t.Fatalf("yes got stuck writing to bad writer")
+	}
+}
+
+func TestOutputStderrCapture(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := helperCommand(t, "stderrfail")
+	_, err := cmd.Output()
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("Output error type = %T; want ExitError", err)
+	}
+	got := string(ee.Stderr)
+	want := "some stderr text\n"
+	if got != want {
+		t.Errorf("ExitError.Stderr = %q; want %q", got, want)
+	}
+}
+
+func TestContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	c := helperCommandContext(t, ctx, "pipetest")
+	stdin, err := c.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := stdin.Write([]byte("O:hi\n")); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 5)
+	n, err := io.ReadFull(stdout, buf)
+	if n != len(buf) || err != nil || string(buf) != "O:hi\n" {
+		t.Fatalf("ReadFull = %d, %v, %q", n, err, buf[:n])
+	}
+	waitErr := make(chan error, 1)
+	go func() {
+		waitErr <- c.Wait()
+	}()
+	cancel()
+	select {
+	case err := <-waitErr:
+		if err == nil {
+			t.Fatal("expected Wait failure")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for child process death")
 	}
 }

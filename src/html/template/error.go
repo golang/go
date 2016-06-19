@@ -164,7 +164,7 @@ const (
 	//   different context than an earlier pass, there is no single context.
 	//   In the example, there is missing a quote, so it is not clear
 	//   whether {{.}} is meant to be inside a JS string or in a JS value
-	//   context.  The second iteration would produce something like
+	//   context. The second iteration would produce something like
 	//
 	//     <script>var x = ['firstValue,'secondValue]</script>
 	ErrRangeLoopReentry

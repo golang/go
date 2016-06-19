@@ -32,7 +32,7 @@ import "unsafe"
 // Beside calling runtime·netpollopen, the networking code paths
 // will call runtime·netpollarm each time goroutines are interested
 // in doing network I/O. Because now we know what kind of I/O we
-// are interested in (reading/writting), we can call port_associate
+// are interested in (reading/writing), we can call port_associate
 // passing the correct type of event set (POLLIN/POLLOUT). As we made
 // sure to have already associated the file descriptor with the port,
 // when we now call port_associate, we will unblock the main poller
@@ -58,7 +58,7 @@ import "unsafe"
 //
 // The open and arming mechanisms are serialized using the lock
 // inside PollDesc. This is required because the netpoll loop runs
-// asynchonously in respect to other Go code and by the time we get
+// asynchronously in respect to other Go code and by the time we get
 // to call port_associate to update the association in the loop, the
 // file descriptor might have been closed and reopened already. The
 // lock allows runtime·netpollupdate to be called synchronously from
@@ -89,23 +89,23 @@ func errno() int32 {
 }
 
 func fcntl(fd, cmd int32, arg uintptr) int32 {
-	return int32(sysvicall3(libc_fcntl, uintptr(fd), uintptr(cmd), arg))
+	return int32(sysvicall3(&libc_fcntl, uintptr(fd), uintptr(cmd), arg))
 }
 
 func port_create() int32 {
-	return int32(sysvicall0(libc_port_create))
+	return int32(sysvicall0(&libc_port_create))
 }
 
 func port_associate(port, source int32, object uintptr, events uint32, user uintptr) int32 {
-	return int32(sysvicall5(libc_port_associate, uintptr(port), uintptr(source), object, uintptr(events), user))
+	return int32(sysvicall5(&libc_port_associate, uintptr(port), uintptr(source), object, uintptr(events), user))
 }
 
 func port_dissociate(port, source int32, object uintptr) int32 {
-	return int32(sysvicall3(libc_port_dissociate, uintptr(port), uintptr(source), object))
+	return int32(sysvicall3(&libc_port_dissociate, uintptr(port), uintptr(source), object))
 }
 
 func port_getn(port int32, evs *portevent, max uint32, nget *uint32, timeout *timespec) int32 {
-	return int32(sysvicall5(libc_port_getn, uintptr(port), uintptr(unsafe.Pointer(evs)), uintptr(max), uintptr(unsafe.Pointer(nget)), uintptr(unsafe.Pointer(timeout))))
+	return int32(sysvicall5(&libc_port_getn, uintptr(port), uintptr(unsafe.Pointer(evs)), uintptr(max), uintptr(unsafe.Pointer(nget)), uintptr(unsafe.Pointer(timeout))))
 }
 
 var portfd int32 = -1
@@ -125,7 +125,7 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	lock(&pd.lock)
 	// We don't register for any specific type of events yet, that's
 	// netpollarm's job. We merely ensure we call port_associate before
-	// asynchonous connect/accept completes, so when we actually want
+	// asynchronous connect/accept completes, so when we actually want
 	// to do any I/O, the call to port_associate (from netpollarm,
 	// with the interested event set) will unblock port_getn right away
 	// because of the I/O readiness notification.
@@ -174,14 +174,11 @@ func netpollarm(pd *pollDesc, mode int) {
 	unlock(&pd.lock)
 }
 
-// netpolllasterr holds the last error code returned by port_getn to prevent log spamming
-var netpolllasterr int32
-
 // polls for ready network connections
 // returns list of goroutines that become runnable
-func netpoll(block bool) (gp *g) {
+func netpoll(block bool) *g {
 	if portfd == -1 {
-		return
+		return nil
 	}
 
 	var wait *timespec
@@ -194,14 +191,14 @@ func netpoll(block bool) (gp *g) {
 retry:
 	var n uint32 = 1
 	if port_getn(portfd, &events[0], uint32(len(events)), &n, wait) < 0 {
-		if e := errno(); e != _EINTR && e != netpolllasterr {
-			netpolllasterr = e
+		if e := errno(); e != _EINTR {
 			print("runtime: port_getn on fd ", portfd, " failed with ", e, "\n")
+			throw("port_getn failed")
 		}
 		goto retry
 	}
 
-	gp = nil
+	var gp guintptr
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
@@ -232,12 +229,12 @@ retry:
 		}
 
 		if mode != 0 {
-			netpollready((**g)(noescape(unsafe.Pointer(&gp))), pd, mode)
+			netpollready(&gp, pd, mode)
 		}
 	}
 
-	if block && gp == nil {
+	if block && gp == 0 {
 		goto retry
 	}
-	return gp
+	return gp.ptr()
 }

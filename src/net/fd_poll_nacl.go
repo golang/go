@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,44 +14,44 @@ type pollDesc struct {
 	closing bool
 }
 
-func (pd *pollDesc) Init(fd *netFD) error { pd.fd = fd; return nil }
+func (pd *pollDesc) init(fd *netFD) error { pd.fd = fd; return nil }
 
-func (pd *pollDesc) Close() {}
+func (pd *pollDesc) close() {}
 
-func (pd *pollDesc) Evict() {
+func (pd *pollDesc) evict() {
 	pd.closing = true
 	if pd.fd != nil {
 		syscall.StopIO(pd.fd.sysfd)
 	}
 }
 
-func (pd *pollDesc) Prepare(mode int) error {
+func (pd *pollDesc) prepare(mode int) error {
 	if pd.closing {
 		return errClosing
 	}
 	return nil
 }
 
-func (pd *pollDesc) PrepareRead() error { return pd.Prepare('r') }
+func (pd *pollDesc) prepareRead() error { return pd.prepare('r') }
 
-func (pd *pollDesc) PrepareWrite() error { return pd.Prepare('w') }
+func (pd *pollDesc) prepareWrite() error { return pd.prepare('w') }
 
-func (pd *pollDesc) Wait(mode int) error {
+func (pd *pollDesc) wait(mode int) error {
 	if pd.closing {
 		return errClosing
 	}
 	return errTimeout
 }
 
-func (pd *pollDesc) WaitRead() error { return pd.Wait('r') }
+func (pd *pollDesc) waitRead() error { return pd.wait('r') }
 
-func (pd *pollDesc) WaitWrite() error { return pd.Wait('w') }
+func (pd *pollDesc) waitWrite() error { return pd.wait('w') }
 
-func (pd *pollDesc) WaitCanceled(mode int) {}
+func (pd *pollDesc) waitCanceled(mode int) {}
 
-func (pd *pollDesc) WaitCanceledRead() {}
+func (pd *pollDesc) waitCanceledRead() {}
 
-func (pd *pollDesc) WaitCanceledWrite() {}
+func (pd *pollDesc) waitCanceledWrite() {}
 
 func (fd *netFD) setDeadline(t time.Time) error {
 	return setDeadlineImpl(fd, t, 'r'+'w')

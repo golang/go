@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,8 +18,10 @@ const raceenabled = false
 
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr)  { throw("race") }
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) { throw("race") }
-func raceinit() uintptr                                                     { throw("race"); return 0 }
+func raceinit() (uintptr, uintptr)                                          { throw("race"); return 0, 0 }
 func racefini()                                                             { throw("race") }
+func raceproccreate() uintptr                                               { throw("race"); return 0 }
+func raceprocdestroy(ctx uintptr)                                           { throw("race") }
 func racemapshadow(addr unsafe.Pointer, size uintptr)                       { throw("race") }
 func racewritepc(addr unsafe.Pointer, callerpc, pc uintptr)                 { throw("race") }
 func racereadpc(addr unsafe.Pointer, callerpc, pc uintptr)                  { throw("race") }
@@ -33,5 +35,6 @@ func racereleasemerge(addr unsafe.Pointer)                                  { th
 func racereleasemergeg(gp *g, addr unsafe.Pointer)                          { throw("race") }
 func racefingo()                                                            { throw("race") }
 func racemalloc(p unsafe.Pointer, sz uintptr)                               { throw("race") }
+func racefree(p unsafe.Pointer, sz uintptr)                                 { throw("race") }
 func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
 func racegoend()                                                            { throw("race") }

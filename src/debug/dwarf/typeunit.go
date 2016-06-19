@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,11 +9,11 @@ import (
 	"strconv"
 )
 
-// Parse the type units stored in a DWARF4 .debug_types section.  Each
+// Parse the type units stored in a DWARF4 .debug_types section. Each
 // type unit defines a single primary type and an 8-byte signature.
 // Other sections may then use formRefSig8 to refer to the type.
 
-// The typeUnit format is a single type with a signature.  It holds
+// The typeUnit format is a single type with a signature. It holds
 // the same data as a compilation unit.
 type typeUnit struct {
 	unit
@@ -27,21 +27,15 @@ func (d *Data) parseTypes(name string, types []byte) error {
 	b := makeBuf(d, unknownFormat{}, name, 0, types)
 	for len(b.data) > 0 {
 		base := b.off
-		dwarf64 := false
-		n := b.uint32()
-		if n == 0xffffffff {
-			n64 := b.uint64()
-			if n64 != uint64(uint32(n64)) {
-				b.error("type unit length overflow")
-				return b.err
-			}
-			n = uint32(n64)
-			dwarf64 = true
+		n, dwarf64 := b.unitLength()
+		if n != Offset(uint32(n)) {
+			b.error("type unit length overflow")
+			return b.err
 		}
 		hdroff := b.off
-		vers := b.uint16()
+		vers := int(b.uint16())
 		if vers != 4 {
-			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
+			b.error("unsupported DWARF version " + strconv.Itoa(vers))
 			return b.err
 		}
 		var ao uint32
@@ -55,7 +49,7 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			}
 			ao = uint32(ao64)
 		}
-		atable, err := d.parseAbbrev(ao)
+		atable, err := d.parseAbbrev(ao, vers)
 		if err != nil {
 			return err
 		}
@@ -79,10 +73,10 @@ func (d *Data) parseTypes(name string, types []byte) error {
 			unit: unit{
 				base:   base,
 				off:    boff,
-				data:   b.bytes(int(Offset(n) - (b.off - hdroff))),
+				data:   b.bytes(int(n - (b.off - hdroff))),
 				atable: atable,
 				asize:  int(asize),
-				vers:   int(vers),
+				vers:   vers,
 				is64:   dwarf64,
 			},
 			toff: Offset(toff),
@@ -107,7 +101,7 @@ func (d *Data) sigToType(sig uint64) (Type, error) {
 
 	b := makeBuf(d, tu, tu.name, tu.off, tu.data)
 	r := &typeUnitReader{d: d, tu: tu, b: b}
-	t, err := d.readType(tu.name, r, Offset(tu.toff), make(map[Offset]Type))
+	t, err := d.readType(tu.name, r, tu.toff, make(map[Offset]Type), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +127,11 @@ func (tur *typeUnitReader) Seek(off Offset) {
 		return
 	}
 	tur.b = makeBuf(tur.d, tur.tu, tur.tu.name, off, tur.tu.data[doff:])
+}
+
+// AddressSize returns the size in bytes of addresses in the current type unit.
+func (tur *typeUnitReader) AddressSize() int {
+	return tur.tu.unit.asize
 }
 
 // Next reads the next Entry from the type unit.

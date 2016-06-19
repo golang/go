@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -545,6 +546,46 @@ func f()
 
 	if got != want {
 		t.Fatalf("got:\n%s\nwant:\n%s\n", got, want)
+	}
+}
+
+type limitWriter struct {
+	remaining int
+	errCount  int
+}
+
+func (l *limitWriter) Write(buf []byte) (n int, err error) {
+	n = len(buf)
+	if n >= l.remaining {
+		n = l.remaining
+		err = io.EOF
+		l.errCount++
+	}
+	l.remaining -= n
+	return n, err
+}
+
+// Test whether the printer stops writing after the first error
+func TestWriteErrors(t *testing.T) {
+	const filename = "printer.go"
+	src, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err) // error in test
+	}
+	file, err := parser.ParseFile(fset, filename, src, 0)
+	if err != nil {
+		panic(err) // error in test
+	}
+	for i := 0; i < 20; i++ {
+		lw := &limitWriter{remaining: i}
+		err := (&Config{Mode: RawFormat}).Fprint(lw, fset, file)
+		if lw.errCount > 1 {
+			t.Fatal("Writes continued after first error returned")
+		}
+		// We expect errCount be 1 iff err is set
+		if (lw.errCount != 0) != (err != nil) {
+			t.Fatal("Expected err when errCount != 0")
+		}
 	}
 }
 

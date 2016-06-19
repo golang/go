@@ -6,7 +6,7 @@ package filepath
 
 import "strings"
 
-// IsAbs returns true if the path is absolute.
+// IsAbs reports whether the path is absolute.
 func IsAbs(path string) bool {
 	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
 }
@@ -41,4 +41,8 @@ func join(elem []string) string {
 		}
 	}
 	return ""
+}
+
+func sameWord(a, b string) bool {
+	return a == b
 }

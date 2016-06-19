@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -40,4 +40,14 @@ func sigpanic() {
 		throw("unexpected signal value")
 	}
 	panic(errorString(sigtable[g.sig].name))
+}
+
+// setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+//go:nosplit
+func setsigsegv(pc uintptr) {
+	g := getg()
+	g.sig = _SIGSEGV
+	g.sigpc = pc
+	g.sigcode0 = _SEGV_MAPERR
+	g.sigcode1 = 0 // TODO: emulate si_addr
 }

@@ -33,7 +33,7 @@ func Getgroups() (gids []int, err error) {
 		return nil, nil
 	}
 
-	// Sanity check group count.  Max is 16 on BSD.
+	// Sanity check group count. Max is 16 on BSD.
 	if n < 0 || n > 1000 {
 		return nil, EINVAL
 	}

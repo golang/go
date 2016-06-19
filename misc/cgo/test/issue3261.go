@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,12 @@ package cgotest
 #include <stdio.h>
 int vabs(int x) {
 	puts("testLibgcc is disabled on ARM because 5l cannot handle thumb library.");
+	return (x < 0) ? -x : x;
+}
+#elif defined(__arm64__) && defined(__clang__)
+#include <stdio.h>
+int vabs(int x) {
+	puts("testLibgcc is disabled on ARM64 with clang due to lack of libgcc.");
 	return (x < 0) ? -x : x;
 }
 #else

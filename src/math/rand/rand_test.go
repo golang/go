@@ -7,7 +7,10 @@ package rand
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math"
+	"os"
+	"runtime"
 	"testing"
 )
 
@@ -322,15 +325,76 @@ func TestExpTables(t *testing.T) {
 	}
 }
 
-// For issue 6721, the problem came after 7533753 calls, so check 10e6.
 func TestFloat32(t *testing.T) {
+	// For issue 6721, the problem came after 7533753 calls, so check 10e6.
+	num := int(10e6)
+	// But do the full amount only on builders (not locally).
+	// But ARM5 floating point emulation is slow (Issue 10749), so
+	// do less for that builder:
+	if testing.Short() && (testenv.Builder() == "" || runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5") {
+		num /= 100 // 1.72 seconds instead of 172 seconds
+	}
+
 	r := New(NewSource(1))
-	for ct := 0; ct < 10e6; ct++ {
+	for ct := 0; ct < num; ct++ {
 		f := r.Float32()
 		if f >= 1 {
 			t.Fatal("Float32() should be in range [0,1). ct:", ct, "f:", f)
 		}
 	}
+}
+
+func testReadUniformity(t *testing.T, n int, seed int64) {
+	r := New(NewSource(seed))
+	buf := make([]byte, n)
+	nRead, err := r.Read(buf)
+	if err != nil {
+		t.Errorf("Read err %v", err)
+	}
+	if nRead != n {
+		t.Errorf("Read returned unexpected n; %d != %d", nRead, n)
+	}
+
+	// Expect a uniform distribution of byte values, which lie in [0, 255].
+	var (
+		mean       = 255.0 / 2
+		stddev     = math.Sqrt(255.0 * 255.0 / 12.0)
+		errorScale = stddev / math.Sqrt(float64(n))
+	)
+
+	expected := &statsResults{mean, stddev, 0.10 * errorScale, 0.08 * errorScale}
+
+	// Cast bytes as floats to use the common distribution-validity checks.
+	samples := make([]float64, n)
+	for i, val := range buf {
+		samples[i] = float64(val)
+	}
+	// Make sure that the entire set matches the expected distribution.
+	checkSampleDistribution(t, samples, expected)
+}
+
+func TestRead(t *testing.T) {
+	testBufferSizes := []int{
+		2, 4, 7, 64, 1024, 1 << 16, 1 << 20,
+	}
+	for _, seed := range testSeeds {
+		for _, n := range testBufferSizes {
+			testReadUniformity(t, n, seed)
+		}
+	}
+}
+
+func TestReadEmpty(t *testing.T) {
+	r := New(NewSource(1))
+	buf := make([]byte, 0)
+	n, err := r.Read(buf)
+	if err != nil {
+		t.Errorf("Read err into empty buffer; %v", err)
+	}
+	if n != 0 {
+		t.Errorf("Read into empty buffer returned unexpected n of %d", n)
+	}
+
 }
 
 // Benchmarks
@@ -394,5 +458,32 @@ func BenchmarkPerm30(b *testing.B) {
 	r := New(NewSource(1))
 	for n := b.N; n > 0; n-- {
 		r.Perm(30)
+	}
+}
+
+func BenchmarkRead3(b *testing.B) {
+	r := New(NewSource(1))
+	buf := make([]byte, 3)
+	b.ResetTimer()
+	for n := b.N; n > 0; n-- {
+		r.Read(buf)
+	}
+}
+
+func BenchmarkRead64(b *testing.B) {
+	r := New(NewSource(1))
+	buf := make([]byte, 64)
+	b.ResetTimer()
+	for n := b.N; n > 0; n-- {
+		r.Read(buf)
+	}
+}
+
+func BenchmarkRead1000(b *testing.B) {
+	r := New(NewSource(1))
+	buf := make([]byte, 1000)
+	b.ResetTimer()
+	for n := b.N; n > 0; n-- {
+		r.Read(buf)
 	}
 }

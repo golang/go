@@ -1,0 +1,92 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules to decompose builtin compound types
+// (complex,string,slice,interface) into their constituent
+// types.  These rules work together with the decomposeBuiltIn
+// pass which handles phis of these types.
+
+// complex ops
+(ComplexReal (ComplexMake real _  )) -> real
+(ComplexImag (ComplexMake _ imag )) -> imag
+
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
+  (ComplexMake
+    (Load <config.fe.TypeFloat32()> ptr mem)
+    (Load <config.fe.TypeFloat32()>
+      (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)
+      mem)
+    )
+(Store [8] dst (ComplexMake real imag) mem) ->
+  (Store [4]
+    (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
+    imag
+    (Store [4] dst real mem))
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
+  (ComplexMake
+    (Load <config.fe.TypeFloat64()> ptr mem)
+    (Load <config.fe.TypeFloat64()>
+      (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)
+      mem)
+    )
+(Store [16] dst (ComplexMake real imag) mem) ->
+  (Store [8]
+    (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
+    imag
+    (Store [8] dst real mem))
+
+// string ops
+(StringPtr (StringMake ptr _)) -> ptr
+(StringLen (StringMake _ len)) -> len
+
+(Load <t> ptr mem) && t.IsString() ->
+  (StringMake
+    (Load <config.fe.TypeBytePtr()> ptr mem)
+    (Load <config.fe.TypeInt()>
+      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
+      mem))
+(Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
+  (Store [config.PtrSize]
+    (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
+    len
+    (Store [config.PtrSize] dst ptr mem))
+
+// slice ops
+(SlicePtr (SliceMake ptr _ _ )) -> ptr
+(SliceLen (SliceMake _ len _)) -> len
+(SliceCap (SliceMake _ _ cap)) -> cap
+
+(Load <t> ptr mem) && t.IsSlice() ->
+  (SliceMake
+    (Load <t.ElemType().PtrTo()> ptr mem)
+    (Load <config.fe.TypeInt()>
+      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
+      mem)
+    (Load <config.fe.TypeInt()>
+      (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)
+      mem))
+(Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
+  (Store [config.PtrSize]
+    (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)
+    cap
+    (Store [config.PtrSize]
+      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
+      len
+      (Store [config.PtrSize] dst ptr mem)))
+
+// interface ops
+(ITab (IMake itab _)) -> itab
+(IData (IMake _ data)) -> data
+
+(Load <t> ptr mem) && t.IsInterface() ->
+  (IMake
+    (Load <config.fe.TypeBytePtr()> ptr mem)
+    (Load <config.fe.TypeBytePtr()>
+      (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)
+      mem))
+(Store [2*config.PtrSize] dst (IMake itab data) mem) ->
+  (Store [config.PtrSize]
+    (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
+    data
+    (Store [config.PtrSize] dst itab mem))

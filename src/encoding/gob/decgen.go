@@ -112,11 +112,12 @@ var types = []Type{
 			errorf("string data too long for buffer: %d", n)
 		}
 		// Read the data.
-		data := make([]byte, n)
-		if _, err := state.b.Read(data); err != nil {
-			errorf("error decoding string: %s", err)
+		data := state.b.Bytes()
+		if len(data) < n {
+			errorf("invalid string length %d: exceeds input size %d", n, len(data))
 		}
-		slice[i] = string(data)`,
+		slice[i] = string(data[:n])
+		state.b.Drop(n)`,
 	},
 	{
 		"uint",

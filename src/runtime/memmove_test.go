@@ -1,10 +1,11 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package runtime_test
 
 import (
+	"fmt"
 	. "runtime"
 	"testing"
 )
@@ -81,40 +82,49 @@ func TestMemmoveAlias(t *testing.T) {
 	}
 }
 
-func bmMemmove(b *testing.B, n int) {
-	x := make([]byte, n)
-	y := make([]byte, n)
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		copy(x, y)
+func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {
+	for _, n := range sizes {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n))
+			fn(b, n)
+		})
 	}
 }
 
-func BenchmarkMemmove0(b *testing.B)    { bmMemmove(b, 0) }
-func BenchmarkMemmove1(b *testing.B)    { bmMemmove(b, 1) }
-func BenchmarkMemmove2(b *testing.B)    { bmMemmove(b, 2) }
-func BenchmarkMemmove3(b *testing.B)    { bmMemmove(b, 3) }
-func BenchmarkMemmove4(b *testing.B)    { bmMemmove(b, 4) }
-func BenchmarkMemmove5(b *testing.B)    { bmMemmove(b, 5) }
-func BenchmarkMemmove6(b *testing.B)    { bmMemmove(b, 6) }
-func BenchmarkMemmove7(b *testing.B)    { bmMemmove(b, 7) }
-func BenchmarkMemmove8(b *testing.B)    { bmMemmove(b, 8) }
-func BenchmarkMemmove9(b *testing.B)    { bmMemmove(b, 9) }
-func BenchmarkMemmove10(b *testing.B)   { bmMemmove(b, 10) }
-func BenchmarkMemmove11(b *testing.B)   { bmMemmove(b, 11) }
-func BenchmarkMemmove12(b *testing.B)   { bmMemmove(b, 12) }
-func BenchmarkMemmove13(b *testing.B)   { bmMemmove(b, 13) }
-func BenchmarkMemmove14(b *testing.B)   { bmMemmove(b, 14) }
-func BenchmarkMemmove15(b *testing.B)   { bmMemmove(b, 15) }
-func BenchmarkMemmove16(b *testing.B)   { bmMemmove(b, 16) }
-func BenchmarkMemmove32(b *testing.B)   { bmMemmove(b, 32) }
-func BenchmarkMemmove64(b *testing.B)   { bmMemmove(b, 64) }
-func BenchmarkMemmove128(b *testing.B)  { bmMemmove(b, 128) }
-func BenchmarkMemmove256(b *testing.B)  { bmMemmove(b, 256) }
-func BenchmarkMemmove512(b *testing.B)  { bmMemmove(b, 512) }
-func BenchmarkMemmove1024(b *testing.B) { bmMemmove(b, 1024) }
-func BenchmarkMemmove2048(b *testing.B) { bmMemmove(b, 2048) }
-func BenchmarkMemmove4096(b *testing.B) { bmMemmove(b, 4096) }
+var bufSizes = []int{
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+	32, 64, 128, 256, 512, 1024, 2048, 4096,
+}
+
+func BenchmarkMemmove(b *testing.B) {
+	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+		x := make([]byte, n)
+		y := make([]byte, n)
+		for i := 0; i < b.N; i++ {
+			copy(x, y)
+		}
+	})
+}
+
+func BenchmarkMemmoveUnalignedDst(b *testing.B) {
+	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+		x := make([]byte, n+1)
+		y := make([]byte, n)
+		for i := 0; i < b.N; i++ {
+			copy(x[1:], y)
+		}
+	})
+}
+
+func BenchmarkMemmoveUnalignedSrc(b *testing.B) {
+	benchmarkSizes(b, bufSizes, func(b *testing.B, n int) {
+		x := make([]byte, n)
+		y := make([]byte, n+1)
+		for i := 0; i < b.N; i++ {
+			copy(x, y[1:])
+		}
+	})
+}
 
 func TestMemclr(t *testing.T) {
 	size := 512
@@ -148,33 +158,37 @@ func TestMemclr(t *testing.T) {
 	}
 }
 
-func bmMemclr(b *testing.B, n int) {
-	x := make([]byte, n)
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		MemclrBytes(x)
+func BenchmarkMemclr(b *testing.B) {
+	for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
+		x := make([]byte, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n))
+			for i := 0; i < b.N; i++ {
+				MemclrBytes(x)
+			}
+		})
+	}
+	for _, m := range []int{1, 4, 8, 16, 64} {
+		x := make([]byte, m<<20)
+		b.Run(fmt.Sprint(m, "M"), func(b *testing.B) {
+			b.SetBytes(int64(m << 20))
+			for i := 0; i < b.N; i++ {
+				MemclrBytes(x)
+			}
+		})
 	}
 }
-func BenchmarkMemclr5(b *testing.B)     { bmMemclr(b, 5) }
-func BenchmarkMemclr16(b *testing.B)    { bmMemclr(b, 16) }
-func BenchmarkMemclr64(b *testing.B)    { bmMemclr(b, 64) }
-func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
-func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
-func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
 
-func bmGoMemclr(b *testing.B, n int) {
-	x := make([]byte, n)
-	b.SetBytes(int64(n))
-	for i := 0; i < b.N; i++ {
-		for j := range x {
-			x[j] = 0
+func BenchmarkGoMemclr(b *testing.B) {
+	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
+		x := make([]byte, n)
+		for i := 0; i < b.N; i++ {
+			for j := range x {
+				x[j] = 0
+			}
 		}
-	}
+	})
 }
-func BenchmarkGoMemclr5(b *testing.B)   { bmGoMemclr(b, 5) }
-func BenchmarkGoMemclr16(b *testing.B)  { bmGoMemclr(b, 16) }
-func BenchmarkGoMemclr64(b *testing.B)  { bmGoMemclr(b, 64) }
-func BenchmarkGoMemclr256(b *testing.B) { bmGoMemclr(b, 256) }
 
 func BenchmarkClearFat8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -203,6 +217,24 @@ func BenchmarkClearFat24(b *testing.B) {
 func BenchmarkClearFat32(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var x [32 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat40(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [40 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat48(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [48 / 4]uint32
+		_ = x
+	}
+}
+func BenchmarkClearFat56(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		var x [56 / 4]uint32
 		_ = x
 	}
 }

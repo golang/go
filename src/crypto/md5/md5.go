@@ -62,16 +62,10 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
-		n := len(p)
-		if n > chunk-d.nx {
-			n = chunk - d.nx
-		}
-		for i := 0; i < n; i++ {
-			d.x[d.nx+i] = p[i]
-		}
+		n := copy(d.x[d.nx:], p)
 		d.nx += n
 		if d.nx == chunk {
-			block(d, d.x[0:chunk])
+			block(d, d.x[:])
 			d.nx = 0
 		}
 		p = p[n:]
@@ -95,7 +89,7 @@ func (d0 *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
 	len := d.len
 	var tmp [64]byte
 	tmp[0] = 0x80

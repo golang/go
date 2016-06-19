@@ -24,7 +24,7 @@ import (
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
-	// IsOnCurve returns true if the given (x,y) lies on the curve.
+	// IsOnCurve reports whether the given (x,y) lies on the curve.
 	IsOnCurve(x, y *big.Int) bool
 	// Add returns the sum of (x1,y1) and (x2,y2)
 	Add(x1, y1, x2, y2 *big.Int) (x, y *big.Int)
@@ -274,7 +274,8 @@ var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
 // GenerateKey returns a public/private key pair. The private key is
 // generated using the given reader, which must return random data.
 func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err error) {
-	bitSize := curve.Params().BitSize
+	N := curve.Params().N
+	bitSize := N.BitLen()
 	byteLen := (bitSize + 7) >> 3
 	priv = make([]byte, byteLen)
 
@@ -289,6 +290,12 @@ func GenerateKey(curve Curve, rand io.Reader) (priv []byte, x, y *big.Int, err e
 		// This is because, in tests, rand will return all zeros and we don't
 		// want to get the point at infinity and loop forever.
 		priv[1] ^= 0x42
+
+		// If the scalar is out of range, sample another random number.
+		if new(big.Int).SetBytes(priv).Cmp(N) >= 0 {
+			continue
+		}
+
 		x, y = curve.ScalarBaseMult(priv)
 	}
 	return
@@ -308,7 +315,8 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 	return ret
 }
 
-// Unmarshal converts a point, serialized by Marshal, into an x, y pair. On error, x = nil.
+// Unmarshal converts a point, serialized by Marshal, into an x, y pair.
+// It is an error if the point is not on the curve. On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) >> 3
 	if len(data) != 1+2*byteLen {
@@ -319,6 +327,9 @@ func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	}
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
+	if !curve.IsOnCurve(x, y) {
+		x, y = nil, nil
+	}
 	return
 }
 

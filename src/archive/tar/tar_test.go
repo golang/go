@@ -147,17 +147,6 @@ func TestHeaderRoundTrip(t *testing.T) {
 			},
 			fm: 0644,
 		},
-		// hard link.
-		{
-			h: &Header{
-				Name:     "hard.txt",
-				Mode:     0644 | c_ISLNK,
-				Size:     0,
-				ModTime:  time.Unix(1360600916, 0),
-				Typeflag: TypeLink,
-			},
-			fm: 0644 | os.ModeSymlink,
-		},
 		// symbolic link.
 		{
 			h: &Header{
@@ -246,6 +235,33 @@ func TestHeaderRoundTrip(t *testing.T) {
 			},
 			fm: 0600 | os.ModeSticky,
 		},
+		// hard link.
+		{
+			h: &Header{
+				Name:     "hard.txt",
+				Mode:     0644 | c_ISREG,
+				Size:     0,
+				Linkname: "file.txt",
+				ModTime:  time.Unix(1360600916, 0),
+				Typeflag: TypeLink,
+			},
+			fm: 0644,
+		},
+		// More information.
+		{
+			h: &Header{
+				Name:     "info.txt",
+				Mode:     0600 | c_ISREG,
+				Size:     0,
+				Uid:      1000,
+				Gid:      1000,
+				ModTime:  time.Unix(1360602540, 0),
+				Uname:    "slartibartfast",
+				Gname:    "users",
+				Typeflag: TypeReg,
+			},
+			fm: 0600,
+		},
 	}
 
 	for i, g := range golden {
@@ -268,11 +284,36 @@ func TestHeaderRoundTrip(t *testing.T) {
 		if got, want := h2.Size, g.h.Size; got != want {
 			t.Errorf("i=%d: Size: got %v, want %v", i, got, want)
 		}
+		if got, want := h2.Uid, g.h.Uid; got != want {
+			t.Errorf("i=%d: Uid: got %d, want %d", i, got, want)
+		}
+		if got, want := h2.Gid, g.h.Gid; got != want {
+			t.Errorf("i=%d: Gid: got %d, want %d", i, got, want)
+		}
+		if got, want := h2.Uname, g.h.Uname; got != want {
+			t.Errorf("i=%d: Uname: got %q, want %q", i, got, want)
+		}
+		if got, want := h2.Gname, g.h.Gname; got != want {
+			t.Errorf("i=%d: Gname: got %q, want %q", i, got, want)
+		}
+		if got, want := h2.Linkname, g.h.Linkname; got != want {
+			t.Errorf("i=%d: Linkname: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.Typeflag, g.h.Typeflag; got != want {
+			t.Logf("%#v %#v", g.h, fi.Sys())
+			t.Errorf("i=%d: Typeflag: got %q, want %q", i, got, want)
+		}
 		if got, want := h2.Mode, g.h.Mode; got != want {
 			t.Errorf("i=%d: Mode: got %o, want %o", i, got, want)
 		}
 		if got, want := fi.Mode(), g.fm; got != want {
 			t.Errorf("i=%d: fi.Mode: got %o, want %o", i, got, want)
+		}
+		if got, want := h2.AccessTime, g.h.AccessTime; got != want {
+			t.Errorf("i=%d: AccessTime: got %v, want %v", i, got, want)
+		}
+		if got, want := h2.ChangeTime, g.h.ChangeTime; got != want {
+			t.Errorf("i=%d: ChangeTime: got %v, want %v", i, got, want)
 		}
 		if got, want := h2.ModTime, g.h.ModTime; got != want {
 			t.Errorf("i=%d: ModTime: got %v, want %v", i, got, want)

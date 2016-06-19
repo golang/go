@@ -24,21 +24,31 @@ A similar explanation is available as a
 
 <h2 id="Organization">Code organization</h2>
 
+<h3 id="Overview">Overview</h3>
+
+<ul>
+	<li>Go programmers typically keep all their Go code in a single <i>workspace</i>.</li>
+	<li>A workspace contains many version control <i>repositories</i>
+	    (managed by Git, for example).</li>
+	<li>Each repository contains one or more <i>packages</i>.</li>
+	<li>Each package consists of one or more Go source files in a single directory.</li>
+	<li>The path to a package's directory determines its <i>import path</i>.</li>
+</ul>
+
+<p>
+Note that this differs from other programming environments in which every
+project has a separate workspace and workspaces are closely tied to version
+control repositories.
+</p>
+
 <h3 id="Workspaces">Workspaces</h3>
 
 <p>
-The <code>go</code> tool is designed to work with open source code maintained
-in public repositories. Although you don't need to publish your code, the model
-for how the environment is set up works the same whether you do or not.
-</p>
-
-<p>
-Go code must be kept inside a <i>workspace</i>.
 A workspace is a directory hierarchy with three directories at its root:
 </p>
 
 <ul>
-<li><code>src</code> contains Go source files organized into packages (one package per directory),
+<li><code>src</code> contains Go source files,
 <li><code>pkg</code> contains package objects, and
 <li><code>bin</code> contains executable commands.
 </ul>
@@ -77,16 +87,25 @@ src/
 	stringutil/
 	    reverse.go             # package source
 	    reverse_test.go        # test source
+    <a href="https://golang.org/x/image/">golang.org/x/image/</a>
+        .git/                      # Git repository metadata
+	bmp/
+	    reader.go              # package source
+	    writer.go              # package source
+    ... (many more repositories and packages omitted) ...
 </pre>
 
 <p>
-This workspace contains one repository (<code>example</code>)
-comprising two commands (<code>hello</code> and <code>outyet</code>)
-and one library (<code>stringutil</code>).
+The tree above shows a workspace containing two repositories
+(<code>example</code> and <code>image</code>).
+The <code>example</code> repository contains two commands (<code>hello</code>
+and <code>outyet</code>) and one library (<code>stringutil</code>).
+The <code>image</code> repository contains the <code>bmp</code> package
+and <a href="https://godoc.org/golang.org/x/image">several others</a>.
 </p>
 
 <p>
-A typical workspace would contain many source repositories containing many
+A typical workspace contains many source repositories containing many
 packages and commands. Most Go programmers keep <i>all</i> their Go source code
 and dependencies in a single workspace.
 </p>
@@ -133,10 +152,16 @@ please see
 <a href="/cmd/go/#hdr-GOPATH_environment_variable"><code>go help gopath</code></a>
 </p>
 
-<h3 id="PackagePaths">Package paths</h3>
+<h3 id="ImportPaths">Import paths</h3>
 
 <p>
-The packages from the standard library are given short paths such as
+An <i>import path</i> is a string that uniquely identifies a package.
+A package's import path corresponds to its location inside a workspace
+or in a remote repository (explained below).
+</p>
+
+<p>
+The packages from the standard library are given short import paths such as
 <code>"fmt"</code> and <code>"net/http"</code>.
 For your own packages, you must choose a base path that is unlikely to
 collide with future additions to the standard library or other external

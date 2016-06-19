@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// http://golang.org/issue/6849.
+// https://golang.org/issue/6849.
 func TestPrimeSmall(t *testing.T) {
 	for n := 2; n < 10; n++ {
 		p, err := rand.Prime(rand.Reader, n)

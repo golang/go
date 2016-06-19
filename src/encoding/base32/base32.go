@@ -17,7 +17,7 @@ import (
  */
 
 // An Encoding is a radix 32 encoding/decoding scheme, defined by a
-// 32-character alphabet.  The most common is the "base32" encoding
+// 32-character alphabet. The most common is the "base32" encoding
 // introduced for SASL GSSAPI and standardized in RFC 4648.
 // The alternate "base32hex" encoding is used in DNSSEC.
 type Encoding struct {
@@ -66,7 +66,7 @@ var removeNewlinesMapper = func(r rune) rune {
 //
 // The encoding pads the output to a multiple of 8 bytes,
 // so Encode is not appropriate for use on individual blocks
-// of a large data stream.  Use NewEncoder() instead.
+// of a large data stream. Use NewEncoder() instead.
 func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return
@@ -208,7 +208,7 @@ func (e *encoder) Close() error {
 	return e.err
 }
 
-// NewEncoder returns a new base32 stream encoder.  Data written to
+// NewEncoder returns a new base32 stream encoder. Data written to
 // the returned writer will be encoded using enc and then written to w.
 // Base32 encodings operate in 5-byte blocks; when finished
 // writing, the caller must Close the returned encoder to flush any
@@ -313,9 +313,9 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 	return n, end, nil
 }
 
-// Decode decodes src using the encoding enc.  It writes at most
+// Decode decodes src using the encoding enc. It writes at most
 // DecodedLen(len(src)) bytes to dst and returns the number of bytes
-// written.  If src contains invalid base32 data, it will return the
+// written. If src contains invalid base32 data, it will return the
 // number of bytes successfully written and CorruptInputError.
 // New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {

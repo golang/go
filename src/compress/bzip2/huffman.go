@@ -38,23 +38,35 @@ func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
 
 	for {
 		node := &t.nodes[nodeIndex]
-		bit, ok := br.TryReadBit()
-		if !ok && br.ReadBit() {
-			bit = 1
-		}
-		// bzip2 encodes left as a true bit.
-		if bit != 0 {
-			// left
-			if node.left == invalidNodeValue {
-				return node.leftValue
-			}
-			nodeIndex = node.left
+
+		var bit uint16
+		if br.bits > 0 {
+			// Get next bit - fast path.
+			br.bits--
+			bit = 0 - (uint16(br.n>>br.bits) & 1)
 		} else {
-			// right
-			if node.right == invalidNodeValue {
-				return node.rightValue
-			}
-			nodeIndex = node.right
+			// Get next bit - slow path.
+			// Use ReadBits to retrieve a single bit
+			// from the underling io.ByteReader.
+			bit = 0 - uint16(br.ReadBits(1))
+		}
+		// now
+		// bit = 0xffff if the next bit was 1
+		// bit = 0x0000 if the next bit was 0
+
+		// 1 means left, 0 means right.
+		//
+		// if bit == 0xffff {
+		//     nodeIndex = node.left
+		// } else {
+		//     nodeIndex = node.right
+		// }
+		nodeIndex = (bit & node.left) | (^bit & node.right)
+
+		if nodeIndex == invalidNodeValue {
+			// We found a leaf. Use the value of bit to decide
+			// whether is a left or a right value.
+			return (bit & node.leftValue) | (^bit & node.rightValue)
 		}
 	}
 }

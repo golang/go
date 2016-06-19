@@ -23,7 +23,7 @@ function urlForInput(t) {
     }
 
     if (gerritChangeIdRE.test(t)) {
-        return "http://golang.org/cl/" + t;
+        return "https://golang.org/cl/" + t;
     }
 
     var match = commitRE.exec(t);
@@ -34,7 +34,7 @@ function urlForInput(t) {
     if (pkgRE.test(t)) {
         // TODO: make this smarter, using a list of packages + substring matches.
         // Get the list from godoc itself in JSON format?
-        return "http://golang.org/pkg/" + t;
+        return "https://golang.org/pkg/" + t;
     }
 
     return null;

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"sort"
@@ -19,6 +20,9 @@ import (
 )
 
 func TestOver65kFiles(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
 	const nFiles = (1 << 16) + 42
@@ -229,13 +233,28 @@ func TestZip64(t *testing.T) {
 		t.Skip("slow test; skipping")
 	}
 	const size = 1 << 32 // before the "END\n" part
-	testZip64(t, size)
+	buf := testZip64(t, size)
+	testZip64DirectoryRecordLength(buf, t)
 }
 
-func testZip64(t testing.TB, size int64) {
+func TestZip64EdgeCase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow test; skipping")
+	}
+	// Test a zip file with uncompressed size 0xFFFFFFFF.
+	// That's the magic marker for a 64-bit file, so even though
+	// it fits in a 32-bit field we must use the 64-bit field.
+	// Go 1.5 and earlier got this wrong,
+	// writing an invalid zip file.
+	const size = 1<<32 - 1 - int64(len("END\n")) // before the "END\n" part
+	buf := testZip64(t, size)
+	testZip64DirectoryRecordLength(buf, t)
+}
+
+func testZip64(t testing.TB, size int64) *rleBuffer {
 	const chunkSize = 1024
 	chunks := int(size / chunkSize)
-	// write 2^32 bytes plus "END\n" to a zip file
+	// write size bytes plus "END\n" to a zip file
 	buf := new(rleBuffer)
 	w := NewWriter(buf)
 	f, err := w.CreateHeader(&FileHeader{
@@ -252,6 +271,12 @@ func testZip64(t testing.TB, size int64) {
 	}
 	for i := 0; i < chunks; i++ {
 		_, err := f.Write(chunk)
+		if err != nil {
+			t.Fatal("write chunk:", err)
+		}
+	}
+	if frag := int(size % chunkSize); frag > 0 {
+		_, err := f.Write(chunk[:frag])
 		if err != nil {
 			t.Fatal("write chunk:", err)
 		}
@@ -282,6 +307,12 @@ func testZip64(t testing.TB, size int64) {
 			t.Fatal("read:", err)
 		}
 	}
+	if frag := int(size % chunkSize); frag > 0 {
+		_, err := io.ReadFull(rc, chunk[:frag])
+		if err != nil {
+			t.Fatal("read:", err)
+		}
+	}
 	gotEnd, err := ioutil.ReadAll(rc)
 	if err != nil {
 		t.Fatal("read end:", err)
@@ -293,35 +324,45 @@ func testZip64(t testing.TB, size int64) {
 	if err != nil {
 		t.Fatal("closing:", err)
 	}
-	if size == 1<<32 {
+	if size+int64(len("END\n")) >= 1<<32-1 {
 		if got, want := f0.UncompressedSize, uint32(uint32max); got != want {
-			t.Errorf("UncompressedSize %d, want %d", got, want)
+			t.Errorf("UncompressedSize %#x, want %#x", got, want)
 		}
 	}
 
 	if got, want := f0.UncompressedSize64, uint64(size)+uint64(len(end)); got != want {
-		t.Errorf("UncompressedSize64 %d, want %d", got, want)
+		t.Errorf("UncompressedSize64 %#x, want %#x", got, want)
 	}
+
+	return buf
 }
 
-func testInvalidHeader(h *FileHeader, t *testing.T) {
-	var buf bytes.Buffer
-	z := NewWriter(&buf)
+// Issue 9857
+func testZip64DirectoryRecordLength(buf *rleBuffer, t *testing.T) {
+	d := make([]byte, 1024)
+	if _, err := buf.ReadAt(d, buf.Size()-int64(len(d))); err != nil {
+		t.Fatal("read:", err)
+	}
 
-	f, err := z.CreateHeader(h)
+	sigOff := findSignatureInBlock(d)
+	dirOff, err := findDirectory64End(buf, buf.Size()-int64(len(d))+int64(sigOff))
 	if err != nil {
-		t.Fatalf("error creating header: %v", err)
-	}
-	if _, err := f.Write([]byte("hi")); err != nil {
-		t.Fatalf("error writing content: %v", err)
-	}
-	if err := z.Close(); err != nil {
-		t.Fatalf("error closing zip writer: %v", err)
+		t.Fatal("findDirectory64End:", err)
 	}
 
-	b := buf.Bytes()
-	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != ErrFormat {
-		t.Fatalf("got %v, expected ErrFormat", err)
+	d = make([]byte, directory64EndLen)
+	if _, err := buf.ReadAt(d, dirOff); err != nil {
+		t.Fatal("read:", err)
+	}
+
+	b := readBuf(d)
+	if sig := b.uint32(); sig != directory64EndSignature {
+		t.Fatalf("Expected directory64EndSignature (%d), got %d", directory64EndSignature, sig)
+	}
+
+	size := b.uint64()
+	if size != directory64EndLen-12 {
+		t.Fatalf("Expected length of %d, got %d", directory64EndLen-12, size)
 	}
 }
 
@@ -341,8 +382,13 @@ func testValidHeader(h *FileHeader, t *testing.T) {
 	}
 
 	b := buf.Bytes()
-	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != nil {
+	zf, err := NewReader(bytes.NewReader(b), int64(len(b)))
+	if err != nil {
 		t.Fatalf("got %v, expected nil", err)
+	}
+	zh := zf.File[0].FileHeader
+	if zh.Name != h.Name || zh.Method != h.Method || zh.UncompressedSize64 != uint64(len("hi")) {
+		t.Fatalf("got %q/%d/%d expected %q/%d/%d", zh.Name, zh.Method, zh.UncompressedSize64, h.Name, h.Method, len("hi"))
 	}
 }
 
@@ -356,20 +402,29 @@ func TestHeaderInvalidTagAndSize(t *testing.T) {
 	h := FileHeader{
 		Name:   filename,
 		Method: Deflate,
-		Extra:  []byte(ts.Format(time.RFC3339Nano)), // missing tag and len
+		Extra:  []byte(ts.Format(time.RFC3339Nano)), // missing tag and len, but Extra is best-effort parsing
 	}
 	h.SetModTime(ts)
 
-	testInvalidHeader(&h, t)
+	testValidHeader(&h, t)
 }
 
 func TestHeaderTooShort(t *testing.T) {
 	h := FileHeader{
 		Name:   "foo.txt",
 		Method: Deflate,
-		Extra:  []byte{zip64ExtraId}, // missing size
+		Extra:  []byte{zip64ExtraId}, // missing size and second half of tag, but Extra is best-effort parsing
 	}
-	testInvalidHeader(&h, t)
+	testValidHeader(&h, t)
+}
+
+func TestHeaderIgnoredSize(t *testing.T) {
+	h := FileHeader{
+		Name:   "foo.txt",
+		Method: Deflate,
+		Extra:  []byte{zip64ExtraId & 0xFF, zip64ExtraId >> 8, 24, 0, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, // bad size but shouldn't be consulted
+	}
+	testValidHeader(&h, t)
 }
 
 // Issue 4393. It is valid to have an extra data header

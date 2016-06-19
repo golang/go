@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 // The varint functions encode and decode single integer values using
 // a variable-length encoding; smaller values require fewer bytes.
 // For a specification, see
-// http://code.google.com/apis/protocolbuffers/docs/encoding.html.
+// https://developers.google.com/protocol-buffers/docs/encoding.
 //
 // This package favors simplicity over efficiency. Clients that require
 // high-performance serialization, especially for large data structures,
@@ -48,18 +48,24 @@ var BigEndian bigEndian
 
 type littleEndian struct{}
 
-func (littleEndian) Uint16(b []byte) uint16 { return uint16(b[0]) | uint16(b[1])<<8 }
+func (littleEndian) Uint16(b []byte) uint16 {
+	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+	return uint16(b[0]) | uint16(b[1])<<8
+}
 
 func (littleEndian) PutUint16(b []byte, v uint16) {
+	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 }
 
 func (littleEndian) Uint32(b []byte) uint32 {
+	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
 func (littleEndian) PutUint32(b []byte, v uint32) {
+	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
@@ -67,11 +73,13 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 }
 
 func (littleEndian) Uint64(b []byte) uint64 {
+	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
 func (littleEndian) PutUint64(b []byte, v uint64) {
+	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
@@ -88,18 +96,24 @@ func (littleEndian) GoString() string { return "binary.LittleEndian" }
 
 type bigEndian struct{}
 
-func (bigEndian) Uint16(b []byte) uint16 { return uint16(b[1]) | uint16(b[0])<<8 }
+func (bigEndian) Uint16(b []byte) uint16 {
+	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+	return uint16(b[1]) | uint16(b[0])<<8
+}
 
 func (bigEndian) PutUint16(b []byte, v uint16) {
+	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 8)
 	b[1] = byte(v)
 }
 
 func (bigEndian) Uint32(b []byte) uint32 {
+	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
 func (bigEndian) PutUint32(b []byte, v uint32) {
+	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 24)
 	b[1] = byte(v >> 16)
 	b[2] = byte(v >> 8)
@@ -107,11 +121,13 @@ func (bigEndian) PutUint32(b []byte, v uint32) {
 }
 
 func (bigEndian) Uint64(b []byte) uint64 {
+	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
 func (bigEndian) PutUint64(b []byte, v uint64) {
+	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 56)
 	b[1] = byte(v >> 48)
 	b[2] = byte(v >> 40)
@@ -135,6 +151,10 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // blank (_) field names is skipped; i.e., blank field names
 // may be used for padding.
 // When reading into a struct, all non-blank fields must be exported.
+//
+// The error is EOF only if no bytes were read.
+// If an EOF happens after reading some but not all the bytes,
+// Read returns ErrUnexpectedEOF.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
@@ -239,78 +259,62 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		}
 		switch v := data.(type) {
 		case *int8:
-			bs = b[:1]
 			b[0] = byte(*v)
 		case int8:
-			bs = b[:1]
 			b[0] = byte(v)
 		case []int8:
 			for i, x := range v {
 				bs[i] = byte(x)
 			}
 		case *uint8:
-			bs = b[:1]
 			b[0] = *v
 		case uint8:
-			bs = b[:1]
-			b[0] = byte(v)
+			b[0] = v
 		case []uint8:
 			bs = v
 		case *int16:
-			bs = b[:2]
 			order.PutUint16(bs, uint16(*v))
 		case int16:
-			bs = b[:2]
 			order.PutUint16(bs, uint16(v))
 		case []int16:
 			for i, x := range v {
 				order.PutUint16(bs[2*i:], uint16(x))
 			}
 		case *uint16:
-			bs = b[:2]
 			order.PutUint16(bs, *v)
 		case uint16:
-			bs = b[:2]
 			order.PutUint16(bs, v)
 		case []uint16:
 			for i, x := range v {
 				order.PutUint16(bs[2*i:], x)
 			}
 		case *int32:
-			bs = b[:4]
 			order.PutUint32(bs, uint32(*v))
 		case int32:
-			bs = b[:4]
 			order.PutUint32(bs, uint32(v))
 		case []int32:
 			for i, x := range v {
 				order.PutUint32(bs[4*i:], uint32(x))
 			}
 		case *uint32:
-			bs = b[:4]
 			order.PutUint32(bs, *v)
 		case uint32:
-			bs = b[:4]
 			order.PutUint32(bs, v)
 		case []uint32:
 			for i, x := range v {
 				order.PutUint32(bs[4*i:], x)
 			}
 		case *int64:
-			bs = b[:8]
 			order.PutUint64(bs, uint64(*v))
 		case int64:
-			bs = b[:8]
 			order.PutUint64(bs, uint64(v))
 		case []int64:
 			for i, x := range v {
 				order.PutUint64(bs[8*i:], uint64(x))
 			}
 		case *uint64:
-			bs = b[:8]
 			order.PutUint64(bs, *v)
 		case uint64:
-			bs = b[:8]
 			order.PutUint64(bs, v)
 		case []uint64:
 			for i, x := range v {

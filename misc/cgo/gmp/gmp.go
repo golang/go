@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,7 +8,7 @@ multiprecision library gmp's integer type mpz_t wrapped to look like
 the Go package big's integer type Int.
 
 This is a syntactically valid Go program—it can be parsed with the Go
-parser and processed by godoc—but it is not compiled directly by 6g.
+parser and processed by godoc—but it is not compiled directly by gc.
 Instead, a separate tool, cgo, processes it to produce three output
 files.  The first two, 6g.go and 6c.c, are a Go source file for 6g and
 a C source file for 6c; both compile as part of the named package

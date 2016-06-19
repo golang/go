@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/textproto"
+	"sort"
 	"strings"
 )
 
@@ -39,7 +40,8 @@ func (w *Writer) Boundary() string {
 // boundary separator with an explicit value.
 //
 // SetBoundary must be called before any parts are created, may only
-// contain certain ASCII characters, and must be 1-69 bytes long.
+// contain certain ASCII characters, and must be non-empty and
+// at most 69 bytes long.
 func (w *Writer) SetBoundary(boundary string) error {
 	if w.lastpart != nil {
 		return errors.New("mime: SetBoundary called after write")
@@ -93,10 +95,14 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	} else {
 		fmt.Fprintf(&b, "--%s\r\n", w.boundary)
 	}
-	// TODO(bradfitz): move this to textproto.MimeHeader.Write(w), have it sort
-	// and clean, like http.Header.Write(w) does.
-	for k, vv := range header {
-		for _, v := range vv {
+
+	keys := make([]string, 0, len(header))
+	for k := range header {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		for _, v := range header[k] {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
 		}
 	}

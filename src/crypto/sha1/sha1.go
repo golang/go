@@ -90,7 +90,7 @@ func (d0 *digest) Sum(in []byte) []byte {
 
 func (d *digest) checkSum() [Size]byte {
 	len := d.len
-	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
+	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
 	var tmp [64]byte
 	tmp[0] = 0x80
 	if len%64 < 56 {

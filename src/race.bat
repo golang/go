@@ -3,7 +3,7 @@
 :: license that can be found in the LICENSE file.
 
 :: race.bash tests the standard library under the race detector.
-:: http://golang.org/doc/articles/race_detector.html
+:: https://golang.org/doc/articles/race_detector.html
 
 @echo off
 
@@ -34,16 +34,8 @@ echo # go install -race std
 go install -race std
 if errorlevel 1 goto fail
 
-:: we must unset GOROOT_FINAL before tests, because runtime/debug requires
-:: correct access to source code, so if we have GOROOT_FINAL in effect,
-:: at least runtime/debug test will fail.
-set GOROOT_FINAL=
+go tool dist test -race
 
-echo # go test -race -short std
-go test -race -short std
-if errorlevel 1 goto fail
-echo # go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
-go test -race -run=nothingplease -bench=.* -benchtime=.1s -cpu=4 std
 if errorlevel 1 goto fail
 goto succ
 

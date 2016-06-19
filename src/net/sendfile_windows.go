@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,7 +18,7 @@ import (
 //
 // if handled == false, sendFile performed no work.
 //
-// Note that sendfile for windows does not suppport >2GB file.
+// Note that sendfile for windows does not support >2GB file.
 func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 	var n int64 = 0 // by default, copy until EOF
 
@@ -46,7 +46,7 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 		return syscall.TransmitFile(o.fd.sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 	})
 	if err != nil {
-		return 0, err, false
+		return 0, os.NewSyscallError("transmitfile", err), false
 	}
 	if lr != nil {
 		lr.N -= int64(done)

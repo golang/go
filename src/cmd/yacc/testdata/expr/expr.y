@@ -56,29 +56,29 @@ expr:
 	}
 |	'-' expr
 	{
-		$$.Neg($2)
+		$$ = $2.Neg($2)
 	}
 
 expr1:
 	expr2
 |	expr1 '+' expr2
 	{
-		$$.Add($1, $3)
+		$$ = $1.Add($1, $3)
 	}
 |	expr1 '-' expr2
 	{
-		$$.Sub($1, $3)
+		$$ = $1.Sub($1, $3)
 	}
 
 expr2:
 	expr3
 |	expr2 '*' expr3
 	{
-		$$.Mul($1, $3)
+		$$ = $1.Mul($1, $3)
 	}
 |	expr2 '/' expr3
 	{
-		$$.Quo($1, $3)
+		$$ = $1.Quo($1, $3)
 	}
 
 expr3:
@@ -95,14 +95,14 @@ expr3:
 // for clarity.
 const eof = 0
 
-// The parser uses the type <prefix>Lex as a lexer.  It must provide
+// The parser uses the type <prefix>Lex as a lexer. It must provide
 // the methods Lex(*<prefix>SymType) int and Error(string).
 type exprLex struct {
 	line []byte
 	peek rune
 }
 
-// The parser calls this method to get each new token.  This
+// The parser calls this method to get each new token. This
 // implementation returns operators and NUM.
 func (x *exprLex) Lex(yylval *exprSymType) int {
 	for {

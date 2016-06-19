@@ -16,7 +16,7 @@ type timer struct {
 	i int // heap index
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
-	// each time calling f(now, arg) in the timer goroutine, so f must be
+	// each time calling f(arg, now) in the timer goroutine, so f must be
 	// a well-behaved function and not block.
 	when   int64
 	period int64
@@ -56,7 +56,7 @@ func timeSleep(ns int64) {
 	t.arg = getg()
 	lock(&timers.lock)
 	addtimerLocked(t)
-	goparkunlock(&timers.lock, "sleep", traceEvGoSleep)
+	goparkunlock(&timers.lock, "sleep", traceEvGoSleep, 2)
 }
 
 // startTimer adds t to the timer heap.
@@ -79,7 +79,7 @@ func stopTimer(t *timer) bool {
 
 // Ready the goroutine arg.
 func goroutineReady(arg interface{}, seq uintptr) {
-	goready(arg.(*g))
+	goready(arg.(*g), 0)
 }
 
 func addtimer(t *timer) {
@@ -108,7 +108,7 @@ func addtimerLocked(t *timer) {
 		}
 		if timers.rescheduling {
 			timers.rescheduling = false
-			goready(timers.gp)
+			goready(timers.gp, 0)
 		}
 	}
 	if !timers.created {
@@ -199,10 +199,10 @@ func timerproc() {
 		if delta < 0 || faketime > 0 {
 			// No timers left - put goroutine to sleep.
 			timers.rescheduling = true
-			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock)
+			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
 			continue
 		}
-		// At least one timer pending.  Sleep until then.
+		// At least one timer pending. Sleep until then.
 		timers.sleeping = true
 		noteclear(&timers.waitnote)
 		unlock(&timers.lock)

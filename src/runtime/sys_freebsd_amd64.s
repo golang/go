@@ -67,13 +67,17 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVL	perm+12(FP), DX		// arg 3 mode
 	MOVL	$5, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVL	fd+0(FP), DI		// arg 1 fd
 	MOVL	$6, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -83,6 +87,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$3, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -92,6 +98,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVL	n+16(FP), DX		// arg 3 count
 	MOVL	$4, AX
 	SYSCALL
+	JCC	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -112,6 +120,17 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVQ	8(SP), DI	// arg 1 id
 	MOVL	sig+0(FP), SI	// arg 2
 	MOVL	$433, AX
+	SYSCALL
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	// getpid
+	MOVL	$20, AX
+	SYSCALL
+	// kill(self, sig)
+	MOVQ	AX, DI		// arg 1 pid
+	MOVL	sig+0(FP), SI	// arg 2 sig
+	MOVL	$37, AX
 	SYSCALL
 	RET
 
@@ -164,37 +183,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$-8
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$64
-	get_tls(BX)
-
-	// check that g exists
-	MOVQ	g(BX), R10
-	CMPQ	R10, $0
-	JNE	5(PC)
-	MOVQ	DI, 0(SP)
-	MOVQ	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVL	sig+8(FP), DI
+	MOVQ	info+16(FP), SI
+	MOVQ	ctx+24(FP), DX
+	MOVQ	fn+0(FP), AX
 	CALL	AX
 	RET
 
-	// save g
-	MOVQ	R10, 40(SP)
-	
-	// g = m->signal
-	MOVQ	g_m(R10), AX
-	MOVQ	m_gsignal(AX), AX
-	MOVQ	AX, g(BX)
-	
+TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
 	MOVQ	DX, 16(SP)
-	MOVQ	R10, 24(SP)
-
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(BX)
-	MOVQ	40(SP), R10
-	MOVQ	R10, g(BX)
+	CALL	runtime·sigtrampgo(SB)
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
@@ -254,7 +255,7 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$8
-	ADDQ	$16, DI	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
+	ADDQ	$8, DI	// adjust for ELF: wants to use -8(FS) for g and m
 	MOVQ	DI, 0(SP)
 	MOVQ	SP, SI
 	MOVQ	$129, DI	// AMD64_SET_FSBASE
@@ -287,9 +288,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	$3, DI			// arg 1 - how (SIG_SETMASK)
-	MOVQ	new+0(FP), SI		// arg 2 - set
-	MOVQ	old+8(FP), DX		// arg 3 - oset
+	MOVL	how+0(FP), DI		// arg 1 - how
+	MOVQ	new+8(FP), SI		// arg 2 - set
+	MOVQ	old+16(FP), DX		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	SYSCALL
 	JAE	2(PC)

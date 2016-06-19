@@ -37,6 +37,8 @@ func TestYCbCr(t *testing.T) {
 		YCbCrSubsampleRatio422,
 		YCbCrSubsampleRatio420,
 		YCbCrSubsampleRatio440,
+		YCbCrSubsampleRatio411,
+		YCbCrSubsampleRatio410,
 	}
 	deltas := []Point{
 		Pt(0, 0),

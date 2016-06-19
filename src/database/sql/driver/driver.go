@@ -17,7 +17,7 @@ import "errors"
 //   float64
 //   bool
 //   []byte
-//   string   [*] everywhere except from Rows.Next.
+//   string
 //   time.Time
 type Value interface{}
 
@@ -144,7 +144,7 @@ type Stmt interface {
 // any type to a driver Value.
 type ColumnConverter interface {
 	// ColumnConverter returns a ValueConverter for the provided
-	// column index.  If the type of a specific column isn't known
+	// column index. If the type of a specific column isn't known
 	// or shouldn't be handled specially, DefaultValueConverter
 	// can be returned.
 	ColumnConverter(idx int) ValueConverter
@@ -154,7 +154,7 @@ type ColumnConverter interface {
 type Rows interface {
 	// Columns returns the names of the columns. The number of
 	// columns of the result is inferred from the length of the
-	// slice.  If a particular column name isn't known, an empty
+	// slice. If a particular column name isn't known, an empty
 	// string should be returned for that entry.
 	Columns() []string
 
@@ -164,10 +164,6 @@ type Rows interface {
 	// Next is called to populate the next row of data into
 	// the provided slice. The provided slice will be the same
 	// size as the Columns() are wide.
-	//
-	// The dest slice may be populated only with
-	// a driver Value type, but excluding string.
-	// All string values must be converted to []byte.
 	//
 	// Next should return io.EOF when there are no more rows.
 	Next(dest []Value) error

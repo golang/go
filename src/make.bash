@@ -19,10 +19,10 @@
 #
 # GOOS: The target operating system for installed packages and tools.
 #
-# GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
+# GO_GCFLAGS: Additional go tool compile arguments to use when
 # building the packages and commands.
 #
-# GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+# GO_LDFLAGS: Additional go tool link arguments to use when
 # building the commands.
 #
 # CGO_ENABLED: Controls cgo usage during the build. Set it to 1
@@ -44,10 +44,15 @@
 # This is used by cgo. Default is CXX, or, if that is not set, 
 # "g++" or "clang++".
 #
-# GO_DISTFLAGS: extra flags to provide to "dist bootstrap". Use "-s"
-# to build a statically linked toolchain.
+# FC: Command line to run to compile Fortran code for GOARCH.
+# This is used by cgo. Default is "gfortran".
+#
+# GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
 
 set -e
+
+unset GOBIN # Issue 14340
+
 if [ ! -f run.bash ]; then
 	echo 'make.bash must be run from $GOROOT/src' 1>&2
 	exit 1
@@ -116,6 +121,12 @@ GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
 if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
 	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+	exit 1
+fi
+if [ "$GOROOT_BOOTSTRAP" == "$GOROOT" ]; then
+	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
+	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+	exit 1
 fi
 rm -f cmd/dist/dist
 GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
@@ -144,6 +155,7 @@ if [ "$1" = "--no-clean" ]; then
 	shift
 fi
 ./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
 mv cmd/dist/dist "$GOTOOLDIR"/dist
 echo

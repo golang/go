@@ -127,8 +127,8 @@ func TestCountDecodeMallocs(t *testing.T) {
 			t.Fatal("decode:", err)
 		}
 	})
-	if allocs != 4 {
-		t.Fatalf("mallocs per decode of type Bench: %v; wanted 4\n", allocs)
+	if allocs != 3 {
+		t.Fatalf("mallocs per decode of type Bench: %v; wanted 3\n", allocs)
 	}
 }
 
@@ -187,6 +187,23 @@ func BenchmarkEncodeStringSlice(b *testing.B) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 	a := make([]string, 1000)
+	for i := range a {
+		a[i] = "now is the time"
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := enc.Encode(a)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkEncodeInterfaceSlice(b *testing.B) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	a := make([]interface{}, 1000)
 	for i := range a {
 		a[i] = "now is the time"
 	}
@@ -312,6 +329,30 @@ func BenchmarkDecodeStringSlice(b *testing.B) {
 		b.Fatal(err)
 	}
 	x := make([]string, 1000)
+	bbuf := benchmarkBuf{data: buf.Bytes()}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bbuf.reset()
+		dec := NewDecoder(&bbuf)
+		err := dec.Decode(&x)
+		if err != nil {
+			b.Fatal(i, err)
+		}
+	}
+}
+
+func BenchmarkDecodeInterfaceSlice(b *testing.B) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	a := make([]interface{}, 1000)
+	for i := range a {
+		a[i] = "now is the time"
+	}
+	err := enc.Encode(a)
+	if err != nil {
+		b.Fatal(err)
+	}
+	x := make([]interface{}, 1000)
 	bbuf := benchmarkBuf{data: buf.Bytes()}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

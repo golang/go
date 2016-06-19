@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -83,9 +83,6 @@ TEXT ·Sin(SB),NOSPLIT,$0
 
 TEXT ·Cos(SB),NOSPLIT,$0
 	BR ·cos(SB)
-
-TEXT ·Sqrt(SB),NOSPLIT,$0
-	BR ·sqrt(SB)
 
 TEXT ·Tan(SB),NOSPLIT,$0
 	BR ·tan(SB)

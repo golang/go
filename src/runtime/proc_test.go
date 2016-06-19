@@ -6,7 +6,10 @@ package runtime_test
 
 import (
 	"math"
+	"net"
 	"runtime"
+	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -95,6 +98,10 @@ func TestYieldLocked(t *testing.T) {
 }
 
 func TestGoroutineParallelism(t *testing.T) {
+	if runtime.NumCPU() == 1 {
+		// Takes too long, too easy to deadlock, etc.
+		t.Skip("skipping on uniprocessor")
+	}
 	P := 4
 	N := 10
 	if testing.Short() {
@@ -104,8 +111,8 @@ func TestGoroutineParallelism(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
 	// If runtime triggers a forced GC during this test then it will deadlock,
 	// since the goroutines can't be stopped/preempted.
-	// So give this test as much time as possible.
-	runtime.GC()
+	// Disable GC for this test (see issue #10958).
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
@@ -119,6 +126,86 @@ func TestGoroutineParallelism(t *testing.T) {
 					atomic.StoreUint32(&x, expected+1)
 				}
 				done <- true
+			}(p)
+		}
+		for p := 0; p < P; p++ {
+			<-done
+		}
+	}
+}
+
+// Test that all runnable goroutines are scheduled at the same time.
+func TestGoroutineParallelism2(t *testing.T) {
+	//testGoroutineParallelism2(t, false, false)
+	testGoroutineParallelism2(t, true, false)
+	testGoroutineParallelism2(t, false, true)
+	testGoroutineParallelism2(t, true, true)
+}
+
+func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
+	if runtime.NumCPU() == 1 {
+		// Takes too long, too easy to deadlock, etc.
+		t.Skip("skipping on uniprocessor")
+	}
+	P := 4
+	N := 10
+	if testing.Short() {
+		N = 3
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
+	// If runtime triggers a forced GC during this test then it will deadlock,
+	// since the goroutines can't be stopped/preempted.
+	// Disable GC for this test (see issue #10958).
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	for try := 0; try < N; try++ {
+		if load {
+			// Create P goroutines and wait until they all run.
+			// When we run the actual test below, worker threads
+			// running the goroutines will start parking.
+			done := make(chan bool)
+			x := uint32(0)
+			for p := 0; p < P; p++ {
+				go func() {
+					if atomic.AddUint32(&x, 1) == uint32(P) {
+						done <- true
+						return
+					}
+					for atomic.LoadUint32(&x) != uint32(P) {
+					}
+				}()
+			}
+			<-done
+		}
+		if netpoll {
+			// Enable netpoller, affects schedler behavior.
+			laddr := "localhost:0"
+			if runtime.GOOS == "android" {
+				// On some Android devices, there are no records for localhost,
+				// see https://golang.org/issues/14486.
+				// Don't use 127.0.0.1 for every case, it won't work on IPv6-only systems.
+				laddr = "127.0.0.1:0"
+			}
+			ln, err := net.Listen("tcp", laddr)
+			if err != nil {
+				defer ln.Close() // yup, defer in a loop
+			}
+		}
+		done := make(chan bool)
+		x := uint32(0)
+		// Spawn P goroutines in a nested fashion just to differ from TestGoroutineParallelism.
+		for p := 0; p < P/2; p++ {
+			go func(p int) {
+				for p2 := 0; p2 < 2; p2++ {
+					go func(p2 int) {
+						for i := 0; i < 3; i++ {
+							expected := uint32(P*i + p*2 + p2)
+							for atomic.LoadUint32(&x) != expected {
+							}
+							atomic.StoreUint32(&x, expected+1)
+						}
+						done <- true
+					}(p2)
+				}
 			}(p)
 		}
 		for p := 0; p < P; p++ {
@@ -250,47 +337,147 @@ func TestPreemptionGC(t *testing.T) {
 }
 
 func TestGCFairness(t *testing.T) {
-	output := executeTest(t, testGCFairnessSource, nil)
+	output := runTestProg(t, "testprog", "GCFairness")
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
 	}
 }
 
-const testGCFairnessSource = `
-package main
+func TestGCFairness2(t *testing.T) {
+	output := runTestProg(t, "testprog", "GCFairness2")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
 
-import (
-	"fmt"
-	"os"
-	"runtime"
-	"time"
-)
+func TestNumGoroutine(t *testing.T) {
+	output := runTestProg(t, "testprog", "NumGoroutine")
+	want := "1\n"
+	if output != want {
+		t.Fatalf("want %q, got %q", want, output)
+	}
 
-func main() {
-	runtime.GOMAXPROCS(1)
-	f, err := os.Open("/dev/null")
-	if os.IsNotExist(err) {
-		// This test tests what it is intended to test only if writes are fast.
-		// If there is no /dev/null, we just don't execute the test.
-		fmt.Println("OK")
+	buf := make([]byte, 1<<20)
+
+	// Try up to 10 times for a match before giving up.
+	// This is a fundamentally racy check but it's important
+	// to notice if NumGoroutine and Stack are _always_ out of sync.
+	for i := 0; ; i++ {
+		// Give goroutines about to exit a chance to exit.
+		// The NumGoroutine and Stack below need to see
+		// the same state of the world, so anything we can do
+		// to keep it quiet is good.
+		runtime.Gosched()
+
+		n := runtime.NumGoroutine()
+		buf = buf[:runtime.Stack(buf, true)]
+
+		nstk := strings.Count(string(buf), "goroutine ")
+		if n == nstk {
+			break
+		}
+		if i >= 10 {
+			t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump: %s", n, nstk, buf)
+		}
+	}
+}
+
+func TestPingPongHog(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	done := make(chan bool)
+	hogChan, lightChan := make(chan bool), make(chan bool)
+	hogCount, lightCount := 0, 0
+
+	run := func(limit int, counter *int, wake chan bool) {
+		for {
+			select {
+			case <-done:
+				return
+
+			case <-wake:
+				for i := 0; i < limit; i++ {
+					*counter++
+				}
+				wake <- true
+			}
+		}
+	}
+
+	// Start two co-scheduled hog goroutines.
+	for i := 0; i < 2; i++ {
+		go run(1e6, &hogCount, hogChan)
+	}
+
+	// Start two co-scheduled light goroutines.
+	for i := 0; i < 2; i++ {
+		go run(1e3, &lightCount, lightChan)
+	}
+
+	// Start goroutine pairs and wait for a few preemption rounds.
+	hogChan <- true
+	lightChan <- true
+	time.Sleep(100 * time.Millisecond)
+	close(done)
+	<-hogChan
+	<-lightChan
+
+	// Check that hogCount and lightCount are within a factor of
+	// 2, which indicates that both pairs of goroutines handed off
+	// the P within a time-slice to their buddy.
+	if hogCount > lightCount*2 || lightCount > hogCount*2 {
+		t.Fatalf("want hogCount/lightCount in [0.5, 2]; got %d/%d = %g", hogCount, lightCount, float64(hogCount)/float64(lightCount))
+	}
+}
+
+func BenchmarkPingPongHog(b *testing.B) {
+	if b.N == 0 {
 		return
 	}
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	for i := 0; i < 2; i++ {
-		go func() {
-			for {
-				f.Write([]byte("."))
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	// Create a CPU hog
+	stop, done := make(chan bool), make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-stop:
+				done <- true
+				return
+			default:
 			}
-		}()
-	}
-	time.Sleep(10 * time.Millisecond)
-	fmt.Println("OK")
+		}
+	}()
+
+	// Ping-pong b.N times
+	ping, pong := make(chan bool), make(chan bool)
+	go func() {
+		for j := 0; j < b.N; j++ {
+			pong <- <-ping
+		}
+		close(stop)
+		done <- true
+	}()
+	go func() {
+		for i := 0; i < b.N; i++ {
+			ping <- <-pong
+		}
+		done <- true
+	}()
+	b.ResetTimer()
+	ping <- true // Start ping-pong
+	<-stop
+	b.StopTimer()
+	<-ping // Let last ponger exit
+	<-done // Make sure goroutines exit
+	<-done
+	<-done
 }
-`
 
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64
@@ -372,6 +559,24 @@ func TestSchedLocalQueue(t *testing.T) {
 
 func TestSchedLocalQueueSteal(t *testing.T) {
 	runtime.RunSchedLocalQueueStealTest()
+}
+
+func TestSchedLocalQueueEmpty(t *testing.T) {
+	if runtime.NumCPU() == 1 {
+		// Takes too long and does not trigger the race.
+		t.Skip("skipping on uniprocessor")
+	}
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+
+	// If runtime triggers a forced GC during this test then it will deadlock,
+	// since the goroutines can't be stopped/preempted during spin wait.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	iters := int(1e5)
+	if testing.Short() {
+		iters = 1e2
+	}
+	runtime.RunSchedLocalQueueEmptyTest(iters)
 }
 
 func benchmarkStackGrowth(b *testing.B, rec int) {
@@ -509,4 +714,8 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
 	if done != nil {
 		done <- struct{}{}
 	}
+}
+
+func TestStealOrder(t *testing.T) {
+	runtime.RunStealOrderTest()
 }

@@ -96,6 +96,18 @@ in a separate package should use the keyed notation.
 </li>
 
 <li>
+Methods. As with struct fields, it may be necessary to add methods
+to types.
+Under some circumstances, such as when the type is embedded in
+a struct along with another type,
+the addition of the new method may break
+the struct by creating a conflict with an existing method of the other
+embedded type.
+We cannot protect against this rare case and do not guarantee compatibility
+should it arise.
+</li>
+
+<li>
 Dot imports. If a program imports a standard package
 using <code>import . "path"</code>, additional names defined in the
 imported package in future releases may conflict with other names

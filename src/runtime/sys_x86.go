@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,17 +6,20 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // adjust Gobuf as it if executed a call to fn with context ctxt
 // and then did an immediate gosave.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	if regSize > ptrSize {
-		sp -= ptrSize
+	if sys.RegSize > sys.PtrSize {
+		sp -= sys.PtrSize
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
 	}
-	sp -= ptrSize
+	sp -= sys.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp
 	buf.pc = uintptr(fn)
@@ -37,15 +40,15 @@ func rewindmorestack(buf *gobuf) {
 		return
 	}
 	if pc[0] == 0xcc {
-		// This is a breakpoint inserted by gdb.  We could use
-		// runtime·findfunc to find the function.  But if we
+		// This is a breakpoint inserted by gdb. We could use
+		// runtime·findfunc to find the function. But if we
 		// do that, then we will continue execution at the
 		// function entry point, and we will not hit the gdb
-		// breakpoint.  So for this case we don't change
+		// breakpoint. So for this case we don't change
 		// buf.pc, so that when we return we will execute
-		// the jump instruction and carry on.  This means that
+		// the jump instruction and carry on. This means that
 		// stack unwinding may not work entirely correctly
-		// (http://golang.org/issue/5723) but the user is
+		// (https://golang.org/issue/5723) but the user is
 		// running under gdb anyhow.
 		return
 	}

@@ -317,6 +317,22 @@ func TestBigItems(t *testing.T) {
 	}
 }
 
+func TestMapHugeZero(t *testing.T) {
+	type T [4000]byte
+	m := map[int]T{}
+	x := m[0]
+	if x != (T{}) {
+		t.Errorf("map value not zero")
+	}
+	y, ok := m[0]
+	if ok {
+		t.Errorf("map value should be missing")
+	}
+	if y != (T{}) {
+		t.Errorf("map value not zero")
+	}
+}
+
 type empty struct {
 }
 

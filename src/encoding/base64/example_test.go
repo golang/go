@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,21 @@ import (
 	"fmt"
 	"os"
 )
+
+func Example() {
+	msg := "Hello, 世界"
+	encoded := base64.StdEncoding.EncodeToString([]byte(msg))
+	fmt.Println(encoded)
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		fmt.Println("decode error:", err)
+		return
+	}
+	fmt.Println(string(decoded))
+	// Output:
+	// SGVsbG8sIOS4lueVjA==
+	// Hello, 世界
+}
 
 func ExampleEncoding_EncodeToString() {
 	data := []byte("any + old & data")

@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -110,7 +110,7 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) error {
 	c.mutex.Unlock()
 
 	if b == nil {
-		// Invalid request so no id.  Use JSON null.
+		// Invalid request so no id. Use JSON null.
 		b = &null
 	}
 	resp := serverResponse{Id: b}

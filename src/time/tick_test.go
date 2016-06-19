@@ -35,7 +35,7 @@ func TestTicker(t *testing.T) {
 	}
 }
 
-// Test that a bug tearing down a ticker has been fixed.  This routine should not deadlock.
+// Test that a bug tearing down a ticker has been fixed. This routine should not deadlock.
 func TestTeardown(t *testing.T) {
 	Delta := 100 * Millisecond
 	if testing.Short() {

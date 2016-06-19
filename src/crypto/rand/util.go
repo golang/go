@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -70,7 +70,7 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
 
 		p.SetBytes(bytes)
 
-		// Calculate the value mod the product of smallPrimes.  If it's
+		// Calculate the value mod the product of smallPrimes. If it's
 		// a multiple of any of these primes we add two until it isn't.
 		// The probability of overflowing is minimal and can be ignored
 		// because we still perform Miller-Rabin tests on the result.

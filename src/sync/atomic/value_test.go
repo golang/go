@@ -86,6 +86,11 @@ func TestValueConcurrent(t *testing.T) {
 		{complex(0, 0), complex(1, 2), complex(3, 4), complex(5, 6)},
 	}
 	p := 4 * runtime.GOMAXPROCS(0)
+	N := int(1e5)
+	if testing.Short() {
+		p /= 2
+		N = 1e3
+	}
 	for _, test := range tests {
 		var v Value
 		done := make(chan bool)
@@ -93,7 +98,7 @@ func TestValueConcurrent(t *testing.T) {
 			go func() {
 				r := rand.New(rand.NewSource(rand.Int63()))
 			loop:
-				for j := 0; j < 1e5; j++ {
+				for j := 0; j < N; j++ {
 					x := test[r.Intn(len(test))]
 					v.Store(x)
 					x = v.Load()

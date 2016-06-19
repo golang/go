@@ -1,6 +1,6 @@
 // skip
 
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -9,6 +9,8 @@
 // This test is run by sinit_run.go.
 
 package p
+
+import "unsafe"
 
 // Should be no init func in the assembly.
 // All these initializations should be done at link time.
@@ -284,3 +286,6 @@ type Mer interface {
 }
 
 var _ Mer = (*T1)(nil)
+
+var Byte byte
+var PtrByte unsafe.Pointer = unsafe.Pointer(&Byte)

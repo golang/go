@@ -713,3 +713,21 @@ func _() {
 	_ = (func(x int)(float))(nil)
 	_ = (func() func() func()())(nil)
 }
+
+func _() {
+	_ = f().
+	f(func() {
+		f()
+	}).
+	f(map[int]int{
+	1: 2,
+	3: 4,
+})
+
+	_ = f().
+	f(
+	func() {
+		f()
+	},
+	)
+}

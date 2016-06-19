@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -36,7 +36,7 @@ func (w *Writer) PrintfLine(format string, args ...interface{}) error {
 // DotWriter returns a writer that can be used to write a dot-encoding to w.
 // It takes care of inserting leading dots when necessary,
 // translating line-ending \n into \r\n, and adding the final .\r\n line
-// when the DotWriter is closed.  The caller should close the
+// when the DotWriter is closed. The caller should close the
 // DotWriter before the next call to a method on w.
 //
 // See the documentation for Reader's DotReader method for details about dot-encoding.

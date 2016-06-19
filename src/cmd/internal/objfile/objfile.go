@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 package objfile
 
 import (
+	"debug/dwarf"
 	"debug/gosym"
 	"fmt"
 	"os"
@@ -17,6 +18,8 @@ type rawFile interface {
 	pcln() (textStart uint64, symtab, pclntab []byte, err error)
 	text() (textStart uint64, text []byte, err error)
 	goarch() string
+	loadAddress() (uint64, error)
+	dwarf() (*dwarf.Data, error)
 }
 
 // A File is an opened executable file.
@@ -91,4 +94,17 @@ func (f *File) Text() (uint64, []byte, error) {
 
 func (f *File) GOARCH() string {
 	return f.raw.goarch()
+}
+
+// LoadAddress returns the expected load address of the file.
+// This differs from the actual load address for a position-independent
+// executable.
+func (f *File) LoadAddress() (uint64, error) {
+	return f.raw.loadAddress()
+}
+
+// DWARF returns DWARF debug data for the file, if any.
+// This is for cmd/pprof to locate cgo functions.
+func (f *File) DWARF() (*dwarf.Data, error) {
+	return f.raw.dwarf()
 }

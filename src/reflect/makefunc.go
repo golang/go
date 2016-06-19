@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -51,7 +51,7 @@ func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
 
 	// Indirect Go func value (dummy) to obtain
 	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. http://golang.org/s/go11func.)
+	// to a C function pointer. https://golang.org/s/go11func.)
 	dummy := makeFuncStub
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 
@@ -99,7 +99,7 @@ func makeMethodValue(op string, v Value) Value {
 
 	// Indirect Go func value (dummy) to obtain
 	// actual code address. (A Go func value is a pointer
-	// to a C function pointer. http://golang.org/s/go11func.)
+	// to a C function pointer. https://golang.org/s/go11func.)
 	dummy := methodValueCall
 	code := **(**uintptr)(unsafe.Pointer(&dummy))
 

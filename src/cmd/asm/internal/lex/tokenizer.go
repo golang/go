@@ -10,8 +10,6 @@ import (
 	"strings"
 	"text/scanner"
 	"unicode"
-
-	"cmd/internal/obj"
 )
 
 // A Tokenizer is a simple wrapping of text/scanner.Scanner, configured
@@ -40,7 +38,7 @@ func NewTokenizer(name string, r io.Reader, file *os.File) *Tokenizer {
 	s.Position.Filename = name
 	s.IsIdentRune = isIdentRune
 	if file != nil {
-		obj.Linklinehist(linkCtxt, histLine, name, 0)
+		linkCtxt.LineHist.Push(histLine, name)
 	}
 	return &Tokenizer{
 		s:        &s,
@@ -149,6 +147,6 @@ func (t *Tokenizer) Close() {
 	if t.file != nil {
 		t.file.Close()
 		// It's an open file, so pop the line history.
-		obj.Linklinehist(linkCtxt, histLine, "<pop>", 0)
+		linkCtxt.LineHist.Pop(histLine)
 	}
 }

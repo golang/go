@@ -30,7 +30,7 @@ var filename = flag.String("output", "zoneinfo_abbrs_windows.go", "output file n
 // getAbbrs finds timezone abbreviations (standard and daylight saving time)
 // for location l.
 func getAbbrs(l *time.Location) (st, dt string) {
-	t := time.Date(time.Now().Year(), 0, 0, 0, 0, 0, 0, l)
+	t := time.Date(time.Now().Year(), 0, 1, 0, 0, 0, 0, l)
 	abbr1, off1 := t.Zone()
 	for i := 0; i < 12; i++ {
 		t = t.AddDate(0, 1, 0)

@@ -31,24 +31,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$8
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-4
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -73,6 +81,17 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 
 TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$299, AX		// sys_getthrid
+	INT	$0x80
+	MOVL	$0, 0(SP)
+	MOVL	AX, 4(SP)		// arg 1 - pid
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)		// arg 2 - signum
+	MOVL	$37, AX			// sys_kill
+	INT	$0x80
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$12
+	MOVL	$20, AX			// sys_getpid
 	INT	$0x80
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)		// arg 1 - pid
@@ -176,51 +195,25 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$-4
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$44
-	get_tls(CX)
-
-	// check that g exists
-	MOVL	g(CX), DI
-	CMPL	DI, $0
-	JNE	6(PC)
-	MOVL	signo+0(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+	MOVL	sig+4(FP), AX
+	MOVL	AX, 0(SP)
+	MOVL	info+8(FP), AX
+	MOVL	AX, 4(SP)
+	MOVL	ctx+12(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	fn+0(FP), AX
 	CALL	AX
-	JMP 	ret
+	RET
 
-	// save g
-	MOVL	DI, 20(SP)
-	
-	// g = m->gsignal
-	MOVL	g_m(DI), BX
-	MOVL	m_gsignal(BX), BX
-	MOVL	BX, g(CX)
-
-	// copy arguments for call to sighandler
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	DI, 12(SP)
-
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(CX)
-	MOVL	20(SP), BX
-	MOVL	BX, g(CX)
-
-ret:
-	// call sigreturn
-	MOVL	context+8(FP), AX
-	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	AX, 4(SP)		// arg 1 - sigcontext
-	MOVL	$103, AX		// sys_sigreturn
-	INT	$0x80
-	MOVL	$0xf1, 0xf1		// crash
+	CALL	runtime·sigtrampgo(SB)
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
@@ -278,7 +271,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	POPL	AX
 	POPAL
 	
-	// Now segment is established.  Initialize m, g.
+	// Now segment is established. Initialize m, g.
 	get_tls(AX)
 	MOVL	DX, g(AX)
 	MOVL	BX, g_m(DX)
@@ -317,9 +310,9 @@ TEXT runtime·setldt(SB),NOSPLIT,$4
 	RET
 
 TEXT runtime·settls(SB),NOSPLIT,$8
-	// adjust for ELF: wants to use -8(GS) and -4(GS) for g and m
+	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	tlsbase+0(FP), CX
-	ADDL	$8, CX
+	ADDL	$4, CX
 	MOVL	$0, 0(SP)		// syscall gap
 	MOVL	CX, 4(SP)		// arg 1 - tcb
 	MOVL	$329, AX		// sys___set_tcb

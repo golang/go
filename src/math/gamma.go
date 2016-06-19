@@ -21,7 +21,7 @@ package math
 //
 // DESCRIPTION:
 //
-// Returns gamma function of the argument.  The result is
+// Returns gamma function of the argument. The result is
 // correctly signed, and the sign (+1 or -1) is also
 // returned in a global (extern) variable named signgam.
 // This variable is also filled in by the logarithmic gamma

@@ -42,6 +42,30 @@ var atoftests = []atofTest{
 	{"1e-20", "1e-20", nil},
 	{"625e-3", "0.625", nil},
 
+	// zeros
+	{"0", "0", nil},
+	{"0e0", "0", nil},
+	{"-0e0", "-0", nil},
+	{"+0e0", "0", nil},
+	{"0e-0", "0", nil},
+	{"-0e-0", "-0", nil},
+	{"+0e-0", "0", nil},
+	{"0e+0", "0", nil},
+	{"-0e+0", "-0", nil},
+	{"+0e+0", "0", nil},
+	{"0e+01234567890123456789", "0", nil},
+	{"0.00e-01234567890123456789", "0", nil},
+	{"-0e+01234567890123456789", "-0", nil},
+	{"-0.00e-01234567890123456789", "-0", nil},
+	{"0e291", "0", nil}, // issue 15364
+	{"0e292", "0", nil}, // issue 15364
+	{"0e347", "0", nil}, // issue 15364
+	{"0e348", "0", nil}, // issue 15364
+	{"-0e291", "-0", nil},
+	{"-0e292", "-0", nil},
+	{"-0e347", "-0", nil},
+	{"-0e348", "-0", nil},
+
 	// NaNs
 	{"nan", "NaN", nil},
 	{"NaN", "NaN", nil},
@@ -196,7 +220,7 @@ var (
 
 func init() {
 	// The atof routines return NumErrors wrapping
-	// the error and the string.  Convert the table above.
+	// the error and the string. Convert the table above.
 	for i := range atoftests {
 		test := &atoftests[i]
 		if test.err != nil {

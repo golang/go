@@ -12,6 +12,10 @@
 // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
+// See ../runtime/sys_linux_386.s for the reason why we always use int 0x80
+// instead of the glibc-specific "CALL 0x10(GS)".
+#define INVOKE_SYSCALL	INT	$0x80
+
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	CALL	runtime·entersyscall(SB)
 	MOVL	trap+0(FP), AX	// syscall entry
@@ -20,7 +24,7 @@ TEXT	·Syscall(SB),NOSPLIT,$0-28
 	MOVL	a3+12(FP), DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	ok
 	MOVL	$-1, r1+16(FP)
@@ -46,7 +50,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0-40
 	MOVL	a4+16(FP), SI
 	MOVL	a5+20(FP), DI
 	MOVL	a6+24(FP), BP
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	ok6
 	MOVL	$-1, r1+28(FP)
@@ -70,7 +74,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVL	a3+12(FP), DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	ok1
 	MOVL	$-1, r1+16(FP)
@@ -93,7 +97,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVL	a4+16(FP), SI
 	MOVL	a5+20(FP), DI
 	MOVL	a6+24(FP), BP
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	ok2
 	MOVL	$-1, r1+28(FP)
@@ -119,7 +123,7 @@ TEXT ·socketcall(SB),NOSPLIT,$0-36
 	MOVL	$0, DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	oksock
 	MOVL	$-1, n+28(FP)
@@ -142,7 +146,7 @@ TEXT ·rawsocketcall(SB),NOSPLIT,$0-36
 	MOVL	$0, DX
 	MOVL	$0, SI
 	MOVL	$0,  DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	oksock1
 	MOVL	$-1, n+28(FP)
@@ -168,7 +172,7 @@ TEXT ·seek(SB),NOSPLIT,$0-28
 	MOVL	offset_lo+4(FP), DX
 	LEAL	newoffset_lo+16(FP), SI	// result pointer
 	MOVL	whence+12(FP),  DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
 	JLS	okseek
 	MOVL	$-1, newoffset_lo+16(FP)

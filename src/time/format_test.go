@@ -74,6 +74,16 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+// issue 12440.
+func TestFormatSingleDigits(t *testing.T) {
+	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
+	test := FormatTest{"single digit format", "3:4:5", "4:5:6"}
+	result := time.Format(test.format)
+	if result != test.result {
+		t.Errorf("%s expected %q got %q", test.name, test.result, result)
+	}
+}
+
 func TestFormatShortYear(t *testing.T) {
 	years := []int{
 		-100001, -100000, -99999,
@@ -179,6 +189,57 @@ func TestParse(t *testing.T) {
 			t.Errorf("%s error: %v", test.name, err)
 		} else {
 			checkTime(time, &test, t)
+		}
+	}
+}
+
+// All parsed with ANSIC.
+var dayOutOfRangeTests = []struct {
+	date string
+	ok   bool
+}{
+	{"Thu Jan 99 21:00:57 2010", false},
+	{"Thu Jan 31 21:00:57 2010", true},
+	{"Thu Jan 32 21:00:57 2010", false},
+	{"Thu Feb 28 21:00:57 2012", true},
+	{"Thu Feb 29 21:00:57 2012", true},
+	{"Thu Feb 29 21:00:57 2010", false},
+	{"Thu Mar 31 21:00:57 2010", true},
+	{"Thu Mar 32 21:00:57 2010", false},
+	{"Thu Apr 30 21:00:57 2010", true},
+	{"Thu Apr 31 21:00:57 2010", false},
+	{"Thu May 31 21:00:57 2010", true},
+	{"Thu May 32 21:00:57 2010", false},
+	{"Thu Jun 30 21:00:57 2010", true},
+	{"Thu Jun 31 21:00:57 2010", false},
+	{"Thu Jul 31 21:00:57 2010", true},
+	{"Thu Jul 32 21:00:57 2010", false},
+	{"Thu Aug 31 21:00:57 2010", true},
+	{"Thu Aug 32 21:00:57 2010", false},
+	{"Thu Sep 30 21:00:57 2010", true},
+	{"Thu Sep 31 21:00:57 2010", false},
+	{"Thu Oct 31 21:00:57 2010", true},
+	{"Thu Oct 32 21:00:57 2010", false},
+	{"Thu Nov 30 21:00:57 2010", true},
+	{"Thu Nov 31 21:00:57 2010", false},
+	{"Thu Dec 31 21:00:57 2010", true},
+	{"Thu Dec 32 21:00:57 2010", false},
+}
+
+func TestParseDayOutOfRange(t *testing.T) {
+	for _, test := range dayOutOfRangeTests {
+		_, err := Parse(ANSIC, test.date)
+		switch {
+		case test.ok && err == nil:
+			// OK
+		case !test.ok && err != nil:
+			if !strings.Contains(err.Error(), "day out of range") {
+				t.Errorf("%q: expected 'day' error, got %v", test.date, err)
+			}
+		case test.ok && err != nil:
+			t.Errorf("%q: unexpected error: %v", test.date, err)
+		case !test.ok && err == nil:
+			t.Errorf("%q: expected 'day' error, got none", test.date)
 		}
 	}
 }
@@ -386,7 +447,7 @@ func TestParseErrors(t *testing.T) {
 		_, err := Parse(test.format, test.value)
 		if err == nil {
 			t.Errorf("expected error for %q %q", test.format, test.value)
-		} else if strings.Index(err.Error(), test.expect) < 0 {
+		} else if !strings.Contains(err.Error(), test.expect) {
 			t.Errorf("expected error with %q for %q %q; got %s", test.expect, test.format, test.value, err)
 		}
 	}
@@ -491,6 +552,9 @@ var secondsTimeZoneOffsetTests = []SecondsTimeZoneOffsetTest{
 	{"2006-01-02T15:04:05-07:00:00", "1871-01-01T05:33:02+00:34:08", 34*60 + 8},
 	{"2006-01-02T15:04:05Z070000", "1871-01-01T05:33:02-003408", -(34*60 + 8)},
 	{"2006-01-02T15:04:05Z07:00:00", "1871-01-01T05:33:02+00:34:08", 34*60 + 8},
+	{"2006-01-02T15:04:05-07", "1871-01-01T05:33:02+01", 1 * 60 * 60},
+	{"2006-01-02T15:04:05-07", "1871-01-01T05:33:02-02", -2 * 60 * 60},
+	{"2006-01-02T15:04:05Z07", "1871-01-01T05:33:02-02", -2 * 60 * 60},
 }
 
 func TestParseSecondsInTimeZone(t *testing.T) {
@@ -514,5 +578,24 @@ func TestFormatSecondsInTimeZone(t *testing.T) {
 		if timestr != test.value {
 			t.Errorf("Format = %s, want %s", timestr, test.value)
 		}
+	}
+}
+
+// Issue 11334.
+func TestUnderscoreTwoThousand(t *testing.T) {
+	format := "15:04_20060102"
+	input := "14:38_20150618"
+	time, err := Parse(format, input)
+	if err != nil {
+		t.Error(err)
+	}
+	if y, m, d := time.Date(); y != 2015 || m != 6 || d != 18 {
+		t.Errorf("Incorrect y/m/d, got %d/%d/%d", y, m, d)
+	}
+	if h := time.Hour(); h != 14 {
+		t.Errorf("Incorrect hour, got %d", h)
+	}
+	if m := time.Minute(); m != 38 {
+		t.Errorf("Incorrect minute, got %d", m)
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -173,6 +173,23 @@ func main() {
 			log.Fatalf("%U too big for isNotPrint32\n", r)
 		}
 		fmt.Fprintf(&buf, "\t%#04x,\n", r-0x10000)
+	}
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// The list of graphic but not "printable" runes is short. Just make one easy table.
+	fmt.Fprintf(&buf, "// isGraphic lists the graphic runes not matched by IsPrint.\n")
+	fmt.Fprintf(&buf, "var isGraphic = []uint16{\n")
+	for r := rune(0); r <= unicode.MaxRune; r++ {
+		if unicode.IsPrint(r) != unicode.IsGraphic(r) {
+			// Sanity check.
+			if !unicode.IsGraphic(r) {
+				log.Fatalf("%U is printable but not graphic\n", r)
+			}
+			if r > 0xFFFF { // We expect only 16-bit values.
+				log.Fatalf("%U too big for isGraphic\n", r)
+			}
+			fmt.Fprintf(&buf, "\t%#04x,\n", r)
+		}
 	}
 	fmt.Fprintf(&buf, "}\n")
 

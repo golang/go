@@ -6,16 +6,16 @@ package obj
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"strings"
 )
 
 // go-specific code shared across loaders (5l, 6l, 8l).
 
-var Framepointer_enabled int
-
-var Fieldtrack_enabled int
+var (
+	framepointer_enabled int
+	Fieldtrack_enabled   int
+)
 
 // Toolchain experiments.
 // These are controlled by the GOEXPERIMENT environment
@@ -25,21 +25,22 @@ var exper = []struct {
 	name string
 	val  *int
 }{
-	struct {
-		name string
-		val  *int
-	}{"fieldtrack", &Fieldtrack_enabled},
-	struct {
-		name string
-		val  *int
-	}{"framepointer", &Framepointer_enabled},
+	{"fieldtrack", &Fieldtrack_enabled},
+	{"framepointer", &framepointer_enabled},
 }
 
 func addexp(s string) {
+	// Could do general integer parsing here, but the runtime copy doesn't yet.
+	v := 1
+	name := s
+	if len(name) > 2 && name[:2] == "no" {
+		v = 0
+		name = name[2:]
+	}
 	for i := 0; i < len(exper); i++ {
-		if exper[i].name == s {
+		if exper[i].name == name {
 			if exper[i].val != nil {
-				*exper[i].val = 1
+				*exper[i].val = v
 			}
 			return
 		}
@@ -49,7 +50,8 @@ func addexp(s string) {
 	os.Exit(2)
 }
 
-func linksetexp() {
+func init() {
+	framepointer_enabled = 1 // default
 	for _, f := range strings.Split(goexperiment, ",") {
 		if f != "" {
 			addexp(f)
@@ -57,78 +59,19 @@ func linksetexp() {
 	}
 }
 
-// replace all "". with pkg.
-func Expandpkg(t0 string, pkg string) string {
-	return strings.Replace(t0, `"".`, pkg+".", -1)
-}
-
-func double2ieee(ieee *uint64, f float64) {
-	*ieee = math.Float64bits(f)
+func Framepointer_enabled(goos, goarch string) bool {
+	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
 }
 
 func Nopout(p *Prog) {
 	p.As = ANOP
 	p.Scond = 0
 	p.From = Addr{}
-	p.From3 = Addr{}
+	p.From3 = nil
 	p.Reg = 0
 	p.To = Addr{}
 }
 
-func Nocache(p *Prog) {
-	p.Optab = 0
-	p.From.Class = 0
-	p.From3.Class = 0
-	p.To.Class = 0
-}
-
-/*
- *	bv.c
- */
-
-/*
- *	closure.c
- */
-
-/*
- *	const.c
- */
-
-/*
- *	cplx.c
- */
-
-/*
- *	dcl.c
- */
-
-/*
- *	esc.c
- */
-
-/*
- *	export.c
- */
-
-/*
- *	fmt.c
- */
-
-/*
- *	gen.c
- */
-
-/*
- *	init.c
- */
-
-/*
- *	inl.c
- */
-
-/*
- *	lex.c
- */
 func Expstring() string {
 	buf := "X"
 	for i := range exper {

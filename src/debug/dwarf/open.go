@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -78,9 +78,9 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 	return d, nil
 }
 
-// AddTypes will add one .debug_types section to the DWARF data.  A
+// AddTypes will add one .debug_types section to the DWARF data. A
 // typical object with DWARF version 4 debug info will have multiple
-// .debug_types sections.  The name is used for error reporting only,
+// .debug_types sections. The name is used for error reporting only,
 // and serves to distinguish one .debug_types section from another.
 func (d *Data) AddTypes(name string, types []byte) error {
 	return d.parseTypes(name, types)

@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -52,6 +52,10 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "cookie-8", Value: "eight", Domain: "::1"},
 		"cookie-8=eight",
 	},
+	{
+		&Cookie{Name: "cookie-9", Value: "expiring", Expires: time.Unix(1257894000, 0)},
+		"cookie-9=expiring; Expires=Tue, 10 Nov 2009 23:00:00 GMT",
+	},
 	// The "special" cookies have values containing commas or spaces which
 	// are disallowed by RFC 6265 but are common in the wild.
 	{
@@ -89,6 +93,18 @@ var writeSetCookiesTests = []struct {
 	{
 		&Cookie{Name: "empty-value", Value: ""},
 		`empty-value=`,
+	},
+	{
+		nil,
+		``,
+	},
+	{
+		&Cookie{Name: ""},
+		``,
+	},
+	{
+		&Cookie{Name: "\t"},
+		``,
 	},
 }
 

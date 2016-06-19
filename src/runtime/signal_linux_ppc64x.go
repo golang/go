@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,7 +7,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 type sigctxt struct {
 	info *siginfo
@@ -60,6 +63,7 @@ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 func (c *sigctxt) fault() uint64   { return c.regs().dar }
 
 func (c *sigctxt) set_r0(x uint64)   { c.regs().gpr[0] = x }
+func (c *sigctxt) set_r12(x uint64)  { c.regs().gpr[12] = x }
 func (c *sigctxt) set_r30(x uint64)  { c.regs().gpr[30] = x }
 func (c *sigctxt) set_pc(x uint64)   { c.regs().nip = x }
 func (c *sigctxt) set_sp(x uint64)   { c.regs().gpr[1] = x }
@@ -67,5 +71,5 @@ func (c *sigctxt) set_link(x uint64) { c.regs().link = x }
 
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint64) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
 }

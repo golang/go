@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -14,6 +14,7 @@ import (
 //sys	naclFstat(fd int, stat *Stat_t) (err error) = sys_fstat
 //sys	naclRead(fd int, b []byte) (n int, err error) = sys_read
 //sys	naclSeek(fd int, off *int64, whence int) (err error) = sys_lseek
+//sys	naclGetRandomBytes(b []byte) (err error) = sys_get_random_bytes
 
 const direntSize = 8 + 8 + 2 + 256
 
@@ -58,7 +59,7 @@ func clen(n []byte) int {
 const PathMax = 256
 
 // An Errno is an unsigned number describing an error condition.
-// It implements the error interface.  The zero Errno is by convention
+// It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
 //	err = nil
 //	if errno != 0 {

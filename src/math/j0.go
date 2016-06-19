@@ -10,7 +10,7 @@ package math
 
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_j0.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -38,7 +38,7 @@ package math
 //                      = 1/sqrt(2) * (cos(x) + sin(x))
 //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
 //                      = 1/sqrt(2) * (sin(x) - cos(x))
-//         (To avoid cancellation, use
+//         (To avoid cancelation, use
 //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 //         to compute the worse one.)
 //
@@ -188,7 +188,7 @@ func Y0(x float64) float64 {
 		//             =  1/sqrt(2) * (sin(x) + cos(x))
 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 		//             =  1/sqrt(2) * (sin(x) - cos(x))
-		// To avoid cancellation, use
+		// To avoid cancelation, use
 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
 		// to compute the worse one.
 

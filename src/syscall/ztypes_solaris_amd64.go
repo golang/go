@@ -1,6 +1,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs types_solaris.go
 
+// +build amd64,solaris
+
 package syscall
 
 const (
@@ -9,6 +11,7 @@ const (
 	sizeofInt      = 0x4
 	sizeofLong     = 0x8
 	sizeofLongLong = 0x8
+	PathMax        = 0x400
 )
 
 type (

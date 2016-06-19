@@ -1,17 +1,16 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package callback_test
+package callback
 
 import (
-	"../callback"
 	"testing"
 )
 
 func TestCall(t *testing.T) {
-	c := callback.NewCaller()
-	cb := callback.NewCallback()
+	c := NewCaller()
+	cb := NewCallback()
 
 	c.SetCallback(cb)
 	s := c.Call()
@@ -22,13 +21,13 @@ func TestCall(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-	c := callback.NewCaller()
-	cb := callback.NewDirectorCallback(&callback.GoCallback{})
+	c := NewCaller()
+	cb := NewDirectorCallback(&GoCallback{})
 	c.SetCallback(cb)
 	s := c.Call()
 	if s != "GoCallback.Run" {
 		t.Errorf("unexpected string from Call with callback: %q", s)
 	}
 	c.DelCallback()
-	callback.DeleteDirectorCallback(cb)
+	DeleteDirectorCallback(cb)
 }

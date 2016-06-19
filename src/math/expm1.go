@@ -6,7 +6,7 @@ package math
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/s_expm1.c
-// and came with this notice.  The go code is a simplified
+// and came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -158,11 +158,11 @@ func expm1(x float64) float64 {
 
 	// filter out huge argument
 	if absx >= Ln2X56 { // if |x| >= 56 * ln2
-		if absx >= Othreshold { // if |x| >= 709.78...
-			return Inf(1) // overflow
-		}
 		if sign {
-			return -1 // x < -56*ln2, return -1.0
+			return -1 // x < -56*ln2, return -1
+		}
+		if absx >= Othreshold { // if |x| >= 709.78...
+			return Inf(1)
 		}
 	}
 
@@ -227,7 +227,7 @@ func expm1(x float64) float64 {
 			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 			return y
 		}
-		t := Float64frombits(uint64((0x3ff - k) << 52)) // 2**-k
+		t := Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
 		y := x - (e + t)
 		y += 1
 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent

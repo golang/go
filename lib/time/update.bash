@@ -1,14 +1,15 @@
 #!/bin/sh
-# Copyright 2012 The Go Authors.  All rights reserved.
+# Copyright 2012 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
 # This script rebuilds the time zone files using files
 # downloaded from the ICANN/IANA distribution.
+# Consult http://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2014j
-DATA=2014j
+CODE=2016d
+DATA=2016d
 
 set -e
 rm -rf work

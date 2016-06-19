@@ -5,7 +5,13 @@
 package runtime
 
 func checkgoarm() {
-	return // NaCl/ARM only supports ARMv7
+	// TODO(minux): FP checks like in os_linux_arm.go.
+
+	// NaCl/ARM only supports ARMv7
+	if goarm != 7 {
+		print("runtime: NaCl requires ARMv7. Recompile using GOARM=7.\n")
+		exit(1)
+	}
 }
 
 //go:nosplit

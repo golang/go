@@ -55,7 +55,7 @@ type Client struct {
 // reading of RPC responses for the client side of an RPC session.
 // The client calls WriteRequest to write a request to the connection
 // and calls ReadResponseHeader and ReadResponseBody in pairs
-// to read responses.  The client calls Close when finished with the
+// to read responses. The client calls Close when finished with the
 // connection. ReadResponseBody may be called with a nil
 // argument to force the body of the response to be read and then
 // discarded.
@@ -173,7 +173,7 @@ func (call *Call) done() {
 	case call.Done <- call:
 		// ok
 	default:
-		// We don't want to block here.  It is the caller's responsibility to make
+		// We don't want to block here. It is the caller's responsibility to make
 		// sure the channel has enough buffer space. See comment in Go().
 		if debugLog {
 			log.Println("rpc: discarding Call reply due to insufficient Done chan capacity")
@@ -285,9 +285,9 @@ func (client *Client) Close() error {
 	return client.codec.Close()
 }
 
-// Go invokes the function asynchronously.  It returns the Call structure representing
-// the invocation.  The done channel will signal when the call is complete by returning
-// the same Call object.  If done is nil, Go will allocate a new channel.
+// Go invokes the function asynchronously. It returns the Call structure representing
+// the invocation. The done channel will signal when the call is complete by returning
+// the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
 func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	call := new(Call)
@@ -299,7 +299,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	} else {
 		// If caller passes done != nil, it must arrange that
 		// done has enough buffer for the number of simultaneous
-		// RPCs that will be using that channel.  If the channel
+		// RPCs that will be using that channel. If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
 			log.Panic("rpc: done channel is unbuffered")

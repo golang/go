@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,7 @@ var cmdFix = &Command{
 	Long: `
 Fix runs the Go fix command on the packages named by the import paths.
 
-For more about fix, see 'godoc fix'.
+For more about fix, see 'go doc cmd/fix'.
 For more about specifying packages, see 'go help packages'.
 
 To run fix with specific options, run 'go tool fix'.

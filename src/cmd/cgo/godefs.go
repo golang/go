@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,7 @@ import (
 	"go/printer"
 	"go/token"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ func (p *Package) godefs(f *File, srcfile string) string {
 	var buf bytes.Buffer
 
 	fmt.Fprintf(&buf, "// Created by cgo -godefs - DO NOT EDIT\n")
-	fmt.Fprintf(&buf, "// %s\n", strings.Join(os.Args, " "))
+	fmt.Fprintf(&buf, "// %s %s\n", filepath.Base(os.Args[0]), strings.Join(os.Args[1:], " "))
 	fmt.Fprintf(&buf, "\n")
 
 	override := make(map[string]string)

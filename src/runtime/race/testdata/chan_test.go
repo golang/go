@@ -285,17 +285,20 @@ func TestRaceChanWrongClose(t *testing.T) {
 	v1 := 0
 	v2 := 0
 	c := make(chan int, 1)
+	done := make(chan bool)
 	go func() {
 		defer func() {
 			recover()
 		}()
 		v1 = 1
 		c <- 1
+		done <- true
 	}()
 	go func() {
 		time.Sleep(1e7)
 		v2 = 2
 		close(c)
+		done <- true
 	}()
 	time.Sleep(2e7)
 	if _, who := <-c; who {
@@ -303,6 +306,8 @@ func TestRaceChanWrongClose(t *testing.T) {
 	} else {
 		v1 = 2
 	}
+	<-done
+	<-done
 }
 
 func TestRaceChanSendClose(t *testing.T) {
@@ -655,5 +660,44 @@ func TestNoRaceChanWaitGroup(t *testing.T) {
 	}
 	for i := 0; i < N; i++ {
 		_ = data[i]
+	}
+}
+
+// Test that sender synchronizes with receiver even if the sender was blocked.
+func TestNoRaceBlockedSendSync(t *testing.T) {
+	c := make(chan *int, 1)
+	c <- nil
+	go func() {
+		i := 42
+		c <- &i
+	}()
+	// Give the sender time to actually block.
+	// This sleep is completely optional: race report must not be printed
+	// regardless of whether the sender actually blocks or not.
+	// It cannot lead to flakiness.
+	time.Sleep(10 * time.Millisecond)
+	<-c
+	p := <-c
+	if *p != 42 {
+		t.Fatal()
+	}
+}
+
+// The same as TestNoRaceBlockedSendSync above, but sender unblock happens in a select.
+func TestNoRaceBlockedSelectSendSync(t *testing.T) {
+	c := make(chan *int, 1)
+	c <- nil
+	go func() {
+		i := 42
+		c <- &i
+	}()
+	time.Sleep(10 * time.Millisecond)
+	<-c
+	select {
+	case p := <-c:
+		if *p != 42 {
+			t.Fatal()
+		}
+	case <-make(chan int):
 	}
 }

@@ -33,7 +33,7 @@ func NewFileTransport(fs FileSystem) RoundTripper {
 
 func (t fileTransport) RoundTrip(req *Request) (resp *Response, err error) {
 	// We start ServeHTTP in a goroutine, which may take a long
-	// time if the file is large.  The newPopulateResponseWriter
+	// time if the file is large. The newPopulateResponseWriter
 	// call returns a channel which either ServeHTTP or finish()
 	// sends our *Response on, once the *Response itself has been
 	// populated (even if the body itself is still being

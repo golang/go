@@ -74,6 +74,17 @@ func (t *Arith) Error(args *Args, reply *Reply) error {
 	panic("ERROR")
 }
 
+type hidden int
+
+func (t *hidden) Exported(args Args, reply *Reply) error {
+	reply.C = args.A + args.B
+	return nil
+}
+
+type Embed struct {
+	hidden
+}
+
 func listenTCP() (net.Listener, string) {
 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
@@ -84,6 +95,7 @@ func listenTCP() (net.Listener, string) {
 
 func startServer() {
 	Register(new(Arith))
+	Register(new(Embed))
 	RegisterName("net.rpc.Arith", new(Arith))
 
 	var l net.Listener
@@ -98,6 +110,7 @@ func startServer() {
 func startNewServer() {
 	newServer = NewServer()
 	newServer.Register(new(Arith))
+	newServer.Register(new(Embed))
 	newServer.RegisterName("net.rpc.Arith", new(Arith))
 	newServer.RegisterName("newServer.Arith", new(Arith))
 
@@ -142,6 +155,17 @@ func testRPC(t *testing.T, addr string) {
 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
 
+	// Methods exported from unexported embedded structs
+	args = &Args{7, 0}
+	reply = new(Reply)
+	err = client.Call("Embed.Exported", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.Error())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
+
 	// Nonexistent method
 	args = &Args{7, 0}
 	reply = new(Reply)
@@ -159,7 +183,7 @@ func testRPC(t *testing.T, addr string) {
 	err = client.Call("Arith.Unknown", args, reply)
 	if err == nil {
 		t.Error("expected error calling unknown service")
-	} else if strings.Index(err.Error(), "method") < 0 {
+	} else if !strings.Contains(err.Error(), "method") {
 		t.Error("expected error about method; got", err)
 	}
 
@@ -202,7 +226,7 @@ func testRPC(t *testing.T, addr string) {
 	err = client.Call("Arith.Add", reply, reply) // args, reply would be the correct thing to use
 	if err == nil {
 		t.Error("expected error calling Arith.Add with wrong arg type")
-	} else if strings.Index(err.Error(), "type") < 0 {
+	} else if !strings.Contains(err.Error(), "type") {
 		t.Error("expected error about type; got", err)
 	}
 
@@ -593,6 +617,19 @@ func TestErrorAfterClientClose(t *testing.T) {
 	}
 }
 
+// Tests the fix to issue 11221. Without the fix, this loops forever or crashes.
+func TestAcceptExitAfterListenerClose(t *testing.T) {
+	newServer = NewServer()
+	newServer.Register(new(Arith))
+	newServer.RegisterName("net.rpc.Arith", new(Arith))
+	newServer.RegisterName("newServer.Arith", new(Arith))
+
+	var l net.Listener
+	l, newServerAddr = listenTCP()
+	l.Close()
+	newServer.Accept(l)
+}
+
 func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 	once.Do(startServer)
 	client, err := dial()
@@ -620,6 +657,9 @@ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
 }
 
 func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
+	if b.N == 0 {
+		return
+	}
 	const MaxConcurrentCalls = 100
 	once.Do(startServer)
 	client, err := dial()

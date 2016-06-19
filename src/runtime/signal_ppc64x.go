@@ -7,7 +7,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("r0   ", hex(c.r0()), "\t")
@@ -50,12 +53,17 @@ func dumpregs(c *sigctxt) {
 	print("trap ", hex(c.trap()), "\n")
 }
 
+var crashing int32
+
+// May run during STW, so write barriers are not allowed.
+//
+//go:nowritebarrierrec
 func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	_g_ := getg()
 	c := &sigctxt{info, ctxt}
 
 	if sig == _SIGPROF {
-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.link()))), gp, _g_.m)
+		sigprof(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp, _g_.m)
 		return
 	}
 	flags := int32(_SigThrow)
@@ -78,20 +86,31 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// functions are correctly handled. This smashes
 		// the stack frame but we're not going back there
 		// anyway.
-		sp := c.sp() - ptrSize
+		sp := c.sp() - sys.MinFrameSize
 		c.set_sp(sp)
 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+
+		pc := gp.sigpc
+
+		// If we don't recognize the PC as code
+		// but we do recognize the link register as code,
+		// then assume this was a call to non-code and treat like
+		// pc == 0, to make unwinding show the context.
+		if pc != 0 && findfunc(pc) == nil && findfunc(uintptr(c.link())) != nil {
+			pc = 0
+		}
 
 		// Don't bother saving PC if it's zero, which is
 		// probably a call to a nil func: the old link register
 		// is more useful in the stack trace.
-		if gp.sigpc != 0 {
-			c.set_link(uint64(gp.sigpc))
+		if pc != 0 {
+			c.set_link(uint64(pc))
 		}
 
 		// In case we are panicking from external C code
 		c.set_r0(0)
 		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+		c.set_r12(uint64(funcPC(sigpanic)))
 		c.set_pc(uint64(funcPC(sigpanic)))
 		return
 	}
@@ -102,8 +121,12 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		}
 	}
 
+	if c.sigcode() == _SI_USER && signal_ignored(sig) {
+		return
+	}
+
 	if flags&_SigKill != 0 {
-		exit(2)
+		dieFromSignal(int32(sig))
 	}
 
 	if flags&_SigThrow == 0 {
@@ -111,8 +134,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	_g_.m.throwing = 1
-	_g_.m.caughtsig = gp
-	startpanic()
+	_g_.m.caughtsig.set(gp)
+
+	if crashing == 0 {
+		startpanic()
+	}
 
 	if sig < uint32(len(sigtable)) {
 		print(sigtable[sig].name, "\n")
@@ -120,23 +146,45 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		print("Signal ", sig, "\n")
 	}
 
-	print("PC=", hex(c.pc()), "\n")
+	print("PC=", hex(c.pc()), " m=", _g_.m.id, "\n")
 	if _g_.m.lockedg != nil && _g_.m.ncgo > 0 && gp == _g_.m.g0 {
 		print("signal arrived during cgo execution\n")
 		gp = _g_.m.lockedg
 	}
 	print("\n")
 
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash := gotraceback()
+	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
-		tracebackothers(gp)
-		print("\n")
+		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
+			// tracebackothers on original m skipped this one; trace it now.
+			goroutineheader(_g_.m.curg)
+			traceback(^uintptr(0), ^uintptr(0), 0, gp)
+		} else if crashing == 0 {
+			tracebackothers(gp)
+			print("\n")
+		}
 		dumpregs(c)
 	}
 
 	if docrash {
+		crashing++
+		if crashing < sched.mcount {
+			// There are other m's that need to dump their stacks.
+			// Relay SIGQUIT to the next m by sending it to the current process.
+			// All m's that have already received SIGQUIT have signal masks blocking
+			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
+			// When the last m receives the SIGQUIT, it will fall through to the call to
+			// crash below. Just in case the relaying gets botched, each m involved in
+			// the relay sleeps for 5 seconds and then does the crash/exit itself.
+			// In expected operation, the last m has received the SIGQUIT and run
+			// crash/exit and the process is gone, all long before any of the
+			// 5-second sleeps have finished.
+			print("\n-----\n\n")
+			raiseproc(_SIGQUIT)
+			usleep(5 * 1000 * 1000)
+		}
 		crash()
 	}
 

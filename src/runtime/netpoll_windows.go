@@ -33,7 +33,7 @@ type overlappedEntry struct {
 var iocphandle uintptr = _INVALID_HANDLE_VALUE // completion port io handle
 
 func netpollinit() {
-	iocphandle = uintptr(stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX))
+	iocphandle = stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX)
 	if iocphandle == 0 {
 		println("netpoll: failed to create iocp handle (errno=", getlasterror(), ")")
 		throw("netpoll: failed to create iocp handle")
@@ -63,14 +63,13 @@ func netpoll(block bool) *g {
 	var wait, qty, key, flags, n, i uint32
 	var errno int32
 	var op *net_op
-	var gp *g
+	var gp guintptr
 
 	mp := getg().m
 
 	if iocphandle == _INVALID_HANDLE_VALUE {
 		return nil
 	}
-	gp = nil
 	wait = 0
 	if block {
 		wait = _INFINITE
@@ -125,13 +124,13 @@ retry:
 		mp.blocked = false
 		handlecompletion(&gp, op, errno, qty)
 	}
-	if block && gp == nil {
+	if block && gp == 0 {
 		goto retry
 	}
-	return gp
+	return gp.ptr()
 }
 
-func handlecompletion(gpp **g, op *net_op, errno int32, qty uint32) {
+func handlecompletion(gpp *guintptr, op *net_op, errno int32, qty uint32) {
 	if op == nil {
 		throw("netpoll: GetQueuedCompletionStatus returned op == nil")
 	}
@@ -142,5 +141,5 @@ func handlecompletion(gpp **g, op *net_op, errno int32, qty uint32) {
 	}
 	op.errno = errno
 	op.qty = qty
-	netpollready((**g)(noescape(unsafe.Pointer(gpp))), op.pd, mode)
+	netpollready(gpp, op.pd, mode)
 }

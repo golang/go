@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -41,9 +41,9 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 	d.Strict = false
 	var t xml.Token
 	for {
-		t, err = d.Token()
+		t, err = d.RawToken()
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF || len(imports) > 0 {
 				err = nil
 			}
 			return

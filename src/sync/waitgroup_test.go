@@ -5,6 +5,8 @@
 package sync_test
 
 import (
+	"internal/race"
+	"runtime"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -46,6 +48,12 @@ func TestWaitGroup(t *testing.T) {
 	}
 }
 
+func knownRacy(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping known-racy test under the race detector")
+	}
+}
+
 func TestWaitGroupMisuse(t *testing.T) {
 	defer func() {
 		err := recover()
@@ -57,6 +65,100 @@ func TestWaitGroupMisuse(t *testing.T) {
 	wg.Add(1)
 	wg.Done()
 	wg.Done()
+	t.Fatal("Should panic")
+}
+
+func TestWaitGroupMisuse2(t *testing.T) {
+	knownRacy(t)
+	if testing.Short() {
+		t.Skip("skipping flaky test in short mode; see issue 11443")
+	}
+	if runtime.NumCPU() <= 2 {
+		t.Skip("NumCPU<=2, skipping: this test requires parallelism")
+	}
+	defer func() {
+		err := recover()
+		if err != "sync: negative WaitGroup counter" &&
+			err != "sync: WaitGroup misuse: Add called concurrently with Wait" &&
+			err != "sync: WaitGroup is reused before previous Wait has returned" {
+			t.Fatalf("Unexpected panic: %#v", err)
+		}
+	}()
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	done := make(chan interface{}, 2)
+	// The detection is opportunistically, so we want it to panic
+	// at least in one run out of a million.
+	for i := 0; i < 1e6; i++ {
+		var wg WaitGroup
+		wg.Add(1)
+		go func() {
+			defer func() {
+				done <- recover()
+			}()
+			wg.Wait()
+		}()
+		go func() {
+			defer func() {
+				done <- recover()
+			}()
+			wg.Add(1) // This is the bad guy.
+			wg.Done()
+		}()
+		wg.Done()
+		for j := 0; j < 2; j++ {
+			if err := <-done; err != nil {
+				panic(err)
+			}
+		}
+	}
+	t.Fatal("Should panic")
+}
+
+func TestWaitGroupMisuse3(t *testing.T) {
+	knownRacy(t)
+	if runtime.NumCPU() <= 1 {
+		t.Skip("NumCPU==1, skipping: this test requires parallelism")
+	}
+	defer func() {
+		err := recover()
+		if err != "sync: negative WaitGroup counter" &&
+			err != "sync: WaitGroup misuse: Add called concurrently with Wait" &&
+			err != "sync: WaitGroup is reused before previous Wait has returned" {
+			t.Fatalf("Unexpected panic: %#v", err)
+		}
+	}()
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	done := make(chan interface{}, 2)
+	// The detection is opportunistically, so we want it to panic
+	// at least in one run out of a million.
+	for i := 0; i < 1e6; i++ {
+		var wg WaitGroup
+		wg.Add(1)
+		go func() {
+			defer func() {
+				done <- recover()
+			}()
+			wg.Done()
+		}()
+		go func() {
+			defer func() {
+				done <- recover()
+			}()
+			wg.Wait()
+			// Start reusing the wg before waiting for the Wait below to return.
+			wg.Add(1)
+			go func() {
+				wg.Done()
+			}()
+			wg.Wait()
+		}()
+		wg.Wait()
+		for j := 0; j < 2; j++ {
+			if err := <-done; err != nil {
+				panic(err)
+			}
+		}
+	}
 	t.Fatal("Should panic")
 }
 
@@ -83,6 +185,19 @@ func TestWaitGroupRace(t *testing.T) {
 			t.Fatal("Spurious wakeup from Wait")
 		}
 	}
+}
+
+func TestWaitGroupAlign(t *testing.T) {
+	type X struct {
+		x  byte
+		wg WaitGroup
+	}
+	var x X
+	x.wg.Add(1)
+	go func(x *X) {
+		x.wg.Done()
+	}(&x)
+	x.wg.Wait()
 }
 
 func BenchmarkWaitGroupUncontended(b *testing.B) {
@@ -145,4 +260,18 @@ func BenchmarkWaitGroupWait(b *testing.B) {
 
 func BenchmarkWaitGroupWaitWork(b *testing.B) {
 	benchmarkWaitGroupWait(b, 100)
+}
+
+func BenchmarkWaitGroupActuallyWait(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			var wg WaitGroup
+			wg.Add(1)
+			go func() {
+				wg.Done()
+			}()
+			wg.Wait()
+		}
+	})
 }

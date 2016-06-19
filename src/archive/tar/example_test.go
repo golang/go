@@ -26,7 +26,7 @@ func Example() {
 	}{
 		{"readme.txt", "This archive contains some text files."},
 		{"gopher.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
-		{"todo.txt", "Get animal handling licence."},
+		{"todo.txt", "Get animal handling license."},
 	}
 	for _, file := range files {
 		hdr := &tar.Header{
@@ -76,5 +76,5 @@ func Example() {
 	// Geoffrey
 	// Gonzo
 	// Contents of todo.txt:
-	// Get animal handling licence.
+	// Get animal handling license.
 }

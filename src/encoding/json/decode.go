@@ -29,14 +29,15 @@ import (
 // with the following additional rules:
 //
 // To unmarshal JSON into a pointer, Unmarshal first handles the case of
-// the JSON being the JSON literal null.  In that case, Unmarshal sets
-// the pointer to nil.  Otherwise, Unmarshal unmarshals the JSON into
-// the value pointed at by the pointer.  If the pointer is nil, Unmarshal
+// the JSON being the JSON literal null. In that case, Unmarshal sets
+// the pointer to nil. Otherwise, Unmarshal unmarshals the JSON into
+// the value pointed at by the pointer. If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match.
+// Unmarshal will only set exported fields of the struct.
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
@@ -48,9 +49,27 @@ import (
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
 //
+// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
+// to zero and then appends each element to the slice.
+// As a special case, to unmarshal an empty JSON array into a slice,
+// Unmarshal replaces the slice with a new empty slice.
+//
+// To unmarshal a JSON array into a Go array, Unmarshal decodes
+// JSON array elements into corresponding Go array elements.
+// If the Go array is smaller than the JSON array,
+// the additional JSON array elements are discarded.
+// If the JSON array is smaller than the Go array,
+// the additional Go array elements are set to zero values.
+//
+// To unmarshal a JSON object into a map, Unmarshal first establishes a map to
+// use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
+// reuses the existing map, keeping existing entries. Unmarshal then stores key-
+// value pairs from the JSON object into the map. The map's key type must
+// either be a string, an integer, or implement encoding.TextUnmarshaler.
+//
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
-// skips that field and completes the unmarshalling as best it can.
+// skips that field and completes the unmarshaling as best it can.
 // If no more serious errors are encountered, Unmarshal returns
 // an UnmarshalTypeError describing the earliest such error.
 //
@@ -78,7 +97,7 @@ func Unmarshal(data []byte, v interface{}) error {
 	return d.unmarshal(v)
 }
 
-// Unmarshaler is the interface implemented by objects
+// Unmarshaler is the interface implemented by types
 // that can unmarshal a JSON description of themselves.
 // The input can be assumed to be a valid encoding of
 // a JSON value. UnmarshalJSON must copy the JSON data
@@ -167,6 +186,66 @@ func (n Number) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
+// isValidNumber reports whether s is a valid JSON number literal.
+func isValidNumber(s string) bool {
+	// This function implements the JSON numbers grammar.
+	// See https://tools.ietf.org/html/rfc7159#section-6
+	// and http://json.org/number.gif
+
+	if s == "" {
+		return false
+	}
+
+	// Optional -
+	if s[0] == '-' {
+		s = s[1:]
+		if s == "" {
+			return false
+		}
+	}
+
+	// Digits
+	switch {
+	default:
+		return false
+
+	case s[0] == '0':
+		s = s[1:]
+
+	case '1' <= s[0] && s[0] <= '9':
+		s = s[1:]
+		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+			s = s[1:]
+		}
+	}
+
+	// . followed by 1 or more digits.
+	if len(s) >= 2 && s[0] == '.' && '0' <= s[1] && s[1] <= '9' {
+		s = s[2:]
+		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+			s = s[1:]
+		}
+	}
+
+	// e or E followed by an optional - or + and
+	// 1 or more digits.
+	if len(s) >= 2 && (s[0] == 'e' || s[0] == 'E') {
+		s = s[1:]
+		if s[0] == '+' || s[0] == '-' {
+			s = s[1:]
+			if s == "" {
+				return false
+			}
+		}
+		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+			s = s[1:]
+		}
+	}
+
+	// Make sure we are at the end.
+	return s == ""
+}
+
 // decodeState represents the state while decoding a JSON value.
 type decodeState struct {
 	data       []byte
@@ -234,7 +313,7 @@ func (d *decodeState) scanWhile(op int) int {
 			newOp = d.scan.eof()
 			d.off = len(d.data) + 1 // mark processed EOF with len+1
 		} else {
-			c := int(d.data[d.off])
+			c := d.data[d.off]
 			d.off++
 			newOp = d.scan.step(&d.scan, c)
 		}
@@ -456,7 +535,7 @@ func (d *decodeState) array(v reflect.Value) {
 
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
-			// Array.  Zero the rest.
+			// Array. Zero the rest.
 			z := reflect.Zero(v.Type().Elem())
 			for ; i < v.Len(); i++ {
 				v.Index(i).Set(z)
@@ -471,6 +550,7 @@ func (d *decodeState) array(v reflect.Value) {
 }
 
 var nullLiteral = []byte("null")
+var textUnmarshalerType = reflect.TypeOf(new(encoding.TextUnmarshaler)).Elem()
 
 // object consumes an object from d.data[d.off-1:], decoding into the value v.
 // the first byte ('{') of the object has been read already.
@@ -499,16 +579,26 @@ func (d *decodeState) object(v reflect.Value) {
 		return
 	}
 
-	// Check type of target: struct or map[string]T
+	// Check type of target:
+	//   struct or
+	//   map[T1]T2 where T1 is string, an integer type,
+	//             or an encoding.TextUnmarshaler
 	switch v.Kind() {
 	case reflect.Map:
-		// map must have string kind
+		// Map key must either have string kind, have an integer kind,
+		// or be an encoding.TextUnmarshaler.
 		t := v.Type()
-		if t.Key().Kind() != reflect.String {
-			d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
-			d.off--
-			d.next() // skip over { } in input
-			return
+		switch t.Key().Kind() {
+		case reflect.String,
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		default:
+			if !reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
+				d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
+				d.off--
+				d.next() // skip over { } in input
+				return
+			}
 		}
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
@@ -609,7 +699,37 @@ func (d *decodeState) object(v reflect.Value) {
 		// Write value back to map;
 		// if using struct, subv points into struct already.
 		if v.Kind() == reflect.Map {
-			kv := reflect.ValueOf(key).Convert(v.Type().Key())
+			kt := v.Type().Key()
+			var kv reflect.Value
+			switch {
+			case kt.Kind() == reflect.String:
+				kv = reflect.ValueOf(key).Convert(kt)
+			case reflect.PtrTo(kt).Implements(textUnmarshalerType):
+				kv = reflect.New(v.Type().Key())
+				d.literalStore(item, kv, true)
+				kv = kv.Elem()
+			default:
+				switch kt.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					s := string(key)
+					n, err := strconv.ParseInt(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowInt(n) {
+						d.saveError(&UnmarshalTypeError{"number " + s, kt, int64(start + 1)})
+						return
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					s := string(key)
+					n, err := strconv.ParseUint(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowUint(n) {
+						d.saveError(&UnmarshalTypeError{"number " + s, kt, int64(start + 1)})
+						return
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				default:
+					panic("json: Unexpected key type") // should never occur
+				}
+			}
 			v.SetMapIndex(kv, subv)
 		}
 
@@ -682,6 +802,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			} else {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 			}
+			return
 		}
 		s, ok := unquoteBytes(item)
 		if !ok {
@@ -739,7 +860,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		default:
 			d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 		case reflect.Slice:
-			if v.Type() != byteSliceType {
+			if v.Type().Elem().Kind() != reflect.Uint8 {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 				break
 			}
@@ -749,7 +870,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 				d.saveError(err)
 				break
 			}
-			v.Set(reflect.ValueOf(b[0:n]))
+			v.SetBytes(b[:n])
 		case reflect.String:
 			v.SetString(string(s))
 		case reflect.Interface:
@@ -773,6 +894,9 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		default:
 			if v.Kind() == reflect.String && v.Type() == numberType {
 				v.SetString(s)
+				if !isValidNumber(s) {
+					d.error(fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item))
+				}
 				break
 			}
 			if fromQuoted {
@@ -820,7 +944,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 }
 
 // The xxxInterface routines build up a value to be stored
-// in an empty interface.  They are not strictly necessary,
+// in an empty interface. They are not strictly necessary,
 // but they avoid the weight of reflection in this common case.
 
 // valueInterface is like value but returns interface{}

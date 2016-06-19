@@ -19,18 +19,21 @@ import (
 // When any of the arguments result in a standard violation then
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
-	slash := strings.Index(t, "/")
-	if slash == -1 {
-		return ""
-	}
-	major, sub := t[:slash], t[slash+1:]
-	if !isToken(major) || !isToken(sub) {
-		return ""
-	}
 	var b bytes.Buffer
-	b.WriteString(strings.ToLower(major))
-	b.WriteByte('/')
-	b.WriteString(strings.ToLower(sub))
+	if slash := strings.Index(t, "/"); slash == -1 {
+		if !isToken(t) {
+			return ""
+		}
+		b.WriteString(strings.ToLower(t))
+	} else {
+		major, sub := t[:slash], t[slash+1:]
+		if !isToken(major) || !isToken(sub) {
+			return ""
+		}
+		b.WriteString(strings.ToLower(major))
+		b.WriteByte('/')
+		b.WriteString(strings.ToLower(sub))
+	}
 
 	attrs := make([]string, 0, len(param))
 	for a := range param {
@@ -218,7 +221,7 @@ func isNotTokenChar(r rune) bool {
 
 // consumeToken consumes a token from the beginning of provided
 // string, per RFC 2045 section 5.1 (referenced from 2183), and return
-// the token consumed and the rest of the string.  Returns ("", v) on
+// the token consumed and the rest of the string. Returns ("", v) on
 // failure to consume at least one character.
 func consumeToken(v string) (token, rest string) {
 	notPos := strings.IndexFunc(v, isNotTokenChar)
@@ -234,27 +237,26 @@ func consumeToken(v string) (token, rest string) {
 // consumeValue consumes a "value" per RFC 2045, where a value is
 // either a 'token' or a 'quoted-string'.  On success, consumeValue
 // returns the value consumed (and de-quoted/escaped, if a
-// quoted-string) and the rest of the string.  On failure, returns
+// quoted-string) and the rest of the string. On failure, returns
 // ("", v).
 func consumeValue(v string) (value, rest string) {
-	if !strings.HasPrefix(v, `"`) && !strings.HasPrefix(v, `'`) {
+	if v == "" {
+		return
+	}
+	if v[0] != '"' {
 		return consumeToken(v)
 	}
-
-	leadQuote := rune(v[0])
 
 	// parse a quoted-string
 	rest = v[1:] // consume the leading quote
 	buffer := new(bytes.Buffer)
-	var idx int
-	var r rune
 	var nextIsLiteral bool
-	for idx, r = range rest {
+	for idx, r := range rest {
 		switch {
 		case nextIsLiteral:
 			buffer.WriteRune(r)
 			nextIsLiteral = false
-		case r == leadQuote:
+		case r == '"':
 			return buffer.String(), rest[idx+1:]
 		case r == '\\':
 			nextIsLiteral = true
@@ -287,10 +289,11 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	}
 	rest = rest[1:] // consume equals sign
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
-	value, rest = consumeValue(rest)
-	if value == "" {
+	value, rest2 := consumeValue(rest)
+	if value == "" && rest2 == rest {
 		return "", "", v
 	}
+	rest = rest2
 	return param, value, rest
 }
 

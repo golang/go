@@ -8,9 +8,20 @@ package os
 
 import (
 	"runtime"
-	"sync/atomic"
 	"syscall"
 )
+
+func sameFile(fs1, fs2 *fileStat) bool {
+	return fs1.sys.Dev == fs2.sys.Dev && fs1.sys.Ino == fs2.sys.Ino
+}
+
+func rename(oldname, newname string) error {
+	e := syscall.Rename(oldname, newname)
+	if e != nil {
+		return &LinkError{"rename", oldname, newname, e}
+	}
+	return nil
+}
 
 // File represents an open file descriptor.
 type File struct {
@@ -25,7 +36,6 @@ type file struct {
 	fd      int
 	name    string
 	dirinfo *dirInfo // nil unless directory being read
-	nepipe  int32    // number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
@@ -55,13 +65,12 @@ type dirInfo struct {
 	bufp int    // location of next record in buf.
 }
 
+// epipecheck raises SIGPIPE if we get an EPIPE error on standard
+// output or standard error. See the SIGPIPE docs in os/signal, and
+// issue 11845.
 func epipecheck(file *File, e error) {
-	if e == syscall.EPIPE {
-		if atomic.AddInt32(&file.nepipe, 1) >= 10 {
-			sigpipe()
-		}
-	} else {
-		atomic.StoreInt32(&file.nepipe, 0)
+	if e == syscall.EPIPE && (file.fd == 1 || file.fd == 2) {
+		sigpipe()
 	}
 }
 
@@ -70,11 +79,11 @@ func epipecheck(file *File, e error) {
 const DevNull = "/dev/null"
 
 // OpenFile is the generalized open call; most users will use Open
-// or Create instead.  It opens the named file with specified flag
-// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
+// or Create instead. It opens the named file with specified flag
+// (O_RDONLY etc.) and perm, (0666 etc.) if applicable. If successful,
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	chmod := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
 		if _, err := Stat(name); IsNotExist(err) {
@@ -82,18 +91,31 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 		}
 	}
 
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
-	if e != nil {
+	var r int
+	for {
+		var e error
+		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+		if e == nil {
+			break
+		}
+
+		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
+		// open(2) to be restarted for regular files. This is easy to reproduce on
+		// fuse file systems (see http://golang.org/issue/11180).
+		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+			continue
+		}
+
 		return nil, &PathError{"open", name, e}
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
-	if chmod && e == nil {
-		e = Chmod(name, perm)
+	if chmod {
+		Chmod(name, perm)
 	}
 
 	// There's a race here with fork/exec, which we are
-	// content to live with.  See ../syscall/exec_unix.go.
+	// content to live with. See ../syscall/exec_unix.go.
 	if !supportsCloseOnExec {
 		syscall.CloseOnExec(r)
 	}
@@ -127,40 +149,43 @@ func (file *file) close() error {
 
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
-func (f *File) Stat() (fi FileInfo, err error) {
+func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}
-	var stat syscall.Stat_t
-	err = syscall.Fstat(f.fd, &stat)
+	var fs fileStat
+	err := syscall.Fstat(f.fd, &fs.sys)
 	if err != nil {
 		return nil, &PathError{"stat", f.name, err}
 	}
-	return fileInfoFromStat(&stat, f.name), nil
+	fillFileStatFromSys(&fs, f.name)
+	return &fs, nil
 }
 
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
-func Stat(name string) (fi FileInfo, err error) {
-	var stat syscall.Stat_t
-	err = syscall.Stat(name, &stat)
+func Stat(name string) (FileInfo, error) {
+	var fs fileStat
+	err := syscall.Stat(name, &fs.sys)
 	if err != nil {
 		return nil, &PathError{"stat", name, err}
 	}
-	return fileInfoFromStat(&stat, name), nil
+	fillFileStatFromSys(&fs, name)
+	return &fs, nil
 }
 
 // Lstat returns a FileInfo describing the named file.
 // If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+// describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
-func Lstat(name string) (fi FileInfo, err error) {
-	var stat syscall.Stat_t
-	err = syscall.Lstat(name, &stat)
+func Lstat(name string) (FileInfo, error) {
+	var fs fileStat
+	err := syscall.Lstat(name, &fs.sys)
 	if err != nil {
 		return nil, &PathError{"lstat", name, err}
 	}
-	return fileInfoFromStat(&stat, name), nil
+	fillFileStatFromSys(&fs, name)
+	return &fs, nil
 }
 
 func (f *File) readdir(n int) (fi []FileInfo, err error) {
@@ -286,7 +311,7 @@ func Remove(name string) error {
 
 	// Both failed: figure out which error to return.
 	// OS X and Linux differ on whether unlink(dir)
-	// returns EISDIR, so can't use that.  However,
+	// returns EISDIR, so can't use that. However,
 	// both agree that rmdir(file) returns ENOTDIR,
 	// so we can use that to decide which error is real.
 	// Rmdir might also return ENOTDIR if given a bad

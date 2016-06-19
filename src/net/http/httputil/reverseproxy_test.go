@@ -7,13 +7,18 @@
 package httputil
 
 import (
+	"bufio"
+	"bytes"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"runtime"
+	"reflect"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -28,6 +33,11 @@ func TestReverseProxy(t *testing.T) {
 	const backendResponse = "I am the backend"
 	const backendStatus = 404
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.FormValue("mode") == "hangup" {
+			c, _, _ := w.(http.Hijacker).Hijack()
+			c.Close()
+			return
+		}
 		if len(r.TransferEncoding) > 0 {
 			t.Errorf("backend got unexpected TransferEncoding: %v", r.TransferEncoding)
 		}
@@ -40,9 +50,14 @@ func TestReverseProxy(t *testing.T) {
 		if c := r.Header.Get("Upgrade"); c != "" {
 			t.Errorf("handler got Upgrade header value %q", c)
 		}
+		if c := r.Header.Get("Proxy-Connection"); c != "" {
+			t.Errorf("handler got Proxy-Connection header value %q", c)
+		}
 		if g, e := r.Host, "some-name"; g != e {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
+		w.Header().Set("Trailers", "not a special header field name")
+		w.Header().Set("Trailer", "X-Trailer")
 		w.Header().Set("X-Foo", "bar")
 		w.Header().Set("Upgrade", "foo")
 		w.Header().Set(fakeHopHeader, "foo")
@@ -51,6 +66,7 @@ func TestReverseProxy(t *testing.T) {
 		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
+		w.Header().Set("X-Trailer", "trailer_value")
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
@@ -58,12 +74,14 @@ func TestReverseProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Host = "some-name"
 	getReq.Header.Set("Connection", "close")
+	getReq.Header.Set("Proxy-Connection", "should be deleted")
 	getReq.Header.Set("Upgrade", "foo")
 	getReq.Close = true
 	res, err := http.DefaultClient.Do(getReq)
@@ -79,11 +97,17 @@ func TestReverseProxy(t *testing.T) {
 	if c := res.Header.Get(fakeHopHeader); c != "" {
 		t.Errorf("got %s header value %q", fakeHopHeader, c)
 	}
+	if g, e := res.Header.Get("Trailers"), "not a special header field name"; g != e {
+		t.Errorf("header Trailers = %q; want %q", g, e)
+	}
 	if g, e := len(res.Header["X-Multi-Value"]), 2; g != e {
 		t.Errorf("got %d X-Multi-Value header values; expected %d", g, e)
 	}
 	if g, e := len(res.Header["Set-Cookie"]), 1; g != e {
 		t.Fatalf("got %d SetCookies, want %d", g, e)
+	}
+	if g, e := res.Trailer, (http.Header{"X-Trailer": nil}); !reflect.DeepEqual(g, e) {
+		t.Errorf("before reading body, Trailer = %#v; want %#v", g, e)
 	}
 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
 		t.Errorf("unexpected cookie %q", cookie.Name)
@@ -92,6 +116,23 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
+	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
+		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
+	}
+
+	// Test that a backend failing to be reached or one which doesn't return
+	// a response results in a StatusBadGateway.
+	getReq, _ = http.NewRequest("GET", frontend.URL+"/?mode=hangup", nil)
+	getReq.Close = true
+	res, err = http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusBadGateway {
+		t.Errorf("request to bad proxy = %v; want 502 StatusBadGateway", res.Status)
+	}
+
 }
 
 func TestXForwardedFor(t *testing.T) {
@@ -214,10 +255,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	}
 }
 
-func TestReverseProxyCancellation(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/9554")
-	}
+func TestReverseProxyCancelation(t *testing.T) {
 	const backendResponse = "I am the backend"
 
 	reqInFlight := make(chan struct{})
@@ -269,5 +307,191 @@ func TestReverseProxyCancellation(t *testing.T) {
 		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
 		//    use of closed network connection
 		t.Fatal("DefaultClient.Do() returned nil error")
+	}
+}
+
+func req(t *testing.T, v string) *http.Request {
+	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(v)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
+}
+
+// Issue 12344
+func TestNilBody(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hi"))
+	}))
+	defer backend.Close()
+
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		backURL, _ := url.Parse(backend.URL)
+		rp := NewSingleHostReverseProxy(backURL)
+		r := req(t, "GET / HTTP/1.0\r\n\r\n")
+		r.Body = nil // this accidentally worked in Go 1.4 and below, so keep it working
+		rp.ServeHTTP(w, r)
+	}))
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != "hi" {
+		t.Errorf("Got %q; want %q", slurp, "hi")
+	}
+}
+
+// Issue 15524
+func TestUserAgentHeader(t *testing.T) {
+	const explicitUA = "explicit UA"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/noua" {
+			if c := r.Header.Get("User-Agent"); c != "" {
+				t.Errorf("handler got non-empty User-Agent header %q", c)
+			}
+			return
+		}
+		if c := r.Header.Get("User-Agent"); c != explicitUA {
+			t.Errorf("handler got unexpected User-Agent header %q", c)
+		}
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Header.Set("User-Agent", explicitUA)
+	getReq.Close = true
+	res, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close()
+
+	getReq, _ = http.NewRequest("GET", frontend.URL+"/noua", nil)
+	getReq.Header.Set("User-Agent", "")
+	getReq.Close = true
+	res, err = http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	res.Body.Close()
+}
+
+type bufferPool struct {
+	get func() []byte
+	put func([]byte)
+}
+
+func (bp bufferPool) Get() []byte  { return bp.get() }
+func (bp bufferPool) Put(v []byte) { bp.put(v) }
+
+func TestReverseProxyGetPutBuffer(t *testing.T) {
+	const msg = "hi"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, msg)
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		mu  sync.Mutex
+		log []string
+	)
+	addLog := func(event string) {
+		mu.Lock()
+		defer mu.Unlock()
+		log = append(log, event)
+	}
+	rp := NewSingleHostReverseProxy(backendURL)
+	const size = 1234
+	rp.BufferPool = bufferPool{
+		get: func() []byte {
+			addLog("getBuf")
+			return make([]byte, size)
+		},
+		put: func(p []byte) {
+			addLog("putBuf-" + strconv.Itoa(len(p)))
+		},
+	}
+	frontend := httptest.NewServer(rp)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Close = true
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatalf("reading body: %v", err)
+	}
+	if string(slurp) != msg {
+		t.Errorf("msg = %q; want %q", slurp, msg)
+	}
+	wantLog := []string{"getBuf", "putBuf-" + strconv.Itoa(size)}
+	mu.Lock()
+	defer mu.Unlock()
+	if !reflect.DeepEqual(log, wantLog) {
+		t.Errorf("Log events = %q; want %q", log, wantLog)
+	}
+}
+
+func TestReverseProxy_Post(t *testing.T) {
+	const backendResponse = "I am the backend"
+	const backendStatus = 200
+	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slurp, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("Backend body read = %v", err)
+		}
+		if len(slurp) != len(requestBody) {
+			t.Errorf("Backend read %d request body bytes; want %d", len(slurp), len(requestBody))
+		}
+		if !bytes.Equal(slurp, requestBody) {
+			t.Error("Backend read wrong request body.") // 1MB; omitting details
+		}
+		w.Write([]byte(backendResponse))
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	postReq, _ := http.NewRequest("POST", frontend.URL, bytes.NewReader(requestBody))
+	res, err := http.DefaultClient.Do(postReq)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if g, e := res.StatusCode, backendStatus; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	bodyBytes, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(bodyBytes), backendResponse; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
 	}
 }

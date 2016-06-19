@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 package syscall
 
 import (
+	"io"
 	"sync"
 	"unsafe"
 )
@@ -367,9 +368,9 @@ func (f *fsysFile) seek(offset int64, whence int) (int64, error) {
 	f.fsys.mu.Lock()
 	defer f.fsys.mu.Unlock()
 	switch whence {
-	case 1:
+	case io.SeekCurrent:
 		offset += f.offset
-	case 2:
+	case io.SeekEnd:
 		offset += f.inode.Size
 	}
 	if offset < 0 {
@@ -772,29 +773,24 @@ func (f *zeroFile) pread(b []byte, offset int64) (int, error) {
 	return len(b), nil
 }
 
-type randomFile struct {
-	naclFD int
-}
+type randomFile struct{}
 
 func openRandom() (devFile, error) {
-	fd, err := openNamedService("SecureRandom", O_RDONLY)
-	if err != nil {
-		return nil, err
-	}
-	return &randomFile{naclFD: fd}, nil
+	return randomFile{}, nil
 }
 
-func (f *randomFile) close() error {
-	naclClose(f.naclFD)
-	f.naclFD = -1
+func (f randomFile) close() error {
 	return nil
 }
 
-func (f *randomFile) pread(b []byte, offset int64) (int, error) {
-	return naclRead(f.naclFD, b)
+func (f randomFile) pread(b []byte, offset int64) (int, error) {
+	if err := naclGetRandomBytes(b); err != nil {
+		return 0, err
+	}
+	return len(b), nil
 }
 
-func (f *randomFile) pwrite(b []byte, offset int64) (int, error) {
+func (f randomFile) pwrite(b []byte, offset int64) (int, error) {
 	return 0, EPERM
 }
 

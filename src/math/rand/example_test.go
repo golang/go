@@ -95,3 +95,13 @@ func Example_rand() {
 	// Int63n(10)  7                   6                   3
 	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
 }
+
+func ExamplePerm() {
+	for _, value := range rand.Perm(3) {
+		fmt.Println(value)
+	}
+
+	// Unordered output: 1
+	// 2
+	// 0
+}

@@ -144,7 +144,7 @@ func (p *printer) nextComment() {
 	p.commentOffset = infinity
 }
 
-// commentBefore returns true iff the current comment group occurs
+// commentBefore reports whether the current comment group occurs
 // before the next position in the source code and printing it does
 // not introduce implicit semicolons.
 //
@@ -1178,7 +1178,9 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 			case '\n', '\f':
 				_, err = p.output.Write(data[m:n])
 				p.resetSpace()
-				_, err = p.output.Write(aNewline)
+				if err == nil {
+					_, err = p.output.Write(aNewline)
+				}
 			case tabwriter.Escape:
 				_, err = p.output.Write(data[m:n])
 				p.state = inEscape

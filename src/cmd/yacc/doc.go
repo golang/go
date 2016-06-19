@@ -15,12 +15,12 @@ It is largely transliterated from the Inferno version written in Limbo
 which in turn was largely transliterated from the Plan 9 version
 written in C and documented at
 
-	http://plan9.bell-labs.com/magic/man2html/1/yacc
+	https://9p.io/magic/man2html/1/yacc
 
 Adepts of the original yacc will have no trouble adapting to this
 form of the tool.
 
-The directory $GOROOT/cmd/yacc/testdata/expr is a yacc program
+The directory $GOROOT/src/cmd/yacc/testdata/expr is a yacc program
 for a very simple expression parser. See expr.y and main.go in that
 directory for examples of how to write and build yacc programs.
 

@@ -9,16 +9,12 @@ package main
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
 func main() {
-	a, err := build.ArchChar(build.Default.GOARCH)
-	check(err)
-
 	// TODO: If we get rid of errchk, re-enable this test on Windows.
 	errchk, err := filepath.Abs("errchk")
 	check(err)
@@ -26,17 +22,17 @@ func main() {
 	err = os.Chdir(filepath.Join("fixedbugs", "bug248.dir"))
 	check(err)
 
-	run("go", "tool", a+"g", "bug0.go")
-	run("go", "tool", a+"g", "bug1.go")
-	run("go", "tool", a+"g", "bug2.go")
-	run(errchk, "go", "tool", a+"g", "-e", "bug3.go")
-	run("go", "tool", a+"l", "bug2."+a)
-	run(fmt.Sprintf(".%c%s.out", filepath.Separator, a))
+	run("go", "tool", "compile", "bug0.go")
+	run("go", "tool", "compile", "bug1.go")
+	run("go", "tool", "compile", "bug2.go")
+	run(errchk, "go", "tool", "compile", "-e", "bug3.go")
+	run("go", "tool", "link", "bug2.o")
+	run(fmt.Sprintf(".%ca.out", filepath.Separator))
 
-	os.Remove("bug0." + a)
-	os.Remove("bug1." + a)
-	os.Remove("bug2." + a)
-	os.Remove(a + ".out")
+	os.Remove("bug0.o")
+	os.Remove("bug1.o")
+	os.Remove("bug2.o")
+	os.Remove("a.out")
 }
 
 func run(name string, args ...string) {

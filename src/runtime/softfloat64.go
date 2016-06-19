@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -483,16 +483,3 @@ again2:
 
 	return q1*b + q0, (un21*b + un0 - q0*v) >> s
 }
-
-// callable from C
-
-func fadd64c(f, g uint64, ret *uint64)              { *ret = fadd64(f, g) }
-func fsub64c(f, g uint64, ret *uint64)              { *ret = fsub64(f, g) }
-func fmul64c(f, g uint64, ret *uint64)              { *ret = fmul64(f, g) }
-func fdiv64c(f, g uint64, ret *uint64)              { *ret = fdiv64(f, g) }
-func fneg64c(f uint64, ret *uint64)                 { *ret = fneg64(f) }
-func f32to64c(f uint32, ret *uint64)                { *ret = f32to64(f) }
-func f64to32c(f uint64, ret *uint32)                { *ret = f64to32(f) }
-func fcmp64c(f, g uint64, ret *int32, retnan *bool) { *ret, *retnan = fcmp64(f, g) }
-func fintto64c(val int64, ret *uint64)              { *ret = fintto64(val) }
-func f64tointc(f uint64, ret *int64, retok *bool)   { *ret, *retok = f64toint(f) }

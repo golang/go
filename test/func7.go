@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -23,7 +23,7 @@ func g() int {
 }
 
 func main() {
-	// 6g, 8g, 5g all used to evaluate g() before f().
+	// gc used to evaluate g() before f().
 	if f() < g() {
 		panic("wrong answer")
 	}

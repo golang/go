@@ -5,54 +5,32 @@
 package mime
 
 import (
-	"syscall"
-	"unsafe"
+	"internal/syscall/windows/registry"
 )
 
-func initMime() {
-	var root syscall.Handle
-	rootpathp, _ := syscall.UTF16PtrFromString(`\`)
-	if syscall.RegOpenKeyEx(syscall.HKEY_CLASSES_ROOT, rootpathp,
-		0, syscall.KEY_READ, &root) != nil {
+func init() {
+	osInitMime = initMimeWindows
+}
+
+func initMimeWindows() {
+	names, err := registry.CLASSES_ROOT.ReadSubKeyNames(-1)
+	if err != nil {
 		return
 	}
-	defer syscall.RegCloseKey(root)
-	var count uint32
-	if syscall.RegQueryInfoKey(root, nil, nil, nil, &count, nil, nil, nil, nil, nil, nil, nil) != nil {
-		return
-	}
-	var buf [1 << 10]uint16
-	for i := uint32(0); i < count; i++ {
-		n := uint32(len(buf))
-		if syscall.RegEnumKeyEx(root, i, &buf[0], &n, nil, nil, nil, nil) != nil {
+	for _, name := range names {
+		if len(name) < 2 || name[0] != '.' { // looking for extensions only
 			continue
 		}
-		ext := syscall.UTF16ToString(buf[:])
-		if len(ext) < 2 || ext[0] != '.' { // looking for extensions only
+		k, err := registry.OpenKey(registry.CLASSES_ROOT, name, registry.READ)
+		if err != nil {
 			continue
 		}
-		var h syscall.Handle
-		extpathp, _ := syscall.UTF16PtrFromString(`\` + ext)
-		if syscall.RegOpenKeyEx(
-			syscall.HKEY_CLASSES_ROOT, extpathp,
-			0, syscall.KEY_READ, &h) != nil {
+		v, _, err := k.GetStringValue("Content Type")
+		k.Close()
+		if err != nil {
 			continue
 		}
-		var typ uint32
-		n = uint32(len(buf) * 2) // api expects array of bytes, not uint16
-		contenttypep, _ := syscall.UTF16PtrFromString("Content Type")
-		if syscall.RegQueryValueEx(
-			h, contenttypep,
-			nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &n) != nil {
-			syscall.RegCloseKey(h)
-			continue
-		}
-		syscall.RegCloseKey(h)
-		if typ != syscall.REG_SZ { // null terminated strings only
-			continue
-		}
-		mimeType := syscall.UTF16ToString(buf[:])
-		setExtensionType(ext, mimeType)
+		setExtensionType(name, v)
 	}
 }
 

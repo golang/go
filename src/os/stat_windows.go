@@ -11,7 +11,7 @@ import (
 
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
-func (file *File) Stat() (fi FileInfo, err error) {
+func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
@@ -20,15 +20,24 @@ func (file *File) Stat() (fi FileInfo, err error) {
 	}
 	if file.isdir() {
 		// I don't know any better way to do that for directory
-		return Stat(file.name)
+		return Stat(file.dirinfo.path)
 	}
 	if file.name == DevNull {
 		return &devNullStat, nil
 	}
+
+	ft, err := syscall.GetFileType(file.fd)
+	if err != nil {
+		return nil, &PathError{"GetFileType", file.name, err}
+	}
+	if ft == syscall.FILE_TYPE_PIPE {
+		return &fileStat{name: basename(file.name), pipe: true}, nil
+	}
+
 	var d syscall.ByHandleFileInformation
-	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
-	if e != nil {
-		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
+	err = syscall.GetFileInformationByHandle(file.fd, &d)
+	if err != nil {
+		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
 	}
 	return &fileStat{
 		name: basename(file.name),
@@ -43,33 +52,35 @@ func (file *File) Stat() (fi FileInfo, err error) {
 		vol:   d.VolumeSerialNumber,
 		idxhi: d.FileIndexHigh,
 		idxlo: d.FileIndexLow,
+		pipe:  false,
 	}, nil
 }
 
 // Stat returns a FileInfo structure describing the named file.
 // If there is an error, it will be of type *PathError.
-func Stat(name string) (fi FileInfo, err error) {
+func Stat(name string) (FileInfo, error) {
+	var fi FileInfo
+	var err error
 	for {
 		fi, err = Lstat(name)
 		if err != nil {
-			return
+			return fi, err
 		}
 		if fi.Mode()&ModeSymlink == 0 {
-			return
+			return fi, nil
 		}
 		name, err = Readlink(name)
 		if err != nil {
-			return
+			return fi, err
 		}
 	}
-	return fi, err
 }
 
 // Lstat returns the FileInfo structure describing the named file.
 // If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.  Lstat makes no attempt to follow the link.
+// describes the symbolic link. Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
-func Lstat(name string) (fi FileInfo, err error) {
+func Lstat(name string) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{"Lstat", name, syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}

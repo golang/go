@@ -9,18 +9,19 @@ import (
 	"testing"
 )
 
-func check(t *testing.T) {
-	if !implemented {
+func checkUser(t *testing.T) {
+	if !userImplemented {
 		t.Skip("user: not implemented; skipping tests")
 	}
 }
 
 func TestCurrent(t *testing.T) {
-	check(t)
-
+	if runtime.GOOS == "android" {
+		t.Skipf("skipping on %s", runtime.GOOS)
+	}
 	u, err := Current()
 	if err != nil {
-		t.Fatalf("Current: %v", err)
+		t.Fatalf("Current: %v (got %#v)", err, u)
 	}
 	if u.HomeDir == "" {
 		t.Errorf("didn't get a HomeDir")
@@ -53,7 +54,7 @@ func compare(t *testing.T, want, got *User) {
 }
 
 func TestLookup(t *testing.T) {
-	check(t)
+	checkUser(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skipf("Lookup not implemented on %q", runtime.GOOS)
@@ -71,7 +72,7 @@ func TestLookup(t *testing.T) {
 }
 
 func TestLookupId(t *testing.T) {
-	check(t)
+	checkUser(t)
 
 	if runtime.GOOS == "plan9" {
 		t.Skipf("LookupId not implemented on %q", runtime.GOOS)
@@ -86,4 +87,65 @@ func TestLookupId(t *testing.T) {
 		t.Fatalf("LookupId: %v", err)
 	}
 	compare(t, want, got)
+}
+
+func checkGroup(t *testing.T) {
+	if !groupImplemented {
+		t.Skip("user: group not implemented; skipping test")
+	}
+}
+
+func TestLookupGroup(t *testing.T) {
+	checkGroup(t)
+	user, err := Current()
+	if err != nil {
+		t.Fatalf("Current(): %v", err)
+	}
+
+	g1, err := LookupGroupId(user.Gid)
+	if err != nil {
+		// NOTE(rsc): Maybe the group isn't defined. That's fine.
+		// On my OS X laptop, rsc logs in with group 5000 even
+		// though there's no name for group 5000. Such is Unix.
+		t.Logf("LookupGroupId(%q): %v", user.Gid, err)
+		return
+	}
+	if g1.Gid != user.Gid {
+		t.Errorf("LookupGroupId(%q).Gid = %s; want %s", user.Gid, g1.Gid, user.Gid)
+	}
+
+	g2, err := LookupGroup(g1.Name)
+	if err != nil {
+		t.Fatalf("LookupGroup(%q): %v", g1.Name, err)
+	}
+	if g1.Gid != g2.Gid || g1.Name != g2.Name {
+		t.Errorf("LookupGroup(%q) = %+v; want %+v", g1.Name, g2, g1)
+	}
+}
+
+func TestGroupIds(t *testing.T) {
+	checkGroup(t)
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping GroupIds, see golang.org/issue/14709")
+	}
+	user, err := Current()
+	if err != nil {
+		t.Fatalf("Current(): %v", err)
+	}
+	gids, err := user.GroupIds()
+	if err != nil {
+		t.Fatalf("%+v.GroupIds(): %v", user, err)
+	}
+	if !containsID(gids, user.Gid) {
+		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
+	}
+}
+
+func containsID(ids []string, id string) bool {
+	for _, x := range ids {
+		if x == id {
+			return true
+		}
+	}
+	return false
 }
