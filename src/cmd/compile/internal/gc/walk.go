@@ -1636,14 +1636,14 @@ opswitch:
 		if isStaticCompositeLiteral(n) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
-			vstat := staticname(n.Type, 0)
-			fixedlit(0, 1, n, vstat, init)
+			vstat := staticname(n.Type, inInitFunction)
+			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
 			n = vstat
 			n = typecheck(n, Erv)
 			break
 		}
 		var_ := temp(n.Type)
-		anylit(0, n, var_, init)
+		anylit(inInitFunction, n, var_, init)
 		n = var_
 
 	case OSEND:
