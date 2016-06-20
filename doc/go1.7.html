@@ -856,6 +856,16 @@ status <code>005</code>, not just <code>5</code>.
 </p>
 
 <p>
+The server implementation now correctly sends only one "Transfer-Encoding" header when "chunked"
+is set explicitly, following <a href="https://tools.ietf.org/html/rfc2616#section-3.6">RFC 2616</a>.
+</p>
+
+<p>
+In the server, a 200 status code is sent back by the timeout handler on an empty
+response body, instead of sending back 0 as the status code.
+</p>
+
+<p>
 In the client, the
 <a href="/pkg/net/http/#Transport"><code>Transport</code></a> implementation passes the request context
 to any dial operation connecting to the remote server.
