@@ -2920,3 +2920,27 @@ func TestAlwaysLinkSysoFiles(t *testing.T) {
 	tg.run("list", "-f", "{{.SysoFiles}}", "syso")
 	tg.grepStdout("a.syso", "missing syso file with CGO_ENABLED=0")
 }
+
+// Issue 16120.
+func TestGenerateUsesBuildContext(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("this test won't run under Windows")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src/gen")
+	tg.tempFile("src/gen/gen.go", "package gen\n//go:generate echo $GOOS $GOARCH\n")
+	tg.setenv("GOPATH", tg.path("."))
+
+	tg.setenv("GOOS", "linux")
+	tg.setenv("GOARCH", "amd64")
+	tg.run("generate", "gen")
+	tg.grepStdout("linux amd64", "unexpected GOOS/GOARCH combination")
+
+	tg.setenv("GOOS", "darwin")
+	tg.setenv("GOARCH", "386")
+	tg.run("generate", "gen")
+	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
+}
