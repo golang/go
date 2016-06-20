@@ -1636,7 +1636,8 @@ opswitch:
 		if isStaticCompositeLiteral(n) {
 			// n can be directly represented in the read-only data section.
 			// Make direct reference to the static data. See issue 12841.
-			vstat := staticname(n.Type, inInitFunction)
+			vstat := staticname(n.Type)
+			vstat.Name.Readonly = true
 			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
 			n = vstat
 			n = typecheck(n, Erv)
