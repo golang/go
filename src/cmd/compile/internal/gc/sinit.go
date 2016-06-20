@@ -974,13 +974,14 @@ func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
 			val = temp(m.Type.Val())
 		}
 
-		setlineno(r.Left)
-		a = Nod(OAS, key, r.Left)
+		setlineno(index)
+		a = Nod(OAS, key, index)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
-		setlineno(r.Right)
-		a = Nod(OAS, val, r.Right)
+
+		setlineno(value)
+		a = Nod(OAS, val, value)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
