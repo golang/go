@@ -117,8 +117,10 @@ func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
 		name: name,
 		file: of,
 	}
-	if load, err := of.LoadAddress(); err == nil {
-		f.offset = start - load
+	if start != 0 {
+		if load, err := of.LoadAddress(); err == nil {
+			f.offset = start - load
+		}
 	}
 	return f, nil
 }
