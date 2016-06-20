@@ -442,3 +442,43 @@ func TestPanicDeadlockGosched(t *testing.T) {
 func TestPanicDeadlockSyscall(t *testing.T) {
 	testPanicDeadlock(t, "SyscallInPanic", "1\n2\npanic: 3\n\n")
 }
+
+func TestMemPprof(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testEnv(exec.Command(exe, "MemProf")).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn := strings.TrimSpace(string(got))
+	defer os.Remove(fn)
+
+	cmd := testEnv(exec.Command("go", "tool", "pprof", "-alloc_space", "-top", exe, fn))
+
+	found := false
+	for i, e := range cmd.Env {
+		if strings.HasPrefix(e, "PPROF_TMPDIR=") {
+			cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
+			found = true
+			break
+		}
+	}
+	if !found {
+		cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+	}
+
+	top, err := cmd.CombinedOutput()
+	t.Logf("%s", top)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Contains(top, []byte("MemProf")) {
+		t.Error("missing MemProf in pprof output")
+	}
+}
