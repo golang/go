@@ -33,14 +33,26 @@ func NewSource(seed int64) Source {
 // A Rand is a source of random numbers.
 type Rand struct {
 	src Source
+
+	// readVal contains remainder of 63-bit integer used for bytes
+	// generation during most recent Read call.
+	// It is saved so next Read call can start where the previous
+	// one finished.
+	readVal int64
+	// readPos indicates the number of low-order bytes of readVal
+	// that are still valid.
+	readPos int8
 }
 
 // New returns a new Rand that uses random values from src
 // to generate other random values.
-func New(src Source) *Rand { return &Rand{src} }
+func New(src Source) *Rand { return &Rand{src: src} }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
-func (r *Rand) Seed(seed int64) { r.src.Seed(seed) }
+func (r *Rand) Seed(seed int64) {
+	r.src.Seed(seed)
+	r.readPos = 0
+}
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func (r *Rand) Int63() int64 { return r.src.Int63() }
@@ -161,14 +173,20 @@ func (r *Rand) Perm(n int) []int {
 // Read generates len(p) random bytes and writes them into p. It
 // always returns len(p) and a nil error.
 func (r *Rand) Read(p []byte) (n int, err error) {
-	for i := 0; i < len(p); i += 7 {
-		val := r.src.Int63()
-		for j := 0; i+j < len(p) && j < 7; j++ {
-			p[i+j] = byte(val)
-			val >>= 8
+	pos := r.readPos
+	val := r.readVal
+	for n = 0; n < len(p); n++ {
+		if pos == 0 {
+			val = r.Int63()
+			pos = 7
 		}
+		p[n] = byte(val)
+		val >>= 8
+		pos--
 	}
-	return len(p), nil
+	r.readPos = pos
+	r.readVal = val
+	return
 }
 
 /*
