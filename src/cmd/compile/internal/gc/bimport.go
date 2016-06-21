@@ -239,14 +239,20 @@ func (p *importer) pkg() *Pkg {
 		Fatalf("importer: package path %q for pkg index %d", path, len(p.pkgList))
 	}
 
+	// see importimport (export.go)
 	pkg := importpkg
 	if path != "" {
 		pkg = mkpkg(path)
 	}
 	if pkg.Name == "" {
 		pkg.Name = name
+		numImport[name]++
 	} else if pkg.Name != name {
-		Fatalf("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
+		Yyerror("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
+	}
+	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
+		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
+		errorexit()
 	}
 	p.pkgList = append(p.pkgList, pkg)
 
