@@ -130,11 +130,11 @@ func TestNoRC4ByDefault(t *testing.T) {
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{compressionNone},
 	}
-	serverConfig := *testConfig
+	serverConfig := testConfig.clone()
 	// Reset the enabled cipher suites to nil in order to test the
 	// defaults.
 	serverConfig.CipherSuites = nil
-	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
+	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestDontSelectECDSAWithRSAKey(t *testing.T) {
@@ -147,19 +147,19 @@ func TestDontSelectECDSAWithRSAKey(t *testing.T) {
 		supportedCurves:    []CurveID{CurveP256},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
-	serverConfig := *testConfig
+	serverConfig := testConfig.clone()
 	serverConfig.CipherSuites = clientHello.cipherSuites
 	serverConfig.Certificates = make([]Certificate, 1)
 	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
 	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 	serverConfig.BuildNameToCertificate()
 	// First test that it *does* work when the server's key is ECDSA.
-	testClientHello(t, &serverConfig, clientHello)
+	testClientHello(t, serverConfig, clientHello)
 
 	// Now test that switching to an RSA key causes the expected error (and
 	// not an internal error about a signing failure).
 	serverConfig.Certificates = testConfig.Certificates
-	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
+	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestDontSelectRSAWithECDSAKey(t *testing.T) {
@@ -172,10 +172,10 @@ func TestDontSelectRSAWithECDSAKey(t *testing.T) {
 		supportedCurves:    []CurveID{CurveP256},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
-	serverConfig := *testConfig
+	serverConfig := testConfig.clone()
 	serverConfig.CipherSuites = clientHello.cipherSuites
 	// First test that it *does* work when the server's key is RSA.
-	testClientHello(t, &serverConfig, clientHello)
+	testClientHello(t, serverConfig, clientHello)
 
 	// Now test that switching to an ECDSA key causes the expected error
 	// (and not an internal error about a signing failure).
@@ -183,7 +183,7 @@ func TestDontSelectRSAWithECDSAKey(t *testing.T) {
 	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
 	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
 	serverConfig.BuildNameToCertificate()
-	testClientHelloFailure(t, &serverConfig, clientHello, "no cipher suite supported by both client and server")
+	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestRenegotiationExtension(t *testing.T) {
@@ -265,9 +265,9 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 		reply, clientErr = cli.readHandshake()
 		c.Close()
 	}()
-	config := *testConfig
+	config := testConfig.clone()
 	config.CipherSuites = clientHello.cipherSuites
-	Server(s, &config).Handshake()
+	Server(s, config).Handshake()
 	s.Close()
 	if clientErr != nil {
 		t.Fatal(clientErr)
@@ -732,7 +732,7 @@ func TestHandshakeServerAES256GCMSHA384(t *testing.T) {
 }
 
 func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.Certificates = make([]Certificate, 1)
 	config.Certificates[0].Certificate = [][]byte{testECDSACertificate}
 	config.Certificates[0].PrivateKey = testECDSAPrivateKey
@@ -741,14 +741,14 @@ func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
 	test := &serverTest{
 		name:    "ECDHE-ECDSA-AES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "ECDHE-ECDSA-AES256-SHA"},
-		config:  &config,
+		config:  config,
 	}
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
 
 func TestHandshakeServerALPN(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.NextProtos = []string{"proto1", "proto2"}
 
 	test := &serverTest{
@@ -756,7 +756,7 @@ func TestHandshakeServerALPN(t *testing.T) {
 		// Note that this needs OpenSSL 1.0.2 because that is the first
 		// version that supports the -alpn flag.
 		command: []string{"openssl", "s_client", "-alpn", "proto2,proto1"},
-		config:  &config,
+		config:  config,
 		validate: func(state ConnectionState) error {
 			// The server's preferences should override the client.
 			if state.NegotiatedProtocol != "proto1" {
@@ -769,7 +769,7 @@ func TestHandshakeServerALPN(t *testing.T) {
 }
 
 func TestHandshakeServerALPNNoMatch(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.NextProtos = []string{"proto3"}
 
 	test := &serverTest{
@@ -777,7 +777,7 @@ func TestHandshakeServerALPNNoMatch(t *testing.T) {
 		// Note that this needs OpenSSL 1.0.2 because that is the first
 		// version that supports the -alpn flag.
 		command: []string{"openssl", "s_client", "-alpn", "proto2,proto1"},
-		config:  &config,
+		config:  config,
 		validate: func(state ConnectionState) error {
 			// Rather than reject the connection, Go doesn't select
 			// a protocol when there is no overlap.
@@ -804,7 +804,7 @@ func TestHandshakeServerSNI(t *testing.T) {
 // TestHandshakeServerSNICertForName is similar to TestHandshakeServerSNI, but
 // tests the dynamic GetCertificate method
 func TestHandshakeServerSNIGetCertificate(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 
 	// Replace the NameToCertificate map with a GetCertificate function
 	nameToCert := config.NameToCertificate
@@ -816,7 +816,7 @@ func TestHandshakeServerSNIGetCertificate(t *testing.T) {
 	test := &serverTest{
 		name:    "SNI-GetCertificate",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-servername", "snitest.com"},
-		config:  &config,
+		config:  config,
 	}
 	runServerTestTLS12(t, test)
 }
@@ -826,7 +826,7 @@ func TestHandshakeServerSNIGetCertificate(t *testing.T) {
 // GetCertificate method doesn't return a cert, we fall back to what's in
 // the NameToCertificate map.
 func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 
 	config.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
 		return nil, nil
@@ -834,7 +834,7 @@ func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
 	test := &serverTest{
 		name:    "SNI-GetCertificateNotFound",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA", "-servername", "snitest.com"},
-		config:  &config,
+		config:  config,
 	}
 	runServerTestTLS12(t, test)
 }
@@ -844,7 +844,7 @@ func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
 func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 	const errMsg = "TestHandshakeServerSNIGetCertificateError error"
 
-	serverConfig := *testConfig
+	serverConfig := testConfig.clone()
 	serverConfig.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
 		return nil, errors.New(errMsg)
 	}
@@ -855,7 +855,7 @@ func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 		compressionMethods: []uint8{compressionNone},
 		serverName:         "test",
 	}
-	testClientHelloFailure(t, &serverConfig, clientHello, errMsg)
+	testClientHelloFailure(t, serverConfig, clientHello, errMsg)
 }
 
 // TestHandshakeServerEmptyCertificates tests that GetCertificates is called in
@@ -863,7 +863,7 @@ func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 func TestHandshakeServerEmptyCertificates(t *testing.T) {
 	const errMsg = "TestHandshakeServerEmptyCertificates error"
 
-	serverConfig := *testConfig
+	serverConfig := testConfig.clone()
 	serverConfig.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
 		return nil, errors.New(errMsg)
 	}
@@ -874,7 +874,7 @@ func TestHandshakeServerEmptyCertificates(t *testing.T) {
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{compressionNone},
 	}
-	testClientHelloFailure(t, &serverConfig, clientHello, errMsg)
+	testClientHelloFailure(t, serverConfig, clientHello, errMsg)
 
 	// With an empty Certificates and a nil GetCertificate, the server
 	// should always return a “no certificates” error.
@@ -885,23 +885,23 @@ func TestHandshakeServerEmptyCertificates(t *testing.T) {
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{compressionNone},
 	}
-	testClientHelloFailure(t, &serverConfig, clientHello, "no certificates")
+	testClientHelloFailure(t, serverConfig, clientHello, "no certificates")
 }
 
 // TestCipherSuiteCertPreferance ensures that we select an RSA ciphersuite with
 // an RSA certificate and an ECDSA ciphersuite with an ECDSA certificate.
 func TestCipherSuiteCertPreferenceECDSA(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}
 	config.PreferServerCipherSuites = true
 
 	test := &serverTest{
 		name:   "CipherSuiteCertPreferenceRSA",
-		config: &config,
+		config: config,
 	}
 	runServerTestTLS12(t, test)
 
-	config = *testConfig
+	config = testConfig.clone()
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA}
 	config.Certificates = []Certificate{
 		{
@@ -914,7 +914,7 @@ func TestCipherSuiteCertPreferenceECDSA(t *testing.T) {
 
 	test = &serverTest{
 		name:   "CipherSuiteCertPreferenceECDSA",
-		config: &config,
+		config: config,
 	}
 	runServerTestTLS12(t, test)
 }
@@ -940,12 +940,12 @@ func TestResumptionDisabled(t *testing.T) {
 	sessionFilePath := tempFile("")
 	defer os.Remove(sessionFilePath)
 
-	config := *testConfig
+	config := testConfig.clone()
 
 	test := &serverTest{
 		name:    "IssueTicketPreDisable",
 		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_out", sessionFilePath},
-		config:  &config,
+		config:  config,
 	}
 	runServerTestTLS12(t, test)
 
@@ -954,7 +954,7 @@ func TestResumptionDisabled(t *testing.T) {
 	test = &serverTest{
 		name:    "ResumeDisabled",
 		command: []string{"openssl", "s_client", "-cipher", "RC4-SHA", "-sess_in", sessionFilePath},
-		config:  &config,
+		config:  config,
 	}
 	runServerTestTLS12(t, test)
 
@@ -963,12 +963,12 @@ func TestResumptionDisabled(t *testing.T) {
 }
 
 func TestFallbackSCSV(t *testing.T) {
-	serverConfig := &Config{
+	serverConfig := Config{
 		Certificates: testConfig.Certificates,
 	}
 	test := &serverTest{
 		name:   "FallbackSCSV",
-		config: serverConfig,
+		config: &serverConfig,
 		// OpenSSL 1.0.1j is needed for the -fallback_scsv option.
 		command: []string{"openssl", "s_client", "-fallback_scsv"},
 		expectHandshakeErrorIncluding: "inappropriate protocol fallback",
@@ -1053,20 +1053,20 @@ func TestClientAuth(t *testing.T) {
 		defer os.Remove(ecdsaKeyPath)
 	}
 
-	config := *testConfig
+	config := testConfig.clone()
 	config.ClientAuth = RequestClientCert
 
 	test := &serverTest{
 		name:    "ClientAuthRequestedNotGiven",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA"},
-		config:  &config,
+		config:  config,
 	}
 	runServerTestTLS12(t, test)
 
 	test = &serverTest{
 		name:              "ClientAuthRequestedAndGiven",
 		command:           []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA", "-cert", certPath, "-key", keyPath},
-		config:            &config,
+		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
 	runServerTestTLS12(t, test)
@@ -1074,7 +1074,7 @@ func TestClientAuth(t *testing.T) {
 	test = &serverTest{
 		name:              "ClientAuthRequestedAndECDSAGiven",
 		command:           []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA", "-cert", ecdsaCertPath, "-key", ecdsaKeyPath},
-		config:            &config,
+		config:            config,
 		expectedPeerCerts: []string{clientECDSACertificatePEM},
 	}
 	runServerTestTLS12(t, test)
