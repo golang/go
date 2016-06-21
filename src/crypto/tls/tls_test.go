@@ -6,14 +6,19 @@ package tls
 
 import (
 	"bytes"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"math"
+	"math/rand"
 	"net"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
+	"testing/quick"
 	"time"
 )
 
@@ -236,8 +241,8 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 			srvCh <- nil
 			return
 		}
-		serverConfig := *testConfig
-		srv := Server(sconn, &serverConfig)
+		serverConfig := testConfig.clone()
+		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
 			srvCh <- nil
@@ -246,8 +251,8 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 		srvCh <- srv
 	}()
 
-	clientConfig := *testConfig
-	conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+	clientConfig := testConfig.clone()
+	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,8 +295,8 @@ func TestTLSUniqueMatches(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			serverConfig := *testConfig
-			srv := Server(sconn, &serverConfig)
+			serverConfig := testConfig.clone()
+			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				t.Fatal(err)
 			}
@@ -299,9 +304,9 @@ func TestTLSUniqueMatches(t *testing.T) {
 		}
 	}()
 
-	clientConfig := *testConfig
+	clientConfig := testConfig.clone()
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
-	conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +315,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 	}
 	conn.Close()
 
-	conn, err = Dial("tcp", ln.Addr().String(), &clientConfig)
+	conn, err = Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,8 +394,8 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		serverConfig := *testConfig
-		srv := Server(sconn, &serverConfig)
+		serverConfig := testConfig.clone()
+		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
 			srvCh <- nil
@@ -409,8 +414,8 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 		Conn: cconn,
 	}
 
-	clientConfig := *testConfig
-	tconn := Client(conn, &clientConfig)
+	clientConfig := testConfig.clone()
+	tconn := Client(conn, clientConfig)
 	if err := tconn.Handshake(); err != nil {
 		t.Fatal(err)
 	}
@@ -453,6 +458,58 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 	}
 }
 
+func TestClone(t *testing.T) {
+	var c1 Config
+	v := reflect.ValueOf(&c1).Elem()
+
+	rnd := rand.New(rand.NewSource(time.Now().Unix()))
+	typ := v.Type()
+	for i := 0; i < typ.NumField(); i++ {
+		f := v.Field(i)
+		if !f.CanSet() {
+			// unexported field; not cloned.
+			continue
+		}
+
+		// testing/quick can't handle functions or interfaces.
+		fn := typ.Field(i).Name
+		switch fn {
+		case "Rand":
+			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
+			continue
+		case "Time", "GetCertificate":
+			// DeepEqual can't compare functions.
+			continue
+		case "Certificates":
+			f.Set(reflect.ValueOf([]Certificate{
+				{Certificate: [][]byte{[]byte{'b'}}},
+			}))
+			continue
+		case "NameToCertificate":
+			f.Set(reflect.ValueOf(map[string]*Certificate{"a": nil}))
+			continue
+		case "RootCAs", "ClientCAs":
+			f.Set(reflect.ValueOf(x509.NewCertPool()))
+			continue
+		case "ClientSessionCache":
+			f.Set(reflect.ValueOf(NewLRUClientSessionCache(10)))
+			continue
+		}
+
+		q, ok := quick.Value(f.Type(), rnd)
+		if !ok {
+			t.Fatalf("quick.Value failed on field %s", fn)
+		}
+		f.Set(q)
+	}
+
+	c2 := c1.clone()
+
+	if !reflect.DeepEqual(&c1, c2) {
+		t.Errorf("clone failed to copy a field")
+	}
+}
+
 // changeImplConn is a net.Conn which can change its Write and Close
 // methods.
 type changeImplConn struct {
@@ -489,9 +546,9 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := *testConfig
+			serverConfig := testConfig.clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
-			srv := Server(sconn, &serverConfig)
+			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				panic(fmt.Errorf("handshake: %v", err))
 			}
@@ -500,13 +557,13 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	}()
 
 	b.SetBytes(totalBytes)
-	clientConfig := *testConfig
+	clientConfig := testConfig.clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, 1<<14)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
 	for i := 0; i < N; i++ {
-		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -577,9 +634,9 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := *testConfig
+			serverConfig := testConfig.clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
-			srv := Server(&slowConn{sconn, bps}, &serverConfig)
+			srv := Server(&slowConn{sconn, bps}, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				panic(fmt.Errorf("handshake: %v", err))
 			}
@@ -587,14 +644,14 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 		}
 	}()
 
-	clientConfig := *testConfig
+	clientConfig := testConfig.clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, 16384)
 	peek := make([]byte, 1)
 
 	for i := 0; i < N; i++ {
-		conn, err := Dial("tcp", ln.Addr().String(), &clientConfig)
+		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 		if err != nil {
 			b.Fatal(err)
 		}
