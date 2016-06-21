@@ -288,6 +288,18 @@ To avoid confusion with the new <code>-tests</code> check, the old, unadvertised
 <code>-test</code> option has been removed; it was equivalent to <code>-all</code> <code>-shadow</code>.
 </p>
 
+<p id="vet_lostcancel">
+The <code>vet</code> command also has a new check,
+<code>-lostcancel</code>, which detects failure to call the
+cancellation function returned by the <code>WithCancel</code>,
+<code>WithTimeout</code>, and <code>WithDeadline</code> functions in
+Go 1.7's new <code>context</code> package (see <a
+href='#context'>below</a>).
+Failure to call the function prevents the new <code>Context</code>
+from being reclaimed until its parent is cancelled.
+(The background context is never cancelled.)
+</p>
+
 <h3 id="cmd_dist">Go tool dist</h3>
 
 <p>
