@@ -597,13 +597,15 @@ func (p *Package) rewriteCalls(f *File) {
 // rewriteCall rewrites one call to add pointer checks. We replace
 // each pointer argument x with _cgoCheckPointer(x).(T).
 func (p *Package) rewriteCall(f *File, call *Call, name *Name) {
+	// Avoid a crash if the number of arguments is
+	// less than the number of parameters.
+	// This will be caught when the generated file is compiled.
+	if len(call.Call.Args) < len(name.FuncType.Params) {
+		return
+	}
+
 	any := false
 	for i, param := range name.FuncType.Params {
-		if len(call.Call.Args) <= i {
-			// Avoid a crash; this will be caught when the
-			// generated file is compiled.
-			return
-		}
 		if p.needsPointerCheck(f, param.Go, call.Call.Args[i]) {
 			any = true
 			break
