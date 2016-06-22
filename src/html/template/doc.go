@@ -166,7 +166,7 @@ that would have been produced if {{.}} was a regular string.
 
 Security Model
 
-http://js-quasis-libraries-and-repl.googlecode.com/svn/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
+https://rawgit.com/mikesamuel/sanitized-jquery-templates/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
 
 This package assumes that template authors are trusted, that Execute's data
 parameter is not, and seeks to preserve the properties below in the face
