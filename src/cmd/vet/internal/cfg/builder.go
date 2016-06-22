@@ -98,7 +98,9 @@ start:
 			}
 
 		case token.GOTO:
-			block = b.labeledBlock(s.Label)._goto
+			if s.Label != nil {
+				block = b.labeledBlock(s.Label)._goto
+			}
 		}
 		if block == nil {
 			block = b.newBlock("undefined.branch")
