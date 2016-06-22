@@ -276,7 +276,7 @@ func callName(info *types.Info, call *ast.CallExpr) string {
 			return obj.Name()
 		}
 	case *ast.SelectorExpr:
-		if sel, ok := info.Selections[fun]; ok {
+		if sel, ok := info.Selections[fun]; ok && sel.Kind() == types.MethodVal {
 			// method call, e.g. "(*testing.common).Fatal"
 			meth := sel.Obj()
 			return fmt.Sprintf("(%s).%s",
