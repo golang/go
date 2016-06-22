@@ -135,3 +135,9 @@ func _() {
 
 var condition bool
 var someInt int
+
+// Regression test for Go issue 16143.
+func _() {
+	var x struct{ f func() }
+	x.f()
+}
