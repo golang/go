@@ -208,7 +208,7 @@ func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
 	if new.common != t.common {
 		panic("internal error: associate not common")
 	}
-	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) {
+	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) && t.Tree != nil {
 		// If a template by that name exists,
 		// don't replace it with an empty template.
 		return false, nil
