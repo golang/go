@@ -194,7 +194,6 @@ type formatState struct {
 	name     string // Printf, Sprintf etc.
 	flags    []byte // the list of # + etc.
 	argNums  []int  // the successive argument numbers that are consumed, adjusted to refer to actual arg in call
-	indexed  bool   // whether an indexing expression appears: %[1]d.
 	firstArg int    // Index of first argument after the format in the Printf call.
 	// Used only during parse.
 	file         *File
@@ -223,7 +222,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 	}
 	// Hard part: check formats against args.
 	argNum := firstArg
-	indexed := false
+	maxArgNum := firstArg
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] == '%' {
@@ -232,9 +231,6 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 				return
 			}
 			w = len(state.format)
-			if state.indexed {
-				indexed = true
-			}
 			if !f.okPrintfArg(call, state) { // One error per format is enough.
 				return
 			}
@@ -242,16 +238,20 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string) {
 				// Continue with the next sequential argument.
 				argNum = state.argNums[len(state.argNums)-1] + 1
 			}
+			for _, n := range state.argNums {
+				if n >= maxArgNum {
+					maxArgNum = n + 1
+				}
+			}
 		}
 	}
 	// Dotdotdot is hard.
-	if call.Ellipsis.IsValid() && argNum >= len(call.Args)-1 {
+	if call.Ellipsis.IsValid() && maxArgNum >= len(call.Args)-1 {
 		return
 	}
-	// If the arguments were direct indexed, we assume the programmer knows what's up.
-	// Otherwise, there should be no leftover arguments.
-	if !indexed && argNum != len(call.Args) {
-		expect := argNum - firstArg
+	// There should be no leftover arguments.
+	if maxArgNum != len(call.Args) {
+		expect := maxArgNum - firstArg
 		numArgs := len(call.Args) - firstArg
 		f.Badf(call.Pos(), "wrong number of args for format in %s call: %d needed but %d args", name, expect, numArgs)
 	}
@@ -286,17 +286,20 @@ func (s *formatState) parseIndex() bool {
 		return true
 	}
 	// Argument index present.
-	s.indexed = true
 	s.nbytes++ // skip '['
 	start := s.nbytes
 	s.scanNum()
 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		s.file.Badf(s.call.Pos(), "illegal syntax for printf argument index")
+		end := strings.Index(s.format, "]")
+		if end < 0 {
+			end = len(s.format)
+		}
+		s.file.Badf(s.call.Pos(), "bad syntax for printf argument index: [%s]", s.format[start:end])
 		return false
 	}
 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
 	if err != nil {
-		s.file.Badf(s.call.Pos(), "illegal syntax for printf argument index: %s", err)
+		s.file.Badf(s.call.Pos(), "bad syntax for printf argument index: %s", err)
 		return false
 	}
 	s.nbytes++ // skip ']'
@@ -349,14 +352,12 @@ func (f *File) parsePrintfVerb(call *ast.CallExpr, name, format string, firstArg
 		argNum:   argNum,
 		argNums:  make([]int, 0, 1),
 		nbytes:   1, // There's guaranteed to be a percent sign.
-		indexed:  false,
 		firstArg: firstArg,
 		file:     f,
 		call:     call,
 	}
 	// There may be flags.
 	state.parseFlags()
-	indexPending := false
 	// There may be an index.
 	if !state.parseIndex() {
 		return nil
@@ -370,7 +371,7 @@ func (f *File) parsePrintfVerb(call *ast.CallExpr, name, format string, firstArg
 		return nil
 	}
 	// Now a verb, possibly prefixed by an index (which we may already have).
-	if !indexPending && !state.parseIndex() {
+	if !state.indexPending && !state.parseIndex() {
 		return nil
 	}
 	if state.nbytes == len(state.format) {
