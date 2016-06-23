@@ -285,7 +285,7 @@ type rtype struct {
 	alg        *typeAlg // algorithm table
 	gcdata     *byte    // garbage collection data
 	str        nameOff  // string form
-	_          int32    // unused; keeps rtype always a multiple of ptrSize
+	ptrToThis  typeOff  // type for pointer to this type, may be zero
 }
 
 // a copy of runtime.typeAlg
@@ -1430,6 +1430,10 @@ func PtrTo(t Type) Type {
 }
 
 func (t *rtype) ptrTo() *rtype {
+	if t.ptrToThis != 0 {
+		return t.typeOff(t.ptrToThis)
+	}
+
 	// Check the cache.
 	ptrMap.RLock()
 	if m := ptrMap.m; m != nil {
@@ -1927,6 +1931,7 @@ func MapOf(key, elem Type) Type {
 	mt.bucketsize = uint16(mt.bucket.size)
 	mt.reflexivekey = isReflexive(ktyp)
 	mt.needkeyupdate = needKeyUpdate(ktyp)
+	mt.ptrToThis = 0
 
 	return cachePut(ckey, &mt.rtype)
 }
@@ -2065,6 +2070,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 
 	// Populate the remaining fields of ft and store in cache.
 	ft.str = resolveReflectName(newName(str, "", "", false))
+	ft.ptrToThis = 0
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return &ft.rtype
@@ -2295,6 +2301,7 @@ func SliceOf(t Type) Type {
 	slice.str = resolveReflectName(newName(s, "", "", false))
 	slice.hash = fnv1(typ.hash, '[')
 	slice.elem = typ
+	slice.ptrToThis = 0
 
 	return cachePut(ckey, &slice.rtype)
 }
@@ -2842,6 +2849,7 @@ func ArrayOf(count int, elem Type) Type {
 	}
 	array.hash = fnv1(array.hash, ']')
 	array.elem = typ
+	array.ptrToThis = 0
 	max := ^uintptr(0) / typ.size
 	if uintptr(count) > max {
 		panic("reflect.ArrayOf: array size would exceed virtual address space")

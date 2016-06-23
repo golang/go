@@ -820,14 +820,10 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		algsym = dalgsym(t)
 	}
 
+	var sptr *Sym
 	tptr := Ptrto(t)
 	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
-		sptr := dtypesym(tptr)
-		r := obj.Addrel(Linksym(s))
-		r.Off = 0
-		r.Siz = 0
-		r.Sym = sptr.Lsym
-		r.Type = obj.R_USETYPE
+		sptr = dtypesym(tptr)
 	}
 
 	gcsym, useGCProg, ptrdata := dgcsym(t)
@@ -845,7 +841,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		alg           *typeAlg
 	//		gcdata        *byte
 	//		str           nameOff
-	//		_             int32
+	//		ptrToThis     typeOff
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
 	ot = duintptr(s, ot, uint64(ptrdata))
@@ -909,8 +905,12 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	nsym := dname(p, "", nil, exported)
-	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0)
-	ot = duint32(s, ot, 0)
+	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0) // str
+	if sptr == nil {
+		ot = duint32(s, ot, 0)
+	} else {
+		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0) // ptrToThis
+	}
 
 	return ot
 }
