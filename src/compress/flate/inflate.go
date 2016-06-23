@@ -766,7 +766,7 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 		dict:     f.dict,
 		step:     (*decompressor).nextBlock,
 	}
-	f.dict.init(maxMatchOffset, nil)
+	f.dict.init(maxMatchOffset, dict)
 	return nil
 }
 

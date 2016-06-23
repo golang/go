@@ -37,3 +37,33 @@ func TestReset(t *testing.T) {
 		}
 	}
 }
+
+func TestResetDict(t *testing.T) {
+	dict := []byte("the lorem fox")
+	ss := []string{
+		"lorem ipsum izzle fo rizzle",
+		"the quick brown fox jumped over",
+	}
+
+	deflated := make([]bytes.Buffer, len(ss))
+	for i, s := range ss {
+		w, _ := NewWriterDict(&deflated[i], DefaultCompression, dict)
+		w.Write([]byte(s))
+		w.Close()
+	}
+
+	inflated := make([]bytes.Buffer, len(ss))
+
+	f := NewReader(nil)
+	for i := range inflated {
+		f.(Resetter).Reset(&deflated[i], dict)
+		io.Copy(&inflated[i], f)
+	}
+	f.Close()
+
+	for i, s := range ss {
+		if s != inflated[i].String() {
+			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
+		}
+	}
+}
