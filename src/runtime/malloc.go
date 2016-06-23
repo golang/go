@@ -369,7 +369,7 @@ func mallocinit() {
 
 	spansStart := p1
 	p1 += spansSize
-	mheap_.bitmap = p1 + bitmapSize
+	mheap_.bitmap_start = p1
 	p1 += bitmapSize
 	if sys.PtrSize == 4 {
 		// Set arena_start such that we can accept memory
@@ -382,6 +382,19 @@ func mallocinit() {
 	mheap_.arena_used = p1
 	mheap_.arena_alloc = p1
 	mheap_.arena_reserved = reserved
+
+	// Pre-compute the value heapBitsForAddr can use to directly
+	// map a heap address to a bitmap address. The obvious
+	// computation is:
+	//
+	//   bitp = bitmap_start + (addr - arena_start)/ptrSize/4
+	//
+	// We can shuffle this to
+	//
+	//   bitp = (bitmap_start - arena_start/ptrSize/4) + addr/ptrSize/4
+	//
+	// bitmap_delta is the value of the first term.
+	mheap_.bitmap_delta = mheap_.bitmap_start - mheap_.arena_start/heapBitmapScale
 
 	if mheap_.arena_start&(_PageSize-1) != 0 {
 		println("bad pagesize", hex(p), hex(p1), hex(spansSize), hex(bitmapSize), hex(_PageSize), "start", hex(mheap_.arena_start))

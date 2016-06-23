@@ -16,10 +16,11 @@
 // The allocated heap comes from a subset of the memory in the range [start, used),
 // where start == mheap_.arena_start and used == mheap_.arena_used.
 // The heap bitmap comprises 2 bits for each pointer-sized word in that range,
-// stored in bytes indexed backward in memory from start.
-// That is, the byte at address start-1 holds the 2-bit entries for the four words
-// start through start+3*ptrSize, the byte at start-2 holds the entries for
-// start+4*ptrSize through start+7*ptrSize, and so on.
+// stored in bytes indexed forward in memory from bitmap_start.
+// That is, the byte at address bitmap holds the 2-bit entries for the
+// four words start through start+3*ptrSize, the byte at
+// bitmap_start+1 holds the entries for start+4*ptrSize through
+// start+7*ptrSize, and so on.
 //
 // In each 2-bit entry, the lower bit holds the same information as in the 1-bit
 // bitmaps: 0 means uninteresting and 1 means live pointer to be visited during GC.
@@ -104,8 +105,6 @@ func addb(p *byte, n uintptr) *byte {
 }
 
 // subtractb returns the byte pointer p-n.
-// subtractb is typically used when traversing the pointer tables referred to by hbits
-// which are arranged in reverse order.
 //go:nowritebarrier
 //go:nosplit
 func subtractb(p *byte, n uintptr) *byte {
@@ -126,8 +125,6 @@ func add1(p *byte) *byte {
 }
 
 // subtract1 returns the byte pointer p-1.
-// subtract1 is typically used when traversing the pointer tables referred to by hbits
-// which are arranged in reverse order.
 //go:nowritebarrier
 //
 // nosplit because it is used during write barriers and must not be preempted.
@@ -157,7 +154,7 @@ func (h *mheap) mapBits(arena_used uintptr) {
 		return
 	}
 
-	sysMap(unsafe.Pointer(h.bitmap-n), n-h.bitmap_mapped, h.arena_reserved, &memstats.gc_sys)
+	sysMap(unsafe.Pointer(h.bitmap_start+h.bitmap_mapped), n-h.bitmap_mapped, h.arena_reserved, &memstats.gc_sys)
 	h.bitmap_mapped = n
 }
 
@@ -356,9 +353,9 @@ func (m *markBits) advance() {
 // nosplit because it is used during write barriers and must not be preempted.
 //go:nosplit
 func heapBitsForAddr(addr uintptr) heapBits {
-	// 2 bits per work, 4 pairs per byte, and a mask is hard coded.
-	off := (addr - mheap_.arena_start) / sys.PtrSize
-	return heapBits{(*uint8)(unsafe.Pointer(mheap_.bitmap - off/4 - 1)), uint32(off & 3)}
+	// 2 bits per word, 4 pairs per byte, and a mask is hard coded.
+	off := addr / sys.PtrSize
+	return heapBits{(*uint8)(unsafe.Pointer(mheap_.bitmap_delta + off/4)), uint32(off & 3)}
 }
 
 // heapBitsForSpan returns the heapBits for the span base address base.
@@ -450,7 +447,7 @@ func (h heapBits) next() heapBits {
 	if h.shift < 3*heapBitsShift {
 		return heapBits{h.bitp, h.shift + heapBitsShift}
 	}
-	return heapBits{subtract1(h.bitp), 0}
+	return heapBits{add1(h.bitp), 0}
 }
 
 // forward returns the heapBits describing n pointer-sized words ahead of h in memory.
@@ -460,7 +457,7 @@ func (h heapBits) next() heapBits {
 // bits returns the heap bits for the current word.
 func (h heapBits) forward(n uintptr) heapBits {
 	n += uintptr(h.shift) / heapBitsShift
-	return heapBits{subtractb(h.bitp, n/4), uint32(n%4) * heapBitsShift}
+	return heapBits{addb(h.bitp, n/4), uint32(n%4) * heapBitsShift}
 }
 
 // The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
@@ -723,20 +720,20 @@ func (h heapBits) initSpan(s *mspan) {
 	if total%heapBitmapScale != 0 {
 		throw("initSpan: unaligned length")
 	}
+	if h.shift != 0 {
+		throw("initSpan: unaligned base")
+	}
 	nbyte := total / heapBitmapScale
 	if sys.PtrSize == 8 && size == sys.PtrSize {
-		end := h.bitp
-		bitp := subtractb(end, nbyte-1)
-		for {
+		bitp := h.bitp
+		end := addb(bitp, nbyte)
+		for bitp != end {
 			*bitp = bitPointerAll | bitScanAll
-			if bitp == end {
-				break
-			}
 			bitp = add1(bitp)
 		}
 		return
 	}
-	memclrNoHeapPointers(unsafe.Pointer(subtractb(h.bitp, nbyte-1)), nbyte)
+	memclrNoHeapPointers(unsafe.Pointer(h.bitp), nbyte)
 }
 
 // initCheckmarkSpan initializes a span for being checkmarked.
@@ -751,7 +748,7 @@ func (h heapBits) initCheckmarkSpan(size, n, total uintptr) {
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 4 {
 			*bitp &^= bitPointerAll
-			bitp = subtract1(bitp)
+			bitp = add1(bitp)
 		}
 		return
 	}
@@ -775,7 +772,7 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 		bitp := h.bitp
 		for i := uintptr(0); i < n; i += 4 {
 			*bitp |= bitPointerAll
-			bitp = subtract1(bitp)
+			bitp = add1(bitp)
 		}
 	}
 }
@@ -1130,7 +1127,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			goto Phase3
 		}
 		*hbitp = uint8(hb)
-		hbitp = subtract1(hbitp)
+		hbitp = add1(hbitp)
 		b >>= 4
 		nb -= 4
 
@@ -1151,7 +1148,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// the checkmark.
 		*hbitp &^= uint8((bitPointer | bitScan | (bitPointer << heapBitsShift)) << (2 * heapBitsShift))
 		*hbitp |= uint8(hb)
-		hbitp = subtract1(hbitp)
+		hbitp = add1(hbitp)
 		if w += 2; w >= nw {
 			// We know that there is more data, because we handled 2-word objects above.
 			// This must be at least a 6-word object. If we're out of pointer words,
@@ -1181,7 +1178,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			break
 		}
 		*hbitp = uint8(hb)
-		hbitp = subtract1(hbitp)
+		hbitp = add1(hbitp)
 		b >>= 4
 
 		// Load more bits. b has nb right now.
@@ -1229,7 +1226,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 			break
 		}
 		*hbitp = uint8(hb)
-		hbitp = subtract1(hbitp)
+		hbitp = add1(hbitp)
 		b >>= 4
 	}
 
@@ -1250,11 +1247,11 @@ Phase3:
 	// The first is hb, the rest are zero.
 	if w <= nw {
 		*hbitp = uint8(hb)
-		hbitp = subtract1(hbitp)
+		hbitp = add1(hbitp)
 		hb = 0 // for possible final half-byte below
 		for w += 4; w <= nw; w += 4 {
 			*hbitp = 0
-			hbitp = subtract1(hbitp)
+			hbitp = add1(hbitp)
 		}
 	}
 
@@ -1420,9 +1417,9 @@ func heapBitsSetTypeGCProg(h heapBits, progSize, elemSize, dataSize, allocSize u
 		// so that scanobject can stop early in the final element.
 		totalBits = (elemSize*(count-1) + progSize) / sys.PtrSize
 	}
-	endProg := unsafe.Pointer(subtractb(h.bitp, (totalBits+3)/4))
-	endAlloc := unsafe.Pointer(subtractb(h.bitp, allocSize/heapBitmapScale))
-	memclrNoHeapPointers(add(endAlloc, 1), uintptr(endProg)-uintptr(endAlloc))
+	endProg := unsafe.Pointer(addb(h.bitp, (totalBits+3)/4))
+	endAlloc := unsafe.Pointer(addb(h.bitp, allocSize/heapBitmapScale))
+	memclrNoHeapPointers(endProg, uintptr(endAlloc)-uintptr(endProg))
 }
 
 // progToPointerMask returns the 1-bit pointer mask output by the GC program prog.
@@ -1481,11 +1478,11 @@ Run:
 			} else {
 				v := bits&bitPointerAll | bitScanAll
 				*dst = uint8(v)
-				dst = subtract1(dst)
+				dst = add1(dst)
 				bits >>= 4
 				v = bits&bitPointerAll | bitScanAll
 				*dst = uint8(v)
-				dst = subtract1(dst)
+				dst = add1(dst)
 				bits >>= 4
 			}
 		}
@@ -1519,11 +1516,11 @@ Run:
 				} else {
 					v := bits&0xf | bitScanAll
 					*dst = uint8(v)
-					dst = subtract1(dst)
+					dst = add1(dst)
 					bits >>= 4
 					v = bits&0xf | bitScanAll
 					*dst = uint8(v)
-					dst = subtract1(dst)
+					dst = add1(dst)
 					bits >>= 4
 				}
 			}
@@ -1583,11 +1580,11 @@ Run:
 					npattern += 8
 				}
 			} else {
-				src = add1(src)
+				src = subtract1(src)
 				for npattern < n {
 					pattern <<= 4
 					pattern |= uintptr(*src) & 0xf
-					src = add1(src)
+					src = subtract1(src)
 					npattern += 4
 				}
 			}
@@ -1649,7 +1646,7 @@ Run:
 				} else {
 					for nbits >= 4 {
 						*dst = uint8(bits&0xf | bitScanAll)
-						dst = subtract1(dst)
+						dst = add1(dst)
 						bits >>= 4
 						nbits -= 4
 					}
@@ -1694,10 +1691,10 @@ Run:
 			}
 		} else {
 			// Leading src fragment.
-			src = addb(src, (off+3)/4)
+			src = subtractb(src, (off+3)/4)
 			if frag := off & 3; frag != 0 {
 				bits |= (uintptr(*src) & 0xf) >> (4 - frag) << nbits
-				src = subtract1(src)
+				src = add1(src)
 				nbits += frag
 				c -= frag
 			}
@@ -1705,9 +1702,9 @@ Run:
 			// The bits are rotating through the bit buffer.
 			for i := c / 4; i > 0; i-- {
 				bits |= (uintptr(*src) & 0xf) << nbits
-				src = subtract1(src)
+				src = add1(src)
 				*dst = uint8(bits&0xf | bitScanAll)
-				dst = subtract1(dst)
+				dst = add1(dst)
 				bits >>= 4
 			}
 			// Final src fragment.
@@ -1729,12 +1726,12 @@ Run:
 			bits >>= 8
 		}
 	} else {
-		totalBits = (uintptr(unsafe.Pointer(dstStart))-uintptr(unsafe.Pointer(dst)))*4 + nbits
+		totalBits = (uintptr(unsafe.Pointer(dst))-uintptr(unsafe.Pointer(dstStart)))*4 + nbits
 		nbits += -nbits & 3
 		for ; nbits > 0; nbits -= 4 {
 			v := bits&0xf | bitScanAll
 			*dst = uint8(v)
-			dst = subtract1(dst)
+			dst = add1(dst)
 			bits >>= 4
 		}
 	}
