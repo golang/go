@@ -891,25 +891,30 @@ func hasPrefix(s, prefix string) bool {
 
 func (t *rtype) Name() string {
 	s := t.String()
-	if hasPrefix(s, "map[") {
-		return ""
-	}
-	if hasPrefix(s, "struct {") {
-		return ""
-	}
-	if hasPrefix(s, "chan ") {
-		return ""
-	}
-	if hasPrefix(s, "chan<-") {
-		return ""
-	}
-	if hasPrefix(s, "func(") {
-		return ""
-	}
-	if hasPrefix(s, "interface {") {
-		return ""
-	}
 	switch s[0] {
+	case 'm':
+		if hasPrefix(s, "map[") {
+			return ""
+		}
+	case 's':
+		if hasPrefix(s, "struct {") {
+			return ""
+		}
+	case 'c':
+		if hasPrefix(s, "chan ") {
+			return ""
+		}
+		if hasPrefix(s, "chan<-") {
+			return ""
+		}
+	case 'f':
+		if hasPrefix(s, "func(") {
+			return ""
+		}
+	case 'i':
+		if hasPrefix(s, "interface {") {
+			return ""
+		}
 	case '[', '*', '<':
 		return ""
 	}
