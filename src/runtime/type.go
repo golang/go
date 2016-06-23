@@ -36,9 +36,9 @@ type _type struct {
 	// gcdata stores the GC type data for the garbage collector.
 	// If the KindGCProg bit is set in kind, gcdata is a GC program.
 	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
-	gcdata *byte
-	str    nameOff
-	_      int32
+	gcdata    *byte
+	str       nameOff
+	ptrToThis typeOff
 }
 
 func (t *_type) string() string {

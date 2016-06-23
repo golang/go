@@ -5741,3 +5741,10 @@ func TestOffsetLock(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func BenchmarkNew(b *testing.B) {
+	v := TypeOf(XM{})
+	for i := 0; i < b.N; i++ {
+		New(v)
+	}
+}
