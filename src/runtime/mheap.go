@@ -114,8 +114,9 @@ type mheap struct {
 	nsmallfree  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxsmallsize)
 
 	// range of addresses we might see in the heap
-	bitmap        uintptr // Points to one byte past the end of the bitmap
+	bitmap_start  uintptr // Points to first byte of bitmap
 	bitmap_mapped uintptr
+	bitmap_delta  uintptr // Used to map heap address to bitmap address
 
 	// The arena_* fields indicate the addresses of the Go heap.
 	//
@@ -142,7 +143,7 @@ type mheap struct {
 	// here and *must* clobber it to use it.
 	arena_reserved bool
 
-	_ uint32 // ensure 64-bit alignment
+	//_ uint32 // ensure 64-bit alignment
 
 	// central free lists for small size classes.
 	// the padding makes sure that the MCentrals are
