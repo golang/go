@@ -174,8 +174,8 @@ func PrintfTests() {
 	Printf("%[2]*.[1]*[3]d", 2, 3, 4)
 	fmt.Fprintf(os.Stderr, "%[2]*.[1]*[3]d", 2, 3, 4) // Use Fprintf to make sure we count arguments correctly.
 	// Bad argument reorderings.
-	Printf("%[xd", 3)                    // ERROR "illegal syntax for printf argument index"
-	Printf("%[x]d", 3)                   // ERROR "illegal syntax for printf argument index"
+	Printf("%[xd", 3)                    // ERROR "bad syntax for printf argument index: \[xd\]"
+	Printf("%[x]d", 3)                   // ERROR "bad syntax for printf argument index: \[x\]"
 	Printf("%[3]*s", "hi", 2)            // ERROR "missing argument for Printf.* reads arg 3, have only 2"
 	_ = fmt.Sprintf("%[3]d", 2)          // ERROR "missing argument for Sprintf.* reads arg 3, have only 1"
 	Printf("%[2]*.[1]*[3]d", 2, "hi", 4) // ERROR "arg .hi. for \* in printf format not of type int"
@@ -249,6 +249,15 @@ func PrintfTests() {
 	ss.log(someFunction)                 // OK
 	ss.log(someFunction, "bar", 1.33)    // OK
 	ss.log(someFunction, someFunction)   // ERROR "arg someFunction in log call is a function value, not a function call"
+
+	// indexed arguments
+	Printf("%d %[3]d %d %[2]d", 1, 2, 3, 4)             // OK
+	Printf("%d %[0]d %d %[2]d", 1, 2, 3, 4)             // ERROR "indexes start at 1"
+	Printf("%d %[3]d %d %[-2]d", 1, 2, 3, 4)            // ERROR "bad syntax for printf argument index: \[-2\]"
+	Printf("%d %[3]d %d %[2234234234234]d", 1, 2, 3, 4) // ERROR "bad syntax for printf argument index: .+ value out of range"
+	Printf("%d %[3]d %d %[2]d", 1, 2, 3)                // ERROR "format reads arg 4, have only 3 args"
+	Printf("%d %[3]d %d %[2]d", 1, 2, 3, 4, 5)          // ERROR "wrong number of args for format in Printf call: 4 needed but 5 args"
+	Printf("%[1][3]d", 1, 2)                            // ERROR "unrecognized printf verb '\['"
 }
 
 type someStruct struct{}
