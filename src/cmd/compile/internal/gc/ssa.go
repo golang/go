@@ -4134,6 +4134,19 @@ func SSAGenFPJump(s *SSAGenState, b, next *ssa.Block, jumps *[2][2]FloatingEQNEJ
 	}
 }
 
+func AuxOffset(v *ssa.Value) (offset int64) {
+	if v.Aux == nil {
+		return 0
+	}
+	switch sym := v.Aux.(type) {
+
+	case *ssa.AutoSymbol:
+		n := sym.Node.(*Node)
+		return n.Xoffset
+	}
+	return 0
+}
+
 // AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
 func AddAux(a *obj.Addr, v *ssa.Value) {
 	AddAux2(a, v, v.AuxInt)

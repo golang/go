@@ -1,0 +1,218 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Lowering arithmetic
+(Add64  x y) -> (ADD  x y)
+(AddPtr x y) -> (ADD  x y)
+(Add32  x y) -> (ADD (SignExt32to64 x) (SignExt32to64 y))
+(Add16  x y) -> (ADD (SignExt16to64 x) (SignExt16to64 y))
+(Add8   x y) -> (ADD (SignExt8to64 x) (SignExt8to64 y))
+(Add64F x y) -> (FADD x y)
+(Add32F x y) -> (FADDS x y)
+
+(Sub64  x y) -> (SUB  x y)
+(SubPtr x y) -> (SUB  x y)
+(Sub32  x y) -> (SUB x y)
+(Sub16  x y) -> (SUB (SignExt16to64 x) (SignExt16to64 y))
+(Sub8   x y) -> (SUB (SignExt8to64 x) (SignExt8to64 y))
+(Sub32F x y) -> (FSUBS x y)
+(Sub64F x y) -> (FSUB x y)
+
+(Mul64  x y) -> (MULLD  x y)
+(Mul32  x y) -> (MULLW  x y)
+(Mul16  x y) -> (MULLW (SignExt16to32 x) (SignExt16to32 y))
+(Mul8   x y) -> (MULLW (SignExt8to32  x) (SignExt8to32 y))
+(Mul32F x y) -> (FMULS x y)
+(Mul64F x y) -> (FMUL x y)
+
+(Div32F x y) -> (FDIVS x y)
+(Div64F x y) -> (FDIV x y)
+
+// Lowering constants
+(Const8   [val]) -> (MOVWconst [val])
+(Const16  [val]) -> (MOVWconst [val])
+(Const32  [val]) -> (MOVWconst [val])
+(Const64  [val]) -> (MOVDconst [val])
+(Const32F [val]) -> (FMOVSconst [val])
+(Const64F [val]) -> (FMOVDconst [val])
+(ConstNil) -> (MOVDconst [0])
+(ConstBool [b]) -> (MOVBconst [b])
+
+(Addr {sym} base) -> (ADDconst {sym} base)
+(OffPtr [off] ptr) -> (ADD (MOVDconst <config.Frontend().TypeInt64()> [off]) ptr)
+(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+
+(And64 x y) -> (AND x y)
+(And32 x y) -> (AND (ZeroExt32to64 x) (ZeroExt32to64 y)) // Or?  (AND (ZeroExt32to64 x) (ZeroExt32to64 y))
+(And16 x y) -> (AND (ZeroExt16to64 x) (ZeroExt16to64 y))
+(And8  x y) -> (AND (ZeroExt8to64 x) (ZeroExt8to64 y))
+
+(Or64 x y) -> (OR x y)
+(Or32 x y) -> (OR (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Or16 x y) -> (OR (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Or8  x y) -> (OR (ZeroExt8to64 x) (ZeroExt8to64 y))
+
+(Xor64 x y) -> (XOR x y)
+(Xor32 x y) -> (XOR (ZeroExt32to64 x) (ZeroExt32to64 y))
+(Xor16 x y) -> (XOR (ZeroExt16to64 x) (ZeroExt16to64 y))
+(Xor8  x y) -> (XOR (ZeroExt8to64 x) (ZeroExt8to64 y))
+
+(Neg64  x) -> (NEG x)
+(Neg32  x) -> (NEG (ZeroExt32to64 x))
+(Neg16  x) -> (NEG (ZeroExt16to64 x))
+(Neg8   x) -> (NEG (ZeroExt8to64 x))
+
+// Lowering comparisons
+(Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Eq32 x y) -> (Equal (CMPW x y))
+(Eq64 x y) -> (Equal (CMP x y))
+(EqPtr x y) -> (Equal (CMP x y))
+
+(Neq8 x y)  -> (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Neq16 x y) -> (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Neq32 x y) -> (NotEqual (CMPW x y))
+(Neq64 x y) -> (NotEqual (CMP x y))
+(NeqPtr x y) -> (NotEqual (CMP x y))
+
+(Less8 x y)  -> (LessThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Less32 x y) -> (LessThan (CMPW x y))
+(Less64 x y) -> (LessThan (CMP x y))
+
+(Less8U x y)  -> (LessThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Less16U x y) -> (LessThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Less32U x y) -> (LessThan (CMPWU x y))
+(Less64U x y) -> (LessThan (CMPU x y))
+
+(Leq8 x y)  -> (LessEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Leq32 x y) -> (LessEqual (CMPW x y))
+(Leq64 x y) -> (LessEqual (CMP x y))
+
+(Leq8U x y)  -> (LessEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Leq16U x y) -> (LessEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Leq32U x y) -> (LessEqual (CMPWU x y))
+(Leq64U x y) -> (LessEqual (CMPU x y))
+
+(Greater8 x y)  -> (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Greater32 x y) -> (GreaterThan (CMPW x y))
+(Greater64 x y) -> (GreaterThan (CMP x y))
+
+(Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Greater32U x y) -> (GreaterThan (CMPWU x y))
+(Greater64U x y) -> (GreaterThan (CMPU x y))
+
+(Geq8 x y)  -> (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Geq32 x y) -> (GreaterEqual (CMPW x y))
+(Geq64 x y) -> (GreaterEqual (CMP x y))
+
+(Geq8U x y)  -> (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Geq16U x y) -> (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Geq32U x y) -> (GreaterEqual (CMPU x y))
+(Geq64U x y) -> (GreaterEqual (CMPU x y))
+
+(Less64F x y) -> (LessThan (FCMPU x y))
+
+(Leq64F x y) -> (LessEqual (FCMPU x y)) // ??
+
+(Eq64F x y) -> (Equal (FCMPU x y))
+
+(Neq64F x y) -> (NotEqual (FCMPU x y))
+
+// Absorb pseudo-ops into blocks.
+(If (Equal cc) yes no) -> (EQ cc yes no)
+(If (NotEqual cc) yes no) -> (NE cc yes no)
+(If (LessThan cc) yes no) -> (LT cc yes no)
+(If (LessEqual cc) yes no) -> (LE cc yes no)
+(If (GreaterThan cc) yes no) -> (GT cc yes no)
+(If (GreaterEqual cc) yes no) -> (GE cc yes no)
+
+(If cond yes no) -> (NE (CMPconst [0] cond) yes no)
+
+// Absorb boolean tests into block
+(NE (CMPconst [0] (Equal cc)) yes no) -> (EQ cc yes no)
+(NE (CMPconst [0] (NotEqual cc)) yes no) -> (NE cc yes no)
+(NE (CMPconst [0] (LessThan cc)) yes no) -> (LT cc yes no)
+(NE (CMPconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
+(NE (CMPconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
+(NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+
+// Lowering loads
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) -> (MOVWload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) -> (MOVWZload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) -> (MOVHload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) -> (MOVHZload ptr mem)
+(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) -> (MOVBload ptr mem)
+(Load <t> ptr mem) && is8BitInt(t) && !isSigned(t) -> (MOVBZload ptr mem)
+(Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
+
+(Store [8] ptr val mem) -> (MOVDstore ptr val mem)
+(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
+(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
+(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+
+(Zero [0] _ mem) -> mem
+(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+(Zero [2] destptr mem) -> (MOVHstoreconst [0] destptr mem)
+(Zero [4] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+(Zero [8] destptr mem) -> (MOVDstoreconst [0] destptr mem)
+
+(Zero [3] destptr mem) ->
+        (MOVBstoreconst [makeValAndOff(0,2)] destptr
+                (MOVHstoreconst [0] destptr mem))
+(Zero [5] destptr mem) ->
+        (MOVBstoreconst [makeValAndOff(0,4)] destptr
+                (MOVWstoreconst [0] destptr mem))
+(Zero [6] destptr mem) ->
+        (MOVHstoreconst [makeValAndOff(0,4)] destptr
+                (MOVWstoreconst [0] destptr mem))
+
+// Zero small numbers of words directly.
+(Zero [16] destptr mem) ->
+	(MOVDstoreconst [makeValAndOff(0,8)] destptr
+                (MOVDstoreconst [0] destptr mem))
+(Zero [24] destptr mem) ->
+	(MOVDstoreconst [makeValAndOff(0,16)] destptr
+		(MOVDstoreconst [makeValAndOff(0,8)] destptr
+			(MOVDstoreconst [0] destptr mem)))
+(Zero [32] destptr mem) ->
+	(MOVDstoreconst [makeValAndOff(0,24)] destptr
+		(MOVDstoreconst [makeValAndOff(0,16)] destptr
+			(MOVDstoreconst [makeValAndOff(0,8)] destptr
+				(MOVDstoreconst [0] destptr mem))))
+
+// Optimizations
+
+(ADD (MOVDconst [c]) x) -> (ADDconst [c] x)
+(ADD x (MOVDconst [c])) -> (ADDconst [c] x)
+
+// Lowering extension
+// Note: we always extend to 64 bits even though some ops don't need that many result bits.
+(SignExt8to16  x) -> (MOVBreg x)
+(SignExt8to32  x) -> (MOVBreg x)
+(SignExt8to64  x) -> (MOVBreg x)
+(SignExt16to32 x) -> (MOVHreg x)
+(SignExt16to64 x) -> (MOVHreg x)
+(SignExt32to64 x) -> (MOVWreg x)
+
+(ZeroExt8to16  x) -> (MOVBZreg x)
+(ZeroExt8to32  x) -> (MOVBZreg x)
+(ZeroExt8to64  x) -> (MOVBZreg x)
+(ZeroExt16to32 x) -> (MOVHZreg x)
+(ZeroExt16to64 x) -> (MOVHZreg x)
+(ZeroExt32to64 x) -> (MOVWZreg x)
+
+(Trunc16to8  x) -> (MOVBreg x)
+(Trunc32to8  x) -> (MOVBreg x)
+(Trunc32to16 x) -> (MOVHreg x)
+(Trunc64to8  x) -> (MOVBreg x)
+(Trunc64to16 x) -> (MOVHreg x)
+(Trunc64to32 x) -> (MOVWreg x)
+

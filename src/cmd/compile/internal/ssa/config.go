@@ -155,6 +155,15 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.flagRegMask = flagRegMaskARM
 		c.FPReg = framepointerRegARM
 		c.hasGReg = true
+	case "ppc64le":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.lowerBlock = rewriteBlockPPC64
+		c.lowerValue = rewriteValuePPC64
+		c.registers = registersPPC64[:]
+		c.gpRegMask = gpRegMaskPPC64
+		c.fpRegMask = fpRegMaskPPC64
+		c.FPReg = framepointerRegPPC64
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}

@@ -58,6 +58,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	ppc64.ASRAD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ACMP & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
 	ppc64.ACMPU & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
+	ppc64.ACMPW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+	ppc64.ACMPWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
 	ppc64.ATD & obj.AMask:     {Flags: gc.SizeQ | gc.RightRead},
 
 	// Floating point.

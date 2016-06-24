@@ -66,6 +66,11 @@ func Main() {
 	gc.Thearch.Doregbits = doregbits
 	gc.Thearch.Regnames = regnames
 
+	gc.Thearch.SSARegToReg = ssaRegToReg
+	gc.Thearch.SSAMarkMoves = ssaMarkMoves
+	gc.Thearch.SSAGenValue = ssaGenValue
+	gc.Thearch.SSAGenBlock = ssaGenBlock
+
 	initvariants()
 	initproginfo()
 
