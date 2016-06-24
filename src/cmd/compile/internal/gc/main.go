@@ -8,6 +8,7 @@ package gc
 
 import (
 	"bufio"
+	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
@@ -96,7 +97,13 @@ func supportsDynlink(arch *sys.Arch) bool {
 	return arch.InFamily(sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.PPC64, sys.S390X)
 }
 
+// timing data for compiler phases
+var timings Timings
+var benchfile string
+
 func Main() {
+	timings.Start("fe", "init")
+
 	defer hidePanic()
 
 	goarch = obj.Getgoarch()
@@ -208,6 +215,7 @@ func Main() {
 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
+	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
 	obj.Flagparse(usage)
 
 	Ctxt.Flag_shared = flag_dynlink || flag_shared
@@ -302,8 +310,11 @@ func Main() {
 	nerrors = 0
 	lexlineno = 1
 
+	timings.Start("fe", "loadsys")
 	loadsys()
 
+	timings.Start("fe", "parse")
+	lexlineno0 := lexlineno
 	for _, infile = range flag.Args() {
 		if trace && Debug['x'] != 0 {
 			fmt.Printf("--- %s ---\n", infile)
@@ -341,6 +352,8 @@ func Main() {
 		linehistpop()
 		f.Close()
 	}
+	timings.Stop()
+	timings.AddEvent(int64(lexlineno-lexlineno0), "lines")
 
 	testdclstack()
 	mkpackage(localpkg.Name) // final import not used checks
@@ -359,6 +372,7 @@ func Main() {
 	defercheckwidth()
 
 	// Don't use range--typecheck can add closures to xtop.
+	timings.Start("fe", "typecheck", "top1")
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
 			xtop[i] = typecheck(xtop[i], Etop)
@@ -369,6 +383,7 @@ func Main() {
 	//   To check interface assignments, depends on phase 1.
 
 	// Don't use range--typecheck can add closures to xtop.
+	timings.Start("fe", "typecheck", "top2")
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
 			xtop[i] = typecheck(xtop[i], Etop)
@@ -378,6 +393,8 @@ func Main() {
 
 	// Phase 3: Type check function bodies.
 	// Don't use range--typecheck can add closures to xtop.
+	timings.Start("fe", "typecheck", "func")
+	var fcount int64
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCLFUNC || xtop[i].Op == OCLOSURE {
 			Curfn = xtop[i]
@@ -388,12 +405,15 @@ func Main() {
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile
 			}
+			fcount++
 		}
 	}
+	timings.AddEvent(fcount, "funcs")
 
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
+	timings.Start("fe", "capturevars")
 	for _, n := range xtop {
 		if n.Op == ODCLFUNC && n.Func.Closure != nil {
 			Curfn = n
@@ -408,6 +428,7 @@ func Main() {
 	}
 
 	// Phase 5: Inlining
+	timings.Start("fe", "inlining")
 	if Debug['l'] > 1 {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
@@ -443,11 +464,13 @@ func Main() {
 	// or else the stack copier will not update it.
 	// Large values are also moved off stack in escape analysis;
 	// because large values may contain pointers, it must happen early.
+	timings.Start("fe", "escapes")
 	escapes(xtop)
 
 	// Phase 7: Transform closure bodies to properly reference captured variables.
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
+	timings.Start("fe", "xclosures")
 	for _, n := range xtop {
 		if n.Op == ODCLFUNC && n.Func.Closure != nil {
 			Curfn = n
@@ -459,11 +482,15 @@ func Main() {
 
 	// Phase 8: Compile top level functions.
 	// Don't use range--walk can add functions to xtop.
+	timings.Start("be", "compilefuncs")
+	fcount = 0
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCLFUNC {
 			funccompile(xtop[i])
+			fcount++
 		}
 	}
+	timings.AddEvent(fcount, "funcs")
 
 	if nsavederrors+nerrors == 0 {
 		fninit(xtop)
@@ -474,6 +501,7 @@ func Main() {
 	}
 
 	// Phase 9: Check external declarations.
+	timings.Start("be", "externaldcls")
 	for i, n := range externdcl {
 		if n.Op == ONAME {
 			externdcl[i] = typecheck(externdcl[i], Erv)
@@ -484,8 +512,8 @@ func Main() {
 		errorexit()
 	}
 
+	timings.Start("be", "dumpobj")
 	dumpobj()
-
 	if asmhdr != "" {
 		dumpasmhdr()
 	}
@@ -495,6 +523,36 @@ func Main() {
 	}
 
 	Flusherrors()
+	timings.Stop()
+
+	if benchfile != "" {
+		if err := writebench(benchfile); err != nil {
+			log.Fatalf("cannot write benchmark data: %v", err)
+		}
+	}
+}
+
+func writebench(filename string) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, "commit:", obj.Getgoversion())
+	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
+	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
+	timings.Write(&buf, "BenchmarkCompile:"+myimportpath+":")
+
+	n, err := f.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+	if n != buf.Len() {
+		panic("bad writer")
+	}
+
+	return f.Close()
 }
 
 var importMap = map[string]string{}
