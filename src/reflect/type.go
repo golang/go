@@ -268,6 +268,9 @@ const (
 	// a program, the type *T also exists and reusing the str data
 	// saves binary size.
 	tflagExtraStar tflag = 1 << 1
+
+	// tflagNamed means the type has a name.
+	tflagNamed tflag = 1 << 2
 )
 
 // rtype is the common implementation of most values.
@@ -893,34 +896,10 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func (t *rtype) Name() string {
-	s := t.String()
-	switch s[0] {
-	case 'm':
-		if hasPrefix(s, "map[") {
-			return ""
-		}
-	case 's':
-		if hasPrefix(s, "struct {") {
-			return ""
-		}
-	case 'c':
-		if hasPrefix(s, "chan ") {
-			return ""
-		}
-		if hasPrefix(s, "chan<-") {
-			return ""
-		}
-	case 'f':
-		if hasPrefix(s, "func(") {
-			return ""
-		}
-	case 'i':
-		if hasPrefix(s, "interface {") {
-			return ""
-		}
-	case '[', '*', '<':
+	if t.tflag&tflagNamed == 0 {
 		return ""
 	}
+	s := t.String()
 	i := len(s) - 1
 	for i >= 0 {
 		if s[i] == '.' {
