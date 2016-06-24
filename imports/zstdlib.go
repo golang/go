@@ -9153,4 +9153,10 @@ var stdlib = map[string]string{
 	"zlib.NoCompression":                          "compress/zlib",
 	"zlib.Resetter":                               "compress/zlib",
 	"zlib.Writer":                                 "compress/zlib",
+
+	"unsafe.Alignof":       "unsafe",
+	"unsafe.ArbitraryType": "unsafe",
+	"unsafe.Offsetof":      "unsafe",
+	"unsafe.Pointer":       "unsafe",
+	"unsafe.Sizeof":        "unsafe",
 }

@@ -86,6 +86,10 @@ func main() {
 			outf("\t%q: %q,\n", key, fullImport[key])
 		}
 	}
+	outf("\n")
+	for _, sym := range [...]string{"Alignof", "ArbitraryType", "Offsetof", "Pointer", "Sizeof"} {
+		outf("\t%q: %q,\n", "unsafe."+sym, "unsafe")
+	}
 	outf("}\n")
 	fmtbuf, err := format.Source(buf.Bytes())
 	if err != nil {
