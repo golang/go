@@ -185,6 +185,15 @@ const (
 	NOSCHED = 1 << 9
 )
 
+// Bit settings from the CR
+
+const (
+	C_COND_LT = iota // 0 result is negative
+	C_COND_GT        // 1 result is positive
+	C_COND_EQ        // 2 result is zero
+	C_COND_SO        // 3 summary overflow
+)
+
 const (
 	C_NONE = iota
 	C_REG
