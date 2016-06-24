@@ -308,6 +308,11 @@ func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {
 	}
 	var out []*plugin.Sym
 	for _, s := range f.sym {
+		// Ignore a symbol with address 0 and size 0.
+		// An ELF STT_FILE symbol will look like that.
+		if s.Addr == 0 && s.Size == 0 {
+			continue
+		}
 		if (r == nil || r.MatchString(s.Name)) && (addr == 0 || s.Addr <= addr && addr < s.Addr+uint64(s.Size)) {
 			out = append(out, &plugin.Sym{
 				Name:  []string{s.Name},
