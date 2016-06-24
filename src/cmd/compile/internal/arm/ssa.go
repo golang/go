@@ -52,6 +52,10 @@ var ssaRegToReg = []int16{
 	0,            // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 }
 
+// Smallest possible faulting page at address zero,
+// see ../../../../runtime/internal/sys/arch_arm.go
+const minZeroPage = 4096
+
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
@@ -514,6 +518,63 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
 		p.To.Offset = v.AuxInt
 	case ssa.OpARMLoweredNilCheck:
+		// Optimization - if the subsequent block has a load or store
+		// at the same address, we don't need to issue this instruction.
+		mem := v.Args[1]
+		for _, w := range v.Block.Succs[0].Block().Values {
+			if w.Op == ssa.OpPhi {
+				if w.Type.IsMemory() {
+					mem = w
+				}
+				continue
+			}
+			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+				// w doesn't use a store - can't be a memory op.
+				continue
+			}
+			if w.Args[len(w.Args)-1] != mem {
+				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+			}
+			switch w.Op {
+			case ssa.OpARMMOVBload, ssa.OpARMMOVBUload, ssa.OpARMMOVHload, ssa.OpARMMOVHUload,
+				ssa.OpARMMOVWload, ssa.OpARMMOVFload, ssa.OpARMMOVDload,
+				ssa.OpARMMOVBstore, ssa.OpARMMOVHstore, ssa.OpARMMOVWstore,
+				ssa.OpARMMOVFstore, ssa.OpARMMOVDstore:
+				// arg0 is ptr, auxint is offset
+				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+						gc.Warnl(v.Line, "removed nil check")
+					}
+					return
+				}
+			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero:
+				// arg0 is ptr
+				if w.Args[0] == v.Args[0] {
+					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+						gc.Warnl(v.Line, "removed nil check")
+					}
+					return
+				}
+			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove:
+				// arg0 is dst ptr, arg1 is src ptr
+				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+						gc.Warnl(v.Line, "removed nil check")
+					}
+					return
+				}
+			default:
+			}
+			if w.Type.IsMemory() {
+				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+					// these ops are OK
+					mem = w
+					continue
+				}
+				// We can't delay the nil check past the next store.
+				break
+			}
+		}
 		// Issue a load which will fault if arg is nil.
 		p := gc.Prog(arm.AMOVB)
 		p.From.Type = obj.TYPE_MEM
