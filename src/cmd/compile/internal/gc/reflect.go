@@ -799,6 +799,7 @@ func typeptrdata(t *Type) int64 {
 const (
 	tflagUncommon  = 1 << 0
 	tflagExtraStar = 1 << 1
+	tflagNamed     = 1 << 2
 )
 
 var dcommontype_algarray *Sym
@@ -851,6 +852,9 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	var tflag uint8
 	if uncommonSize(t) != 0 {
 		tflag |= tflagUncommon
+	}
+	if t.Sym != nil && t.Sym.Name != "" {
+		tflag |= tflagNamed
 	}
 
 	exported := false

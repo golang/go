@@ -19,6 +19,7 @@ type tflag uint8
 const (
 	tflagUncommon  tflag = 1 << 0
 	tflagExtraStar tflag = 1 << 1
+	tflagNamed     tflag = 1 << 2
 )
 
 // Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
@@ -116,29 +117,10 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func (t *_type) name() string {
+	if t.tflag&tflagNamed == 0 {
+		return ""
+	}
 	s := t.string()
-	if hasPrefix(s, "map[") {
-		return ""
-	}
-	if hasPrefix(s, "struct {") {
-		return ""
-	}
-	if hasPrefix(s, "chan ") {
-		return ""
-	}
-	if hasPrefix(s, "chan<-") {
-		return ""
-	}
-	if hasPrefix(s, "func(") {
-		return ""
-	}
-	if hasPrefix(s, "interface {") {
-		return ""
-	}
-	switch s[0] {
-	case '[', '*', '<':
-		return ""
-	}
 	i := len(s) - 1
 	for i >= 0 {
 		if s[i] == '.' {
