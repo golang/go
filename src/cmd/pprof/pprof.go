@@ -9,6 +9,7 @@ import (
 	"debug/gosym"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -50,7 +51,16 @@ func symbolize(mode, source string, p *profile.Profile, obj plugin.ObjTool, ui p
 			ui.PrintErr("expecting -symbolize=[local|remote|none][:force]")
 			fallthrough
 		case "", "force":
-			// Ignore these options, -force is recognized by symbolizer.Symbolize
+			// -force is recognized by symbolizer.Symbolize.
+			// If the source is remote, and the mapping file
+			// does not exist, don't use local symbolization.
+			if isRemote(source) {
+				if len(p.Mapping) == 0 {
+					local = false
+				} else if _, err := os.Stat(p.Mapping[0].File); err != nil {
+					local = false
+				}
+			}
 		}
 	}
 
@@ -65,6 +75,21 @@ func symbolize(mode, source string, p *profile.Profile, obj plugin.ObjTool, ui p
 		err = symbolz.Symbolize(source, fetch.PostURL, p)
 	}
 	return err
+}
+
+// isRemote returns whether source is a URL for a remote source.
+func isRemote(source string) bool {
+	url, err := url.Parse(source)
+	if err != nil {
+		url, err = url.Parse("http://" + source)
+		if err != nil {
+			return false
+		}
+	}
+	if scheme := strings.ToLower(url.Scheme); scheme == "" || scheme == "file" {
+		return false
+	}
+	return true
 }
 
 // flags implements the driver.FlagPackage interface using the builtin flag package.
