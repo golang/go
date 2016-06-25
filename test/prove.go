@@ -250,7 +250,7 @@ func f9(a, b bool) int {
 
 func f10(a string) int {
 	n := len(a)
-	if a[:n>>1] == "aaa" {
+	if a[:n>>1] == "aaaaaaaaaaaaaa" {
 		return 0
 	}
 	return 1
