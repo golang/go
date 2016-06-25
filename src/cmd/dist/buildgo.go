@@ -19,6 +19,7 @@ import (
 //	package main
 //	const defaultCC = <defaultcc>
 //	const defaultCXX = <defaultcxx>
+//	const defaultPkgConfig = <defaultpkgconfig>
 //
 // It is invoked to write cmd/go/zdefaultcc.go
 // but we also write cmd/cgo/zdefaultcc.go
@@ -29,8 +30,9 @@ func mkzdefaultcc(dir, file string) {
 			"package main\n"+
 			"\n"+
 			"const defaultCC = `%s`\n"+
-			"const defaultCXX = `%s`\n",
-		defaultcctarget, defaultcxxtarget)
+			"const defaultCXX = `%s`\n"+
+			"const defaultPkgConfig = `%s`\n",
+		defaultcctarget, defaultcxxtarget, defaultpkgconfigtarget)
 
 	writefile(out, file, writeSkipSame)
 

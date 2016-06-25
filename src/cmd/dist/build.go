@@ -21,30 +21,31 @@ import (
 
 // The usual variables.
 var (
-	goarch           string
-	gobin            string
-	gohostarch       string
-	gohostos         string
-	goos             string
-	goarm            string
-	go386            string
-	goroot           string
-	goroot_final     string
-	goextlinkenabled string
-	gogcflags        string // For running built compiler
-	workdir          string
-	tooldir          string
-	oldgoos          string
-	oldgoarch        string
-	slash            string
-	exe              string
-	defaultcc        string
-	defaultcflags    string
-	defaultldflags   string
-	defaultcxxtarget string
-	defaultcctarget  string
-	rebuildall       bool
-	defaultclang     bool
+	goarch                 string
+	gobin                  string
+	gohostarch             string
+	gohostos               string
+	goos                   string
+	goarm                  string
+	go386                  string
+	goroot                 string
+	goroot_final           string
+	goextlinkenabled       string
+	gogcflags              string // For running built compiler
+	workdir                string
+	tooldir                string
+	oldgoos                string
+	oldgoarch              string
+	slash                  string
+	exe                    string
+	defaultcc              string
+	defaultcflags          string
+	defaultldflags         string
+	defaultcxxtarget       string
+	defaultcctarget        string
+	defaultpkgconfigtarget string
+	rebuildall             bool
+	defaultclang           bool
 
 	vflag int // verbosity
 )
@@ -207,6 +208,12 @@ func xinit() {
 		}
 	}
 	defaultcxxtarget = b
+
+	b = os.Getenv("PKG_CONFIG")
+	if b == "" {
+		b = "pkg-config"
+	}
+	defaultpkgconfigtarget = b
 
 	// For tools being invoked but also for os.ExpandEnv.
 	os.Setenv("GO386", go386)
