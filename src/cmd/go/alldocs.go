@@ -1104,6 +1104,8 @@
 // 		Flags that cgo will pass to the compiler when linking.
 // 	CXX
 // 		The command to use to compile C++ code.
+// 	PKG_CONFIG
+// 		Path to pkg-config tool.
 //
 // Architecture-specific environment variables:
 //

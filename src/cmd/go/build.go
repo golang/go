@@ -1624,13 +1624,19 @@ func (b *builder) build(a *action) (err error) {
 	return nil
 }
 
+// pkgconfigCmd returns a pkg-config binary name
+// defaultPkgConfig is defined in zdefaultcc.go, written by cmd/dist.
+func (b *builder) pkgconfigCmd() string {
+	return envList("PKG_CONFIG", defaultPkgConfig)[0]
+}
+
 // Calls pkg-config if needed and returns the cflags/ldflags needed to build the package.
 func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err error) {
 	if pkgs := p.CgoPkgConfig; len(pkgs) > 0 {
 		var out []byte
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--cflags", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.pkgconfigCmd(), "--cflags", pkgs)
 		if err != nil {
-			b.showOutput(p.Dir, "pkg-config --cflags "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(p.Dir, b.pkgconfigCmd()+" --cflags "+strings.Join(pkgs, " "), string(out))
 			b.print(err.Error() + "\n")
 			err = errPrintedOutput
 			return
@@ -1638,9 +1644,9 @@ func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err e
 		if len(out) > 0 {
 			cflags = strings.Fields(string(out))
 		}
-		out, err = b.runOut(p.Dir, p.ImportPath, nil, "pkg-config", "--libs", pkgs)
+		out, err = b.runOut(p.Dir, p.ImportPath, nil, b.pkgconfigCmd(), "--libs", pkgs)
 		if err != nil {
-			b.showOutput(p.Dir, "pkg-config --libs "+strings.Join(pkgs, " "), string(out))
+			b.showOutput(p.Dir, b.pkgconfigCmd()+" --libs "+strings.Join(pkgs, " "), string(out))
 			b.print(err.Error() + "\n")
 			err = errPrintedOutput
 			return

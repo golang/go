@@ -53,6 +53,8 @@ For example:
 	// #include <png.h>
 	import "C"
 
+The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
+
 When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
 these directives.  Package-specific flags should be set using the
