@@ -137,6 +137,39 @@ var urltests = []URLTest{
 		},
 		"http:www.google.com/?q=go+language",
 	},
+	// path with extra leading ////, expected formatting
+	{
+		"http:///www.google.com/?q=go+language",
+		&URL{
+			Scheme:   "http",
+			Path:     "/",
+			Opaque:   "",
+			Host:     "www.google.com",
+			RawQuery: "q=go+language",
+		},
+		"http://www.google.com/?q=go+language",
+	},
+
+	// ssh checks
+	{
+		"ssh://///gobot:foo@github.com/go.git",
+		&URL{
+			Scheme: "ssh",
+			User:   UserPassword("gobot", "foo"),
+			Host:   "github.com",
+			Path:   "/go.git",
+		},
+		"ssh://gobot:foo@github.com/go.git",
+	},
+	{
+		"http:/localhost:9999/a",
+		&URL{
+			Scheme: "http",
+			Host:   "localhost:9999",
+			Path:   "/a",
+		},
+		"http://localhost:9999/a",
+	},
 	// path without leading /, so no parsing
 	{
 		"http:%2f%2fwww.google.com/?q=go+language",
@@ -152,9 +185,9 @@ var urltests = []URLTest{
 		"mailto:/webmaster@golang.org",
 		&URL{
 			Scheme: "mailto",
-			Path:   "/webmaster@golang.org",
+			Opaque: "webmaster@golang.org",
 		},
-		"mailto:///webmaster@golang.org", // unfortunate compromise
+		"mailto:webmaster@golang.org",
 	},
 	// non-authority
 	{

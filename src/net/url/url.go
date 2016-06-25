@@ -19,6 +19,17 @@ import (
 	"strings"
 )
 
+// Given a web protocol prefix as a key,
+// the value is whether the host needs a "//"
+// formatting and padding
+var webProtocolPrefixes = map[string]bool{
+	"ftp":    true,
+	"git":    false,
+	"http":   true,
+	"mailto": false,
+	"ssh":    true,
+}
+
 // Error reports an error and the operation and URL that caused it.
 type Error struct {
 	Op  string
@@ -446,6 +457,7 @@ func ParseRequestURI(rawurl string) (*URL, error) {
 // If viaRequest is false, all forms of relative URLs are allowed.
 func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	var rest string
+	var isWebProtocol, needSlashFmt bool
 
 	if rawurl == "" && viaRequest {
 		err = errors.New("empty url")
@@ -463,6 +475,18 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	if url.Scheme, rest, err = getscheme(rawurl); err != nil {
 		goto Error
 	}
+
+	// needsSlashFmt when set: clean up 'rest': Make sure all
+	// left most slashes are trimmed off after the scheme
+	isWebProtocol, needSlashFmt = hostSlashFormatting(url.Scheme)
+
+	if isWebProtocol && strings.HasPrefix(rest, "/") {
+		rest = strings.TrimLeft(rest, "/")
+		if needSlashFmt {
+			rest = strings.Join([]string{"//", rest}, "")
+		}
+	}
+
 	url.Scheme = strings.ToLower(url.Scheme)
 
 	if strings.HasSuffix(rest, "?") && strings.Count(rest, "?") == 1 {
@@ -506,6 +530,18 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 
 Error:
 	return nil, &Error{"parse", rawurl, err}
+}
+
+func hostSlashFormatting(q string) (bool, bool) {
+	if q == "" {
+		return false, false
+	}
+	for prefix, slashFormatting := range webProtocolPrefixes {
+		if strings.HasPrefix(q, prefix) {
+			return true, slashFormatting
+		}
+	}
+	return false, false
 }
 
 func parseAuthority(authority string) (user *Userinfo, host string, err error) {
