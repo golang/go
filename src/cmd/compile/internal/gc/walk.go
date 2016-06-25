@@ -1371,20 +1371,7 @@ opswitch:
 			n = callnew(n.Type.Elem())
 		}
 
-		// If one argument to the comparison is an empty string,
-	// comparing the lengths instead will yield the same result
-	// without the function call.
 	case OCMPSTR:
-		if (Isconst(n.Left, CTSTR) && len(n.Left.Val().U.(string)) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val().U.(string)) == 0) {
-			// TODO(marvin): Fix Node.EType type union.
-			r := Nod(Op(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
-			r = typecheck(r, Erv)
-			r = walkexpr(r, init)
-			r.Type = n.Type
-			n = r
-			break
-		}
-
 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
 		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
 			// TODO(marvin): Fix Node.EType type union.
@@ -1396,12 +1383,61 @@ opswitch:
 			break
 		}
 
+		// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
+		var cs, ncs *Node // const string, non-const string
+		switch {
+		case Isconst(n.Left, CTSTR) && Isconst(n.Right, CTSTR):
+			// ignore; will be constant evaluated
+		case Isconst(n.Left, CTSTR):
+			cs = n.Left
+			ncs = n.Right
+		case Isconst(n.Right, CTSTR):
+			cs = n.Right
+			ncs = n.Left
+		}
+		if cs != nil {
+			cmp := Op(n.Etype)
+			// maxRewriteLen was chosen empirically.
+			// It is the value that minimizes cmd/go file size
+			// across most architectures.
+			// See the commit description for CL 26758 for details.
+			maxRewriteLen := 6
+			var and Op
+			switch cmp {
+			case OEQ:
+				and = OANDAND
+			case ONE:
+				and = OOROR
+			default:
+				// Don't do byte-wise comparisons for <, <=, etc.
+				// They're fairly complicated.
+				// Length-only checks are ok, though.
+				maxRewriteLen = 0
+			}
+			if s := cs.Val().U.(string); len(s) <= maxRewriteLen {
+				if len(s) > 0 {
+					ncs = safeexpr(ncs, init)
+				}
+				// TODO(marvin): Fix Node.EType type union.
+				r := Nod(cmp, Nod(OLEN, ncs, nil), Nodintconst(int64(len(s))))
+				for i := 0; i < len(s); i++ {
+					cb := Nodintconst(int64(s[i]))
+					ncb := Nod(OINDEX, ncs, Nodintconst(int64(i)))
+					r = Nod(and, r, Nod(cmp, ncb, cb))
+				}
+				r = typecheck(r, Erv)
+				r = walkexpr(r, init)
+				r.Type = n.Type
+				n = r
+				break
+			}
+		}
+
 		var r *Node
 		// TODO(marvin): Fix Node.EType type union.
 		if Op(n.Etype) == OEQ || Op(n.Etype) == ONE {
 			// prepare for rewrite below
 			n.Left = cheapexpr(n.Left, init)
-
 			n.Right = cheapexpr(n.Right, init)
 
 			r = mkcall("eqstring", Types[TBOOL], init, conv(n.Left, Types[TSTRING]), conv(n.Right, Types[TSTRING]))
@@ -1415,7 +1451,6 @@ opswitch:
 			} else {
 				// len(left) != len(right) || !eqstring(left, right)
 				r = Nod(ONOT, r, nil)
-
 				r = Nod(OOROR, Nod(ONE, Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil)), r)
 			}
 
@@ -1424,7 +1459,6 @@ opswitch:
 		} else {
 			// sys_cmpstring(s1, s2) :: 0
 			r = mkcall("cmpstring", Types[TINT], init, conv(n.Left, Types[TSTRING]), conv(n.Right, Types[TSTRING]))
-
 			// TODO(marvin): Fix Node.EType type union.
 			r = Nod(Op(n.Etype), r, nodintconst(0))
 		}
