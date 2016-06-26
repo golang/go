@@ -356,10 +356,7 @@ func (u *Userinfo) Username() string {
 
 // Password returns the password in case it is set, and whether it is set.
 func (u *Userinfo) Password() (string, bool) {
-	if u.passwordSet {
-		return u.password, true
-	}
-	return "", false
+	return u.password, u.passwordSet
 }
 
 // String returns the encoded userinfo information in the standard form
