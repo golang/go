@@ -850,8 +850,7 @@ func (e *encodeState) string(s string, escapeHTML bool) int {
 	start := 0
 	for i := 0; i < len(s); {
 		if b := s[i]; b < utf8.RuneSelf {
-			if 0x20 <= b && b != '\\' && b != '"' &&
-				(!escapeHTML || b != '<' && b != '>' && b != '&') {
+			if htmlSafeSet[b] || (!escapeHTML && safeSet[b]) {
 				i++
 				continue
 			}
@@ -928,8 +927,7 @@ func (e *encodeState) stringBytes(s []byte, escapeHTML bool) int {
 	start := 0
 	for i := 0; i < len(s); {
 		if b := s[i]; b < utf8.RuneSelf {
-			if 0x20 <= b && b != '\\' && b != '"' &&
-				(!escapeHTML || b != '<' && b != '>' && b != '&') {
+			if htmlSafeSet[b] || (!escapeHTML && safeSet[b]) {
 				i++
 				continue
 			}
