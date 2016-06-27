@@ -59,23 +59,28 @@ func lookup(name string, scopes []*types.Scope) types.Object {
 	return nil
 }
 
-func extendedScope(pkg *Package) []*types.Scope {
-	scopes := []*types.Scope{pkg.typesPkg.Scope()}
-
-	pkgName := pkg.typesPkg.Name()
-	if strings.HasSuffix(pkgName, "_test") {
-		basePkg := strings.TrimSuffix(pkgName, "_test")
-		for _, p := range pkg.typesPkg.Imports() {
-			if p.Name() == basePkg {
-				scopes = append(scopes, p.Scope())
-				break
+func extendedScope(f *File) []*types.Scope {
+	scopes := []*types.Scope{f.pkg.typesPkg.Scope()}
+	if f.basePkg != nil {
+		scopes = append(scopes, f.basePkg.typesPkg.Scope())
+	} else {
+		// If basePkg is not specified (e.g. when checking a single file) try to
+		// find it among imports.
+		pkgName := f.pkg.typesPkg.Name()
+		if strings.HasSuffix(pkgName, "_test") {
+			basePkgName := strings.TrimSuffix(pkgName, "_test")
+			for _, p := range f.pkg.typesPkg.Imports() {
+				if p.Name() == basePkgName {
+					scopes = append(scopes, p.Scope())
+					break
+				}
 			}
 		}
 	}
 	return scopes
 }
 
-func checkExample(fn *ast.FuncDecl, pkg *Package, report reporter) {
+func checkExample(fn *ast.FuncDecl, f *File, report reporter) {
 	fnName := fn.Name.Name
 	if params := fn.Type.Params; len(params.List) != 0 {
 		report("%s should be niladic", fnName)
@@ -100,7 +105,7 @@ func checkExample(fn *ast.FuncDecl, pkg *Package, report reporter) {
 		exName = strings.TrimPrefix(fnName, "Example")
 		elems  = strings.SplitN(exName, "_", 3)
 		ident  = elems[0]
-		obj    = lookup(ident, extendedScope(pkg))
+		obj    = lookup(ident, extendedScope(f))
 	)
 	if ident != "" && obj == nil {
 		// Check ExampleFoo and ExampleBadFoo.
@@ -173,7 +178,7 @@ func checkTestFunctions(f *File, node ast.Node) {
 
 	switch {
 	case strings.HasPrefix(fn.Name.Name, "Example"):
-		checkExample(fn, f.pkg, report)
+		checkExample(fn, f, report)
 	case strings.HasPrefix(fn.Name.Name, "Test"):
 		checkTest(fn, "Test", report)
 	case strings.HasPrefix(fn.Name.Name, "Benchmark"):

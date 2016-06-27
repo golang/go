@@ -37,6 +37,17 @@ foreach(reverse 0 .. @ARGV-1) {
 	}
 }
 
+# If no files have been specified try to grab SOURCEFILES from the last
+# argument that is an existing directory if any
+unless(@file) {
+    foreach(reverse 0 .. @ARGV-1) {
+        if(-d $ARGV[$_]) {
+            @file = glob($ARGV[$_] . "/*.go");
+            last;
+        }
+    }
+}
+
 foreach $file (@file) {
 	open(SRC, $file) || die "BUG: errchk: open $file: $!";
 	$src{$file} = [<SRC>];

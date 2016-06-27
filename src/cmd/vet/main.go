@@ -182,6 +182,9 @@ type File struct {
 	file    *ast.File
 	b       bytes.Buffer // for use by methods
 
+	// Parsed package "foo" when checking package "foo_test"
+	basePkg *Package
+
 	// The objects that are receivers of a "String() string" method.
 	// This is used by the recursiveStringer method in print.go.
 	stringers map[*ast.Object]bool
@@ -238,7 +241,7 @@ func main() {
 		}
 		os.Exit(exitCode)
 	}
-	if !doPackage(".", flag.Args()) {
+	if doPackage(".", flag.Args(), nil) == nil {
 		warnf("no files checked")
 	}
 	os.Exit(exitCode)
@@ -278,12 +281,12 @@ func doPackageDir(directory string) {
 	names = append(names, pkg.TestGoFiles...) // These are also in the "foo" package.
 	names = append(names, pkg.SFiles...)
 	prefixDirectory(directory, names)
-	doPackage(directory, names)
+	basePkg := doPackage(directory, names, nil)
 	// Is there also a "foo_test" package? If so, do that one as well.
 	if len(pkg.XTestGoFiles) > 0 {
 		names = pkg.XTestGoFiles
 		prefixDirectory(directory, names)
-		doPackage(directory, names)
+		doPackage(directory, names, basePkg)
 	}
 }
 
@@ -299,8 +302,8 @@ type Package struct {
 }
 
 // doPackage analyzes the single package constructed from the named files.
-// It returns whether any files were checked.
-func doPackage(directory string, names []string) bool {
+// It returns the parsed Package or nil if none of the files have been checked.
+func doPackage(directory string, names []string, basePkg *Package) *Package {
 	var files []*File
 	var astFiles []*ast.File
 	fs := token.NewFileSet()
@@ -309,7 +312,7 @@ func doPackage(directory string, names []string) bool {
 		if err != nil {
 			// Warn but continue to next package.
 			warnf("%s: %s", name, err)
-			return false
+			return nil
 		}
 		checkBuildTag(name, data)
 		var parsedFile *ast.File
@@ -317,14 +320,14 @@ func doPackage(directory string, names []string) bool {
 			parsedFile, err = parser.ParseFile(fs, name, data, 0)
 			if err != nil {
 				warnf("%s: %s", name, err)
-				return false
+				return nil
 			}
 			astFiles = append(astFiles, parsedFile)
 		}
 		files = append(files, &File{fset: fs, content: data, name: name, file: parsedFile})
 	}
 	if len(astFiles) == 0 {
-		return false
+		return nil
 	}
 	pkg := new(Package)
 	pkg.path = astFiles[0].Name.Name
@@ -346,13 +349,14 @@ func doPackage(directory string, names []string) bool {
 	}
 	for _, file := range files {
 		file.pkg = pkg
+		file.basePkg = basePkg
 		file.checkers = chk
 		if file.file != nil {
 			file.walkFile(file.name, file.file)
 		}
 	}
 	asmCheck(pkg)
-	return true
+	return pkg
 }
 
 func visit(path string, f os.FileInfo, err error) error {

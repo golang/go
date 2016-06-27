@@ -102,7 +102,7 @@ func TestVet(t *testing.T) {
 func TestDivergentPackagesExamples(t *testing.T) {
 	Build(t)
 	// errchk ./testvet
-	Vet(t, []string{"testdata/divergent/buf.go", "testdata/divergent/buf_test.go"})
+	Vet(t, []string{"testdata/divergent"})
 }
 
 func TestIncompleteExamples(t *testing.T) {
