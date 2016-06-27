@@ -269,54 +269,86 @@
 (Store [8] ptr val mem) && is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
 
 // zero instructions
-//TODO: check alignment?
-(Zero [0] _ mem) -> mem
-(Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
-(Zero [2] ptr mem) -> (MOVHstore ptr (MOVWconst [0]) mem)
-(Zero [4] ptr mem) -> (MOVWstore ptr (MOVWconst [0]) mem)
-
-(Zero [3] ptr mem) ->
-	(MOVBstore [2] ptr (MOVWconst [0])
+(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore ptr (MOVWconst [0]) mem)
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstore ptr (MOVWconst [0]) mem)
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 2 ->
+	(MOVBstore [1] ptr (MOVWconst [0])
+		(MOVBstore [0] ptr (MOVWconst [0]) mem))
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+	(MOVWstore ptr (MOVWconst [0]) mem)
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstore [2] ptr (MOVWconst [0])
 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 4 ->
+	(MOVBstore [3] ptr (MOVWconst [0])
+		(MOVBstore [2] ptr (MOVWconst [0])
+			(MOVBstore [1] ptr (MOVWconst [0])
+				(MOVBstore [0] ptr (MOVWconst [0]) mem))))
 
-// Strip off fractional word zeroing.
-(Zero [size] ptr mem) && size%4 != 0 && size > 4 ->
-	(Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4])
-		(Zero <TypeMem> [size-size%4] ptr mem))
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() == 3 ->
+	(MOVBstore [2] ptr (MOVWconst [0])
+		(MOVBstore [1] ptr (MOVWconst [0])
+			(MOVBstore [0] ptr (MOVWconst [0]) mem)))
 
 // Medium zeroing uses a duff device
 // 4 and 128 are magic constants, see runtime/mkduff.go
-(Zero [size] ptr mem) && size%4 == 0 && size > 4 && size <= 512 ->
-	(DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
+(Zero [s] ptr mem)
+	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
+	&& SizeAndAlign(s).Align()%4 == 0 ->
+	(DUFFZERO [4 * (128 - int64(SizeAndAlign(s).Size()/4))] ptr (MOVWconst [0]) mem)
 
 // Large zeroing uses a loop
-(Zero [size] ptr mem) && size%4 == 0 && size > 512 ->
-	(LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
+(Zero [s] ptr mem)
+	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512
+	&& SizeAndAlign(s).Align()%4 == 0 ->
+	(LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+
+// Unaligned zeroing uses a loop
+(Zero [s] ptr mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
+	(LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
 
 // moves
-//TODO: check alignment?
-(Move [0] _ _ mem) -> mem
-(Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
-(Move [2] dst src mem) -> (MOVHstore dst (MOVHUload src mem) mem)
-(Move [4] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
-
-(Move [3] dst src mem) ->
-	(MOVBstore [2] dst (MOVBUload [2] src mem)
+(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBUload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstore dst (MOVHUload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 ->
+	(MOVBstore [1] dst (MOVBUload [1] src mem)
+		(MOVBstore dst (MOVBUload src mem) mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+	(MOVWstore dst (MOVWload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstore [2] dst (MOVHUload [2] src mem)
 		(MOVHstore dst (MOVHUload src mem) mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 ->
+	(MOVBstore [3] dst (MOVBUload [3] src mem)
+		(MOVBstore [2] dst (MOVBUload [2] src mem)
+			(MOVBstore [1] dst (MOVBUload [1] src mem)
+				(MOVBstore dst (MOVBUload src mem) mem))))
 
-// Strip off fractional word move
-(Move [size] dst src mem) && size%4!=0 && size > 4 ->
-	(Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4])
-		(Move <TypeMem> [size-size%4] dst src mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
+	(MOVBstore [2] dst (MOVBUload [2] src mem)
+		(MOVBstore [1] dst (MOVBUload [1] src mem)
+			(MOVBstore dst (MOVBUload src mem) mem)))
 
 // Medium move uses a duff device
 // 8 and 128 are magic constants, see runtime/mkduff.go
-(Move [size] dst src mem) && size%4 == 0 && size > 4 && size <= 512 ->
-	(DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
+(Move [s] dst src mem)
+	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Size() <= 512
+	&& SizeAndAlign(s).Align()%4 == 0 ->
+	(DUFFCOPY [8 * (128 - int64(SizeAndAlign(s).Size()/4))] dst src mem)
 
 // Large move uses a loop
-(Move [size] dst src mem) && size%4 == 0 && size > 512 ->
-	(LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
+(Move [s] dst src mem)
+	&& SizeAndAlign(s).Size()%4 == 0 && SizeAndAlign(s).Size() > 512
+	&& SizeAndAlign(s).Align()%4 == 0 ->
+	(LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+
+// Unaligned move uses a loop
+(Move [s] dst src mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
+	(LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
 
 // calls
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)

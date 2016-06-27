@@ -8837,7 +8837,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store [size] dst (Load <t> src mem) mem)
 	// cond: !config.fe.CanSSA(t)
-	// result: (Move [size] dst src mem)
+	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
 	for {
 		size := v.AuxInt
 		dst := v.Args[0]
@@ -8855,7 +8855,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = size
+		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
 		v.AddArg(dst)
 		v.AddArg(src)
 		v.AddArg(mem)
@@ -8863,7 +8863,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	}
 	// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
 	// cond: !config.fe.CanSSA(t)
-	// result: (Move [size] dst src (VarDef {x} mem))
+	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
 	for {
 		size := v.AuxInt
 		dst := v.Args[0]
@@ -8886,7 +8886,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpMove)
-		v.AuxInt = size
+		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Line, OpVarDef, TypeMem)

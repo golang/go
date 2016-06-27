@@ -625,8 +625,10 @@
         (Store [t.FieldType(0).Size()] dst f0 mem))))
 
 // un-SSAable values use mem->mem copies
-(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
-(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
+(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) ->
+	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
+(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) ->
+	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen

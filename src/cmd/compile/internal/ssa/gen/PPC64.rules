@@ -158,31 +158,48 @@
 (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 
-(Zero [0] _ mem) -> mem
-(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
-(Zero [2] destptr mem) -> (MOVHstoreconst [0] destptr mem)
-(Zero [4] destptr mem) -> (MOVWstoreconst [0] destptr mem)
-(Zero [8] destptr mem) -> (MOVDstoreconst [0] destptr mem)
+(Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstoreconst [0] destptr mem)
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstoreconst [0] destptr mem)
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 ->
+	(MOVBstoreconst [makeValAndOff(0,1)] destptr
+		(MOVBstoreconst [0] destptr mem))
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+	(MOVWstoreconst [0] destptr mem)
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstoreconst [makeValAndOff(0,2)] destptr
+		(MOVHstoreconst [0] destptr mem))
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 ->
+	(MOVBstoreconst [makeValAndOff(0,3)] destptr
+		(MOVBstoreconst [makeValAndOff(0,2)] destptr
+			(MOVBstoreconst [makeValAndOff(0,1)] destptr
+				(MOVBstoreconst [0] destptr mem))))
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0 ->
+	(MOVDstoreconst [0] destptr mem)
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0 ->
+	(MOVWstoreconst [makeValAndOff(0,4)] destptr
+		(MOVWstoreconst [0] destptr mem))
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstoreconst [makeValAndOff(0,6)] destptr
+		(MOVHstoreconst [makeValAndOff(0,4)] destptr
+			(MOVHstoreconst [makeValAndOff(0,2)] destptr
+				(MOVHstoreconst [0] destptr mem))))
 
-(Zero [3] destptr mem) ->
-        (MOVBstoreconst [makeValAndOff(0,2)] destptr
-                (MOVHstoreconst [0] destptr mem))
-(Zero [5] destptr mem) ->
-        (MOVBstoreconst [makeValAndOff(0,4)] destptr
-                (MOVWstoreconst [0] destptr mem))
-(Zero [6] destptr mem) ->
-        (MOVHstoreconst [makeValAndOff(0,4)] destptr
-                (MOVWstoreconst [0] destptr mem))
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 3 ->
+	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+		(MOVBstoreconst [makeValAndOff(0,1)] destptr
+			(MOVBstoreconst [0] destptr mem)))
 
 // Zero small numbers of words directly.
-(Zero [16] destptr mem) ->
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0 ->
 	(MOVDstoreconst [makeValAndOff(0,8)] destptr
                 (MOVDstoreconst [0] destptr mem))
-(Zero [24] destptr mem) ->
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0 ->
 	(MOVDstoreconst [makeValAndOff(0,16)] destptr
 		(MOVDstoreconst [makeValAndOff(0,8)] destptr
 			(MOVDstoreconst [0] destptr mem)))
-(Zero [32] destptr mem) ->
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 32 && SizeAndAlign(s).Align()%8 == 0 ->
 	(MOVDstoreconst [makeValAndOff(0,24)] destptr
 		(MOVDstoreconst [makeValAndOff(0,16)] destptr
 			(MOVDstoreconst [makeValAndOff(0,8)] destptr
