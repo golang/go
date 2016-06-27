@@ -1530,6 +1530,20 @@ func (p *parser) blockStmt() *BlockStmt {
 	return s
 }
 
+func (p *parser) declStmt(f func(*Group) Decl) *DeclStmt {
+	if trace {
+		defer p.trace("declStmt")()
+	}
+
+	s := new(DeclStmt)
+	s.init(p)
+
+	p.next() // _Const, _Type, or _Var
+	s.DeclList = p.appendGroup(nil, f)
+
+	return s
+}
+
 func (p *parser) forStmt() Stmt {
 	if trace {
 		defer p.trace("forStmt")()
@@ -1787,25 +1801,13 @@ func (p *parser) stmt() Stmt {
 		return p.blockStmt()
 
 	case _Var:
-		p.next()
-		s := new(DeclStmt)
-		s.init(p)
-		s.DeclList = p.appendGroup(nil, p.varDecl)
-		return s
+		return p.declStmt(p.varDecl)
 
 	case _Const:
-		p.next()
-		s := new(DeclStmt)
-		s.init(p)
-		s.DeclList = p.appendGroup(nil, p.constDecl)
-		return s
+		return p.declStmt(p.constDecl)
 
 	case _Type:
-		p.next()
-		s := new(DeclStmt)
-		s.init(p)
-		s.DeclList = p.appendGroup(nil, p.typeDecl)
-		return s
+		return p.declStmt(p.typeDecl)
 
 	case _Operator, _Star:
 		switch p.op {
