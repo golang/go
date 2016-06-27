@@ -2222,9 +2222,37 @@ func (srv *Server) ListenAndServe() error {
 
 var testHookServerServe func(*Server, net.Listener) // used if non-nil
 
+// shouldDoServeHTTP2 reports whether Server.Serve should configure
+// automatic HTTP/2. (which sets up the srv.TLSNextProto map)
+func (srv *Server) shouldConfigureHTTP2ForServe() bool {
+	if srv.TLSConfig == nil {
+		// Compatibility with Go 1.6:
+		// If there's no TLSConfig, it's possible that the user just
+		// didn't set it on the http.Server, but did pass it to
+		// tls.NewListener and passed that listener to Serve.
+		// So we should configure HTTP/2 (to set up srv.TLSNextProto)
+		// in case the listener returns an "h2" *tls.Conn.
+		return true
+	}
+	// The user specified a TLSConfig on their http.Server.
+	// In this, case, only configure HTTP/2 if their tls.Config
+	// explicitly mentions "h2". Otherwise http2.ConfigureServer
+	// would modify the tls.Config to add it, but they probably already
+	// passed this tls.Config to tls.NewListener. And if they did,
+	// it's too late anyway to fix it. It would only be potentially racy.
+	// See Issue 15908.
+	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+}
+
 // Serve accepts incoming connections on the Listener l, creating a
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
+//
+// For HTTP/2 support, srv.TLSConfig should be initialized to the
+// provided listener's TLS Config before calling Serve. If
+// srv.TLSConfig is non-nil and doesn't include the string "h2" in
+// Config.NextProtos, HTTP/2 support is not enabled.
+//
 // Serve always returns a non-nil error.
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
@@ -2232,9 +2260,13 @@ func (srv *Server) Serve(l net.Listener) error {
 		fn(srv, l)
 	}
 	var tempDelay time.Duration // how long to sleep on accept failure
-	if err := srv.setupHTTP2(); err != nil {
-		return err
+
+	if srv.shouldConfigureHTTP2ForServe() {
+		if err := srv.setupHTTP2(); err != nil {
+			return err
+		}
 	}
+
 	// TODO: allow changing base context? can't imagine concrete
 	// use cases yet.
 	baseCtx := context.Background()
