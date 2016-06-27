@@ -645,10 +645,10 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 		errorf("invalid type name length %d: exceeds input size", nr)
 	}
 	n := int(nr)
-	name := string(state.b.Bytes()[:n])
+	name := state.b.Bytes()[:n]
 	state.b.Drop(n)
 	// Allocate the destination interface value.
-	if name == "" {
+	if len(name) == 0 {
 		// Copy the nil interface value to the target.
 		value.Set(reflect.Zero(value.Type()))
 		return
@@ -658,7 +658,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 	}
 	// The concrete type must be registered.
 	registerLock.RLock()
-	typ, ok := nameToConcreteType[name]
+	typ, ok := nameToConcreteType[string(name)]
 	registerLock.RUnlock()
 	if !ok {
 		errorf("name not registered for interface: %q", name)
