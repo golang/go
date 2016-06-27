@@ -771,6 +771,10 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		return nil, err
 	}
 
+	if !http1ServerSupportsRequest(req) {
+		return nil, badRequestError("unsupported protocol version")
+	}
+
 	ctx, cancelCtx := context.WithCancel(ctx)
 	req.ctx = ctx
 
@@ -826,6 +830,23 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	w.cw.res = w
 	w.w = newBufioWriterSize(&w.cw, bufferBeforeChunkingSize)
 	return w, nil
+}
+
+// http1ServerSupportsRequest reports whether Go's HTTP/1.x server
+// supports the given request.
+func http1ServerSupportsRequest(req *Request) bool {
+	if req.ProtoMajor == 1 {
+		return true
+	}
+	// Accept "PRI * HTTP/2.0" upgrade requests, so Handlers can
+	// wire up their own HTTP/2 upgrades.
+	if req.ProtoMajor == 2 && req.ProtoMinor == 0 &&
+		req.Method == "PRI" && req.RequestURI == "*" {
+		return true
+	}
+	// Reject HTTP/0.x, and all other HTTP/2+ requests (which
+	// aren't encoded in ASCII anyway).
+	return false
 }
 
 func (w *response) Header() Header {

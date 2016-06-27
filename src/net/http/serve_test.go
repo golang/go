@@ -3958,6 +3958,8 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		host  string
 		want  int
 	}{
+		{"HTTP/0.9", "", 400},
+
 		{"HTTP/1.1", "", 400},
 		{"HTTP/1.1", "Host: \r\n", 200},
 		{"HTTP/1.1", "Host: 1.2.3.4\r\n", 200},
@@ -3983,6 +3985,11 @@ func TestServerValidatesHostHeader(t *testing.T) {
 
 		// Make an exception for HTTP upgrade requests:
 		{"PRI * HTTP/2.0", "", 200},
+
+		// But not other HTTP/2 stuff:
+		{"PRI / HTTP/2.0", "", 400},
+		{"GET / HTTP/2.0", "", 400},
+		{"GET / HTTP/3.0", "", 400},
 	}
 	for _, tt := range tests {
 		conn := &testConn{closec: make(chan bool, 1)}
