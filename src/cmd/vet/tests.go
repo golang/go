@@ -63,7 +63,7 @@ func extendedScope(pkg *Package) []*types.Scope {
 	scopes := []*types.Scope{pkg.typesPkg.Scope()}
 
 	pkgName := pkg.typesPkg.Name()
-	if strings.HasPrefix(pkgName, "_test") {
+	if strings.HasSuffix(pkgName, "_test") {
 		basePkg := strings.TrimSuffix(pkgName, "_test")
 		for _, p := range pkg.typesPkg.Imports() {
 			if p.Name() == basePkg {
