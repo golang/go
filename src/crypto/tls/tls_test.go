@@ -482,7 +482,7 @@ func TestClone(t *testing.T) {
 			continue
 		case "Certificates":
 			f.Set(reflect.ValueOf([]Certificate{
-				{Certificate: [][]byte{[]byte{'b'}}},
+				{Certificate: [][]byte{{'b'}}},
 			}))
 			continue
 		case "NameToCertificate":
