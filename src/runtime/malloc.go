@@ -491,7 +491,7 @@ func nextFreeFast(s *mspan) gclinkptr {
 // weight allocation. If it is a heavy weight allocation the caller must
 // determine whether a new GC cycle needs to be started or if the GC is active
 // whether this goroutine needs to assist the GC.
-func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, s *mspan, shouldhelpgc bool) {
+func (c *mcache) nextFree(sizeclass uint8) (v gclinkptr, s *mspan, shouldhelpgc bool) {
 	s = c.alloc[sizeclass]
 	shouldhelpgc = false
 	freeIndex := s.nextFreeIndex()
@@ -645,11 +645,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 			size = maxTinySize
 		} else {
-			var sizeclass int8
-			if size <= 1024-8 {
-				sizeclass = size_to_class8[(size+7)>>3]
+			var sizeclass uint8
+			if size <= smallSizeMax-8 {
+				sizeclass = size_to_class8[(size+smallSizeDiv-1)/smallSizeDiv]
 			} else {
-				sizeclass = size_to_class128[(size-1024+127)>>7]
+				sizeclass = size_to_class128[(size-smallSizeMax+largeSizeDiv-1)/largeSizeDiv]
 			}
 			size = uintptr(class_to_size[sizeclass])
 			span := c.alloc[sizeclass]
