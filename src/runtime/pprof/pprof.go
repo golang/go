@@ -5,7 +5,7 @@
 // Package pprof writes runtime profiling data in the format expected
 // by the pprof visualization tool.
 // For more information about pprof, see
-// http://code.google.com/p/google-perftools/.
+// http://github.com/google/pprof/.
 package pprof
 
 import (
