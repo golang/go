@@ -2254,7 +2254,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			if haspointers(et) {
 				s.insertWBmove(et, addr, arg.v, n.Lineno, arg.isVolatile)
 			} else {
-				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
+				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(et), addr, arg.v, s.mem())
 			}
 		}
 	}
@@ -2387,14 +2387,14 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
 	if deref {
 		// Treat as a mem->mem move.
 		if right == nil {
-			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
+			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, SizeAlignAuxInt(t), addr, s.mem())
 			return
 		}
 		if wb {
 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
 			return
 		}
-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), addr, right, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(t), addr, right, s.mem())
 		return
 	}
 	// Treat as a store.
@@ -3080,7 +3080,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
 		tmp := temp(t)
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, tmp, s.mem())
 		tmpaddr, _ := s.addr(tmp, true)
-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), tmpaddr, right, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(t), tmpaddr, right, s.mem())
 		// Issue typedmemmove call.
 		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}, s.sb)
 		s.rtcall(typedmemmove, true, nil, taddr, left, tmpaddr)
@@ -3090,7 +3090,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
 	s.endBlock().AddEdgeTo(bEnd)
 
 	s.startBlock(bElse)
-	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), left, right, s.mem())
+	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, SizeAlignAuxInt(t), left, right, s.mem())
 	s.endBlock().AddEdgeTo(bEnd)
 
 	s.startBlock(bEnd)
@@ -4188,6 +4188,11 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
+}
+
+// SizeAlignAuxInt returns an AuxInt encoding the size and alignment of type t.
+func SizeAlignAuxInt(t *Type) int64 {
+	return ssa.MakeSizeAndAlign(t.Size(), t.Alignment()).Int64()
 }
 
 // extendIndex extends v to a full int width.

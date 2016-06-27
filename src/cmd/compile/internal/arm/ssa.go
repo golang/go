@@ -547,7 +547,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 					}
 					return
 				}
-			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero:
+			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
 				// arg0 is ptr
 				if w.Args[0] == v.Args[0] {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -555,7 +555,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 					}
 					return
 				}
-			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove:
+			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
 				// arg0 is dst ptr, arg1 is src ptr
 				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -585,19 +585,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
-	case ssa.OpARMLoweredZero:
+	case ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
 		// MOVW.P	Rarg2, 4(R1)
 		// CMP	Rarg1, R1
 		// BLT	-2(PC)
 		// arg1 is the end of memory to zero
 		// arg2 is known to be zero
-		p := gc.Prog(arm.AMOVW)
+		var sz int64 = 4
+		mov := arm.AMOVW
+		if v.Op == ssa.OpARMLoweredZeroU { // unaligned
+			sz = 1
+			mov = arm.AMOVB
+		}
+		p := gc.Prog(mov)
 		p.Scond = arm.C_PBIT
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[2])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = arm.REG_R1
-		p.To.Offset = 4
+		p.To.Offset = sz
 		p2 := gc.Prog(arm.ACMP)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = gc.SSARegNum(v.Args[1])
@@ -605,26 +611,32 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3 := gc.Prog(arm.ABLT)
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
-	case ssa.OpARMLoweredMove:
+	case ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
 		// MOVW.P	4(R1), Rtmp
 		// MOVW.P	Rtmp, 4(R2)
 		// CMP	Rarg2, R1
 		// BLT	-3(PC)
 		// arg2 is the end of src
-		p := gc.Prog(arm.AMOVW)
+		var sz int64 = 4
+		mov := arm.AMOVW
+		if v.Op == ssa.OpARMLoweredMoveU { // unaligned
+			sz = 1
+			mov = arm.AMOVB
+		}
+		p := gc.Prog(mov)
 		p.Scond = arm.C_PBIT
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = arm.REG_R1
-		p.From.Offset = 4
+		p.From.Offset = sz
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm.REGTMP
-		p2 := gc.Prog(arm.AMOVW)
+		p2 := gc.Prog(mov)
 		p2.Scond = arm.C_PBIT
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = arm.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = arm.REG_R2
-		p2.To.Offset = 4
+		p2.To.Offset = sz
 		p3 := gc.Prog(arm.ACMP)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = gc.SSARegNum(v.Args[2])
