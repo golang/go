@@ -972,7 +972,7 @@ func http2terminalReadFrameError(err error) bool {
 //
 // If the frame is larger than previously set with SetMaxReadFrameSize, the
 // returned error is ErrFrameTooLarge. Other errors may be of type
-// ConnectionError, StreamError, or anything else from from the underlying
+// ConnectionError, StreamError, or anything else from the underlying
 // reader.
 func (fr *http2Framer) ReadFrame() (http2Frame, error) {
 	fr.errDetail = nil
@@ -4931,6 +4931,7 @@ type http2ClientConn struct {
 	inflow       http2flow  // peer's conn-level flow control
 	closed       bool
 	goAway       *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
+	goAwayDebug  string                        // goAway frame's debug data, retained as a string
 	streams      map[uint32]*http2clientStream // client-initiated
 	nextStreamID uint32
 	bw           *bufio.Writer
@@ -5267,6 +5268,7 @@ func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc.goAway = f
+	cc.goAwayDebug = string(f.DebugData())
 }
 
 func (cc *http2ClientConn) CanTakeNewRequest() bool {
@@ -5871,6 +5873,19 @@ func (cc *http2ClientConn) readLoop() {
 	}
 }
 
+// GoAwayError is returned by the Transport when the server closes the
+// TCP connection after sending a GOAWAY frame.
+type http2GoAwayError struct {
+	LastStreamID uint32
+	ErrCode      http2ErrCode
+	DebugData    string
+}
+
+func (e http2GoAwayError) Error() string {
+	return fmt.Sprintf("http2: server sent GOAWAY and closed the connection; LastStreamID=%v, ErrCode=%v, debug=%q",
+		e.LastStreamID, e.ErrCode, e.DebugData)
+}
+
 func (rl *http2clientConnReadLoop) cleanup() {
 	cc := rl.cc
 	defer cc.tconn.Close()
@@ -5878,10 +5893,18 @@ func (rl *http2clientConnReadLoop) cleanup() {
 	defer close(cc.readerDone)
 
 	err := cc.readerErr
-	if err == io.EOF {
-		err = io.ErrUnexpectedEOF
-	}
 	cc.mu.Lock()
+	if err == io.EOF {
+		if cc.goAway != nil {
+			err = http2GoAwayError{
+				LastStreamID: cc.goAway.LastStreamID,
+				ErrCode:      cc.goAway.ErrCode,
+				DebugData:    cc.goAwayDebug,
+			}
+		} else {
+			err = io.ErrUnexpectedEOF
+		}
+	}
 	for _, cs := range rl.activeRes {
 		cs.bufPipe.CloseWithError(err)
 	}
