@@ -949,7 +949,7 @@ equal:
 	MOVB	R0, ret+48(FP)
 	RET
 
-TEXT runtime·fastrand1(SB),NOSPLIT,$-8-4
+TEXT runtime·fastrand(SB),NOSPLIT,$-8-4
 	MOVD	g_m(g), R1
 	MOVWU	m_fastrand(R1), R0
 	ADD	R0, R0

@@ -1909,7 +1909,7 @@ top:
 		atomic.Xadd(&sched.nmspinning, 1)
 	}
 	for i := 0; i < 4; i++ {
-		for enum := stealOrder.start(fastrand1()); !enum.done(); enum.next() {
+		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
 			if sched.gcwaiting != 0 {
 				goto top
 			}
@@ -4034,7 +4034,7 @@ const randomizeScheduler = raceenabled
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
 func runqput(_p_ *p, gp *g, next bool) {
-	if randomizeScheduler && next && fastrand1()%2 == 0 {
+	if randomizeScheduler && next && fastrand()%2 == 0 {
 		next = false
 	}
 
@@ -4087,7 +4087,7 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 
 	if randomizeScheduler {
 		for i := uint32(1); i <= n; i++ {
-			j := fastrand1() % (i + 1)
+			j := fastrand() % (i + 1)
 			batch[i], batch[j] = batch[j], batch[i]
 		}
 	}

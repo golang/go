@@ -270,7 +270,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
 	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
 	for i := 1; i < int(sel.ncase); i++ {
-		j := int(fastrand1()) % (i + 1)
+		j := int(fastrand()) % (i + 1)
 		pollorder[i] = pollorder[j]
 		pollorder[j] = uint16(i)
 	}

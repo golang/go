@@ -2052,7 +2052,7 @@ eqret:
 	MOVB	$0, ret+48(FP)
 	RET
 
-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+TEXT runtime·fastrand(SB), NOSPLIT, $0-4
 	get_tls(CX)
 	MOVQ	g(CX), AX
 	MOVQ	g_m(AX), AX

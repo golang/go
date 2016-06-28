@@ -81,7 +81,7 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
 var hashLoad = loadFactor
 
 // in asm_*.s
-func fastrand1() uint32
+func fastrand() uint32
 
 // in asm_*.s
 //go:noescape

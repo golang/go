@@ -843,7 +843,7 @@ func nextSample() int32 {
 	// x = -log_e(q) * period
 	// x = log_2(q) * (-log_e(2)) * period    ; Using log_2 for efficiency
 	const randomBitCount = 26
-	q := fastrand1()%(1<<randomBitCount) + 1
+	q := fastrand()%(1<<randomBitCount) + 1
 	qlog := fastlog2(float64(q)) - randomBitCount
 	if qlog > 0 {
 		qlog = 0
@@ -861,7 +861,7 @@ func nextSampleNoFP() int32 {
 		rate = 0x3fffffff
 	}
 	if rate != 0 {
-		return int32(int(fastrand1()) % (2 * rate))
+		return int32(int(fastrand()) % (2 * rate))
 	}
 	return 0
 }

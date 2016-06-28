@@ -1042,7 +1042,7 @@ samebytes:
 	MOVD	R8, (R7)
 	RET
 
-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+TEXT runtime·fastrand(SB), NOSPLIT, $0-4
 	MOVD	g_m(g), R4
 	MOVWZ	m_fastrand(R4), R3
 	ADD	R3, R3

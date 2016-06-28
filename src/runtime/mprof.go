@@ -289,7 +289,7 @@ func blockevent(cycles int64, skip int) {
 		cycles = 1
 	}
 	rate := int64(atomic.Load64(&blockprofilerate))
-	if rate <= 0 || (rate > cycles && int64(fastrand1())%rate > cycles) {
+	if rate <= 0 || (rate > cycles && int64(fastrand())%rate > cycles) {
 		return
 	}
 	gp := getg()
