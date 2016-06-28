@@ -466,15 +466,13 @@ func (n name) tagLen() int {
 
 func (n name) name() (s string) {
 	if n.bytes == nil {
-		return ""
+		return
 	}
-	nl := n.nameLen()
-	if nl == 0 {
-		return ""
-	}
+	b := (*[4]byte)(unsafe.Pointer(n.bytes))
+
 	hdr := (*stringHeader)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(3))
-	hdr.Len = nl
+	hdr.Data = unsafe.Pointer(&b[3])
+	hdr.Len = int(b[1])<<8 | int(b[2])
 	return s
 }
 
@@ -662,16 +660,10 @@ type typeOff int32 // offset to an *rtype
 type textOff int32 // offset from top of text section
 
 func (t *rtype) nameOff(off nameOff) name {
-	if off == 0 {
-		return name{}
-	}
 	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
 }
 
 func (t *rtype) typeOff(off typeOff) *rtype {
-	if off == 0 {
-		return nil
-	}
 	return (*rtype)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
 }
 
