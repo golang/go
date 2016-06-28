@@ -274,3 +274,12 @@ pkg syscall (linux-arm-cgo), type SysProcAttr struct, Unshareflags uintptr
 pkg testing, method (*B) Run(string, func(*B)) bool
 pkg testing, method (*T) Run(string, func(*T)) bool
 pkg testing, type InternalExample struct, Unordered bool
+pkg unicode, const Version = "9.0.0"
+pkg unicode, var Adlam *RangeTable
+pkg unicode, var Bhaiksuki *RangeTable
+pkg unicode, var Marchen *RangeTable
+pkg unicode, var Newa *RangeTable
+pkg unicode, var Osage *RangeTable
+pkg unicode, var Prepended_Concatenation_Mark *RangeTable
+pkg unicode, var Sentence_Terminal *RangeTable
+pkg unicode, var Tangut *RangeTable
