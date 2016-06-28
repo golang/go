@@ -72,6 +72,7 @@ const (
 	Nowritebarrier           // emit compiler error instead of write barrier
 	Nowritebarrierrec        // error on write barrier in this or recursive callees
 	CgoUnsafeArgs            // treat a pointer to one arg as a pointer to them all
+	UintptrEscapes           // pointers converted to uintptr escape
 )
 
 type lexer struct {
@@ -930,6 +931,19 @@ func (l *lexer) getlinepragma() rune {
 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
 		case "go:cgo_unsafe_args":
 			l.pragma |= CgoUnsafeArgs
+		case "go:uintptrescapes":
+			// For the next function declared in the file
+			// any uintptr arguments may be pointer values
+			// converted to uintptr. This directive
+			// ensures that the referenced allocated
+			// object, if any, is retained and not moved
+			// until the call completes, even though from
+			// the types alone it would appear that the
+			// object is no longer needed during the
+			// call. The conversion to uintptr must appear
+			// in the argument list.
+			// Used in syscall/dll_windows.go.
+			l.pragma |= UintptrEscapes
 		}
 		return c
 	}
