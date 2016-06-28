@@ -197,6 +197,7 @@ func TestGetSubmodules(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-d", "github.com/rsc/go-get-issue-12612")
 	tg.run("get", "-u", "-d", "github.com/rsc/go-get-issue-12612")
+	tg.mustExist(tg.path("src/github.com/rsc/go-get-issue-12612/vendor/golang.org/x/crypto/.git"))
 }
 
 func TestVendorCache(t *testing.T) {
