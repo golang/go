@@ -1692,7 +1692,7 @@ const (
 	// minimum and maximum runes involved in folding.
 	// checked during test.
 	minFold = 0x0041
-	maxFold = 0x118df
+	maxFold = 0x1e943
 )
 
 // appendFoldedRange returns the result of appending the range lo-hi
