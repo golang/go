@@ -508,8 +508,7 @@
 // searches for a branch or tag named "go1". If no such version exists it
 // retrieves the most recent version of the package.
 //
-// Unless vendoring support is disabled (see 'go help gopath'),
-// when go get checks out or updates a Git repository,
+// When go get checks out or updates a Git repository,
 // it also updates any git submodules referenced by the repository.
 //
 // Get never checks out or updates code stored in vendor directories.
@@ -1271,10 +1270,9 @@
 // let package authors make sure the custom import path is used and not a
 // direct path to the underlying code hosting site.
 //
-// If vendoring is enabled (see 'go help gopath'), then import path checking is
-// disabled for code found within vendor trees. This makes it possible to copy
-// code into alternate locations in vendor trees without needing to update import
-// comments.
+// Import path checking is disabled for code found within vendor trees.
+// This makes it possible to copy code into alternate locations in vendor trees
+// without needing to update import comments.
 //
 // See https://golang.org/s/go14customimport for details.
 //

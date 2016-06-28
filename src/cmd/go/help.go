@@ -261,10 +261,9 @@ unless it is being referred to by that import path. In this way, import comments
 let package authors make sure the custom import path is used and not a
 direct path to the underlying code hosting site.
 
-If vendoring is enabled (see 'go help gopath'), then import path checking is
-disabled for code found within vendor trees. This makes it possible to copy
-code into alternate locations in vendor trees without needing to update import
-comments.
+Import path checking is disabled for code found within vendor trees.
+This makes it possible to copy code into alternate locations in vendor trees
+without needing to update import comments.
 
 See https://golang.org/s/go14customimport for details.
 	`,

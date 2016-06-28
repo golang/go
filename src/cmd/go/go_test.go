@@ -489,6 +489,16 @@ func (tg *testgoData) path(name string) string {
 	return filepath.Join(tg.tempdir, name)
 }
 
+// mustExist fails if path does not exist.
+func (tg *testgoData) mustExist(path string) {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			tg.t.Fatalf("%s does not exist but should", path)
+		}
+		tg.t.Fatalf("%s stat failed: %v", path, err)
+	}
+}
+
 // mustNotExist fails if path exists.
 func (tg *testgoData) mustNotExist(path string) {
 	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
