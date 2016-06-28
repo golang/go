@@ -206,7 +206,7 @@ Fields:
 	inner.recursive.E bool
 
 -------- @describe call-unknown --------
-function call (or conversion) of type invalid type
+function call of type invalid type
 
 -------- @describe def-iface-I --------
 definition of type I (size 16, align 8)

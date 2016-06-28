@@ -7,7 +7,7 @@ import path: what
 
 -------- @what call --------
 identifier
-function call (or conversion)
+function call
 expression statement
 block
 function declaration
