@@ -822,7 +822,7 @@ notfound:
 	MOVV	R1, ret+24(FP)
 	RET
 
-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+TEXT runtime·fastrand(SB), NOSPLIT, $0-4
 	MOVV	g_m(g), R2
 	MOVWU	m_fastrand(R2), R1
 	ADDU	R1, R1

@@ -616,7 +616,7 @@ func (c *gcControllerState) enlistWorker() {
 	}
 	myID := gp.m.p.ptr().id
 	for tries := 0; tries < 5; tries++ {
-		id := int32(fastrand1() % uint32(gomaxprocs-1))
+		id := int32(fastrand() % uint32(gomaxprocs-1))
 		if id >= myID {
 			id++
 		}

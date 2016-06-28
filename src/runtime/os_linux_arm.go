@@ -53,8 +53,8 @@ func archauxv(tag, val uintptr) {
 
 //go:nosplit
 func cputicks() int64 {
-	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
+	// Currently cputicks() is used in blocking profiler and to seed fastrand().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// randomNumber provides better seeding of fastrand1.
+	// randomNumber provides better seeding of fastrand.
 	return nanotime() + int64(randomNumber)
 }

@@ -952,7 +952,7 @@ _sib_notfound:
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
+TEXT runtime·fastrand(SB),NOSPLIT,$-4-4
 	MOVW	g_m(g), R1
 	MOVW	m_fastrand(R1), R0
 	ADD.S	R0, R0

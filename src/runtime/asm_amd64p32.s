@@ -973,7 +973,7 @@ eqret:
 	MOVB	AX, ret+24(FP)
 	RET
 
-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+TEXT runtime·fastrand(SB), NOSPLIT, $0-4
 	get_tls(CX)
 	MOVL	g(CX), AX
 	MOVL	g_m(AX), AX
