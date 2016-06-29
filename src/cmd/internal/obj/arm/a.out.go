@@ -234,6 +234,8 @@ const (
 	ASQRTD
 	AABSF
 	AABSD
+	ANEGF
+	ANEGD
 
 	ASRL
 	ASRA
