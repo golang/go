@@ -446,6 +446,23 @@ execute:
 		}
 		return 1
 
+	case 0xeeb10b40: // D[regd] = neg D[regm]
+		m.freglo[regd] = m.freglo[regm]
+		m.freghi[regd] = m.freghi[regm] ^ 1<<31
+
+		if fptrace > 0 {
+			print("*** D[", regd, "] = neg D[", regm, "] ", hex(m.freghi[regd]), "-", hex(m.freglo[regd]), "\n")
+		}
+		return 1
+
+	case 0xeeb10a40: // F[regd] = neg F[regm]
+		m.freglo[regd] = m.freglo[regm] ^ 1<<31
+
+		if fptrace > 0 {
+			print("*** F[", regd, "] = neg F[", regm, "] ", hex(m.freglo[regd]), "\n")
+		}
+		return 1
+
 	case 0xeeb40bc0: // D[regd] :: D[regm] (CMPD)
 		cmp, nan := fcmp64(fgetd(regd), fgetd(regm))
 		m.fflag = fstatus(nan, cmp)

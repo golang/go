@@ -69,9 +69,8 @@
 (Neg32 x) -> (RSBconst [0] x)
 (Neg16 x) -> (RSBconst [0] x)
 (Neg8 x) -> (RSBconst [0] x)
-//TODO: implement NEGF, NEGD in assembler and soft float simulator, and use them.
-(Neg32F x) -> (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
-(Neg64F x) -> (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
+(Neg32F x) -> (NEGF x)
+(Neg64F x) -> (NEGD x)
 
 (Com32 x) -> (MVN x)
 (Com16 x) -> (MVN x)

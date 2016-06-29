@@ -181,6 +181,8 @@ func init() {
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"}, // ^arg0
 
+		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
 
 		// shifts

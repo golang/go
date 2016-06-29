@@ -1434,6 +1434,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AMOVDF, r0)
 			opset(AABSF, r0)
 			opset(AABSD, r0)
+			opset(ANEGF, r0)
+			opset(ANEGD, r0)
 
 		case ACMPF:
 			opset(ACMPD, r0)
@@ -1930,7 +1932,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if r == 0 {
 			r = rt
-			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD {
+			if p.As == AMOVF || p.As == AMOVD || p.As == AMOVFD || p.As == AMOVDF || p.As == ASQRTF || p.As == ASQRTD || p.As == AABSF || p.As == AABSD || p.As == ANEGF || p.As == ANEGD {
 				r = 0
 			}
 		}
@@ -2508,6 +2510,10 @@ func oprrr(ctxt *obj.Link, a obj.As, sc int) uint32 {
 		return o | 0xe<<24 | 0xb<<20 | 0<<16 | 0xb<<8 | 0xc<<4
 	case AABSF:
 		return o | 0xe<<24 | 0xb<<20 | 0<<16 | 0xa<<8 | 0xc<<4
+	case ANEGD:
+		return o | 0xe<<24 | 0xb<<20 | 1<<16 | 0xb<<8 | 0x4<<4
+	case ANEGF:
+		return o | 0xe<<24 | 0xb<<20 | 1<<16 | 0xa<<8 | 0x4<<4
 	case ACMPD:
 		return o | 0xe<<24 | 0xb<<20 | 4<<16 | 0xb<<8 | 0xc<<4
 	case ACMPF:

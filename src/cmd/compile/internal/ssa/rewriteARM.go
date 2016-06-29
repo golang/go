@@ -10850,13 +10850,10 @@ func rewriteValueARM_OpNeg32F(v *Value, config *Config) bool {
 	_ = b
 	// match: (Neg32F x)
 	// cond:
-	// result: (MULF (MOVFconst [int64(math.Float64bits(-1))]) x)
+	// result: (NEGF x)
 	for {
 		x := v.Args[0]
-		v.reset(OpARMMULF)
-		v0 := b.NewValue0(v.Line, OpARMMOVFconst, config.fe.TypeFloat32())
-		v0.AuxInt = int64(math.Float64bits(-1))
-		v.AddArg(v0)
+		v.reset(OpARMNEGF)
 		v.AddArg(x)
 		return true
 	}
@@ -10866,13 +10863,10 @@ func rewriteValueARM_OpNeg64F(v *Value, config *Config) bool {
 	_ = b
 	// match: (Neg64F x)
 	// cond:
-	// result: (MULD (MOVDconst [int64(math.Float64bits(-1))]) x)
+	// result: (NEGD x)
 	for {
 		x := v.Args[0]
-		v.reset(OpARMMULD)
-		v0 := b.NewValue0(v.Line, OpARMMOVDconst, config.fe.TypeFloat64())
-		v0.AuxInt = int64(math.Float64bits(-1))
-		v.AddArg(v0)
+		v.reset(OpARMNEGD)
 		v.AddArg(x)
 		return true
 	}

@@ -669,7 +669,9 @@ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
 			ASQRTF,
 			ASQRTD,
 			AABSF,
-			AABSD:
+			AABSD,
+			ANEGF,
+			ANEGD:
 			goto soft
 
 		default:
