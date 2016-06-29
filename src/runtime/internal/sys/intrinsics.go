@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !386
+
 package sys
 
 // Using techniques from http://supertech.csail.mit.edu/papers/debruijn.pdf
