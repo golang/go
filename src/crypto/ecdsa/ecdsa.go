@@ -143,10 +143,11 @@ func fermatInverse(k, N *big.Int) *big.Int {
 
 var errZeroParam = errors.New("zero parameter")
 
-// Sign signs an arbitrary length hash (which should be the result of hashing a
-// larger message) using the private key, priv. It returns the signature as a
-// pair of integers. The security of the private key depends on the entropy of
-// rand.
+// Sign signs a hash (which should be the result of hashing a larger message)
+// using the private key, priv. If the hash is longer than the bit-length of the
+// private key's curve order, the hash will be truncated to that length.  It
+// returns the signature as a pair of integers. The security of the private key
+// depends on the entropy of rand.
 func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
 	// Get max(log2(q) / 2, 256) bits of entropy from rand.
 	entropylen := (priv.Curve.Params().BitSize + 7) / 16
