@@ -338,6 +338,7 @@ racecallatomic_ignore:
 	// An attempt to synchronize on the address would cause crash.
 	MOVQ	AX, R15	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
+	get_tls(R12)
 	MOVQ	g(R12), R14
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	CALL	racecall<>(SB)
