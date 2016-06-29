@@ -538,7 +538,12 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 
 	N := b.N
 
+	// Less than 64KB because Windows appears to use a TCP rwin < 64KB.
+	// See Issue #15899.
+	const bufsize = 32 << 10
+
 	go func() {
+		buf := make([]byte, bufsize)
 		for i := 0; i < N; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
@@ -552,7 +557,9 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 			if err := srv.Handshake(); err != nil {
 				panic(fmt.Errorf("handshake: %v", err))
 			}
-			io.Copy(srv, srv)
+			if _, err := io.CopyBuffer(srv, srv, buf); err != nil {
+				panic(fmt.Errorf("copy buffer: %v", err))
+			}
 		}
 	}()
 
@@ -560,7 +567,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	clientConfig := testConfig.clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
-	buf := make([]byte, 1<<14)
+	buf := make([]byte, bufsize)
 	chunks := int(math.Ceil(float64(totalBytes) / float64(len(buf))))
 	for i := 0; i < N; i++ {
 		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
