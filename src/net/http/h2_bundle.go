@@ -5267,8 +5267,16 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
+
+	old := cc.goAway
 	cc.goAway = f
-	cc.goAwayDebug = string(f.DebugData())
+
+	if cc.goAwayDebug == "" {
+		cc.goAwayDebug = string(f.DebugData())
+	}
+	if old != nil && old.ErrCode != http2ErrCodeNo {
+		cc.goAway.ErrCode = old.ErrCode
+	}
 }
 
 func (cc *http2ClientConn) CanTakeNewRequest() bool {
