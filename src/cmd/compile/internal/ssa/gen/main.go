@@ -77,6 +77,7 @@ var archs []arch
 
 func main() {
 	flag.Parse()
+	sort.Sort(ArchsByName(archs))
 	genOp()
 	genLower()
 }
@@ -306,3 +307,9 @@ type byKey []intPair
 func (a byKey) Len() int           { return len(a) }
 func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
+
+type ArchsByName []arch
+
+func (x ArchsByName) Len() int           { return len(x) }
+func (x ArchsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x ArchsByName) Less(i, j int) bool { return x[i].name < x[j].name }
