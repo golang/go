@@ -141,3 +141,15 @@ func _() {
 	var x struct{ f func() }
 	x.f()
 }
+
+// Regression test for Go issue 16230.
+func _() (ctx context.Context, cancel func()) {
+	ctx, cancel = context.WithCancel()
+	return // a naked return counts as a load of the named result values
+}
+
+// Same as above, but for literal function.
+var _ = func() (ctx context.Context, cancel func()) {
+	ctx, cancel = context.WithCancel()
+	return
+}
