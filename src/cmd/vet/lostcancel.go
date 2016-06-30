@@ -14,7 +14,7 @@ import (
 
 func init() {
 	register("lostcancel",
-		"check for failure to call cancellation function returned by context.WithCancel",
+		"check for failure to call cancelation function returned by context.WithCancel",
 		checkLostCancel,
 		funcDecl, funcLit)
 }

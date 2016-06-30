@@ -91,11 +91,11 @@ Flag: -tests
 Mistakes involving tests including functions with incorrect names or signatures
 and example tests that document identifiers not in the package.
 
-Failure to call the cancellation function returned by context.WithCancel.
+Failure to call the cancelation function returned by context.WithCancel.
 
 Flag: -lostcancel
 
-The cancellation function returned by context.WithCancel, WithTimeout,
+The cancelation function returned by context.WithCancel, WithTimeout,
 and WithDeadline must be called or the new context will remain live
 until its parent context is cancelled.
 (The background context is never cancelled.)
