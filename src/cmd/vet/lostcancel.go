@@ -101,10 +101,13 @@ func checkLostCancel(f *File, node ast.Node) {
 
 	// Build the CFG.
 	var g *cfg.CFG
+	var sig *types.Signature
 	switch node := node.(type) {
 	case *ast.FuncDecl:
+		sig, _ = f.pkg.defs[node.Name].Type().(*types.Signature)
 		g = cfg.New(node.Body, mayReturn)
 	case *ast.FuncLit:
+		sig, _ = f.pkg.types[node.Type].Type.(*types.Signature)
 		g = cfg.New(node.Body, mayReturn)
 	}
 
@@ -117,7 +120,7 @@ func checkLostCancel(f *File, node ast.Node) {
 	// (It would be more efficient to analyze all cancelvars in a
 	// single pass over the AST, but seldom is there more than one.)
 	for v, stmt := range cancelvars {
-		if ret := lostCancelPath(f, g, v, stmt); ret != nil {
+		if ret := lostCancelPath(f, g, v, stmt, sig); ret != nil {
 			lineno := f.fset.Position(stmt.Pos()).Line
 			f.Badf(stmt.Pos(), "the %s function is not used on all paths (possible context leak)", v.Name())
 			f.Badf(ret.Pos(), "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
@@ -159,14 +162,24 @@ func isContextWithCancel(f *File, n ast.Node) bool {
 // lostCancelPath finds a path through the CFG, from stmt (which defines
 // the 'cancel' variable v) to a return statement, that doesn't "use" v.
 // If it finds one, it returns the return statement (which may be synthetic).
-func lostCancelPath(f *File, g *cfg.CFG, v *types.Var, stmt ast.Node) *ast.ReturnStmt {
+// sig is the function's type, if known.
+func lostCancelPath(f *File, g *cfg.CFG, v *types.Var, stmt ast.Node, sig *types.Signature) *ast.ReturnStmt {
+	vIsNamedResult := sig != nil && tupleContains(sig.Results(), v)
+
 	// uses reports whether stmts contain a "use" of variable v.
 	uses := func(f *File, v *types.Var, stmts []ast.Node) bool {
 		found := false
 		for _, stmt := range stmts {
 			ast.Inspect(stmt, func(n ast.Node) bool {
-				if id, ok := n.(*ast.Ident); ok {
-					if f.pkg.uses[id] == v {
+				switch n := n.(type) {
+				case *ast.Ident:
+					if f.pkg.uses[n] == v {
+						found = true
+					}
+				case *ast.ReturnStmt:
+					// A naked return statement counts as a use
+					// of the named result variables.
+					if n.Results == nil && vIsNamedResult {
 						found = true
 					}
 				}
@@ -249,6 +262,15 @@ outer:
 		return nil
 	}
 	return search(defblock.Succs)
+}
+
+func tupleContains(tuple *types.Tuple, v *types.Var) bool {
+	for i := 0; i < tuple.Len(); i++ {
+		if tuple.At(i) == v {
+			return true
+		}
+	}
+	return false
 }
 
 var noReturnFuncs = map[string]bool{
