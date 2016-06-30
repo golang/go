@@ -111,6 +111,7 @@ type Cmd struct {
 	closeAfterWait  []io.Closer
 	goroutine       []func() error
 	errch           chan error // one send per goroutine
+	waitDone        chan struct{}
 }
 
 // Command returns the Cmd struct to execute the named program with
@@ -326,6 +327,15 @@ func (c *Cmd) Start() error {
 	if c.Process != nil {
 		return errors.New("exec: already started")
 	}
+	if c.ctx != nil {
+		select {
+		case <-c.ctx.Done():
+			c.closeDescriptors(c.closeAfterStart)
+			c.closeDescriptors(c.closeAfterWait)
+			return c.ctx.Err()
+		default:
+		}
+	}
 
 	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
@@ -359,6 +369,17 @@ func (c *Cmd) Start() error {
 		go func(fn func() error) {
 			c.errch <- fn()
 		}(fn)
+	}
+
+	if c.ctx != nil {
+		c.waitDone = make(chan struct{})
+		go func() {
+			select {
+			case <-c.ctx.Done():
+				c.Process.Kill()
+			case <-c.waitDone:
+			}
+		}()
 	}
 
 	return nil
@@ -410,20 +431,9 @@ func (c *Cmd) Wait() error {
 	}
 	c.finished = true
 
-	var waitDone chan struct{}
-	if c.ctx != nil {
-		waitDone = make(chan struct{})
-		go func() {
-			select {
-			case <-c.ctx.Done():
-				c.Process.Kill()
-			case <-waitDone:
-			}
-		}()
-	}
 	state, err := c.Process.Wait()
-	if waitDone != nil {
-		close(waitDone)
+	if c.waitDone != nil {
+		close(c.waitDone)
 	}
 	c.ProcessState = state
 
