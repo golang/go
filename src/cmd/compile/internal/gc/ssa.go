@@ -384,6 +384,14 @@ func (s *state) endBlock() *ssa.Block {
 
 // pushLine pushes a line number on the line number stack.
 func (s *state) pushLine(line int32) {
+	if line == 0 {
+		// the frontend may emit node with line number missing,
+		// use the parent line number in this case.
+		line = s.peekLine()
+		if Debug['K'] != 0 {
+			Warn("buildssa: line 0")
+		}
+	}
 	s.line = append(s.line, line)
 }
 
