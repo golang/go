@@ -40,6 +40,9 @@ const debugFormat = false // default: false
 // If trace is set, debugging output is printed to std out.
 const trace = false // default: false
 
+// This version doesn't write the nointerface flag for exported methods.
+// The corresponding importer handles both "v0" and "v1".
+// See also issues #16243, #16244.
 const exportVersion = "v0"
 
 // trackAllTypes enables cycle tracking for all types, not just named
