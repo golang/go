@@ -70,32 +70,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMANDshiftRL(v, config)
 	case OpARMANDshiftRLreg:
 		return rewriteValueARM_OpARMANDshiftRLreg(v, config)
-	case OpAdd16:
-		return rewriteValueARM_OpAdd16(v, config)
-	case OpAdd32:
-		return rewriteValueARM_OpAdd32(v, config)
-	case OpAdd32F:
-		return rewriteValueARM_OpAdd32F(v, config)
-	case OpAdd32carry:
-		return rewriteValueARM_OpAdd32carry(v, config)
-	case OpAdd32withcarry:
-		return rewriteValueARM_OpAdd32withcarry(v, config)
-	case OpAdd64F:
-		return rewriteValueARM_OpAdd64F(v, config)
-	case OpAdd8:
-		return rewriteValueARM_OpAdd8(v, config)
-	case OpAddPtr:
-		return rewriteValueARM_OpAddPtr(v, config)
-	case OpAddr:
-		return rewriteValueARM_OpAddr(v, config)
-	case OpAnd16:
-		return rewriteValueARM_OpAnd16(v, config)
-	case OpAnd32:
-		return rewriteValueARM_OpAnd32(v, config)
-	case OpAnd8:
-		return rewriteValueARM_OpAnd8(v, config)
-	case OpAndB:
-		return rewriteValueARM_OpAndB(v, config)
 	case OpARMBIC:
 		return rewriteValueARM_OpARMBIC(v, config)
 	case OpARMBICconst:
@@ -136,124 +110,12 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMCMPshiftRL(v, config)
 	case OpARMCMPshiftRLreg:
 		return rewriteValueARM_OpARMCMPshiftRLreg(v, config)
-	case OpClosureCall:
-		return rewriteValueARM_OpClosureCall(v, config)
-	case OpCom16:
-		return rewriteValueARM_OpCom16(v, config)
-	case OpCom32:
-		return rewriteValueARM_OpCom32(v, config)
-	case OpCom8:
-		return rewriteValueARM_OpCom8(v, config)
-	case OpConst16:
-		return rewriteValueARM_OpConst16(v, config)
-	case OpConst32:
-		return rewriteValueARM_OpConst32(v, config)
-	case OpConst32F:
-		return rewriteValueARM_OpConst32F(v, config)
-	case OpConst64F:
-		return rewriteValueARM_OpConst64F(v, config)
-	case OpConst8:
-		return rewriteValueARM_OpConst8(v, config)
-	case OpConstBool:
-		return rewriteValueARM_OpConstBool(v, config)
-	case OpConstNil:
-		return rewriteValueARM_OpConstNil(v, config)
-	case OpConvert:
-		return rewriteValueARM_OpConvert(v, config)
-	case OpCvt32Fto32:
-		return rewriteValueARM_OpCvt32Fto32(v, config)
-	case OpCvt32Fto32U:
-		return rewriteValueARM_OpCvt32Fto32U(v, config)
-	case OpCvt32Fto64F:
-		return rewriteValueARM_OpCvt32Fto64F(v, config)
-	case OpCvt32Uto32F:
-		return rewriteValueARM_OpCvt32Uto32F(v, config)
-	case OpCvt32Uto64F:
-		return rewriteValueARM_OpCvt32Uto64F(v, config)
-	case OpCvt32to32F:
-		return rewriteValueARM_OpCvt32to32F(v, config)
-	case OpCvt32to64F:
-		return rewriteValueARM_OpCvt32to64F(v, config)
-	case OpCvt64Fto32:
-		return rewriteValueARM_OpCvt64Fto32(v, config)
-	case OpCvt64Fto32F:
-		return rewriteValueARM_OpCvt64Fto32F(v, config)
-	case OpCvt64Fto32U:
-		return rewriteValueARM_OpCvt64Fto32U(v, config)
 	case OpARMDIV:
 		return rewriteValueARM_OpARMDIV(v, config)
 	case OpARMDIVU:
 		return rewriteValueARM_OpARMDIVU(v, config)
-	case OpDeferCall:
-		return rewriteValueARM_OpDeferCall(v, config)
-	case OpDiv16:
-		return rewriteValueARM_OpDiv16(v, config)
-	case OpDiv16u:
-		return rewriteValueARM_OpDiv16u(v, config)
-	case OpDiv32:
-		return rewriteValueARM_OpDiv32(v, config)
-	case OpDiv32F:
-		return rewriteValueARM_OpDiv32F(v, config)
-	case OpDiv32u:
-		return rewriteValueARM_OpDiv32u(v, config)
-	case OpDiv64F:
-		return rewriteValueARM_OpDiv64F(v, config)
-	case OpDiv8:
-		return rewriteValueARM_OpDiv8(v, config)
-	case OpDiv8u:
-		return rewriteValueARM_OpDiv8u(v, config)
-	case OpEq16:
-		return rewriteValueARM_OpEq16(v, config)
-	case OpEq32:
-		return rewriteValueARM_OpEq32(v, config)
-	case OpEq32F:
-		return rewriteValueARM_OpEq32F(v, config)
-	case OpEq64F:
-		return rewriteValueARM_OpEq64F(v, config)
-	case OpEq8:
-		return rewriteValueARM_OpEq8(v, config)
-	case OpEqB:
-		return rewriteValueARM_OpEqB(v, config)
-	case OpEqPtr:
-		return rewriteValueARM_OpEqPtr(v, config)
 	case OpARMEqual:
 		return rewriteValueARM_OpARMEqual(v, config)
-	case OpGeq16:
-		return rewriteValueARM_OpGeq16(v, config)
-	case OpGeq16U:
-		return rewriteValueARM_OpGeq16U(v, config)
-	case OpGeq32:
-		return rewriteValueARM_OpGeq32(v, config)
-	case OpGeq32F:
-		return rewriteValueARM_OpGeq32F(v, config)
-	case OpGeq32U:
-		return rewriteValueARM_OpGeq32U(v, config)
-	case OpGeq64F:
-		return rewriteValueARM_OpGeq64F(v, config)
-	case OpGeq8:
-		return rewriteValueARM_OpGeq8(v, config)
-	case OpGeq8U:
-		return rewriteValueARM_OpGeq8U(v, config)
-	case OpGetClosurePtr:
-		return rewriteValueARM_OpGetClosurePtr(v, config)
-	case OpGoCall:
-		return rewriteValueARM_OpGoCall(v, config)
-	case OpGreater16:
-		return rewriteValueARM_OpGreater16(v, config)
-	case OpGreater16U:
-		return rewriteValueARM_OpGreater16U(v, config)
-	case OpGreater32:
-		return rewriteValueARM_OpGreater32(v, config)
-	case OpGreater32F:
-		return rewriteValueARM_OpGreater32F(v, config)
-	case OpGreater32U:
-		return rewriteValueARM_OpGreater32U(v, config)
-	case OpGreater64F:
-		return rewriteValueARM_OpGreater64F(v, config)
-	case OpGreater8:
-		return rewriteValueARM_OpGreater8(v, config)
-	case OpGreater8U:
-		return rewriteValueARM_OpGreater8U(v, config)
 	case OpARMGreaterEqual:
 		return rewriteValueARM_OpARMGreaterEqual(v, config)
 	case OpARMGreaterEqualU:
@@ -262,58 +124,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMGreaterThan(v, config)
 	case OpARMGreaterThanU:
 		return rewriteValueARM_OpARMGreaterThanU(v, config)
-	case OpHmul16:
-		return rewriteValueARM_OpHmul16(v, config)
-	case OpHmul16u:
-		return rewriteValueARM_OpHmul16u(v, config)
-	case OpHmul32:
-		return rewriteValueARM_OpHmul32(v, config)
-	case OpHmul32u:
-		return rewriteValueARM_OpHmul32u(v, config)
-	case OpHmul8:
-		return rewriteValueARM_OpHmul8(v, config)
-	case OpHmul8u:
-		return rewriteValueARM_OpHmul8u(v, config)
-	case OpInterCall:
-		return rewriteValueARM_OpInterCall(v, config)
-	case OpIsInBounds:
-		return rewriteValueARM_OpIsInBounds(v, config)
-	case OpIsNonNil:
-		return rewriteValueARM_OpIsNonNil(v, config)
-	case OpIsSliceInBounds:
-		return rewriteValueARM_OpIsSliceInBounds(v, config)
-	case OpLeq16:
-		return rewriteValueARM_OpLeq16(v, config)
-	case OpLeq16U:
-		return rewriteValueARM_OpLeq16U(v, config)
-	case OpLeq32:
-		return rewriteValueARM_OpLeq32(v, config)
-	case OpLeq32F:
-		return rewriteValueARM_OpLeq32F(v, config)
-	case OpLeq32U:
-		return rewriteValueARM_OpLeq32U(v, config)
-	case OpLeq64F:
-		return rewriteValueARM_OpLeq64F(v, config)
-	case OpLeq8:
-		return rewriteValueARM_OpLeq8(v, config)
-	case OpLeq8U:
-		return rewriteValueARM_OpLeq8U(v, config)
-	case OpLess16:
-		return rewriteValueARM_OpLess16(v, config)
-	case OpLess16U:
-		return rewriteValueARM_OpLess16U(v, config)
-	case OpLess32:
-		return rewriteValueARM_OpLess32(v, config)
-	case OpLess32F:
-		return rewriteValueARM_OpLess32F(v, config)
-	case OpLess32U:
-		return rewriteValueARM_OpLess32U(v, config)
-	case OpLess64F:
-		return rewriteValueARM_OpLess64F(v, config)
-	case OpLess8:
-		return rewriteValueARM_OpLess8(v, config)
-	case OpLess8U:
-		return rewriteValueARM_OpLess8U(v, config)
 	case OpARMLessEqual:
 		return rewriteValueARM_OpARMLessEqual(v, config)
 	case OpARMLessEqualU:
@@ -322,38 +132,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMLessThan(v, config)
 	case OpARMLessThanU:
 		return rewriteValueARM_OpARMLessThanU(v, config)
-	case OpLoad:
-		return rewriteValueARM_OpLoad(v, config)
-	case OpLrot16:
-		return rewriteValueARM_OpLrot16(v, config)
-	case OpLrot32:
-		return rewriteValueARM_OpLrot32(v, config)
-	case OpLrot8:
-		return rewriteValueARM_OpLrot8(v, config)
-	case OpLsh16x16:
-		return rewriteValueARM_OpLsh16x16(v, config)
-	case OpLsh16x32:
-		return rewriteValueARM_OpLsh16x32(v, config)
-	case OpLsh16x64:
-		return rewriteValueARM_OpLsh16x64(v, config)
-	case OpLsh16x8:
-		return rewriteValueARM_OpLsh16x8(v, config)
-	case OpLsh32x16:
-		return rewriteValueARM_OpLsh32x16(v, config)
-	case OpLsh32x32:
-		return rewriteValueARM_OpLsh32x32(v, config)
-	case OpLsh32x64:
-		return rewriteValueARM_OpLsh32x64(v, config)
-	case OpLsh32x8:
-		return rewriteValueARM_OpLsh32x8(v, config)
-	case OpLsh8x16:
-		return rewriteValueARM_OpLsh8x16(v, config)
-	case OpLsh8x32:
-		return rewriteValueARM_OpLsh8x32(v, config)
-	case OpLsh8x64:
-		return rewriteValueARM_OpLsh8x64(v, config)
-	case OpLsh8x8:
-		return rewriteValueARM_OpLsh8x8(v, config)
 	case OpARMMOVBUload:
 		return rewriteValueARM_OpARMMOVBUload(v, config)
 	case OpARMMOVBUreg:
@@ -422,60 +200,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMMVNshiftRL(v, config)
 	case OpARMMVNshiftRLreg:
 		return rewriteValueARM_OpARMMVNshiftRLreg(v, config)
-	case OpMod16:
-		return rewriteValueARM_OpMod16(v, config)
-	case OpMod16u:
-		return rewriteValueARM_OpMod16u(v, config)
-	case OpMod32:
-		return rewriteValueARM_OpMod32(v, config)
-	case OpMod32u:
-		return rewriteValueARM_OpMod32u(v, config)
-	case OpMod8:
-		return rewriteValueARM_OpMod8(v, config)
-	case OpMod8u:
-		return rewriteValueARM_OpMod8u(v, config)
-	case OpMove:
-		return rewriteValueARM_OpMove(v, config)
-	case OpMul16:
-		return rewriteValueARM_OpMul16(v, config)
-	case OpMul32:
-		return rewriteValueARM_OpMul32(v, config)
-	case OpMul32F:
-		return rewriteValueARM_OpMul32F(v, config)
-	case OpMul32uhilo:
-		return rewriteValueARM_OpMul32uhilo(v, config)
-	case OpMul64F:
-		return rewriteValueARM_OpMul64F(v, config)
-	case OpMul8:
-		return rewriteValueARM_OpMul8(v, config)
-	case OpNeg16:
-		return rewriteValueARM_OpNeg16(v, config)
-	case OpNeg32:
-		return rewriteValueARM_OpNeg32(v, config)
-	case OpNeg32F:
-		return rewriteValueARM_OpNeg32F(v, config)
-	case OpNeg64F:
-		return rewriteValueARM_OpNeg64F(v, config)
-	case OpNeg8:
-		return rewriteValueARM_OpNeg8(v, config)
-	case OpNeq16:
-		return rewriteValueARM_OpNeq16(v, config)
-	case OpNeq32:
-		return rewriteValueARM_OpNeq32(v, config)
-	case OpNeq32F:
-		return rewriteValueARM_OpNeq32F(v, config)
-	case OpNeq64F:
-		return rewriteValueARM_OpNeq64F(v, config)
-	case OpNeq8:
-		return rewriteValueARM_OpNeq8(v, config)
-	case OpNeqB:
-		return rewriteValueARM_OpNeqB(v, config)
-	case OpNeqPtr:
-		return rewriteValueARM_OpNeqPtr(v, config)
-	case OpNilCheck:
-		return rewriteValueARM_OpNilCheck(v, config)
-	case OpNot:
-		return rewriteValueARM_OpNot(v, config)
 	case OpARMNotEqual:
 		return rewriteValueARM_OpARMNotEqual(v, config)
 	case OpARMOR:
@@ -494,16 +218,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMORshiftRL(v, config)
 	case OpARMORshiftRLreg:
 		return rewriteValueARM_OpARMORshiftRLreg(v, config)
-	case OpOffPtr:
-		return rewriteValueARM_OpOffPtr(v, config)
-	case OpOr16:
-		return rewriteValueARM_OpOr16(v, config)
-	case OpOr32:
-		return rewriteValueARM_OpOr32(v, config)
-	case OpOr8:
-		return rewriteValueARM_OpOr8(v, config)
-	case OpOrB:
-		return rewriteValueARM_OpOrB(v, config)
 	case OpARMRSB:
 		return rewriteValueARM_OpARMRSB(v, config)
 	case OpARMRSBSshiftLL:
@@ -546,54 +260,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMRSCshiftRL(v, config)
 	case OpARMRSCshiftRLreg:
 		return rewriteValueARM_OpARMRSCshiftRLreg(v, config)
-	case OpRsh16Ux16:
-		return rewriteValueARM_OpRsh16Ux16(v, config)
-	case OpRsh16Ux32:
-		return rewriteValueARM_OpRsh16Ux32(v, config)
-	case OpRsh16Ux64:
-		return rewriteValueARM_OpRsh16Ux64(v, config)
-	case OpRsh16Ux8:
-		return rewriteValueARM_OpRsh16Ux8(v, config)
-	case OpRsh16x16:
-		return rewriteValueARM_OpRsh16x16(v, config)
-	case OpRsh16x32:
-		return rewriteValueARM_OpRsh16x32(v, config)
-	case OpRsh16x64:
-		return rewriteValueARM_OpRsh16x64(v, config)
-	case OpRsh16x8:
-		return rewriteValueARM_OpRsh16x8(v, config)
-	case OpRsh32Ux16:
-		return rewriteValueARM_OpRsh32Ux16(v, config)
-	case OpRsh32Ux32:
-		return rewriteValueARM_OpRsh32Ux32(v, config)
-	case OpRsh32Ux64:
-		return rewriteValueARM_OpRsh32Ux64(v, config)
-	case OpRsh32Ux8:
-		return rewriteValueARM_OpRsh32Ux8(v, config)
-	case OpRsh32x16:
-		return rewriteValueARM_OpRsh32x16(v, config)
-	case OpRsh32x32:
-		return rewriteValueARM_OpRsh32x32(v, config)
-	case OpRsh32x64:
-		return rewriteValueARM_OpRsh32x64(v, config)
-	case OpRsh32x8:
-		return rewriteValueARM_OpRsh32x8(v, config)
-	case OpRsh8Ux16:
-		return rewriteValueARM_OpRsh8Ux16(v, config)
-	case OpRsh8Ux32:
-		return rewriteValueARM_OpRsh8Ux32(v, config)
-	case OpRsh8Ux64:
-		return rewriteValueARM_OpRsh8Ux64(v, config)
-	case OpRsh8Ux8:
-		return rewriteValueARM_OpRsh8Ux8(v, config)
-	case OpRsh8x16:
-		return rewriteValueARM_OpRsh8x16(v, config)
-	case OpRsh8x32:
-		return rewriteValueARM_OpRsh8x32(v, config)
-	case OpRsh8x64:
-		return rewriteValueARM_OpRsh8x64(v, config)
-	case OpRsh8x8:
-		return rewriteValueARM_OpRsh8x8(v, config)
 	case OpARMSBC:
 		return rewriteValueARM_OpARMSBC(v, config)
 	case OpARMSBCconst:
@@ -654,6 +320,356 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMSUBshiftRL(v, config)
 	case OpARMSUBshiftRLreg:
 		return rewriteValueARM_OpARMSUBshiftRLreg(v, config)
+	case OpARMXOR:
+		return rewriteValueARM_OpARMXOR(v, config)
+	case OpARMXORconst:
+		return rewriteValueARM_OpARMXORconst(v, config)
+	case OpARMXORshiftLL:
+		return rewriteValueARM_OpARMXORshiftLL(v, config)
+	case OpARMXORshiftLLreg:
+		return rewriteValueARM_OpARMXORshiftLLreg(v, config)
+	case OpARMXORshiftRA:
+		return rewriteValueARM_OpARMXORshiftRA(v, config)
+	case OpARMXORshiftRAreg:
+		return rewriteValueARM_OpARMXORshiftRAreg(v, config)
+	case OpARMXORshiftRL:
+		return rewriteValueARM_OpARMXORshiftRL(v, config)
+	case OpARMXORshiftRLreg:
+		return rewriteValueARM_OpARMXORshiftRLreg(v, config)
+	case OpAdd16:
+		return rewriteValueARM_OpAdd16(v, config)
+	case OpAdd32:
+		return rewriteValueARM_OpAdd32(v, config)
+	case OpAdd32F:
+		return rewriteValueARM_OpAdd32F(v, config)
+	case OpAdd32carry:
+		return rewriteValueARM_OpAdd32carry(v, config)
+	case OpAdd32withcarry:
+		return rewriteValueARM_OpAdd32withcarry(v, config)
+	case OpAdd64F:
+		return rewriteValueARM_OpAdd64F(v, config)
+	case OpAdd8:
+		return rewriteValueARM_OpAdd8(v, config)
+	case OpAddPtr:
+		return rewriteValueARM_OpAddPtr(v, config)
+	case OpAddr:
+		return rewriteValueARM_OpAddr(v, config)
+	case OpAnd16:
+		return rewriteValueARM_OpAnd16(v, config)
+	case OpAnd32:
+		return rewriteValueARM_OpAnd32(v, config)
+	case OpAnd8:
+		return rewriteValueARM_OpAnd8(v, config)
+	case OpAndB:
+		return rewriteValueARM_OpAndB(v, config)
+	case OpClosureCall:
+		return rewriteValueARM_OpClosureCall(v, config)
+	case OpCom16:
+		return rewriteValueARM_OpCom16(v, config)
+	case OpCom32:
+		return rewriteValueARM_OpCom32(v, config)
+	case OpCom8:
+		return rewriteValueARM_OpCom8(v, config)
+	case OpConst16:
+		return rewriteValueARM_OpConst16(v, config)
+	case OpConst32:
+		return rewriteValueARM_OpConst32(v, config)
+	case OpConst32F:
+		return rewriteValueARM_OpConst32F(v, config)
+	case OpConst64F:
+		return rewriteValueARM_OpConst64F(v, config)
+	case OpConst8:
+		return rewriteValueARM_OpConst8(v, config)
+	case OpConstBool:
+		return rewriteValueARM_OpConstBool(v, config)
+	case OpConstNil:
+		return rewriteValueARM_OpConstNil(v, config)
+	case OpConvert:
+		return rewriteValueARM_OpConvert(v, config)
+	case OpCvt32Fto32:
+		return rewriteValueARM_OpCvt32Fto32(v, config)
+	case OpCvt32Fto32U:
+		return rewriteValueARM_OpCvt32Fto32U(v, config)
+	case OpCvt32Fto64F:
+		return rewriteValueARM_OpCvt32Fto64F(v, config)
+	case OpCvt32Uto32F:
+		return rewriteValueARM_OpCvt32Uto32F(v, config)
+	case OpCvt32Uto64F:
+		return rewriteValueARM_OpCvt32Uto64F(v, config)
+	case OpCvt32to32F:
+		return rewriteValueARM_OpCvt32to32F(v, config)
+	case OpCvt32to64F:
+		return rewriteValueARM_OpCvt32to64F(v, config)
+	case OpCvt64Fto32:
+		return rewriteValueARM_OpCvt64Fto32(v, config)
+	case OpCvt64Fto32F:
+		return rewriteValueARM_OpCvt64Fto32F(v, config)
+	case OpCvt64Fto32U:
+		return rewriteValueARM_OpCvt64Fto32U(v, config)
+	case OpDeferCall:
+		return rewriteValueARM_OpDeferCall(v, config)
+	case OpDiv16:
+		return rewriteValueARM_OpDiv16(v, config)
+	case OpDiv16u:
+		return rewriteValueARM_OpDiv16u(v, config)
+	case OpDiv32:
+		return rewriteValueARM_OpDiv32(v, config)
+	case OpDiv32F:
+		return rewriteValueARM_OpDiv32F(v, config)
+	case OpDiv32u:
+		return rewriteValueARM_OpDiv32u(v, config)
+	case OpDiv64F:
+		return rewriteValueARM_OpDiv64F(v, config)
+	case OpDiv8:
+		return rewriteValueARM_OpDiv8(v, config)
+	case OpDiv8u:
+		return rewriteValueARM_OpDiv8u(v, config)
+	case OpEq16:
+		return rewriteValueARM_OpEq16(v, config)
+	case OpEq32:
+		return rewriteValueARM_OpEq32(v, config)
+	case OpEq32F:
+		return rewriteValueARM_OpEq32F(v, config)
+	case OpEq64F:
+		return rewriteValueARM_OpEq64F(v, config)
+	case OpEq8:
+		return rewriteValueARM_OpEq8(v, config)
+	case OpEqB:
+		return rewriteValueARM_OpEqB(v, config)
+	case OpEqPtr:
+		return rewriteValueARM_OpEqPtr(v, config)
+	case OpGeq16:
+		return rewriteValueARM_OpGeq16(v, config)
+	case OpGeq16U:
+		return rewriteValueARM_OpGeq16U(v, config)
+	case OpGeq32:
+		return rewriteValueARM_OpGeq32(v, config)
+	case OpGeq32F:
+		return rewriteValueARM_OpGeq32F(v, config)
+	case OpGeq32U:
+		return rewriteValueARM_OpGeq32U(v, config)
+	case OpGeq64F:
+		return rewriteValueARM_OpGeq64F(v, config)
+	case OpGeq8:
+		return rewriteValueARM_OpGeq8(v, config)
+	case OpGeq8U:
+		return rewriteValueARM_OpGeq8U(v, config)
+	case OpGetClosurePtr:
+		return rewriteValueARM_OpGetClosurePtr(v, config)
+	case OpGoCall:
+		return rewriteValueARM_OpGoCall(v, config)
+	case OpGreater16:
+		return rewriteValueARM_OpGreater16(v, config)
+	case OpGreater16U:
+		return rewriteValueARM_OpGreater16U(v, config)
+	case OpGreater32:
+		return rewriteValueARM_OpGreater32(v, config)
+	case OpGreater32F:
+		return rewriteValueARM_OpGreater32F(v, config)
+	case OpGreater32U:
+		return rewriteValueARM_OpGreater32U(v, config)
+	case OpGreater64F:
+		return rewriteValueARM_OpGreater64F(v, config)
+	case OpGreater8:
+		return rewriteValueARM_OpGreater8(v, config)
+	case OpGreater8U:
+		return rewriteValueARM_OpGreater8U(v, config)
+	case OpHmul16:
+		return rewriteValueARM_OpHmul16(v, config)
+	case OpHmul16u:
+		return rewriteValueARM_OpHmul16u(v, config)
+	case OpHmul32:
+		return rewriteValueARM_OpHmul32(v, config)
+	case OpHmul32u:
+		return rewriteValueARM_OpHmul32u(v, config)
+	case OpHmul8:
+		return rewriteValueARM_OpHmul8(v, config)
+	case OpHmul8u:
+		return rewriteValueARM_OpHmul8u(v, config)
+	case OpInterCall:
+		return rewriteValueARM_OpInterCall(v, config)
+	case OpIsInBounds:
+		return rewriteValueARM_OpIsInBounds(v, config)
+	case OpIsNonNil:
+		return rewriteValueARM_OpIsNonNil(v, config)
+	case OpIsSliceInBounds:
+		return rewriteValueARM_OpIsSliceInBounds(v, config)
+	case OpLeq16:
+		return rewriteValueARM_OpLeq16(v, config)
+	case OpLeq16U:
+		return rewriteValueARM_OpLeq16U(v, config)
+	case OpLeq32:
+		return rewriteValueARM_OpLeq32(v, config)
+	case OpLeq32F:
+		return rewriteValueARM_OpLeq32F(v, config)
+	case OpLeq32U:
+		return rewriteValueARM_OpLeq32U(v, config)
+	case OpLeq64F:
+		return rewriteValueARM_OpLeq64F(v, config)
+	case OpLeq8:
+		return rewriteValueARM_OpLeq8(v, config)
+	case OpLeq8U:
+		return rewriteValueARM_OpLeq8U(v, config)
+	case OpLess16:
+		return rewriteValueARM_OpLess16(v, config)
+	case OpLess16U:
+		return rewriteValueARM_OpLess16U(v, config)
+	case OpLess32:
+		return rewriteValueARM_OpLess32(v, config)
+	case OpLess32F:
+		return rewriteValueARM_OpLess32F(v, config)
+	case OpLess32U:
+		return rewriteValueARM_OpLess32U(v, config)
+	case OpLess64F:
+		return rewriteValueARM_OpLess64F(v, config)
+	case OpLess8:
+		return rewriteValueARM_OpLess8(v, config)
+	case OpLess8U:
+		return rewriteValueARM_OpLess8U(v, config)
+	case OpLoad:
+		return rewriteValueARM_OpLoad(v, config)
+	case OpLrot16:
+		return rewriteValueARM_OpLrot16(v, config)
+	case OpLrot32:
+		return rewriteValueARM_OpLrot32(v, config)
+	case OpLrot8:
+		return rewriteValueARM_OpLrot8(v, config)
+	case OpLsh16x16:
+		return rewriteValueARM_OpLsh16x16(v, config)
+	case OpLsh16x32:
+		return rewriteValueARM_OpLsh16x32(v, config)
+	case OpLsh16x64:
+		return rewriteValueARM_OpLsh16x64(v, config)
+	case OpLsh16x8:
+		return rewriteValueARM_OpLsh16x8(v, config)
+	case OpLsh32x16:
+		return rewriteValueARM_OpLsh32x16(v, config)
+	case OpLsh32x32:
+		return rewriteValueARM_OpLsh32x32(v, config)
+	case OpLsh32x64:
+		return rewriteValueARM_OpLsh32x64(v, config)
+	case OpLsh32x8:
+		return rewriteValueARM_OpLsh32x8(v, config)
+	case OpLsh8x16:
+		return rewriteValueARM_OpLsh8x16(v, config)
+	case OpLsh8x32:
+		return rewriteValueARM_OpLsh8x32(v, config)
+	case OpLsh8x64:
+		return rewriteValueARM_OpLsh8x64(v, config)
+	case OpLsh8x8:
+		return rewriteValueARM_OpLsh8x8(v, config)
+	case OpMod16:
+		return rewriteValueARM_OpMod16(v, config)
+	case OpMod16u:
+		return rewriteValueARM_OpMod16u(v, config)
+	case OpMod32:
+		return rewriteValueARM_OpMod32(v, config)
+	case OpMod32u:
+		return rewriteValueARM_OpMod32u(v, config)
+	case OpMod8:
+		return rewriteValueARM_OpMod8(v, config)
+	case OpMod8u:
+		return rewriteValueARM_OpMod8u(v, config)
+	case OpMove:
+		return rewriteValueARM_OpMove(v, config)
+	case OpMul16:
+		return rewriteValueARM_OpMul16(v, config)
+	case OpMul32:
+		return rewriteValueARM_OpMul32(v, config)
+	case OpMul32F:
+		return rewriteValueARM_OpMul32F(v, config)
+	case OpMul32uhilo:
+		return rewriteValueARM_OpMul32uhilo(v, config)
+	case OpMul64F:
+		return rewriteValueARM_OpMul64F(v, config)
+	case OpMul8:
+		return rewriteValueARM_OpMul8(v, config)
+	case OpNeg16:
+		return rewriteValueARM_OpNeg16(v, config)
+	case OpNeg32:
+		return rewriteValueARM_OpNeg32(v, config)
+	case OpNeg32F:
+		return rewriteValueARM_OpNeg32F(v, config)
+	case OpNeg64F:
+		return rewriteValueARM_OpNeg64F(v, config)
+	case OpNeg8:
+		return rewriteValueARM_OpNeg8(v, config)
+	case OpNeq16:
+		return rewriteValueARM_OpNeq16(v, config)
+	case OpNeq32:
+		return rewriteValueARM_OpNeq32(v, config)
+	case OpNeq32F:
+		return rewriteValueARM_OpNeq32F(v, config)
+	case OpNeq64F:
+		return rewriteValueARM_OpNeq64F(v, config)
+	case OpNeq8:
+		return rewriteValueARM_OpNeq8(v, config)
+	case OpNeqB:
+		return rewriteValueARM_OpNeqB(v, config)
+	case OpNeqPtr:
+		return rewriteValueARM_OpNeqPtr(v, config)
+	case OpNilCheck:
+		return rewriteValueARM_OpNilCheck(v, config)
+	case OpNot:
+		return rewriteValueARM_OpNot(v, config)
+	case OpOffPtr:
+		return rewriteValueARM_OpOffPtr(v, config)
+	case OpOr16:
+		return rewriteValueARM_OpOr16(v, config)
+	case OpOr32:
+		return rewriteValueARM_OpOr32(v, config)
+	case OpOr8:
+		return rewriteValueARM_OpOr8(v, config)
+	case OpOrB:
+		return rewriteValueARM_OpOrB(v, config)
+	case OpRsh16Ux16:
+		return rewriteValueARM_OpRsh16Ux16(v, config)
+	case OpRsh16Ux32:
+		return rewriteValueARM_OpRsh16Ux32(v, config)
+	case OpRsh16Ux64:
+		return rewriteValueARM_OpRsh16Ux64(v, config)
+	case OpRsh16Ux8:
+		return rewriteValueARM_OpRsh16Ux8(v, config)
+	case OpRsh16x16:
+		return rewriteValueARM_OpRsh16x16(v, config)
+	case OpRsh16x32:
+		return rewriteValueARM_OpRsh16x32(v, config)
+	case OpRsh16x64:
+		return rewriteValueARM_OpRsh16x64(v, config)
+	case OpRsh16x8:
+		return rewriteValueARM_OpRsh16x8(v, config)
+	case OpRsh32Ux16:
+		return rewriteValueARM_OpRsh32Ux16(v, config)
+	case OpRsh32Ux32:
+		return rewriteValueARM_OpRsh32Ux32(v, config)
+	case OpRsh32Ux64:
+		return rewriteValueARM_OpRsh32Ux64(v, config)
+	case OpRsh32Ux8:
+		return rewriteValueARM_OpRsh32Ux8(v, config)
+	case OpRsh32x16:
+		return rewriteValueARM_OpRsh32x16(v, config)
+	case OpRsh32x32:
+		return rewriteValueARM_OpRsh32x32(v, config)
+	case OpRsh32x64:
+		return rewriteValueARM_OpRsh32x64(v, config)
+	case OpRsh32x8:
+		return rewriteValueARM_OpRsh32x8(v, config)
+	case OpRsh8Ux16:
+		return rewriteValueARM_OpRsh8Ux16(v, config)
+	case OpRsh8Ux32:
+		return rewriteValueARM_OpRsh8Ux32(v, config)
+	case OpRsh8Ux64:
+		return rewriteValueARM_OpRsh8Ux64(v, config)
+	case OpRsh8Ux8:
+		return rewriteValueARM_OpRsh8Ux8(v, config)
+	case OpRsh8x16:
+		return rewriteValueARM_OpRsh8x16(v, config)
+	case OpRsh8x32:
+		return rewriteValueARM_OpRsh8x32(v, config)
+	case OpRsh8x64:
+		return rewriteValueARM_OpRsh8x64(v, config)
+	case OpRsh8x8:
+		return rewriteValueARM_OpRsh8x8(v, config)
 	case OpSignExt16to32:
 		return rewriteValueARM_OpSignExt16to32(v, config)
 	case OpSignExt8to16:
@@ -690,22 +706,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpTrunc32to16(v, config)
 	case OpTrunc32to8:
 		return rewriteValueARM_OpTrunc32to8(v, config)
-	case OpARMXOR:
-		return rewriteValueARM_OpARMXOR(v, config)
-	case OpARMXORconst:
-		return rewriteValueARM_OpARMXORconst(v, config)
-	case OpARMXORshiftLL:
-		return rewriteValueARM_OpARMXORshiftLL(v, config)
-	case OpARMXORshiftLLreg:
-		return rewriteValueARM_OpARMXORshiftLLreg(v, config)
-	case OpARMXORshiftRA:
-		return rewriteValueARM_OpARMXORshiftRA(v, config)
-	case OpARMXORshiftRAreg:
-		return rewriteValueARM_OpARMXORshiftRAreg(v, config)
-	case OpARMXORshiftRL:
-		return rewriteValueARM_OpARMXORshiftRL(v, config)
-	case OpARMXORshiftRLreg:
-		return rewriteValueARM_OpARMXORshiftRLreg(v, config)
 	case OpXor16:
 		return rewriteValueARM_OpXor16(v, config)
 	case OpXor32:
@@ -775,9 +775,9 @@ func rewriteValueARM_OpARMADC(v *Value, config *Config) bool {
 		y := v_1.Args[0]
 		flags := v.Args[2]
 		v.reset(OpARMADCshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -794,9 +794,9 @@ func rewriteValueARM_OpARMADC(v *Value, config *Config) bool {
 		x := v.Args[1]
 		flags := v.Args[2]
 		v.reset(OpARMADCshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -813,9 +813,9 @@ func rewriteValueARM_OpARMADC(v *Value, config *Config) bool {
 		y := v_1.Args[0]
 		flags := v.Args[2]
 		v.reset(OpARMADCshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -832,9 +832,9 @@ func rewriteValueARM_OpARMADC(v *Value, config *Config) bool {
 		x := v.Args[1]
 		flags := v.Args[2]
 		v.reset(OpARMADCshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -851,9 +851,9 @@ func rewriteValueARM_OpARMADC(v *Value, config *Config) bool {
 		y := v_1.Args[0]
 		flags := v.Args[2]
 		v.reset(OpARMADCshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -870,9 +870,9 @@ func rewriteValueARM_OpARMADC(v *Value, config *Config) bool {
 		x := v.Args[1]
 		flags := v.Args[2]
 		v.reset(OpARMADCshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -1040,19 +1040,19 @@ func rewriteValueARM_OpARMADCshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADCconst [c] (SLLconst <x.Type> x [d]) flags)
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		flags := v.Args[2]
 		v.reset(OpARMADCconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(flags)
 		return true
@@ -1061,17 +1061,17 @@ func rewriteValueARM_OpARMADCshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADCconst x [int64(uint32(c)<<uint64(d))] flags)
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		flags := v.Args[2]
 		v.reset(OpARMADCconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
 		v.AddArg(flags)
 		return true
 	}
@@ -1114,9 +1114,9 @@ func rewriteValueARM_OpARMADCshiftLLreg(v *Value, config *Config) bool {
 		c := v_2.AuxInt
 		flags := v.Args[3]
 		v.reset(OpARMADCshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -1129,19 +1129,19 @@ func rewriteValueARM_OpARMADCshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADCconst [c] (SRAconst <x.Type> x [d]) flags)
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		flags := v.Args[2]
 		v.reset(OpARMADCconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(flags)
 		return true
@@ -1150,17 +1150,17 @@ func rewriteValueARM_OpARMADCshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADCconst x [int64(int32(c)>>uint64(d))] flags)
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		flags := v.Args[2]
 		v.reset(OpARMADCconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
 		v.AddArg(flags)
 		return true
 	}
@@ -1203,9 +1203,9 @@ func rewriteValueARM_OpARMADCshiftRAreg(v *Value, config *Config) bool {
 		c := v_2.AuxInt
 		flags := v.Args[3]
 		v.reset(OpARMADCshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -1218,19 +1218,19 @@ func rewriteValueARM_OpARMADCshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADCconst [c] (SRLconst <x.Type> x [d]) flags)
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		flags := v.Args[2]
 		v.reset(OpARMADCconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(flags)
 		return true
@@ -1239,17 +1239,17 @@ func rewriteValueARM_OpARMADCshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADCconst x [int64(uint32(c)>>uint64(d))] flags)
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		flags := v.Args[2]
 		v.reset(OpARMADCconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
 		v.AddArg(flags)
 		return true
 	}
@@ -1292,9 +1292,9 @@ func rewriteValueARM_OpARMADCshiftRLreg(v *Value, config *Config) bool {
 		c := v_2.AuxInt
 		flags := v.Args[3]
 		v.reset(OpARMADCshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		v.AddArg(flags)
 		return true
 	}
@@ -1345,9 +1345,9 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMADDshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADD (SLLconst [c] y) x)
@@ -1362,9 +1362,9 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMADDshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADD x (SRLconst [c] y))
@@ -1379,9 +1379,9 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMADDshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADD (SRLconst [c] y) x)
@@ -1396,9 +1396,9 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMADDshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADD x (SRAconst [c] y))
@@ -1413,9 +1413,9 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMADDshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADD (SRAconst [c] y) x)
@@ -1430,9 +1430,9 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMADDshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADD x (SLL y z))
@@ -1654,9 +1654,9 @@ func rewriteValueARM_OpARMADDS(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMADDSshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADDS (SLLconst [c] y) x)
@@ -1671,9 +1671,9 @@ func rewriteValueARM_OpARMADDS(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMADDSshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADDS x (SRLconst [c] y))
@@ -1688,9 +1688,9 @@ func rewriteValueARM_OpARMADDS(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMADDSshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADDS (SRLconst [c] y) x)
@@ -1705,9 +1705,9 @@ func rewriteValueARM_OpARMADDS(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMADDSshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADDS x (SRAconst [c] y))
@@ -1722,9 +1722,9 @@ func rewriteValueARM_OpARMADDS(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMADDSshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADDS (SRAconst [c] y) x)
@@ -1739,9 +1739,9 @@ func rewriteValueARM_OpARMADDS(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMADDSshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (ADDS x (SLL y z))
@@ -1855,18 +1855,18 @@ func rewriteValueARM_OpARMADDSshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDSconst [c] (SLLconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMADDSconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1874,16 +1874,16 @@ func rewriteValueARM_OpARMADDSshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDSconst x [int64(uint32(c)<<uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMADDSconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -1922,9 +1922,9 @@ func rewriteValueARM_OpARMADDSshiftLLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMADDSshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -1936,18 +1936,18 @@ func rewriteValueARM_OpARMADDSshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDSconst [c] (SRAconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMADDSconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1955,16 +1955,16 @@ func rewriteValueARM_OpARMADDSshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDSconst x [int64(int32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMADDSconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -2003,9 +2003,9 @@ func rewriteValueARM_OpARMADDSshiftRAreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMADDSshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2017,18 +2017,18 @@ func rewriteValueARM_OpARMADDSshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDSconst [c] (SRLconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMADDSconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -2036,16 +2036,16 @@ func rewriteValueARM_OpARMADDSshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDSconst x [int64(uint32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMADDSconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -2084,9 +2084,9 @@ func rewriteValueARM_OpARMADDSshiftRLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMADDSshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2196,18 +2196,18 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDconst [c] (SLLconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMADDconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -2215,16 +2215,16 @@ func rewriteValueARM_OpARMADDshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDconst x [int64(uint32(c)<<uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMADDconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -2263,9 +2263,9 @@ func rewriteValueARM_OpARMADDshiftLLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMADDshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2277,18 +2277,18 @@ func rewriteValueARM_OpARMADDshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDconst [c] (SRAconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMADDconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -2296,16 +2296,16 @@ func rewriteValueARM_OpARMADDshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDconst x [int64(int32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMADDconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -2344,9 +2344,9 @@ func rewriteValueARM_OpARMADDshiftRAreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMADDshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2358,18 +2358,18 @@ func rewriteValueARM_OpARMADDshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDconst [c] (SRLconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMADDconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -2377,16 +2377,16 @@ func rewriteValueARM_OpARMADDshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ADDconst x [int64(uint32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMADDconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -2425,9 +2425,9 @@ func rewriteValueARM_OpARMADDshiftRLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMADDshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2477,9 +2477,9 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMANDshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND (SLLconst [c] y) x)
@@ -2494,9 +2494,9 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMANDshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND x (SRLconst [c] y))
@@ -2511,9 +2511,9 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMANDshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND (SRLconst [c] y) x)
@@ -2528,9 +2528,9 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMANDshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND x (SRAconst [c] y))
@@ -2545,9 +2545,9 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMANDshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND (SRAconst [c] y) x)
@@ -2562,9 +2562,9 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		y := v_0.Args[0]
 		x := v.Args[1]
 		v.reset(OpARMANDshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND x (SLL y z))
@@ -2706,12 +2706,12 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		if v_1.Op != OpARMMVNshiftLL {
 			break
 		}
-		y := v_1.Args[0]
 		c := v_1.AuxInt
+		y := v_1.Args[0]
 		v.reset(OpARMBICshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND x (MVNshiftRL y [c]))
@@ -2723,12 +2723,12 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		if v_1.Op != OpARMMVNshiftRL {
 			break
 		}
-		y := v_1.Args[0]
 		c := v_1.AuxInt
+		y := v_1.Args[0]
 		v.reset(OpARMBICshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (AND x (MVNshiftRA y [c]))
@@ -2740,12 +2740,12 @@ func rewriteValueARM_OpARMAND(v *Value, config *Config) bool {
 		if v_1.Op != OpARMMVNshiftRA {
 			break
 		}
-		y := v_1.Args[0]
 		c := v_1.AuxInt
+		y := v_1.Args[0]
 		v.reset(OpARMBICshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2817,18 +2817,18 @@ func rewriteValueARM_OpARMANDshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ANDconst [c] (SLLconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMANDconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -2836,32 +2836,32 @@ func rewriteValueARM_OpARMANDshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ANDconst x [int64(uint32(c)<<uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMANDconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	// match: (ANDshiftLL x y:(SLLconst x [c]) [d])
 	// cond: c==d
 	// result: y
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		y := v.Args[1]
 		if y.Op != OpARMSLLconst {
 			break
 		}
+		c := y.AuxInt
 		if x != y.Args[0] {
 			break
 		}
-		c := y.AuxInt
-		d := v.AuxInt
 		if !(c == d) {
 			break
 		}
@@ -2906,9 +2906,9 @@ func rewriteValueARM_OpARMANDshiftLLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMANDshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -2920,18 +2920,18 @@ func rewriteValueARM_OpARMANDshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ANDconst [c] (SRAconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMANDconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -2939,32 +2939,32 @@ func rewriteValueARM_OpARMANDshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (ANDconst x [int64(int32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMANDconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	// match: (ANDshiftRA x y:(SRAconst x [c]) [d])
 	// cond: c==d
 	// result: y
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		y := v.Args[1]
 		if y.Op != OpARMSRAconst {
 			break
 		}
+		c := y.AuxInt
 		if x != y.Args[0] {
 			break
 		}
-		c := y.AuxInt
-		d := v.AuxInt
 		if !(c == d) {
 			break
 		}
@@ -3009,9 +3009,9 @@ func rewriteValueARM_OpARMANDshiftRAreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMANDshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -3023,18 +3023,18 @@ func rewriteValueARM_OpARMANDshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ANDconst [c] (SRLconst <x.Type> x [d]))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMANDconst)
 		v.AuxInt = c
 		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
 		v0.AuxInt = d
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -3042,32 +3042,32 @@ func rewriteValueARM_OpARMANDshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (ANDconst x [int64(uint32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMANDconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	// match: (ANDshiftRL x y:(SRLconst x [c]) [d])
 	// cond: c==d
 	// result: y
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		y := v.Args[1]
 		if y.Op != OpARMSRLconst {
 			break
 		}
+		c := y.AuxInt
 		if x != y.Args[0] {
 			break
 		}
-		c := y.AuxInt
-		d := v.AuxInt
 		if !(c == d) {
 			break
 		}
@@ -3112,209 +3112,12 @@ func rewriteValueARM_OpARMANDshiftRLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMANDshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
-}
-func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add16 x y)
-	// cond:
-	// result: (ADD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32 x y)
-	// cond:
-	// result: (ADD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAdd32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32F x y)
-	// cond:
-	// result: (ADDF x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADDF)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAdd32carry(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32carry x y)
-	// cond:
-	// result: (ADDS x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADDS)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAdd32withcarry(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32withcarry x y c)
-	// cond:
-	// result: (ADC x y c)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		c := v.Args[2]
-		v.reset(OpARMADC)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(c)
-		return true
-	}
-}
-func rewriteValueARM_OpAdd64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add64F x y)
-	// cond:
-	// result: (ADDD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADDD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAdd8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add8 x y)
-	// cond:
-	// result: (ADD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAddPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (AddPtr x y)
-	// cond:
-	// result: (ADD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMADD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Addr {sym} base)
-	// cond:
-	// result: (MOVWaddr {sym} base)
-	for {
-		sym := v.Aux
-		base := v.Args[0]
-		v.reset(OpARMMOVWaddr)
-		v.Aux = sym
-		v.AddArg(base)
-		return true
-	}
-}
-func rewriteValueARM_OpAnd16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (And16 x y)
-	// cond:
-	// result: (AND x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMAND)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAnd32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (And32 x y)
-	// cond:
-	// result: (AND x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMAND)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAnd8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (And8 x y)
-	// cond:
-	// result: (AND x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMAND)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpAndB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (AndB x y)
-	// cond:
-	// result: (AND x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMAND)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
 }
 func rewriteValueARM_OpARMBIC(v *Value, config *Config) bool {
 	b := v.Block
@@ -3346,9 +3149,9 @@ func rewriteValueARM_OpARMBIC(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMBICshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (BIC x (SRLconst [c] y))
@@ -3363,9 +3166,9 @@ func rewriteValueARM_OpARMBIC(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMBICshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (BIC x (SRAconst [c] y))
@@ -3380,9 +3183,9 @@ func rewriteValueARM_OpARMBIC(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMBICshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (BIC x (SLL y z))
@@ -3501,32 +3304,32 @@ func rewriteValueARM_OpARMBICshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (BICconst x [int64(uint32(c)<<uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMBICconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	// match: (BICshiftLL x (SLLconst x [c]) [d])
 	// cond: c==d
 	// result: (MOVWconst [0])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMSLLconst {
 			break
 		}
+		c := v_1.AuxInt
 		if x != v_1.Args[0] {
 			break
 		}
-		c := v_1.AuxInt
-		d := v.AuxInt
 		if !(c == d) {
 			break
 		}
@@ -3551,9 +3354,9 @@ func rewriteValueARM_OpARMBICshiftLLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMBICshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -3565,32 +3368,32 @@ func rewriteValueARM_OpARMBICshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (BICconst x [int64(int32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMBICconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	// match: (BICshiftRA x (SRAconst x [c]) [d])
 	// cond: c==d
 	// result: (MOVWconst [0])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMSRAconst {
 			break
 		}
+		c := v_1.AuxInt
 		if x != v_1.Args[0] {
 			break
 		}
-		c := v_1.AuxInt
-		d := v.AuxInt
 		if !(c == d) {
 			break
 		}
@@ -3615,9 +3418,9 @@ func rewriteValueARM_OpARMBICshiftRAreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMBICshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -3629,32 +3432,32 @@ func rewriteValueARM_OpARMBICshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (BICconst x [int64(uint32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMBICconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	// match: (BICshiftRL x (SRLconst x [c]) [d])
 	// cond: c==d
 	// result: (MOVWconst [0])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMSRLconst {
 			break
 		}
+		c := v_1.AuxInt
 		if x != v_1.Args[0] {
 			break
 		}
-		c := v_1.AuxInt
-		d := v.AuxInt
 		if !(c == d) {
 			break
 		}
@@ -3679,9 +3482,9 @@ func rewriteValueARM_OpARMBICshiftRLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMBICshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -3693,11 +3496,11 @@ func rewriteValueARM_OpARMCMOVWHSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [c])
 	for {
+		c := v.AuxInt
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMFlagEQ {
 			break
 		}
-		c := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = c
 		return true
@@ -3720,11 +3523,11 @@ func rewriteValueARM_OpARMCMOVWHSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [c])
 	for {
+		c := v.AuxInt
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMFlagLT_UGT {
 			break
 		}
-		c := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = c
 		return true
@@ -3747,11 +3550,11 @@ func rewriteValueARM_OpARMCMOVWHSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [c])
 	for {
+		c := v.AuxInt
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMFlagGT_UGT {
 			break
 		}
-		c := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = c
 		return true
@@ -3760,17 +3563,17 @@ func rewriteValueARM_OpARMCMOVWHSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (CMOVWLSconst x flags [c])
 	for {
+		c := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMInvertFlags {
 			break
 		}
 		flags := v_1.Args[0]
-		c := v.AuxInt
 		v.reset(OpARMCMOVWLSconst)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(flags)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -3782,11 +3585,11 @@ func rewriteValueARM_OpARMCMOVWLSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [c])
 	for {
+		c := v.AuxInt
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMFlagEQ {
 			break
 		}
-		c := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = c
 		return true
@@ -3795,11 +3598,11 @@ func rewriteValueARM_OpARMCMOVWLSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [c])
 	for {
+		c := v.AuxInt
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMFlagLT_ULT {
 			break
 		}
-		c := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = c
 		return true
@@ -3822,11 +3625,11 @@ func rewriteValueARM_OpARMCMOVWLSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [c])
 	for {
+		c := v.AuxInt
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMFlagGT_ULT {
 			break
 		}
-		c := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = c
 		return true
@@ -3849,17 +3652,17 @@ func rewriteValueARM_OpARMCMOVWLSconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (CMOVWHSconst x flags [c])
 	for {
+		c := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMInvertFlags {
 			break
 		}
 		flags := v_1.Args[0]
-		c := v.AuxInt
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(flags)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -3911,9 +3714,9 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMCMPshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (CMP (SLLconst [c] y) x)
@@ -3929,9 +3732,9 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(OpARMInvertFlags)
 		v0 := b.NewValue0(v.Line, OpARMCMPshiftLL, TypeFlags)
+		v0.AuxInt = c
 		v0.AddArg(x)
 		v0.AddArg(y)
-		v0.AuxInt = c
 		v.AddArg(v0)
 		return true
 	}
@@ -3947,9 +3750,9 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMCMPshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (CMP (SRLconst [c] y) x)
@@ -3965,9 +3768,9 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(OpARMInvertFlags)
 		v0 := b.NewValue0(v.Line, OpARMCMPshiftRL, TypeFlags)
+		v0.AuxInt = c
 		v0.AddArg(x)
 		v0.AddArg(y)
-		v0.AuxInt = c
 		v.AddArg(v0)
 		return true
 	}
@@ -3983,9 +3786,9 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		y := v_1.Args[0]
 		v.reset(OpARMCMPshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	// match: (CMP (SRAconst [c] y) x)
@@ -4001,9 +3804,9 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(OpARMInvertFlags)
 		v0 := b.NewValue0(v.Line, OpARMCMPshiftRA, TypeFlags)
+		v0.AuxInt = c
 		v0.AddArg(x)
 		v0.AddArg(y)
-		v0.AuxInt = c
 		v.AddArg(v0)
 		return true
 	}
@@ -4166,12 +3969,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: int32(x)==int32(y)
 	// result: (FlagEQ)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) == int32(y)) {
 			break
 		}
@@ -4182,12 +3985,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: int32(x)<int32(y) && uint32(x)<uint32(y)
 	// result: (FlagLT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) < int32(y) && uint32(x) < uint32(y)) {
 			break
 		}
@@ -4198,12 +4001,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: int32(x)<int32(y) && uint32(x)>uint32(y)
 	// result: (FlagLT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) < int32(y) && uint32(x) > uint32(y)) {
 			break
 		}
@@ -4214,12 +4017,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: int32(x)>int32(y) && uint32(x)<uint32(y)
 	// result: (FlagGT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) > int32(y) && uint32(x) < uint32(y)) {
 			break
 		}
@@ -4230,12 +4033,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: int32(x)>int32(y) && uint32(x)>uint32(y)
 	// result: (FlagGT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) > int32(y) && uint32(x) > uint32(y)) {
 			break
 		}
@@ -4246,11 +4049,11 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: 0xff < c
 	// result: (FlagLT_ULT)
 	for {
+		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVBUreg {
 			break
 		}
-		c := v.AuxInt
 		if !(0xff < c) {
 			break
 		}
@@ -4261,11 +4064,11 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: 0xffff < c
 	// result: (FlagLT_ULT)
 	for {
+		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVHUreg {
 			break
 		}
-		c := v.AuxInt
 		if !(0xffff < c) {
 			break
 		}
@@ -4276,12 +4079,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: 0 <= int32(m) && int32(m) < int32(n)
 	// result: (FlagLT_ULT)
 	for {
+		n := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMANDconst {
 			break
 		}
 		m := v_0.AuxInt
-		n := v.AuxInt
 		if !(0 <= int32(m) && int32(m) < int32(n)) {
 			break
 		}
@@ -4292,12 +4095,12 @@ func rewriteValueARM_OpARMCMPconst(v *Value, config *Config) bool {
 	// cond: 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n)
 	// result: (FlagLT_ULT)
 	for {
+		n := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMSRLconst {
 			break
 		}
 		c := v_0.AuxInt
-		n := v.AuxInt
 		if !(0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n)) {
 			break
 		}
@@ -4313,19 +4116,19 @@ func rewriteValueARM_OpARMCMPshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (InvertFlags (CMPconst [c] (SLLconst <x.Type> x [d])))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMInvertFlags)
 		v0 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
 		v0.AuxInt = c
 		v1 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v1.AddArg(x)
 		v1.AuxInt = d
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
@@ -4334,16 +4137,16 @@ func rewriteValueARM_OpARMCMPshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (CMPconst x [int64(uint32(c)<<uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMCMPconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -4384,9 +4187,9 @@ func rewriteValueARM_OpARMCMPshiftLLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMCMPshiftLL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -4398,19 +4201,19 @@ func rewriteValueARM_OpARMCMPshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (InvertFlags (CMPconst [c] (SRAconst <x.Type> x [d])))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMInvertFlags)
 		v0 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
 		v0.AuxInt = c
 		v1 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v1.AddArg(x)
 		v1.AuxInt = d
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
@@ -4419,16 +4222,16 @@ func rewriteValueARM_OpARMCMPshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (CMPconst x [int64(int32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMCMPconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -4469,9 +4272,9 @@ func rewriteValueARM_OpARMCMPshiftRAreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMCMPshiftRA)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
@@ -4483,19 +4286,19 @@ func rewriteValueARM_OpARMCMPshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (InvertFlags (CMPconst [c] (SRLconst <x.Type> x [d])))
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		d := v.AuxInt
 		v.reset(OpARMInvertFlags)
 		v0 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
 		v0.AuxInt = c
 		v1 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v1.AddArg(x)
 		v1.AuxInt = d
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
@@ -4504,16 +4307,16 @@ func rewriteValueARM_OpARMCMPshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (CMPconst x [int64(uint32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		x := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMCMPconst)
-		v.AddArg(x)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -4554,305 +4357,12 @@ func rewriteValueARM_OpARMCMPshiftRLreg(v *Value, config *Config) bool {
 		}
 		c := v_2.AuxInt
 		v.reset(OpARMCMPshiftRL)
+		v.AuxInt = c
 		v.AddArg(x)
 		v.AddArg(y)
-		v.AuxInt = c
 		return true
 	}
 	return false
-}
-func rewriteValueARM_OpClosureCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ClosureCall [argwid] entry closure mem)
-	// cond:
-	// result: (CALLclosure [argwid] entry closure mem)
-	for {
-		argwid := v.AuxInt
-		entry := v.Args[0]
-		closure := v.Args[1]
-		mem := v.Args[2]
-		v.reset(OpARMCALLclosure)
-		v.AuxInt = argwid
-		v.AddArg(entry)
-		v.AddArg(closure)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueARM_OpCom16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Com16 x)
-	// cond:
-	// result: (MVN x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMVN)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCom32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Com32 x)
-	// cond:
-	// result: (MVN x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMVN)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCom8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Com8 x)
-	// cond:
-	// result: (MVN x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMVN)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpConst16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const16 [val])
-	// cond:
-	// result: (MOVWconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValueARM_OpConst32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const32 [val])
-	// cond:
-	// result: (MOVWconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValueARM_OpConst32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const32F [val])
-	// cond:
-	// result: (MOVFconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(OpARMMOVFconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValueARM_OpConst64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const64F [val])
-	// cond:
-	// result: (MOVDconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(OpARMMOVDconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValueARM_OpConst8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const8 [val])
-	// cond:
-	// result: (MOVWconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValueARM_OpConstBool(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ConstBool [b])
-	// cond:
-	// result: (MOVWconst [b])
-	for {
-		b := v.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = b
-		return true
-	}
-}
-func rewriteValueARM_OpConstNil(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ConstNil)
-	// cond:
-	// result: (MOVWconst [0])
-	for {
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpConvert(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Convert x mem)
-	// cond:
-	// result: (MOVWconvert x mem)
-	for {
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpARMMOVWconvert)
-		v.AddArg(x)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32Fto32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Fto32 x)
-	// cond:
-	// result: (MOVFW x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVFW)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32Fto32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Fto32U x)
-	// cond:
-	// result: (MOVFWU x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVFWU)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32Fto64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Fto64F x)
-	// cond:
-	// result: (MOVFD x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVFD)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32Uto32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Uto32F x)
-	// cond:
-	// result: (MOVWUF x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVWUF)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32Uto64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Uto64F x)
-	// cond:
-	// result: (MOVWUD x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVWUD)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32to32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32to32F x)
-	// cond:
-	// result: (MOVWF x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVWF)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt32to64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32to64F x)
-	// cond:
-	// result: (MOVWD x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVWD)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt64Fto32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt64Fto32 x)
-	// cond:
-	// result: (MOVDW x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVDW)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt64Fto32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt64Fto32F x)
-	// cond:
-	// result: (MOVDF x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVDF)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueARM_OpCvt64Fto32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt64Fto32U x)
-	// cond:
-	// result: (MOVDWU x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMMOVDWU)
-		v.AddArg(x)
-		return true
-	}
 }
 func rewriteValueARM_OpARMDIV(v *Value, config *Config) bool {
 	b := v.Block
@@ -4935,285 +4445,6 @@ func rewriteValueARM_OpARMDIVU(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValueARM_OpDeferCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (DeferCall [argwid] mem)
-	// cond:
-	// result: (CALLdefer [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpARMCALLdefer)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div16 x y)
-	// cond:
-	// result: (DIV (SignExt16to32 x) (SignExt16to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIV)
-		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div16u x y)
-	// cond:
-	// result: (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIVU)
-		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div32 x y)
-	// cond:
-	// result: (DIV x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIV)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div32F x y)
-	// cond:
-	// result: (DIVF x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIVF)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv32u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div32u x y)
-	// cond:
-	// result: (DIVU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIVU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div64F x y)
-	// cond:
-	// result: (DIVD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIVD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div8 x y)
-	// cond:
-	// result: (DIV (SignExt8to32 x) (SignExt8to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIV)
-		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM_OpDiv8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div8u x y)
-	// cond:
-	// result: (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMDIVU)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM_OpEq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq16 x y)
-	// cond:
-	// result: (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpEq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq32 x y)
-	// cond:
-	// result: (Equal (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpEq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq32F x y)
-	// cond:
-	// result: (Equal (CMPF x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpEq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq64F x y)
-	// cond:
-	// result: (Equal (CMPD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpEq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq8 x y)
-	// cond:
-	// result: (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpEqB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (EqB x y)
-	// cond:
-	// result: (XORconst [1] (XOR <config.fe.TypeBool()> x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMXORconst)
-		v.AuxInt = 1
-		v0 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeBool())
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpEqPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (EqPtr x y)
-	// cond:
-	// result: (Equal (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueARM_OpARMEqual(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -5291,336 +4522,6 @@ func rewriteValueARM_OpARMEqual(v *Value, config *Config) bool {
 		return true
 	}
 	return false
-}
-func rewriteValueARM_OpGeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq16 x y)
-	// cond:
-	// result: (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq16U x y)
-	// cond:
-	// result: (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq32 x y)
-	// cond:
-	// result: (GreaterEqual (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq32F x y)
-	// cond:
-	// result: (GreaterEqual (CMPF x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq32U x y)
-	// cond:
-	// result: (GreaterEqualU (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq64F x y)
-	// cond:
-	// result: (GreaterEqual (CMPD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq8 x y)
-	// cond:
-	// result: (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq8U x y)
-	// cond:
-	// result: (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGetClosurePtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GetClosurePtr)
-	// cond:
-	// result: (LoweredGetClosurePtr)
-	for {
-		v.reset(OpARMLoweredGetClosurePtr)
-		return true
-	}
-}
-func rewriteValueARM_OpGoCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GoCall [argwid] mem)
-	// cond:
-	// result: (CALLgo [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(OpARMCALLgo)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater16 x y)
-	// cond:
-	// result: (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater16U x y)
-	// cond:
-	// result: (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater32 x y)
-	// cond:
-	// result: (GreaterThan (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater32F x y)
-	// cond:
-	// result: (GreaterThan (CMPF x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater32U x y)
-	// cond:
-	// result: (GreaterThanU (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater64F x y)
-	// cond:
-	// result: (GreaterThan (CMPD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater8 x y)
-	// cond:
-	// result: (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater8U x y)
-	// cond:
-	// result: (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
 }
 func rewriteValueARM_OpARMGreaterEqual(v *Value, config *Config) bool {
 	b := v.Block
@@ -5934,495 +4835,6 @@ func rewriteValueARM_OpARMGreaterThanU(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValueARM_OpHmul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16 x y)
-	// cond:
-	// result: (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeInt32())
-		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		v.AuxInt = 16
-		return true
-	}
-}
-func rewriteValueARM_OpHmul16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16u x y)
-	// cond:
-	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSRLconst)
-		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeUInt32())
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		v.AuxInt = 16
-		return true
-	}
-}
-func rewriteValueARM_OpHmul32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul32 x y)
-	// cond:
-	// result: (HMUL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMHMUL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpHmul32u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul32u x y)
-	// cond:
-	// result: (HMULU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMHMULU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM_OpHmul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8 x y)
-	// cond:
-	// result: (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeInt16())
-		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		v.AuxInt = 8
-		return true
-	}
-}
-func rewriteValueARM_OpHmul8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8u x y)
-	// cond:
-	// result: (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSRLconst)
-		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeUInt16())
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		v.AuxInt = 8
-		return true
-	}
-}
-func rewriteValueARM_OpInterCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (InterCall [argwid] entry mem)
-	// cond:
-	// result: (CALLinter [argwid] entry mem)
-	for {
-		argwid := v.AuxInt
-		entry := v.Args[0]
-		mem := v.Args[1]
-		v.reset(OpARMCALLinter)
-		v.AuxInt = argwid
-		v.AddArg(entry)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValueARM_OpIsInBounds(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (IsInBounds idx len)
-	// cond:
-	// result: (LessThanU (CMP idx len))
-	for {
-		idx := v.Args[0]
-		len := v.Args[1]
-		v.reset(OpARMLessThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpIsNonNil(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (IsNonNil ptr)
-	// cond:
-	// result: (NotEqual (CMPconst [0] ptr))
-	for {
-		ptr := v.Args[0]
-		v.reset(OpARMNotEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v0.AuxInt = 0
-		v0.AddArg(ptr)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpIsSliceInBounds(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (IsSliceInBounds idx len)
-	// cond:
-	// result: (LessEqualU (CMP idx len))
-	for {
-		idx := v.Args[0]
-		len := v.Args[1]
-		v.reset(OpARMLessEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq16 x y)
-	// cond:
-	// result: (LessEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq16U x y)
-	// cond:
-	// result: (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq32 x y)
-	// cond:
-	// result: (LessEqual (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq32F x y)
-	// cond:
-	// result: (GreaterEqual (CMPF y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq32U x y)
-	// cond:
-	// result: (LessEqualU (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq64F x y)
-	// cond:
-	// result: (GreaterEqual (CMPD y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq8 x y)
-	// cond:
-	// result: (LessEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessEqual)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLeq8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq8U x y)
-	// cond:
-	// result: (LessEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessEqualU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less16 x y)
-	// cond:
-	// result: (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessThan)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less16U x y)
-	// cond:
-	// result: (LessThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less32 x y)
-	// cond:
-	// result: (LessThan (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessThan)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less32F x y)
-	// cond:
-	// result: (GreaterThan (CMPF y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less32U x y)
-	// cond:
-	// result: (LessThanU (CMP x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less64F x y)
-	// cond:
-	// result: (GreaterThan (CMPD y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less8 x y)
-	// cond:
-	// result: (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessThan)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLess8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less8U x y)
-	// cond:
-	// result: (LessThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMLessThanU)
-		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueARM_OpARMLessEqual(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -6734,502 +5146,6 @@ func rewriteValueARM_OpARMLessThanU(v *Value, config *Config) bool {
 		return true
 	}
 	return false
-}
-func rewriteValueARM_OpLoad(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Load <t> ptr mem)
-	// cond: t.IsBoolean()
-	// result: (MOVBUload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(t.IsBoolean()) {
-			break
-		}
-		v.reset(OpARMMOVBUload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: (is8BitInt(t) && isSigned(t))
-	// result: (MOVBload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is8BitInt(t) && isSigned(t)) {
-			break
-		}
-		v.reset(OpARMMOVBload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: (is8BitInt(t) && !isSigned(t))
-	// result: (MOVBUload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is8BitInt(t) && !isSigned(t)) {
-			break
-		}
-		v.reset(OpARMMOVBUload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: (is16BitInt(t) && isSigned(t))
-	// result: (MOVHload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is16BitInt(t) && isSigned(t)) {
-			break
-		}
-		v.reset(OpARMMOVHload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: (is16BitInt(t) && !isSigned(t))
-	// result: (MOVHUload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is16BitInt(t) && !isSigned(t)) {
-			break
-		}
-		v.reset(OpARMMOVHUload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: (is32BitInt(t) || isPtr(t))
-	// result: (MOVWload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is32BitInt(t) || isPtr(t)) {
-			break
-		}
-		v.reset(OpARMMOVWload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: is32BitFloat(t)
-	// result: (MOVFload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is32BitFloat(t)) {
-			break
-		}
-		v.reset(OpARMMOVFload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: is64BitFloat(t)
-	// result: (MOVDload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is64BitFloat(t)) {
-			break
-		}
-		v.reset(OpARMMOVDload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpLrot16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lrot16 <t> x [c])
-	// cond:
-	// result: (OR (SLLconst <t> x [c&15]) (SRLconst <t> x [16-c&15]))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		c := v.AuxInt
-		v.reset(OpARMOR)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
-		v0.AddArg(x)
-		v0.AuxInt = c & 15
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpARMSRLconst, t)
-		v1.AddArg(x)
-		v1.AuxInt = 16 - c&15
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM_OpLrot32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lrot32 x [c])
-	// cond:
-	// result: (SRRconst x [32-c&31])
-	for {
-		x := v.Args[0]
-		c := v.AuxInt
-		v.reset(OpARMSRRconst)
-		v.AddArg(x)
-		v.AuxInt = 32 - c&31
-		return true
-	}
-}
-func rewriteValueARM_OpLrot8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lrot8 <t> x [c])
-	// cond:
-	// result: (OR (SLLconst <t> x [c&7]) (SRLconst <t> x [8-c&7]))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		c := v.AuxInt
-		v.reset(OpARMOR)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
-		v0.AddArg(x)
-		v0.AuxInt = c & 7
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpARMSRLconst, t)
-		v1.AddArg(x)
-		v1.AuxInt = 8 - c&7
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM_OpLsh16x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x16 x y)
-	// cond:
-	// result: (CMOVWHSconst (SLL <x.Type> x (ZeroExt16to32 y)) (CMPconst [256] (ZeroExt16to32 y)) [0])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMCMOVWHSconst)
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v3.AddArg(y)
-		v2.AddArg(v3)
-		v.AddArg(v2)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpLsh16x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x32 x y)
-	// cond:
-	// result: (CMOVWHSconst (SLL <x.Type> x y) (CMPconst [256] y) [0])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMCMOVWHSconst)
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v1.AuxInt = 256
-		v1.AddArg(y)
-		v.AddArg(v1)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpLsh16x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x64 x (Const64 [c]))
-	// cond: uint64(c) < 16
-	// result: (SLLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 16) {
-			break
-		}
-		v.reset(OpARMSLLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Lsh16x64 _ (Const64 [c]))
-	// cond: uint64(c) >= 16
-	// result: (Const16 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 16) {
-			break
-		}
-		v.reset(OpConst16)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpLsh16x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x8  x y)
-	// cond:
-	// result: (SLL x (ZeroExt8to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSLL)
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLsh32x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x16 x y)
-	// cond:
-	// result: (CMOVWHSconst (SLL <x.Type> x (ZeroExt16to32 y)) (CMPconst [256] (ZeroExt16to32 y)) [0])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMCMOVWHSconst)
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v3.AddArg(y)
-		v2.AddArg(v3)
-		v.AddArg(v2)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpLsh32x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x32 x y)
-	// cond:
-	// result: (CMOVWHSconst (SLL <x.Type> x y) (CMPconst [256] y) [0])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMCMOVWHSconst)
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v1.AuxInt = 256
-		v1.AddArg(y)
-		v.AddArg(v1)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpLsh32x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x64 x (Const64 [c]))
-	// cond: uint64(c) < 32
-	// result: (SLLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 32) {
-			break
-		}
-		v.reset(OpARMSLLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Lsh32x64 _ (Const64 [c]))
-	// cond: uint64(c) >= 32
-	// result: (Const32 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 32) {
-			break
-		}
-		v.reset(OpConst32)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpLsh32x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x8  x y)
-	// cond:
-	// result: (SLL x (ZeroExt8to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSLL)
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpLsh8x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x16 x y)
-	// cond:
-	// result: (CMOVWHSconst (SLL <x.Type> x (ZeroExt16to32 y)) (CMPconst [256] (ZeroExt16to32 y)) [0])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMCMOVWHSconst)
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v1.AddArg(y)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		v2 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v2.AuxInt = 256
-		v3 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
-		v3.AddArg(y)
-		v2.AddArg(v3)
-		v.AddArg(v2)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpLsh8x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x32 x y)
-	// cond:
-	// result: (CMOVWHSconst (SLL <x.Type> x y) (CMPconst [256] y) [0])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMCMOVWHSconst)
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
-		v1.AuxInt = 256
-		v1.AddArg(y)
-		v.AddArg(v1)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValueARM_OpLsh8x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x64 x (Const64 [c]))
-	// cond: uint64(c) < 8
-	// result: (SLLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 8) {
-			break
-		}
-		v.reset(OpARMSLLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Lsh8x64 _ (Const64 [c]))
-	// cond: uint64(c) >= 8
-	// result: (Const8 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 8) {
-			break
-		}
-		v.reset(OpConst8)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpLsh8x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x8  x y)
-	// cond:
-	// result: (SLL x (ZeroExt8to32 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(OpARMSLL)
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
 }
 func rewriteValueARM_OpARMMOVBUload(v *Value, config *Config) bool {
 	b := v.Block
@@ -8413,17 +6329,17 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
 		if v_0.Op != OpARMADDshiftLL {
 			break
 		}
+		c := v_0.AuxInt
 		ptr := v_0.Args[0]
 		idx := v_0.Args[1]
-		c := v_0.AuxInt
 		mem := v.Args[1]
 		if !(sym == nil && !config.nacl) {
 			break
 		}
 		v.reset(OpARMMOVWloadshiftLL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8439,17 +6355,17 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
 		if v_0.Op != OpARMADDshiftRL {
 			break
 		}
+		c := v_0.AuxInt
 		ptr := v_0.Args[0]
 		idx := v_0.Args[1]
-		c := v_0.AuxInt
 		mem := v.Args[1]
 		if !(sym == nil && !config.nacl) {
 			break
 		}
 		v.reset(OpARMMOVWloadshiftRL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8465,17 +6381,17 @@ func rewriteValueARM_OpARMMOVWload(v *Value, config *Config) bool {
 		if v_0.Op != OpARMADDshiftRA {
 			break
 		}
+		c := v_0.AuxInt
 		ptr := v_0.Args[0]
 		idx := v_0.Args[1]
-		c := v_0.AuxInt
 		mem := v.Args[1]
 		if !(sym == nil && !config.nacl) {
 			break
 		}
 		v.reset(OpARMMOVWloadshiftRA)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8550,13 +6466,13 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value, config *Config) bool {
 		if v_1.Op != OpARMSLLconst {
 			break
 		}
-		idx := v_1.Args[0]
 		c := v_1.AuxInt
+		idx := v_1.Args[0]
 		mem := v.Args[2]
 		v.reset(OpARMMOVWloadshiftLL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8568,14 +6484,14 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value, config *Config) bool {
 		if v_0.Op != OpARMSLLconst {
 			break
 		}
-		idx := v_0.Args[0]
 		c := v_0.AuxInt
+		idx := v_0.Args[0]
 		ptr := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpARMMOVWloadshiftLL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8588,13 +6504,13 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value, config *Config) bool {
 		if v_1.Op != OpARMSRLconst {
 			break
 		}
-		idx := v_1.Args[0]
 		c := v_1.AuxInt
+		idx := v_1.Args[0]
 		mem := v.Args[2]
 		v.reset(OpARMMOVWloadshiftRL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8606,14 +6522,14 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value, config *Config) bool {
 		if v_0.Op != OpARMSRLconst {
 			break
 		}
-		idx := v_0.Args[0]
 		c := v_0.AuxInt
+		idx := v_0.Args[0]
 		ptr := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpARMMOVWloadshiftRL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8626,13 +6542,13 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value, config *Config) bool {
 		if v_1.Op != OpARMSRAconst {
 			break
 		}
-		idx := v_1.Args[0]
 		c := v_1.AuxInt
+		idx := v_1.Args[0]
 		mem := v.Args[2]
 		v.reset(OpARMMOVWloadshiftRA)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8644,14 +6560,14 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value, config *Config) bool {
 		if v_0.Op != OpARMSRAconst {
 			break
 		}
-		idx := v_0.Args[0]
 		c := v_0.AuxInt
+		idx := v_0.Args[0]
 		ptr := v.Args[1]
 		mem := v.Args[2]
 		v.reset(OpARMMOVWloadshiftRA)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(mem)
 		return true
 	}
@@ -8664,18 +6580,18 @@ func rewriteValueARM_OpARMMOVWloadshiftLL(v *Value, config *Config) bool {
 	// cond: c==d && isSamePtr(ptr, ptr2)
 	// result: x
 	for {
+		c := v.AuxInt
 		ptr := v.Args[0]
 		idx := v.Args[1]
-		c := v.AuxInt
 		v_2 := v.Args[2]
 		if v_2.Op != OpARMMOVWstoreshiftLL {
 			break
 		}
+		d := v_2.AuxInt
 		ptr2 := v_2.Args[0]
 		if idx != v_2.Args[1] {
 			break
 		}
-		d := v_2.AuxInt
 		x := v_2.Args[2]
 		if !(c == d && isSamePtr(ptr, ptr2)) {
 			break
@@ -8689,13 +6605,13 @@ func rewriteValueARM_OpARMMOVWloadshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWload [int64(uint32(c)<<uint64(d))] ptr mem)
 	for {
+		d := v.AuxInt
 		ptr := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		mem := v.Args[2]
 		v.reset(OpARMMOVWload)
 		v.AuxInt = int64(uint32(c) << uint64(d))
@@ -8712,18 +6628,18 @@ func rewriteValueARM_OpARMMOVWloadshiftRA(v *Value, config *Config) bool {
 	// cond: c==d && isSamePtr(ptr, ptr2)
 	// result: x
 	for {
+		c := v.AuxInt
 		ptr := v.Args[0]
 		idx := v.Args[1]
-		c := v.AuxInt
 		v_2 := v.Args[2]
 		if v_2.Op != OpARMMOVWstoreshiftRA {
 			break
 		}
+		d := v_2.AuxInt
 		ptr2 := v_2.Args[0]
 		if idx != v_2.Args[1] {
 			break
 		}
-		d := v_2.AuxInt
 		x := v_2.Args[2]
 		if !(c == d && isSamePtr(ptr, ptr2)) {
 			break
@@ -8737,13 +6653,13 @@ func rewriteValueARM_OpARMMOVWloadshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWload [int64(int32(c)>>uint64(d))] ptr mem)
 	for {
+		d := v.AuxInt
 		ptr := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		mem := v.Args[2]
 		v.reset(OpARMMOVWload)
 		v.AuxInt = int64(int32(c) >> uint64(d))
@@ -8760,18 +6676,18 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value, config *Config) bool {
 	// cond: c==d && isSamePtr(ptr, ptr2)
 	// result: x
 	for {
+		c := v.AuxInt
 		ptr := v.Args[0]
 		idx := v.Args[1]
-		c := v.AuxInt
 		v_2 := v.Args[2]
 		if v_2.Op != OpARMMOVWstoreshiftRL {
 			break
 		}
+		d := v_2.AuxInt
 		ptr2 := v_2.Args[0]
 		if idx != v_2.Args[1] {
 			break
 		}
-		d := v_2.AuxInt
 		x := v_2.Args[2]
 		if !(c == d && isSamePtr(ptr, ptr2)) {
 			break
@@ -8785,13 +6701,13 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWload [int64(uint32(c)>>uint64(d))] ptr mem)
 	for {
+		d := v.AuxInt
 		ptr := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		mem := v.Args[2]
 		v.reset(OpARMMOVWload)
 		v.AuxInt = int64(uint32(c) >> uint64(d))
@@ -8920,18 +6836,18 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
 		if v_0.Op != OpARMADDshiftLL {
 			break
 		}
+		c := v_0.AuxInt
 		ptr := v_0.Args[0]
 		idx := v_0.Args[1]
-		c := v_0.AuxInt
 		val := v.Args[1]
 		mem := v.Args[2]
 		if !(sym == nil && !config.nacl) {
 			break
 		}
 		v.reset(OpARMMOVWstoreshiftLL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -8948,18 +6864,18 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
 		if v_0.Op != OpARMADDshiftRL {
 			break
 		}
+		c := v_0.AuxInt
 		ptr := v_0.Args[0]
 		idx := v_0.Args[1]
-		c := v_0.AuxInt
 		val := v.Args[1]
 		mem := v.Args[2]
 		if !(sym == nil && !config.nacl) {
 			break
 		}
 		v.reset(OpARMMOVWstoreshiftRL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -8976,18 +6892,18 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
 		if v_0.Op != OpARMADDshiftRA {
 			break
 		}
+		c := v_0.AuxInt
 		ptr := v_0.Args[0]
 		idx := v_0.Args[1]
-		c := v_0.AuxInt
 		val := v.Args[1]
 		mem := v.Args[2]
 		if !(sym == nil && !config.nacl) {
 			break
 		}
 		v.reset(OpARMMOVWstoreshiftRA)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9044,14 +6960,14 @@ func rewriteValueARM_OpARMMOVWstoreidx(v *Value, config *Config) bool {
 		if v_1.Op != OpARMSLLconst {
 			break
 		}
-		idx := v_1.Args[0]
 		c := v_1.AuxInt
+		idx := v_1.Args[0]
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstoreshiftLL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9064,15 +6980,15 @@ func rewriteValueARM_OpARMMOVWstoreidx(v *Value, config *Config) bool {
 		if v_0.Op != OpARMSLLconst {
 			break
 		}
-		idx := v_0.Args[0]
 		c := v_0.AuxInt
+		idx := v_0.Args[0]
 		ptr := v.Args[1]
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstoreshiftLL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9086,14 +7002,14 @@ func rewriteValueARM_OpARMMOVWstoreidx(v *Value, config *Config) bool {
 		if v_1.Op != OpARMSRLconst {
 			break
 		}
-		idx := v_1.Args[0]
 		c := v_1.AuxInt
+		idx := v_1.Args[0]
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstoreshiftRL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9106,15 +7022,15 @@ func rewriteValueARM_OpARMMOVWstoreidx(v *Value, config *Config) bool {
 		if v_0.Op != OpARMSRLconst {
 			break
 		}
-		idx := v_0.Args[0]
 		c := v_0.AuxInt
+		idx := v_0.Args[0]
 		ptr := v.Args[1]
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstoreshiftRL)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9128,14 +7044,14 @@ func rewriteValueARM_OpARMMOVWstoreidx(v *Value, config *Config) bool {
 		if v_1.Op != OpARMSRAconst {
 			break
 		}
-		idx := v_1.Args[0]
 		c := v_1.AuxInt
+		idx := v_1.Args[0]
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstoreshiftRA)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9148,15 +7064,15 @@ func rewriteValueARM_OpARMMOVWstoreidx(v *Value, config *Config) bool {
 		if v_0.Op != OpARMSRAconst {
 			break
 		}
-		idx := v_0.Args[0]
 		c := v_0.AuxInt
+		idx := v_0.Args[0]
 		ptr := v.Args[1]
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstoreshiftRA)
+		v.AuxInt = c
 		v.AddArg(ptr)
 		v.AddArg(idx)
-		v.AuxInt = c
 		v.AddArg(val)
 		v.AddArg(mem)
 		return true
@@ -9170,13 +7086,13 @@ func rewriteValueARM_OpARMMOVWstoreshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWstore [int64(uint32(c)<<uint64(d))] ptr val mem)
 	for {
+		d := v.AuxInt
 		ptr := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstore)
@@ -9195,13 +7111,13 @@ func rewriteValueARM_OpARMMOVWstoreshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWstore [int64(int32(c)>>uint64(d))] ptr val mem)
 	for {
+		d := v.AuxInt
 		ptr := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstore)
@@ -9220,13 +7136,13 @@ func rewriteValueARM_OpARMMOVWstoreshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWstore [int64(uint32(c)>>uint64(d))] ptr val mem)
 	for {
+		d := v.AuxInt
 		ptr := v.Args[0]
 		v_1 := v.Args[1]
 		if v_1.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_1.AuxInt
-		d := v.AuxInt
 		val := v.Args[2]
 		mem := v.Args[3]
 		v.reset(OpARMMOVWstore)
@@ -9323,9 +7239,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMADDshiftLL)
-		v.AddArg(x)
-		v.AddArg(x)
 		v.AuxInt = log2(c - 1)
+		v.AddArg(x)
+		v.AddArg(x)
 		return true
 	}
 	// match: (MUL x (MOVWconst [c]))
@@ -9342,9 +7258,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMRSBshiftLL)
-		v.AddArg(x)
-		v.AddArg(x)
 		v.AuxInt = log2(c + 1)
+		v.AddArg(x)
+		v.AddArg(x)
 		return true
 	}
 	// match: (MUL x (MOVWconst [c]))
@@ -9363,9 +7279,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 3)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 1
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9385,9 +7301,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 5)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 2
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9407,9 +7323,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 7)
 		v0 := b.NewValue0(v.Line, OpARMRSBshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 3
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9429,9 +7345,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 9)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 3
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9517,9 +7433,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMADDshiftLL)
-		v.AddArg(x)
-		v.AddArg(x)
 		v.AuxInt = log2(c - 1)
+		v.AddArg(x)
+		v.AddArg(x)
 		return true
 	}
 	// match: (MUL (MOVWconst [c]) x)
@@ -9536,9 +7452,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMRSBshiftLL)
-		v.AddArg(x)
-		v.AddArg(x)
 		v.AuxInt = log2(c + 1)
+		v.AddArg(x)
+		v.AddArg(x)
 		return true
 	}
 	// match: (MUL (MOVWconst [c]) x)
@@ -9557,9 +7473,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 3)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 1
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9579,9 +7495,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 5)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 2
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9601,9 +7517,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 7)
 		v0 := b.NewValue0(v.Line, OpARMRSBshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 3
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9623,9 +7539,9 @@ func rewriteValueARM_OpARMMUL(v *Value, config *Config) bool {
 		v.reset(OpARMSLLconst)
 		v.AuxInt = log2(c / 9)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = 3
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -9744,9 +7660,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = log2(c - 1)
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(a)
 		return true
@@ -9767,9 +7683,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Line, OpARMRSBshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = log2(c + 1)
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(a)
 		return true
@@ -9792,9 +7708,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 3)
 		v1 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 1
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -9818,9 +7734,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 5)
 		v1 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 2
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -9844,9 +7760,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 7)
 		v1 := b.NewValue0(v.Line, OpARMRSBshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 3
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -9870,9 +7786,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 9)
 		v1 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 3
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -9970,9 +7886,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = log2(c - 1)
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(a)
 		return true
@@ -9993,9 +7909,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		}
 		v.reset(OpARMADD)
 		v0 := b.NewValue0(v.Line, OpARMRSBshiftLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(x)
 		v0.AuxInt = log2(c + 1)
+		v0.AddArg(x)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		v.AddArg(a)
 		return true
@@ -10018,9 +7934,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 3)
 		v1 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 1
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -10044,9 +7960,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 5)
 		v1 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 2
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -10070,9 +7986,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 7)
 		v1 := b.NewValue0(v.Line, OpARMRSBshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 3
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -10096,9 +8012,9 @@ func rewriteValueARM_OpARMMULA(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
 		v0.AuxInt = log2(c / 9)
 		v1 := b.NewValue0(v.Line, OpARMADDshiftLL, x.Type)
-		v1.AddArg(x)
-		v1.AddArg(x)
 		v1.AuxInt = 3
+		v1.AddArg(x)
+		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		v.AddArg(a)
@@ -10153,8 +8069,8 @@ func rewriteValueARM_OpARMMVN(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpARMMVNshiftLL)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (MVN (SRLconst [c] x))
@@ -10168,8 +8084,8 @@ func rewriteValueARM_OpARMMVN(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpARMMVNshiftRL)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (MVN (SRAconst [c] x))
@@ -10183,8 +8099,8 @@ func rewriteValueARM_OpARMMVN(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		x := v_0.Args[0]
 		v.reset(OpARMMVNshiftRA)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (MVN (SLL x y))
@@ -10241,12 +8157,12 @@ func rewriteValueARM_OpARMMVNshiftLL(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [^int64(uint32(c)<<uint64(d))])
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = ^int64(uint32(c) << uint64(d))
 		return true
@@ -10267,8 +8183,8 @@ func rewriteValueARM_OpARMMVNshiftLLreg(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(OpARMMVNshiftLL)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -10280,12 +8196,12 @@ func rewriteValueARM_OpARMMVNshiftRA(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [^int64(int32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = ^int64(int32(c) >> uint64(d))
 		return true
@@ -10306,8 +8222,8 @@ func rewriteValueARM_OpARMMVNshiftRAreg(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(OpARMMVNshiftRA)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -10319,12 +8235,12 @@ func rewriteValueARM_OpARMMVNshiftRL(v *Value, config *Config) bool {
 	// cond:
 	// result: (MOVWconst [^int64(uint32(c)>>uint64(d))])
 	for {
+		d := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpARMMOVWconst {
 			break
 		}
 		c := v_0.AuxInt
-		d := v.AuxInt
 		v.reset(OpARMMOVWconst)
 		v.AuxInt = ^int64(uint32(c) >> uint64(d))
 		return true
@@ -10345,11 +8261,6462 @@ func rewriteValueARM_OpARMMVNshiftRLreg(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(OpARMMVNshiftRL)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
+}
+func rewriteValueARM_OpARMNotEqual(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NotEqual (FlagEQ))
+	// cond:
+	// result: (MOVWconst [0])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMFlagEQ {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (NotEqual (FlagLT_ULT))
+	// cond:
+	// result: (MOVWconst [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMFlagLT_ULT {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NotEqual (FlagLT_UGT))
+	// cond:
+	// result: (MOVWconst [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMFlagLT_UGT {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NotEqual (FlagGT_ULT))
+	// cond:
+	// result: (MOVWconst [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMFlagGT_ULT {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NotEqual (FlagGT_UGT))
+	// cond:
+	// result: (MOVWconst [1])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMFlagGT_UGT {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (NotEqual (InvertFlags x))
+	// cond:
+	// result: (NotEqual x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMInvertFlags {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARMNotEqual)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMOR(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (OR (MOVWconst [c]) x)
+	// cond:
+	// result: (ORconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR x (MOVWconst [c]))
+	// cond:
+	// result: (ORconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR x (SLLconst [c] y))
+	// cond:
+	// result: (ORshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMORshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (OR (SLLconst [c] y) x)
+	// cond:
+	// result: (ORshiftLL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMORshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (OR x (SRLconst [c] y))
+	// cond:
+	// result: (ORshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMORshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (OR (SRLconst [c] y) x)
+	// cond:
+	// result: (ORshiftRL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMORshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (OR x (SRAconst [c] y))
+	// cond:
+	// result: (ORshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMORshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (OR (SRAconst [c] y) x)
+	// cond:
+	// result: (ORshiftRA x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMORshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (OR x (SLL y z))
+	// cond:
+	// result: (ORshiftLLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMORshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (OR (SLL y z) x)
+	// cond:
+	// result: (ORshiftLLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMORshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (OR x (SRL y z))
+	// cond:
+	// result: (ORshiftRLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMORshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (OR (SRL y z) x)
+	// cond:
+	// result: (ORshiftRLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMORshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (OR x (SRA y z))
+	// cond:
+	// result: (ORshiftRAreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMORshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (OR (SRA y z) x)
+	// cond:
+	// result: (ORshiftRAreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMORshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (OR x x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORconst [0] x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORconst [c] _)
+	// cond: int32(c)==-1
+	// result: (MOVWconst [-1])
+	for {
+		c := v.AuxInt
+		if !(int32(c) == -1) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = -1
+		return true
+	}
+	// match: (ORconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [c|d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = c | d
+		return true
+	}
+	// match: (ORconst [c] (ORconst [d] x))
+	// cond:
+	// result: (ORconst [c|d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMORconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMORconst)
+		v.AuxInt = c | d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (ORconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ORshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (ORconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMORconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORshiftLL x y:(SLLconst x [c]) [d])
+	// cond: c==d
+	// result: y
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		y := v.Args[1]
+		if y.Op != OpARMSLLconst {
+			break
+		}
+		c := y.AuxInt
+		if x != y.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = y.Type
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (ORconst [c] (SLL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ORshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (ORshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMORshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (ORconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ORshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (ORconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMORconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORshiftRA x y:(SRAconst x [c]) [d])
+	// cond: c==d
+	// result: y
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		y := v.Args[1]
+		if y.Op != OpARMSRAconst {
+			break
+		}
+		c := y.AuxInt
+		if x != y.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = y.Type
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (ORconst [c] (SRA <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ORshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (ORshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMORshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (ORconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ORshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (ORconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMORconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORshiftRL x y:(SRLconst x [c]) [d])
+	// cond: c==d
+	// result: y
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		y := v.Args[1]
+		if y.Op != OpARMSRLconst {
+			break
+		}
+		c := y.AuxInt
+		if x != y.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = y.Type
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMORshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (ORconst [c] (SRL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (ORshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (ORshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMORshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSB (MOVWconst [c]) x)
+	// cond:
+	// result: (SUBconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSB x (MOVWconst [c]))
+	// cond:
+	// result: (RSBconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSB x (SLLconst [c] y))
+	// cond:
+	// result: (RSBshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMRSBshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (RSB (SLLconst [c] y) x)
+	// cond:
+	// result: (SUBshiftLL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMSUBshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (RSB x (SRLconst [c] y))
+	// cond:
+	// result: (RSBshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMRSBshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (RSB (SRLconst [c] y) x)
+	// cond:
+	// result: (SUBshiftRL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMSUBshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (RSB x (SRAconst [c] y))
+	// cond:
+	// result: (RSBshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMRSBshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (RSB (SRAconst [c] y) x)
+	// cond:
+	// result: (SUBshiftRA x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMSUBshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (RSB x (SLL y z))
+	// cond:
+	// result: (RSBshiftLLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMRSBshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (RSB (SLL y z) x)
+	// cond:
+	// result: (SUBshiftLLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMSUBshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (RSB x (SRL y z))
+	// cond:
+	// result: (RSBshiftRLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMRSBshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (RSB (SRL y z) x)
+	// cond:
+	// result: (SUBshiftRLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMSUBshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (RSB x (SRA y z))
+	// cond:
+	// result: (RSBshiftRAreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMRSBshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (RSB (SRA y z) x)
+	// cond:
+	// result: (SUBshiftRAreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMSUBshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (RSB x x)
+	// cond:
+	// result: (MOVWconst [0])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBSshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBSshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (SUBSconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBSshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (RSBSconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBSshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBSshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (SUBSconst [c] (SLL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBSshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (RSBSshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMRSBSshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBSshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBSshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (SUBSconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBSshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (RSBSconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBSshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBSshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (SUBSconst [c] (SRA <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBSshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (RSBSshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMRSBSshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBSshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBSshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (SUBSconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBSshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (RSBSconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBSshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBSshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (SUBSconst [c] (SRL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBSshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (RSBSshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMRSBSshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [int64(int32(c-d))])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int64(int32(c - d))
+		return true
+	}
+	// match: (RSBconst [c] (RSBconst [d] x))
+	// cond:
+	// result: (ADDconst [int64(int32(c-d))] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMRSBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMADDconst)
+		v.AuxInt = int64(int32(c - d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSBconst [c] (ADDconst [d] x))
+	// cond:
+	// result: (RSBconst [int64(int32(c-d))] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = int64(int32(c - d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSBconst [c] (SUBconst [d] x))
+	// cond:
+	// result: (RSBconst [int64(int32(c+d))] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSUBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = int64(int32(c + d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (SUBconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (RSBconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSBshiftLL x (SLLconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (SUBconst [c] (SLL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (RSBshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMRSBshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (SUBconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (RSBconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSBshiftRA x (SRAconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (SUBconst [c] (SRA <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (RSBshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMRSBshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (SUBconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (RSBconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMRSBconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (RSBshiftRL x (SRLconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSBshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSBshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (SUBconst [c] (SRL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (RSBshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (RSBshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMRSBshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCconst [c] (ADDconst [d] x) flags)
+	// cond:
+	// result: (RSCconst [int64(int32(c-d))] x flags)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		flags := v.Args[1]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = int64(int32(c - d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCconst [c] (SUBconst [d] x) flags)
+	// cond:
+	// result: (RSCconst [int64(int32(c+d))] x flags)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSUBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		flags := v.Args[1]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = int64(int32(c + d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCshiftLL (MOVWconst [c]) x [d] flags)
+	// cond:
+	// result: (SBCconst [c] (SLLconst <x.Type> x [d]) flags)
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCshiftLL x (MOVWconst [c]) [d] flags)
+	// cond:
+	// result: (RSCconst x [int64(uint32(c)<<uint64(d))] flags)
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCshiftLLreg (MOVWconst [c]) x y flags)
+	// cond:
+	// result: (SBCconst [c] (SLL <x.Type> x y) flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		flags := v.Args[3]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCshiftLLreg x y (MOVWconst [c]) flags)
+	// cond:
+	// result: (RSCshiftLL x y [c] flags)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		flags := v.Args[3]
+		v.reset(OpARMRSCshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCshiftRA (MOVWconst [c]) x [d] flags)
+	// cond:
+	// result: (SBCconst [c] (SRAconst <x.Type> x [d]) flags)
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCshiftRA x (MOVWconst [c]) [d] flags)
+	// cond:
+	// result: (RSCconst x [int64(int32(c)>>uint64(d))] flags)
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCshiftRAreg (MOVWconst [c]) x y flags)
+	// cond:
+	// result: (SBCconst [c] (SRA <x.Type> x y) flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		flags := v.Args[3]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCshiftRAreg x y (MOVWconst [c]) flags)
+	// cond:
+	// result: (RSCshiftRA x y [c] flags)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		flags := v.Args[3]
+		v.reset(OpARMRSCshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCshiftRL (MOVWconst [c]) x [d] flags)
+	// cond:
+	// result: (SBCconst [c] (SRLconst <x.Type> x [d]) flags)
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCshiftRL x (MOVWconst [c]) [d] flags)
+	// cond:
+	// result: (RSCconst x [int64(uint32(c)>>uint64(d))] flags)
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMRSCshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (RSCshiftRLreg (MOVWconst [c]) x y flags)
+	// cond:
+	// result: (SBCconst [c] (SRL <x.Type> x y) flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		flags := v.Args[3]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (RSCshiftRLreg x y (MOVWconst [c]) flags)
+	// cond:
+	// result: (RSCshiftRL x y [c] flags)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		flags := v.Args[3]
+		v.reset(OpARMRSCshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBC(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBC (MOVWconst [c]) x flags)
+	// cond:
+	// result: (RSCconst [c] x flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (MOVWconst [c]) flags)
+	// cond:
+	// result: (SBCconst [c] x flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (SLLconst [c] y) flags)
+	// cond:
+	// result: (SBCshiftLL x y [c] flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		flags := v.Args[2]
+		v.reset(OpARMSBCshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC (SLLconst [c] y) x flags)
+	// cond:
+	// result: (RSCshiftLL x y [c] flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (SRLconst [c] y) flags)
+	// cond:
+	// result: (SBCshiftRL x y [c] flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		flags := v.Args[2]
+		v.reset(OpARMSBCshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC (SRLconst [c] y) x flags)
+	// cond:
+	// result: (RSCshiftRL x y [c] flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (SRAconst [c] y) flags)
+	// cond:
+	// result: (SBCshiftRA x y [c] flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		flags := v.Args[2]
+		v.reset(OpARMSBCshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC (SRAconst [c] y) x flags)
+	// cond:
+	// result: (RSCshiftRA x y [c] flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (SLL y z) flags)
+	// cond:
+	// result: (SBCshiftLLreg x y z flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMSBCshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC (SLL y z) x flags)
+	// cond:
+	// result: (RSCshiftLLreg x y z flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (SRL y z) flags)
+	// cond:
+	// result: (SBCshiftRLreg x y z flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMSBCshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC (SRL y z) x flags)
+	// cond:
+	// result: (RSCshiftRLreg x y z flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC x (SRA y z) flags)
+	// cond:
+	// result: (SBCshiftRAreg x y z flags)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMSBCshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBC (SRA y z) x flags)
+	// cond:
+	// result: (RSCshiftRAreg x y z flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCconst [c] (ADDconst [d] x) flags)
+	// cond:
+	// result: (SBCconst [int64(int32(c-d))] x flags)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		flags := v.Args[1]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = int64(int32(c - d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCconst [c] (SUBconst [d] x) flags)
+	// cond:
+	// result: (SBCconst [int64(int32(c+d))] x flags)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSUBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		flags := v.Args[1]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = int64(int32(c + d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCshiftLL (MOVWconst [c]) x [d] flags)
+	// cond:
+	// result: (RSCconst [c] (SLLconst <x.Type> x [d]) flags)
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCshiftLL x (MOVWconst [c]) [d] flags)
+	// cond:
+	// result: (SBCconst x [int64(uint32(c)<<uint64(d))] flags)
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCshiftLLreg (MOVWconst [c]) x y flags)
+	// cond:
+	// result: (RSCconst [c] (SLL <x.Type> x y) flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		flags := v.Args[3]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCshiftLLreg x y (MOVWconst [c]) flags)
+	// cond:
+	// result: (SBCshiftLL x y [c] flags)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		flags := v.Args[3]
+		v.reset(OpARMSBCshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCshiftRA (MOVWconst [c]) x [d] flags)
+	// cond:
+	// result: (RSCconst [c] (SRAconst <x.Type> x [d]) flags)
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCshiftRA x (MOVWconst [c]) [d] flags)
+	// cond:
+	// result: (SBCconst x [int64(int32(c)>>uint64(d))] flags)
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCshiftRAreg (MOVWconst [c]) x y flags)
+	// cond:
+	// result: (RSCconst [c] (SRA <x.Type> x y) flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		flags := v.Args[3]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCshiftRAreg x y (MOVWconst [c]) flags)
+	// cond:
+	// result: (SBCshiftRA x y [c] flags)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		flags := v.Args[3]
+		v.reset(OpARMSBCshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCshiftRL (MOVWconst [c]) x [d] flags)
+	// cond:
+	// result: (RSCconst [c] (SRLconst <x.Type> x [d]) flags)
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		flags := v.Args[2]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCshiftRL x (MOVWconst [c]) [d] flags)
+	// cond:
+	// result: (SBCconst x [int64(uint32(c)>>uint64(d))] flags)
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		flags := v.Args[2]
+		v.reset(OpARMSBCconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSBCshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBCshiftRLreg (MOVWconst [c]) x y flags)
+	// cond:
+	// result: (RSCconst [c] (SRL <x.Type> x y) flags)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		flags := v.Args[3]
+		v.reset(OpARMRSCconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v.AddArg(flags)
+		return true
+	}
+	// match: (SBCshiftRLreg x y (MOVWconst [c]) flags)
+	// cond:
+	// result: (SBCshiftRL x y [c] flags)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		flags := v.Args[3]
+		v.reset(OpARMSBCshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(flags)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SLL x (MOVWconst [c]))
+	// cond:
+	// result: (SLLconst x [c&31])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSLLconst)
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSLLconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SLLconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [int64(uint32(d)<<uint64(c))])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int64(uint32(d) << uint64(c))
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRA x (MOVWconst [c]))
+	// cond:
+	// result: (SRAconst x [c&31])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSRAconst)
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSRAcond(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRAcond x _ (FlagEQ))
+	// cond:
+	// result: (SRAconst x [31])
+	for {
+		x := v.Args[0]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMFlagEQ {
+			break
+		}
+		v.reset(OpARMSRAconst)
+		v.AuxInt = 31
+		v.AddArg(x)
+		return true
+	}
+	// match: (SRAcond x y (FlagLT_ULT))
+	// cond:
+	// result: (SRA x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMFlagLT_ULT {
+			break
+		}
+		v.reset(OpARMSRA)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SRAcond x _ (FlagLT_UGT))
+	// cond:
+	// result: (SRAconst x [31])
+	for {
+		x := v.Args[0]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMFlagLT_UGT {
+			break
+		}
+		v.reset(OpARMSRAconst)
+		v.AuxInt = 31
+		v.AddArg(x)
+		return true
+	}
+	// match: (SRAcond x y (FlagGT_ULT))
+	// cond:
+	// result: (SRA x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMFlagGT_ULT {
+			break
+		}
+		v.reset(OpARMSRA)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SRAcond x _ (FlagGT_UGT))
+	// cond:
+	// result: (SRAconst x [31])
+	for {
+		x := v.Args[0]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMFlagGT_UGT {
+			break
+		}
+		v.reset(OpARMSRAconst)
+		v.AuxInt = 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSRAconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRAconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [int64(int32(d)>>uint64(c))])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int64(int32(d) >> uint64(c))
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRL x (MOVWconst [c]))
+	// cond:
+	// result: (SRLconst x [c&31])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSRLconst)
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSRLconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRLconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [int64(uint32(d)>>uint64(c))])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int64(uint32(d) >> uint64(c))
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUB (MOVWconst [c]) x)
+	// cond:
+	// result: (RSBconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUB x (MOVWconst [c]))
+	// cond:
+	// result: (SUBconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUB x (SLLconst [c] y))
+	// cond:
+	// result: (SUBshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMSUBshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB (SLLconst [c] y) x)
+	// cond:
+	// result: (RSBshiftLL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMRSBshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB x (SRLconst [c] y))
+	// cond:
+	// result: (SUBshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMSUBshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB (SRLconst [c] y) x)
+	// cond:
+	// result: (RSBshiftRL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMRSBshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB x (SRAconst [c] y))
+	// cond:
+	// result: (SUBshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMSUBshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB (SRAconst [c] y) x)
+	// cond:
+	// result: (RSBshiftRA x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMRSBshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUB x (SLL y z))
+	// cond:
+	// result: (SUBshiftLLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMSUBshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUB (SLL y z) x)
+	// cond:
+	// result: (RSBshiftLLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMRSBshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUB x (SRL y z))
+	// cond:
+	// result: (SUBshiftRLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMSUBshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUB (SRL y z) x)
+	// cond:
+	// result: (RSBshiftRLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMRSBshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUB x (SRA y z))
+	// cond:
+	// result: (SUBshiftRAreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMSUBshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUB (SRA y z) x)
+	// cond:
+	// result: (RSBshiftRAreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMRSBshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUB x x)
+	// cond:
+	// result: (MOVWconst [0])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBS(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBS (MOVWconst [c]) x)
+	// cond:
+	// result: (RSBSconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBS x (MOVWconst [c]))
+	// cond:
+	// result: (SUBSconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBS x (SLLconst [c] y))
+	// cond:
+	// result: (SUBSshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMSUBSshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBS (SLLconst [c] y) x)
+	// cond:
+	// result: (RSBSshiftLL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMRSBSshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBS x (SRLconst [c] y))
+	// cond:
+	// result: (SUBSshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMSUBSshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBS (SRLconst [c] y) x)
+	// cond:
+	// result: (RSBSshiftRL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMRSBSshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBS x (SRAconst [c] y))
+	// cond:
+	// result: (SUBSshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMSUBSshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBS (SRAconst [c] y) x)
+	// cond:
+	// result: (RSBSshiftRA x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMRSBSshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (SUBS x (SLL y z))
+	// cond:
+	// result: (SUBSshiftLLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMSUBSshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUBS (SLL y z) x)
+	// cond:
+	// result: (RSBSshiftLLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMRSBSshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUBS x (SRL y z))
+	// cond:
+	// result: (SUBSshiftRLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMSUBSshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUBS (SRL y z) x)
+	// cond:
+	// result: (RSBSshiftRLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMRSBSshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUBS x (SRA y z))
+	// cond:
+	// result: (SUBSshiftRAreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMSUBSshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (SUBS (SRA y z) x)
+	// cond:
+	// result: (RSBSshiftRAreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMRSBSshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBSshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBSshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (RSBSconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBSshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (SUBSconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBSshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBSshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (RSBSconst [c] (SLL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBSshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (SUBSshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMSUBSshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBSshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBSshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (RSBSconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBSshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (SUBSconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBSshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBSshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (RSBSconst [c] (SRA <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBSshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (SUBSshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMSUBSshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBSshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBSshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (RSBSconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBSshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (SUBSconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBSconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBSshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBSshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (RSBSconst [c] (SRL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMRSBSconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBSshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (SUBSshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMSUBSshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBconst [0] x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [int64(int32(d-c))])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = int64(int32(d - c))
+		return true
+	}
+	// match: (SUBconst [c] (SUBconst [d] x))
+	// cond:
+	// result: (ADDconst [int64(int32(-c-d))] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSUBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMADDconst)
+		v.AuxInt = int64(int32(-c - d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBconst [c] (ADDconst [d] x))
+	// cond:
+	// result: (ADDconst [int64(int32(-c+d))] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMADDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMADDconst)
+		v.AuxInt = int64(int32(-c + d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBconst [c] (RSBconst [d] x))
+	// cond:
+	// result: (RSBconst [int64(int32(-c+d))] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMRSBconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = int64(int32(-c + d))
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (RSBconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (SUBconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBshiftLL x (SLLconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (RSBconst [c] (SLL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (SUBshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMSUBshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (RSBconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (SUBconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBshiftRA x (SRAconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (RSBconst [c] (SRA <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (SUBshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMSUBshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (RSBconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (SUBconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMSUBconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBshiftRL x (SRLconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMSUBshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (RSBconst [c] (SRL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMRSBconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (SUBshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMSUBshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXOR(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XOR (MOVWconst [c]) x)
+	// cond:
+	// result: (XORconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR x (MOVWconst [c]))
+	// cond:
+	// result: (XORconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR x (SLLconst [c] y))
+	// cond:
+	// result: (XORshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMXORshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (XOR (SLLconst [c] y) x)
+	// cond:
+	// result: (XORshiftLL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMXORshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (XOR x (SRLconst [c] y))
+	// cond:
+	// result: (XORshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMXORshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (XOR (SRLconst [c] y) x)
+	// cond:
+	// result: (XORshiftRL x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRLconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMXORshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (XOR x (SRAconst [c] y))
+	// cond:
+	// result: (XORshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		y := v_1.Args[0]
+		v.reset(OpARMXORshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (XOR (SRAconst [c] y) x)
+	// cond:
+	// result: (XORshiftRA x y [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRAconst {
+			break
+		}
+		c := v_0.AuxInt
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpARMXORshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (XOR x (SLL y z))
+	// cond:
+	// result: (XORshiftLLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMXORshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (XOR (SLL y z) x)
+	// cond:
+	// result: (XORshiftLLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSLL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMXORshiftLLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (XOR x (SRL y z))
+	// cond:
+	// result: (XORshiftRLreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRL {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMXORshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (XOR (SRL y z) x)
+	// cond:
+	// result: (XORshiftRLreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRL {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMXORshiftRLreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (XOR x (SRA y z))
+	// cond:
+	// result: (XORshiftRAreg x y z)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRA {
+			break
+		}
+		y := v_1.Args[0]
+		z := v_1.Args[1]
+		v.reset(OpARMXORshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (XOR (SRA y z) x)
+	// cond:
+	// result: (XORshiftRAreg x y z)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMSRA {
+			break
+		}
+		y := v_0.Args[0]
+		z := v_0.Args[1]
+		x := v.Args[1]
+		v.reset(OpARMXORshiftRAreg)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(z)
+		return true
+	}
+	// match: (XOR x x)
+	// cond:
+	// result: (MOVWconst [0])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORconst [0] x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORconst [c] (MOVWconst [d]))
+	// cond:
+	// result: (MOVWconst [c^d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = c ^ d
+		return true
+	}
+	// match: (XORconst [c] (XORconst [d] x))
+	// cond:
+	// result: (XORconst [c^d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMXORconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c ^ d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORshiftLL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORshiftLL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (XORconst [c] (SLLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (XORshiftLL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (XORconst x [int64(uint32(c)<<uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMXORconst)
+		v.AuxInt = int64(uint32(c) << uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORshiftLL x (SLLconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSLLconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORshiftLLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORshiftLLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (XORconst [c] (SLL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (XORshiftLLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (XORshiftLL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMXORshiftLL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORshiftRA(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORshiftRA (MOVWconst [c]) x [d])
+	// cond:
+	// result: (XORconst [c] (SRAconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (XORshiftRA x (MOVWconst [c]) [d])
+	// cond:
+	// result: (XORconst x [int64(int32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMXORconst)
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORshiftRA x (SRAconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRAconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORshiftRAreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORshiftRAreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (XORconst [c] (SRA <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (XORshiftRAreg x y (MOVWconst [c]))
+	// cond:
+	// result: (XORshiftRA x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMXORshiftRA)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORshiftRL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORshiftRL (MOVWconst [c]) x [d])
+	// cond:
+	// result: (XORconst [c] (SRLconst <x.Type> x [d]))
+	for {
+		d := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
+		v0.AuxInt = d
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (XORshiftRL x (MOVWconst [c]) [d])
+	// cond:
+	// result: (XORconst x [int64(uint32(c)>>uint64(d))])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpARMXORconst)
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORshiftRL x (SRLconst x [c]) [d])
+	// cond: c==d
+	// result: (MOVWconst [0])
+	for {
+		d := v.AuxInt
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMSRLconst {
+			break
+		}
+		c := v_1.AuxInt
+		if x != v_1.Args[0] {
+			break
+		}
+		if !(c == d) {
+			break
+		}
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMXORshiftRLreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORshiftRLreg (MOVWconst [c]) x y)
+	// cond:
+	// result: (XORconst [c] (SRL <x.Type> x y))
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		y := v.Args[2]
+		v.reset(OpARMXORconst)
+		v.AuxInt = c
+		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (XORshiftRLreg x y (MOVWconst [c]))
+	// cond:
+	// result: (XORshiftRL x y [c])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v_2 := v.Args[2]
+		if v_2.Op != OpARMMOVWconst {
+			break
+		}
+		c := v_2.AuxInt
+		v.reset(OpARMXORshiftRL)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add16 x y)
+	// cond:
+	// result: (ADD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32 x y)
+	// cond:
+	// result: (ADD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAdd32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32F x y)
+	// cond:
+	// result: (ADDF x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADDF)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAdd32carry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32carry x y)
+	// cond:
+	// result: (ADDS x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADDS)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAdd32withcarry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32withcarry x y c)
+	// cond:
+	// result: (ADC x y c)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		c := v.Args[2]
+		v.reset(OpARMADC)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(c)
+		return true
+	}
+}
+func rewriteValueARM_OpAdd64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add64F x y)
+	// cond:
+	// result: (ADDD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADDD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAdd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add8 x y)
+	// cond:
+	// result: (ADD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAddPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AddPtr x y)
+	// cond:
+	// result: (ADD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMADD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAddr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Addr {sym} base)
+	// cond:
+	// result: (MOVWaddr {sym} base)
+	for {
+		sym := v.Aux
+		base := v.Args[0]
+		v.reset(OpARMMOVWaddr)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
+}
+func rewriteValueARM_OpAnd16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And16 x y)
+	// cond:
+	// result: (AND x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMAND)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAnd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And32 x y)
+	// cond:
+	// result: (AND x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMAND)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAnd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And8 x y)
+	// cond:
+	// result: (AND x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMAND)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpAndB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AndB x y)
+	// cond:
+	// result: (AND x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMAND)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpClosureCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ClosureCall [argwid] entry closure mem)
+	// cond:
+	// result: (CALLclosure [argwid] entry closure mem)
+	for {
+		argwid := v.AuxInt
+		entry := v.Args[0]
+		closure := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARMCALLclosure)
+		v.AuxInt = argwid
+		v.AddArg(entry)
+		v.AddArg(closure)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM_OpCom16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com16 x)
+	// cond:
+	// result: (MVN x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMVN)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCom32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com32 x)
+	// cond:
+	// result: (MVN x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMVN)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCom8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com8 x)
+	// cond:
+	// result: (MVN x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMVN)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpConst16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const16 [val])
+	// cond:
+	// result: (MOVWconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValueARM_OpConst32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const32 [val])
+	// cond:
+	// result: (MOVWconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValueARM_OpConst32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const32F [val])
+	// cond:
+	// result: (MOVFconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(OpARMMOVFconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValueARM_OpConst64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const64F [val])
+	// cond:
+	// result: (MOVDconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(OpARMMOVDconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValueARM_OpConst8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const8 [val])
+	// cond:
+	// result: (MOVWconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValueARM_OpConstBool(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstBool [b])
+	// cond:
+	// result: (MOVWconst [b])
+	for {
+		b := v.AuxInt
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = b
+		return true
+	}
+}
+func rewriteValueARM_OpConstNil(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstNil)
+	// cond:
+	// result: (MOVWconst [0])
+	for {
+		v.reset(OpARMMOVWconst)
+		v.AuxInt = 0
+		return true
+	}
+}
+func rewriteValueARM_OpConvert(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Convert x mem)
+	// cond:
+	// result: (MOVWconvert x mem)
+	for {
+		x := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMMOVWconvert)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32Fto32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Fto32 x)
+	// cond:
+	// result: (MOVFW x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVFW)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32Fto32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Fto32U x)
+	// cond:
+	// result: (MOVFWU x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVFWU)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32Fto64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Fto64F x)
+	// cond:
+	// result: (MOVFD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVFD)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32Uto32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Uto32F x)
+	// cond:
+	// result: (MOVWUF x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVWUF)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32Uto64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Uto64F x)
+	// cond:
+	// result: (MOVWUD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVWUD)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32to32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32to32F x)
+	// cond:
+	// result: (MOVWF x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVWF)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt32to64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32to64F x)
+	// cond:
+	// result: (MOVWD x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVWD)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt64Fto32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt64Fto32 x)
+	// cond:
+	// result: (MOVDW x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVDW)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt64Fto32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt64Fto32F x)
+	// cond:
+	// result: (MOVDF x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVDF)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpCvt64Fto32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt64Fto32U x)
+	// cond:
+	// result: (MOVDWU x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARMMOVDWU)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpDeferCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (DeferCall [argwid] mem)
+	// cond:
+	// result: (CALLdefer [argwid] mem)
+	for {
+		argwid := v.AuxInt
+		mem := v.Args[0]
+		v.reset(OpARMCALLdefer)
+		v.AuxInt = argwid
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div16 x y)
+	// cond:
+	// result: (DIV (SignExt16to32 x) (SignExt16to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIV)
+		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv16u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div16u x y)
+	// cond:
+	// result: (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIVU)
+		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div32 x y)
+	// cond:
+	// result: (DIV x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIV)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div32F x y)
+	// cond:
+	// result: (DIVF x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIVF)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div32u x y)
+	// cond:
+	// result: (DIVU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIVU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div64F x y)
+	// cond:
+	// result: (DIVD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIVD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div8 x y)
+	// cond:
+	// result: (DIV (SignExt8to32 x) (SignExt8to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIV)
+		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpDiv8u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div8u x y)
+	// cond:
+	// result: (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMDIVU)
+		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpEq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq16 x y)
+	// cond:
+	// result: (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpEq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq32 x y)
+	// cond:
+	// result: (Equal (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpEq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq32F x y)
+	// cond:
+	// result: (Equal (CMPF x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpEq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq64F x y)
+	// cond:
+	// result: (Equal (CMPD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpEq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq8 x y)
+	// cond:
+	// result: (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpEqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqB x y)
+	// cond:
+	// result: (XORconst [1] (XOR <config.fe.TypeBool()> x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMXORconst)
+		v.AuxInt = 1
+		v0 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeBool())
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpEqPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqPtr x y)
+	// cond:
+	// result: (Equal (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq16 x y)
+	// cond:
+	// result: (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq16U x y)
+	// cond:
+	// result: (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq32 x y)
+	// cond:
+	// result: (GreaterEqual (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq32F x y)
+	// cond:
+	// result: (GreaterEqual (CMPF x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq32U x y)
+	// cond:
+	// result: (GreaterEqualU (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq64F x y)
+	// cond:
+	// result: (GreaterEqual (CMPD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq8 x y)
+	// cond:
+	// result: (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGeq8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq8U x y)
+	// cond:
+	// result: (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGetClosurePtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GetClosurePtr)
+	// cond:
+	// result: (LoweredGetClosurePtr)
+	for {
+		v.reset(OpARMLoweredGetClosurePtr)
+		return true
+	}
+}
+func rewriteValueARM_OpGoCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GoCall [argwid] mem)
+	// cond:
+	// result: (CALLgo [argwid] mem)
+	for {
+		argwid := v.AuxInt
+		mem := v.Args[0]
+		v.reset(OpARMCALLgo)
+		v.AuxInt = argwid
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater16 x y)
+	// cond:
+	// result: (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater16U x y)
+	// cond:
+	// result: (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater32 x y)
+	// cond:
+	// result: (GreaterThan (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater32F x y)
+	// cond:
+	// result: (GreaterThan (CMPF x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater32U x y)
+	// cond:
+	// result: (GreaterThanU (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater64F x y)
+	// cond:
+	// result: (GreaterThan (CMPD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater8 x y)
+	// cond:
+	// result: (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpGreater8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater8U x y)
+	// cond:
+	// result: (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpHmul16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul16 x y)
+	// cond:
+	// result: (SRAconst (MUL <config.fe.TypeInt32()> (SignExt16to32 x) (SignExt16to32 y)) [16])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSRAconst)
+		v.AuxInt = 16
+		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeInt32())
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpHmul16u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul16u x y)
+	// cond:
+	// result: (SRLconst (MUL <config.fe.TypeUInt32()> (ZeroExt16to32 x) (ZeroExt16to32 y)) [16])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSRLconst)
+		v.AuxInt = 16
+		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeUInt32())
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpHmul32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul32 x y)
+	// cond:
+	// result: (HMUL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMHMUL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpHmul32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul32u x y)
+	// cond:
+	// result: (HMULU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMHMULU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValueARM_OpHmul8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul8 x y)
+	// cond:
+	// result: (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSRAconst)
+		v.AuxInt = 8
+		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeInt16())
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpHmul8u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul8u x y)
+	// cond:
+	// result: (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSRLconst)
+		v.AuxInt = 8
+		v0 := b.NewValue0(v.Line, OpARMMUL, config.fe.TypeUInt16())
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpInterCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (InterCall [argwid] entry mem)
+	// cond:
+	// result: (CALLinter [argwid] entry mem)
+	for {
+		argwid := v.AuxInt
+		entry := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARMCALLinter)
+		v.AuxInt = argwid
+		v.AddArg(entry)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM_OpIsInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsInBounds idx len)
+	// cond:
+	// result: (LessThanU (CMP idx len))
+	for {
+		idx := v.Args[0]
+		len := v.Args[1]
+		v.reset(OpARMLessThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpIsNonNil(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsNonNil ptr)
+	// cond:
+	// result: (NotEqual (CMPconst [0] ptr))
+	for {
+		ptr := v.Args[0]
+		v.reset(OpARMNotEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(ptr)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpIsSliceInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsSliceInBounds idx len)
+	// cond:
+	// result: (LessEqualU (CMP idx len))
+	for {
+		idx := v.Args[0]
+		len := v.Args[1]
+		v.reset(OpARMLessEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq16 x y)
+	// cond:
+	// result: (LessEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq16U x y)
+	// cond:
+	// result: (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq32 x y)
+	// cond:
+	// result: (LessEqual (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq32F x y)
+	// cond:
+	// result: (GreaterEqual (CMPF y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq32U x y)
+	// cond:
+	// result: (LessEqualU (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq64F x y)
+	// cond:
+	// result: (GreaterEqual (CMPD y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq8 x y)
+	// cond:
+	// result: (LessEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessEqual)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLeq8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq8U x y)
+	// cond:
+	// result: (LessEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessEqualU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less16 x y)
+	// cond:
+	// result: (LessThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessThan)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less16U x y)
+	// cond:
+	// result: (LessThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less32 x y)
+	// cond:
+	// result: (LessThan (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessThan)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less32F x y)
+	// cond:
+	// result: (GreaterThan (CMPF y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMPF, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less32U x y)
+	// cond:
+	// result: (LessThanU (CMP x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less64F x y)
+	// cond:
+	// result: (GreaterThan (CMPD y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMGreaterThan)
+		v0 := b.NewValue0(v.Line, OpARMCMPD, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less8 x y)
+	// cond:
+	// result: (LessThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessThan)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLess8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less8U x y)
+	// cond:
+	// result: (LessThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMLessThanU)
+		v0 := b.NewValue0(v.Line, OpARMCMP, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLoad(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Load <t> ptr mem)
+	// cond: t.IsBoolean()
+	// result: (MOVBUload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsBoolean()) {
+			break
+		}
+		v.reset(OpARMMOVBUload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: (is8BitInt(t) && isSigned(t))
+	// result: (MOVBload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is8BitInt(t) && isSigned(t)) {
+			break
+		}
+		v.reset(OpARMMOVBload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: (is8BitInt(t) && !isSigned(t))
+	// result: (MOVBUload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is8BitInt(t) && !isSigned(t)) {
+			break
+		}
+		v.reset(OpARMMOVBUload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: (is16BitInt(t) && isSigned(t))
+	// result: (MOVHload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is16BitInt(t) && isSigned(t)) {
+			break
+		}
+		v.reset(OpARMMOVHload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: (is16BitInt(t) && !isSigned(t))
+	// result: (MOVHUload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is16BitInt(t) && !isSigned(t)) {
+			break
+		}
+		v.reset(OpARMMOVHUload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: (is32BitInt(t) || isPtr(t))
+	// result: (MOVWload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is32BitInt(t) || isPtr(t)) {
+			break
+		}
+		v.reset(OpARMMOVWload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is32BitFloat(t)
+	// result: (MOVFload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is32BitFloat(t)) {
+			break
+		}
+		v.reset(OpARMMOVFload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is64BitFloat(t)
+	// result: (MOVDload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is64BitFloat(t)) {
+			break
+		}
+		v.reset(OpARMMOVDload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpLrot16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lrot16 <t> x [c])
+	// cond:
+	// result: (OR (SLLconst <t> x [c&15]) (SRLconst <t> x [16-c&15]))
+	for {
+		t := v.Type
+		c := v.AuxInt
+		x := v.Args[0]
+		v.reset(OpARMOR)
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
+		v0.AuxInt = c & 15
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMSRLconst, t)
+		v1.AuxInt = 16 - c&15
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpLrot32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lrot32 x [c])
+	// cond:
+	// result: (SRRconst x [32-c&31])
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		v.reset(OpARMSRRconst)
+		v.AuxInt = 32 - c&31
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM_OpLrot8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lrot8 <t> x [c])
+	// cond:
+	// result: (OR (SLLconst <t> x [c&7]) (SRLconst <t> x [8-c&7]))
+	for {
+		t := v.Type
+		c := v.AuxInt
+		x := v.Args[0]
+		v.reset(OpARMOR)
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, t)
+		v0.AuxInt = c & 7
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMSRLconst, t)
+		v1.AuxInt = 8 - c&7
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh16x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x16 x y)
+	// cond:
+	// result: (CMOVWHSconst (SLL <x.Type> x (ZeroExt16to32 y)) (CMPconst [256] (ZeroExt16to32 y)) [0])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v2.AuxInt = 256
+		v3 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v.AddArg(v2)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh16x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x32 x y)
+	// cond:
+	// result: (CMOVWHSconst (SLL <x.Type> x y) (CMPconst [256] y) [0])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v1.AuxInt = 256
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh16x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x64 x (Const64 [c]))
+	// cond: uint64(c) < 16
+	// result: (SLLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 16) {
+			break
+		}
+		v.reset(OpARMSLLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Lsh16x64 _ (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (Const16 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 16) {
+			break
+		}
+		v.reset(OpConst16)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpLsh16x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x8  x y)
+	// cond:
+	// result: (SLL x (ZeroExt8to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSLL)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh32x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x16 x y)
+	// cond:
+	// result: (CMOVWHSconst (SLL <x.Type> x (ZeroExt16to32 y)) (CMPconst [256] (ZeroExt16to32 y)) [0])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v2.AuxInt = 256
+		v3 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v.AddArg(v2)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh32x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x32 x y)
+	// cond:
+	// result: (CMOVWHSconst (SLL <x.Type> x y) (CMPconst [256] y) [0])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v1.AuxInt = 256
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh32x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x64 x (Const64 [c]))
+	// cond: uint64(c) < 32
+	// result: (SLLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 32) {
+			break
+		}
+		v.reset(OpARMSLLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Lsh32x64 _ (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (Const32 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 32) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpLsh32x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x8  x y)
+	// cond:
+	// result: (SLL x (ZeroExt8to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSLL)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh8x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x16 x y)
+	// cond:
+	// result: (CMOVWHSconst (SLL <x.Type> x (ZeroExt16to32 y)) (CMPconst [256] (ZeroExt16to32 y)) [0])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v1.AddArg(y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v2.AuxInt = 256
+		v3 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v.AddArg(v2)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh8x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x32 x y)
+	// cond:
+	// result: (CMOVWHSconst (SLL <x.Type> x y) (CMPconst [256] y) [0])
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
+		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpARMCMPconst, TypeFlags)
+		v1.AuxInt = 256
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValueARM_OpLsh8x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x64 x (Const64 [c]))
+	// cond: uint64(c) < 8
+	// result: (SLLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 8) {
+			break
+		}
+		v.reset(OpARMSLLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Lsh8x64 _ (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (Const8 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 8) {
+			break
+		}
+		v.reset(OpConst8)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpLsh8x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x8  x y)
+	// cond:
+	// result: (SLL x (ZeroExt8to32 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpARMSLL)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValueARM_OpMod16(v *Value, config *Config) bool {
 	b := v.Block
@@ -10711,8 +15078,8 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
-		v0.AddArg(src)
 		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+		v0.AddArg(src)
 		v.AddArg(v0)
 		v.AddArg(mem)
 		return true
@@ -11031,705 +15398,6 @@ func rewriteValueARM_OpNot(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpARMNotEqual(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (NotEqual (FlagEQ))
-	// cond:
-	// result: (MOVWconst [0])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMFlagEQ {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	// match: (NotEqual (FlagLT_ULT))
-	// cond:
-	// result: (MOVWconst [1])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMFlagLT_ULT {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 1
-		return true
-	}
-	// match: (NotEqual (FlagLT_UGT))
-	// cond:
-	// result: (MOVWconst [1])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMFlagLT_UGT {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 1
-		return true
-	}
-	// match: (NotEqual (FlagGT_ULT))
-	// cond:
-	// result: (MOVWconst [1])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMFlagGT_ULT {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 1
-		return true
-	}
-	// match: (NotEqual (FlagGT_UGT))
-	// cond:
-	// result: (MOVWconst [1])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMFlagGT_UGT {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 1
-		return true
-	}
-	// match: (NotEqual (InvertFlags x))
-	// cond:
-	// result: (NotEqual x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMInvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpARMNotEqual)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMOR(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (OR (MOVWconst [c]) x)
-	// cond:
-	// result: (ORconst [c] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (OR x (MOVWconst [c]))
-	// cond:
-	// result: (ORconst [c] x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (OR x (SLLconst [c] y))
-	// cond:
-	// result: (ORshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMORshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (OR (SLLconst [c] y) x)
-	// cond:
-	// result: (ORshiftLL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMORshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (OR x (SRLconst [c] y))
-	// cond:
-	// result: (ORshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMORshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (OR (SRLconst [c] y) x)
-	// cond:
-	// result: (ORshiftRL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMORshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (OR x (SRAconst [c] y))
-	// cond:
-	// result: (ORshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMORshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (OR (SRAconst [c] y) x)
-	// cond:
-	// result: (ORshiftRA x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMORshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (OR x (SLL y z))
-	// cond:
-	// result: (ORshiftLLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMORshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (OR (SLL y z) x)
-	// cond:
-	// result: (ORshiftLLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMORshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (OR x (SRL y z))
-	// cond:
-	// result: (ORshiftRLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMORshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (OR (SRL y z) x)
-	// cond:
-	// result: (ORshiftRLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMORshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (OR x (SRA y z))
-	// cond:
-	// result: (ORshiftRAreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMORshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (OR (SRA y z) x)
-	// cond:
-	// result: (ORshiftRAreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMORshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (OR x x)
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		if x != v.Args[1] {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORconst [0] x)
-	// cond:
-	// result: x
-	for {
-		if v.AuxInt != 0 {
-			break
-		}
-		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (ORconst [c] _)
-	// cond: int32(c)==-1
-	// result: (MOVWconst [-1])
-	for {
-		c := v.AuxInt
-		if !(int32(c) == -1) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = -1
-		return true
-	}
-	// match: (ORconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [c|d])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = c | d
-		return true
-	}
-	// match: (ORconst [c] (ORconst [d] x))
-	// cond:
-	// result: (ORconst [c|d] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMORconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMORconst)
-		v.AuxInt = c | d
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORshiftLL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (ORconst [c] (SLLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (ORshiftLL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (ORconst x [int64(uint32(c)<<uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMORconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		return true
-	}
-	// match: (ORshiftLL x y:(SLLconst x [c]) [d])
-	// cond: c==d
-	// result: y
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		if y.Op != OpARMSLLconst {
-			break
-		}
-		if x != y.Args[0] {
-			break
-		}
-		c := y.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORshiftLLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (ORconst [c] (SLL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (ORshiftLLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (ORshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMORshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORshiftRA (MOVWconst [c]) x [d])
-	// cond:
-	// result: (ORconst [c] (SRAconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (ORshiftRA x (MOVWconst [c]) [d])
-	// cond:
-	// result: (ORconst x [int64(int32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMORconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		return true
-	}
-	// match: (ORshiftRA x y:(SRAconst x [c]) [d])
-	// cond: c==d
-	// result: y
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		if y.Op != OpARMSRAconst {
-			break
-		}
-		if x != y.Args[0] {
-			break
-		}
-		c := y.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORshiftRAreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (ORconst [c] (SRA <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (ORshiftRAreg x y (MOVWconst [c]))
-	// cond:
-	// result: (ORshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMORshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORshiftRL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (ORconst [c] (SRLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (ORshiftRL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (ORconst x [int64(uint32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMORconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		return true
-	}
-	// match: (ORshiftRL x y:(SRLconst x [c]) [d])
-	// cond: c==d
-	// result: y
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		if y.Op != OpARMSRLconst {
-			break
-		}
-		if x != y.Args[0] {
-			break
-		}
-		c := y.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = y.Type
-		v.AddArg(y)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMORshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ORshiftRLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (ORconst [c] (SRL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (ORshiftRLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (ORshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMORshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
 func rewriteValueARM_OpOffPtr(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -11819,1181 +15487,6 @@ func rewriteValueARM_OpOrB(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpARMRSB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSB (MOVWconst [c]) x)
-	// cond:
-	// result: (SUBconst [c] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (RSB x (MOVWconst [c]))
-	// cond:
-	// result: (RSBconst [c] x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (RSB x (SLLconst [c] y))
-	// cond:
-	// result: (RSBshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMRSBshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (RSB (SLLconst [c] y) x)
-	// cond:
-	// result: (SUBshiftLL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMSUBshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (RSB x (SRLconst [c] y))
-	// cond:
-	// result: (RSBshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMRSBshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (RSB (SRLconst [c] y) x)
-	// cond:
-	// result: (SUBshiftRL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMSUBshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (RSB x (SRAconst [c] y))
-	// cond:
-	// result: (RSBshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMRSBshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (RSB (SRAconst [c] y) x)
-	// cond:
-	// result: (SUBshiftRA x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMSUBshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (RSB x (SLL y z))
-	// cond:
-	// result: (RSBshiftLLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMRSBshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (RSB (SLL y z) x)
-	// cond:
-	// result: (SUBshiftLLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMSUBshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (RSB x (SRL y z))
-	// cond:
-	// result: (RSBshiftRLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMRSBshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (RSB (SRL y z) x)
-	// cond:
-	// result: (SUBshiftRLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMSUBshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (RSB x (SRA y z))
-	// cond:
-	// result: (RSBshiftRAreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMRSBshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (RSB (SRA y z) x)
-	// cond:
-	// result: (SUBshiftRAreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMSUBshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (RSB x x)
-	// cond:
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		if x != v.Args[1] {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBSshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBSshiftLL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (SUBSconst [c] (SLLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBSshiftLL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (RSBSconst x [int64(uint32(c)<<uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMRSBSconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBSshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBSshiftLLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (SUBSconst [c] (SLL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBSshiftLLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (RSBSshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMRSBSshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBSshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBSshiftRA (MOVWconst [c]) x [d])
-	// cond:
-	// result: (SUBSconst [c] (SRAconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBSshiftRA x (MOVWconst [c]) [d])
-	// cond:
-	// result: (RSBSconst x [int64(int32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMRSBSconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBSshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBSshiftRAreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (SUBSconst [c] (SRA <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBSshiftRAreg x y (MOVWconst [c]))
-	// cond:
-	// result: (RSBSshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMRSBSshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBSshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBSshiftRL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (SUBSconst [c] (SRLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBSshiftRL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (RSBSconst x [int64(uint32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMRSBSconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBSshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBSshiftRLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (SUBSconst [c] (SRL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBSshiftRLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (RSBSshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMRSBSshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [int64(int32(c-d))])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(int32(c - d))
-		return true
-	}
-	// match: (RSBconst [c] (RSBconst [d] x))
-	// cond:
-	// result: (ADDconst [int64(int32(c-d))] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMRSBconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMADDconst)
-		v.AuxInt = int64(int32(c - d))
-		v.AddArg(x)
-		return true
-	}
-	// match: (RSBconst [c] (ADDconst [d] x))
-	// cond:
-	// result: (RSBconst [int64(int32(c-d))] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = int64(int32(c - d))
-		v.AddArg(x)
-		return true
-	}
-	// match: (RSBconst [c] (SUBconst [d] x))
-	// cond:
-	// result: (RSBconst [int64(int32(c+d))] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSUBconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = int64(int32(c + d))
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBshiftLL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (SUBconst [c] (SLLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBshiftLL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (RSBconst x [int64(uint32(c)<<uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		return true
-	}
-	// match: (RSBshiftLL x (SLLconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBshiftLLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (SUBconst [c] (SLL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBshiftLLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (RSBshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMRSBshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBshiftRA (MOVWconst [c]) x [d])
-	// cond:
-	// result: (SUBconst [c] (SRAconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBshiftRA x (MOVWconst [c]) [d])
-	// cond:
-	// result: (RSBconst x [int64(int32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		return true
-	}
-	// match: (RSBshiftRA x (SRAconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBshiftRAreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (SUBconst [c] (SRA <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBshiftRAreg x y (MOVWconst [c]))
-	// cond:
-	// result: (RSBshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMRSBshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBshiftRL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (SUBconst [c] (SRLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBshiftRL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (RSBconst x [int64(uint32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		return true
-	}
-	// match: (RSBshiftRL x (SRLconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSBshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSBshiftRLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (SUBconst [c] (SRL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (RSBshiftRLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (RSBshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMRSBshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCconst [c] (ADDconst [d] x) flags)
-	// cond:
-	// result: (RSCconst [int64(int32(c-d))] x flags)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		flags := v.Args[1]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = int64(int32(c - d))
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCconst [c] (SUBconst [d] x) flags)
-	// cond:
-	// result: (RSCconst [int64(int32(c+d))] x flags)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSUBconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		flags := v.Args[1]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = int64(int32(c + d))
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCshiftLL (MOVWconst [c]) x [d] flags)
-	// cond:
-	// result: (SBCconst [c] (SLLconst <x.Type> x [d]) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCshiftLL x (MOVWconst [c]) [d] flags)
-	// cond:
-	// result: (RSCconst x [int64(uint32(c)<<uint64(d))] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCshiftLLreg (MOVWconst [c]) x y flags)
-	// cond:
-	// result: (SBCconst [c] (SLL <x.Type> x y) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		flags := v.Args[3]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCshiftLLreg x y (MOVWconst [c]) flags)
-	// cond:
-	// result: (RSCshiftLL x y [c] flags)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		flags := v.Args[3]
-		v.reset(OpARMRSCshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCshiftRA (MOVWconst [c]) x [d] flags)
-	// cond:
-	// result: (SBCconst [c] (SRAconst <x.Type> x [d]) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCshiftRA x (MOVWconst [c]) [d] flags)
-	// cond:
-	// result: (RSCconst x [int64(int32(c)>>uint64(d))] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCshiftRAreg (MOVWconst [c]) x y flags)
-	// cond:
-	// result: (SBCconst [c] (SRA <x.Type> x y) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		flags := v.Args[3]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCshiftRAreg x y (MOVWconst [c]) flags)
-	// cond:
-	// result: (RSCshiftRA x y [c] flags)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		flags := v.Args[3]
-		v.reset(OpARMRSCshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCshiftRL (MOVWconst [c]) x [d] flags)
-	// cond:
-	// result: (SBCconst [c] (SRLconst <x.Type> x [d]) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCshiftRL x (MOVWconst [c]) [d] flags)
-	// cond:
-	// result: (RSCconst x [int64(uint32(c)>>uint64(d))] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMRSCshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (RSCshiftRLreg (MOVWconst [c]) x y flags)
-	// cond:
-	// result: (SBCconst [c] (SRL <x.Type> x y) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		flags := v.Args[3]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (RSCshiftRLreg x y (MOVWconst [c]) flags)
-	// cond:
-	// result: (RSCshiftRL x y [c] flags)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		flags := v.Args[3]
-		v.reset(OpARMRSCshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
 func rewriteValueARM_OpRsh16Ux16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -13004,6 +15497,7 @@ func rewriteValueARM_OpRsh16Ux16(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
 		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
 		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
 		v1.AddArg(x)
@@ -13018,7 +15512,6 @@ func rewriteValueARM_OpRsh16Ux16(v *Value, config *Config) bool {
 		v4.AddArg(y)
 		v3.AddArg(v4)
 		v.AddArg(v3)
-		v.AuxInt = 0
 		return true
 	}
 }
@@ -13032,6 +15525,7 @@ func rewriteValueARM_OpRsh16Ux32(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
 		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
 		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
 		v1.AddArg(x)
@@ -13042,7 +15536,6 @@ func rewriteValueARM_OpRsh16Ux32(v *Value, config *Config) bool {
 		v2.AuxInt = 256
 		v2.AddArg(y)
 		v.AddArg(v2)
-		v.AuxInt = 0
 		return true
 	}
 }
@@ -13063,11 +15556,11 @@ func rewriteValueARM_OpRsh16Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v0.AuxInt = 16
-		v.AddArg(v0)
 		v.AuxInt = c + 16
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+		v0.AuxInt = 16
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh16Ux64 _ (Const64 [c]))
@@ -13170,11 +15663,11 @@ func rewriteValueARM_OpRsh16x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v0.AuxInt = 16
-		v.AddArg(v0)
 		v.AuxInt = c + 16
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+		v0.AuxInt = 16
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh16x64 x (Const64 [c]))
@@ -13191,11 +15684,11 @@ func rewriteValueARM_OpRsh16x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v0.AuxInt = 16
-		v.AddArg(v0)
 		v.AuxInt = 31
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+		v0.AuxInt = 16
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -13229,6 +15722,7 @@ func rewriteValueARM_OpRsh32Ux16(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
 		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
 		v0.AddArg(x)
 		v1 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
@@ -13241,7 +15735,6 @@ func rewriteValueARM_OpRsh32Ux16(v *Value, config *Config) bool {
 		v3.AddArg(y)
 		v2.AddArg(v3)
 		v.AddArg(v2)
-		v.AuxInt = 0
 		return true
 	}
 }
@@ -13255,6 +15748,7 @@ func rewriteValueARM_OpRsh32Ux32(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
 		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
 		v0.AddArg(x)
 		v0.AddArg(y)
@@ -13263,7 +15757,6 @@ func rewriteValueARM_OpRsh32Ux32(v *Value, config *Config) bool {
 		v1.AuxInt = 256
 		v1.AddArg(y)
 		v.AddArg(v1)
-		v.AuxInt = 0
 		return true
 	}
 }
@@ -13284,8 +15777,8 @@ func rewriteValueARM_OpRsh32Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (Rsh32Ux64 _ (Const64 [c]))
@@ -13382,8 +15875,8 @@ func rewriteValueARM_OpRsh32x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (Rsh32x64 x (Const64 [c]))
@@ -13400,8 +15893,8 @@ func rewriteValueARM_OpRsh32x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v.AddArg(x)
 		v.AuxInt = 31
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -13433,6 +15926,7 @@ func rewriteValueARM_OpRsh8Ux16(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
 		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
 		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
 		v1.AddArg(x)
@@ -13447,7 +15941,6 @@ func rewriteValueARM_OpRsh8Ux16(v *Value, config *Config) bool {
 		v4.AddArg(y)
 		v3.AddArg(v4)
 		v.AddArg(v3)
-		v.AuxInt = 0
 		return true
 	}
 }
@@ -13461,6 +15954,7 @@ func rewriteValueARM_OpRsh8Ux32(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpARMCMOVWHSconst)
+		v.AuxInt = 0
 		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
 		v1 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
 		v1.AddArg(x)
@@ -13471,7 +15965,6 @@ func rewriteValueARM_OpRsh8Ux32(v *Value, config *Config) bool {
 		v2.AuxInt = 256
 		v2.AddArg(y)
 		v.AddArg(v2)
-		v.AuxInt = 0
 		return true
 	}
 }
@@ -13492,11 +15985,11 @@ func rewriteValueARM_OpRsh8Ux64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRLconst)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v0.AuxInt = 24
-		v.AddArg(v0)
 		v.AuxInt = c + 24
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+		v0.AuxInt = 24
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh8Ux64 _ (Const64 [c]))
@@ -13599,11 +16092,11 @@ func rewriteValueARM_OpRsh8x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v0.AuxInt = 24
-		v.AddArg(v0)
 		v.AuxInt = c + 24
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+		v0.AuxInt = 24
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	// match: (Rsh8x64 x (Const64 [c]))
@@ -13620,11 +16113,11 @@ func rewriteValueARM_OpRsh8x64(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
-		v0.AddArg(x)
-		v0.AuxInt = 24
-		v.AddArg(v0)
 		v.AuxInt = 31
+		v0 := b.NewValue0(v.Line, OpARMSLLconst, config.fe.TypeUInt32())
+		v0.AuxInt = 24
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -13647,1894 +16140,6 @@ func rewriteValueARM_OpRsh8x8(v *Value, config *Config) bool {
 		v.AddArg(v1)
 		return true
 	}
-}
-func rewriteValueARM_OpARMSBC(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBC (MOVWconst [c]) x flags)
-	// cond:
-	// result: (RSCconst [c] x flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (MOVWconst [c]) flags)
-	// cond:
-	// result: (SBCconst [c] x flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (SLLconst [c] y) flags)
-	// cond:
-	// result: (SBCshiftLL x y [c] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		flags := v.Args[2]
-		v.reset(OpARMSBCshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC (SLLconst [c] y) x flags)
-	// cond:
-	// result: (RSCshiftLL x y [c] flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (SRLconst [c] y) flags)
-	// cond:
-	// result: (SBCshiftRL x y [c] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		flags := v.Args[2]
-		v.reset(OpARMSBCshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC (SRLconst [c] y) x flags)
-	// cond:
-	// result: (RSCshiftRL x y [c] flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (SRAconst [c] y) flags)
-	// cond:
-	// result: (SBCshiftRA x y [c] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		flags := v.Args[2]
-		v.reset(OpARMSBCshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC (SRAconst [c] y) x flags)
-	// cond:
-	// result: (RSCshiftRA x y [c] flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (SLL y z) flags)
-	// cond:
-	// result: (SBCshiftLLreg x y z flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMSBCshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC (SLL y z) x flags)
-	// cond:
-	// result: (RSCshiftLLreg x y z flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (SRL y z) flags)
-	// cond:
-	// result: (SBCshiftRLreg x y z flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMSBCshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC (SRL y z) x flags)
-	// cond:
-	// result: (RSCshiftRLreg x y z flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC x (SRA y z) flags)
-	// cond:
-	// result: (SBCshiftRAreg x y z flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMSBCshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBC (SRA y z) x flags)
-	// cond:
-	// result: (RSCshiftRAreg x y z flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		flags := v.Args[2]
-		v.reset(OpARMRSCshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCconst [c] (ADDconst [d] x) flags)
-	// cond:
-	// result: (SBCconst [int64(int32(c-d))] x flags)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		flags := v.Args[1]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = int64(int32(c - d))
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCconst [c] (SUBconst [d] x) flags)
-	// cond:
-	// result: (SBCconst [int64(int32(c+d))] x flags)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSUBconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		flags := v.Args[1]
-		v.reset(OpARMSBCconst)
-		v.AuxInt = int64(int32(c + d))
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCshiftLL (MOVWconst [c]) x [d] flags)
-	// cond:
-	// result: (RSCconst [c] (SLLconst <x.Type> x [d]) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCshiftLL x (MOVWconst [c]) [d] flags)
-	// cond:
-	// result: (SBCconst x [int64(uint32(c)<<uint64(d))] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCshiftLLreg (MOVWconst [c]) x y flags)
-	// cond:
-	// result: (RSCconst [c] (SLL <x.Type> x y) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		flags := v.Args[3]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCshiftLLreg x y (MOVWconst [c]) flags)
-	// cond:
-	// result: (SBCshiftLL x y [c] flags)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		flags := v.Args[3]
-		v.reset(OpARMSBCshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCshiftRA (MOVWconst [c]) x [d] flags)
-	// cond:
-	// result: (RSCconst [c] (SRAconst <x.Type> x [d]) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCshiftRA x (MOVWconst [c]) [d] flags)
-	// cond:
-	// result: (SBCconst x [int64(int32(c)>>uint64(d))] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCshiftRAreg (MOVWconst [c]) x y flags)
-	// cond:
-	// result: (RSCconst [c] (SRA <x.Type> x y) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		flags := v.Args[3]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCshiftRAreg x y (MOVWconst [c]) flags)
-	// cond:
-	// result: (SBCshiftRA x y [c] flags)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		flags := v.Args[3]
-		v.reset(OpARMSBCshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCshiftRL (MOVWconst [c]) x [d] flags)
-	// cond:
-	// result: (RSCconst [c] (SRLconst <x.Type> x [d]) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCshiftRL x (MOVWconst [c]) [d] flags)
-	// cond:
-	// result: (SBCconst x [int64(uint32(c)>>uint64(d))] flags)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		flags := v.Args[2]
-		v.reset(OpARMSBCconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSBCshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SBCshiftRLreg (MOVWconst [c]) x y flags)
-	// cond:
-	// result: (RSCconst [c] (SRL <x.Type> x y) flags)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		flags := v.Args[3]
-		v.reset(OpARMRSCconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (SBCshiftRLreg x y (MOVWconst [c]) flags)
-	// cond:
-	// result: (SBCshiftRL x y [c] flags)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		flags := v.Args[3]
-		v.reset(OpARMSBCshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		v.AddArg(flags)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SLL x (MOVWconst [c]))
-	// cond:
-	// result: (SLLconst x [c&31])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMSLLconst)
-		v.AddArg(x)
-		v.AuxInt = c & 31
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSLLconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SLLconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [int64(uint32(d)<<uint64(c))])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(uint32(d) << uint64(c))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SRA x (MOVWconst [c]))
-	// cond:
-	// result: (SRAconst x [c&31])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMSRAconst)
-		v.AddArg(x)
-		v.AuxInt = c & 31
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSRAcond(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SRAcond x _ (FlagEQ))
-	// cond:
-	// result: (SRAconst x [31])
-	for {
-		x := v.Args[0]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMFlagEQ {
-			break
-		}
-		v.reset(OpARMSRAconst)
-		v.AddArg(x)
-		v.AuxInt = 31
-		return true
-	}
-	// match: (SRAcond x y (FlagLT_ULT))
-	// cond:
-	// result: (SRA x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMFlagLT_ULT {
-			break
-		}
-		v.reset(OpARMSRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	// match: (SRAcond x _ (FlagLT_UGT))
-	// cond:
-	// result: (SRAconst x [31])
-	for {
-		x := v.Args[0]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMFlagLT_UGT {
-			break
-		}
-		v.reset(OpARMSRAconst)
-		v.AddArg(x)
-		v.AuxInt = 31
-		return true
-	}
-	// match: (SRAcond x y (FlagGT_ULT))
-	// cond:
-	// result: (SRA x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMFlagGT_ULT {
-			break
-		}
-		v.reset(OpARMSRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	// match: (SRAcond x _ (FlagGT_UGT))
-	// cond:
-	// result: (SRAconst x [31])
-	for {
-		x := v.Args[0]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMFlagGT_UGT {
-			break
-		}
-		v.reset(OpARMSRAconst)
-		v.AddArg(x)
-		v.AuxInt = 31
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSRAconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SRAconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [int64(int32(d)>>uint64(c))])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(int32(d) >> uint64(c))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SRL x (MOVWconst [c]))
-	// cond:
-	// result: (SRLconst x [c&31])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMSRLconst)
-		v.AddArg(x)
-		v.AuxInt = c & 31
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSRLconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SRLconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [int64(uint32(d)>>uint64(c))])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(uint32(d) >> uint64(c))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUB (MOVWconst [c]) x)
-	// cond:
-	// result: (RSBconst [c] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUB x (MOVWconst [c]))
-	// cond:
-	// result: (SUBconst [c] x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUB x (SLLconst [c] y))
-	// cond:
-	// result: (SUBshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMSUBshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUB (SLLconst [c] y) x)
-	// cond:
-	// result: (RSBshiftLL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMRSBshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUB x (SRLconst [c] y))
-	// cond:
-	// result: (SUBshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMSUBshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUB (SRLconst [c] y) x)
-	// cond:
-	// result: (RSBshiftRL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMRSBshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUB x (SRAconst [c] y))
-	// cond:
-	// result: (SUBshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMSUBshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUB (SRAconst [c] y) x)
-	// cond:
-	// result: (RSBshiftRA x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMRSBshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUB x (SLL y z))
-	// cond:
-	// result: (SUBshiftLLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMSUBshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUB (SLL y z) x)
-	// cond:
-	// result: (RSBshiftLLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMRSBshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUB x (SRL y z))
-	// cond:
-	// result: (SUBshiftRLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMSUBshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUB (SRL y z) x)
-	// cond:
-	// result: (RSBshiftRLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMRSBshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUB x (SRA y z))
-	// cond:
-	// result: (SUBshiftRAreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMSUBshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUB (SRA y z) x)
-	// cond:
-	// result: (RSBshiftRAreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMRSBshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUB x x)
-	// cond:
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		if x != v.Args[1] {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBS(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBS (MOVWconst [c]) x)
-	// cond:
-	// result: (RSBSconst [c] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUBS x (MOVWconst [c]))
-	// cond:
-	// result: (SUBSconst [c] x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUBS x (SLLconst [c] y))
-	// cond:
-	// result: (SUBSshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMSUBSshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUBS (SLLconst [c] y) x)
-	// cond:
-	// result: (RSBSshiftLL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMRSBSshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUBS x (SRLconst [c] y))
-	// cond:
-	// result: (SUBSshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMSUBSshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUBS (SRLconst [c] y) x)
-	// cond:
-	// result: (RSBSshiftRL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMRSBSshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUBS x (SRAconst [c] y))
-	// cond:
-	// result: (SUBSshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMSUBSshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUBS (SRAconst [c] y) x)
-	// cond:
-	// result: (RSBSshiftRA x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMRSBSshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (SUBS x (SLL y z))
-	// cond:
-	// result: (SUBSshiftLLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMSUBSshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUBS (SLL y z) x)
-	// cond:
-	// result: (RSBSshiftLLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMRSBSshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUBS x (SRL y z))
-	// cond:
-	// result: (SUBSshiftRLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMSUBSshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUBS (SRL y z) x)
-	// cond:
-	// result: (RSBSshiftRLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMRSBSshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUBS x (SRA y z))
-	// cond:
-	// result: (SUBSshiftRAreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMSUBSshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (SUBS (SRA y z) x)
-	// cond:
-	// result: (RSBSshiftRAreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMRSBSshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBSshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBSshiftLL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (RSBSconst [c] (SLLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBSshiftLL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (SUBSconst x [int64(uint32(c)<<uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBSshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBSshiftLLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (RSBSconst [c] (SLL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBSshiftLLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (SUBSshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMSUBSshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBSshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBSshiftRA (MOVWconst [c]) x [d])
-	// cond:
-	// result: (RSBSconst [c] (SRAconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBSshiftRA x (MOVWconst [c]) [d])
-	// cond:
-	// result: (SUBSconst x [int64(int32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBSshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBSshiftRAreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (RSBSconst [c] (SRA <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBSshiftRAreg x y (MOVWconst [c]))
-	// cond:
-	// result: (SUBSshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMSUBSshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBSshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBSshiftRL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (RSBSconst [c] (SRLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBSshiftRL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (SUBSconst x [int64(uint32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMSUBSconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBSshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBSshiftRLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (RSBSconst [c] (SRL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMRSBSconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBSshiftRLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (SUBSshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMSUBSshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBconst [0] x)
-	// cond:
-	// result: x
-	for {
-		if v.AuxInt != 0 {
-			break
-		}
-		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUBconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [int64(int32(d-c))])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(int32(d - c))
-		return true
-	}
-	// match: (SUBconst [c] (SUBconst [d] x))
-	// cond:
-	// result: (ADDconst [int64(int32(-c-d))] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSUBconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMADDconst)
-		v.AuxInt = int64(int32(-c - d))
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUBconst [c] (ADDconst [d] x))
-	// cond:
-	// result: (ADDconst [int64(int32(-c+d))] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMADDconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMADDconst)
-		v.AuxInt = int64(int32(-c + d))
-		v.AddArg(x)
-		return true
-	}
-	// match: (SUBconst [c] (RSBconst [d] x))
-	// cond:
-	// result: (RSBconst [int64(int32(-c+d))] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMRSBconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = int64(int32(-c + d))
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBshiftLL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (RSBconst [c] (SLLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBshiftLL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (SUBconst x [int64(uint32(c)<<uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		return true
-	}
-	// match: (SUBshiftLL x (SLLconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBshiftLLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (RSBconst [c] (SLL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBshiftLLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (SUBshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMSUBshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBshiftRA (MOVWconst [c]) x [d])
-	// cond:
-	// result: (RSBconst [c] (SRAconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBshiftRA x (MOVWconst [c]) [d])
-	// cond:
-	// result: (SUBconst x [int64(int32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		return true
-	}
-	// match: (SUBshiftRA x (SRAconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBshiftRAreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (RSBconst [c] (SRA <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBshiftRAreg x y (MOVWconst [c]))
-	// cond:
-	// result: (SUBshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMSUBshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBshiftRL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (RSBconst [c] (SRLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBshiftRL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (SUBconst x [int64(uint32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMSUBconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		return true
-	}
-	// match: (SUBshiftRL x (SRLconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMSUBshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (SUBshiftRLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (RSBconst [c] (SRL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMRSBconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (SUBshiftRLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (SUBshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMSUBshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
 }
 func rewriteValueARM_OpSignExt16to32(v *Value, config *Config) bool {
 	b := v.Block
@@ -15584,8 +16189,8 @@ func rewriteValueARM_OpSignmask(v *Value, config *Config) bool {
 	for {
 		x := v.Args[0]
 		v.reset(OpARMSRAconst)
-		v.AddArg(x)
 		v.AuxInt = 31
+		v.AddArg(x)
 		return true
 	}
 }
@@ -15877,611 +16482,6 @@ func rewriteValueARM_OpTrunc32to8(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpARMXOR(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XOR (MOVWconst [c]) x)
-	// cond:
-	// result: (XORconst [c] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (XOR x (MOVWconst [c]))
-	// cond:
-	// result: (XORconst [c] x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (XOR x (SLLconst [c] y))
-	// cond:
-	// result: (XORshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMXORshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (XOR (SLLconst [c] y) x)
-	// cond:
-	// result: (XORshiftLL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMXORshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (XOR x (SRLconst [c] y))
-	// cond:
-	// result: (XORshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMXORshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (XOR (SRLconst [c] y) x)
-	// cond:
-	// result: (XORshiftRL x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMXORshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (XOR x (SRAconst [c] y))
-	// cond:
-	// result: (XORshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMXORshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (XOR (SRAconst [c] y) x)
-	// cond:
-	// result: (XORshiftRA x y [c])
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMXORshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	// match: (XOR x (SLL y z))
-	// cond:
-	// result: (XORshiftLLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMXORshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (XOR (SLL y z) x)
-	// cond:
-	// result: (XORshiftLLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMXORshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (XOR x (SRL y z))
-	// cond:
-	// result: (XORshiftRLreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMXORshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (XOR (SRL y z) x)
-	// cond:
-	// result: (XORshiftRLreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMXORshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (XOR x (SRA y z))
-	// cond:
-	// result: (XORshiftRAreg x y z)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		y := v_1.Args[0]
-		z := v_1.Args[1]
-		v.reset(OpARMXORshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (XOR (SRA y z) x)
-	// cond:
-	// result: (XORshiftRAreg x y z)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		y := v_0.Args[0]
-		z := v_0.Args[1]
-		x := v.Args[1]
-		v.reset(OpARMXORshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		return true
-	}
-	// match: (XOR x x)
-	// cond:
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		if x != v.Args[1] {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORconst [0] x)
-	// cond:
-	// result: x
-	for {
-		if v.AuxInt != 0 {
-			break
-		}
-		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (XORconst [c] (MOVWconst [d]))
-	// cond:
-	// result: (MOVWconst [c^d])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = c ^ d
-		return true
-	}
-	// match: (XORconst [c] (XORconst [d] x))
-	// cond:
-	// result: (XORconst [c^d] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMXORconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(OpARMXORconst)
-		v.AuxInt = c ^ d
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORshiftLL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORshiftLL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (XORconst [c] (SLLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (XORshiftLL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (XORconst x [int64(uint32(c)<<uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMXORconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) << uint64(d))
-		return true
-	}
-	// match: (XORshiftLL x (SLLconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORshiftLLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORshiftLLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (XORconst [c] (SLL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSLL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (XORshiftLLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (XORshiftLL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMXORshiftLL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORshiftRA(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORshiftRA (MOVWconst [c]) x [d])
-	// cond:
-	// result: (XORconst [c] (SRAconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRAconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (XORshiftRA x (MOVWconst [c]) [d])
-	// cond:
-	// result: (XORconst x [int64(int32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMXORconst)
-		v.AddArg(x)
-		v.AuxInt = int64(int32(c) >> uint64(d))
-		return true
-	}
-	// match: (XORshiftRA x (SRAconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORshiftRAreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORshiftRAreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (XORconst [c] (SRA <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRA, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (XORshiftRAreg x y (MOVWconst [c]))
-	// cond:
-	// result: (XORshiftRA x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMXORshiftRA)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORshiftRL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORshiftRL (MOVWconst [c]) x [d])
-	// cond:
-	// result: (XORconst [c] (SRLconst <x.Type> x [d]))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		d := v.AuxInt
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRLconst, x.Type)
-		v0.AddArg(x)
-		v0.AuxInt = d
-		v.AddArg(v0)
-		return true
-	}
-	// match: (XORshiftRL x (MOVWconst [c]) [d])
-	// cond:
-	// result: (XORconst x [int64(uint32(c)>>uint64(d))])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		v.reset(OpARMXORconst)
-		v.AddArg(x)
-		v.AuxInt = int64(uint32(c) >> uint64(d))
-		return true
-	}
-	// match: (XORshiftRL x (SRLconst x [c]) [d])
-	// cond: c==d
-	// result: (MOVWconst [0])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		if x != v_1.Args[0] {
-			break
-		}
-		c := v_1.AuxInt
-		d := v.AuxInt
-		if !(c == d) {
-			break
-		}
-		v.reset(OpARMMOVWconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpARMXORshiftRLreg(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORshiftRLreg (MOVWconst [c]) x y)
-	// cond:
-	// result: (XORconst [c] (SRL <x.Type> x y))
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		y := v.Args[2]
-		v.reset(OpARMXORconst)
-		v.AuxInt = c
-		v0 := b.NewValue0(v.Line, OpARMSRL, x.Type)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (XORshiftRLreg x y (MOVWconst [c]))
-	// cond:
-	// result: (XORshiftRL x y [c])
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v_2 := v.Args[2]
-		if v_2.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_2.AuxInt
-		v.reset(OpARMXORshiftRL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AuxInt = c
-		return true
-	}
-	return false
-}
 func rewriteValueARM_OpXor16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -16756,8 +16756,8 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
 		v.AuxInt = SizeAndAlign(s).Align()
 		v.AddArg(ptr)
 		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
-		v0.AddArg(ptr)
 		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+		v0.AddArg(ptr)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
 		v1.AuxInt = 0
@@ -16815,12 +16815,12 @@ func rewriteValueARM_OpZeromask(v *Value, config *Config) bool {
 	for {
 		x := v.Args[0]
 		v.reset(OpARMSRAconst)
-		v0 := b.NewValue0(v.Line, OpARMRSBshiftRL, config.fe.TypeInt32())
-		v0.AddArg(x)
-		v0.AddArg(x)
-		v0.AuxInt = 1
-		v.AddArg(v0)
 		v.AuxInt = 31
+		v0 := b.NewValue0(v.Line, OpARMRSBshiftRL, config.fe.TypeInt32())
+		v0.AuxInt = 1
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }

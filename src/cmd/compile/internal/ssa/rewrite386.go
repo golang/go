@@ -20,6 +20,184 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_Op386ANDL(v, config)
 	case Op386ANDLconst:
 		return rewriteValue386_Op386ANDLconst(v, config)
+	case Op386CMPB:
+		return rewriteValue386_Op386CMPB(v, config)
+	case Op386CMPBconst:
+		return rewriteValue386_Op386CMPBconst(v, config)
+	case Op386CMPL:
+		return rewriteValue386_Op386CMPL(v, config)
+	case Op386CMPLconst:
+		return rewriteValue386_Op386CMPLconst(v, config)
+	case Op386CMPW:
+		return rewriteValue386_Op386CMPW(v, config)
+	case Op386CMPWconst:
+		return rewriteValue386_Op386CMPWconst(v, config)
+	case Op386LEAL:
+		return rewriteValue386_Op386LEAL(v, config)
+	case Op386LEAL1:
+		return rewriteValue386_Op386LEAL1(v, config)
+	case Op386LEAL2:
+		return rewriteValue386_Op386LEAL2(v, config)
+	case Op386LEAL4:
+		return rewriteValue386_Op386LEAL4(v, config)
+	case Op386LEAL8:
+		return rewriteValue386_Op386LEAL8(v, config)
+	case Op386MOVBLSX:
+		return rewriteValue386_Op386MOVBLSX(v, config)
+	case Op386MOVBLSXload:
+		return rewriteValue386_Op386MOVBLSXload(v, config)
+	case Op386MOVBLZX:
+		return rewriteValue386_Op386MOVBLZX(v, config)
+	case Op386MOVBload:
+		return rewriteValue386_Op386MOVBload(v, config)
+	case Op386MOVBloadidx1:
+		return rewriteValue386_Op386MOVBloadidx1(v, config)
+	case Op386MOVBstore:
+		return rewriteValue386_Op386MOVBstore(v, config)
+	case Op386MOVBstoreconst:
+		return rewriteValue386_Op386MOVBstoreconst(v, config)
+	case Op386MOVBstoreconstidx1:
+		return rewriteValue386_Op386MOVBstoreconstidx1(v, config)
+	case Op386MOVBstoreidx1:
+		return rewriteValue386_Op386MOVBstoreidx1(v, config)
+	case Op386MOVLload:
+		return rewriteValue386_Op386MOVLload(v, config)
+	case Op386MOVLloadidx1:
+		return rewriteValue386_Op386MOVLloadidx1(v, config)
+	case Op386MOVLloadidx4:
+		return rewriteValue386_Op386MOVLloadidx4(v, config)
+	case Op386MOVLstore:
+		return rewriteValue386_Op386MOVLstore(v, config)
+	case Op386MOVLstoreconst:
+		return rewriteValue386_Op386MOVLstoreconst(v, config)
+	case Op386MOVLstoreconstidx1:
+		return rewriteValue386_Op386MOVLstoreconstidx1(v, config)
+	case Op386MOVLstoreconstidx4:
+		return rewriteValue386_Op386MOVLstoreconstidx4(v, config)
+	case Op386MOVLstoreidx1:
+		return rewriteValue386_Op386MOVLstoreidx1(v, config)
+	case Op386MOVLstoreidx4:
+		return rewriteValue386_Op386MOVLstoreidx4(v, config)
+	case Op386MOVSDload:
+		return rewriteValue386_Op386MOVSDload(v, config)
+	case Op386MOVSDloadidx1:
+		return rewriteValue386_Op386MOVSDloadidx1(v, config)
+	case Op386MOVSDloadidx8:
+		return rewriteValue386_Op386MOVSDloadidx8(v, config)
+	case Op386MOVSDstore:
+		return rewriteValue386_Op386MOVSDstore(v, config)
+	case Op386MOVSDstoreidx1:
+		return rewriteValue386_Op386MOVSDstoreidx1(v, config)
+	case Op386MOVSDstoreidx8:
+		return rewriteValue386_Op386MOVSDstoreidx8(v, config)
+	case Op386MOVSSload:
+		return rewriteValue386_Op386MOVSSload(v, config)
+	case Op386MOVSSloadidx1:
+		return rewriteValue386_Op386MOVSSloadidx1(v, config)
+	case Op386MOVSSloadidx4:
+		return rewriteValue386_Op386MOVSSloadidx4(v, config)
+	case Op386MOVSSstore:
+		return rewriteValue386_Op386MOVSSstore(v, config)
+	case Op386MOVSSstoreidx1:
+		return rewriteValue386_Op386MOVSSstoreidx1(v, config)
+	case Op386MOVSSstoreidx4:
+		return rewriteValue386_Op386MOVSSstoreidx4(v, config)
+	case Op386MOVWLSX:
+		return rewriteValue386_Op386MOVWLSX(v, config)
+	case Op386MOVWLSXload:
+		return rewriteValue386_Op386MOVWLSXload(v, config)
+	case Op386MOVWLZX:
+		return rewriteValue386_Op386MOVWLZX(v, config)
+	case Op386MOVWload:
+		return rewriteValue386_Op386MOVWload(v, config)
+	case Op386MOVWloadidx1:
+		return rewriteValue386_Op386MOVWloadidx1(v, config)
+	case Op386MOVWloadidx2:
+		return rewriteValue386_Op386MOVWloadidx2(v, config)
+	case Op386MOVWstore:
+		return rewriteValue386_Op386MOVWstore(v, config)
+	case Op386MOVWstoreconst:
+		return rewriteValue386_Op386MOVWstoreconst(v, config)
+	case Op386MOVWstoreconstidx1:
+		return rewriteValue386_Op386MOVWstoreconstidx1(v, config)
+	case Op386MOVWstoreconstidx2:
+		return rewriteValue386_Op386MOVWstoreconstidx2(v, config)
+	case Op386MOVWstoreidx1:
+		return rewriteValue386_Op386MOVWstoreidx1(v, config)
+	case Op386MOVWstoreidx2:
+		return rewriteValue386_Op386MOVWstoreidx2(v, config)
+	case Op386MULL:
+		return rewriteValue386_Op386MULL(v, config)
+	case Op386MULLconst:
+		return rewriteValue386_Op386MULLconst(v, config)
+	case Op386NEGL:
+		return rewriteValue386_Op386NEGL(v, config)
+	case Op386NOTL:
+		return rewriteValue386_Op386NOTL(v, config)
+	case Op386ORL:
+		return rewriteValue386_Op386ORL(v, config)
+	case Op386ORLconst:
+		return rewriteValue386_Op386ORLconst(v, config)
+	case Op386ROLBconst:
+		return rewriteValue386_Op386ROLBconst(v, config)
+	case Op386ROLLconst:
+		return rewriteValue386_Op386ROLLconst(v, config)
+	case Op386ROLWconst:
+		return rewriteValue386_Op386ROLWconst(v, config)
+	case Op386SARB:
+		return rewriteValue386_Op386SARB(v, config)
+	case Op386SARBconst:
+		return rewriteValue386_Op386SARBconst(v, config)
+	case Op386SARL:
+		return rewriteValue386_Op386SARL(v, config)
+	case Op386SARLconst:
+		return rewriteValue386_Op386SARLconst(v, config)
+	case Op386SARW:
+		return rewriteValue386_Op386SARW(v, config)
+	case Op386SARWconst:
+		return rewriteValue386_Op386SARWconst(v, config)
+	case Op386SBBL:
+		return rewriteValue386_Op386SBBL(v, config)
+	case Op386SBBLcarrymask:
+		return rewriteValue386_Op386SBBLcarrymask(v, config)
+	case Op386SETA:
+		return rewriteValue386_Op386SETA(v, config)
+	case Op386SETAE:
+		return rewriteValue386_Op386SETAE(v, config)
+	case Op386SETB:
+		return rewriteValue386_Op386SETB(v, config)
+	case Op386SETBE:
+		return rewriteValue386_Op386SETBE(v, config)
+	case Op386SETEQ:
+		return rewriteValue386_Op386SETEQ(v, config)
+	case Op386SETG:
+		return rewriteValue386_Op386SETG(v, config)
+	case Op386SETGE:
+		return rewriteValue386_Op386SETGE(v, config)
+	case Op386SETL:
+		return rewriteValue386_Op386SETL(v, config)
+	case Op386SETLE:
+		return rewriteValue386_Op386SETLE(v, config)
+	case Op386SETNE:
+		return rewriteValue386_Op386SETNE(v, config)
+	case Op386SHLL:
+		return rewriteValue386_Op386SHLL(v, config)
+	case Op386SHRB:
+		return rewriteValue386_Op386SHRB(v, config)
+	case Op386SHRL:
+		return rewriteValue386_Op386SHRL(v, config)
+	case Op386SHRW:
+		return rewriteValue386_Op386SHRW(v, config)
+	case Op386SUBL:
+		return rewriteValue386_Op386SUBL(v, config)
+	case Op386SUBLcarry:
+		return rewriteValue386_Op386SUBLcarry(v, config)
+	case Op386SUBLconst:
+		return rewriteValue386_Op386SUBLconst(v, config)
+	case Op386XORL:
+		return rewriteValue386_Op386XORL(v, config)
+	case Op386XORLconst:
+		return rewriteValue386_Op386XORLconst(v, config)
 	case OpAdd16:
 		return rewriteValue386_OpAdd16(v, config)
 	case OpAdd32:
@@ -48,18 +226,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpAndB(v, config)
 	case OpBswap32:
 		return rewriteValue386_OpBswap32(v, config)
-	case Op386CMPB:
-		return rewriteValue386_Op386CMPB(v, config)
-	case Op386CMPBconst:
-		return rewriteValue386_Op386CMPBconst(v, config)
-	case Op386CMPL:
-		return rewriteValue386_Op386CMPL(v, config)
-	case Op386CMPLconst:
-		return rewriteValue386_Op386CMPLconst(v, config)
-	case Op386CMPW:
-		return rewriteValue386_Op386CMPW(v, config)
-	case Op386CMPWconst:
-		return rewriteValue386_Op386CMPWconst(v, config)
 	case OpClosureCall:
 		return rewriteValue386_OpClosureCall(v, config)
 	case OpCom16:
@@ -186,16 +352,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpIsNonNil(v, config)
 	case OpIsSliceInBounds:
 		return rewriteValue386_OpIsSliceInBounds(v, config)
-	case Op386LEAL:
-		return rewriteValue386_Op386LEAL(v, config)
-	case Op386LEAL1:
-		return rewriteValue386_Op386LEAL1(v, config)
-	case Op386LEAL2:
-		return rewriteValue386_Op386LEAL2(v, config)
-	case Op386LEAL4:
-		return rewriteValue386_Op386LEAL4(v, config)
-	case Op386LEAL8:
-		return rewriteValue386_Op386LEAL8(v, config)
 	case OpLeq16:
 		return rewriteValue386_OpLeq16(v, config)
 	case OpLeq16U:
@@ -260,94 +416,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpLsh8x64(v, config)
 	case OpLsh8x8:
 		return rewriteValue386_OpLsh8x8(v, config)
-	case Op386MOVBLSX:
-		return rewriteValue386_Op386MOVBLSX(v, config)
-	case Op386MOVBLSXload:
-		return rewriteValue386_Op386MOVBLSXload(v, config)
-	case Op386MOVBLZX:
-		return rewriteValue386_Op386MOVBLZX(v, config)
-	case Op386MOVBload:
-		return rewriteValue386_Op386MOVBload(v, config)
-	case Op386MOVBloadidx1:
-		return rewriteValue386_Op386MOVBloadidx1(v, config)
-	case Op386MOVBstore:
-		return rewriteValue386_Op386MOVBstore(v, config)
-	case Op386MOVBstoreconst:
-		return rewriteValue386_Op386MOVBstoreconst(v, config)
-	case Op386MOVBstoreconstidx1:
-		return rewriteValue386_Op386MOVBstoreconstidx1(v, config)
-	case Op386MOVBstoreidx1:
-		return rewriteValue386_Op386MOVBstoreidx1(v, config)
-	case Op386MOVLload:
-		return rewriteValue386_Op386MOVLload(v, config)
-	case Op386MOVLloadidx1:
-		return rewriteValue386_Op386MOVLloadidx1(v, config)
-	case Op386MOVLloadidx4:
-		return rewriteValue386_Op386MOVLloadidx4(v, config)
-	case Op386MOVLstore:
-		return rewriteValue386_Op386MOVLstore(v, config)
-	case Op386MOVLstoreconst:
-		return rewriteValue386_Op386MOVLstoreconst(v, config)
-	case Op386MOVLstoreconstidx1:
-		return rewriteValue386_Op386MOVLstoreconstidx1(v, config)
-	case Op386MOVLstoreconstidx4:
-		return rewriteValue386_Op386MOVLstoreconstidx4(v, config)
-	case Op386MOVLstoreidx1:
-		return rewriteValue386_Op386MOVLstoreidx1(v, config)
-	case Op386MOVLstoreidx4:
-		return rewriteValue386_Op386MOVLstoreidx4(v, config)
-	case Op386MOVSDload:
-		return rewriteValue386_Op386MOVSDload(v, config)
-	case Op386MOVSDloadidx1:
-		return rewriteValue386_Op386MOVSDloadidx1(v, config)
-	case Op386MOVSDloadidx8:
-		return rewriteValue386_Op386MOVSDloadidx8(v, config)
-	case Op386MOVSDstore:
-		return rewriteValue386_Op386MOVSDstore(v, config)
-	case Op386MOVSDstoreidx1:
-		return rewriteValue386_Op386MOVSDstoreidx1(v, config)
-	case Op386MOVSDstoreidx8:
-		return rewriteValue386_Op386MOVSDstoreidx8(v, config)
-	case Op386MOVSSload:
-		return rewriteValue386_Op386MOVSSload(v, config)
-	case Op386MOVSSloadidx1:
-		return rewriteValue386_Op386MOVSSloadidx1(v, config)
-	case Op386MOVSSloadidx4:
-		return rewriteValue386_Op386MOVSSloadidx4(v, config)
-	case Op386MOVSSstore:
-		return rewriteValue386_Op386MOVSSstore(v, config)
-	case Op386MOVSSstoreidx1:
-		return rewriteValue386_Op386MOVSSstoreidx1(v, config)
-	case Op386MOVSSstoreidx4:
-		return rewriteValue386_Op386MOVSSstoreidx4(v, config)
-	case Op386MOVWLSX:
-		return rewriteValue386_Op386MOVWLSX(v, config)
-	case Op386MOVWLSXload:
-		return rewriteValue386_Op386MOVWLSXload(v, config)
-	case Op386MOVWLZX:
-		return rewriteValue386_Op386MOVWLZX(v, config)
-	case Op386MOVWload:
-		return rewriteValue386_Op386MOVWload(v, config)
-	case Op386MOVWloadidx1:
-		return rewriteValue386_Op386MOVWloadidx1(v, config)
-	case Op386MOVWloadidx2:
-		return rewriteValue386_Op386MOVWloadidx2(v, config)
-	case Op386MOVWstore:
-		return rewriteValue386_Op386MOVWstore(v, config)
-	case Op386MOVWstoreconst:
-		return rewriteValue386_Op386MOVWstoreconst(v, config)
-	case Op386MOVWstoreconstidx1:
-		return rewriteValue386_Op386MOVWstoreconstidx1(v, config)
-	case Op386MOVWstoreconstidx2:
-		return rewriteValue386_Op386MOVWstoreconstidx2(v, config)
-	case Op386MOVWstoreidx1:
-		return rewriteValue386_Op386MOVWstoreidx1(v, config)
-	case Op386MOVWstoreidx2:
-		return rewriteValue386_Op386MOVWstoreidx2(v, config)
-	case Op386MULL:
-		return rewriteValue386_Op386MULL(v, config)
-	case Op386MULLconst:
-		return rewriteValue386_Op386MULLconst(v, config)
 	case OpMod16:
 		return rewriteValue386_OpMod16(v, config)
 	case OpMod16u:
@@ -374,10 +442,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpMul64F(v, config)
 	case OpMul8:
 		return rewriteValue386_OpMul8(v, config)
-	case Op386NEGL:
-		return rewriteValue386_Op386NEGL(v, config)
-	case Op386NOTL:
-		return rewriteValue386_Op386NOTL(v, config)
 	case OpNeg16:
 		return rewriteValue386_OpNeg16(v, config)
 	case OpNeg32:
@@ -406,10 +470,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpNilCheck(v, config)
 	case OpNot:
 		return rewriteValue386_OpNot(v, config)
-	case Op386ORL:
-		return rewriteValue386_Op386ORL(v, config)
-	case Op386ORLconst:
-		return rewriteValue386_Op386ORLconst(v, config)
 	case OpOffPtr:
 		return rewriteValue386_OpOffPtr(v, config)
 	case OpOr16:
@@ -420,12 +480,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpOr8(v, config)
 	case OpOrB:
 		return rewriteValue386_OpOrB(v, config)
-	case Op386ROLBconst:
-		return rewriteValue386_Op386ROLBconst(v, config)
-	case Op386ROLLconst:
-		return rewriteValue386_Op386ROLLconst(v, config)
-	case Op386ROLWconst:
-		return rewriteValue386_Op386ROLWconst(v, config)
 	case OpRsh16Ux16:
 		return rewriteValue386_OpRsh16Ux16(v, config)
 	case OpRsh16Ux32:
@@ -474,56 +528,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpRsh8x64(v, config)
 	case OpRsh8x8:
 		return rewriteValue386_OpRsh8x8(v, config)
-	case Op386SARB:
-		return rewriteValue386_Op386SARB(v, config)
-	case Op386SARBconst:
-		return rewriteValue386_Op386SARBconst(v, config)
-	case Op386SARL:
-		return rewriteValue386_Op386SARL(v, config)
-	case Op386SARLconst:
-		return rewriteValue386_Op386SARLconst(v, config)
-	case Op386SARW:
-		return rewriteValue386_Op386SARW(v, config)
-	case Op386SARWconst:
-		return rewriteValue386_Op386SARWconst(v, config)
-	case Op386SBBL:
-		return rewriteValue386_Op386SBBL(v, config)
-	case Op386SBBLcarrymask:
-		return rewriteValue386_Op386SBBLcarrymask(v, config)
-	case Op386SETA:
-		return rewriteValue386_Op386SETA(v, config)
-	case Op386SETAE:
-		return rewriteValue386_Op386SETAE(v, config)
-	case Op386SETB:
-		return rewriteValue386_Op386SETB(v, config)
-	case Op386SETBE:
-		return rewriteValue386_Op386SETBE(v, config)
-	case Op386SETEQ:
-		return rewriteValue386_Op386SETEQ(v, config)
-	case Op386SETG:
-		return rewriteValue386_Op386SETG(v, config)
-	case Op386SETGE:
-		return rewriteValue386_Op386SETGE(v, config)
-	case Op386SETL:
-		return rewriteValue386_Op386SETL(v, config)
-	case Op386SETLE:
-		return rewriteValue386_Op386SETLE(v, config)
-	case Op386SETNE:
-		return rewriteValue386_Op386SETNE(v, config)
-	case Op386SHLL:
-		return rewriteValue386_Op386SHLL(v, config)
-	case Op386SHRB:
-		return rewriteValue386_Op386SHRB(v, config)
-	case Op386SHRL:
-		return rewriteValue386_Op386SHRL(v, config)
-	case Op386SHRW:
-		return rewriteValue386_Op386SHRW(v, config)
-	case Op386SUBL:
-		return rewriteValue386_Op386SUBL(v, config)
-	case Op386SUBLcarry:
-		return rewriteValue386_Op386SUBLcarry(v, config)
-	case Op386SUBLconst:
-		return rewriteValue386_Op386SUBLconst(v, config)
 	case OpSignExt16to32:
 		return rewriteValue386_OpSignExt16to32(v, config)
 	case OpSignExt8to16:
@@ -560,10 +564,6 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpTrunc32to16(v, config)
 	case OpTrunc32to8:
 		return rewriteValue386_OpTrunc32to8(v, config)
-	case Op386XORL:
-		return rewriteValue386_Op386XORL(v, config)
-	case Op386XORLconst:
-		return rewriteValue386_Op386XORLconst(v, config)
 	case OpXor16:
 		return rewriteValue386_OpXor16(v, config)
 	case OpXor32:
@@ -1181,216 +1181,6 @@ func rewriteValue386_Op386ANDLconst(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValue386_OpAdd16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add16  x y)
-	// cond:
-	// result: (ADDL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAdd32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32  x y)
-	// cond:
-	// result: (ADDL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAdd32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32F x y)
-	// cond:
-	// result: (ADDSS x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDSS)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAdd32carry(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32carry x y)
-	// cond:
-	// result: (ADDLcarry x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDLcarry)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAdd32withcarry(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add32withcarry x y c)
-	// cond:
-	// result: (ADCL x y c)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		c := v.Args[2]
-		v.reset(Op386ADCL)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(c)
-		return true
-	}
-}
-func rewriteValue386_OpAdd64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add64F x y)
-	// cond:
-	// result: (ADDSD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDSD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAdd8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Add8   x y)
-	// cond:
-	// result: (ADDL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAddPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (AddPtr x y)
-	// cond:
-	// result: (ADDL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ADDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAddr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Addr {sym} base)
-	// cond:
-	// result: (LEAL {sym} base)
-	for {
-		sym := v.Aux
-		base := v.Args[0]
-		v.reset(Op386LEAL)
-		v.Aux = sym
-		v.AddArg(base)
-		return true
-	}
-}
-func rewriteValue386_OpAnd16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (And16 x y)
-	// cond:
-	// result: (ANDL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAnd32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (And32 x y)
-	// cond:
-	// result: (ANDL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAnd8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (And8  x y)
-	// cond:
-	// result: (ANDL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpAndB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (AndB x y)
-	// cond:
-	// result: (ANDL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpBswap32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Bswap32 x)
-	// cond:
-	// result: (BSWAPL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386BSWAPL)
-		v.AddArg(x)
-		return true
-	}
-}
 func rewriteValue386_Op386CMPB(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -1405,8 +1195,8 @@ func rewriteValue386_Op386CMPB(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(Op386CMPBconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int8(c))
+		v.AddArg(x)
 		return true
 	}
 	// match: (CMPB (MOVLconst [c]) x)
@@ -1421,8 +1211,8 @@ func rewriteValue386_Op386CMPB(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(Op386InvertFlags)
 		v0 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v0.AddArg(x)
 		v0.AuxInt = int64(int8(c))
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1435,12 +1225,12 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond: int8(x)==int8(y)
 	// result: (FlagEQ)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int8(x) == int8(y)) {
 			break
 		}
@@ -1451,12 +1241,12 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond: int8(x)<int8(y) && uint8(x)<uint8(y)
 	// result: (FlagLT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int8(x) < int8(y) && uint8(x) < uint8(y)) {
 			break
 		}
@@ -1467,12 +1257,12 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond: int8(x)<int8(y) && uint8(x)>uint8(y)
 	// result: (FlagLT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int8(x) < int8(y) && uint8(x) > uint8(y)) {
 			break
 		}
@@ -1483,12 +1273,12 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond: int8(x)>int8(y) && uint8(x)<uint8(y)
 	// result: (FlagGT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int8(x) > int8(y) && uint8(x) < uint8(y)) {
 			break
 		}
@@ -1499,12 +1289,12 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond: int8(x)>int8(y) && uint8(x)>uint8(y)
 	// result: (FlagGT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int8(x) > int8(y) && uint8(x) > uint8(y)) {
 			break
 		}
@@ -1515,12 +1305,12 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond: 0 <= int8(m) && int8(m) < int8(n)
 	// result: (FlagLT_ULT)
 	for {
+		n := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDLconst {
 			break
 		}
 		m := v_0.AuxInt
-		n := v.AuxInt
 		if !(0 <= int8(m) && int8(m) < int8(n)) {
 			break
 		}
@@ -1531,15 +1321,15 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTB x y)
 	for {
+		if v.AuxInt != 0 {
+			break
+		}
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDL {
 			break
 		}
 		x := v_0.Args[0]
 		y := v_0.Args[1]
-		if v.AuxInt != 0 {
-			break
-		}
 		v.reset(Op386TESTB)
 		v.AddArg(x)
 		v.AddArg(y)
@@ -1549,15 +1339,15 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTBconst [int64(int8(c))] x)
 	for {
+		if v.AuxInt != 0 {
+			break
+		}
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDLconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if v.AuxInt != 0 {
-			break
-		}
 		v.reset(Op386TESTBconst)
 		v.AuxInt = int64(int8(c))
 		v.AddArg(x)
@@ -1567,10 +1357,10 @@ func rewriteValue386_Op386CMPBconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTB x x)
 	for {
-		x := v.Args[0]
 		if v.AuxInt != 0 {
 			break
 		}
+		x := v.Args[0]
 		v.reset(Op386TESTB)
 		v.AddArg(x)
 		v.AddArg(x)
@@ -1592,8 +1382,8 @@ func rewriteValue386_Op386CMPL(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(Op386CMPLconst)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (CMPL (MOVLconst [c]) x)
@@ -1608,8 +1398,8 @@ func rewriteValue386_Op386CMPL(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(Op386InvertFlags)
 		v0 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v0.AddArg(x)
 		v0.AuxInt = c
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1622,12 +1412,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: int32(x)==int32(y)
 	// result: (FlagEQ)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) == int32(y)) {
 			break
 		}
@@ -1638,12 +1428,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: int32(x)<int32(y) && uint32(x)<uint32(y)
 	// result: (FlagLT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) < int32(y) && uint32(x) < uint32(y)) {
 			break
 		}
@@ -1654,12 +1444,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: int32(x)<int32(y) && uint32(x)>uint32(y)
 	// result: (FlagLT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) < int32(y) && uint32(x) > uint32(y)) {
 			break
 		}
@@ -1670,12 +1460,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: int32(x)>int32(y) && uint32(x)<uint32(y)
 	// result: (FlagGT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) > int32(y) && uint32(x) < uint32(y)) {
 			break
 		}
@@ -1686,12 +1476,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: int32(x)>int32(y) && uint32(x)>uint32(y)
 	// result: (FlagGT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int32(x) > int32(y) && uint32(x) > uint32(y)) {
 			break
 		}
@@ -1702,12 +1492,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)
 	// result: (FlagLT_ULT)
 	for {
+		n := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386SHRLconst {
 			break
 		}
 		c := v_0.AuxInt
-		n := v.AuxInt
 		if !(0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)) {
 			break
 		}
@@ -1718,12 +1508,12 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond: 0 <= int32(m) && int32(m) < int32(n)
 	// result: (FlagLT_ULT)
 	for {
+		n := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDLconst {
 			break
 		}
 		m := v_0.AuxInt
-		n := v.AuxInt
 		if !(0 <= int32(m) && int32(m) < int32(n)) {
 			break
 		}
@@ -1734,15 +1524,15 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTL x y)
 	for {
+		if v.AuxInt != 0 {
+			break
+		}
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDL {
 			break
 		}
 		x := v_0.Args[0]
 		y := v_0.Args[1]
-		if v.AuxInt != 0 {
-			break
-		}
 		v.reset(Op386TESTL)
 		v.AddArg(x)
 		v.AddArg(y)
@@ -1752,15 +1542,15 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTLconst [c] x)
 	for {
+		if v.AuxInt != 0 {
+			break
+		}
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDLconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if v.AuxInt != 0 {
-			break
-		}
 		v.reset(Op386TESTLconst)
 		v.AuxInt = c
 		v.AddArg(x)
@@ -1770,10 +1560,10 @@ func rewriteValue386_Op386CMPLconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTL x x)
 	for {
-		x := v.Args[0]
 		if v.AuxInt != 0 {
 			break
 		}
+		x := v.Args[0]
 		v.reset(Op386TESTL)
 		v.AddArg(x)
 		v.AddArg(x)
@@ -1795,8 +1585,8 @@ func rewriteValue386_Op386CMPW(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(Op386CMPWconst)
-		v.AddArg(x)
 		v.AuxInt = int64(int16(c))
+		v.AddArg(x)
 		return true
 	}
 	// match: (CMPW (MOVLconst [c]) x)
@@ -1811,8 +1601,8 @@ func rewriteValue386_Op386CMPW(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(Op386InvertFlags)
 		v0 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v0.AddArg(x)
 		v0.AuxInt = int64(int16(c))
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -1825,12 +1615,12 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond: int16(x)==int16(y)
 	// result: (FlagEQ)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int16(x) == int16(y)) {
 			break
 		}
@@ -1841,12 +1631,12 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond: int16(x)<int16(y) && uint16(x)<uint16(y)
 	// result: (FlagLT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int16(x) < int16(y) && uint16(x) < uint16(y)) {
 			break
 		}
@@ -1857,12 +1647,12 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond: int16(x)<int16(y) && uint16(x)>uint16(y)
 	// result: (FlagLT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int16(x) < int16(y) && uint16(x) > uint16(y)) {
 			break
 		}
@@ -1873,12 +1663,12 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond: int16(x)>int16(y) && uint16(x)<uint16(y)
 	// result: (FlagGT_ULT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int16(x) > int16(y) && uint16(x) < uint16(y)) {
 			break
 		}
@@ -1889,12 +1679,12 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond: int16(x)>int16(y) && uint16(x)>uint16(y)
 	// result: (FlagGT_UGT)
 	for {
+		y := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386MOVLconst {
 			break
 		}
 		x := v_0.AuxInt
-		y := v.AuxInt
 		if !(int16(x) > int16(y) && uint16(x) > uint16(y)) {
 			break
 		}
@@ -1905,12 +1695,12 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond: 0 <= int16(m) && int16(m) < int16(n)
 	// result: (FlagLT_ULT)
 	for {
+		n := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDLconst {
 			break
 		}
 		m := v_0.AuxInt
-		n := v.AuxInt
 		if !(0 <= int16(m) && int16(m) < int16(n)) {
 			break
 		}
@@ -1921,15 +1711,15 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTW x y)
 	for {
+		if v.AuxInt != 0 {
+			break
+		}
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDL {
 			break
 		}
 		x := v_0.Args[0]
 		y := v_0.Args[1]
-		if v.AuxInt != 0 {
-			break
-		}
 		v.reset(Op386TESTW)
 		v.AddArg(x)
 		v.AddArg(y)
@@ -1939,15 +1729,15 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTWconst [int64(int16(c))] x)
 	for {
+		if v.AuxInt != 0 {
+			break
+		}
 		v_0 := v.Args[0]
 		if v_0.Op != Op386ANDLconst {
 			break
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if v.AuxInt != 0 {
-			break
-		}
 		v.reset(Op386TESTWconst)
 		v.AuxInt = int64(int16(c))
 		v.AddArg(x)
@@ -1957,989 +1747,16 @@ func rewriteValue386_Op386CMPWconst(v *Value, config *Config) bool {
 	// cond:
 	// result: (TESTW x x)
 	for {
-		x := v.Args[0]
 		if v.AuxInt != 0 {
 			break
 		}
+		x := v.Args[0]
 		v.reset(Op386TESTW)
 		v.AddArg(x)
 		v.AddArg(x)
 		return true
 	}
 	return false
-}
-func rewriteValue386_OpClosureCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ClosureCall [argwid] entry closure mem)
-	// cond:
-	// result: (CALLclosure [argwid] entry closure mem)
-	for {
-		argwid := v.AuxInt
-		entry := v.Args[0]
-		closure := v.Args[1]
-		mem := v.Args[2]
-		v.reset(Op386CALLclosure)
-		v.AuxInt = argwid
-		v.AddArg(entry)
-		v.AddArg(closure)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpCom16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Com16 x)
-	// cond:
-	// result: (NOTL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386NOTL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCom32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Com32 x)
-	// cond:
-	// result: (NOTL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386NOTL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCom8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Com8  x)
-	// cond:
-	// result: (NOTL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386NOTL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpConst16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const16  [val])
-	// cond:
-	// result: (MOVLconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(Op386MOVLconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValue386_OpConst32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const32  [val])
-	// cond:
-	// result: (MOVLconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(Op386MOVLconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValue386_OpConst32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const32F [val])
-	// cond:
-	// result: (MOVSSconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(Op386MOVSSconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValue386_OpConst64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const64F [val])
-	// cond:
-	// result: (MOVSDconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(Op386MOVSDconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValue386_OpConst8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Const8   [val])
-	// cond:
-	// result: (MOVLconst [val])
-	for {
-		val := v.AuxInt
-		v.reset(Op386MOVLconst)
-		v.AuxInt = val
-		return true
-	}
-}
-func rewriteValue386_OpConstBool(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ConstBool [b])
-	// cond:
-	// result: (MOVLconst [b])
-	for {
-		b := v.AuxInt
-		v.reset(Op386MOVLconst)
-		v.AuxInt = b
-		return true
-	}
-}
-func rewriteValue386_OpConstNil(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ConstNil)
-	// cond:
-	// result: (MOVLconst [0])
-	for {
-		v.reset(Op386MOVLconst)
-		v.AuxInt = 0
-		return true
-	}
-}
-func rewriteValue386_OpConvert(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Convert <t> x mem)
-	// cond:
-	// result: (MOVLconvert <t> x mem)
-	for {
-		t := v.Type
-		x := v.Args[0]
-		mem := v.Args[1]
-		v.reset(Op386MOVLconvert)
-		v.Type = t
-		v.AddArg(x)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpCvt32Fto32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Fto32 x)
-	// cond:
-	// result: (CVTTSS2SL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386CVTTSS2SL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCvt32Fto64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32Fto64F x)
-	// cond:
-	// result: (CVTSS2SD x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386CVTSS2SD)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCvt32to32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32to32F x)
-	// cond:
-	// result: (CVTSL2SS x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386CVTSL2SS)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCvt32to64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt32to64F x)
-	// cond:
-	// result: (CVTSL2SD x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386CVTSL2SD)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCvt64Fto32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt64Fto32 x)
-	// cond:
-	// result: (CVTTSD2SL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386CVTTSD2SL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpCvt64Fto32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Cvt64Fto32F x)
-	// cond:
-	// result: (CVTSD2SS x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386CVTSD2SS)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpDeferCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (DeferCall [argwid] mem)
-	// cond:
-	// result: (CALLdefer [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(Op386CALLdefer)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpDiv16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div16  x y)
-	// cond:
-	// result: (DIVW  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpDiv16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div16u x y)
-	// cond:
-	// result: (DIVWU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVWU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpDiv32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div32  x y)
-	// cond:
-	// result: (DIVL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpDiv32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div32F x y)
-	// cond:
-	// result: (DIVSS x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVSS)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpDiv32u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div32u x y)
-	// cond:
-	// result: (DIVLU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVLU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpDiv64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div64F x y)
-	// cond:
-	// result: (DIVSD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVSD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpDiv8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div8   x y)
-	// cond:
-	// result: (DIVW  (SignExt8to16 x) (SignExt8to16 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVW)
-		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpDiv8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Div8u  x y)
-	// cond:
-	// result: (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386DIVWU)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpEq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq16  x y)
-	// cond:
-	// result: (SETEQ (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpEq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq32  x y)
-	// cond:
-	// result: (SETEQ (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpEq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq32F x y)
-	// cond:
-	// result: (SETEQF (UCOMISS x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpEq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq64F x y)
-	// cond:
-	// result: (SETEQF (UCOMISD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpEq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Eq8   x y)
-	// cond:
-	// result: (SETEQ (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpEqB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (EqB   x y)
-	// cond:
-	// result: (SETEQ (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpEqPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (EqPtr x y)
-	// cond:
-	// result: (SETEQ (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq16  x y)
-	// cond:
-	// result: (SETGE (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGE)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq16U x y)
-	// cond:
-	// result: (SETAE (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETAE)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq32  x y)
-	// cond:
-	// result: (SETGE (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq32F x y)
-	// cond:
-	// result: (SETGEF (UCOMISS x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGEF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq32U x y)
-	// cond:
-	// result: (SETAE (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETAE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq64F x y)
-	// cond:
-	// result: (SETGEF (UCOMISD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGEF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq8   x y)
-	// cond:
-	// result: (SETGE (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGE)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGeq8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Geq8U  x y)
-	// cond:
-	// result: (SETAE (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETAE)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGetClosurePtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GetClosurePtr)
-	// cond:
-	// result: (LoweredGetClosurePtr)
-	for {
-		v.reset(Op386LoweredGetClosurePtr)
-		return true
-	}
-}
-func rewriteValue386_OpGetG(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GetG mem)
-	// cond:
-	// result: (LoweredGetG mem)
-	for {
-		mem := v.Args[0]
-		v.reset(Op386LoweredGetG)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpGoCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (GoCall [argwid] mem)
-	// cond:
-	// result: (CALLgo [argwid] mem)
-	for {
-		argwid := v.AuxInt
-		mem := v.Args[0]
-		v.reset(Op386CALLgo)
-		v.AuxInt = argwid
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpGreater16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater16  x y)
-	// cond:
-	// result: (SETG (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETG)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater16U x y)
-	// cond:
-	// result: (SETA (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETA)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater32  x y)
-	// cond:
-	// result: (SETG (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETG)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater32F x y)
-	// cond:
-	// result: (SETGF (UCOMISS x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater32U x y)
-	// cond:
-	// result: (SETA (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETA)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater64F x y)
-	// cond:
-	// result: (SETGF (UCOMISD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater8   x y)
-	// cond:
-	// result: (SETG (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETG)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpGreater8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Greater8U  x y)
-	// cond:
-	// result: (SETA (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETA)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpHmul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16  x y)
-	// cond:
-	// result: (HMULW  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386HMULW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpHmul16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul16u x y)
-	// cond:
-	// result: (HMULWU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386HMULWU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpHmul32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul32  x y)
-	// cond:
-	// result: (HMULL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386HMULL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpHmul32u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul32u x y)
-	// cond:
-	// result: (HMULLU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386HMULLU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpHmul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8   x y)
-	// cond:
-	// result: (HMULB  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386HMULB)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpHmul8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Hmul8u  x y)
-	// cond:
-	// result: (HMULBU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386HMULBU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpInterCall(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (InterCall [argwid] entry mem)
-	// cond:
-	// result: (CALLinter [argwid] entry mem)
-	for {
-		argwid := v.AuxInt
-		entry := v.Args[0]
-		mem := v.Args[1]
-		v.reset(Op386CALLinter)
-		v.AuxInt = argwid
-		v.AddArg(entry)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpIsInBounds(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (IsInBounds idx len)
-	// cond:
-	// result: (SETB (CMPL idx len))
-	for {
-		idx := v.Args[0]
-		len := v.Args[1]
-		v.reset(Op386SETB)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpIsNonNil(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (IsNonNil p)
-	// cond:
-	// result: (SETNE (TESTL p p))
-	for {
-		p := v.Args[0]
-		v.reset(Op386SETNE)
-		v0 := b.NewValue0(v.Line, Op386TESTL, TypeFlags)
-		v0.AddArg(p)
-		v0.AddArg(p)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpIsSliceInBounds(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (IsSliceInBounds idx len)
-	// cond:
-	// result: (SETBE (CMPL idx len))
-	for {
-		idx := v.Args[0]
-		len := v.Args[1]
-		v.reset(Op386SETBE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
 }
 func rewriteValue386_Op386LEAL(v *Value, config *Config) bool {
 	b := v.Block
@@ -3628,742 +2445,6 @@ func rewriteValue386_Op386LEAL8(v *Value, config *Config) bool {
 		return true
 	}
 	return false
-}
-func rewriteValue386_OpLeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq16  x y)
-	// cond:
-	// result: (SETLE (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETLE)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq16U x y)
-	// cond:
-	// result: (SETBE (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETBE)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq32  x y)
-	// cond:
-	// result: (SETLE (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETLE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq32F x y)
-	// cond:
-	// result: (SETGEF (UCOMISS y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGEF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq32U x y)
-	// cond:
-	// result: (SETBE (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETBE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq64F x y)
-	// cond:
-	// result: (SETGEF (UCOMISD y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGEF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq8   x y)
-	// cond:
-	// result: (SETLE (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETLE)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLeq8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Leq8U  x y)
-	// cond:
-	// result: (SETBE (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETBE)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less16  x y)
-	// cond:
-	// result: (SETL (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETL)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess16U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less16U x y)
-	// cond:
-	// result: (SETB (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETB)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less32  x y)
-	// cond:
-	// result: (SETL (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETL)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less32F x y)
-	// cond:
-	// result: (SETGF (UCOMISS y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess32U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less32U x y)
-	// cond:
-	// result: (SETB (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETB)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less64F x y)
-	// cond:
-	// result: (SETGF (UCOMISD y x))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETGF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
-		v0.AddArg(y)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less8   x y)
-	// cond:
-	// result: (SETL (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETL)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLess8U(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Less8U  x y)
-	// cond:
-	// result: (SETB (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETB)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpLoad(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Load <t> ptr mem)
-	// cond: (is32BitInt(t) || isPtr(t))
-	// result: (MOVLload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is32BitInt(t) || isPtr(t)) {
-			break
-		}
-		v.reset(Op386MOVLload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t)
-	// result: (MOVWload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is16BitInt(t)) {
-			break
-		}
-		v.reset(Op386MOVWload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: (t.IsBoolean() || is8BitInt(t))
-	// result: (MOVBload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(t.IsBoolean() || is8BitInt(t)) {
-			break
-		}
-		v.reset(Op386MOVBload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: is32BitFloat(t)
-	// result: (MOVSSload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is32BitFloat(t)) {
-			break
-		}
-		v.reset(Op386MOVSSload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Load <t> ptr mem)
-	// cond: is64BitFloat(t)
-	// result: (MOVSDload ptr mem)
-	for {
-		t := v.Type
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(is64BitFloat(t)) {
-			break
-		}
-		v.reset(Op386MOVSDload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpLrot16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lrot16 <t> x [c])
-	// cond:
-	// result: (ROLWconst <t> [c&15] x)
-	for {
-		t := v.Type
-		x := v.Args[0]
-		c := v.AuxInt
-		v.reset(Op386ROLWconst)
-		v.Type = t
-		v.AuxInt = c & 15
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpLrot32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lrot32 <t> x [c])
-	// cond:
-	// result: (ROLLconst <t> [c&31] x)
-	for {
-		t := v.Type
-		x := v.Args[0]
-		c := v.AuxInt
-		v.reset(Op386ROLLconst)
-		v.Type = t
-		v.AuxInt = c & 31
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpLrot8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lrot8  <t> x [c])
-	// cond:
-	// result: (ROLBconst <t> [c&7] x)
-	for {
-		t := v.Type
-		x := v.Args[0]
-		c := v.AuxInt
-		v.reset(Op386ROLBconst)
-		v.Type = t
-		v.AuxInt = c & 7
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpLsh16x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x16 <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh16x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x32 <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh16x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x64 x (Const64 [c]))
-	// cond: uint64(c) < 16
-	// result: (SHLLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 16) {
-			break
-		}
-		v.reset(Op386SHLLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Lsh16x64 _ (Const64 [c]))
-	// cond: uint64(c) >= 16
-	// result: (Const16 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 16) {
-			break
-		}
-		v.reset(OpConst16)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpLsh16x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh16x8  <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh32x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x16 <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh32x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x32 <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh32x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x64 x (Const64 [c]))
-	// cond: uint64(c) < 32
-	// result: (SHLLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 32) {
-			break
-		}
-		v.reset(Op386SHLLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Lsh32x64 _ (Const64 [c]))
-	// cond: uint64(c) >= 32
-	// result: (Const32 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 32) {
-			break
-		}
-		v.reset(OpConst32)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpLsh32x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh32x8  <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh8x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x16 <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh8x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x32 <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpLsh8x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x64 x (Const64 [c]))
-	// cond: uint64(c) < 8
-	// result: (SHLLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 8) {
-			break
-		}
-		v.reset(Op386SHLLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Lsh8x64 _ (Const64 [c]))
-	// cond: uint64(c) >= 8
-	// result: (Const8 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 8) {
-			break
-		}
-		v.reset(OpConst8)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpLsh8x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Lsh8x8  <t> x y)
-	// cond:
-	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHLL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
 }
 func rewriteValue386_Op386MOVBLSX(v *Value, config *Config) bool {
 	b := v.Block
@@ -8924,487 +7005,6 @@ func rewriteValue386_Op386MULLconst(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValue386_OpMod16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mod16  x y)
-	// cond:
-	// result: (MODW  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MODW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMod16u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mod16u x y)
-	// cond:
-	// result: (MODWU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MODWU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMod32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mod32  x y)
-	// cond:
-	// result: (MODL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MODL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMod32u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mod32u x y)
-	// cond:
-	// result: (MODLU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MODLU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMod8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mod8   x y)
-	// cond:
-	// result: (MODW  (SignExt8to16 x) (SignExt8to16 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MODW)
-		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpMod8u(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mod8u  x y)
-	// cond:
-	// result: (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MODWU)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpMove(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Move [s] _ _ mem)
-	// cond: SizeAndAlign(s).Size() == 0
-	// result: mem
-	for {
-		s := v.AuxInt
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 0) {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = mem.Type
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 1
-	// result: (MOVBstore dst (MOVBload src mem) mem)
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 1) {
-			break
-		}
-		v.reset(Op386MOVBstore)
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVBload, config.fe.TypeUInt8())
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 2
-	// result: (MOVWstore dst (MOVWload src mem) mem)
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 2) {
-			break
-		}
-		v.reset(Op386MOVWstore)
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVWload, config.fe.TypeUInt16())
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 4
-	// result: (MOVLstore dst (MOVLload src mem) mem)
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 4) {
-			break
-		}
-		v.reset(Op386MOVLstore)
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 3
-	// result: (MOVBstore [2] dst (MOVBload [2] src mem) 		(MOVWstore dst (MOVWload src mem) mem))
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 3) {
-			break
-		}
-		v.reset(Op386MOVBstore)
-		v.AuxInt = 2
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVBload, config.fe.TypeUInt8())
-		v0.AuxInt = 2
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386MOVWstore, TypeMem)
-		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Line, Op386MOVWload, config.fe.TypeUInt16())
-		v2.AddArg(src)
-		v2.AddArg(mem)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 5
-	// result: (MOVBstore [4] dst (MOVBload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 5) {
-			break
-		}
-		v.reset(Op386MOVBstore)
-		v.AuxInt = 4
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVBload, config.fe.TypeUInt8())
-		v0.AuxInt = 4
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
-		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v2.AddArg(src)
-		v2.AddArg(mem)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 6
-	// result: (MOVWstore [4] dst (MOVWload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 6) {
-			break
-		}
-		v.reset(Op386MOVWstore)
-		v.AuxInt = 4
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVWload, config.fe.TypeUInt16())
-		v0.AuxInt = 4
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
-		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v2.AddArg(src)
-		v2.AddArg(mem)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 7
-	// result: (MOVLstore [3] dst (MOVLload [3] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 7) {
-			break
-		}
-		v.reset(Op386MOVLstore)
-		v.AuxInt = 3
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v0.AuxInt = 3
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
-		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v2.AddArg(src)
-		v2.AddArg(mem)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() == 8
-	// result: (MOVLstore [4] dst (MOVLload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() == 8) {
-			break
-		}
-		v.reset(Op386MOVLstore)
-		v.AuxInt = 4
-		v.AddArg(dst)
-		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v0.AuxInt = 4
-		v0.AddArg(src)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
-		v1.AddArg(dst)
-		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v2.AddArg(src)
-		v2.AddArg(mem)
-		v1.AddArg(v2)
-		v1.AddArg(mem)
-		v.AddArg(v1)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0
-	// result: (Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%4] 		(ADDLconst <dst.Type> dst [SizeAndAlign(s).Size()%4]) 		(ADDLconst <src.Type> src [SizeAndAlign(s).Size()%4]) 		(MOVLstore dst (MOVLload src mem) mem))
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0) {
-			break
-		}
-		v.reset(OpMove)
-		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%4
-		v0 := b.NewValue0(v.Line, Op386ADDLconst, dst.Type)
-		v0.AddArg(dst)
-		v0.AuxInt = SizeAndAlign(s).Size() % 4
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386ADDLconst, src.Type)
-		v1.AddArg(src)
-		v1.AuxInt = SizeAndAlign(s).Size() % 4
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
-		v2.AddArg(dst)
-		v3 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
-		v3.AddArg(src)
-		v3.AddArg(mem)
-		v2.AddArg(v3)
-		v2.AddArg(mem)
-		v.AddArg(v2)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 	&& !config.noDuffDevice
-	// result: (DUFFCOPY [10*(128-SizeAndAlign(s).Size()/4)] dst src mem)
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 && !config.noDuffDevice) {
-			break
-		}
-		v.reset(Op386DUFFCOPY)
-		v.AuxInt = 10 * (128 - SizeAndAlign(s).Size()/4)
-		v.AddArg(dst)
-		v.AddArg(src)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: (SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0
-	// result: (REPMOVSL dst src (MOVLconst [SizeAndAlign(s).Size()/4]) mem)
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !((SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0) {
-			break
-		}
-		v.reset(Op386REPMOVSL)
-		v.AddArg(dst)
-		v.AddArg(src)
-		v0 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
-		v0.AuxInt = SizeAndAlign(s).Size() / 4
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpMul16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mul16  x y)
-	// cond:
-	// result: (MULL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MULL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMul32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mul32  x y)
-	// cond:
-	// result: (MULL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MULL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMul32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mul32F x y)
-	// cond:
-	// result: (MULSS x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MULSS)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMul32uhilo(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mul32uhilo x y)
-	// cond:
-	// result: (MULLQU x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MULLQU)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMul64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mul64F x y)
-	// cond:
-	// result: (MULSD x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MULSD)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpMul8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Mul8   x y)
-	// cond:
-	// result: (MULL  x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386MULL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
 func rewriteValue386_Op386NEGL(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -9440,225 +7040,6 @@ func rewriteValue386_Op386NOTL(v *Value, config *Config) bool {
 		return true
 	}
 	return false
-}
-func rewriteValue386_OpNeg16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neg16  x)
-	// cond:
-	// result: (NEGL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386NEGL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpNeg32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neg32  x)
-	// cond:
-	// result: (NEGL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386NEGL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpNeg32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neg32F x)
-	// cond:
-	// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
-	for {
-		x := v.Args[0]
-		v.reset(Op386PXOR)
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386MOVSSconst, config.Frontend().TypeFloat32())
-		v0.AuxInt = f2i(math.Copysign(0, -1))
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeg64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neg64F x)
-	// cond:
-	// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
-	for {
-		x := v.Args[0]
-		v.reset(Op386PXOR)
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386MOVSDconst, config.Frontend().TypeFloat64())
-		v0.AuxInt = f2i(math.Copysign(0, -1))
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeg8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neg8   x)
-	// cond:
-	// result: (NEGL x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386NEGL)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValue386_OpNeq16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neq16  x y)
-	// cond:
-	// result: (SETNE (CMPW x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNE)
-		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeq32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neq32  x y)
-	// cond:
-	// result: (SETNE (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeq32F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neq32F x y)
-	// cond:
-	// result: (SETNEF (UCOMISS x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNEF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeq64F(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neq64F x y)
-	// cond:
-	// result: (SETNEF (UCOMISD x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNEF)
-		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeq8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Neq8   x y)
-	// cond:
-	// result: (SETNE (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNE)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeqB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (NeqB   x y)
-	// cond:
-	// result: (SETNE (CMPB x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNE)
-		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNeqPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (NeqPtr x y)
-	// cond:
-	// result: (SETNE (CMPL x y))
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SETNE)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpNilCheck(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (NilCheck ptr mem)
-	// cond:
-	// result: (LoweredNilCheck ptr mem)
-	for {
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		v.reset(Op386LoweredNilCheck)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-}
-func rewriteValue386_OpNot(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Not x)
-	// cond:
-	// result: (XORLconst [1] x)
-	for {
-		x := v.Args[0]
-		v.reset(Op386XORLconst)
-		v.AuxInt = 1
-		v.AddArg(x)
-		return true
-	}
 }
 func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
 	b := v.Block
@@ -10069,81 +7450,6 @@ func rewriteValue386_Op386ORLconst(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValue386_OpOffPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (OffPtr [off] ptr)
-	// cond:
-	// result: (ADDLconst [off] ptr)
-	for {
-		off := v.AuxInt
-		ptr := v.Args[0]
-		v.reset(Op386ADDLconst)
-		v.AuxInt = off
-		v.AddArg(ptr)
-		return true
-	}
-}
-func rewriteValue386_OpOr16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Or16 x y)
-	// cond:
-	// result: (ORL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ORL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpOr32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Or32 x y)
-	// cond:
-	// result: (ORL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ORL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpOr8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Or8  x y)
-	// cond:
-	// result: (ORL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ORL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValue386_OpOrB(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (OrB x y)
-	// cond:
-	// result: (ORL x y)
-	for {
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ORL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
 func rewriteValue386_Op386ROLBconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -10245,705 +7551,6 @@ func rewriteValue386_Op386ROLWconst(v *Value, config *Config) bool {
 		return true
 	}
 	return false
-}
-func rewriteValue386_OpRsh16Ux16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16Ux16 <t> x y)
-	// cond:
-	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRW, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 16
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh16Ux32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16Ux32 <t> x y)
-	// cond:
-	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRW, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 16
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh16Ux64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16Ux64 x (Const64 [c]))
-	// cond: uint64(c) < 16
-	// result: (SHRWconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 16) {
-			break
-		}
-		v.reset(Op386SHRWconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Rsh16Ux64 _ (Const64 [c]))
-	// cond: uint64(c) >= 16
-	// result: (Const16 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 16) {
-			break
-		}
-		v.reset(OpConst16)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRsh16Ux8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16Ux8  <t> x y)
-	// cond:
-	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRW, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 16
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh16x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16x16 <t> x y)
-	// cond:
-	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARW)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 16
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh16x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16x32 <t> x y)
-	// cond:
-	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARW)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 16
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh16x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16x64 x (Const64 [c]))
-	// cond: uint64(c) < 16
-	// result: (SARWconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 16) {
-			break
-		}
-		v.reset(Op386SARWconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Rsh16x64 x (Const64 [c]))
-	// cond: uint64(c) >= 16
-	// result: (SARWconst x [15])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 16) {
-			break
-		}
-		v.reset(Op386SARWconst)
-		v.AddArg(x)
-		v.AuxInt = 15
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRsh16x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh16x8  <t> x y)
-	// cond:
-	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARW)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 16
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh32Ux16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32Ux16 <t> x y)
-	// cond:
-	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh32Ux32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32Ux32 <t> x y)
-	// cond:
-	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh32Ux64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32Ux64 x (Const64 [c]))
-	// cond: uint64(c) < 32
-	// result: (SHRLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 32) {
-			break
-		}
-		v.reset(Op386SHRLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Rsh32Ux64 _ (Const64 [c]))
-	// cond: uint64(c) >= 32
-	// result: (Const32 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 32) {
-			break
-		}
-		v.reset(OpConst32)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRsh32Ux8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32Ux8  <t> x y)
-	// cond:
-	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRL, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 32
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh32x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32x16 <t> x y)
-	// cond:
-	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARL)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 32
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh32x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32x32 <t> x y)
-	// cond:
-	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARL)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 32
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh32x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32x64 x (Const64 [c]))
-	// cond: uint64(c) < 32
-	// result: (SARLconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 32) {
-			break
-		}
-		v.reset(Op386SARLconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Rsh32x64 x (Const64 [c]))
-	// cond: uint64(c) >= 32
-	// result: (SARLconst x [31])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 32) {
-			break
-		}
-		v.reset(Op386SARLconst)
-		v.AddArg(x)
-		v.AuxInt = 31
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRsh32x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh32x8  <t> x y)
-	// cond:
-	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARL)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 32
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh8Ux16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8Ux16 <t> x y)
-	// cond:
-	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRB, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 8
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh8Ux32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8Ux32 <t> x y)
-	// cond:
-	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRB, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 8
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh8Ux64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8Ux64 x (Const64 [c]))
-	// cond: uint64(c) < 8
-	// result: (SHRBconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 8) {
-			break
-		}
-		v.reset(Op386SHRBconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Rsh8Ux64 _ (Const64 [c]))
-	// cond: uint64(c) >= 8
-	// result: (Const8 [0])
-	for {
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 8) {
-			break
-		}
-		v.reset(OpConst8)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRsh8Ux8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8Ux8  <t> x y)
-	// cond:
-	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386ANDL)
-		v0 := b.NewValue0(v.Line, Op386SHRB, t)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v2.AddArg(y)
-		v2.AuxInt = 8
-		v1.AddArg(v2)
-		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValue386_OpRsh8x16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8x16 <t> x y)
-	// cond:
-	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARB)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 8
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh8x32(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8x32 <t> x y)
-	// cond:
-	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARB)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 8
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValue386_OpRsh8x64(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8x64 x (Const64 [c]))
-	// cond: uint64(c) < 8
-	// result: (SARBconst x [c])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) < 8) {
-			break
-		}
-		v.reset(Op386SARBconst)
-		v.AddArg(x)
-		v.AuxInt = c
-		return true
-	}
-	// match: (Rsh8x64 x (Const64 [c]))
-	// cond: uint64(c) >= 8
-	// result: (SARBconst x [7])
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpConst64 {
-			break
-		}
-		c := v_1.AuxInt
-		if !(uint64(c) >= 8) {
-			break
-		}
-		v.reset(Op386SARBconst)
-		v.AddArg(x)
-		v.AuxInt = 7
-		return true
-	}
-	return false
-}
-func rewriteValue386_OpRsh8x8(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Rsh8x8  <t> x y)
-	// cond:
-	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
-	for {
-		t := v.Type
-		x := v.Args[0]
-		y := v.Args[1]
-		v.reset(Op386SARB)
-		v.Type = t
-		v.AddArg(x)
-		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
-		v0.AddArg(y)
-		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
-		v3.AddArg(y)
-		v3.AuxInt = 8
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v0.AddArg(v1)
-		v.AddArg(v0)
-		return true
-	}
 }
 func rewriteValue386_Op386SARB(v *Value, config *Config) bool {
 	b := v.Block
@@ -12182,8 +8789,8 @@ func rewriteValue386_Op386SUBL(v *Value, config *Config) bool {
 		}
 		c := v_1.AuxInt
 		v.reset(Op386SUBLconst)
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	// match: (SUBL (MOVLconst [c]) x)
@@ -12198,8 +8805,8 @@ func rewriteValue386_Op386SUBL(v *Value, config *Config) bool {
 		x := v.Args[1]
 		v.reset(Op386NEGL)
 		v0 := b.NewValue0(v.Line, Op386SUBLconst, v.Type)
-		v0.AddArg(x)
 		v0.AuxInt = c
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -12266,6 +8873,3495 @@ func rewriteValue386_Op386SUBLconst(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValue386_Op386XORL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORL x (MOVLconst [c]))
+	// cond:
+	// result: (XORLconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(Op386XORLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORL (MOVLconst [c]) x)
+	// cond:
+	// result: (XORLconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(Op386XORLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORL x x)
+	// cond:
+	// result: (MOVLconst [0])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(Op386MOVLconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386XORLconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORLconst [c] (XORLconst [d] x))
+	// cond:
+	// result: (XORLconst [c ^ d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != Op386XORLconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(Op386XORLconst)
+		v.AuxInt = c ^ d
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [c] x)
+	// cond: int32(c)==0
+	// result: x
+	for {
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int32(c) == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORLconst [c] (MOVLconst [d]))
+	// cond:
+	// result: (MOVLconst [c^d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(Op386MOVLconst)
+		v.AuxInt = c ^ d
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpAdd16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add16  x y)
+	// cond:
+	// result: (ADDL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32  x y)
+	// cond:
+	// result: (ADDL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32F x y)
+	// cond:
+	// result: (ADDSS x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDSS)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd32carry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32carry x y)
+	// cond:
+	// result: (ADDLcarry x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDLcarry)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd32withcarry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32withcarry x y c)
+	// cond:
+	// result: (ADCL x y c)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		c := v.Args[2]
+		v.reset(Op386ADCL)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(c)
+		return true
+	}
+}
+func rewriteValue386_OpAdd64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add64F x y)
+	// cond:
+	// result: (ADDSD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDSD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add8   x y)
+	// cond:
+	// result: (ADDL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAddPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AddPtr x y)
+	// cond:
+	// result: (ADDL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAddr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Addr {sym} base)
+	// cond:
+	// result: (LEAL {sym} base)
+	for {
+		sym := v.Aux
+		base := v.Args[0]
+		v.reset(Op386LEAL)
+		v.Aux = sym
+		v.AddArg(base)
+		return true
+	}
+}
+func rewriteValue386_OpAnd16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And16 x y)
+	// cond:
+	// result: (ANDL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAnd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And32 x y)
+	// cond:
+	// result: (ANDL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAnd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And8  x y)
+	// cond:
+	// result: (ANDL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAndB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AndB x y)
+	// cond:
+	// result: (ANDL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpBswap32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Bswap32 x)
+	// cond:
+	// result: (BSWAPL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386BSWAPL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpClosureCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ClosureCall [argwid] entry closure mem)
+	// cond:
+	// result: (CALLclosure [argwid] entry closure mem)
+	for {
+		argwid := v.AuxInt
+		entry := v.Args[0]
+		closure := v.Args[1]
+		mem := v.Args[2]
+		v.reset(Op386CALLclosure)
+		v.AuxInt = argwid
+		v.AddArg(entry)
+		v.AddArg(closure)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpCom16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com16 x)
+	// cond:
+	// result: (NOTL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386NOTL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCom32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com32 x)
+	// cond:
+	// result: (NOTL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386NOTL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCom8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com8  x)
+	// cond:
+	// result: (NOTL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386NOTL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpConst16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const16  [val])
+	// cond:
+	// result: (MOVLconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(Op386MOVLconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValue386_OpConst32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const32  [val])
+	// cond:
+	// result: (MOVLconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(Op386MOVLconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValue386_OpConst32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const32F [val])
+	// cond:
+	// result: (MOVSSconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(Op386MOVSSconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValue386_OpConst64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const64F [val])
+	// cond:
+	// result: (MOVSDconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(Op386MOVSDconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValue386_OpConst8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Const8   [val])
+	// cond:
+	// result: (MOVLconst [val])
+	for {
+		val := v.AuxInt
+		v.reset(Op386MOVLconst)
+		v.AuxInt = val
+		return true
+	}
+}
+func rewriteValue386_OpConstBool(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstBool [b])
+	// cond:
+	// result: (MOVLconst [b])
+	for {
+		b := v.AuxInt
+		v.reset(Op386MOVLconst)
+		v.AuxInt = b
+		return true
+	}
+}
+func rewriteValue386_OpConstNil(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstNil)
+	// cond:
+	// result: (MOVLconst [0])
+	for {
+		v.reset(Op386MOVLconst)
+		v.AuxInt = 0
+		return true
+	}
+}
+func rewriteValue386_OpConvert(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Convert <t> x mem)
+	// cond:
+	// result: (MOVLconvert <t> x mem)
+	for {
+		t := v.Type
+		x := v.Args[0]
+		mem := v.Args[1]
+		v.reset(Op386MOVLconvert)
+		v.Type = t
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpCvt32Fto32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Fto32 x)
+	// cond:
+	// result: (CVTTSS2SL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386CVTTSS2SL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCvt32Fto64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32Fto64F x)
+	// cond:
+	// result: (CVTSS2SD x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386CVTSS2SD)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCvt32to32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32to32F x)
+	// cond:
+	// result: (CVTSL2SS x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386CVTSL2SS)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCvt32to64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt32to64F x)
+	// cond:
+	// result: (CVTSL2SD x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386CVTSL2SD)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCvt64Fto32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt64Fto32 x)
+	// cond:
+	// result: (CVTTSD2SL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386CVTTSD2SL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpCvt64Fto32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Cvt64Fto32F x)
+	// cond:
+	// result: (CVTSD2SS x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386CVTSD2SS)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpDeferCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (DeferCall [argwid] mem)
+	// cond:
+	// result: (CALLdefer [argwid] mem)
+	for {
+		argwid := v.AuxInt
+		mem := v.Args[0]
+		v.reset(Op386CALLdefer)
+		v.AuxInt = argwid
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpDiv16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div16  x y)
+	// cond:
+	// result: (DIVW  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVW)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpDiv16u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div16u x y)
+	// cond:
+	// result: (DIVWU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVWU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpDiv32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div32  x y)
+	// cond:
+	// result: (DIVL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpDiv32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div32F x y)
+	// cond:
+	// result: (DIVSS x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVSS)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpDiv32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div32u x y)
+	// cond:
+	// result: (DIVLU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVLU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpDiv64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div64F x y)
+	// cond:
+	// result: (DIVSD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVSD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpDiv8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div8   x y)
+	// cond:
+	// result: (DIVW  (SignExt8to16 x) (SignExt8to16 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVW)
+		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpDiv8u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Div8u  x y)
+	// cond:
+	// result: (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386DIVWU)
+		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpEq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq16  x y)
+	// cond:
+	// result: (SETEQ (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQ)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpEq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq32  x y)
+	// cond:
+	// result: (SETEQ (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQ)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpEq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq32F x y)
+	// cond:
+	// result: (SETEQF (UCOMISS x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpEq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq64F x y)
+	// cond:
+	// result: (SETEQF (UCOMISD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpEq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq8   x y)
+	// cond:
+	// result: (SETEQ (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQ)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpEqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqB   x y)
+	// cond:
+	// result: (SETEQ (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQ)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpEqPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqPtr x y)
+	// cond:
+	// result: (SETEQ (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETEQ)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq16  x y)
+	// cond:
+	// result: (SETGE (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGE)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq16U x y)
+	// cond:
+	// result: (SETAE (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETAE)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq32  x y)
+	// cond:
+	// result: (SETGE (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq32F x y)
+	// cond:
+	// result: (SETGEF (UCOMISS x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGEF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq32U x y)
+	// cond:
+	// result: (SETAE (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETAE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq64F x y)
+	// cond:
+	// result: (SETGEF (UCOMISD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGEF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq8   x y)
+	// cond:
+	// result: (SETGE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGE)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGeq8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Geq8U  x y)
+	// cond:
+	// result: (SETAE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETAE)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGetClosurePtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GetClosurePtr)
+	// cond:
+	// result: (LoweredGetClosurePtr)
+	for {
+		v.reset(Op386LoweredGetClosurePtr)
+		return true
+	}
+}
+func rewriteValue386_OpGetG(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GetG mem)
+	// cond:
+	// result: (LoweredGetG mem)
+	for {
+		mem := v.Args[0]
+		v.reset(Op386LoweredGetG)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpGoCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GoCall [argwid] mem)
+	// cond:
+	// result: (CALLgo [argwid] mem)
+	for {
+		argwid := v.AuxInt
+		mem := v.Args[0]
+		v.reset(Op386CALLgo)
+		v.AuxInt = argwid
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpGreater16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater16  x y)
+	// cond:
+	// result: (SETG (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETG)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater16U x y)
+	// cond:
+	// result: (SETA (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETA)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater32  x y)
+	// cond:
+	// result: (SETG (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETG)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater32F x y)
+	// cond:
+	// result: (SETGF (UCOMISS x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater32U x y)
+	// cond:
+	// result: (SETA (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETA)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater64F x y)
+	// cond:
+	// result: (SETGF (UCOMISD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater8   x y)
+	// cond:
+	// result: (SETG (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETG)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpGreater8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Greater8U  x y)
+	// cond:
+	// result: (SETA (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETA)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpHmul16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul16  x y)
+	// cond:
+	// result: (HMULW  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386HMULW)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpHmul16u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul16u x y)
+	// cond:
+	// result: (HMULWU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386HMULWU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpHmul32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul32  x y)
+	// cond:
+	// result: (HMULL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386HMULL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpHmul32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul32u x y)
+	// cond:
+	// result: (HMULLU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386HMULLU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpHmul8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul8   x y)
+	// cond:
+	// result: (HMULB  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386HMULB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpHmul8u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul8u  x y)
+	// cond:
+	// result: (HMULBU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386HMULBU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpInterCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (InterCall [argwid] entry mem)
+	// cond:
+	// result: (CALLinter [argwid] entry mem)
+	for {
+		argwid := v.AuxInt
+		entry := v.Args[0]
+		mem := v.Args[1]
+		v.reset(Op386CALLinter)
+		v.AuxInt = argwid
+		v.AddArg(entry)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpIsInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsInBounds idx len)
+	// cond:
+	// result: (SETB (CMPL idx len))
+	for {
+		idx := v.Args[0]
+		len := v.Args[1]
+		v.reset(Op386SETB)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpIsNonNil(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsNonNil p)
+	// cond:
+	// result: (SETNE (TESTL p p))
+	for {
+		p := v.Args[0]
+		v.reset(Op386SETNE)
+		v0 := b.NewValue0(v.Line, Op386TESTL, TypeFlags)
+		v0.AddArg(p)
+		v0.AddArg(p)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpIsSliceInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsSliceInBounds idx len)
+	// cond:
+	// result: (SETBE (CMPL idx len))
+	for {
+		idx := v.Args[0]
+		len := v.Args[1]
+		v.reset(Op386SETBE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq16  x y)
+	// cond:
+	// result: (SETLE (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETLE)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq16U x y)
+	// cond:
+	// result: (SETBE (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETBE)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq32  x y)
+	// cond:
+	// result: (SETLE (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETLE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq32F x y)
+	// cond:
+	// result: (SETGEF (UCOMISS y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGEF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq32U x y)
+	// cond:
+	// result: (SETBE (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETBE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq64F x y)
+	// cond:
+	// result: (SETGEF (UCOMISD y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGEF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq8   x y)
+	// cond:
+	// result: (SETLE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETLE)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLeq8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Leq8U  x y)
+	// cond:
+	// result: (SETBE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETBE)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less16  x y)
+	// cond:
+	// result: (SETL (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETL)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess16U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less16U x y)
+	// cond:
+	// result: (SETB (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETB)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less32  x y)
+	// cond:
+	// result: (SETL (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETL)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less32F x y)
+	// cond:
+	// result: (SETGF (UCOMISS y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess32U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less32U x y)
+	// cond:
+	// result: (SETB (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETB)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less64F x y)
+	// cond:
+	// result: (SETGF (UCOMISD y x))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETGF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less8   x y)
+	// cond:
+	// result: (SETL (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETL)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLess8U(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Less8U  x y)
+	// cond:
+	// result: (SETB (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETB)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpLoad(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Load <t> ptr mem)
+	// cond: (is32BitInt(t) || isPtr(t))
+	// result: (MOVLload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is32BitInt(t) || isPtr(t)) {
+			break
+		}
+		v.reset(Op386MOVLload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is16BitInt(t)
+	// result: (MOVWload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is16BitInt(t)) {
+			break
+		}
+		v.reset(Op386MOVWload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: (t.IsBoolean() || is8BitInt(t))
+	// result: (MOVBload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsBoolean() || is8BitInt(t)) {
+			break
+		}
+		v.reset(Op386MOVBload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is32BitFloat(t)
+	// result: (MOVSSload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is32BitFloat(t)) {
+			break
+		}
+		v.reset(Op386MOVSSload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: is64BitFloat(t)
+	// result: (MOVSDload ptr mem)
+	for {
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(is64BitFloat(t)) {
+			break
+		}
+		v.reset(Op386MOVSDload)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpLrot16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lrot16 <t> x [c])
+	// cond:
+	// result: (ROLWconst <t> [c&15] x)
+	for {
+		t := v.Type
+		c := v.AuxInt
+		x := v.Args[0]
+		v.reset(Op386ROLWconst)
+		v.Type = t
+		v.AuxInt = c & 15
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpLrot32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lrot32 <t> x [c])
+	// cond:
+	// result: (ROLLconst <t> [c&31] x)
+	for {
+		t := v.Type
+		c := v.AuxInt
+		x := v.Args[0]
+		v.reset(Op386ROLLconst)
+		v.Type = t
+		v.AuxInt = c & 31
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpLrot8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lrot8  <t> x [c])
+	// cond:
+	// result: (ROLBconst <t> [c&7] x)
+	for {
+		t := v.Type
+		c := v.AuxInt
+		x := v.Args[0]
+		v.reset(Op386ROLBconst)
+		v.Type = t
+		v.AuxInt = c & 7
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpLsh16x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x16 <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh16x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x32 <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh16x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x64 x (Const64 [c]))
+	// cond: uint64(c) < 16
+	// result: (SHLLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 16) {
+			break
+		}
+		v.reset(Op386SHLLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Lsh16x64 _ (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (Const16 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 16) {
+			break
+		}
+		v.reset(OpConst16)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpLsh16x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x8  <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh32x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x16 <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh32x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x32 <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh32x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x64 x (Const64 [c]))
+	// cond: uint64(c) < 32
+	// result: (SHLLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 32) {
+			break
+		}
+		v.reset(Op386SHLLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Lsh32x64 _ (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (Const32 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 32) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpLsh32x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x8  <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh8x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x16 <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh8x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x32 <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpLsh8x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x64 x (Const64 [c]))
+	// cond: uint64(c) < 8
+	// result: (SHLLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 8) {
+			break
+		}
+		v.reset(Op386SHLLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Lsh8x64 _ (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (Const8 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 8) {
+			break
+		}
+		v.reset(OpConst8)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpLsh8x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x8  <t> x y)
+	// cond:
+	// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHLL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpMod16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mod16  x y)
+	// cond:
+	// result: (MODW  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MODW)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMod16u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mod16u x y)
+	// cond:
+	// result: (MODWU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MODWU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMod32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mod32  x y)
+	// cond:
+	// result: (MODL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MODL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMod32u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mod32u x y)
+	// cond:
+	// result: (MODLU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MODLU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMod8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mod8   x y)
+	// cond:
+	// result: (MODW  (SignExt8to16 x) (SignExt8to16 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MODW)
+		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpMod8u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mod8u  x y)
+	// cond:
+	// result: (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MODWU)
+		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+		v1.AddArg(y)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpMove(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Move [s] _ _ mem)
+	// cond: SizeAndAlign(s).Size() == 0
+	// result: mem
+	for {
+		s := v.AuxInt
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 1
+	// result: (MOVBstore dst (MOVBload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 1) {
+			break
+		}
+		v.reset(Op386MOVBstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVBload, config.fe.TypeUInt8())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 2
+	// result: (MOVWstore dst (MOVWload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 2) {
+			break
+		}
+		v.reset(Op386MOVWstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVWload, config.fe.TypeUInt16())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 4
+	// result: (MOVLstore dst (MOVLload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 4) {
+			break
+		}
+		v.reset(Op386MOVLstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 3
+	// result: (MOVBstore [2] dst (MOVBload [2] src mem) 		(MOVWstore dst (MOVWload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 3) {
+			break
+		}
+		v.reset(Op386MOVBstore)
+		v.AuxInt = 2
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVBload, config.fe.TypeUInt8())
+		v0.AuxInt = 2
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386MOVWstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, Op386MOVWload, config.fe.TypeUInt16())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 5
+	// result: (MOVBstore [4] dst (MOVBload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 5) {
+			break
+		}
+		v.reset(Op386MOVBstore)
+		v.AuxInt = 4
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVBload, config.fe.TypeUInt8())
+		v0.AuxInt = 4
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 6
+	// result: (MOVWstore [4] dst (MOVWload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 6) {
+			break
+		}
+		v.reset(Op386MOVWstore)
+		v.AuxInt = 4
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVWload, config.fe.TypeUInt16())
+		v0.AuxInt = 4
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 7
+	// result: (MOVLstore [3] dst (MOVLload [3] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 7) {
+			break
+		}
+		v.reset(Op386MOVLstore)
+		v.AuxInt = 3
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v0.AuxInt = 3
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 8
+	// result: (MOVLstore [4] dst (MOVLload [4] src mem) 		(MOVLstore dst (MOVLload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 8) {
+			break
+		}
+		v.reset(Op386MOVLstore)
+		v.AuxInt = 4
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v0.AuxInt = 4
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0
+	// result: (Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%4] 		(ADDLconst <dst.Type> dst [SizeAndAlign(s).Size()%4]) 		(ADDLconst <src.Type> src [SizeAndAlign(s).Size()%4]) 		(MOVLstore dst (MOVLload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0) {
+			break
+		}
+		v.reset(OpMove)
+		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%4
+		v0 := b.NewValue0(v.Line, Op386ADDLconst, dst.Type)
+		v0.AuxInt = SizeAndAlign(s).Size() % 4
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386ADDLconst, src.Type)
+		v1.AuxInt = SizeAndAlign(s).Size() % 4
+		v1.AddArg(src)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, Op386MOVLstore, TypeMem)
+		v2.AddArg(dst)
+		v3 := b.NewValue0(v.Line, Op386MOVLload, config.fe.TypeUInt32())
+		v3.AddArg(src)
+		v3.AddArg(mem)
+		v2.AddArg(v3)
+		v2.AddArg(mem)
+		v.AddArg(v2)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 	&& !config.noDuffDevice
+	// result: (DUFFCOPY [10*(128-SizeAndAlign(s).Size()/4)] dst src mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0 && !config.noDuffDevice) {
+			break
+		}
+		v.reset(Op386DUFFCOPY)
+		v.AuxInt = 10 * (128 - SizeAndAlign(s).Size()/4)
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: (SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0
+	// result: (REPMOVSL dst src (MOVLconst [SizeAndAlign(s).Size()/4]) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !((SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0) {
+			break
+		}
+		v.reset(Op386REPMOVSL)
+		v.AddArg(dst)
+		v.AddArg(src)
+		v0 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
+		v0.AuxInt = SizeAndAlign(s).Size() / 4
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpMul16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul16  x y)
+	// cond:
+	// result: (MULL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMul32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul32  x y)
+	// cond:
+	// result: (MULL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMul32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul32F x y)
+	// cond:
+	// result: (MULSS x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULSS)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMul32uhilo(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul32uhilo x y)
+	// cond:
+	// result: (MULLQU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULLQU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMul64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul64F x y)
+	// cond:
+	// result: (MULSD x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULSD)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpMul8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul8   x y)
+	// cond:
+	// result: (MULL  x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpNeg16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neg16  x)
+	// cond:
+	// result: (NEGL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386NEGL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpNeg32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neg32  x)
+	// cond:
+	// result: (NEGL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386NEGL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpNeg32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neg32F x)
+	// cond:
+	// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
+	for {
+		x := v.Args[0]
+		v.reset(Op386PXOR)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386MOVSSconst, config.Frontend().TypeFloat32())
+		v0.AuxInt = f2i(math.Copysign(0, -1))
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeg64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neg64F x)
+	// cond:
+	// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
+	for {
+		x := v.Args[0]
+		v.reset(Op386PXOR)
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386MOVSDconst, config.Frontend().TypeFloat64())
+		v0.AuxInt = f2i(math.Copysign(0, -1))
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeg8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neg8   x)
+	// cond:
+	// result: (NEGL x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386NEGL)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpNeq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq16  x y)
+	// cond:
+	// result: (SETNE (CMPW x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNE)
+		v0 := b.NewValue0(v.Line, Op386CMPW, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq32  x y)
+	// cond:
+	// result: (SETNE (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeq32F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq32F x y)
+	// cond:
+	// result: (SETNEF (UCOMISS x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNEF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISS, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeq64F(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq64F x y)
+	// cond:
+	// result: (SETNEF (UCOMISD x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNEF)
+		v0 := b.NewValue0(v.Line, Op386UCOMISD, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq8   x y)
+	// cond:
+	// result: (SETNE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNE)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeqB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqB   x y)
+	// cond:
+	// result: (SETNE (CMPB x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNE)
+		v0 := b.NewValue0(v.Line, Op386CMPB, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNeqPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqPtr x y)
+	// cond:
+	// result: (SETNE (CMPL x y))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SETNE)
+		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpNilCheck(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NilCheck ptr mem)
+	// cond:
+	// result: (LoweredNilCheck ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(Op386LoweredNilCheck)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValue386_OpNot(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Not x)
+	// cond:
+	// result: (XORLconst [1] x)
+	for {
+		x := v.Args[0]
+		v.reset(Op386XORLconst)
+		v.AuxInt = 1
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue386_OpOffPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (OffPtr [off] ptr)
+	// cond:
+	// result: (ADDLconst [off] ptr)
+	for {
+		off := v.AuxInt
+		ptr := v.Args[0]
+		v.reset(Op386ADDLconst)
+		v.AuxInt = off
+		v.AddArg(ptr)
+		return true
+	}
+}
+func rewriteValue386_OpOr16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or16 x y)
+	// cond:
+	// result: (ORL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ORL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpOr32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or32 x y)
+	// cond:
+	// result: (ORL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ORL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpOr8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or8  x y)
+	// cond:
+	// result: (ORL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ORL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpOrB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (OrB x y)
+	// cond:
+	// result: (ORL x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ORL)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpRsh16Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux16 <t> x y)
+	// cond:
+	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRW, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v2.AuxInt = 16
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh16Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux32 <t> x y)
+	// cond:
+	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRW, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v2.AuxInt = 16
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh16Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux64 x (Const64 [c]))
+	// cond: uint64(c) < 16
+	// result: (SHRWconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 16) {
+			break
+		}
+		v.reset(Op386SHRWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Rsh16Ux64 _ (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (Const16 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 16) {
+			break
+		}
+		v.reset(OpConst16)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRsh16Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux8  <t> x y)
+	// cond:
+	// result: (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRW, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v2.AuxInt = 16
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh16x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x16 <t> x y)
+	// cond:
+	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARW)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v3.AuxInt = 16
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh16x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x32 <t> x y)
+	// cond:
+	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARW)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v3.AuxInt = 16
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh16x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x64 x (Const64 [c]))
+	// cond: uint64(c) < 16
+	// result: (SARWconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 16) {
+			break
+		}
+		v.reset(Op386SARWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Rsh16x64 x (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (SARWconst x [15])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 16) {
+			break
+		}
+		v.reset(Op386SARWconst)
+		v.AuxInt = 15
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRsh16x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x8  <t> x y)
+	// cond:
+	// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARW)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v3.AuxInt = 16
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh32Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux16 <t> x y)
+	// cond:
+	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh32Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux32 <t> x y)
+	// cond:
+	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh32Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux64 x (Const64 [c]))
+	// cond: uint64(c) < 32
+	// result: (SHRLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 32) {
+			break
+		}
+		v.reset(Op386SHRLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Rsh32Ux64 _ (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (Const32 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 32) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRsh32Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux8  <t> x y)
+	// cond:
+	// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRL, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v2.AuxInt = 32
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh32x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x16 <t> x y)
+	// cond:
+	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARL)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v3.AuxInt = 32
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh32x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x32 <t> x y)
+	// cond:
+	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARL)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v3.AuxInt = 32
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh32x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x64 x (Const64 [c]))
+	// cond: uint64(c) < 32
+	// result: (SARLconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 32) {
+			break
+		}
+		v.reset(Op386SARLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Rsh32x64 x (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (SARLconst x [31])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 32) {
+			break
+		}
+		v.reset(Op386SARLconst)
+		v.AuxInt = 31
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRsh32x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x8  <t> x y)
+	// cond:
+	// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARL)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v3.AuxInt = 32
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh8Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux16 <t> x y)
+	// cond:
+	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRB, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v2.AuxInt = 8
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh8Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux32 <t> x y)
+	// cond:
+	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRB, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v2.AuxInt = 8
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh8Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux64 x (Const64 [c]))
+	// cond: uint64(c) < 8
+	// result: (SHRBconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 8) {
+			break
+		}
+		v.reset(Op386SHRBconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Rsh8Ux64 _ (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (Const8 [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 8) {
+			break
+		}
+		v.reset(OpConst8)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRsh8Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux8  <t> x y)
+	// cond:
+	// result: (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ANDL)
+		v0 := b.NewValue0(v.Line, Op386SHRB, t)
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v2.AuxInt = 8
+		v2.AddArg(y)
+		v1.AddArg(v2)
+		v.AddArg(v1)
+		return true
+	}
+}
+func rewriteValue386_OpRsh8x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x16 <t> x y)
+	// cond:
+	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARB)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPWconst, TypeFlags)
+		v3.AuxInt = 8
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh8x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x32 <t> x y)
+	// cond:
+	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARB)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPLconst, TypeFlags)
+		v3.AuxInt = 8
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpRsh8x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x64 x (Const64 [c]))
+	// cond: uint64(c) < 8
+	// result: (SARBconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) < 8) {
+			break
+		}
+		v.reset(Op386SARBconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (Rsh8x64 x (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (SARBconst x [7])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 8) {
+			break
+		}
+		v.reset(Op386SARBconst)
+		v.AuxInt = 7
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue386_OpRsh8x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x8  <t> x y)
+	// cond:
+	// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SARB)
+		v.Type = t
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, Op386ORL, y.Type)
+		v0.AddArg(y)
+		v1 := b.NewValue0(v.Line, Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Line, Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Line, Op386CMPBconst, TypeFlags)
+		v3.AuxInt = 8
+		v3.AddArg(y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValue386_OpSignExt16to32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -12314,8 +12410,8 @@ func rewriteValue386_OpSignmask(v *Value, config *Config) bool {
 	for {
 		x := v.Args[0]
 		v.reset(Op386SARLconst)
-		v.AddArg(x)
 		v.AuxInt = 31
+		v.AddArg(x)
 		return true
 	}
 }
@@ -12604,102 +12700,6 @@ func rewriteValue386_OpTrunc32to8(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteValue386_Op386XORL(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORL x (MOVLconst [c]))
-	// cond:
-	// result: (XORLconst [c] x)
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != Op386MOVLconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(Op386XORLconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (XORL (MOVLconst [c]) x)
-	// cond:
-	// result: (XORLconst [c] x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != Op386MOVLconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(Op386XORLconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		return true
-	}
-	// match: (XORL x x)
-	// cond:
-	// result: (MOVLconst [0])
-	for {
-		x := v.Args[0]
-		if x != v.Args[1] {
-			break
-		}
-		v.reset(Op386MOVLconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
-}
-func rewriteValue386_Op386XORLconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (XORLconst [c] (XORLconst [d] x))
-	// cond:
-	// result: (XORLconst [c ^ d] x)
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != Op386XORLconst {
-			break
-		}
-		d := v_0.AuxInt
-		x := v_0.Args[0]
-		v.reset(Op386XORLconst)
-		v.AuxInt = c ^ d
-		v.AddArg(x)
-		return true
-	}
-	// match: (XORLconst [c] x)
-	// cond: int32(c)==0
-	// result: x
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		if !(int32(c) == 0) {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (XORLconst [c] (MOVLconst [d]))
-	// cond:
-	// result: (MOVLconst [c^d])
-	for {
-		c := v.AuxInt
-		v_0 := v.Args[0]
-		if v_0.Op != Op386MOVLconst {
-			break
-		}
-		d := v_0.AuxInt
-		v.reset(Op386MOVLconst)
-		v.AuxInt = c ^ d
-		return true
-	}
-	return false
-}
 func rewriteValue386_OpXor16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -12903,8 +12903,8 @@ func rewriteValue386_OpZero(v *Value, config *Config) bool {
 		v.reset(OpZero)
 		v.AuxInt = SizeAndAlign(s).Size() - SizeAndAlign(s).Size()%4
 		v0 := b.NewValue0(v.Line, Op386ADDLconst, config.fe.TypeUInt32())
-		v0.AddArg(destptr)
 		v0.AuxInt = SizeAndAlign(s).Size() % 4
+		v0.AddArg(destptr)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, Op386MOVLstoreconst, TypeMem)
 		v1.AuxInt = 0
