@@ -198,19 +198,19 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 	// cond: is64BitInt(v.Type) && v.Type.IsSigned()
 	// result: (Int64Make     (Arg <config.fe.TypeInt32()> {n} [off+4])     (Arg <config.fe.TypeUInt32()> {n} [off]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(is64BitInt(v.Type) && v.Type.IsSigned()) {
 			break
 		}
 		v.reset(OpInt64Make)
 		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt32())
-		v0.Aux = n
 		v0.AuxInt = off + 4
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
-		v1.Aux = n
 		v1.AuxInt = off
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -218,19 +218,19 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 	// cond: is64BitInt(v.Type) && !v.Type.IsSigned()
 	// result: (Int64Make     (Arg <config.fe.TypeUInt32()> {n} [off+4])     (Arg <config.fe.TypeUInt32()> {n} [off]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(is64BitInt(v.Type) && !v.Type.IsSigned()) {
 			break
 		}
 		v.reset(OpInt64Make)
 		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
-		v0.Aux = n
 		v0.AuxInt = off + 4
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
-		v1.Aux = n
 		v1.AuxInt = off
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -738,13 +738,13 @@ func rewriteValuedec64_OpLrot64(v *Value, config *Config) bool {
 	// cond: c <= 32
 	// result: (Int64Make 		(Or32 <config.fe.TypeUInt32()> 			(Lsh32x32 <config.fe.TypeUInt32()> hi (Const32 <config.fe.TypeUInt32()> [c])) 			(Rsh32Ux32 <config.fe.TypeUInt32()> lo (Const32 <config.fe.TypeUInt32()> [32-c]))) 		(Or32 <config.fe.TypeUInt32()> 			(Lsh32x32 <config.fe.TypeUInt32()> lo (Const32 <config.fe.TypeUInt32()> [c])) 			(Rsh32Ux32 <config.fe.TypeUInt32()> hi (Const32 <config.fe.TypeUInt32()> [32-c]))))
 	for {
+		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpInt64Make {
 			break
 		}
 		hi := v_0.Args[0]
 		lo := v_0.Args[1]
-		c := v.AuxInt
 		if !(c <= 32) {
 			break
 		}
@@ -783,22 +783,22 @@ func rewriteValuedec64_OpLrot64(v *Value, config *Config) bool {
 	// cond: c > 32
 	// result: (Lrot64 (Int64Make lo hi) [c-32])
 	for {
+		c := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpInt64Make {
 			break
 		}
 		hi := v_0.Args[0]
 		lo := v_0.Args[1]
-		c := v.AuxInt
 		if !(c > 32) {
 			break
 		}
 		v.reset(OpLrot64)
+		v.AuxInt = c - 32
 		v0 := b.NewValue0(v.Line, OpInt64Make, config.fe.TypeUInt64())
 		v0.AddArg(lo)
 		v0.AddArg(hi)
 		v.AddArg(v0)
-		v.AuxInt = c - 32
 		return true
 	}
 	return false

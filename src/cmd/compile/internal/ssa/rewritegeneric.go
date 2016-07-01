@@ -733,8 +733,8 @@ func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
 		c := v_1.AuxInt
 		v.reset(OpOffPtr)
 		v.Type = t
-		v.AddArg(x)
 		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -1370,19 +1370,19 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// cond: v.Type.IsString()
 	// result: (StringMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(v.Type.IsString()) {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
-		v0.Aux = n
 		v0.AuxInt = off
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt())
-		v1.Aux = n
 		v1.AuxInt = off + config.PtrSize
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -1390,23 +1390,23 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// cond: v.Type.IsSlice()
 	// result: (SliceMake     (Arg <v.Type.ElemType().PtrTo()> {n} [off])     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize])     (Arg <config.fe.TypeInt()> {n} [off+2*config.PtrSize]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(v.Type.IsSlice()) {
 			break
 		}
 		v.reset(OpSliceMake)
 		v0 := b.NewValue0(v.Line, OpArg, v.Type.ElemType().PtrTo())
-		v0.Aux = n
 		v0.AuxInt = off
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt())
-		v1.Aux = n
 		v1.AuxInt = off + config.PtrSize
+		v1.Aux = n
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt())
-		v2.Aux = n
 		v2.AuxInt = off + 2*config.PtrSize
+		v2.Aux = n
 		v.AddArg(v2)
 		return true
 	}
@@ -1414,19 +1414,19 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// cond: v.Type.IsInterface()
 	// result: (IMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeBytePtr()> {n} [off+config.PtrSize]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(v.Type.IsInterface()) {
 			break
 		}
 		v.reset(OpIMake)
 		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
-		v0.Aux = n
 		v0.AuxInt = off
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
-		v1.Aux = n
 		v1.AuxInt = off + config.PtrSize
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -1434,19 +1434,19 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// cond: v.Type.IsComplex() && v.Type.Size() == 16
 	// result: (ComplexMake     (Arg <config.fe.TypeFloat64()> {n} [off])     (Arg <config.fe.TypeFloat64()> {n} [off+8]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(v.Type.IsComplex() && v.Type.Size() == 16) {
 			break
 		}
 		v.reset(OpComplexMake)
 		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat64())
-		v0.Aux = n
 		v0.AuxInt = off
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat64())
-		v1.Aux = n
 		v1.AuxInt = off + 8
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -1454,19 +1454,19 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// cond: v.Type.IsComplex() && v.Type.Size() == 8
 	// result: (ComplexMake     (Arg <config.fe.TypeFloat32()> {n} [off])     (Arg <config.fe.TypeFloat32()> {n} [off+4]))
 	for {
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(v.Type.IsComplex() && v.Type.Size() == 8) {
 			break
 		}
 		v.reset(OpComplexMake)
 		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat32())
-		v0.Aux = n
 		v0.AuxInt = off
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat32())
-		v1.Aux = n
 		v1.AuxInt = off + 4
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -1486,15 +1486,15 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// result: (StructMake1     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
 	for {
 		t := v.Type
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake1)
 		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
-		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
+		v0.Aux = n
 		v.AddArg(v0)
 		return true
 	}
@@ -1503,19 +1503,19 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// result: (StructMake2     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
 	for {
 		t := v.Type
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake2)
 		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
-		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, t.FieldType(1))
-		v1.Aux = n
 		v1.AuxInt = off + t.FieldOff(1)
+		v1.Aux = n
 		v.AddArg(v1)
 		return true
 	}
@@ -1524,23 +1524,23 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// result: (StructMake3     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
 	for {
 		t := v.Type
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake3)
 		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
-		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, t.FieldType(1))
-		v1.Aux = n
 		v1.AuxInt = off + t.FieldOff(1)
+		v1.Aux = n
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Line, OpArg, t.FieldType(2))
-		v2.Aux = n
 		v2.AuxInt = off + t.FieldOff(2)
+		v2.Aux = n
 		v.AddArg(v2)
 		return true
 	}
@@ -1549,27 +1549,27 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 	// result: (StructMake4     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
 	for {
 		t := v.Type
-		n := v.Aux
 		off := v.AuxInt
+		n := v.Aux
 		if !(t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)) {
 			break
 		}
 		v.reset(OpStructMake4)
 		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
-		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
+		v0.Aux = n
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpArg, t.FieldType(1))
-		v1.Aux = n
 		v1.AuxInt = off + t.FieldOff(1)
+		v1.Aux = n
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Line, OpArg, t.FieldType(2))
-		v2.Aux = n
 		v2.AuxInt = off + t.FieldOff(2)
+		v2.Aux = n
 		v.AddArg(v2)
 		v3 := b.NewValue0(v.Line, OpArg, t.FieldType(3))
-		v3.Aux = n
 		v3.AuxInt = off + t.FieldOff(3)
+		v3.Aux = n
 		v.AddArg(v3)
 		return true
 	}
@@ -6359,26 +6359,26 @@ func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
 	// cond:
 	// result: (OffPtr p [a+b])
 	for {
+		a := v.AuxInt
 		v_0 := v.Args[0]
 		if v_0.Op != OpOffPtr {
 			break
 		}
-		p := v_0.Args[0]
 		b := v_0.AuxInt
-		a := v.AuxInt
+		p := v_0.Args[0]
 		v.reset(OpOffPtr)
-		v.AddArg(p)
 		v.AuxInt = a + b
+		v.AddArg(p)
 		return true
 	}
 	// match: (OffPtr p [0])
 	// cond: v.Type.Compare(p.Type) == CMPeq
 	// result: p
 	for {
-		p := v.Args[0]
 		if v.AuxInt != 0 {
 			break
 		}
+		p := v.Args[0]
 		if !(v.Type.Compare(p.Type) == CMPeq) {
 			break
 		}

@@ -117,15 +117,17 @@ func genRules(arch arch) {
 		if unbalanced(rule) {
 			continue
 		}
-		op := strings.Split(rule, " ")[0][1:]
-		if op[len(op)-1] == ')' {
-			op = op[:len(op)-1] // rule has only opcode, e.g. (ConstNil) -> ...
-		}
+
 		loc := fmt.Sprintf("%s.rules:%d", arch.name, ruleLineno)
-		if isBlock(op, arch) {
-			blockrules[op] = append(blockrules[op], Rule{rule: rule, loc: loc})
+		r := Rule{rule: rule, loc: loc}
+		if rawop := strings.Split(rule, " ")[0][1:]; isBlock(rawop, arch) {
+			blockrules[rawop] = append(blockrules[rawop], r)
 		} else {
-			oprules[op] = append(oprules[op], Rule{rule: rule, loc: loc})
+			// Do fancier value op matching.
+			match, _, _ := r.parse()
+			op, oparch, _, _, _, _ := parseValue(match, arch, loc)
+			opname := fmt.Sprintf("Op%s%s", oparch, op.name)
+			oprules[opname] = append(oprules[opname], r)
 		}
 		rule = ""
 		ruleLineno = 0
@@ -157,8 +159,8 @@ func genRules(arch arch) {
 	fmt.Fprintf(w, "func rewriteValue%s(v *Value, config *Config) bool {\n", arch.name)
 	fmt.Fprintf(w, "switch v.Op {\n")
 	for _, op := range ops {
-		fmt.Fprintf(w, "case %s:\n", opName(op, arch))
-		fmt.Fprintf(w, "return rewriteValue%s_%s(v, config)\n", arch.name, opName(op, arch))
+		fmt.Fprintf(w, "case %s:\n", op)
+		fmt.Fprintf(w, "return rewriteValue%s_%s(v, config)\n", arch.name, op)
 	}
 	fmt.Fprintf(w, "}\n")
 	fmt.Fprintf(w, "return false\n")
@@ -167,7 +169,7 @@ func genRules(arch arch) {
 	// Generate a routine per op. Note that we don't make one giant routine
 	// because it is too big for some compilers.
 	for _, op := range ops {
-		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value, config *Config) bool {\n", arch.name, opName(op, arch))
+		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value, config *Config) bool {\n", arch.name, op)
 		fmt.Fprintln(w, "b := v.Block")
 		fmt.Fprintln(w, "_ = b")
 		var canFail bool
@@ -334,141 +336,108 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]struct{}, t
 	}
 	canFail := false
 
-	// split body up into regions. Split by spaces/tabs, except those
-	// contained in () or {}.
-	s := split(match[1 : len(match)-1]) // remove parens, then split
-
-	// Find op record
-	var op opData
-	for _, x := range genericOps {
-		if x.name == s[0] {
-			op = x
-			break
-		}
-	}
-	for _, x := range arch.ops {
-		if x.name == s[0] {
-			op = x
-			break
-		}
-	}
-	if op.name == "" {
-		log.Fatalf("%s: unknown op %s", loc, s[0])
-	}
+	op, oparch, typ, auxint, aux, args := parseValue(match, arch, loc)
 
 	// check op
 	if !top {
-		fmt.Fprintf(w, "if %s.Op != %s {\nbreak\n}\n", v, opName(s[0], arch))
+		fmt.Fprintf(w, "if %s.Op != Op%s%s {\nbreak\n}\n", v, oparch, op.name)
 		canFail = true
 	}
 
-	// check type/aux/args
-	argnum := 0
-	for _, a := range s[1:] {
-		if a[0] == '<' {
-			// type restriction
-			t := a[1 : len(a)-1] // remove <>
-			if !isVariable(t) {
-				// code. We must match the results of this code.
-				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
+	if typ != "" {
+		if !isVariable(typ) {
+			// code. We must match the results of this code.
+			fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, typ)
+			canFail = true
+		} else {
+			// variable
+			if _, ok := m[typ]; ok {
+				// must match previous variable
+				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, typ)
 				canFail = true
 			} else {
-				// variable
-				if _, ok := m[t]; ok {
-					// must match previous variable
-					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
-					canFail = true
-				} else {
-					m[t] = struct{}{}
-					fmt.Fprintf(w, "%s := %s.Type\n", t, v)
-				}
+				m[typ] = struct{}{}
+				fmt.Fprintf(w, "%s := %s.Type\n", typ, v)
 			}
-		} else if a[0] == '[' {
-			// auxint restriction
-			switch op.aux {
-			case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
-			default:
-				log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
-			}
-			x := a[1 : len(a)-1] // remove []
-			if !isVariable(x) {
-				// code
-				fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
+		}
+	}
+
+	if auxint != "" {
+		if !isVariable(auxint) {
+			// code
+			fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, auxint)
+			canFail = true
+		} else {
+			// variable
+			if _, ok := m[auxint]; ok {
+				fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, auxint)
 				canFail = true
 			} else {
-				// variable
-				if _, ok := m[x]; ok {
-					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
-					canFail = true
-				} else {
-					m[x] = struct{}{}
-					fmt.Fprintf(w, "%s := %s.AuxInt\n", x, v)
-				}
+				m[auxint] = struct{}{}
+				fmt.Fprintf(w, "%s := %s.AuxInt\n", auxint, v)
 			}
-		} else if a[0] == '{' {
-			// aux restriction
-			switch op.aux {
-			case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
-			default:
-				log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
-			}
-			x := a[1 : len(a)-1] // remove {}
-			if !isVariable(x) {
-				// code
-				fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
+		}
+	}
+
+	if aux != "" {
+
+		if !isVariable(aux) {
+			// code
+			fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, aux)
+			canFail = true
+		} else {
+			// variable
+			if _, ok := m[aux]; ok {
+				fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, aux)
 				canFail = true
 			} else {
-				// variable
-				if _, ok := m[x]; ok {
-					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
-					canFail = true
-				} else {
-					m[x] = struct{}{}
-					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
-				}
+				m[aux] = struct{}{}
+				fmt.Fprintf(w, "%s := %s.Aux\n", aux, v)
 			}
-		} else if a == "_" {
-			argnum++
-		} else if !strings.Contains(a, "(") {
+		}
+	}
+
+	for i, arg := range args {
+		if arg == "_" {
+			continue
+		}
+		if !strings.Contains(arg, "(") {
 			// leaf variable
-			if _, ok := m[a]; ok {
+			if _, ok := m[arg]; ok {
 				// variable already has a definition. Check whether
 				// the old definition and the new definition match.
 				// For example, (add x x).  Equality is just pointer equality
 				// on Values (so cse is important to do before lowering).
-				fmt.Fprintf(w, "if %s != %s.Args[%d] {\nbreak\n}\n", a, v, argnum)
+				fmt.Fprintf(w, "if %s != %s.Args[%d] {\nbreak\n}\n", arg, v, i)
 				canFail = true
 			} else {
 				// remember that this variable references the given value
-				m[a] = struct{}{}
-				fmt.Fprintf(w, "%s := %s.Args[%d]\n", a, v, argnum)
+				m[arg] = struct{}{}
+				fmt.Fprintf(w, "%s := %s.Args[%d]\n", arg, v, i)
 			}
-			argnum++
+			continue
+		}
+		// compound sexpr
+		var argname string
+		colon := strings.Index(arg, ":")
+		openparen := strings.Index(arg, "(")
+		if colon >= 0 && openparen >= 0 && colon < openparen {
+			// rule-specified name
+			argname = arg[:colon]
+			arg = arg[colon+1:]
 		} else {
-			// compound sexpr
-			var argname string
-			colon := strings.Index(a, ":")
-			openparen := strings.Index(a, "(")
-			if colon >= 0 && openparen >= 0 && colon < openparen {
-				// rule-specified name
-				argname = a[:colon]
-				a = a[colon+1:]
-			} else {
-				// autogenerated name
-				argname = fmt.Sprintf("%s_%d", v, argnum)
-			}
-			fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, argnum)
-			if genMatch0(w, arch, a, argname, m, false, loc) {
-				canFail = true
-			}
-			argnum++
+			// autogenerated name
+			argname = fmt.Sprintf("%s_%d", v, i)
+		}
+		fmt.Fprintf(w, "%s := %s.Args[%d]\n", argname, v, i)
+		if genMatch0(w, arch, arg, argname, m, false, loc) {
+			canFail = true
 		}
 	}
+
 	if op.argLength == -1 {
-		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, argnum)
+		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, len(args))
 		canFail = true
-	} else if int(op.argLength) != argnum {
-		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
 	}
 	return canFail
 }
@@ -500,105 +469,44 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 		return result
 	}
 
-	s := split(result[1 : len(result)-1]) // remove parens, then split
-
-	// Find op record
-	var op opData
-	for _, x := range genericOps {
-		if x.name == s[0] {
-			op = x
-			break
-		}
-	}
-	for _, x := range arch.ops {
-		if x.name == s[0] {
-			op = x
-			break
-		}
-	}
-	if op.name == "" {
-		log.Fatalf("%s: unknown op %s", loc, s[0])
-	}
+	op, oparch, typ, auxint, aux, args := parseValue(result, arch, loc)
 
 	// Find the type of the variable.
-	var opType string
-	var typeOverride bool
-	for _, a := range s[1:] {
-		if a[0] == '<' {
-			// type restriction
-			opType = a[1 : len(a)-1] // remove <>
-			typeOverride = true
-			break
-		}
+	typeOverride := typ != ""
+	if typ == "" && op.typ != "" {
+		typ = typeName(op.typ)
 	}
-	if opType == "" {
-		// find default type, if any
-		for _, op := range arch.ops {
-			if op.name == s[0] && op.typ != "" {
-				opType = typeName(op.typ)
-				break
-			}
-		}
-	}
-	if opType == "" {
-		for _, op := range genericOps {
-			if op.name == s[0] && op.typ != "" {
-				opType = typeName(op.typ)
-				break
-			}
-		}
-	}
+
 	var v string
 	if top && !move {
 		v = "v"
-		fmt.Fprintf(w, "v.reset(%s)\n", opName(s[0], arch))
+		fmt.Fprintf(w, "v.reset(Op%s%s)\n", oparch, op.name)
 		if typeOverride {
-			fmt.Fprintf(w, "v.Type = %s\n", opType)
+			fmt.Fprintf(w, "v.Type = %s\n", typ)
 		}
 	} else {
-		if opType == "" {
-			log.Fatalf("sub-expression %s (op=%s) must have a type", result, s[0])
+		if typ == "" {
+			log.Fatalf("sub-expression %s (op=Op%s%s) must have a type", result, oparch, op.name)
 		}
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, %s)\n", v, opName(s[0], arch), opType)
+		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, Op%s%s, %s)\n", v, oparch, op.name, typ)
 		if move && top {
 			// Rewrite original into a copy
 			fmt.Fprintf(w, "v.reset(OpCopy)\n")
 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
 		}
 	}
-	argnum := 0
-	for _, a := range s[1:] {
-		if a[0] == '<' {
-			// type restriction, handled above
-		} else if a[0] == '[' {
-			// auxint restriction
-			switch op.aux {
-			case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
-			default:
-				log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
-			}
-			x := a[1 : len(a)-1] // remove []
-			fmt.Fprintf(w, "%s.AuxInt = %s\n", v, x)
-		} else if a[0] == '{' {
-			// aux restriction
-			switch op.aux {
-			case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
-			default:
-				log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
-			}
-			x := a[1 : len(a)-1] // remove {}
-			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
-		} else {
-			// regular argument (sexpr or variable)
-			x := genResult0(w, arch, a, alloc, false, move, loc)
-			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
-			argnum++
-		}
+
+	if auxint != "" {
+		fmt.Fprintf(w, "%s.AuxInt = %s\n", v, auxint)
 	}
-	if op.argLength != -1 && int(op.argLength) != argnum {
-		log.Fatalf("%s: op %s should have %d args, has %d", loc, op.name, op.argLength, argnum)
+	if aux != "" {
+		fmt.Fprintf(w, "%s.Aux = %s\n", v, aux)
+	}
+	for _, arg := range args {
+		x := genResult0(w, arch, arg, alloc, false, move, loc)
+		fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
 	}
 
 	return v
@@ -666,16 +574,102 @@ func isBlock(name string, arch arch) bool {
 	return false
 }
 
-// opName converts from an op name specified in a rule file to an Op enum.
-// if the name matches a generic op, returns "Op" plus the specified name.
-// Otherwise, returns "Op" plus arch name plus op name.
-func opName(name string, arch arch) string {
-	for _, op := range genericOps {
-		if op.name == name {
-			return "Op" + name
+// parseValue parses a parenthesized value from a rule.
+// The value can be from the match or the result side.
+// It returns the op and unparsed strings for typ, auxint, and aux restrictions and for all args.
+// oparch is the architecture that op is located in, or "" for generic.
+func parseValue(val string, arch arch, loc string) (op opData, oparch string, typ string, auxint string, aux string, args []string) {
+	val = val[1 : len(val)-1] // remove ()
+
+	// Split val up into regions.
+	// Split by spaces/tabs, except those contained in (), {}, [], or <>.
+	s := split(val)
+
+	// Extract restrictions and args.
+	for _, a := range s[1:] {
+		switch a[0] {
+		case '<':
+			typ = a[1 : len(a)-1] // remove <>
+		case '[':
+			auxint = a[1 : len(a)-1] // remove []
+		case '{':
+			aux = a[1 : len(a)-1] // remove {}
+		default:
+			args = append(args, a)
 		}
 	}
-	return "Op" + arch.name + name
+
+	// Resolve the op.
+
+	// match reports whether x is a good op to select.
+	// If strict is true, rule generation might succeed.
+	// If strict is false, rule generation has failed,
+	// but we're trying to generate a useful error.
+	// Doing strict=true then strict=false allows
+	// precise op matching while retaining good error messages.
+	match := func(x opData, strict bool, archname string) bool {
+		if x.name != s[0] {
+			return false
+		}
+		if x.argLength != -1 && int(x.argLength) != len(args) {
+			if strict {
+				return false
+			} else {
+				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s[0], archname, op.argLength, len(args))
+			}
+		}
+		return true
+	}
+
+	for _, x := range genericOps {
+		if match(x, true, "generic") {
+			op = x
+			break
+		}
+	}
+	if arch.name != "generic" {
+		for _, x := range arch.ops {
+			if match(x, true, arch.name) {
+				if op.name != "" {
+					log.Fatalf("%s: matches for op %s found in both generic and %s", loc, op.name, arch.name)
+				}
+				op = x
+				oparch = arch.name
+				break
+			}
+		}
+	}
+
+	if op.name == "" {
+		// Failed to find the op.
+		// Run through everything again with strict=false
+		// to generate useful diagnosic messages before failing.
+		for _, x := range genericOps {
+			match(x, false, "generic")
+		}
+		for _, x := range arch.ops {
+			match(x, false, arch.name)
+		}
+		log.Fatalf("%s: unknown op %s", loc, s)
+	}
+
+	// Sanity check aux, auxint.
+	if auxint != "" {
+		switch op.aux {
+		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32":
+		default:
+			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+		}
+	}
+	if aux != "" {
+		switch op.aux {
+		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
+		default:
+			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+		}
+	}
+
+	return
 }
 
 func blockName(name string, arch arch) string {
