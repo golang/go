@@ -632,9 +632,10 @@ Again:
 
 	// Process message.
 	b, c.rawInput = c.in.splitBlock(b, recordHeaderLen+n)
-	ok, off, err := c.in.decrypt(b)
+	ok, off, alertValue := c.in.decrypt(b)
 	if !ok {
-		c.in.setErrorLocked(c.sendAlert(err))
+		c.in.freeBlock(b)
+		return c.in.setErrorLocked(c.sendAlert(alertValue))
 	}
 	b.off = off
 	data := b.data[b.off:]
