@@ -1181,6 +1181,7 @@ func livenessepilogue(lv *Liveness) {
 	if hasdefer {
 		for _, n := range lv.vars {
 			if n.IsOutputParamHeapAddr() {
+				n.Name.Needzero = true
 				xoffset := n.Xoffset + stkptrsize
 				onebitwalktype1(n.Type, &xoffset, ambig)
 			}
