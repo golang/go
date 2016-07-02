@@ -538,7 +538,7 @@ function setupNotesSync() {
 
   function setupPlayResizeSync() {
     var out = document.getElementsByClassName('output');
-    for (let i = 0; i < out.length; i++) {
+    for (var i = 0; i < out.length; i++) {
       $(out[i]).bind('resize', function(event) {
         if ($(event.target).hasClass('ui-resizable')) {
           localStorage.setItem('play-index', i);
@@ -549,7 +549,7 @@ function setupNotesSync() {
   };
   function setupPlayCodeSync() {
     var play = document.querySelectorAll('div.playground');
-    for (let i = 0; i < play.length; i++) {
+    for (var i = 0; i < play.length; i++) {
       play[i].addEventListener('input', inputHandler, false);
 
       function inputHandler(e) {
