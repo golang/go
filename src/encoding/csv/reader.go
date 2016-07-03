@@ -114,7 +114,14 @@ type Reader struct {
 	line   int
 	column int
 	r      *bufio.Reader
-	field  bytes.Buffer
+	// lineBuffer holds the unescaped fields read by readField, one after another.
+	// The fields can be accessed by using the indexes in fieldIndexes.
+	// Example: for the row `a,"b","c""d",e` lineBuffer will contain `abc"de` and
+	// fieldIndexes will contain the indexes 0, 1, 2, 5.
+	lineBuffer bytes.Buffer
+	// Indexes of fields inside lineBuffer
+	// The i'th field starts at offset fieldIndexes[i] in lineBuffer.
+	fieldIndexes []int
 }
 
 // NewReader returns a new Reader that reads from r.
@@ -233,31 +240,54 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	}
 	r.r.UnreadRune()
 
+	r.lineBuffer.Reset()
+	r.fieldIndexes = r.fieldIndexes[:0]
+
 	// At this point we have at least one field.
 	for {
+		idx := r.lineBuffer.Len()
+
 		haveField, delim, err := r.parseField()
 		if haveField {
-			// If FieldsPerRecord is greater than 0 we can assume the final
-			// length of fields to be equal to FieldsPerRecord.
-			if r.FieldsPerRecord > 0 && fields == nil {
-				fields = make([]string, 0, r.FieldsPerRecord)
-			}
-			fields = append(fields, r.field.String())
+			r.fieldIndexes = append(r.fieldIndexes, idx)
 		}
+
 		if delim == '\n' || err == io.EOF {
-			return fields, err
-		} else if err != nil {
+			if len(r.fieldIndexes) == 0 {
+				return nil, err
+			}
+			break
+		}
+
+		if err != nil {
 			return nil, err
 		}
 	}
+
+	fieldCount := len(r.fieldIndexes)
+	// Using this approach (creating a single string and taking slices of it)
+	// means that a single reference to any of the fields will retain the whole
+	// string. The risk of a nontrivial space leak caused by this is considered
+	// minimal and a tradeoff for better performance through the combined
+	// allocations.
+	line := r.lineBuffer.String()
+	fields = make([]string, fieldCount)
+
+	for i, idx := range r.fieldIndexes {
+		if i == fieldCount-1 {
+			fields[i] = line[idx:]
+		} else {
+			fields[i] = line[idx:r.fieldIndexes[i+1]]
+		}
+	}
+
+	return fields, nil
 }
 
 // parseField parses the next field in the record. The read field is
-// located in r.field. Delim is the first character not part of the field
+// appended to r.lineBuffer. Delim is the first character not part of the field
 // (r.Comma or '\n').
 func (r *Reader) parseField() (haveField bool, delim rune, err error) {
-	r.field.Reset()
-
 	r1, err := r.readRune()
 	for err == nil && r.TrimLeadingSpace && r1 != '\n' && unicode.IsSpace(r1) {
 		r1, err = r.readRune()
@@ -310,19 +340,19 @@ func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 						return false, 0, r.error(ErrQuote)
 					}
 					// accept the bare quote
-					r.field.WriteRune('"')
+					r.lineBuffer.WriteRune('"')
 				}
 			case '\n':
 				r.line++
 				r.column = -1
 			}
-			r.field.WriteRune(r1)
+			r.lineBuffer.WriteRune(r1)
 		}
 
 	default:
 		// unquoted field
 		for {
-			r.field.WriteRune(r1)
+			r.lineBuffer.WriteRune(r1)
 			r1, err = r.readRune()
 			if err != nil || r1 == r.Comma {
 				break
