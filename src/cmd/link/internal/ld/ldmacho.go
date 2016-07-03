@@ -828,7 +828,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			}
 
 			rp.Siz = rel.length
-			rp.Type = 512 + (int32(rel.type_) << 1) + int32(rel.pcrel)
+			rp.Type = 512 + (obj.RelocType(rel.type_) << 1) + obj.RelocType(rel.pcrel)
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).

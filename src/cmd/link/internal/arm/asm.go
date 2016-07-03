@@ -492,12 +492,12 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	return t
 }
 
-func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, typ int) *ld.Reloc {
+func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, typ obj.RelocType) *ld.Reloc {
 	r := ld.Addrel(plt)
 	r.Sym = got
 	r.Off = int32(plt.Size)
 	r.Siz = 4
-	r.Type = int32(typ)
+	r.Type = typ
 	r.Add = int64(sym.Got) - 8
 
 	plt.Attr |= ld.AttrReachable

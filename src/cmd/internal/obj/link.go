@@ -442,14 +442,16 @@ const (
 type Reloc struct {
 	Off  int32
 	Siz  uint8
-	Type int32
+	Type RelocType
 	Add  int64
 	Sym  *LSym
 }
 
-// Reloc.type
+type RelocType int32
+
+//go:generate stringer -type=RelocType
 const (
-	R_ADDR = 1 + iota
+	R_ADDR RelocType = 1 + iota
 	// R_ADDRPOWER relocates a pair of "D-form" instructions (instructions with 16-bit
 	// immediates in the low half of the instruction word), usually addis followed by
 	// another add or a load, inserting the "high adjusted" 16 bits of the address of
