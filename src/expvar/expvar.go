@@ -322,6 +322,13 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "\n}\n")
 }
 
+// Handler returns the expvar HTTP Handler.
+//
+// This is only needed to install the handler in a non-standard location.
+func Handler() http.Handler {
+	return http.HandlerFunc(expvarHandler)
+}
+
 func cmdline() interface{} {
 	return os.Args
 }
