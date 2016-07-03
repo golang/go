@@ -4281,6 +4281,16 @@ func CheckLoweredPhi(v *ssa.Value) {
 	}
 }
 
+// CheckLoweredGetClosurePtr checks that v is the first instruction in the function's entry block.
+// The output of LoweredGetClosurePtr is generally hardwired to the correct register.
+// That register contains the closure pointer on closure entry.
+func CheckLoweredGetClosurePtr(v *ssa.Value) {
+	entry := v.Block.Func.Entry
+	if entry != v.Block || entry.Values[0] != v {
+		Fatalf("badly placed LoweredGetClosurePtr: %v %v", v.Block, v)
+	}
+}
+
 // AutoVar returns a *Node and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *ssa.Value) (*Node, int64) {

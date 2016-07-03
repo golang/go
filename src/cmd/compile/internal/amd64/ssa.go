@@ -720,11 +720,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpArg:
 		// input args need no code
 	case ssa.OpAMD64LoweredGetClosurePtr:
-		// Output is hardwired to DX only,
-		// and DX contains the closure pointer on
-		// closure entry, and this "instruction"
-		// is scheduled to the very beginning
-		// of the entry block.
+		// Closure pointer is DX.
+		gc.CheckLoweredGetClosurePtr(v)
 	case ssa.OpAMD64LoweredGetG:
 		r := gc.SSARegNum(v)
 		// See the comments in cmd/internal/obj/x86/obj6.go
