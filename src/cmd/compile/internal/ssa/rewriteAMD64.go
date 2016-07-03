@@ -232,8 +232,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpHmul8(v, config)
 	case OpHmul8u:
 		return rewriteValueAMD64_OpHmul8u(v, config)
-	case OpITab:
-		return rewriteValueAMD64_OpITab(v, config)
 	case OpInterCall:
 		return rewriteValueAMD64_OpInterCall(v, config)
 	case OpIsInBounds:
@@ -4056,26 +4054,6 @@ func rewriteValueAMD64_OpHmul8u(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
-}
-func rewriteValueAMD64_OpITab(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ITab (Load ptr mem))
-	// cond:
-	// result: (MOVQload ptr mem)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpLoad {
-			break
-		}
-		ptr := v_0.Args[0]
-		mem := v_0.Args[1]
-		v.reset(OpAMD64MOVQload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpInterCall(v *Value, config *Config) bool {
 	b := v.Block

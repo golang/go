@@ -436,7 +436,6 @@
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (Addr {sym} base) -> (LEAQ {sym} base)
-(ITab (Load ptr mem)) -> (MOVQload ptr mem)
 
 // block rewrites
 (If (SETL  cmp) yes no) -> (LT  cmp yes no)
