@@ -17,7 +17,8 @@ Basics
 A stream of gobs is self-describing.  Each data item in the stream is preceded by
 a specification of its type, expressed in terms of a small set of predefined
 types.  Pointers are not transmitted, but the things they point to are
-transmitted; that is, the values are flattened.  Recursive types work fine, but
+transmitted; that is, the values are flattened. Nil pointers are not permitted,
+as they have no value. Recursive types work fine, but
 recursive values (data with cycles) are problematic.  This may change.
 
 To use gobs, create an Encoder and present it with a series of data items as
