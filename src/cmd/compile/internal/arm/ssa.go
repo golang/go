@@ -708,12 +708,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMLoweredSelect1:
 		// nothing to do
 	case ssa.OpARMLoweredGetClosurePtr:
-		// Output is hardwired to R7 (arm.REGCTXT) only,
-		// and R7 contains the closure pointer on
-		// closure entry, and this "instruction"
-		// is scheduled to the very beginning
-		// of the entry block.
-		// nothing to do here.
+		// Closure pointer is R7 (arm.REGCTXT).
+		gc.CheckLoweredGetClosurePtr(v)
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
