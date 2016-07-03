@@ -30,11 +30,24 @@ type File struct {
 
 // A Sym is a symbol defined in an executable file.
 type Sym struct {
-	Name string // symbol name
-	Addr uint64 // virtual address of symbol
-	Size int64  // size in bytes
-	Code rune   // nm code (T for text, D for data, and so on)
-	Type string // XXX?
+	Name   string  // symbol name
+	Addr   uint64  // virtual address of symbol
+	Size   int64   // size in bytes
+	Code   rune    // nm code (T for text, D for data, and so on)
+	Type   string  // XXX?
+	Relocs []Reloc // in increasing Addr order
+}
+
+type Reloc struct {
+	Addr     uint64 // Address of first byte that reloc applies to.
+	Size     uint64 // Number of bytes
+	Stringer RelocStringer
+}
+
+type RelocStringer interface {
+	// insnOffset is the offset of the instruction containing the relocation
+	// from the start of the symbol containing the relocation.
+	String(insnOffset uint64) string
 }
 
 var openers = []func(*os.File) (rawFile, error){
@@ -80,7 +93,13 @@ func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
 func (x byAddr) Len() int           { return len(x) }
 func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-func (f *File) PCLineTable() (*gosym.Table, error) {
+func (f *File) PCLineTable() (Liner, error) {
+	// If the raw file implements Liner directly, use that.
+	// Currently, only Go intermediate objects and archives (goobj) use this path.
+	if pcln, ok := f.raw.(Liner); ok {
+		return pcln, nil
+	}
+	// Otherwise, read the pcln tables and build a Liner out of that.
 	textStart, symtab, pclntab, err := f.raw.pcln()
 	if err != nil {
 		return nil, err

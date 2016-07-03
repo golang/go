@@ -326,7 +326,7 @@ overwrite:
 			s.R[i] = Reloc{
 				Off:  r.readInt32(),
 				Siz:  r.readUint8(),
-				Type: r.readInt32(),
+				Type: obj.RelocType(r.readInt32()),
 				Add:  r.readInt64(),
 				Sym:  r.readSymIndex(),
 			}

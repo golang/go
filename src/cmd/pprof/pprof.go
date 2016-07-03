@@ -6,7 +6,6 @@ package main
 
 import (
 	"debug/dwarf"
-	"debug/gosym"
 	"flag"
 	"fmt"
 	"net/url"
@@ -161,7 +160,7 @@ func (t *objTool) Disasm(file string, start, end uint64) ([]plugin.Inst, error) 
 		return nil, err
 	}
 	var asm []plugin.Inst
-	d.Decode(start, end, func(pc, size uint64, file string, line int, text string) {
+	d.Decode(start, end, nil, func(pc, size uint64, file string, line int, text string) {
 		asm = append(asm, plugin.Inst{Addr: pc, File: file, Line: line, Text: text})
 	})
 	return asm, nil
@@ -203,7 +202,7 @@ type file struct {
 	offset uint64
 	sym    []objfile.Sym
 	file   *objfile.File
-	pcln   *gosym.Table
+	pcln   objfile.Liner
 
 	triedDwarf bool
 	dwarf      *dwarf.Data

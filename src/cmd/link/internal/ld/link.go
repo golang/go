@@ -32,6 +32,7 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"debug/elf"
 	"fmt"
@@ -135,7 +136,7 @@ type Reloc struct {
 	Off     int32
 	Siz     uint8
 	Done    uint8
-	Type    int32
+	Type    obj.RelocType
 	Variant int32
 	Add     int64
 	Xadd    int64

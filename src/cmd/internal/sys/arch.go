@@ -146,3 +146,16 @@ var ArchS390X = &Arch{
 	RegSize:   8,
 	MinLC:     2,
 }
+
+var Archs = [...]*Arch{
+	Arch386,
+	ArchAMD64,
+	ArchAMD64P32,
+	ArchARM,
+	ArchARM64,
+	ArchMIPS64,
+	ArchMIPS64LE,
+	ArchPPC64,
+	ArchPPC64LE,
+	ArchS390X,
+}

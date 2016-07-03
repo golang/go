@@ -163,7 +163,7 @@ type Data struct {
 // A Reloc describes a relocation applied to a memory image to refer
 // to an address within a particular symbol.
 type Reloc struct {
-	// The bytes at [Offset, Offset+Size) within the memory image
+	// The bytes at [Offset, Offset+Size) within the containing Sym
 	// should be updated to refer to the address Add bytes after the start
 	// of the symbol Sym.
 	Offset int
@@ -174,7 +174,7 @@ type Reloc struct {
 	// The Type records the form of address expected in the bytes
 	// described by the previous fields: absolute, PC-relative, and so on.
 	// TODO(rsc): The interpretation of Type is not exposed by this package.
-	Type int
+	Type obj.RelocType
 }
 
 // A Var describes a variable in a function stack frame: a declared
@@ -220,6 +220,7 @@ type Package struct {
 	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
 	Syms       []*Sym   // symbols defined by this package
 	MaxVersion int      // maximum Version in any SymID in Syms
+	Arch       string   // architecture
 }
 
 var (
@@ -561,14 +562,13 @@ func (r *objReader) parseArchive() error {
 // The format of that part is defined in a comment at the top
 // of src/liblink/objfile.c.
 func (r *objReader) parseObject(prefix []byte) error {
-	// TODO(rsc): Maybe use prefix and the initial input to
-	// record the header line from the file, which would
-	// give the architecture and other version information.
-
 	r.p.MaxVersion++
+	h := make([]byte, 0, 256)
+	h = append(h, prefix...)
 	var c1, c2, c3 byte
 	for {
 		c1, c2, c3 = c2, c3, r.readByte()
+		h = append(h, c3)
 		// The new export format can contain 0 bytes.
 		// Don't consider them errors, only look for r.err != nil.
 		if r.err != nil {
@@ -578,6 +578,12 @@ func (r *objReader) parseObject(prefix []byte) error {
 			break
 		}
 	}
+
+	hs := strings.Fields(string(h))
+	if len(hs) >= 4 {
+		r.p.Arch = hs[3]
+	}
+	// TODO: extract OS + build ID if/when we need it
 
 	r.readFull(r.tmp[:8])
 	if !bytes.Equal(r.tmp[:8], []byte("\x00\x00go17ld")) {
@@ -643,7 +649,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			rel := &s.Reloc[i]
 			rel.Offset = r.readInt()
 			rel.Size = r.readInt()
-			rel.Type = r.readInt()
+			rel.Type = obj.RelocType(r.readInt())
 			rel.Add = r.readInt()
 			rel.Sym = r.readSymID()
 		}
@@ -692,4 +698,19 @@ func (r *objReader) parseObject(prefix []byte) error {
 	}
 
 	return nil
+}
+
+func (r *Reloc) String(insnOffset uint64) string {
+	delta := r.Offset - int(insnOffset)
+	s := fmt.Sprintf("[%d:%d]%s", delta, delta+r.Size, r.Type)
+	if r.Sym.Name != "" {
+		if r.Add != 0 {
+			return fmt.Sprintf("%s:%s+%d", s, r.Sym.Name, r.Add)
+		}
+		return fmt.Sprintf("%s:%s", s, r.Sym.Name)
+	}
+	if r.Add != 0 {
+		return fmt.Sprintf("%s:%d", s, r.Add)
+	}
+	return s
 }

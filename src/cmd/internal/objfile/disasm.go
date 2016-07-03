@@ -22,7 +22,7 @@ import (
 // Disasm is a disassembler for a given File.
 type Disasm struct {
 	syms      []Sym            //symbols in file, sorted by address
-	pcln      *gosym.Table     // pcln table
+	pcln      Liner            // pcln table
 	text      []byte           // bytes of text segment (actual instructions)
 	textStart uint64           // start PC of text
 	textEnd   uint64           // end PC of text
@@ -116,6 +116,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64) {
 	for _, sym := range d.syms {
 		symStart := sym.Addr
 		symEnd := sym.Addr + uint64(sym.Size)
+		relocs := sym.Relocs
 		if sym.Code != 'T' && sym.Code != 't' ||
 			symStart < d.textStart ||
 			symEnd <= start || end <= symStart ||
@@ -135,7 +136,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64) {
 			symEnd = end
 		}
 		code := d.text[:end-d.textStart]
-		d.Decode(symStart, symEnd, func(pc, size uint64, file string, line int, text string) {
+		d.Decode(symStart, symEnd, relocs, func(pc, size uint64, file string, line int, text string) {
 			i := pc - d.textStart
 			fmt.Fprintf(tw, "\t%s:%d\t%#x\t", base(file), line, pc)
 			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" {
@@ -158,7 +159,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64) {
 }
 
 // Decode disassembles the text segment range [start, end), calling f for each instruction.
-func (d *Disasm) Decode(start, end uint64, f func(pc, size uint64, file string, line int, text string)) {
+func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint64, file string, line int, text string)) {
 	if start < d.textStart {
 		start = d.textStart
 	}
@@ -171,6 +172,17 @@ func (d *Disasm) Decode(start, end uint64, f func(pc, size uint64, file string, 
 		i := pc - d.textStart
 		text, size := d.disasm(code[i:], pc, lookup)
 		file, line, _ := d.pcln.PCToLine(pc)
+		text += "\t"
+		first := true
+		for len(relocs) > 0 && relocs[0].Addr < i+uint64(size) {
+			if first {
+				first = false
+			} else {
+				text += " "
+			}
+			text += relocs[0].Stringer.String(pc - start)
+			relocs = relocs[1:]
+		}
 		f(pc, uint64(size), file, line, text)
 		pc += uint64(size)
 	}
@@ -246,4 +258,10 @@ var byteOrders = map[string]binary.ByteOrder{
 	"ppc64":   binary.BigEndian,
 	"ppc64le": binary.LittleEndian,
 	"s390x":   binary.BigEndian,
+}
+
+type Liner interface {
+	// Given a pc, returns the corresponding file, line, and function data.
+	// If unknown, returns "",0,nil.
+	PCToLine(uint64) (string, int, *gosym.Func)
 }
