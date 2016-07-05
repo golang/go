@@ -897,6 +897,13 @@ is set explicitly, following <a href="https://tools.ietf.org/html/rfc7230#sectio
 </p>
 
 <p>
+The server implementation is now stricter about rejecting requests with invalid HTTP versions.
+Invalid requests claiming to be HTTP/0.x are now rejected (HTTP/0.9 was never fully supported),
+and plaintext HTTP/2 requests other than the "PRI * HTTP/2.0" upgrade request are now rejected as well.
+The server continues to handle encrypted HTTP/2 requests.
+</p>
+
+<p>
 In the server, a 200 status code is sent back by the timeout handler on an empty
 response body, instead of sending back 0 as the status code.
 </p>
