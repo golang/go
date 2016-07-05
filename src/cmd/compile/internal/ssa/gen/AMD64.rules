@@ -509,6 +509,12 @@
 (ANDLconst [c] (ANDLconst [d] x)) -> (ANDLconst [c & d] x)
 (ANDQconst [c] (ANDQconst [d] x)) -> (ANDQconst [c & d] x)
 
+(XORLconst [c] (XORLconst [d] x)) -> (XORLconst [c ^ d] x)
+(XORQconst [c] (XORQconst [d] x)) -> (XORQconst [c ^ d] x)
+
+(MULLconst [c] (MULLconst [d] x)) -> (MULLconst [int64(int32(c * d))] x)
+(MULQconst [c] (MULQconst [d] x)) -> (MULQconst [c * d] x)
+
 (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
 (ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
 (ORL x (MOVLconst [c])) -> (ORLconst [c] x)
@@ -557,6 +563,16 @@
 
 (SHRL x (ANDLconst [31] y)) -> (SHRL x y)
 (SHRQ x (ANDQconst [63] y)) -> (SHRQ x y)
+
+(ROLQconst [c] (ROLQconst [d] x)) -> (ROLQconst [(c+d)&63] x)
+(ROLLconst [c] (ROLLconst [d] x)) -> (ROLLconst [(c+d)&31] x)
+(ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
+(ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
+
+(ROLQconst [0] x) -> x
+(ROLLconst [0] x) -> x
+(ROLWconst [0] x) -> x
+(ROLBconst [0] x) -> x
 
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
