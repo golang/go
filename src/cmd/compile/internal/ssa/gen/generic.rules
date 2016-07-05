@@ -67,6 +67,12 @@
         (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
 (Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
 
+// Convert x * -1 to -x. The front-end catches some but not all of these.
+(Mul8  (Const8  [-1]) x) -> (Neg8  x)
+(Mul16 (Const16 [-1]) x) -> (Neg16 x)
+(Mul32 (Const32 [-1]) x) -> (Neg32 x)
+(Mul64 (Const64 [-1]) x) -> (Neg64 x)
+
 (Mod8  (Const8  [c]) (Const8  [d])) && d != 0 -> (Const8  [int64(int8(c % d))])
 (Mod16 (Const16 [c]) (Const16 [d])) && d != 0 -> (Const16 [int64(int16(c % d))])
 (Mod32 (Const32 [c]) (Const32 [d])) && d != 0 -> (Const32 [int64(int32(c % d))])
