@@ -88,6 +88,11 @@ if test "$msan" = "yes"; then
 	status=1
     fi
 
+    if ! go run -msan msan5.go; then
+	echo "FAIL: msan5"
+	status=1
+    fi
+
     if go run -msan msan_fail.go 2>/dev/null; then
 	echo "FAIL: msan_fail"
 	status=1

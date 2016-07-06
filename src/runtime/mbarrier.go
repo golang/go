@@ -185,6 +185,14 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	if raceenabled {
+		raceWriteObjectPC(typ, dst, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
+		raceReadObjectPC(typ, src, getcallerpc(unsafe.Pointer(&typ)), funcPC(reflect_typedmemmove))
+	}
+	if msanenabled {
+		msanwrite(dst, typ.size)
+		msanread(src, typ.size)
+	}
 	typedmemmove(typ, dst, src)
 }
 
@@ -300,7 +308,23 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 		if n > src.len {
 			n = src.len
 		}
-		memmove(dst.array, src.array, uintptr(n)*elemType.size)
+		if n == 0 {
+			return 0
+		}
+
+		size := uintptr(n) * elemType.size
+		if raceenabled {
+			callerpc := getcallerpc(unsafe.Pointer(&elemType))
+			pc := funcPC(reflect_typedslicecopy)
+			racewriterangepc(dst.array, size, callerpc, pc)
+			racereadrangepc(src.array, size, callerpc, pc)
+		}
+		if msanenabled {
+			msanwrite(dst.array, size)
+			msanread(src.array, size)
+		}
+
+		memmove(dst.array, src.array, size)
 		return n
 	}
 	return typedslicecopy(elemType, dst, src)
