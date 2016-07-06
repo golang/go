@@ -119,6 +119,7 @@ func init() {
 		gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{}}
 		fp01      = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
 		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fp1flags  = regInfo{inputs: []regMask{fp}, outputs: []regMask{flags}}
 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
@@ -298,6 +299,9 @@ func init() {
 		{name: "CMPshiftLLreg", argLength: 3, reg: gp3flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1<<arg2
 		{name: "CMPshiftRLreg", argLength: 3, reg: gp3flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1>>arg2, unsigned shift
 		{name: "CMPshiftRAreg", argLength: 3, reg: gp3flags, asm: "CMP", typ: "Flags"}, // arg0 compare to arg1>>arg2, signed shift
+
+		{name: "CMPF0", argLength: 1, reg: fp1flags, asm: "CMPF", typ: "Flags"}, // arg0 compare to 0, float32
+		{name: "CMPD0", argLength: 1, reg: fp1flags, asm: "CMPD", typ: "Flags"}, // arg0 compare to 0, float64
 
 		// moves
 		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", typ: "UInt32", rematerializeable: true},    // 32 low bits of auxint
