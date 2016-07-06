@@ -205,6 +205,11 @@ func is32Bit(n int64) bool {
 	return n == int64(int32(n))
 }
 
+// is16Bit reports whether n can be represented as a signed 16 bit integer.
+func is16Bit(n int64) bool {
+	return n == int64(int16(n))
+}
+
 // b2i translates a boolean value to 0 or 1 for assigning to auxInt.
 func b2i(b bool) int64 {
 	if b {

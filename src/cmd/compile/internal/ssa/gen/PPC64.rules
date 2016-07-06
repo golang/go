@@ -39,7 +39,8 @@
 (ConstNil) -> (MOVDconst [0])
 (ConstBool [b]) -> (MOVBconst [b])
 
-(Addr {sym} base) -> (ADDconst {sym} base)
+(Addr {sym} base) -> (MOVDaddr {sym} base)
+// (Addr {sym} base) -> (ADDconst {sym} base)
 (OffPtr [off] ptr) -> (ADD (MOVDconst <config.Frontend().TypeInt64()> [off]) ptr)
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 
@@ -148,7 +149,7 @@
 (Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) -> (MOVWZload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) && isSigned(t) -> (MOVHload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) -> (MOVHZload ptr mem)
-(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) -> (MOVBload ptr mem)
+(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && isSigned(t))) -> (MOVBload ptr mem)
 (Load <t> ptr mem) && is8BitInt(t) && !isSigned(t) -> (MOVBZload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
@@ -209,6 +210,14 @@
 
 (ADD (MOVDconst [c]) x) -> (ADDconst [c] x)
 (ADD x (MOVDconst [c])) -> (ADDconst [c] x)
+
+(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)
+(MOVWstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVWstore [off1+off2] {sym} x val mem)
+(MOVHstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVHstore [off1+off2] {sym} x val mem)
+(MOVBstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVBstore [off1+off2] {sym} x val mem)
+
+// TODO MOV*storeconst is wrong for PPC
+// (MOVDstore ptr (MOVDconst [c]) mem) && c == 0 -> (MOVDstoreconst [c] ptr mem)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
