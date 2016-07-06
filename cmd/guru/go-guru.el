@@ -229,7 +229,7 @@ variant of `compilation-mode'."
   (or buffer-file-name
       (error "Cannot use guru on a buffer without a file name"))
   (let* ((filename (file-truename buffer-file-name))
-	 (cmd (combine-and-quote-strings (go-guru--command mode filename)))
+	 (cmd (mapconcat #'shell-quote-argument (go-guru--command mode filename) " "))
 	 (process-connection-type nil) ; use pipe (not pty) so EOF closes stdin
 	 (procbuf (compilation-start cmd 'go-guru-output-mode)))
     (with-current-buffer procbuf
