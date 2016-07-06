@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -480,5 +481,41 @@ func TestMemPprof(t *testing.T) {
 
 	if !bytes.Contains(top, []byte("MemProf")) {
 		t.Error("missing MemProf in pprof output")
+	}
+}
+
+var concurrentMapTest = flag.Bool("run_concurrent_map_tests", false, "also run flaky concurrent map tests")
+
+func TestConcurrentMapWrites(t *testing.T) {
+	if !*concurrentMapTest {
+		t.Skip("skipping without -run_concurrent_map_tests")
+	}
+	testenv.MustHaveGoRun(t)
+	output := runTestProg(t, "testprog", "concurrentMapWrites")
+	want := "fatal error: concurrent map writes"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+func TestConcurrentMapReadWrite(t *testing.T) {
+	if !*concurrentMapTest {
+		t.Skip("skipping without -run_concurrent_map_tests")
+	}
+	testenv.MustHaveGoRun(t)
+	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
+	want := "fatal error: concurrent map read and map write"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+func TestConcurrentMapIterateWrite(t *testing.T) {
+	if !*concurrentMapTest {
+		t.Skip("skipping without -run_concurrent_map_tests")
+	}
+	testenv.MustHaveGoRun(t)
+	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
+	want := "fatal error: concurrent map iteration and map write"
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
