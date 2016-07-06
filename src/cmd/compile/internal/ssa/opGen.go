@@ -696,6 +696,8 @@ const (
 	OpARMCMPshiftLLreg
 	OpARMCMPshiftRLreg
 	OpARMCMPshiftRAreg
+	OpARMCMPF0
+	OpARMCMPD0
 	OpARMMOVWconst
 	OpARMMOVFconst
 	OpARMMOVDconst
@@ -8860,6 +8862,32 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPF0",
+		argLen: 1,
+		asm:    arm.ACMPF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			outputs: []regMask{
+				4294967296, // FLAGS
+			},
+		},
+	},
+	{
+		name:   "CMPD0",
+		argLen: 1,
+		asm:    arm.ACMPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 			outputs: []regMask{
 				4294967296, // FLAGS

@@ -523,6 +523,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARMCMPF0,
+		ssa.OpARMCMPD0:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
 	case ssa.OpARMCMPshiftLL:
 		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMCMPshiftRL:

@@ -1203,3 +1203,7 @@
 (AND x (MVNshiftLL y [c])) -> (BICshiftLL x y [c])
 (AND x (MVNshiftRL y [c])) -> (BICshiftRL x y [c])
 (AND x (MVNshiftRA y [c])) -> (BICshiftRA x y [c])
+
+// floating point optimizations
+(CMPF x (MOVFconst [0])) -> (CMPF0 x)
+(CMPD x (MOVDconst [0])) -> (CMPD0 x)

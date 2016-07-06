@@ -118,6 +118,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMCMOVWLSconst(v, config)
 	case OpARMCMP:
 		return rewriteValueARM_OpARMCMP(v, config)
+	case OpARMCMPD:
+		return rewriteValueARM_OpARMCMPD(v, config)
+	case OpARMCMPF:
+		return rewriteValueARM_OpARMCMPF(v, config)
 	case OpARMCMPconst:
 		return rewriteValueARM_OpARMCMPconst(v, config)
 	case OpARMCMPshiftLL:
@@ -4113,6 +4117,48 @@ func rewriteValueARM_OpARMCMP(v *Value, config *Config) bool {
 		v0.AddArg(y)
 		v0.AddArg(z)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMPD(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (CMPD x (MOVDconst [0]))
+	// cond:
+	// result: (CMPD0 x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVDconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpARMCMPD0)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM_OpARMCMPF(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (CMPF x (MOVFconst [0]))
+	// cond:
+	// result: (CMPF0 x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpARMMOVFconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpARMCMPF0)
+		v.AddArg(x)
 		return true
 	}
 	return false

@@ -464,6 +464,24 @@ execute:
 		}
 		return 1
 
+	case 0xeeb50bc0: // D[regd] :: 0 (CMPD)
+		cmp, nan := fcmp64(fgetd(regd), 0)
+		m.fflag = fstatus(nan, cmp)
+
+		if fptrace > 0 {
+			print("*** cmp D[", regd, "]::0 ", hex(m.fflag), "\n")
+		}
+		return 1
+
+	case 0xeeb50ac0: // F[regd] :: 0 (CMPF)
+		cmp, nan := fcmp64(f32to64(m.freglo[regd]), 0)
+		m.fflag = fstatus(nan, cmp)
+
+		if fptrace > 0 {
+			print("*** cmp F[", regd, "]::0 ", hex(m.fflag), "\n")
+		}
+		return 1
+
 	case 0xeeb70ac0: // D[regd] = F[regm] (MOVFD)
 		fputd(regd, f32to64(m.freglo[regm]))
 
