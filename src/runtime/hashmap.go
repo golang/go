@@ -382,9 +382,6 @@ func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe
 	if h == nil || h.count == 0 {
 		return nil, nil
 	}
-	if h.flags&hashWriting != 0 {
-		throw("concurrent map read and map write")
-	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
@@ -684,6 +681,9 @@ func mapiternext(it *hiter) {
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&it))
 		racereadpc(unsafe.Pointer(h), callerpc, funcPC(mapiternext))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map iteration and map write")
 	}
 	t := it.t
 	bucket := it.bucket
