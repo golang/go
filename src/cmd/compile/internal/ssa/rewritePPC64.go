@@ -136,6 +136,14 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpLess8U(v, config)
 	case OpLoad:
 		return rewriteValuePPC64_OpLoad(v, config)
+	case OpPPC64MOVBstore:
+		return rewriteValuePPC64_OpPPC64MOVBstore(v, config)
+	case OpPPC64MOVDstore:
+		return rewriteValuePPC64_OpPPC64MOVDstore(v, config)
+	case OpPPC64MOVHstore:
+		return rewriteValuePPC64_OpPPC64MOVHstore(v, config)
+	case OpPPC64MOVWstore:
+		return rewriteValuePPC64_OpPPC64MOVWstore(v, config)
 	case OpMul16:
 		return rewriteValuePPC64_OpMul16(v, config)
 	case OpMul32:
@@ -402,11 +410,11 @@ func rewriteValuePPC64_OpAddr(v *Value, config *Config) bool {
 	_ = b
 	// match: (Addr {sym} base)
 	// cond:
-	// result: (ADDconst {sym} base)
+	// result: (MOVDaddr {sym} base)
 	for {
 		sym := v.Aux
 		base := v.Args[0]
-		v.reset(OpPPC64ADDconst)
+		v.reset(OpPPC64MOVDaddr)
 		v.Aux = sym
 		v.AddArg(base)
 		return true
@@ -1448,13 +1456,13 @@ func rewriteValuePPC64_OpLoad(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (t.IsBoolean() || (is8BitInt(t) && !isSigned(t)))
+	// cond: (t.IsBoolean() || (is8BitInt(t) && isSigned(t)))
 	// result: (MOVBload ptr mem)
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) {
+		if !(t.IsBoolean() || (is8BitInt(t) && isSigned(t))) {
 			break
 		}
 		v.reset(OpPPC64MOVBload)
@@ -1504,6 +1512,126 @@ func rewriteValuePPC64_OpLoad(v *Value, config *Config) bool {
 		}
 		v.reset(OpPPC64FMOVDload)
 		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVBstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBstore [off1] {sym} (ADDconst [off2] x) val mem)
+	// cond: is16Bit(off1+off2)
+	// result: (MOVBstore [off1+off2] {sym} x val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64ADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		x := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is16Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpPPC64MOVBstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVDstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)
+	// cond: is16Bit(off1+off2)
+	// result: (MOVDstore [off1+off2] {sym} x val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64ADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		x := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is16Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpPPC64MOVDstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVHstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHstore [off1] {sym} (ADDconst [off2] x) val mem)
+	// cond: is16Bit(off1+off2)
+	// result: (MOVHstore [off1+off2] {sym} x val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64ADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		x := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is16Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpPPC64MOVHstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVWstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWstore [off1] {sym} (ADDconst [off2] x) val mem)
+	// cond: is16Bit(off1+off2)
+	// result: (MOVWstore [off1+off2] {sym} x val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64ADDconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		x := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is16Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpPPC64MOVWstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(x)
+		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}

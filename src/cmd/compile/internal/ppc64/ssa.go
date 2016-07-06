@@ -162,6 +162,39 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+
+	case ssa.OpPPC64MOVDaddr:
+		p := gc.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_ADDR
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
+		var wantreg string
+		// Suspect comment, copied from ARM code
+		// MOVD $sym+off(base), R
+		// the assembler expands it as the following:
+		// - base is SP: add constant offset to SP
+		//               when constant is large, tmp register (R11) may be used
+		// - base is SB: load external address from constant pool (use relocation)
+		switch v.Aux.(type) {
+		default:
+			v.Fatalf("aux is of unknown type %T", v.Aux)
+		case *ssa.ExternSymbol:
+			wantreg = "SB"
+			gc.AddAux(&p.From, v)
+		case *ssa.ArgSymbol, *ssa.AutoSymbol:
+			wantreg = "SP"
+			gc.AddAux(&p.From, v)
+		case nil:
+			// No sym, just MOVD $off(SP), R
+			wantreg = "SP"
+			p.From.Reg = ppc64.REGSP
+			p.From.Offset = v.AuxInt
+		}
+		if reg := gc.SSAReg(v.Args[0]); reg.Name() != wantreg {
+			v.Fatalf("bad reg %s for symbol type %T, want %s", reg.Name(), v.Aux, wantreg)
+		}
+
 	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst, ssa.OpPPC64MOVHconst, ssa.OpPPC64MOVBconst, ssa.OpPPC64FMOVDconst, ssa.OpPPC64FMOVSconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -169,32 +202,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
 
-	case ssa.OpPPC64FCMPU:
+	case ssa.OpPPC64FCMPU, ssa.OpPPC64CMP, ssa.OpPPC64CMPW, ssa.OpPPC64CMPU, ssa.OpPPC64CMPWU:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[1])
-		p.Reg = gc.SSARegNum(v.Args[0])
-
-	case ssa.OpPPC64CMP, ssa.OpPPC64CMPW, ssa.OpPPC64CMPU, ssa.OpPPC64CMPWU:
-		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[1])
-		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = gc.SSARegNum(v.Args[1])
 
 	case ssa.OpPPC64CMPconst:
 		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_CONST
+		p.To.Offset = v.AuxInt
 
 	case ssa.OpPPC64MOVBreg, ssa.OpPPC64MOVBZreg, ssa.OpPPC64MOVHreg, ssa.OpPPC64MOVHZreg, ssa.OpPPC64MOVWreg, ssa.OpPPC64MOVWZreg:
 		// Shift in register to required size
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = gc.SSARegNum(v)
 		p.To.Type = obj.TYPE_REG
 
 	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVBload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
@@ -212,6 +239,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpPPC64MOVDstoreconst, ssa.OpPPC64MOVWstoreconst, ssa.OpPPC64MOVHstoreconst, ssa.OpPPC64MOVBstoreconst:
+		// TODO: pretty sure this is bogus, PPC has no such instruction unless constant is zero.
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
@@ -219,6 +247,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux2(&p.To, v, sc.Off())
+
 	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -272,17 +301,79 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	}
 }
 
+var blockJump = [...]struct {
+	asm, invasm obj.As
+}{
+	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE},
+	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ},
+
+	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE},
+	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT},
+	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT},
+	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE},
+
+	ssa.BlockPPC64ULT: {ppc64.ABLT, ppc64.ABGE},
+	ssa.BlockPPC64UGE: {ppc64.ABGE, ppc64.ABLT},
+	ssa.BlockPPC64ULE: {ppc64.ABLE, ppc64.ABGT},
+	ssa.BlockPPC64UGT: {ppc64.ABGT, ppc64.ABLE},
+}
+
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
-	case ssa.BlockCall:
+	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
+	case ssa.BlockExit:
+		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)
+
+	case ssa.BlockPPC64EQ, ssa.BlockPPC64NE,
+		ssa.BlockPPC64LT, ssa.BlockPPC64GE,
+		ssa.BlockPPC64LE, ssa.BlockPPC64GT,
+		ssa.BlockPPC64ULT, ssa.BlockPPC64UGT,
+		ssa.BlockPPC64ULE, ssa.BlockPPC64UGE:
+		jmp := blockJump[b.Kind]
+		likely := b.Likely
+		var p *obj.Prog
+		switch next {
+		case b.Succs[0].Block():
+			p = gc.Prog(jmp.invasm)
+			likely *= -1
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		case b.Succs[1].Block():
+			p = gc.Prog(jmp.asm)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+		default:
+			p = gc.Prog(jmp.asm)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			q := gc.Prog(obj.AJMP)
+			q.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+		}
+
+		// liblink reorders the instruction stream as it sees fit.
+		// Pass along what we know so liblink can make use of it.
+		// TODO: Once we've fully switched to SSA,
+		// make liblink leave our output alone.
+		//switch likely {
+		//case ssa.BranchUnlikely:
+		//	p.From.Type = obj.TYPE_CONST
+		//	p.From.Offset = 0
+		//case ssa.BranchLikely:
+		//	p.From.Type = obj.TYPE_CONST
+		//	p.From.Offset = 1
+		//}
+
+	default:
+		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
 }
