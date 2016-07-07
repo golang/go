@@ -528,7 +528,7 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 	touch(t, filepath.Join(td, "dir/foo2"))
 
 	sawFoo2 := false
-	filepath.Walk(td, func(path string, info os.FileInfo, err error) error {
+	walker := func(path string, info os.FileInfo, err error) error {
 		if strings.HasSuffix(path, "foo2") {
 			sawFoo2 = true
 		}
@@ -536,8 +536,20 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 			return filepath.SkipDir
 		}
 		return nil
-	})
+	}
 
+	err = filepath.Walk(td, walker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sawFoo2 {
+		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
+	}
+
+	err = filepath.Walk(filepath.Join(td, "dir"), walker)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if sawFoo2 {
 		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
 	}
@@ -1203,7 +1215,7 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 	ken := filepath.Join(root, "ken")
 	seenBugs := false
 	seenKen := false
-	filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
+	err = filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1220,6 +1232,9 @@ func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
 		}
 		return nil
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !seenKen {
 		t.Fatalf("%q not seen", ken)
 	}
