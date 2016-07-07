@@ -155,10 +155,15 @@ timeloop:
 
 systime:
 	// Fall back to system call (usually first call in this thread).
-	MOVQ	SP, DI	// must be non-nil, unused
+	MOVQ	SP, DI
 	MOVQ	$0, SI
 	MOVL	$(0x2000000+116), AX
 	SYSCALL
+	CMPQ	AX, $0
+	JNE	inreg
+	MOVQ	0(SP), AX
+	MOVL	8(SP), DX
+inreg:
 	// sec is in AX, usec in DX
 	// return nsec in AX
 	IMULQ	$1000000000, AX
