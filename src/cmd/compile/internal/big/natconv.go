@@ -302,7 +302,7 @@ func (x nat) itoa(neg bool, base int) []byte {
 		}
 
 	} else {
-		bb, ndigits := maxPow(Word(b))
+		bb, ndigits := maxPow(b)
 
 		// construct table of successive squares of bb*leafSize to use in subdivisions
 		// result (table != nil) <=> (len(x) > leafSize > 0)
@@ -391,7 +391,7 @@ func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []diviso
 				// this appears to be faster for BenchmarkString10000Base10
 				// and smaller strings (but a bit slower for larger ones)
 				t := r / 10
-				s[i] = '0' + byte(r-t<<3-t-t) // TODO(gri) replace w/ t*10 once compiler produces better code
+				s[i] = '0' + byte(r-t*10)
 				r = t
 			}
 		}

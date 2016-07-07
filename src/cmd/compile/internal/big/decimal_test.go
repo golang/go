@@ -105,12 +105,14 @@ func TestDecimalRounding(t *testing.T) {
 	}
 }
 
+var sink string
+
 func BenchmarkDecimalConversion(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for shift := -100; shift <= +100; shift++ {
 			var d decimal
 			d.init(natOne, shift)
-			d.String()
+			sink = d.String()
 		}
 	}
 }

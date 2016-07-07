@@ -1008,9 +1008,9 @@ func (x *Float) Float64() (float64, Accuracy) {
 		if r.form == inf || e > emax {
 			// overflow
 			if x.neg {
-				return float64(math.Inf(-1)), Below
+				return math.Inf(-1), Below
 			}
-			return float64(math.Inf(+1)), Above
+			return math.Inf(+1), Above
 		}
 		// e <= emax
 
