@@ -1,5 +1,5 @@
 // errorcheck -0 -d=nil
-// +build amd64 arm,!nacl
+// +build amd64 arm
 
 // Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
