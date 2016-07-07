@@ -199,6 +199,11 @@ func PrintfTests() {
 	et4.Error() // ok, not an error method.
 	var et5 errorTest5
 	et5.error() // ok, not an error method.
+	// Interfaces can be used with any verb.
+	var iface interface {
+		ToTheMadness() bool // Method ToTheMadness usually returns false
+	}
+	fmt.Printf("%f", iface) // ok: fmt treats interfaces as transparent and iface may well have a float concrete type
 	// Can't print a function.
 	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
 	Printf("%v", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
