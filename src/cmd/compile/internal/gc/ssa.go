@@ -37,12 +37,7 @@ func shouldssa(fn *Node) bool {
 		if os.Getenv("SSATEST") == "" {
 			return false
 		}
-	case "arm":
-		// nacl/arm doesn't work yet
-		if obj.Getgoos() == "nacl" && os.Getenv("SSATEST") == "" {
-			return false
-		}
-	case "amd64":
+	case "amd64", "arm":
 		// Generally available.
 	}
 	if !ssaEnabled {

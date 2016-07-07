@@ -490,6 +490,9 @@ func (s *regAllocState) init(f *Func) {
 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
+	if s.f.Config.nacl && s.f.Config.arch == "arm" {
+		s.allocatable &^= 1 << 9 // R9 is "thread pointer" on nacl/arm
+	}
 
 	s.regs = make([]regState, s.numRegs)
 	s.values = make([]valState, f.NumValues())
