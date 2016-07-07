@@ -660,8 +660,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		for q := p; q != nil; q = q.Link {
 			switch q.As {
 			case obj.ACALL:
-				leaf = false
-				break LeafSearch
+				// Treat common runtime calls that take no arguments
+				// the same as duffcopy and duffzero.
+				if !isZeroArgRuntimeCall(q.To.Sym) {
+					leaf = false
+					break LeafSearch
+				}
+				fallthrough
 			case obj.ADUFFCOPY, obj.ADUFFZERO:
 				if autoffset >= obj.StackSmall-8 {
 					leaf = false
@@ -926,6 +931,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.As = obj.AJMP
 		}
 	}
+}
+
+func isZeroArgRuntimeCall(s *obj.LSym) bool {
+	if s == nil {
+		return false
+	}
+	switch s.Name {
+	case "runtime.panicindex", "runtime.panicslice", "runtime.panicdivide":
+		return true
+	}
+	return false
 }
 
 func indir_cx(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
