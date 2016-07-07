@@ -393,9 +393,14 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 func Walk(root string, walkFn WalkFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
-		return walkFn(root, nil, err)
+		err = walkFn(root, nil, err)
+	} else {
+		err = walk(root, info, walkFn)
 	}
-	return walk(root, info, walkFn)
+	if err == SkipDir {
+		return nil
+	}
+	return err
 }
 
 // readDirNames reads the directory named by dirname and returns
