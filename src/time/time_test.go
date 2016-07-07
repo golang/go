@@ -891,7 +891,7 @@ func TestLocationRace(t *testing.T) {
 	go func() {
 		c <- Now().String()
 	}()
-	Now().String()
+	_ = Now().String()
 	<-c
 	Sleep(100 * Millisecond)
 

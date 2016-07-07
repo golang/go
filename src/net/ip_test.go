@@ -242,13 +242,15 @@ func TestIPString(t *testing.T) {
 	}
 }
 
+var sink string
+
 func BenchmarkIPString(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipStringTests {
 			if tt.in != nil {
-				tt.in.String()
+				sink = tt.in.String()
 			}
 		}
 	}
@@ -299,7 +301,7 @@ func BenchmarkIPMaskString(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipMaskStringTests {
-			tt.in.String()
+			sink = tt.in.String()
 		}
 	}
 }
