@@ -88,6 +88,12 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		return nil, false
 	}
 
+	// special-case 0 (see also issue #16176)
+	if len(z.a.abs) == 0 {
+		return z, true
+	}
+	// len(z.a.abs) > 0
+
 	// correct exponent
 	if ecorr < 0 {
 		exp += int64(ecorr)
@@ -178,7 +184,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 			}
 			break // i > 0
 		}
-		digits = append(digits, byte(ch))
+		digits = append(digits, ch)
 	}
 	// i > 0 => we have at least one digit
 
