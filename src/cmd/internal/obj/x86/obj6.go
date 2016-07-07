@@ -655,17 +655,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	// TODO(rsc): Remove 'p.Mode == 64 &&'.
 	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
+		leaf := true
+	LeafSearch:
 		for q := p; q != nil; q = q.Link {
-			if q.As == obj.ACALL {
-				goto noleaf
-			}
-			if (q.As == obj.ADUFFCOPY || q.As == obj.ADUFFZERO) && autoffset >= obj.StackSmall-8 {
-				goto noleaf
+			switch q.As {
+			case obj.ACALL:
+				leaf = false
+				break LeafSearch
+			case obj.ADUFFCOPY, obj.ADUFFZERO:
+				if autoffset >= obj.StackSmall-8 {
+					leaf = false
+					break LeafSearch
+				}
 			}
 		}
 
-		p.From3.Offset |= obj.NOSPLIT
-	noleaf:
+		if leaf {
+			p.From3.Offset |= obj.NOSPLIT
+		}
 	}
 
 	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {
