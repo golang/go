@@ -626,7 +626,10 @@ func (f *File) checkPrint(call *ast.CallExpr, name string) {
 	}
 	arg := args[0]
 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		if strings.Contains(lit.Value, "%") {
+		// Ignore trailing % character in lit.Value.
+		// The % in "abc 0.0%" couldn't be a formatting directive.
+		s := strings.TrimSuffix(lit.Value, `%"`)
+		if strings.Contains(s, "%") {
 			f.Badf(call.Pos(), "possible formatting directive in %s call", name)
 		}
 	}
