@@ -4,8 +4,7 @@
 
 // guru: a tool for answering questions about Go source code.
 //
-//    http://golang.org/s/oracle-design
-//    http://golang.org/s/oracle-user-manual
+//    http://golang.org/s/using-guru
 //
 // Run with -help flag or help subcommand for usage information.
 //
@@ -88,7 +87,7 @@ The -scope flag restricts analysis to the specified packages.
 		encoding/...,-encoding/xml
 	matches all encoding packages except encoding/xml.
 
-User manual: http://golang.org/s/oracle-user-manual
+User manual: http://golang.org/s/using-guru
 
 Example: describe syntax at offset 530 in this file (an import spec):
 
