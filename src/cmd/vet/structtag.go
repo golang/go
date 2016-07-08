@@ -34,7 +34,8 @@ func checkCanonicalFieldTag(f *File, node ast.Node) {
 	}
 
 	if err := validateStructTag(tag); err != nil {
-		f.Badf(field.Pos(), "struct field tag %s not compatible with reflect.StructTag.Get: %s", field.Tag.Value, err)
+		raw, _ := strconv.Unquote(field.Tag.Value) // field.Tag.Value is known to be a quoted string
+		f.Badf(field.Pos(), "struct field tag %q not compatible with reflect.StructTag.Get: %s", raw, err)
 	}
 
 	// Check for use of json or xml tags with unexported fields.
