@@ -784,8 +784,12 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	// copystack; otherwise, gp may be in the middle of
 	// putting itself on wait queues and this would
 	// self-deadlock.
+	var lastc *hchan
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		lock(&sg.c.lock)
+		if sg.c != lastc {
+			lock(&sg.c.lock)
+		}
+		lastc = sg.c
 	}
 
 	// Adjust sudogs.
@@ -803,8 +807,12 @@ func syncadjustsudogs(gp *g, used uintptr, adjinfo *adjustinfo) uintptr {
 	}
 
 	// Unlock channels.
+	lastc = nil
 	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-		unlock(&sg.c.lock)
+		if sg.c != lastc {
+			unlock(&sg.c.lock)
+		}
+		lastc = sg.c
 	}
 
 	return sgsize
