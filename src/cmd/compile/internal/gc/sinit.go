@@ -1435,7 +1435,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 
 	case TBOOL, TINT8, TUINT8, TINT16, TUINT16,
 		TINT32, TUINT32, TINT64, TUINT64,
-		TINT, TUINT, TUINTPTR,
+		TINT, TUINT, TUINTPTR, TUNSAFEPTR,
 		TPTR32, TPTR64,
 		TFLOAT32, TFLOAT64:
 		if !reportOnly {
