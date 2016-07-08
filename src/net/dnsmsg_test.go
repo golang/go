@@ -393,7 +393,7 @@ func TestIsResponseTo(t *testing.T) {
 
 	for i := range badResponses {
 		if badResponses[i].IsResponseTo(&query) {
-			t.Error("%v: got true, want false", i)
+			t.Errorf("%v: got true, want false", i)
 		}
 	}
 }
