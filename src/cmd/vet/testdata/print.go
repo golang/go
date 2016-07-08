@@ -133,6 +133,7 @@ func PrintfTests() {
 	fmt.Printf("%.*s %d %g", 3, "hi", 23, 'x') // ERROR "arg 'x' for printf verb %g of wrong type"
 	fmt.Println()                              // not an error
 	fmt.Println("%s", "hi")                    // ERROR "possible formatting directive in Println call"
+	fmt.Println("0.0%")                        // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                  // ERROR "wrong number of args for format in Printf call"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)        // ERROR "wrong number of args for format in Sprintf call"
 	fmt.Printf("%s%%%d", "hi", 3)              // correct
