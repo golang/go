@@ -39,17 +39,6 @@ struct cgoTracebackArg {
 	uintptr_t  max;
 };
 
-static void *pprofThread(void* p) {
-	time_t start;
-
-	(void)p;
-	start = time(NULL);
-	while (__sync_add_and_fetch(&cpuHogThreadCount, 0) < 2 && time(NULL) - start < 2) {
-		cpuHogThread();
-	}
-}
-
-
 // pprofCgoThreadTraceback is passed to runtime.SetCgoTraceback.
 // For testing purposes it pretends that all CPU hits in C code are in cpuHog.
 void pprofCgoThreadTraceback(void* parg) {
