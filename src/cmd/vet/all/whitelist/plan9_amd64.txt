@@ -1,0 +1,12 @@
+// plan9/amd64-specific vet whitelist. See readme.txt for details.
+
+runtime/sys_plan9_amd64.s: [amd64] setldt: function setldt missing Go declaration
+runtime/sys_plan9_amd64.s: [amd64] settls: function settls missing Go declaration
+syscall/asm_plan9_amd64.s: [amd64] Syscall: 16(SP) should be a1+8(FP)
+syscall/asm_plan9_amd64.s: [amd64] Syscall: 8(SP) should be trap+0(FP)
+syscall/asm_plan9_amd64.s: [amd64] Syscall6: 16(SP) should be a1+8(FP)
+syscall/asm_plan9_amd64.s: [amd64] Syscall6: 8(SP) should be trap+0(FP)
+syscall/asm_plan9_amd64.s: [amd64] RawSyscall: 16(SP) should be a1+8(FP)
+syscall/asm_plan9_amd64.s: [amd64] RawSyscall: 8(SP) should be trap+0(FP)
+syscall/asm_plan9_amd64.s: [amd64] RawSyscall6: 16(SP) should be a1+8(FP)
+syscall/asm_plan9_amd64.s: [amd64] RawSyscall6: 8(SP) should be trap+0(FP)

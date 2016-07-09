@@ -1,0 +1,12 @@
+// ppc64-specific vet whitelist. See readme.txt for details.
+
+runtime/asm_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+
+runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+runtime/asm_ppc64x.s: [GOARCH] abort: function abort missing Go declaration
+runtime/asm_ppc64x.s: [GOARCH] memeqbody: function memeqbody missing Go declaration
+runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
+runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration
+runtime/duff_ppc64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+runtime/tls_ppc64x.s: [GOARCH] save_g: function save_g missing Go declaration
+runtime/tls_ppc64x.s: [GOARCH] load_g: function load_g missing Go declaration
