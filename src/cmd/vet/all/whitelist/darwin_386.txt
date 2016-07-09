@@ -1,0 +1,14 @@
+// darwin/386-specific vet whitelist. See readme.txt for details.
+
+// False positives due to comments in assembly.
+// To be removed. See CL 27154.
+
+runtime/sys_darwin_386.s: [386] sigreturn: 16(SP) should be ctx+0(FP)
+runtime/sys_darwin_386.s: [386] sigreturn: 20(SP) should be infostyle+4(FP)
+
+// Ok
+
+runtime/sys_darwin_386.s: [386] now: function now missing Go declaration
+runtime/sys_darwin_386.s: [386] bsdthread_start: function bsdthread_start missing Go declaration
+runtime/sys_darwin_386.s: [386] sysenter: function sysenter missing Go declaration
+runtime/sys_darwin_386.s: [386] setldt: function setldt missing Go declaration
