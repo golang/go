@@ -214,7 +214,7 @@ func (t *transferWriter) WriteBody(w io.Writer) error {
 	if t.Body != nil {
 		if chunked(t.TransferEncoding) {
 			if bw, ok := w.(*bufio.Writer); ok && !t.IsResponse {
-				w = &internal.FlushAfterChunkWriter{bw}
+				w = &internal.FlushAfterChunkWriter{Writer: bw}
 			}
 			cw := internal.NewChunkedWriter(w)
 			_, err = io.Copy(cw, t.Body)
