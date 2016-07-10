@@ -131,7 +131,7 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
 TEXT runtime·nsec(SB),NOSPLIT,$-4-12
 	MOVW	$SYS_NSEC, R0
 	SWI	0
-	MOVW	unnamed+0(FP), R1
+	MOVW	arg+0(FP), R1
 	MOVW	0(R1), R0
 	MOVW	R0, ret_lo+4(FP)
 	MOVW	4(R1), R0
