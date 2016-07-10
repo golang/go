@@ -221,6 +221,49 @@ TEXT ·argiface(SB),0,$0-32
 	MOVQ	y_data+24(FP), AX
 	RET
 
+TEXT ·argcomplex(SB),0,$24 // ERROR "wrong argument size 0; expected \$\.\.\.-24"
+	MOVSS	x+0(FP), X0 // ERROR "invalid MOVSS of x\+0\(FP\); complex64 is 8-byte value containing x_real\+0\(FP\) and x_imag\+4\(FP\)"
+	MOVSD	x+0(FP), X0 // ERROR "invalid MOVSD of x\+0\(FP\); complex64 is 8-byte value containing x_real\+0\(FP\) and x_imag\+4\(FP\)"
+	MOVSS	x_real+0(FP), X0
+	MOVSD	x_real+0(FP), X0 // ERROR "invalid MOVSD of x_real\+0\(FP\); real\(complex64\) is 4-byte value"
+	MOVSS	x_real+4(FP), X0 // ERROR "invalid offset x_real\+4\(FP\); expected x_real\+0\(FP\)"
+	MOVSS	x_imag+4(FP), X0
+	MOVSD	x_imag+4(FP), X0 // ERROR "invalid MOVSD of x_imag\+4\(FP\); imag\(complex64\) is 4-byte value"
+	MOVSS	x_imag+8(FP), X0 // ERROR "invalid offset x_imag\+8\(FP\); expected x_imag\+4\(FP\)"
+	MOVSD	y+8(FP), X0 // ERROR "invalid MOVSD of y\+8\(FP\); complex128 is 16-byte value containing y_real\+8\(FP\) and y_imag\+16\(FP\)"
+	MOVSS	y_real+8(FP), X0 // ERROR "invalid MOVSS of y_real\+8\(FP\); real\(complex128\) is 8-byte value"
+	MOVSD	y_real+8(FP), X0
+	MOVSS	y_real+16(FP), X0 // ERROR "invalid offset y_real\+16\(FP\); expected y_real\+8\(FP\)"
+	MOVSS	y_imag+16(FP), X0 // ERROR "invalid MOVSS of y_imag\+16\(FP\); imag\(complex128\) is 8-byte value"
+	MOVSD	y_imag+16(FP), X0
+	MOVSS	y_imag+24(FP), X0 // ERROR "invalid offset y_imag\+24\(FP\); expected y_imag\+16\(FP\)"
+	RET
+
+TEXT ·argstruct(SB),0,$64 // ERROR "wrong argument size 0; expected \$\.\.\.-24"
+	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); testdata.S is 24-byte value"
+	MOVQ	x_i+0(FP), AX // ERROR "invalid MOVQ of x_i\+0\(FP\); int32 is 4-byte value"
+	MOVQ	x_b+0(FP), AX // ERROR "invalid offset x_b\+0\(FP\); expected x_b\+4\(FP\)"
+	MOVQ	x_s+8(FP), AX
+	MOVQ	x_s_base+8(FP), AX
+	MOVQ	x_s+16(FP), AX // ERROR "invalid offset x_s\+16\(FP\); expected x_s\+8\(FP\), x_s_base\+8\(FP\), or x_s_len\+16\(FP\)"
+	MOVQ	x_s_len+16(FP), AX
+	RET
+
+TEXT ·argarray(SB),0,$64 // ERROR "wrong argument size 0; expected \$\.\.\.-48"
+	MOVQ	x+0(FP), AX // ERROR "invalid MOVQ of x\+0\(FP\); \[2\]testdata.S is 48-byte value"
+	MOVQ	x_0_i+0(FP), AX // ERROR "invalid MOVQ of x_0_i\+0\(FP\); int32 is 4-byte value"
+	MOVQ	x_0_b+0(FP), AX // ERROR "invalid offset x_0_b\+0\(FP\); expected x_0_b\+4\(FP\)"
+	MOVQ	x_0_s+8(FP), AX
+	MOVQ	x_0_s_base+8(FP), AX
+	MOVQ	x_0_s+16(FP), AX // ERROR "invalid offset x_0_s\+16\(FP\); expected x_0_s\+8\(FP\), x_0_s_base\+8\(FP\), or x_0_s_len\+16\(FP\)"
+	MOVQ	x_0_s_len+16(FP), AX
+	MOVB	foo+25(FP), AX // ERROR "unknown variable foo; offset 25 is x_1_i\+24\(FP\)"
+	MOVQ	x_1_s+32(FP), AX
+	MOVQ	x_1_s_base+32(FP), AX
+	MOVQ	x_1_s+40(FP), AX // ERROR "invalid offset x_1_s\+40\(FP\); expected x_1_s\+32\(FP\), x_1_s_base\+32\(FP\), or x_1_s_len\+40\(FP\)"
+	MOVQ	x_1_s_len+40(FP), AX
+	RET
+
 TEXT ·returnint(SB),0,$0-8
 	MOVB	AX, ret+0(FP) // ERROR "invalid MOVB of ret\+0\(FP\); int is 8-byte value"
 	MOVW	AX, ret+0(FP) // ERROR "invalid MOVW of ret\+0\(FP\); int is 8-byte value"

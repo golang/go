@@ -106,7 +106,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
-	MOVW	unnamed+0(FP), R1	// arg 2 - signal
+	MOVW	arg+0(FP), R1	// arg 2 - signal
 	MOVW	$1, R2	// arg 3 - posix
 	MOVW	$SYS_kill, R12
 	SWI $0x80

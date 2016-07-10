@@ -8,6 +8,12 @@
 
 package testdata
 
+type S struct {
+	i int32
+	b bool
+	s string
+}
+
 func arg1(x int8, y uint8)
 func arg2(x int16, y uint16)
 func arg4(x int32, y uint32)
@@ -19,6 +25,9 @@ func argslice(x, y []string)
 func argiface(x interface{}, y interface {
 	m()
 })
+func argcomplex(x complex64, y complex128)
+func argstruct(x S, y struct{})
+func argarray(x [2]S)
 func returnint() int
 func returnbyte(x int) byte
 func returnnamed(x byte) (r1 int, r2 int16, r3 string, r4 byte)
