@@ -775,9 +775,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		return nil, badRequestError("unsupported protocol version")
 	}
 
-	ctx, cancelCtx := context.WithCancel(ctx)
-	req.ctx = ctx
-
 	c.lastMethod = req.Method
 	c.r.setInfiniteReadLimit()
 
@@ -804,6 +801,8 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	}
 	delete(req.Header, "Host")
 
+	ctx, cancelCtx := context.WithCancel(ctx)
+	req.ctx = ctx
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
 	if body, ok := req.Body.(*body); ok {
