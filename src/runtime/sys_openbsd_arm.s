@@ -15,7 +15,7 @@
 
 // Exit the entire program (like C exit)
 TEXT runtime·exit(SB),NOSPLIT,$-4
-	MOVW	status+0(FP), R0	// arg 1 - status
+	MOVW	code+0(FP), R0	// arg 1 - status
 	MOVW	$1, R12			// sys_exit
 	SWI	$0
 	MOVW.CS	$0, R8			// crash on syscall failure
@@ -31,9 +31,9 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·open(SB),NOSPLIT,$-4
-	MOVW	path+0(FP), R0		// arg 1 - path
-	MOVW	flags+4(FP), R1		// arg 2 - flags
-	MOVW	mode+8(FP), R2		// arg 3 - mode
+	MOVW	name+0(FP), R0		// arg 1 - path
+	MOVW	mode+4(FP), R1		// arg 2 - mode
+	MOVW	perm+8(FP), R2		// arg 3 - perm
 	MOVW	$5, R12			// sys_open
 	SWI	$0
 	MOVW.CS	$-1, R0
@@ -41,7 +41,7 @@ TEXT runtime·open(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·closefd(SB),NOSPLIT,$-4
-	MOVW	path+0(FP), R0		// arg 1 - path
+	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	$6, R12			// sys_close
 	SWI	$0
 	MOVW.CS	$-1, R0
@@ -50,8 +50,8 @@ TEXT runtime·closefd(SB),NOSPLIT,$-4
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	buf+4(FP), R1		// arg 2 - buf
-	MOVW	nbyte+8(FP), R2		// arg 3 - nbyte
+	MOVW	p+4(FP), R1		// arg 2 - buf
+	MOVW	n+8(FP), R2		// arg 3 - nbyte
 	MOVW	$3, R12			// sys_read
 	SWI	$0
 	MOVW.CS	$-1, R0
@@ -60,8 +60,8 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	buf+4(FP), R1		// arg 2 - buf
-	MOVW	nbyte+8(FP), R2		// arg 3 - nbyte
+	MOVW	p+4(FP), R1		// arg 2 - buf
+	MOVW	n+8(FP), R2		// arg 3 - nbyte
 	MOVW	$4, R12			// sys_write
 	SWI	$0
 	MOVW.CS	$-1, R0
@@ -104,14 +104,14 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$12
 
 TEXT runtime·mmap(SB),NOSPLIT,$16
 	MOVW	addr+0(FP), R0		// arg 1 - addr
-	MOVW	len+4(FP), R1		// arg 2 - len
+	MOVW	n+4(FP), R1		// arg 2 - len
 	MOVW	prot+8(FP), R2		// arg 3 - prot
 	MOVW	flags+12(FP), R3	// arg 4 - flags
 	MOVW	fd+16(FP), R4		// arg 5 - fd (on stack)
 	MOVW	R4, 4(R13)
 	MOVW	$0, R5			// arg 6 - pad (on stack)
 	MOVW	R5, 8(R13)
-	MOVW	offset+20(FP), R6	// arg 7 - offset (on stack)
+	MOVW	off+20(FP), R6		// arg 7 - offset (on stack)
 	MOVW	R6, 12(R13)		// lower 32 bits (from Go runtime)
 	MOVW	$0, R7
 	MOVW	R7, 16(R13)		// high 32 bits
@@ -124,7 +124,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$16
 
 TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0		// arg 1 - addr
-	MOVW	len+4(FP), R1		// arg 2 - len
+	MOVW	n+4(FP), R1		// arg 2 - len
 	MOVW	$73, R12		// sys_munmap
 	SWI	$0
 	MOVW.CS	$0, R8			// crash on syscall failure
@@ -133,8 +133,8 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 
 TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVW	addr+0(FP), R0		// arg 1 - addr
-	MOVW	len+4(FP), R1		// arg 2 - len
-	MOVW	behav+8(FP), R2		// arg 2 - behav
+	MOVW	n+4(FP), R1		// arg 2 - len
+	MOVW	flags+8(FP), R2		// arg 2 - flags
 	MOVW	$75, R12		// sys_madvise
 	SWI	$0
 	MOVW.CS	$0, R8			// crash on syscall failure
@@ -142,9 +142,9 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0
-	MOVW	which+0(FP), R0		// arg 1 - which
-	MOVW	value+4(FP), R1		// arg 2 - value
-	MOVW	ovalue+8(FP), R2	// arg 3 - ovalue
+	MOVW	mode+0(FP), R0		// arg 1 - mode
+	MOVW	new+4(FP), R1		// arg 2 - new value
+	MOVW	old+8(FP), R2		// arg 3 - old value
 	MOVW	$69, R12		// sys_setitimer
 	SWI	$0
 	RET
@@ -189,9 +189,9 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	RET
 
 TEXT runtime·sigaction(SB),NOSPLIT,$0
-	MOVW	signum+0(FP), R0	// arg 1 - signum
-	MOVW	nsa+4(FP), R1		// arg 2 - nsa
-	MOVW	osa+8(FP), R2		// arg 3 - osa
+	MOVW	sig+0(FP), R0		// arg 1 - signum
+	MOVW	new+4(FP), R1		// arg 2 - new sigaction
+	MOVW	old+8(FP), R2		// arg 3 - old sigaction
 	MOVW	$46, R12		// sys_sigaction
 	SWI	$0
 	MOVW.CS	$3, R8			// crash on syscall failure
@@ -199,8 +199,8 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	how+0(FP), R0		// arg 1 - how
-	MOVW	mask+4(FP), R1		// arg 2 - mask
+	MOVW	mode+0(FP), R0		// arg 1 - mode
+	MOVW	new+4(FP), R1		// arg 2 - new
 	MOVW	$48, R12		// sys_sigprocmask
 	SWI	$0
 	MOVW.CS	$3, R8			// crash on syscall failure
@@ -274,8 +274,8 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sigaltstack(SB),NOSPLIT,$0
-	MOVW	nss+0(FP), R0		// arg 1 - nss
-	MOVW	oss+4(FP), R1		// arg 2 - oss
+	MOVW	new+0(FP), R0		// arg 1 - new sigaltstack
+	MOVW	old+4(FP), R1		// arg 2 - old sigaltstack
 	MOVW	$288, R12		// sys_sigaltstack
 	SWI	$0
 	MOVW.CS	$0, R8			// crash on syscall failure
@@ -290,7 +290,7 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
 TEXT runtime·thrsleep(SB),NOSPLIT,$4
 	MOVW	ident+0(FP), R0		// arg 1 - ident
 	MOVW	clock_id+4(FP), R1	// arg 2 - clock_id
-	MOVW	tp+8(FP), R2		// arg 3 - tp
+	MOVW	tsp+8(FP), R2		// arg 3 - tsp
 	MOVW	lock+12(FP), R3		// arg 4 - lock
 	MOVW	abort+16(FP), R4	// arg 5 - abort (on stack)
 	MOVW	R4, 4(R13)
@@ -310,13 +310,13 @@ TEXT runtime·thrwakeup(SB),NOSPLIT,$0
 	RET
 
 TEXT runtime·sysctl(SB),NOSPLIT,$8
-	MOVW	name+0(FP), R0		// arg 1 - name
-	MOVW	namelen+4(FP), R1	// arg 2 - namelen
-	MOVW	oldp+8(FP), R2		// arg 3 - oldp
-	MOVW	oldlenp+12(FP), R3	// arg 4 - oldlenp
-	MOVW	newp+16(FP), R4		// arg 5 - newp (on stack)
+	MOVW	mib+0(FP), R0		// arg 1 - mib
+	MOVW	miblen+4(FP), R1	// arg 2 - miblen
+	MOVW	out+8(FP), R2		// arg 3 - out
+	MOVW	size+12(FP), R3		// arg 4 - size
+	MOVW	dst+16(FP), R4		// arg 5 - dest (on stack)
 	MOVW	R4, 4(R13)
-	MOVW	newlen+20(FP), R5	// arg 6 - newlen (on stack)
+	MOVW	ndst+20(FP), R5		// arg 6 - newlen (on stack)
 	MOVW	R5, 8(R13)
 	ADD	$4, R13
 	MOVW	$202, R12		// sys___sysctl
@@ -337,13 +337,13 @@ TEXT runtime·kqueue(SB),NOSPLIT,$0
 
 // int32 runtime·kevent(int kq, Kevent *changelist, int nchanges, Kevent *eventlist, int nevents, Timespec *timeout);
 TEXT runtime·kevent(SB),NOSPLIT,$8
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	changelist+4(FP), R1	// arg 2 - changelist
-	MOVW	nchanges+8(FP), R2	// arg 3 - nchanges
-	MOVW	eventlist+12(FP), R3	// arg 4 - eventlist
-	MOVW	nevents+16(FP), R4	// arg 5 - nevents (on stack)
+	MOVW	kq+0(FP), R0		// arg 1 - kq
+	MOVW	ch+4(FP), R1		// arg 2 - changelist
+	MOVW	nch+8(FP), R2		// arg 3 - nchanges
+	MOVW	ev+12(FP), R3		// arg 4 - eventlist
+	MOVW	nev+16(FP), R4		// arg 5 - nevents (on stack)
 	MOVW	R4, 4(R13)
-	MOVW	timeout+20(FP), R5	// arg 6 - timeout (on stack)
+	MOVW	ts+20(FP), R5		// arg 6 - timeout (on stack)
 	MOVW	R5, 8(R13)
 	ADD	$4, R13
 	MOVW	$72, R12		// sys_kevent

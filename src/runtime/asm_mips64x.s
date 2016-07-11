@@ -746,13 +746,13 @@ eq:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVV	s1str+0(FP), R1
-	MOVV	s2str+16(FP), R2
+	MOVV	s1_base+0(FP), R1
+	MOVV	s2_base+16(FP), R2
 	MOVV	$1, R3
 	MOVB	R3, ret+32(FP)
 	BNE	R1, R2, 2(PC)
 	RET
-	MOVV	s1len+8(FP), R3
+	MOVV	s1_len+8(FP), R3
 	ADDV	R1, R3, R4
 loop:
 	BNE	R1, R4, 2(PC)

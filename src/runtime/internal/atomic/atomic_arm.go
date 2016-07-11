@@ -181,3 +181,6 @@ func And8(addr *uint8, v uint8) {
 		}
 	}
 }
+
+//go:nosplit
+func armcas(ptr *uint32, old, new uint32) bool

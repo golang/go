@@ -106,7 +106,7 @@ TEXT runtime·raiseproc(SB),NOSPLIT,$24
 	MOVW	$SYS_getpid, R12
 	SWI	$0x80
 	// arg 1 pid already in R0 from getpid
-	MOVW	arg+0(FP), R1	// arg 2 - signal
+	MOVW	sig+0(FP), R1	// arg 2 - signal
 	MOVW	$1, R2	// arg 3 - posix
 	MOVW	$SYS_kill, R12
 	SWI $0x80
@@ -286,7 +286,7 @@ ret:
 	B	runtime·exit(SB)
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW	sig+0(FP), R0
+	MOVW	how+0(FP), R0
 	MOVW	new+4(FP), R1
 	MOVW	old+8(FP), R2
 	MOVW	$SYS_pthread_sigmask, R12

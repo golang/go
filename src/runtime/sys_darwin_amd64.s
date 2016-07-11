@@ -197,7 +197,7 @@ TEXT time·now(SB),NOSPLIT,$0-12
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVL	sig+0(FP), DI
+	MOVL	how+0(FP), DI
 	MOVQ	new+8(FP), SI
 	MOVQ	old+16(FP), DX
 	MOVL	$(0x2000000+329), AX  // pthread_sigmask (on OS X, sigprocmask==entire process)

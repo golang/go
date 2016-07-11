@@ -1340,15 +1340,15 @@ eq:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVQ	s1str+0(FP), SI
-	MOVQ	s2str+16(FP), DI
+	MOVQ	s1_base+0(FP), SI
+	MOVQ	s2_base+16(FP), DI
 	CMPQ	SI, DI
 	JEQ	eq
-	MOVQ	s1len+8(FP), BX
-	LEAQ	v+32(FP), AX
+	MOVQ	s1_len+8(FP), BX
+	LEAQ	ret+32(FP), AX
 	JMP	runtime·memeqbody(SB)
 eq:
-	MOVB	$1, v+32(FP)
+	MOVB	$1, ret+32(FP)
 	RET
 
 // a in SI

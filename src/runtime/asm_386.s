@@ -843,9 +843,6 @@ TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
 TEXT runtime·emptyfunc(SB),0,$0-0
 	RET
 
-TEXT runtime·abort(SB),NOSPLIT,$0-0
-	INT $0x3
-
 // memhash_varlen(p unsafe.Pointer, h seed) uintptr
 // redirects to memhash(p, h, size) using the size
 // stored in the closure.
@@ -1290,15 +1287,15 @@ eq:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-17
-	MOVL	s1str+0(FP), SI
-	MOVL	s2str+8(FP), DI
+	MOVL	s1_base+0(FP), SI
+	MOVL	s2_base+8(FP), DI
 	CMPL	SI, DI
 	JEQ	same
-	MOVL	s1len+4(FP), BX
-	LEAL	v+16(FP), AX
+	MOVL	s1_len+4(FP), BX
+	LEAL	ret+16(FP), AX
 	JMP	runtime·memeqbody(SB)
 same:
-	MOVB	$1, v+16(FP)
+	MOVB	$1, ret+16(FP)
 	RET
 
 TEXT bytes·Equal(SB),NOSPLIT,$0-25

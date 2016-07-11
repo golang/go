@@ -368,9 +368,9 @@ ret:
 
 // func getRandomData([]byte)
 TEXT runtime·getRandomData(SB),NOSPLIT,$8-12
-	MOVL buf+0(FP), AX
+	MOVL arg_base+0(FP), AX
 	MOVL AX, 0(SP)
-	MOVL len+4(FP), AX
+	MOVL arg_len+4(FP), AX
 	MOVL AX, 4(SP)
 	NACL_SYSCALL(SYS_get_random_bytes)
 	RET

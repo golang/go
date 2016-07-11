@@ -55,7 +55,7 @@ TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
 TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	runtime∕internal∕atomic·Xadd64(SB)
 
-// bool Casp(void **val, void *old, void *new)
+// bool Casp1(void **val, void *old, void *new)
 // Atomically:
 //	if(*val == old){
 //		*val = new;

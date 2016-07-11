@@ -855,13 +855,13 @@ samebytes:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$-4-17
-	MOVW	s1str+0(FP), R2
-	MOVW	s2str+8(FP), R3
+	MOVW	s1_base+0(FP), R2
+	MOVW	s2_base+8(FP), R3
 	MOVW	$1, R8
-	MOVB	R8, v+16(FP)
+	MOVB	R8, ret+16(FP)
 	CMP	R2, R3
 	RET.EQ
-	MOVW	s1len+4(FP), R0
+	MOVW	s1_len+4(FP), R0
 	ADD	R2, R0, R6
 loop:
 	CMP	R2, R6
@@ -871,7 +871,7 @@ loop:
 	CMP	R4, R5
 	BEQ	loop
 	MOVW	$0, R8
-	MOVB	R8, v+16(FP)
+	MOVB	R8, ret+16(FP)
 	RET
 
 // TODO: share code with memequal?
@@ -1033,8 +1033,8 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
 	SUB	R1, R3, R1
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-4
-        RET
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
 
 #ifndef GOOS_nacl
 // This is called from .init_array and follows the platform, not Go, ABI.
