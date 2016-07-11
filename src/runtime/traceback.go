@@ -1077,6 +1077,9 @@ func callCgoSymbolizer(arg *cgoSymbolizerArg) {
 		// or when on the system stack.
 		call = asmcgocall
 	}
+	if msanenabled {
+		msanwrite(unsafe.Pointer(arg), unsafe.Sizeof(cgoSymbolizerArg{}))
+	}
 	call(cgoSymbolizer, noescape(unsafe.Pointer(arg)))
 }
 
@@ -1095,6 +1098,9 @@ func cgoContextPCs(ctxt uintptr, buf []uintptr) {
 		context: ctxt,
 		buf:     (*uintptr)(noescape(unsafe.Pointer(&buf[0]))),
 		max:     uintptr(len(buf)),
+	}
+	if msanenabled {
+		msanwrite(unsafe.Pointer(&arg), unsafe.Sizeof(arg))
 	}
 	call(cgoTraceback, noescape(unsafe.Pointer(&arg)))
 }
