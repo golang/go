@@ -84,8 +84,8 @@ func CgoExternalThreadSignal() {
 
 	out, err := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash").CombinedOutput()
 	if err == nil {
-		fmt.Println("C signal did not crash as expected\n")
-		fmt.Printf("%s\n", out)
+		fmt.Println("C signal did not crash as expected")
+		fmt.Printf("\n%s\n", out)
 		os.Exit(1)
 	}
 
