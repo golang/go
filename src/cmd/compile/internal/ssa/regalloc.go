@@ -1818,6 +1818,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 			(*splice).Uses--
 			*splice = occupant.c
 			occupant.c.Uses++
+			if occupant.c.Op == OpStoreReg {
+				e.s.lateSpillUse(vid)
+			}
 		}
 		// Note: if splice==nil then c will appear dead. This is
 		// non-SSA formed code, so be careful after this pass not to run
