@@ -98,7 +98,7 @@ func (a *asmArch) maxAlign() int { return int(a.sizes.MaxAlign) }
 var (
 	re           = regexp.MustCompile
 	asmPlusBuild = re(`//\s+\+build\s+([^\n]+)`)
-	asmTEXT      = re(`\bTEXT\b.*·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
+	asmTEXT      = re(`\bTEXT\b(.*)·([^\(]+)\(SB\)(?:\s*,\s*([0-9A-Z|+]+))?(?:\s*,\s*\$(-?[0-9]+)(?:-([0-9]+))?)?`)
 	asmDATA      = re(`\b(DATA|GLOBL)\b`)
 	asmNamedFP   = re(`([a-zA-Z0-9_\xFF-\x{10FFFF}]+)(?:\+([0-9]+))\(FP\)`)
 	asmUnnamedFP = re(`[^+\-0-9](([0-9]+)\(FP\))`)
@@ -205,21 +205,32 @@ Files:
 						continue Files
 					}
 				}
-				fnName = m[1]
-				fn = knownFunc[m[1]][arch]
+				fnName = m[2]
+				if pkgName := strings.TrimSpace(m[1]); pkgName != "" {
+					pathParts := strings.Split(pkgName, "∕")
+					pkgName = pathParts[len(pathParts)-1]
+					if pkgName != f.pkg.path {
+						f.Warnf(token.NoPos, "%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", f.name, lineno, arch, fnName, pkgName)
+						fn = nil
+						fnName = ""
+						continue
+					}
+				}
+				fn = knownFunc[fnName][arch]
 				if fn != nil {
-					size, _ := strconv.Atoi(m[4])
-					if size != fn.size && (m[2] != "7" && !strings.Contains(m[2], "NOSPLIT") || size != 0) {
+					size, _ := strconv.Atoi(m[5])
+					flag := m[3]
+					if size != fn.size && (flag != "7" && !strings.Contains(flag, "NOSPLIT") || size != 0) {
 						badf("wrong argument size %d; expected $...-%d", size, fn.size)
 					}
 				}
-				localSize, _ = strconv.Atoi(m[3])
+				localSize, _ = strconv.Atoi(m[4])
 				localSize += archDef.intSize()
 				if archDef.lr {
 					// Account for caller's saved LR
 					localSize += archDef.intSize()
 				}
-				argSize, _ = strconv.Atoi(m[4])
+				argSize, _ = strconv.Atoi(m[5])
 				if fn == nil && !strings.Contains(fnName, "<>") {
 					badf("function %s missing Go declaration", fnName)
 				}
