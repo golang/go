@@ -793,6 +793,16 @@ The
 now produce a pseudo-random stream of bytes that is consistent and not
 dependent on the size of the input buffer.
 </p>
+
+<p>
+The documentation clarifies that
+Rand's <a href="/pkg/math/rand/#Rand.Seed"><code>Seed</code></a>
+and <a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> methods
+are not safe to call concurrently, though the global
+functions <a href="/pkg/math/rand/#Seed"><code>Seed</code></a>
+and <a href="/pkg/math/rand/#Read"><code>Read</code></a> are (and have
+always been) safe.
+</p>
 </dd>
 </dl>
 
