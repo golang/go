@@ -227,7 +227,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
-	MOVL	context+8(FP), BX
+	MOVL	ctx+8(FP), BX
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 	RET
@@ -297,15 +297,15 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	$120, AX	// clone
 	MOVL	flags+0(FP), BX
-	MOVL	stack+4(FP), CX
+	MOVL	stk+4(FP), CX
 	MOVL	$0, DX	// parent tid ptr
 	MOVL	$0, DI	// child tid ptr
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	SUBL	$16, CX
-	MOVL	mm+8(FP), SI
+	MOVL	mp+8(FP), SI
 	MOVL	SI, 0(CX)
-	MOVL	gg+12(FP), SI
+	MOVL	gp+12(FP), SI
 	MOVL	SI, 4(CX)
 	MOVL	fn+16(FP), SI
 	MOVL	SI, 8(CX)

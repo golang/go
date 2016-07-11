@@ -388,10 +388,10 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVL	AX, ret+40(FP)
 	RET
 
-// int32 clone(int32 flags, void *stack, M *mp, G *gp, void (*fn)(void));
+// int32 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
 TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	flags+0(FP), DI
-	MOVQ	stack+8(FP), SI
+	MOVQ	stk+8(FP), SI
 	MOVQ	$0, DX
 	MOVQ	$0, R10
 
@@ -548,7 +548,7 @@ TEXT runtime·access(SB),NOSPLIT,$0
 TEXT runtime·connect(SB),NOSPLIT,$0-28
 	MOVL	fd+0(FP), DI
 	MOVQ	addr+8(FP), SI
-	MOVL	addrlen+16(FP), DX
+	MOVL	len+16(FP), DX
 	MOVL	$42, AX  // syscall entry
 	SYSCALL
 	MOVL	AX, ret+24(FP)
@@ -557,8 +557,8 @@ TEXT runtime·connect(SB),NOSPLIT,$0-28
 // int socket(int domain, int type, int protocol)
 TEXT runtime·socket(SB),NOSPLIT,$0-20
 	MOVL	domain+0(FP), DI
-	MOVL	type+4(FP), SI
-	MOVL	protocol+8(FP), DX
+	MOVL	typ+4(FP), SI
+	MOVL	prot+8(FP), DX
 	MOVL	$41, AX  // syscall entry
 	SYSCALL
 	MOVL	AX, ret+16(FP)

@@ -133,7 +133,7 @@ const (
 )
 
 //go:noescape
-func clone(flags int32, stk, mm, gg, fn unsafe.Pointer) int32
+func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
@@ -360,7 +360,7 @@ func memlimit() uintptr {
 //#endif
 
 func sigreturn()
-func sigtramp()
+func sigtramp(sig uint32, info *siginfo, ctx unsafe.Pointer)
 func cgoSigtramp()
 
 //go:noescape

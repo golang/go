@@ -908,14 +908,14 @@ equal:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVD    s1str+0(FP), R3
-	MOVD    s2str+16(FP), R4
+	MOVD    s1_base+0(FP), R3
+	MOVD    s2_base+16(FP), R4
 	MOVD    $1, R5
 	MOVB    R5, ret+32(FP)
 	CMP     R3, R4
 	BNE     2(PC)
 	RET
-	MOVD    s1len+8(FP), R5
+	MOVD    s1_len+8(FP), R5
 	BL      runtime·memeqbody(SB)
 	MOVB    R9, ret+32(FP)
 	RET
@@ -1109,8 +1109,8 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
-        RET
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
 
 // prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
 // module containing runtime) to the frame that goexit will execute in when

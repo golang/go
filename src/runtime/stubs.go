@@ -206,6 +206,7 @@ func asmcgocall(fn, arg unsafe.Pointer) int32
 const _NoArgs = ^uintptr(0)
 
 func morestack()
+func morestack_noctxt()
 func rt0_go()
 
 // stackBarrier records that the stack has been unwound past a certain
@@ -273,3 +274,6 @@ func round(n, a uintptr) uintptr {
 
 // checkASM returns whether assembly runtime checks have passed.
 func checkASM() bool
+
+func memequal_varlen(a, b unsafe.Pointer) bool
+func eqstring(s1, s2 string) bool

@@ -19,7 +19,7 @@
 
 TEXT	·Syscall(SB),NOSPLIT,$0-64
 	CALL	runtime·entersyscall(SB)
-	MOVQ	8(SP), BP	// syscall entry
+	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
 	LEAQ	16(SP), SI
 	LEAQ	8(SP), DI
@@ -54,10 +54,10 @@ copyresult3:
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-88
 	CALL	runtime·entersyscall(SB)
-	MOVQ	8(SP), BP	// syscall entry
+	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ		16(SP), SI
-	LEAQ		8(SP), DI
+	LEAQ	16(SP), SI
+	LEAQ	8(SP), DI
 	CLD
 	MOVSQ
 	MOVSQ
@@ -91,10 +91,10 @@ copyresult4:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-56
-	MOVQ	8(SP), BP	// syscall entry
+	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ		16(SP), SI
-	LEAQ		8(SP), DI
+	LEAQ	16(SP), SI
+	LEAQ	8(SP), DI
 	CLD
 	MOVSQ
 	MOVSQ
@@ -106,10 +106,10 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-80
-	MOVQ	8(SP), BP	// syscall entry
+	MOVQ	trap+0(FP), BP	// syscall entry
 	// slide args down on top of system call number
-	LEAQ		16(SP), SI
-	LEAQ		8(SP), DI
+	LEAQ	16(SP), SI
+	LEAQ	8(SP), DI
 	CLD
 	MOVSQ
 	MOVSQ

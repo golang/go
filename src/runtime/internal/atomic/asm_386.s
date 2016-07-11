@@ -61,7 +61,7 @@ TEXT runtime∕internal∕atomic·Cas64(SB), NOSPLIT, $0-21
 	SETEQ	ret+20(FP)
 	RET
 
-// bool Casp(void **p, void *old, void *new)
+// bool Casp1(void **p, void *old, void *new)
 // Atomically:
 //	if(*p == old){
 //		*p = new;

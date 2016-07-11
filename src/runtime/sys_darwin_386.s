@@ -280,26 +280,26 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
 // It is called with the following arguments on the stack:
 //	0(SP)	"return address" - ignored
 //	4(SP)	actual handler
-//	8(SP)	signal number
-//	12(SP)	siginfo style
+//	8(SP)	siginfo style
+//	12(SP)	signal number
 //	16(SP)	siginfo
 //	20(SP)	context
 TEXT runtime·sigtramp(SB),NOSPLIT,$20
 	MOVL	fn+0(FP), BX
 	MOVL	BX, 0(SP)
-	MOVL	style+4(FP), BX
+	MOVL	infostyle+4(FP), BX
 	MOVL	BX, 4(SP)
 	MOVL	sig+8(FP), BX
 	MOVL	BX, 8(SP)
 	MOVL	info+12(FP), BX
 	MOVL	BX, 12(SP)
-	MOVL	context+16(FP), BX
+	MOVL	ctx+16(FP), BX
 	MOVL	BX, 16(SP)
 	CALL	runtime·sigtrampgo(SB)
 
 	// call sigreturn
-	MOVL	context+16(FP), CX
-	MOVL	style+4(FP), BX
+	MOVL	ctx+16(FP), CX
+	MOVL	infostyle+4(FP), BX
 	MOVL	$0, 0(SP)	// "caller PC" - ignored
 	MOVL	CX, 4(SP)
 	MOVL	BX, 8(SP)

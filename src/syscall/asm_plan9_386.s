@@ -20,10 +20,10 @@
 // Trap # in AX, args on stack above caller pc.
 TEXT	·Syscall(SB),NOSPLIT,$0-32
 	CALL	runtime·entersyscall(SB)
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL	8(SP), SI
+	LEAL	4(SP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -55,10 +55,10 @@ copyresult3:
 
 TEXT	·Syscall6(SB),NOSPLIT,$0-44
 	CALL	runtime·entersyscall(SB)
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL	8(SP), SI
+	LEAL	4(SP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -92,10 +92,10 @@ copyresult4:
 	RET
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0-28
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL	8(SP), SI
+	LEAL	4(SP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -107,10 +107,10 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
-	MOVL	4(SP), AX	// syscall entry
+	MOVL	trap+0(SP), AX	// syscall entry
 	// slide args down on top of system call number
-	LEAL		8(SP), SI
-	LEAL		4(SP), DI
+	LEAL	8(SP), SI
+	LEAL	4(SP), DI
 	CLD
 	MOVSL
 	MOVSL
@@ -136,8 +136,8 @@ TEXT ·seek(SB),NOSPLIT,$0-36
 	
 	CMPL	AX, $-1
 	JNE	ok6
-	MOVL	AX, 24(SP)	// newoffset low
-	MOVL	AX, 28(SP)	// newoffset high
+	MOVL	AX, newoffset_lo+20(FP)
+	MOVL	AX, newoffset_hi+24(FP)
 	
 	SUBL	$8, SP
 	CALL	syscall·errstr(SB)

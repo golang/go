@@ -869,9 +869,9 @@ samebytes:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-33
-	MOVD	s1str+0(FP), R0
-	MOVD	s1len+8(FP), R1
-	MOVD	s2str+16(FP), R2
+	MOVD	s1_base+0(FP), R0
+	MOVD	s1_len+8(FP), R1
+	MOVD	s2_base+16(FP), R2
 	ADD	R0, R1		// end
 loop:
 	CMP	R0, R1
@@ -996,8 +996,8 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
-        RET
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
 
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0

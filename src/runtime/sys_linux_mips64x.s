@@ -309,8 +309,8 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 
 	// Copy mp, gp, fn off parent stack for use by child.
 	// Careful: Linux system call clobbers ???.
-	MOVV	mm+16(FP), R16
-	MOVV	gg+24(FP), R17
+	MOVV	mp+16(FP), R16
+	MOVV	gp+24(FP), R17
 	MOVV	fn+32(FP), R18
 
 	MOVV	R16, -8(R5)

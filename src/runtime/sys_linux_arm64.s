@@ -319,8 +319,8 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	MOVD	stk+8(FP), R1
 
 	// Copy mp, gp, fn off parent stack for use by child.
-	MOVD	mm+16(FP), R10
-	MOVD	gg+24(FP), R11
+	MOVD	mp+16(FP), R10
+	MOVD	gp+24(FP), R11
 	MOVD	fn+32(FP), R12
 
 	MOVD	R10, -8(R1)

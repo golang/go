@@ -503,13 +503,15 @@ func sigaction(mode uint32, new *sigactiont, old *usigactiont)
 //go:noescape
 func sigaltstack(new, old *stackt)
 
-func sigtramp()
+// darwin/arm64 uses registers instead of stack-based arguments.
+// TODO: does this matter?
+func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
 func raise(sig int32)
-func raiseproc(int32)
+func raiseproc(sig int32)
 
 //extern SigTabTT runtime·sigtab[];
 
