@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/token"
 	"regexp"
 	"strconv"
@@ -179,8 +180,17 @@ Files:
 			if m := asmTEXT.FindStringSubmatch(line); m != nil {
 				flushRet()
 				if arch == "" {
-					f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
-					continue Files
+					for _, a := range arches {
+						if a.name == build.Default.GOARCH {
+							arch = a.name
+							archDef = a
+							break
+						}
+					}
+					if arch == "" {
+						f.Warnf(token.NoPos, "%s: cannot determine architecture for assembly file", f.name)
+						continue Files
+					}
 				}
 				fnName = m[1]
 				fn = knownFunc[m[1]][arch]
