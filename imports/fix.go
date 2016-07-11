@@ -369,6 +369,16 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	if pkg, rename, ok := findImportStdlib(pkgName, symbols); ok {
 		return pkg, rename, nil
 	}
+	if pkgName == "rand" && symbols["Read"] {
+		// Special-case rand.Read.
+		//
+		// If findImportStdlib didn't find it above, don't go
+		// searching for it, lest it find and pick math/rand
+		// in GOROOT (new as of Go 1.6)
+		//
+		// crypto/rand is the safer choice.
+		return "", false, nil
+	}
 
 	// TODO(sameer): look at the import lines for other Go files in the
 	// local directory, since the user is likely to import the same packages
@@ -459,8 +469,12 @@ func (fn visitFn) Visit(node ast.Node) ast.Visitor {
 
 func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath string, rename, ok bool) {
 	for symbol := range symbols {
-		path := stdlib[shortPkg+"."+symbol]
+		key := shortPkg + "." + symbol
+		path := stdlib[key]
 		if path == "" {
+			if key == "rand.Read" {
+				continue
+			}
 			return "", false, false
 		}
 		if importPath != "" && importPath != path {
@@ -468,6 +482,9 @@ func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath stri
 			return "", false, false
 		}
 		importPath = path
+	}
+	if importPath == "" && shortPkg == "rand" && symbols["Read"] {
+		return "crypto/rand", false, true
 	}
 	return importPath, false, importPath != ""
 }

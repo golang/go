@@ -1008,38 +1008,85 @@ type Buffer2 struct {}
 	}
 }
 
-func TestFindImportInternal(t *testing.T) {
+func withEmptyGoPath(fn func()) {
 	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {
 		build.Default.GOPATH = oldGOPATH
 	}()
+	fn()
+}
 
-	// Check for src/internal/race, not just src/internal,
-	// so that we can run this test also against go1.5
-	// (which doesn't contain that file).
-	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal/race"))
-	if err != nil {
-		t.Skip(err)
-	}
+func TestFindImportInternal(t *testing.T) {
+	withEmptyGoPath(func() {
+		// Check for src/internal/race, not just src/internal,
+		// so that we can run this test also against go1.5
+		// (which doesn't contain that file).
+		_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal/race"))
+		if err != nil {
+			t.Skip(err)
+		}
 
-	got, rename, err := findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "src/math/x.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "internal/race" || rename {
-		t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "internal/race", false`, got, rename)
-	}
+		got, rename, err := findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "src/math/x.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "internal/race" || rename {
+			t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "internal/race", false`, got, rename)
+		}
 
-	// should not be able to use internal from outside that tree
-	got, rename, err = findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "x.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "" || rename {
-		t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "", false`, got, rename)
-	}
+		// should not be able to use internal from outside that tree
+		got, rename, err = findImportGoPath("race", map[string]bool{"Acquire": true}, filepath.Join(runtime.GOROOT(), "x.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "" || rename {
+			t.Errorf(`findImportGoPath("race", Acquire ...)=%q, %t, want "", false`, got, rename)
+		}
+	})
+}
+
+// rand.Read should prefer crypto/rand.Read, not math/rand.Read.
+func TestFindImportRandRead(t *testing.T) {
+	withEmptyGoPath(func() {
+		file := filepath.Join(runtime.GOROOT(), "src/foo/x.go") // dummy
+		tests := []struct {
+			syms []string
+			want string
+		}{
+			{
+				syms: []string{"Read"},
+				want: "crypto/rand",
+			},
+			{
+				syms: []string{"Read", "NewZipf"},
+				want: "math/rand",
+			},
+			{
+				syms: []string{"NewZipf"},
+				want: "math/rand",
+			},
+			{
+				syms: []string{"Read", "Prime"},
+				want: "crypto/rand",
+			},
+		}
+		for _, tt := range tests {
+			m := map[string]bool{}
+			for _, sym := range tt.syms {
+				m[sym] = true
+			}
+			got, _, err := findImportGoPath("rand", m, file)
+			if err != nil {
+				t.Errorf("for %q: %v", tt.syms, err)
+				continue
+			}
+			if got != tt.want {
+				t.Errorf("for %q, findImportGoPath = %q; want %q", tt.syms, got, tt.want)
+			}
+		}
+	})
 }
 
 func TestFindImportVendor(t *testing.T) {
