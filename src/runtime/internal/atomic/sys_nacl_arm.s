@@ -4,9 +4,6 @@
 
 #include "textflag.h"
 
-TEXT runtime∕internal∕atomic·Casp(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
-
 // This is only valid for ARMv6+, however, NaCl/ARM is only defined
 // for ARMv7A anyway.
 TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0
