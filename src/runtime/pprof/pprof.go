@@ -353,12 +353,9 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 		if name == "" {
 			show = true
 			fmt.Fprintf(w, "#\t%#x\n", frame.PC)
-		} else {
+		} else if name != "runtime.goexit" && (show || !strings.HasPrefix(name, "runtime.")) {
 			// Hide runtime.goexit and any runtime functions at the beginning.
 			// This is useful mainly for allocation traces.
-			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
-				continue
-			}
 			show = true
 			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", frame.PC, name, frame.PC-frame.Entry, frame.File, frame.Line)
 		}
