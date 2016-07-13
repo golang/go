@@ -142,8 +142,14 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
-		c.lowerBlock = rewriteBlockAMD64
-		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+		c.lowerBlock = rewriteBlock386
+		c.lowerValue = rewriteValue386
+		c.registers = registers386[:]
+		c.gpRegMask = gpRegMask386
+		c.fpRegMask = fpRegMask386
+		c.flagRegMask = flagRegMask386
+		c.FPReg = framepointerReg386
+		c.hasGReg = false
 	case "arm":
 		c.IntSize = 4
 		c.PtrSize = 4
