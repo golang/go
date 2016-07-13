@@ -3013,7 +3013,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	if !returns {
 		b.Kind = ssa.BlockExit
 		b.SetControl(call)
-		call.AuxInt = off
+		call.AuxInt = off - Ctxt.FixedFrameSize()
 		if len(results) > 0 {
 			Fatalf("panic call can't have results")
 		}
