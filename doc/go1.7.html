@@ -288,6 +288,18 @@ To avoid confusion with the new <code>-tests</code> check, the old, unadvertised
 <code>-test</code> option has been removed; it was equivalent to <code>-all</code> <code>-shadow</code>.
 </p>
 
+<p id="vet_lostcancel">
+The <code>vet</code> command also has a new check,
+<code>-lostcancel</code>, which detects failure to call the
+cancelation function returned by the <code>WithCancel</code>,
+<code>WithTimeout</code>, and <code>WithDeadline</code> functions in
+Go 1.7's new <code>context</code> package (see <a
+href='#context'>below</a>).
+Failure to call the function prevents the new <code>Context</code>
+from being reclaimed until its parent is cancelled.
+(The background context is never cancelled.)
+</p>
+
 <h3 id="cmd_dist">Go tool dist</h3>
 
 <p>
@@ -770,6 +782,30 @@ package.
 </dd>
 </dl>
 
+<dl id="math_rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
+
+<dd>
+<p>
+The
+<a href="/pkg/math/rand/#Read"><code>Read</code></a> function and
+<a href="/pkg/math/rand/#Rand"><code>Rand</code></a>'s
+<a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> method
+now produce a pseudo-random stream of bytes that is consistent and not
+dependent on the size of the input buffer.
+</p>
+
+<p>
+The documentation clarifies that
+Rand's <a href="/pkg/math/rand/#Rand.Seed"><code>Seed</code></a>
+and <a href="/pkg/math/rand/#Rand.Read"><code>Read</code></a> methods
+are not safe to call concurrently, though the global
+functions <a href="/pkg/math/rand/#Seed"><code>Seed</code></a>
+and <a href="/pkg/math/rand/#Read"><code>Read</code></a> are (and have
+always been) safe.
+</p>
+</dd>
+</dl>
+
 <dl id="mime_multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
 
 <dd>
@@ -853,6 +889,23 @@ pads response codes less than 100 to three digits
 as required by the protocol,
 so that <code>w.WriteHeader(5)</code> uses the HTTP response
 status <code>005</code>, not just <code>5</code>.
+</p>
+
+<p>
+The server implementation now correctly sends only one "Transfer-Encoding" header when "chunked"
+is set explicitly, following <a href="https://tools.ietf.org/html/rfc7230#section-3.3.1">RFC 7230</a>.
+</p>
+
+<p>
+The server implementation is now stricter about rejecting requests with invalid HTTP versions.
+Invalid requests claiming to be HTTP/0.x are now rejected (HTTP/0.9 was never fully supported),
+and plaintext HTTP/2 requests other than the "PRI * HTTP/2.0" upgrade request are now rejected as well.
+The server continues to handle encrypted HTTP/2 requests.
+</p>
+
+<p>
+In the server, a 200 status code is sent back by the timeout handler on an empty
+response body, instead of sending back 0 as the status code.
 </p>
 
 <p>
@@ -1026,7 +1079,7 @@ from URLs with empty query strings (like <code>/search?</code>).
 
 <dd>
 <p>
-<a href="/pkg/os/#IsExists"><code>IsExists</code></a> now returns true for <code>syscall.ENOTEMPTY</code>,
+<a href="/pkg/os/#IsExist"><code>IsExist</code></a> now returns true for <code>syscall.ENOTEMPTY</code>,
 on systems where that error exists.
 </p>
 
@@ -1183,6 +1236,18 @@ If the field is nonzero, the child process created by
 will call the
 <a href="http://man7.org/linux/man-pages/man2/unshare.2.html"><i>unshare</i>(2)</a>
 system call before executing the new program.
+</p>
+</dd>
+</dl>
+
+
+<dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
+
+<dd>
+<p>
+The <a href="/pkg/unicode/"><code>unicode</code></a> package and associated
+support throughout the system has been upgraded from version 8.0 to
+<a href="http://www.unicode.org/versions/Unicode9.0.0/">Unicode 9.0</a>.
 </p>
 </dd>
 </dl>

@@ -125,14 +125,10 @@ func checkCopyLocksFunc(f *File, name string, recv *ast.FieldList, typ *ast.Func
 		}
 	}
 
-	if typ.Results != nil {
-		for _, field := range typ.Results.List {
-			expr := field.Type
-			if path := lockPath(f.pkg.typesPkg, f.pkg.types[expr].Type); path != nil {
-				f.Badf(expr.Pos(), "%s returns lock by value: %v", name, path)
-			}
-		}
-	}
+	// Don't check typ.Results. If T has a Lock field it's OK to write
+	//     return T{}
+	// because that is returning the zero value. Leave result checking
+	// to the return statement.
 }
 
 // checkCopyLocksRange checks whether a range statement
@@ -193,6 +189,16 @@ func (path typePath) String() string {
 func lockPathRhs(f *File, x ast.Expr) typePath {
 	if _, ok := x.(*ast.CompositeLit); ok {
 		return nil
+	}
+	if _, ok := x.(*ast.CallExpr); ok {
+		// A call may return a zero value.
+		return nil
+	}
+	if star, ok := x.(*ast.StarExpr); ok {
+		if _, ok := star.X.(*ast.CallExpr); ok {
+			// A call may return a pointer to a zero value.
+			return nil
+		}
 	}
 	return lockPath(f.pkg.typesPkg, f.pkg.types[x].Type)
 }

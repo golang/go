@@ -166,7 +166,7 @@ func closurename(n *Node) *Sym {
 	prefix := ""
 	if n.Func.Outerfunc == nil {
 		// Global closure.
-		outer = "glob"
+		outer = "glob."
 
 		prefix = "func"
 		closurename_closgen++

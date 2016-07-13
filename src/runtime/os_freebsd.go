@@ -121,6 +121,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	// TODO: Check for error.
 	thr_new(&param, int32(unsafe.Sizeof(param)))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 }

@@ -673,11 +673,6 @@ func init() {
 	goarch = buildContext.GOARCH
 	goos = buildContext.GOOS
 
-	if _, ok := osArchSupportsCgo[goos+"/"+goarch]; !ok {
-		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", goos, goarch)
-		os.Exit(2)
-	}
-
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
@@ -1226,6 +1221,11 @@ func allArchiveActions(root *action) []*action {
 
 // do runs the action graph rooted at root.
 func (b *builder) do(root *action) {
+	if _, ok := osArchSupportsCgo[goos+"/"+goarch]; !ok && buildContext.Compiler == "gc" {
+		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", goos, goarch)
+		os.Exit(2)
+	}
+
 	// Build list of all actions, assigning depth-first post-order priority.
 	// The original implementation here was a true queue
 	// (using a channel) but it had the effect of getting

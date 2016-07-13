@@ -252,7 +252,21 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
 
-	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
+	cmd := testEnv(exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn))
+
+	found := false
+	for i, e := range cmd.Env {
+		if strings.HasPrefix(e, "PPROF_TMPDIR=") {
+			cmd.Env[i] = "PPROF_TMPDIR=" + os.TempDir()
+			found = true
+			break
+		}
+	}
+	if !found {
+		cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
+	}
+
+	top, err := cmd.CombinedOutput()
 	t.Logf("%s", top)
 	if err != nil {
 		t.Fatal(err)

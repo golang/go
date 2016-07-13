@@ -61,7 +61,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
 
 func commonsize() int      { return 4*SysArch.PtrSize + 8 + 8 } // runtime._type
 func structfieldSize() int { return 3 * SysArch.PtrSize }       // runtime.structfield
-func uncommonSize() int    { return 4 + 2 + 2 }                 // runtime.uncommontype
+func uncommonSize() int    { return 4 + 2 + 2 + 4 + 4 }         // runtime.uncommontype
 
 // Type.commonType.kind
 func decodetype_kind(s *LSym) uint8 {
@@ -362,7 +362,7 @@ func decodetype_methods(s *LSym) []methodsig {
 	}
 
 	mcount := int(decode_inuxi(s.P[off+4:], 2))
-	moff := int(decode_inuxi(s.P[off+4+2:], 2))
+	moff := int(decode_inuxi(s.P[off+4+2+2:], 4))
 	off += moff                // offset to array of reflect.method values
 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
 	return decode_methodsig(s, off, sizeofMethod, mcount)

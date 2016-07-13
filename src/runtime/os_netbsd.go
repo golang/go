@@ -20,6 +20,8 @@ const (
 	// From NetBSD's <sys/ucontext.h>
 	_UC_SIGMASK = 0x01
 	_UC_CPU     = 0x04
+
+	_EAGAIN = 35
 )
 
 type mOS struct {
@@ -162,6 +164,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+		if ret == -_EAGAIN {
+			println("runtime: may need to increase max user processes (ulimit -p)")
+		}
 		throw("runtime.newosproc")
 	}
 }

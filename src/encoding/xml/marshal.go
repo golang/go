@@ -33,7 +33,7 @@ const (
 //
 // The name for the XML elements is taken from, in order of preference:
 //     - the tag on the XMLName field, if the data is a struct
-//     - the value of the XMLName field of type xml.Name
+//     - the value of the XMLName field of type Name
 //     - the tag of the struct field used to obtain the data
 //     - the name of the struct field used to obtain the data
 //     - the name of the marshalled type

@@ -144,7 +144,7 @@ func closeDB(t testing.TB, db *DB) {
 	count := db.numOpen
 	db.mu.Unlock()
 	if count != 0 {
-		t.Fatalf("%d connections still open after closing DB", db.numOpen)
+		t.Fatalf("%d connections still open after closing DB", count)
 	}
 }
 
@@ -1239,7 +1239,7 @@ func TestPendingConnsAfterErr(t *testing.T) {
 	time.Sleep(10 * time.Millisecond) // make extra sure all workers are blocked
 	close(unblock)                    // let all workers proceed
 
-	const timeout = 100 * time.Millisecond
+	const timeout = 5 * time.Second
 	to := time.NewTimer(timeout)
 	defer to.Stop()
 
@@ -1615,6 +1615,8 @@ func TestManyErrBadConn(t *testing.T) {
 			}
 		}()
 
+		db.mu.Lock()
+		defer db.mu.Unlock()
 		if db.numOpen != nconn {
 			t.Fatalf("unexpected numOpen %d (was expecting %d)", db.numOpen, nconn)
 		} else if len(db.freeConn) != nconn {

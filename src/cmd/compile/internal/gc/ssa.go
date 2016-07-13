@@ -389,6 +389,14 @@ func (s *state) endBlock() *ssa.Block {
 
 // pushLine pushes a line number on the line number stack.
 func (s *state) pushLine(line int32) {
+	if line == 0 {
+		// the frontend may emit node with line number missing,
+		// use the parent line number in this case.
+		line = s.peekLine()
+		if Debug['K'] != 0 {
+			Warn("buildssa: line 0")
+		}
+	}
 	s.line = append(s.line, line)
 }
 
@@ -1752,7 +1760,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			addop := ssa.OpAdd64F
 			subop := ssa.OpSub64F
 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
-			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
+			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancelation error
 
 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
@@ -1790,7 +1798,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			subop := ssa.OpSub64F
 			divop := ssa.OpDiv64F
 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
-			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
+			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancelation error
 
 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
 			breal := s.newValue1(ssa.OpComplexReal, pt, b)

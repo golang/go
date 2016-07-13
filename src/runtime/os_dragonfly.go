@@ -134,6 +134,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		tid2:       nil,
 	}
 
+	// TODO: Check for error.
 	lwp_create(&params)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 }

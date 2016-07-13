@@ -12,7 +12,7 @@ import "sync"
 func OkFunc(*sync.Mutex) {}
 func BadFunc(sync.Mutex) {} // ERROR "BadFunc passes lock by value: sync.Mutex"
 func OkRet() *sync.Mutex {}
-func BadRet() sync.Mutex {} // ERROR "BadRet returns lock by value: sync.Mutex"
+func BadRet() sync.Mutex {} // Don't warn about results
 
 var (
 	OkClosure  = func(*sync.Mutex) {}
@@ -28,7 +28,7 @@ func (EmbeddedRWMutex) BadMeth() {} // ERROR "BadMeth passes lock by value: test
 func OkFunc(e *EmbeddedRWMutex)  {}
 func BadFunc(EmbeddedRWMutex)    {} // ERROR "BadFunc passes lock by value: testdata.EmbeddedRWMutex"
 func OkRet() *EmbeddedRWMutex    {}
-func BadRet() EmbeddedRWMutex    {} // ERROR "BadRet returns lock by value: testdata.EmbeddedRWMutex"
+func BadRet() EmbeddedRWMutex    {} // Don't warn about results
 
 type FieldMutex struct {
 	s sync.Mutex
@@ -105,6 +105,14 @@ func ReturnViaInterface(x int) (int, interface{}) {
 	default:
 		return 3, t // ERROR "return copies lock value: struct{lock sync.Mutex} contains sync.Mutex"
 	}
+}
+
+// Some cases that we don't warn about.
+
+func AcceptedCases() {
+	x := EmbeddedRwMutex{} // composite literal on RHS is OK (#16227)
+	x = BadRet()           // function call on RHS is OK (#16227)
+	x = *OKRet()           // indirection of function call on RHS is OK (#16227)
 }
 
 // TODO: Unfortunate cases

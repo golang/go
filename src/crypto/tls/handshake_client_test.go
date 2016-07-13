@@ -509,14 +509,14 @@ func TestHandshakeClientAES256GCMSHA384(t *testing.T) {
 }
 
 func TestHandshakeClientCertRSA(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
 	config.Certificates = []Certificate{cert}
 
 	test := &clientTest{
 		name:    "ClientCert-RSA-RSA",
 		command: []string{"openssl", "s_server", "-cipher", "RC4-SHA", "-verify", "1"},
-		config:  &config,
+		config:  config,
 	}
 
 	runClientTestTLS10(t, test)
@@ -525,7 +525,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 	test = &clientTest{
 		name:    "ClientCert-RSA-ECDSA",
 		command: []string{"openssl", "s_server", "-cipher", "ECDHE-ECDSA-AES128-SHA", "-verify", "1"},
-		config:  &config,
+		config:  config,
 		cert:    testECDSACertificate,
 		key:     testECDSAPrivateKey,
 	}
@@ -536,7 +536,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 	test = &clientTest{
 		name:    "ClientCert-RSA-AES256-GCM-SHA384",
 		command: []string{"openssl", "s_server", "-cipher", "ECDHE-RSA-AES256-GCM-SHA384", "-verify", "1"},
-		config:  &config,
+		config:  config,
 		cert:    testRSACertificate,
 		key:     testRSAPrivateKey,
 	}
@@ -545,14 +545,14 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 }
 
 func TestHandshakeClientCertECDSA(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	cert, _ := X509KeyPair([]byte(clientECDSACertificatePEM), []byte(clientECDSAKeyPEM))
 	config.Certificates = []Certificate{cert}
 
 	test := &clientTest{
 		name:    "ClientCert-ECDSA-RSA",
 		command: []string{"openssl", "s_server", "-cipher", "RC4-SHA", "-verify", "1"},
-		config:  &config,
+		config:  config,
 	}
 
 	runClientTestTLS10(t, test)
@@ -561,7 +561,7 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 	test = &clientTest{
 		name:    "ClientCert-ECDSA-ECDSA",
 		command: []string{"openssl", "s_server", "-cipher", "ECDHE-ECDSA-AES128-SHA", "-verify", "1"},
-		config:  &config,
+		config:  config,
 		cert:    testECDSACertificate,
 		key:     testECDSAPrivateKey,
 	}
@@ -691,7 +691,7 @@ func TestLRUClientSessionCache(t *testing.T) {
 }
 
 func TestHandshakeClientALPNMatch(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.NextProtos = []string{"proto2", "proto1"}
 
 	test := &clientTest{
@@ -699,7 +699,7 @@ func TestHandshakeClientALPNMatch(t *testing.T) {
 		// Note that this needs OpenSSL 1.0.2 because that is the first
 		// version that supports the -alpn flag.
 		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
-		config:  &config,
+		config:  config,
 		validate: func(state ConnectionState) error {
 			// The server's preferences should override the client.
 			if state.NegotiatedProtocol != "proto1" {
@@ -712,7 +712,7 @@ func TestHandshakeClientALPNMatch(t *testing.T) {
 }
 
 func TestHandshakeClientALPNNoMatch(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.NextProtos = []string{"proto3"}
 
 	test := &clientTest{
@@ -720,7 +720,7 @@ func TestHandshakeClientALPNNoMatch(t *testing.T) {
 		// Note that this needs OpenSSL 1.0.2 because that is the first
 		// version that supports the -alpn flag.
 		command: []string{"openssl", "s_server", "-alpn", "proto1,proto2"},
-		config:  &config,
+		config:  config,
 		validate: func(state ConnectionState) error {
 			// There's no overlap so OpenSSL will not select a protocol.
 			if state.NegotiatedProtocol != "" {
@@ -736,7 +736,7 @@ func TestHandshakeClientALPNNoMatch(t *testing.T) {
 const sctsBase64 = "ABIBaQFnAHUApLkJkLQYWBSHuxOizGdwCjw1mAT5G9+443fNDsgN3BAAAAFHl5nuFgAABAMARjBEAiAcS4JdlW5nW9sElUv2zvQyPoZ6ejKrGGB03gjaBZFMLwIgc1Qbbn+hsH0RvObzhS+XZhr3iuQQJY8S9G85D9KeGPAAdgBo9pj4H2SCvjqM7rkoHUz8cVFdZ5PURNEKZ6y7T0/7xAAAAUeX4bVwAAAEAwBHMEUCIDIhFDgG2HIuADBkGuLobU5a4dlCHoJLliWJ1SYT05z6AiEAjxIoZFFPRNWMGGIjskOTMwXzQ1Wh2e7NxXE1kd1J0QsAdgDuS723dc5guuFCaR+r4Z5mow9+X7By2IMAxHuJeqj9ywAAAUhcZIqHAAAEAwBHMEUCICmJ1rBT09LpkbzxtUC+Hi7nXLR0J+2PmwLp+sJMuqK+AiEAr0NkUnEVKVhAkccIFpYDqHOlZaBsuEhWWrYpg2RtKp0="
 
 func TestHandshakClientSCTs(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 
 	scts, err := base64.StdEncoding.DecodeString(sctsBase64)
 	if err != nil {
@@ -748,7 +748,7 @@ func TestHandshakClientSCTs(t *testing.T) {
 		// Note that this needs OpenSSL 1.0.2 because that is the first
 		// version that supports the -serverinfo flag.
 		command:    []string{"openssl", "s_server"},
-		config:     &config,
+		config:     config,
 		extensions: [][]byte{scts},
 		validate: func(state ConnectionState) error {
 			expectedSCTs := [][]byte{
@@ -771,11 +771,11 @@ func TestHandshakClientSCTs(t *testing.T) {
 }
 
 func TestRenegotiationRejected(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	test := &clientTest{
 		name:                        "RenegotiationRejected",
 		command:                     []string{"openssl", "s_server", "-state"},
-		config:                      &config,
+		config:                      config,
 		numRenegotiations:           1,
 		renegotiationExpectedToFail: 1,
 		checkRenegotiationError: func(renegotiationNum int, err error) error {
@@ -793,13 +793,13 @@ func TestRenegotiationRejected(t *testing.T) {
 }
 
 func TestRenegotiateOnce(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.Renegotiation = RenegotiateOnceAsClient
 
 	test := &clientTest{
 		name:              "RenegotiateOnce",
 		command:           []string{"openssl", "s_server", "-state"},
-		config:            &config,
+		config:            config,
 		numRenegotiations: 1,
 	}
 
@@ -807,13 +807,13 @@ func TestRenegotiateOnce(t *testing.T) {
 }
 
 func TestRenegotiateTwice(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.Renegotiation = RenegotiateFreelyAsClient
 
 	test := &clientTest{
 		name:              "RenegotiateTwice",
 		command:           []string{"openssl", "s_server", "-state"},
-		config:            &config,
+		config:            config,
 		numRenegotiations: 2,
 	}
 
@@ -821,13 +821,13 @@ func TestRenegotiateTwice(t *testing.T) {
 }
 
 func TestRenegotiateTwiceRejected(t *testing.T) {
-	config := *testConfig
+	config := testConfig.clone()
 	config.Renegotiation = RenegotiateOnceAsClient
 
 	test := &clientTest{
 		name:                        "RenegotiateTwiceRejected",
 		command:                     []string{"openssl", "s_server", "-state"},
-		config:                      &config,
+		config:                      config,
 		numRenegotiations:           2,
 		renegotiationExpectedToFail: 2,
 		checkRenegotiationError: func(renegotiationNum int, err error) error {

@@ -155,6 +155,12 @@ func TestUnshare(t *testing.T) {
 		}
 		t.Fatal(err)
 	}
+	if _, err := os.Stat("/proc/self/ns/net"); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support net namespace")
+		}
+		t.Fatal(err)
+	}
 
 	cmd := exec.Command("cat", path)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -194,8 +200,10 @@ func TestGroupCleanup(t *testing.T) {
 	}
 	strOut := strings.TrimSpace(string(out))
 	expected := "uid=0(root) gid=0(root) groups=0(root)"
-	if strOut != expected {
-		t.Fatalf("id command output: %s, expected: %s", strOut, expected)
+	// Just check prefix because some distros reportedly output a
+	// context parameter; see https://golang.org/issue/16224.
+	if !strings.HasPrefix(strOut, expected) {
+		t.Errorf("id command output: %q, expected prefix: %q", strOut, expected)
 	}
 }
 
@@ -224,10 +232,18 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	strOut := strings.TrimSpace(string(out))
-	// there are two possible outs
-	expected1 := "uid=0(root) gid=0(root) groups=0(root)"
-	expected2 := "uid=0(root) gid=0(root) groups=0(root),65534(nobody)"
-	if strOut != expected1 && strOut != expected2 {
-		t.Fatalf("id command output: %s, expected: %s or %s", strOut, expected1, expected2)
+
+	// Strings we've seen in the wild.
+	expected := []string{
+		"uid=0(root) gid=0(root) groups=0(root)",
+		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
+		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
+		"uid=0(root) gid=0(root) groups=0(root),65534",
 	}
+	for _, e := range expected {
+		if strOut == e {
+			return
+		}
+	}
+	t.Errorf("id command output: %q, expected one of %q", strOut, expected)
 }

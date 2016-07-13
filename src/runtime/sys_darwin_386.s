@@ -201,6 +201,11 @@ systime:
 	MOVL	$0, 8(SP)	// time zone pointer
 	MOVL	$116, AX
 	INT	$0x80
+	CMPL	AX, $0
+	JNE	inreg
+	MOVL	12(SP), AX
+	MOVL	16(SP), DX
+inreg:
 	// sec is in AX, usec in DX
 	// convert to DX:AX nsec
 	MOVL	DX, BX
