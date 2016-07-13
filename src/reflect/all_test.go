@@ -2261,6 +2261,8 @@ func TestImportPath(t *testing.T) {
 		{TypeOf((*int64)(nil)), ""},
 		{TypeOf(map[string]int{}), ""},
 		{TypeOf((*error)(nil)).Elem(), ""},
+		{TypeOf((*Point)(nil)), ""},
+		{TypeOf((*Point)(nil)).Elem(), "reflect_test"},
 	}
 	for _, test := range tests {
 		if path := test.t.PkgPath(); path != test.path {
@@ -5740,4 +5742,11 @@ func TestOffsetLock(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func BenchmarkNew(b *testing.B) {
+	v := TypeOf(XM{})
+	for i := 0; i < b.N; i++ {
+		New(v)
+	}
 }

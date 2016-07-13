@@ -154,6 +154,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
+		if ret == -_EAGAIN {
+			println("runtime: may need to increase max user processes (ulimit -u)")
+		}
 		throw("newosproc")
 	}
 }

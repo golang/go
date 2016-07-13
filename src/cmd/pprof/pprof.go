@@ -9,6 +9,7 @@ import (
 	"debug/gosym"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -50,7 +51,16 @@ func symbolize(mode, source string, p *profile.Profile, obj plugin.ObjTool, ui p
 			ui.PrintErr("expecting -symbolize=[local|remote|none][:force]")
 			fallthrough
 		case "", "force":
-			// Ignore these options, -force is recognized by symbolizer.Symbolize
+			// -force is recognized by symbolizer.Symbolize.
+			// If the source is remote, and the mapping file
+			// does not exist, don't use local symbolization.
+			if isRemote(source) {
+				if len(p.Mapping) == 0 {
+					local = false
+				} else if _, err := os.Stat(p.Mapping[0].File); err != nil {
+					local = false
+				}
+			}
 		}
 	}
 
@@ -65,6 +75,21 @@ func symbolize(mode, source string, p *profile.Profile, obj plugin.ObjTool, ui p
 		err = symbolz.Symbolize(source, fetch.PostURL, p)
 	}
 	return err
+}
+
+// isRemote returns whether source is a URL for a remote source.
+func isRemote(source string) bool {
+	url, err := url.Parse(source)
+	if err != nil {
+		url, err = url.Parse("http://" + source)
+		if err != nil {
+			return false
+		}
+	}
+	if scheme := strings.ToLower(url.Scheme); scheme == "" || scheme == "file" {
+		return false
+	}
+	return true
 }
 
 // flags implements the driver.FlagPackage interface using the builtin flag package.
@@ -117,8 +142,10 @@ func (*objTool) Open(name string, start uint64) (plugin.ObjFile, error) {
 		name: name,
 		file: of,
 	}
-	if load, err := of.LoadAddress(); err == nil {
-		f.offset = start - load
+	if start != 0 {
+		if load, err := of.LoadAddress(); err == nil {
+			f.offset = start - load
+		}
 	}
 	return f, nil
 }
@@ -306,6 +333,11 @@ func (f *file) Symbols(r *regexp.Regexp, addr uint64) ([]*plugin.Sym, error) {
 	}
 	var out []*plugin.Sym
 	for _, s := range f.sym {
+		// Ignore a symbol with address 0 and size 0.
+		// An ELF STT_FILE symbol will look like that.
+		if s.Addr == 0 && s.Size == 0 {
+			continue
+		}
 		if (r == nil || r.MatchString(s.Name)) && (addr == 0 || s.Addr <= addr && addr < s.Addr+uint64(s.Size)) {
 			out = append(out, &plugin.Sym{
 				Name:  []string{s.Name},

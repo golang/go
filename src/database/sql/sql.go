@@ -718,6 +718,9 @@ func (db *DB) maybeOpenNewConnections() {
 	for numRequests > 0 {
 		db.numOpen++ // optimistically
 		numRequests--
+		if db.closed {
+			return
+		}
 		db.openerCh <- struct{}{}
 	}
 }
@@ -915,6 +918,9 @@ func (db *DB) putConn(dc *driverConn, err error) {
 // If a connRequest was fulfilled or the *driverConn was placed in the
 // freeConn list, then true is returned, otherwise false is returned.
 func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
+	if db.closed {
+		return false
+	}
 	if db.maxOpen > 0 && db.numOpen > db.maxOpen {
 		return false
 	}

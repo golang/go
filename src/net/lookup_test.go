@@ -453,6 +453,10 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
+	if testenv.Builder() == "" {
+		testenv.MustHaveExternalNetwork(t)
+	}
+
 	for i, fn := range []func() func(){forceGoDNS, forceCgoDNS} {
 		fixup := fn()
 		if fixup == nil {

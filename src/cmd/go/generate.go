@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 )
@@ -276,8 +275,8 @@ func isGoGenerate(buf []byte) bool {
 // single go:generate command.
 func (g *Generator) setEnv() {
 	g.env = []string{
-		"GOARCH=" + runtime.GOARCH,
-		"GOOS=" + runtime.GOOS,
+		"GOARCH=" + buildContext.GOARCH,
+		"GOOS=" + buildContext.GOOS,
 		"GOFILE=" + g.file,
 		"GOLINE=" + strconv.Itoa(g.lineNum),
 		"GOPACKAGE=" + g.pkg,

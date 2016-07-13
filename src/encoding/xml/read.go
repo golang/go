@@ -39,7 +39,7 @@ import (
 //      ",innerxml", Unmarshal accumulates the raw XML nested inside the
 //      element in that field. The rest of the rules still apply.
 //
-//   * If the struct has a field named XMLName of type xml.Name,
+//   * If the struct has a field named XMLName of type Name,
 //      Unmarshal records the element name in that field.
 //
 //   * If the XMLName field has an associated tag of the form
@@ -105,8 +105,8 @@ import (
 // interpreting the string value in decimal. There is no check for
 // overflow.
 //
-// Unmarshal maps an XML element to an xml.Name by recording the
-// element name.
+// Unmarshal maps an XML element to a Name by recording the element
+// name.
 //
 // Unmarshal maps an XML element to a pointer by setting the pointer
 // to a freshly allocated value and then mapping the element to that value.
@@ -115,13 +115,13 @@ func Unmarshal(data []byte, v interface{}) error {
 	return NewDecoder(bytes.NewReader(data)).Decode(v)
 }
 
-// Decode works like xml.Unmarshal, except it reads the decoder
+// Decode works like Unmarshal, except it reads the decoder
 // stream to find the start element.
 func (d *Decoder) Decode(v interface{}) error {
 	return d.DecodeElement(v, nil)
 }
 
-// DecodeElement works like xml.Unmarshal except that it takes
+// DecodeElement works like Unmarshal except that it takes
 // a pointer to the start XML element to decode into v.
 // It is useful when a client reads some raw XML tokens itself
 // but also wants to defer to Unmarshal for some elements.

@@ -21,8 +21,9 @@ import (
 // changes to bimport.go and bexport.go.
 
 type importer struct {
-	in  *bufio.Reader
-	buf []byte // reused for reading strings
+	in      *bufio.Reader
+	buf     []byte // reused for reading strings
+	version string
 
 	// object lists, in order of deserialization
 	strList       []string
@@ -67,8 +68,9 @@ func Import(in *bufio.Reader) {
 
 	// --- generic export data ---
 
-	if v := p.string(); v != exportVersion {
-		Fatalf("importer: unknown export data version: %s", v)
+	p.version = p.string()
+	if p.version != exportVersion0 && p.version != exportVersion1 {
+		Fatalf("importer: unknown export data version: %s", p.version)
 	}
 
 	// populate typList with predeclared "known" types
@@ -239,14 +241,20 @@ func (p *importer) pkg() *Pkg {
 		Fatalf("importer: package path %q for pkg index %d", path, len(p.pkgList))
 	}
 
+	// see importimport (export.go)
 	pkg := importpkg
 	if path != "" {
 		pkg = mkpkg(path)
 	}
 	if pkg.Name == "" {
 		pkg.Name = name
+		numImport[name]++
 	} else if pkg.Name != name {
-		Fatalf("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
+		Yyerror("importer: conflicting package names %s and %s for path %q", pkg.Name, name, path)
+	}
+	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
+		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
+		errorexit()
 	}
 	p.pkgList = append(p.pkgList, pkg)
 
@@ -426,10 +434,15 @@ func (p *importer) typ() *Type {
 			params := p.paramList()
 			result := p.paramList()
 
+			nointerface := false
+			if p.version == exportVersion1 {
+				nointerface = p.bool()
+			}
+
 			n := methodname1(newname(sym), recv[0].Right)
 			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
-			addmethod(sym, n.Type, tsym.Pkg, false, false)
+			addmethod(sym, n.Type, tsym.Pkg, false, nointerface)
 			p.funcList = append(p.funcList, n)
 			importlist = append(importlist, n)
 

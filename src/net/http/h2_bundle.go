@@ -972,7 +972,7 @@ func http2terminalReadFrameError(err error) bool {
 //
 // If the frame is larger than previously set with SetMaxReadFrameSize, the
 // returned error is ErrFrameTooLarge. Other errors may be of type
-// ConnectionError, StreamError, or anything else from from the underlying
+// ConnectionError, StreamError, or anything else from the underlying
 // reader.
 func (fr *http2Framer) ReadFrame() (http2Frame, error) {
 	fr.errDetail = nil
@@ -1992,6 +1992,29 @@ func http2transportExpectContinueTimeout(t1 *Transport) time.Duration {
 	return t1.ExpectContinueTimeout
 }
 
+// isBadCipher reports whether the cipher is blacklisted by the HTTP/2 spec.
+func http2isBadCipher(cipher uint16) bool {
+	switch cipher {
+	case tls.TLS_RSA_WITH_RC4_128_SHA,
+		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+
+		return true
+	default:
+		return false
+	}
+}
+
 type http2contextContext interface {
 	context.Context
 }
@@ -2997,27 +3020,6 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 		hook(sc)
 	}
 	sc.serve()
-}
-
-// isBadCipher reports whether the cipher is blacklisted by the HTTP/2 spec.
-func http2isBadCipher(cipher uint16) bool {
-	switch cipher {
-	case tls.TLS_RSA_WITH_RC4_128_SHA,
-		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
-		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
-
-		return true
-	default:
-		return false
-	}
 }
 
 func (sc *http2serverConn) rejectConn(err http2ErrCode, debug string) {
@@ -4931,6 +4933,7 @@ type http2ClientConn struct {
 	inflow       http2flow  // peer's conn-level flow control
 	closed       bool
 	goAway       *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
+	goAwayDebug  string                        // goAway frame's debug data, retained as a string
 	streams      map[uint32]*http2clientStream // client-initiated
 	nextStreamID uint32
 	bw           *bufio.Writer
@@ -5266,7 +5269,16 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 func (cc *http2ClientConn) setGoAway(f *http2GoAwayFrame) {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
+
+	old := cc.goAway
 	cc.goAway = f
+
+	if cc.goAwayDebug == "" {
+		cc.goAwayDebug = string(f.DebugData())
+	}
+	if old != nil && old.ErrCode != http2ErrCodeNo {
+		cc.goAway.ErrCode = old.ErrCode
+	}
 }
 
 func (cc *http2ClientConn) CanTakeNewRequest() bool {
@@ -5871,6 +5883,19 @@ func (cc *http2ClientConn) readLoop() {
 	}
 }
 
+// GoAwayError is returned by the Transport when the server closes the
+// TCP connection after sending a GOAWAY frame.
+type http2GoAwayError struct {
+	LastStreamID uint32
+	ErrCode      http2ErrCode
+	DebugData    string
+}
+
+func (e http2GoAwayError) Error() string {
+	return fmt.Sprintf("http2: server sent GOAWAY and closed the connection; LastStreamID=%v, ErrCode=%v, debug=%q",
+		e.LastStreamID, e.ErrCode, e.DebugData)
+}
+
 func (rl *http2clientConnReadLoop) cleanup() {
 	cc := rl.cc
 	defer cc.tconn.Close()
@@ -5878,10 +5903,18 @@ func (rl *http2clientConnReadLoop) cleanup() {
 	defer close(cc.readerDone)
 
 	err := cc.readerErr
-	if err == io.EOF {
-		err = io.ErrUnexpectedEOF
-	}
 	cc.mu.Lock()
+	if err == io.EOF {
+		if cc.goAway != nil {
+			err = http2GoAwayError{
+				LastStreamID: cc.goAway.LastStreamID,
+				ErrCode:      cc.goAway.ErrCode,
+				DebugData:    cc.goAwayDebug,
+			}
+		} else {
+			err = io.ErrUnexpectedEOF
+		}
+	}
 	for _, cs := range rl.activeRes {
 		cs.bufPipe.CloseWithError(err)
 	}

@@ -44,7 +44,7 @@ func main() {
 var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var casefoldingURL = flag.String("casefolding", "", "full URL for CaseFolding.txt; defaults to --url/CaseFolding.txt")
 var url = flag.String("url",
-	"http://www.unicode.org/Public/8.0.0/ucd/",
+	"http://www.unicode.org/Public/9.0.0/ucd/",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
@@ -743,6 +743,10 @@ func fullScriptTest(list []string, installed map[string]*unicode.RangeTable, scr
 	}
 }
 
+var deprecatedAliases = map[string]string{
+	"Sentence_Terminal": "STerm",
+}
+
 // PropList.txt has the same format as Scripts.txt so we can share its parser.
 func printScriptOrProperty(doProps bool) {
 	flag := "scripts"
@@ -797,11 +801,14 @@ func printScriptOrProperty(doProps bool) {
 		}
 		for _, k := range all(table) {
 			printf("\t%q: %s,\n", k, k)
+			if alias, ok := deprecatedAliases[k]; ok {
+				printf("\t%q: %s,\n", alias, k)
+			}
 		}
 		print("}\n\n")
 	}
 
-	decl := make(sort.StringSlice, len(list))
+	decl := make(sort.StringSlice, len(list)+len(deprecatedAliases))
 	ndecl := 0
 	for _, name := range list {
 		if doProps {
@@ -814,6 +821,12 @@ func printScriptOrProperty(doProps bool) {
 				name, name, name, name)
 		}
 		ndecl++
+		if alias, ok := deprecatedAliases[name]; ok {
+			decl[ndecl] = fmt.Sprintf(
+				"\t%[1]s = _%[2]s;\t// %[1]s is an alias for %[2]s.\n",
+				alias, name)
+			ndecl++
+		}
 		printf("var _%s = &RangeTable {\n", name)
 		ranges := foldAdjacent(table[name])
 		print("\tR16: []Range16{\n")

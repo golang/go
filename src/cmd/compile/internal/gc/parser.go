@@ -2006,7 +2006,8 @@ func (p *parser) hidden_fndcl() *Node {
 		ss.Type = functype(s2[0], s6, s8)
 
 		checkwidth(ss.Type)
-		addmethod(s4, ss.Type, p.structpkg, false, false)
+		addmethod(s4, ss.Type, p.structpkg, false, p.pragma&Nointerface != 0)
+		p.pragma = 0
 		funchdr(ss)
 
 		// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as

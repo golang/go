@@ -75,7 +75,7 @@ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 4 + 2 + 2
+	return 4 + 2 + 2 + 4 + 4
 }
 
 func makefield(name string, t *Type) *Field {
@@ -604,17 +604,19 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 
 	ot = dgopkgpathOffLSym(Linksym(s), ot, typePkg(t))
 
-	dataAdd += 4 + 2 + 2
+	dataAdd += uncommonSize(t)
 	mcount := len(m)
 	if mcount != int(uint16(mcount)) {
 		Fatalf("too many methods on %s: %d", t, mcount)
 	}
-	if dataAdd != int(uint16(dataAdd)) {
+	if dataAdd != int(uint32(dataAdd)) {
 		Fatalf("methods are too far away on %s: %d", t, dataAdd)
 	}
 
 	ot = duint16(s, ot, uint16(mcount))
-	ot = duint16(s, ot, uint16(dataAdd))
+	ot = duint16(s, ot, 0)
+	ot = duint32(s, ot, uint32(dataAdd))
+	ot = duint32(s, ot, 0)
 	return ot
 }
 
@@ -797,6 +799,7 @@ func typeptrdata(t *Type) int64 {
 const (
 	tflagUncommon  = 1 << 0
 	tflagExtraStar = 1 << 1
+	tflagNamed     = 1 << 2
 )
 
 var dcommontype_algarray *Sym
@@ -818,14 +821,10 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		algsym = dalgsym(t)
 	}
 
+	var sptr *Sym
 	tptr := Ptrto(t)
 	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
-		sptr := dtypesym(tptr)
-		r := obj.Addrel(Linksym(s))
-		r.Off = 0
-		r.Siz = 0
-		r.Sym = sptr.Lsym
-		r.Type = obj.R_USETYPE
+		sptr = dtypesym(tptr)
 	}
 
 	gcsym, useGCProg, ptrdata := dgcsym(t)
@@ -843,7 +842,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		alg           *typeAlg
 	//		gcdata        *byte
 	//		str           nameOff
-	//		_             int32
+	//		ptrToThis     typeOff
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
 	ot = duintptr(s, ot, uint64(ptrdata))
@@ -853,6 +852,9 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	var tflag uint8
 	if uncommonSize(t) != 0 {
 		tflag |= tflagUncommon
+	}
+	if t.Sym != nil && t.Sym.Name != "" {
+		tflag |= tflagNamed
 	}
 
 	exported := false
@@ -907,8 +909,12 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	nsym := dname(p, "", nil, exported)
-	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0)
-	ot = duint32(s, ot, 0)
+	ot = dsymptrOffLSym(Linksym(s), ot, nsym, 0) // str
+	if sptr == nil {
+		ot = duint32(s, ot, 0)
+	} else {
+		ot = dsymptrOffLSym(Linksym(s), ot, Linksym(sptr), 0) // ptrToThis
+	}
 
 	return ot
 }

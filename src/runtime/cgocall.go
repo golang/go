@@ -44,7 +44,7 @@
 // call arbitrary Go code directly and must be careful not to allocate
 // memory or use up m->g0's stack.
 //
-// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize).
+// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize, ctxt).
 // (The reason for having _cgoexp_GoF instead of writing a crosscall3
 // to make this call directly is that _cgoexp_GoF, because it is compiled
 // with 6c instead of gcc, can refer to dotted names like

@@ -268,6 +268,9 @@ const (
 	// a program, the type *T also exists and reusing the str data
 	// saves binary size.
 	tflagExtraStar tflag = 1 << 1
+
+	// tflagNamed means the type has a name.
+	tflagNamed tflag = 1 << 2
 )
 
 // rtype is the common implementation of most values.
@@ -285,7 +288,7 @@ type rtype struct {
 	alg        *typeAlg // algorithm table
 	gcdata     *byte    // garbage collection data
 	str        nameOff  // string form
-	_          int32    // unused; keeps rtype always a multiple of ptrSize
+	ptrToThis  typeOff  // type for pointer to this type, may be zero
 }
 
 // a copy of runtime.typeAlg
@@ -313,7 +316,9 @@ type method struct {
 type uncommonType struct {
 	pkgPath nameOff // import path; empty for built-in types like int, string
 	mcount  uint16  // number of methods
-	moff    uint16  // offset from this uncommontype to [mcount]method
+	_       uint16  // unused
+	moff    uint32  // offset from this uncommontype to [mcount]method
+	_       uint32  // unused
 }
 
 // ChanDir represents a channel type's direction.
@@ -461,15 +466,13 @@ func (n name) tagLen() int {
 
 func (n name) name() (s string) {
 	if n.bytes == nil {
-		return ""
+		return
 	}
-	nl := n.nameLen()
-	if nl == 0 {
-		return ""
-	}
+	b := (*[4]byte)(unsafe.Pointer(n.bytes))
+
 	hdr := (*stringHeader)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(3))
-	hdr.Len = nl
+	hdr.Data = unsafe.Pointer(&b[3])
+	hdr.Len = int(b[1])<<8 | int(b[2])
 	return s
 }
 
@@ -657,16 +660,10 @@ type typeOff int32 // offset to an *rtype
 type textOff int32 // offset from top of text section
 
 func (t *rtype) nameOff(off nameOff) name {
-	if off == 0 {
-		return name{}
-	}
 	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
 }
 
 func (t *rtype) typeOff(off typeOff) *rtype {
-	if off == 0 {
-		return nil
-	}
 	return (*rtype)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
 }
 
@@ -818,6 +815,9 @@ func (t *rtype) NumMethod() int {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
 	}
+	if t.tflag&tflagUncommon == 0 {
+		return 0 // avoid methodCache lock in zero case
+	}
 	return len(t.exportedMethods())
 }
 
@@ -876,6 +876,9 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 }
 
 func (t *rtype) PkgPath() string {
+	if t.tflag&tflagNamed == 0 {
+		return ""
+	}
 	ut := t.uncommon()
 	if ut == nil {
 		return ""
@@ -888,29 +891,10 @@ func hasPrefix(s, prefix string) bool {
 }
 
 func (t *rtype) Name() string {
+	if t.tflag&tflagNamed == 0 {
+		return ""
+	}
 	s := t.String()
-	if hasPrefix(s, "map[") {
-		return ""
-	}
-	if hasPrefix(s, "struct {") {
-		return ""
-	}
-	if hasPrefix(s, "chan ") {
-		return ""
-	}
-	if hasPrefix(s, "chan<-") {
-		return ""
-	}
-	if hasPrefix(s, "func(") {
-		return ""
-	}
-	if hasPrefix(s, "interface {") {
-		return ""
-	}
-	switch s[0] {
-	case '[', '*', '<':
-		return ""
-	}
 	i := len(s) - 1
 	for i >= 0 {
 		if s[i] == '.' {
@@ -1428,6 +1412,10 @@ func PtrTo(t Type) Type {
 }
 
 func (t *rtype) ptrTo() *rtype {
+	if t.ptrToThis != 0 {
+		return t.typeOff(t.ptrToThis)
+	}
+
 	// Check the cache.
 	ptrMap.RLock()
 	if m := ptrMap.m; m != nil {
@@ -1925,6 +1913,7 @@ func MapOf(key, elem Type) Type {
 	mt.bucketsize = uint16(mt.bucket.size)
 	mt.reflexivekey = isReflexive(ktyp)
 	mt.needkeyupdate = needKeyUpdate(ktyp)
+	mt.ptrToThis = 0
 
 	return cachePut(ckey, &mt.rtype)
 }
@@ -2063,6 +2052,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 
 	// Populate the remaining fields of ft and store in cache.
 	ft.str = resolveReflectName(newName(str, "", "", false))
+	ft.ptrToThis = 0
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return &ft.rtype
@@ -2293,6 +2283,7 @@ func SliceOf(t Type) Type {
 	slice.str = resolveReflectName(newName(s, "", "", false))
 	slice.hash = fnv1(typ.hash, '[')
 	slice.elem = typ
+	slice.ptrToThis = 0
 
 	return cachePut(ckey, &slice.rtype)
 }
@@ -2584,7 +2575,7 @@ func StructOf(fields []StructField) Type {
 		panic("reflect.StructOf: too many methods")
 	}
 	ut.mcount = uint16(len(methods))
-	ut.moff = uint16(unsafe.Sizeof(uncommonType{}))
+	ut.moff = uint32(unsafe.Sizeof(uncommonType{}))
 
 	if len(fs) > 0 {
 		repr = append(repr, ' ')
@@ -2840,6 +2831,7 @@ func ArrayOf(count int, elem Type) Type {
 	}
 	array.hash = fnv1(array.hash, ']')
 	array.elem = typ
+	array.ptrToThis = 0
 	max := ^uintptr(0) / typ.size
 	if uintptr(count) > max {
 		panic("reflect.ArrayOf: array size would exceed virtual address space")
