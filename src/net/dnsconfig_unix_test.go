@@ -61,6 +61,36 @@ var dnsReadConfigTests = []struct {
 		},
 	},
 	{
+		name: "testdata/invalid-ndots-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    0,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/large-ndots-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    15,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
+		name: "testdata/negative-ndots-resolv.conf",
+		want: &dnsConfig{
+			servers:  defaultNS,
+			ndots:    0,
+			timeout:  5 * time.Second,
+			attempts: 2,
+			search:   []string{"domain.local."},
+		},
+	},
+	{
 		name: "testdata/openbsd-resolv.conf",
 		want: &dnsConfig{
 			ndots:    1,
