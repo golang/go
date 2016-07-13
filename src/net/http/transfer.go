@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/net/lex/httplex"
+	"golang_org/x/net/lex/httplex"
 )
 
 // ErrLineTooLong is returned when reading request or response bodies
