@@ -366,10 +366,6 @@
 (IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
 
 // pseudo-ops
-(Select0 <t> x) && t.IsFlags() -> (Carry x)
-(Select0 <t> x) && !t.IsFlags() -> (LoweredSelect0 x)
-(Select1 x) -> (LoweredSelect1 x)
-
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 (Convert x mem) -> (MOVWconvert x mem)
 

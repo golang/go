@@ -36,3 +36,16 @@ func (s LocalSlot) Name() string {
 	}
 	return fmt.Sprintf("%s+%d[%s]", s.N, s.Off, s.Type)
 }
+
+type LocPair [2]Location
+
+func (t LocPair) Name() string {
+	n0, n1 := "nil", "nil"
+	if t[0] != nil {
+		n0 = t[0].Name()
+	}
+	if t[1] != nil {
+		n1 = t[1].Name()
+	}
+	return fmt.Sprintf("<%s,%s>", n0, n1)
+}

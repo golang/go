@@ -171,10 +171,10 @@ func cse(f *Func) {
 			if rewrite[v.ID] != nil {
 				continue
 			}
-			if !v.Op.isTupleSelector() {
+			if v.Op != OpSelect0 && v.Op != OpSelect1 {
 				continue
 			}
-			if !v.Args[0].Op.isTupleGenerator() {
+			if !v.Args[0].Type.IsTuple() {
 				f.Fatalf("arg of tuple selector %s is not a tuple: %s", v.String(), v.Args[0].LongString())
 			}
 			t := rewrite[v.Args[0].ID]

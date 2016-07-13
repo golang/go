@@ -42,8 +42,8 @@ type opData struct {
 	aux               string
 	rematerializeable bool
 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
-	commutative       bool  // this operation is commutative (e.g. addition)
-	resultInArg0      bool  // v and v.Args[0] must be allocated to the same register
+	commutative       bool  // this operation is commutative on its first 2 arguments (e.g. addition)
+	resultInArg0      bool  // last output of v and v.Args[0] must be allocated to the same register
 }
 
 type blockData struct {
@@ -160,11 +160,11 @@ func genOp() {
 			}
 			if v.resultInArg0 {
 				fmt.Fprintln(w, "resultInArg0: true,")
-				if v.reg.inputs[0] != v.reg.outputs[0] {
-					log.Fatalf("input[0] and output registers must be equal for %s", v.name)
+				if v.reg.inputs[0] != v.reg.outputs[len(v.reg.outputs)-1] {
+					log.Fatalf("input[0] and last output register must be equal for %s", v.name)
 				}
-				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
-					log.Fatalf("input[1] and output registers must be equal for %s", v.name)
+				if v.commutative && v.reg.inputs[1] != v.reg.outputs[len(v.reg.outputs)-1] {
+					log.Fatalf("input[1] and last output register must be equal for %s", v.name)
 				}
 			}
 			if a.name == "generic" {
@@ -196,14 +196,24 @@ func genOp() {
 				}
 				fmt.Fprintln(w, "},")
 			}
+
 			if v.reg.clobbers > 0 {
 				fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
 			}
+
 			// reg outputs
-			if len(v.reg.outputs) > 0 {
-				fmt.Fprintln(w, "outputs: []regMask{")
-				for _, r := range v.reg.outputs {
-					fmt.Fprintf(w, "%d,%s\n", r, a.regMaskComment(r))
+			s = s[:0]
+			for i, r := range v.reg.outputs {
+				if r != 0 {
+					s = append(s, intPair{countRegs(r), i})
+				}
+			}
+			if len(s) > 0 {
+				sort.Sort(byKey(s))
+				fmt.Fprintln(w, "outputs: []outputInfo{")
+				for _, p := range s {
+					r := v.reg.outputs[p.val]
+					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
 				}
 				fmt.Fprintln(w, "},")
 			}

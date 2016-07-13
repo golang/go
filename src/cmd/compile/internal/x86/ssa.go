@@ -165,6 +165,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
+
 	// 2-address opcode arithmetic
 	case ssa.Op386SUBL,
 		ssa.Op386MULL,
@@ -176,10 +177,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.Op386SARL, ssa.Op386SARW, ssa.Op386SARB,
 		ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD,
-		ssa.Op386PXOR:
+		ssa.Op386PXOR,
+		ssa.Op386ADCL:
 		r := gc.SSARegNum(v)
 		if r != gc.SSARegNum(v.Args[0]) {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
+
+	case ssa.Op386ADDLcarry:
+		// output 0 is carry, output 1 is the low 32 bits.
+		r := gc.SSARegNum1(v)
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
 		}
 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
 
@@ -716,7 +726,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.OpSP, ssa.OpSB:
+	case ssa.OpSP, ssa.OpSB, ssa.OpSelect0, ssa.OpSelect1:
 		// nothing to do
 	case ssa.Op386SETEQ, ssa.Op386SETNE,
 		ssa.Op386SETL, ssa.Op386SETLE,

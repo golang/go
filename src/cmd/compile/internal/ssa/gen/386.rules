@@ -10,6 +10,9 @@
 (Add32F x y) -> (ADDSS x y)
 (Add64F x y) -> (ADDSD x y)
 
+(Add32carry x y) -> (ADDLcarry x y)
+(Add32withcarry x y c) -> (ADCL x y c)
+
 (SubPtr x y) -> (SUBL  x y)
 (Sub32  x y) -> (SUBL  x y)
 (Sub16  x y) -> (SUBL  x y)

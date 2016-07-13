@@ -171,6 +171,8 @@ const (
 	Op386MOVSDstoreidx8
 	Op386ADDL
 	Op386ADDLconst
+	Op386ADDLcarry
+	Op386ADCL
 	Op386SUBL
 	Op386SUBLconst
 	Op386MULL
@@ -756,9 +758,6 @@ const (
 	OpARMLessEqualU
 	OpARMGreaterThanU
 	OpARMGreaterEqualU
-	OpARMCarry
-	OpARMLoweredSelect0
-	OpARMLoweredSelect1
 	OpARMDUFFZERO
 	OpARMDUFFCOPY
 	OpARMLoweredZero
@@ -1157,8 +1156,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1173,8 +1172,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1189,8 +1188,8 @@ var opcodeTable = [...]opInfo{
 				{1, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 			clobbers: 32768, // X7
-			outputs: []regMask{
-				32512, // X0 X1 X2 X3 X4 X5 X6
+			outputs: []outputInfo{
+				{0, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 		},
 	},
@@ -1205,8 +1204,8 @@ var opcodeTable = [...]opInfo{
 				{1, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 			clobbers: 32768, // X7
-			outputs: []regMask{
-				32512, // X0 X1 X2 X3 X4 X5 X6
+			outputs: []outputInfo{
+				{0, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 		},
 	},
@@ -1221,8 +1220,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1237,8 +1236,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1253,8 +1252,8 @@ var opcodeTable = [...]opInfo{
 				{1, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 			clobbers: 32768, // X7
-			outputs: []regMask{
-				32512, // X0 X1 X2 X3 X4 X5 X6
+			outputs: []outputInfo{
+				{0, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 		},
 	},
@@ -1269,8 +1268,8 @@ var opcodeTable = [...]opInfo{
 				{1, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 			clobbers: 32768, // X7
-			outputs: []regMask{
-				32512, // X0 X1 X2 X3 X4 X5 X6
+			outputs: []outputInfo{
+				{0, 32512}, // X0 X1 X2 X3 X4 X5 X6
 			},
 		},
 	},
@@ -1283,8 +1282,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1297,8 +1296,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1309,8 +1308,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVSS,
 		reg: regInfo{
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1321,8 +1320,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVSD,
 		reg: regInfo{
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1336,8 +1335,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1351,8 +1350,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1366,8 +1365,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1381,8 +1380,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -1473,8 +1472,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1488,8 +1487,42 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:         "ADDLcarry",
+		argLen:       2,
+		commutative:  true,
+		resultInArg0: true,
+		asm:          x86.AADDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+				{1, 239}, // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
+				{1, 239},    // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:         "ADCL",
+		argLen:       3,
+		commutative:  true,
+		resultInArg0: true,
+		asm:          x86.AADCL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 131072}, // FLAGS
+				{0, 239},    // AX CX DX BX BP SI DI
+				{1, 239},    // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1504,8 +1537,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1520,8 +1553,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1537,8 +1570,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1553,8 +1586,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1568,8 +1601,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1583,8 +1616,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1598,8 +1631,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1613,8 +1646,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1628,8 +1661,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1643,8 +1676,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1658,8 +1691,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131076, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -1673,8 +1706,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131076, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -1688,8 +1721,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131076, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -1703,8 +1736,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131076, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -1718,8 +1751,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1733,8 +1766,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1748,8 +1781,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1763,8 +1796,8 @@ var opcodeTable = [...]opInfo{
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -1780,8 +1813,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1796,8 +1829,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1813,8 +1846,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1829,8 +1862,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1846,8 +1879,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1862,8 +1895,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1876,8 +1909,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1890,8 +1923,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1904,8 +1937,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1918,8 +1951,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1932,8 +1965,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1946,8 +1979,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1960,8 +1993,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1974,8 +2007,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -1988,8 +2021,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2002,8 +2035,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2016,8 +2049,8 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2030,8 +2063,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2044,8 +2077,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2058,8 +2091,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				131072, // FLAGS
+			outputs: []outputInfo{
+				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2074,8 +2107,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2090,8 +2123,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2106,8 +2139,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2122,8 +2155,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2138,8 +2171,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2154,8 +2187,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2170,8 +2203,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2186,8 +2219,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2202,8 +2235,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2218,8 +2251,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2234,8 +2267,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2250,8 +2283,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2266,8 +2299,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2282,8 +2315,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2298,8 +2331,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2314,8 +2347,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2330,8 +2363,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2345,8 +2378,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2360,8 +2393,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2374,8 +2407,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2388,8 +2421,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2402,8 +2435,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2416,8 +2449,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2431,8 +2464,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			clobbers: 131072, // FLAGS
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2444,8 +2477,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -2457,8 +2490,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2470,8 +2503,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2483,8 +2516,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2496,8 +2529,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2509,8 +2542,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2522,8 +2555,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2535,8 +2568,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2548,8 +2581,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2561,8 +2594,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2574,8 +2607,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2587,8 +2620,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2601,8 +2634,8 @@ var opcodeTable = [...]opInfo{
 				{0, 131072}, // FLAGS
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				238, // CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 238}, // CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2615,8 +2648,8 @@ var opcodeTable = [...]opInfo{
 				{0, 131072}, // FLAGS
 			},
 			clobbers: 131073, // AX FLAGS
-			outputs: []regMask{
-				238, // CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 238}, // CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2628,8 +2661,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2641,8 +2674,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2654,8 +2687,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2667,8 +2700,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 131072}, // FLAGS
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2680,8 +2713,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2693,8 +2726,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2706,8 +2739,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2719,8 +2752,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2731,8 +2764,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVL,
 		reg: regInfo{
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2744,8 +2777,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2757,8 +2790,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2770,8 +2803,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -2783,8 +2816,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -2796,8 +2829,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -2809,8 +2842,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -2825,8 +2858,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -2839,8 +2872,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2853,8 +2886,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2867,8 +2900,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2881,8 +2914,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2895,8 +2928,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2909,8 +2942,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2923,8 +2956,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2937,8 +2970,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2951,8 +2984,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -2965,8 +2998,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3015,8 +3048,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -3042,8 +3075,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3057,8 +3090,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3072,8 +3105,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3087,8 +3120,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3102,8 +3135,8 @@ var opcodeTable = [...]opInfo{
 				{1, 255},   // AX CX DX BX SP BP SI DI
 				{0, 65791}, // AX CX DX BX SP BP SI DI SB
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3283,8 +3316,8 @@ var opcodeTable = [...]opInfo{
 		argLen:            0,
 		rematerializeable: true,
 		reg: regInfo{
-			outputs: []regMask{
-				65280, // X0 X1 X2 X3 X4 X5 X6 X7
+			outputs: []outputInfo{
+				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
 		},
 	},
@@ -3380,8 +3413,8 @@ var opcodeTable = [...]opInfo{
 		name:   "LoweredGetG",
 		argLen: 1,
 		reg: regInfo{
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3389,8 +3422,8 @@ var opcodeTable = [...]opInfo{
 		name:   "LoweredGetClosurePtr",
 		argLen: 0,
 		reg: regInfo{
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -3412,8 +3445,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []regMask{
-				239, // AX CX DX BX BP SI DI
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -3454,8 +3487,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3470,8 +3503,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3486,8 +3519,8 @@ var opcodeTable = [...]opInfo{
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			clobbers: 2147483648, // X15
-			outputs: []regMask{
-				2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -3502,8 +3535,8 @@ var opcodeTable = [...]opInfo{
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			clobbers: 2147483648, // X15
-			outputs: []regMask{
-				2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -3518,8 +3551,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3534,8 +3567,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3550,8 +3583,8 @@ var opcodeTable = [...]opInfo{
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			clobbers: 2147483648, // X15
-			outputs: []regMask{
-				2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -3566,8 +3599,8 @@ var opcodeTable = [...]opInfo{
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			clobbers: 2147483648, // X15
-			outputs: []regMask{
-				2147418112, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -3580,8 +3613,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3594,8 +3627,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3606,8 +3639,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVSS,
 		reg: regInfo{
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3618,8 +3651,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVSD,
 		reg: regInfo{
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3633,8 +3666,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3648,8 +3681,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3663,8 +3696,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3678,8 +3711,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -3770,8 +3803,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3786,8 +3819,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3801,8 +3834,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3816,8 +3849,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3832,8 +3865,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3848,8 +3881,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3864,8 +3897,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3880,8 +3913,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3897,8 +3930,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3914,8 +3947,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3930,8 +3963,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3946,8 +3979,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -3961,8 +3994,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -3976,8 +4009,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -3991,8 +4024,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4006,8 +4039,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4021,8 +4054,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4036,8 +4069,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4051,8 +4084,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4066,8 +4099,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4082,8 +4115,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4097,8 +4130,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934596, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -4112,8 +4145,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934596, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -4127,8 +4160,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934596, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -4142,8 +4175,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934596, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -4157,8 +4190,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934596, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -4172,8 +4205,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934596, // DX FLAGS
-			outputs: []regMask{
-				1, // AX
+			outputs: []outputInfo{
+				{0, 1}, // AX
 			},
 		},
 	},
@@ -4187,8 +4220,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4202,8 +4235,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4217,8 +4250,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4232,8 +4265,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4247,8 +4280,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4262,8 +4295,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -4279,8 +4312,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4296,8 +4329,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4312,8 +4345,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4328,8 +4361,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4345,8 +4378,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4362,8 +4395,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4378,8 +4411,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4394,8 +4427,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4411,8 +4444,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4428,8 +4461,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4444,8 +4477,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4460,8 +4493,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4474,8 +4507,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4488,8 +4521,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4502,8 +4535,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4516,8 +4549,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4530,8 +4563,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4544,8 +4577,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4558,8 +4591,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4572,8 +4605,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4586,8 +4619,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4600,8 +4633,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4614,8 +4647,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4628,8 +4661,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4642,8 +4675,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4656,8 +4689,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4670,8 +4703,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4684,8 +4717,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4698,8 +4731,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4712,8 +4745,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				8589934592, // FLAGS
+			outputs: []outputInfo{
+				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4728,8 +4761,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4744,8 +4777,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4760,8 +4793,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4776,8 +4809,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4792,8 +4825,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4808,8 +4841,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4824,8 +4857,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4840,8 +4873,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4856,8 +4889,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4872,8 +4905,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4888,8 +4921,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4904,8 +4937,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4920,8 +4953,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4936,8 +4969,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4952,8 +4985,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4968,8 +5001,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -4984,8 +5017,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5000,8 +5033,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5016,8 +5049,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5032,8 +5065,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5048,8 +5081,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5064,8 +5097,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5080,8 +5113,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5096,8 +5129,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5111,8 +5144,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5126,8 +5159,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5141,8 +5174,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5156,8 +5189,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5170,8 +5203,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5184,8 +5217,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5198,8 +5231,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5212,8 +5245,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5226,8 +5259,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5240,8 +5273,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5257,8 +5290,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5274,8 +5307,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5291,8 +5324,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5308,8 +5341,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5325,8 +5358,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5342,8 +5375,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5357,8 +5390,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5372,8 +5405,8 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			clobbers: 8589934592, // FLAGS
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5385,8 +5418,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5398,8 +5431,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5411,8 +5444,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5424,8 +5457,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5437,8 +5470,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5450,8 +5483,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5463,8 +5496,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5476,8 +5509,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5489,8 +5522,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5502,8 +5535,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5515,8 +5548,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5528,8 +5561,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5541,8 +5574,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5555,8 +5588,8 @@ var opcodeTable = [...]opInfo{
 				{0, 8589934592}, // FLAGS
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5569,8 +5602,8 @@ var opcodeTable = [...]opInfo{
 				{0, 8589934592}, // FLAGS
 			},
 			clobbers: 8589934593, // AX FLAGS
-			outputs: []regMask{
-				65518, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5582,8 +5615,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5595,8 +5628,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5608,8 +5641,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5621,8 +5654,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // FLAGS
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5634,8 +5667,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5647,8 +5680,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5660,8 +5693,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5673,8 +5706,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5686,8 +5719,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5699,8 +5732,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5711,8 +5744,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVL,
 		reg: regInfo{
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5723,8 +5756,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               x86.AMOVQ,
 		reg: regInfo{
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5736,8 +5769,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5749,8 +5782,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5762,8 +5795,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5775,8 +5808,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5788,8 +5821,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5801,8 +5834,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5814,8 +5847,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5827,8 +5860,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5840,8 +5873,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5853,8 +5886,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5869,8 +5902,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -5883,8 +5916,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5897,8 +5930,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5911,8 +5944,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5925,8 +5958,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5939,8 +5972,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5953,8 +5986,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5967,8 +6000,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5981,8 +6014,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -5995,8 +6028,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6009,8 +6042,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6023,8 +6056,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6037,8 +6070,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6099,8 +6132,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -6126,8 +6159,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6141,8 +6174,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6156,8 +6189,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6171,8 +6204,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6186,8 +6219,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6201,8 +6234,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6216,8 +6249,8 @@ var opcodeTable = [...]opInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6458,8 +6491,8 @@ var opcodeTable = [...]opInfo{
 		argLen:            0,
 		rematerializeable: true,
 		reg: regInfo{
-			outputs: []regMask{
-				4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+			outputs: []outputInfo{
+				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
 		},
 	},
@@ -6555,8 +6588,8 @@ var opcodeTable = [...]opInfo{
 		name:   "LoweredGetG",
 		argLen: 1,
 		reg: regInfo{
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6564,8 +6597,8 @@ var opcodeTable = [...]opInfo{
 		name:   "LoweredGetClosurePtr",
 		argLen: 0,
 		reg: regInfo{
-			outputs: []regMask{
-				4, // DX
+			outputs: []outputInfo{
+				{0, 4}, // DX
 			},
 		},
 	},
@@ -6587,8 +6620,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []regMask{
-				65519, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -6628,8 +6661,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6642,8 +6675,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 14335}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6656,8 +6689,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6670,8 +6703,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6684,8 +6717,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6698,8 +6731,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6713,8 +6746,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6728,8 +6761,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6743,8 +6776,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6758,8 +6791,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6773,8 +6806,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6788,8 +6821,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6803,8 +6836,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6818,9 +6851,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6833,9 +6866,9 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6850,8 +6883,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6865,8 +6898,8 @@ var opcodeTable = [...]opInfo{
 				{1, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6879,9 +6912,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6894,9 +6927,9 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6909,9 +6942,9 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6925,8 +6958,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6940,8 +6973,8 @@ var opcodeTable = [...]opInfo{
 				{1, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6955,8 +6988,8 @@ var opcodeTable = [...]opInfo{
 				{1, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6967,12 +7000,12 @@ var opcodeTable = [...]opInfo{
 		asm:         arm.AMULLU,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-			clobbers: 1, // R0
-			outputs: []regMask{
-				5118, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -6986,8 +7019,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7001,8 +7034,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7016,8 +7049,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7030,8 +7063,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7044,8 +7077,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7059,8 +7092,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7074,8 +7107,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7088,8 +7121,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7102,8 +7135,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7117,8 +7150,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7131,8 +7164,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7146,8 +7179,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7160,8 +7193,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7175,8 +7208,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7189,8 +7222,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7203,8 +7236,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7217,8 +7250,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7230,8 +7263,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7243,8 +7276,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -7257,8 +7290,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7271,8 +7304,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7285,8 +7318,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7299,8 +7332,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7314,8 +7347,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7328,8 +7361,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7341,8 +7374,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7356,8 +7389,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7371,8 +7404,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7386,8 +7419,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7401,8 +7434,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7416,8 +7449,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7431,8 +7464,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7446,8 +7479,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7461,8 +7494,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7476,8 +7509,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7491,8 +7524,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7506,8 +7539,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7521,8 +7554,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7536,8 +7569,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7551,8 +7584,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7566,8 +7599,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7581,8 +7614,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7596,8 +7629,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7611,8 +7644,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7626,8 +7659,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7641,8 +7674,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7656,8 +7689,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7670,8 +7703,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7684,8 +7717,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7698,8 +7731,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7714,8 +7747,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7730,8 +7763,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7746,8 +7779,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7762,8 +7795,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7778,8 +7811,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7794,8 +7827,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7810,8 +7843,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7826,8 +7859,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7842,8 +7875,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7857,9 +7890,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7873,9 +7906,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7889,9 +7922,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7905,9 +7938,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7921,9 +7954,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7937,9 +7970,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7953,9 +7986,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7969,9 +8002,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7985,9 +8018,9 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8001,8 +8034,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8016,8 +8049,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8031,8 +8064,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8046,8 +8079,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8061,8 +8094,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8076,8 +8109,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8091,8 +8124,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8106,8 +8139,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8121,8 +8154,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8136,8 +8169,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8151,8 +8184,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8166,8 +8199,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8181,8 +8214,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8196,8 +8229,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8211,8 +8244,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8226,8 +8259,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8241,8 +8274,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8256,8 +8289,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8271,8 +8304,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8286,8 +8319,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8301,8 +8334,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8315,8 +8348,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8329,8 +8362,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8343,8 +8376,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8359,8 +8392,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8375,8 +8408,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8391,8 +8424,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8407,8 +8440,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8423,8 +8456,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8439,8 +8472,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8455,8 +8488,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8471,8 +8504,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8487,8 +8520,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8502,9 +8535,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8518,9 +8551,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8534,9 +8567,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8550,9 +8583,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8566,9 +8599,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8582,9 +8615,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8598,9 +8631,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8614,9 +8647,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8630,9 +8663,9 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967296, // FLAGS
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
+				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8645,8 +8678,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8659,8 +8692,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8673,8 +8706,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8687,8 +8720,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8702,8 +8735,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8716,8 +8749,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8731,8 +8764,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8745,8 +8778,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8759,8 +8792,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8773,8 +8806,8 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8788,8 +8821,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8803,8 +8836,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8818,8 +8851,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8833,8 +8866,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8848,8 +8881,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8863,8 +8896,8 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8901,8 +8934,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               arm.AMOVW,
 		reg: regInfo{
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8913,8 +8946,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               arm.AMOVF,
 		reg: regInfo{
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -8925,8 +8958,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               arm.AMOVD,
 		reg: regInfo{
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -8940,8 +8973,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589942784}, // SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8954,8 +8987,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8968,8 +9001,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8982,8 +9015,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8996,8 +9029,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9010,8 +9043,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9024,8 +9057,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9038,8 +9071,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9112,8 +9145,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9127,8 +9160,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9142,8 +9175,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9157,8 +9190,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9221,8 +9254,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9234,8 +9267,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9247,8 +9280,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9260,8 +9293,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9273,8 +9306,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9286,8 +9319,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9299,8 +9332,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9312,8 +9345,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9325,8 +9358,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9338,8 +9371,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9351,8 +9384,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9364,8 +9397,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9377,8 +9410,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9390,8 +9423,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9403,8 +9436,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294901760, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			outputs: []outputInfo{
+				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
 	},
@@ -9419,8 +9452,8 @@ var opcodeTable = [...]opInfo{
 				{1, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9435,8 +9468,8 @@ var opcodeTable = [...]opInfo{
 				{1, 4294967296}, // FLAGS
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9450,8 +9483,8 @@ var opcodeTable = [...]opInfo{
 				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9518,8 +9551,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9530,8 +9563,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9542,8 +9575,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9554,8 +9587,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9566,8 +9599,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9578,8 +9611,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9590,8 +9623,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9602,8 +9635,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9614,8 +9647,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9626,39 +9659,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294967296}, // FLAGS
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-		},
-	},
-	{
-		name:   "Carry",
-		argLen: 1,
-		reg: regInfo{
-			outputs: []regMask{
-				4294967296, // FLAGS
-			},
-		},
-	},
-	{
-		name:   "LoweredSelect0",
-		argLen: 1,
-		reg: regInfo{
-			outputs: []regMask{
-				1, // R0
-			},
-		},
-	},
-	{
-		name:         "LoweredSelect1",
-		argLen:       1,
-		resultInArg0: true,
-		reg: regInfo{
-			inputs: []inputInfo{
+			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9738,8 +9740,8 @@ var opcodeTable = [...]opInfo{
 		name:   "LoweredGetClosurePtr",
 		argLen: 0,
 		reg: regInfo{
-			outputs: []regMask{
-				128, // R7
+			outputs: []outputInfo{
+				{0, 128}, // R7
 			},
 		},
 	},
@@ -9751,8 +9753,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []regMask{
-				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -9797,8 +9799,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -9811,8 +9813,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -9826,8 +9828,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9841,8 +9843,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9855,8 +9857,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -9869,8 +9871,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9883,8 +9885,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9898,8 +9900,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -9913,8 +9915,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -9928,8 +9930,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9943,8 +9945,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9957,8 +9959,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9971,8 +9973,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -9986,8 +9988,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10000,8 +10002,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10015,8 +10017,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10029,8 +10031,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10044,8 +10046,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10058,8 +10060,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10071,8 +10073,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10084,8 +10086,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10097,8 +10099,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10110,8 +10112,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10123,8 +10125,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10136,8 +10138,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10149,8 +10151,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10162,8 +10164,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10175,8 +10177,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10188,8 +10190,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10201,8 +10203,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10214,8 +10216,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10227,8 +10229,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10240,8 +10242,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10253,8 +10255,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -10266,8 +10268,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -10394,8 +10396,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               ppc64.AMOVD,
 		reg: regInfo{
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10406,8 +10408,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               ppc64.AMOVW,
 		reg: regInfo{
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10418,8 +10420,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               ppc64.AMOVH,
 		reg: regInfo{
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10430,8 +10432,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               ppc64.AMOVB,
 		reg: regInfo{
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10442,8 +10444,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               ppc64.AFMOVD,
 		reg: regInfo{
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -10454,8 +10456,8 @@ var opcodeTable = [...]opInfo{
 		rematerializeable: true,
 		asm:               ppc64.AFMOVS,
 		reg: regInfo{
-			outputs: []regMask{
-				576460743713488896, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
+			outputs: []outputInfo{
+				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
 		},
 	},
@@ -10468,8 +10470,8 @@ var opcodeTable = [...]opInfo{
 				{0, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 				{1, 576460743713488896}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26
 			},
-			outputs: []regMask{
-				576460752303423488, // CR
+			outputs: []outputInfo{
+				{0, 576460752303423488}, // CR
 			},
 		},
 	},
@@ -10482,8 +10484,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460752303423488, // CR
+			outputs: []outputInfo{
+				{0, 576460752303423488}, // CR
 			},
 		},
 	},
@@ -10496,8 +10498,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460752303423488, // CR
+			outputs: []outputInfo{
+				{0, 576460752303423488}, // CR
 			},
 		},
 	},
@@ -10510,8 +10512,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460752303423488, // CR
+			outputs: []outputInfo{
+				{0, 576460752303423488}, // CR
 			},
 		},
 	},
@@ -10524,8 +10526,8 @@ var opcodeTable = [...]opInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460752303423488, // CR
+			outputs: []outputInfo{
+				{0, 576460752303423488}, // CR
 			},
 		},
 	},
@@ -10538,8 +10540,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 1073731578}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []regMask{
-				576460752303423488, // CR
+			outputs: []outputInfo{
+				{0, 576460752303423488}, // CR
 			},
 		},
 	},
@@ -10558,8 +10560,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 576460752303423488}, // CR
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10570,8 +10572,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 576460752303423488}, // CR
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10582,8 +10584,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 576460752303423488}, // CR
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10594,8 +10596,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 576460752303423488}, // CR
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10606,8 +10608,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 576460752303423488}, // CR
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},
@@ -10618,8 +10620,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 576460752303423488}, // CR
 			},
-			outputs: []regMask{
-				1073731576, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			outputs: []outputInfo{
+				{0, 1073731576}, // R3 R4 R5 R6 R7 R8 R9 R10 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 		},
 	},

@@ -26,7 +26,7 @@ type opInfo struct {
 	generic           bool // this is a generic (arch-independent) opcode
 	rematerializeable bool // this op is rematerializeable
 	commutative       bool // this operation is commutative (e.g. addition)
-	resultInArg0      bool // v and v.Args[0] must be allocated to the same register
+	resultInArg0      bool // last output of v and v.Args[0] must be allocated to the same register
 }
 
 type inputInfo struct {
@@ -34,10 +34,15 @@ type inputInfo struct {
 	regs regMask // allowed input registers
 }
 
+type outputInfo struct {
+	idx  int     // index in output tuple
+	regs regMask // allowed output registers
+}
+
 type regInfo struct {
 	inputs   []inputInfo // ordered in register allocation order
 	clobbers regMask
-	outputs  []regMask // NOTE: values can only have 1 output for now.
+	outputs  []outputInfo // ordered in register allocation order
 }
 
 type auxType int8
@@ -151,29 +156,4 @@ func MakeSizeAndAlign(size, align int64) SizeAndAlign {
 		panic("alignment too big in SizeAndAlign")
 	}
 	return SizeAndAlign(size | align<<56)
-}
-
-func (op Op) isTupleGenerator() bool {
-	switch op {
-	case OpAdd32carry, OpSub32carry, OpMul32uhilo,
-		OpARMADDS, OpARMSUBS, OpARMMULLU,
-		OpARMADDSconst, OpARMSUBSconst, OpARMRSBSconst,
-		OpARMADDSshiftLL, OpARMSUBSshiftLL, OpARMRSBSshiftLL,
-		OpARMADDSshiftRL, OpARMSUBSshiftRL, OpARMRSBSshiftRL,
-		OpARMADDSshiftRA, OpARMSUBSshiftRA, OpARMRSBSshiftRA,
-		OpARMADDSshiftLLreg, OpARMSUBSshiftLLreg, OpARMRSBSshiftLLreg,
-		OpARMADDSshiftRLreg, OpARMSUBSshiftRLreg, OpARMRSBSshiftRLreg,
-		OpARMADDSshiftRAreg, OpARMSUBSshiftRAreg, OpARMRSBSshiftRAreg:
-		return true
-	}
-	return false
-}
-
-func (op Op) isTupleSelector() bool {
-	switch op {
-	case OpSelect0, OpSelect1,
-		OpARMLoweredSelect0, OpARMLoweredSelect1, OpARMCarry:
-		return true
-	}
-	return false
 }
