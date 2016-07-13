@@ -325,6 +325,18 @@ type Config struct {
 	// material from the returned config will be used for session tickets.
 	GetConfigForClient func(*ClientHelloInfo) (*Config, error)
 
+	// VerifyPeerCertificate, if not nil, is called after normal
+	// certificate verification by either a TLS client or server. It
+	// receives the raw ASN.1 certificates provided by the peer and also
+	// any verified chains that normal processing found. If it returns a
+	// non-nil error, the handshake is aborted and that error results.
+	//
+	// If normal verification fails then the handshake will abort before
+	// considering this callback. If normal verification is disabled by
+	// setting InsecureSkipVerify then this callback will be considered but
+	// the verifiedChains argument will always be nil.
+	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
+
 	// RootCAs defines the set of root certificate authorities
 	// that clients use when verifying server certificates.
 	// If RootCAs is nil, TLS uses the host's root CA set.
@@ -474,6 +486,7 @@ func (c *Config) Clone() *Config {
 		NameToCertificate:           c.NameToCertificate,
 		GetCertificate:              c.GetCertificate,
 		GetConfigForClient:          c.GetConfigForClient,
+		VerifyPeerCertificate:       c.VerifyPeerCertificate,
 		RootCAs:                     c.RootCAs,
 		NextProtos:                  c.NextProtos,
 		ServerName:                  c.ServerName,

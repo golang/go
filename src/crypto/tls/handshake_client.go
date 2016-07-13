@@ -304,6 +304,13 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			}
 		}
 
+		if c.config.VerifyPeerCertificate != nil {
+			if err := c.config.VerifyPeerCertificate(certMsg.certificates, c.verifiedChains); err != nil {
+				c.sendAlert(alertBadCertificate)
+				return err
+			}
+		}
+
 		switch certs[0].PublicKey.(type) {
 		case *rsa.PublicKey, *ecdsa.PublicKey:
 			break

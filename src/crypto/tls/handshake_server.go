@@ -747,6 +747,13 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 		c.verifiedChains = chains
 	}
 
+	if c.config.VerifyPeerCertificate != nil {
+		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
+			c.sendAlert(alertBadCertificate)
+			return nil, err
+		}
+	}
+
 	if len(certs) == 0 {
 		return nil, nil
 	}
