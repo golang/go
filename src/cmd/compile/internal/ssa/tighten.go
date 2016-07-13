@@ -64,7 +64,7 @@ func tighten(f *Func) {
 					continue
 				default:
 				}
-				if v.Op.isTupleSelector() {
+				if v.Op == OpSelect0 || v.Op == OpSelect1 {
 					// tuple selector must stay with tuple generator
 					continue
 				}

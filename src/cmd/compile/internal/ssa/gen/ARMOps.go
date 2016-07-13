@@ -101,16 +101,18 @@ func init() {
 	var (
 		gp01      = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
 		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11cf    = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+		gp11carry = regInfo{inputs: []regMask{gpg}, outputs: []regMask{flags, gp}}
 		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp1flags  = regInfo{inputs: []regMask{gpg}, outputs: []regMask{flags}}
 		gp1flags1 = regInfo{inputs: []regMask{gp, flags}, outputs: []regMask{gp}}
 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		gp21cf    = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+		gp21carry = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags, gp}}
 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags}}
 		gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
+		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
 		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gp31cf    = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+		gp31carry = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{flags, gp}}
 		gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{flags}}
 		gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp, flags}, outputs: []regMask{gp}}
 		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
@@ -144,19 +146,19 @@ func init() {
 		{name: "MOD", argLength: 2, reg: gp21cf, asm: "MOD"},                      // arg0 % arg1, signed
 		{name: "MODU", argLength: 2, reg: gp21cf, asm: "MODU"},                    // arg0 % arg1, unsigned
 
-		{name: "ADDS", argLength: 2, reg: gp21cf, asm: "ADD", commutative: true},   // arg0 + arg1, set carry flag
-		{name: "ADDSconst", argLength: 1, reg: gp11cf, asm: "ADD", aux: "Int32"},   // arg0 + auxInt, set carry flag
-		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true}, // arg0 + arg1 + carry, arg2=flags
-		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"}, // arg0 + auxInt + carry, arg1=flags
-		{name: "SUBS", argLength: 2, reg: gp21cf, asm: "SUB"},                      // arg0 - arg1, set carry flag
-		{name: "SUBSconst", argLength: 1, reg: gp11cf, asm: "SUB", aux: "Int32"},   // arg0 - auxInt, set carry flag
-		{name: "RSBSconst", argLength: 1, reg: gp11cf, asm: "RSB", aux: "Int32"},   // auxInt - arg0, set carry flag
-		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                    // arg0 - arg1 - carry, arg2=flags
-		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"}, // arg0 - auxInt - carry, arg1=flags
-		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"}, // auxInt - arg0 - carry, arg1=flags
+		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag
+		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"}, // arg0 + auxInt, set carry flag
+		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true},  // arg0 + arg1 + carry, arg2=flags
+		{name: "ADCconst", argLength: 2, reg: gp1flags1, asm: "ADC", aux: "Int32"},  // arg0 + auxInt + carry, arg1=flags
+		{name: "SUBS", argLength: 2, reg: gp21carry, asm: "SUB"},                    // arg0 - arg1, set carry flag
+		{name: "SUBSconst", argLength: 1, reg: gp11carry, asm: "SUB", aux: "Int32"}, // arg0 - auxInt, set carry flag
+		{name: "RSBSconst", argLength: 1, reg: gp11carry, asm: "RSB", aux: "Int32"}, // auxInt - arg0, set carry flag
+		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                     // arg0 - arg1 - carry, arg2=flags
+		{name: "SBCconst", argLength: 2, reg: gp1flags1, asm: "SBC", aux: "Int32"},  // arg0 - auxInt - carry, arg1=flags
+		{name: "RSCconst", argLength: 2, reg: gp1flags1, asm: "RSC", aux: "Int32"},  // auxInt - arg0 - carry, arg1=flags
 
-		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp &^ buildReg("R0")}, clobbers: buildReg("R0")}, asm: "MULLU", commutative: true}, // arg0 * arg1, results 64-bit, high 32-bit in R0
-		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                                                                                                                        // arg0 * arg1 + arg2
+		{name: "MULLU", argLength: 2, reg: gp22, asm: "MULLU", commutative: true}, // arg0 * arg1, high 32 bits in out0, low 32 bits in out1
+		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                      // arg0 * arg1 + arg2
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
@@ -225,15 +227,15 @@ func init() {
 		{name: "RSCshiftRL", argLength: 3, reg: gp2flags1, asm: "RSC", aux: "Int32"}, // arg1>>auxInt - arg0 - carry, unsigned shift, arg2=flags
 		{name: "RSCshiftRA", argLength: 3, reg: gp2flags1, asm: "RSC", aux: "Int32"}, // arg1>>auxInt - arg0 - carry, signed shift, arg2=flags
 
-		{name: "ADDSshiftLL", argLength: 2, reg: gp21cf, asm: "ADD", aux: "Int32"}, // arg0 + arg1<<auxInt, set carry flag
-		{name: "ADDSshiftRL", argLength: 2, reg: gp21cf, asm: "ADD", aux: "Int32"}, // arg0 + arg1>>auxInt, unsigned shift, set carry flag
-		{name: "ADDSshiftRA", argLength: 2, reg: gp21cf, asm: "ADD", aux: "Int32"}, // arg0 + arg1>>auxInt, signed shift, set carry flag
-		{name: "SUBSshiftLL", argLength: 2, reg: gp21cf, asm: "SUB", aux: "Int32"}, // arg0 - arg1<<auxInt, set carry flag
-		{name: "SUBSshiftRL", argLength: 2, reg: gp21cf, asm: "SUB", aux: "Int32"}, // arg0 - arg1>>auxInt, unsigned shift, set carry flag
-		{name: "SUBSshiftRA", argLength: 2, reg: gp21cf, asm: "SUB", aux: "Int32"}, // arg0 - arg1>>auxInt, signed shift, set carry flag
-		{name: "RSBSshiftLL", argLength: 2, reg: gp21cf, asm: "RSB", aux: "Int32"}, // arg1<<auxInt - arg0, set carry flag
-		{name: "RSBSshiftRL", argLength: 2, reg: gp21cf, asm: "RSB", aux: "Int32"}, // arg1>>auxInt - arg0, unsigned shift, set carry flag
-		{name: "RSBSshiftRA", argLength: 2, reg: gp21cf, asm: "RSB", aux: "Int32"}, // arg1>>auxInt - arg0, signed shift, set carry flag
+		{name: "ADDSshiftLL", argLength: 2, reg: gp21carry, asm: "ADD", aux: "Int32"}, // arg0 + arg1<<auxInt, set carry flag
+		{name: "ADDSshiftRL", argLength: 2, reg: gp21carry, asm: "ADD", aux: "Int32"}, // arg0 + arg1>>auxInt, unsigned shift, set carry flag
+		{name: "ADDSshiftRA", argLength: 2, reg: gp21carry, asm: "ADD", aux: "Int32"}, // arg0 + arg1>>auxInt, signed shift, set carry flag
+		{name: "SUBSshiftLL", argLength: 2, reg: gp21carry, asm: "SUB", aux: "Int32"}, // arg0 - arg1<<auxInt, set carry flag
+		{name: "SUBSshiftRL", argLength: 2, reg: gp21carry, asm: "SUB", aux: "Int32"}, // arg0 - arg1>>auxInt, unsigned shift, set carry flag
+		{name: "SUBSshiftRA", argLength: 2, reg: gp21carry, asm: "SUB", aux: "Int32"}, // arg0 - arg1>>auxInt, signed shift, set carry flag
+		{name: "RSBSshiftLL", argLength: 2, reg: gp21carry, asm: "RSB", aux: "Int32"}, // arg1<<auxInt - arg0, set carry flag
+		{name: "RSBSshiftRL", argLength: 2, reg: gp21carry, asm: "RSB", aux: "Int32"}, // arg1>>auxInt - arg0, unsigned shift, set carry flag
+		{name: "RSBSshiftRA", argLength: 2, reg: gp21carry, asm: "RSB", aux: "Int32"}, // arg1>>auxInt - arg0, signed shift, set carry flag
 
 		{name: "ADDshiftLLreg", argLength: 3, reg: gp31, asm: "ADD"}, // arg0 + arg1<<arg2
 		{name: "ADDshiftRLreg", argLength: 3, reg: gp31, asm: "ADD"}, // arg0 + arg1>>arg2, unsigned shift
@@ -270,15 +272,15 @@ func init() {
 		{name: "RSCshiftRLreg", argLength: 4, reg: gp3flags1, asm: "RSC"}, // arg1>>arg2 - arg0 - carry, unsigned shift, arg3=flags
 		{name: "RSCshiftRAreg", argLength: 4, reg: gp3flags1, asm: "RSC"}, // arg1>>arg2 - arg0 - carry, signed shift, arg3=flags
 
-		{name: "ADDSshiftLLreg", argLength: 3, reg: gp31cf, asm: "ADD"}, // arg0 + arg1<<arg2, set carry flag
-		{name: "ADDSshiftRLreg", argLength: 3, reg: gp31cf, asm: "ADD"}, // arg0 + arg1>>arg2, unsigned shift, set carry flag
-		{name: "ADDSshiftRAreg", argLength: 3, reg: gp31cf, asm: "ADD"}, // arg0 + arg1>>arg2, signed shift, set carry flag
-		{name: "SUBSshiftLLreg", argLength: 3, reg: gp31cf, asm: "SUB"}, // arg0 - arg1<<arg2, set carry flag
-		{name: "SUBSshiftRLreg", argLength: 3, reg: gp31cf, asm: "SUB"}, // arg0 - arg1>>arg2, unsigned shift, set carry flag
-		{name: "SUBSshiftRAreg", argLength: 3, reg: gp31cf, asm: "SUB"}, // arg0 - arg1>>arg2, signed shift, set carry flag
-		{name: "RSBSshiftLLreg", argLength: 3, reg: gp31cf, asm: "RSB"}, // arg1<<arg2 - arg0, set carry flag
-		{name: "RSBSshiftRLreg", argLength: 3, reg: gp31cf, asm: "RSB"}, // arg1>>arg2 - arg0, unsigned shift, set carry flag
-		{name: "RSBSshiftRAreg", argLength: 3, reg: gp31cf, asm: "RSB"}, // arg1>>arg2 - arg0, signed shift, set carry flag
+		{name: "ADDSshiftLLreg", argLength: 3, reg: gp31carry, asm: "ADD"}, // arg0 + arg1<<arg2, set carry flag
+		{name: "ADDSshiftRLreg", argLength: 3, reg: gp31carry, asm: "ADD"}, // arg0 + arg1>>arg2, unsigned shift, set carry flag
+		{name: "ADDSshiftRAreg", argLength: 3, reg: gp31carry, asm: "ADD"}, // arg0 + arg1>>arg2, signed shift, set carry flag
+		{name: "SUBSshiftLLreg", argLength: 3, reg: gp31carry, asm: "SUB"}, // arg0 - arg1<<arg2, set carry flag
+		{name: "SUBSshiftRLreg", argLength: 3, reg: gp31carry, asm: "SUB"}, // arg0 - arg1>>arg2, unsigned shift, set carry flag
+		{name: "SUBSshiftRAreg", argLength: 3, reg: gp31carry, asm: "SUB"}, // arg0 - arg1>>arg2, signed shift, set carry flag
+		{name: "RSBSshiftLLreg", argLength: 3, reg: gp31carry, asm: "RSB"}, // arg1<<arg2 - arg0, set carry flag
+		{name: "RSBSshiftRLreg", argLength: 3, reg: gp31carry, asm: "RSB"}, // arg1>>arg2 - arg0, unsigned shift, set carry flag
+		{name: "RSBSshiftRAreg", argLength: 3, reg: gp31carry, asm: "RSB"}, // arg1>>arg2 - arg0, signed shift, set carry flag
 
 		// comparisons
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                    // arg0 compare to arg1
@@ -376,10 +378,6 @@ func init() {
 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
-
-		{name: "Carry", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{flags}}, typ: "Flags"},               // flags of a (Flags,UInt32)
-		{name: "LoweredSelect0", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{buildReg("R0")}}},           // the first component of a tuple, implicitly in R0, arg0=tuple
-		{name: "LoweredSelect1", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true}, // the second component of a tuple, arg0=tuple
 
 		// duffzero (must be 4-byte aligned)
 		// arg0 = address of memory to zero (in R1, changed as side effect)

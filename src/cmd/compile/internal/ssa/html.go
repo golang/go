@@ -359,7 +359,7 @@ func (v *Value) LongHTML() string {
 	}
 	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
-		s += " : " + r[v.ID].Name()
+		s += " : " + html.EscapeString(r[v.ID].Name())
 	}
 	s += "</span>"
 	return s

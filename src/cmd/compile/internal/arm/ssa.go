@@ -278,7 +278,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = r
 	case ssa.OpARMADDS,
 		ssa.OpARMSUBS:
-		r := gc.SSARegNum(v)
+		r := gc.SSARegNum1(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
 		p := gc.Prog(v.Op.Asm())
@@ -351,7 +351,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = gc.SSARegNum1(v)
 	case ssa.OpARMSRRconst:
 		genshift(arm.AMOVW, 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_RR, v.AuxInt)
 	case ssa.OpARMADDshiftLL,
@@ -368,7 +368,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMADDSshiftLL,
 		ssa.OpARMSUBSshiftLL,
 		ssa.OpARMRSBSshiftLL:
-		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
+		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum1(v), arm.SHIFT_LL, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRL,
 		ssa.OpARMADCshiftRL,
@@ -384,7 +384,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMADDSshiftRL,
 		ssa.OpARMSUBSshiftRL,
 		ssa.OpARMRSBSshiftRL:
-		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_LR, v.AuxInt)
+		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum1(v), arm.SHIFT_LR, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRA,
 		ssa.OpARMADCshiftRA,
@@ -400,7 +400,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMADDSshiftRA,
 		ssa.OpARMSUBSshiftRA,
 		ssa.OpARMRSBSshiftRA:
-		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_AR, v.AuxInt)
+		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum1(v), arm.SHIFT_AR, v.AuxInt)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMMVNshiftLL:
 		genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
@@ -428,7 +428,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMADDSshiftLLreg,
 		ssa.OpARMSUBSshiftLLreg,
 		ssa.OpARMRSBSshiftLLreg:
-		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_LL)
+		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum1(v), arm.SHIFT_LL)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRLreg,
 		ssa.OpARMADCshiftRLreg,
@@ -444,7 +444,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMADDSshiftRLreg,
 		ssa.OpARMSUBSshiftRLreg,
 		ssa.OpARMRSBSshiftRLreg:
-		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_LR)
+		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum1(v), arm.SHIFT_LR)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMADDshiftRAreg,
 		ssa.OpARMADCshiftRAreg,
@@ -460,7 +460,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARMADDSshiftRAreg,
 		ssa.OpARMSUBSshiftRAreg,
 		ssa.OpARMRSBSshiftRAreg:
-		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum(v), arm.SHIFT_AR)
+		p := genregshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v.Args[2]), gc.SSARegNum1(v), arm.SHIFT_AR)
 		p.Scond = arm.C_SBIT
 	case ssa.OpARMHMUL,
 		ssa.OpARMHMULU:
@@ -473,14 +473,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = gc.SSARegNum(v)
 		p.To.Offset = arm.REGTMP // throw away low 32-bit into tmp register
 	case ssa.OpARMMULLU:
-		// 32-bit multiplication, results 64-bit, low 32-bit in reg(v), high 32-bit in R0
+		// 32-bit multiplication, results 64-bit, high 32-bit in out0, low 32-bit in out1
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.Reg = gc.SSARegNum(v.Args[1])
 		p.To.Type = obj.TYPE_REGREG
-		p.To.Reg = arm.REG_R0                // high 32-bit
-		p.To.Offset = int64(gc.SSARegNum(v)) // low 32-bit
+		p.To.Reg = gc.SSARegNum0(v)           // high 32-bit
+		p.To.Offset = int64(gc.SSARegNum1(v)) // low 32-bit
 	case ssa.OpARMMULA:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -928,9 +928,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = 1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.OpARMCarry,
-		ssa.OpARMLoweredSelect0,
-		ssa.OpARMLoweredSelect1:
+	case ssa.OpSelect0, ssa.OpSelect1:
 		// nothing to do
 	case ssa.OpARMLoweredGetClosurePtr:
 		// Closure pointer is R7 (arm.REGCTXT).

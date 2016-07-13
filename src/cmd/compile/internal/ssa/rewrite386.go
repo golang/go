@@ -22,6 +22,10 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpAdd32(v, config)
 	case OpAdd32F:
 		return rewriteValue386_OpAdd32F(v, config)
+	case OpAdd32carry:
+		return rewriteValue386_OpAdd32carry(v, config)
+	case OpAdd32withcarry:
+		return rewriteValue386_OpAdd32withcarry(v, config)
 	case OpAdd64F:
 		return rewriteValue386_OpAdd64F(v, config)
 	case OpAdd8:
@@ -1113,6 +1117,38 @@ func rewriteValue386_OpAdd32F(v *Value, config *Config) bool {
 		v.reset(Op386ADDSS)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd32carry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32carry x y)
+	// cond:
+	// result: (ADDLcarry x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386ADDLcarry)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpAdd32withcarry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32withcarry x y c)
+	// cond:
+	// result: (ADCL x y c)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		c := v.Args[2]
+		v.reset(Op386ADCL)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(c)
 		return true
 	}
 }

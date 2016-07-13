@@ -654,10 +654,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
 		return rewriteValueARM_OpARMSUBshiftRL(v, config)
 	case OpARMSUBshiftRLreg:
 		return rewriteValueARM_OpARMSUBshiftRLreg(v, config)
-	case OpSelect0:
-		return rewriteValueARM_OpSelect0(v, config)
-	case OpSelect1:
-		return rewriteValueARM_OpSelect1(v, config)
 	case OpSignExt16to32:
 		return rewriteValueARM_OpSignExt16to32(v, config)
 	case OpSignExt8to16:
@@ -15553,50 +15549,6 @@ func rewriteValueARM_OpARMSUBshiftRLreg(v *Value, config *Config) bool {
 		return true
 	}
 	return false
-}
-func rewriteValueARM_OpSelect0(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Select0 <t> x)
-	// cond: t.IsFlags()
-	// result: (Carry x)
-	for {
-		t := v.Type
-		x := v.Args[0]
-		if !(t.IsFlags()) {
-			break
-		}
-		v.reset(OpARMCarry)
-		v.AddArg(x)
-		return true
-	}
-	// match: (Select0 <t> x)
-	// cond: !t.IsFlags()
-	// result: (LoweredSelect0 x)
-	for {
-		t := v.Type
-		x := v.Args[0]
-		if !(!t.IsFlags()) {
-			break
-		}
-		v.reset(OpARMLoweredSelect0)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueARM_OpSelect1(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Select1 x)
-	// cond:
-	// result: (LoweredSelect1 x)
-	for {
-		x := v.Args[0]
-		v.reset(OpARMLoweredSelect1)
-		v.AddArg(x)
-		return true
-	}
 }
 func rewriteValueARM_OpSignExt16to32(v *Value, config *Config) bool {
 	b := v.Block
