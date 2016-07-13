@@ -1120,7 +1120,6 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		ODOTMETH,
 		// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
 		// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
-		ODOTTYPE2,
 		OSLICE,
 		OSLICE3,
 		OSLICEARR,
@@ -1129,7 +1128,8 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		// Conversions, field access, slice all preserve the input value.
 		escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 
-	case ODOTTYPE:
+	case ODOTTYPE,
+		ODOTTYPE2:
 		if src.Type != nil && !haspointers(src.Type) {
 			break
 		}
