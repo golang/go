@@ -92,8 +92,10 @@ func dnsReadConfig(filename string) *dnsConfig {
 				switch {
 				case hasPrefix(s, "ndots:"):
 					n, _, _ := dtoi(s[6:])
-					if n < 1 {
-						n = 1
+					if n < 0 {
+						n = 0
+					} else if n > 15 {
+						n = 15
 					}
 					conf.ndots = n
 				case hasPrefix(s, "timeout:"):
