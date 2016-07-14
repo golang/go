@@ -32,13 +32,13 @@ TEXT runtime∕internal∕atomic·Loaduint(SB), NOSPLIT, $0-8
 TEXT runtime∕internal∕atomic·Storeuintptr(SB), NOSPLIT, $0-8
 	JMP	runtime∕internal∕atomic·Store(SB)
 
-TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-8
+TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-12
 	JMP runtime∕internal∕atomic·Xadd(SB)
 
-TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
+TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-12
 	JMP runtime∕internal∕atomic·Load64(SB)
 
-TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-16
+TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-20
 	JMP runtime∕internal∕atomic·Xadd64(SB)
 
 
