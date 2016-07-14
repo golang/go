@@ -47,24 +47,25 @@ func f2(b bool) {
 }
 
 func f3(b1, b2 bool) {
-	// Because x and y are ambiguously live, they appear
-	// live throughout the function, to avoid being poisoned
-	// in GODEBUG=gcdead=1 mode.
+	// Here x and y are ambiguously live. In previous go versions they
+	// were marked as live throughout the function to avoid being
+	// poisoned in GODEBUG=gcdead=1 mode; this is now no longer the
+	// case.
 
-	printint(0) // ERROR "live at call to printint: x y$"
+	printint(0)
 	if b1 == false {
-		printint(0) // ERROR "live at call to printint: x y$"
+		printint(0)
 		return
 	}
 
 	if b2 {
 		var x *int
-		printpointer(&x) // ERROR "live at call to printpointer: x y$"
-		printpointer(&x) // ERROR "live at call to printpointer: x y$"
+		printpointer(&x) // ERROR "live at call to printpointer: x$"
+		printpointer(&x) // ERROR "live at call to printpointer: x$"
 	} else {
 		var y *int
-		printpointer(&y) // ERROR "live at call to printpointer: x y$"
-		printpointer(&y) // ERROR "live at call to printpointer: x y$"
+		printpointer(&y) // ERROR "live at call to printpointer: y$"
+		printpointer(&y) // ERROR "live at call to printpointer: y$"
 	}
 	printint(0) // ERROR "f3: x \(type \*int\) is ambiguously live$" "f3: y \(type \*int\) is ambiguously live$" "live at call to printint: x y$"
 }

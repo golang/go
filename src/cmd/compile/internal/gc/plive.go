@@ -1188,17 +1188,18 @@ func livenessepilogue(lv *Liveness) {
 	avarinit := bvalloc(nvars)
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
-	ambig := bvalloc(localswords())
+	pparamout := bvalloc(localswords())
 
-	// Set ambig bit for the pointers to heap-allocated pparamout variables.
-	// These are implicitly read by post-deferreturn code and thus must be
-	// kept live throughout the function (if there is any defer that recovers).
+	// Record pointers to heap-allocated pparamout variables.  These
+	// are implicitly read by post-deferreturn code and thus must be
+	// kept live throughout the function (if there is any defer that
+	// recovers).
 	if hasdefer {
 		for _, n := range lv.vars {
 			if n.IsOutputParamHeapAddr() {
 				n.Name.Needzero = true
 				xoffset := n.Xoffset + stkptrsize
-				onebitwalktype1(n.Type, &xoffset, ambig)
+				onebitwalktype1(n.Type, &xoffset, pparamout)
 			}
 		}
 	}
@@ -1250,11 +1251,6 @@ func livenessepilogue(lv *Liveness) {
 							if debuglive >= 1 {
 								Warnl(p.Lineno, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
 							}
-
-							// Record in 'ambiguous' bitmap.
-							xoffset := n.Xoffset + stkptrsize
-
-							onebitwalktype1(n.Type, &xoffset, ambig)
 						}
 					}
 				}
@@ -1355,11 +1351,9 @@ func livenessepilogue(lv *Liveness) {
 				locals := lv.livepointers[pos]
 				onebitlivepointermap(lv, liveout, lv.vars, args, locals)
 
-				// Ambiguously live variables are zeroed immediately after
-				// function entry. Mark them live for all the non-entry bitmaps
-				// so that GODEBUG=gcdead=1 mode does not poison them.
+				// Mark pparamout variables (as described above)
 				if p.As == obj.ACALL {
-					bvor(locals, locals, ambig)
+					bvor(locals, locals, pparamout)
 				}
 
 				// Show live pointer bitmaps.
