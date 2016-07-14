@@ -7,8 +7,10 @@ package rename
 import (
 	"fmt"
 	"go/build"
+	"go/token"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -112,9 +114,10 @@ var _ foo.T
 
 func TestMoves(t *testing.T) {
 	tests := []struct {
-		ctxt     *build.Context
-		from, to string
-		want     map[string]string
+		ctxt         *build.Context
+		from, to     string
+		want         map[string]string
+		wantWarnings []string
 	}{
 		// Simple example.
 		{
@@ -267,6 +270,77 @@ var _ bar.T
 /* import " this is not an import comment */
 `},
 		},
+		// Import name conflict generates a warning, not an error.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"x": {},
+				"a": {`package a; type A int`},
+				"b": {`package b; type B int`},
+				"conflict": {`package conflict
+
+import "a"
+import "b"
+var _ a.A
+var _ b.B
+`},
+				"ok": {`package ok
+import "b"
+var _ b.B
+`},
+			}),
+			from: "b", to: "x/a",
+			want: map[string]string{
+				"/go/src/a/0.go": `package a; type A int`,
+				"/go/src/ok/0.go": `package ok
+
+import "x/a"
+
+var _ a.B
+`,
+				"/go/src/conflict/0.go": `package conflict
+
+import "a"
+import "x/a"
+
+var _ a.A
+var _ b.B
+`,
+				"/go/src/x/a/0.go": `package a
+
+type B int
+`,
+			},
+			wantWarnings: []string{
+				`/go/src/conflict/0.go:4:8: renaming this imported package name "b" to "a"`,
+				`/go/src/conflict/0.go:3:8: 	conflicts with imported package name in same block`,
+				`/go/src/conflict/0.go:3:8: skipping update of this file`,
+			},
+		},
+		// Rename with same base name.
+		{
+			ctxt: fakeContext(map[string][]string{
+				"x": {},
+				"y": {},
+				"x/foo": {`package foo
+
+type T int
+`},
+				"main": {`package main; import "x/foo"; var _ foo.T`},
+			}),
+			from: "x/foo", to: "y/foo",
+			want: map[string]string{
+				"/go/src/y/foo/0.go": `package foo
+
+type T int
+`,
+				"/go/src/main/0.go": `package main
+
+import "y/foo"
+
+var _ foo.T
+`,
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -296,6 +370,10 @@ var _ bar.T
 			}
 			got[path] = string(bytes)
 		})
+		var warnings []string
+		reportError = func(posn token.Position, message string) {
+			warnings = append(warnings, posn.String()+": "+message)
+		}
 		writeFile = func(filename string, content []byte) error {
 			got[filename] = string(content)
 			return nil
@@ -316,6 +394,13 @@ var _ bar.T
 		if err != nil {
 			t.Errorf("%s: unexpected error: %s", prefix, err)
 			continue
+		}
+
+		if !reflect.DeepEqual(warnings, test.wantWarnings) {
+			t.Errorf("%s: unexpected warnings:\n%s\nwant:\n%s",
+				prefix,
+				strings.Join(warnings, "\n"),
+				strings.Join(test.wantWarnings, "\n"))
 		}
 
 		for file, wantContent := range test.want {

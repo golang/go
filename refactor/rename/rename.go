@@ -174,11 +174,13 @@ var reportError = func(posn token.Position, message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", posn, message)
 }
 
-// importName renames imports of the package with the given path in
-// the given package.  If fromName is not empty, only imports as
-// fromName will be renamed.  If the renaming would lead to a conflict,
-// the file is left unchanged.
+// importName renames imports of fromPath within the package specified by info.
+// If fromName is not empty, importName renames only imports as fromName.
+// If the renaming would lead to a conflict, the file is left unchanged.
 func importName(iprog *loader.Program, info *loader.PackageInfo, fromPath, fromName, to string) error {
+	if fromName == to {
+		return nil // no-op (e.g. rename x/foo to y/foo)
+	}
 	for _, f := range info.Files {
 		var from types.Object
 		for _, imp := range f.Imports {
@@ -203,6 +205,8 @@ func importName(iprog *loader.Program, info *loader.PackageInfo, fromPath, fromN
 		}
 		r.check(from)
 		if r.hadConflicts {
+			reportError(iprog.Fset.Position(f.Imports[0].Pos()),
+				"skipping update of this file")
 			continue // ignore errors; leave the existing name
 		}
 		if err := r.update(); err != nil {
