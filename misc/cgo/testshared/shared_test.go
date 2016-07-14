@@ -43,7 +43,7 @@ func run(t *testing.T, msg string, args ...string) {
 }
 
 // goCmd invokes the go tool with the installsuffix set up by TestMain. It calls
-// t.Errorf if the command fails.
+// t.Fatalf if the command fails.
 func goCmd(t *testing.T, args ...string) {
 	newargs := []string{args[0], "-installsuffix=" + suffix}
 	if testing.Verbose() {
@@ -63,7 +63,7 @@ func goCmd(t *testing.T, args ...string) {
 	}
 	if err != nil {
 		if t != nil {
-			t.Errorf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
+			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
 		} else {
 			log.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, output)
 		}

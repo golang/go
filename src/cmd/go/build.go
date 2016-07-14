@@ -431,10 +431,13 @@ func buildModeInit() {
 			buildAsmflags = append(buildAsmflags, codegenArg)
 			buildGcflags = append(buildGcflags, codegenArg)
 		}
-		if buildContext.InstallSuffix != "" {
-			buildContext.InstallSuffix += "_"
+		// Don't alter InstallSuffix when modifying default codegen args.
+		if buildBuildmode != "default" || buildLinkshared {
+			if buildContext.InstallSuffix != "" {
+				buildContext.InstallSuffix += "_"
+			}
+			buildContext.InstallSuffix += codegenArg[1:]
 		}
-		buildContext.InstallSuffix += codegenArg[1:]
 	}
 }
 
