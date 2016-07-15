@@ -28,6 +28,8 @@ references to package lib
 	var v lib.Type = lib.Const // @referrers ref-package "lib"
 	var v lib.Type = lib.Const // @referrers ref-package "lib"
 	var x lib.T           // @definition lexical-pkgname "lib"
+type _ lib.T
+var _ lib.Var // @what pkg "lib"
 
 -------- @referrers ref-method --------
 references to func (Type).Method(x *int) *int

@@ -113,6 +113,19 @@
 		}
 	]
 }
+{
+	"package": "what-json",
+	"refs": [
+		{
+			"pos": "testdata/src/what-json/main.go:13:7",
+			"text": "var _ lib.Var // @what pkg \"lib\""
+		},
+		{
+			"pos": "testdata/src/what-json/main.go:14:8",
+			"text": "type _ lib.T"
+		}
+	]
+}
 -------- @referrers ref-method --------
 {
 	"objpos": "testdata/src/lib/lib.go:5:13",

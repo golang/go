@@ -117,15 +117,35 @@ func what(q *Query) error {
 	// it uses the best-effort name resolution done by go/parser.
 	var sameids []token.Pos
 	var object string
-	if id, ok := qpos.path[0].(*ast.Ident); ok && id.Obj != nil {
-		object = id.Obj.Name
-		decl := qpos.path[len(qpos.path)-1]
-		ast.Inspect(decl, func(n ast.Node) bool {
-			if n, ok := n.(*ast.Ident); ok && n.Obj == id.Obj {
-				sameids = append(sameids, n.Pos())
+	if id, ok := qpos.path[0].(*ast.Ident); ok {
+		if id.Obj == nil {
+			// An unresolved identifier is potentially a package name.
+			// Resolve them with a simple importer (adds ~100µs).
+			importer := func(imports map[string]*ast.Object, path string) (*ast.Object, error) {
+				pkg, ok := imports[path]
+				if !ok {
+					pkg = &ast.Object{
+						Kind: ast.Pkg,
+						Name: filepath.Base(path), // a guess
+					}
+					imports[path] = pkg
+				}
+				return pkg, nil
 			}
-			return true
-		})
+			f := qpos.path[len(qpos.path)-1].(*ast.File)
+			ast.NewPackage(qpos.fset, map[string]*ast.File{"": f}, importer, nil)
+		}
+
+		if id.Obj != nil {
+			object = id.Obj.Name
+			decl := qpos.path[len(qpos.path)-1]
+			ast.Inspect(decl, func(n ast.Node) bool {
+				if n, ok := n.(*ast.Ident); ok && n.Obj == id.Obj {
+					sameids = append(sameids, n.Pos())
+				}
+				return true
+			})
+		}
 	}
 
 	q.Output(qpos.fset, &whatResult{
