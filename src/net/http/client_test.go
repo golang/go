@@ -313,8 +313,8 @@ func TestClientRedirectContext(t *testing.T) {
 	if !ok {
 		t.Fatalf("got error %T; want *url.Error", err)
 	}
-	if ue.Err != ExportErrRequestCanceled && ue.Err != ExportErrRequestCanceledConn {
-		t.Errorf("url.Error.Err = %v; want errRequestCanceled or errRequestCanceledConn", ue.Err)
+	if ue.Err != context.Canceled {
+		t.Errorf("url.Error.Err = %v; want %v", ue.Err, context.Canceled)
 	}
 }
 

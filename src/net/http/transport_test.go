@@ -1718,8 +1718,17 @@ func testCancelRequestWithChannelBeforeDo(t *testing.T, withCtx bool) {
 	}
 
 	_, err := c.Do(req)
-	if err == nil || !strings.Contains(err.Error(), "canceled") {
-		t.Errorf("Do error = %v; want cancelation", err)
+	if ue, ok := err.(*url.Error); ok {
+		err = ue.Err
+	}
+	if withCtx {
+		if err != context.Canceled {
+			t.Errorf("Do error = %v; want %v", err, context.Canceled)
+		}
+	} else {
+		if err == nil || !strings.Contains(err.Error(), "canceled") {
+			t.Errorf("Do error = %v; want cancelation", err)
+		}
 	}
 }
 
