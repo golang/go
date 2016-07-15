@@ -5,6 +5,8 @@
 package imports
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -311,10 +313,47 @@ var visitedSymlinks struct {
 	m map[string]struct{}
 }
 
+var ignoredDirs []os.FileInfo
+
+// populateIgnoredDirs reads an optional config file at <path>/.goimportsignore
+// of relative directories to ignore when scanning for go files.
+// The provided path is one of the $GOPATH entries with "src" appended.
+func populateIgnoredDirs(path string) {
+	slurp, err := ioutil.ReadFile(filepath.Join(path, ".goimportsignore"))
+	if err != nil {
+		return
+	}
+	bs := bufio.NewScanner(bytes.NewReader(slurp))
+	for bs.Scan() {
+		line := strings.TrimSpace(bs.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if fi, err := os.Stat(filepath.Join(path, line)); err == nil {
+			ignoredDirs = append(ignoredDirs, fi)
+		}
+	}
+}
+
+func skipDir(fi os.FileInfo) bool {
+	for _, ignoredDir := range ignoredDirs {
+		if os.SameFile(fi, ignoredDir) {
+			return true
+		}
+	}
+	return false
+}
+
 // shouldTraverse checks if fi, found in dir, is a directory or a symlink to a directory.
 // It makes sure symlinks were never visited before to avoid symlink loops.
 func shouldTraverse(dir string, fi os.FileInfo) bool {
 	if fi.IsDir() {
+		if skipDir(fi) {
+			if Debug {
+				log.Printf("skipping directory %q under %s", fi.Name(), dir)
+			}
+			return false
+		}
 		return true
 	}
 
@@ -381,6 +420,9 @@ func scanGoDirs(goRoot bool) {
 		isGoroot := path == filepath.Join(build.Default.GOROOT, "src")
 		if isGoroot != goRoot {
 			continue
+		}
+		if !goRoot {
+			populateIgnoredDirs(path)
 		}
 		fsgate.enter()
 		testHookScanDir(path)
@@ -554,7 +596,7 @@ func loadExportsGoPath(expectPackage, dir string) map[string]bool {
 			exportList = append(exportList, k)
 		}
 		sort.Strings(exportList)
-		log.Printf("scanned dir %v (package %v): exports = %v", dir, expectPackage, strings.Join(exportList, ", "))
+		log.Printf("loaded exports in dir %v (package %v): %v", dir, expectPackage, strings.Join(exportList, ", "))
 	}
 	return exports
 }

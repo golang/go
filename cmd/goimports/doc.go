@@ -27,6 +27,18 @@ For GoSublime, follow the steps described here:
 
 For other editors, you probably know what to do.
 
+To exclude directories in your $GOPATH from being scanned for Go
+files, goimports respects a configuration file at
+$GOPATH/src/.goimportsignore which may contain blank lines, comment
+lines (beginning with '#'), or lines naming a directory relative to
+the configuration file to ignore when scanning. No globbing or regex
+patterns are allowed. Use the "-v" verbose flag to verify it's
+working and see what goimports is doing.
+
+File bugs or feature requests at:
+
+    https://golang.org/issues/new?title=x/tools/cmd/goimports:+
+
 Happy hacking!
 
 */

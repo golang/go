@@ -985,6 +985,7 @@ func withEmptyGoPath(fn func()) {
 	scanGoRootOnce = &sync.Once{}
 	scanGoPathOnce = &sync.Once{}
 	dirScan = nil
+	ignoredDirs = nil
 	dirScanMu.Unlock()
 
 	oldGOPATH := build.Default.GOPATH
@@ -1300,6 +1301,26 @@ func TestImportPathToNameGoPathParse(t *testing.T) {
 		const want = "the_pkg_name_to_find"
 		if got != want {
 			t.Errorf("importPathToNameGoPathParse(..) = %q; want %q", got, want)
+		}
+	})
+}
+
+func TestIgnoreConfiguration(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			".goimportsignore":                                     "# comment line\n\n example.net", // tests comment, blank line, whitespace trimming
+			"example.net/pkg/pkg.go":                               "package pkg\nconst X = 1",
+			"otherwise-longer-so-worse.example.net/foo/pkg/pkg.go": "package pkg\nconst X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst _ = pkg.X\n"
+		const want = "package x\n\nimport \"otherwise-longer-so-worse.example.net/foo/pkg\"\n\nconst _ = pkg.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
 		}
 	})
 }
