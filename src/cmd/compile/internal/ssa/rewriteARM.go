@@ -8804,6 +8804,18 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value, config *Config) bool {
 func rewriteValueARM_OpARMMOVWreg(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (MOVWreg x)
+	// cond: x.Uses == 1
+	// result: (MOVWnop x)
+	for {
+		x := v.Args[0]
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpARMMOVWnop)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWreg (MOVWconst [c]))
 	// cond:
 	// result: (MOVWconst [c])

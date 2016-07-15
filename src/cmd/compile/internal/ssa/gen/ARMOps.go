@@ -344,6 +344,8 @@ func init() {
 		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
 		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0
 
+		{name: "MOVWnop", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true}, // nop, return arg0 in same register
+
 		{name: "MOVWF", argLength: 1, reg: gpfp, asm: "MOVWF"},  // int32 -> float32
 		{name: "MOVWD", argLength: 1, reg: gpfp, asm: "MOVWD"},  // int32 -> float64
 		{name: "MOVWUF", argLength: 1, reg: gpfp, asm: "MOVWF"}, // uint32 -> float32, set U bit in the instruction
