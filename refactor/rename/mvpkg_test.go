@@ -376,7 +376,13 @@ var _ foo.T
 		})
 		var warnings []string
 		reportError = func(posn token.Position, message string) {
-			warnings = append(warnings, posn.String()+": "+message)
+			warning := fmt.Sprintf("%s:%d:%d: %s",
+				filepath.ToSlash(posn.Filename), // for MS Windows
+				posn.Line,
+				posn.Column,
+				message)
+			warnings = append(warnings, warning)
+
 		}
 		writeFile = func(filename string, content []byte) error {
 			got[filename] = string(content)
