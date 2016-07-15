@@ -11,6 +11,7 @@ import (
 	"go/scanner"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,10 +23,11 @@ import (
 
 var (
 	// main operation modes
-	list   = flag.Bool("l", false, "list files whose formatting differs from goimport's")
-	write  = flag.Bool("w", false, "write result to (source) file instead of stdout")
-	doDiff = flag.Bool("d", false, "display diffs instead of rewriting files")
-	srcdir = flag.String("srcdir", "", "choose imports as if source code is from `dir`")
+	list    = flag.Bool("l", false, "list files whose formatting differs from goimport's")
+	write   = flag.Bool("w", false, "write result to (source) file instead of stdout")
+	doDiff  = flag.Bool("d", false, "display diffs instead of rewriting files")
+	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`")
+	verbose = flag.Bool("v", false, "verbose logging")
 
 	options = &imports.Options{
 		TabWidth:  8,
@@ -154,6 +156,10 @@ func gofmtMain() {
 	flag.Usage = usage
 	paths := parseFlags()
 
+	if *verbose {
+		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+		imports.Debug = true
+	}
 	if options.TabWidth < 0 {
 		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", options.TabWidth)
 		exitCode = 2
