@@ -520,6 +520,10 @@
 (MOVHstore [off] {sym} ptr (MOVHreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 (MOVHstore [off] {sym} ptr (MOVHUreg x) mem) -> (MOVHstore [off] {sym} ptr x mem)
 
+// if a register move has only 1 use, just use the same register without emitting instruction
+// MOVWnop doesn't emit instruction, only for ensuring the type.
+(MOVWreg x) && x.Uses == 1 -> (MOVWnop x)
+
 // mul by constant
 (MUL x (MOVWconst [c])) && int32(c) == -1 -> (RSBconst [0] x)
 (MUL _ (MOVWconst [0])) -> (MOVWconst [0])

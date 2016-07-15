@@ -194,6 +194,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
+	case ssa.OpARMMOVWnop:
+		if gc.SSARegNum(v) != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Unimplementedf("load flags not implemented: %v", v.LongString())
@@ -636,7 +641,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMMOVHreg,
 		ssa.OpARMMOVHUreg:
 		a := v.Args[0]
-		for a.Op == ssa.OpCopy || a.Op == ssa.OpARMMOVWreg {
+		for a.Op == ssa.OpCopy || a.Op == ssa.OpARMMOVWreg || a.Op == ssa.OpARMMOVWnop {
 			a = a.Args[0]
 		}
 		if a.Op == ssa.OpLoadReg {
