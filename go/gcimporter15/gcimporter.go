@@ -175,7 +175,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 		data, err = ioutil.ReadAll(buf)
 		if err == nil {
 			fset := token.NewFileSet()
-			_, pkg, err = BImportData(fset, packages, data, path)
+			_, pkg, err = BImportData(fset, packages, data, id)
 			return
 		}
 	default:
