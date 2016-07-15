@@ -187,29 +187,72 @@ func importPathToNameGoPath(importPath, srcDir string) (packageName string) {
 		return pkg
 	}
 
-	// TODO(bradfitz): build.Import does too much work, and
-	// doesn't cache either in-process or long-lived (anything
-	// found in the first pass from explicit imports aren't used
-	// again when scanning all directories). Also, it opens+reads
-	// *_test.go files too. As a baby step, use a cheaper
-	// mechanism to start (build.FindOnly), and then just read a
-	// single file (like parser.ParseFile in loadExportsGoPath) and
-	// skip only "documentation" but otherwise trust the first matching
-	// file's package name.
+	pkgName, err := importPathToNameGoPathParse(importPath, srcDir)
 	if Debug {
-		log.Printf("build.Import(ip=%q, srcDir=%q) ...", importPath, srcDir)
+		log.Printf("importPathToNameGoPathParse(%q, srcDir=%q) = %q, %v", importPath, srcDir, pkgName, err)
 	}
-	if buildPkg, err := build.Import(importPath, srcDir, 0); err == nil {
-		if Debug {
-			log.Printf("build.Import(%q, srcDir=%q) = %q", importPath, srcDir, buildPkg.Name)
-		}
-		return buildPkg.Name
-	} else {
-		if Debug {
-			log.Printf("build.Import(%q, srcDir=%q) error: %v", importPath, srcDir, err)
-		}
-		return importPathToNameBasic(importPath, srcDir)
+	if err == nil {
+		return pkgName
 	}
+	return importPathToNameBasic(importPath, srcDir)
+}
+
+// importPathToNameGoPathParse is a faster version of build.Import if
+// the only thing desired is the package name. It uses build.FindOnly
+// to find the directory and then only parses one file in the package,
+// trusting that the files in the directory are consistent.
+func importPathToNameGoPathParse(importPath, srcDir string) (packageName string, err error) {
+	buildPkg, err := build.Import(importPath, srcDir, build.FindOnly)
+	if err != nil {
+		return "", err
+	}
+	d, err := os.Open(buildPkg.Dir)
+	if err != nil {
+		return "", err
+	}
+	names, err := d.Readdirnames(-1)
+	d.Close()
+	if err != nil {
+		return "", err
+	}
+	sort.Strings(names) // to have predictable behavior
+	var lastErr error
+	var nfile int
+	for _, name := range names {
+		if !strings.HasSuffix(name, ".go") {
+			continue
+		}
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		nfile++
+		fullFile := filepath.Join(buildPkg.Dir, name)
+
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, fullFile, nil, parser.PackageClauseOnly)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		pkgName := f.Name.Name
+		if pkgName == "documentation" {
+			// Special case from go/build.ImportDir, not
+			// handled by ctx.MatchFile.
+			continue
+		}
+		if pkgName == "main" {
+			// Also skip package main, assuming it's a
+			// +build ignore generator or example. Since
+			// you can't import a package main anyway,
+			// there's no harm here.
+			continue
+		}
+		return pkgName, nil
+	}
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", fmt.Errorf("no importable package found in %d Go files", nfile)
 }
 
 var stdImportPackage = map[string]string{} // "net/http" => "http"

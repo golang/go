@@ -1280,6 +1280,30 @@ func TestIgnoreDocumentationPackage(t *testing.T) {
 	})
 }
 
+// Tests importPathToNameGoPathParse and in particular that it stops
+// after finding the first non-documentation package name, not
+// reporting an error on inconsistent package names (since it should
+// never make it that far).
+func TestImportPathToNameGoPathParse(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"example.net/pkg/doc.go": "package documentation\n", // ignored
+			"example.net/pkg/gen.go": "package main\n",          // also ignored
+			"example.net/pkg/pkg.go": "package the_pkg_name_to_find\n  and this syntax error is ignored because of parser.PackageClauseOnly",
+			"example.net/pkg/z.go":   "package inconsistent\n", // inconsistent but ignored
+		},
+	}.test(t, func(t *goimportTest) {
+		got, err := importPathToNameGoPathParse("example.net/pkg", filepath.Join(t.gopath, "src", "other.net"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = "the_pkg_name_to_find"
+		if got != want {
+			t.Errorf("importPathToNameGoPathParse(..) = %q; want %q", got, want)
+		}
+	})
+}
+
 func strSet(ss []string) map[string]bool {
 	m := make(map[string]bool)
 	for _, s := range ss {
