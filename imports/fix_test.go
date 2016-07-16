@@ -982,8 +982,8 @@ type Buffer2 struct {}
 
 func withEmptyGoPath(fn func()) {
 	dirScanMu.Lock()
-	scanGoRootOnce = &sync.Once{}
-	scanGoPathOnce = &sync.Once{}
+	scanGoRootOnce = sync.Once{}
+	scanGoPathOnce = sync.Once{}
 	dirScan = nil
 	ignoredDirs = nil
 	dirScanMu.Unlock()

@@ -83,7 +83,7 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 				decls[v.Name.Name] = v
 				break
 			}
-			ipath := strings.Trim(v.Path.Value, `\"`)
+			ipath := strings.Trim(v.Path.Value, `"`)
 			if ipath == "C" {
 				break
 			}
@@ -184,7 +184,7 @@ func importPathToNameBasic(importPath, srcDir string) (packageName string) {
 // importPathToNameGoPath finds out the actual package name, as declared in its .go files.
 // If there's a problem, it falls back to using importPathToNameBasic.
 func importPathToNameGoPath(importPath, srcDir string) (packageName string) {
-	// Fast path for standard library without going to disk:
+	// Fast path for standard library without going to disk.
 	if pkg, ok := stdImportPackage[importPath]; ok {
 		return pkg
 	}
@@ -243,10 +243,8 @@ func importPathToNameGoPathParse(importPath, srcDir string) (packageName string,
 			continue
 		}
 		if pkgName == "main" {
-			// Also skip package main, assuming it's a
-			// +build ignore generator or example. Since
-			// you can't import a package main anyway,
-			// there's no harm here.
+			// Also skip package main, assuming it's a +build ignore generator or example.
+			// Since you can't import a package main anyway, there's no harm here.
 			continue
 		}
 		return pkgName, nil
@@ -272,9 +270,9 @@ func init() {
 // Directory-scanning state.
 var (
 	// scanGoRootOnce guards calling scanGoRoot (for $GOROOT)
-	scanGoRootOnce = &sync.Once{}
+	scanGoRootOnce sync.Once
 	// scanGoPathOnce guards calling scanGoPath (for $GOPATH)
-	scanGoPathOnce = &sync.Once{}
+	scanGoPathOnce sync.Once
 
 	dirScanMu sync.RWMutex
 	dirScan   map[string]*pkg // abs dir path => *pkg
@@ -615,8 +613,8 @@ func loadExportsGoPath(expectPackage, dir string) map[string]bool {
 // to satisfy uses of pkg.X in the file.
 var findImport func(pkgName string, symbols map[string]bool, filename string) (foundPkg string, rename bool, err error) = findImportGoPath
 
-// findImportGoPath is the normal implementation of findImport. (Some
-// companies have their own internally)
+// findImportGoPath is the normal implementation of findImport.
+// (Some companies have their own internally.)
 func findImportGoPath(pkgName string, symbols map[string]bool, filename string) (foundPkg string, rename bool, err error) {
 	// Fast path for the standard library.
 	// In the common case we hopefully never have to scan the GOPATH, which can
