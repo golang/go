@@ -826,8 +826,9 @@ func TestFixImports(t *testing.T) {
 // Test support for packages in GOPATH that are actually symlinks.
 // Also test that a symlink loop does not block the process.
 func TestImportSymlinks(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Skipping test on Windows as there are no symlinks.")
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skip("skipping test on %q as there are no symlinks", runtime.GOOS)
 	}
 
 	newGoPath, err := ioutil.TempDir("", "symlinktest")
