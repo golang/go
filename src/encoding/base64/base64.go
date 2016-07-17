@@ -23,6 +23,7 @@ type Encoding struct {
 	encode    [64]byte
 	decodeMap [256]byte
 	padChar   rune
+	strict    bool
 }
 
 const (
@@ -59,6 +60,14 @@ func NewEncoding(encoder string) *Encoding {
 // with a specified padding character, or NoPadding to disable padding.
 func (enc Encoding) WithPadding(padding rune) *Encoding {
 	enc.padChar = padding
+	return &enc
+}
+
+// Strict creates a new encoding identical to enc except with
+// strict decoding enabled. In this mode, the decoder requires that
+// trailing padding bits are zero, as described in RFC 4648 section 3.5.
+func (enc Encoding) Strict() *Encoding {
+	enc.strict = true
 	return &enc
 }
 
@@ -311,15 +320,24 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 
 		// Convert 4x 6bit source bytes into 3 bytes
 		val := uint(dbuf[0])<<18 | uint(dbuf[1])<<12 | uint(dbuf[2])<<6 | uint(dbuf[3])
+		dbuf[2], dbuf[1], dbuf[0] = byte(val>>0), byte(val>>8), byte(val>>16)
 		switch dlen {
 		case 4:
-			dst[2] = byte(val >> 0)
+			dst[2] = dbuf[2]
+			dbuf[2] = 0
 			fallthrough
 		case 3:
-			dst[1] = byte(val >> 8)
+			dst[1] = dbuf[1]
+			if enc.strict && dbuf[2] != 0 {
+				return n, end, CorruptInputError(si - 1)
+			}
+			dbuf[1] = 0
 			fallthrough
 		case 2:
-			dst[0] = byte(val >> 16)
+			dst[0] = dbuf[0]
+			if enc.strict && (dbuf[1] != 0 || dbuf[2] != 0) {
+				return n, end, CorruptInputError(si - 2)
+			}
 		}
 		dst = dst[dinc:]
 		n += dlen - 1
