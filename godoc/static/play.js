@@ -44,7 +44,7 @@ function initPlayground(transport) {
 
 		function onKill() {
 			if (running) running.Kill();
-			if (notesEnabled) updatePlayStorage('onKill', index);
+			if (window.notesEnabled) updatePlayStorage('onKill', index);
 		}
 
 		function onRun(e) {
@@ -55,17 +55,17 @@ function initPlayground(transport) {
 			run1.style.display = 'none';
 			var options = {Race: sk};
 			running = transport.Run(text(code), PlaygroundOutput(outpre), options);
-			if (notesEnabled) updatePlayStorage('onRun', index, e);
+			if (window.notesEnabled) updatePlayStorage('onRun', index, e);
 		}
 
 		function onClose() {
 			if (running) running.Kill();
 			output.style.display = 'none';
 			run1.style.display = 'inline-block';
-			if (notesEnabled) updatePlayStorage('onClose', index);
+			if (window.notesEnabled) updatePlayStorage('onClose', index);
 		}
 
-		if (notesEnabled) {
+		if (window.notesEnabled) {
 			playgroundHandlers.onRun.push(onRun);
 			playgroundHandlers.onClose.push(onClose);
 			playgroundHandlers.onKill.push(onKill);
