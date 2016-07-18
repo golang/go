@@ -228,6 +228,12 @@ func TestOracle(t *testing.T) {
 		"testdata/src/referrers-json/main.go",
 		"testdata/src/what-json/main.go",
 	} {
+		if filename == "testdata/src/referrers/main.go" && runtime.GOOS == "plan9" {
+			// Disable this test on plan9 since it expects a particular
+			// wording for a "no such file or directory" error.
+			continue
+		}
+
 		useJson := strings.Contains(filename, "-json/")
 		queries := parseQueries(t, filename)
 		golden := filename + "lden"
