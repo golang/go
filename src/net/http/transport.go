@@ -251,6 +251,9 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	}
 	if proxy == "" {
 		proxy = httpProxyEnv.Get()
+		if proxy != "" && os.Getenv("REQUEST_METHOD") != "" {
+			return nil, errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")
+		}
 	}
 	if proxy == "" {
 		return nil, nil
