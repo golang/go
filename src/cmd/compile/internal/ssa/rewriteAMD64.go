@@ -3275,13 +3275,15 @@ func rewriteValueAMD64_OpDiv16(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div16  x y)
 	// cond:
-	// result: (DIVW  x y)
+	// result: (Select0 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVW)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3290,13 +3292,15 @@ func rewriteValueAMD64_OpDiv16u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div16u x y)
 	// cond:
-	// result: (DIVWU x y)
+	// result: (Select0 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVWU)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3305,13 +3309,15 @@ func rewriteValueAMD64_OpDiv32(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div32  x y)
 	// cond:
-	// result: (DIVL  x y)
+	// result: (Select0 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVL)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVL, &TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3335,13 +3341,15 @@ func rewriteValueAMD64_OpDiv32u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div32u x y)
 	// cond:
-	// result: (DIVLU x y)
+	// result: (Select0 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVLU)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVLU, &TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3350,13 +3358,15 @@ func rewriteValueAMD64_OpDiv64(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div64  x y)
 	// cond:
-	// result: (DIVQ  x y)
+	// result: (Select0 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVQ)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVQ, &TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3380,13 +3390,15 @@ func rewriteValueAMD64_OpDiv64u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div64u x y)
 	// cond:
-	// result: (DIVQU x y)
+	// result: (Select0 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVQU)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVQU, &TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3395,17 +3407,19 @@ func rewriteValueAMD64_OpDiv8(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div8   x y)
 	// cond:
-	// result: (DIVW  (SignExt8to16 x) (SignExt8to16 y))
+	// result: (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVW)
-		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()})
 		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -3414,17 +3428,19 @@ func rewriteValueAMD64_OpDiv8u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Div8u  x y)
 	// cond:
-	// result: (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+	// result: (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64DIVWU)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()})
 		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11892,13 +11908,15 @@ func rewriteValueAMD64_OpMod16(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod16  x y)
 	// cond:
-	// result: (MODW  x y)
+	// result: (Select1 (DIVW  x y <&TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODW)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt16(), config.Frontend().TypeInt16()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11907,13 +11925,15 @@ func rewriteValueAMD64_OpMod16u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod16u x y)
 	// cond:
-	// result: (MODWU x y)
+	// result: (Select1 (DIVWU x y <&TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODWU)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt16(), config.Frontend().TypeUInt16()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11922,13 +11942,15 @@ func rewriteValueAMD64_OpMod32(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod32  x y)
 	// cond:
-	// result: (MODL  x y)
+	// result: (Select1 (DIVL  x y <&TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODL)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVL, &TupleType{config.Frontend().TypeInt32(), config.Frontend().TypeInt32()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11937,13 +11959,15 @@ func rewriteValueAMD64_OpMod32u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod32u x y)
 	// cond:
-	// result: (MODLU x y)
+	// result: (Select1 (DIVLU x y <&TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODLU)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVLU, &TupleType{config.Frontend().TypeUInt32(), config.Frontend().TypeUInt32()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11952,13 +11976,15 @@ func rewriteValueAMD64_OpMod64(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod64  x y)
 	// cond:
-	// result: (MODQ  x y)
+	// result: (Select1 (DIVQ  x y <&TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODQ)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVQ, &TupleType{config.Frontend().TypeInt64(), config.Frontend().TypeInt64()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11967,13 +11993,15 @@ func rewriteValueAMD64_OpMod64u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod64u x y)
 	// cond:
-	// result: (MODQU x y)
+	// result: (Select1 (DIVQU x y <&TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODQU)
-		v.AddArg(x)
-		v.AddArg(y)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVQU, &TupleType{config.Frontend().TypeUInt64(), config.Frontend().TypeUInt64()})
+		v0.AddArg(x)
+		v0.AddArg(y)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -11982,17 +12010,19 @@ func rewriteValueAMD64_OpMod8(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod8   x y)
 	// cond:
-	// result: (MODW  (SignExt8to16 x) (SignExt8to16 y))
+	// result: (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y) <&TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODW)
-		v0 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVW, &TupleType{config.Frontend().TypeInt8(), config.Frontend().TypeInt8()})
 		v1 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to16, config.fe.TypeInt16())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -12001,17 +12031,19 @@ func rewriteValueAMD64_OpMod8u(v *Value, config *Config) bool {
 	_ = b
 	// match: (Mod8u  x y)
 	// cond:
-	// result: (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+	// result: (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y) <&TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()}>))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
-		v.reset(OpAMD64MODWU)
-		v0 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Line, OpAMD64DIVWU, &TupleType{config.Frontend().TypeUInt8(), config.Frontend().TypeUInt8()})
 		v1 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
-		v1.AddArg(y)
-		v.AddArg(v1)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpZeroExt8to16, config.fe.TypeUInt16())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
 		return true
 	}
 }
