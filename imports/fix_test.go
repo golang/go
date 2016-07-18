@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -981,12 +982,20 @@ type Buffer2 struct {}
 	})
 }
 
+func init() {
+	inTests = true
+}
+
 func withEmptyGoPath(fn func()) {
+	testMu.Lock()
+
 	dirScanMu.Lock()
+	populateIgnoreOnce = sync.Once{}
 	scanGoRootOnce = sync.Once{}
 	scanGoPathOnce = sync.Once{}
 	dirScan = nil
 	ignoredDirs = nil
+	scanGoRootDone = make(chan struct{})
 	dirScanMu.Unlock()
 
 	oldGOPATH := build.Default.GOPATH
@@ -994,11 +1003,16 @@ func withEmptyGoPath(fn func()) {
 	build.Default.GOPATH = ""
 	visitedSymlinks.m = nil
 	testHookScanDir = func(string) {}
+	testMu.Unlock()
+
 	defer func() {
+		testMu.Lock()
 		testHookScanDir = func(string) {}
 		build.Default.GOPATH = oldGOPATH
 		build.Default.GOROOT = oldGOROOT
+		testMu.Unlock()
 	}()
+
 	fn()
 }
 
@@ -1162,7 +1176,13 @@ func mapToDir(destDir string, files map[string]string) error {
 		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(file, []byte(contents), 0644); err != nil {
+		var err error
+		if strings.HasPrefix(contents, "LINK:") {
+			err = os.Symlink(strings.TrimPrefix(contents, "LINK:"), file)
+		} else {
+			err = ioutil.WriteFile(file, []byte(contents), 0644)
+		}
+		if err != nil {
 			return err
 		}
 	}

@@ -27,6 +27,11 @@ import (
 // Debug controls verbose logging.
 var Debug = false
 
+var (
+	inTests = false      // set true by fix_test.go; if false, no need to use testMu
+	testMu  sync.RWMutex // guards globals reset by tests; used only if inTests
+)
+
 // importToGroup is a list of functions which map from an import path to
 // a group number.
 var importToGroup = []func(importPath string) (num int, ok bool){
@@ -274,6 +279,10 @@ var (
 	// scanGoPathOnce guards calling scanGoPath (for $GOPATH)
 	scanGoPathOnce sync.Once
 
+	// populateIgnoreOnce guards calling populateIgnore
+	populateIgnoreOnce sync.Once
+	ignoredDirs        []os.FileInfo
+
 	dirScanMu sync.RWMutex
 	dirScan   map[string]*pkg // abs dir path => *pkg
 )
@@ -302,22 +311,34 @@ type gate chan struct{}
 func (g gate) enter() { g <- struct{}{} }
 func (g gate) leave() { <-g }
 
-// fsgate protects the OS & filesystem from too much concurrency.
-// Too much disk I/O -> too many threads -> swapping and bad scheduling.
-var fsgate = make(gate, 8)
-
 var visitedSymlinks struct {
 	sync.Mutex
 	m map[string]struct{}
 }
 
-var ignoredDirs []os.FileInfo
+// guarded by populateIgnoreOnce; populates ignoredDirs.
+func populateIgnore() {
+	for _, srcDir := range build.Default.SrcDirs() {
+		if srcDir == filepath.Join(build.Default.GOROOT, "src") {
+			continue
+		}
+		populateIgnoredDirs(srcDir)
+	}
+}
 
 // populateIgnoredDirs reads an optional config file at <path>/.goimportsignore
 // of relative directories to ignore when scanning for go files.
 // The provided path is one of the $GOPATH entries with "src" appended.
 func populateIgnoredDirs(path string) {
-	slurp, err := ioutil.ReadFile(filepath.Join(path, ".goimportsignore"))
+	file := filepath.Join(path, ".goimportsignore")
+	slurp, err := ioutil.ReadFile(file)
+	if Debug {
+		if err != nil {
+			log.Print(err)
+		} else {
+			log.Printf("Read %s", file)
+		}
+	}
 	if err != nil {
 		return
 	}
@@ -327,8 +348,14 @@ func populateIgnoredDirs(path string) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if fi, err := os.Stat(filepath.Join(path, line)); err == nil {
+		full := filepath.Join(path, line)
+		if fi, err := os.Stat(full); err == nil {
 			ignoredDirs = append(ignoredDirs, fi)
+			if Debug {
+				log.Printf("Directory added to ignore list: %s", full)
+			}
+		} else if Debug {
+			log.Printf("Error statting entry in .goimportsignore: %v", err)
 		}
 	}
 }
@@ -342,22 +369,10 @@ func skipDir(fi os.FileInfo) bool {
 	return false
 }
 
-// shouldTraverse checks if fi, found in dir, is a directory or a symlink to a directory.
-// It makes sure symlinks were never visited before to avoid symlink loops.
+// shouldTraverse reports whether the symlink fi should, found in dir,
+// should be followed.  It makes sure symlinks were never visited
+// before to avoid symlink loops.
 func shouldTraverse(dir string, fi os.FileInfo) bool {
-	if fi.IsDir() {
-		if skipDir(fi) {
-			if Debug {
-				log.Printf("skipping directory %q under %s", fi.Name(), dir)
-			}
-			return false
-		}
-		return true
-	}
-
-	if fi.Mode()&os.ModeSymlink == 0 {
-		return false
-	}
 	path := filepath.Join(dir, fi.Name())
 	target, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -395,7 +410,15 @@ func shouldTraverse(dir string, fi os.FileInfo) bool {
 
 var testHookScanDir = func(dir string) {}
 
-func scanGoRoot() { scanGoDirs(true) }
+var scanGoRootDone = make(chan struct{}) // closed when scanGoRoot is done
+
+func scanGoRoot() {
+	go func() {
+		scanGoDirs(true)
+		close(scanGoRootDone)
+	}()
+}
+
 func scanGoPath() { scanGoDirs(false) }
 
 func scanGoDirs(goRoot bool) {
@@ -413,95 +436,69 @@ func scanGoDirs(goRoot bool) {
 	}
 	dirScanMu.Unlock()
 
-	var wg sync.WaitGroup
-	for _, path := range build.Default.SrcDirs() {
-		isGoroot := path == filepath.Join(build.Default.GOROOT, "src")
+	for _, srcDir := range build.Default.SrcDirs() {
+		isGoroot := srcDir == filepath.Join(build.Default.GOROOT, "src")
 		if isGoroot != goRoot {
 			continue
 		}
-		if !goRoot {
-			populateIgnoredDirs(path)
-		}
-		fsgate.enter()
-		testHookScanDir(path)
-		if Debug {
-			log.Printf("scanGoDir, open dir: %v\n", path)
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			fsgate.leave()
-			fmt.Fprintf(os.Stderr, "goimports: scanning directories: %v\n", err)
-			continue
-		}
-		children, err := f.Readdir(-1)
-		f.Close()
-		fsgate.leave()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "goimports: scanning directory entries: %v\n", err)
-			continue
-		}
-		for _, child := range children {
-			if !shouldTraverse(path, child) {
-				continue
+		testHookScanDir(srcDir)
+		walkFn := func(path string, typ os.FileMode) error {
+			dir := filepath.Dir(path)
+			if typ.IsRegular() {
+				if dir == srcDir {
+					// Doesn't make sense to have regular files
+					// directly in your $GOPATH/src or $GOROOT/src.
+					return nil
+				}
+				if !strings.HasSuffix(path, ".go") {
+					return nil
+				}
+				dirScanMu.Lock()
+				if _, dup := dirScan[dir]; !dup {
+					importpath := filepath.ToSlash(dir[len(srcDir)+len("/"):])
+					dirScan[dir] = &pkg{
+						importPath:      importpath,
+						importPathShort: vendorlessImportPath(importpath),
+						dir:             dir,
+					}
+				}
+				dirScanMu.Unlock()
+				return nil
 			}
-			wg.Add(1)
-			go func(path, name string) {
-				defer wg.Done()
-				scanDir(&wg, path, name)
-			}(path, child.Name())
+			if typ == os.ModeDir {
+				base := filepath.Base(path)
+				if base == "" || base[0] == '.' || base[0] == '_' || base == "testdata" {
+					return filepath.SkipDir
+				}
+				fi, err := os.Lstat(path)
+				if err == nil && skipDir(fi) {
+					if Debug {
+						log.Printf("skipping directory %q under %s", fi.Name(), dir)
+					}
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if typ == os.ModeSymlink {
+				base := filepath.Base(path)
+				if strings.HasPrefix(base, ".#") {
+					// Emacs noise.
+					return nil
+				}
+				fi, err := os.Lstat(path)
+				if err != nil {
+					// Just ignore it.
+					return nil
+				}
+				if shouldTraverse(dir, fi) {
+					return traverseLink
+				}
+			}
+			return nil
 		}
-	}
-	wg.Wait()
-}
-
-func scanDir(wg *sync.WaitGroup, root, pkgrelpath string) {
-	importpath := filepath.ToSlash(pkgrelpath)
-	dir := filepath.Join(root, importpath)
-
-	fsgate.enter()
-	defer fsgate.leave()
-	if Debug {
-		log.Printf("scanning dir %s", dir)
-	}
-	pkgDir, err := os.Open(dir)
-	if err != nil {
-		return
-	}
-	children, err := pkgDir.Readdir(-1)
-	pkgDir.Close()
-	if err != nil {
-		return
-	}
-	// hasGo tracks whether a directory actually appears to be a
-	// Go source code directory. If $GOPATH == $HOME, and
-	// $HOME/src has lots of other large non-Go projects in it,
-	// then the calls to importPathToName below can be expensive.
-	hasGo := false
-	for _, child := range children {
-		// Avoid .foo, _foo, and testdata directory trees.
-		name := child.Name()
-		if name == "" || name[0] == '.' || name[0] == '_' || name == "testdata" {
-			continue
+		if err := fastWalk(srcDir, walkFn); err != nil {
+			log.Printf("goimports: scanning directory %v: %v", srcDir, err)
 		}
-		if strings.HasSuffix(name, ".go") {
-			hasGo = true
-		}
-		if shouldTraverse(dir, child) {
-			wg.Add(1)
-			go func(root, name string) {
-				defer wg.Done()
-				scanDir(wg, root, name)
-			}(root, filepath.Join(importpath, name))
-		}
-	}
-	if hasGo {
-		dirScanMu.Lock()
-		dirScan[dir] = &pkg{
-			importPath:      importpath,
-			importPathShort: vendorlessImportPath(importpath),
-			dir:             dir,
-		}
-		dirScanMu.Unlock()
 	}
 }
 
@@ -616,6 +613,11 @@ var findImport func(pkgName string, symbols map[string]bool, filename string) (f
 // findImportGoPath is the normal implementation of findImport.
 // (Some companies have their own internally.)
 func findImportGoPath(pkgName string, symbols map[string]bool, filename string) (foundPkg string, rename bool, err error) {
+	if inTests {
+		testMu.RLock()
+		defer testMu.RUnlock()
+	}
+
 	// Fast path for the standard library.
 	// In the common case we hopefully never have to scan the GOPATH, which can
 	// be slow with moving disks.
@@ -638,11 +640,22 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	// in the current Go file.  Return rename=true when the other Go files
 	// use a renamed package that's also used in the current file.
 
-	scanGoRootOnce.Do(scanGoRoot)
-	if !strings.HasPrefix(filename, build.Default.GOROOT) {
-		scanGoPathOnce.Do(scanGoPath)
-	}
+	// Read all the $GOPATH/src/.goimportsignore files before scanning directories.
+	populateIgnoreOnce.Do(populateIgnore)
 
+	// Start scanning the $GOROOT asynchronously, then run the
+	// GOPATH scan synchronously if needed, and then wait for the
+	// $GOROOT to finish.
+	//
+	// TODO(bradfitz): run each $GOPATH entry async. But nobody
+	// really has more than one anyway, so low priority.
+	scanGoRootOnce.Do(scanGoRoot) // async
+	if !strings.HasPrefix(filename, build.Default.GOROOT) {
+		scanGoPathOnce.Do(scanGoPath) // blocking
+	}
+	<-scanGoRootDone
+
+	// Find candidate packages, looking only at their directory names first.
 	var candidates []*pkg
 	for _, pkg := range dirScan {
 		if pkgIsCandidate(filename, pkgName, pkg) {
@@ -650,6 +663,10 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 		}
 	}
 
+	// Sort the candidates by their import package length,
+	// assuming that shorter package names are better than long
+	// ones.  Note that this sorts by the de-vendored name, so
+	// there's no "penalty" for vendoring.
 	sort.Sort(byImportPathShortLength(candidates))
 	if Debug {
 		for i, pkg := range candidates {
@@ -664,7 +681,7 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 
 	rescv := make([]chan *pkg, len(candidates))
 	for i := range candidates {
-		rescv[i] = make(chan *pkg, 1)
+		rescv[i] = make(chan *pkg)
 	}
 	const maxConcurrentPackageImport = 4
 	loadExportsSem := make(chan struct{}, maxConcurrentPackageImport)
@@ -673,12 +690,20 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 		for i, pkg := range candidates {
 			select {
 			case loadExportsSem <- struct{}{}:
+				select {
+				case <-done:
+				default:
+				}
 			case <-done:
 				return
 			}
 			pkg := pkg
 			resc := rescv[i]
 			go func() {
+				if inTests {
+					testMu.RLock()
+					defer testMu.RUnlock()
+				}
 				defer func() { <-loadExportsSem }()
 				exports := loadExports(pkgName, pkg.dir)
 
@@ -690,7 +715,10 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 						break
 					}
 				}
-				resc <- pkg
+				select {
+				case resc <- pkg:
+				case <-done:
+				}
 			}()
 		}
 	}()

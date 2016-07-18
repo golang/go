@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"strings"
 
 	"golang.org/x/tools/imports"
@@ -28,6 +31,11 @@ var (
 	doDiff  = flag.Bool("d", false, "display diffs instead of rewriting files")
 	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`")
 	verbose = flag.Bool("v", false, "verbose logging")
+
+	cpuProfile     = flag.String("cpuprofile", "", "CPU profile output")
+	memProfile     = flag.String("memprofile", "", "memory profile output")
+	memProfileRate = flag.Int("memrate", 0, "if > 0, sets runtime.MemProfileRate")
+	traceProfile   = flag.String("trace", "", "trace profile output")
 
 	options = &imports.Options{
 		TabWidth:  8,
@@ -152,9 +160,49 @@ var parseFlags = func() []string {
 	return flag.Args()
 }
 
+func bufferedFileWriter(dest string) (w io.Writer, close func()) {
+	f, err := os.Create(dest)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bw := bufio.NewWriter(f)
+	return bw, func() {
+		if err := bw.Flush(); err != nil {
+			log.Fatalf("error flushing %v: %v", dest, err)
+		}
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
 func gofmtMain() {
 	flag.Usage = usage
 	paths := parseFlags()
+
+	if *cpuProfile != "" {
+		bw, flush := bufferedFileWriter(*cpuProfile)
+		pprof.StartCPUProfile(bw)
+		defer flush()
+		defer pprof.StopCPUProfile()
+	}
+	if *traceProfile != "" {
+		bw, flush := bufferedFileWriter(*traceProfile)
+		trace.Start(bw)
+		defer flush()
+		defer trace.Stop()
+	}
+	if *memProfileRate > 0 {
+		runtime.MemProfileRate = *memProfileRate
+		bw, flush := bufferedFileWriter(*memProfile)
+		defer func() {
+			runtime.GC() // materialize all statistics
+			if err := pprof.WriteHeapProfile(bw); err != nil {
+				log.Fatal(err)
+			}
+			flush()
+		}()
+	}
 
 	if *verbose {
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
