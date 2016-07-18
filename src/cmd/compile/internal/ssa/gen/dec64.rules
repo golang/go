@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains rules to decompose [u]int32 types on 32-bit
+// This file contains rules to decompose [u]int64 types on 32-bit
 // architectures. These rules work together with the decomposeBuiltIn
 // pass which handles phis of these types.
 

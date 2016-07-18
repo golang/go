@@ -17415,7 +17415,7 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
 	}
 	// match: (Zero [s] destptr mem)
 	// cond: SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice
-	// result: (DUFFZERO [duffStart(SizeAndAlign(s).Size())] 		(ADDQconst [duffAdj(SizeAndAlign(s).Size())] destptr) (MOVOconst [0]) 		mem)
+	// result: (DUFFZERO [duffStartAMD64(SizeAndAlign(s).Size())] 		(ADDQconst [duffAdjAMD64(SizeAndAlign(s).Size())] destptr) (MOVOconst [0]) 		mem)
 	for {
 		s := v.AuxInt
 		destptr := v.Args[0]
@@ -17424,9 +17424,9 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
 			break
 		}
 		v.reset(OpAMD64DUFFZERO)
-		v.AuxInt = duffStart(SizeAndAlign(s).Size())
+		v.AuxInt = duffStartAMD64(SizeAndAlign(s).Size())
 		v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, config.fe.TypeUInt64())
-		v0.AuxInt = duffAdj(SizeAndAlign(s).Size())
+		v0.AuxInt = duffAdjAMD64(SizeAndAlign(s).Size())
 		v0.AddArg(destptr)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInt128)

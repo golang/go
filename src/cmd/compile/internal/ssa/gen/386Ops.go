@@ -330,8 +330,6 @@ func init() {
 		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},     // store byte in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128"},  // load 16 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem"},   // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
 
 		// indexed loads/stores
 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, asm: "MOVBLZX", aux: "SymOff"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
@@ -360,7 +358,7 @@ func init() {
 		{name: "MOVLstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ... arg1 ...
 		{name: "MOVLstoreconstidx4", argLength: 3, reg: gpstoreconstidx, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ... 4*arg1 ...
 
-		// arg0 = (duff-adjusted) pointer to start of memory to zero
+		// arg0 = pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)
 		// arg2 = mem
 		// auxint = offset into duffzero code to start executing
@@ -370,11 +368,10 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
+				inputs:   []regMask{buildReg("DI"), buildReg("AX")},
 				clobbers: buildReg("DI FLAGS"),
 			},
 		},
-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", aux: "Int128", rematerializeable: true},
 
 		// arg0 = address of memory to zero
 		// arg1 = # of 4-byte words to zero
@@ -407,7 +404,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
-				clobbers: buildReg("DI SI X0 FLAGS"), // uses X0 as a temporary
+				clobbers: buildReg("DI SI CX FLAGS"), // uses CX as a temporary
 			},
 		},
 
