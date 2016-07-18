@@ -119,11 +119,9 @@ func init() {
 		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly, clobbers: flags}
 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
 		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
-		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
-			clobbers: dx | flags}
+		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx},
+			clobbers: flags}
 		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
-			clobbers: ax | flags}
-		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
 			clobbers: ax | flags}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
@@ -214,19 +212,12 @@ func init() {
 
 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
 
-		{name: "DIVQ", argLength: 2, reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
-		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
-		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
-		{name: "DIVQU", argLength: 2, reg: gp11div, asm: "DIVQ"}, // arg0 / arg1
-		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL"}, // arg0 / arg1
-		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW"}, // arg0 / arg1
-
-		{name: "MODQ", argLength: 2, reg: gp11mod, asm: "IDIVQ"}, // arg0 % arg1
-		{name: "MODL", argLength: 2, reg: gp11mod, asm: "IDIVL"}, // arg0 % arg1
-		{name: "MODW", argLength: 2, reg: gp11mod, asm: "IDIVW"}, // arg0 % arg1
-		{name: "MODQU", argLength: 2, reg: gp11mod, asm: "DIVQ"}, // arg0 % arg1
-		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL"}, // arg0 % arg1
-		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW"}, // arg0 % arg1
+		{name: "DIVQ", argLength: 2, reg: gp11div, asm: "IDIVQ"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVQU", argLength: 2, reg: gp11div, asm: "DIVQ"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW"}, // [arg0 / arg1, arg0 % arg1]
 
 		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true}, // arg0 & arg1
 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true}, // arg0 & arg1

@@ -368,12 +368,6 @@ const (
 	OpAMD64DIVQU
 	OpAMD64DIVLU
 	OpAMD64DIVWU
-	OpAMD64MODQ
-	OpAMD64MODL
-	OpAMD64MODW
-	OpAMD64MODQU
-	OpAMD64MODLU
-	OpAMD64MODWU
 	OpAMD64ANDQ
 	OpAMD64ANDL
 	OpAMD64ANDQconst
@@ -4129,9 +4123,10 @@ var opcodeTable = [...]opInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934596, // DX FLAGS
+			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
+				{1, 4}, // DX
 			},
 		},
 	},
@@ -4144,9 +4139,10 @@ var opcodeTable = [...]opInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934596, // DX FLAGS
+			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
+				{1, 4}, // DX
 			},
 		},
 	},
@@ -4159,9 +4155,10 @@ var opcodeTable = [...]opInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934596, // DX FLAGS
+			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
+				{1, 4}, // DX
 			},
 		},
 	},
@@ -4174,9 +4171,10 @@ var opcodeTable = [...]opInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934596, // DX FLAGS
+			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
+				{1, 4}, // DX
 			},
 		},
 	},
@@ -4189,9 +4187,10 @@ var opcodeTable = [...]opInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934596, // DX FLAGS
+			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
+				{1, 4}, // DX
 			},
 		},
 	},
@@ -4204,99 +4203,10 @@ var opcodeTable = [...]opInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934596, // DX FLAGS
+			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
-			},
-		},
-	},
-	{
-		name:   "MODQ",
-		argLen: 2,
-		asm:    x86.AIDIVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 8589934593, // AX FLAGS
-			outputs: []outputInfo{
-				{0, 4}, // DX
-			},
-		},
-	},
-	{
-		name:   "MODL",
-		argLen: 2,
-		asm:    x86.AIDIVL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 8589934593, // AX FLAGS
-			outputs: []outputInfo{
-				{0, 4}, // DX
-			},
-		},
-	},
-	{
-		name:   "MODW",
-		argLen: 2,
-		asm:    x86.AIDIVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 8589934593, // AX FLAGS
-			outputs: []outputInfo{
-				{0, 4}, // DX
-			},
-		},
-	},
-	{
-		name:   "MODQU",
-		argLen: 2,
-		asm:    x86.ADIVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 8589934593, // AX FLAGS
-			outputs: []outputInfo{
-				{0, 4}, // DX
-			},
-		},
-	},
-	{
-		name:   "MODLU",
-		argLen: 2,
-		asm:    x86.ADIVL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 8589934593, // AX FLAGS
-			outputs: []outputInfo{
-				{0, 4}, // DX
-			},
-		},
-	},
-	{
-		name:   "MODWU",
-		argLen: 2,
-		asm:    x86.ADIVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1},     // AX
-				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 8589934593, // AX FLAGS
-			outputs: []outputInfo{
-				{0, 4}, // DX
+				{1, 4}, // DX
 			},
 		},
 	},
@@ -8909,8 +8819,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8922,8 +8832,8 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []regMask{
-				4294967296, // FLAGS
+			outputs: []outputInfo{
+				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
