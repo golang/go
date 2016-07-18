@@ -230,13 +230,13 @@ func mallocinit() {
 		// The OS init code failed to fetch the physical page size.
 		throw("failed to get system page size")
 	}
-	if sys.PhysPageSize < physPageSize {
-		print("runtime: kernel page size (", physPageSize, ") is larger than runtime page size (", sys.PhysPageSize, ")\n")
-		throw("bad kernel page size")
+	if physPageSize < minPhysPageSize {
+		print("system page size (", physPageSize, ") is smaller than minimum page size (", minPhysPageSize, ")\n")
+		throw("bad system page size")
 	}
-	if sys.PhysPageSize%physPageSize != 0 {
-		print("runtime: runtime page size (", sys.PhysPageSize, ") is not a multiple of kernel page size (", physPageSize, ")\n")
-		throw("bad kernel page size")
+	if physPageSize&(physPageSize-1) != 0 {
+		print("system page size (", physPageSize, ") must be a power of 2\n")
+		throw("bad system page size")
 	}
 
 	var p, bitmapSize, spansSize, pSize, limit uintptr
