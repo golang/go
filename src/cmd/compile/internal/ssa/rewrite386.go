@@ -8,8 +8,12 @@ import "math"
 var _ = math.MinInt8 // in case not otherwise used
 func rewriteValue386(v *Value, config *Config) bool {
 	switch v.Op {
+	case Op386ADCL:
+		return rewriteValue386_Op386ADCL(v, config)
 	case Op386ADDL:
 		return rewriteValue386_Op386ADDL(v, config)
+	case Op386ADDLcarry:
+		return rewriteValue386_Op386ADDLcarry(v, config)
 	case Op386ADDLconst:
 		return rewriteValue386_Op386ADDLconst(v, config)
 	case Op386ANDL:
@@ -362,6 +366,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpMul32(v, config)
 	case OpMul32F:
 		return rewriteValue386_OpMul32F(v, config)
+	case OpMul32uhilo:
+		return rewriteValue386_OpMul32uhilo(v, config)
 	case OpMul64F:
 		return rewriteValue386_OpMul64F(v, config)
 	case OpMul8:
@@ -466,6 +472,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_Op386SARW(v, config)
 	case Op386SARWconst:
 		return rewriteValue386_Op386SARWconst(v, config)
+	case Op386SBBL:
+		return rewriteValue386_Op386SBBL(v, config)
 	case Op386SBBLcarrymask:
 		return rewriteValue386_Op386SBBLcarrymask(v, config)
 	case Op386SETA:
@@ -498,6 +506,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_Op386SHRW(v, config)
 	case Op386SUBL:
 		return rewriteValue386_Op386SUBL(v, config)
+	case Op386SUBLcarry:
+		return rewriteValue386_Op386SUBLcarry(v, config)
 	case Op386SUBLconst:
 		return rewriteValue386_Op386SUBLconst(v, config)
 	case OpSignExt16to32:
@@ -518,6 +528,10 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpSub32(v, config)
 	case OpSub32F:
 		return rewriteValue386_OpSub32F(v, config)
+	case OpSub32carry:
+		return rewriteValue386_OpSub32carry(v, config)
+	case OpSub32withcarry:
+		return rewriteValue386_OpSub32withcarry(v, config)
 	case OpSub64F:
 		return rewriteValue386_OpSub64F(v, config)
 	case OpSub8:
@@ -548,6 +562,45 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_OpZeroExt8to16(v, config)
 	case OpZeroExt8to32:
 		return rewriteValue386_OpZeroExt8to32(v, config)
+	}
+	return false
+}
+func rewriteValue386_Op386ADCL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ADCL x (MOVLconst [c]) f)
+	// cond:
+	// result: (ADCLconst [c] x f)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		f := v.Args[2]
+		v.reset(Op386ADCLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(f)
+		return true
+	}
+	// match: (ADCL (MOVLconst [c]) x f)
+	// cond:
+	// result: (ADCLconst [c] x f)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		f := v.Args[2]
+		v.reset(Op386ADCLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(f)
+		return true
 	}
 	return false
 }
@@ -783,6 +836,41 @@ func rewriteValue386_Op386ADDL(v *Value, config *Config) bool {
 		v.reset(Op386SUBL)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386ADDLcarry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ADDLcarry x (MOVLconst [c]))
+	// cond:
+	// result: (ADDLconstcarry [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(Op386ADDLconstcarry)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADDLcarry (MOVLconst [c]) x)
+	// cond:
+	// result: (ADDLconstcarry [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != Op386MOVLconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		v.reset(Op386ADDLconstcarry)
+		v.AuxInt = c
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -3799,13 +3887,13 @@ func rewriteValue386_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t)
+	// cond: (is32BitInt(t) || isPtr(t))
 	// result: (MOVLload ptr mem)
 	for {
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(is32BitInt(t)) {
+		if !(is32BitInt(t) || isPtr(t)) {
 			break
 		}
 		v.reset(Op386MOVLload)
@@ -9205,6 +9293,21 @@ func rewriteValue386_OpMul32F(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValue386_OpMul32uhilo(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul32uhilo x y)
+	// cond:
+	// result: (MULLQU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386MULLQU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
 func rewriteValue386_OpMul64F(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -10731,6 +10834,28 @@ func rewriteValue386_Op386SARWconst(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValue386_Op386SBBL(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SBBL x (MOVLconst [c]) f)
+	// cond:
+	// result: (SBBLconst [c] x f)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		f := v.Args[2]
+		v.reset(Op386SBBLconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(f)
+		return true
+	}
+	return false
+}
 func rewriteValue386_Op386SBBLcarrymask(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -11801,6 +11926,26 @@ func rewriteValue386_Op386SUBL(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValue386_Op386SUBLcarry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBLcarry x (MOVLconst [c]))
+	// cond:
+	// result: (SUBLconstcarry [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != Op386MOVLconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(Op386SUBLconstcarry)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValue386_Op386SUBLconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -12032,6 +12177,38 @@ func rewriteValue386_OpSub32F(v *Value, config *Config) bool {
 		v.reset(Op386SUBSS)
 		v.AddArg(x)
 		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpSub32carry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sub32carry x y)
+	// cond:
+	// result: (SUBLcarry x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(Op386SUBLcarry)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+}
+func rewriteValue386_OpSub32withcarry(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sub32withcarry x y c)
+	// cond:
+	// result: (SBBL x y c)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		c := v.Args[2]
+		v.reset(Op386SBBL)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AddArg(c)
 		return true
 	}
 }

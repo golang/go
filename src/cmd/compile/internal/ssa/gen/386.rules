@@ -20,11 +20,16 @@
 (Sub32F x y) -> (SUBSS x y)
 (Sub64F x y) -> (SUBSD x y)
 
+(Sub32carry x y) -> (SUBLcarry x y)
+(Sub32withcarry x y c) -> (SBBL x y c)
+
 (Mul32  x y) -> (MULL  x y)
 (Mul16  x y) -> (MULL  x y)
 (Mul8   x y) -> (MULL  x y)
 (Mul32F x y) -> (MULSS x y)
 (Mul64F x y) -> (MULSD x y)
+
+(Mul32uhilo x y) -> (MULLQU x y)
 
 (Div32F x y) -> (DIVSS x y)
 (Div64F x y) -> (DIVSD x y)
@@ -216,7 +221,7 @@
 (Neq32F x y) -> (SETNEF (UCOMISS x y))
 
 // Lowering loads
-(Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVLload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
 (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) -> (MOVSSload ptr mem)
@@ -383,9 +388,15 @@
 // fold constants into instructions
 (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
 (ADDL (MOVLconst [c]) x) -> (ADDLconst [c] x)
+(ADDLcarry x (MOVLconst [c])) -> (ADDLconstcarry [c] x)
+(ADDLcarry (MOVLconst [c]) x) -> (ADDLconstcarry [c] x)
+(ADCL x (MOVLconst [c]) f) -> (ADCLconst [c] x f)
+(ADCL (MOVLconst [c]) x f) -> (ADCLconst [c] x f)
 
 (SUBL x (MOVLconst [c])) -> (SUBLconst x [c])
 (SUBL (MOVLconst [c]) x) -> (NEGL (SUBLconst <v.Type> x [c]))
+(SUBLcarry x (MOVLconst [c])) -> (SUBLconstcarry [c] x)
+(SBBL x (MOVLconst [c]) f) -> (SBBLconst [c] x f)
 
 (MULL x (MOVLconst [c])) -> (MULLconst [c] x)
 (MULL (MOVLconst [c]) x) -> (MULLconst [c] x)

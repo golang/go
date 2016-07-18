@@ -178,20 +178,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD,
 		ssa.Op386PXOR,
-		ssa.Op386ADCL:
+		ssa.Op386ADCL,
+		ssa.Op386SBBL:
 		r := gc.SSARegNum(v)
 		if r != gc.SSARegNum(v.Args[0]) {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
 
-	case ssa.Op386ADDLcarry:
-		// output 0 is carry, output 1 is the low 32 bits.
+	case ssa.Op386ADDLcarry, ssa.Op386SUBLcarry:
+		// output 0 is carry/borrow, output 1 is the low 32 bits.
 		r := gc.SSARegNum1(v)
 		if r != gc.SSARegNum(v.Args[0]) {
 			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
 		}
 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
+
+	case ssa.Op386ADDLconstcarry, ssa.Op386SUBLconstcarry:
+		// output 0 is carry/borrow, output 1 is the low 32 bits.
+		r := gc.SSARegNum1(v)
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
+		}
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 
 	case ssa.Op386DIVL, ssa.Op386DIVW,
 		ssa.Op386DIVLU, ssa.Op386DIVWU,
@@ -289,6 +302,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			m.To.Reg = x86.REG_DX
 		}
 
+	case ssa.Op386MULLQU:
+		// AX * args[1], high 32 bits in DX (result[0]), low 32 bits in AX (result[1]).
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[1])
+
 	case ssa.Op386ADDLconst:
 		r := gc.SSARegNum(v)
 		a := gc.SSARegNum(v.Args[0])
@@ -336,6 +355,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//p.From3.Reg = gc.SSARegNum(v.Args[0])
 
 	case ssa.Op386SUBLconst,
+		ssa.Op386ADCLconst,
+		ssa.Op386SBBLconst,
 		ssa.Op386ANDLconst,
 		ssa.Op386ORLconst,
 		ssa.Op386XORLconst,
