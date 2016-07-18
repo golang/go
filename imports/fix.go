@@ -644,27 +644,10 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	}
 
 	var candidates []*pkg
-
 	for _, pkg := range dirScan {
-		if !strings.Contains(lastTwoComponents(pkg.importPathShort), pkgName) {
-			// Speed optimization to minimize disk I/O:
-			// the last two components on disk must contain the
-			// package name somewhere.
-			//
-			// This permits mismatch naming like directory
-			// "go-foo" being package "foo", or "pkg.v3" being "pkg",
-			// or directory "google.golang.org/api/cloudbilling/v1"
-			// being package "cloudbilling", but doesn't
-			// permit a directory "foo" to be package
-			// "bar", which is strongly discouraged
-			// anyway. There's no reason goimports needs
-			// to be slow just to accomodate that.
-			continue
+		if pkgIsCandidate(filename, pkgName, pkg) {
+			candidates = append(candidates, pkg)
 		}
-		if !canUse(filename, pkg.dir) {
-			continue
-		}
-		candidates = append(candidates, pkg)
 	}
 
 	sort.Sort(byImportPathShortLength(candidates))
@@ -722,6 +705,76 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 		return pkg.importPathShort, needsRename, nil
 	}
 	return "", false, nil
+}
+
+// pkgIsCandidate reports whether pkg is a candidate for satisfying the
+// finding which package pkgIdent in the file named by filename is trying
+// to refer to.
+//
+// This check is purely lexical and is meant to be as fast as possible
+// because it's run over all $GOPATH directories to filter out poor
+// candidates in order to limit the CPU and I/O later parsing the
+// exports in candidate packages.
+//
+// filename is the file being formatted.
+// pkgIdent is the package being searched for, like "client" (if
+// searching for "client.New")
+func pkgIsCandidate(filename, pkgIdent string, pkg *pkg) bool {
+	// Check "internal" and "vendor" visibility:
+	if !canUse(filename, pkg.dir) {
+		return false
+	}
+
+	// Speed optimization to minimize disk I/O:
+	// the last two components on disk must contain the
+	// package name somewhere.
+	//
+	// This permits mismatch naming like directory
+	// "go-foo" being package "foo", or "pkg.v3" being "pkg",
+	// or directory "google.golang.org/api/cloudbilling/v1"
+	// being package "cloudbilling", but doesn't
+	// permit a directory "foo" to be package
+	// "bar", which is strongly discouraged
+	// anyway. There's no reason goimports needs
+	// to be slow just to accomodate that.
+	lastTwo := lastTwoComponents(pkg.importPathShort)
+	if strings.Contains(lastTwo, pkgIdent) {
+		return true
+	}
+	if hasHyphenOrUpperASCII(lastTwo) && !hasHyphenOrUpperASCII(pkgIdent) {
+		lastTwo = lowerASCIIAndRemoveHyphen(lastTwo)
+		if strings.Contains(lastTwo, pkgIdent) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasHyphenOrUpperASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b == '-' || ('A' <= b && b <= 'Z') {
+			return true
+		}
+	}
+	return false
+}
+
+func lowerASCIIAndRemoveHyphen(s string) (ret string) {
+	buf := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		switch {
+		case b == '-':
+			continue
+		case 'A' <= b && b <= 'Z':
+			buf = append(buf, b+('a'-'A'))
+		default:
+			buf = append(buf, b)
+		}
+	}
+	return string(buf)
 }
 
 // canUse reports whether the package in dir is usable from filename,

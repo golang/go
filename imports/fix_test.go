@@ -1333,3 +1333,141 @@ func strSet(ss []string) map[string]bool {
 	}
 	return m
 }
+
+func TestPkgIsCandidate(t *testing.T) {
+	tests := [...]struct {
+		filename string
+		pkgIdent string
+		pkg      *pkg
+		want     bool
+	}{
+		// normal match
+		0: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/client",
+				importPath:      "client",
+				importPathShort: "client",
+			},
+			want: true,
+		},
+		// not a match
+		1: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "zzz",
+			pkg: &pkg{
+				dir:             "/gopath/src/client",
+				importPath:      "client",
+				importPathShort: "client",
+			},
+			want: false,
+		},
+		// would be a match, but "client" appears too deep.
+		2: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/client/foo/foo/foo",
+				importPath:      "client/foo/foo",
+				importPathShort: "client/foo/foo",
+			},
+			want: false,
+		},
+		// not an exact match, but substring is good enough.
+		3: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/go-client",
+				importPath:      "foo/go-client",
+				importPathShort: "foo/go-client",
+			},
+			want: true,
+		},
+		// "internal" package, and not visible
+		4: {
+			filename: "/gopath/src/my/pkg/pkg.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/internal/client",
+				importPath:      "foo/internal/client",
+				importPathShort: "foo/internal/client",
+			},
+			want: false,
+		},
+		// "internal" package but visible
+		5: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/internal/client",
+				importPath:      "foo/internal/client",
+				importPathShort: "foo/internal/client",
+			},
+			want: true,
+		},
+		// "vendor" package not visible
+		6: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/other/vendor/client",
+				importPath:      "other/vendor/client",
+				importPathShort: "client",
+			},
+			want: false,
+		},
+		// "vendor" package, visible
+		7: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "client",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/vendor/client",
+				importPath:      "other/foo/client",
+				importPathShort: "client",
+			},
+			want: true,
+		},
+		// Ignore hyphens.
+		8: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "socketio",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/socket-io",
+				importPath:      "foo/socket-io",
+				importPathShort: "foo/socket-io",
+			},
+			want: true,
+		},
+		// Ignore case.
+		9: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "fooprod",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/FooPROD",
+				importPath:      "foo/FooPROD",
+				importPathShort: "foo/FooPROD",
+			},
+			want: true,
+		},
+		// Ignoring both hyphens and case together.
+		10: {
+			filename: "/gopath/src/foo/bar.go",
+			pkgIdent: "fooprod",
+			pkg: &pkg{
+				dir:             "/gopath/src/foo/Foo-PROD",
+				importPath:      "foo/Foo-PROD",
+				importPathShort: "foo/Foo-PROD",
+			},
+			want: true,
+		},
+	}
+	for i, tt := range tests {
+		got := pkgIsCandidate(tt.filename, tt.pkgIdent, tt.pkg)
+		if got != tt.want {
+			t.Errorf("test %d. pkgIsCandidate(%q, %q, %+v) = %v; want %v",
+				i, tt.filename, tt.pkgIdent, *tt.pkg, got, tt.want)
+		}
+	}
+}
