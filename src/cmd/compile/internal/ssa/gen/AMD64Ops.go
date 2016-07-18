@@ -212,12 +212,12 @@ func init() {
 
 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
 
-		{name: "DIVQ", argLength: 2, reg: gp11div, asm: "IDIVQ"}, // [arg0 / arg1, arg0 % arg1]
-		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // [arg0 / arg1, arg0 % arg1]
-		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // [arg0 / arg1, arg0 % arg1]
-		{name: "DIVQU", argLength: 2, reg: gp11div, asm: "DIVQ"}, // [arg0 / arg1, arg0 % arg1]
-		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL"}, // [arg0 / arg1, arg0 % arg1]
-		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVQ", argLength: 2, reg: gp11div, typ: "(Int64,Int64)", asm: "IDIVQ"},   // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVL", argLength: 2, reg: gp11div, typ: "(Int32,Int32)", asm: "IDIVL"},   // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVW", argLength: 2, reg: gp11div, typ: "(Int16,Int16)", asm: "IDIVW"},   // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVQU", argLength: 2, reg: gp11div, typ: "(UInt64,UInt64)", asm: "DIVQ"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVLU", argLength: 2, reg: gp11div, typ: "(UInt32,UInt32)", asm: "DIVL"}, // [arg0 / arg1, arg0 % arg1]
+		{name: "DIVWU", argLength: 2, reg: gp11div, typ: "(UInt16,UInt16)", asm: "DIVW"}, // [arg0 / arg1, arg0 % arg1]
 
 		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true}, // arg0 & arg1
 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true}, // arg0 & arg1
