@@ -6,6 +6,10 @@
 // http://golang.org/s/oracle-design
 // http://golang.org/s/oracle-user-manual
 //
+// DEPRECATED: oracle has been superseded by guru;
+// see https://golang.org/s/using-guru for details.
+// This package will be deleted on October 1, 2016.
+//
 // Run with -help flag or help subcommand for usage information.
 //
 package main // import "golang.org/x/tools/cmd/oracle"

@@ -7,8 +7,9 @@
 // Package oracle contains the implementation of the oracle tool whose
 // command-line is provided by golang.org/x/tools/cmd/oracle.
 //
-// http://golang.org/s/oracle-design
-// http://golang.org/s/oracle-user-manual
+// DEPRECATED: oracle has been superseded by guru;
+// see https://golang.org/s/using-guru for details.
+// This package will be deleted on October 1, 2016.
 //
 package oracle // import "golang.org/x/tools/oracle"
 
