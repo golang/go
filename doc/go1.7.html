@@ -377,9 +377,9 @@ packages.
 </p>
 
 <p>
-Stop-the-world times should be significantly lower for programs with
-large numbers of idle goroutines, substantial stack size fluctuation,
-or large package-level variables.
+Garbage collection pauses should be significantly shorter than they
+were in Go 1.6 for programs with large numbers of idle goroutines,
+substantial stack size fluctuation, or large package-level variables.
 </p>
 
 <h2 id="library">Core library</h2>
