@@ -342,11 +342,19 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 // Join concatenates the elements of a to create a single string. The separator string
 // sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
-	if len(a) == 0 {
+	switch len(a) {
+	case 0:
 		return ""
-	}
-	if len(a) == 1 {
+	case 1:
 		return a[0]
+	case 2:
+		// Special case for common small values.
+		// Remove if golang.org/issue/6714 is fixed
+		return a[0] + sep + a[1]
+	case 3:
+		// Special case for common small values.
+		// Remove if golang.org/issue/6714 is fixed
+		return a[0] + sep + a[1] + sep + a[2]
 	}
 	n := len(sep) * (len(a) - 1)
 	for i := 0; i < len(a); i++ {
