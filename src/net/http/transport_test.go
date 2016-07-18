@@ -2060,7 +2060,8 @@ type proxyFromEnvTest struct {
 
 	env      string // HTTP_PROXY
 	httpsenv string // HTTPS_PROXY
-	noenv    string // NO_RPXY
+	noenv    string // NO_PROXY
+	reqmeth  string // REQUEST_METHOD
 
 	want    string
 	wanterr error
@@ -2083,6 +2084,10 @@ func (t proxyFromEnvTest) String() string {
 	if t.noenv != "" {
 		space()
 		fmt.Fprintf(&buf, "no_proxy=%q", t.noenv)
+	}
+	if t.reqmeth != "" {
+		space()
+		fmt.Fprintf(&buf, "request_method=%q", t.reqmeth)
 	}
 	req := "http://example.com"
 	if t.req != "" {
@@ -2107,6 +2112,12 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{req: "https://secure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://secure.proxy.tld"},
 	{req: "https://secure.tld/", env: "http.proxy.tld", httpsenv: "https://secure.proxy.tld", want: "https://secure.proxy.tld"},
 
+	// Issue 16405: don't use HTTP_PROXY in a CGI environment,
+	// where HTTP_PROXY can be attacker-controlled.
+	{env: "http://10.1.2.3:8080", reqmeth: "POST",
+		want:    "<nil>",
+		wanterr: errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
+
 	{want: "<nil>"},
 
 	{noenv: "example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
@@ -2122,6 +2133,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 		os.Setenv("HTTP_PROXY", tt.env)
 		os.Setenv("HTTPS_PROXY", tt.httpsenv)
 		os.Setenv("NO_PROXY", tt.noenv)
+		os.Setenv("REQUEST_METHOD", tt.reqmeth)
 		ResetCachedEnvironment()
 		reqURL := tt.req
 		if reqURL == "" {

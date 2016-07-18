@@ -153,6 +153,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	for k, v := range req.Header {
 		k = strings.Map(upperCaseAndUnderscore, k)
+		if k == "PROXY" {
+			// See Issue 16405
+			continue
+		}
 		joinStr := ", "
 		if k == "COOKIE" {
 			joinStr = "; "
