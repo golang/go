@@ -375,6 +375,12 @@ and
 packages.
 </p>
 
+<p>
+Stop-the-world times should be significantly lower for programs with
+large numbers of idle goroutines, substantial stack size fluctuation,
+or large package-level variables.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="context">Context</h3>
@@ -468,6 +474,12 @@ by the operating system anywhere in the address space,
 eliminating the
 “memory allocated by OS not in usable range” failure
 common in some environments.
+</p>
+
+<p>
+The runtime can now return unused memory to the operating system on
+all architectures. In Go 1.6 and earlier, the runtime could not
+release memory on ARM64, 64-bit PowerPC, or MIPS.
 </p>
 
 <p>
