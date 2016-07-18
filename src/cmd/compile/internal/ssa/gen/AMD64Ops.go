@@ -121,7 +121,7 @@ func init() {
 		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx},
 			clobbers: flags}
-		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+		gp21hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
 			clobbers: ax | flags}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
@@ -201,14 +201,14 @@ func init() {
 		{name: "MULQconst", argLength: 1, reg: gp11, asm: "IMULQ", aux: "Int64", resultInArg0: true}, // arg0 * auxint
 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true}, // arg0 * auxint
 
-		{name: "HMULQ", argLength: 2, reg: gp11hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
-		{name: "HMULL", argLength: 2, reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
-		{name: "HMULW", argLength: 2, reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
-		{name: "HMULB", argLength: 2, reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
-		{name: "HMULQU", argLength: 2, reg: gp11hmul, asm: "MULQ"}, // (arg0 * arg1) >> width
-		{name: "HMULLU", argLength: 2, reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
-		{name: "HMULWU", argLength: 2, reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
-		{name: "HMULBU", argLength: 2, reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+		{name: "HMULQ", argLength: 2, reg: gp21hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
+		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+		{name: "HMULW", argLength: 2, reg: gp21hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+		{name: "HMULB", argLength: 2, reg: gp21hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
+		{name: "HMULQU", argLength: 2, reg: gp21hmul, asm: "MULQ"}, // (arg0 * arg1) >> width
+		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL"}, // (arg0 * arg1) >> width
+		{name: "HMULWU", argLength: 2, reg: gp21hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+		{name: "HMULBU", argLength: 2, reg: gp21hmul, asm: "MULB"}, // (arg0 * arg1) >> width
 
 		{name: "AVGQU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
 

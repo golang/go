@@ -99,17 +99,20 @@ func init() {
 		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly, clobbers: flags}
+		gp11carry = regInfo{inputs: []regMask{gp}, outputs: []regMask{flags, gp}}
 		gp21carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags, gp}}
+		gp1carry1 = regInfo{inputs: []regMask{gp, flags}, outputs: gponly}
 		gp2carry1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: gponly}
 		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly, clobbers: flags}
 		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
 		gp21shift = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}, clobbers: flags}
 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
 			clobbers: dx | flags}
-		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+		gp21hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
 			clobbers: ax | flags}
 		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
 			clobbers: ax | flags}
+		gp21mul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}, clobbers: flags}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
@@ -174,20 +177,29 @@ func init() {
 		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", typ: "UInt32"}, // arg0 + auxint
 
 		{name: "ADDLcarry", argLength: 2, reg: gp21carry, asm: "ADDL", commutative: true, resultInArg0: true}, // arg0 + arg1, generates <carry,result> pair
+		{name: "ADDLconstcarry", argLength: 1, reg: gp11carry, asm: "ADDL", aux: "Int32", resultInArg0: true}, // arg0 + auxint, generates <carry,result> pair
 		{name: "ADCL", argLength: 3, reg: gp2carry1, asm: "ADCL", commutative: true, resultInArg0: true},      // arg0+arg1+carry(arg2), where arg2 is flags
+		{name: "ADCLconst", argLength: 2, reg: gp1carry1, asm: "ADCL", aux: "Int32", resultInArg0: true},      // arg0+auxint+carry(arg1), where arg1 is flags
 
 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true},                    // arg0 - arg1
 		{name: "SUBLconst", argLength: 1, reg: gp11, asm: "SUBL", aux: "Int32", resultInArg0: true}, // arg0 - auxint
 
+		{name: "SUBLcarry", argLength: 2, reg: gp21carry, asm: "SUBL", resultInArg0: true},                    // arg0-arg1, generates <borrow,result> pair
+		{name: "SUBLconstcarry", argLength: 1, reg: gp11carry, asm: "SUBL", aux: "Int32", resultInArg0: true}, // arg0-auxint, generates <borrow,result> pair
+		{name: "SBBL", argLength: 3, reg: gp2carry1, asm: "SBBL", resultInArg0: true},                         // arg0-arg1-borrow(arg2), where arg2 is flags
+		{name: "SBBLconst", argLength: 2, reg: gp1carry1, asm: "SBBL", aux: "Int32", resultInArg0: true},      // arg0-auxint-borrow(arg1), where arg1 is flags
+
 		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true}, // arg0 * arg1
 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMULL", aux: "Int32", resultInArg0: true}, // arg0 * auxint
 
-		{name: "HMULL", argLength: 2, reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
-		{name: "HMULW", argLength: 2, reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
-		{name: "HMULB", argLength: 2, reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
-		{name: "HMULLU", argLength: 2, reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
-		{name: "HMULWU", argLength: 2, reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
-		{name: "HMULBU", argLength: 2, reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+		{name: "HMULL", argLength: 2, reg: gp21hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+		{name: "HMULLU", argLength: 2, reg: gp21hmul, asm: "MULL"}, // (arg0 * arg1) >> width
+		{name: "HMULW", argLength: 2, reg: gp21hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+		{name: "HMULB", argLength: 2, reg: gp21hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
+		{name: "HMULWU", argLength: 2, reg: gp21hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+		{name: "HMULBU", argLength: 2, reg: gp21hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+
+		{name: "MULLQU", argLength: 2, reg: gp21mul, asm: "MULL"}, // arg0 * arg1, high 32 in result[0], low 32 in result[1]
 
 		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
 		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
