@@ -285,8 +285,6 @@ const (
 	Op386MOVBstore
 	Op386MOVWstore
 	Op386MOVLstore
-	Op386MOVOload
-	Op386MOVOstore
 	Op386MOVBloadidx1
 	Op386MOVWloadidx1
 	Op386MOVWloadidx2
@@ -306,7 +304,6 @@ const (
 	Op386MOVLstoreconstidx1
 	Op386MOVLstoreconstidx4
 	Op386DUFFZERO
-	Op386MOVOconst
 	Op386REPSTOSL
 	Op386CALLstatic
 	Op386CALLclosure
@@ -3153,32 +3150,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVOload",
-		auxType: auxSymOff,
-		argLen:  2,
-		asm:     x86.AMOVUPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65791}, // AX CX DX BX SP BP SI DI SB
-			},
-			outputs: []outputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
-		},
-	},
-	{
-		name:    "MOVOstore",
-		auxType: auxSymOff,
-		argLen:  3,
-		asm:     x86.AMOVUPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-				{0, 65791}, // AX CX DX BX SP BP SI DI SB
-			},
-		},
-	},
-	{
 		name:    "MOVBloadidx1",
 		auxType: auxSymOff,
 		argLen:  3,
@@ -3418,20 +3389,9 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
-				{1, 256}, // X0
+				{1, 1},   // AX
 			},
 			clobbers: 131200, // DI FLAGS
-		},
-	},
-	{
-		name:              "MOVOconst",
-		auxType:           auxInt128,
-		argLen:            0,
-		rematerializeable: true,
-		reg: regInfo{
-			outputs: []outputInfo{
-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
 		},
 	},
 	{
@@ -3502,7 +3462,7 @@ var opcodeTable = [...]opInfo{
 				{0, 128}, // DI
 				{1, 64},  // SI
 			},
-			clobbers: 131520, // SI DI X0 FLAGS
+			clobbers: 131266, // CX SI DI FLAGS
 		},
 	},
 	{

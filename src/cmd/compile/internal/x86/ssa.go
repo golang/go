@@ -101,11 +101,14 @@ func storeByType(t ssa.Type) obj.As {
 // moveByType returns the reg->reg move instruction of the given type.
 func moveByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
-		// Moving the whole sse2 register is faster
-		// than moving just the correct low portion of it.
-		// There is no xmm->xmm move with 1 byte opcode,
-		// so use movups, which has 2 byte opcode.
-		return x86.AMOVUPS
+		switch t.Size() {
+		case 4:
+			return x86.AMOVSS
+		case 8:
+			return x86.AMOVSD
+		default:
+			panic(fmt.Sprintf("bad float register width %d:%s", t.Size(), t))
+		}
 	} else {
 		switch t.Size() {
 		case 1:
@@ -115,8 +118,6 @@ func moveByType(t ssa.Type) obj.As {
 			return x86.AMOVL
 		case 4:
 			return x86.AMOVL
-		case 16:
-			return x86.AMOVUPS // int128s are in SSE registers
 		default:
 			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
 		}
@@ -448,7 +449,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload, ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload, ssa.Op386MOVOload:
+	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload, ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = gc.SSARegNum(v.Args[0])
@@ -496,7 +497,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore, ssa.Op386MOVOstore:
+	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[1])
@@ -584,12 +585,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_ADDR
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
 		p.To.Offset = v.AuxInt
-	case ssa.Op386MOVOconst:
-		if v.AuxInt != 0 {
-			v.Unimplementedf("MOVOconst can only do constant=0")
-		}
-		r := gc.SSARegNum(v)
-		opregreg(x86.AXORPS, r, r)
 	case ssa.Op386DUFFCOPY:
 		p := gc.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_ADDR
@@ -828,8 +823,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			case ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload,
 				ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore,
 				ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload,
-				ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVOload,
-				ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVOstore:
+				ssa.Op386MOVSSload, ssa.Op386MOVSDload,
+				ssa.Op386MOVSSstore, ssa.Op386MOVSDstore:
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
 						gc.Warnl(v.Line, "removed nil check")

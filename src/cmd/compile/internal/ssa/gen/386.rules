@@ -83,8 +83,7 @@
 (Not x) -> (XORLconst [1] x)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr) && is32Bit(off) -> (ADDLconst [off] ptr)
-(OffPtr [off] ptr) -> (ADDL (MOVLconst [off]) ptr)
+(OffPtr [off] ptr) -> (ADDLconst [off] ptr)
 
 (Bswap32 x) -> (BSWAPL x)
 
@@ -98,6 +97,9 @@
 (ZeroExt8to16  x) -> (MOVBLZX x)
 (ZeroExt8to32  x) -> (MOVBLZX x)
 (ZeroExt16to32 x) -> (MOVWLZX x)
+
+(Signmask x) -> (SARLconst x [31])
+(Zeromask x) -> (SBBLcarrymask (CMPL (MOVLconst [0]) x))
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
@@ -160,6 +162,26 @@
 (Rsh8x32 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
 (Rsh8x16 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
 (Rsh8x8  <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
+
+// constant shifts
+// generic opt rewrites all constant shifts to shift by Const64
+(Lsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SHLLconst x [c])
+(Rsh32x64 x (Const64 [c])) && uint64(c) < 32 -> (SARLconst x [c])
+(Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 -> (SHRLconst x [c])
+(Lsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SHLLconst x [c])
+(Rsh16x64 x (Const64 [c])) && uint64(c) < 16 -> (SARWconst x [c])
+(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 -> (SHRWconst x [c])
+(Lsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SHLLconst x [c])
+(Rsh8x64 x (Const64 [c])) && uint64(c) < 8 -> (SARBconst x [c])
+(Rsh8Ux64 x (Const64 [c])) && uint64(c) < 8 -> (SHRBconst x [c])
+
+// large constant shifts
+(Lsh32x64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
+(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
+(Lsh16x64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
+(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
+(Lsh8x64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
+(Rsh8Ux64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
 
 // Lowering comparisons
 (Less32  x y) -> (SETL (CMPL x y))
@@ -241,7 +263,6 @@
 (Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBload src mem) mem)
 (Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 -> (MOVWstore dst (MOVWload src mem) mem)
 (Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 -> (MOVLstore dst (MOVLload src mem) mem)
-(Move [s] dst src mem) && SizeAndAlign(s).Size() == 16 -> (MOVOstore dst (MOVOload src mem) mem)
 (Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
@@ -254,21 +275,32 @@
 (Move [s] dst src mem) && SizeAndAlign(s).Size() == 7 ->
 	(MOVLstore [3] dst (MOVLload [3] src mem)
 		(MOVLstore dst (MOVLload src mem) mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 ->
+	(MOVLstore [4] dst (MOVLload [4] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+
+// Adjust moves to be a multiple of 4 bytes.
+(Move [s] dst src mem)
+	&& SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size()%4 != 0 ->
+	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%4]
+		(ADDLconst <dst.Type> dst [SizeAndAlign(s).Size()%4])
+		(ADDLconst <src.Type> src [SizeAndAlign(s).Size()%4])
+		(MOVLstore dst (MOVLload src mem) mem))
 
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
-	&& SizeAndAlign(s).Size() >= 32 && SizeAndAlign(s).Size() <= 16*64 && SizeAndAlign(s).Size()%16 == 0
+	&& SizeAndAlign(s).Size() > 8 && SizeAndAlign(s).Size() <= 4*128 && SizeAndAlign(s).Size()%4 == 0
 	&& !config.noDuffDevice ->
-	(DUFFCOPY [14*(64-SizeAndAlign(s).Size()/16)] dst src mem)
-// 14 and 64 are magic constants.  14 is the number of bytes to encode:
-//	MOVUPS	(SI), X0
-//	ADDL	$16, SI
-//	MOVUPS	X0, (DI)
-//	ADDL	$16, DI
-// and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
+	(DUFFCOPY [10*(128-SizeAndAlign(s).Size()/4)] dst src mem)
+// 10 and 128 are magic constants.  10 is the number of bytes to encode:
+//	MOVL	(SI), CX
+//	ADDL	$4, SI
+//	MOVL	CX, (DI)
+//	ADDL	$4, DI
+// and 128 is the number of such blocks. See src/runtime/duff_386.s:duffcopy.
 
 // Large copying uses REP MOVSL.
-(Move [s] dst src mem) && (SizeAndAlign(s).Size() > 16*64 || config.noDuffDevice) && SizeAndAlign(s).Size()%8 == 0 ->
+(Move [s] dst src mem) && (SizeAndAlign(s).Size() > 4*128 || config.noDuffDevice) && SizeAndAlign(s).Size()%4 == 0 ->
 	(REPMOVSL dst src (MOVLconst [SizeAndAlign(s).Size()/4]) mem)
 
 // Lowering Zero instructions
@@ -309,11 +341,22 @@
 			(MOVLstoreconst [makeValAndOff(0,4)] destptr
 				(MOVLstoreconst [0] destptr mem))))
 
+// Medium zeroing uses a duff device.
+(Zero [s] destptr mem)
+  && SizeAndAlign(s).Size() > 16
+  && SizeAndAlign(s).Size() <= 4*128
+  && SizeAndAlign(s).Size()%4 == 0
+  && !config.noDuffDevice ->
+	(DUFFZERO [1*(128-SizeAndAlign(s).Size()/4)] destptr (MOVLconst [0]) mem)
+// 1 and 128 are magic constants.  1 is the number of bytes to encode STOSL.
+// 128 is the number of STOSL instructions in duffzero.
+// See src/runtime/duff_386.s:duffzero.
+
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-	&& (SizeAndAlign(s).Size() > 1024 || (config.noDuffDevice && SizeAndAlign(s).Size() > 32))
-	&& SizeAndAlign(s).Size()%8 == 0 ->
-	(REPSTOSL destptr (MOVLconst [SizeAndAlign(s).Size()/8]) (MOVLconst [0]) mem)
+  && (SizeAndAlign(s).Size() > 4*128 || (config.noDuffDevice && SizeAndAlign(s).Size() > 16))
+  && SizeAndAlign(s).Size()%4 == 0 ->
+	(REPSTOSL destptr (MOVLconst [SizeAndAlign(s).Size()/4]) (MOVLconst [0]) mem)
 
 // Lowering constants
 (Const8   [val]) -> (MOVLconst [val])
@@ -596,14 +639,12 @@
 (MOVBload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVBload  [off1+off2] {sym} ptr mem)
 (MOVSSload [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVSSload [off1+off2] {sym} ptr mem)
 (MOVSDload [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVSDload [off1+off2] {sym} ptr mem)
-(MOVOload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVOload  [off1+off2] {sym} ptr mem)
 
 (MOVLstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVLstore  [off1+off2] {sym} ptr val mem)
 (MOVWstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVWstore  [off1+off2] {sym} ptr val mem)
 (MOVBstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVBstore  [off1+off2] {sym} ptr val mem)
 (MOVSSstore [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVSSstore [off1+off2] {sym} ptr val mem)
 (MOVSDstore [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVSDstore [off1+off2] {sym} ptr val mem)
-(MOVOstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVOstore  [off1+off2] {sym} ptr val mem)
 
 // Fold constants into stores.
 (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
@@ -633,8 +674,6 @@
 	(MOVSSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 (MOVSDload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVSDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
-(MOVOload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVOload [off1+off2] {mergeSym(sym1,sym2)} base mem)
 
 (MOVBLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVBLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
@@ -651,8 +690,6 @@
 	(MOVSSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOVSDstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVSDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
-(MOVOstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
-	(MOVOstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 
 (MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)

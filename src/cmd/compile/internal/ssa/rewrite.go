@@ -254,39 +254,38 @@ func isSamePtr(p1, p2 *Value) bool {
 	return false
 }
 
-// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
-// See runtime/mkduff.go.
-const (
-	dzBlocks    = 16 // number of MOV/ADD blocks
-	dzBlockLen  = 4  // number of clears per block
-	dzBlockSize = 19 // size of instructions in a single block
-	dzMovSize   = 4  // size of single MOV instruction w/ offset
-	dzAddSize   = 4  // size of single ADD instruction
-	dzClearStep = 16 // number of bytes cleared by each MOV instruction
-
-	dzTailLen  = 4 // number of final STOSQ instructions
-	dzTailSize = 2 // size of single STOSQ instruction
-
-	dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
-	dzSize     = dzBlocks * dzBlockSize
-)
-
-func duffStart(size int64) int64 {
-	x, _ := duff(size)
+func duffStartAMD64(size int64) int64 {
+	x, _ := duffAMD64(size)
 	return x
 }
-func duffAdj(size int64) int64 {
-	_, x := duff(size)
+func duffAdjAMD64(size int64) int64 {
+	_, x := duffAMD64(size)
 	return x
 }
 
 // duff returns the offset (from duffzero, in bytes) and pointer adjust (in bytes)
 // required to use the duffzero mechanism for a block of the given size.
-func duff(size int64) (int64, int64) {
+func duffAMD64(size int64) (int64, int64) {
+	// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+	// See runtime/mkduff.go.
+	const (
+		dzBlocks    = 16 // number of MOV/ADD blocks
+		dzBlockLen  = 4  // number of clears per block
+		dzBlockSize = 19 // size of instructions in a single block
+		dzMovSize   = 4  // size of single MOV instruction w/ offset
+		dzAddSize   = 4  // size of single ADD instruction
+		dzClearStep = 16 // number of bytes cleared by each MOV instruction
+
+		dzTailLen  = 4 // number of final STOSQ instructions
+		dzTailSize = 2 // size of single STOSQ instruction
+
+		dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
+		dzSize     = dzBlocks * dzBlockSize
+	)
+
 	if size < 32 || size > 1024 || size%dzClearStep != 0 {
 		panic("bad duffzero size")
 	}
-	// TODO: arch-dependent
 	steps := size / dzClearStep
 	blocks := steps / dzBlockLen
 	steps %= dzBlockLen
