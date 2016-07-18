@@ -22,17 +22,14 @@ const (
 var addrspace_vec [1]byte
 
 func addrspace_free(v unsafe.Pointer, n uintptr) bool {
-	// Step by the minimum possible physical page size. This is
-	// safe even if we have the wrong physical page size; mincore
-	// will just return EINVAL for unaligned addresses.
-	for off := uintptr(0); off < n; off += minPhysPageSize {
+	for off := uintptr(0); off < n; off += physPageSize {
 		// Use a length of 1 byte, which the kernel will round
 		// up to one physical page regardless of the true
 		// physical page size.
 		errval := mincore(unsafe.Pointer(uintptr(v)+off), 1, &addrspace_vec[0])
 		if errval == -_EINVAL {
 			// Address is not a multiple of the physical
-			// page size. That's fine.
+			// page size. Shouldn't happen, but just ignore it.
 			continue
 		}
 		// ENOMEM means unmapped, which is what we want.
@@ -138,7 +135,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		}
 	}
 
-	if uintptr(v)&(sys.PhysPageSize-1) != 0 || n&(sys.PhysPageSize-1) != 0 {
+	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
 		// madvise will round this to any physical page
 		// *covered* by this range, so an unaligned madvise
 		// will release more memory than intended.

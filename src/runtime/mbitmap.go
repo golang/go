@@ -151,7 +151,7 @@ func (h *mheap) mapBits(arena_used uintptr) {
 
 	n := (arena_used - mheap_.arena_start) / heapBitmapScale
 	n = round(n, bitmapChunk)
-	n = round(n, sys.PhysPageSize)
+	n = round(n, physPageSize)
 	if h.bitmap_mapped >= n {
 		return
 	}

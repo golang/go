@@ -401,7 +401,7 @@ func (h *mheap) mapSpans(arena_used uintptr) {
 	n := arena_used
 	n -= h.arena_start
 	n = n / _PageSize * sys.PtrSize
-	n = round(n, sys.PhysPageSize)
+	n = round(n, physPageSize)
 	if h.spans_mapped >= n {
 		return
 	}
@@ -909,14 +909,14 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 		if (now-uint64(s.unusedsince)) > limit && s.npreleased != s.npages {
 			start := s.base()
 			end := start + s.npages<<_PageShift
-			if sys.PhysPageSize > _PageSize {
+			if physPageSize > _PageSize {
 				// We can only release pages in
-				// PhysPageSize blocks, so round start
+				// physPageSize blocks, so round start
 				// and end in. (Otherwise, madvise
 				// will round them *out* and release
 				// more memory than we want.)
-				start = (start + sys.PhysPageSize - 1) &^ (sys.PhysPageSize - 1)
-				end &^= sys.PhysPageSize - 1
+				start = (start + physPageSize - 1) &^ (physPageSize - 1)
+				end &^= physPageSize - 1
 				if end <= start {
 					// start and end don't span a
 					// whole physical page.
@@ -926,7 +926,7 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 			len := end - start
 
 			released := len - (s.npreleased << _PageShift)
-			if sys.PhysPageSize > _PageSize && released == 0 {
+			if physPageSize > _PageSize && released == 0 {
 				continue
 			}
 			memstats.heap_released += uint64(released)
