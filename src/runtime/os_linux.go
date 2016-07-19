@@ -207,17 +207,7 @@ func sysargs(argc int32, argv **byte) {
 			startupRandomData = (*[16]byte)(unsafe.Pointer(val))[:]
 
 		case _AT_PAGESZ:
-			// Check that the true physical page size is
-			// compatible with the runtime's assumed
-			// physical page size.
-			if sys.PhysPageSize < val {
-				print("runtime: kernel page size (", val, ") is larger than runtime page size (", sys.PhysPageSize, ")\n")
-				exit(1)
-			}
-			if sys.PhysPageSize%val != 0 {
-				print("runtime: runtime page size (", sys.PhysPageSize, ") is not a multiple of kernel page size (", val, ")\n")
-				exit(1)
-			}
+			physPageSize = val
 		}
 
 		archauxv(tag, val)

@@ -172,6 +172,14 @@ const (
 
 const _MaxArena32 = 1<<32 - 1
 
+// physPageSize is the size in bytes of the OS's physical pages.
+// Mapping and unmapping operations must be done at multiples of
+// physPageSize.
+//
+// This must be set by the OS init code (typically in osinit) before
+// mallocinit.
+var physPageSize uintptr
+
 // OS-defined helpers:
 //
 // sysAlloc obtains a large chunk of zeroed memory from the
@@ -215,6 +223,20 @@ func mallocinit() {
 
 	if class_to_size[_TinySizeClass] != _TinySize {
 		throw("bad TinySizeClass")
+	}
+
+	// Check physPageSize.
+	if physPageSize == 0 {
+		// The OS init code failed to fetch the physical page size.
+		throw("failed to get system page size")
+	}
+	if sys.PhysPageSize < physPageSize {
+		print("runtime: kernel page size (", physPageSize, ") is larger than runtime page size (", sys.PhysPageSize, ")\n")
+		throw("bad kernel page size")
+	}
+	if sys.PhysPageSize%physPageSize != 0 {
+		print("runtime: runtime page size (", sys.PhysPageSize, ") is not a multiple of kernel page size (", physPageSize, ")\n")
+		throw("bad kernel page size")
 	}
 
 	var p, bitmapSize, spansSize, pSize, limit uintptr

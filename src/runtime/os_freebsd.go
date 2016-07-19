@@ -41,8 +41,9 @@ func osyield()
 
 // From FreeBSD's <sys/sysctl.h>
 const (
-	_CTL_HW  = 6
-	_HW_NCPU = 3
+	_CTL_HW      = 6
+	_HW_NCPU     = 3
+	_HW_PAGESIZE = 7
 )
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
@@ -56,6 +57,17 @@ func getncpu() int32 {
 		return int32(out)
 	}
 	return 1
+}
+
+func getPageSize() uintptr {
+	mib := [2]uint32{_CTL_HW, _HW_PAGESIZE}
+	out := uint32(0)
+	nout := unsafe.Sizeof(out)
+	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret >= 0 {
+		return uintptr(out)
+	}
+	return 0
 }
 
 // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
@@ -128,6 +140,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 func osinit() {
 	ncpu = getncpu()
+	physPageSize = getPageSize()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")

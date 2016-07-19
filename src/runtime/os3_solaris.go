@@ -127,8 +127,17 @@ func getncpu() int32 {
 	return n
 }
 
+func getPageSize() uintptr {
+	n := int32(sysconf(__SC_PAGESIZE))
+	if n <= 0 {
+		return 0
+	}
+	return uintptr(n)
+}
+
 func osinit() {
 	ncpu = getncpu()
+	physPageSize = getPageSize()
 }
 
 func tstart_sysvicall(newm *m) uint32
