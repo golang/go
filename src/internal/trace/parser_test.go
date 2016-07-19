@@ -42,7 +42,9 @@ func TestParseCanned(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read input file: %v", err)
 		}
-		_, err = Parse(bytes.NewReader(data), "")
+		// Instead of Parse that requires a proper binary name for old traces,
+		// we use 'parse' that omits symbol lookup if an empty string is given.
+		_, _, err = parse(bytes.NewReader(data), "")
 		switch {
 		case strings.HasSuffix(f.Name(), "_good"):
 			if err != nil {

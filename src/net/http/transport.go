@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/lex/httplex"
+	"golang_org/x/net/lex/httplex"
 )
 
 // DefaultTransport is the default implementation of Transport and is
@@ -251,6 +251,9 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
 	}
 	if proxy == "" {
 		proxy = httpProxyEnv.Get()
+		if proxy != "" && os.Getenv("REQUEST_METHOD") != "" {
+			return nil, errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")
+		}
 	}
 	if proxy == "" {
 		return nil, nil
@@ -845,10 +848,26 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
 	select {
 	case v := <-dialc:
 		// Our dial finished.
-		if trace != nil && trace.GotConn != nil && v.pc != nil && v.pc.alt == nil {
-			trace.GotConn(httptrace.GotConnInfo{Conn: v.pc.conn})
+		if v.pc != nil {
+			if trace != nil && trace.GotConn != nil && v.pc.alt == nil {
+				trace.GotConn(httptrace.GotConnInfo{Conn: v.pc.conn})
+			}
+			return v.pc, nil
 		}
-		return v.pc, v.err
+		// Our dial failed. See why to return a nicer error
+		// value.
+		select {
+		case <-req.Cancel:
+		case <-req.Context().Done():
+		case <-cancelc:
+		default:
+			// It wasn't an error due to cancelation, so
+			// return the original error message:
+			return nil, v.err
+		}
+		// It was an error due to cancelation, so prioritize that
+		// error value. (Issue 16049)
+		return nil, errRequestCanceledConn
 	case pc := <-idleConnCh:
 		// Another request finished first and its net.Conn
 		// became available before our dial. Or somebody

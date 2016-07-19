@@ -450,7 +450,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 // 	type File struct { d int }
 // 	d, err := syscall.Open("/file/path", syscall.O_RDONLY, 0)
 // 	// ... do something if err != nil ...
-// 	p := &FILE{d}
+// 	p := &File{d}
 // 	runtime.SetFinalizer(p, func(p *File) { syscall.Close(p.d) })
 // 	var buf [10]byte
 // 	n, err := syscall.Read(p.d, buf[:])

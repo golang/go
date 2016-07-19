@@ -683,6 +683,10 @@ outer:
 		levprd[nprod] = 0
 	}
 
+	if TEMPSIZE < ntokens+nnonter+1 {
+		errorf("too many tokens (%d) or non-terminals (%d)", ntokens, nnonter)
+	}
+
 	//
 	// end of all rules
 	// dump out the prefix code

@@ -213,7 +213,7 @@ func (r *Response) ProtoAtLeast(major, minor int) bool {
 		r.ProtoMajor == major && r.ProtoMinor >= minor
 }
 
-// Write writes r to w in the HTTP/1.n server response format,
+// Write writes r to w in the HTTP/1.x server response format,
 // including the status line, headers, body, and optional trailer.
 //
 // This method consults the following fields of the response r:

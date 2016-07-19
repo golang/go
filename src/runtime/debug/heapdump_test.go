@@ -38,7 +38,7 @@ type Obj struct {
 }
 
 func objfin(x *Obj) {
-	println("finalized", x)
+	//println("finalized", x)
 }
 
 func TestWriteHeapDumpFinalizers(t *testing.T) {

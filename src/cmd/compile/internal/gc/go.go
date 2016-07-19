@@ -156,6 +156,8 @@ var Debug_typeassert int
 
 var localpkg *Pkg // package being compiled
 
+var autopkg *Pkg // fake package for allocating auto variables
+
 var importpkg *Pkg // package being imported
 
 var itabpkg *Pkg // fake pkg for itab entries

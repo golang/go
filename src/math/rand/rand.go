@@ -33,14 +33,32 @@ func NewSource(seed int64) Source {
 // A Rand is a source of random numbers.
 type Rand struct {
 	src Source
+
+	// readVal contains remainder of 63-bit integer used for bytes
+	// generation during most recent Read call.
+	// It is saved so next Read call can start where the previous
+	// one finished.
+	readVal int64
+	// readPos indicates the number of low-order bytes of readVal
+	// that are still valid.
+	readPos int8
 }
 
 // New returns a new Rand that uses random values from src
 // to generate other random values.
-func New(src Source) *Rand { return &Rand{src} }
+func New(src Source) *Rand { return &Rand{src: src} }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
-func (r *Rand) Seed(seed int64) { r.src.Seed(seed) }
+// Seed should not be called concurrently with any other Rand method.
+func (r *Rand) Seed(seed int64) {
+	if lk, ok := r.src.(*lockedSource); ok {
+		lk.seedPos(seed, &r.readPos)
+		return
+	}
+
+	r.src.Seed(seed)
+	r.readPos = 0
+}
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func (r *Rand) Int63() int64 { return r.src.Int63() }
@@ -160,15 +178,29 @@ func (r *Rand) Perm(n int) []int {
 
 // Read generates len(p) random bytes and writes them into p. It
 // always returns len(p) and a nil error.
+// Read should not be called concurrently with any other Rand method.
 func (r *Rand) Read(p []byte) (n int, err error) {
-	for i := 0; i < len(p); i += 7 {
-		val := r.src.Int63()
-		for j := 0; i+j < len(p) && j < 7; j++ {
-			p[i+j] = byte(val)
-			val >>= 8
-		}
+	if lk, ok := r.src.(*lockedSource); ok {
+		return lk.read(p, &r.readVal, &r.readPos)
 	}
-	return len(p), nil
+	return read(p, r.Int63, &r.readVal, &r.readPos)
+}
+
+func read(p []byte, int63 func() int64, readVal *int64, readPos *int8) (n int, err error) {
+	pos := *readPos
+	val := *readVal
+	for n = 0; n < len(p); n++ {
+		if pos == 0 {
+			val = int63()
+			pos = 7
+		}
+		p[n] = byte(val)
+		val >>= 8
+		pos--
+	}
+	*readPos = pos
+	*readVal = val
+	return
 }
 
 /*
@@ -179,8 +211,9 @@ var globalRand = New(&lockedSource{src: NewSource(1)})
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. If Seed is not called, the generator behaves as
-// if seeded by Seed(1). Only uses the bottom 31 bits of seed; the top 33
-// bits are ignored.
+// if seeded by Seed(1). Seed values that have the same remainder when
+// divided by 2^31-1 generate the same pseudo-random sequence.
+// Seed, unlike the Rand.Seed method, is safe for concurrent use.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64
@@ -227,6 +260,7 @@ func Perm(n int) []int { return globalRand.Perm(n) }
 
 // Read generates len(p) random bytes from the default Source and
 // writes them into p. It always returns len(p) and a nil error.
+// Read, unlike the Rand.Read method, is safe for concurrent use.
 func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
 
 // NormFloat64 returns a normally distributed float64 in the range
@@ -266,4 +300,20 @@ func (r *lockedSource) Seed(seed int64) {
 	r.lk.Lock()
 	r.src.Seed(seed)
 	r.lk.Unlock()
+}
+
+// seedPos implements Seed for a lockedSource without a race condiiton.
+func (r *lockedSource) seedPos(seed int64, readPos *int8) {
+	r.lk.Lock()
+	r.src.Seed(seed)
+	*readPos = 0
+	r.lk.Unlock()
+}
+
+// read implements Read for a lockedSource without a race condition.
+func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+	r.lk.Lock()
+	n, err = read(p, r.src.Int63, readVal, readPos)
+	r.lk.Unlock()
+	return
 }

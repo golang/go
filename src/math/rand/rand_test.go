@@ -5,13 +5,16 @@
 package rand
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"math"
 	"os"
 	"runtime"
 	"testing"
+	"testing/iotest"
 )
 
 const (
@@ -373,7 +376,7 @@ func testReadUniformity(t *testing.T, n int, seed int64) {
 	checkSampleDistribution(t, samples, expected)
 }
 
-func TestRead(t *testing.T) {
+func TestReadUniformity(t *testing.T) {
 	testBufferSizes := []int{
 		2, 4, 7, 64, 1024, 1 << 16, 1 << 20,
 	}
@@ -394,7 +397,42 @@ func TestReadEmpty(t *testing.T) {
 	if n != 0 {
 		t.Errorf("Read into empty buffer returned unexpected n of %d", n)
 	}
+}
 
+func TestReadByOneByte(t *testing.T) {
+	r := New(NewSource(1))
+	b1 := make([]byte, 100)
+	_, err := io.ReadFull(iotest.OneByteReader(r), b1)
+	if err != nil {
+		t.Errorf("read by one byte: %v", err)
+	}
+	r = New(NewSource(1))
+	b2 := make([]byte, 100)
+	_, err = r.Read(b2)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Errorf("read by one byte vs single read:\n%x\n%x", b1, b2)
+	}
+}
+
+func TestReadSeedReset(t *testing.T) {
+	r := New(NewSource(42))
+	b1 := make([]byte, 128)
+	_, err := r.Read(b1)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+	r.Seed(42)
+	b2 := make([]byte, 128)
+	_, err = r.Read(b2)
+	if err != nil {
+		t.Errorf("read: %v", err)
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Errorf("mismatch after re-seed:\n%x\n%x", b1, b2)
+	}
 }
 
 // Benchmarks

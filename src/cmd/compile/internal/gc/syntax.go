@@ -79,6 +79,7 @@ const (
 	hasBreak = 1 << iota
 	notLiveAtEnd
 	isClosureVar
+	isOutputParamHeapAddr
 )
 
 func (n *Node) HasBreak() bool {
@@ -109,6 +110,17 @@ func (n *Node) setIsClosureVar(b bool) {
 		n.flags |= isClosureVar
 	} else {
 		n.flags &^= isClosureVar
+	}
+}
+
+func (n *Node) IsOutputParamHeapAddr() bool {
+	return n.flags&isOutputParamHeapAddr != 0
+}
+func (n *Node) setIsOutputParamHeapAddr(b bool) {
+	if b {
+		n.flags |= isOutputParamHeapAddr
+	} else {
+		n.flags &^= isOutputParamHeapAddr
 	}
 }
 

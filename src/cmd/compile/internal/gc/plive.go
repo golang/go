@@ -577,6 +577,15 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 
 		return
 	}
+	if prog.As == obj.AJMP && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
+		// This is a tail call. Ensure the arguments are still alive.
+		// See issue 16016.
+		for i, node := range vars {
+			if node.Class == PPARAM {
+				bvset(uevar, int32(i))
+			}
+		}
+	}
 
 	if prog.As == obj.ATEXT {
 		// A text instruction marks the entry point to a function and
@@ -1165,6 +1174,19 @@ func livenessepilogue(lv *Liveness) {
 	any := bvalloc(nvars)
 	all := bvalloc(nvars)
 	ambig := bvalloc(localswords())
+
+	// Set ambig bit for the pointers to heap-allocated pparamout variables.
+	// These are implicitly read by post-deferreturn code and thus must be
+	// kept live throughout the function (if there is any defer that recovers).
+	if hasdefer {
+		for _, n := range lv.vars {
+			if n.IsOutputParamHeapAddr() {
+				n.Name.Needzero = true
+				xoffset := n.Xoffset + stkptrsize
+				onebitwalktype1(n.Type, &xoffset, ambig)
+			}
+		}
+	}
 
 	for _, bb := range lv.cfg {
 		// Compute avarinitany and avarinitall for entry to block.

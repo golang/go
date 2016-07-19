@@ -86,34 +86,35 @@ var (
 // The exported fields can be changed to customize the details before the
 // first call to Read or ReadAll.
 //
-// Comma is the field delimiter. It defaults to ','.
 //
-// Comment, if not 0, is the comment character. Lines beginning with the
-// Comment character are ignored.
-//
-// If FieldsPerRecord is positive, Read requires each record to
-// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
-// the number of fields in the first record, so that future records must
-// have the same field count. If FieldsPerRecord is negative, no check is
-// made and records may have a variable number of fields.
-//
-// If LazyQuotes is true, a quote may appear in an unquoted field and a
-// non-doubled quote may appear in a quoted field.
-//
-// If TrimLeadingSpace is true, leading white space in a field is ignored.
-// If the field delimiter is white space, TrimLeadingSpace will trim the
-// delimiter.
 type Reader struct {
-	Comma            rune // field delimiter (set to ',' by NewReader)
-	Comment          rune // comment character for start of line
-	FieldsPerRecord  int  // number of expected fields per record
-	LazyQuotes       bool // allow lazy quotes
-	TrailingComma    bool // ignored; here for backwards compatibility
-	TrimLeadingSpace bool // trim leading space
-	line             int
-	column           int
-	r                *bufio.Reader
-	field            bytes.Buffer
+	// Comma is the field delimiter.
+	// It is set to comma (',') by NewReader.
+	Comma rune
+	// Comment, if not 0, is the comment character. Lines beginning with the
+	// Comment character without preceding whitespace are ignored.
+	// With leading whitespace the Comment character becomes part of the
+	// field, even if TrimLeadingSpace is true.
+	Comment rune
+	// FieldsPerRecord is the number of expected fields per record.
+	// If FieldsPerRecord is positive, Read requires each record to
+	// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
+	// the number of fields in the first record, so that future records must
+	// have the same field count. If FieldsPerRecord is negative, no check is
+	// made and records may have a variable number of fields.
+	FieldsPerRecord int
+	// If LazyQuotes is true, a quote may appear in an unquoted field and a
+	// non-doubled quote may appear in a quoted field.
+	LazyQuotes    bool
+	TrailingComma bool // ignored; here for backwards compatibility
+	// If TrimLeadingSpace is true, leading white space in a field is ignored.
+	// This is done even if the field delimiter, Comma, is white space.
+	TrimLeadingSpace bool
+
+	line   int
+	column int
+	r      *bufio.Reader
+	field  bytes.Buffer
 }
 
 // NewReader returns a new Reader that reads from r.

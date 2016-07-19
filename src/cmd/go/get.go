@@ -19,8 +19,8 @@ var cmdGet = &Command{
 	UsageLine: "get [-d] [-f] [-fix] [-insecure] [-t] [-u] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
-Get downloads and installs the packages named by the import paths,
-along with their dependencies.
+Get downloads the packages named by the import paths, along with their
+dependencies. It then installs the named packages, like 'go install'.
 
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
@@ -55,8 +55,7 @@ rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
 
-Unless vendoring support is disabled (see 'go help gopath'),
-when go get checks out or updates a Git repository,
+When go get checks out or updates a Git repository,
 it also updates any git submodules referenced by the repository.
 
 Get never checks out or updates code stored in vendor directories.

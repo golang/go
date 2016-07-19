@@ -2238,13 +2238,12 @@ if str, ok := value.(string); ok {
 
 <h3 id="generality">Generality</h3>
 <p>
-If a type exists only to implement an interface
-and has no exported methods beyond that interface,
-there is no need to export the type itself.
-Exporting just the interface makes it clear that
-it's the behavior that matters, not the implementation,
-and that other implementations with different properties
-can mirror the behavior of the original type.
+If a type exists only to implement an interface and will
+never have exported methods beyond that interface, there is
+no need to export the type itself.
+Exporting just the interface makes it clear the value has no
+interesting behavior beyond what is described in the
+interface.
 It also avoids the need to repeat the documentation
 on every instance of a common method.
 </p>
@@ -3665,4 +3664,3 @@ var _ image.Color = Black
 var _ image.Image = Black
 </pre>
 -->
-

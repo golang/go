@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 )
@@ -1231,15 +1232,14 @@ func dominantField(fields []field) (field, bool) {
 }
 
 var fieldCache struct {
-	sync.RWMutex
-	m map[reflect.Type][]field
+	value atomic.Value // map[reflect.Type][]field
+	mu    sync.Mutex   // used only by writers
 }
 
 // cachedTypeFields is like typeFields but uses a cache to avoid repeated work.
 func cachedTypeFields(t reflect.Type) []field {
-	fieldCache.RLock()
-	f := fieldCache.m[t]
-	fieldCache.RUnlock()
+	m, _ := fieldCache.value.Load().(map[reflect.Type][]field)
+	f := m[t]
 	if f != nil {
 		return f
 	}
@@ -1251,11 +1251,14 @@ func cachedTypeFields(t reflect.Type) []field {
 		f = []field{}
 	}
 
-	fieldCache.Lock()
-	if fieldCache.m == nil {
-		fieldCache.m = map[reflect.Type][]field{}
+	fieldCache.mu.Lock()
+	m, _ = fieldCache.value.Load().(map[reflect.Type][]field)
+	newM := make(map[reflect.Type][]field, len(m)+1)
+	for k, v := range m {
+		newM[k] = v
 	}
-	fieldCache.m[t] = f
-	fieldCache.Unlock()
+	newM[t] = f
+	fieldCache.value.Store(newM)
+	fieldCache.mu.Unlock()
 	return f
 }

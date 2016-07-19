@@ -1022,9 +1022,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.MFiles = nil
 		p.SwigFiles = nil
 		p.SwigCXXFiles = nil
-		p.SysoFiles = nil
 		// Note that SFiles are okay (they go to the Go assembler)
 		// and HFiles are okay (they might be used by the SFiles).
+		// Also Sysofiles are okay (they might not contain object
+		// code; see issue #16050).
 	}
 
 	// The gc toolchain only permits C source files with cgo.

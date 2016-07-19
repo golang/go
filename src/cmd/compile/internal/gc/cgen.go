@@ -2855,11 +2855,6 @@ func cgen_append(n, res *Node) {
 		Dump("cgen_append-n", n)
 		Dump("cgen_append-res", res)
 	}
-	if res.Op != ONAME && !samesafeexpr(res, n.List.First()) {
-		Dump("cgen_append-n", n)
-		Dump("cgen_append-res", res)
-		Fatalf("append not lowered")
-	}
 	for _, n1 := range n.List.Slice() {
 		if n1.Ullman >= UINF {
 			Fatalf("append with function call arguments")

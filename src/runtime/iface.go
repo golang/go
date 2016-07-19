@@ -54,7 +54,6 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		for m = (*itab)(atomic.Loadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
 			if m.inter == inter && m._type == typ {
 				if m.bad != 0 {
-					m = nil
 					if !canfail {
 						// this can only happen if the conversion
 						// was already done once using the , ok form
@@ -64,6 +63,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 						// adding the itab again, which will throw an error.
 						additab(m, locked != 0, false)
 					}
+					m = nil
 				}
 				if locked != 0 {
 					unlock(&ifaceLock)

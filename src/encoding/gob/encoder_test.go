@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
@@ -831,28 +832,79 @@ func TestPtrToMapOfMap(t *testing.T) {
 
 // A top-level nil pointer generates a panic with a helpful string-valued message.
 func TestTopLevelNilPointer(t *testing.T) {
-	errMsg := topLevelNilPanic(t)
-	if errMsg == "" {
+	var ip *int
+	encodeErr, panicErr := encodeAndRecover(ip)
+	if encodeErr != nil {
+		t.Fatal("error in encode:", encodeErr)
+	}
+	if panicErr == nil {
 		t.Fatal("top-level nil pointer did not panic")
 	}
+	errMsg := panicErr.Error()
 	if !strings.Contains(errMsg, "nil pointer") {
 		t.Fatal("expected nil pointer error, got:", errMsg)
 	}
 }
 
-func topLevelNilPanic(t *testing.T) (panicErr string) {
+func encodeAndRecover(value interface{}) (encodeErr, panicErr error) {
 	defer func() {
 		e := recover()
-		if err, ok := e.(string); ok {
-			panicErr = err
+		if e != nil {
+			switch err := e.(type) {
+			case error:
+				panicErr = err
+			default:
+				panicErr = fmt.Errorf("%v", err)
+			}
 		}
 	}()
-	var ip *int
-	buf := new(bytes.Buffer)
-	if err := NewEncoder(buf).Encode(ip); err != nil {
-		t.Fatal("error in encode:", err)
-	}
+
+	encodeErr = NewEncoder(ioutil.Discard).Encode(value)
 	return
+}
+
+func TestNilPointerPanics(t *testing.T) {
+	var (
+		nilStringPtr      *string
+		intMap            = make(map[int]int)
+		intMapPtr         = &intMap
+		nilIntMapPtr      *map[int]int
+		zero              int
+		nilBoolChannel    chan bool
+		nilBoolChannelPtr *chan bool
+		nilStringSlice    []string
+		stringSlice       = make([]string, 1)
+		nilStringSlicePtr *[]string
+	)
+
+	testCases := []struct {
+		value     interface{}
+		mustPanic bool
+	}{
+		{nilStringPtr, true},
+		{intMap, false},
+		{intMapPtr, false},
+		{nilIntMapPtr, true},
+		{zero, false},
+		{nilStringSlice, false},
+		{stringSlice, false},
+		{nilStringSlicePtr, true},
+		{nilBoolChannel, false},
+		{nilBoolChannelPtr, true},
+	}
+
+	for _, tt := range testCases {
+		_, panicErr := encodeAndRecover(tt.value)
+		if tt.mustPanic {
+			if panicErr == nil {
+				t.Errorf("expected panic with input %#v, did not panic", tt.value)
+			}
+			continue
+		}
+		if panicErr != nil {
+			t.Fatalf("expected no panic with input %#v, got panic=%v", tt.value, panicErr)
+		}
+	}
 }
 
 func TestNilPointerInsideInterface(t *testing.T) {

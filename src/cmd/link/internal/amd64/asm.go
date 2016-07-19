@@ -615,7 +615,8 @@ func asmb() {
 
 	sect := ld.Segtext.Sect
 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-	ld.Codeblk(int64(sect.Vaddr), int64(sect.Length))
+	// 0xCC is INT $3 - breakpoint instruction
+	ld.CodeblkPad(int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
 	for sect = sect.Next; sect != nil; sect = sect.Next {
 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		ld.Datblk(int64(sect.Vaddr), int64(sect.Length))

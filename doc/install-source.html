@@ -33,7 +33,7 @@ compiler using the GCC back end, see
 </p>
 
 <p>
-The Go compilers support six instruction sets.
+The Go compilers support seven instruction sets.
 There are important differences in the quality of the compilers for the different
 architectures.
 </p>
@@ -43,15 +43,17 @@ architectures.
 	<code>amd64</code> (also known as <code>x86-64</code>)
 </dt>
 <dd>
-	A mature implementation. The compiler has an effective
-	optimizer (registerizer) and generates good code (although
-	<code>gccgo</code> can do noticeably better sometimes).
+	A mature implementation. New in 1.7 is its SSA-based back end
+	that generates compact, efficient code.
 </dd>
 <dt>
 	<code>386</code> (<code>x86</code> or <code>x86-32</code>)
 </dt>
 <dd>
-	Comparable to the <code>amd64</code> port.
+	Comparable to the <code>amd64</code> port, but does
+	not yet use the SSA-based back end. It has an effective
+	optimizer (registerizer) and generates good code (although
+	<code>gccgo</code> can do noticeably better sometimes).
 </dd>
 <dt>
 	<code>arm</code> (<code>ARM</code>)
@@ -76,6 +78,12 @@ architectures.
 </dt>
 <dd>
 	Supports Linux binaries. New in 1.6 and not as well exercised as other ports.
+</dd>
+<dt>
+	<code>s390x</code> (IBM System z)
+</dt>
+<dd>
+	Supports Linux binaries. New in 1.7 and not as well exercised as other ports.
 </dd>
 </dl>
 
