@@ -601,7 +601,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
+		fmt.Printf("copyu: can't find %v\n", p.As)
 		return 2
 
 	case obj.ANOP, /* read p->from, write p->to */

@@ -1231,7 +1231,7 @@ func relinv(a obj.As) obj.As {
 		return AJOS
 	}
 
-	log.Fatalf("unknown relation: %s", obj.Aconv(a))
+	log.Fatalf("unknown relation: %s", a)
 	return 0
 }
 

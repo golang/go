@@ -538,7 +538,7 @@ gotit:
 	}
 
 	if gc.Debug['P'] != 0 {
-		fmt.Printf(" => %v\n", obj.Aconv(p.As))
+		fmt.Printf(" => %v\n", p.As)
 	}
 	return true
 }
@@ -1036,7 +1036,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
 func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
+		fmt.Printf("copyu: can't find %v\n", p.As)
 		return 2
 
 	case arm.AMOVM:

@@ -651,7 +651,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	// cannot find a case; abort
-	ctxt.Diag("illegal combination %v %v %v %v %v\n", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
+	ctxt.Diag("illegal combination %v %v %v %v %v\n", p.As, DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
 	ctxt.Diag("prog: %v\n", p)
 	return nil
 }
@@ -4039,7 +4039,7 @@ func zopload(ctxt *obj.Link, a obj.As) uint32 {
 		return op_LRVH
 	}
 
-	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
+	ctxt.Diag("unknown store opcode %v", a)
 	return 0
 }
 
@@ -4071,7 +4071,7 @@ func zopstore(ctxt *obj.Link, a obj.As) uint32 {
 		return op_STRVH
 	}
 
-	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
+	ctxt.Diag("unknown store opcode %v", a)
 	return 0
 }
 
@@ -4089,7 +4089,7 @@ func zoprre(ctxt *obj.Link, a obj.As) uint32 {
 	case ACEBR:
 		return op_CEBR
 	}
-	ctxt.Diag("unknown rre opcode %v", obj.Aconv(a))
+	ctxt.Diag("unknown rre opcode %v", a)
 	return 0
 }
 
@@ -4101,7 +4101,7 @@ func zoprr(ctxt *obj.Link, a obj.As) uint32 {
 	case ACMPWU:
 		return op_CLR
 	}
-	ctxt.Diag("unknown rr opcode %v", obj.Aconv(a))
+	ctxt.Diag("unknown rr opcode %v", a)
 	return 0
 }
 
@@ -4117,7 +4117,7 @@ func zopril(ctxt *obj.Link, a obj.As) uint32 {
 	case ACMPWU:
 		return op_CLFI
 	}
-	ctxt.Diag("unknown ril opcode %v", obj.Aconv(a))
+	ctxt.Diag("unknown ril opcode %v", a)
 	return 0
 }
 

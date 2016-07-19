@@ -2013,7 +2013,7 @@ func instinit() {
 	for i := 1; optab[i].as != 0; i++ {
 		c := optab[i].as
 		if opindex[c&obj.AMask] != nil {
-			log.Fatalf("phase error in optab: %d (%v)", i, obj.Aconv(c))
+			log.Fatalf("phase error in optab: %d (%v)", i, c)
 		}
 		opindex[c&obj.AMask] = &optab[i]
 	}
