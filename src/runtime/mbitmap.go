@@ -190,7 +190,101 @@ type markBits struct {
 }
 
 //go:nosplit
+func inBss(p uintptr) bool {
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if p >= datap.bss && p < datap.ebss {
+			return true
+		}
+	}
+	return false
+}
+
+//go:nosplit
+func inData(p uintptr) bool {
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if p >= datap.data && p < datap.edata {
+			return true
+		}
+	}
+	return false
+}
+
+// isPublic checks whether the object has been published.
+// ptr may not point to the start of the object.
+// This is conservative in the sense that it will return true
+// for any object that hasn't been allocated by this
+// goroutine since the last roc checkpoint was performed.
+// Must run on the system stack to prevent stack growth and
+// moving of goroutine stack.
+//go:systemstack
+func isPublic(ptr uintptr) bool {
+	if debug.gcroc == 0 {
+		// Unexpected call to ROC specific routine while not running ROC.
+		// blowup without supressing inlining.
+		_ = *(*int)(nil)
+	}
+
+	if inStack(ptr, getg().stack) {
+		return false
+	}
+
+	if getg().m != nil && getg().m.curg != nil && inStack(ptr, getg().m.curg.stack) {
+		return false
+	}
+
+	if inBss(ptr) {
+		return true
+	}
+	if inData(ptr) {
+		return true
+	}
+	if !inheap(ptr) {
+		// Note: Objects created using persistentalloc are not in the heap
+		// so any pointers from such object to local objects needs to be dealt
+		// with specially. nil is also considered not in the heap.
+		return true
+	}
+	// At this point we know the object is in the heap.
+	s := spanOf(ptr)
+	oldSweepgen := atomic.Load(&s.sweepgen)
+	sg := mheap_.sweepgen
+	if oldSweepgen != sg {
+		// We have an unswept span which means that the pointer points to a public object since it will
+		// be found to be marked once it is swept.
+		return true
+	}
+	abits := s.allocBitsForAddr(ptr)
+	if abits.isMarked() {
+		return true
+	} else if s.freeindex <= abits.index {
+		// Unmarked and beyond freeindex yet reachable object encountered.
+		// blowup without supressing inlining.
+		_ = *(*int)(nil)
+	}
+
+	// The object is not marked. If it is part of the current
+	// ROC epoch then it is not public.
+	if s.startindex*s.elemsize <= ptr-s.base() {
+		// Object allocated in this ROC epoch and since it is
+		// not marked it has not been published.
+		return false
+	}
+	// Object allocated since last GC but in a previous ROC epoch so it is public.
+	return true
+}
+
+//go:nosplit
 func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
+	whichByte := allocBitIndex / 8
+	whichBit := allocBitIndex % 8
+	bytePtr := addb(s.allocBits, whichByte)
+	return markBits{bytePtr, uint8(1 << whichBit), allocBitIndex}
+}
+
+//go:nosplit
+func (s *mspan) allocBitsForAddr(p uintptr) markBits {
+	byteOffset := p - s.base()
+	allocBitIndex := byteOffset / s.elemsize
 	whichByte := allocBitIndex / 8
 	whichBit := allocBitIndex % 8
 	bytePtr := addb(s.allocBits, whichByte)

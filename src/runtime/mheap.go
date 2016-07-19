@@ -195,6 +195,13 @@ type mspan struct {
 	// helps performance.
 	nelems uintptr // number of object in the span.
 
+	// startindex is the object index where the owner G started allocating in this span.
+	//
+	// This is used in conjunction with nextUsedSpan to implement ROC checkpoints and recycles.
+	startindex uintptr
+	// nextUsedSpan links together all spans that have the same span class and owner G.
+	nextUsedSpan *mspan
+
 	// Cache of the allocBits at freeindex. allocCache is shifted
 	// such that the lowest bit corresponds to the bit freeindex.
 	// allocCache holds the complement of allocBits, thus allowing
