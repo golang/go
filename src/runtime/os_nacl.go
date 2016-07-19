@@ -116,6 +116,7 @@ func osinit() {
 	ncpu = 1
 	getg().m.procid = 2
 	//nacl_exception_handler(funcPC(sigtramp), nil);
+	physPageSize = 65536
 }
 
 func signame(sig uint32) string {

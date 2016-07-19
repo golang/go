@@ -78,6 +78,7 @@ const (
 	_ITIMER_VIRTUAL = 0x1
 	_ITIMER_PROF    = 0x2
 
+	__SC_PAGESIZE         = 0xb
 	__SC_NPROCESSORS_ONLN = 0xf
 
 	_PTHREAD_CREATE_DETACHED = 0x40
