@@ -1234,7 +1234,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	if false {
-		fmt.Printf("oplook %v %d %d %d\n", obj.Aconv(p.As), a1, a2, a3)
+		fmt.Printf("oplook %v %d %d %d\n", p.As, a1, a2, a3)
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
@@ -1460,7 +1460,7 @@ func buildop(ctxt *obj.Link) {
 		oprangeset(r, t)
 		switch r {
 		default:
-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+			ctxt.Diag("unknown op in build: %v", r)
 			log.Fatalf("bad code")
 
 		case AADD:
@@ -2379,7 +2379,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		s := movesize(o.as)
 
 		if s < 0 {
-			ctxt.Diag("unexpected long move, op %v tab %v\n%v", obj.Aconv(p.As), obj.Aconv(o.as), p)
+			ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
 		}
 		v := int32(regoff(ctxt, &p.To))
 		if v < 0 {
@@ -2406,7 +2406,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		s := movesize(o.as)
 
 		if s < 0 {
-			ctxt.Diag("unexpected long move, op %v tab %v\n%v", obj.Aconv(p.As), obj.Aconv(o.as), p)
+			ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
 		}
 		v := int32(regoff(ctxt, &p.From))
 		if v < 0 {
@@ -2637,7 +2637,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			o1 = opbfm(ctxt, AUBFMW, 0, 15, rf, rt)
 
 		default:
-			ctxt.Diag("bad sxt %v", obj.Aconv(as))
+			ctxt.Diag("bad sxt %v", as)
 			break
 		}
 
@@ -3470,7 +3470,7 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return FPOP1S(0, 0, 3, 5)
 	}
 
-	ctxt.Diag("bad rrr %d %v", a, obj.Aconv(a))
+	ctxt.Diag("bad rrr %d %v", a, a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -3657,7 +3657,7 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
 		return SYSOP(0, 0, 3, 2, 0, 0, 0x1F)
 	}
 
-	ctxt.Diag("bad irr %v", obj.Aconv(a))
+	ctxt.Diag("bad irr %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -3733,7 +3733,7 @@ func opxrrr(ctxt *obj.Link, a obj.As) uint32 {
 		return S32 | 1<<30 | 1<<29 | 0x0b<<24 | 0<<22 | 1<<21 | LSL0_32
 	}
 
-	ctxt.Diag("bad opxrrr %v\n%v", obj.Aconv(a), ctxt.Curp)
+	ctxt.Diag("bad opxrrr %v\n%v", a, ctxt.Curp)
 	return 0
 }
 
@@ -3767,7 +3767,7 @@ func opimm(ctxt *obj.Link, a obj.As) uint32 {
 		return SYSOP(0, 0, 3, 3, 0, 2, 0x1F)
 	}
 
-	ctxt.Diag("bad imm %v", obj.Aconv(a))
+	ctxt.Diag("bad imm %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -3852,7 +3852,7 @@ func opbra(ctxt *obj.Link, a obj.As) uint32 {
 		return 1<<31 | 5<<26
 	}
 
-	ctxt.Diag("bad bra %v", obj.Aconv(a))
+	ctxt.Diag("bad bra %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -3869,7 +3869,7 @@ func opbrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPBLR(2) /* RET */
 	}
 
-	ctxt.Diag("bad brr %v", obj.Aconv(a))
+	ctxt.Diag("bad brr %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -3901,7 +3901,7 @@ func op0(ctxt *obj.Link, a obj.As) uint32 {
 		return SYSHINT(5)
 	}
 
-	ctxt.Diag("bad op0 %v", obj.Aconv(a))
+	ctxt.Diag("bad op0 %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -3966,7 +3966,7 @@ func opload(ctxt *obj.Link, a obj.As) uint32 {
 		return S32 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
 	}
 
-	ctxt.Diag("bad opload %v\n%v", obj.Aconv(a), ctxt.Curp)
+	ctxt.Diag("bad opload %v\n%v", a, ctxt.Curp)
 	return 0
 }
 
@@ -4033,7 +4033,7 @@ func opstore(ctxt *obj.Link, a obj.As) uint32 {
 		return S32 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
 	}
 
-	ctxt.Diag("bad opstore %v\n%v", obj.Aconv(a), ctxt.Curp)
+	ctxt.Diag("bad opstore %v\n%v", a, ctxt.Curp)
 	return 0
 }
 
@@ -4081,7 +4081,7 @@ func opldr12(ctxt *obj.Link, a obj.As) uint32 {
 		return LDSTR12U(3, 1, 1)
 	}
 
-	ctxt.Diag("bad opldr12 %v\n%v", obj.Aconv(a), ctxt.Curp)
+	ctxt.Diag("bad opldr12 %v\n%v", a, ctxt.Curp)
 	return 0
 }
 
@@ -4132,7 +4132,7 @@ func opldr9(ctxt *obj.Link, a obj.As) uint32 {
 		return LDSTR9S(3, 1, 1)
 	}
 
-	ctxt.Diag("bad opldr9 %v\n%v", obj.Aconv(a), ctxt.Curp)
+	ctxt.Diag("bad opldr9 %v\n%v", a, ctxt.Curp)
 	return 0
 }
 
@@ -4164,7 +4164,7 @@ func opldrpp(ctxt *obj.Link, a obj.As) uint32 {
 		return 0<<30 | 7<<27 | 0<<26 | 0<<24 | 1<<22
 	}
 
-	ctxt.Diag("bad opldr %v\n%v", obj.Aconv(a), ctxt.Curp)
+	ctxt.Diag("bad opldr %v\n%v", a, ctxt.Curp)
 	return 0
 }
 

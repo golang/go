@@ -1191,7 +1191,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	}
 
 	if false { /*debug['O']*/
-		fmt.Printf("oplook %v %v %v %v\n", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3))
+		fmt.Printf("oplook %v %v %v %v\n", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
@@ -1343,7 +1343,7 @@ func buildop(ctxt *obj.Link) {
 
 		switch r {
 		default:
-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+			ctxt.Diag("unknown op in build: %v", r)
 			log.Fatalf("bad code")
 
 		case AADD:
@@ -2636,7 +2636,7 @@ func opbra(ctxt *obj.Link, p *obj.Prog, a obj.As, sc int) uint32 {
 		return 0xe<<28 | 0x5<<25
 	}
 
-	ctxt.Diag("bad bra %v", obj.Aconv(a))
+	ctxt.Diag("bad bra %v", a)
 	prasm(ctxt.Curp)
 	return 0
 }
@@ -2756,7 +2756,7 @@ func ofsr(ctxt *obj.Link, a obj.As, r int, v int32, b int, sc int, p *obj.Prog) 
 
 	switch a {
 	default:
-		ctxt.Diag("bad fst %v", obj.Aconv(a))
+		ctxt.Diag("bad fst %v", a)
 		fallthrough
 
 	case AMOVD:

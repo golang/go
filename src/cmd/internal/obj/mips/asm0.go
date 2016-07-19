@@ -659,7 +659,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 		}
 	}
 
-	ctxt.Diag("illegal combination %v %v %v %v", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3))
+	ctxt.Diag("illegal combination %v %v %v %v", p.As, DRconv(a1), DRconv(a2), DRconv(a3))
 	prasm(p)
 	if ops == nil {
 		ops = optab
@@ -809,7 +809,7 @@ func buildop(ctxt *obj.Link) {
 
 		switch r {
 		default:
-			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
+			ctxt.Diag("unknown op in build: %v", r)
 			log.Fatalf("bad code")
 
 		case AABSF:
@@ -1612,9 +1612,9 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 	}
 
 	if a < 0 {
-		ctxt.Diag("bad rrr opcode -%v", obj.Aconv(-a))
+		ctxt.Diag("bad rrr opcode -%v", -a)
 	} else {
-		ctxt.Diag("bad rrr opcode %v", obj.Aconv(a))
+		ctxt.Diag("bad rrr opcode %v", a)
 	}
 	return 0
 }
@@ -1764,9 +1764,9 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
 	}
 
 	if a < 0 {
-		ctxt.Diag("bad irr opcode -%v", obj.Aconv(-a))
+		ctxt.Diag("bad irr opcode -%v", -a)
 	} else {
-		ctxt.Diag("bad irr opcode %v", obj.Aconv(a))
+		ctxt.Diag("bad irr opcode %v", a)
 	}
 	return 0
 }

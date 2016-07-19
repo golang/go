@@ -138,7 +138,7 @@ func (p *Prog) String() string {
 
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(p.As), sc)
+	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), p.As, sc)
 	sep := "\t"
 	quadOpAmd64 := p.RegTo2 == -1
 	if quadOpAmd64 {
@@ -465,7 +465,7 @@ func RegisterOpcode(lo As, Anames []string) {
 	aSpace = append(aSpace, opSet{lo, Anames})
 }
 
-func Aconv(a As) string {
+func (a As) String() string {
 	if 0 <= a && int(a) < len(Anames) {
 		return Anames[a]
 	}

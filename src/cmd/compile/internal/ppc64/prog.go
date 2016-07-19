@@ -313,7 +313,7 @@ func as2variant(as obj.As) int {
 			return i
 		}
 	}
-	gc.Fatalf("as2variant: instruction %v is not a variant of itself", obj.Aconv(as&obj.AMask))
+	gc.Fatalf("as2variant: instruction %v is not a variant of itself", as&obj.AMask)
 	return 0
 }
 
