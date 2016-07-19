@@ -75,4 +75,6 @@ func ShiftTest() {
 	_ = p >> 32 // ERROR "p might be too small for shift of 32"
 	p <<= 32    // ERROR "p might be too small for shift of 32"
 	p >>= 32    // ERROR "p might be too small for shift of 32"
+
+	const oneIf64Bit = ^uint(0) >> 63 // allow large shifts of constants; they are used for 32/64 bit compatibility tricks
 }
