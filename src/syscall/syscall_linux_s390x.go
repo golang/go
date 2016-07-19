@@ -44,8 +44,6 @@ const (
 //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
 //sysnb	setgroups(n int, list *_Gid_t) (err error)
 
-func Getpagesize() int { return 4096 }
-
 //sysnb	Gettimeofday(tv *Timeval) (err error)
 
 func Time(t *Time_t) (tt Time_t, err error) {

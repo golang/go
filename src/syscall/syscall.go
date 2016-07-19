@@ -95,6 +95,10 @@ func (tv *Timeval) Nano() int64 {
 	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1000
 }
 
+// Getpagesize is provided by the runtime.
+
+func Getpagesize() int
+
 // use is a no-op, but the compiler cannot see that it is.
 // Calling use(p) ensures that p is kept live until that point.
 // This was needed until Go 1.6 to call syscall.Syscall correctly.
