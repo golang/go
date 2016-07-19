@@ -182,20 +182,22 @@ func hmap(t *Type) *Type {
 	}
 
 	bucket := mapbucket(t)
-	var field [8]*Field
-	field[0] = makefield("count", Types[TINT])
-	field[1] = makefield("flags", Types[TUINT8])
-	field[2] = makefield("B", Types[TUINT8])
-	field[3] = makefield("hash0", Types[TUINT32])
-	field[4] = makefield("buckets", Ptrto(bucket))
-	field[5] = makefield("oldbuckets", Ptrto(bucket))
-	field[6] = makefield("nevacuate", Types[TUINTPTR])
-	field[7] = makefield("overflow", Types[TUNSAFEPTR])
+	fields := []*Field{
+		makefield("count", Types[TINT]),
+		makefield("flags", Types[TUINT8]),
+		makefield("B", Types[TUINT8]),
+		makefield("noverflow", Types[TUINT16]),
+		makefield("hash0", Types[TUINT32]),
+		makefield("buckets", Ptrto(bucket)),
+		makefield("oldbuckets", Ptrto(bucket)),
+		makefield("nevacuate", Types[TUINTPTR]),
+		makefield("overflow", Types[TUNSAFEPTR]),
+	}
 
 	h := typ(TSTRUCT)
 	h.Noalg = true
 	h.Local = t.Local
-	h.SetFields(field[:])
+	h.SetFields(fields)
 	dowidth(h)
 	t.MapType().Hmap = h
 	h.StructType().Map = t
