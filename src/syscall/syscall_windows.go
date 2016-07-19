@@ -74,8 +74,6 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 	return &a[0], nil
 }
 
-func Getpagesize() int { return 4096 }
-
 // Errno is the Windows error number.
 type Errno uintptr
 

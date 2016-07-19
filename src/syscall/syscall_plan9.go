@@ -305,8 +305,6 @@ func Gettimeofday(tv *Timeval) error {
 	return nil
 }
 
-func Getpagesize() int { return 0x1000 }
-
 func Getegid() (egid int) { return -1 }
 func Geteuid() (euid int) { return -1 }
 func Getgid() (gid int)   { return -1 }

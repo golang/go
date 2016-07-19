@@ -292,7 +292,6 @@ func Getegid() int                      { return 1 }
 func Geteuid() int                      { return 1 }
 func Getgid() int                       { return 1 }
 func Getgroups() ([]int, error)         { return []int{1}, nil }
-func Getpagesize() int                  { return 65536 }
 func Getppid() int                      { return 2 }
 func Getpid() int                       { return 3 }
 func Gettimeofday(tv *Timeval) error    { return ENOSYS }
