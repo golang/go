@@ -467,7 +467,8 @@ func scanGoDirs(goRoot bool) {
 			}
 			if typ == os.ModeDir {
 				base := filepath.Base(path)
-				if base == "" || base[0] == '.' || base[0] == '_' || base == "testdata" {
+				if base == "" || base[0] == '.' || base[0] == '_' ||
+					base == "testdata" || base == "node_modules" {
 					return filepath.SkipDir
 				}
 				fi, err := os.Lstat(path)

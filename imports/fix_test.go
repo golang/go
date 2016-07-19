@@ -1346,6 +1346,26 @@ func TestIgnoreConfiguration(t *testing.T) {
 	})
 }
 
+// Skip "node_modules" directory.
+func TestSkipNodeModules(t *testing.T) {
+	testConfig{
+		gopathFiles: map[string]string{
+			"example.net/node_modules/pkg/a.go":         "package pkg\nconst X = 1",
+			"otherwise-longer.net/not_modules/pkg/a.go": "package pkg\nconst X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst _ = pkg.X\n"
+		const want = "package x\n\nimport \"otherwise-longer.net/not_modules/pkg\"\n\nconst _ = pkg.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
+		}
+	})
+}
+
 func strSet(ss []string) map[string]bool {
 	m := make(map[string]bool)
 	for _, s := range ss {
