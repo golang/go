@@ -80,6 +80,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -176,7 +177,7 @@ func cgocallbackg(ctxt uintptr) {
 
 func cgocallbackg1(ctxt uintptr) {
 	gp := getg()
-	if gp.m.needextram {
+	if gp.m.needextram || atomic.Load(&extraMWaiters) > 0 {
 		gp.m.needextram = false
 		systemstack(newextram)
 	}
