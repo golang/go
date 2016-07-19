@@ -29,7 +29,11 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
+			if !h.sameSizeGrow() {
+				// There used to be half as many buckets; mask down one more power of two.
+				m >>= 1
+			}
+			oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -74,7 +78,11 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
+			if !h.sameSizeGrow() {
+				// There used to be half as many buckets; mask down one more power of two.
+				m >>= 1
+			}
+			oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -119,7 +127,11 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
+			if !h.sameSizeGrow() {
+				// There used to be half as many buckets; mask down one more power of two.
+				m >>= 1
+			}
+			oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -164,7 +176,11 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 		m := uintptr(1)<<h.B - 1
 		b = (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 		if c := h.oldbuckets; c != nil {
-			oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
+			if !h.sameSizeGrow() {
+				// There used to be half as many buckets; mask down one more power of two.
+				m >>= 1
+			}
+			oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
 			if !evacuated(oldb) {
 				b = oldb
 			}
@@ -264,7 +280,11 @@ dohash:
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
-		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
+		if !h.sameSizeGrow() {
+			// There used to be half as many buckets; mask down one more power of two.
+			m >>= 1
+		}
+		oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
 		if !evacuated(oldb) {
 			b = oldb
 		}
@@ -367,7 +387,11 @@ dohash:
 	m := uintptr(1)<<h.B - 1
 	b := (*bmap)(add(h.buckets, (hash&m)*uintptr(t.bucketsize)))
 	if c := h.oldbuckets; c != nil {
-		oldb := (*bmap)(add(c, (hash&(m>>1))*uintptr(t.bucketsize)))
+		if !h.sameSizeGrow() {
+			// There used to be half as many buckets; mask down one more power of two.
+			m >>= 1
+		}
+		oldb := (*bmap)(add(c, (hash&m)*uintptr(t.bucketsize)))
 		if !evacuated(oldb) {
 			b = oldb
 		}
