@@ -4,4 +4,4 @@ the LLVM project (http://llvm.org/git/compiler-rt.git).
 
 To update the .syso files use golang.org/x/build/cmd/racebuild.
 
-Current runtime is built on rev 9d79ea3416bfbe3acac50e47802ee9621bf53254.
+Current runtime is built on rev e35e7c00b5c7e7ee5e24d537b80cb0d34cebb038.
