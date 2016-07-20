@@ -153,10 +153,13 @@ func (s *state) locatePotentialPhiFunctions(fn *Node) *sparseDefState {
 					p := e.Block()
 					dm.Use(t, p)                                // always count phi pred as "use"; no-op except for loop edges, which matter.
 					x := t.stm.Find(p, ssa.AdjustAfter, helper) // Look for defs reaching or within predecessors.
+					if x == nil {                               // nil def from a predecessor means a backedge that will be visited soon.
+						continue
+					}
 					if defseen == nil {
 						defseen = x
 					}
-					if defseen != x || x == nil { // TODO: too conservative at loops, does better if x == nil -> continue
+					if defseen != x {
 						// Need to insert a phi function here because predecessors's definitions differ.
 						change = true
 						// Phi insertion is at AdjustBefore, visible with find in same block at AdjustWithin or AdjustAfter.
