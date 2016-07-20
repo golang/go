@@ -12,23 +12,18 @@ package ssa
 
 import (
 	"go/ast"
-	exact "go/constant"
 	"go/token"
 	"go/types"
+	"log"
 	"os"
-	"sort"
 	"strings"
 )
 
-// FindTests returns the list of packages that define at least one Test,
-// Example or Benchmark function (as defined by "go test"), and the
-// lists of all such functions.
-//
-func FindTests(pkgs []*Package) (testpkgs []*Package, tests, benchmarks, examples []*Function) {
-	if len(pkgs) == 0 {
-		return
-	}
-	prog := pkgs[0].Prog
+// FindTests returns the Test, Benchmark, and Example functions
+// (as defined by "go test") defined in the specified package,
+// and its TestMain function, if any.
+func FindTests(pkg *Package) (tests, benchmarks, examples []*Function, main *Function) {
+	prog := pkg.Prog
 
 	// The first two of these may be nil: if the program doesn't import "testing",
 	// it can't contain any tests, but it may yet contain Examples.
@@ -36,40 +31,41 @@ func FindTests(pkgs []*Package) (testpkgs []*Package, tests, benchmarks, example
 	var benchmarkSig *types.Signature                         // func(*testing.B)
 	var exampleSig = types.NewSignature(nil, nil, nil, false) // func()
 
-	// Obtain the types from the parameters of testing.Main().
+	// Obtain the types from the parameters of testing.MainStart.
 	if testingPkg := prog.ImportedPackage("testing"); testingPkg != nil {
-		params := testingPkg.Func("Main").Signature.Params()
+		mainStart := testingPkg.Func("MainStart")
+		params := mainStart.Signature.Params()
 		testSig = funcField(params.At(1).Type())
 		benchmarkSig = funcField(params.At(2).Type())
+
+		// Does the package define this function?
+		//   func TestMain(*testing.M)
+		if f := pkg.Func("TestMain"); f != nil {
+			sig := f.Type().(*types.Signature)
+			starM := mainStart.Signature.Results().At(0).Type() // *testing.M
+			if sig.Results().Len() == 0 &&
+				sig.Params().Len() == 1 &&
+				types.Identical(sig.Params().At(0).Type(), starM) {
+				main = f
+			}
+		}
 	}
 
-	seen := make(map[*Package]bool)
-	for _, pkg := range pkgs {
-		if pkg.Prog != prog {
-			panic("wrong Program")
-		}
+	// TODO(adonovan): use a stable order, e.g. lexical.
+	for _, mem := range pkg.Members {
+		if f, ok := mem.(*Function); ok &&
+			ast.IsExported(f.Name()) &&
+			strings.HasSuffix(prog.Fset.Position(f.Pos()).Filename, "_test.go") {
 
-		// TODO(adonovan): use a stable order, e.g. lexical.
-		for _, mem := range pkg.Members {
-			if f, ok := mem.(*Function); ok &&
-				ast.IsExported(f.Name()) &&
-				strings.HasSuffix(prog.Fset.Position(f.Pos()).Filename, "_test.go") {
-
-				switch {
-				case testSig != nil && isTestSig(f, "Test", testSig):
-					tests = append(tests, f)
-				case benchmarkSig != nil && isTestSig(f, "Benchmark", benchmarkSig):
-					benchmarks = append(benchmarks, f)
-				case isTestSig(f, "Example", exampleSig):
-					examples = append(examples, f)
-				default:
-					continue
-				}
-
-				if !seen[pkg] {
-					seen[pkg] = true
-					testpkgs = append(testpkgs, pkg)
-				}
+			switch {
+			case testSig != nil && isTestSig(f, "Test", testSig):
+				tests = append(tests, f)
+			case benchmarkSig != nil && isTestSig(f, "Benchmark", benchmarkSig):
+				benchmarks = append(benchmarks, f)
+			case isTestSig(f, "Example", exampleSig):
+				examples = append(examples, f)
+			default:
+				continue
 			}
 		}
 	}
@@ -87,15 +83,22 @@ func isTestSig(f *Function, prefix string, sig *types.Signature) bool {
 // systems that don't exactly follow 'go test' conventions.
 var testMainStartBodyHook func(*Function)
 
-// CreateTestMainPackage creates and returns a synthetic "main"
-// package that runs all the tests of the supplied packages, similar
-// to the one that would be created by the 'go test' tool.
+// CreateTestMainPackage creates and returns a synthetic "testmain"
+// package for the specified package if it defines tests, benchmarks or
+// executable examples, or nil otherwise.  The new package is named
+// "main" and provides a function named "main" that runs the tests,
+// similar to the one that would be created by the 'go test' tool.
 //
-// It returns nil if the program contains no tests.
-//
-func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
-	pkgs, tests, benchmarks, examples := FindTests(pkgs)
-	if len(pkgs) == 0 {
+// Subsequent calls to prog.AllPackages include the new package.
+// The package pkg must belong to the program prog.
+func (prog *Program) CreateTestMainPackage(pkg *Package) *Package {
+	if pkg.Prog != prog {
+		log.Fatal("Package does not belong to Program")
+	}
+
+	tests, benchmarks, examples, testMainFunc := FindTests(pkg)
+
+	if testMainFunc == nil && tests == nil && benchmarks == nil && examples == nil {
 		return nil
 	}
 
@@ -103,7 +106,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
-		Pkg:     types.NewPackage("test$main", "main"),
+		Pkg:     types.NewPackage(pkg.Pkg.Path()+"$testmain", "main"),
 	}
 
 	// Build package's init function.
@@ -120,30 +123,18 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		testMainStartBodyHook(init)
 	}
 
-	// Initialize packages to test.
-	var pkgpaths []string
-	for _, pkg := range pkgs {
-		var v Call
-		v.Call.Value = pkg.init
-		v.setType(types.NewTuple())
-		init.emit(&v)
-
-		pkgpaths = append(pkgpaths, pkg.Pkg.Path())
-	}
-	sort.Strings(pkgpaths)
+	// Initialize package under test.
+	var v Call
+	v.Call.Value = pkg.init
+	v.setType(types.NewTuple())
+	init.emit(&v)
 	init.emit(new(Return))
 	init.finishBody()
 	testmain.init = init
 	testmain.Pkg.MarkComplete()
 	testmain.Members[init.name] = init
 
-	// For debugging convenience, define an unexported const
-	// that enumerates the packages.
-	packagesConst := types.NewConst(token.NoPos, testmain.Pkg, "packages", tString,
-		exact.MakeString(strings.Join(pkgpaths, " ")))
-	memberFromObject(testmain, packagesConst, nil)
-
-	// Create main *types.Func and *ssa.Function
+	// Create main *types.Func and *Function
 	mainFunc := types.NewFunc(token.NoPos, testmain.Pkg, "main", new(types.Signature))
 	memberFromObject(testmain, mainFunc, nil)
 	main := testmain.Func("main")
@@ -166,7 +157,12 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		//      tests      := []testing.InternalTest{{"TestFoo", TestFoo}, ...}
 		//      benchmarks := []testing.InternalBenchmark{...}
 		//      examples   := []testing.InternalExample{...}
-		// 	testing.Main(match, tests, benchmarks, examples)
+		//	if TestMain is defined {
+		// 		m := testing.MainStart(match, tests, benchmarks, examples)
+		// 		return TestMain(m)
+		// 	} else {
+		// 		return testing.Main(match, tests, benchmarks, examples)
+		// 	}
 		// }
 
 		matcher := &Function{
@@ -182,23 +178,41 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		matcher.emit(&Return{Results: []Value{vTrue, nilConst(types.Universe.Lookup("error").Type())}})
 		matcher.finishBody()
 
-		// Emit call: testing.Main(matcher, tests, benchmarks, examples).
 		var c Call
-		c.Call.Value = testingMain
 		c.Call.Args = []Value{
 			matcher,
 			testMainSlice(main, tests, testingMainParams.At(1).Type()),
 			testMainSlice(main, benchmarks, testingMainParams.At(2).Type()),
 			testMainSlice(main, examples, testingMainParams.At(3).Type()),
 		}
-		emitTailCall(main, &c)
+		if testMainFunc != nil {
+			// Emit: m := testing.MainStart(matcher, tests, benchmarks, examples).
+			// (Main and MainStart have the same parameters.)
+			mainStart := testingPkg.Func("MainStart")
+			c.Call.Value = mainStart
+			c.setType(mainStart.Signature.Results().At(0).Type()) // *testing.M
+			m := main.emit(&c)
+
+			// Emit: return TestMain(m)
+			var c2 Call
+			c2.Call.Value = testMainFunc
+			c2.Call.Args = []Value{m}
+			emitTailCall(main, &c2)
+		} else {
+			// Emit: return testing.Main(matcher, tests, benchmarks, examples)
+			c.Call.Value = testingMain
+			emitTailCall(main, &c)
+		}
 	} else {
 		// The program does not import "testing", but FindTests
 		// returned non-nil, which must mean there were Examples
-		// but no Tests or Benchmarks.
+		// but no Test, Benchmark, or TestMain functions.
+
 		// We'll simply call them from testmain.main; this will
 		// ensure they don't panic, but will not check any
 		// "Output:" comments.
+		// (We should not execute an Example that has no
+		// "Output:" comment, but it's impossible to tell here.)
 		for _, eg := range examples {
 			var c Call
 			c.Call.Value = eg

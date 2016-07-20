@@ -125,46 +125,44 @@ func doMain() error {
 	}
 
 	// Load, parse and type-check the whole program.
-	iprog, err := conf.Load()
+	lprog, err := conf.Load()
 	if err != nil {
 		return err
 	}
 
 	// Create and build SSA-form program representation.
-	prog := ssautil.CreateProgram(iprog, mode)
+	prog := ssautil.CreateProgram(lprog, mode)
 
 	// Build and display only the initial packages
 	// (and synthetic wrappers), unless -run is specified.
-	for _, info := range iprog.InitialPackages() {
-		prog.Package(info.Pkg).Build()
+	var initpkgs []*ssa.Package
+	for _, info := range lprog.InitialPackages() {
+		ssapkg := prog.Package(info.Pkg)
+		ssapkg.Build()
+		if info.Pkg.Path() != "runtime" {
+			initpkgs = append(initpkgs, ssapkg)
+		}
 	}
 
 	// Run the interpreter.
 	if *runFlag {
 		prog.Build()
 
-		var main *ssa.Package
-		pkgs := prog.AllPackages()
+		var mains []*ssa.Package
 		if *testFlag {
-			// If -test, run all packages' tests.
-			if len(pkgs) > 0 {
-				main = prog.CreateTestMainPackage(pkgs...)
+			// If -test, run the tests.
+			for _, pkg := range initpkgs {
+				if main := prog.CreateTestMainPackage(pkg); main != nil {
+					mains = append(mains, main)
+				}
 			}
-			if main == nil {
+			if mains == nil {
 				return fmt.Errorf("no tests")
 			}
 		} else {
-			// Otherwise, run main.main.
-			for _, pkg := range pkgs {
-				if pkg.Pkg.Name() == "main" {
-					main = pkg
-					if main.Func("main") == nil {
-						return fmt.Errorf("no func main() in main package")
-					}
-					break
-				}
-			}
-			if main == nil {
+			// Otherwise, run the main packages.
+			mains := ssautil.MainPackages(initpkgs)
+			if len(mains) == 0 {
 				return fmt.Errorf("no main package")
 			}
 		}
@@ -174,7 +172,12 @@ func doMain() error {
 				build.Default.GOARCH, runtime.GOARCH)
 		}
 
-		interp.Interpret(main, interpMode, conf.TypeChecker.Sizes, main.Pkg.Path(), args)
+		for _, main := range mains {
+			if len(mains) > 1 {
+				fmt.Fprintf(os.Stderr, "Running: %s\n", main.Pkg.Path())
+			}
+			interp.Interpret(main, interpMode, conf.TypeChecker.Sizes, main.Pkg.Path(), args)
+		}
 	}
 	return nil
 }

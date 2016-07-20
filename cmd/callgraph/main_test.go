@@ -47,14 +47,14 @@ func TestCallgraph(t *testing.T) {
 		}},
 		// tests: main is not called.
 		{"rta", format, true, []string{
+			`pkg$testmain.init --> pkg.init`,
 			`pkg.Example --> (pkg.C).f`,
-			`test$main.init --> pkg.init`,
 		}},
 		{"pta", format, true, []string{
+			`<root> --> pkg$testmain.init`,
 			`<root> --> pkg.Example`,
-			`<root> --> test$main.init`,
+			`pkg$testmain.init --> pkg.init`,
 			`pkg.Example --> (pkg.C).f`,
-			`test$main.init --> pkg.init`,
 		}},
 	} {
 		stdout = new(bytes.Buffer)

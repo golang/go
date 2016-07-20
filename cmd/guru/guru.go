@@ -129,26 +129,18 @@ func setPTAScope(lconf *loader.Config, scope []string) error {
 // Create a pointer.Config whose scope is the initial packages of lprog
 // and their dependencies.
 func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflection bool) (*pointer.Config, error) {
-	// TODO(adonovan): the body of this function is essentially
-	// duplicated in all go/pointer clients.  Refactor.
-
 	// For each initial package (specified on the command line),
 	// if it has a main function, analyze that,
 	// otherwise analyze its tests, if any.
-	var testPkgs, mains []*ssa.Package
+	var mains []*ssa.Package
 	for _, info := range lprog.InitialPackages() {
-		initialPkg := prog.Package(info.Pkg)
+		p := prog.Package(info.Pkg)
 
 		// Add package to the pointer analysis scope.
-		if initialPkg.Func("main") != nil {
-			mains = append(mains, initialPkg)
-		} else {
-			testPkgs = append(testPkgs, initialPkg)
-		}
-	}
-	if testPkgs != nil {
-		if p := prog.CreateTestMainPackage(testPkgs...); p != nil {
+		if p.Pkg.Name() == "main" && p.Func("main") != nil {
 			mains = append(mains, p)
+		} else if main := prog.CreateTestMainPackage(p); main != nil {
+			mains = append(mains, main)
 		}
 	}
 	if mains == nil {

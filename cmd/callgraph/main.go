@@ -221,12 +221,12 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 			}
 		}
 
-		main, err := mainPackage(prog, tests)
+		mains, err := mainPackages(prog, tests)
 		if err != nil {
 			return err
 		}
 		config := &pointer.Config{
-			Mains:          []*ssa.Package{main},
+			Mains:          mains,
 			BuildCallGraph: true,
 			Log:            ptalog,
 		}
@@ -237,13 +237,13 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 		cg = ptares.CallGraph
 
 	case "rta":
-		main, err := mainPackage(prog, tests)
+		mains, err := mainPackages(prog, tests)
 		if err != nil {
 			return err
 		}
-		roots := []*ssa.Function{
-			main.Func("init"),
-			main.Func("main"),
+		var roots []*ssa.Function
+		for _, main := range mains {
+			roots = append(roots, main.Func("init"), main.Func("main"))
 		}
 		rtares := rta.Analyze(roots, true)
 		cg = rtares.CallGraph
@@ -303,35 +303,31 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 	return nil
 }
 
-// mainPackage returns the main package to analyze.
-// The resulting package has a main() function.
-func mainPackage(prog *ssa.Program, tests bool) (*ssa.Package, error) {
-	pkgs := prog.AllPackages()
+// mainPackages returns the main packages to analyze.
+// Each resulting package is named "main" and has a main function.
+func mainPackages(prog *ssa.Program, tests bool) ([]*ssa.Package, error) {
+	pkgs := prog.AllPackages() // TODO(adonovan): use only initial packages
 
-	// TODO(adonovan): allow independent control over tests, mains and libraries.
-	// TODO(adonovan): put this logic in a library; we keep reinventing it.
-
+	// If tests, create a "testmain" package for each test.
+	var mains []*ssa.Package
 	if tests {
-		// If -test, use all packages' tests.
-		if len(pkgs) > 0 {
-			if main := prog.CreateTestMainPackage(pkgs...); main != nil {
-				return main, nil
+		for _, pkg := range pkgs {
+			if main := prog.CreateTestMainPackage(pkg); main != nil {
+				mains = append(mains, main)
 			}
 		}
-		return nil, fmt.Errorf("no tests")
-	}
-
-	// Otherwise, use the first package named main.
-	for _, pkg := range pkgs {
-		if pkg.Pkg.Name() == "main" {
-			if pkg.Func("main") == nil {
-				return nil, fmt.Errorf("no func main() in main package")
-			}
-			return pkg, nil
+		if mains == nil {
+			return nil, fmt.Errorf("no tests")
 		}
+		return mains, nil
 	}
 
-	return nil, fmt.Errorf("no main package")
+	// Otherwise, use the main packages.
+	mains = append(mains, ssautil.MainPackages(pkgs)...)
+	if len(mains) == 0 {
+		return nil, fmt.Errorf("no main packages")
+	}
+	return mains, nil
 }
 
 type Edge struct {

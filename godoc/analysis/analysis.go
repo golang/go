@@ -47,7 +47,6 @@ package analysis // import "golang.org/x/tools/godoc/analysis"
 import (
 	"fmt"
 	"go/build"
-	exact "go/constant"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -396,21 +395,12 @@ func Run(pta bool, result *Result) {
 	// Only the transitively error-free packages are used.
 	prog := ssautil.CreateProgram(iprog, ssa.GlobalDebug)
 
-	// Compute the set of main packages, including testmain.
-	allPackages := prog.AllPackages()
-	var mainPkgs []*ssa.Package
-	if testmain := prog.CreateTestMainPackage(allPackages...); testmain != nil {
-		mainPkgs = append(mainPkgs, testmain)
-		if p := testmain.Const("packages"); p != nil {
-			log.Printf("Tested packages: %v", exact.StringVal(p.Value.Value))
+	// Create a "testmain" package for each package with tests.
+	for _, pkg := range prog.AllPackages() {
+		if testmain := prog.CreateTestMainPackage(pkg); testmain != nil {
+			log.Printf("Adding tests for %s", pkg.Pkg.Path())
 		}
 	}
-	for _, pkg := range allPackages {
-		if pkg.Pkg.Name() == "main" && pkg.Func("main") != nil {
-			mainPkgs = append(mainPkgs, pkg)
-		}
-	}
-	log.Print("Transitively error-free main packages: ", mainPkgs)
 
 	// Build SSA code for bodies of all functions in the whole program.
 	result.setStatusf("Constructing SSA form...")
@@ -505,6 +495,8 @@ func Run(pta bool, result *Result) {
 	result.setStatusf("Type analysis complete.")
 
 	if pta {
+		mainPkgs := ssautil.MainPackages(prog.AllPackages())
+		log.Print("Transitively error-free main packages: ", mainPkgs)
 		a.pointer(mainPkgs)
 	}
 }

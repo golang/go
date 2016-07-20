@@ -222,29 +222,25 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
 	prog.Build()
 
+	// Find first main or test package among the initial packages.
 	var mainPkg *ssa.Package
-	var initialPkgs []*ssa.Package
 	for _, info := range iprog.InitialPackages() {
 		if info.Pkg.Path() == "runtime" {
 			continue // not an initial package
 		}
 		p := prog.Package(info.Pkg)
-		initialPkgs = append(initialPkgs, p)
-		if mainPkg == nil && p.Func("main") != nil {
+		if p.Pkg.Name() == "main" && p.Func("main") != nil {
 			mainPkg = p
+			break
+		}
+
+		mainPkg = prog.CreateTestMainPackage(p)
+		if mainPkg != nil {
+			break
 		}
 	}
 	if mainPkg == nil {
-		testmainPkg := prog.CreateTestMainPackage(initialPkgs...)
-		if testmainPkg == nil {
-			t.Errorf("CreateTestMainPackage(%s) returned nil", mainPkg)
-			return false
-		}
-		if testmainPkg.Func("main") == nil {
-			t.Errorf("synthetic testmain package has no main")
-			return false
-		}
-		mainPkg = testmainPkg
+		t.Fatalf("no main or test packages among initial packages: %s", inputs)
 	}
 
 	var out bytes.Buffer
@@ -346,6 +342,23 @@ func TestTestmainPackage(t *testing.T) {
 		return nil
 	}
 	run(t, "testdata"+slash, "a_test.go", success)
+
+	// Run a test with a custom TestMain function and ensure that it
+	// is executed, and that m.Run runs the tests.
+	success = func(exitcode int, output string) error {
+		if exitcode != 0 {
+			return fmt.Errorf("unexpected failure; output=%s", output)
+		}
+		if want := `TestMain start
+TestC
+PASS
+TestMain end
+`; output != want {
+			return fmt.Errorf("output was %q, want %q", output, want)
+		}
+		return nil
+	}
+	run(t, "testdata"+slash, "c_test.go", success)
 }
 
 // CreateTestMainPackage should return nil if there were no tests.
