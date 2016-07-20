@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// heapdump is a tool for inspecting and analyzing Go heap dumps.
+// heapview is a tool for viewing Go heap dumps.
 package main
 
 func main() {
