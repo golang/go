@@ -833,31 +833,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p2.Pcond = p
 	}
 
-	var a int
-	var pcsize int
 	for ; p != nil; p = p.Link {
-		pcsize = int(p.Mode) / 8
-		a = int(p.From.Name)
-		if a == obj.NAME_AUTO {
+		pcsize := int(p.Mode) / 8
+		switch p.From.Name {
+		case obj.NAME_AUTO:
 			p.From.Offset += int64(deltasp) - int64(bpsize)
-		}
-		if a == obj.NAME_PARAM {
+		case obj.NAME_PARAM:
 			p.From.Offset += int64(deltasp) + int64(pcsize)
 		}
 		if p.From3 != nil {
-			a = int(p.From3.Name)
-			if a == obj.NAME_AUTO {
+			switch p.From3.Name {
+			case obj.NAME_AUTO:
 				p.From3.Offset += int64(deltasp) - int64(bpsize)
-			}
-			if a == obj.NAME_PARAM {
+			case obj.NAME_PARAM:
 				p.From3.Offset += int64(deltasp) + int64(pcsize)
 			}
 		}
-		a = int(p.To.Name)
-		if a == obj.NAME_AUTO {
+		switch p.To.Name {
+		case obj.NAME_AUTO:
 			p.To.Offset += int64(deltasp) - int64(bpsize)
-		}
-		if a == obj.NAME_PARAM {
+		case obj.NAME_PARAM:
 			p.To.Offset += int64(deltasp) + int64(pcsize)
 		}
 
@@ -896,7 +891,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			continue
 
 		case obj.ARET:
-			break
+			// do nothing
 		}
 
 		if autoffset != deltasp {
