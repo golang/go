@@ -322,6 +322,9 @@ func archPPC64() *Arch {
 	for i := ppc64.REG_V0; i <= ppc64.REG_V31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := ppc64.REG_VS0; i <= ppc64.REG_VS63; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	for i := ppc64.REG_CR0; i <= ppc64.REG_CR7; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}

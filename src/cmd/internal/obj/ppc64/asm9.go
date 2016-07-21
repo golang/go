@@ -408,6 +408,67 @@ var optab = []Optab{
 	/* Vector SHA */
 	{AVSHASIGMA, C_ANDCON, C_VREG, C_ANDCON, C_VREG, 82, 4, 0}, /* vector SHA sigma, vx-form */
 
+	/* VSX vector load */
+	{ALXV, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx vector load, xx1-form */
+
+	/* VSX vector store */
+	{ASTXV, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx vector store, xx1-form */
+
+	/* VSX scalar load */
+	{ALXS, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar load, xx1-form */
+
+	/* VSX scalar store */
+	{ASTXS, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx scalar store, xx1-form */
+
+	/* VSX scalar as integer load */
+	{ALXSI, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar as integer load, xx1-form */
+
+	/* VSX scalar store as integer */
+	{ASTXSI, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx scalar as integer store, xx1-form */
+
+	/* VSX move from VSR */
+	{AMFVSR, C_VSREG, C_NONE, C_NONE, C_REG, 88, 4, 0}, /* vsx move from vsr, xx1-form */
+
+	/* VSX move to VSR */
+	{AMTVSR, C_REG, C_NONE, C_NONE, C_VSREG, 88, 4, 0}, /* vsx move to vsr, xx1-form */
+
+	/* VSX logical */
+	{AXXLAND, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx and, xx3-form */
+	{AXXLOR, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0},  /* vsx or, xx3-form */
+
+	/* VSX select */
+	{AXXSEL, C_VSREG, C_VSREG, C_VSREG, C_VSREG, 91, 4, 0}, /* vsx select, xx4-form */
+
+	/* VSX merge */
+	{AXXMRG, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx merge, xx3-form */
+
+	/* VSX splat */
+	{AXXSPLT, C_VSREG, C_NONE, C_SCON, C_VSREG, 89, 4, 0}, /* vsx splat, xx2-form */
+
+	/* VSX permute */
+	{AXXPERM, C_VSREG, C_VSREG, C_SCON, C_VSREG, 90, 4, 0}, /* vsx permute, xx3-form */
+
+	/* VSX shift */
+	{AXXSI, C_VSREG, C_VSREG, C_SCON, C_VSREG, 90, 4, 0}, /* vsx shift immediate, xx3-form */
+
+	/* VSX scalar FP-FP conversion */
+	{AXSCV, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar fp-fp conversion, xx2-form */
+
+	/* VSX vector FP-FP conversion */
+	{AXVCV, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector fp-fp conversion, xx2-form */
+
+	/* VSX scalar FP-integer conversion */
+	{AXSCVX, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar fp-integer conversion, xx2-form */
+
+	/* VSX scalar integer-FP conversion */
+	{AXSCVXP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar integer-fp conversion, xx2-form */
+
+	/* VSX vector FP-integer conversion */
+	{AXVCVX, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector fp-integer conversion, xx2-form */
+
+	/* VSX vector integer-FP conversion */
+	{AXVCVXP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector integer-fp conversion, xx2-form */
+
 	/* 64-bit special registers */
 	{AMOVD, C_REG, C_NONE, C_NONE, C_SPR, 66, 4, 0},
 	{AMOVD, C_REG, C_NONE, C_NONE, C_LR, 66, 4, 0},
@@ -621,6 +682,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		if REG_V0 <= a.Reg && a.Reg <= REG_V31 {
 			return C_VREG
 		}
+		if REG_VS0 <= a.Reg && a.Reg <= REG_VS63 {
+			return C_VSREG
+		}
 		if REG_CR0 <= a.Reg && a.Reg <= REG_CR7 || a.Reg == REG_CR {
 			return C_CREG
 		}
@@ -833,6 +897,8 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 			a2 = C_REG
 		} else if REG_V0 <= p.Reg && p.Reg <= REG_V31 {
 			a2 = C_VREG
+		} else if REG_VS0 <= p.Reg && p.Reg <= REG_VS63 {
+			a2 = C_VSREG
 		} else if REG_F0 <= p.Reg && p.Reg <= REG_F31 {
 			a2 = C_FREG
 		}
@@ -1287,6 +1353,107 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSHASIGMAW, r0)
 			opset(AVSHASIGMAD, r0)
 
+		case ALXV: /* lxvd2x, lxvdsx, lxvw4x */
+			opset(ALXVD2X, r0)
+			opset(ALXVDSX, r0)
+			opset(ALXVW4X, r0)
+
+		case ASTXV: /* stxvd2x, stxvdsx, stxvw4x */
+			opset(ASTXVD2X, r0)
+			opset(ASTXVW4X, r0)
+
+		case ALXS: /* lxsdx  */
+			opset(ALXSDX, r0)
+
+		case ASTXS: /* stxsdx */
+			opset(ASTXSDX, r0)
+
+		case ALXSI: /* lxsiwax, lxsiwzx  */
+			opset(ALXSIWAX, r0)
+			opset(ALXSIWZX, r0)
+
+		case ASTXSI: /* stxsiwx */
+			opset(ASTXSIWX, r0)
+
+		case AMFVSR: /* mfvsrd, mfvsrwz */
+			opset(AMFVSRD, r0)
+			opset(AMFVSRWZ, r0)
+
+		case AMTVSR: /* mtvsrd, mtvsrwa, mtvsrwz */
+			opset(AMTVSRD, r0)
+			opset(AMTVSRWA, r0)
+			opset(AMTVSRWZ, r0)
+
+		case AXXLAND: /* xxland, xxlandc, xxleqv, xxlnand */
+			opset(AXXLANDQ, r0)
+			opset(AXXLANDC, r0)
+			opset(AXXLEQV, r0)
+			opset(AXXLNAND, r0)
+
+		case AXXLOR: /* xxlorc, xxlnor, xxlor, xxlxor */
+			opset(AXXLORC, r0)
+			opset(AXXLNOR, r0)
+			opset(AXXLORQ, r0)
+			opset(AXXLXOR, r0)
+
+		case AXXSEL: /* xxsel */
+			opset(AXXSEL, r0)
+
+		case AXXMRG: /* xxmrghw, xxmrglw */
+			opset(AXXMRGHW, r0)
+			opset(AXXMRGLW, r0)
+
+		case AXXSPLT: /* xxspltw */
+			opset(AXXSPLTW, r0)
+
+		case AXXPERM: /* xxpermdi */
+			opset(AXXPERMDI, r0)
+
+		case AXXSI: /* xxsldwi */
+			opset(AXXSLDWI, r0)
+
+		case AXSCV: /* xscvdpsp, xscvspdp, xscvdpspn, xscvspdpn */
+			opset(AXSCVDPSP, r0)
+			opset(AXSCVSPDP, r0)
+			opset(AXSCVDPSPN, r0)
+			opset(AXSCVSPDPN, r0)
+
+		case AXVCV: /* xvcvdpsp, xvcvspdp */
+			opset(AXVCVDPSP, r0)
+			opset(AXVCVSPDP, r0)
+
+		case AXSCVX: /* xscvdpsxds, xscvdpsxws, xscvdpuxds, xscvdpuxws */
+			opset(AXSCVDPSXDS, r0)
+			opset(AXSCVDPSXWS, r0)
+			opset(AXSCVDPUXDS, r0)
+			opset(AXSCVDPUXWS, r0)
+
+		case AXSCVXP: /* xscvsxddp, xscvuxddp, xscvsxdsp, xscvuxdsp */
+			opset(AXSCVSXDDP, r0)
+			opset(AXSCVUXDDP, r0)
+			opset(AXSCVSXDSP, r0)
+			opset(AXSCVUXDSP, r0)
+
+		case AXVCVX: /* xvcvdpsxds, xvcvdpsxws, xvcvdpuxds, xvcvdpuxws, xvcvspsxds, xvcvspsxws, xvcvspuxds, xvcvspuxws */
+			opset(AXVCVDPSXDS, r0)
+			opset(AXVCVDPSXWS, r0)
+			opset(AXVCVDPUXDS, r0)
+			opset(AXVCVDPUXWS, r0)
+			opset(AXVCVSPSXDS, r0)
+			opset(AXVCVSPSXWS, r0)
+			opset(AXVCVSPUXDS, r0)
+			opset(AXVCVSPUXWS, r0)
+
+		case AXVCVXP: /* xvcvsxddp, xvcvsxwdp, xvcvuxddp, xvcvuxwdp, xvcvsxdsp, xvcvsxwsp, xvcvuxdsp, xvcvuxwsp */
+			opset(AXVCVSXDDP, r0)
+			opset(AXVCVSXWDP, r0)
+			opset(AXVCVUXDDP, r0)
+			opset(AXVCVUXWDP, r0)
+			opset(AXVCVSXDSP, r0)
+			opset(AXVCVSXWSP, r0)
+			opset(AXVCVUXDSP, r0)
+			opset(AXVCVUXWSP, r0)
+
 		case AAND: /* logical op Rb,Rs,Ra; no literal */
 			opset(AANDN, r0)
 
@@ -1575,6 +1742,22 @@ func buildop(ctxt *obj.Link) {
 	}
 }
 
+func OPVXX1(o uint32, xo uint32, oe uint32) uint32 {
+	return o<<26 | xo<<1 | oe<<11
+}
+
+func OPVXX2(o uint32, xo uint32, oe uint32) uint32 {
+	return o<<26 | xo<<2 | oe<<11
+}
+
+func OPVXX3(o uint32, xo uint32, oe uint32) uint32 {
+	return o<<26 | xo<<3 | oe<<11
+}
+
+func OPVXX4(o uint32, xo uint32, oe uint32) uint32 {
+	return o<<26 | xo<<4 | oe<<11
+}
+
 func OPVX(o uint32, xo uint32, oe uint32, rc uint32) uint32 {
 	return o<<26 | xo | oe<<11 | rc&1
 }
@@ -1632,6 +1815,46 @@ func AOP_IRRR(op uint32, d uint32, a uint32, b uint32, simm uint32) uint32 {
 /* VX-form 1-register + SIM operands */
 func AOP_IR(op uint32, d uint32, simm uint32) uint32 {
 	return op | (d&31)<<21 | (simm&31)<<16
+}
+
+/* XX1-form 3-register operands, 1 VSR operand */
+func AOP_XX1(op uint32, d uint32, a uint32, b uint32) uint32 {
+	/* For the XX-form encodings, we need the VSX register number to be exactly */
+	/* between 0-63, so we can properly set the rightmost bits. */
+	r := d - REG_VS0
+	return op | (r&31)<<21 | (a&31)<<16 | (b&31)<<11 | (r&32)>>5
+}
+
+/* XX2-form 3-register operands, 2 VSR operands */
+func AOP_XX2(op uint32, d uint32, a uint32, b uint32) uint32 {
+	xt := d - REG_VS0
+	xb := b - REG_VS0
+	return op | (xt&31)<<21 | (a&3)<<16 | (xb&31)<<11 | (xb&32)>>4 | (xt&32)>>5
+}
+
+/* XX3-form 3 VSR operands */
+func AOP_XX3(op uint32, d uint32, a uint32, b uint32) uint32 {
+	xt := d - REG_VS0
+	xa := a - REG_VS0
+	xb := b - REG_VS0
+	return op | (xt&31)<<21 | (xa&31)<<16 | (xb&31)<<11 | (xa&32)>>3 | (xb&32)>>4 | (xt&32)>>5
+}
+
+/* XX3-form 3 VSR operands + immediate */
+func AOP_XX3I(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
+	xt := d - REG_VS0
+	xa := a - REG_VS0
+	xb := b - REG_VS0
+	return op | (xt&31)<<21 | (xa&31)<<16 | (xb&31)<<11 | (c&3)<<8 | (xa&32)>>3 | (xb&32)>>4 | (xt&32)>>5
+}
+
+/* XX4-form, 4 VSR operands */
+func AOP_XX4(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
+	xt := d - REG_VS0
+	xa := a - REG_VS0
+	xb := b - REG_VS0
+	xc := c - REG_VS0
+	return op | (xt&31)<<21 | (xa&31)<<16 | (xb&31)<<11 | (xc&31)<<6 | (xc&32)>>2 | (xa&32)>>3 | (xb&32)>>4 | (xt&32)>>5
 }
 
 func LOP_RRR(op uint32, a uint32, s uint32, b uint32) uint32 {
@@ -2930,6 +3153,52 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		/* reg none reg */
 		/* 2-register operand order: VRB, VRT */
 		o1 = AOP_RR(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg))
+
+	case 86: /* VSX indexed store, XX1-form */
+		/* reg reg reg */
+		/* 3-register operand order: XT, (RB)(RA*1) */
+		o1 = AOP_XX1(opstorex(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Index), uint32(p.To.Reg))
+
+	case 87: /* VSX indexed load, XX1-form */
+		/* reg reg reg */
+		/* 3-register operand order: (RB)(RA*1), XT */
+		o1 = AOP_XX1(oploadx(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(p.From.Reg))
+
+	case 88: /* VSX instructions, XX1-form */
+		/* reg reg none OR reg reg reg */
+		/* 3-register operand order: RA, RB, XT */
+		/* 2-register operand order: XS, RA or RA, XT */
+		xt := int32(p.To.Reg)
+		xs := int32(p.From.Reg)
+		if REG_VS0 <= xt && xt <= REG_VS63 {
+			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
+		} else if REG_VS0 <= xs && xs <= REG_VS63 {
+			o1 = AOP_XX1(oprrr(ctxt, p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(p.Reg))
+		}
+
+	case 89: /* VSX instructions, XX2-form */
+		/* reg none reg OR reg imm reg */
+		/* 2-register operand order: XB, XT or XB, UIM, XT*/
+		uim := int(regoff(ctxt, p.From3))
+		o1 = AOP_XX2(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(uim), uint32(p.From.Reg))
+
+	case 90: /* VSX instructions, XX3-form */
+		if p.From3Type() == obj.TYPE_NONE {
+			/* reg reg reg */
+			/* 3-register operand order: XA, XB, XT */
+			o1 = AOP_XX3(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg))
+		} else if p.From3Type() == obj.TYPE_CONST {
+			/* reg reg reg imm */
+			/* operand order: XA, XB, DM, XT */
+			dm := int(regoff(ctxt, p.From3))
+			o1 = AOP_XX3I(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(dm))
+		}
+
+	case 91: /* VSX instructions, XX4-form */
+		/* reg reg reg reg */
+		/* 3-register operand order: XA, XB, XC, XT */
+		o1 = AOP_XX4(oprrr(ctxt, p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg), uint32(p.From3.Reg))
+
 	}
 
 	out[0] = o1
@@ -3705,6 +3974,122 @@ func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 		return OPVX(4, 1480, 0, 0) /* vsbox - v2.07 */
 	/* End of vector instructions */
 
+	/* Vector scalar (VSX) instructions */
+	/* ISA 2.06 enables these for POWER7. */
+	case AMFVSRD:
+		return OPVXX1(31, 51, 0) /* mfvsrd - v2.07 */
+	case AMFVSRWZ:
+		return OPVXX1(31, 115, 0) /* mfvsrwz - v2.07 */
+
+	case AMTVSRD:
+		return OPVXX1(31, 179, 0) /* mtvsrd - v2.07 */
+	case AMTVSRWA:
+		return OPVXX1(31, 211, 0) /* mtvsrwa - v2.07 */
+	case AMTVSRWZ:
+		return OPVXX1(31, 243, 0) /* mtvsrwz - v2.07 */
+
+	case AXXLANDQ:
+		return OPVXX3(60, 130, 0) /* xxland - v2.06 */
+	case AXXLANDC:
+		return OPVXX3(60, 138, 0) /* xxlandc - v2.06 */
+	case AXXLEQV:
+		return OPVXX3(60, 186, 0) /* xxleqv - v2.07 */
+	case AXXLNAND:
+		return OPVXX3(60, 178, 0) /* xxlnand - v2.07 */
+
+	case AXXLORC:
+		return OPVXX3(60, 170, 0) /* xxlorc - v2.07 */
+	case AXXLNOR:
+		return OPVXX3(60, 162, 0) /* xxlnor - v2.06 */
+	case AXXLORQ:
+		return OPVXX3(60, 146, 0) /* xxlor - v2.06 */
+	case AXXLXOR:
+		return OPVXX3(60, 154, 0) /* xxlxor - v2.06 */
+
+	case AXXSEL:
+		return OPVXX4(60, 3, 0) /* xxsel - v2.06 */
+
+	case AXXMRGHW:
+		return OPVXX3(60, 18, 0) /* xxmrghw - v2.06 */
+	case AXXMRGLW:
+		return OPVXX3(60, 50, 0) /* xxmrglw - v2.06 */
+
+	case AXXSPLTW:
+		return OPVXX2(60, 164, 0) /* xxspltw - v2.06 */
+
+	case AXXPERMDI:
+		return OPVXX3(60, 10, 0) /* xxpermdi - v2.06 */
+
+	case AXXSLDWI:
+		return OPVXX3(60, 2, 0) /* xxsldwi - v2.06 */
+
+	case AXSCVDPSP:
+		return OPVXX2(60, 265, 0) /* xscvdpsp - v2.06 */
+	case AXSCVSPDP:
+		return OPVXX2(60, 329, 0) /* xscvspdp - v2.06 */
+	case AXSCVDPSPN:
+		return OPVXX2(60, 267, 0) /* xscvdpspn - v2.07 */
+	case AXSCVSPDPN:
+		return OPVXX2(60, 331, 0) /* xscvspdpn - v2.07 */
+
+	case AXVCVDPSP:
+		return OPVXX2(60, 393, 0) /* xvcvdpsp - v2.06 */
+	case AXVCVSPDP:
+		return OPVXX2(60, 457, 0) /* xvcvspdp - v2.06 */
+
+	case AXSCVDPSXDS:
+		return OPVXX2(60, 344, 0) /* xscvdpsxds - v2.06 */
+	case AXSCVDPSXWS:
+		return OPVXX2(60, 88, 0) /* xscvdpsxws - v2.06 */
+	case AXSCVDPUXDS:
+		return OPVXX2(60, 328, 0) /* xscvdpuxds - v2.06 */
+	case AXSCVDPUXWS:
+		return OPVXX2(60, 72, 0) /* xscvdpuxws - v2.06 */
+
+	case AXSCVSXDDP:
+		return OPVXX2(60, 376, 0) /* xscvsxddp - v2.06 */
+	case AXSCVUXDDP:
+		return OPVXX2(60, 360, 0) /* xscvuxddp - v2.06 */
+	case AXSCVSXDSP:
+		return OPVXX2(60, 312, 0) /* xscvsxdsp - v2.06 */
+	case AXSCVUXDSP:
+		return OPVXX2(60, 296, 0) /* xscvuxdsp - v2.06 */
+
+	case AXVCVDPSXDS:
+		return OPVXX2(60, 472, 0) /* xvcvdpsxds - v2.06 */
+	case AXVCVDPSXWS:
+		return OPVXX2(60, 216, 0) /* xvcvdpsxws - v2.06 */
+	case AXVCVDPUXDS:
+		return OPVXX2(60, 456, 0) /* xvcvdpuxds - v2.06 */
+	case AXVCVDPUXWS:
+		return OPVXX2(60, 200, 0) /* xvcvdpuxws - v2.06 */
+	case AXVCVSPSXDS:
+		return OPVXX2(60, 408, 0) /* xvcvspsxds - v2.07 */
+	case AXVCVSPSXWS:
+		return OPVXX2(60, 152, 0) /* xvcvspsxws - v2.07 */
+	case AXVCVSPUXDS:
+		return OPVXX2(60, 392, 0) /* xvcvspuxds - v2.07 */
+	case AXVCVSPUXWS:
+		return OPVXX2(60, 136, 0) /* xvcvspuxws - v2.07 */
+
+	case AXVCVSXDDP:
+		return OPVXX2(60, 504, 0) /* xvcvsxddp - v2.06 */
+	case AXVCVSXWDP:
+		return OPVXX2(60, 248, 0) /* xvcvsxwdp - v2.06 */
+	case AXVCVUXDDP:
+		return OPVXX2(60, 488, 0) /* xvcvuxddp - v2.06 */
+	case AXVCVUXWDP:
+		return OPVXX2(60, 232, 0) /* xvcvuxwdp - v2.06 */
+	case AXVCVSXDSP:
+		return OPVXX2(60, 440, 0) /* xvcvsxdsp - v2.06 */
+	case AXVCVSXWSP:
+		return OPVXX2(60, 184, 0) /* xvcvsxwsp - v2.06 */
+	case AXVCVUXDSP:
+		return OPVXX2(60, 424, 0) /* xvcvuxdsp - v2.06 */
+	case AXVCVUXWSP:
+		return OPVXX2(60, 168, 0) /* xvcvuxwsp - v2.06 */
+	/* End of VSX instructions */
+
 	case AXOR:
 		return OPVCC(31, 316, 0, 0)
 	case AXORCC:
@@ -4010,6 +4395,25 @@ func oploadx(ctxt *obj.Link, a obj.As) uint32 {
 	case ALVSR:
 		return OPVCC(31, 38, 0, 0) /* lvsr - v2.03 */
 		/* End of vector instructions */
+
+	/* Vector scalar (VSX) instructions */
+	/* ISA 2.06 enables these for POWER7. */
+	case ALXVD2X:
+		return OPVXX1(31, 844, 0) /* lxvd2x - v2.06 */
+	case ALXVDSX:
+		return OPVXX1(31, 332, 0) /* lxvdsx - v2.06 */
+	case ALXVW4X:
+		return OPVXX1(31, 780, 0) /* lxvw4x - v2.06 */
+
+	case ALXSDX:
+		return OPVXX1(31, 588, 0) /* lxsdx - v2.06 */
+
+	case ALXSIWAX:
+		return OPVXX1(31, 76, 0) /* lxsiwax - v2.07 */
+	case ALXSIWZX:
+		return OPVXX1(31, 12, 0) /* lxsiwzx - v2.07 */
+		/* End of vector scalar instructions */
+
 	}
 
 	ctxt.Diag("bad loadx opcode %v", a)
@@ -4125,6 +4529,21 @@ func opstorex(ctxt *obj.Link, a obj.As) uint32 {
 	case ASTVXL:
 		return OPVCC(31, 487, 0, 0) /* stvxl - v2.03 */
 		/* End of vector instructions */
+
+	/* Vector scalar (VSX) instructions */
+	/* ISA 2.06 enables these for POWER7. */
+	case ASTXVD2X:
+		return OPVXX1(31, 972, 0) /* stxvd2x - v2.06 */
+	case ASTXVW4X:
+		return OPVXX1(31, 908, 0) /* stxvw4x - v2.06 */
+
+	case ASTXSDX:
+		return OPVXX1(31, 716, 0) /* stxsdx - v2.06 */
+
+	case ASTXSIWX:
+		return OPVXX1(31, 140, 0) /* stxsiwx - v2.07 */
+		/* End of vector scalar instructions */
+
 	}
 
 	ctxt.Diag("unknown storex opcode %v", a)
