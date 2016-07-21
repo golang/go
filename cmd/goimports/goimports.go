@@ -7,6 +7,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"go/scanner"
@@ -29,7 +30,7 @@ var (
 	list    = flag.Bool("l", false, "list files whose formatting differs from goimport's")
 	write   = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	doDiff  = flag.Bool("d", false, "display diffs instead of rewriting files")
-	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`")
+	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`. When operating on a single file, dir may instead be the complete file name.")
 	verbose = flag.Bool("v", false, "verbose logging")
 
 	cpuProfile     = flag.String("cpuprofile", "", "CPU profile output")
@@ -67,9 +68,25 @@ func isGoFile(f os.FileInfo) bool {
 	return !f.IsDir() && !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go")
 }
 
-func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error {
+// argumentType is which mode goimports was invoked as.
+type argumentType int
+
+const (
+	// fromStdin means the user is piping their source into goimports.
+	fromStdin argumentType = iota
+
+	// singleArg is the common case from editors, when goimports is run on
+	// a single file.
+	singleArg
+
+	// multipleArg is when the user ran "goimports file1.go file2.go"
+	// or ran goimports on a directory tree.
+	multipleArg
+)
+
+func processFile(filename string, in io.Reader, out io.Writer, argType argumentType) error {
 	opt := options
-	if stdin {
+	if argType == fromStdin {
 		nopt := *options
 		nopt.Fragment = true
 		opt = &nopt
@@ -91,9 +108,30 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 
 	target := filename
 	if *srcdir != "" {
-		// Pretend that file is from *srcdir in order to decide
-		// visible imports correctly.
-		target = filepath.Join(*srcdir, filepath.Base(filename))
+		// Determine whether the provided -srcdirc is a directory or file
+		// and then use it to override the target.
+		//
+		// See https://github.com/dominikh/go-mode.el/issues/146
+		if isFile(*srcdir) {
+			if argType == multipleArg {
+				return errors.New("-srcdir value can't be a file when passing multiple arguments or when walking directories")
+			}
+			target = *srcdir
+		} else if argType == singleArg && strings.HasSuffix(*srcdir, ".go") && !isDir(*srcdir) {
+			// For a file which doesn't exist on disk yet, but might shortly.
+			// e.g. user in editor opens $DIR/newfile.go and newfile.go doesn't yet exist on disk.
+			// The goimports on-save hook writes the buffer to a temp file
+			// first and runs goimports before the actual save to newfile.go.
+			// The editor's buffer is named "newfile.go" so that is passed to goimports as:
+			//      goimports -srcdir=/gopath/src/pkg/newfile.go /tmp/gofmtXXXXXXXX.go
+			// and then the editor reloads the result from the tmp file and writes
+			// it to newfile.go.
+			target = *srcdir
+		} else {
+			// Pretend that file is from *srcdir in order to decide
+			// visible imports correctly.
+			target = filepath.Join(*srcdir, filepath.Base(filename))
+		}
 	}
 
 	res, err := imports.Process(target, src, opt)
@@ -131,7 +169,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 
 func visitFile(path string, f os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
-		err = processFile(path, nil, os.Stdout, false)
+		err = processFile(path, nil, os.Stdout, multipleArg)
 	}
 	if err != nil {
 		report(err)
@@ -215,10 +253,15 @@ func gofmtMain() {
 	}
 
 	if len(paths) == 0 {
-		if err := processFile("<standard input>", os.Stdin, os.Stdout, true); err != nil {
+		if err := processFile("<standard input>", os.Stdin, os.Stdout, fromStdin); err != nil {
 			report(err)
 		}
 		return
+	}
+
+	argType := singleArg
+	if len(paths) > 1 {
+		argType = multipleArg
 	}
 
 	for _, path := range paths {
@@ -228,7 +271,7 @@ func gofmtMain() {
 		case dir.IsDir():
 			walkDir(path)
 		default:
-			if err := processFile(path, nil, os.Stdout, false); err != nil {
+			if err := processFile(path, nil, os.Stdout, argType); err != nil {
 				report(err)
 			}
 		}
@@ -260,4 +303,16 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 		err = nil
 	}
 	return
+}
+
+// isFile reports whether name is a file.
+func isFile(name string) bool {
+	fi, err := os.Stat(name)
+	return err == nil && fi.Mode().IsRegular()
+}
+
+// isDir reports whether name is a directory.
+func isDir(name string) bool {
+	fi, err := os.Stat(name)
+	return err == nil && fi.IsDir()
 }
