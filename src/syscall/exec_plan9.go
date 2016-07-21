@@ -298,11 +298,6 @@ childerror1:
 	for {
 		RawSyscall(SYS_EXITS, 0, 0, 0)
 	}
-
-	// Calling panic is not actually safe,
-	// but the for loop above won't break
-	// and this shuts up the compiler.
-	panic("unreached")
 }
 
 // close the numbered file descriptor, unless it is fd1, fd2, or a member of fds.
