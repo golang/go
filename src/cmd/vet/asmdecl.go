@@ -74,7 +74,7 @@ var (
 	asmArchAmd64    = asmArch{"amd64", size88, false, "SP", false}
 	asmArchAmd64p32 = asmArch{"amd64p32", size48, false, "SP", false}
 	asmArchMips64   = asmArch{"mips64", size88, true, "R29", true}
-	asmArchMips64LE = asmArch{"mips64", size88, false, "R29", true}
+	asmArchMips64LE = asmArch{"mips64le", size88, false, "R29", true}
 	asmArchPpc64    = asmArch{"ppc64", size88, true, "R1", true}
 	asmArchPpc64LE  = asmArch{"ppc64le", size88, false, "R1", true}
 
