@@ -1,3 +1,5 @@
+// +build netbsd freebsd openbsd
+
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -9,7 +11,7 @@
 #include "funcdata.h"
 
 //
-// System call support for 386, FreeBSD
+// System call support for some 386 unixes
 //
 
 // func Syscall(trap int32, a1, a2, a3 int32) (r1, r2, err int32);
