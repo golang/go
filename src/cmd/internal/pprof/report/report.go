@@ -355,27 +355,43 @@ func printCallgrind(w io.Writer, rpt *Report) error {
 
 	g.preprocess(rpt)
 
+	fmt.Fprintln(w, "positions: instr line")
 	fmt.Fprintln(w, "events:", o.SampleType+"("+o.OutputUnit+")")
 
+	objfiles := make(map[string]int)
 	files := make(map[string]int)
 	names := make(map[string]int)
+
+	// prevInfo points to the previous nodeInfo.
+	// It is used to group cost lines together as much as possible.
+	var prevInfo *nodeInfo
 	for _, n := range g.ns {
-		fmt.Fprintln(w, "fl="+callgrindName(files, n.info.file))
-		fmt.Fprintln(w, "fn="+callgrindName(names, n.info.name))
+		if prevInfo == nil || n.info.objfile != prevInfo.objfile || n.info.file != prevInfo.file || n.info.name != prevInfo.name {
+			fmt.Fprintln(w)
+			fmt.Fprintln(w, "ob="+callgrindName(objfiles, n.info.objfile))
+			fmt.Fprintln(w, "fl="+callgrindName(files, n.info.file))
+			fmt.Fprintln(w, "fn="+callgrindName(names, n.info.name))
+		}
+
+		addr := callgrindAddress(prevInfo, n.info.address)
 		sv, _ := ScaleValue(n.flat, o.SampleUnit, o.OutputUnit)
-		fmt.Fprintf(w, "%d %d\n", n.info.lineno, int(sv))
+		fmt.Fprintf(w, "%s %d %d\n", addr, n.info.lineno, int(sv))
 
 		// Print outgoing edges.
 		for _, out := range sortedEdges(n.out) {
 			c, _ := ScaleValue(out.weight, o.SampleUnit, o.OutputUnit)
-			count := fmt.Sprintf("%d", int(c))
 			callee := out.dest
 			fmt.Fprintln(w, "cfl="+callgrindName(files, callee.info.file))
 			fmt.Fprintln(w, "cfn="+callgrindName(names, callee.info.name))
-			fmt.Fprintln(w, "calls="+count, callee.info.lineno)
-			fmt.Fprintln(w, n.info.lineno, count)
+			fmt.Fprintf(w, "calls=%d %s %d\n", int(c), callgrindAddress(prevInfo, callee.info.address), callee.info.lineno)
+			// TODO: This address may be in the middle of a call
+			// instruction. It would be best to find the beginning
+			// of the instruction, but the tools seem to handle
+			// this OK.
+			fmt.Fprintf(w, "* * %d\n", int(c))
 		}
-		fmt.Fprintln(w)
+
+		prevInfo = &n.info
 	}
 
 	return nil
@@ -395,6 +411,32 @@ func callgrindName(names map[string]int, name string) string {
 	id := len(names) + 1
 	names[name] = id
 	return fmt.Sprintf("(%d) %s", id, name)
+}
+
+// callgrindAddress implements the callgrind subposition compression scheme if
+// possible. If prevInfo != nil, it contains the previous address. The current
+// address can be given relative to the previous address, with an explicit +/-
+// to indicate it is relative, or * for the same address.
+func callgrindAddress(prevInfo *nodeInfo, curr uint64) string {
+	abs := fmt.Sprintf("%#x", curr)
+	if prevInfo == nil {
+		return abs
+	}
+
+	prev := prevInfo.address
+	if prev == curr {
+		return "*"
+	}
+
+	diff := int64(curr - prev)
+	relative := fmt.Sprintf("%+d", diff)
+
+	// Only bother to use the relative address if it is actually shorter.
+	if len(relative) < len(abs) {
+		return relative
+	}
+
+	return abs
 }
 
 // printTree prints a tree-based report in text form.
@@ -1021,7 +1063,7 @@ func newLocInfo(l *profile.Location) []nodeInfo {
 	var objfile string
 
 	if m := l.Mapping; m != nil {
-		objfile = filepath.Base(m.File)
+		objfile = m.File
 	}
 
 	if len(l.Line) == 0 {
@@ -1622,7 +1664,7 @@ func (info *nodeInfo) prettyName() string {
 	}
 
 	if name = strings.TrimSpace(name); name == "" && info.objfile != "" {
-		name = "[" + info.objfile + "]"
+		name = "[" + filepath.Base(info.objfile) + "]"
 	}
 	return name
 }

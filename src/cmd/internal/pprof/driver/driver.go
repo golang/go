@@ -712,8 +712,9 @@ func processFlags(p *profile.Profile, ui plugin.UI, f *flags) error {
 	flagPeek := f.isFormat("peek")
 	flagWebList := f.isFormat("weblist")
 	flagList := f.isFormat("list")
+	flagCallgrind := f.isFormat("callgrind")
 
-	if flagDis || flagWebList {
+	if flagDis || flagWebList || flagCallgrind {
 		// Collect all samples at address granularity for assembly
 		// listing.
 		f.flagNodeCount = newInt(0)
@@ -904,16 +905,13 @@ func aggregate(prof *profile.Profile, f *flags) error {
 	switch {
 	case f.isFormat("proto"), f.isFormat("raw"):
 		// No aggregation for raw profiles.
-	case f.isFormat("callgrind"):
-		// Aggregate to file/line for callgrind.
-		fallthrough
 	case *f.flagLines:
 		return prof.Aggregate(true, true, true, true, false)
 	case *f.flagFiles:
 		return prof.Aggregate(true, false, true, false, false)
 	case *f.flagFunctions:
 		return prof.Aggregate(true, true, false, false, false)
-	case f.isFormat("weblist"), f.isFormat("disasm"):
+	case f.isFormat("weblist"), f.isFormat("disasm"), f.isFormat("callgrind"):
 		return prof.Aggregate(false, true, true, true, true)
 	}
 	return nil
