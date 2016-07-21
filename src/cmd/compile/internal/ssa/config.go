@@ -162,6 +162,17 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.flagRegMask = flagRegMaskARM
 		c.FPReg = framepointerRegARM
 		c.hasGReg = true
+	case "arm64":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.lowerBlock = rewriteBlockARM64
+		c.lowerValue = rewriteValueARM64
+		c.registers = registersARM64[:]
+		c.gpRegMask = gpRegMaskARM64
+		c.fpRegMask = fpRegMaskARM64
+		c.flagRegMask = flagRegMaskARM64
+		c.FPReg = framepointerRegARM64
+		c.hasGReg = true
 	case "ppc64le":
 		c.IntSize = 8
 		c.PtrSize = 8
