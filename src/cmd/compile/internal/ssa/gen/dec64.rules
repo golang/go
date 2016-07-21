@@ -336,9 +336,9 @@
 (Lrot64 (Int64Make hi lo) [c]) && c > 32 -> (Lrot64 (Int64Make lo hi) [c-32])
 
 (Const64 <t> [c]) && t.IsSigned() ->
-	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
+	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
 (Const64 <t> [c]) && !t.IsSigned() ->
-	(Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
+	(Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
 
 (Eq64 x y) ->
 	(AndB
