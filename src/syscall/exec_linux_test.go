@@ -238,6 +238,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		"uid=0(root) gid=0(root) groups=0(root)",
 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody)",
 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
+		"uid=0(root) gid=0(root) groups=0(root),65534",
 	}
 	for _, e := range expected {
 		if strOut == e {

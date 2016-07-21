@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	_PAGE_SIZE = sys.PhysPageSize
-	_EACCES    = 13
+	_EACCES = 13
+	_EINVAL = 22
 )
 
 // NOTE: vec must be just 1 byte long here.
@@ -22,13 +22,19 @@ const (
 var addrspace_vec [1]byte
 
 func addrspace_free(v unsafe.Pointer, n uintptr) bool {
-	var chunk uintptr
-	for off := uintptr(0); off < n; off += chunk {
-		chunk = _PAGE_SIZE * uintptr(len(addrspace_vec))
-		if chunk > (n - off) {
-			chunk = n - off
+	// Step by the minimum possible physical page size. This is
+	// safe even if we have the wrong physical page size; mincore
+	// will just return EINVAL for unaligned addresses.
+	for off := uintptr(0); off < n; off += minPhysPageSize {
+		// Use a length of 1 byte, which the kernel will round
+		// up to one physical page regardless of the true
+		// physical page size.
+		errval := mincore(unsafe.Pointer(uintptr(v)+off), 1, &addrspace_vec[0])
+		if errval == -_EINVAL {
+			// Address is not a multiple of the physical
+			// page size. That's fine.
+			continue
 		}
-		errval := mincore(unsafe.Pointer(uintptr(v)+off), chunk, &addrspace_vec[0])
 		// ENOMEM means unmapped, which is what we want.
 		// Anything else we assume means the pages are mapped.
 		if errval != -_ENOMEM {

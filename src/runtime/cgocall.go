@@ -44,7 +44,7 @@
 // call arbitrary Go code directly and must be careful not to allocate
 // memory or use up m->g0's stack.
 //
-// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize).
+// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize, ctxt).
 // (The reason for having _cgoexp_GoF instead of writing a crosscall3
 // to make this call directly is that _cgoexp_GoF, because it is compiled
 // with 6c instead of gcc, can refer to dotted names like
@@ -80,6 +80,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -176,7 +177,7 @@ func cgocallbackg(ctxt uintptr) {
 
 func cgocallbackg1(ctxt uintptr) {
 	gp := getg()
-	if gp.m.needextram {
+	if gp.m.needextram || atomic.Load(&extraMWaiters) > 0 {
 		gp.m.needextram = false
 		systemstack(newextram)
 	}

@@ -270,6 +270,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
+	{name: "phi tighten", fn: phiTighten},
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "likelyadjust", fn: likelyadjust},
