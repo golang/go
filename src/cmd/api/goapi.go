@@ -425,7 +425,7 @@ func (w *Walker) Import(name string) (*types.Package, error) {
 	w.imported[name] = &importing
 
 	root := w.root
-	if strings.HasPrefix(name, "golang.org/x/") {
+	if strings.HasPrefix(name, "golang_org/x/") {
 		root = filepath.Join(root, "vendor")
 	}
 

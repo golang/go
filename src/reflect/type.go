@@ -876,6 +876,9 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 }
 
 func (t *rtype) PkgPath() string {
+	if t.tflag&tflagNamed == 0 {
+		return ""
+	}
 	ut := t.uncommon()
 	if ut == nil {
 		return ""

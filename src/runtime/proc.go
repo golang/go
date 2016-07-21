@@ -1389,10 +1389,27 @@ func needm(x byte) {
 
 var earlycgocallback = []byte("fatal error: cgo callback before cgo call\n")
 
-// newextram allocates an m and puts it on the extra list.
+// newextram allocates m's and puts them on the extra list.
 // It is called with a working local m, so that it can do things
 // like call schedlock and allocate.
 func newextram() {
+	c := atomic.Xchg(&extraMWaiters, 0)
+	if c > 0 {
+		for i := uint32(0); i < c; i++ {
+			oneNewExtraM()
+		}
+	} else {
+		// Make sure there is at least one extra M.
+		mp := lockextra(true)
+		unlockextra(mp)
+		if mp == nil {
+			oneNewExtraM()
+		}
+	}
+}
+
+// oneNewExtraM allocates an m and puts it on the extra list.
+func oneNewExtraM() {
 	// Create extra goroutine locked to extra m.
 	// The goroutine is the context in which the cgo callback will run.
 	// The sched.pc will never be returned to, but setting it to
@@ -1485,6 +1502,7 @@ func getm() uintptr {
 }
 
 var extram uintptr
+var extraMWaiters uint32
 
 // lockextra locks the extra list and returns the list head.
 // The caller must unlock the list by storing a new list head
@@ -1495,6 +1513,7 @@ var extram uintptr
 func lockextra(nilokay bool) *m {
 	const locked = 1
 
+	incr := false
 	for {
 		old := atomic.Loaduintptr(&extram)
 		if old == locked {
@@ -1503,6 +1522,13 @@ func lockextra(nilokay bool) *m {
 			continue
 		}
 		if old == 0 && !nilokay {
+			if !incr {
+				// Add 1 to the number of threads
+				// waiting for an M.
+				// This is cleared by newextram.
+				atomic.Xadd(&extraMWaiters, 1)
+				incr = true
+			}
 			usleep(1)
 			continue
 		}
