@@ -1,3 +1,5 @@
+// +build dragonfly freebsd
+
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -9,7 +11,7 @@
 #include "funcdata.h"
 
 //
-// Syscall9 support for AMD64, FreeBSD
+// Syscall9 support for AMD64, DragonFly and FreeBSD
 //
 
 // func Syscall9(trap int64, a1, a2, a3, a4, a5, a6, a7, a8, a9 int64) (r1, r2, err int64);
