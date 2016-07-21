@@ -99,7 +99,7 @@
 (ZeroExt16to32 x) -> (MOVWLZX x)
 
 (Signmask x) -> (SARLconst x [31])
-(Zeromask x) -> (SBBLcarrymask (CMPL (MOVLconst [0]) x))
+(Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
@@ -182,6 +182,11 @@
 (Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
 (Lsh8x64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
 (Rsh8Ux64 _ (Const64 [c])) && uint64(c) >= 8 -> (Const8 [0])
+
+// large constant signed right shift, we leave the sign bit
+(Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SARLconst x [31])
+(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SARWconst x [15])
+(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 -> (SARBconst x [7])
 
 // Lowering comparisons
 (Less32  x y) -> (SETL (CMPL x y))

@@ -263,7 +263,7 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
 	_ = b
 	// match: (Const64 <t> [c])
 	// cond: t.IsSigned()
-	// result: (Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
+	// result: (Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
 	for {
 		t := v.Type
 		c := v.AuxInt
@@ -275,13 +275,13 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
 		v0.AuxInt = c >> 32
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
-		v1.AuxInt = c & 0xffffffff
+		v1.AuxInt = int64(int32(c))
 		v.AddArg(v1)
 		return true
 	}
 	// match: (Const64 <t> [c])
 	// cond: !t.IsSigned()
-	// result: (Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
+	// result: (Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [int64(int32(c))]))
 	for {
 		t := v.Type
 		c := v.AuxInt
@@ -293,7 +293,7 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
 		v0.AuxInt = c >> 32
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
-		v1.AuxInt = c & 0xffffffff
+		v1.AuxInt = int64(int32(c))
 		v.AddArg(v1)
 		return true
 	}

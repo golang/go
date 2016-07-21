@@ -4323,7 +4323,7 @@ func CheckLoweredPhi(v *ssa.Value) {
 func CheckLoweredGetClosurePtr(v *ssa.Value) {
 	entry := v.Block.Func.Entry
 	if entry != v.Block || entry.Values[0] != v {
-		Fatalf("badly placed LoweredGetClosurePtr: %v %v", v.Block, v)
+		Fatalf("in %s, badly placed LoweredGetClosurePtr: %v %v", v.Block.Func.Name, v.Block, v)
 	}
 }
 

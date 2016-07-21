@@ -10432,6 +10432,24 @@ func rewriteValue386_OpRsh16x64(v *Value, config *Config) bool {
 		v.AuxInt = c
 		return true
 	}
+	// match: (Rsh16x64 x (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (SARWconst x [15])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 16) {
+			break
+		}
+		v.reset(Op386SARWconst)
+		v.AddArg(x)
+		v.AuxInt = 15
+		return true
+	}
 	return false
 }
 func rewriteValue386_OpRsh16x8(v *Value, config *Config) bool {
@@ -10647,6 +10665,24 @@ func rewriteValue386_OpRsh32x64(v *Value, config *Config) bool {
 		v.AuxInt = c
 		return true
 	}
+	// match: (Rsh32x64 x (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (SARLconst x [31])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 32) {
+			break
+		}
+		v.reset(Op386SARLconst)
+		v.AddArg(x)
+		v.AuxInt = 31
+		return true
+	}
 	return false
 }
 func rewriteValue386_OpRsh32x8(v *Value, config *Config) bool {
@@ -10860,6 +10896,24 @@ func rewriteValue386_OpRsh8x64(v *Value, config *Config) bool {
 		v.reset(Op386SARBconst)
 		v.AddArg(x)
 		v.AuxInt = c
+		return true
+	}
+	// match: (Rsh8x64 x (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (SARBconst x [7])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpConst64 {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 8) {
+			break
+		}
+		v.reset(Op386SARBconst)
+		v.AddArg(x)
+		v.AuxInt = 7
 		return true
 	}
 	return false
@@ -13015,17 +13069,21 @@ func rewriteValue386_OpZeroExt8to32(v *Value, config *Config) bool {
 func rewriteValue386_OpZeromask(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Zeromask x)
+	// match: (Zeromask <t> x)
 	// cond:
-	// result: (SBBLcarrymask (CMPL (MOVLconst [0]) x))
+	// result: (XORLconst [-1] (SBBLcarrymask <t> (CMPL x (MOVLconst [1]))))
 	for {
+		t := v.Type
 		x := v.Args[0]
-		v.reset(Op386SBBLcarrymask)
-		v0 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
-		v1 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
-		v1.AuxInt = 0
+		v.reset(Op386XORLconst)
+		v.AuxInt = -1
+		v0 := b.NewValue0(v.Line, Op386SBBLcarrymask, t)
+		v1 := b.NewValue0(v.Line, Op386CMPL, TypeFlags)
+		v1.AddArg(x)
+		v2 := b.NewValue0(v.Line, Op386MOVLconst, config.fe.TypeUInt32())
+		v2.AuxInt = 1
+		v1.AddArg(v2)
 		v0.AddArg(v1)
-		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
