@@ -677,7 +677,7 @@ label1:
 
 //	Described as:
 //	<instruction type>, <instruction format>
-//	<golang asm operand order> produces
+//	<go asm operand order> produces
 //	<Power ISA operand order>
 
 //	Vector load, VX-form
@@ -879,6 +879,139 @@ label1:
 //	<mnemonic> VRT,VRA,ST,SIX
 	VSHASIGMAW    $15, V1, $1, V0
 	VSHASIGMAD    $15, V1, $1, V0
+
+//	VSX instructions
+//	Described as:
+//	<instruction type>, <instruction format>
+//	<go asm operand order> produces
+//	<Power ISA operand order>
+
+//	VSX load, XX1-form
+//	<MNEMONIC> (RB)(RA*1),XT produces
+//	<mnemonic> XT,RA,RB
+	LXVD2X	    (R1)(R2*1), VS0
+	LXVDSX	    (R1)(R2*1), VS0
+	LXVW4X	    (R1)(R2*1), VS0
+	LXSDX	    (R1)(R2*1), VS0
+	LXSIWAX	    (R1)(R2*1), VS0
+	LXSIWZX	    (R1)(R2*1), VS0
+
+//	VSX store, XX1-form
+//	<MNEMONIC> XS,(RB)(RA*1) produces
+//	<mnemonic> XS,RA,RB
+	STXVD2X	    VS63, (R1)(R2*1)
+	STXVW4X	    VS63, (R1)(R2*1)
+	STXSDX	    VS63, (R1)(R2*1)
+	STXSIWX	    VS63, (R1)(R2*1)
+
+//	VSX move from VSR, XX1-form
+//	<MNEMONIC> XS,RA produces
+//	<mnemonic> RA,XS
+	MFVSRD	    VS0, R1
+	MFVSRWZ	    VS33, R1
+
+//	VSX move to VSR, XX1-form
+//	<MNEMONIC> RA,XT produces
+//	<mnemonic> XT,RA
+	MTVSRD	    R1, VS0
+	MTVSRWA	    R1, VS31
+	MTVSRWZ	    R1, VS63
+
+//	VSX AND, XX3-form
+//	<MNEMONIC> XA,XB,XT produces
+//	<mnemonic> XT,XA,XB
+	XXLANDQ	    VS0,VS1,VS32
+	XXLANDC	    VS0,VS1,VS32
+	XXLEQV	    VS0,VS1,VS32
+	XXLNAND	    VS0,VS1,VS32
+
+//	VSX OR, XX3-form
+//	<MNEMONIC> XA,XB,XT produces
+//	<mnemonic> XT,XA,XB
+	XXLORC	    VS0,VS1,VS32
+	XXLNOR	    VS0,VS1,VS32
+	XXLORQ	    VS0,VS1,VS32
+	XXLXOR	    VS0,VS1,VS32
+
+//	VSX select, XX4-form
+//	<MNEMONIC> XA,XB,XC,XT produces
+//	<mnemonic> XT,XA,XB,XC
+	XXSEL	    VS0,VS1,VS3,VS32
+
+//	VSX merge, XX3-form
+//	<MNEMONIC> XA,XB,XT produces
+//	<mnemonic> XT,XA,XB
+	XXMRGHW	    VS0,VS1,VS32
+	XXMRGLW	    VS0,VS1,VS32
+
+//	VSX splat, XX2-form
+//	<MNEMONIC> XB,UIM,XT produces
+//	<mnemonic> XT,XB,UIM
+	XXSPLTW	    VS0,$3,VS32
+
+//	VSX permute, XX3-form
+//	<MNEMONIC> XA,XB,DM,XT produces
+//	<mnemonic> XT,XA,XB,DM
+	XXPERMDI    VS0,VS1,$3,VS32
+
+//	VSX shift, XX3-form
+//	<MNEMONIC> XA,XB,SHW,XT produces
+//	<mnemonic> XT,XA,XB,SHW
+	XXSLDWI	    VS0,VS1,$3,VS32
+
+//	VSX scalar FP-FP conversion, XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XSCVDPSP    VS0,VS32
+	XSCVSPDP    VS0,VS32
+	XSCVDPSPN   VS0,VS32
+	XSCVSPDPN   VS0,VS32
+
+//	VSX vector FP-FP conversion, XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XVCVDPSP    VS0,VS32
+	XVCVSPDP    VS0,VS32
+
+//	VSX scalar FP-integer conversion, XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XSCVDPSXDS  VS0,VS32
+	XSCVDPSXWS  VS0,VS32
+	XSCVDPUXDS  VS0,VS32
+	XSCVDPUXWS  VS0,VS32
+
+//	VSX scalar integer-FP conversion, XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XSCVSXDDP   VS0,VS32
+	XSCVUXDDP   VS0,VS32
+	XSCVSXDSP   VS0,VS32
+	XSCVUXDSP   VS0,VS32
+
+//	VSX vector FP-integer conversion, XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XVCVDPSXDS  VS0,VS32
+	XVCVDPSXWS  VS0,VS32
+	XVCVDPUXDS  VS0,VS32
+	XVCVDPUXWS  VS0,VS32
+	XVCVSPSXDS  VS0,VS32
+	XVCVSPSXWS  VS0,VS32
+	XVCVSPUXDS  VS0,VS32
+	XVCVSPUXWS  VS0,VS32
+
+//	VSX scalar integer-FP conversion, XX2-form
+//	<MNEMONIC> XB,XT produces
+//	<mnemonic> XT,XB
+	XVCVSXDDP   VS0,VS32
+	XVCVSXWDP   VS0,VS32
+	XVCVUXDDP   VS0,VS32
+	XVCVUXWDP   VS0,VS32
+	XVCVSXDSP   VS0,VS32
+	XVCVSXWSP   VS0,VS32
+	XVCVUXDSP   VS0,VS32
+	XVCVUXWSP   VS0,VS32
 
 //
 // NOP
