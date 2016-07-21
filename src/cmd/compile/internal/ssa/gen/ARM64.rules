@@ -1,0 +1,323 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+(AddPtr x y) -> (ADD x y)
+(Add64 x y) -> (ADD x y)
+(Add32 x y) -> (ADD x y)
+(Add16 x y) -> (ADD x y)
+(Add8 x y) -> (ADD x y)
+(Add32F x y) -> (FADDS x y)
+(Add64F x y) -> (FADDD x y)
+
+(SubPtr x y) -> (SUB x y)
+(Sub64 x y) -> (SUB x y)
+(Sub32 x y) -> (SUB x y)
+(Sub16 x y) -> (SUB x y)
+(Sub8 x y) -> (SUB x y)
+(Sub32F x y) -> (FSUBS x y)
+(Sub64F x y) -> (FSUBD x y)
+
+(Mul64 x y) -> (MUL x y)
+(Mul32 x y) -> (MUL x y)
+(Mul16 x y) -> (MUL x y)
+(Mul8 x y) -> (MUL x y)
+(Mul32F x y) -> (FMULS x y)
+(Mul64F x y) -> (FMULD x y)
+
+(Div64 x y) -> (DIV x y)
+(Div64u x y) -> (UDIV x y)
+(Div32 x y) -> (DIVW x y)
+(Div32u x y) -> (UDIVW x y)
+(Div16 x y) -> (DIVW (SignExt16to32 x) (SignExt16to32 y))
+(Div16u x y) -> (UDIVW (ZeroExt16to32 x) (ZeroExt16to32 y))
+(Div8 x y) -> (DIVW (SignExt8to32 x) (SignExt8to32 y))
+(Div8u x y) -> (UDIVW (ZeroExt8to32 x) (ZeroExt8to32 y))
+(Div32F x y) -> (FDIVS x y)
+(Div64F x y) -> (FDIVD x y)
+
+(Mod64 x y) -> (MOD x y)
+(Mod64u x y) -> (UMOD x y)
+(Mod32 x y) -> (MODW x y)
+(Mod32u x y) -> (UMODW x y)
+(Mod16 x y) -> (MODW (SignExt16to32 x) (SignExt16to32 y))
+(Mod16u x y) -> (UMODW (ZeroExt16to32 x) (ZeroExt16to32 y))
+(Mod8 x y) -> (MODW (SignExt8to32 x) (SignExt8to32 y))
+(Mod8u x y) -> (UMODW (ZeroExt8to32 x) (ZeroExt8to32 y))
+
+(And64 x y) -> (AND x y)
+(And32 x y) -> (AND x y)
+(And16 x y) -> (AND x y)
+(And8 x y) -> (AND x y)
+
+(Or64 x y) -> (OR x y)
+(Or32 x y) -> (OR x y)
+(Or16 x y) -> (OR x y)
+(Or8 x y) -> (OR x y)
+
+(Xor64 x y) -> (XOR x y)
+(Xor32 x y) -> (XOR x y)
+(Xor16 x y) -> (XOR x y)
+(Xor8 x y) -> (XOR x y)
+
+// unary ops
+(Neg64 x) -> (NEG x)
+(Neg32 x) -> (NEG x)
+(Neg16 x) -> (NEG x)
+(Neg8 x) -> (NEG x)
+(Neg32F x) -> (FNEGS x)
+(Neg64F x) -> (FNEGD x)
+
+(Com64 x) -> (MVN x)
+(Com32 x) -> (MVN x)
+(Com16 x) -> (MVN x)
+(Com8 x) -> (MVN x)
+
+// boolean ops -- booleans are represented with 0=false, 1=true
+(AndB x y) -> (AND x y)
+(OrB x y) -> (OR x y)
+(EqB x y) -> (XORconst [1] (XOR <config.fe.TypeBool()> x y))
+(NeqB x y) -> (XOR x y)
+(Not x) -> (XORconst [1] x)
+
+// constants
+(Const64 [val]) -> (MOVDconst [val])
+(Const32 [val]) -> (MOVDconst [val])
+(Const16 [val]) -> (MOVDconst [val])
+(Const8 [val]) -> (MOVDconst [val])
+(Const32F [val]) -> (FMOVSconst [val])
+(Const64F [val]) -> (FMOVDconst [val])
+(ConstNil) -> (MOVDconst [0])
+(ConstBool [b]) -> (MOVDconst [b])
+
+// truncations
+// Because we ignore high parts of registers, truncates are just copies.
+(Trunc16to8 x) -> x
+(Trunc32to8 x) -> x
+(Trunc32to16 x) -> x
+(Trunc64to8 x) -> x
+(Trunc64to16 x) -> x
+(Trunc64to32 x) -> x
+
+// Zero-/Sign-extensions
+(ZeroExt8to16 x) -> (MOVBUreg x)
+(ZeroExt8to32 x) -> (MOVBUreg x)
+(ZeroExt16to32 x) -> (MOVHUreg x)
+(ZeroExt8to64 x) -> (MOVBUreg x)
+(ZeroExt16to64 x) -> (MOVHUreg x)
+(ZeroExt32to64 x) -> (MOVWUreg x)
+
+(SignExt8to16 x) -> (MOVBreg x)
+(SignExt8to32 x) -> (MOVBreg x)
+(SignExt16to32 x) -> (MOVHreg x)
+(SignExt8to64 x) -> (MOVBreg x)
+(SignExt16to64 x) -> (MOVHreg x)
+(SignExt32to64 x) -> (MOVWreg x)
+
+// float <-> int conversion
+(Cvt32to32F x) -> (SCVTFWS x)
+(Cvt32to64F x) -> (SCVTFWD x)
+(Cvt64to32F x) -> (SCVTFS x)
+(Cvt64to64F x) -> (SCVTFD x)
+(Cvt32Uto32F x) -> (UCVTFWS x)
+(Cvt32Uto64F x) -> (UCVTFWD x)
+//(Cvt64Uto32F x) -> (UCVTFS x)
+//(Cvt64Uto64F x) -> (UCVTFD x)
+(Cvt32Fto32 x) -> (FCVTZSSW x)
+(Cvt64Fto32 x) -> (FCVTZSDW x)
+(Cvt32Fto64 x) -> (FCVTZSS x)
+(Cvt64Fto64 x) -> (FCVTZSD x)
+(Cvt32Fto32U x) -> (FCVTZUSW x)
+(Cvt64Fto32U x) -> (FCVTZUDW x)
+//(Cvt32Fto64U x) -> (FCVTZUS x)
+//(Cvt64Fto64U x) -> (FCVTZUD x)
+(Cvt32Fto64F x) -> (FCVTSD x)
+(Cvt64Fto32F x) -> (FCVTDS x)
+
+// comparisons
+(Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Eq32 x y) -> (Equal (CMPW x y))
+(Eq64 x y) -> (Equal (CMP x y))
+(EqPtr x y) -> (Equal (CMP x y))
+(Eq32F x y) -> (Equal (FCMPS x y))
+(Eq64F x y) -> (Equal (FCMPD x y))
+
+(Neq8 x y)  -> (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Neq16 x y) -> (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Neq32 x y) -> (NotEqual (CMPW x y))
+(Neq64 x y) -> (NotEqual (CMP x y))
+(NeqPtr x y) -> (NotEqual (CMP x y))
+(Neq32F x y) -> (NotEqual (FCMPS x y))
+(Neq64F x y) -> (NotEqual (FCMPD x y))
+
+(Less8 x y)  -> (LessThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Less32 x y) -> (LessThan (CMPW x y))
+(Less64 x y) -> (LessThan (CMP x y))
+(Less32F x y) -> (GreaterThan (FCMPS y x)) // reverse operands to work around NaN
+(Less64F x y) -> (GreaterThan (FCMPD y x)) // reverse operands to work around NaN
+
+(Less8U x y)  -> (LessThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Less16U x y) -> (LessThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Less32U x y) -> (LessThanU (CMPW x y))
+(Less64U x y) -> (LessThanU (CMP x y))
+
+(Leq8 x y)  -> (LessEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Leq32 x y) -> (LessEqual (CMPW x y))
+(Leq64 x y) -> (LessEqual (CMP x y))
+(Leq32F x y) -> (GreaterEqual (FCMPS y x)) // reverse operands to work around NaN
+(Leq64F x y) -> (GreaterEqual (FCMPD y x)) // reverse operands to work around NaN
+
+(Leq8U x y)  -> (LessEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Leq16U x y) -> (LessEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Leq32U x y) -> (LessEqualU (CMPW x y))
+(Leq64U x y) -> (LessEqualU (CMP x y))
+
+(Greater8 x y)  -> (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Greater32 x y) -> (GreaterThan (CMPW x y))
+(Greater64 x y) -> (GreaterThan (CMP x y))
+(Greater32F x y) -> (GreaterThan (FCMPS x y))
+(Greater64F x y) -> (GreaterThan (FCMPD x y))
+
+(Greater8U x y)  -> (GreaterThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Greater16U x y) -> (GreaterThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Greater32U x y) -> (GreaterThanU (CMPW x y))
+(Greater64U x y) -> (GreaterThanU (CMP x y))
+
+(Geq8 x y)  -> (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+(Geq32 x y) -> (GreaterEqual (CMPW x y))
+(Geq64 x y) -> (GreaterEqual (CMP x y))
+(Geq32F x y) -> (GreaterEqual (FCMPS x y))
+(Geq64F x y) -> (GreaterEqual (FCMPD x y))
+
+(Geq8U x y)  -> (GreaterEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
+(Geq16U x y) -> (GreaterEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
+(Geq32U x y) -> (GreaterEqualU (CMPW x y))
+(Geq64U x y) -> (GreaterEqualU (CMP x y))
+
+(OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
+(OffPtr [off] ptr) -> (ADDconst [off] ptr)
+
+(Addr {sym} base) -> (MOVDaddr {sym} base)
+
+// loads
+(Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) -> (MOVBload ptr mem)
+(Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) -> (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && isSigned(t)) -> (MOVHload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) && isSigned(t)) -> (MOVWload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) -> (MOVWUload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
+(Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
+
+// stores
+(Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+(Store [2] ptr val mem) -> (MOVHstore ptr val mem)
+(Store [4] ptr val mem) && !is32BitFloat(val.Type) -> (MOVWstore ptr val mem)
+(Store [8] ptr val mem) && !is64BitFloat(val.Type) -> (MOVDstore ptr val mem)
+(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+
+// calls
+(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+
+// checks
+(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+(IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
+(IsInBounds idx len) -> (LessThanU (CMP idx len))
+(IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
+
+// pseudo-ops
+(GetClosurePtr) -> (LoweredGetClosurePtr)
+(Convert x mem) -> (MOVDconvert x mem)
+
+// Absorb pseudo-ops into blocks.
+(If (Equal cc) yes no) -> (EQ cc yes no)
+(If (NotEqual cc) yes no) -> (NE cc yes no)
+(If (LessThan cc) yes no) -> (LT cc yes no)
+(If (LessThanU cc) yes no) -> (ULT cc yes no)
+(If (LessEqual cc) yes no) -> (LE cc yes no)
+(If (LessEqualU cc) yes no) -> (ULE cc yes no)
+(If (GreaterThan cc) yes no) -> (GT cc yes no)
+(If (GreaterThanU cc) yes no) -> (UGT cc yes no)
+(If (GreaterEqual cc) yes no) -> (GE cc yes no)
+(If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
+
+(If cond yes no) -> (NE (CMPconst [0] cond) yes no)
+
+// Absorb boolean tests into block
+(NE (CMPconst [0] (Equal cc)) yes no) -> (EQ cc yes no)
+(NE (CMPconst [0] (NotEqual cc)) yes no) -> (NE cc yes no)
+(NE (CMPconst [0] (LessThan cc)) yes no) -> (LT cc yes no)
+(NE (CMPconst [0] (LessThanU cc)) yes no) -> (ULT cc yes no)
+(NE (CMPconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
+(NE (CMPconst [0] (LessEqualU cc)) yes no) -> (ULE cc yes no)
+(NE (CMPconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
+(NE (CMPconst [0] (GreaterThanU cc)) yes no) -> (UGT cc yes no)
+(NE (CMPconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+(NE (CMPconst [0] (GreaterEqualU cc)) yes no) -> (UGE cc yes no)
+
+// Optimizations
+
+// fold offset into address
+(ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
+
+// fold address into load/store
+(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBload [off1+off2] {sym} ptr mem)
+(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVBUload [off1+off2] {sym} ptr mem)
+(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHload [off1+off2] {sym} ptr mem)
+(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVHUload [off1+off2] {sym} ptr mem)
+(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVWload [off1+off2] {sym} ptr mem)
+(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVWUload [off1+off2] {sym} ptr mem)
+(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) -> (MOVDload [off1+off2] {sym} ptr mem)
+(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) -> (FMOVSload [off1+off2] {sym} ptr mem)
+(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) -> (FMOVDload [off1+off2] {sym} ptr mem)
+
+(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVBstore [off1+off2] {sym} ptr val mem)
+(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVHstore [off1+off2] {sym} ptr val mem)
+(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVWstore [off1+off2] {sym} ptr val mem)
+(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (MOVDstore [off1+off2] {sym} ptr val mem)
+(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (FMOVSstore [off1+off2] {sym} ptr val mem)
+(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) -> (FMOVDstore [off1+off2] {sym} ptr val mem)
+
+(MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+
+(MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
