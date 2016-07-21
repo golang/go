@@ -177,15 +177,26 @@ Files:
 			if arch == "" {
 				// Determine architecture from +build line if possible.
 				if m := asmPlusBuild.FindStringSubmatch(line); m != nil {
-				Fields:
+					// There can be multiple architectures in a single +build line,
+					// so accumulate them all and then prefer the one that
+					// matches build.Default.GOARCH.
+					var archCandidates []*asmArch
 					for _, fld := range strings.Fields(m[1]) {
 						for _, a := range arches {
 							if a.name == fld {
-								arch = a.name
-								archDef = a
-								break Fields
+								archCandidates = append(archCandidates, a)
 							}
 						}
+					}
+					for _, a := range archCandidates {
+						if a.name == build.Default.GOARCH {
+							archCandidates = []*asmArch{a}
+							break
+						}
+					}
+					if len(archCandidates) > 0 {
+						arch = archCandidates[0].name
+						archDef = archCandidates[0]
 					}
 				}
 			}
@@ -193,6 +204,8 @@ Files:
 			if m := asmTEXT.FindStringSubmatch(line); m != nil {
 				flushRet()
 				if arch == "" {
+					// Arch not specified by filename or build tags.
+					// Fall back to build.Default.GOARCH.
 					for _, a := range arches {
 						if a.name == build.Default.GOARCH {
 							arch = a.name
