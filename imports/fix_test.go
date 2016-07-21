@@ -829,7 +829,7 @@ func TestFixImports(t *testing.T) {
 func TestImportSymlinks(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "plan9":
-		t.Skip("skipping test on %q as there are no symlinks", runtime.GOOS)
+		t.Skipf("skipping test on %q as there are no symlinks", runtime.GOOS)
 	}
 
 	newGoPath, err := ioutil.TempDir("", "symlinktest")

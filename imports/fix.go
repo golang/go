@@ -827,11 +827,15 @@ func canUse(filename, dir string) bool {
 	// or bar/vendor or bar/internal.
 	// After stripping all the leading ../, the only okay place to see vendor or internal
 	// is at the very beginning of the path.
-	abs, err := filepath.Abs(filename)
+	absfile, err := filepath.Abs(filename)
 	if err != nil {
 		return false
 	}
-	rel, err := filepath.Rel(abs, dir)
+	absdir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absfile, absdir)
 	if err != nil {
 		return false
 	}
