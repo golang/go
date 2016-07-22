@@ -31,6 +31,9 @@ func ParseUnixCredentials(m *SocketControlMessage) (*Ucred, error) {
 	if m.Header.Type != SCM_CREDENTIALS {
 		return nil, EINVAL
 	}
+	if uintptr(len(m.Data)) < unsafe.Sizeof(Ucred{}) {
+		return nil, EINVAL
+	}
 	ucred := *(*Ucred)(unsafe.Pointer(&m.Data[0]))
 	return &ucred, nil
 }
