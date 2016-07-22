@@ -1784,6 +1784,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	var re responseAndError
 	var respHeaderTimer <-chan time.Time
 	cancelChan := req.Request.Cancel
+	ctxDoneChan := req.Context().Done()
 WaitResponse:
 	for {
 		testHookWaitResLoop()
@@ -1815,9 +1816,11 @@ WaitResponse:
 		case <-cancelChan:
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
-		case <-req.Context().Done():
+			ctxDoneChan = nil
+		case <-ctxDoneChan:
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
+			ctxDoneChan = nil
 		}
 	}
 
