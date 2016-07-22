@@ -486,6 +486,8 @@ func (s *regAllocState) init(f *Func) {
 			s.allocatable &^= 1 << 15 // R15
 		case "arm":
 			s.allocatable &^= 1 << 9 // R9
+		case "arm64":
+			// nothing to do?
 		default:
 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
 		}
