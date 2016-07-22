@@ -102,16 +102,16 @@ func init() {
 		//		tmp	= buildReg("R31")
 		//		ctxt	= buildReg("R11")
 		//		tls	= buildReg("R13")
-		gp01         = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
-		gp11         = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
-		gp21         = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
-		gp1cr        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}}
-		gp2cr        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{cr}}
-		crgp         = regInfo{inputs: []regMask{cr}, outputs: []regMask{gp}}
-		gpload       = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
-		gpstore      = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{}}
-		gpstoreconst = regInfo{inputs: []regMask{gp | sp | sb, 0}, outputs: []regMask{}}
-		fp01         = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
+		gp01        = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
+		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
+		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}}
+		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{cr}}
+		crgp        = regInfo{inputs: []regMask{cr}, outputs: []regMask{gp}}
+		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
+		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{}}
+		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb, 0}, outputs: []regMask{}} // ppc64.REGZERO is reserved zero value
+		fp01        = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
 		//		fp11	   = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fp21       = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp2cr      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{cr}}
@@ -162,10 +162,10 @@ func init() {
 		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "FMOVD", aux: "SymOff", typ: "Mem"},
 		{name: "FMOVSstore", argLength: 3, reg: fpstore, asm: "FMOVS", aux: "SymOff", typ: "Mem"},
 
-		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
-		{name: "MOVHstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVH", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
-		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
-		{name: "MOVDstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVD", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
+		{name: "MOVBstorezero", argLength: 2, reg: gpstorezero, asm: "MOVB", aux: "SymOff", typ: "Mem"}, // store zero byte to arg0+aux.  arg1=mem
+		{name: "MOVHstorezero", argLength: 2, reg: gpstorezero, asm: "MOVH", aux: "SymOff", typ: "Mem"}, // store zero 2 bytes to ...
+		{name: "MOVWstorezero", argLength: 2, reg: gpstorezero, asm: "MOVW", aux: "SymOff", typ: "Mem"}, // store zero 4 bytes to ...
+		{name: "MOVDstorezero", argLength: 2, reg: gpstorezero, asm: "MOVD", aux: "SymOff", typ: "Mem"}, // store zero 8 bytes to ...
 
 		{name: "MOVDaddr", argLength: 1, reg: regInfo{inputs: []regMask{sp | sb}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVD", rematerializeable: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
 

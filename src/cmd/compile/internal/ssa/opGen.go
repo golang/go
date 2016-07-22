@@ -951,10 +951,10 @@ const (
 	OpPPC64MOVDstore
 	OpPPC64FMOVDstore
 	OpPPC64FMOVSstore
-	OpPPC64MOVBstoreconst
-	OpPPC64MOVHstoreconst
-	OpPPC64MOVWstoreconst
-	OpPPC64MOVDstoreconst
+	OpPPC64MOVBstorezero
+	OpPPC64MOVHstorezero
+	OpPPC64MOVWstorezero
+	OpPPC64MOVDstorezero
 	OpPPC64MOVDaddr
 	OpPPC64MOVDconst
 	OpPPC64MOVWconst
@@ -11937,8 +11937,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVBstoreconst",
-		auxType: auxSymValAndOff,
+		name:    "MOVBstorezero",
+		auxType: auxSymOff,
 		argLen:  2,
 		asm:     ppc64.AMOVB,
 		reg: regInfo{
@@ -11948,8 +11948,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVHstoreconst",
-		auxType: auxSymValAndOff,
+		name:    "MOVHstorezero",
+		auxType: auxSymOff,
 		argLen:  2,
 		asm:     ppc64.AMOVH,
 		reg: regInfo{
@@ -11959,8 +11959,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVWstoreconst",
-		auxType: auxSymValAndOff,
+		name:    "MOVWstorezero",
+		auxType: auxSymOff,
 		argLen:  2,
 		asm:     ppc64.AMOVW,
 		reg: regInfo{
@@ -11970,8 +11970,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVDstoreconst",
-		auxType: auxSymValAndOff,
+		name:    "MOVDstorezero",
+		auxType: auxSymOff,
 		argLen:  2,
 		asm:     ppc64.AMOVD,
 		reg: regInfo{
