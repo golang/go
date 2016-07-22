@@ -84,7 +84,7 @@ func schedule(f *Func) {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
-			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr || v.Op == Op386LoweredGetClosurePtr:
+			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr || v.Op == OpARM64LoweredGetClosurePtr || v.Op == Op386LoweredGetClosurePtr:
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no

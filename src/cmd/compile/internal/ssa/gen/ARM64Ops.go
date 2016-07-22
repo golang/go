@@ -48,7 +48,7 @@ var regNamesARM64 = []string{
 	"R15",
 	"R16",
 	"R17",
-	"R18", // platform register?
+	"R18", // platform register, not used
 	"R19",
 	"R20",
 	"R21",
@@ -59,7 +59,7 @@ var regNamesARM64 = []string{
 	"R26",
 	// R27 = REGTMP not used in regalloc
 	"g",   // aka R28
-	"R29", // frame pointer?
+	"R29", // frame pointer, not used
 	// R30 = REGLINK not used in regalloc
 	"SP", // aka R31
 
@@ -124,7 +124,7 @@ func init() {
 
 	// Common individual register masks
 	var (
-		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R29")
+		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26")
 		gpg        = gp | buildReg("g")
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
@@ -142,8 +142,8 @@ func init() {
 		//gp1flags1 = regInfo{inputs: []regMask{gp, flags}, outputs: []regMask{gp}}
 		gp21 = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		//gp21cf    = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
-		gp2flags = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags}}
-		//gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
+		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags}}
+		gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
 		//gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
 		//gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
 		//gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{flags}}
@@ -165,19 +165,24 @@ func init() {
 	)
 	ops := []opData{
 		// binary ops
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},   // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int32"}, // arg0 + auxInt
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                      // arg0 - arg1
-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int32"},   // arg0 - auxInt
-		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},   // arg0 * arg1
-		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                     // arg0 / arg1, signed
-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                    // arg0 / arg1, unsighed
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                   // arg0 / arg1, signed, 32 bit
-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                  // arg0 / arg1, unsighed, 32 bit
-		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                      // arg0 % arg1, signed
-		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                    // arg0 % arg1, unsigned
-		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                    // arg0 % arg1, signed, 32 bit
-		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                  // arg0 % arg1, unsigned, 32 bit
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},   // arg0 + auxInt
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0 - arg1
+		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},     // arg0 - auxInt
+		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
+		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},   // arg0 * arg1, 32-bit
+		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true},  // (arg0 * arg1) >> 64, signed
+		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true}, // (arg0 * arg1) >> 64, unsigned
+		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},  // arg0 * arg1, signed, 32-bit mult results in 64-bit
+		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true}, // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
+		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                       // arg0 / arg1, signed
+		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                      // arg0 / arg1, unsighed
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                     // arg0 / arg1, signed, 32 bit
+		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                    // arg0 / arg1, unsighed, 32 bit
+		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                        // arg0 % arg1, signed
+		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                      // arg0 % arg1, unsigned
+		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                      // arg0 % arg1, signed, 32 bit
+		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                    // arg0 % arg1, unsigned, 32 bit
 
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true}, // arg0 + arg1
 		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true}, // arg0 + arg1
@@ -189,13 +194,13 @@ func init() {
 		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD"},                    // arg0 / arg1
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
+		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64"}, // arg0 & auxInt
 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
-		{name: "ORconst", argLength: 1, reg: gp11, asm: "ORR", aux: "Int32"},  // arg0 | auxInt
+		{name: "ORconst", argLength: 1, reg: gp11, asm: "ORR", aux: "Int64"},  // arg0 | auxInt
 		{name: "XOR", argLength: 2, reg: gp21, asm: "EOR", commutative: true}, // arg0 ^ arg1
-		{name: "XORconst", argLength: 1, reg: gp11, asm: "EOR", aux: "Int32"}, // arg0 ^ auxInt
+		{name: "XORconst", argLength: 1, reg: gp11, asm: "EOR", aux: "Int64"}, // arg0 ^ auxInt
 		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
-		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int32"}, // arg0 &^ auxInt
+		{name: "BICconst", argLength: 1, reg: gp11, asm: "BIC", aux: "Int64"}, // arg0 &^ auxInt
 
 		// unary ops
 		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},       // ^arg0
@@ -204,20 +209,30 @@ func init() {
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},   // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"}, // sqrt(arg0), float64
 
+		// shifts
+		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                      // arg0 << arg1, shift amount is mod 64
+		{name: "SLLconst", argLength: 1, reg: gp11, asm: "LSL", aux: "Int64"},   // arg0 << auxInt
+		{name: "SRL", argLength: 2, reg: gp21, asm: "LSR"},                      // arg0 >> arg1, unsigned, shift amount is mod 64
+		{name: "SRLconst", argLength: 1, reg: gp11, asm: "LSR", aux: "Int64"},   // arg0 >> auxInt, unsigned
+		{name: "SRA", argLength: 2, reg: gp21, asm: "ASR"},                      // arg0 >> arg1, signed, shift amount is mod 64
+		{name: "SRAconst", argLength: 1, reg: gp11, asm: "ASR", aux: "Int64"},   // arg0 >> auxInt, signed
+		{name: "RORconst", argLength: 1, reg: gp11, asm: "ROR", aux: "Int64"},   // arg0 right rotate by auxInt bits
+		{name: "RORWconst", argLength: 1, reg: gp11, asm: "RORW", aux: "Int64"}, // uint32(arg0) right rotate by auxInt bits
+
 		// comparisons
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                      // arg0 compare to arg1
-		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int32", typ: "Flags"},   // arg0 compare to auxInt
+		{name: "CMPconst", argLength: 1, reg: gp1flags, asm: "CMP", aux: "Int64", typ: "Flags"},   // arg0 compare to auxInt
 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1, 32 bit
 		{name: "CMPWconst", argLength: 1, reg: gp1flags, asm: "CMPW", aux: "Int32", typ: "Flags"}, // arg0 compare to auxInt, 32 bit
 		{name: "CMN", argLength: 2, reg: gp2flags, asm: "CMN", typ: "Flags"},                      // arg0 compare to -arg1
-		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int32", typ: "Flags"},   // arg0 compare to -auxInt
+		{name: "CMNconst", argLength: 1, reg: gp1flags, asm: "CMN", aux: "Int64", typ: "Flags"},   // arg0 compare to -auxInt
 		{name: "CMNW", argLength: 2, reg: gp2flags, asm: "CMNW", typ: "Flags"},                    // arg0 compare to -arg1, 32 bit
 		{name: "CMNWconst", argLength: 1, reg: gp1flags, asm: "CMNW", aux: "Int32", typ: "Flags"}, // arg0 compare to -auxInt, 32 bit
 		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "FCMPS", typ: "Flags"},                  // arg0 compare to arg1, float32
 		{name: "FCMPD", argLength: 2, reg: fp2flags, asm: "FCMPD", typ: "Flags"},                  // arg0 compare to arg1, float64
 
 		// moves
-		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVD", typ: "UInt32", rematerializeable: true},      // 32 low bits of auxint
+		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true},      // 32 low bits of auxint
 		{name: "FMOVSconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVS", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
 		{name: "FMOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
 
@@ -268,6 +283,9 @@ func init() {
 		{name: "FCVTSD", argLength: 1, reg: fp11, asm: "FCVTSD"},     // float32 -> float64
 		{name: "FCVTDS", argLength: 1, reg: fp11, asm: "FCVTDS"},     // float64 -> float32
 
+		// conditional instructions
+		{name: "CSELULT", argLength: 3, reg: gp2flags1, asm: "CSEL"}, // returns arg0 if flags indicates unsigned LT, arg1 otherwise, arg2=flags
+
 		// function calls
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
@@ -288,6 +306,66 @@ func init() {
 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
+
+		// duffzero
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = offset into duffzero code to start executing
+		// returns mem
+		// R16 aka arm64.REGRT1 changed as side effect
+		{
+			name:      "DUFFZERO",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:   []regMask{gp},
+				clobbers: buildReg("R16"),
+			},
+		},
+
+		// large zeroing
+		// arg0 = address of memory to zero (in R16 aka arm64.REGRT1, changed as side effect)
+		// arg1 = address of the last element to zero
+		// arg2 = mem
+		// auxint = alignment
+		// returns mem
+		//	MOVD.P	ZR, 8(R16)
+		//	CMP	Rarg1, R16
+		//	BLE	-2(PC)
+		// Note: the-end-of-the-memory may be not a valid pointer. it's a problem if it is spilled.
+		// the-end-of-the-memory - 8 is with the area to zero, ok to spill.
+		{
+			name:      "LoweredZero",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R16"), gp},
+				clobbers: buildReg("R16 FLAGS"),
+			},
+		},
+
+		// large move
+		// arg0 = address of dst memory (in R17 aka arm64.REGRT2, changed as side effect)
+		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
+		// arg2 = address of the last element of src
+		// arg3 = mem
+		// auxint = alignment
+		// returns mem
+		//	MOVD.P	8(R16), Rtmp
+		//	MOVD.P	Rtmp, 8(R17)
+		//	CMP	Rarg2, R16
+		//	BLE	-3(PC)
+		// Note: the-end-of-src may be not a valid pointer. it's a problem if it is spilled.
+		// the-end-of-src - 8 is within the area to copy, ok to spill.
+		{
+			name:      "LoweredMove",
+			aux:       "Int64",
+			argLength: 4,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp},
+				clobbers: buildReg("R16 R17 FLAGS"),
+			},
+		},
 
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other

@@ -304,6 +304,19 @@ func duffAMD64(size int64) (int64, int64) {
 	return off, adj
 }
 
+// moveSize returns the number of bytes an aligned MOV instruction moves
+func moveSize(align int64, c *Config) int64 {
+	switch {
+	case align%8 == 0 && c.IntSize == 8:
+		return 8
+	case align%4 == 0:
+		return 4
+	case align%2 == 0:
+		return 2
+	}
+	return 1
+}
+
 // mergePoint finds a block among a's blocks which dominates b and is itself
 // dominated by all of a's blocks. Returns nil if it can't find one.
 // Might return nil even if one does exist.

@@ -32,7 +32,7 @@ var ssaRegToReg = []int16{
 	arm64.REG_R15,
 	arm64.REG_R16,
 	arm64.REG_R17,
-	arm64.REG_R18,
+	arm64.REG_R18, // platform register, not used
 	arm64.REG_R19,
 	arm64.REG_R20,
 	arm64.REG_R21,
@@ -42,8 +42,8 @@ var ssaRegToReg = []int16{
 	arm64.REG_R25,
 	arm64.REG_R26,
 	// R27 = REGTMP not used in regalloc
-	arm64.REGG, // R28
-	arm64.REG_R29,
+	arm64.REGG,    // R28
+	arm64.REG_R29, // frame pointer, not used
 	// R30 = REGLINK not used in regalloc
 	arm64.REGSP, // R31
 
@@ -229,6 +229,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64XOR,
 		ssa.OpARM64BIC,
 		ssa.OpARM64MUL,
+		ssa.OpARM64MULW,
+		ssa.OpARM64MULH,
+		ssa.OpARM64UMULH,
+		ssa.OpARM64MULL,
+		ssa.OpARM64UMULL,
 		ssa.OpARM64DIV,
 		ssa.OpARM64UDIV,
 		ssa.OpARM64DIVW,
@@ -237,6 +242,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64UMOD,
 		ssa.OpARM64MODW,
 		ssa.OpARM64UMODW,
+		ssa.OpARM64SLL,
+		ssa.OpARM64SRL,
+		ssa.OpARM64SRA,
 		ssa.OpARM64FADDS,
 		ssa.OpARM64FADDD,
 		ssa.OpARM64FSUBS,
@@ -259,7 +267,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64ANDconst,
 		ssa.OpARM64ORconst,
 		ssa.OpARM64XORconst,
-		ssa.OpARM64BICconst:
+		ssa.OpARM64BICconst,
+		ssa.OpARM64SLLconst,
+		ssa.OpARM64SRLconst,
+		ssa.OpARM64SRAconst,
+		ssa.OpARM64RORconst,
+		ssa.OpARM64RORWconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -415,6 +428,107 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARM64CSELULT:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p.From.Reg = arm64.COND_LO
+		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: gc.SSARegNum(v.Args[1])}
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARM64DUFFZERO:
+		// runtime.duffzero expects start address - 8 in R16
+		p := gc.Prog(arm64.ASUB)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 8
+		p.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = arm64.REG_R16
+		p = gc.Prog(obj.ADUFFZERO)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+		p.To.Offset = v.AuxInt
+	case ssa.OpARM64LoweredZero:
+		// MOVD.P	ZR, 8(R16)
+		// CMP	Rarg1, R16
+		// BLE	-2(PC)
+		// arg1 is the address of the last element to zero
+		// auxint is alignment
+		var sz int64
+		var mov obj.As
+		switch {
+		case v.AuxInt%8 == 0:
+			sz = 8
+			mov = arm64.AMOVD
+		case v.AuxInt%4 == 0:
+			sz = 4
+			mov = arm64.AMOVW
+		case v.AuxInt%2 == 0:
+			sz = 2
+			mov = arm64.AMOVH
+		default:
+			sz = 1
+			mov = arm64.AMOVB
+		}
+		p := gc.Prog(mov)
+		p.Scond = arm64.C_XPOST
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arm64.REGZERO
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = arm64.REG_R16
+		p.To.Offset = sz
+		p2 := gc.Prog(arm64.ACMP)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = gc.SSARegNum(v.Args[1])
+		p2.Reg = arm64.REG_R16
+		p3 := gc.Prog(arm64.ABLE)
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+	case ssa.OpARM64LoweredMove:
+		// MOVD.P	8(R16), Rtmp
+		// MOVD.P	Rtmp, 8(R17)
+		// CMP	Rarg2, R16
+		// BLE	-3(PC)
+		// arg2 is the address of the last element of src
+		// auxint is alignment
+		var sz int64
+		var mov obj.As
+		switch {
+		case v.AuxInt%8 == 0:
+			sz = 8
+			mov = arm64.AMOVD
+		case v.AuxInt%4 == 0:
+			sz = 4
+			mov = arm64.AMOVW
+		case v.AuxInt%2 == 0:
+			sz = 2
+			mov = arm64.AMOVH
+		default:
+			sz = 1
+			mov = arm64.AMOVB
+		}
+		p := gc.Prog(mov)
+		p.Scond = arm64.C_XPOST
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = arm64.REG_R16
+		p.From.Offset = sz
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = arm64.REGTMP
+		p2 := gc.Prog(mov)
+		p2.Scond = arm64.C_XPOST
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = arm64.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = arm64.REG_R17
+		p2.To.Offset = sz
+		p3 := gc.Prog(arm64.ACMP)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = gc.SSARegNum(v.Args[2])
+		p3.Reg = arm64.REG_R16
+		p4 := gc.Prog(arm64.ABLE)
+		p4.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p4, p)
 	case ssa.OpARM64CALLstatic:
 		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
 			// Deferred calls will appear to be returning to
@@ -507,7 +621,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64GreaterEqualU:
 		// generate boolean values using CSET
 		p := gc.Prog(arm64.ACSET)
-		p.From.Type = obj.TYPE_REG
+		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
 		p.From.Reg = condBits[v.Op]
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
