@@ -679,10 +679,10 @@ func repoRootForImportDynamic(importPath string, security securityMode) (*repoRo
 	// Find the matched meta import.
 	mmi, err := matchGoImport(imports, importPath)
 	if err != nil {
-		if err != errNoMatch {
+		if _, ok := err.(ImportMismatchError); !ok {
 			return nil, fmt.Errorf("parse %s: %v", urlStr, err)
 		}
-		return nil, fmt.Errorf("parse %s: no go-import meta tags", urlStr)
+		return nil, fmt.Errorf("parse %s: no go-import meta tags (%s)", urlStr, err)
 	}
 	if buildV {
 		log.Printf("get %q: found meta tag %#v at %s", importPath, mmi, urlStr)
@@ -782,9 +782,6 @@ type metaImport struct {
 	Prefix, VCS, RepoRoot string
 }
 
-// errNoMatch is returned from matchGoImport when there's no applicable match.
-var errNoMatch = errors.New("no import match")
-
 func splitPathHasPrefix(path, prefix []string) bool {
 	if len(path) < len(prefix) {
 		return false
@@ -797,28 +794,45 @@ func splitPathHasPrefix(path, prefix []string) bool {
 	return true
 }
 
+// A ImportMismatchError is returned where metaImport/s are present
+// but none match our import path.
+type ImportMismatchError struct {
+	importPath string
+	mismatches []string // the meta imports that were discarded for not matching our importPath
+}
+
+func (m ImportMismatchError) Error() string {
+	formattedStrings := make([]string, len(m.mismatches))
+	for i, pre := range m.mismatches {
+		formattedStrings[i] = fmt.Sprintf("meta tag %s did not match import path %s", pre, m.importPath)
+	}
+	return strings.Join(formattedStrings, ", ")
+}
+
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
 // errNoMatch is returned if none match.
-func matchGoImport(imports []metaImport, importPath string) (_ metaImport, err error) {
+func matchGoImport(imports []metaImport, importPath string) (metaImport, error) {
 	match := -1
 	imp := strings.Split(importPath, "/")
+
+	errImportMismatch := ImportMismatchError{importPath: importPath}
 	for i, im := range imports {
 		pre := strings.Split(im.Prefix, "/")
 
 		if !splitPathHasPrefix(imp, pre) {
+			errImportMismatch.mismatches = append(errImportMismatch.mismatches, im.Prefix)
 			continue
 		}
 
 		if match != -1 {
-			err = fmt.Errorf("multiple meta tags match import path %q", importPath)
-			return
+			return metaImport{}, fmt.Errorf("multiple meta tags match import path %q", importPath)
 		}
 		match = i
 	}
+
 	if match == -1 {
-		err = errNoMatch
-		return
+		return metaImport{}, errImportMismatch
 	}
 	return imports[match], nil
 }
