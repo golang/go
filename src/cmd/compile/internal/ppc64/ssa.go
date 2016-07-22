@@ -238,15 +238,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.OpPPC64MOVDstoreconst, ssa.OpPPC64MOVWstoreconst, ssa.OpPPC64MOVHstoreconst, ssa.OpPPC64MOVBstoreconst:
-		// TODO: pretty sure this is bogus, PPC has no such instruction unless constant is zero.
+
+	case ssa.OpPPC64MOVDstorezero, ssa.OpPPC64MOVWstorezero, ssa.OpPPC64MOVHstorezero, ssa.OpPPC64MOVBstorezero:
 		p := gc.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_CONST
-		sc := v.AuxValAndOff()
-		p.From.Offset = sc.Val()
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = ppc64.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
-		gc.AddAux2(&p.To, v, sc.Off())
+		gc.AddAux(&p.To, v)
 
 	case ssa.OpPPC64MOVDstore, ssa.OpPPC64MOVWstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVBstore:
 		p := gc.Prog(v.Op.Asm())

@@ -160,64 +160,78 @@
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 
 (Zero [s] _ mem) && SizeAndAlign(s).Size() == 0 -> mem
-(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstoreconst [0] destptr mem)
+(Zero [s] destptr mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstorezero destptr mem)
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
-	(MOVHstoreconst [0] destptr mem)
+	(MOVHstorezero destptr mem)
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 2 ->
-	(MOVBstoreconst [makeValAndOff(0,1)] destptr
-		(MOVBstoreconst [0] destptr mem))
+	(MOVBstorezero [1] destptr
+		(MOVBstorezero [0] destptr mem))
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
-	(MOVWstoreconst [0] destptr mem)
+	(MOVWstorezero destptr mem)
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
-	(MOVHstoreconst [makeValAndOff(0,2)] destptr
-		(MOVHstoreconst [0] destptr mem))
+	(MOVHstorezero [2] destptr
+		(MOVHstorezero [0] destptr mem))
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 4 ->
-	(MOVBstoreconst [makeValAndOff(0,3)] destptr
-		(MOVBstoreconst [makeValAndOff(0,2)] destptr
-			(MOVBstoreconst [makeValAndOff(0,1)] destptr
-				(MOVBstoreconst [0] destptr mem))))
+	(MOVBstorezero [3] destptr
+		(MOVBstorezero [2] destptr
+			(MOVBstorezero [1] destptr
+				(MOVBstorezero [0] destptr mem))))
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0 ->
-	(MOVDstoreconst [0] destptr mem)
+	(MOVDstorezero [0] destptr mem)
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0 ->
-	(MOVWstoreconst [makeValAndOff(0,4)] destptr
-		(MOVWstoreconst [0] destptr mem))
+	(MOVWstorezero [4] destptr
+		(MOVWstorezero [0] destptr mem))
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0 ->
-	(MOVHstoreconst [makeValAndOff(0,6)] destptr
-		(MOVHstoreconst [makeValAndOff(0,4)] destptr
-			(MOVHstoreconst [makeValAndOff(0,2)] destptr
-				(MOVHstoreconst [0] destptr mem))))
+	(MOVHstorezero [6] destptr
+		(MOVHstorezero [4] destptr
+			(MOVHstorezero [2] destptr
+				(MOVHstorezero [0] destptr mem))))
 
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 3 ->
-	(MOVBstoreconst [makeValAndOff(0,2)] destptr
-		(MOVBstoreconst [makeValAndOff(0,1)] destptr
-			(MOVBstoreconst [0] destptr mem)))
+	(MOVBstorezero [2] destptr
+		(MOVBstorezero [1] destptr
+			(MOVBstorezero [0] destptr mem)))
 
 // Zero small numbers of words directly.
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 16 && SizeAndAlign(s).Align()%8 == 0 ->
-	(MOVDstoreconst [makeValAndOff(0,8)] destptr
-                (MOVDstoreconst [0] destptr mem))
+	(MOVDstorezero [8] destptr
+                (MOVDstorezero [0] destptr mem))
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 24 && SizeAndAlign(s).Align()%8 == 0 ->
-	(MOVDstoreconst [makeValAndOff(0,16)] destptr
-		(MOVDstoreconst [makeValAndOff(0,8)] destptr
-			(MOVDstoreconst [0] destptr mem)))
+	(MOVDstorezero [16] destptr
+		(MOVDstorezero [8] destptr
+			(MOVDstorezero [0] destptr mem)))
 (Zero [s] destptr mem) && SizeAndAlign(s).Size() == 32 && SizeAndAlign(s).Align()%8 == 0 ->
-	(MOVDstoreconst [makeValAndOff(0,24)] destptr
-		(MOVDstoreconst [makeValAndOff(0,16)] destptr
-			(MOVDstoreconst [makeValAndOff(0,8)] destptr
-				(MOVDstoreconst [0] destptr mem))))
+	(MOVDstorezero [24] destptr
+		(MOVDstorezero [16] destptr
+			(MOVDstorezero [8] destptr
+				(MOVDstorezero [0] destptr mem))))
 
 // Optimizations
 
 (ADD (MOVDconst [c]) x) -> (ADDconst [c] x)
 (ADD x (MOVDconst [c])) -> (ADDconst [c] x)
 
-(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)
-(MOVWstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVWstore [off1+off2] {sym} x val mem)
-(MOVHstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVHstore [off1+off2] {sym} x val mem)
-(MOVBstore [off1] {sym} (ADDconst [off2] x) val mem)  && is16Bit(off1+off2) -> (MOVBstore [off1+off2] {sym} x val mem)
+// Fold offsets for stores.
+(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)
+(MOVWstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVWstore [off1+off2] {sym} x val mem)
+(MOVHstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVHstore [off1+off2] {sym} x val mem)
+(MOVBstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVBstore [off1+off2] {sym} x val mem)
 
-// TODO MOV*storeconst is wrong for PPC
-// (MOVDstore ptr (MOVDconst [c]) mem) && c == 0 -> (MOVDstoreconst [c] ptr mem)
+// Store of zero -> storezero
+(MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVDstorezero [off] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVWstorezero [off] {sym} ptr mem)
+(MOVHstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVHstorezero [off] {sym} ptr mem)
+(MOVBstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVBstorezero [off] {sym} ptr mem)
+
+// Fold offsets for storezero
+(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
+    (MOVDstorezero [off1+off2] {sym} x mem)
+(MOVWstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
+    (MOVWstorezero [off1+off2] {sym} x mem)
+(MOVHstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
+    (MOVHstorezero [off1+off2] {sym} x mem)
+(MOVBstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
+    (MOVBstorezero [off1+off2] {sym} x mem)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
