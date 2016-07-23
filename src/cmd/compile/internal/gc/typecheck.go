@@ -2685,12 +2685,12 @@ notenough:
 			// Method expressions have the form T.M, and the compiler has
 			// rewritten those to ONAME nodes but left T in Left.
 			if call.Op == ONAME && call.Left != nil && call.Left.Op == OTYPE {
-				yyerror("not enough arguments in call to method expression %v", call)
+				yyerror("not enough arguments in call to method expression %v, got %s want %v", call, nl.retsigerr(), tstruct)
 			} else {
-				yyerror("not enough arguments in call to %v", call)
+				yyerror("not enough arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
 			}
 		} else {
-			yyerror("not enough arguments to %v", op)
+			yyerror("not enough arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
 		}
 		if n != nil {
 			n.Diag = 1
@@ -2701,11 +2701,47 @@ notenough:
 
 toomany:
 	if call != nil {
-		yyerror("too many arguments in call to %v", call)
+		yyerror("too many arguments in call to %v, got %s want %v", call, nl.retsigerr(), tstruct)
 	} else {
-		yyerror("too many arguments to %v", op)
+		yyerror("too many arguments to %v, got %s want %v", op, nl.retsigerr(), tstruct)
 	}
 	goto out
+}
+
+// sigrepr is a type's representation to the outside world,
+// in string representations of return signatures
+// e.g in error messages about wrong arguments to return.
+func (t *Type) sigrepr() string {
+	switch t {
+	default:
+		return t.String()
+
+	case Types[TIDEAL]:
+		// "untyped number" is not commonly used
+		// outside of the compiler, so let's use "number".
+		return "number"
+
+	case idealstring:
+		return "string"
+
+	case idealbool:
+		return "bool"
+	}
+}
+
+// retsigerr returns the signature of the types
+// at the respective return call site of a function.
+func (nl Nodes) retsigerr() string {
+	if nl.Len() < 1 {
+		return "()"
+	}
+
+	var typeStrings []string
+	for _, n := range nl.Slice() {
+		typeStrings = append(typeStrings, n.Type.sigrepr())
+	}
+
+	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
 }
 
 // type check composite
