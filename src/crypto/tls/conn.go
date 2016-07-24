@@ -64,6 +64,13 @@ type Conn struct {
 	// the first transmitted Finished message is the tls-unique
 	// channel-binding value.
 	clientFinishedIsFirst bool
+
+	// closeNotifyErr is any error from sending the alertCloseNotify record.
+	closeNotifyErr error
+	// closeNotifySent is true if the Conn attempted to send an
+	// alertCloseNotify record.
+	closeNotifySent bool
+
 	// clientFinished and serverFinished contain the Finished message sent
 	// by the client or server in the most recent handshake. This is
 	// retained to support the renegotiation extension and tls-unique
@@ -992,7 +999,10 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	return m, nil
 }
 
-var errClosed = errors.New("tls: use of closed connection")
+var (
+	errClosed   = errors.New("tls: use of closed connection")
+	errShutdown = errors.New("tls: protocol is shutdown")
+)
 
 // Write writes data to the connection.
 func (c *Conn) Write(b []byte) (int, error) {
@@ -1021,6 +1031,10 @@ func (c *Conn) Write(b []byte) (int, error) {
 
 	if !c.handshakeComplete {
 		return 0, alertInternalError
+	}
+
+	if c.closeNotifySent {
+		return 0, errShutdown
 	}
 
 	// SSL 3.0 and TLS 1.0 are susceptible to a chosen-plaintext
@@ -1186,13 +1200,39 @@ func (c *Conn) Close() error {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
 	if c.handshakeComplete {
-		alertErr = c.sendAlert(alertCloseNotify)
+		alertErr = c.closeNotify()
 	}
 
 	if err := c.conn.Close(); err != nil {
 		return err
 	}
 	return alertErr
+}
+
+var errEarlyCloseWrite = errors.New("tls: CloseWrite called before handshake complete")
+
+// CloseWrite shuts down the writing side of the connection. It should only be
+// called once the handshake has completed and does not call CloseWrite on the
+// underlying connection. Most callers should just use Close.
+func (c *Conn) CloseWrite() error {
+	c.handshakeMutex.Lock()
+	defer c.handshakeMutex.Unlock()
+	if !c.handshakeComplete {
+		return errEarlyCloseWrite
+	}
+
+	return c.closeNotify()
+}
+
+func (c *Conn) closeNotify() error {
+	c.out.Lock()
+	defer c.out.Unlock()
+
+	if !c.closeNotifySent {
+		c.closeNotifyErr = c.sendAlertLocked(alertCloseNotify)
+		c.closeNotifySent = true
+	}
+	return c.closeNotifyErr
 }
 
 // Handshake runs the client or server handshake
