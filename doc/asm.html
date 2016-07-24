@@ -780,6 +780,64 @@ mode as on the x86, but the only scale allowed is <code>1</code>.
 
 </ul>
 
+<h3 id="s390x">IBM z/Architecture, a.k.a. s390x</h3>
+
+<p>
+The registers <code>R10</code> and <code>R11</code> are reserved.
+The assembler uses them to hold temporary values when assembling some instructions.
+</p>
+
+<p>
+<code>R13</code> points to the <code>g</code> (goroutine) structure.
+This register must be referred to as <code>g</code>; the name <code>R13</code> is not recognized.
+</p>
+
+<p>
+<code>R15</code> points to the stack frame and should typically only be accessed using the
+virtual registers <code>SP</code> and <code>FP</code>.
+</p>
+
+<p>
+Load- and store-multiple instructions operate on a range of registers.
+The range of registers is specified by a start register and an end register.
+For example, <code>LMG</code> <code>(R9),</code> <code>R5,</code> <code>R7</code> would load
+<code>R5</code>, <code>R6</code> and <code>R7</code> with the 64-bit values at
+<code>0(R9)</code>, <code>8(R9)</code> and <code>16(R9)</code> respectively.
+</p>
+
+<p>
+Storage-and-storage instructions such as <code>MVC</code> and <code>XC</code> are written
+with the length as the first argument.
+For example, <code>XC</code> <code>$8,</code> <code>(R9),</code> <code>(R9)</code> would clear
+eight bytes at the address specified in <code>R9</code>.
+</p>
+
+<p>
+If a vector instruction takes a length or an index as an argument then it will be the
+first argument.
+For example, <code>VLEIF</code> <code>$1,</code> <code>$16,</code> <code>V2</code> will load
+the value sixteen into index one of <code>V2</code>.
+Care should be taken when using vector instructions to ensure that they are available at
+runtime.
+To use vector instructions a machine must have both the vector facility (bit 129 in the
+facility list) and kernel support.
+Without kernel support a vector instruction will have no effect (it will be equivalent
+to a <code>NOP</code> instruction).
+</p>
+
+<p>
+Addressing modes:
+</p>
+
+<ul>
+
+<li>
+<code>(R5)(R6*1)</code>: The location at <code>R5</code> plus <code>R6</code>.
+It is a scaled mode as on the x86, but the only scale allowed is <code>1</code>.
+</li>
+
+</ul>
+
 <h3 id="unsupported_opcodes">Unsupported opcodes</h3>
 
 <p>
