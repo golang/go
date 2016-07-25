@@ -1153,6 +1153,11 @@ func TestFindImportStdlib(t *testing.T) {
 }
 
 type testConfig struct {
+	// goroot and gopath optionally specifies the path on disk
+	// to use for the GOROOT and GOPATH. If empty, a temp directory
+	// is made if needed.
+	goroot, gopath string
+
 	// gorootFiles optionally specifies the complete contents of GOROOT to use,
 	// If nil, the normal current $GOROOT is used.
 	gorootFiles map[string]string // paths relative to $GOROOT/src to contents
@@ -1190,22 +1195,23 @@ func mapToDir(destDir string, files map[string]string) error {
 }
 
 func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
-	var goroot string
-	var gopath string
+	goroot := c.goroot
+	gopath := c.gopath
 
-	if c.gorootFiles != nil {
+	if c.gorootFiles != nil && goroot == "" {
 		goroot = mustTempDir(t, "goroot-")
 		defer os.RemoveAll(goroot)
-		if err := mapToDir(goroot, c.gorootFiles); err != nil {
-			t.Fatal(err)
-		}
 	}
-	if c.gopathFiles != nil {
+	if err := mapToDir(goroot, c.gorootFiles); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.gopathFiles != nil && gopath == "" {
 		gopath = mustTempDir(t, "gopath-")
 		defer os.RemoveAll(gopath)
-		if err := mapToDir(gopath, c.gopathFiles); err != nil {
-			t.Fatal(err)
-		}
+	}
+	if err := mapToDir(gopath, c.gopathFiles); err != nil {
+		t.Fatal(err)
 	}
 
 	withEmptyGoPath(func() {
@@ -1396,6 +1402,30 @@ func TestSkipNodeModules(t *testing.T) {
 			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
 		}
 	})
+}
+
+// golang.org/issue/16458 -- if GOROOT is a prefix of GOPATH, GOPATH is ignored.
+func TestGoRootPrefixOfGoPath(t *testing.T) {
+	dir := mustTempDir(t, "importstest")
+	defer os.RemoveAll(dir)
+	testConfig{
+		goroot: filepath.Join(dir, "go"),
+		gopath: filepath.Join(dir, "gopath"),
+		gopathFiles: map[string]string{
+			"example.com/foo/pkg.go": "package foo\nconst X = 1",
+		},
+	}.test(t, func(t *goimportTest) {
+		const in = "package x\n\nconst _ = foo.X\n"
+		const want = "package x\n\nimport \"example.com/foo\"\n\nconst _ = foo.X\n"
+		buf, err := Process(t.gopath+"/src/x/x.go", []byte(in), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(buf) != want {
+			t.Errorf("wrong output.\ngot:\n%q\nwant:\n%q\n", buf, want)
+		}
+	})
+
 }
 
 func strSet(ss []string) map[string]bool {

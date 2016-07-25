@@ -661,7 +661,7 @@ func findImportGoPath(pkgName string, symbols map[string]bool, filename string) 
 	// TODO(bradfitz): run each $GOPATH entry async. But nobody
 	// really has more than one anyway, so low priority.
 	scanGoRootOnce.Do(scanGoRoot) // async
-	if !strings.HasPrefix(filename, build.Default.GOROOT) {
+	if !fileInDir(filename, build.Default.GOROOT) {
 		scanGoPathOnce.Do(scanGoPath) // blocking
 	}
 	<-scanGoRootDone
@@ -897,4 +897,16 @@ func findImportStdlib(shortPkg string, symbols map[string]bool) (importPath stri
 		return "crypto/rand", false, true
 	}
 	return importPath, false, importPath != ""
+}
+
+// fileInDir reports whether the provided file path looks like
+// it's in dir. (without hitting the filesystem)
+func fileInDir(file, dir string) bool {
+	rest := strings.TrimPrefix(file, dir)
+	if len(rest) == len(file) {
+		// dir is not a prefix of file.
+		return false
+	}
+	// Check for boundary: either nothing (file == dir), or a slash.
+	return len(rest) == 0 || rest[0] == '/' || rest[0] == '\\'
 }
