@@ -235,7 +235,7 @@ func setGCPercent(in int32) (out int32) {
 }
 
 // Garbage collector phase.
-// Indicates to write barrier and sychronization task to preform.
+// Indicates to write barrier and synchronization task to perform.
 var gcphase uint32
 
 // The compiler knows about this variable.
