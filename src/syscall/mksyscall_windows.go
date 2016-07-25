@@ -708,6 +708,10 @@ func (src *Source) IsStdRepo() (bool, error) {
 		abspath = strings.ToLower(abspath)
 		goroot = strings.ToLower(goroot)
 	}
+	sep := string(os.PathSeparator)
+	if !strings.HasSuffix(goroot, sep) {
+		goroot += sep
+	}
 	return strings.HasPrefix(abspath, goroot), nil
 }
 
