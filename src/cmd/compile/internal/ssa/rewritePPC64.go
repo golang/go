@@ -34,6 +34,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpAnd64(v, config)
 	case OpAnd8:
 		return rewriteValuePPC64_OpAnd8(v, config)
+	case OpClosureCall:
+		return rewriteValuePPC64_OpClosureCall(v, config)
 	case OpConst16:
 		return rewriteValuePPC64_OpConst16(v, config)
 	case OpConst32:
@@ -50,6 +52,10 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpConstBool(v, config)
 	case OpConstNil:
 		return rewriteValuePPC64_OpConstNil(v, config)
+	case OpConvert:
+		return rewriteValuePPC64_OpConvert(v, config)
+	case OpDeferCall:
+		return rewriteValuePPC64_OpDeferCall(v, config)
 	case OpDiv32F:
 		return rewriteValuePPC64_OpDiv32F(v, config)
 	case OpDiv64F:
@@ -82,6 +88,10 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpGeq8(v, config)
 	case OpGeq8U:
 		return rewriteValuePPC64_OpGeq8U(v, config)
+	case OpGetClosurePtr:
+		return rewriteValuePPC64_OpGetClosurePtr(v, config)
+	case OpGoCall:
+		return rewriteValuePPC64_OpGoCall(v, config)
 	case OpGreater16:
 		return rewriteValuePPC64_OpGreater16(v, config)
 	case OpGreater16U:
@@ -98,6 +108,14 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpGreater8(v, config)
 	case OpGreater8U:
 		return rewriteValuePPC64_OpGreater8U(v, config)
+	case OpInterCall:
+		return rewriteValuePPC64_OpInterCall(v, config)
+	case OpIsInBounds:
+		return rewriteValuePPC64_OpIsInBounds(v, config)
+	case OpIsNonNil:
+		return rewriteValuePPC64_OpIsNonNil(v, config)
+	case OpIsSliceInBounds:
+		return rewriteValuePPC64_OpIsSliceInBounds(v, config)
 	case OpLeq16:
 		return rewriteValuePPC64_OpLeq16(v, config)
 	case OpLeq16U:
@@ -184,6 +202,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpNeq8(v, config)
 	case OpNeqPtr:
 		return rewriteValuePPC64_OpNeqPtr(v, config)
+	case OpNilCheck:
+		return rewriteValuePPC64_OpNilCheck(v, config)
 	case OpOffPtr:
 		return rewriteValuePPC64_OpOffPtr(v, config)
 	case OpOr16:
@@ -500,6 +520,25 @@ func rewriteValuePPC64_OpAnd8(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValuePPC64_OpClosureCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ClosureCall [argwid] entry closure mem)
+	// cond:
+	// result: (CALLclosure [argwid] entry closure mem)
+	for {
+		argwid := v.AuxInt
+		entry := v.Args[0]
+		closure := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpPPC64CALLclosure)
+		v.AuxInt = argwid
+		v.AddArg(entry)
+		v.AddArg(closure)
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValuePPC64_OpConst16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -583,10 +622,10 @@ func rewriteValuePPC64_OpConstBool(v *Value, config *Config) bool {
 	_ = b
 	// match: (ConstBool [b])
 	// cond:
-	// result: (MOVBconst [b])
+	// result: (MOVWconst [b])
 	for {
 		b := v.AuxInt
-		v.reset(OpPPC64MOVBconst)
+		v.reset(OpPPC64MOVWconst)
 		v.AuxInt = b
 		return true
 	}
@@ -600,6 +639,38 @@ func rewriteValuePPC64_OpConstNil(v *Value, config *Config) bool {
 	for {
 		v.reset(OpPPC64MOVDconst)
 		v.AuxInt = 0
+		return true
+	}
+}
+func rewriteValuePPC64_OpConvert(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Convert <t> x mem)
+	// cond:
+	// result: (MOVDconvert <t> x mem)
+	for {
+		t := v.Type
+		x := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64MOVDconvert)
+		v.Type = t
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpDeferCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (DeferCall [argwid] mem)
+	// cond:
+	// result: (CALLdefer [argwid] mem)
+	for {
+		argwid := v.AuxInt
+		mem := v.Args[0]
+		v.reset(OpPPC64CALLdefer)
+		v.AuxInt = argwid
+		v.AddArg(mem)
 		return true
 	}
 }
@@ -895,6 +966,32 @@ func rewriteValuePPC64_OpGeq8U(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValuePPC64_OpGetClosurePtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GetClosurePtr)
+	// cond:
+	// result: (LoweredGetClosurePtr)
+	for {
+		v.reset(OpPPC64LoweredGetClosurePtr)
+		return true
+	}
+}
+func rewriteValuePPC64_OpGoCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (GoCall [argwid] mem)
+	// cond:
+	// result: (CALLgo [argwid] mem)
+	for {
+		argwid := v.AuxInt
+		mem := v.Args[0]
+		v.reset(OpPPC64CALLgo)
+		v.AuxInt = argwid
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValuePPC64_OpGreater16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -1043,6 +1140,73 @@ func rewriteValuePPC64_OpGreater8U(v *Value, config *Config) bool {
 		v2 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
 		v2.AddArg(y)
 		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpInterCall(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (InterCall [argwid] entry mem)
+	// cond:
+	// result: (CALLinter [argwid] entry mem)
+	for {
+		argwid := v.AuxInt
+		entry := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64CALLinter)
+		v.AuxInt = argwid
+		v.AddArg(entry)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValuePPC64_OpIsInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsInBounds idx len)
+	// cond:
+	// result: (LessThan (CMPU idx len))
+	for {
+		idx := v.Args[0]
+		len := v.Args[1]
+		v.reset(OpPPC64LessThan)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpIsNonNil(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsNonNil ptr)
+	// cond:
+	// result: (NotEqual (CMPconst [0] ptr))
+	for {
+		ptr := v.Args[0]
+		v.reset(OpPPC64NotEqual)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPconst, TypeFlags)
+		v0.AuxInt = 0
+		v0.AddArg(ptr)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpIsSliceInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsSliceInBounds idx len)
+	// cond:
+	// result: (LessEqual (CMPU idx len))
+	for {
+		idx := v.Args[0]
+		len := v.Args[1]
+		v.reset(OpPPC64LessEqual)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPU, TypeFlags)
+		v0.AddArg(idx)
+		v0.AddArg(len)
 		v.AddArg(v0)
 		return true
 	}
@@ -2112,6 +2276,21 @@ func rewriteValuePPC64_OpNeqPtr(v *Value, config *Config) bool {
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValuePPC64_OpNilCheck(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NilCheck ptr mem)
+	// cond:
+	// result: (LoweredNilCheck ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpPPC64LoweredNilCheck)
+		v.AddArg(ptr)
+		v.AddArg(mem)
 		return true
 	}
 }
