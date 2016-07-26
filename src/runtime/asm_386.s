@@ -193,9 +193,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
 	// Other operating systems use double precision.
 	// Change to double precision to match them,
 	// and to match other hardware that only has double.
-	PUSHL $0x27F
-	FLDCW	0(SP)
-	POPL AX
+	FLDCW	runtime·controlWord64(SB)
 	RET
 
 /*
@@ -1638,47 +1636,20 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
        MOVL    AX, runtime·lastmoduledatap(SB)
        RET
 
-TEXT runtime·uint32tofloat64(SB),NOSPLIT,$0-12
-	// TODO: condition on GO386 env var.
+TEXT runtime·uint32tofloat64(SB),NOSPLIT,$8-12
 	MOVL	a+0(FP), AX
-
-	// Check size.
-	CMPL	AX, $0x80000000
-	JAE	large
-
-	// Less than 2**31, convert directly.
-	CVTSL2SD	AX, X0
-	MOVSD	X0, ret+4(FP)
-	RET
-large:
-	// >= 2**31.  Subtract 2**31 (uint32), convert, then add 2**31 (float64).
-	SUBL	$0x80000000, AX
-	CVTSL2SD	AX, X0
-	ADDSD	twotothe31<>(SB), X0
-	MOVSD	X0, ret+4(FP)
+	MOVL	AX, 0(SP)
+	MOVL	$0, 4(SP)
+	FMOVV	0(SP), F0
+	FMOVDP	F0, ret+4(FP)
 	RET
 
-TEXT runtime·float64touint32(SB),NOSPLIT,$0-12
-	// TODO: condition on GO386 env var.
-	MOVSD	a+0(FP), X0
-
-	// Check size.
-	MOVSD	twotothe31<>(SB), X1
-	UCOMISD	X1, X0 //note: args swapped relative to CMPL
-	JAE	large
-
-	// Less than 2**31, convert directly.
-	CVTTSD2SL X0, AX
+TEXT runtime·float64touint32(SB),NOSPLIT,$12-12
+	FMOVD	a+0(FP), F0
+	FSTCW	0(SP)
+	FLDCW	runtime·controlWord64trunc(SB)
+	FMOVVP	F0, 4(SP)
+	FLDCW	0(SP)
+	MOVL	4(SP), AX
 	MOVL	AX, ret+8(FP)
 	RET
-large:
-	// >= 2**31.  Subtract 2**31 (float64), convert, then add 2**31 (uint32).
-	SUBSD	X1, X0
-	CVTTSD2SL	X0, AX
-	ADDL	$0x80000000, AX
-	MOVL	AX, ret+8(FP)
-	RET
-
-// 2**31 as a float64.
-DATA	twotothe31<>+0x00(SB)/8, $0x41e0000000000000
-GLOBL	twotothe31<>(SB),RODATA,$8

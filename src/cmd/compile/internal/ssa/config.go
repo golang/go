@@ -30,6 +30,7 @@ type Config struct {
 	optimize        bool                       // Do optimization
 	noDuffDevice    bool                       // Don't use Duff's device
 	nacl            bool                       // GOOS=nacl
+	use387          bool                       // GO386=387
 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
 	curFunc         *Func
 
@@ -241,6 +242,10 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	}
 
 	return c
+}
+
+func (c *Config) Set387(b bool) {
+	c.use387 = b
 }
 
 func (c *Config) Frontend() Frontend      { return c.fe }
