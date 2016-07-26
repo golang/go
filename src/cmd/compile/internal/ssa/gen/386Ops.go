@@ -49,6 +49,17 @@ var regNames386 = []string{
 	"SB",
 }
 
+// Notes on 387 support.
+//  - The 387 has a weird stack-register setup for floating-point registers.
+//    We use these registers when SSE registers are not available (when GO386=387).
+//  - We use the same register names (X0-X7) but they refer to the 387
+//    floating-point registers. That way, most of the SSA backend is unchanged.
+//  - The instruction generation pass maintains an SSE->387 register mapping.
+//    This mapping is updated whenever the FP stack is pushed or popped so that
+//    we can always find a given SSE register even when the TOS pointer has changed.
+//  - To facilitate the mapping from SSE to 387, we enforce that
+//    every basic block starts and ends with an empty floating-point stack.
+
 func init() {
 	// Make map from reg names to reg integers.
 	if len(regNames386) > 64 {

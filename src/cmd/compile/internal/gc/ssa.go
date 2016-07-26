@@ -26,6 +26,9 @@ func initssa() *ssa.Config {
 	ssaExp.mustImplement = true
 	if ssaConfig == nil {
 		ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
+		if Thearch.LinkArch.Name == "386" {
+			ssaConfig.Set387(Thearch.Use387)
+		}
 	}
 	return ssaConfig
 }
@@ -37,7 +40,7 @@ func shouldssa(fn *Node) bool {
 		if os.Getenv("SSATEST") == "" {
 			return false
 		}
-	case "amd64", "amd64p32", "arm":
+	case "amd64", "amd64p32", "arm", "386":
 		// Generally available.
 	}
 	if !ssaEnabled {
@@ -3948,6 +3951,10 @@ type SSAGenState struct {
 
 	// bstart remembers where each block starts (indexed by block ID)
 	bstart []*obj.Prog
+
+	// 387 port: maps from SSE registers (REG_X?) to 387 registers (REG_F?)
+	SSEto387   map[int16]int16
+	Scratch387 *Node
 }
 
 // Pc returns the current Prog.
@@ -3982,6 +3989,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		blockProgs = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
 		f.Logf("genssa %s\n", f.Name)
 		blockProgs[Pc] = f.Blocks[0]
+	}
+
+	if Thearch.Use387 {
+		s.SSEto387 = map[int16]int16{}
+		s.Scratch387 = temp(Types[TUINT64])
 	}
 
 	// Emit basic blocks
