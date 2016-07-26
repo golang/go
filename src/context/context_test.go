@@ -92,6 +92,11 @@ func TestWithCancel(t *testing.T) {
 	}
 }
 
+func contains(m map[canceler]struct{}, key canceler) bool {
+	_, ret := m[key]
+	return ret
+}
+
 func TestParentFinishesChild(t *testing.T) {
 	// Context tree:
 	// parent -> cancelChild
@@ -120,7 +125,7 @@ func TestParentFinishesChild(t *testing.T) {
 	cc := cancelChild.(*cancelCtx)
 	tc := timerChild.(*timerCtx)
 	pc.mu.Lock()
-	if len(pc.children) != 2 || !pc.children[cc] || !pc.children[tc] {
+	if len(pc.children) != 2 || !contains(pc.children, cc) || !contains(pc.children, tc) {
 		t.Errorf("bad linkage: pc.children = %v, want %v and %v",
 			pc.children, cc, tc)
 	}
@@ -191,7 +196,7 @@ func TestChildFinishesFirst(t *testing.T) {
 
 		if pcok {
 			pc.mu.Lock()
-			if len(pc.children) != 1 || !pc.children[cc] {
+			if len(pc.children) != 1 || !contains(pc.children, cc) {
 				t.Errorf("bad linkage: pc.children = %v, cc = %v", pc.children, cc)
 			}
 			pc.mu.Unlock()
@@ -625,5 +630,38 @@ func TestDeadlineExceededSupportsTimeout(t *testing.T) {
 	}
 	if !i.Timeout() {
 		t.Fatal("wrong value for timeout")
+	}
+}
+
+func BenchmarkContextCancelTree(b *testing.B) {
+	depths := []int{1, 10, 100, 1000}
+	for _, d := range depths {
+		b.Run(fmt.Sprintf("depth=%d", d), func(b *testing.B) {
+			b.Run("Root=Background", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					buildContextTree(Background(), d)
+				}
+			})
+			b.Run("Root=OpenCanceler", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					ctx, cancel := WithCancel(Background())
+					buildContextTree(ctx, d)
+					cancel()
+				}
+			})
+			b.Run("Root=ClosedCanceler", func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					ctx, cancel := WithCancel(Background())
+					cancel()
+					buildContextTree(ctx, d)
+				}
+			})
+		})
+	}
+}
+
+func buildContextTree(root Context, depth int) {
+	for d := 0; d < depth; d++ {
+		root, _ = WithCancel(root)
 	}
 }

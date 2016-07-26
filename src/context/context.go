@@ -252,9 +252,9 @@ func propagateCancel(parent Context, child canceler) {
 			child.cancel(false, p.err)
 		} else {
 			if p.children == nil {
-				p.children = make(map[canceler]bool)
+				p.children = make(map[canceler]struct{})
 			}
-			p.children[child] = true
+			p.children[child] = struct{}{}
 		}
 		p.mu.Unlock()
 	} else {
@@ -314,8 +314,8 @@ type cancelCtx struct {
 	done chan struct{} // closed by the first cancel call.
 
 	mu       sync.Mutex
-	children map[canceler]bool // set to nil by the first cancel call
-	err      error             // set to non-nil by the first cancel call
+	children map[canceler]struct{} // set to nil by the first cancel call
+	err      error                 // set to non-nil by the first cancel call
 }
 
 func (c *cancelCtx) Done() <-chan struct{} {
