@@ -13,6 +13,48 @@ package x509
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
 
+// FetchPEMRoots_MountainLion is the version of FetchPEMRoots from Go 1.6
+// which still works on OS X 10.8 (Mountain Lion).
+// It lacks support for admin & user cert domains.
+// See golang.org/issue/16473
+int FetchPEMRoots_MountainLion(CFDataRef *pemRoots) {
+	if (pemRoots == NULL) {
+		return -1;
+	}
+	CFArrayRef certs = NULL;
+	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
+	if (err != noErr) {
+		return -1;
+	}
+	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
+	int i, ncerts = CFArrayGetCount(certs);
+	for (i = 0; i < ncerts; i++) {
+		CFDataRef data = NULL;
+		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
+		if (cert == NULL) {
+			continue;
+		}
+		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
+		// Once we support weak imports via cgo we should prefer that, and fall back to this
+		// for older systems.
+		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+		if (err != noErr) {
+			continue;
+		}
+		if (data != NULL) {
+			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
+			CFRelease(data);
+		}
+	}
+	CFRelease(certs);
+	*pemRoots = combinedData;
+	return 0;
+}
+
+#ifndef kCFCoreFoundationVersionNumber10_9
+#define kCFCoreFoundationVersionNumber10_9      855.11
+#endif
+
 // FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
 //
 // On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
@@ -21,6 +63,10 @@ package x509
 // Note: The CFDataRef returned in pemRoots must be released (using CFRelease) after
 // we've consumed its content.
 int FetchPEMRoots(CFDataRef *pemRoots) {
+	if (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber10_9) {
+		return FetchPEMRoots_MountainLion(pemRoots);
+	}
+
 	// Get certificates from all domains, not just System, this lets
 	// the user add CAs to their "login" keychain, and Admins to add
 	// to the "System" keychain
