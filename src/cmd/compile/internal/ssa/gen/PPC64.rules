@@ -37,12 +37,11 @@
 (Const32F [val]) -> (FMOVSconst [val])
 (Const64F [val]) -> (FMOVDconst [val])
 (ConstNil) -> (MOVDconst [0])
-(ConstBool [b]) -> (MOVBconst [b])
+(ConstBool [b]) -> (MOVWconst [b])
 
 (Addr {sym} base) -> (MOVDaddr {sym} base)
 // (Addr {sym} base) -> (ADDconst {sym} base)
 (OffPtr [off] ptr) -> (ADD (MOVDconst <config.Frontend().TypeInt64()> [off]) ptr)
-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 
 (And64 x y) -> (AND x y)
 (And32 x y) -> (AND (ZeroExt32to64 x) (ZeroExt32to64 y)) // Or?  (AND (ZeroExt32to64 x) (ZeroExt32to64 y))
@@ -205,6 +204,22 @@
 		(MOVDstorezero [16] destptr
 			(MOVDstorezero [8] destptr
 				(MOVDstorezero [0] destptr mem))))
+
+// Calls
+// Lowering calls
+(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+
+// Miscellaneous
+(Convert <t> x mem) -> (MOVDconvert <t> x mem)
+(GetClosurePtr) -> (LoweredGetClosurePtr)
+(IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
+(IsInBounds idx len) -> (LessThan (CMPU idx len))
+(IsSliceInBounds idx len) -> (LessEqual (CMPU idx len))
+(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 
 // Optimizations
 

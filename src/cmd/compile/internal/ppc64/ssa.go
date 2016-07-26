@@ -12,7 +12,7 @@ import (
 )
 
 var ssaRegToReg = []int16{
-	ppc64.REGZERO,
+	// ppc64.REGZERO, // not an SSA reg
 	ppc64.REGSP,
 	ppc64.REG_R2,
 	ppc64.REG_R3,
@@ -44,6 +44,53 @@ var ssaRegToReg = []int16{
 	ppc64.REG_R29,
 	ppc64.REGG,
 	ppc64.REGTMP,
+
+	ppc64.REG_F0,
+	ppc64.REG_F1,
+	ppc64.REG_F2,
+	ppc64.REG_F3,
+	ppc64.REG_F4,
+	ppc64.REG_F5,
+	ppc64.REG_F6,
+	ppc64.REG_F7,
+	ppc64.REG_F8,
+	ppc64.REG_F9,
+	ppc64.REG_F10,
+	ppc64.REG_F11,
+	ppc64.REG_F12,
+	ppc64.REG_F13,
+	ppc64.REG_F14,
+	ppc64.REG_F15,
+	ppc64.REG_F16,
+	ppc64.REG_F17,
+	ppc64.REG_F18,
+	ppc64.REG_F19,
+	ppc64.REG_F20,
+	ppc64.REG_F21,
+	ppc64.REG_F22,
+	ppc64.REG_F23,
+	ppc64.REG_F24,
+	ppc64.REG_F25,
+	ppc64.REG_F26,
+	ppc64.REG_F27,
+	ppc64.REG_F28,
+	ppc64.REG_F29,
+	ppc64.REG_F30,
+	ppc64.REG_F31,
+
+	// ppc64.REG_CR0,
+	// ppc64.REG_CR1,
+	// ppc64.REG_CR2,
+	// ppc64.REG_CR3,
+	// ppc64.REG_CR4,
+	// ppc64.REG_CR5,
+	// ppc64.REG_CR6,
+	// ppc64.REG_CR7,
+
+	ppc64.REG_CR,
+	// ppc64.REG_XER,
+	// ppc64.REG_LR,
+	// ppc64.REG_CTR,
 }
 
 // Associated condition bit
@@ -98,7 +145,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// input args need no code
 	case ssa.OpSP, ssa.OpSB:
 		// nothing to do
-	case ssa.OpCopy:
+
+	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
+		// TODO: copy of floats
+		if v.Type.IsMemory() {
+			return
+		}
+		x := gc.SSARegNum(v.Args[0])
+		y := gc.SSARegNum(v)
+		if x != y {
+			p := gc.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Reg = y
+			p.To.Type = obj.TYPE_REG
+		}
+
+	case ssa.OpPPC64LoweredGetClosurePtr:
+		// Closure pointer is R11 (already)
+		gc.CheckLoweredGetClosurePtr(v)
+
 	case ssa.OpLoadReg:
 		// TODO: by type
 		p := gc.Prog(ppc64.AMOVD)
@@ -138,8 +204,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		r2 := gc.SSARegNum(v.Args[1])
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = r1
-		p.Reg = r2
+		p.From.Reg = r2
+		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpPPC64NEG:
@@ -195,7 +261,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("bad reg %s for symbol type %T, want %s", reg.Name(), v.Aux, wantreg)
 		}
 
-	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst, ssa.OpPPC64MOVHconst, ssa.OpPPC64MOVBconst, ssa.OpPPC64FMOVDconst, ssa.OpPPC64FMOVSconst:
+	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst, ssa.OpPPC64FMOVDconst, ssa.OpPPC64FMOVSconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -261,8 +327,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
+
 	case ssa.OpPPC64CALLstatic:
-		// TODO: deferreturn
+		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
+			// Deferred calls will appear to be returning to
+			// the CALL deferreturn(SB) that we are about to emit.
+			// However, the stack trace code will show the line
+			// of the instruction byte before the return PC.
+			// To avoid that being an unrelated instruction,
+			// insert two actual hardware NOPs that will have the right line number.
+			// This is different from obj.ANOP, which is a virtual no-op
+			// that doesn't make it into the instruction stream.
+			// PPC64 is unusual because TWO nops are required
+			// (see gc/cgen.go, gc/plive.go)
+			ginsnop()
+			ginsnop()
+		}
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
@@ -270,12 +350,56 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
+	case ssa.OpPPC64CALLclosure:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpPPC64CALLdefer:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(gc.Deferproc.Sym)
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpPPC64CALLgo:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(gc.Newproc.Sym)
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+	case ssa.OpPPC64CALLinter:
+		p := gc.Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		if gc.Maxarg < v.AuxInt {
+			gc.Maxarg = v.AuxInt
+		}
+
 	case ssa.OpVarDef:
 		gc.Gvardef(v.Aux.(*gc.Node))
 	case ssa.OpVarKill:
 		gc.Gvarkill(v.Aux.(*gc.Node))
 	case ssa.OpVarLive:
 		gc.Gvarlive(v.Aux.(*gc.Node))
+	case ssa.OpKeepAlive:
+		if !v.Args[0].Type.IsPtrShaped() {
+			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+		}
+		n, off := gc.AutoVar(v.Args[0])
+		if n == nil {
+			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
+		}
+		if off != 0 {
+			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
+		}
+		gc.Gvarlive(n)
+
 	case ssa.OpPPC64Equal,
 		ssa.OpPPC64NotEqual,
 		ssa.OpPPC64LessThan,
@@ -295,6 +419,76 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				v.Fatalf("phi arg at different location than phi: %v @ %v, but arg %v @ %v\n%s\n", v, loc, a, aloc, v.Block.Func)
 			}
 		}
+
+	case ssa.OpPPC64LoweredNilCheck:
+		// Optimization - if the subsequent block has a load or store
+		// at the same address, we don't need to issue this instruction.
+		// mem := v.Args[1]
+		// for _, w := range v.Block.Succs[0].Block().Values {
+		// 	if w.Op == ssa.OpPhi {
+		// 		if w.Type.IsMemory() {
+		// 			mem = w
+		// 		}
+		// 		continue
+		// 	}
+		// 	if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+		// 		// w doesn't use a store - can't be a memory op.
+		// 		continue
+		// 	}
+		// 	if w.Args[len(w.Args)-1] != mem {
+		// 		v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+		// 	}
+		// 	switch w.Op {
+		// 	case ssa.OpARMMOVBload, ssa.OpARMMOVBUload, ssa.OpARMMOVHload, ssa.OpARMMOVHUload,
+		// 		ssa.OpARMMOVWload, ssa.OpARMMOVFload, ssa.OpARMMOVDload,
+		// 		ssa.OpARMMOVBstore, ssa.OpARMMOVHstore, ssa.OpARMMOVWstore,
+		// 		ssa.OpARMMOVFstore, ssa.OpARMMOVDstore:
+		// 		// arg0 is ptr, auxint is offset
+		// 		if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+		// 				gc.Warnl(v.Line, "removed nil check")
+		// 			}
+		// 			return
+		// 		}
+		// 	case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
+		// 		// arg0 is ptr
+		// 		if w.Args[0] == v.Args[0] {
+		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+		// 				gc.Warnl(v.Line, "removed nil check")
+		// 			}
+		// 			return
+		// 		}
+		// 	case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
+		// 		// arg0 is dst ptr, arg1 is src ptr
+		// 		if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
+		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+		// 				gc.Warnl(v.Line, "removed nil check")
+		// 			}
+		// 			return
+		// 		}
+		// 	default:
+		// 	}
+		// 	if w.Type.IsMemory() {
+		// 		if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
+		// 			// these ops are OK
+		// 			mem = w
+		// 			continue
+		// 		}
+		// 		// We can't delay the nil check past the next store.
+		// 		break
+		// 	}
+		// }
+		// Issue a load which will fault if arg is nil.
+		p := gc.Prog(ppc64.AMOVB)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REGTMP
+		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+			gc.Warnl(v.Line, "generated nil check")
+		}
+
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
@@ -321,6 +515,26 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
+
+	case ssa.BlockDefer:
+		// defer returns in R3:
+		// 0 if we should continue executing
+		// 1 if we should jump to deferreturn call
+		p := gc.Prog(ppc64.ACMP)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = ppc64.REG_R3
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REG_R0
+
+		p = gc.Prog(ppc64.ABNE)
+		p.To.Type = obj.TYPE_BRANCH
+		s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+		if b.Succs[0].Block() != next {
+			p := gc.Prog(obj.AJMP)
+			p.To.Type = obj.TYPE_BRANCH
+			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+		}
+
 	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
