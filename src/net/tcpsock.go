@@ -81,7 +81,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
 	}
 	n, err := c.readFrom(r)
 	if err != nil && err != io.EOF {
-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+		err = &OpError{Op: "readfrom", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
 	}
 	return n, err
 }
