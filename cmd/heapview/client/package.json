@@ -1,0 +1,21 @@
+{
+  "//": [
+    "Copyright 2016 The Go Authors. All rights reserved.",
+    "Use of this source code is governed by a BSD-style",
+    "license that can be found in the LICENSE file.",
+
+    "This file exists to help import typescript typings",
+    "for web features used in this project. Neither the",
+    "typings nor node or npm are required to do development",
+    "on the code in this project.",
+
+    "If you do have npm installed, use the `npm i` command",
+    "in this directory to install the typings."
+  ],
+
+  "private": true,
+  "dependencies": {
+    "@types/es6-promise": "0.0.28",
+    "@types/whatwg-fetch": "0.0.27"
+  }
+}

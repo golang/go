@@ -5,5 +5,54 @@
 // heapview is a tool for viewing Go heap dumps.
 package main
 
+import (
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+)
+
+var index = `<!DOCTYPE html>
+<script src="js/typescript.js"></script>
+<script src="js/moduleloader.js"></script>
+<script>
+  System.transpiler = 'typescript';
+  System.locate = (load) => load.name + '.ts';
+</script>
+<script type="module">
+  import {main} from './client/main';
+  main();
+</script>
+`
+
+func toolsDir() string {
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		log.Println("error: GOPATH not set. Can't find client files")
+		os.Exit(1)
+	}
+	return filepath.Join(filepath.SplitList(gopath)[0], "/src/golang.org/x/tools")
+}
+
 func main() {
+	// Directly serve typescript code in client directory for development.
+	http.Handle("/client/", http.StripPrefix("/client",
+		http.FileServer(http.Dir(filepath.Join(toolsDir(), "cmd/heapview/client")))))
+	// Serve typescript.js and moduleloader.js for development.
+	log.Print(http.Dir(path.Join(toolsDir() + "/cmd/heapview/client")))
+	http.HandleFunc("/js/typescript.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/typescript/typescript.js"))
+	})
+	http.HandleFunc("/js/moduleloader.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/moduleloader/moduleloader.js"))
+	})
+	// Serve index.html using html string above.
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		io.WriteString(w, index)
+	})
+
+	http.ListenAndServe(":8080", nil)
 }
