@@ -162,20 +162,20 @@ func init() {
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32"},     // arg0|arg1 ??
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                        // ^arg0
 
-		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},                     // sign extend int8 to int64
-		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ"},                   // zero extend uint8 to uint64
-		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},                     // sign extend int16 to int64
-		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ"},                   // zero extend uint16 to uint64
-		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},                     // sign extend int32 to int64
-		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ"},                   // zero extend uint32 to uint64
-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", typ: "Int8"},     // sign extend int8 to int64
-		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", typ: "UInt8"},  // zero extend uint8 to uint64
-		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", typ: "Int16"},    // sign extend int16 to int64
-		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", typ: "UInt16"}, // zero extend uint16 to uint64
-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", typ: "Int32"},    // sign extend int32 to int64
-		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", typ: "UInt32"}, // zero extend uint32 to uint64
+		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},                                    // sign extend int8 to int64
+		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ"},                                  // zero extend uint8 to uint64
+		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},                                    // sign extend int16 to int64
+		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ"},                                  // zero extend uint16 to uint64
+		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},                                    // sign extend int32 to int64
+		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ"},                                  // zero extend uint32 to uint64
+		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", typ: "Int8"},     // sign extend int8 to int64
+		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8"},  // zero extend uint8 to uint64
+		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", typ: "Int16"},    // sign extend int16 to int64
+		{name: "MOVHZload", argLength: 2, reg: gpload, asm: "MOVHZ", aux: "SymOff", typ: "UInt16"}, // zero extend uint16 to uint64
+		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", typ: "Int32"},    // sign extend int32 to int64
+		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32"}, // zero extend uint32 to uint64
+		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "Int64"},
 
-		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", typ: "UInt64"},
 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", typ: "Fload64"},
 		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", typ: "Float32"},
 		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},
@@ -229,6 +229,48 @@ func init() {
 		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                           // call newproc.  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},                 // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
+		// large or unaligned zeroing
+		// arg0 = address of memory to zero (in R3, changed as side effect)
+		// arg1 = address of the last element to zero
+		// arg2 = mem
+		// returns mem
+		//  ADD -8,R3,R3 // intermediate value not valid GC ptr, cannot expose to opt+GC
+		//	MOVDU	R0, 8(R3)
+		//	CMP	R3, Rarg1
+		//	BLE	-2(PC)
+		{
+			name:      "LoweredZero",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R3"), gp},
+				clobbers: buildReg("R3 CR"),
+			},
+			typ: "Mem",
+		},
+
+		// large or unaligned move
+		// arg0 = address of dst memory (in R3, changed as side effect)
+		// arg1 = address of src memory (in R4, changed as side effect)
+		// arg2 = address of the last element of src
+		// arg3 = mem
+		// returns mem
+		//  ADD -8,R3,R3 // intermediate value not valid GC ptr, cannot expose to opt+GC
+		//  ADD -8,R4,R4 // intermediate value not valid GC ptr, cannot expose to opt+GC
+		//	MOVDU	8(R4), Rtmp
+		//	MOVDU	Rtmp, 8(R3)
+		//	CMP	R4, Rarg2
+		//	BLT	-3(PC)
+		{
+			name:      "LoweredMove",
+			aux:       "Int64",
+			argLength: 4,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R3"), buildReg("R4"), gp},
+				clobbers: buildReg("R3 R4 CR"),
+			},
+			typ: "Mem",
+		},
 	}
 
 	blocks := []blockData{

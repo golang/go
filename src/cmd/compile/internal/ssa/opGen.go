@@ -995,6 +995,8 @@ const (
 	OpPPC64CALLdefer
 	OpPPC64CALLgo
 	OpPPC64CALLinter
+	OpPPC64LoweredZero
+	OpPPC64LoweredMove
 
 	OpAdd8
 	OpAdd16
@@ -11984,9 +11986,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVBload",
-		argLen: 2,
-		asm:    ppc64.AMOVB,
+		name:    "MOVBload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -11997,9 +12000,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVBZload",
-		argLen: 2,
-		asm:    ppc64.AMOVBZ,
+		name:    "MOVBZload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVBZ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12010,9 +12014,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVHload",
-		argLen: 2,
-		asm:    ppc64.AMOVH,
+		name:    "MOVHload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12023,9 +12028,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVHZload",
-		argLen: 2,
-		asm:    ppc64.AMOVHZ,
+		name:    "MOVHZload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVHZ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12036,9 +12042,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVWload",
-		argLen: 2,
-		asm:    ppc64.AMOVW,
+		name:    "MOVWload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12049,9 +12056,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVWZload",
-		argLen: 2,
-		asm:    ppc64.AMOVWZ,
+		name:    "MOVWZload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVWZ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12062,9 +12070,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVDload",
-		argLen: 2,
-		asm:    ppc64.AMOVD,
+		name:    "MOVDload",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     ppc64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12512,6 +12521,31 @@ var opcodeTable = [...]opInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
+		},
+	},
+	{
+		name:    "LoweredZero",
+		auxType: auxInt64,
+		argLen:  3,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4},         // R3
+				{1, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775812, // R3 CR
+		},
+	},
+	{
+		name:    "LoweredMove",
+		auxType: auxInt64,
+		argLen:  4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4},         // R3
+				{1, 8},         // R4
+				{2, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			clobbers: 9223372036854775820, // R3 R4 CR
 		},
 	},
 

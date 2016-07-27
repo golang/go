@@ -328,6 +328,133 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
 
+	case ssa.OpPPC64LoweredZero:
+		// Similar to how this is done on ARM,
+		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off
+		// not store-and-increment.
+		// Therefore R3 should be dest-align
+		// and arg1 should be dest+size-align
+		// HOWEVER, the input dest address cannot be dest-align because
+		// that does not necessarily address valid memory and it's not
+		// known how that might be optimized.  Therefore, correct it in
+		// in the expansion:
+		//
+		// ADD    -8,R3,R3
+		// MOVDU  R0, 8(R3)
+		// CMP	  Rarg1, R3
+		// BL	  -2(PC)
+		// arg1 is the address of the last element to zero
+		// auxint is alignment
+		var sz int64
+		var movu obj.As
+		switch {
+		case v.AuxInt%8 == 0:
+			sz = 8
+			movu = ppc64.AMOVDU
+		case v.AuxInt%4 == 0:
+			sz = 4
+			movu = ppc64.AMOVWZU // MOVWU instruction not implemented
+		case v.AuxInt%2 == 0:
+			sz = 2
+			movu = ppc64.AMOVHU
+		default:
+			sz = 1
+			movu = ppc64.AMOVBU
+		}
+
+		p := gc.Prog(ppc64.AADD)
+		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = -sz
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+
+		p = gc.Prog(movu)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = ppc64.REG_R0
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Offset = sz
+		p2 := gc.Prog(ppc64.ACMP)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = gc.SSARegNum(v.Args[1])
+		p2.To.Reg = ppc64.REG_R3
+		p2.To.Type = obj.TYPE_REG
+		p3 := gc.Prog(ppc64.ABLT)
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+
+	case ssa.OpPPC64LoweredMove:
+		// Similar to how this is done on ARM,
+		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off,
+		// not store-and-increment.
+		// Inputs must be valid pointers to memory,
+		// so adjust arg0 and arg1 as part of the expansion.
+		// arg2 should be src+size-align,
+		//
+		// ADD    -8,R3,R3
+		// ADD    -8,R4,R4
+		// MOVDU	8(R4), Rtmp
+		// MOVDU 	Rtmp, 8(R3)
+		// CMP	Rarg2, R4
+		// BL	-3(PC)
+		// arg2 is the address of the last element of src
+		// auxint is alignment
+		var sz int64
+		var movu obj.As
+		switch {
+		case v.AuxInt%8 == 0:
+			sz = 8
+			movu = ppc64.AMOVDU
+		case v.AuxInt%4 == 0:
+			sz = 4
+			movu = ppc64.AMOVWZU // MOVWU instruction not implemented
+		case v.AuxInt%2 == 0:
+			sz = 2
+			movu = ppc64.AMOVHU
+		default:
+			sz = 1
+			movu = ppc64.AMOVBU
+		}
+
+		p := gc.Prog(ppc64.AADD)
+		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = -sz
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+
+		p = gc.Prog(ppc64.AADD)
+		p.Reg = gc.SSARegNum(v.Args[1])
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = -sz
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v.Args[1])
+
+		p = gc.Prog(movu)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[1])
+		p.From.Offset = sz
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REGTMP
+
+		p2 := gc.Prog(movu)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = ppc64.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = gc.SSARegNum(v.Args[0])
+		p2.To.Offset = sz
+
+		p3 := gc.Prog(ppc64.ACMPU)
+		p3.From.Reg = gc.SSARegNum(v.Args[1])
+		p3.From.Type = obj.TYPE_REG
+		p3.To.Reg = gc.SSARegNum(v.Args[2])
+		p3.To.Type = obj.TYPE_REG
+
+		p4 := gc.Prog(ppc64.ABLT)
+		p4.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p4, p)
+
 	case ssa.OpPPC64CALLstatic:
 		if v.Aux.(*gc.Sym) == gc.Deferreturn.Sym {
 			// Deferred calls will appear to be returning to

@@ -170,6 +170,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpPPC64MOVWstore(v, config)
 	case OpPPC64MOVWstorezero:
 		return rewriteValuePPC64_OpPPC64MOVWstorezero(v, config)
+	case OpMove:
+		return rewriteValuePPC64_OpMove(v, config)
 	case OpMul16:
 		return rewriteValuePPC64_OpMul16(v, config)
 	case OpMul32:
@@ -2013,6 +2015,346 @@ func rewriteValuePPC64_OpPPC64MOVWstorezero(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpMove(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Move [s] _ _ mem)
+	// cond: SizeAndAlign(s).Size() == 0
+	// result: mem
+	for {
+		s := v.AuxInt
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 0) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 1
+	// result: (MOVBstore dst (MOVBZload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 1) {
+			break
+		}
+		v.reset(OpPPC64MOVBstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0
+	// result: (MOVHstore dst (MOVHZload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0) {
+			break
+		}
+		v.reset(OpPPC64MOVHstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 2
+	// result: (MOVBstore [1] dst (MOVBZload [1] src mem) 		(MOVBstore dst (MOVBZload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 2) {
+			break
+		}
+		v.reset(OpPPC64MOVBstore)
+		v.AuxInt = 1
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v0.AuxInt = 1
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpPPC64MOVBstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0
+	// result: (MOVWstore dst (MOVWload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0) {
+			break
+		}
+		v.reset(OpPPC64MOVWstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVWload, config.fe.TypeInt32())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0
+	// result: (MOVHstore [2] dst (MOVHZload [2] src mem) 		(MOVHstore dst (MOVHZload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0) {
+			break
+		}
+		v.reset(OpPPC64MOVHstore)
+		v.AuxInt = 2
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v0.AuxInt = 2
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpPPC64MOVHstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 4
+	// result: (MOVBstore [3] dst (MOVBZload [3] src mem) 		(MOVBstore [2] dst (MOVBZload [2] src mem) 			(MOVBstore [1] dst (MOVBZload [1] src mem) 				(MOVBstore dst (MOVBZload src mem) mem))))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 4) {
+			break
+		}
+		v.reset(OpPPC64MOVBstore)
+		v.AuxInt = 3
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v0.AuxInt = 3
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpPPC64MOVBstore, TypeMem)
+		v1.AuxInt = 2
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v2.AuxInt = 2
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v3 := b.NewValue0(v.Line, OpPPC64MOVBstore, TypeMem)
+		v3.AuxInt = 1
+		v3.AddArg(dst)
+		v4 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v4.AuxInt = 1
+		v4.AddArg(src)
+		v4.AddArg(mem)
+		v3.AddArg(v4)
+		v5 := b.NewValue0(v.Line, OpPPC64MOVBstore, TypeMem)
+		v5.AddArg(dst)
+		v6 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v6.AddArg(src)
+		v6.AddArg(mem)
+		v5.AddArg(v6)
+		v5.AddArg(mem)
+		v3.AddArg(v5)
+		v1.AddArg(v3)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0
+	// result: (MOVDstore dst (MOVDload src mem) mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0) {
+			break
+		}
+		v.reset(OpPPC64MOVDstore)
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVDload, config.fe.TypeInt64())
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0
+	// result: (MOVWstore [4] dst (MOVWZload [4] src mem) 		(MOVWstore dst (MOVWZload src mem) mem))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0) {
+			break
+		}
+		v.reset(OpPPC64MOVWstore)
+		v.AuxInt = 4
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVWZload, config.fe.TypeUInt32())
+		v0.AuxInt = 4
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpPPC64MOVWstore, TypeMem)
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpPPC64MOVWZload, config.fe.TypeUInt32())
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0
+	// result: (MOVHstore [6] dst (MOVHZload [6] src mem) 		(MOVHstore [4] dst (MOVHZload [4] src mem) 			(MOVHstore [2] dst (MOVHZload [2] src mem) 				(MOVHstore dst (MOVHZload src mem) mem))))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0) {
+			break
+		}
+		v.reset(OpPPC64MOVHstore)
+		v.AuxInt = 6
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v0.AuxInt = 6
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpPPC64MOVHstore, TypeMem)
+		v1.AuxInt = 4
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v2.AuxInt = 4
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v3 := b.NewValue0(v.Line, OpPPC64MOVHstore, TypeMem)
+		v3.AuxInt = 2
+		v3.AddArg(dst)
+		v4 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v4.AuxInt = 2
+		v4.AddArg(src)
+		v4.AddArg(mem)
+		v3.AddArg(v4)
+		v5 := b.NewValue0(v.Line, OpPPC64MOVHstore, TypeMem)
+		v5.AddArg(dst)
+		v6 := b.NewValue0(v.Line, OpPPC64MOVHZload, config.fe.TypeUInt16())
+		v6.AddArg(src)
+		v6.AddArg(mem)
+		v5.AddArg(v6)
+		v5.AddArg(mem)
+		v3.AddArg(v5)
+		v1.AddArg(v3)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: SizeAndAlign(s).Size() == 3
+	// result: (MOVBstore [2] dst (MOVBZload [2] src mem) 		(MOVBstore [1] dst (MOVBZload [1] src mem) 			(MOVBstore dst (MOVBZload src mem) mem)))
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !(SizeAndAlign(s).Size() == 3) {
+			break
+		}
+		v.reset(OpPPC64MOVBstore)
+		v.AuxInt = 2
+		v.AddArg(dst)
+		v0 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v0.AuxInt = 2
+		v0.AddArg(src)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpPPC64MOVBstore, TypeMem)
+		v1.AuxInt = 1
+		v1.AddArg(dst)
+		v2 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v2.AuxInt = 1
+		v2.AddArg(src)
+		v2.AddArg(mem)
+		v1.AddArg(v2)
+		v3 := b.NewValue0(v.Line, OpPPC64MOVBstore, TypeMem)
+		v3.AddArg(dst)
+		v4 := b.NewValue0(v.Line, OpPPC64MOVBZload, config.fe.TypeUInt8())
+		v4.AddArg(src)
+		v4.AddArg(mem)
+		v3.AddArg(v4)
+		v3.AddArg(mem)
+		v1.AddArg(v3)
+		v.AddArg(v1)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0
+	// result: (LoweredMove [SizeAndAlign(s).Align()] 		dst 		src 		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
+	for {
+		s := v.AuxInt
+		dst := v.Args[0]
+		src := v.Args[1]
+		mem := v.Args[2]
+		if !((SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0) {
+			break
+		}
+		v.reset(OpPPC64LoweredMove)
+		v.AuxInt = SizeAndAlign(s).Align()
+		v.AddArg(dst)
+		v.AddArg(src)
+		v0 := b.NewValue0(v.Line, OpPPC64ADDconst, src.Type)
+		v0.AddArg(src)
+		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpMul16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -3098,6 +3440,26 @@ func rewriteValuePPC64_OpZero(v *Value, config *Config) bool {
 		v1.AddArg(v2)
 		v0.AddArg(v1)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (Zero [s] ptr mem)
+	// cond: (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0
+	// result: (LoweredZero [SizeAndAlign(s).Align()] 		ptr 		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
+	for {
+		s := v.AuxInt
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !((SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0) {
+			break
+		}
+		v.reset(OpPPC64LoweredZero)
+		v.AuxInt = SizeAndAlign(s).Align()
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpPPC64ADDconst, ptr.Type)
+		v0.AddArg(ptr)
+		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
+		v.AddArg(v0)
+		v.AddArg(mem)
 		return true
 	}
 	return false
