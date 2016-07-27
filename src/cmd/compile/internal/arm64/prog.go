@@ -44,7 +44,7 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
 	// Integer
 	arm64.AADD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.ASUB & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
-	arm64.ANEG & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
+	arm64.ANEG & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite}, // why RegRead? revisit once the old backend gone
 	arm64.AAND & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AORR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AEOR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
