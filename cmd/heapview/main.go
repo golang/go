@@ -6,13 +6,16 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 )
+
+var port = flag.Int("port", 8080, "service port")
 
 var index = `<!DOCTYPE html>
 <script src="js/typescript.js"></script>
@@ -36,23 +39,36 @@ func toolsDir() string {
 	return filepath.Join(filepath.SplitList(gopath)[0], "/src/golang.org/x/tools")
 }
 
-func main() {
+var parseFlags = func() {
+	flag.Parse()
+}
+
+var addHandlers = func() {
 	// Directly serve typescript code in client directory for development.
 	http.Handle("/client/", http.StripPrefix("/client",
 		http.FileServer(http.Dir(filepath.Join(toolsDir(), "cmd/heapview/client")))))
+
 	// Serve typescript.js and moduleloader.js for development.
-	log.Print(http.Dir(path.Join(toolsDir() + "/cmd/heapview/client")))
 	http.HandleFunc("/js/typescript.js", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/typescript/typescript.js"))
 	})
 	http.HandleFunc("/js/moduleloader.js", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/moduleloader/moduleloader.js"))
 	})
+
 	// Serve index.html using html string above.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		io.WriteString(w, index)
 	})
+}
 
-	http.ListenAndServe(":8080", nil)
+var listenAndServe = func() {
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+}
+
+func main() {
+	parseFlags()
+	addHandlers()
+	listenAndServe()
 }
