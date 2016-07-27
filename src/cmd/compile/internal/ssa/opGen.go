@@ -786,8 +786,6 @@ const (
 	OpARMDUFFCOPY
 	OpARMLoweredZero
 	OpARMLoweredMove
-	OpARMLoweredZeroU
-	OpARMLoweredMoveU
 	OpARMLoweredGetClosurePtr
 	OpARMMOVWconvert
 	OpARMFlagEQ
@@ -9879,8 +9877,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredZero",
-		argLen: 4,
+		name:    "LoweredZero",
+		auxType: auxInt64,
+		argLen:  4,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},    // R1
@@ -9891,32 +9890,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredMove",
-		argLen: 4,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4},    // R2
-				{1, 2},    // R1
-				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-			clobbers: 4294967302, // R1 R2 FLAGS
-		},
-	},
-	{
-		name:   "LoweredZeroU",
-		argLen: 4,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2},    // R1
-				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-			clobbers: 4294967298, // R1 FLAGS
-		},
-	},
-	{
-		name:   "LoweredMoveU",
-		argLen: 4,
+		name:    "LoweredMove",
+		auxType: auxInt64,
+		argLen:  4,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4},    // R2

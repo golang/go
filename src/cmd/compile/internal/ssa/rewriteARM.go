@@ -10696,43 +10696,23 @@ func rewriteValueARM_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) 	&& SizeAndAlign(s).Align()%4 == 0
-	// result: (LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+	// cond: (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0
+	// result: (LoweredMove [SizeAndAlign(s).Align()] 		dst 		src 		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		mem)
 	for {
 		s := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) && SizeAndAlign(s).Align()%4 == 0) {
+		if !((SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0) {
 			break
 		}
 		v.reset(OpARMLoweredMove)
+		v.AuxInt = SizeAndAlign(s).Align()
 		v.AddArg(dst)
 		v.AddArg(src)
 		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
 		v0.AddArg(src)
-		v0.AuxInt = SizeAndAlign(s).Size()
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Move [s] dst src mem)
-	// cond: SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0
-	// result: (LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
-	for {
-		s := v.AuxInt
-		dst := v.Args[0]
-		src := v.Args[1]
-		mem := v.Args[2]
-		if !(SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0) {
-			break
-		}
-		v.reset(OpARMLoweredMoveU)
-		v.AddArg(dst)
-		v.AddArg(src)
-		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
-		v0.AddArg(src)
-		v0.AuxInt = SizeAndAlign(s).Size()
+		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
 		v.AddArg(v0)
 		v.AddArg(mem)
 		return true
@@ -16763,42 +16743,21 @@ func rewriteValueARM_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) 	&& SizeAndAlign(s).Align()%4 == 0
-	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+	// cond: (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0
+	// result: (LoweredZero [SizeAndAlign(s).Align()] 		ptr 		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)]) 		(MOVWconst [0]) 		mem)
 	for {
 		s := v.AuxInt
 		ptr := v.Args[0]
 		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) && SizeAndAlign(s).Align()%4 == 0) {
+		if !((SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0) {
 			break
 		}
 		v.reset(OpARMLoweredZero)
+		v.AuxInt = SizeAndAlign(s).Align()
 		v.AddArg(ptr)
 		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
 		v0.AddArg(ptr)
-		v0.AuxInt = SizeAndAlign(s).Size()
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
-		v1.AuxInt = 0
-		v.AddArg(v1)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (Zero [s] ptr mem)
-	// cond: SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0
-	// result: (LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
-	for {
-		s := v.AuxInt
-		ptr := v.Args[0]
-		mem := v.Args[1]
-		if !(SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0) {
-			break
-		}
-		v.reset(OpARMLoweredZeroU)
-		v.AddArg(ptr)
-		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
-		v0.AddArg(ptr)
-		v0.AuxInt = SizeAndAlign(s).Size()
+		v0.AuxInt = SizeAndAlign(s).Size() - moveSize(SizeAndAlign(s).Align(), config)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
 		v1.AuxInt = 0
