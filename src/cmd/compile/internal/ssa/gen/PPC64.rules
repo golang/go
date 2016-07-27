@@ -205,6 +205,58 @@
 			(MOVDstorezero [8] destptr
 				(MOVDstorezero [0] destptr mem))))
 
+// Large zeroing uses a loop
+(Zero [s] ptr mem)
+	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0 ->
+	(LoweredZero [SizeAndAlign(s).Align()]
+		ptr
+		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		mem)
+
+// moves
+(Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 1 -> (MOVBstore dst (MOVBZload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstore dst (MOVHZload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 2 ->
+	(MOVBstore [1] dst (MOVBZload [1] src mem)
+		(MOVBstore dst (MOVBZload src mem) mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%4 == 0 ->
+	(MOVWstore dst (MOVWload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 && SizeAndAlign(s).Align()%2 == 0 ->
+	(MOVHstore [2] dst (MOVHZload [2] src mem)
+		(MOVHstore dst (MOVHZload src mem) mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 4 ->
+	(MOVBstore [3] dst (MOVBZload [3] src mem)
+		(MOVBstore [2] dst (MOVBZload [2] src mem)
+			(MOVBstore [1] dst (MOVBZload [1] src mem)
+				(MOVBstore dst (MOVBZload src mem) mem))))
+
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%8 == 0 ->
+	(MOVDstore dst (MOVDload src mem) mem)
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%4 == 0 ->
+	(MOVWstore [4] dst (MOVWZload [4] src mem)
+		(MOVWstore dst (MOVWZload src mem) mem))
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 8 && SizeAndAlign(s).Align()%2 == 0->
+	(MOVHstore [6] dst (MOVHZload [6] src mem)
+		(MOVHstore [4] dst (MOVHZload [4] src mem)
+			(MOVHstore [2] dst (MOVHZload [2] src mem)
+				(MOVHstore dst (MOVHZload src mem) mem))))
+
+(Move [s] dst src mem) && SizeAndAlign(s).Size() == 3 ->
+	(MOVBstore [2] dst (MOVBZload [2] src mem)
+		(MOVBstore [1] dst (MOVBZload [1] src mem)
+			(MOVBstore dst (MOVBZload src mem) mem)))
+
+// Large move uses a loop
+(Move [s] dst src mem)
+	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%8 != 0 ->
+	(LoweredMove [SizeAndAlign(s).Align()]
+		dst
+		src
+		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		mem)
+
 // Calls
 // Lowering calls
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
