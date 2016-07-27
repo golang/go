@@ -415,17 +415,18 @@ func init() {
 			},
 		},
 
-		// large zeroing (must be 4-byte aligned)
+		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R1, changed as side effect)
-		// arg1 = address of the end of the memory to zero
+		// arg1 = address of the last element to zero
 		// arg2 = value to store (always zero)
 		// arg3 = mem
 		// returns mem
 		//	MOVW.P	Rarg2, 4(R1)
 		//	CMP	R1, Rarg1
-		//	BLT	-2(PC)
+		//	BLE	-2(PC)
 		{
 			name:      "LoweredZero",
+			aux:       "Int64",
 			argLength: 4,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), gp, gp},
@@ -433,55 +434,19 @@ func init() {
 			},
 		},
 
-		// large move (must be 4-byte aligned)
+		// large or unaligned move
 		// arg0 = address of dst memory (in R2, changed as side effect)
 		// arg1 = address of src memory (in R1, changed as side effect)
-		// arg2 = address of the end of src memory
+		// arg2 = address of the last element of src
 		// arg3 = mem
 		// returns mem
 		//	MOVW.P	4(R1), Rtmp
 		//	MOVW.P	Rtmp, 4(R2)
 		//	CMP	R1, Rarg2
-		//	BLT	-3(PC)
+		//	BLE	-3(PC)
 		{
 			name:      "LoweredMove",
-			argLength: 4,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
-				clobbers: buildReg("R1 R2 FLAGS"),
-			},
-		},
-
-		// unaligned zeroing
-		// arg0 = address of memory to zero (in R1, changed as side effect)
-		// arg1 = address of the end of the memory to zero
-		// arg2 = value to store (always zero)
-		// arg3 = mem
-		// returns mem
-		//	MOVB.P	Rarg2, 1(R1)
-		//	CMP	R1, Rarg1
-		//	BLT	-2(PC)
-		{
-			name:      "LoweredZeroU",
-			argLength: 4,
-			reg: regInfo{
-				inputs:   []regMask{buildReg("R1"), gp, gp},
-				clobbers: buildReg("R1 FLAGS"),
-			},
-		},
-
-		// unaligned move
-		// arg0 = address of dst memory (in R2, changed as side effect)
-		// arg1 = address of src memory (in R1, changed as side effect)
-		// arg2 = address of the end of src memory
-		// arg3 = mem
-		// returns mem
-		//	MOVB.P	1(R1), Rtmp
-		//	MOVB.P	Rtmp, 1(R2)
-		//	CMP	R1, Rarg2
-		//	BLT	-3(PC)
-		{
-			name:      "LoweredMoveU",
+			aux:       "Int64",
 			argLength: 4,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},

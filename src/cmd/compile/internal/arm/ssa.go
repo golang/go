@@ -797,7 +797,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 					}
 					return
 				}
-			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
+			case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero:
 				// arg0 is ptr
 				if w.Args[0] == v.Args[0] {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -805,7 +805,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 					}
 					return
 				}
-			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
+			case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove:
 				// arg0 is dst ptr, arg1 is src ptr
 				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -835,15 +835,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
-	case ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
+	case ssa.OpARMLoweredZero:
 		// MOVW.P	Rarg2, 4(R1)
 		// CMP	Rarg1, R1
-		// BLT	-2(PC)
-		// arg1 is the end of memory to zero
+		// BLE	-2(PC)
+		// arg1 is the address of the last element to zero
 		// arg2 is known to be zero
-		var sz int64 = 4
-		mov := arm.AMOVW
-		if v.Op == ssa.OpARMLoweredZeroU { // unaligned
+		// auxint is alignment
+		var sz int64
+		var mov obj.As
+		switch {
+		case v.AuxInt%4 == 0:
+			sz = 4
+			mov = arm.AMOVW
+		case v.AuxInt%2 == 0:
+			sz = 2
+			mov = arm.AMOVH
+		default:
 			sz = 1
 			mov = arm.AMOVB
 		}
@@ -858,18 +866,26 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = gc.SSARegNum(v.Args[1])
 		p2.Reg = arm.REG_R1
-		p3 := gc.Prog(arm.ABLT)
+		p3 := gc.Prog(arm.ABLE)
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
-	case ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
+	case ssa.OpARMLoweredMove:
 		// MOVW.P	4(R1), Rtmp
 		// MOVW.P	Rtmp, 4(R2)
 		// CMP	Rarg2, R1
-		// BLT	-3(PC)
-		// arg2 is the end of src
-		var sz int64 = 4
-		mov := arm.AMOVW
-		if v.Op == ssa.OpARMLoweredMoveU { // unaligned
+		// BLE	-3(PC)
+		// arg2 is the address of the last element of src
+		// auxint is alignment
+		var sz int64
+		var mov obj.As
+		switch {
+		case v.AuxInt%4 == 0:
+			sz = 4
+			mov = arm.AMOVW
+		case v.AuxInt%2 == 0:
+			sz = 2
+			mov = arm.AMOVH
+		default:
 			sz = 1
 			mov = arm.AMOVB
 		}
@@ -891,7 +907,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = gc.SSARegNum(v.Args[2])
 		p3.Reg = arm.REG_R1
-		p4 := gc.Prog(arm.ABLT)
+		p4 := gc.Prog(arm.ABLE)
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p)
 	case ssa.OpVarDef:

@@ -302,13 +302,12 @@
 
 // Large zeroing uses a loop
 (Zero [s] ptr mem)
-	&& SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice)
-	&& SizeAndAlign(s).Align()%4 == 0 ->
-	(LoweredZero ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
-
-// Unaligned zeroing uses a loop
-(Zero [s] ptr mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
-	(LoweredZeroU ptr (ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()]) (MOVWconst [0]) mem)
+	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0 ->
+	(LoweredZero [SizeAndAlign(s).Align()]
+		ptr
+		(ADDconst <ptr.Type> ptr [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		(MOVWconst [0])
+		mem)
 
 // moves
 (Move [s] _ _ mem) && SizeAndAlign(s).Size() == 0 -> mem
@@ -343,13 +342,12 @@
 
 // Large move uses a loop
 (Move [s] dst src mem)
-	&& SizeAndAlign(s).Size()%4 == 0 && (SizeAndAlign(s).Size() > 512 || config.noDuffDevice)
-	&& SizeAndAlign(s).Align()%4 == 0 ->
-	(LoweredMove dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
-
-// Unaligned move uses a loop
-(Move [s] dst src mem) && SizeAndAlign(s).Size() > 4 && SizeAndAlign(s).Align()%4 != 0 ->
-	(LoweredMoveU dst src (ADDconst <src.Type> src [SizeAndAlign(s).Size()]) mem)
+	&& (SizeAndAlign(s).Size() > 512 || config.noDuffDevice) || SizeAndAlign(s).Align()%4 != 0 ->
+	(LoweredMove [SizeAndAlign(s).Align()]
+		dst
+		src
+		(ADDconst <src.Type> src [SizeAndAlign(s).Size()-moveSize(SizeAndAlign(s).Align(), config)])
+		mem)
 
 // calls
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
