@@ -389,7 +389,7 @@
 (Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
 	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
 (Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
+	(DUFFZERO [size] destptr (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
