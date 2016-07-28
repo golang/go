@@ -41,6 +41,7 @@ var bootstrapDirs = []string{
 	"compile/internal/s390x",
 	"internal/bio",
 	"internal/gcprog",
+	"internal/dwarf",
 	"internal/obj",
 	"internal/obj/arm",
 	"internal/obj/arm64",
