@@ -64,7 +64,7 @@ func (fd *netFD) name() string {
 	return fd.net + ":" + ls + "->" + rs
 }
 
-func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
+func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (ret error) {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
@@ -101,21 +101,44 @@ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) error {
 		defer fd.setWriteDeadline(noDeadline)
 	}
 
-	// Wait for the goroutine converting context.Done into a write timeout
-	// to exist, otherwise our caller might cancel the context and
-	// cause fd.setWriteDeadline(aLongTimeAgo) to cancel a successful dial.
-	done := make(chan bool) // must be unbuffered
-	defer func() { done <- true }()
-	go func() {
-		select {
-		case <-ctx.Done():
-			// Force the runtime's poller to immediately give
-			// up waiting for writability.
-			fd.setWriteDeadline(aLongTimeAgo)
-			<-done
-		case <-done:
-		}
-	}()
+	// Start the "interrupter" goroutine, if this context might be canceled.
+	// (The background context cannot)
+	//
+	// The interrupter goroutine waits for the context to be done and
+	// interrupts the dial (by altering the fd's write deadline, which
+	// wakes up waitWrite).
+	if ctx != context.Background() {
+		// Wait for the interrupter goroutine to exit before returning
+		// from connect.
+		done := make(chan struct{})
+		interruptRes := make(chan error)
+		defer func() {
+			close(done)
+			if ctxErr := <-interruptRes; ctxErr != nil && ret == nil {
+				// The interrupter goroutine called setWriteDeadline,
+				// but the connect code below had returned from
+				// waitWrite already and did a successful connect (ret
+				// == nil). Because we've now poisoned the connection
+				// by making it unwritable, don't return a successful
+				// dial. This was issue 16523.
+				ret = ctxErr
+				fd.Close() // prevent a leak
+			}
+		}()
+		go func() {
+			select {
+			case <-ctx.Done():
+				// Force the runtime's poller to immediately give up
+				// waiting for writability, unblocking waitWrite
+				// below.
+				fd.setWriteDeadline(aLongTimeAgo)
+				testHookCanceledDial()
+				interruptRes <- ctx.Err()
+			case <-done:
+				interruptRes <- nil
+			}
+		}()
+	}
 
 	for {
 		// Performing multiple connect system calls on a
