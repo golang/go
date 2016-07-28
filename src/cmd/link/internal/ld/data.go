@@ -342,8 +342,14 @@ func relocsym(s *LSym) {
 		if r.Sym != nil && (r.Sym.Type&(obj.SMASK|obj.SHIDDEN) == 0 || r.Sym.Type&obj.SMASK == obj.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
-			if Buildmode == BuildmodeShared && (r.Sym.Name == "main.main" || r.Sym.Name == "main.init") {
-				r.Sym.Type = obj.SDYNIMPORT
+			if Buildmode == BuildmodeShared {
+				if r.Sym.Name == "main.main" || r.Sym.Name == "main.init" {
+					r.Sym.Type = obj.SDYNIMPORT
+				} else if strings.HasPrefix(r.Sym.Name, "go.info.") {
+					// Skip go.info symbols. They are only needed to communicate
+					// DWARF info between the compiler and linker.
+					continue
+				}
 			} else {
 				Diag("%s: not defined", r.Sym.Name)
 				continue

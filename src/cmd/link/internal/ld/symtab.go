@@ -269,6 +269,8 @@ func Asmplan9sym() {
 
 var symt *LSym
 
+var encbuf [10]byte
+
 func Wputb(w uint16) { Cwrite(Append16b(encbuf[:0], w)) }
 func Lputb(l uint32) { Cwrite(Append32b(encbuf[:0], l)) }
 func Vputb(v uint64) { Cwrite(Append64b(encbuf[:0], v)) }

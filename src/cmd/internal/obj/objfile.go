@@ -109,6 +109,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/dwarf"
 	"cmd/internal/sys"
 	"fmt"
 	"log"
@@ -506,3 +507,94 @@ type relocByOff []Reloc
 func (x relocByOff) Len() int           { return len(x) }
 func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
+// implement dwarf.Context
+type dwCtxt struct{ *Link }
+
+func (c dwCtxt) PtrSize() int {
+	return c.Arch.PtrSize
+}
+func (c dwCtxt) AddInt(s dwarf.Sym, size int, i int64) {
+	ls := s.(*LSym)
+	ls.WriteInt(c.Link, ls.Size, size, i)
+}
+func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {
+	ls := s.(*LSym)
+	ls.WriteBytes(c.Link, ls.Size, b)
+}
+func (c dwCtxt) AddString(s dwarf.Sym, v string) {
+	ls := s.(*LSym)
+	ls.WriteString(c.Link, ls.Size, len(v), v)
+	ls.WriteInt(c.Link, ls.Size, 1, 0)
+}
+func (c dwCtxt) SymValue(s dwarf.Sym) int64 {
+	return 0
+}
+func (c dwCtxt) AddAddress(s dwarf.Sym, data interface{}, value int64) {
+	rsym := data.(*LSym)
+	ls := s.(*LSym)
+	size := c.PtrSize()
+	ls.WriteAddr(c.Link, ls.Size, size, rsym, value)
+}
+func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+	ls := s.(*LSym)
+	rsym := t.(*LSym)
+	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
+	r := &ls.R[len(ls.R)-1]
+	r.Type = R_DWARFREF
+}
+
+func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+	dctxt := dwCtxt{ctxt}
+	var dw []*LSym
+
+	for _, s := range text {
+		dsym := Linklookup(ctxt, dwarf.InfoPrefix+s.Name, int(s.Version))
+		if dsym.Size != 0 {
+			continue
+		}
+		dw = append(dw, dsym)
+		dsym.Type = SDWARFINFO
+		dsym.Dupok = s.Dupok
+		var vars dwarf.Var
+		var abbrev int
+		var offs int32
+		for a := s.Autom; a != nil; a = a.Link {
+			switch a.Name {
+			case NAME_AUTO:
+				abbrev = dwarf.DW_ABRV_AUTO
+				offs = a.Aoffset
+				if ctxt.FixedFrameSize() == 0 {
+					offs -= int32(ctxt.Arch.PtrSize)
+				}
+				if Framepointer_enabled(Getgoos(), Getgoarch()) {
+					offs -= int32(ctxt.Arch.PtrSize)
+				}
+
+			case NAME_PARAM:
+				abbrev = dwarf.DW_ABRV_PARAM
+				offs = a.Aoffset + int32(ctxt.FixedFrameSize())
+
+			default:
+				continue
+			}
+			typename := dwarf.InfoPrefix + a.Gotype.Name[len("type."):]
+			dwvar := &dwarf.Var{
+				Name:   a.Asym.Name,
+				Abbrev: abbrev,
+				Offset: int32(offs),
+				Type:   Linklookup(ctxt, typename, 0),
+			}
+			dws := &vars.Link
+			for ; *dws != nil; dws = &(*dws).Link {
+				if offs <= (*dws).Offset {
+					break
+				}
+			}
+			dwvar.Link = *dws
+			*dws = dwvar
+		}
+		dwarf.PutFunc(dctxt, dsym, s.Name, s.Version == 0, s, s.Size, vars.Link)
+	}
+	return dw
+}

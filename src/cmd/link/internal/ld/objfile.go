@@ -111,6 +111,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/internal/bio"
+	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"crypto/sha1"
 	"encoding/base64"
@@ -399,6 +400,37 @@ overwrite:
 			}
 			s.Attr |= AttrOnList
 			r.ctxt.Textp = append(r.ctxt.Textp, s)
+		}
+	}
+	if s.Type == obj.SDWARFINFO {
+		r.patchDWARFName(s)
+	}
+}
+
+func (r *objReader) patchDWARFName(s *LSym) {
+	// This is kind of ugly. Really the package name should not
+	// even be included here.
+	if s.Size < 1 || s.P[0] != dwarf.DW_ABRV_FUNCTION {
+		return
+	}
+	e := bytes.IndexByte(s.P, 0)
+	if e == -1 {
+		return
+	}
+	p := bytes.Index(s.P[:e], emptyPkg)
+	if p == -1 {
+		return
+	}
+	pkgprefix := []byte(r.pkg + ".")
+	patched := bytes.Replace(s.P[:e], emptyPkg, pkgprefix, -1)
+
+	s.P = append(patched, s.P[e:]...)
+	delta := int64(len(s.P)) - s.Size
+	s.Size = int64(len(s.P))
+	for i := range s.R {
+		r := &s.R[i]
+		if r.Off > int32(e) {
+			r.Off += int32(delta)
 		}
 	}
 }

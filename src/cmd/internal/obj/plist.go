@@ -209,6 +209,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 
 	// Add to running list in ctxt.
 	ctxt.Text = append(ctxt.Text, text...)
+	ctxt.Data = append(ctxt.Data, gendwarf(ctxt, text)...)
 	ctxt.Plist = nil
 	ctxt.Plast = nil
 	ctxt.Curp = nil

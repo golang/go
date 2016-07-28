@@ -2,40 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ld
-
-// TODO/NICETOHAVE:
-//   - eliminate DW_CLS_ if not used
-//   - package info in compilation units
-//   - assign global variables and types to their packages
-//   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
-//     ptype struct '[]uint8' and qualifiers need to be quoted away
-//   - lexical scoping is lost, so gdb gets confused as to which 'obj.i' you mean.
-//   - file:line info for variables
-//   - make strings a typedef so prettyprinters can see the underlying string type
-//
-// Copyright 2010 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-/*
- * Emit debug_abbrevs, debug_info and debug_line sections to current
- * offset in cout.
- */
-
-/*
- * Add the dwarf section names to the ELF
- * s[ection]h[eader]str[ing]tab.  Prerequisite for
- * dwarfaddelfheaders().
- */
-
-/*
- * Add section headers pointing to the sections emitted in
- * dwarfemitdebugsections.
- */
-// Copyright 2010 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+package dwarf
 
 // Cut, pasted, tr-and-awk'ed from tables in
 // http://dwarfstd.org/doc/Dwarf3.pdf
