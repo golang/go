@@ -1335,14 +1335,15 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 		OSTRARRAYRUNE,
 		ORUNESTR:
 		if n.Type == nil || n.Type.Sym == nil {
-			fmt.Fprintf(s, "(%v)(%v)", n.Type, n.Left)
-			return
+			fmt.Fprintf(s, "(%v)", n.Type)
+		} else {
+			fmt.Fprintf(s, "%v", n.Type)
 		}
 		if n.Left != nil {
-			fmt.Fprintf(s, "%v(%v)", n.Type, n.Left)
-			return
+			fmt.Fprintf(s, "(%v)", n.Left)
+		} else {
+			fmt.Fprintf(s, "(%.v)", n.List)
 		}
-		fmt.Fprintf(s, "%v(%.v)", n.Type, n.List)
 
 	case OREAL,
 		OIMAG,
