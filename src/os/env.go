@@ -37,7 +37,7 @@ func ExpandEnv(s string) string {
 // shell variable such as $*.
 func isShellSpecialVar(c uint8) bool {
 	switch c {
-	case '*', '#', '$', '@', '!', '?', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+	case '*', '#', '$', '@', '!', '?', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		return true
 	}
 	return false
