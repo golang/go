@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-var good_re = []string{
+var goodRe = []string{
 	``,
 	`.`,
 	`^.$`,
@@ -36,7 +36,7 @@ type stringError struct {
 	err string
 }
 
-var bad_re = []stringError{
+var badRe = []stringError{
 	{`*`, "missing argument to repetition operator: `*`"},
 	{`+`, "missing argument to repetition operator: `+`"},
 	{`?`, "missing argument to repetition operator: `?`"},
@@ -64,14 +64,14 @@ func compileTest(t *testing.T, expr string, error string) *Regexp {
 }
 
 func TestGoodCompile(t *testing.T) {
-	for i := 0; i < len(good_re); i++ {
-		compileTest(t, good_re[i], "")
+	for i := 0; i < len(goodRe); i++ {
+		compileTest(t, goodRe[i], "")
 	}
 }
 
 func TestBadCompile(t *testing.T) {
-	for i := 0; i < len(bad_re); i++ {
-		compileTest(t, bad_re[i].re, bad_re[i].err)
+	for i := 0; i < len(badRe); i++ {
+		compileTest(t, badRe[i].re, badRe[i].err)
 	}
 }
 
@@ -508,6 +508,32 @@ func TestSplit(t *testing.T) {
 			if !reflect.DeepEqual(split, strsplit) {
 				t.Errorf("#%d: Split(%q, %q, %d): regexp vs strings mismatch\nregexp=%q\nstrings=%q", i, test.s, test.r, test.n, split, strsplit)
 			}
+		}
+	}
+}
+
+// The following sequence of Match calls used to panic. See issue #12980.
+func TestParseAndCompile(t *testing.T) {
+	expr := "a$"
+	s := "a\nb"
+
+	for i, tc := range []struct {
+		reFlags  syntax.Flags
+		expMatch bool
+	}{
+		{syntax.Perl | syntax.OneLine, false},
+		{syntax.Perl &^ syntax.OneLine, true},
+	} {
+		parsed, err := syntax.Parse(expr, tc.reFlags)
+		if err != nil {
+			t.Fatalf("%d: parse: %v", i, err)
+		}
+		re, err := Compile(parsed.String())
+		if err != nil {
+			t.Fatalf("%d: compile: %v", i, err)
+		}
+		if match := re.MatchString(s); match != tc.expMatch {
+			t.Errorf("%d: %q.MatchString(%q)=%t; expected=%t", i, re, s, match, tc.expMatch)
 		}
 	}
 }
