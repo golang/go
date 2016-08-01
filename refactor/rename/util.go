@@ -8,6 +8,7 @@ package rename
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 	"os"
 	"path/filepath"
@@ -52,7 +53,7 @@ func isValidIdentifier(id string) bool {
 			return false
 		}
 	}
-	return true
+	return token.Lookup(id) == token.IDENT
 }
 
 // isLocal reports whether obj is local to some function.
