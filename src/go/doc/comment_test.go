@@ -162,6 +162,7 @@ var emphasizeTests = []struct {
 	{"Hello http://example.com/%2f/ /world.", `Hello <a href="http://example.com/%2f/">http://example.com/%2f/</a> /world.`},
 	{"Lorem http: ipsum //host/path", "Lorem http: ipsum //host/path"},
 	{"javascript://is/not/linked", "javascript://is/not/linked"},
+	{"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD", `<a href="http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD">http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD</a>`},
 }
 
 func TestEmphasize(t *testing.T) {

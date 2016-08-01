@@ -53,7 +53,7 @@ const (
 	filePart = `[a-zA-Z0-9_?%#~&/\-+=()]+` // parentheses may not be matching; see pairedParensPrefixLen
 	urlRx    = `(` + protocol + `)://` +   // http://
 		hostPart + `([.:]` + hostPart + `)*/?` + // //www.google.com:8080/
-		filePart + `([:.,]` + filePart + `)*`
+		filePart + `([:.,;]` + filePart + `)*`
 )
 
 var matchRx = regexp.MustCompile(`(` + urlRx + `)|(` + identRx + `)`)
