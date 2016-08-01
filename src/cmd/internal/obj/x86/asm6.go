@@ -855,8 +855,8 @@ var yvex_ri3 = []ytab{
 }
 
 var yvex_xyi3 = []ytab{
-	{Yi8, Yxm, Yxr, Zvex_i_rm_r, 2},
-	{Yi8, Yym, Yyr, Zvex_i_rm_r, 2},
+	{Yu8, Yxm, Yxr, Zvex_i_rm_r, 2},
+	{Yu8, Yym, Yyr, Zvex_i_rm_r, 2},
 }
 
 var yvex_yyi4 = []ytab{ //TODO don't hide 4 op, some version have xmm version
