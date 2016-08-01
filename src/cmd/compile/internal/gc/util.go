@@ -33,6 +33,8 @@ var (
 	cpuprofile     string
 	memprofile     string
 	memprofilerate int64
+	traceprofile   string
+	traceHandler   func(string)
 )
 
 func startProfile() {
@@ -60,5 +62,8 @@ func startProfile() {
 				Fatalf("%v", err)
 			}
 		})
+	}
+	if traceprofile != "" && traceHandler != nil {
+		traceHandler(traceprofile)
 	}
 }
