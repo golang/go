@@ -123,3 +123,6 @@ const unexportedTypedConstant unexportedType = 1 // In a separate section to tes
 // For case matching.
 const CaseMatch = 1
 const Casematch = 2
+
+func ReturnUnexported() unexportedType { return 0 }
+func ReturnExported() ExportedType     { return ExportedType{} }
