@@ -917,6 +917,12 @@ For example, the address on which a request received is
 </p>
 
 <p>
+The server's <a href="/pkg/net/http/#Server.Serve"><code>Serve</code></a> method
+now only enables HTTP/2 support if the <code>Server.TLSConfig</code> field is <code>nil</code>
+or includes <code>"h2"</code> in its <code>TLSConfig.NextProto</code>.
+</p>
+
+<p>
 The server implementation now
 pads response codes less than 100 to three digits
 as required by the protocol,
