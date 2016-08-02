@@ -157,6 +157,7 @@ systime:
 	// Fall back to system call (usually first call in this thread).
 	MOVQ	SP, DI
 	MOVQ	$0, SI
+	MOVQ	$0, DX  // required as of Sierra; Issue 16570
 	MOVL	$(0x2000000+116), AX
 	SYSCALL
 	CMPQ	AX, $0
