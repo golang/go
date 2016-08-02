@@ -66,6 +66,8 @@ type ExportedType struct {
 	*ExportedEmbeddedType     // Comment on line with exported embedded *field.
 	unexportedType            // Comment on line with unexported embedded field.
 	*unexportedType           // Comment on line with unexported embedded *field.
+	io.Reader                 // Comment on line with embedded Reader.
+	error                     // Comment on line with embedded error.
 }
 
 // Comment about exported method.
@@ -96,6 +98,8 @@ type ExportedInterface interface {
 	// Comment before exported method.
 	ExportedMethod()   // Comment on line with exported method.
 	unexportedMethod() // Comment on line with unexported method.
+	io.Reader          // Comment on line with embedded Reader.
+	error              // Comment on line with embedded error.
 }
 
 // Comment about unexported type.
@@ -119,3 +123,6 @@ const unexportedTypedConstant unexportedType = 1 // In a separate section to tes
 // For case matching.
 const CaseMatch = 1
 const Casematch = 2
+
+func ReturnUnexported() unexportedType { return 0 }
+func ReturnExported() ExportedType     { return ExportedType{} }

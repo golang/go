@@ -317,7 +317,9 @@ func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
 		isConstructor = make(map[*doc.Func]bool)
 		for _, typ := range pkg.doc.Types {
 			for _, constructor := range typ.Funcs {
-				isConstructor[constructor] = true
+				if isExported(typ.Name) {
+					isConstructor[constructor] = true
+				}
 			}
 		}
 	}
@@ -494,14 +496,19 @@ func trimUnexportedElems(spec *ast.TypeSpec) {
 	}
 	switch typ := spec.Type.(type) {
 	case *ast.StructType:
-		typ.Fields = trimUnexportedFields(typ.Fields, "fields")
+		typ.Fields = trimUnexportedFields(typ.Fields, false)
 	case *ast.InterfaceType:
-		typ.Methods = trimUnexportedFields(typ.Methods, "methods")
+		typ.Methods = trimUnexportedFields(typ.Methods, true)
 	}
 }
 
 // trimUnexportedFields returns the field list trimmed of unexported fields.
-func trimUnexportedFields(fields *ast.FieldList, what string) *ast.FieldList {
+func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldList {
+	what := "methods"
+	if !isInterface {
+		what = "fields"
+	}
+
 	trimmed := false
 	list := make([]*ast.Field, 0, len(fields.List))
 	for _, field := range fields.List {
@@ -511,12 +518,23 @@ func trimUnexportedFields(fields *ast.FieldList, what string) *ast.FieldList {
 			// Nothing else is allowed.
 			switch ident := field.Type.(type) {
 			case *ast.Ident:
+				if isInterface && ident.Name == "error" && ident.Obj == nil {
+					// For documentation purposes, we consider the builtin error
+					// type special when embedded in an interface, such that it
+					// always gets shown publicly.
+					list = append(list, field)
+					continue
+				}
 				names = []*ast.Ident{ident}
 			case *ast.StarExpr:
 				// Must have the form *identifier.
-				if ident, ok := ident.X.(*ast.Ident); ok {
+				// This is only valid on embedded types in structs.
+				if ident, ok := ident.X.(*ast.Ident); ok && !isInterface {
 					names = []*ast.Ident{ident}
 				}
+			case *ast.SelectorExpr:
+				// An embedded type may refer to a type in another package.
+				names = []*ast.Ident{ident.Sel}
 			}
 			if names == nil {
 				// Can only happen if AST is incorrect. Safe to continue with a nil list.
