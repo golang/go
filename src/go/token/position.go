@@ -446,7 +446,9 @@ func (s *FileSet) File(p Pos) (f *File) {
 func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if f := s.file(p); f != nil {
+			s.mutex.RLock()
 			pos = f.position(p, adjusted)
+			s.mutex.RUnlock()
 		}
 	}
 	return
