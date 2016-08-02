@@ -173,3 +173,13 @@ func TestInvalidUTF8(t *testing.T) {
 		t.Errorf("invalid UTF8 string was accepted")
 	}
 }
+
+func BenchmarkMarshal(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		for _, test := range marshalTests {
+			Marshal(test.in)
+		}
+	}
+}
