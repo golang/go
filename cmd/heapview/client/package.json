@@ -12,10 +12,23 @@
     "If you do have npm installed, use the `npm i` command",
     "in this directory to install the typings."
   ],
-
   "private": true,
-  "dependencies": {
-    "@types/es6-promise": "0.0.28",
-    "@types/whatwg-fetch": "0.0.27"
+  "name": "@golangtools/heapview",
+  "version": "0.0.0",
+  "devDependencies": {
+    "@types/webcomponents.js": "latest",
+    "@types/whatwg-fetch": "latest",
+    "@types/jasmine": "latest",
+
+    "jasmine-core": "latest",
+    "karma": "latest",
+    "karma-jasmine": "latest",
+    "karma-chrome-launcher": "latest",
+
+    "clang-format": "latest"
+  },
+  "scripts": {
+    "test": "karma start testing/karma.conf.js",
+    "format": "find . | grep '\\(test_main\\.js\\|\\.ts\\)$' | xargs clang-format -i"
   }
 }

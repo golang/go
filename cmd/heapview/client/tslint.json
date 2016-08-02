@@ -1,0 +1,40 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This tslint file is based on a configuration used at
+// Google.
+
+{
+  "rules": {
+    "class-name": true,
+    "forin": true,
+    "interface-name": [true, "never-prefix"],
+    "jsdoc-format": true,
+    "label-position": true,
+    "label-undefined": true,
+    "new-parens": true,
+    "no-angle-bracket-type-assertion": true,
+    "no-construct": true,
+    "no-debugger": true,
+    "no-namespace": [true, "allow-declarations"],
+    "no-reference": true,
+    "no-require-imports": true,
+    "no-unused-expression": true,
+    "no-unused-variable": true,
+    "no-use-before-declare": true,
+    "no-var-keyword": true,
+    "semicolon": [true, "always"],
+    "switch-default": true,
+    "triple-equals": [true, "allow-null-check"],
+    "use-isnan": true,
+    "variable-name": [
+      true,
+      "check-format",
+      "ban-keywords",
+      "allow-leading-underscore",
+      "allow-trailing-underscore",
+      "allow-pascal-case"
+    ]
+  }
+}

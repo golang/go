@@ -3,6 +3,5 @@
 // license that can be found in the LICENSE file.
 
 export function main() {
-    document.title = "Go Heap Viewer"; 
-} 
- 
+  document.title = 'Go Heap Viewer';
+}
