@@ -102,6 +102,17 @@ POWER5 architecture.
 The OpenBSD port now requires OpenBSD 5.6 or later, for access to the <a href="http://man.openbsd.org/getentropy.2"><i>getentropy</i>(2)</a> system call.
 </p>
 
+<h3 id="known_issues">Known Issues</h3>
+
+<p>
+There are some instabilities on FreeBSD that are known but not understood.
+These can lead to program crashes in rare cases.
+See <a href="https://golang.org/issue/16136">issue 16136</a>,
+<a href="https://golang.org/issue/15658">issue 15658</a>,
+and <a href="https://golang.org/issue/16396">issue 16396</a>.
+Any help in solving these FreeBSD-specific issues would be appreciated.
+</p>
+
 <h2 id="tools">Tools</h2>
 
 <h3 id="cmd_asm">Assembler</h3>
@@ -903,6 +914,12 @@ and the local address on which the request was received (a
 <a href="/pkg/net/#Addr"><code>Addr</code></a>) using the key <code>LocalAddrContextKey</code>.
 For example, the address on which a request received is
 <code>req.Context().Value(http.LocalAddrContextKey).(net.Addr)</code>.
+</p>
+
+<p>
+The server's <a href="/pkg/net/http/#Server.Serve"><code>Serve</code></a> method
+now only enables HTTP/2 support if the <code>Server.TLSConfig</code> field is <code>nil</code>
+or includes <code>"h2"</code> in its <code>TLSConfig.NextProto</code>.
 </p>
 
 <p>

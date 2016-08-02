@@ -46,15 +46,20 @@ func TestTransportPersistConnReadLoopEOF(t *testing.T) {
 	conn.Close() // simulate the server hanging up on the client
 
 	_, err = pc.roundTrip(treq)
-	if err != errServerClosedConn && err != errServerClosedIdle {
+	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
 		t.Fatalf("roundTrip = %#v, %v; want errServerClosedConn or errServerClosedIdle", err, err)
 	}
 
 	<-pc.closech
 	err = pc.closed
-	if err != errServerClosedConn && err != errServerClosedIdle {
+	if !isTransportReadFromServerError(err) && err != errServerClosedIdle {
 		t.Fatalf("pc.closed = %#v, %v; want errServerClosedConn or errServerClosedIdle", err, err)
 	}
+}
+
+func isTransportReadFromServerError(err error) bool {
+	_, ok := err.(transportReadFromServerError)
+	return ok
 }
 
 func newLocalListener(t *testing.T) net.Listener {

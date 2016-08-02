@@ -85,7 +85,16 @@ const (
 	http2noDialOnMiss = false
 )
 
-func (p *http2clientConnPool) getClientConn(_ *Request, addr string, dialOnMiss bool) (*http2ClientConn, error) {
+func (p *http2clientConnPool) getClientConn(req *Request, addr string, dialOnMiss bool) (*http2ClientConn, error) {
+	if http2isConnectionCloseRequest(req) && dialOnMiss {
+		// It gets its own connection.
+		const singleUse = true
+		cc, err := p.t.dialClientConn(addr, singleUse)
+		if err != nil {
+			return nil, err
+		}
+		return cc, nil
+	}
 	p.mu.Lock()
 	for _, cc := range p.conns[addr] {
 		if cc.CanTakeNewRequest() {
@@ -128,7 +137,8 @@ func (p *http2clientConnPool) getStartDialLocked(addr string) *http2dialCall {
 
 // run in its own goroutine.
 func (c *http2dialCall) dial(addr string) {
-	c.res, c.err = c.p.t.dialClientConn(addr)
+	const singleUse = false // shared conn
+	c.res, c.err = c.p.t.dialClientConn(addr, singleUse)
 	close(c.done)
 
 	c.p.mu.Lock()
@@ -1105,6 +1115,7 @@ func http2parseDataFrame(fh http2FrameHeader, payload []byte) (http2Frame, error
 var (
 	http2errStreamID    = errors.New("invalid stream ID")
 	http2errDepStreamID = errors.New("invalid dependent stream ID")
+	http2errPadLength   = errors.New("pad length too large")
 )
 
 func http2validStreamIDOrZero(streamID uint32) bool {
@@ -1118,18 +1129,40 @@ func http2validStreamID(streamID uint32) bool {
 // WriteData writes a DATA frame.
 //
 // It will perform exactly one Write to the underlying Writer.
-// It is the caller's responsibility to not call other Write methods concurrently.
+// It is the caller's responsibility not to violate the maximum frame size
+// and to not call other Write methods concurrently.
 func (f *http2Framer) WriteData(streamID uint32, endStream bool, data []byte) error {
+	return f.WriteDataPadded(streamID, endStream, data, nil)
+}
 
+// WriteData writes a DATA frame with optional padding.
+//
+// If pad is nil, the padding bit is not sent.
+// The length of pad must not exceed 255 bytes.
+//
+// It will perform exactly one Write to the underlying Writer.
+// It is the caller's responsibility not to violate the maximum frame size
+// and to not call other Write methods concurrently.
+func (f *http2Framer) WriteDataPadded(streamID uint32, endStream bool, data, pad []byte) error {
 	if !http2validStreamID(streamID) && !f.AllowIllegalWrites {
 		return http2errStreamID
+	}
+	if len(pad) > 255 {
+		return http2errPadLength
 	}
 	var flags http2Flags
 	if endStream {
 		flags |= http2FlagDataEndStream
 	}
+	if pad != nil {
+		flags |= http2FlagDataPadded
+	}
 	f.startWrite(http2FrameData, flags, streamID)
+	if pad != nil {
+		f.wbuf = append(f.wbuf, byte(len(pad)))
+	}
 	f.wbuf = append(f.wbuf, data...)
+	f.wbuf = append(f.wbuf, pad...)
 	return f.endWrite()
 }
 
@@ -3803,6 +3836,9 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
 	}
 	delete(sc.streams, st.id)
 	if p := st.body; p != nil {
+
+		sc.sendWindowUpdate(nil, p.Len())
+
 		p.CloseWithError(err)
 	}
 	st.cw.Close()
@@ -3879,36 +3915,51 @@ func (sc *http2serverConn) processSettingInitialWindowSize(val uint32) error {
 
 func (sc *http2serverConn) processData(f *http2DataFrame) error {
 	sc.serveG.check()
+	data := f.Data()
 
 	id := f.Header().StreamID
 	st, ok := sc.streams[id]
 	if !ok || st.state != http2stateOpen || st.gotTrailerHeader {
+
+		if sc.inflow.available() < int32(f.Length) {
+			return http2StreamError{id, http2ErrCodeFlowControl}
+		}
+
+		sc.inflow.take(int32(f.Length))
+		sc.sendWindowUpdate(nil, int(f.Length))
 
 		return http2StreamError{id, http2ErrCodeStreamClosed}
 	}
 	if st.body == nil {
 		panic("internal error: should have a body in this state")
 	}
-	data := f.Data()
 
 	if st.declBodyBytes != -1 && st.bodyBytes+int64(len(data)) > st.declBodyBytes {
 		st.body.CloseWithError(fmt.Errorf("sender tried to send more than declared Content-Length of %d bytes", st.declBodyBytes))
 		return http2StreamError{id, http2ErrCodeStreamClosed}
 	}
-	if len(data) > 0 {
+	if f.Length > 0 {
 
-		if int(st.inflow.available()) < len(data) {
+		if st.inflow.available() < int32(f.Length) {
 			return http2StreamError{id, http2ErrCodeFlowControl}
 		}
-		st.inflow.take(int32(len(data)))
-		wrote, err := st.body.Write(data)
-		if err != nil {
-			return http2StreamError{id, http2ErrCodeStreamClosed}
+		st.inflow.take(int32(f.Length))
+
+		if len(data) > 0 {
+			wrote, err := st.body.Write(data)
+			if err != nil {
+				return http2StreamError{id, http2ErrCodeStreamClosed}
+			}
+			if wrote != len(data) {
+				panic("internal error: bad Writer")
+			}
+			st.bodyBytes += int64(len(data))
 		}
-		if wrote != len(data) {
-			panic("internal error: bad Writer")
+
+		if pad := int32(f.Length) - int32(len(data)); pad > 0 {
+			sc.sendWindowUpdate32(nil, pad)
+			sc.sendWindowUpdate32(st, pad)
 		}
-		st.bodyBytes += int64(len(data))
 	}
 	if f.StreamEnded() {
 		st.endStream()
@@ -4919,27 +4970,29 @@ func (t *http2Transport) initConnPool() {
 // ClientConn is the state of a single HTTP/2 client connection to an
 // HTTP/2 server.
 type http2ClientConn struct {
-	t        *http2Transport
-	tconn    net.Conn             // usually *tls.Conn, except specialized impls
-	tlsState *tls.ConnectionState // nil only for specialized impls
+	t         *http2Transport
+	tconn     net.Conn             // usually *tls.Conn, except specialized impls
+	tlsState  *tls.ConnectionState // nil only for specialized impls
+	singleUse bool                 // whether being used for a single http.Request
 
 	// readLoop goroutine fields:
 	readerDone chan struct{} // closed on error
 	readerErr  error         // set before readerDone is closed
 
-	mu           sync.Mutex // guards following
-	cond         *sync.Cond // hold mu; broadcast on flow/closed changes
-	flow         http2flow  // our conn-level flow control quota (cs.flow is per stream)
-	inflow       http2flow  // peer's conn-level flow control
-	closed       bool
-	goAway       *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
-	goAwayDebug  string                        // goAway frame's debug data, retained as a string
-	streams      map[uint32]*http2clientStream // client-initiated
-	nextStreamID uint32
-	bw           *bufio.Writer
-	br           *bufio.Reader
-	fr           *http2Framer
-	lastActive   time.Time
+	mu              sync.Mutex // guards following
+	cond            *sync.Cond // hold mu; broadcast on flow/closed changes
+	flow            http2flow  // our conn-level flow control quota (cs.flow is per stream)
+	inflow          http2flow  // peer's conn-level flow control
+	closed          bool
+	wantSettingsAck bool                          // we sent a SETTINGS frame and haven't heard back
+	goAway          *http2GoAwayFrame             // if non-nil, the GoAwayFrame we received
+	goAwayDebug     string                        // goAway frame's debug data, retained as a string
+	streams         map[uint32]*http2clientStream // client-initiated
+	nextStreamID    uint32
+	bw              *bufio.Writer
+	br              *bufio.Reader
+	fr              *http2Framer
+	lastActive      time.Time
 
 	// Settings from peer:
 	maxFrameSize         uint32
@@ -5117,7 +5170,7 @@ func http2shouldRetryRequest(req *Request, err error) bool {
 	return err == http2errClientConnUnusable
 }
 
-func (t *http2Transport) dialClientConn(addr string) (*http2ClientConn, error) {
+func (t *http2Transport) dialClientConn(addr string, singleUse bool) (*http2ClientConn, error) {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
@@ -5126,7 +5179,7 @@ func (t *http2Transport) dialClientConn(addr string) (*http2ClientConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return t.NewClientConn(tconn)
+	return t.newClientConn(tconn, singleUse)
 }
 
 func (t *http2Transport) newTLSConfig(host string) *tls.Config {
@@ -5187,12 +5240,12 @@ func (t *http2Transport) expectContinueTimeout() time.Duration {
 }
 
 func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
+	return t.newClientConn(c, false)
+}
+
+func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2ClientConn, error) {
 	if http2VerboseLogs {
 		t.vlogf("http2: Transport creating client conn to %v", c.RemoteAddr())
-	}
-	if _, err := c.Write(http2clientPreface); err != nil {
-		t.vlogf("client preface write error: %v", err)
-		return nil, err
 	}
 
 	cc := &http2ClientConn{
@@ -5204,6 +5257,8 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 		initialWindowSize:    65535,
 		maxConcurrentStreams: 1000,
 		streams:              make(map[uint32]*http2clientStream),
+		singleUse:            singleUse,
+		wantSettingsAck:      true,
 	}
 	cc.cond = sync.NewCond(&cc.mu)
 	cc.flow.add(int32(http2initialWindowSize))
@@ -5228,6 +5283,8 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 	if max := t.maxHeaderListSize(); max != 0 {
 		initialSettings = append(initialSettings, http2Setting{ID: http2SettingMaxHeaderListSize, Val: max})
 	}
+
+	cc.bw.Write(http2clientPreface)
 	cc.fr.WriteSettings(initialSettings...)
 	cc.fr.WriteWindowUpdate(0, http2transportDefaultConnFlow)
 	cc.inflow.add(http2transportDefaultConnFlow + http2initialWindowSize)
@@ -5235,32 +5292,6 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 	if cc.werr != nil {
 		return nil, cc.werr
 	}
-
-	f, err := cc.fr.ReadFrame()
-	if err != nil {
-		return nil, err
-	}
-	sf, ok := f.(*http2SettingsFrame)
-	if !ok {
-		return nil, fmt.Errorf("expected settings frame, got: %T", f)
-	}
-	cc.fr.WriteSettingsAck()
-	cc.bw.Flush()
-
-	sf.ForeachSetting(func(s http2Setting) error {
-		switch s.ID {
-		case http2SettingMaxFrameSize:
-			cc.maxFrameSize = s.Val
-		case http2SettingMaxConcurrentStreams:
-			cc.maxConcurrentStreams = s.Val
-		case http2SettingInitialWindowSize:
-			cc.initialWindowSize = s.Val
-		default:
-
-			t.vlogf("Unhandled Setting: %v", s)
-		}
-		return nil
-	})
 
 	go cc.readLoop()
 	return cc, nil
@@ -5288,6 +5319,9 @@ func (cc *http2ClientConn) CanTakeNewRequest() bool {
 }
 
 func (cc *http2ClientConn) canTakeNewRequestLocked() bool {
+	if cc.singleUse && cc.nextStreamID > 1 {
+		return false
+	}
 	return cc.goAway == nil && !cc.closed &&
 		int64(len(cc.streams)+1) < int64(cc.maxConcurrentStreams) &&
 		cc.nextStreamID < 2147483647
@@ -5494,22 +5528,26 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	bodyWritten := false
 	ctx := http2reqContext(req)
 
+	handleReadLoopResponse := func(re http2resAndError) (*Response, error) {
+		res := re.res
+		if re.err != nil || res.StatusCode > 299 {
+
+			bodyWriter.cancel()
+			cs.abortRequestBodyWrite(http2errStopReqBodyWrite)
+		}
+		if re.err != nil {
+			cc.forgetStreamID(cs.ID)
+			return nil, re.err
+		}
+		res.Request = req
+		res.TLS = cc.tlsState
+		return res, nil
+	}
+
 	for {
 		select {
 		case re := <-readLoopResCh:
-			res := re.res
-			if re.err != nil || res.StatusCode > 299 {
-
-				bodyWriter.cancel()
-				cs.abortRequestBodyWrite(http2errStopReqBodyWrite)
-			}
-			if re.err != nil {
-				cc.forgetStreamID(cs.ID)
-				return nil, re.err
-			}
-			res.Request = req
-			res.TLS = cc.tlsState
-			return res, nil
+			return handleReadLoopResponse(re)
 		case <-respHeaderTimer:
 			cc.forgetStreamID(cs.ID)
 			if !hasBody || bodyWritten {
@@ -5541,6 +5579,12 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 
 			return nil, cs.resetErr
 		case err := <-bodyWriter.resc:
+
+			select {
+			case re := <-readLoopResCh:
+				return handleReadLoopResponse(re)
+			default:
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -5648,26 +5692,24 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
 		}
 	}
 
-	cc.wmu.Lock()
-	if !sentEnd {
-		var trls []byte
-		if hasTrailers {
-			cc.mu.Lock()
-			trls = cc.encodeTrailers(req)
-			cc.mu.Unlock()
-		}
+	var trls []byte
+	if !sentEnd && hasTrailers {
+		cc.mu.Lock()
+		defer cc.mu.Unlock()
+		trls = cc.encodeTrailers(req)
+	}
 
-		if len(trls) > 0 {
-			err = cc.writeHeaders(cs.ID, true, trls)
-		} else {
-			err = cc.fr.WriteData(cs.ID, true, nil)
-		}
+	cc.wmu.Lock()
+	defer cc.wmu.Unlock()
+
+	if len(trls) > 0 {
+		err = cc.writeHeaders(cs.ID, true, trls)
+	} else {
+		err = cc.fr.WriteData(cs.ID, true, nil)
 	}
 	if ferr := cc.bw.Flush(); ferr != nil && err == nil {
 		err = ferr
 	}
-	cc.wmu.Unlock()
-
 	return err
 }
 
@@ -5896,6 +5938,14 @@ func (e http2GoAwayError) Error() string {
 		e.LastStreamID, e.ErrCode, e.DebugData)
 }
 
+func http2isEOFOrNetReadError(err error) bool {
+	if err == io.EOF {
+		return true
+	}
+	ne, ok := err.(*net.OpError)
+	return ok && ne.Op == "read"
+}
+
 func (rl *http2clientConnReadLoop) cleanup() {
 	cc := rl.cc
 	defer cc.tconn.Close()
@@ -5904,16 +5954,14 @@ func (rl *http2clientConnReadLoop) cleanup() {
 
 	err := cc.readerErr
 	cc.mu.Lock()
-	if err == io.EOF {
-		if cc.goAway != nil {
-			err = http2GoAwayError{
-				LastStreamID: cc.goAway.LastStreamID,
-				ErrCode:      cc.goAway.ErrCode,
-				DebugData:    cc.goAwayDebug,
-			}
-		} else {
-			err = io.ErrUnexpectedEOF
+	if cc.goAway != nil && http2isEOFOrNetReadError(err) {
+		err = http2GoAwayError{
+			LastStreamID: cc.goAway.LastStreamID,
+			ErrCode:      cc.goAway.ErrCode,
+			DebugData:    cc.goAwayDebug,
 		}
+	} else if err == io.EOF {
+		err = io.ErrUnexpectedEOF
 	}
 	for _, cs := range rl.activeRes {
 		cs.bufPipe.CloseWithError(err)
@@ -5932,8 +5980,9 @@ func (rl *http2clientConnReadLoop) cleanup() {
 
 func (rl *http2clientConnReadLoop) run() error {
 	cc := rl.cc
-	rl.closeWhenIdle = cc.t.disableKeepAlives()
+	rl.closeWhenIdle = cc.t.disableKeepAlives() || cc.singleUse
 	gotReply := false
+	gotSettings := false
 	for {
 		f, err := cc.fr.ReadFrame()
 		if err != nil {
@@ -5949,6 +5998,13 @@ func (rl *http2clientConnReadLoop) run() error {
 		}
 		if http2VerboseLogs {
 			cc.vlogf("http2: Transport received %s", http2summarizeFrame(f))
+		}
+		if !gotSettings {
+			if _, ok := f.(*http2SettingsFrame); !ok {
+				cc.logf("protocol error: received %T before a SETTINGS frame", f)
+				return http2ConnectionError(http2ErrCodeProtocol)
+			}
+			gotSettings = true
 		}
 		maybeIdle := false
 
@@ -6216,10 +6272,27 @@ var http2errClosedResponseBody = errors.New("http2: response body closed")
 
 func (b http2transportResponseBody) Close() error {
 	cs := b.cs
-	if cs.bufPipe.Err() != io.EOF {
+	cc := cs.cc
 
-		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+	serverSentStreamEnd := cs.bufPipe.Err() == io.EOF
+	unread := cs.bufPipe.Len()
+
+	if unread > 0 || !serverSentStreamEnd {
+		cc.mu.Lock()
+		cc.wmu.Lock()
+		if !serverSentStreamEnd {
+			cc.fr.WriteRSTStream(cs.ID, http2ErrCodeCancel)
+		}
+
+		if unread > 0 {
+			cc.inflow.add(int32(unread))
+			cc.fr.WriteWindowUpdate(0, uint32(unread))
+		}
+		cc.bw.Flush()
+		cc.wmu.Unlock()
+		cc.mu.Unlock()
 	}
+
 	cs.bufPipe.BreakWithError(http2errClosedResponseBody)
 	return nil
 }
@@ -6227,6 +6300,7 @@ func (b http2transportResponseBody) Close() error {
 func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 	cc := rl.cc
 	cs := cc.streamByID(f.StreamID, f.StreamEnded())
+	data := f.Data()
 	if cs == nil {
 		cc.mu.Lock()
 		neverSent := cc.nextStreamID
@@ -6237,27 +6311,49 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 			return http2ConnectionError(http2ErrCodeProtocol)
 		}
 
+		if f.Length > 0 {
+			cc.mu.Lock()
+			cc.inflow.add(int32(f.Length))
+			cc.mu.Unlock()
+
+			cc.wmu.Lock()
+			cc.fr.WriteWindowUpdate(0, uint32(f.Length))
+			cc.bw.Flush()
+			cc.wmu.Unlock()
+		}
 		return nil
 	}
-	if data := f.Data(); len(data) > 0 {
-		if cs.bufPipe.b == nil {
+	if f.Length > 0 {
+		if len(data) > 0 && cs.bufPipe.b == nil {
 
 			cc.logf("http2: Transport received DATA frame for closed stream; closing connection")
 			return http2ConnectionError(http2ErrCodeProtocol)
 		}
 
 		cc.mu.Lock()
-		if cs.inflow.available() >= int32(len(data)) {
-			cs.inflow.take(int32(len(data)))
+		if cs.inflow.available() >= int32(f.Length) {
+			cs.inflow.take(int32(f.Length))
 		} else {
 			cc.mu.Unlock()
 			return http2ConnectionError(http2ErrCodeFlowControl)
 		}
+
+		if pad := int32(f.Length) - int32(len(data)); pad > 0 {
+			cs.inflow.add(pad)
+			cc.inflow.add(pad)
+			cc.wmu.Lock()
+			cc.fr.WriteWindowUpdate(0, uint32(pad))
+			cc.fr.WriteWindowUpdate(cs.ID, uint32(pad))
+			cc.bw.Flush()
+			cc.wmu.Unlock()
+		}
 		cc.mu.Unlock()
 
-		if _, err := cs.bufPipe.Write(data); err != nil {
-			rl.endStreamError(cs, err)
-			return err
+		if len(data) > 0 {
+			if _, err := cs.bufPipe.Write(data); err != nil {
+				rl.endStreamError(cs, err)
+				return err
+			}
 		}
 	}
 
@@ -6282,7 +6378,7 @@ func (rl *http2clientConnReadLoop) endStreamError(cs *http2clientStream, err err
 	}
 	cs.bufPipe.closeWithErrorAndCode(err, code)
 	delete(rl.activeRes, cs.ID)
-	if cs.req.Close || cs.req.Header.Get("Connection") == "close" {
+	if http2isConnectionCloseRequest(cs.req) {
 		rl.closeWhenIdle = true
 	}
 }
@@ -6312,7 +6408,16 @@ func (rl *http2clientConnReadLoop) processSettings(f *http2SettingsFrame) error 
 	cc := rl.cc
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
-	return f.ForeachSetting(func(s http2Setting) error {
+
+	if f.IsAck() {
+		if cc.wantSettingsAck {
+			cc.wantSettingsAck = false
+			return nil
+		}
+		return http2ConnectionError(http2ErrCodeProtocol)
+	}
+
+	err := f.ForeachSetting(func(s http2Setting) error {
 		switch s.ID {
 		case http2SettingMaxFrameSize:
 			cc.maxFrameSize = s.Val
@@ -6327,6 +6432,16 @@ func (rl *http2clientConnReadLoop) processSettings(f *http2SettingsFrame) error 
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	cc.wmu.Lock()
+	defer cc.wmu.Unlock()
+
+	cc.fr.WriteSettingsAck()
+	cc.bw.Flush()
+	return cc.werr
 }
 
 func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame) error {
@@ -6536,6 +6651,12 @@ func (s http2bodyWriterState) scheduleBodyWrite() {
 	if s.timer.Stop() {
 		s.timer.Reset(s.delay)
 	}
+}
+
+// isConnectionCloseRequest reports whether req should use its own
+// connection for a single request and then close the connection.
+func http2isConnectionCloseRequest(req *Request) bool {
+	return req.Close || httplex.HeaderValuesContainsToken(req.Header["Connection"], "close")
 }
 
 // writeFramer is implemented by any type that is used to write frames.

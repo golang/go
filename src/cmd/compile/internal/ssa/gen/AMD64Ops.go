@@ -425,10 +425,10 @@ func init() {
 		{name: "MOVQstoreconstidx1", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ... arg1 ...
 		{name: "MOVQstoreconstidx8", argLength: 3, reg: gpstoreconstidx, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ... 8*arg1 ...
 
-		// arg0 = (duff-adjusted) pointer to start of memory to zero
+		// arg0 = pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)
 		// arg2 = mem
-		// auxint = offset into duffzero code to start executing
+		// auxint = # of bytes to zero
 		// returns mem
 		{
 			name:      "DUFFZERO",
