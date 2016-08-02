@@ -317,7 +317,9 @@ func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
 		isConstructor = make(map[*doc.Func]bool)
 		for _, typ := range pkg.doc.Types {
 			for _, constructor := range typ.Funcs {
-				isConstructor[constructor] = true
+				if isExported(typ.Name) {
+					isConstructor[constructor] = true
+				}
 			}
 		}
 	}

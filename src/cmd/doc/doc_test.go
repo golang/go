@@ -61,6 +61,7 @@ var tests = []test{
 			`var ExportedVariable = 1`,                              // Simple variable.
 			`var VarOne = 1`,                                        // First entry in variable block.
 			`func ExportedFunc\(a int\) bool`,                       // Function.
+			`func ReturnUnexported\(\) unexportedType`,              // Function with unexported return type.
 			`type ExportedType struct { ... }`,                      // Exported type.
 			`const ExportedTypedConstant ExportedType = iota`,       // Typed constant.
 			`const ExportedTypedConstant_unexported unexportedType`, // Typed constant, exported for unexported type.
@@ -89,9 +90,10 @@ var tests = []test{
 		"full package with u",
 		[]string{`-u`, p},
 		[]string{
-			`const ExportedConstant = 1`,      // Simple constant.
-			`const internalConstant = 2`,      // Internal constants.
-			`func internalFunc\(a int\) bool`, // Internal functions.
+			`const ExportedConstant = 1`,               // Simple constant.
+			`const internalConstant = 2`,               // Internal constants.
+			`func internalFunc\(a int\) bool`,          // Internal functions.
+			`func ReturnUnexported\(\) unexportedType`, // Function with unexported return type.
 		},
 		[]string{
 			`Comment about exported constant`,  // No comment for simple constant.
