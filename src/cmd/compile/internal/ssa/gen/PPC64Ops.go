@@ -148,19 +148,47 @@ func init() {
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                        // arg0-arg1
 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
-		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", commutative: true}, // arg0*arg1
-		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", commutative: true}, // arg0*arg1
+
+		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", commutative: true}, // arg0*arg1 (signed 64-bit)
+		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", commutative: true}, // arg0*arg1 (signed 32-bit)
+
+		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},   // (arg0 * arg1) >> 64, signed
+		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
+		{name: "MULHDU", argLength: 2, reg: gp21, asm: "MULHDU", commutative: true}, // (arg0 * arg1) >> 64, unsigned
+		{name: "MULHWU", argLength: 2, reg: gp21, asm: "MULHWU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+
 		{name: "FMUL", argLength: 2, reg: fp21, asm: "FMUL", commutative: true},   // arg0*arg1
 		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true}, // arg0*arg1
-		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},                      // arg0/arg1
-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                    // arg0/arg1
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},     // arg0&arg1
-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"},     // arg0&arg1 ??
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},       // arg0|arg1
-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int32"},       // arg0|arg1 ??
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true},     // arg0^arg1
-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32"},     // arg0|arg1 ??
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                        // ^arg0
+
+		{name: "SRAD", argLength: 2, reg: gp21, asm: "SRAD"}, // arg0 >>a arg1, 64 bits (all sign if arg1 & 64 != 0)
+		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"}, // arg0 >>a arg1, 32 bits (all sign if arg1 & 32 != 0)
+		{name: "SRD", argLength: 2, reg: gp21, asm: "SRD"},   // arg0 >> arg1, 64 bits  (0 if arg1 & 64 != 0)
+		{name: "SRW", argLength: 2, reg: gp21, asm: "SRW"},   // arg0 >> arg1, 32 bits  (0 if arg1 & 32 != 0)
+		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},   // arg0 << arg1, 64 bits  (0 if arg1 & 64 != 0)
+		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},   // arg0 << arg1, 32 bits  (0 if arg1 & 32 != 0)
+
+		{name: "ADDIforC", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
+		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                                   // carry - 1 (if carry then 0 else -1)
+
+		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // arg0 >>a aux, 64 bits
+		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // arg0 >>a aux, 32 bits
+		{name: "SRDconst", argLength: 1, reg: gp11, asm: "SRD", aux: "Int64"},   // arg0 >> aux, 64 bits
+		{name: "SRWconst", argLength: 1, reg: gp11, asm: "SRW", aux: "Int64"},   // arg0 >> aux, 32 bits
+		{name: "SLDconst", argLength: 1, reg: gp11, asm: "SLD", aux: "Int64"},   // arg0 << aux, 64 bits
+		{name: "SLWconst", argLength: 1, reg: gp11, asm: "SLW", aux: "Int64"},   // arg0 << aux, 32 bits
+
+		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
+		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
+
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0&arg1
+		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                  // arg0&^arg1
+		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64"}, // arg0&arg1 ??
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},   // arg0|arg1
+		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0|^arg1
+		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},   // arg0|arg1 ??
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0^arg1
+		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"}, // arg0|arg1 ??
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
 
 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},                                    // sign extend int8 to int64
 		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ"},                                  // zero extend uint8 to uint64
@@ -202,15 +230,18 @@ func init() {
 		{name: "CMPU", argLength: 2, reg: gp2cr, asm: "CMPU", typ: "Flags"},   // arg0 compare to arg1
 		{name: "CMPW", argLength: 2, reg: gp2cr, asm: "CMPW", typ: "Flags"},   // arg0 compare to arg1
 		{name: "CMPWU", argLength: 2, reg: gp2cr, asm: "CMPWU", typ: "Flags"}, // arg0 compare to arg1
-		{name: "CMPconst", argLength: 1, reg: gp1cr, asm: "CMP", aux: "Int32", typ: "Flags"},
+		{name: "CMPconst", argLength: 1, reg: gp1cr, asm: "CMP", aux: "Int64", typ: "Flags"},
+		{name: "CMPUconst", argLength: 1, reg: gp1cr, asm: "CMPU", aux: "Int64", typ: "Flags"},
+		{name: "CMPWconst", argLength: 1, reg: gp1cr, asm: "CMPW", aux: "Int32", typ: "Flags"},
+		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
 		// pseudo-ops
 		{name: "Equal", argLength: 1, reg: crgp},        // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: crgp},     // bool, true flags encode x!=y false otherwise.
-		{name: "LessThan", argLength: 1, reg: crgp},     // bool, true flags encode signed x<y false otherwise.
-		{name: "LessEqual", argLength: 1, reg: crgp},    // bool, true flags encode signed x<=y false otherwise.
-		{name: "GreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode signed x>y false otherwise.
-		{name: "GreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode signed x>=y false otherwise.
+		{name: "LessThan", argLength: 1, reg: crgp},     // bool, true flags encode  x<y false otherwise.
+		{name: "LessEqual", argLength: 1, reg: crgp},    // bool, true flags encode  x<=y false otherwise.
+		{name: "GreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode  x>y false otherwise.
+		{name: "GreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode  x>=y false otherwise.
 
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
@@ -271,6 +302,27 @@ func init() {
 			},
 			typ: "Mem",
 		},
+
+		// (InvertFlags (CMP a b)) == (CMP b a)
+		// So if we want (LessThan (CMP a b)) but we can't do that because a is a constant,
+		// then we do (LessThan (InvertFlags (CMP b a))) instead.
+		// Rewrites will convert this to (GreaterThan (CMP b a)).
+		// InvertFlags is a pseudo-op which can't appear in assembly output.
+		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
+
+		// Constant flag values. For any comparison, there are 3 possible
+		// outcomes: either the three from the signed total order (<,==,>)
+		// or the three from the unsigned total order, depending on which
+		// comparison operation was used (CMP or CMPU -- PPC is different from
+		// the other architectures, which have a single comparison producing
+		// both signed and unsigned comparison results.)
+
+		// These ops are for temporary use by rewrite rules. They
+		// cannot appear in the generated assembly.
+		{name: "FlagEQ"}, // equal
+		{name: "FlagLT"}, // signed < or unsigned <
+		{name: "FlagGT"}, // signed > or unsigned >
+
 	}
 
 	blocks := []blockData{
@@ -295,6 +347,7 @@ func init() {
 		regnames:        regNamesPPC64,
 		gpregmask:       gp,
 		fpregmask:       fp,
+		flagmask:        cr,
 		framepointerreg: int8(num["SP"]),
 	})
 }

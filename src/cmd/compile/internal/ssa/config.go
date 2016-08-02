@@ -181,6 +181,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersPPC64[:]
 		c.gpRegMask = gpRegMaskPPC64
 		c.fpRegMask = fpRegMaskPPC64
+		c.flagRegMask = flagRegMaskPPC64
 		c.FPReg = framepointerRegPPC64
 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
 		c.hasGReg = true

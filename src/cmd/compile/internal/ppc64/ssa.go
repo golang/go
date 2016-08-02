@@ -102,6 +102,14 @@ var condBits = map[ssa.Op]uint8{
 	ssa.OpPPC64GreaterThan:  ppc64.C_COND_GT,
 	ssa.OpPPC64LessEqual:    ppc64.C_COND_GT,
 }
+var condOps = map[ssa.Op]obj.As{
+	ssa.OpPPC64Equal:        ppc64.ABEQ,
+	ssa.OpPPC64NotEqual:     ppc64.ABNE,
+	ssa.OpPPC64LessThan:     ppc64.ABLT,
+	ssa.OpPPC64GreaterEqual: ppc64.ABGE,
+	ssa.OpPPC64GreaterThan:  ppc64.ABGT,
+	ssa.OpPPC64LessEqual:    ppc64.ABLE,
+}
 
 // Is the condition bit set? 1=yes 0=no
 var condBitSet = map[ssa.Op]uint8{
@@ -198,7 +206,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		} else {
 			p.To.Name = obj.NAME_AUTO
 		}
-	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS, ssa.OpPPC64MULLD, ssa.OpPPC64MULLW, ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64XOR:
+
+	case ssa.OpPPC64ADD, ssa.OpPPC64FADD, ssa.OpPPC64FADDS, ssa.OpPPC64SUB, ssa.OpPPC64FSUB, ssa.OpPPC64FSUBS,
+		ssa.OpPPC64MULLD, ssa.OpPPC64MULLW,
+		ssa.OpPPC64SRAD, ssa.OpPPC64SRAW, ssa.OpPPC64SRD, ssa.OpPPC64SRW, ssa.OpPPC64SLD, ssa.OpPPC64SLW,
+		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
+		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS,
+		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64XOR:
 		r := gc.SSARegNum(v)
 		r1 := gc.SSARegNum(v.Args[0])
 		r2 := gc.SSARegNum(v.Args[1])
@@ -208,6 +222,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+
+	case ssa.OpPPC64MaskIfNotCarry:
+		r := gc.SSARegNum(v)
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = ppc64.REGZERO
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
+	case ssa.OpPPC64ADDIforC:
+		r1 := gc.SSARegNum(v.Args[0])
+		p := gc.Prog(v.Op.Asm())
+		p.Reg = r1
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
+
 	case ssa.OpPPC64NEG:
 		r := gc.SSARegNum(v)
 		p := gc.Prog(v.Op.Asm())
@@ -216,7 +248,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpPPC64ADDconst, ssa.OpPPC64ANDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst:
+
+	case ssa.OpPPC64ADDconst, ssa.OpPPC64ANDconst, ssa.OpPPC64ORconst, ssa.OpPPC64XORconst,
+		ssa.OpPPC64SRADconst, ssa.OpPPC64SRAWconst, ssa.OpPPC64SRDconst, ssa.OpPPC64SRWconst, ssa.OpPPC64SLDconst, ssa.OpPPC64SLWconst:
 		p := gc.Prog(v.Op.Asm())
 		p.Reg = gc.SSARegNum(v.Args[0])
 		if v.Aux != nil {
@@ -275,7 +309,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v.Args[1])
 
-	case ssa.OpPPC64CMPconst:
+	case ssa.OpPPC64CMPconst, ssa.OpPPC64CMPUconst, ssa.OpPPC64CMPWconst, ssa.OpPPC64CMPWUconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
@@ -328,6 +362,48 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
 
+	case ssa.OpPPC64Equal,
+		ssa.OpPPC64NotEqual,
+		ssa.OpPPC64LessThan,
+		ssa.OpPPC64LessEqual,
+		ssa.OpPPC64GreaterThan,
+		ssa.OpPPC64GreaterEqual:
+		// On Power7 or later, can use isel instruction:
+		// for a < b, a > b, a = b:
+		//   rt := 1
+		//   isel rt,rt,r0,cond
+
+		// for  a >= b, a <= b, a != b:
+		//   rt := 1
+		//   isel rt,0,rt,!cond
+
+		// However, PPCbe support is for older machines than that,
+		// and isel (which looks a lot like fsel) isn't recognized
+		// yet by the Go assembler.  So for now, use the old instruction
+		// sequence, which we'll need anyway.
+		// TODO: add support for isel on PPCle and use it.
+
+		// generate boolean values
+		// use conditional move
+
+		p := gc.Prog(ppc64.AMOVW)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
+		pb := gc.Prog(condOps[v.Op])
+		pb.To.Type = obj.TYPE_BRANCH
+
+		p = gc.Prog(ppc64.AMOVW)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
+		p = gc.Prog(obj.ANOP)
+		gc.Patch(pb, p)
+
 	case ssa.OpPPC64LoweredZero:
 		// Similar to how this is done on ARM,
 		// except that PPC MOVDU x,off(y) is *(y+off) = x; y=y+off
@@ -341,7 +417,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		//
 		// ADD    -8,R3,R3
 		// MOVDU  R0, 8(R3)
-		// CMP	  Rarg1, R3
+		// CMP	  R3, Rarg1
 		// BL	  -2(PC)
 		// arg1 is the address of the last element to zero
 		// auxint is alignment
@@ -375,11 +451,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Offset = sz
-		p2 := gc.Prog(ppc64.ACMP)
+
+		p2 := gc.Prog(ppc64.ACMPU)
 		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = gc.SSARegNum(v.Args[1])
-		p2.To.Reg = ppc64.REG_R3
+		p2.From.Reg = gc.SSARegNum(v.Args[0])
+		p2.To.Reg = gc.SSARegNum(v.Args[1])
 		p2.To.Type = obj.TYPE_REG
+
 		p3 := gc.Prog(ppc64.ABLT)
 		p3.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p3, p)
@@ -396,7 +474,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// ADD    -8,R4,R4
 		// MOVDU	8(R4), Rtmp
 		// MOVDU 	Rtmp, 8(R3)
-		// CMP	Rarg2, R4
+		// CMP	R4, Rarg2
 		// BL	-3(PC)
 		// arg2 is the address of the last element of src
 		// auxint is alignment
@@ -527,13 +605,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		gc.Gvarlive(n)
 
-	case ssa.OpPPC64Equal,
-		ssa.OpPPC64NotEqual,
-		ssa.OpPPC64LessThan,
-		ssa.OpPPC64LessEqual,
-		ssa.OpPPC64GreaterThan,
-		ssa.OpPPC64GreaterEqual:
-		v.Fatalf("pseudo-op made it to output: %s", v.LongString())
 	case ssa.OpPhi:
 		// just check to make sure regalloc and stackalloc did it right
 		if v.Type.IsMemory() {
@@ -566,10 +637,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// 		v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
 		// 	}
 		// 	switch w.Op {
-		// 	case ssa.OpARMMOVBload, ssa.OpARMMOVBUload, ssa.OpARMMOVHload, ssa.OpARMMOVHUload,
-		// 		ssa.OpARMMOVWload, ssa.OpARMMOVFload, ssa.OpARMMOVDload,
-		// 		ssa.OpARMMOVBstore, ssa.OpARMMOVHstore, ssa.OpARMMOVWstore,
-		// 		ssa.OpARMMOVFstore, ssa.OpARMMOVDstore:
+		// 	case ssa.OpPPC64MOVBload, ssa.OpPPC64MOVBUload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVHUload,
+		// 		ssa.OpPPC64MOVWload, ssa.OpPPC64MOVFload, ssa.OpPPC64MOVDload,
+		// 		ssa.OpPPC64MOVBstore, ssa.OpPPC64MOVHstore, ssa.OpPPC64MOVWstore,
+		// 		ssa.OpPPC64MOVFstore, ssa.OpPPC64MOVDstore:
 		// 		// arg0 is ptr, auxint is offset
 		// 		if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -577,7 +648,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// 			}
 		// 			return
 		// 		}
-		// 	case ssa.OpARMDUFFZERO, ssa.OpARMLoweredZero, ssa.OpARMLoweredZeroU:
+		// 	case ssa.OpPPC64DUFFZERO, ssa.OpPPC64LoweredZero, ssa.OpPPC64LoweredZeroU:
 		// 		// arg0 is ptr
 		// 		if w.Args[0] == v.Args[0] {
 		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -585,7 +656,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// 			}
 		// 			return
 		// 		}
-		// 	case ssa.OpARMDUFFCOPY, ssa.OpARMLoweredMove, ssa.OpARMLoweredMoveU:
+		// 	case ssa.OpPPC64DUFFCOPY, ssa.OpPPC64LoweredMove, ssa.OpPPC64LoweredMoveU:
 		// 		// arg0 is dst ptr, arg1 is src ptr
 		// 		if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
 		// 			if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -615,6 +686,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
+
+	case ssa.OpPPC64InvertFlags:
+		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
+		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
 
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())

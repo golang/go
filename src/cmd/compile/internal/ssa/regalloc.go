@@ -336,11 +336,11 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 // allocReg chooses a register from the set of registers in mask.
 // If there is no unused register, a Value will be kicked out of
 // a register to make room.
-func (s *regAllocState) allocReg(mask regMask) register {
+func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	mask &= s.allocatable
 	mask &^= s.nospill
 	if mask == 0 {
-		s.f.Fatalf("no register available")
+		s.f.Fatalf("no register available for %s", v)
 	}
 
 	// Pick an unused register if one is available.
@@ -401,7 +401,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
 	}
 
 	// Allocate a register.
-	r := s.allocReg(mask)
+	r := s.allocReg(mask, v)
 
 	// Allocate v to the new register.
 	var c *Value
@@ -1220,7 +1220,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					if mask&^desired.avoid != 0 {
 						mask &^= desired.avoid
 					}
-					r := s.allocReg(mask)
+					r := s.allocReg(mask, v)
 					outRegs[out.idx] = r
 					used |= regMask(1) << r
 				}
