@@ -3511,6 +3511,45 @@ func TestTransportIdleConnTimeout(t *testing.T) {
 	}
 }
 
+type funcConn struct {
+	net.Conn
+	read  func([]byte) (int, error)
+	write func([]byte) (int, error)
+}
+
+func (c funcConn) Read(p []byte) (int, error)  { return c.read(p) }
+func (c funcConn) Write(p []byte) (int, error) { return c.write(p) }
+func (c funcConn) Close() error                { return nil }
+
+// Issue 16465: Transport.RoundTrip should return the raw net.Conn.Read error from Peek
+// back to the caller.
+func TestTransportReturnsPeekError(t *testing.T) {
+	errValue := errors.New("specific error value")
+
+	wrote := make(chan struct{})
+	var wroteOnce sync.Once
+
+	tr := &Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			c := funcConn{
+				read: func([]byte) (int, error) {
+					<-wrote
+					return 0, errValue
+				},
+				write: func(p []byte) (int, error) {
+					wroteOnce.Do(func() { close(wrote) })
+					return len(p), nil
+				},
+			}
+			return c, nil
+		},
+	}
+	_, err := tr.RoundTrip(httptest.NewRequest("GET", "http://fake.tld/", nil))
+	if err != errValue {
+		t.Errorf("error = %#v; want %v", err, errValue)
+	}
+}
+
 var errFakeRoundTrip = errors.New("fake roundtrip")
 
 type funcRoundTripper func()
