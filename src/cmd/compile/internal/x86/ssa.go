@@ -653,15 +653,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// See the comments in cmd/internal/obj/x86/obj6.go
 		// near CanUse1InsnTLS for a detailed explanation of these instructions.
 		if x86.CanUse1InsnTLS(gc.Ctxt) {
-			// MOVQ (TLS), r
+			// MOVL (TLS), r
 			p := gc.Prog(x86.AMOVL)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = x86.REG_TLS
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		} else {
-			// MOVQ TLS, r
-			// MOVQ (r)(TLS*1), r
+			// MOVL TLS, r
+			// MOVL (r)(TLS*1), r
 			p := gc.Prog(x86.AMOVL)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x86.REG_TLS
