@@ -194,66 +194,176 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 	}
 }
 
-var formatBuf bytes.Buffer // Reusable to avoid allocation.
-
-// formatNode is a helper function for printing.
-func (pkg *Package) formatNode(node ast.Node) []byte {
-	formatBuf.Reset()
-	format.Node(&formatBuf, pkg.fs, node)
-	return formatBuf.Bytes()
+// oneLineNode returns a one-line summary of the given input node.
+func (pkg *Package) oneLineNode(node ast.Node) string {
+	const maxDepth = 10
+	return pkg.oneLineNodeDepth(node, maxDepth)
 }
 
-// oneLineFunc prints a function declaration as a single line.
-func (pkg *Package) oneLineFunc(decl *ast.FuncDecl) {
-	decl.Doc = nil
-	decl.Body = nil
-	pkg.emit("", decl)
-}
-
-// oneLineValueGenDecl prints a var or const declaration as a single line.
-func (pkg *Package) oneLineValueGenDecl(prefix string, decl *ast.GenDecl) {
-	decl.Doc = nil
-	dotDotDot := ""
-	if len(decl.Specs) > 1 {
-		dotDotDot = " ..."
+// oneLineNodeDepth returns a one-line summary of the given input node.
+// The depth specifies the maximum depth when traversing the AST.
+func (pkg *Package) oneLineNodeDepth(node ast.Node, depth int) string {
+	const dotDotDot = "..."
+	if depth == 0 {
+		return dotDotDot
 	}
-	// Find the first relevant spec.
-	typ := ""
-	for i, spec := range decl.Specs {
-		valueSpec := spec.(*ast.ValueSpec) // Must succeed; we can't mix types in one genDecl.
+	depth--
 
-		// The type name may carry over from a previous specification in the
-		// case of constants and iota.
-		if valueSpec.Type != nil {
-			typ = fmt.Sprintf(" %s", pkg.formatNode(valueSpec.Type))
-		} else if len(valueSpec.Values) > 0 {
-			typ = ""
+	switch n := node.(type) {
+	case nil:
+		return ""
+
+	case *ast.GenDecl:
+		// Formats const and var declarations.
+		trailer := ""
+		if len(n.Specs) > 1 {
+			trailer = " " + dotDotDot
 		}
 
-		if !isExported(valueSpec.Names[0].Name) {
-			continue
-		}
-		val := ""
-		if i < len(valueSpec.Values) && valueSpec.Values[i] != nil {
-			val = fmt.Sprintf(" = %s", pkg.formatNode(valueSpec.Values[i]))
-		}
-		pkg.Printf("%s%s %s%s%s%s\n", prefix, decl.Tok, valueSpec.Names[0], typ, val, dotDotDot)
-		break
-	}
-}
+		// Find the first relevant spec.
+		typ := ""
+		for i, spec := range n.Specs {
+			valueSpec := spec.(*ast.ValueSpec) // Must succeed; we can't mix types in one GenDecl.
 
-// oneLineTypeDecl prints a type declaration as a single line.
-func (pkg *Package) oneLineTypeDecl(spec *ast.TypeSpec) {
-	spec.Doc = nil
-	spec.Comment = nil
-	switch spec.Type.(type) {
-	case *ast.InterfaceType:
-		pkg.Printf("type %s interface { ... }\n", spec.Name)
+			// The type name may carry over from a previous specification in the
+			// case of constants and iota.
+			if valueSpec.Type != nil {
+				typ = fmt.Sprintf(" %s", pkg.oneLineNodeDepth(valueSpec.Type, depth))
+			} else if len(valueSpec.Values) > 0 {
+				typ = ""
+			}
+
+			if !isExported(valueSpec.Names[0].Name) {
+				continue
+			}
+			val := ""
+			if i < len(valueSpec.Values) && valueSpec.Values[i] != nil {
+				val = fmt.Sprintf(" = %s", pkg.oneLineNodeDepth(valueSpec.Values[i], depth))
+			}
+			return fmt.Sprintf("%s %s%s%s%s", n.Tok, valueSpec.Names[0], typ, val, trailer)
+		}
+		return ""
+
+	case *ast.FuncDecl:
+		// Formats func declarations.
+		name := n.Name.Name
+		recv := pkg.oneLineNodeDepth(n.Recv, depth)
+		if len(recv) > 0 {
+			recv = "(" + recv + ") "
+		}
+		fnc := pkg.oneLineNodeDepth(n.Type, depth)
+		if strings.Index(fnc, "func") == 0 {
+			fnc = fnc[4:]
+		}
+		return fmt.Sprintf("func %s%s%s", recv, name, fnc)
+
+	case *ast.TypeSpec:
+		return fmt.Sprintf("type %s %s", n.Name.Name, pkg.oneLineNodeDepth(n.Type, depth))
+
+	case *ast.FuncType:
+		var params []string
+		if n.Params != nil {
+			for _, field := range n.Params.List {
+				params = append(params, pkg.oneLineField(field, depth))
+			}
+		}
+		needParens := false
+		var results []string
+		if n.Results != nil {
+			needParens = needParens || len(n.Results.List) > 1
+			for _, field := range n.Results.List {
+				needParens = needParens || len(field.Names) > 0
+				results = append(results, pkg.oneLineField(field, depth))
+			}
+		}
+
+		param := strings.Join(params, ", ")
+		if len(results) == 0 {
+			return fmt.Sprintf("func(%s)", param)
+		}
+		result := strings.Join(results, ", ")
+		if !needParens {
+			return fmt.Sprintf("func(%s) %s", param, result)
+		}
+		return fmt.Sprintf("func(%s) (%s)", param, result)
+
 	case *ast.StructType:
-		pkg.Printf("type %s struct { ... }\n", spec.Name)
+		if n.Fields == nil || len(n.Fields.List) == 0 {
+			return "struct{}"
+		}
+		return "struct{ ... }"
+
+	case *ast.InterfaceType:
+		if n.Methods == nil || len(n.Methods.List) == 0 {
+			return "interface{}"
+		}
+		return "interface{ ... }"
+
+	case *ast.FieldList:
+		if n == nil || len(n.List) == 0 {
+			return ""
+		}
+		if len(n.List) == 1 {
+			return pkg.oneLineField(n.List[0], depth)
+		}
+		return dotDotDot
+
+	case *ast.FuncLit:
+		return pkg.oneLineNodeDepth(n.Type, depth) + " { ... }"
+
+	case *ast.CompositeLit:
+		typ := pkg.oneLineNodeDepth(n.Type, depth)
+		if len(n.Elts) == 0 {
+			return fmt.Sprintf("%s{}", typ)
+		}
+		return fmt.Sprintf("%s{ %s }", typ, dotDotDot)
+
+	case *ast.ArrayType:
+		length := pkg.oneLineNodeDepth(n.Len, depth)
+		element := pkg.oneLineNodeDepth(n.Elt, depth)
+		return fmt.Sprintf("[%s]%s", length, element)
+
+	case *ast.MapType:
+		key := pkg.oneLineNodeDepth(n.Key, depth)
+		value := pkg.oneLineNodeDepth(n.Value, depth)
+		return fmt.Sprintf("map[%s]%s", key, value)
+
+	case *ast.CallExpr:
+		fnc := pkg.oneLineNodeDepth(n.Fun, depth)
+		var args []string
+		for _, arg := range n.Args {
+			args = append(args, pkg.oneLineNodeDepth(arg, depth))
+		}
+		return fmt.Sprintf("%s(%s)", fnc, strings.Join(args, ", "))
+
+	case *ast.UnaryExpr:
+		return fmt.Sprintf("%s%s", n.Op, pkg.oneLineNodeDepth(n.X, depth))
+
+	case *ast.Ident:
+		return n.Name
+
 	default:
-		pkg.Printf("type %s %s\n", spec.Name, pkg.formatNode(spec.Type))
+		// As a fallback, use default formatter for all unknown node types.
+		buf := new(bytes.Buffer)
+		format.Node(buf, pkg.fs, node)
+		s := buf.String()
+		if strings.Contains(s, "\n") {
+			return dotDotDot
+		}
+		return s
 	}
+}
+
+// oneLineField returns a one-line summary of the field.
+func (pkg *Package) oneLineField(field *ast.Field, depth int) string {
+	var names []string
+	for _, name := range field.Names {
+		names = append(names, name.Name)
+	}
+	if len(names) == 0 {
+		return pkg.oneLineNodeDepth(field.Type, depth)
+	}
+	return strings.Join(names, ", ") + " " + pkg.oneLineNodeDepth(field.Type, depth)
 }
 
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
@@ -329,7 +439,9 @@ func (pkg *Package) valueSummary(values []*doc.Value, showGrouped bool) {
 
 	for _, value := range values {
 		if !isGrouped[value] {
-			pkg.oneLineValueGenDecl("", value.Decl)
+			if decl := pkg.oneLineNode(value.Decl); decl != "" {
+				pkg.Printf("%s\n", decl)
+			}
 		}
 	}
 }
@@ -342,20 +454,18 @@ func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
 	if !showConstructors {
 		isConstructor = make(map[*doc.Func]bool)
 		for _, typ := range pkg.doc.Types {
-			if !isExported(typ.Name) {
-				continue
-			}
-			for _, f := range typ.Funcs {
-				isConstructor[f] = true
+			if isExported(typ.Name) {
+				for _, f := range typ.Funcs {
+					isConstructor[f] = true
+				}
 			}
 		}
 	}
 	for _, fun := range funcs {
-		decl := fun.Decl
 		// Exported functions only. The go/doc package does not include methods here.
 		if isExported(fun.Name) {
 			if !isConstructor[fun] {
-				pkg.oneLineFunc(decl)
+				pkg.Printf("%s\n", pkg.oneLineNode(fun.Decl))
 			}
 		}
 	}
@@ -367,18 +477,21 @@ func (pkg *Package) typeSummary() {
 		for _, spec := range typ.Decl.Specs {
 			typeSpec := spec.(*ast.TypeSpec) // Must succeed.
 			if isExported(typeSpec.Name.Name) {
-				pkg.oneLineTypeDecl(typeSpec)
+				pkg.Printf("%s\n", pkg.oneLineNode(typeSpec))
 				// Now print the consts, vars, and constructors.
 				for _, c := range typ.Consts {
-					pkg.oneLineValueGenDecl(indent, c.Decl)
+					if decl := pkg.oneLineNode(c.Decl); decl != "" {
+						pkg.Printf(indent+"%s\n", decl)
+					}
 				}
 				for _, v := range typ.Vars {
-					pkg.oneLineValueGenDecl(indent, v.Decl)
+					if decl := pkg.oneLineNode(v.Decl); decl != "" {
+						pkg.Printf(indent+"%s\n", decl)
+					}
 				}
 				for _, constructor := range typ.Funcs {
 					if isExported(constructor.Name) {
-						pkg.Printf(indent)
-						pkg.oneLineFunc(constructor.Decl)
+						pkg.Printf(indent+"%s\n", pkg.oneLineNode(constructor.Decl))
 					}
 				}
 			}
@@ -486,7 +599,7 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 						// This a standalone identifier, as in the case of iota usage.
 						// Thus, assume the type comes from the previous type.
 						vspec.Type = &ast.Ident{
-							Name:    string(pkg.formatNode(typ)),
+							Name:    string(pkg.oneLineNode(typ)),
 							NamePos: vspec.End() - 1,
 						}
 					}

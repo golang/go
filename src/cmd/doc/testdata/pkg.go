@@ -127,6 +127,36 @@ const Casematch = 2
 func ReturnUnexported() unexportedType { return 0 }
 func ReturnExported() ExportedType     { return ExportedType{} }
 
+const MultiLineConst = `
+	MultiLineString1
+	MultiLineString2
+	MultiLineString3
+`
+
+func MultiLineFunc(x interface {
+	MultiLineMethod1() int
+	MultiLineMethod2() int
+	MultiLineMethod3() int
+}) (r struct {
+	MultiLineField1 int
+	MultiLineField2 int
+	MultiLineField3 int
+}) {
+	return r
+}
+
+var MultiLineVar = map[struct {
+	MultiLineField1 string
+	MultiLineField2 uint64
+}]struct {
+	MultiLineField3 error
+	MultiLineField2 error
+}{
+	{"FieldVal1", 1}: {},
+	{"FieldVal2", 2}: {},
+	{"FieldVal3", 3}: {},
+}
+
 const (
 	_, _ uint64 = 2 * iota, 1 << iota
 	constLeft1, constRight1
