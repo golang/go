@@ -55,21 +55,37 @@ func gentext() {
 		return
 	}
 
-	thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0)
-	thunkfunc.Type = obj.STEXT
-	thunkfunc.Attr |= ld.AttrLocal
-	thunkfunc.Attr |= ld.AttrReachable
-	o := func(op ...uint8) {
-		for _, op1 := range op {
-			ld.Adduint8(ld.Ctxt, thunkfunc, op1)
+	// Generate little thunks that load the PC of the next instruction into a register.
+	for _, r := range [...]struct {
+		name string
+		num  uint8
+	}{
+		{"ax", 0},
+		{"cx", 1},
+		{"dx", 2},
+		{"bx", 3},
+		// sp
+		{"bp", 5},
+		{"si", 6},
+		{"di", 7},
+	} {
+		thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk."+r.name, 0)
+		thunkfunc.Type = obj.STEXT
+		thunkfunc.Attr |= ld.AttrLocal
+		thunkfunc.Attr |= ld.AttrReachable //TODO: remove?
+		o := func(op ...uint8) {
+			for _, op1 := range op {
+				ld.Adduint8(ld.Ctxt, thunkfunc, op1)
+			}
 		}
-	}
-	// 8b 0c 24	mov    (%esp),%ecx
-	o(0x8b, 0x0c, 0x24)
-	// c3		ret
-	o(0xc3)
+		// 8b 04 24	mov    (%esp),%eax
+		// Destination register is in bits 3-5 of the middle byte, so add that in.
+		o(0x8b, 0x04+r.num<<3, 0x24)
+		// c3		ret
+		o(0xc3)
 
-	ld.Ctxt.Textp = append(ld.Ctxt.Textp, thunkfunc)
+		ld.Ctxt.Textp = append(ld.Ctxt.Textp, thunkfunc)
+	}
 
 	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
 	if addmoduledata.Type == obj.STEXT {
@@ -84,7 +100,7 @@ func gentext() {
 	initfunc.Type = obj.STEXT
 	initfunc.Attr |= ld.AttrLocal
 	initfunc.Attr |= ld.AttrReachable
-	o = func(op ...uint8) {
+	o := func(op ...uint8) {
 		for _, op1 := range op {
 			ld.Adduint8(ld.Ctxt, initfunc, op1)
 		}

@@ -488,6 +488,12 @@ func (s *regAllocState) init(f *Func) {
 			s.allocatable &^= 1 << 9 // R9
 		case "arm64":
 			// nothing to do?
+		case "386":
+			// nothing to do.
+			// Note that for Flag_shared (position independent code)
+			// we do need to be careful, but that carefulness is hidden
+			// in the rewrite rules so we always have a free register
+			// available for global load/stores. See gen/386.rules (search for Flag_shared).
 		default:
 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
 		}

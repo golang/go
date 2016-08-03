@@ -2835,7 +2835,9 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 				goto bad
 			}
 			if p.Mode == 32 && ctxt.Flag_shared {
-				base = REG_CX
+				// The base register has already been set. It holds the PC
+				// of this instruction returned by a PC-reading thunk.
+				// See obj6.go:rewriteToPcrel.
 			} else {
 				base = REG_NONE
 			}
@@ -2880,7 +2882,9 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 			ctxt.Diag("bad addr: %v", p)
 		}
 		if p.Mode == 32 && ctxt.Flag_shared {
-			base = REG_CX
+			// The base register has already been set. It holds the PC
+			// of this instruction returned by a PC-reading thunk.
+			// See obj6.go:rewriteToPcrel.
 		} else {
 			base = REG_NONE
 		}
@@ -4016,25 +4020,26 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 							obj.Hnacl:
 							if ctxt.Flag_shared {
 								// Note that this is not generating the same insns as the other cases.
-								//     MOV TLS, R_to
+								//     MOV TLS, dst
 								// becomes
-								//     call __x86.get_pc_thunk.cx
-								//     movl (gotpc + g@gotntpoff)(%ecx),$R_To
+								//     call __x86.get_pc_thunk.dst
+								//     movl (gotpc + g@gotntpoff)(dst), dst
 								// which is encoded as
-								//     call __x86.get_pc_thunk.cx
-								//     movq 0(%ecx), R_to
+								//     call __x86.get_pc_thunk.dst
+								//     movq 0(dst), dst
 								// and R_CALL & R_TLS_IE relocs. This all assumes the only tls variable we access
 								// is g, which we can't check here, but will when we assemble the second
 								// instruction.
+								dst := p.To.Reg
 								ctxt.AsmBuf.Put1(0xe8)
 								r = obj.Addrel(ctxt.Cursym)
 								r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
 								r.Type = obj.R_CALL
 								r.Siz = 4
-								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
+								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
 								ctxt.AsmBuf.PutInt32(0)
 
-								ctxt.AsmBuf.Put2(0x8B, byte(2<<6|reg[REG_CX]|(reg[p.To.Reg]<<3)))
+								ctxt.AsmBuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
 								r = obj.Addrel(ctxt.Cursym)
 								r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
 								r.Type = obj.R_TLS_IE
