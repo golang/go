@@ -48,6 +48,7 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
 	arm64.AAND & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AORR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AEOR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	arm64.ABIC & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AMVN & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
 	arm64.AMUL & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	arm64.AMULW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
