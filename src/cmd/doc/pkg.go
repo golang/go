@@ -211,27 +211,33 @@ func (pkg *Package) oneLineFunc(decl *ast.FuncDecl) {
 }
 
 // oneLineValueGenDecl prints a var or const declaration as a single line.
-func (pkg *Package) oneLineValueGenDecl(decl *ast.GenDecl) {
+func (pkg *Package) oneLineValueGenDecl(prefix string, decl *ast.GenDecl) {
 	decl.Doc = nil
 	dotDotDot := ""
 	if len(decl.Specs) > 1 {
 		dotDotDot = " ..."
 	}
 	// Find the first relevant spec.
+	typ := ""
 	for i, spec := range decl.Specs {
 		valueSpec := spec.(*ast.ValueSpec) // Must succeed; we can't mix types in one genDecl.
-		if !isExported(valueSpec.Names[0].Name) {
-			continue
-		}
-		typ := ""
+
+		// The type name may carry over from a previous specification in the
+		// case of constants and iota.
 		if valueSpec.Type != nil {
 			typ = fmt.Sprintf(" %s", pkg.formatNode(valueSpec.Type))
+		} else if len(valueSpec.Values) > 0 {
+			typ = ""
+		}
+
+		if !isExported(valueSpec.Names[0].Name) {
+			continue
 		}
 		val := ""
 		if i < len(valueSpec.Values) && valueSpec.Values[i] != nil {
 			val = fmt.Sprintf(" = %s", pkg.formatNode(valueSpec.Values[i]))
 		}
-		pkg.Printf("%s %s%s%s%s\n", decl.Tok, valueSpec.Names[0], typ, val, dotDotDot)
+		pkg.Printf("%s%s %s%s%s%s\n", prefix, decl.Tok, valueSpec.Names[0], typ, val, dotDotDot)
 		break
 	}
 }
@@ -266,8 +272,8 @@ func (pkg *Package) packageDoc() {
 	}
 
 	pkg.newlines(2) // Guarantee blank line before the components.
-	pkg.valueSummary(pkg.doc.Consts)
-	pkg.valueSummary(pkg.doc.Vars)
+	pkg.valueSummary(pkg.doc.Consts, false)
+	pkg.valueSummary(pkg.doc.Vars, false)
 	pkg.funcSummary(pkg.doc.Funcs, false)
 	pkg.typeSummary()
 	pkg.bugs()
@@ -302,9 +308,29 @@ func (pkg *Package) packageClause(checkUserPath bool) {
 }
 
 // valueSummary prints a one-line summary for each set of values and constants.
-func (pkg *Package) valueSummary(values []*doc.Value) {
+// If all the types in a constant or variable declaration belong to the same
+// type they can be printed by typeSummary, and so can be suppressed here.
+func (pkg *Package) valueSummary(values []*doc.Value, showGrouped bool) {
+	var isGrouped map[*doc.Value]bool
+	if !showGrouped {
+		isGrouped = make(map[*doc.Value]bool)
+		for _, typ := range pkg.doc.Types {
+			if !isExported(typ.Name) {
+				continue
+			}
+			for _, c := range typ.Consts {
+				isGrouped[c] = true
+			}
+			for _, v := range typ.Vars {
+				isGrouped[v] = true
+			}
+		}
+	}
+
 	for _, value := range values {
-		pkg.oneLineValueGenDecl(value.Decl)
+		if !isGrouped[value] {
+			pkg.oneLineValueGenDecl("", value.Decl)
+		}
 	}
 }
 
@@ -316,10 +342,11 @@ func (pkg *Package) funcSummary(funcs []*doc.Func, showConstructors bool) {
 	if !showConstructors {
 		isConstructor = make(map[*doc.Func]bool)
 		for _, typ := range pkg.doc.Types {
-			for _, constructor := range typ.Funcs {
-				if isExported(typ.Name) {
-					isConstructor[constructor] = true
-				}
+			if !isExported(typ.Name) {
+				continue
+			}
+			for _, f := range typ.Funcs {
+				isConstructor[f] = true
 			}
 		}
 	}
@@ -341,7 +368,13 @@ func (pkg *Package) typeSummary() {
 			typeSpec := spec.(*ast.TypeSpec) // Must succeed.
 			if isExported(typeSpec.Name.Name) {
 				pkg.oneLineTypeDecl(typeSpec)
-				// Now print the constructors.
+				// Now print the consts, vars, and constructors.
+				for _, c := range typ.Consts {
+					pkg.oneLineValueGenDecl(indent, c.Decl)
+				}
+				for _, v := range typ.Vars {
+					pkg.oneLineValueGenDecl(indent, v.Decl)
+				}
 				for _, constructor := range typ.Funcs {
 					if isExported(constructor.Name) {
 						pkg.Printf(indent)
@@ -437,11 +470,29 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 		// It's an unlikely scenario, probably not worth the trouble.
 		// TODO: Would be nice if go/doc did this for us.
 		specs := make([]ast.Spec, 0, len(value.Decl.Specs))
+		var typ ast.Expr
 		for _, spec := range value.Decl.Specs {
 			vspec := spec.(*ast.ValueSpec)
+
+			// The type name may carry over from a previous specification in the
+			// case of constants and iota.
+			if vspec.Type != nil {
+				typ = vspec.Type
+			}
+
 			for _, ident := range vspec.Names {
 				if isExported(ident.Name) {
+					if vspec.Type == nil && vspec.Values == nil && typ != nil {
+						// This a standalone identifier, as in the case of iota usage.
+						// Thus, assume the type comes from the previous type.
+						vspec.Type = &ast.Ident{
+							Name:    string(pkg.formatNode(typ)),
+							NamePos: vspec.End() - 1,
+						}
+					}
+
 					specs = append(specs, vspec)
+					typ = nil // Only inject type on first exported identifier
 					break
 				}
 			}
@@ -473,8 +524,8 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 		if len(typ.Consts) > 0 || len(typ.Vars) > 0 || len(typ.Funcs) > 0 || len(typ.Methods) > 0 {
 			pkg.Printf("\n")
 		}
-		pkg.valueSummary(typ.Consts)
-		pkg.valueSummary(typ.Vars)
+		pkg.valueSummary(typ.Consts, true)
+		pkg.valueSummary(typ.Vars, true)
 		pkg.funcSummary(typ.Funcs, true)
 		pkg.funcSummary(typ.Methods, true)
 		found = true
