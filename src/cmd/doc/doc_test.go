@@ -65,6 +65,9 @@ var tests = []test{
 			`type ExportedType struct { ... }`,                      // Exported type.
 			`const ExportedTypedConstant ExportedType = iota`,       // Typed constant.
 			`const ExportedTypedConstant_unexported unexportedType`, // Typed constant, exported for unexported type.
+			`const ConstLeft2 uint64 ...`,                           // Typed constant using unexported iota.
+			`const ConstGroup1 unexportedType = iota ...`,           // Typed constant using unexported type.
+			`const ConstGroup4 ExportedType = ExportedType{}`,       // Typed constant using exported type.
 		},
 		[]string{
 			`const internalConstant = 2`,        // No internal constants.
@@ -141,6 +144,30 @@ var tests = []test{
 		[]string{"-u", p, `constThree`},
 		[]string{
 			`constThree = 3.*Comment on line with constThree`,
+		},
+		nil,
+	},
+	// Block of constants with carryover type from unexported field.
+	{
+		"block of constants with carryover type",
+		[]string{p, `ConstLeft2`},
+		[]string{
+			`ConstLeft2, constRight2 uint64`,
+			`constLeft3, ConstRight3`,
+			`ConstLeft4, ConstRight4`,
+		},
+		nil,
+	},
+	// Block of constants -u with carryover type from unexported field.
+	{
+		"block of constants with carryover type",
+		[]string{"-u", p, `ConstLeft2`},
+		[]string{
+			`_, _ uint64 = 2 \* iota, 1 << iota`,
+			`constLeft1, constRight1`,
+			`ConstLeft2, constRight2`,
+			`constLeft3, ConstRight3`,
+			`ConstLeft4, ConstRight4`,
 		},
 		nil,
 	},

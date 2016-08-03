@@ -126,3 +126,19 @@ const Casematch = 2
 
 func ReturnUnexported() unexportedType { return 0 }
 func ReturnExported() ExportedType     { return ExportedType{} }
+
+const (
+	_, _ uint64 = 2 * iota, 1 << iota
+	constLeft1, constRight1
+	ConstLeft2, constRight2
+	constLeft3, ConstRight3
+	ConstLeft4, ConstRight4
+)
+
+const (
+	ConstGroup1 unexportedType = iota
+	ConstGroup2
+	ConstGroup3
+)
+
+const ConstGroup4 ExportedType = ExportedType{}
