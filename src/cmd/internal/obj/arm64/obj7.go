@@ -279,20 +279,30 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// Rewrite negative immediates as positive immediates with
 	// complementary instruction.
 	switch p.As {
-	case AADD,
-		AADDW,
-		ASUB,
-		ASUBW,
-		ACMP,
-		ACMPW,
-		ACMN,
-		ACMNW:
-		if p.From.Type == obj.NAME_EXTERN && p.From.Offset < 0 {
+	case AADD, ASUB, ACMP, ACMN:
+		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && p.From.Offset != -1<<63 {
 			p.From.Offset = -p.From.Offset
 			p.As = complements[p.As]
 		}
+	case AADDW, ASUBW, ACMPW, ACMNW:
+		if p.From.Type == obj.TYPE_CONST && p.From.Offset < 0 && int32(p.From.Offset) != -1<<31 {
+			p.From.Offset = -p.From.Offset
+			p.As = complements[p.As]
+		}
+	}
 
-		break
+	// For 32-bit logical instruction with constant,
+	// rewrite the high 32-bit to be a repetition of
+	// the low 32-bit, so that the BITCON test can be
+	// shared for both 32-bit and 64-bit. 32-bit ops
+	// will zero the high 32-bit of the destination
+	// register anyway.
+	switch p.As {
+	case AANDW, AORRW, AEORW, AANDSW:
+		if p.From.Type == obj.TYPE_CONST {
+			v := p.From.Offset & 0xffffffff
+			p.From.Offset = v | v<<32
+		}
 	}
 
 	if ctxt.Flag_dynlink {
