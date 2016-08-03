@@ -1,10 +1,10 @@
 1. Deploy the app.
 
    To deploy tip.golang.org:
-       $ gcloud --project golang-org preview app deploy --no-promote godoc.yaml
+       $ gcloud --project golang-org app deploy --no-promote godoc.yaml
 
    To deploy talks.golang.org:
-       $ gcloud --project golang-org preview app deploy --no-promote talks.yaml
+       $ gcloud --project golang-org app deploy --no-promote talks.yaml
 
 2. Wait until the deployed version is serving requests.
 
