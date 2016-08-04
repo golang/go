@@ -8,6 +8,14 @@ package main
 
 import "strings"
 
+// Notes:
+//  - Less-than-64-bit integer types live in the low portion of registers.
+//    For now, the upper portion is junk; sign/zero-extension might be optimized in the future, but not yet.
+//  - Boolean types are zero or 1; stored in a byte, but loaded with AMOVBZ so the upper bytes of a register are zero.
+//  - *const instructions may use a constant larger than the instuction can encode.
+//    In this case the assembler expands to multiple instructions and uses tmp
+//    register (R31).
+
 var regNamesPPC64 = []string{
 	// "R0", // REGZERO
 	"SP", // REGSP
@@ -167,8 +175,8 @@ func init() {
 		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},   // arg0 << arg1, 64 bits  (0 if arg1 & 64 != 0)
 		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},   // arg0 << arg1, 32 bits  (0 if arg1 & 32 != 0)
 
-		{name: "ADDIforC", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
-		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                                   // carry - 1 (if carry then 0 else -1)
+		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
+		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                                           // carry - 1 (if carry then 0 else -1)
 
 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // arg0 >>a aux, 64 bits
 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // arg0 >>a aux, 32 bits
@@ -180,22 +188,29 @@ func init() {
 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
 
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0&arg1
-		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                  // arg0&^arg1
-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64"}, // arg0&arg1 ??
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},   // arg0|arg1
-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0|^arg1
-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},   // arg0|arg1 ??
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0^arg1
-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"}, // arg0|arg1 ??
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
+		{name: "DIVD", argLength: 2, reg: gp21, asm: "DIVD"},   // arg0/arg1 (signed 64-bit)
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW"},   // arg0/arg1 (signed 32-bit)
+		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU"}, // arg0/arg1 (unsigned 64-bit)
+		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU"}, // arg0/arg1 (unsigned 32-bit)
 
-		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},                                    // sign extend int8 to int64
-		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ"},                                  // zero extend uint8 to uint64
-		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},                                    // sign extend int16 to int64
-		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ"},                                  // zero extend uint16 to uint64
-		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},                                    // sign extend int32 to int64
-		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ"},                                  // zero extend uint32 to uint64
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
+		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                 // arg0|arg1
+		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                  // arg0|^arg1
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true}, // arg0^arg1
+		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0
+
+		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                               // arg0|aux
+		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                             // arg0^aux
+		{name: "ANDconst", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: cr}, asm: "ANDCC", aux: "Int64"}, // arg0&aux // and-immediate sets CC on PPC, always.
+
+		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", typ: "Int64"},                      // sign extend int8 to int64
+		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ", typ: "Int64"},                    // zero extend uint8 to uint64
+		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH", typ: "Int64"},                      // sign extend int16 to int64
+		{name: "MOVHZreg", argLength: 1, reg: gp11, asm: "MOVHZ", typ: "Int64"},                    // zero extend uint16 to uint64
+		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW", typ: "Int64"},                      // sign extend int32 to int64
+		{name: "MOVWZreg", argLength: 1, reg: gp11, asm: "MOVWZ", typ: "Int64"},                    // zero extend uint32 to uint64
 		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", typ: "Int8"},     // sign extend int8 to int64
 		{name: "MOVBZload", argLength: 2, reg: gpload, asm: "MOVBZ", aux: "SymOff", typ: "UInt8"},  // zero extend uint8 to uint64
 		{name: "MOVHload", argLength: 2, reg: gpload, asm: "MOVH", aux: "SymOff", typ: "Int16"},    // sign extend int16 to int64
@@ -204,7 +219,7 @@ func init() {
 		{name: "MOVWZload", argLength: 2, reg: gpload, asm: "MOVWZ", aux: "SymOff", typ: "UInt32"}, // zero extend uint32 to uint64
 		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "Int64"},
 
-		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", typ: "Fload64"},
+		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", typ: "Float64"},
 		{name: "FMOVSload", argLength: 2, reg: fpload, asm: "FMOVS", typ: "Float32"},
 		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},
 		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem"},

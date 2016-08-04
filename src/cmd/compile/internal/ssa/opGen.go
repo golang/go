@@ -946,7 +946,7 @@ const (
 	OpPPC64SRW
 	OpPPC64SLD
 	OpPPC64SLW
-	OpPPC64ADDIforC
+	OpPPC64ADDconstForCarry
 	OpPPC64MaskIfNotCarry
 	OpPPC64SRADconst
 	OpPPC64SRAWconst
@@ -956,15 +956,20 @@ const (
 	OpPPC64SLWconst
 	OpPPC64FDIV
 	OpPPC64FDIVS
+	OpPPC64DIVD
+	OpPPC64DIVW
+	OpPPC64DIVDU
+	OpPPC64DIVWU
 	OpPPC64AND
 	OpPPC64ANDN
-	OpPPC64ANDconst
 	OpPPC64OR
 	OpPPC64ORN
-	OpPPC64ORconst
 	OpPPC64XOR
-	OpPPC64XORconst
+	OpPPC64EQV
 	OpPPC64NEG
+	OpPPC64ORconst
+	OpPPC64XORconst
+	OpPPC64ANDconst
 	OpPPC64MOVBreg
 	OpPPC64MOVBZreg
 	OpPPC64MOVHreg
@@ -11951,7 +11956,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "ADDIforC",
+		name:    "ADDconstForCarry",
 		auxType: auxInt16,
 		argLen:  1,
 		asm:     ppc64.AADDC,
@@ -12091,6 +12096,62 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "DIVD",
+		argLen: 2,
+		asm:    ppc64.ADIVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "DIVW",
+		argLen: 2,
+		asm:    ppc64.ADIVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "DIVDU",
+		argLen: 2,
+		asm:    ppc64.ADIVDU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "DIVWU",
+		argLen: 2,
+		asm:    ppc64.ADIVWU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
 		name:        "AND",
 		argLen:      2,
 		commutative: true,
@@ -12113,20 +12174,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-			outputs: []outputInfo{
-				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-		},
-	},
-	{
-		name:    "ANDconst",
-		auxType: auxInt64,
-		argLen:  1,
-		asm:     ppc64.AAND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12163,10 +12210,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "ORconst",
-		auxType: auxInt64,
-		argLen:  1,
-		asm:     ppc64.AOR,
+		name:        "XOR",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AXOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:        "EQV",
+		argLen:      2,
+		commutative: true,
+		asm:         ppc64.AEQV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+			outputs: []outputInfo{
+				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:   "NEG",
+		argLen: 1,
+		asm:    ppc64.ANEG,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12177,14 +12253,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "XOR",
-		argLen:      2,
-		commutative: true,
-		asm:         ppc64.AXOR,
+		name:    "ORconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.AOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
@@ -12206,13 +12281,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "NEG",
-		argLen: 1,
-		asm:    ppc64.ANEG,
+		name:    "ANDconst",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     ppc64.AANDCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
+			clobbers: 9223372036854775808, // CR
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
