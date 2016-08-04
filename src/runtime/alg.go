@@ -289,7 +289,7 @@ var aeskeysched [hashRandomBytes]byte
 // used in hash{32,64}.go to seed the hash function
 var hashkey [4]uintptr
 
-func init() {
+func alginit() {
 	// Install aes hash algorithm if we have the instructions we need
 	if (GOARCH == "386" || GOARCH == "amd64") &&
 		GOOS != "nacl" &&
