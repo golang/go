@@ -497,6 +497,10 @@ func TestBlockProfile(t *testing.T) {
 		t.Fatalf("Bad profile header:\n%v", prof)
 	}
 
+	if strings.HasSuffix(prof, "#\t0x0\n\n") {
+		t.Errorf("Useless 0 suffix:\n%v", prof)
+	}
+
 	for _, test := range tests {
 		if !regexp.MustCompile(strings.Replace(test.re, "\t", "\t+", -1)).MatchString(prof) {
 			t.Fatalf("Bad %v entry, expect:\n%v\ngot:\n%v", test.name, test.re, prof)

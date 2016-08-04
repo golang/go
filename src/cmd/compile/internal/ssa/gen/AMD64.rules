@@ -400,9 +400,7 @@
 	(Zero [SizeAndAlign(s).Size()-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
 (Zero [s] destptr mem)
 	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice ->
-	(DUFFZERO [duffStartAMD64(SizeAndAlign(s).Size())]
-		(ADDQconst [duffAdjAMD64(SizeAndAlign(s).Size())] destptr) (MOVOconst [0])
-		mem)
+	(DUFFZERO [SizeAndAlign(s).Size()] destptr (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)

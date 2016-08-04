@@ -75,6 +75,13 @@ This change has no effect on the correctness of existing programs.
 <h2 id="ports">Ports</h2>
 
 <p>
+Go 1.7 adds support for macOS 10.12 Sierra.
+This support was backported to Go 1.6.3.
+Binaries built with versions of Go before 1.6.3 will not work
+correctly on Sierra.
+</p>
+
+<p>
 Go 1.7 adds an experimental port to <a href="https://en.wikipedia.org/wiki/Linux_on_z_Systems">Linux on z Systems</a> (<code>linux/s390x</code>)
 and the beginning of a port to Plan 9 on ARM (<code>plan9/arm</code>).
 </p>
@@ -85,12 +92,25 @@ added in Go 1.6 now have full support for cgo and external linking.
 </p>
 
 <p>
-The experimental port to Linux on big-endian 64-bit PowerPC (<code>linux/ppc64</code>)
+The experimental port to Linux on little-endian 64-bit PowerPC (<code>linux/ppc64le</code>)
 now requires the POWER8 architecture or later.
+Big-endian 64-bit PowerPC (<code>linux/ppc64</code>) only requires the
+POWER5 architecture.
 </p>
 
 <p>
 The OpenBSD port now requires OpenBSD 5.6 or later, for access to the <a href="http://man.openbsd.org/getentropy.2"><i>getentropy</i>(2)</a> system call.
+</p>
+
+<h3 id="known_issues">Known Issues</h3>
+
+<p>
+There are some instabilities on FreeBSD that are known but not understood.
+These can lead to program crashes in rare cases.
+See <a href="https://golang.org/issue/16136">issue 16136</a>,
+<a href="https://golang.org/issue/15658">issue 15658</a>,
+and <a href="https://golang.org/issue/16396">issue 16396</a>.
+Any help in solving these FreeBSD-specific issues would be appreciated.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -367,6 +387,12 @@ and
 packages.
 </p>
 
+<p>
+Garbage collection pauses should be significantly shorter than they
+were in Go 1.6 for programs with large numbers of idle goroutines,
+substantial stack size fluctuation, or large package-level variables.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <h3 id="context">Context</h3>
@@ -460,6 +486,13 @@ by the operating system anywhere in the address space,
 eliminating the
 “memory allocated by OS not in usable range” failure
 common in some environments.
+</p>
+
+<p>
+The runtime can now return unused memory to the operating system on
+all architectures.
+In Go 1.6 and earlier, the runtime could not
+release memory on ARM64, 64-bit PowerPC, or MIPS.
 </p>
 
 <p>
@@ -881,6 +914,12 @@ and the local address on which the request was received (a
 <a href="/pkg/net/#Addr"><code>Addr</code></a>) using the key <code>LocalAddrContextKey</code>.
 For example, the address on which a request received is
 <code>req.Context().Value(http.LocalAddrContextKey).(net.Addr)</code>.
+</p>
+
+<p>
+The server's <a href="/pkg/net/http/#Server.Serve"><code>Serve</code></a> method
+now only enables HTTP/2 support if the <code>Server.TLSConfig</code> field is <code>nil</code>
+or includes <code>"h2"</code> in its <code>TLSConfig.NextProto</code>.
 </p>
 
 <p>

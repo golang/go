@@ -77,7 +77,7 @@ TEXT runtime∕internal∕atomic·Xadduintptr(SB), NOSPLIT, $0-24
 TEXT runtime∕internal∕atomic·Loadint64(SB), NOSPLIT, $0-16
 	BR	runtime∕internal∕atomic·Load64(SB)
 
-TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-16
+TEXT runtime∕internal∕atomic·Xaddint64(SB), NOSPLIT, $0-24
 	BR	runtime∕internal∕atomic·Xadd64(SB)
 
 // bool casp(void **val, void *old, void *new)

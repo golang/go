@@ -9,7 +9,8 @@ package net
 import "syscall"
 
 var (
-	testHookDialChannel = func() {} // see golang.org/issue/5349
+	testHookDialChannel  = func() {} // for golang.org/issue/5349
+	testHookCanceledDial = func() {} // for golang.org/issue/16523
 
 	// Placeholders for socket system calls.
 	socketFunc        func(int, int, int) (int, error)         = syscall.Socket
