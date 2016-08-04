@@ -4,9 +4,14 @@
 
 import {main} from './main';
 
-describe("main", () => {
+describe('main', () => {
   it('sets the document\'s title', () => {
     main();
     expect(document.title).toBe('Go Heap Viewer');
+  });
+
+  it('has a heading', () => {
+    main();
+    expect(document.querySelector('heap-heading')).toBeDefined();
   });
 });

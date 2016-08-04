@@ -18,10 +18,12 @@ import (
 var port = flag.Int("port", 8080, "service port")
 
 var index = `<!DOCTYPE html>
+<script src="js/customelements.js"></script>
 <script src="js/typescript.js"></script>
 <script src="js/moduleloader.js"></script>
 <script>
   System.transpiler = 'typescript';
+  System.typescriptOptions = {target: ts.ScriptTarget.ES2015};
   System.locate = (load) => load.name + '.ts';
 </script>
 <script type="module">
@@ -54,6 +56,9 @@ var addHandlers = func() {
 	})
 	http.HandleFunc("/js/moduleloader.js", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/moduleloader/moduleloader.js"))
+	})
+	http.HandleFunc("/js/customelements.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(toolsDir(), "third_party/webcomponents/customelements.js"))
 	})
 
 	// Serve index.html using html string above.

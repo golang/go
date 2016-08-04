@@ -29,6 +29,7 @@
   },
   "scripts": {
     "test": "karma start testing/karma.conf.js",
-    "format": "find . | grep '\\(test_main\\.js\\|\\.ts\\)$' | xargs clang-format -i"
+    "format": "find . | grep '\\(test_main\\.js\\|\\.ts\\)$' | xargs clang-format -i",
+    "lint": "tslint --project ."
   }
 }

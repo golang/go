@@ -4,6 +4,9 @@
 
 // Configure module loader.
 System.transpiler = 'typescript'
+System.typescriptOptions = {
+  target: ts.ScriptTarget.ES2015
+};
 System.locate = (load) => load.name + '.ts';
 
 // Determine set of test files.

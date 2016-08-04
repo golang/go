@@ -7,6 +7,7 @@ module.exports = config => {
         frameworks: ['jasmine'],
         basePath: '../../../..',
         files: [
+            'third_party/webcomponents/customelements.js',
             'third_party/typescript/typescript.js',
             'third_party/moduleloader/moduleloader.js',
             'cmd/heapview/client/testing/test_main.js',
