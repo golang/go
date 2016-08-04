@@ -439,7 +439,8 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
-	typelinksinit()
+	alginit()       // maps must not be used before this call
+	typelinksinit() // uses maps
 	itabsinit()
 
 	msigsave(_g_.m)
