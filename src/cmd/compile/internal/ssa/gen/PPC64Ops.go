@@ -92,7 +92,7 @@ var regNamesPPC64 = []string{
 	// "CR6",
 	// "CR7",
 
-	"CR",
+	// "CR",
 	// "XER",
 	// "LR",
 	// "CTR",
@@ -125,28 +125,28 @@ func init() {
 		sp = buildReg("SP")
 		sb = buildReg("SB")
 		// gr = buildReg("g")
-		cr = buildReg("CR")
+		//cr = buildReg("CR")
 		//ctr  = buildReg("CTR")
 		//lr   = buildReg("LR")
 		tmp  = buildReg("R31")
 		ctxt = buildReg("R11")
 		//		tls	= buildReg("R13")
-		gp01        = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
+		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
-		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}}
-		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{cr}}
-		crgp        = regInfo{inputs: []regMask{cr}, outputs: []regMask{gp}}
+		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
+		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
-		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{}}
-		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{}} // ppc64.REGZERO is reserved zero value
-		fp01        = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
+		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
+		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
+		fp01        = regInfo{inputs: nil, outputs: []regMask{fp}}
 		//		fp11	   = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fp21       = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp2cr      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{cr}}
+		fp2cr      = regInfo{inputs: []regMask{fp, fp}}
 		fpload     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
-		fpstore    = regInfo{inputs: []regMask{gp | sp | sb, fp}, outputs: []regMask{}}
-		callerSave = regMask(gp | fp | cr)
+		fpstore    = regInfo{inputs: []regMask{gp | sp | sb, fp}}
+		callerSave = regMask(gp | fp)
 	)
 	ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
@@ -175,8 +175,8 @@ func init() {
 		{name: "SLD", argLength: 2, reg: gp21, asm: "SLD"},   // arg0 << arg1, 64 bits  (0 if arg1 & 64 != 0)
 		{name: "SLW", argLength: 2, reg: gp21, asm: "SLW"},   // arg0 << arg1, 32 bits  (0 if arg1 & 32 != 0)
 
-		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{cr}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
-		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                                           // carry - 1 (if carry then 0 else -1)
+		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
+		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
 
 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // arg0 >>a aux, 64 bits
 		{name: "SRAWconst", argLength: 1, reg: gp11, asm: "SRAW", aux: "Int64"}, // arg0 >>a aux, 32 bits
@@ -201,9 +201,9 @@ func init() {
 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0
 
-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                               // arg0|aux
-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                             // arg0^aux
-		{name: "ANDconst", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}, clobbers: cr}, asm: "ANDCC", aux: "Int64"}, // arg0&aux // and-immediate sets CC on PPC, always.
+		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
+		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
+		{name: "ANDconst", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}, asm: "ANDCC", aux: "Int64", clobberFlags: true}, // arg0&aux // and-immediate sets CC on PPC, always.
 
 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", typ: "Int64"},                      // sign extend int8 to int64
 		{name: "MOVBZreg", argLength: 1, reg: gp11, asm: "MOVBZ", typ: "Int64"},                    // zero extend uint8 to uint64
@@ -264,16 +264,16 @@ func init() {
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}},
 
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: cr | tmp}},
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, clobberFlags: true},
 
 		// Convert pointer to integer, takes a memory operand for ordering.
 		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                      // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gp | sp, ctxt, 0}, clobbers: callerSave}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                        // call deferproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                           // call newproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},                 // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true},                                      // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gp | sp, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                        // call deferproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                           // call newproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true},                 // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R3, changed as side effect)
@@ -290,9 +290,10 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R3"), gp},
-				clobbers: buildReg("R3 CR"),
+				clobbers: buildReg("R3"),
 			},
-			typ: "Mem",
+			clobberFlags: true,
+			typ:          "Mem",
 		},
 
 		// large or unaligned move
@@ -313,9 +314,10 @@ func init() {
 			argLength: 4,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R3"), buildReg("R4"), gp},
-				clobbers: buildReg("R3 R4 CR"),
+				clobbers: buildReg("R3 R4"),
 			},
-			typ: "Mem",
+			clobberFlags: true,
+			typ:          "Mem",
 		},
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
@@ -362,7 +364,6 @@ func init() {
 		regnames:        regNamesPPC64,
 		gpregmask:       gp,
 		fpregmask:       fp,
-		flagmask:        cr,
 		framepointerreg: int8(num["SP"]),
 	})
 }

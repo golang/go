@@ -1654,31 +1654,31 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "ADDL",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AADDL,
+		name:         "ADDL",
+		argLen:       2,
+		commutative:  true,
+		clobberFlags: true,
+		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:    "ADDLconst",
-		auxType: auxInt32,
-		argLen:  1,
-		asm:     x86.AADDL,
+		name:         "ADDLconst",
+		auxType:      auxInt32,
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -1696,8 +1696,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-				{1, 239},    // AX CX DX BX BP SI DI
+				{0, 0},
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1712,8 +1712,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-				{1, 239},    // AX CX DX BX BP SI DI
+				{0, 0},
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1722,12 +1722,12 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AADCL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 131072}, // FLAGS
-				{0, 239},    // AX CX DX BX BP SI DI
-				{1, 239},    // AX CX DX BX BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -1739,11 +1739,11 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AADCL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 131072}, // FLAGS
-				{0, 239},    // AX CX DX BX BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -1754,13 +1754,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -1771,12 +1771,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -1793,8 +1793,8 @@ var opcodeTable = [...]opInfo{
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-				{1, 239},    // AX CX DX BX BP SI DI
+				{0, 0},
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1809,8 +1809,8 @@ var opcodeTable = [...]opInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-				{1, 239},    // AX CX DX BX BP SI DI
+				{0, 0},
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
@@ -1818,12 +1818,12 @@ var opcodeTable = [...]opInfo{
 		name:         "SBBL",
 		argLen:       3,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASBBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 131072}, // FLAGS
-				{0, 239},    // AX CX DX BX BP SI DI
-				{1, 239},    // AX CX DX BX BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
+				{1, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -1835,11 +1835,11 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASBBL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 131072}, // FLAGS
-				{0, 239},    // AX CX DX BX BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -1851,13 +1851,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -1868,117 +1868,123 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "HMULL",
-		argLen: 2,
-		asm:    x86.AIMULL,
+		name:         "HMULL",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULLU",
-		argLen: 2,
-		asm:    x86.AMULL,
+		name:         "HMULLU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULW",
-		argLen: 2,
-		asm:    x86.AIMULW,
+		name:         "HMULW",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULB",
-		argLen: 2,
-		asm:    x86.AIMULB,
+		name:         "HMULB",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULWU",
-		argLen: 2,
-		asm:    x86.AMULW,
+		name:         "HMULWU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULBU",
-		argLen: 2,
-		asm:    x86.AMULB,
+		name:         "HMULBU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "MULLQU",
-		argLen: 2,
-		asm:    x86.AMULL,
+		name:         "MULLQU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 4}, // DX
 				{1, 1}, // AX
@@ -1986,120 +1992,128 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIVL",
-		argLen: 2,
-		asm:    x86.AIDIVL,
+		name:         "DIVL",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131076, // DX FLAGS
+			clobbers: 4, // DX
 			outputs: []outputInfo{
 				{0, 1}, // AX
 			},
 		},
 	},
 	{
-		name:   "DIVW",
-		argLen: 2,
-		asm:    x86.AIDIVW,
+		name:         "DIVW",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131076, // DX FLAGS
+			clobbers: 4, // DX
 			outputs: []outputInfo{
 				{0, 1}, // AX
 			},
 		},
 	},
 	{
-		name:   "DIVLU",
-		argLen: 2,
-		asm:    x86.ADIVL,
+		name:         "DIVLU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131076, // DX FLAGS
+			clobbers: 4, // DX
 			outputs: []outputInfo{
 				{0, 1}, // AX
 			},
 		},
 	},
 	{
-		name:   "DIVWU",
-		argLen: 2,
-		asm:    x86.ADIVW,
+		name:         "DIVWU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131076, // DX FLAGS
+			clobbers: 4, // DX
 			outputs: []outputInfo{
 				{0, 1}, // AX
 			},
 		},
 	},
 	{
-		name:   "MODL",
-		argLen: 2,
-		asm:    x86.AIDIVL,
+		name:         "MODL",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "MODW",
-		argLen: 2,
-		asm:    x86.AIDIVW,
+		name:         "MODW",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "MODLU",
-		argLen: 2,
-		asm:    x86.ADIVL,
+		name:         "MODLU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "MODWU",
-		argLen: 2,
-		asm:    x86.ADIVW,
+		name:         "MODWU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},   // AX
 				{1, 251}, // AX CX BX SP BP SI DI
 			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
@@ -2110,13 +2124,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2127,12 +2141,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2143,13 +2157,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2160,12 +2174,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2176,13 +2190,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 				{1, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2193,12 +2207,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2213,9 +2227,6 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2226,9 +2237,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2241,9 +2249,6 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2254,9 +2259,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2269,9 +2271,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2282,9 +2281,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2297,9 +2293,6 @@ var opcodeTable = [...]opInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2310,9 +2303,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
 				{1, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
-			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2325,9 +2315,6 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2338,9 +2325,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2353,9 +2337,6 @@ var opcodeTable = [...]opInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 				{1, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2366,9 +2347,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
-			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
 			},
 		},
 	},
@@ -2381,9 +2359,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
@@ -2395,22 +2370,19 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			outputs: []outputInfo{
-				{0, 131072}, // FLAGS
-			},
 		},
 	},
 	{
 		name:         "SHLL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2421,12 +2393,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2436,13 +2408,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2452,13 +2424,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRW",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2468,13 +2440,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRB",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2485,12 +2457,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2501,12 +2473,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2517,12 +2489,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2532,13 +2504,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2548,13 +2520,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARW",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2564,13 +2536,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARB",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},   // CX
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2581,12 +2553,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2597,12 +2569,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2613,12 +2585,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2629,12 +2601,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2645,12 +2617,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2661,12 +2633,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2676,12 +2648,12 @@ var opcodeTable = [...]opInfo{
 		name:         "NEGL",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2691,68 +2663,68 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTL",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "BSFL",
-		argLen: 1,
-		asm:    x86.ABSFL,
+		name:         "BSFL",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "BSFW",
-		argLen: 1,
-		asm:    x86.ABSFW,
+		name:         "BSFW",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSFW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "BSRL",
-		argLen: 1,
-		asm:    x86.ABSRL,
+		name:         "BSRL",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "BSRW",
-		argLen: 1,
-		asm:    x86.ABSRW,
+		name:         "BSRW",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2762,12 +2734,12 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPL",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2791,9 +2763,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASBBL,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2804,9 +2773,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETEQ,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2817,9 +2783,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETNE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2830,9 +2793,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETLT,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2843,9 +2803,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETLE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2856,9 +2813,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETGT,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2869,9 +2823,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETGE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2882,9 +2833,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETCS,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2895,9 +2843,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETLS,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2908,9 +2853,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETHI,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2921,37 +2863,30 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETCC,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "SETEQF",
-		argLen: 1,
-		asm:    x86.ASETEQ,
+		name:         "SETEQF",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ASETEQ,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 238}, // CX DX BX BP SI DI
 			},
 		},
 	},
 	{
-		name:   "SETNEF",
-		argLen: 1,
-		asm:    x86.ASETNE,
+		name:         "SETNEF",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ASETNE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
-			clobbers: 131073, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 238}, // CX DX BX BP SI DI
 			},
@@ -2962,9 +2897,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETPC,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2975,9 +2907,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETPS,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -2988,9 +2917,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETHI,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -3001,9 +2927,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETCC,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 131072}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
@@ -3015,7 +2938,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVBLSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 255}, // AX CX DX BX SP BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -3028,7 +2951,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 255}, // AX CX DX BX SP BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -3041,7 +2964,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVWLSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 255}, // AX CX DX BX SP BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -3054,7 +2977,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 255}, // AX CX DX BX SP BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -3585,7 +3508,7 @@ var opcodeTable = [...]opInfo{
 				{0, 128}, // DI
 				{1, 1},   // AX
 			},
-			clobbers: 131200, // DI FLAGS
+			clobbers: 128, // DI
 		},
 	},
 	{
@@ -3601,62 +3524,68 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CALLstatic",
-		auxType: auxSymOff,
-		argLen:  1,
+		name:         "CALLstatic",
+		auxType:      auxSymOff,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 196591, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7 FLAGS
+			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
 	{
-		name:    "CALLclosure",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "CALLclosure",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 4},   // DX
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 196591, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7 FLAGS
+			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
 	{
-		name:    "CALLdefer",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLdefer",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 196591, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7 FLAGS
+			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
 	{
-		name:    "CALLgo",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLgo",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 196591, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7 FLAGS
+			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
 	{
-		name:    "CALLinter",
-		auxType: auxInt64,
-		argLen:  2,
+		name:         "CALLinter",
+		auxType:      auxInt64,
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
 			},
-			clobbers: 196591, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7 FLAGS
+			clobbers: 65519, // AX CX DX BX BP SI DI X0 X1 X2 X3 X4 X5 X6 X7
 		},
 	},
 	{
-		name:    "DUFFCOPY",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "DUFFCOPY",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
 				{1, 64},  // SI
 			},
-			clobbers: 131266, // CX SI DI FLAGS
+			clobbers: 194, // CX SI DI
 		},
 	},
 	{
@@ -3695,13 +3624,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredNilCheck",
-		argLen: 2,
+		name:         "LoweredNilCheck",
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 255}, // AX CX DX BX SP BP SI DI
 			},
-			clobbers: 131072, // FLAGS
 		},
 	},
 	{
@@ -3710,7 +3639,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 255}, // AX CX DX BX SP BP SI DI
+				{0, 239}, // AX CX DX BX BP SI DI
 			},
 			outputs: []outputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
@@ -4060,62 +3989,62 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "ADDQ",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AADDQ,
+		name:         "ADDQ",
+		argLen:       2,
+		commutative:  true,
+		clobberFlags: true,
+		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:        "ADDL",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AADDL,
+		name:         "ADDL",
+		argLen:       2,
+		commutative:  true,
+		clobberFlags: true,
+		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:    "ADDQconst",
-		auxType: auxInt64,
-		argLen:  1,
-		asm:     x86.AADDQ,
+		name:         "ADDQconst",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:    "ADDLconst",
-		auxType: auxInt32,
-		argLen:  1,
-		asm:     x86.AADDL,
+		name:         "ADDLconst",
+		auxType:      auxInt32,
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4125,13 +4054,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBQ",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4141,13 +4070,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4158,12 +4087,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4174,12 +4103,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4190,13 +4119,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4207,13 +4136,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4224,12 +4153,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4240,132 +4169,140 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "HMULQ",
-		argLen: 2,
-		asm:    x86.AIMULQ,
+		name:         "HMULQ",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULL",
-		argLen: 2,
-		asm:    x86.AIMULL,
+		name:         "HMULL",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULW",
-		argLen: 2,
-		asm:    x86.AIMULW,
+		name:         "HMULW",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULB",
-		argLen: 2,
-		asm:    x86.AIMULB,
+		name:         "HMULB",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIMULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULQU",
-		argLen: 2,
-		asm:    x86.AMULQ,
+		name:         "HMULQU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULLU",
-		argLen: 2,
-		asm:    x86.AMULL,
+		name:         "HMULLU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULWU",
-		argLen: 2,
-		asm:    x86.AMULW,
+		name:         "HMULWU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
 		},
 	},
 	{
-		name:   "HMULBU",
-		argLen: 2,
-		asm:    x86.AMULB,
+		name:         "HMULBU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AMULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 4}, // DX
 			},
@@ -4376,27 +4313,27 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "DIVQ",
-		argLen: 2,
-		asm:    x86.AIDIVQ,
+		name:         "DIVQ",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
@@ -4404,15 +4341,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIVL",
-		argLen: 2,
-		asm:    x86.AIDIVL,
+		name:         "DIVL",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
@@ -4420,15 +4357,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIVW",
-		argLen: 2,
-		asm:    x86.AIDIVW,
+		name:         "DIVW",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.AIDIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
@@ -4436,15 +4373,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIVQU",
-		argLen: 2,
-		asm:    x86.ADIVQ,
+		name:         "DIVQU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
@@ -4452,15 +4389,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIVLU",
-		argLen: 2,
-		asm:    x86.ADIVL,
+		name:         "DIVLU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
@@ -4468,15 +4405,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIVWU",
-		argLen: 2,
-		asm:    x86.ADIVW,
+		name:         "DIVWU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          x86.ADIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // AX
 				{1, 65531}, // AX CX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 1}, // AX
 				{1, 4}, // DX
@@ -4488,13 +4425,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4505,13 +4442,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4522,12 +4459,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4538,12 +4475,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4554,13 +4491,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4571,13 +4508,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4588,12 +4525,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4604,12 +4541,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4620,13 +4557,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4637,13 +4574,13 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4654,12 +4591,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4670,12 +4607,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4690,9 +4627,6 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4703,9 +4637,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4718,9 +4649,6 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4731,9 +4659,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4746,9 +4671,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4759,9 +4681,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4774,9 +4693,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4787,9 +4703,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4802,9 +4715,6 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4815,9 +4725,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4830,9 +4737,6 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4843,9 +4747,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4858,9 +4759,6 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4871,9 +4769,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{1, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4886,9 +4781,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4899,9 +4791,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
 			},
 		},
 	},
@@ -4914,9 +4803,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
@@ -4928,22 +4814,19 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			outputs: []outputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 		},
 	},
 	{
 		name:         "SHLQ",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4953,13 +4836,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHLL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4970,12 +4853,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -4986,12 +4869,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5001,13 +4884,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRQ",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5017,13 +4900,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5033,13 +4916,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRW",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5049,13 +4932,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SHRB",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5066,12 +4949,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5082,12 +4965,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5098,12 +4981,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5114,12 +4997,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5129,13 +5012,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARQ",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5145,13 +5028,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARL",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5161,13 +5044,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARW",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5177,13 +5060,13 @@ var opcodeTable = [...]opInfo{
 		name:         "SARB",
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // CX
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5194,12 +5077,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5210,12 +5093,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5226,12 +5109,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5242,12 +5125,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5258,12 +5141,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5274,12 +5157,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5290,12 +5173,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5306,12 +5189,12 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt8,
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5321,12 +5204,12 @@ var opcodeTable = [...]opInfo{
 		name:         "NEGQ",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ANEGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5336,12 +5219,12 @@ var opcodeTable = [...]opInfo{
 		name:         "NEGL",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5351,12 +5234,12 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTQ",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ANOTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5366,96 +5249,96 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTL",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "BSFQ",
-		argLen: 1,
-		asm:    x86.ABSFQ,
+		name:         "BSFQ",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSFQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "BSFL",
-		argLen: 1,
-		asm:    x86.ABSFL,
+		name:         "BSFL",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "BSFW",
-		argLen: 1,
-		asm:    x86.ABSFW,
+		name:         "BSFW",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSFW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "BSRQ",
-		argLen: 1,
-		asm:    x86.ABSRQ,
+		name:         "BSRQ",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "BSRL",
-		argLen: 1,
-		asm:    x86.ABSRL,
+		name:         "BSRL",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "BSRW",
-		argLen: 1,
-		asm:    x86.ABSRW,
+		name:         "BSRW",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5466,13 +5349,13 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ACMOVQEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 8589934592}, // FLAGS
-				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5483,13 +5366,13 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ACMOVLEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 8589934592}, // FLAGS
-				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5500,13 +5383,13 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ACMOVLEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 8589934592}, // FLAGS
-				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5517,13 +5400,13 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt64,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 8589934592}, // FLAGS
-				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5534,13 +5417,13 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 8589934592}, // FLAGS
-				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5551,13 +5434,13 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt16,
 		argLen:       2,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 8589934592}, // FLAGS
-				{0, 65518},      // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5567,12 +5450,12 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPQ",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ABSWAPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5582,12 +5465,12 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPL",
 		argLen:       1,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5611,9 +5494,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASBBQ,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5624,9 +5504,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASBBL,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5637,9 +5514,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETEQ,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5650,9 +5524,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETNE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5663,9 +5534,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETLT,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5676,9 +5544,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETLE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5689,9 +5554,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETGT,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5702,9 +5564,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETGE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5715,9 +5574,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETCS,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5728,9 +5584,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETLS,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5741,9 +5594,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETHI,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5754,37 +5604,30 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETCC,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "SETEQF",
-		argLen: 1,
-		asm:    x86.ASETEQ,
+		name:         "SETEQF",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ASETEQ,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:   "SETNEF",
-		argLen: 1,
-		asm:    x86.ASETNE,
+		name:         "SETNEF",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ASETNE,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
-			clobbers: 8589934593, // AX FLAGS
+			clobbers: 1, // AX
 			outputs: []outputInfo{
 				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5795,9 +5638,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETPC,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5808,9 +5648,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETPS,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5821,9 +5658,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETHI,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5834,9 +5668,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    x86.ASETCC,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 8589934592}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
@@ -5848,7 +5679,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5861,7 +5692,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVBQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5874,7 +5705,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5887,7 +5718,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVWQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5900,7 +5731,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVLQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -5913,7 +5744,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVLQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -6657,15 +6488,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "DUFFZERO",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "DUFFZERO",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128},   // DI
 				{1, 65536}, // X0
 			},
-			clobbers: 8589934720, // DI FLAGS
+			clobbers: 128, // DI
 		},
 	},
 	{
@@ -6692,62 +6524,68 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CALLstatic",
-		auxType: auxSymOff,
-		argLen:  1,
+		name:         "CALLstatic",
+		auxType:      auxSymOff,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 12884901871, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 FLAGS
+			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 		},
 	},
 	{
-		name:    "CALLclosure",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "CALLclosure",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 4},     // DX
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 12884901871, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 FLAGS
+			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 		},
 	},
 	{
-		name:    "CALLdefer",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLdefer",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 12884901871, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 FLAGS
+			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 		},
 	},
 	{
-		name:    "CALLgo",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLgo",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 12884901871, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 FLAGS
+			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 		},
 	},
 	{
-		name:    "CALLinter",
-		auxType: auxInt64,
-		argLen:  2,
+		name:         "CALLinter",
+		auxType:      auxInt64,
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 12884901871, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 FLAGS
+			clobbers: 4294967279, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 		},
 	},
 	{
-		name:    "DUFFCOPY",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "DUFFCOPY",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
 				{1, 64},  // SI
 			},
-			clobbers: 8590000320, // SI DI X0 FLAGS
+			clobbers: 65728, // SI DI X0
 		},
 	},
 	{
@@ -6786,13 +6624,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredNilCheck",
-		argLen: 2,
+		name:         "LoweredNilCheck",
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 8589934592, // FLAGS
 		},
 	},
 	{
@@ -6801,7 +6639,7 @@ var opcodeTable = [...]opInfo{
 		asm:    x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -6965,60 +6803,60 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "DIV",
-		argLen: 2,
-		asm:    arm.ADIV,
+		name:         "DIV",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          arm.ADIV,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
 	{
-		name:   "DIVU",
-		argLen: 2,
-		asm:    arm.ADIVU,
+		name:         "DIVU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          arm.ADIVU,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
 	{
-		name:   "MOD",
-		argLen: 2,
-		asm:    arm.AMOD,
+		name:         "MOD",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          arm.AMOD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
 	{
-		name:   "MODU",
-		argLen: 2,
-		asm:    arm.AMODU,
+		name:         "MODU",
+		argLen:       2,
+		clobberFlags: true,
+		asm:          arm.AMODU,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -7035,8 +6873,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7050,8 +6888,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7062,9 +6900,8 @@ var opcodeTable = [...]opInfo{
 		asm:         arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7078,8 +6915,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7096,8 +6932,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7111,8 +6947,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7126,8 +6962,8 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -7137,9 +6973,8 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7153,8 +6988,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7168,8 +7002,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7555,7 +7388,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			clobbers: 4294967296, // FLAGS
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -7952,9 +7784,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7968,9 +7799,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -7984,9 +7814,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8000,9 +7829,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8016,9 +7844,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8032,9 +7859,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8048,9 +7874,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8064,9 +7889,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8080,9 +7904,8 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8100,8 +7923,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8116,8 +7939,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8132,8 +7955,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8148,8 +7971,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8164,8 +7987,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8180,8 +8003,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8196,8 +8019,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8212,8 +8035,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8228,8 +8051,8 @@ var opcodeTable = [...]opInfo{
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8596,10 +8419,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8612,10 +8434,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8628,10 +8449,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.AADC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8644,10 +8464,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8660,10 +8479,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8676,10 +8494,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ASBC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8692,10 +8509,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8708,10 +8524,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8724,10 +8539,9 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ARSC,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{3, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{2, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -8745,8 +8559,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8761,8 +8575,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8777,8 +8591,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8793,8 +8607,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8809,8 +8623,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8825,8 +8639,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8841,8 +8655,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8857,8 +8671,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8873,8 +8687,8 @@ var opcodeTable = [...]opInfo{
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 0},
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
@@ -8887,9 +8701,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -8900,9 +8711,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8915,9 +8723,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -8928,9 +8733,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8944,9 +8746,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -8957,9 +8756,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -8973,9 +8769,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -8986,9 +8779,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -9001,9 +8791,6 @@ var opcodeTable = [...]opInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -9014,9 +8801,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -9030,9 +8814,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -9044,9 +8825,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -9060,9 +8838,6 @@ var opcodeTable = [...]opInfo{
 				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -9074,9 +8849,6 @@ var opcodeTable = [...]opInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -9090,9 +8862,6 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -9105,9 +8874,6 @@ var opcodeTable = [...]opInfo{
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -9118,9 +8884,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 		},
 	},
 	{
@@ -9130,9 +8893,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
-			},
-			outputs: []outputInfo{
-				{0, 4294967296}, // FLAGS
 			},
 		},
 	},
@@ -9180,7 +8940,7 @@ var opcodeTable = [...]opInfo{
 		asm:               arm.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589942784}, // SP SB
+				{0, 4294975488}, // SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9194,7 +8954,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9208,7 +8968,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVBU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9222,7 +8982,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9236,7 +8996,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVHU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9250,7 +9010,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9264,7 +9024,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVF,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -9278,7 +9038,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
@@ -9293,7 +9053,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9305,7 +9065,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9317,7 +9077,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9328,7 +9088,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVF,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
@@ -9340,7 +9100,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 				{1, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 			},
 		},
@@ -9352,7 +9112,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9367,7 +9127,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9382,7 +9142,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9397,7 +9157,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9412,7 +9172,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9425,7 +9185,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9438,7 +9198,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9451,7 +9211,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
 				{2, 6143},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
-				{0, 8589948927}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
+				{0, 4294981631}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 SP SB
 			},
 		},
 	},
@@ -9671,8 +9431,7 @@ var opcodeTable = [...]opInfo{
 		asm:          arm.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9687,8 +9446,7 @@ var opcodeTable = [...]opInfo{
 		asm:          arm.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{1, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9701,9 +9459,8 @@ var opcodeTable = [...]opInfo{
 		asm:    arm.ASRA,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4294967296}, // FLAGS
-				{0, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
-				{1, 5119},       // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
@@ -9711,50 +9468,55 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CALLstatic",
-		auxType: auxSymOff,
-		argLen:  1,
+		name:         "CALLstatic",
+		auxType:      auxSymOff,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 8589875199, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+			clobbers: 4294907903, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
-		name:    "CALLclosure",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "CALLclosure",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 128},   // R7
 				{0, 13311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 SP
 			},
-			clobbers: 8589875199, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+			clobbers: 4294907903, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
-		name:    "CALLdefer",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLdefer",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 8589875199, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+			clobbers: 4294907903, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
-		name:    "CALLgo",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLgo",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 8589875199, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+			clobbers: 4294907903, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
-		name:    "CALLinter",
-		auxType: auxInt64,
-		argLen:  2,
+		name:         "CALLinter",
+		auxType:      auxInt64,
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 8589875199, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 FLAGS
+			clobbers: 4294907903, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
 		},
 	},
 	{
@@ -9770,9 +9532,6 @@ var opcodeTable = [...]opInfo{
 		name:   "Equal",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9782,9 +9541,6 @@ var opcodeTable = [...]opInfo{
 		name:   "NotEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9794,9 +9550,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessThan",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9806,9 +9559,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9818,9 +9568,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterThan",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9830,9 +9577,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9842,9 +9586,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessThanU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9854,9 +9595,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessEqualU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9866,9 +9604,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterThanU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9878,9 +9613,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterEqualU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4294967296}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
@@ -9911,29 +9643,31 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "LoweredZero",
-		auxType: auxInt64,
-		argLen:  4,
+		name:         "LoweredZero",
+		auxType:      auxInt64,
+		argLen:       4,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2},    // R1
 				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967298, // R1 FLAGS
+			clobbers: 2, // R1
 		},
 	},
 	{
-		name:    "LoweredMove",
-		auxType: auxInt64,
-		argLen:  4,
+		name:         "LoweredMove",
+		auxType:      auxInt64,
+		argLen:       4,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4},    // R2
 				{1, 2},    // R1
 				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
-			clobbers: 4294967302, // R1 R2 FLAGS
+			clobbers: 6, // R1 R2
 		},
 	},
 	{
@@ -10665,9 +10399,6 @@ var opcodeTable = [...]opInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 		},
 	},
 	{
@@ -10678,9 +10409,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
 			},
 		},
 	},
@@ -10693,9 +10421,6 @@ var opcodeTable = [...]opInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 		},
 	},
 	{
@@ -10706,9 +10431,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
 			},
 		},
 	},
@@ -10721,9 +10443,6 @@ var opcodeTable = [...]opInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 		},
 	},
 	{
@@ -10734,9 +10453,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
 			},
 		},
 	},
@@ -10749,9 +10465,6 @@ var opcodeTable = [...]opInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 		},
 	},
 	{
@@ -10762,9 +10475,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
 			},
 		},
 	},
@@ -10777,9 +10487,6 @@ var opcodeTable = [...]opInfo{
 				{0, 288230375077969920}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 				{1, 288230375077969920}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 		},
 	},
 	{
@@ -10790,9 +10497,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 288230375077969920}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 				{1, 288230375077969920}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
-			},
-			outputs: []outputInfo{
-				{0, 4611686018427387904}, // FLAGS
 			},
 		},
 	},
@@ -10840,7 +10544,7 @@ var opcodeTable = [...]opInfo{
 		asm:               arm64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037391646720}, // SP SB
+				{0, 4611686018964258816}, // SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10854,7 +10558,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10868,7 +10572,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVBU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10882,7 +10586,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVH,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10896,7 +10600,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVHU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10910,7 +10614,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10924,7 +10628,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVWU,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10938,7 +10642,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -10952,7 +10656,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AFMOVS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 288230375077969920}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
@@ -10966,7 +10670,7 @@ var opcodeTable = [...]opInfo{
 		asm:     arm64.AFMOVD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 			outputs: []outputInfo{
 				{0, 288230375077969920}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
@@ -10981,7 +10685,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
 	},
@@ -10993,7 +10697,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
 	},
@@ -11005,7 +10709,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
 	},
@@ -11017,7 +10721,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 268173311},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
 	},
@@ -11029,7 +10733,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 288230375077969920},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
 	},
@@ -11041,7 +10745,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 288230375077969920},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
-				{0, 9223372037659820031}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
 	},
@@ -11376,9 +11080,8 @@ var opcodeTable = [...]opInfo{
 		asm:    arm64.ACSEL,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{2, 4611686018427387904}, // FLAGS
-				{0, 133955583},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
-				{1, 133955583},           // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+				{1, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
@@ -11386,50 +11089,55 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CALLstatic",
-		auxType: auxSymOff,
-		argLen:  1,
+		name:         "CALLstatic",
+		auxType:      auxSymOff,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 4899916393773531135, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 FLAGS
+			clobbers: 288230375346143231, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 		},
 	},
 	{
-		name:    "CALLclosure",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "CALLclosure",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 67108864},  // R26
 				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 SP
 			},
-			clobbers: 4899916393773531135, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 FLAGS
+			clobbers: 288230375346143231, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 		},
 	},
 	{
-		name:    "CALLdefer",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLdefer",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 4899916393773531135, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 FLAGS
+			clobbers: 288230375346143231, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 		},
 	},
 	{
-		name:    "CALLgo",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLgo",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 4899916393773531135, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 FLAGS
+			clobbers: 288230375346143231, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 		},
 	},
 	{
-		name:    "CALLinter",
-		auxType: auxInt64,
-		argLen:  2,
+		name:         "CALLinter",
+		auxType:      auxInt64,
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
-			clobbers: 4899916393773531135, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 FLAGS
+			clobbers: 288230375346143231, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
 		},
 	},
 	{
@@ -11445,9 +11153,6 @@ var opcodeTable = [...]opInfo{
 		name:   "Equal",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11457,9 +11162,6 @@ var opcodeTable = [...]opInfo{
 		name:   "NotEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11469,9 +11171,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessThan",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11481,9 +11180,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11493,9 +11189,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterThan",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11505,9 +11198,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11517,9 +11207,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessThanU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11529,9 +11216,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessEqualU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11541,9 +11225,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterThanU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11553,9 +11234,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterEqualU",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4611686018427387904}, // FLAGS
-			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
@@ -11573,28 +11251,30 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "LoweredZero",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "LoweredZero",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65536},     // R16
 				{1, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
-			clobbers: 4611686018427453440, // R16 FLAGS
+			clobbers: 65536, // R16
 		},
 	},
 	{
-		name:    "LoweredMove",
-		auxType: auxInt64,
-		argLen:  4,
+		name:         "LoweredMove",
+		auxType:      auxInt64,
+		argLen:       4,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 131072},    // R17
 				{1, 65536},     // R16
 				{2, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 			},
-			clobbers: 4611686018427584512, // R16 R17 FLAGS
+			clobbers: 196608, // R16 R17
 		},
 	},
 	{
@@ -11965,9 +11645,6 @@ var opcodeTable = [...]opInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
 			clobbers: 1073741824, // R31
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 		},
 	},
 	{
@@ -11975,9 +11652,6 @@ var opcodeTable = [...]opInfo{
 		argLen: 1,
 		asm:    ppc64.AADDME,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12281,15 +11955,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "ANDconst",
-		auxType: auxInt64,
-		argLen:  1,
-		asm:     ppc64.AANDCC,
+		name:         "ANDconst",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
+		asm:          ppc64.AANDCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 9223372036854775808, // CR
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12685,9 +12359,6 @@ var opcodeTable = [...]opInfo{
 				{0, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 				{1, 9223372032559808512}, // F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 		},
 	},
 	{
@@ -12698,9 +12369,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
 			},
 		},
 	},
@@ -12713,9 +12381,6 @@ var opcodeTable = [...]opInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 		},
 	},
 	{
@@ -12726,9 +12391,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
 			},
 		},
 	},
@@ -12741,9 +12403,6 @@ var opcodeTable = [...]opInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 				{1, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 		},
 	},
 	{
@@ -12754,9 +12413,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
 			},
 		},
 	},
@@ -12769,9 +12425,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 		},
 	},
 	{
@@ -12782,9 +12435,6 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
-			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
 			},
 		},
 	},
@@ -12797,18 +12447,12 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			outputs: []outputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 		},
 	},
 	{
 		name:   "Equal",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12818,9 +12462,6 @@ var opcodeTable = [...]opInfo{
 		name:   "NotEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12830,9 +12471,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessThan",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12842,9 +12480,6 @@ var opcodeTable = [...]opInfo{
 		name:   "LessEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12854,9 +12489,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterThan",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12866,9 +12498,6 @@ var opcodeTable = [...]opInfo{
 		name:   "GreaterEqual",
 		argLen: 1,
 		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 9223372036854775808}, // CR
-			},
 			outputs: []outputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
@@ -12884,13 +12513,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "LoweredNilCheck",
-		argLen: 2,
+		name:         "LoweredNilCheck",
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866815}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 9223372037928517632, // R31 CR
+			clobbers: 1073741824, // R31
 		},
 	},
 	{
@@ -12907,75 +12537,82 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CALLstatic",
-		auxType: auxSymOff,
-		argLen:  1,
+		name:         "CALLstatic",
+		auxType:      auxSymOff,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
+			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
-		name:    "CALLclosure",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "CALLclosure",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1024},      // R11
 				{0, 536866813}, // SP R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
+			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
-		name:    "CALLdefer",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLdefer",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
+			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
-		name:    "CALLgo",
-		auxType: auxInt64,
-		argLen:  1,
+		name:         "CALLgo",
+		auxType:      auxInt64,
+		argLen:       1,
+		clobberFlags: true,
 		reg: regInfo{
-			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
+			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
-		name:    "CALLinter",
-		auxType: auxInt64,
-		argLen:  2,
+		name:         "CALLinter",
+		auxType:      auxInt64,
+		argLen:       2,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 18446744069951451132, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 CR
+			clobbers: 9223372033096675324, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 		},
 	},
 	{
-		name:    "LoweredZero",
-		auxType: auxInt64,
-		argLen:  3,
+		name:         "LoweredZero",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4},         // R3
 				{1, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 9223372036854775812, // R3 CR
+			clobbers: 4, // R3
 		},
 	},
 	{
-		name:    "LoweredMove",
-		auxType: auxInt64,
-		argLen:  4,
+		name:         "LoweredMove",
+		auxType:      auxInt64,
+		argLen:       4,
+		clobberFlags: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4},         // R3
 				{1, 8},         // R4
 				{2, 536866812}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
 			},
-			clobbers: 9223372036854775820, // R3 R4 CR
+			clobbers: 12, // R3 R4
 		},
 	},
 	{
@@ -14594,11 +14231,9 @@ var registers386 = [...]Register{
 	{14, "X6"},
 	{15, "X7"},
 	{16, "SB"},
-	{17, "FLAGS"},
 }
 var gpRegMask386 = regMask(239)
 var fpRegMask386 = regMask(65280)
-var flagRegMask386 = regMask(131072)
 var framepointerReg386 = int8(5)
 var registersAMD64 = [...]Register{
 	{0, "AX"},
@@ -14634,11 +14269,9 @@ var registersAMD64 = [...]Register{
 	{30, "X14"},
 	{31, "X15"},
 	{32, "SB"},
-	{33, "FLAGS"},
 }
 var gpRegMaskAMD64 = regMask(65519)
 var fpRegMaskAMD64 = regMask(4294901760)
-var flagRegMaskAMD64 = regMask(8589934592)
 var framepointerRegAMD64 = int8(5)
 var registersARM = [...]Register{
 	{0, "R0"},
@@ -14673,12 +14306,10 @@ var registersARM = [...]Register{
 	{29, "F13"},
 	{30, "F14"},
 	{31, "F15"},
-	{32, "FLAGS"},
-	{33, "SB"},
+	{32, "SB"},
 }
 var gpRegMaskARM = regMask(5119)
 var fpRegMaskARM = regMask(4294901760)
-var flagRegMaskARM = regMask(4294967296)
 var framepointerRegARM = int8(-1)
 var registersARM64 = [...]Register{
 	{0, "R0"},
@@ -14743,12 +14374,10 @@ var registersARM64 = [...]Register{
 	{59, "F29"},
 	{60, "F30"},
 	{61, "F31"},
-	{62, "FLAGS"},
-	{63, "SB"},
+	{62, "SB"},
 }
 var gpRegMaskARM64 = regMask(133955583)
 var fpRegMaskARM64 = regMask(288230375077969920)
-var flagRegMaskARM64 = regMask(4611686018427387904)
 var framepointerRegARM64 = int8(-1)
 var registersPPC64 = [...]Register{
 	{0, "SP"},
@@ -14814,9 +14443,7 @@ var registersPPC64 = [...]Register{
 	{60, "F29"},
 	{61, "F30"},
 	{62, "F31"},
-	{63, "CR"},
 }
 var gpRegMaskPPC64 = regMask(536866812)
 var fpRegMaskPPC64 = regMask(9223372032559808512)
-var flagRegMaskPPC64 = regMask(9223372036854775808)
 var framepointerRegPPC64 = int8(0)

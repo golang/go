@@ -27,6 +27,7 @@ type opInfo struct {
 	rematerializeable bool // this op is rematerializeable
 	commutative       bool // this operation is commutative (e.g. addition)
 	resultInArg0      bool // last output of v and v.Args[0] must be allocated to the same register
+	clobberFlags      bool // this op clobbers flags register
 }
 
 type inputInfo struct {
