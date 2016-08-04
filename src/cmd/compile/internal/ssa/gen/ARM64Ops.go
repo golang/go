@@ -97,7 +97,6 @@ var regNamesARM64 = []string{
 	"F31", // 2.0
 
 	// pseudo-registers
-	"FLAGS",
 	"SB",
 }
 
@@ -129,39 +128,37 @@ func init() {
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
 		gpspsbg    = gpspg | buildReg("SB")
-		flags      = buildReg("FLAGS")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27")
-		callerSave = gp | fp | flags | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
 	)
 	// Common regInfo
 	var (
-		gp01     = regInfo{inputs: []regMask{}, outputs: []regMask{gp}}
+		gp01     = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11     = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11sp   = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp1flags = regInfo{inputs: []regMask{gpg}, outputs: []regMask{flags}}
-		//gp1flags1 = regInfo{inputs: []regMask{gp, flags}, outputs: []regMask{gp}}
-		gp21 = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		//gp21cf    = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
-		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{flags}}
-		gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
+		gp1flags = regInfo{inputs: []regMask{gpg}}
+		//gp1flags1 = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
+		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
+		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		//gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
 		//gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		//gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{flags}}
-		//gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp, flags}, outputs: []regMask{gp}}
+		//gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}}
+		//gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
 		gpload  = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{}}
+		gpstore = regInfo{inputs: []regMask{gpspsbg, gpg}}
 		//gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		//gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{}}
-		fp01 = regInfo{inputs: []regMask{}, outputs: []regMask{fp}}
+		//gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
+		fp01 = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11 = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		//fp1flags  = regInfo{inputs: []regMask{fp}, outputs: []regMask{flags}}
+		//fp1flags  = regInfo{inputs: []regMask{fp}}
 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp2flags  = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{flags}}
+		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
 		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}, outputs: []regMask{}}
-		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
+		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
 		// binary ops
@@ -287,11 +284,11 @@ func init() {
 		{name: "CSELULT", argLength: 3, reg: gp2flags1, asm: "CSEL"}, // returns arg0 if flags indicates unsigned LT, arg1 otherwise, arg2=flags
 
 		// function calls
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
@@ -340,8 +337,9 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R16"), gp},
-				clobbers: buildReg("R16 FLAGS"),
+				clobbers: buildReg("R16"),
 			},
+			clobberFlags: true,
 		},
 
 		// large move
@@ -363,8 +361,9 @@ func init() {
 			argLength: 4,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp},
-				clobbers: buildReg("R16 R17 FLAGS"),
+				clobbers: buildReg("R16 R17"),
 			},
+			clobberFlags: true,
 		},
 
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
@@ -419,7 +418,6 @@ func init() {
 		regnames:        regNamesARM64,
 		gpregmask:       gp,
 		fpregmask:       fp,
-		flagmask:        flags,
 		framepointerreg: -1, // not used
 	})
 }

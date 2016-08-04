@@ -1060,10 +1060,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			args = append(args[:0], v.Args...)
 			for _, i := range regspec.inputs {
 				mask := i.regs
-				if mask == f.Config.flagRegMask {
-					// TODO: remove flag input from regspec.inputs.
-					continue
-				}
 				if mask&s.values[args[i.idx].ID].regs == 0 {
 					// Need a new register for the input.
 					mask &= s.allocatable

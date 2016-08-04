@@ -22,7 +22,6 @@ type Config struct {
 	registers       []Register                 // machine registers
 	gpRegMask       regMask                    // general purpose integer register mask
 	fpRegMask       regMask                    // floating point register mask
-	flagRegMask     regMask                    // flag register mask
 	FPReg           int8                       // register number of frame pointer, -1 if not used
 	hasGReg         bool                       // has hardware g register
 	fe              Frontend                   // callbacks into compiler frontend
@@ -137,7 +136,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
-		c.flagRegMask = flagRegMaskAMD64
 		c.FPReg = framepointerRegAMD64
 		c.hasGReg = false
 	case "386":
@@ -148,7 +146,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registers386[:]
 		c.gpRegMask = gpRegMask386
 		c.fpRegMask = fpRegMask386
-		c.flagRegMask = flagRegMask386
 		c.FPReg = framepointerReg386
 		c.hasGReg = false
 	case "arm":
@@ -159,7 +156,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersARM[:]
 		c.gpRegMask = gpRegMaskARM
 		c.fpRegMask = fpRegMaskARM
-		c.flagRegMask = flagRegMaskARM
 		c.FPReg = framepointerRegARM
 		c.hasGReg = true
 	case "arm64":
@@ -170,7 +166,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
-		c.flagRegMask = flagRegMaskARM64
 		c.FPReg = framepointerRegARM64
 		c.hasGReg = true
 	case "ppc64le":
@@ -181,7 +176,6 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersPPC64[:]
 		c.gpRegMask = gpRegMaskPPC64
 		c.fpRegMask = fpRegMaskPPC64
-		c.flagRegMask = flagRegMaskPPC64
 		c.FPReg = framepointerRegPPC64
 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
 		c.hasGReg = true

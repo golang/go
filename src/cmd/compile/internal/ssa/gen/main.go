@@ -29,7 +29,6 @@ type arch struct {
 	regnames        []string
 	gpregmask       regMask
 	fpregmask       regMask
-	flagmask        regMask
 	framepointerreg int8
 	generic         bool
 }
@@ -44,6 +43,7 @@ type opData struct {
 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
 	commutative       bool  // this operation is commutative on its first 2 arguments (e.g. addition)
 	resultInArg0      bool  // last output of v and v.Args[0] must be allocated to the same register
+	clobberFlags      bool  // this op clobbers flags register
 }
 
 type blockData struct {
@@ -167,6 +167,9 @@ func genOp() {
 					log.Fatalf("input[1] and last output register must be equal for %s", v.name)
 				}
 			}
+			if v.clobberFlags {
+				fmt.Fprintln(w, "clobberFlags: true,")
+			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")
 				fmt.Fprintln(w, "},") // close op
@@ -204,9 +207,7 @@ func genOp() {
 			// reg outputs
 			s = s[:0]
 			for i, r := range v.reg.outputs {
-				if r != 0 {
-					s = append(s, intPair{countRegs(r), i})
-				}
+				s = append(s, intPair{countRegs(r), i})
 			}
 			if len(s) > 0 {
 				sort.Sort(byKey(s))
@@ -240,7 +241,6 @@ func genOp() {
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
 		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
-		fmt.Fprintf(w, "var flagRegMask%s = regMask(%d)\n", a.name, a.flagmask)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
 	}
 

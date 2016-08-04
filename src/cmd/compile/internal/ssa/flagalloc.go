@@ -31,7 +31,7 @@ func flagalloc(f *Func) {
 				if v == flag {
 					flag = nil
 				}
-				if opcodeTable[v.Op].reg.clobbers&f.Config.flagRegMask != 0 {
+				if opcodeTable[v.Op].clobberFlags {
 					flag = nil
 				}
 				for _, a := range v.Args {
@@ -103,7 +103,7 @@ func flagalloc(f *Func) {
 			}
 			// Issue v.
 			b.Values = append(b.Values, v)
-			if opcodeTable[v.Op].reg.clobbers&f.Config.flagRegMask != 0 {
+			if opcodeTable[v.Op].clobberFlags {
 				flag = nil
 			}
 			if v.Type.IsFlags() {
