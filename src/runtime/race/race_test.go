@@ -221,3 +221,21 @@ func BenchmarkSyncLeak(b *testing.B) {
 	}
 	wg.Wait()
 }
+
+func BenchmarkStackLeak(b *testing.B) {
+	done := make(chan bool, 1)
+	for i := 0; i < b.N; i++ {
+		go func() {
+			growStack(rand.Intn(100))
+			done <- true
+		}()
+		<-done
+	}
+}
+
+func growStack(i int) {
+	if i == 0 {
+		return
+	}
+	growStack(i - 1)
+}

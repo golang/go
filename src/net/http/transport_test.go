@@ -2060,7 +2060,8 @@ type proxyFromEnvTest struct {
 
 	env      string // HTTP_PROXY
 	httpsenv string // HTTPS_PROXY
-	noenv    string // NO_RPXY
+	noenv    string // NO_PROXY
+	reqmeth  string // REQUEST_METHOD
 
 	want    string
 	wanterr error
@@ -2083,6 +2084,10 @@ func (t proxyFromEnvTest) String() string {
 	if t.noenv != "" {
 		space()
 		fmt.Fprintf(&buf, "no_proxy=%q", t.noenv)
+	}
+	if t.reqmeth != "" {
+		space()
+		fmt.Fprintf(&buf, "request_method=%q", t.reqmeth)
 	}
 	req := "http://example.com"
 	if t.req != "" {
@@ -2107,6 +2112,12 @@ var proxyFromEnvTests = []proxyFromEnvTest{
 	{req: "https://secure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://secure.proxy.tld"},
 	{req: "https://secure.tld/", env: "http.proxy.tld", httpsenv: "https://secure.proxy.tld", want: "https://secure.proxy.tld"},
 
+	// Issue 16405: don't use HTTP_PROXY in a CGI environment,
+	// where HTTP_PROXY can be attacker-controlled.
+	{env: "http://10.1.2.3:8080", reqmeth: "POST",
+		want:    "<nil>",
+		wanterr: errors.New("net/http: refusing to use HTTP_PROXY value in CGI environment; see golang.org/s/cgihttpproxy")},
+
 	{want: "<nil>"},
 
 	{noenv: "example.com", req: "http://example.com/", env: "proxy", want: "<nil>"},
@@ -2122,6 +2133,7 @@ func TestProxyFromEnvironment(t *testing.T) {
 		os.Setenv("HTTP_PROXY", tt.env)
 		os.Setenv("HTTPS_PROXY", tt.httpsenv)
 		os.Setenv("NO_PROXY", tt.noenv)
+		os.Setenv("REQUEST_METHOD", tt.reqmeth)
 		ResetCachedEnvironment()
 		reqURL := tt.req
 		if reqURL == "" {
@@ -3496,6 +3508,45 @@ func TestTransportIdleConnTimeout(t *testing.T) {
 	time.Sleep(timeout * 3 / 2)
 	if got := tr.IdleConnStrsForTesting(); len(got) != 0 {
 		t.Errorf("idle conns = %q; want none", got)
+	}
+}
+
+type funcConn struct {
+	net.Conn
+	read  func([]byte) (int, error)
+	write func([]byte) (int, error)
+}
+
+func (c funcConn) Read(p []byte) (int, error)  { return c.read(p) }
+func (c funcConn) Write(p []byte) (int, error) { return c.write(p) }
+func (c funcConn) Close() error                { return nil }
+
+// Issue 16465: Transport.RoundTrip should return the raw net.Conn.Read error from Peek
+// back to the caller.
+func TestTransportReturnsPeekError(t *testing.T) {
+	errValue := errors.New("specific error value")
+
+	wrote := make(chan struct{})
+	var wroteOnce sync.Once
+
+	tr := &Transport{
+		Dial: func(network, addr string) (net.Conn, error) {
+			c := funcConn{
+				read: func([]byte) (int, error) {
+					<-wrote
+					return 0, errValue
+				},
+				write: func(p []byte) (int, error) {
+					wroteOnce.Do(func() { close(wrote) })
+					return len(p), nil
+				},
+			}
+			return c, nil
+		},
+	}
+	_, err := tr.RoundTrip(httptest.NewRequest("GET", "http://fake.tld/", nil))
+	if err != errValue {
+		t.Errorf("error = %#v; want %v", err, errValue)
 	}
 }
 
