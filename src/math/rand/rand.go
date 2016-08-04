@@ -24,6 +24,8 @@ type Source interface {
 }
 
 // NewSource returns a new pseudo-random Source seeded with the given value.
+// Unlike the default Source used by top-level functions, this source is not
+// safe for concurrent use by multiple goroutines.
 func NewSource(seed int64) Source {
 	var rng rngSource
 	rng.Seed(seed)
