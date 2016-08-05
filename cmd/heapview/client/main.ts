@@ -6,17 +6,17 @@
  * A hamburger menu element.
  */
 class HamburgerElement extends HTMLElement {
-  connectedCallback() {
+  attachedCallback() {
     this.innerHTML = '&#9776';  // Unicode character for hamburger menu.
   }
 }
-window.customElements.define('heap-hamburger', HamburgerElement);
+document.registerElement('heap-hamburger', HamburgerElement);
 
 /**
  * A heading for the page with a hamburger menu and a title.
  */
 export class HeadingElement extends HTMLElement {
-  connectedCallback() {
+  attachedCallback() {
     this.style.display = 'block';
     this.style.backgroundColor = '#2196F3';
     this.style.webkitUserSelect = 'none';
@@ -28,8 +28,7 @@ export class HeadingElement extends HTMLElement {
     `;
   }
 }
-window.customElements.define('heap-heading', HeadingElement);
-
+document.registerElement('heap-heading', HeadingElement);
 
 /**
  * Reset body's margin and padding, and set font.
@@ -46,5 +45,5 @@ function clearStyle() {
 export function main() {
   document.title = 'Go Heap Viewer';
   clearStyle();
-  document.body.appendChild(new HeadingElement());
+  document.body.appendChild(document.createElement("heap-heading"));
 }
