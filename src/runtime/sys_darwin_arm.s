@@ -162,11 +162,15 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
 TEXT time·now(SB), 7, $32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
+	MOVW	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R12
 	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVW	8(R13), R0
+	MOVW	12(R13), R1
+inreg:
 	MOVW    R1, R2  // usec
-
 	MOVW	R0, sec+0(FP)
 	MOVW	$0, R1
 	MOVW	R1, loc+4(FP)
@@ -178,9 +182,14 @@ TEXT time·now(SB), 7, $32
 TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVW	$8(R13), R0  // timeval
 	MOVW	$0, R1  // zone
+	MOVW	$0, R2	// see issue 16570
 	MOVW	$SYS_gettimeofday, R12
 	SWI	$0x80 // Note: R0 is tv_sec, R1 is tv_usec
-
+	CMP	$0, R0
+	BNE	inreg
+	MOVW	8(R13), R0
+	MOVW	12(R13), R1
+inreg:
 	MOVW    R1, R2
 	MOVW	$1000000000, R3
 	MULLU	R0, R3, (R1, R0)
