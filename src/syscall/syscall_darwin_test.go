@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin
-// +build amd64 386
+// +build amd64 386 arm arm64
 
 package syscall_test
 
