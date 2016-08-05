@@ -6,6 +6,10 @@ type T struct {
 	x, y int
 }
 
+type T2 struct {
+	w, z int
+}
+
 var _ = [42]T{
 	T{},
 	T{1, 2},
@@ -201,4 +205,14 @@ var pieces4 = []*Piece{
 	&Piece{1, 0, Point{1, 4}, []Point{Point{0, 0}, Point{0, 1}, Point{0, 1}, Point{0, 1}}, nil, nil},
 	&Piece{2, 0, Point{4, 1}, []Point{Point{0, 0}, Point{1, 0}, Point{1, 0}, Point{1, 0}}, nil, nil},
 	&Piece{3, 0, Point{1, 4}, []Point{Point{0, 0}, Point{0, 1}, Point{0, 1}, Point{0, 1}}, nil, nil},
+}
+
+var _ = map[T]T2{
+	T{1, 2}: T2{3, 4},
+	T{5, 6}: T2{7, 8},
+}
+
+var _ = map[*T]*T2{
+	&T{1, 2}: &T2{3, 4},
+	&T{5, 6}: &T2{7, 8},
 }
