@@ -449,13 +449,13 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Not implemented.
-TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
+TEXT runtime·cgocallback(SB),NOSPLIT,$0-16
 	MOVL	0, AX
 	RET
 
 // cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
 // Not implemented.
-TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-12
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-16
 	MOVL	0, AX
 	RET
 
@@ -561,20 +561,20 @@ TEXT runtime·aeshash(SB),NOSPLIT,$0-20
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-20
-	MOVL	AX, ret+16(FP)
+TEXT runtime·aeshashstr(SB),NOSPLIT,$0-12
+	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-20
-	MOVL	AX, ret+16(FP)
+TEXT runtime·aeshash32(SB),NOSPLIT,$0-12
+	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-20
-	MOVL	AX, ret+16(FP)
+TEXT runtime·aeshash64(SB),NOSPLIT,$0-12
+	MOVL	AX, ret+8(FP)
 	RET
 
 // memequal(p, q unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT,$0-13
+TEXT runtime·memequal(SB),NOSPLIT,$0-17
 	MOVL	a+0(FP), SI
 	MOVL	b+4(FP), DI
 	CMPL	SI, DI
@@ -607,16 +607,16 @@ eq:
 // See runtime_test.go:eqstring_generic for
 // equivalent Go code.
 TEXT runtime·eqstring(SB),NOSPLIT,$0-17
-	MOVL	s1str+0(FP), SI
-	MOVL	s2str+8(FP), DI
+	MOVL	s1_base+0(FP), SI
+	MOVL	s2_base+8(FP), DI
 	CMPL	SI, DI
 	JEQ	same
-	MOVL	s1len+4(FP), BX
+	MOVL	s1_len+4(FP), BX
 	CALL	runtime·memeqbody(SB)
-	MOVB	AX, v+16(FP)
+	MOVB	AX, ret+16(FP)
 	RET
 same:
-	MOVB	$1, v+16(FP)
+	MOVB	$1, ret+16(FP)
 	RET
 
 // a in SI
