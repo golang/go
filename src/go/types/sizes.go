@@ -64,6 +64,15 @@ func (s *StdSizes) Alignof(T Type) int64 {
 			}
 		}
 		return max
+	case *Slice, *Interface:
+		// Multiword data structures are effectively structs
+		// in which each element has size WordSize.
+		return s.WordSize
+	case *Basic:
+		// Strings are like slices and interfaces.
+		if t.Info()&IsString != 0 {
+			return s.WordSize
+		}
 	}
 	a := s.Sizeof(T) // may be 0
 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
