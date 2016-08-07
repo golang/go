@@ -58,3 +58,26 @@ type S struct {
 		t.Errorf("Sizeof(%v) with WordSize 8 = %d want 40", ts, got)
 	}
 }
+
+// Issue 16464
+func TestAlignofNaclSlice(t *testing.T) {
+	const src = `
+package main
+
+var s struct {
+	x *int
+	y []byte
+}
+`
+	ts := findStructType(t, src)
+	sizes := &types.StdSizes{WordSize: 4, MaxAlign: 8}
+	var fields []*types.Var
+	// Make a copy manually :(
+	for i := 0; i < ts.NumFields(); i++ {
+		fields = append(fields, ts.Field(i))
+	}
+	offsets := sizes.Offsetsof(fields)
+	if offsets[0] != 0 || offsets[1] != 4 {
+		t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, []int{0, 4})
+	}
+}
