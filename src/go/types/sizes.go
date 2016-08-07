@@ -132,8 +132,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		if n == 0 {
 			return 0
 		}
-		setOffsets(t, s)
-		return t.offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+		offsets := s.Offsetsof(t.fields)
+		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
 	case *Interface:
 		return s.WordSize * 2
 	}
@@ -158,22 +158,18 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 	if T.NumFields() > 0 {
 		// compute offsets on demand
 		if s := conf.Sizes; s != nil {
-			calculated := setOffsets(T, s)
-			offsets = T.offsets
-			if calculated {
-				// sanity checks
-				if len(offsets) != T.NumFields() {
-					panic("Config.Sizes.Offsetsof returned the wrong number of offsets")
-				}
-				for _, o := range offsets {
-					if o < 0 {
-						panic("Config.Sizes.Offsetsof returned an offset < 0")
-					}
+			offsets := s.Offsetsof(T.fields)
+			// sanity checks
+			if len(offsets) != T.NumFields() {
+				panic("Config.Sizes.Offsetsof returned the wrong number of offsets")
+			}
+			for _, o := range offsets {
+				if o < 0 {
+					panic("Config.Sizes.Offsetsof returned an offset < 0")
 				}
 			}
 		} else {
-			setOffsets(T, &stdSizes)
-			offsets = T.offsets
+			offsets = stdSizes.Offsetsof(T.fields)
 		}
 	}
 	return offsets
@@ -206,16 +202,4 @@ func (conf *Config) sizeof(T Type) int64 {
 func align(x, a int64) int64 {
 	y := x + a - 1
 	return y - y%a
-}
-
-// setOffsets sets the offsets of s for the given sizes if necessary.
-// The result is true if the offsets were not set before; otherwise it
-// is false.
-func setOffsets(s *Struct, sizes Sizes) bool {
-	var calculated bool
-	s.offsetsOnce.Do(func() {
-		calculated = true
-		s.offsets = sizes.Offsetsof(s.fields)
-	})
-	return calculated
 }
