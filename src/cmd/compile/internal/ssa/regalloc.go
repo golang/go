@@ -492,8 +492,14 @@ func (s *regAllocState) init(f *Func) {
 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
-	if s.f.Config.nacl && s.f.Config.arch == "arm" {
-		s.allocatable &^= 1 << 9 // R9 is "thread pointer" on nacl/arm
+	if s.f.Config.nacl {
+		switch s.f.Config.arch {
+		case "arm":
+			s.allocatable &^= 1 << 9 // R9 is "thread pointer" on nacl/arm
+		case "amd64p32":
+			s.allocatable &^= 1 << 5  // BP - reserved for nacl
+			s.allocatable &^= 1 << 15 // R15 - reserved for nacl
+		}
 	}
 
 	s.regs = make([]regState, s.numRegs)

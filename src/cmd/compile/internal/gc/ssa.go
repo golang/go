@@ -37,7 +37,7 @@ func shouldssa(fn *Node) bool {
 		if os.Getenv("SSATEST") == "" {
 			return false
 		}
-	case "amd64", "arm":
+	case "amd64", "amd64p32", "arm":
 		// Generally available.
 	}
 	if !ssaEnabled {
@@ -1657,7 +1657,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		if ft.IsFloat() || tt.IsFloat() {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
-			if s.config.IntSize == 4 {
+			if s.config.IntSize == 4 && Thearch.LinkArch.Name != "amd64p32" {
 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
@@ -2998,6 +2998,10 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 		off += size
 	}
 	off = Rnd(off, int64(Widthptr))
+	if Thearch.LinkArch.Name == "amd64p32" {
+		// amd64p32 wants 8-byte alignment of the start of the return values.
+		off = Rnd(off, 8)
+	}
 
 	// Issue call
 	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn.Sym, s.mem())

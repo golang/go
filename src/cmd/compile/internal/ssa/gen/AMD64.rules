@@ -4,7 +4,8 @@
 
 // Lowering arithmetic
 (Add64  x y) -> (ADDQ  x y)
-(AddPtr x y) -> (ADDQ  x y)
+(AddPtr x y) && config.PtrSize == 8 -> (ADDQ x y)
+(AddPtr x y) && config.PtrSize == 4 -> (ADDL x y)
 (Add32  x y) -> (ADDL  x y)
 (Add16  x y) -> (ADDL  x y)
 (Add8   x y) -> (ADDL  x y)
@@ -12,7 +13,8 @@
 (Add64F x y) -> (ADDSD x y)
 
 (Sub64  x y) -> (SUBQ  x y)
-(SubPtr x y) -> (SUBQ  x y)
+(SubPtr x y) && config.PtrSize == 8 -> (SUBQ x y)
+(SubPtr x y) && config.PtrSize == 4 -> (SUBL x y)
 (Sub32  x y) -> (SUBL  x y)
 (Sub16  x y) -> (SUBL  x y)
 (Sub8   x y) -> (SUBL  x y)
@@ -91,8 +93,9 @@
 (Not x) -> (XORLconst [1] x)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
-(OffPtr [off] ptr) -> (ADDQ (MOVQconst [off]) ptr)
+(OffPtr [off] ptr) && config.PtrSize == 8 && is32Bit(off) -> (ADDQconst [off] ptr)
+(OffPtr [off] ptr) && config.PtrSize == 8 -> (ADDQ (MOVQconst [off]) ptr)
+(OffPtr [off] ptr) && config.PtrSize == 4 -> (ADDLconst [off] ptr)
 
 // Lowering other arithmetic
 // TODO: CMPQconst 0 below is redundant because BSF sets Z but how to remove?
@@ -270,7 +273,8 @@
 (Eq16  x y) -> (SETEQ (CMPW x y))
 (Eq8   x y) -> (SETEQ (CMPB x y))
 (EqB   x y) -> (SETEQ (CMPB x y))
-(EqPtr x y) -> (SETEQ (CMPQ x y))
+(EqPtr x y) && config.PtrSize == 8 -> (SETEQ (CMPQ x y))
+(EqPtr x y) && config.PtrSize == 4 -> (SETEQ (CMPL x y))
 (Eq64F x y) -> (SETEQF (UCOMISD x y))
 (Eq32F x y) -> (SETEQF (UCOMISS x y))
 
@@ -279,13 +283,16 @@
 (Neq16  x y) -> (SETNE (CMPW x y))
 (Neq8   x y) -> (SETNE (CMPB x y))
 (NeqB   x y) -> (SETNE (CMPB x y))
-(NeqPtr x y) -> (SETNE (CMPQ x y))
+(NeqPtr x y) && config.PtrSize == 8 -> (SETNE (CMPQ x y))
+(NeqPtr x y) && config.PtrSize == 4 -> (SETNE (CMPL x y))
 (Neq64F x y) -> (SETNEF (UCOMISD x y))
 (Neq32F x y) -> (SETNEF (UCOMISS x y))
 
+(Int64Hi x) -> (SHRQconst [32] x) // needed for amd64p32
+
 // Lowering loads
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
-(Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t) && config.PtrSize == 8) -> (MOVQload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) || isPtr(t) && config.PtrSize == 4) -> (MOVLload ptr mem)
 (Load <t> ptr mem) && is16BitInt(t) -> (MOVWload ptr mem)
 (Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) -> (MOVSSload ptr mem)
@@ -328,14 +335,14 @@
 (Move [s] dst src mem)
 	&& SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 <= 8 ->
 	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16]
-		(ADDQconst <dst.Type> dst [SizeAndAlign(s).Size()%16])
-		(ADDQconst <src.Type> src [SizeAndAlign(s).Size()%16])
+		(OffPtr <dst.Type> dst [SizeAndAlign(s).Size()%16])
+		(OffPtr <src.Type> src [SizeAndAlign(s).Size()%16])
 		(MOVQstore dst (MOVQload src mem) mem))
 (Move [s] dst src mem)
 	&& SizeAndAlign(s).Size() > 16 && SizeAndAlign(s).Size()%16 != 0 && SizeAndAlign(s).Size()%16 > 8 ->
 	(Move [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%16]
-		(ADDQconst <dst.Type> dst [SizeAndAlign(s).Size()%16])
-		(ADDQconst <src.Type> src [SizeAndAlign(s).Size()%16])
+		(OffPtr <dst.Type> dst [SizeAndAlign(s).Size()%16])
+		(OffPtr <src.Type> src [SizeAndAlign(s).Size()%16])
 		(MOVOstore dst (MOVOload src mem) mem))
 
 // Medium copying uses a duff device.
@@ -376,7 +383,7 @@
 
 // Strip off any fractional word zeroing.
 (Zero [s] destptr mem) && SizeAndAlign(s).Size()%8 != 0 && SizeAndAlign(s).Size() > 8 ->
-	(Zero [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8] (ADDQconst destptr [SizeAndAlign(s).Size()%8])
+	(Zero [SizeAndAlign(s).Size()-SizeAndAlign(s).Size()%8] (OffPtr <destptr.Type> destptr [SizeAndAlign(s).Size()%8])
 		(MOVQstoreconst [0] destptr mem))
 
 // Zero small numbers of words directly.
@@ -397,7 +404,7 @@
 (Zero [s] destptr mem)
 	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%8 == 0 && SizeAndAlign(s).Size()%16 != 0
 	&& !config.noDuffDevice ->
-	(Zero [SizeAndAlign(s).Size()-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+	(Zero [SizeAndAlign(s).Size()-8] (OffPtr <destptr.Type> [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
 (Zero [s] destptr mem)
 	&& SizeAndAlign(s).Size() <= 1024 && SizeAndAlign(s).Size()%16 == 0 && !config.noDuffDevice ->
 	(DUFFZERO [SizeAndAlign(s).Size()] destptr (MOVOconst [0]) mem)
@@ -415,7 +422,8 @@
 (Const64  [val]) -> (MOVQconst [val])
 (Const32F [val]) -> (MOVSSconst [val])
 (Const64F [val]) -> (MOVSDconst [val])
-(ConstNil) -> (MOVQconst [0])
+(ConstNil) && config.PtrSize == 8 -> (MOVQconst [0])
+(ConstNil) && config.PtrSize == 4 -> (MOVLconst [0])
 (ConstBool [b]) -> (MOVLconst [b])
 
 // Lowering calls
@@ -426,14 +434,17 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // Miscellaneous
-(Convert <t> x mem) -> (MOVQconvert <t> x mem)
-(IsNonNil p) -> (SETNE (TESTQ p p))
+(Convert <t> x mem) && config.PtrSize == 8 -> (MOVQconvert <t> x mem)
+(Convert <t> x mem) && config.PtrSize == 4 -> (MOVLconvert <t> x mem)
+(IsNonNil p) && config.PtrSize == 8 -> (SETNE (TESTQ p p))
+(IsNonNil p) && config.PtrSize == 4 -> (SETNE (TESTL p p))
 (IsInBounds idx len) -> (SETB (CMPQ idx len))
 (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
 (NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
-(Addr {sym} base) -> (LEAQ {sym} base)
+(Addr {sym} base) && config.PtrSize == 8 -> (LEAQ {sym} base)
+(Addr {sym} base) && config.PtrSize == 4 -> (LEAL {sym} base)
 
 // block rewrites
 (If (SETL  cmp) yes no) -> (LT  cmp yes no)
@@ -1592,3 +1603,53 @@
   && x.Uses == 1
   && clobber(x)
   -> (MOVQstoreidx1 [i-4] {s} p (SHLQconst <idx.Type> [2] idx) w0 mem)
+
+// amd64p32 rules
+// same as the rules above, but with 32 instead of 64 bit pointer arithmetic.
+// LEAQ,ADDQ -> LEAL,ADDL
+(ADDLconst [c] (LEAL [d] {s} x)) && is32Bit(c+d) -> (LEAL [c+d] {s} x)
+(LEAL [c] {s} (ADDLconst [d] x)) && is32Bit(c+d) -> (LEAL [c+d] {s} x)
+
+(MOVQload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVQload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVLload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVLload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVWload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVWload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+(MOVBload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVBload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+
+(MOVQstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVQstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+
+(MOVQstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVQstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+
+(MOVQload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVQload  [off1+off2] {sym} ptr mem)
+(MOVLload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVLload  [off1+off2] {sym} ptr mem)
+(MOVWload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVWload  [off1+off2] {sym} ptr mem)
+(MOVBload  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVBload  [off1+off2] {sym} ptr mem)
+(MOVQstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVQstore  [off1+off2] {sym} ptr val mem)
+(MOVLstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVLstore  [off1+off2] {sym} ptr val mem)
+(MOVWstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVWstore  [off1+off2] {sym} ptr val mem)
+(MOVBstore  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(off1+off2) -> (MOVBstore  [off1+off2] {sym} ptr val mem)
+(MOVQstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVQstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOVLstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVLstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOVWstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)

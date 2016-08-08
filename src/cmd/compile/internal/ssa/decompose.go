@@ -108,6 +108,10 @@ func decomposeBuiltIn(f *Func) {
 func decomposeBuiltInPhi(v *Value) {
 	switch {
 	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.IntSize == 4:
+		if v.Block.Func.Config.arch == "amd64p32" {
+			// Even though ints are 32 bits, we have 64-bit ops.
+			break
+		}
 		decomposeInt64Phi(v)
 	case v.Type.IsComplex():
 		decomposeComplexPhi(v)
