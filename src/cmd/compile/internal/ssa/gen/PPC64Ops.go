@@ -141,12 +141,12 @@ func init() {
 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
 		fp01        = regInfo{inputs: nil, outputs: []regMask{fp}}
-		//		fp11	   = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		fp21       = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp2cr      = regInfo{inputs: []regMask{fp, fp}}
-		fpload     = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
-		fpstore    = regInfo{inputs: []regMask{gp | sp | sb, fp}}
-		callerSave = regMask(gp | fp)
+		fp11        = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
+		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
+		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
+		callerSave  = regMask(gp | fp)
 	)
 	ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1
@@ -157,8 +157,8 @@ func init() {
 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                      // arg0-arg1
 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                    // arg0-arg1
 
-		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", commutative: true}, // arg0*arg1 (signed 64-bit)
-		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", commutative: true}, // arg0*arg1 (signed 32-bit)
+		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
+		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
 
 		{name: "MULHD", argLength: 2, reg: gp21, asm: "MULHD", commutative: true},   // (arg0 * arg1) >> 64, signed
 		{name: "MULHW", argLength: 2, reg: gp21, asm: "MULHW", commutative: true},   // (arg0 * arg1) >> 32, signed
@@ -188,10 +188,12 @@ func init() {
 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
 
-		{name: "DIVD", argLength: 2, reg: gp21, asm: "DIVD"},   // arg0/arg1 (signed 64-bit)
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW"},   // arg0/arg1 (signed 32-bit)
-		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU"}, // arg0/arg1 (unsigned 64-bit)
-		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU"}, // arg0/arg1 (unsigned 32-bit)
+		{name: "DIVD", argLength: 2, reg: gp21, asm: "DIVD", typ: "Int64"},   // arg0/arg1 (signed 64-bit)
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32"},   // arg0/arg1 (signed 32-bit)
+		{name: "DIVDU", argLength: 2, reg: gp21, asm: "DIVDU", typ: "Int64"}, // arg0/arg1 (unsigned 64-bit)
+		{name: "DIVWU", argLength: 2, reg: gp21, asm: "DIVWU", typ: "Int32"}, // arg0/arg1 (unsigned 32-bit)
+
+		// MOD is implemented as rem := arg0 - (arg0/arg1) * arg1
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
@@ -199,7 +201,8 @@ func init() {
 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                  // arg0|^arg1
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true}, // arg0^arg1
 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0 (integer)
+		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                // -arg0 (floating point)
 
 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux

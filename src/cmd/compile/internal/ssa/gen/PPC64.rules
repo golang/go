@@ -19,6 +19,15 @@
 (Sub32F x y) -> (FSUBS x y)
 (Sub64F x y) -> (FSUB x y)
 
+(Mod16 x y) -> (Mod32 (SignExt16to32 x) (SignExt16to32 y))
+(Mod16u x y) -> (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
+(Mod8 x y) -> (Mod32 (SignExt8to32 x) (SignExt8to32 y))
+(Mod8u x y) -> (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+(Mod64 x y) -> (SUB x (MULLD y (DIVD x y)))
+(Mod64u x y) -> (SUB x (MULLD y (DIVDU x y)))
+(Mod32 x y) -> (SUB x (MULLW y (DIVW x y)))
+(Mod32u x y) -> (SUB x (MULLW y (DIVWU x y)))
+
 (Mul64  x y) -> (MULLD  x y)
 (Mul32  x y) -> (MULLW  x y)
 (Mul16  x y) -> (MULLW x y)
@@ -115,7 +124,6 @@
 (Rsh8Ux8 x y) -> (SRW  (ZeroExt8to32 x) (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
 (Lsh8x8 x y)  -> (SLW  x                (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-8] (ZeroExt8to64 y)))))
 
-
 // Potentially useful optimizing rewrites.
 // (ADDconstForCarry [k] c), k < 0 && (c < 0 || k+c >= 0) -> CarrySet
 // (ADDconstForCarry [k] c), K < 0 && (c >= 0 && k+c < 0) -> CarryClear
@@ -151,6 +159,8 @@
 (Xor16 x y) -> (XOR x y)
 (Xor8  x y) -> (XOR x y)
 
+(Neg64F x) -> (FNEG x)
+(Neg32F x) -> (FNEG x)
 (Neg64  x) -> (NEG x)
 (Neg32  x) -> (NEG x)
 (Neg16  x) -> (NEG x)
@@ -172,6 +182,8 @@
 (Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMPW x y))
 (Eq64 x y) -> (Equal (CMP x y))
+(Eq32F x y) -> (Equal (FCMPU x y))
+(Eq64F x y) -> (Equal (FCMPU x y))
 (EqPtr x y) -> (Equal (CMP x y))
 
 (NeqB x y)  -> (XOR x y)
@@ -179,12 +191,16 @@
 (Neq16 x y) -> (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Neq32 x y) -> (NotEqual (CMPW x y))
 (Neq64 x y) -> (NotEqual (CMP x y))
+(Neq32F x y) -> (NotEqual (FCMPU x y))
+(Neq64F x y) -> (NotEqual (FCMPU x y))
 (NeqPtr x y) -> (NotEqual (CMP x y))
 
 (Less8 x y)  -> (LessThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
 (Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Less32 x y) -> (LessThan (CMPW x y))
 (Less64 x y) -> (LessThan (CMP x y))
+(Less32F x y) -> (LessThan (FCMPU x y))
+(Less64F x y) -> (LessThan (FCMPU x y))
 
 (Less8U x y)  -> (LessThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Less16U x y) -> (LessThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -195,6 +211,8 @@
 (Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Leq32 x y) -> (LessEqual (CMPW x y))
 (Leq64 x y) -> (LessEqual (CMP x y))
+(Leq32F x y) -> (LessEqual (FCMPU x y))
+(Leq64F x y) -> (LessEqual (FCMPU x y))
 
 (Leq8U x y)  -> (LessEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Leq16U x y) -> (LessEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -205,6 +223,8 @@
 (Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Greater32 x y) -> (GreaterThan (CMPW x y))
 (Greater64 x y) -> (GreaterThan (CMP x y))
+(Greater32F x y) -> (GreaterThan (FCMPU x y))
+(Greater64F x y) -> (GreaterThan (FCMPU x y))
 
 (Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -215,19 +235,13 @@
 (Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Geq32 x y) -> (GreaterEqual (CMPW x y))
 (Geq64 x y) -> (GreaterEqual (CMP x y))
+(Geq32F x y) -> (GreaterEqual (FCMPU x y))
+(Geq64F x y) -> (GreaterEqual (FCMPU x y))
 
 (Geq8U x y)  -> (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Geq16U x y) -> (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Geq32U x y) -> (GreaterEqual (CMPU x y))
 (Geq64U x y) -> (GreaterEqual (CMPU x y))
-
-(Less64F x y) -> (LessThan (FCMPU x y))
-
-(Leq64F x y) -> (LessEqual (FCMPU x y)) // ??
-
-(Eq64F x y) -> (Equal (FCMPU x y))
-
-(Neq64F x y) -> (NotEqual (FCMPU x y))
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
@@ -345,11 +359,14 @@
 (Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) -> (MOVHZload ptr mem)
 (Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && isSigned(t))) -> (MOVBload ptr mem)
 (Load <t> ptr mem) && is8BitInt(t) && !isSigned(t) -> (MOVBZload ptr mem)
+
 (Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
 
-(Store [8] ptr val mem) -> (MOVDstore ptr val mem)
-(Store [4] ptr val mem) -> (MOVWstore ptr val mem)
+(Store [8] ptr val mem) && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store [4] ptr val mem) && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
+(Store [8] ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVDstore ptr val mem)
+(Store [4] ptr val mem) && is32BitInt(val.Type) -> (MOVWstore ptr val mem)
 (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 
@@ -470,8 +487,8 @@
 
 // Optimizations
 
-(ADD (MOVDconst [c]) x) -> (ADDconst [c] x)
-(ADD x (MOVDconst [c])) -> (ADDconst [c] x)
+(ADD (MOVDconst [c]) x) && int64(int32(c)) == c -> (ADDconst [c] x)
+(ADD x (MOVDconst [c])) && int64(int32(c)) == c -> (ADDconst [c] x)
 
 // Fold offsets for stores.
 (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)
