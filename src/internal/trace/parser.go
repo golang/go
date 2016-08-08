@@ -581,11 +581,13 @@ func postProcessTrace(ver int, events []*Event) error {
 				return fmt.Errorf("g %v is not runnable before EvGoWaiting (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
 			g.state = gWaiting
+			g.ev = ev
 		case EvGoInSyscall:
 			if g.state != gRunnable {
 				return fmt.Errorf("g %v is not runnable before EvGoInSyscall (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
 			}
 			g.state = gWaiting
+			g.ev = ev
 		case EvGoCreate:
 			if err := checkRunning(p, g, ev, true); err != nil {
 				return err
