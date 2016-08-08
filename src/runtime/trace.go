@@ -262,10 +262,12 @@ func StopTrace() {
 			p.tracebuf = 0
 		}
 	}
-	if trace.buf != 0 && trace.buf.ptr().pos != 0 {
+	if trace.buf != 0 {
 		buf := trace.buf
 		trace.buf = 0
-		traceFullQueue(buf)
+		if buf.ptr().pos != 0 {
+			traceFullQueue(buf)
+		}
 	}
 
 	for {
