@@ -353,15 +353,13 @@ TEXT runtime·kevent(SB),NOSPLIT,$8
 	MOVW	R0, ret+24(FP)
 	RET
 
-// int32 runtime·closeonexec(int32 fd);
+// func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	$2, R1			// arg 2 - cmd (F_SETFD)
 	MOVW	$1, R2			// arg 3 - arg (FD_CLOEXEC)
 	MOVW	$92, R12		// sys_fcntl
 	SWI	$0
-	RSB.CS	$0, R0
-	MOVW	R0, ret+4(FP)
 	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
