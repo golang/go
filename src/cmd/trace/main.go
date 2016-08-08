@@ -89,7 +89,10 @@ func main() {
 		events:  events,
 		endTime: int64(1<<63 - 1),
 	}
-	data := generateTrace(params)
+	data, err := generateTrace(params)
+	if err != nil {
+		dief("%v\n", err)
+	}
 
 	log.Printf("Splitting trace...")
 	ranges = splitTrace(data)
