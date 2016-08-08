@@ -138,6 +138,17 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.fpRegMask = fpRegMaskAMD64
 		c.FPReg = framepointerRegAMD64
 		c.hasGReg = false
+	case "amd64p32":
+		c.IntSize = 4
+		c.PtrSize = 4
+		c.lowerBlock = rewriteBlockAMD64
+		c.lowerValue = rewriteValueAMD64
+		c.registers = registersAMD64[:]
+		c.gpRegMask = gpRegMaskAMD64
+		c.fpRegMask = fpRegMaskAMD64
+		c.FPReg = framepointerRegAMD64
+		c.hasGReg = false
+		c.noDuffDevice = true
 	case "386":
 		c.IntSize = 4
 		c.PtrSize = 4
