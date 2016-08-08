@@ -58,6 +58,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	ppc64.AMULHDU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ADIVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ADIVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ADIVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ADIVWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASLD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASRD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASRAD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
@@ -85,6 +87,7 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
 	ppc64.AFRSP & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
 	ppc64.AFSQRT & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+	ppc64.AFNEG & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
 
 	// Moves
 	ppc64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
