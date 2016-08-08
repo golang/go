@@ -184,10 +184,21 @@ func StartTrace() error {
 	// trace.enabled is set afterwards once we have emitted all preliminary events.
 	_g_ := getg()
 	_g_.m.startingtrace = true
+
+	// Obtain current stack ID to use in all traceEvGoCreate events below.
+	mp := acquirem()
+	stkBuf := make([]uintptr, traceStackSize)
+	stackID := traceStackID(mp, stkBuf, 2)
+	releasem(mp)
+
 	for _, gp := range allgs {
 		status := readgstatus(gp)
 		if status != _Gdead {
-			traceGoCreate(gp, gp.startpc) // also resets gp.traceseq/tracelastp
+			gp.traceseq = 0
+			gp.tracelastp = getg().m.p
+			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+			id := trace.stackTab.put([]uintptr{gp.startpc + sys.PCQuantum})
+			traceEvent(traceEvGoCreate, -1, uint64(gp.goid), uint64(id), stackID)
 		}
 		if status == _Gwaiting {
 			// traceEvGoWaiting is implied to have seq=1.
@@ -513,28 +524,7 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	if skip == 0 {
 		buf.varint(0)
 	} else if skip > 0 {
-		_g_ := getg()
-		gp := mp.curg
-		var nstk int
-		if gp == _g_ {
-			nstk = callers(skip, buf.stk[:])
-		} else if gp != nil {
-			gp = mp.curg
-			// This may happen when tracing a system call,
-			// so we must lock the stack.
-			if gcTryLockStackBarriers(gp) {
-				nstk = gcallers(gp, skip, buf.stk[:])
-				gcUnlockStackBarriers(gp)
-			}
-		}
-		if nstk > 0 {
-			nstk-- // skip runtime.goexit
-		}
-		if nstk > 0 && gp.goid == 1 {
-			nstk-- // skip runtime.main
-		}
-		id := trace.stackTab.put(buf.stk[:nstk])
-		buf.varint(uint64(id))
+		buf.varint(traceStackID(mp, buf.stk[:], skip))
 	}
 	evSize := buf.pos - startPos
 	if evSize > maxSize {
@@ -545,6 +535,31 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 		*lenp = byte(evSize - 2)
 	}
 	traceReleaseBuffer(pid)
+}
+
+func traceStackID(mp *m, buf []uintptr, skip int) uint64 {
+	_g_ := getg()
+	gp := mp.curg
+	var nstk int
+	if gp == _g_ {
+		nstk = callers(skip+1, buf[:])
+	} else if gp != nil {
+		gp = mp.curg
+		// This may happen when tracing a system call,
+		// so we must lock the stack.
+		if gcTryLockStackBarriers(gp) {
+			nstk = gcallers(gp, skip, buf[:])
+			gcUnlockStackBarriers(gp)
+		}
+	}
+	if nstk > 0 {
+		nstk-- // skip runtime.goexit
+	}
+	if nstk > 0 && gp.goid == 1 {
+		nstk-- // skip runtime.main
+	}
+	id := trace.stackTab.put(buf[:nstk])
+	return uint64(id)
 }
 
 // traceAcquireBuffer returns trace buffer to use and, if necessary, locks it.
