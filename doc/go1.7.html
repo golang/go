@@ -367,7 +367,7 @@ the code generation changes alone typically reduce program CPU time by 5-35%.
 </p>
 
 <p>
-<!-- git log &#45&#45grep '-[0-9][0-9]\.[0-9][0-9]%' go1.6.. -->
+<!-- git log -''-grep '-[0-9][0-9]\.[0-9][0-9]%' go1.6.. -->
 There have been significant optimizations bringing more than 10% improvements
 to implementations in the
 <a href="/pkg/crypto/sha1/"><code>crypto/sha1</code></a>,
@@ -562,10 +562,9 @@ The
 
 <dd>
 <p>
-As noted above,
-there are significant performance optimizations throughout the package.
+There are many performance optimizations throughout the package.
 Decompression speed is improved by about 10%,
-while compression speed for <code>DefaultCompression</code> is roughly doubled.
+while compression for <code>DefaultCompression</code> is twice as fast.
 </p>
 
 <p>
