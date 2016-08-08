@@ -398,6 +398,15 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
 func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+	if err == http2ErrNoCachedConn {
+		// Issue 16582: if the user started a bunch of
+		// requests at once, they can all pick the same conn
+		// and violate the server's max concurrent streams.
+		// Instead, match the HTTP/1 behavior for now and dial
+		// again to get a new TCP connection, rather than failing
+		// this request.
+		return true
+	}
 	if err == errMissingHost {
 		// User error.
 		return false
