@@ -362,7 +362,8 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("DI"), buildReg("AX")},
-				clobbers: buildReg("DI"),
+				clobbers: buildReg("DI CX"),
+				// Note: CX is only clobbered when dynamic linking.
 			},
 		},
 

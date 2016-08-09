@@ -669,7 +669,8 @@
 
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
-// Note: we turn off this merging for operations on globals when building position-independent code.
+// Note: we turn off this merging for operations on globals when building
+// position-independent code (when Flag_shared is set).
 // PIC needs a spare register to load the PC into. For loads from globals into integer registers we use
 // the target register, but for other loads and all stores, we need a free register. Having the LEAL be
 // a separate instruction gives us that register.
