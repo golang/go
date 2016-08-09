@@ -3511,7 +3511,7 @@ var opcodeTable = [...]opInfo{
 				{0, 128}, // DI
 				{1, 1},   // AX
 			},
-			clobbers: 128, // DI
+			clobbers: 130, // CX DI
 		},
 	},
 	{

@@ -334,6 +334,16 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		lea = ALEAL
 		mov = AMOVL
 		reg = REG_CX
+		if p.To.Type == obj.TYPE_REG && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+			switch p.As {
+			case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
+				// Special case: clobber the destination register with
+				// the PC so we don't have to clobber CX.
+				// The SSA backend depends on CX not being clobbered across these instructions.
+				// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
+				reg = p.To.Reg
+			}
+		}
 	}
 
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
@@ -392,7 +402,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			dest = p.To
 			p.As = mov
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_CX
+			p.To.Reg = reg
 			p.To.Sym = nil
 			p.To.Name = obj.NAME_NONE
 		}
@@ -413,7 +423,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			q.As = pAs
 			q.To = dest
 			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REG_CX
+			q.From.Reg = reg
 		}
 	}
 	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
@@ -544,14 +554,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 		return
 	}
 	var dst int16 = REG_CX
-	if isName(&p.From) && p.To.Type == obj.TYPE_REG {
+	if p.To.Type == obj.TYPE_REG && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
 		switch p.As {
 		case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
 			dst = p.To.Reg
-			// Special case: clobber the destination register with
-			// the PC so we don't have to clobber CX.
-			// The SSA backend depends on CX not being clobbered across these instructions.
-			// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
+			// Why?  See the comment near the top of rewriteToUseGot above.
 		}
 	}
 	q := obj.Appendp(ctxt, p)
