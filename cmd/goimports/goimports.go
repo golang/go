@@ -31,7 +31,7 @@ var (
 	write   = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	doDiff  = flag.Bool("d", false, "display diffs instead of rewriting files")
 	srcdir  = flag.String("srcdir", "", "choose imports as if source code is from `dir`. When operating on a single file, dir may instead be the complete file name.")
-	verbose = flag.Bool("v", false, "verbose logging")
+	verbose bool // verbose logging
 
 	cpuProfile     = flag.String("cpuprofile", "", "CPU profile output")
 	memProfile     = flag.String("memprofile", "", "memory profile output")
@@ -195,6 +195,8 @@ func main() {
 // parseFlags parses command line flags and returns the paths to process.
 // It's a var so that custom implementations can replace it in other files.
 var parseFlags = func() []string {
+	flag.BoolVar(&verbose, "v", false, "verbose logging")
+
 	flag.Parse()
 	return flag.Args()
 }
@@ -243,7 +245,7 @@ func gofmtMain() {
 		}()
 	}
 
-	if *verbose {
+	if verbose {
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 		imports.Debug = true
 	}
