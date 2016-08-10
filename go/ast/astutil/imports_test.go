@@ -1145,3 +1145,177 @@ func TestImports(t *testing.T) {
 		}
 	}
 }
+
+var usesImportTests = []struct {
+	name string
+	path string
+	in   string
+	want bool
+}{
+	{
+		name: "no packages",
+		path: "io",
+		in: `package foo
+`,
+		want: false,
+	},
+	{
+		name: "import.1",
+		path: "io",
+		in: `package foo
+
+import "io"
+
+var _ io.Writer
+`,
+		want: true,
+	},
+	{
+		name: "import.2",
+		path: "io",
+		in: `package foo
+
+import "io"
+`,
+		want: false,
+	},
+	{
+		name: "import.3",
+		path: "io",
+		in: `package foo
+
+import "io"
+
+var io = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.4",
+		path: "io",
+		in: `package foo
+
+import i "io"
+
+var _ i.Writer
+`,
+		want: true,
+	},
+	{
+		name: "import.5",
+		path: "io",
+		in: `package foo
+
+import i "io"
+`,
+		want: false,
+	},
+	{
+		name: "import.6",
+		path: "io",
+		in: `package foo
+
+import i "io"
+
+var i = 42
+var io = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.7",
+		path: "encoding/json",
+		in: `package foo
+
+import "encoding/json"
+
+var _ json.Encoder
+`,
+		want: true,
+	},
+	{
+		name: "import.8",
+		path: "encoding/json",
+		in: `package foo
+
+import "encoding/json"
+`,
+		want: false,
+	},
+	{
+		name: "import.9",
+		path: "encoding/json",
+		in: `package foo
+
+import "encoding/json"
+
+var json = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.10",
+		path: "encoding/json",
+		in: `package foo
+
+import j "encoding/json"
+
+var _ j.Encoder
+`,
+		want: true,
+	},
+	{
+		name: "import.11",
+		path: "encoding/json",
+		in: `package foo
+
+import j "encoding/json"
+`,
+		want: false,
+	},
+	{
+		name: "import.12",
+		path: "encoding/json",
+		in: `package foo
+
+import j "encoding/json"
+
+var j = 42
+var json = 42
+`,
+		want: false,
+	},
+	{
+		name: "import.13",
+		path: "io",
+		in: `package foo
+
+import _ "io"
+`,
+		want: true,
+	},
+	{
+		name: "import.14",
+		path: "io",
+		in: `package foo
+
+import . "io"
+`,
+		want: true,
+	},
+}
+
+func TestUsesImport(t *testing.T) {
+	fset := token.NewFileSet()
+	for _, test := range usesImportTests {
+		f, err := parser.ParseFile(fset, "test.go", test.in, 0)
+		if err != nil {
+			t.Errorf("%s: %v", test.name, err)
+			continue
+		}
+		got := UsesImport(f, test.path)
+		if got != test.want {
+			t.Errorf("UsesImport(%s)=%v, want %v", test.name, got, test.want)
+		}
+	}
+}
