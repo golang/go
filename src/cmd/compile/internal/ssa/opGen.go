@@ -859,6 +859,27 @@ const (
 	OpARM64CMNWconst
 	OpARM64FCMPS
 	OpARM64FCMPD
+	OpARM64ADDshiftLL
+	OpARM64ADDshiftRL
+	OpARM64ADDshiftRA
+	OpARM64SUBshiftLL
+	OpARM64SUBshiftRL
+	OpARM64SUBshiftRA
+	OpARM64ANDshiftLL
+	OpARM64ANDshiftRL
+	OpARM64ANDshiftRA
+	OpARM64ORshiftLL
+	OpARM64ORshiftRL
+	OpARM64ORshiftRA
+	OpARM64XORshiftLL
+	OpARM64XORshiftRL
+	OpARM64XORshiftRA
+	OpARM64BICshiftLL
+	OpARM64BICshiftRL
+	OpARM64BICshiftRA
+	OpARM64CMPshiftLL
+	OpARM64CMPshiftRL
+	OpARM64CMPshiftRA
 	OpARM64MOVDconst
 	OpARM64FMOVSconst
 	OpARM64FMOVDconst
@@ -878,6 +899,10 @@ const (
 	OpARM64MOVDstore
 	OpARM64FMOVSstore
 	OpARM64FMOVDstore
+	OpARM64MOVBstorezero
+	OpARM64MOVHstorezero
+	OpARM64MOVWstorezero
+	OpARM64MOVDstorezero
 	OpARM64MOVBreg
 	OpARM64MOVBUreg
 	OpARM64MOVHreg
@@ -905,6 +930,7 @@ const (
 	OpARM64FCVTSD
 	OpARM64FCVTDS
 	OpARM64CSELULT
+	OpARM64CSELULT0
 	OpARM64CALLstatic
 	OpARM64CALLclosure
 	OpARM64CALLdefer
@@ -10597,6 +10623,312 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "ADDshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ADDshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ADDshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AADD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "SUBshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "SUBshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "SUBshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ANDshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ANDshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ANDshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ORshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ORshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "ORshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AORR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "XORshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "XORshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "XORshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "BICshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "BICshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "BICshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ABIC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:    "CMPshiftLL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+		},
+	},
+	{
+		name:    "CMPshiftRL",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+		},
+	},
+	{
+		name:    "CMPshiftRA",
+		auxType: auxInt64,
+		argLen:  2,
+		asm:     arm64.ACMP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+				{1, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+		},
+	},
+	{
 		name:              "MOVDconst",
 		auxType:           auxInt64,
 		argLen:            0,
@@ -10841,6 +11173,50 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 288230375077969920},  // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVBstorezero",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     arm64.AMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVHstorezero",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     arm64.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVWstorezero",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     arm64.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
+			},
+		},
+	},
+	{
+		name:    "MOVDstorezero",
+		auxType: auxSymOff,
+		argLen:  2,
+		asm:     arm64.AMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
 				{0, 4611686019232432127}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g SP SB
 			},
 		},
@@ -11191,6 +11567,19 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
 				{1, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:   "CSELULT0",
+		argLen: 2,
+		asm:    arm64.ACSEL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
 			},
 			outputs: []outputInfo{
 				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26

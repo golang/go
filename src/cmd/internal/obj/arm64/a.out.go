@@ -714,3 +714,10 @@ const (
 	AB  = obj.AJMP
 	ABL = obj.ACALL
 )
+
+const (
+	// shift types
+	SHIFT_LL = 0 << 22
+	SHIFT_LR = 1 << 22
+	SHIFT_AR = 2 << 22
+)

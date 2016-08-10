@@ -148,6 +148,24 @@ func storeByType(t ssa.Type) obj.As {
 	panic("bad store type")
 }
 
+// makeshift encodes a register shifted by a constant, used as an Offset in Prog
+func makeshift(reg int16, typ int64, s int64) int64 {
+	return int64(reg&31)<<16 | typ | (s&63)<<10
+}
+
+// genshift generates a Prog for r = r0 op (r1 shifted by s)
+func genshift(as obj.As, r0, r1, r int16, typ int64, s int64) *obj.Prog {
+	p := gc.Prog(as)
+	p.From.Type = obj.TYPE_SHIFT
+	p.From.Offset = makeshift(r1, typ, s)
+	p.Reg = r0
+	if r != 0 {
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+	}
+	return p
+}
+
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	s.SetLineno(v.Line)
 	switch v.Op {
@@ -284,6 +302,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARM64ADDshiftLL,
+		ssa.OpARM64SUBshiftLL,
+		ssa.OpARM64ANDshiftLL,
+		ssa.OpARM64ORshiftLL,
+		ssa.OpARM64XORshiftLL,
+		ssa.OpARM64BICshiftLL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm64.SHIFT_LL, v.AuxInt)
+	case ssa.OpARM64ADDshiftRL,
+		ssa.OpARM64SUBshiftRL,
+		ssa.OpARM64ANDshiftRL,
+		ssa.OpARM64ORshiftRL,
+		ssa.OpARM64XORshiftRL,
+		ssa.OpARM64BICshiftRL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm64.SHIFT_LR, v.AuxInt)
+	case ssa.OpARM64ADDshiftRA,
+		ssa.OpARM64SUBshiftRA,
+		ssa.OpARM64ANDshiftRA,
+		ssa.OpARM64ORshiftRA,
+		ssa.OpARM64XORshiftRA,
+		ssa.OpARM64BICshiftRA:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm64.SHIFT_AR, v.AuxInt)
 	case ssa.OpARM64MOVDconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -315,6 +354,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = gc.SSARegNum(v.Args[0])
+	case ssa.OpARM64CMPshiftLL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm64.SHIFT_LL, v.AuxInt)
+	case ssa.OpARM64CMPshiftRL:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm64.SHIFT_LR, v.AuxInt)
+	case ssa.OpARM64CMPshiftRA:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), 0, arm64.SHIFT_AR, v.AuxInt)
 	case ssa.OpARM64MOVDaddr:
 		p := gc.Prog(arm64.AMOVD)
 		p.From.Type = obj.TYPE_ADDR
@@ -369,6 +414,16 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[1])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		gc.AddAux(&p.To, v)
+	case ssa.OpARM64MOVBstorezero,
+		ssa.OpARM64MOVHstorezero,
+		ssa.OpARM64MOVWstorezero,
+		ssa.OpARM64MOVDstorezero:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arm64.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
@@ -433,12 +488,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = gc.SSARegNum(v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
-	case ssa.OpARM64CSELULT:
+	case ssa.OpARM64CSELULT,
+		ssa.OpARM64CSELULT0:
+		r1 := int16(arm64.REGZERO)
+		if v.Op == ssa.OpARM64CSELULT {
+			r1 = gc.SSARegNum(v.Args[1])
+		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
 		p.From.Reg = arm64.COND_LO
 		p.Reg = gc.SSARegNum(v.Args[0])
-		p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: gc.SSARegNum(v.Args[1])}
+		p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: r1}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
 	case ssa.OpARM64DUFFZERO:
