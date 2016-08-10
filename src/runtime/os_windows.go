@@ -437,6 +437,13 @@ func writeConsoleUTF16(handle uintptr, b []uint16) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
+	const (
+		_WAIT_ABANDONED = 0x00000080
+		_WAIT_OBJECT_0  = 0x00000000
+		_WAIT_TIMEOUT   = 0x00000102
+		_WAIT_FAILED    = 0xFFFFFFFF
+	)
+
 	// store ms in ns to save stack space
 	if ns < 0 {
 		ns = _INFINITE
@@ -446,15 +453,44 @@ func semasleep(ns int64) int32 {
 			ns = 1
 		}
 	}
-	if stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns)) != 0 {
-		return -1 // timeout
+
+	result := stdcall2(_WaitForSingleObject, getg().m.waitsema, uintptr(ns))
+	switch result {
+	case _WAIT_OBJECT_0: //signaled
+		return 0
+
+	case _WAIT_TIMEOUT:
+		return -1
+
+	case _WAIT_ABANDONED:
+		systemstack(func() {
+			throw("runtime.semasleep wait_abandoned")
+		})
+
+	case _WAIT_FAILED:
+		systemstack(func() {
+			print("runtime: waitforsingleobject wait_failed; errno=", getlasterror(), "\n")
+			throw("runtime.semasleep wait_failed")
+		})
+
+	default:
+		systemstack(func() {
+			print("runtime: waitforsingleobject unexpected; result=", result, "\n")
+			throw("runtime.semasleep unexpected")
+		})
 	}
-	return 0
+
+	return -1 // unreachable
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	stdcall1(_SetEvent, mp.waitsema)
+	if stdcall1(_SetEvent, mp.waitsema) == 0 {
+		systemstack(func() {
+			print("runtime: setevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semawakeup")
+		})
+	}
 }
 
 //go:nosplit
@@ -463,6 +499,12 @@ func semacreate(mp *m) {
 		return
 	}
 	mp.waitsema = stdcall4(_CreateEventA, 0, 0, 0, 0)
+	if mp.waitsema == 0 {
+		systemstack(func() {
+			print("runtime: createevent failed; errno=", getlasterror(), "\n")
+			throw("runtime.semacreate")
+		})
+	}
 }
 
 // May run with m.p==nil, so write barriers are not allowed. This
@@ -475,6 +517,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	thandle := stdcall6(_CreateThread, 0, 0x20000,
 		funcPC(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
 		_STACK_SIZE_PARAM_IS_A_RESERVATION, 0)
+
 	if thandle == 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
 		throw("runtime.newosproc")
