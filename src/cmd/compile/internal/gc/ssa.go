@@ -3953,8 +3953,9 @@ type SSAGenState struct {
 	bstart []*obj.Prog
 
 	// 387 port: maps from SSE registers (REG_X?) to 387 registers (REG_F?)
-	SSEto387   map[int16]int16
-	Scratch387 *Node
+	SSEto387 map[int16]int16
+	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include x86-387, PPC, and Sparc V8.
+	ScratchFpMem *Node
 }
 
 // Pc returns the current Prog.
@@ -3993,7 +3994,9 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 	if Thearch.Use387 {
 		s.SSEto387 = map[int16]int16{}
-		s.Scratch387 = temp(Types[TUINT64])
+	}
+	if f.Config.NeedsFpScratch {
+		s.ScratchFpMem = temp(Types[TUINT64])
 	}
 
 	// Emit basic blocks

@@ -219,8 +219,8 @@ const (
 	C_LAUTO
 	C_SEXT
 	C_LEXT
-	C_ZOREG
-	C_SOREG
+	C_ZOREG // conjecture: either (1) register + zeroed offset, or (2) "R0" implies zero or C_REG
+	C_SOREG // register + signed offset
 	C_LOREG
 	C_FPSCR
 	C_MSR
@@ -324,6 +324,8 @@ const (
 	AFMOVDU
 	AFMOVS
 	AFMOVSU
+	AFMOVSX
+	AFMOVSZ
 	AFMSUB
 	AFMSUBCC
 	AFMSUBS

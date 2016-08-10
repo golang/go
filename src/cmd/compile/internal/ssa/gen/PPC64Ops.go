@@ -77,11 +77,11 @@ var regNamesPPC64 = []string{
 	"F24",
 	"F25",
 	"F26",
-	"F27",
-	"F28",
-	"F29",
-	"F30",
-	"F31",
+	// "F27", // reserved for "floating conversion constant"
+	// "F28", // 0.0
+	// "F29", // 0.5
+	// "F30", // 1.0
+	// "F31", // 2.0
 
 	// "CR0",
 	// "CR1",
@@ -121,16 +121,16 @@ func init() {
 
 	var (
 		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
-		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
+		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
 		sp = buildReg("SP")
 		sb = buildReg("SB")
-		// gr = buildReg("g")
-		//cr = buildReg("CR")
-		//ctr  = buildReg("CTR")
-		//lr   = buildReg("LR")
+		// gr  = buildReg("g")
+		// cr  = buildReg("CR")
+		// ctr = buildReg("CTR")
+		// lr  = buildReg("LR")
 		tmp  = buildReg("R31")
 		ctxt = buildReg("R11")
-		//		tls	= buildReg("R13")
+		// tls = buildReg("R13")
 		gp01        = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
@@ -142,6 +142,8 @@ func init() {
 		gpstorezero = regInfo{inputs: []regMask{gp | sp | sb}} // ppc64.REGZERO is reserved zero value
 		fp01        = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11        = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fpgp        = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		gpfp        = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
 		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
@@ -195,6 +197,21 @@ func init() {
 
 		// MOD is implemented as rem := arg0 - (arg0/arg1) * arg1
 
+		// Conversions are all float-to-float register operations.  "Integer" refers to encoding in the FP register.
+		{name: "FCTIDZ", argLength: 1, reg: fp11, asm: "FCTIDZ", typ: "Float64"}, // convert float to 64-bit int round towards zero
+		{name: "FCTIWZ", argLength: 1, reg: fp11, asm: "FCTIWZ", typ: "Float64"}, // convert float to 32-bit int round towards zero
+		{name: "FCFID", argLength: 1, reg: fp11, asm: "FCFID", typ: "Float64"},   // convert 64-bit integer to float
+		{name: "FRSP", argLength: 1, reg: fp11, asm: "FRSP", typ: "Float64"},     // round float to 32-bit value
+
+		// Movement between float and integer registers with no change in bits; accomplished with stores+loads on PPC.
+		// Because the 32-bit load-literal-bits instructions have impoverished addressability, always widen the
+		// data instead and use FMOVDload and FMOVDstore instead (this will also dodge endianess issues).
+		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
+		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
+
+		{name: "Xf2i64", argLength: 1, reg: fpgp, typ: "Int64"},   // move 64 bits of F register into G register
+		{name: "Xi2f64", argLength: 1, reg: gpfp, typ: "Float64"}, // move 64 bits of G register into F register
+
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},               // arg0&arg1
 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                // arg0&^arg1
 		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                 // arg0|arg1
@@ -203,6 +220,8 @@ func init() {
 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true}, // arg0^^arg1
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                  // -arg0 (integer)
 		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                // -arg0 (floating point)
+		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                              // sqrt(arg0) (floating point)
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                            // sqrt(arg0) (floating point, single precision)
 
 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
@@ -254,12 +273,16 @@ func init() {
 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
 		// pseudo-ops
-		{name: "Equal", argLength: 1, reg: crgp},        // bool, true flags encode x==y false otherwise.
-		{name: "NotEqual", argLength: 1, reg: crgp},     // bool, true flags encode x!=y false otherwise.
-		{name: "LessThan", argLength: 1, reg: crgp},     // bool, true flags encode  x<y false otherwise.
-		{name: "LessEqual", argLength: 1, reg: crgp},    // bool, true flags encode  x<=y false otherwise.
-		{name: "GreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode  x>y false otherwise.
-		{name: "GreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode  x>=y false otherwise.
+		{name: "Equal", argLength: 1, reg: crgp},         // bool, true flags encode x==y false otherwise.
+		{name: "NotEqual", argLength: 1, reg: crgp},      // bool, true flags encode x!=y false otherwise.
+		{name: "LessThan", argLength: 1, reg: crgp},      // bool, true flags encode  x<y false otherwise.
+		{name: "FLessThan", argLength: 1, reg: crgp},     // bool, true flags encode  x<y false otherwise.
+		{name: "LessEqual", argLength: 1, reg: crgp},     // bool, true flags encode  x<=y false otherwise.
+		{name: "FLessEqual", argLength: 1, reg: crgp},    // bool, true flags encode  x<=y false otherwise; PPC <= === !> which is wrong for NaN
+		{name: "GreaterThan", argLength: 1, reg: crgp},   // bool, true flags encode  x>y false otherwise.
+		{name: "FGreaterThan", argLength: 1, reg: crgp},  // bool, true flags encode  x>y false otherwise.
+		{name: "GreaterEqual", argLength: 1, reg: crgp},  // bool, true flags encode  x>=y false otherwise.
+		{name: "FGreaterEqual", argLength: 1, reg: crgp}, // bool, true flags encode  x>=y false otherwise.; PPC >= === !< which is wrong for NaN
 
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
@@ -352,10 +375,10 @@ func init() {
 		{name: "LE"},
 		{name: "GT"},
 		{name: "GE"},
-		{name: "ULT"},
-		{name: "ULE"},
-		{name: "UGT"},
-		{name: "UGE"},
+		{name: "FLT"},
+		{name: "FLE"},
+		{name: "FGT"},
+		{name: "FGE"},
 	}
 
 	archs = append(archs, arch{

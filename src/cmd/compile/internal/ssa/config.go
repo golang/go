@@ -31,6 +31,7 @@ type Config struct {
 	noDuffDevice    bool                       // Don't use Duff's device
 	nacl            bool                       // GOOS=nacl
 	use387          bool                       // GO386=387
+	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
 	curFunc         *Func
 
@@ -190,6 +191,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.fpRegMask = fpRegMaskPPC64
 		c.FPReg = framepointerRegPPC64
 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
+		c.NeedsFpScratch = true
 		c.hasGReg = true
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
@@ -245,6 +247,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 }
 
 func (c *Config) Set387(b bool) {
+	c.NeedsFpScratch = b
 	c.use387 = b
 }
 

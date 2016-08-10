@@ -380,7 +380,7 @@ func flush387(s *gc.SSAGenState) {
 func scratch387(s *gc.SSAGenState, a *obj.Addr) {
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_AUTO
-	a.Node = s.Scratch387
-	a.Sym = gc.Linksym(s.Scratch387.Sym)
+	a.Node = s.ScratchFpMem
+	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
 	a.Reg = x86.REG_SP
 }
