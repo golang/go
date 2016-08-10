@@ -159,13 +159,11 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func now() (sec int64, nsec int32)
 TEXT time·now(SB),NOSPLIT,$16
-	MOVD	$0(R1), R3
-	MOVD	$0, R4
-	SYSCALL	$SYS_gettimeofday
+	MOVD	$0, R3 // CLOCK_REALTIME
+	MOVD	$0(R1), R4
+	SYSCALL	$SYS_clock_gettime
 	MOVD	0(R1), R3	// sec
-	MOVD	8(R1), R5	// usec
-	MOVD	$1000, R4
-	MULLD	R4, R5
+	MOVD	8(R1), R5	// nsec
 	MOVD	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
