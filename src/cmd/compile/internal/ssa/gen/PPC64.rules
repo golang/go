@@ -28,6 +28,8 @@
 (Mod32 x y) -> (SUB x (MULLW y (DIVW x y)))
 (Mod32u x y) -> (SUB x (MULLW y (DIVWU x y)))
 
+(Avg64u <t> x y) -> (ADD (ADD <t> (SRD <t> x (MOVDconst <t> [1])) (SRD <t> y (MOVDconst <t> [1]))) (ANDconst <t> (AND <t> x y) [1]))
+
 (Mul64  x y) -> (MULLD  x y)
 (Mul32  x y) -> (MULLW  x y)
 (Mul16  x y) -> (MULLW x y)
@@ -56,6 +58,22 @@
 
 (Div32F x y) -> (FDIVS x y)
 (Div64F x y) -> (FDIV x y)
+
+// Lowering float <-> int
+(Cvt32to32F x) -> (FRSP (FCFID (Xi2f64 (SignExt32to64 x))))
+(Cvt32to64F x) -> (FCFID (Xi2f64 (SignExt32to64 x)))
+(Cvt64to32F x) -> (FRSP (FCFID (Xi2f64 x)))
+(Cvt64to64F x) -> (FCFID (Xi2f64 x))
+
+(Cvt32Fto32 x) -> (Xf2i64 (FCTIWZ x))
+(Cvt32Fto64 x) -> (Xf2i64 (FCTIDZ x))
+(Cvt64Fto32 x) -> (Xf2i64 (FCTIWZ x))
+(Cvt64Fto64 x) -> (Xf2i64 (FCTIDZ x))
+
+(Cvt32Fto64F x) -> x // Note x will have the wrong type for patterns dependent on Float32/Float64
+(Cvt64Fto32F x) -> (FRSP x)
+
+(Sqrt x) -> (FSQRT x)
 
 (Rsh64x64 x y)  -> (SRAD x (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
 (Rsh64Ux64 x y) -> (SRD  x (ORN y <config.fe.TypeInt64()> (MaskIfNotCarry (ADDconstForCarry [-64] y))))
@@ -199,8 +217,8 @@
 (Less16 x y) -> (LessThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Less32 x y) -> (LessThan (CMPW x y))
 (Less64 x y) -> (LessThan (CMP x y))
-(Less32F x y) -> (LessThan (FCMPU x y))
-(Less64F x y) -> (LessThan (FCMPU x y))
+(Less32F x y) -> (FLessThan (FCMPU x y))
+(Less64F x y) -> (FLessThan (FCMPU x y))
 
 (Less8U x y)  -> (LessThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Less16U x y) -> (LessThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -211,8 +229,8 @@
 (Leq16 x y) -> (LessEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Leq32 x y) -> (LessEqual (CMPW x y))
 (Leq64 x y) -> (LessEqual (CMP x y))
-(Leq32F x y) -> (LessEqual (FCMPU x y))
-(Leq64F x y) -> (LessEqual (FCMPU x y))
+(Leq32F x y) -> (FLessEqual (FCMPU x y))
+(Leq64F x y) -> (FLessEqual (FCMPU x y))
 
 (Leq8U x y)  -> (LessEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Leq16U x y) -> (LessEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -223,8 +241,8 @@
 (Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Greater32 x y) -> (GreaterThan (CMPW x y))
 (Greater64 x y) -> (GreaterThan (CMP x y))
-(Greater32F x y) -> (GreaterThan (FCMPU x y))
-(Greater64F x y) -> (GreaterThan (FCMPU x y))
+(Greater32F x y) -> (FGreaterThan (FCMPU x y))
+(Greater64F x y) -> (FGreaterThan (FCMPU x y))
 
 (Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -235,8 +253,8 @@
 (Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Geq32 x y) -> (GreaterEqual (CMPW x y))
 (Geq64 x y) -> (GreaterEqual (CMP x y))
-(Geq32F x y) -> (GreaterEqual (FCMPU x y))
-(Geq64F x y) -> (GreaterEqual (FCMPU x y))
+(Geq32F x y) -> (FGreaterEqual (FCMPU x y))
+(Geq64F x y) -> (FGreaterEqual (FCMPU x y))
 
 (Geq8U x y)  -> (GreaterEqual (CMPU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Geq16U x y) -> (GreaterEqual (CMPU (ZeroExt16to32 x) (ZeroExt16to32 y)))
@@ -250,6 +268,10 @@
 (If (LessEqual cc) yes no) -> (LE cc yes no)
 (If (GreaterThan cc) yes no) -> (GT cc yes no)
 (If (GreaterEqual cc) yes no) -> (GE cc yes no)
+(If (FLessThan cc) yes no) -> (FLT cc yes no)
+(If (FLessEqual cc) yes no) -> (FLE cc yes no)
+(If (FGreaterThan cc) yes no) -> (FGT cc yes no)
+(If (FGreaterEqual cc) yes no) -> (FGE cc yes no)
 
 (If cond yes no) -> (NE (CMPWconst [0] cond) yes no)
 
@@ -260,6 +282,10 @@
 (NE (CMPWconst [0] (LessEqual cc)) yes no) -> (LE cc yes no)
 (NE (CMPWconst [0] (GreaterThan cc)) yes no) -> (GT cc yes no)
 (NE (CMPWconst [0] (GreaterEqual cc)) yes no) -> (GE cc yes no)
+// (NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
+// (NE (CMPWconst [0] (FLessEqual cc)) yes no) -> (FLE cc yes no)
+// (NE (CMPWconst [0] (FGreaterThan cc)) yes no) -> (FGT cc yes no)
+// (NE (CMPWconst [0] (FGreaterEqual cc)) yes no) -> (FGE cc yes no)
 
 // absorb flag constants into branches
 (EQ (FlagEQ) yes no) -> (First nil yes no)
@@ -293,6 +319,11 @@
 (GE (InvertFlags cmp) yes no) -> (LE cmp yes no)
 (EQ (InvertFlags cmp) yes no) -> (EQ cmp yes no)
 (NE (InvertFlags cmp) yes no) -> (NE cmp yes no)
+
+// (FLT (InvertFlags cmp) yes no) -> (FGT cmp yes no)
+// (FGT (InvertFlags cmp) yes no) -> (FLT cmp yes no)
+// (FLE (InvertFlags cmp) yes no) -> (FGE cmp yes no)
+// (FGE (InvertFlags cmp) yes no) -> (FLE cmp yes no)
 
 // constant comparisons
 (CMPWconst (MOVWconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
@@ -349,6 +380,10 @@
 (GreaterThan (InvertFlags x)) -> (LessThan x)
 (LessEqual (InvertFlags x)) -> (GreaterEqual x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
+(FLessThan (InvertFlags x)) -> (FGreaterThan x)
+(FGreaterThan (InvertFlags x)) -> (FLessThan x)
+(FLessEqual (InvertFlags x)) -> (FGreaterEqual x)
+(FGreaterEqual (InvertFlags x)) -> (FLessEqual x)
 
 
 // Lowering loads
@@ -364,6 +399,7 @@
 (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
 
 (Store [8] ptr val mem) && is64BitFloat(val.Type) -> (FMOVDstore ptr val mem)
+(Store [8] ptr val mem) && is32BitFloat(val.Type) -> (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) -> x -- type is wrong
 (Store [4] ptr val mem) && is32BitFloat(val.Type) -> (FMOVSstore ptr val mem)
 (Store [8] ptr val mem) && (is64BitInt(val.Type) || isPtr(val.Type)) -> (MOVDstore ptr val mem)
 (Store [4] ptr val mem) && is32BitInt(val.Type) -> (MOVWstore ptr val mem)

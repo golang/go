@@ -73,11 +73,11 @@ var ssaRegToReg = []int16{
 	ppc64.REG_F24,
 	ppc64.REG_F25,
 	ppc64.REG_F26,
-	ppc64.REG_F27,
-	ppc64.REG_F28,
-	ppc64.REG_F29,
-	ppc64.REG_F30,
-	ppc64.REG_F31,
+	// ppc64.REG_F27, // reserved for "floating conversion constant"
+	// ppc64.REG_F28, // 0.0
+	// ppc64.REG_F29, // 0.5
+	// ppc64.REG_F30, // 1.0
+	// ppc64.REG_F31, // 2.0
 
 	// ppc64.REG_CR0,
 	// ppc64.REG_CR1,
@@ -88,21 +88,12 @@ var ssaRegToReg = []int16{
 	// ppc64.REG_CR6,
 	// ppc64.REG_CR7,
 
-	ppc64.REG_CR,
+	// ppc64.REG_CR,
 	// ppc64.REG_XER,
 	// ppc64.REG_LR,
 	// ppc64.REG_CTR,
 }
 
-// Associated condition bit
-var condBits = map[ssa.Op]uint8{
-	ssa.OpPPC64Equal:        ppc64.C_COND_EQ,
-	ssa.OpPPC64NotEqual:     ppc64.C_COND_EQ,
-	ssa.OpPPC64LessThan:     ppc64.C_COND_LT,
-	ssa.OpPPC64GreaterEqual: ppc64.C_COND_LT,
-	ssa.OpPPC64GreaterThan:  ppc64.C_COND_GT,
-	ssa.OpPPC64LessEqual:    ppc64.C_COND_GT,
-}
 var condOps = map[ssa.Op]obj.As{
 	ssa.OpPPC64Equal:        ppc64.ABEQ,
 	ssa.OpPPC64NotEqual:     ppc64.ABNE,
@@ -110,16 +101,11 @@ var condOps = map[ssa.Op]obj.As{
 	ssa.OpPPC64GreaterEqual: ppc64.ABGE,
 	ssa.OpPPC64GreaterThan:  ppc64.ABGT,
 	ssa.OpPPC64LessEqual:    ppc64.ABLE,
-}
 
-// Is the condition bit set? 1=yes 0=no
-var condBitSet = map[ssa.Op]uint8{
-	ssa.OpPPC64Equal:        1,
-	ssa.OpPPC64NotEqual:     0,
-	ssa.OpPPC64LessThan:     1,
-	ssa.OpPPC64GreaterEqual: 0,
-	ssa.OpPPC64GreaterThan:  1,
-	ssa.OpPPC64LessEqual:    0,
+	ssa.OpPPC64FLessThan:     ppc64.ABLT, // 1 branch for FCMP
+	ssa.OpPPC64FGreaterThan:  ppc64.ABGT, // 1 branch for FCMP
+	ssa.OpPPC64FLessEqual:    ppc64.ABLT, // 2 branches for FCMP <=, second is BEQ
+	ssa.OpPPC64FGreaterEqual: ppc64.ABGT, // 2 branches for FCMP >=, second is BEQ
 }
 
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -205,6 +191,17 @@ func storeByType(t ssa.Type) obj.As {
 	panic("bad store type")
 }
 
+// scratchFpMem initializes an Addr (field of a Prog)
+// to reference the scratchpad memory for movement between
+// F and G registers for FP conversions.
+func scratchFpMem(s *gc.SSAGenState, a *obj.Addr) {
+	a.Type = obj.TYPE_MEM
+	a.Name = obj.NAME_AUTO
+	a.Node = s.ScratchFpMem
+	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
+	a.Reg = ppc64.REGSP
+}
+
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	s.SetLineno(v.Line)
 	switch v.Op {
@@ -212,22 +209,55 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// memory arg needs no code
 	case ssa.OpArg:
 		// input args need no code
-	case ssa.OpSP, ssa.OpSB:
+	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
 
 	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
-		// TODO: copy of floats
-		if v.Type.IsMemory() {
+		t := v.Type
+		if t.IsMemory() {
 			return
 		}
 		x := gc.SSARegNum(v.Args[0])
 		y := gc.SSARegNum(v)
 		if x != y {
+			rt := obj.TYPE_REG
+			op := ppc64.AMOVD
+
+			if t.IsFloat() {
+				op = ppc64.AFMOVD
+			}
+			p := gc.Prog(op)
+			p.From.Type = rt
+			p.From.Reg = x
+			p.To.Type = rt
+			p.To.Reg = y
+		}
+
+	case ssa.OpPPC64Xf2i64:
+		{
+			x := gc.SSARegNum(v.Args[0])
+			y := gc.SSARegNum(v)
+			p := gc.Prog(ppc64.AFMOVD)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			scratchFpMem(s, &p.To)
+			p = gc.Prog(ppc64.AMOVD)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = y
+			scratchFpMem(s, &p.From)
+		}
+	case ssa.OpPPC64Xi2f64:
+		{
+			x := gc.SSARegNum(v.Args[0])
+			y := gc.SSARegNum(v)
 			p := gc.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
-			p.To.Reg = y
+			scratchFpMem(s, &p.To)
+			p = gc.Prog(ppc64.AFMOVD)
 			p.To.Type = obj.TYPE_REG
+			p.To.Reg = y
+			scratchFpMem(s, &p.From)
 		}
 
 	case ssa.OpPPC64LoweredGetClosurePtr:
@@ -235,8 +265,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.CheckLoweredGetClosurePtr(v)
 
 	case ssa.OpLoadReg:
-		p := gc.Prog(loadByType(v.Type))
+		loadOp := loadByType(v.Type)
 		n, off := gc.AutoVar(v.Args[0])
+		p := gc.Prog(loadOp)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Node = n
 		p.From.Sym = gc.Linksym(n.Sym)
@@ -251,10 +282,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = gc.SSARegNum(v)
 
 	case ssa.OpStoreReg:
-		p := gc.Prog(storeByType(v.Type))
+		storeOp := storeByType(v.Type)
+		n, off := gc.AutoVar(v)
+		p := gc.Prog(storeOp)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
-		n, off := gc.AutoVar(v)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Node = n
 		p.To.Sym = gc.Linksym(n.Sym)
@@ -376,7 +408,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // Ignored; this is for the carry effect.
 
-	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG:
+	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FRSP:
 		r := gc.SSARegNum(v)
 		p := gc.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
@@ -510,8 +542,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64Equal,
 		ssa.OpPPC64NotEqual,
 		ssa.OpPPC64LessThan,
+		ssa.OpPPC64FLessThan,
 		ssa.OpPPC64LessEqual,
 		ssa.OpPPC64GreaterThan,
+		ssa.OpPPC64FGreaterThan,
 		ssa.OpPPC64GreaterEqual:
 		// On Power7 or later, can use isel instruction:
 		// for a < b, a > b, a = b:
@@ -548,6 +582,30 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		p = gc.Prog(obj.ANOP)
 		gc.Patch(pb, p)
+
+	case ssa.OpPPC64FLessEqual, // These include a second branch for EQ -- dealing with NaN prevents REL= to !REL conversion
+		ssa.OpPPC64FGreaterEqual:
+
+		p := gc.Prog(ppc64.AMOVW)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
+		pb0 := gc.Prog(condOps[v.Op])
+		pb0.To.Type = obj.TYPE_BRANCH
+		pb1 := gc.Prog(ppc64.ABEQ)
+		pb1.To.Type = obj.TYPE_BRANCH
+
+		p = gc.Prog(ppc64.AMOVW)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
+		p = gc.Prog(obj.ANOP)
+		gc.Patch(pb0, p)
+		gc.Patch(pb1, p)
 
 	case ssa.OpPPC64LoweredZero:
 		// Similar to how this is done on ARM,
@@ -843,20 +901,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 }
 
 var blockJump = [...]struct {
-	asm, invasm obj.As
+	asm, invasm     obj.As
+	asmeq, invasmeq bool
 }{
-	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE},
-	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ},
+	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
+	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
 
-	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE},
-	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT},
-	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT},
-	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE},
+	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE, false, false},
+	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT, false, false},
+	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT, false, false},
+	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
 
-	ssa.BlockPPC64ULT: {ppc64.ABLT, ppc64.ABGE},
-	ssa.BlockPPC64UGE: {ppc64.ABGE, ppc64.ABLT},
-	ssa.BlockPPC64ULE: {ppc64.ABLE, ppc64.ABGT},
-	ssa.BlockPPC64UGT: {ppc64.ABGT, ppc64.ABLE},
+	// TODO: need to work FP comparisons into block jumps
+	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGT, false, true},
+	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, false},
+	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, false},
+	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLT, false, true},
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -893,12 +953,17 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		gc.Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		gc.Prog(obj.ARET)
+	case ssa.BlockRetJmp:
+		p := gc.Prog(obj.AJMP)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = gc.Linksym(b.Aux.(*gc.Sym))
 
 	case ssa.BlockPPC64EQ, ssa.BlockPPC64NE,
 		ssa.BlockPPC64LT, ssa.BlockPPC64GE,
 		ssa.BlockPPC64LE, ssa.BlockPPC64GT,
-		ssa.BlockPPC64ULT, ssa.BlockPPC64UGT,
-		ssa.BlockPPC64ULE, ssa.BlockPPC64UGE:
+		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
+		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
 		jmp := blockJump[b.Kind]
 		likely := b.Likely
 		var p *obj.Prog
@@ -908,14 +973,30 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
+			if jmp.invasmeq {
+				// TODO: The second branch is probably predict-not-taken since it is for FP equality
+				q := gc.Prog(ppc64.ABEQ)
+				q.To.Type = obj.TYPE_BRANCH
+				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
+			}
 		case b.Succs[1].Block():
 			p = gc.Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			if jmp.asmeq {
+				q := gc.Prog(ppc64.ABEQ)
+				q.To.Type = obj.TYPE_BRANCH
+				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
+			}
 		default:
 			p = gc.Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
+			if jmp.asmeq {
+				q := gc.Prog(ppc64.ABEQ)
+				q.To.Type = obj.TYPE_BRANCH
+				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[0].Block()})
+			}
 			q := gc.Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
