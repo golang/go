@@ -372,6 +372,33 @@ func loadinternal(ctxt *Link, name string) {
 	}
 }
 
+// findLibPathCmd uses cmd command to find gcc library libname.
+// It returns library full path if found, or "none" if not found.
+func (ctxt *Link) findLibPathCmd(cmd, libname string) string {
+	if *flagExtld == "" {
+		*flagExtld = "gcc"
+	}
+	args := hostlinkArchArgs()
+	args = append(args, cmd)
+	if ctxt.Debugvlog != 0 {
+		ctxt.Logf("%s %v\n", *flagExtld, args)
+	}
+	out, err := exec.Command(*flagExtld, args...).Output()
+	if err != nil {
+		if ctxt.Debugvlog != 0 {
+			ctxt.Logf("not using a %s file because compiler failed\n%v\n%s\n", libname, err, out)
+		}
+		return "none"
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// findLibPath searches for library libname.
+// It returns library full path if found, or "none" if not found.
+func (ctxt *Link) findLibPath(libname string) string {
+	return ctxt.findLibPathCmd("--print-file-name="+libname, libname)
+}
+
 func (ctxt *Link) loadlib() {
 	switch Buildmode {
 	case BuildmodeCShared:
@@ -573,27 +600,26 @@ func (ctxt *Link) loadlib() {
 		}
 		if any {
 			if *flagLibGCC == "" {
-				if *flagExtld == "" {
-					*flagExtld = "gcc"
-				}
-				args := hostlinkArchArgs()
-				args = append(args, "--print-libgcc-file-name")
-				if ctxt.Debugvlog != 0 {
-					ctxt.Logf("%s %v\n", *flagExtld, args)
-				}
-				out, err := exec.Command(*flagExtld, args...).Output()
-				if err != nil {
-					if ctxt.Debugvlog != 0 {
-						ctxt.Logf("not using a libgcc file because compiler failed\n%v\n%s\n", err, out)
-					}
-					*flagLibGCC = "none"
-				} else {
-					*flagLibGCC = strings.TrimSpace(string(out))
-				}
+				*flagLibGCC = ctxt.findLibPathCmd("--print-libgcc-file-name", "libgcc")
 			}
-
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
+			}
+			if HEADTYPE == obj.Hwindows {
+				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
+					hostArchive(ctxt, p)
+				}
+				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
+					hostArchive(ctxt, p)
+				}
+				// TODO: maybe do something similar to peimporteddlls to collect all lib names
+				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
+				/*
+					for:
+					#cgo windows LDFLAGS: -lmsvcrt -lm
+					import:
+					libmsvcrt.a libm.a
+				*/
 			}
 		}
 	} else {
@@ -1145,6 +1171,9 @@ func (l *Link) hostlink() {
 		}
 	}
 	if HEADTYPE == obj.Hwindows {
+		// libmingw32 and libmingwex have some inter-dependencies,
+		// so must use linker groups.
+		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
 		argv = append(argv, peimporteddlls()...)
 	}
 

@@ -3268,7 +3268,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	outGo = append(outGo, gofiles...)
 
 	// gcc
-
 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
 	for _, cfile := range cfiles {
 		ofile := obj + cfile[:len(cfile)-1] + "o"
@@ -3420,12 +3419,6 @@ func (b *builder) collect(p *Package, obj, ofile string, cgoLDFLAGS, outObj []st
 	}
 
 	ldflags = append(ldflags, "-Wl,-r", "-nostdlib")
-
-	if goos == "windows" {
-		// libmingw32 and libmingwex have some inter-dependencies,
-		// so must use linker groups.
-		ldflags = append(ldflags, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
-	}
 
 	if b.gccSupportsNoPie() {
 		ldflags = append(ldflags, "-no-pie")
