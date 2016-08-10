@@ -65,7 +65,7 @@ TEXT runtime·exits(SB),NOSPLIT,$0
 TEXT runtime·brk_(SB),NOSPLIT,$0
 	MOVQ	$24, BP
 	SYSCALL
-	MOVQ	AX, ret+8(FP)
+	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·sleep(SB),NOSPLIT,$0
