@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 )
 
+var host = flag.String("host", "", "host addr to listen on")
 var port = flag.Int("port", 8080, "service port")
 
 var index = `<!DOCTYPE html>
@@ -68,12 +69,12 @@ var addHandlers = func() {
 	})
 }
 
-var listenAndServe = func() {
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+var listenAndServe = func() error {
+	return http.ListenAndServe(fmt.Sprintf("%s:%d", *host, *port), nil)
 }
 
 func main() {
 	parseFlags()
 	addHandlers()
-	listenAndServe()
+	log.Fatal(listenAndServe())
 }
