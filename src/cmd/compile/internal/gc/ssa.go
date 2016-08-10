@@ -4521,7 +4521,7 @@ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
 // namedAuto returns a new AUTO variable with the given name and type.
 func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	t := typ.(*Type)
-	s := &Sym{Name: name, Pkg: autopkg}
+	s := &Sym{Name: name, Pkg: localpkg}
 	n := Nod(ONAME, nil, nil)
 	s.Def = n
 	s.Def.Used = true
