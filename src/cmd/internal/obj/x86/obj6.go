@@ -334,15 +334,12 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		lea = ALEAL
 		mov = AMOVL
 		reg = REG_CX
-		if p.To.Type == obj.TYPE_REG && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
-			switch p.As {
-			case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
-				// Special case: clobber the destination register with
-				// the PC so we don't have to clobber CX.
-				// The SSA backend depends on CX not being clobbered across these instructions.
-				// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
-				reg = p.To.Reg
-			}
+		if p.As == ALEAL && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+			// Special case: clobber the destination register with
+			// the PC so we don't have to clobber CX.
+			// The SSA backend depends on CX not being clobbered across LEAL.
+			// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
+			reg = p.To.Reg
 		}
 	}
 
@@ -554,12 +551,10 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 		return
 	}
 	var dst int16 = REG_CX
-	if p.To.Type == obj.TYPE_REG && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
-		switch p.As {
-		case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
-			dst = p.To.Reg
-			// Why?  See the comment near the top of rewriteToUseGot above.
-		}
+	if (p.As == ALEAL || p.As == AMOVL) && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+		dst = p.To.Reg
+		// Why?  See the comment near the top of rewriteToUseGot above.
+		// AMOVLs might be introduced by the GOT rewrites.
 	}
 	q := obj.Appendp(ctxt, p)
 	q.RegTo2 = 1
