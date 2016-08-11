@@ -29,6 +29,14 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
 		return true
+	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
+		p := gc.Prog(loadPush(v.Type))
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_F0
+		popAndSave(s, v)
+		return true
 
 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1, ssa.Op386MOVSSloadidx4, ssa.Op386MOVSDloadidx8:
 		p := gc.Prog(loadPush(v.Type))
@@ -183,28 +191,11 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		popAndSave(s, v)
 		return true
 
-	case ssa.Op386PXOR:
-		a0 := v.Args[0]
-		a1 := v.Args[1]
-		for a0.Op == ssa.OpCopy {
-			a0 = a0.Args[0]
-		}
-		for a1.Op == ssa.OpCopy {
-			a1 = a1.Args[0]
-		}
-		if (a0.Op == ssa.Op386MOVSSconst || a0.Op == ssa.Op386MOVSDconst) && a0.AuxInt == -0x8000000000000000 {
-			push(s, v.Args[1])
-			gc.Prog(x86.AFCHS)
-			popAndSave(s, v)
-			return true
-		}
-		if (a1.Op == ssa.Op386MOVSSconst || a1.Op == ssa.Op386MOVSDconst) && a1.AuxInt == -0x8000000000000000 {
-			push(s, v.Args[0])
-			gc.Prog(x86.AFCHS)
-			popAndSave(s, v)
-			return true
-		}
-		v.Fatalf("PXOR not used to change sign %s", v.LongString())
+	case ssa.Op386FCHS:
+		push(s, v.Args[0])
+		gc.Prog(x86.AFCHS)
+		popAndSave(s, v)
+		return true
 
 	case ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD:
 		p := gc.Prog(x86.AMOVL)

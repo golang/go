@@ -70,8 +70,10 @@
 (Neg32  x) -> (NEGL x)
 (Neg16  x) -> (NEGL x)
 (Neg8   x) -> (NEGL x)
-(Neg32F x) -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
-(Neg64F x) -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
+(Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
+(Neg32F x) && config.use387 -> (FCHS x)
+(Neg64F x) && config.use387 -> (FCHS x)
 
 (Com32 x) -> (NOTL x)
 (Com16 x) -> (NOTL x)
@@ -1250,3 +1252,8 @@
   && x.Uses == 1
   && clobber(x)
   -> (MOVLstoreidx1 [i-2] {s} p (SHLLconst <idx.Type> [1] idx) w0 mem)
+
+// For PIC, break floating-point constant loading into two instructions so we have
+// a register to use for holding the address of the constant pool entry.
+(MOVSSconst [c]) && config.ctxt.Flag_shared -> (MOVSSconst2 (MOVSSconst1 [c]))
+(MOVSDconst [c]) && config.ctxt.Flag_shared -> (MOVSDconst2 (MOVSDconst1 [c]))
