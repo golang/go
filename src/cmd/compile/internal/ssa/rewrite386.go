@@ -78,6 +78,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_Op386MOVLstoreidx1(v, config)
 	case Op386MOVLstoreidx4:
 		return rewriteValue386_Op386MOVLstoreidx4(v, config)
+	case Op386MOVSDconst:
+		return rewriteValue386_Op386MOVSDconst(v, config)
 	case Op386MOVSDload:
 		return rewriteValue386_Op386MOVSDload(v, config)
 	case Op386MOVSDloadidx1:
@@ -90,6 +92,8 @@ func rewriteValue386(v *Value, config *Config) bool {
 		return rewriteValue386_Op386MOVSDstoreidx1(v, config)
 	case Op386MOVSDstoreidx8:
 		return rewriteValue386_Op386MOVSDstoreidx8(v, config)
+	case Op386MOVSSconst:
+		return rewriteValue386_Op386MOVSSconst(v, config)
 	case Op386MOVSSload:
 		return rewriteValue386_Op386MOVSSload(v, config)
 	case Op386MOVSSloadidx1:
@@ -4213,6 +4217,25 @@ func rewriteValue386_Op386MOVLstoreidx4(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValue386_Op386MOVSDconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVSDconst [c])
+	// cond: config.ctxt.Flag_shared
+	// result: (MOVSDconst2 (MOVSDconst1 [c]))
+	for {
+		c := v.AuxInt
+		if !(config.ctxt.Flag_shared) {
+			break
+		}
+		v.reset(Op386MOVSDconst2)
+		v0 := b.NewValue0(v.Line, Op386MOVSDconst1, config.fe.TypeUInt32())
+		v0.AuxInt = c
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
 func rewriteValue386_Op386MOVSDload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -4679,6 +4702,25 @@ func rewriteValue386_Op386MOVSDstoreidx8(v *Value, config *Config) bool {
 		v.AddArg(idx)
 		v.AddArg(val)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValue386_Op386MOVSSconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVSSconst [c])
+	// cond: config.ctxt.Flag_shared
+	// result: (MOVSSconst2 (MOVSSconst1 [c]))
+	for {
+		c := v.AuxInt
+		if !(config.ctxt.Flag_shared) {
+			break
+		}
+		v.reset(Op386MOVSSconst2)
+		v0 := b.NewValue0(v.Line, Op386MOVSSconst1, config.fe.TypeUInt32())
+		v0.AuxInt = c
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -11399,10 +11441,13 @@ func rewriteValue386_OpNeg32F(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Neg32F x)
-	// cond:
+	// cond: !config.use387
 	// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
 	for {
 		x := v.Args[0]
+		if !(!config.use387) {
+			break
+		}
 		v.reset(Op386PXOR)
 		v.AddArg(x)
 		v0 := b.NewValue0(v.Line, Op386MOVSSconst, config.Frontend().TypeFloat32())
@@ -11410,15 +11455,31 @@ func rewriteValue386_OpNeg32F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Neg32F x)
+	// cond: config.use387
+	// result: (FCHS x)
+	for {
+		x := v.Args[0]
+		if !(config.use387) {
+			break
+		}
+		v.reset(Op386FCHS)
+		v.AddArg(x)
+		return true
+	}
+	return false
 }
 func rewriteValue386_OpNeg64F(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Neg64F x)
-	// cond:
+	// cond: !config.use387
 	// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
 	for {
 		x := v.Args[0]
+		if !(!config.use387) {
+			break
+		}
 		v.reset(Op386PXOR)
 		v.AddArg(x)
 		v0 := b.NewValue0(v.Line, Op386MOVSDconst, config.Frontend().TypeFloat64())
@@ -11426,6 +11487,19 @@ func rewriteValue386_OpNeg64F(v *Value, config *Config) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Neg64F x)
+	// cond: config.use387
+	// result: (FCHS x)
+	for {
+		x := v.Args[0]
+		if !(config.use387) {
+			break
+		}
+		v.reset(Op386FCHS)
+		v.AddArg(x)
+		return true
+	}
+	return false
 }
 func rewriteValue386_OpNeg8(v *Value, config *Config) bool {
 	b := v.Block

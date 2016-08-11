@@ -463,6 +463,18 @@ func init() {
 		{name: "FlagLT_UGT"}, // signed < and unsigned >
 		{name: "FlagGT_UGT"}, // signed > and unsigned <
 		{name: "FlagGT_ULT"}, // signed > and unsigned >
+
+		// Special op for -x on 387
+		{name: "FCHS", argLength: 1, reg: fp11},
+
+		// Special ops for PIC floating-point constants.
+		// MOVSXconst1 loads the address of the constant-pool entry into a register.
+		// MOVSXconst2 loads the constant from that address.
+		// MOVSXconst1 returns a pointer, but we type it as uint32 because it can never point to the Go heap.
+		{name: "MOVSSconst1", reg: gp01, typ: "UInt32", aux: "Float32"},
+		{name: "MOVSDconst1", reg: gp01, typ: "UInt32", aux: "Float64"},
+		{name: "MOVSSconst2", argLength: 1, reg: gpfp, asm: "MOVSS"},
+		{name: "MOVSDconst2", argLength: 1, reg: gpfp, asm: "MOVSD"},
 	}
 
 	var _386blocks = []blockData{

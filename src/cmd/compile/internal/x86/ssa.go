@@ -456,6 +456,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
+	case ssa.Op386MOVSSconst1, ssa.Op386MOVSDconst1:
+		var literal string
+		if v.Op == ssa.Op386MOVSDconst1 {
+			literal = fmt.Sprintf("$f64.%016x", uint64(v.AuxInt))
+		} else {
+			literal = fmt.Sprintf("$f32.%08x", math.Float32bits(float32(math.Float64frombits(uint64(v.AuxInt)))))
+		}
+		p := gc.Prog(x86.ALEAL)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_EXTERN
+		p.From.Sym = obj.Linklookup(gc.Ctxt, literal, 0)
+		p.From.Sym.Local = true
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum(v)
+
 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload, ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
@@ -872,6 +893,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
+	case ssa.Op386FCHS:
+		v.Fatalf("FCHS in non-387 mode")
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
