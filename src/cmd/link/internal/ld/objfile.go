@@ -564,8 +564,10 @@ func (r *objReader) readSymName() string {
 				// the symbol is not decodable.
 				//
 				// Leave type.runtime. symbols alone, because
-				// other parts of the linker manipulates them.
-				if strings.HasPrefix(s, "type.") && !strings.HasPrefix(s, "type.runtime.") {
+				// other parts of the linker manipulates them,
+				// and also symbols whose names would not be
+				// shortened by this process.
+				if len(s) > 14 && strings.HasPrefix(s, "type.") && !strings.HasPrefix(s, "type.runtime.") {
 					hash := sha1.Sum([]byte(s))
 					prefix := "type."
 					if s[5] == '.' {
