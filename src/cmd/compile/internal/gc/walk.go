@@ -506,7 +506,9 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	if n.Op == ONAME && n.Class == PAUTOHEAP {
 		nn := Nod(OIND, n.Name.Heapaddr, nil)
 		nn = typecheck(nn, Erv)
-		return walkexpr(nn, init)
+		nn = walkexpr(nn, init)
+		nn.Left.NonNil = true
+		return nn
 	}
 
 opswitch:
