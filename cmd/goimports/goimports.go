@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
-	"runtime/trace"
 	"strings"
 
 	"golang.org/x/tools/imports"
@@ -36,7 +35,6 @@ var (
 	cpuProfile     = flag.String("cpuprofile", "", "CPU profile output")
 	memProfile     = flag.String("memprofile", "", "memory profile output")
 	memProfileRate = flag.Int("memrate", 0, "if > 0, sets runtime.MemProfileRate")
-	traceProfile   = flag.String("trace", "", "trace profile output")
 
 	options = &imports.Options{
 		TabWidth:  8,
@@ -227,12 +225,10 @@ func gofmtMain() {
 		defer flush()
 		defer pprof.StopCPUProfile()
 	}
-	if *traceProfile != "" {
-		bw, flush := bufferedFileWriter(*traceProfile)
-		trace.Start(bw)
-		defer flush()
-		defer trace.Stop()
-	}
+	// doTrace is a conditionally compiled wrapper around runtime/trace. It is
+	// used to allow goimports to compile under gccgo, which does not support
+	// runtime/trace. See https://golang.org/issue/15544.
+	defer doTrace()()
 	if *memProfileRate > 0 {
 		runtime.MemProfileRate = *memProfileRate
 		bw, flush := bufferedFileWriter(*memProfile)
