@@ -50,7 +50,7 @@
 (require 'go-mode)
 (require 'json)
 (require 'simple)
-(require 'cl)
+(require 'cl-lib)
 
 (defgroup go-guru nil
   "Options specific to the Go guru."
@@ -229,7 +229,7 @@ output of the Go guru tool."
 	    (setq start end) ; break out of loop
 	  (setq p (1- p)) ; exclude final space
 	  (let* ((posn (buffer-substring-no-properties start p))
-		 (flen (search ":" posn)) ; length of filename
+		 (flen (cl-search ":" posn)) ; length of filename
 		 (filename (if (< flen 19)
 			       (substring posn 0 flen)
 			     (concat "…" (substring posn (- flen 19) flen)))))
@@ -326,7 +326,7 @@ set the point to it, switching the current buffer."
     (find-file (car file-line-pos))
     (goto-char (point-min))
     (forward-line (1- (string-to-number (cadr file-line-pos))))
-    (go-guru--goto-byte-column (string-to-number (caddr file-line-pos)))))
+    (go-guru--goto-byte-column (string-to-number (cl-caddr file-line-pos)))))
 
 (defun go-guru--goto-pos-no-file (posn)
   "Given `file:line:col', go to the line and column. The file
@@ -334,7 +334,7 @@ component will be ignored."
   (let ((file-line-pos (split-string posn ":")))
     (goto-char (point-min))
     (forward-line (1- (string-to-number (cadr file-line-pos))))
-    (go-guru--goto-byte-column (string-to-number (caddr file-line-pos)))))
+    (go-guru--goto-byte-column (string-to-number (cl-caddr file-line-pos)))))
 
 ;;;###autoload
 (defun go-guru-callees ()
@@ -496,7 +496,7 @@ timeout."
 
 (defun go-guru--on-overlay-p (id)
   "Return whether point is on a guru overlay of type ID."
-  (find-if (lambda (el) (eq (overlay-get el 'go-guru-overlay) id)) (overlays-at (point))))
+  (cl-find-if (lambda (el) (eq (overlay-get el 'go-guru-overlay) id)) (overlays-at (point))))
 
 (defun go-guru--hl-identifiers-post-command-hook ()
   (if (and go-guru-hl-identifier-mode
@@ -536,7 +536,7 @@ end point."
     (when block
       (go-guru--goto-byte (1+ (cdr (assoc 'start block))))
       (set-mark (byte-to-position (1+ (cdr (assoc 'end block)))))
-      (setq go-guru--last-enclosing (subseq enclosing 1))
+      (setq go-guru--last-enclosing (cl-subseq enclosing 1))
       (message "Region: %s" (cdr (assoc 'desc block)))
       (setq deactivate-mark nil))))
 
