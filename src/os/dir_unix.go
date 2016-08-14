@@ -15,6 +15,28 @@ const (
 	blockSize = 4096
 )
 
+func (f *File) readdir(n int) (fi []FileInfo, err error) {
+	dirname := f.name
+	if dirname == "" {
+		dirname = "."
+	}
+	names, err := f.Readdirnames(n)
+	fi = make([]FileInfo, 0, len(names))
+	for _, filename := range names {
+		fip, lerr := lstat(dirname + "/" + filename)
+		if IsNotExist(lerr) {
+			// File disappeared between readdir + stat.
+			// Just treat it as if it didn't exist.
+			continue
+		}
+		if lerr != nil {
+			return fi, lerr
+		}
+		fi = append(fi, fip)
+	}
+	return fi, err
+}
+
 func (f *File) readdirnames(n int) (names []string, err error) {
 	// If this file has no dirinfo, create one.
 	if f.dirinfo == nil {
