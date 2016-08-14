@@ -178,6 +178,7 @@ func runetochar(str []byte, r rune) int {
 	 *	0080-07FF => t2 tx
 	 */
 	if c <= rune2 {
+		_ = str[1]
 		str[0] = byte(t2 | (c >> (1 * bitx)))
 		str[1] = byte(tx | (c & maskx))
 		return 2
@@ -201,6 +202,7 @@ func runetochar(str []byte, r rune) int {
 	 *	0800-FFFF => t3 tx tx
 	 */
 	if c <= rune3 {
+		_ = str[2]
 		str[0] = byte(t3 | (c >> (2 * bitx)))
 		str[1] = byte(tx | ((c >> (1 * bitx)) & maskx))
 		str[2] = byte(tx | (c & maskx))
@@ -211,6 +213,7 @@ func runetochar(str []byte, r rune) int {
 	 * four character sequence (21-bit value)
 	 *     10000-1FFFFF => t4 tx tx tx
 	 */
+	_ = str[3]
 	str[0] = byte(t4 | (c >> (3 * bitx)))
 	str[1] = byte(tx | ((c >> (2 * bitx)) & maskx))
 	str[2] = byte(tx | ((c >> (1 * bitx)) & maskx))
