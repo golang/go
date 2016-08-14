@@ -47,10 +47,9 @@ func concatstrings(buf *tmpBuf, a []string) string {
 		return a[idx]
 	}
 	s, b := rawstringtmp(buf, l)
-	l = 0
 	for _, x := range a {
-		copy(b[l:], x)
-		l += len(x)
+		copy(b, x)
+		b = b[len(x):]
 	}
 	return s
 }
