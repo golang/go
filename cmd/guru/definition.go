@@ -86,12 +86,19 @@ func definition(q *Query) error {
 		return fmt.Errorf("no identifier here")
 	}
 
-	obj := qpos.info.ObjectOf(id)
+	// Look up the declaration of this identifier.
+	// If id is an anonymous field declaration,
+	// it is both a use of a type and a def of a field;
+	// prefer the use in that case.
+	obj := qpos.info.Uses[id]
 	if obj == nil {
-		// Happens for y in "switch y := x.(type)",
-		// and the package declaration,
-		// but I think that's all.
-		return fmt.Errorf("no object for identifier")
+		obj = qpos.info.Defs[id]
+		if obj == nil {
+			// Happens for y in "switch y := x.(type)",
+			// and the package declaration,
+			// but I think that's all.
+			return fmt.Errorf("no object for identifier")
+		}
 	}
 
 	if !obj.Pos().IsValid() {

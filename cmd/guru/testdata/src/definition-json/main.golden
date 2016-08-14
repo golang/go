@@ -65,3 +65,29 @@ Error: no object for identifier
 	"objpos": "testdata/src/definition-json/main.go:42:10",
 	"desc": "func (T).method()"
 }
+-------- @definition embedded-other-file --------
+{
+	"objpos": "testdata/src/definition-json/type.go:3:6",
+	"desc": "type W int"
+}
+-------- @definition embedded-other-file-pointer --------
+{
+	"objpos": "testdata/src/definition-json/type.go:3:6",
+	"desc": "type W int"
+}
+-------- @definition embedded-basic --------
+
+Error: int is built in
+-------- @definition embedded-basic-pointer --------
+
+Error: int is built in
+-------- @definition embedded-other-pkg --------
+{
+	"objpos": "testdata/src/lib/lib.go:3:6",
+	"desc": "type lib.Type"
+}
+-------- @definition embedded-same-file --------
+{
+	"objpos": "$GOPATH/src/definition-json/main.go:40:6",
+	"desc": "type T"
+}

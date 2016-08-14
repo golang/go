@@ -32,6 +32,10 @@
 		{
 			"pos": "testdata/src/definition-json/main.go:30:8",
 			"text": "\tvar _ lib.Nonesuch // @definition qualified-nomember \"Nonesuch\""
+		},
+		{
+			"pos": "testdata/src/definition-json/main.go:63:2",
+			"text": "\tlib.Type // @definition embedded-other-pkg \"Type\""
 		}
 	]
 }

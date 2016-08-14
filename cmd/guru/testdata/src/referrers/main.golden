@@ -13,6 +13,7 @@ references to package lib
 	_ = (lib.Type).Method // ref from internal test package
 	const c = lib.Const // @describe ref-const "Const"
 	lib.Func()          // @describe ref-func "Func"
+	lib.Type // @definition embedded-other-pkg "Type"
 	lib.Var++           // @describe ref-var "Var"
 	var _ lib.Const    // @definition qualified-const "Const"
 	var _ lib.Func     // @definition qualified-func "Func"
