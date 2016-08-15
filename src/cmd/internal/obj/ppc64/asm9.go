@@ -3092,9 +3092,9 @@ func opirr(ctxt *obj.Link, a obj.As) uint32 {
 	case ABNE:
 		return AOP_RRR(16<<26, 4, 2, 0)
 	case ABVC:
-		return AOP_RRR(16<<26, 4, 3, 0)
+		return AOP_RRR(16<<26, 4, 3, 0) // apparently unordered-clear
 	case ABVS:
-		return AOP_RRR(16<<26, 12, 3, 0)
+		return AOP_RRR(16<<26, 12, 3, 0) // apparently unordered-set
 
 	case ACMP:
 		return OPVCC(11, 0, 0, 0) | 1<<21 /* L=1 */

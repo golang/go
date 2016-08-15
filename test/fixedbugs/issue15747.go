@@ -22,7 +22,7 @@ func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: q xx" "liv
 	// xx was live for the first two prints but then it switched to &xx
 	// being live. We should not see plain xx again.
 	if b {
-		global = &xx // ERROR "live at call to writebarrierptr: q &xx$"
+		global = &xx // ERROR "live at call to writebarrierptr: q &xx[^x]*$"
 	}
 	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject: q( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: q (e|err.data err.type)$"
 	if err != nil {

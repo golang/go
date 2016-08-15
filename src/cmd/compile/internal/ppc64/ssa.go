@@ -747,9 +747,27 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			// This is different from obj.ANOP, which is a virtual no-op
 			// that doesn't make it into the instruction stream.
 			// PPC64 is unusual because TWO nops are required
-			// (see gc/cgen.go, gc/plive.go)
+			// (see gc/cgen.go, gc/plive.go -- copy of comment below)
+			//
+			// On ppc64, when compiling Go into position
+			// independent code on ppc64le we insert an
+			// instruction to reload the TOC pointer from the
+			// stack as well. See the long comment near
+			// jmpdefer in runtime/asm_ppc64.s for why.
+			// If the MOVD is not needed, insert a hardware NOP
+			// so that the same number of instructions are used
+			// on ppc64 in both shared and non-shared modes.
 			ginsnop()
-			ginsnop()
+			if gc.Ctxt.Flag_shared {
+				p := gc.Prog(ppc64.AMOVD)
+				p.From.Type = obj.TYPE_MEM
+				p.From.Offset = 24
+				p.From.Reg = ppc64.REGSP
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = ppc64.REG_R2
+			} else {
+				ginsnop()
+			}
 		}
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -758,13 +776,48 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
-	case ssa.OpPPC64CALLclosure:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+
+	case ssa.OpPPC64CALLclosure, ssa.OpPPC64CALLinter:
+		p := gc.Prog(ppc64.AMOVD)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ppc64.REG_CTR
+
+		if gc.Ctxt.Flag_shared && p.From.Reg != ppc64.REG_R12 {
+			// Make sure function pointer is in R12 as well when
+			// compiling Go into PIC.
+			// TODO(mwhudson): it would obviously be better to
+			// change the register allocation to put the value in
+			// R12 already, but I don't know how to do that.
+			// TODO: We have the technology now to implement TODO above.
+			q := gc.Prog(ppc64.AMOVD)
+			q.From = p.From
+			q.To.Type = obj.TYPE_REG
+			q.To.Reg = ppc64.REG_R12
+		}
+
+		pp := gc.Prog(obj.ACALL)
+		pp.To.Type = obj.TYPE_REG
+		pp.To.Reg = ppc64.REG_CTR
+
+		if gc.Ctxt.Flag_shared {
+			// When compiling Go into PIC, the function we just
+			// called via pointer might have been implemented in
+			// a separate module and so overwritten the TOC
+			// pointer in R2; reload it.
+			q := gc.Prog(ppc64.AMOVD)
+			q.From.Type = obj.TYPE_MEM
+			q.From.Offset = 24
+			q.From.Reg = ppc64.REGSP
+			q.To.Type = obj.TYPE_REG
+			q.To.Reg = ppc64.REG_R2
+		}
+
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
+
 	case ssa.OpPPC64CALLdefer:
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -781,14 +834,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
-	case ssa.OpPPC64CALLinter:
-		p := gc.Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = gc.SSARegNum(v.Args[0])
-		if gc.Maxarg < v.AuxInt {
-			gc.Maxarg = v.AuxInt
-		}
-
 	case ssa.OpVarDef:
 		gc.Gvardef(v.Aux.(*gc.Node))
 	case ssa.OpVarKill:
@@ -902,7 +947,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 var blockJump = [...]struct {
 	asm, invasm     obj.As
-	asmeq, invasmeq bool
+	asmeq, invasmun bool
 }{
 	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
 	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
@@ -913,10 +958,10 @@ var blockJump = [...]struct {
 	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
 
 	// TODO: need to work FP comparisons into block jumps
-	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGT, false, true},
-	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, false},
-	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, false},
-	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLT, false, true},
+	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGE, false, false},
+	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, true}, // GE = GT or EQ; !GE = LT or UN
+	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, true}, // LE = LT or EQ; !LE = GT or UN
+	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
 }
 
 func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
@@ -973,9 +1018,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[1].Block()})
-			if jmp.invasmeq {
-				// TODO: The second branch is probably predict-not-taken since it is for FP equality
-				q := gc.Prog(ppc64.ABEQ)
+			if jmp.invasmun {
+				// TODO: The second branch is probably predict-not-taken since it is for FP unordered
+				q := gc.Prog(ppc64.ABVS)
 				q.To.Type = obj.TYPE_BRANCH
 				s.Branches = append(s.Branches, gc.Branch{P: q, B: b.Succs[1].Block()})
 			}
