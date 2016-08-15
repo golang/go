@@ -380,10 +380,11 @@
 (GreaterThan (InvertFlags x)) -> (LessThan x)
 (LessEqual (InvertFlags x)) -> (GreaterEqual x)
 (GreaterEqual (InvertFlags x)) -> (LessEqual x)
-(FLessThan (InvertFlags x)) -> (FGreaterThan x)
-(FGreaterThan (InvertFlags x)) -> (FLessThan x)
-(FLessEqual (InvertFlags x)) -> (FGreaterEqual x)
-(FGreaterEqual (InvertFlags x)) -> (FLessEqual x)
+
+// (FLessThan (InvertFlags x)) -> (FGreaterThan x)
+// (FGreaterThan (InvertFlags x)) -> (FLessThan x)
+// (FLessEqual (InvertFlags x)) -> (FGreaterEqual x)
+// (FGreaterEqual (InvertFlags x)) -> (FLessEqual x)
 
 
 // Lowering loads

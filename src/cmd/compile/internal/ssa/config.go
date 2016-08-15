@@ -254,6 +254,7 @@ func (c *Config) Set387(b bool) {
 
 func (c *Config) Frontend() Frontend      { return c.fe }
 func (c *Config) SparsePhiCutoff() uint64 { return c.sparsePhiCutoff }
+func (c *Config) Ctxt() *obj.Link         { return c.ctxt }
 
 // NewFunc returns a new, empty function object.
 // Caller must call f.Free() before calling NewFunc again.

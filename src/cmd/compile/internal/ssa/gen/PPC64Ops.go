@@ -124,7 +124,7 @@ func init() {
 		fp = buildReg("F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26")
 		sp = buildReg("SP")
 		sb = buildReg("SB")
-		// gr  = buildReg("g")
+		gr = buildReg("g")
 		// cr  = buildReg("CR")
 		// ctr = buildReg("CTR")
 		// lr  = buildReg("LR")
@@ -148,7 +148,7 @@ func init() {
 		fp2cr       = regInfo{inputs: []regMask{fp, fp}}
 		fpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{fp}}
 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
-		callerSave  = regMask(gp | fp)
+		callerSave  = regMask(gp | fp | gr)
 	)
 	ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},     // arg0 + arg1

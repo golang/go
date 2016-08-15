@@ -97,6 +97,9 @@ func testMain(m *testing.M) (int, error) {
 	if gorootInstallDir == "" {
 		return 0, errors.New("could not create temporary directory after 10000 tries")
 	}
+	if testing.Verbose() {
+		fmt.Printf("+ mkdir -p %s\n", gorootInstallDir)
+	}
 	defer os.RemoveAll(gorootInstallDir)
 
 	// Some tests need to edit the source in GOPATH, so copy this directory to a
@@ -105,6 +108,9 @@ func testMain(m *testing.M) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("TempDir failed: %v", err)
 	}
+	if testing.Verbose() {
+		fmt.Printf("+ mkdir -p %s\n", scratchDir)
+	}
 	defer os.RemoveAll(scratchDir)
 	err = filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		scratchPath := filepath.Join(scratchDir, path)
@@ -112,11 +118,17 @@ func testMain(m *testing.M) (int, error) {
 			if path == "." {
 				return nil
 			}
+			if testing.Verbose() {
+				fmt.Printf("+ mkdir -p %s\n", scratchPath)
+			}
 			return os.Mkdir(scratchPath, info.Mode())
 		} else {
 			fromBytes, err := ioutil.ReadFile(path)
 			if err != nil {
 				return err
+			}
+			if testing.Verbose() {
+				fmt.Printf("+ cp %s %s\n", path, scratchPath)
 			}
 			return ioutil.WriteFile(scratchPath, fromBytes, info.Mode())
 		}
@@ -125,7 +137,13 @@ func testMain(m *testing.M) (int, error) {
 		return 0, fmt.Errorf("walk failed: %v", err)
 	}
 	os.Setenv("GOPATH", scratchDir)
+	if testing.Verbose() {
+		fmt.Printf("+ export GOPATH=%s\n", scratchDir)
+	}
 	myContext.GOPATH = scratchDir
+	if testing.Verbose() {
+		fmt.Printf("+ cd %s\n", scratchDir)
+	}
 	os.Chdir(scratchDir)
 
 	// All tests depend on runtime being built into a shared library. Because

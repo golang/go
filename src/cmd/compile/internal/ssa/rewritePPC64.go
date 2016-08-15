@@ -350,14 +350,6 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpPPC64CMPconst(v, config)
 	case OpPPC64Equal:
 		return rewriteValuePPC64_OpPPC64Equal(v, config)
-	case OpPPC64FGreaterEqual:
-		return rewriteValuePPC64_OpPPC64FGreaterEqual(v, config)
-	case OpPPC64FGreaterThan:
-		return rewriteValuePPC64_OpPPC64FGreaterThan(v, config)
-	case OpPPC64FLessEqual:
-		return rewriteValuePPC64_OpPPC64FLessEqual(v, config)
-	case OpPPC64FLessThan:
-		return rewriteValuePPC64_OpPPC64FLessThan(v, config)
 	case OpPPC64GreaterEqual:
 		return rewriteValuePPC64_OpPPC64GreaterEqual(v, config)
 	case OpPPC64GreaterThan:
@@ -4173,78 +4165,6 @@ func rewriteValuePPC64_OpPPC64Equal(v *Value, config *Config) bool {
 		}
 		x := v_0.Args[0]
 		v.reset(OpPPC64Equal)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64FGreaterEqual(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (FGreaterEqual (InvertFlags x))
-	// cond:
-	// result: (FLessEqual x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpPPC64InvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpPPC64FLessEqual)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64FGreaterThan(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (FGreaterThan (InvertFlags x))
-	// cond:
-	// result: (FLessThan x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpPPC64InvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpPPC64FLessThan)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64FLessEqual(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (FLessEqual (InvertFlags x))
-	// cond:
-	// result: (FGreaterEqual x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpPPC64InvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpPPC64FGreaterEqual)
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValuePPC64_OpPPC64FLessThan(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (FLessThan (InvertFlags x))
-	// cond:
-	// result: (FGreaterThan x)
-	for {
-		v_0 := v.Args[0]
-		if v_0.Op != OpPPC64InvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpPPC64FGreaterThan)
 		v.AddArg(x)
 		return true
 	}
