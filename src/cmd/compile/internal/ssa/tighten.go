@@ -54,12 +54,18 @@ func tighten(f *Func) {
 		for _, b := range f.Blocks {
 			for i := 0; i < len(b.Values); i++ {
 				v := b.Values[i]
-				if v.Op == OpPhi || v.Op == OpGetClosurePtr || v.Op == OpConvert || v.Op == OpArg {
+				switch v.Op {
+				case OpPhi, OpGetClosurePtr, OpConvert, OpArg:
 					// GetClosurePtr & Arg must stay in entry block.
 					// OpConvert must not float over call sites.
 					// TODO do we instead need a dependence edge of some sort for OpConvert?
 					// Would memory do the trick, or do we need something else that relates
 					// to safe point operations?
+					continue
+				default:
+				}
+				if v.Op == OpSelect0 || v.Op == OpSelect1 {
+					// tuple selector must stay with tuple generator
 					continue
 				}
 				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {

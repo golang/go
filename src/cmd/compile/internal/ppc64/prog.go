@@ -42,22 +42,34 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 
 	// Integer
 	ppc64.AADD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AADDC & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASUB & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AADDME & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ANEG & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AAND & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AANDN & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AOR & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AORN & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AXOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AEQV & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AMULLD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AMULLW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AMULHD & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AMULHDU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ADIVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ADIVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ADIVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ADIVWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASLD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASRD & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ASRAD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ASLW & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ASRW & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.ASRAW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.ACMP & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
 	ppc64.ACMPU & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightRead},
+	ppc64.ACMPW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
+	ppc64.ACMPWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightRead},
 	ppc64.ATD & obj.AMask:     {Flags: gc.SizeQ | gc.RightRead},
 
 	// Floating point.
@@ -70,11 +82,13 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	ppc64.AFDIV & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFDIVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCTIDZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	ppc64.AFCTIWZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCFID & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCFIDU & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	ppc64.AFCMPU & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
 	ppc64.AFRSP & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv},
 	ppc64.AFSQRT & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
+	ppc64.AFNEG & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite},
 
 	// Moves
 	ppc64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
@@ -91,6 +105,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	ppc64.AMOVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
 	ppc64.AMOVDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move | gc.PostInc},
 	ppc64.AFMOVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	ppc64.AFMOVSX & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	ppc64.AFMOVSZ & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
 	ppc64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
 
 	// Jumps

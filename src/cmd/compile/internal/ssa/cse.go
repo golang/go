@@ -163,6 +163,29 @@ func cse(f *Func) {
 		}
 	}
 
+	// if we rewrite a tuple generator to a new one in a different block,
+	// copy its selectors to the new generator's block, so tuple generator
+	// and selectors stay together.
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if rewrite[v.ID] != nil {
+				continue
+			}
+			if v.Op != OpSelect0 && v.Op != OpSelect1 {
+				continue
+			}
+			if !v.Args[0].Type.IsTuple() {
+				f.Fatalf("arg of tuple selector %s is not a tuple: %s", v.String(), v.Args[0].LongString())
+			}
+			t := rewrite[v.Args[0].ID]
+			if t != nil && t.Block != b {
+				// v.Args[0] is tuple generator, CSE'd into a different block as t, v is left behind
+				c := v.copyInto(t.Block)
+				rewrite[v.ID] = c
+			}
+		}
+	}
+
 	rewrites := int64(0)
 
 	// Apply substitutions

@@ -1094,12 +1094,45 @@ opswitch:
 
 			if n.Type.IsFloat() {
 				if n.Left.Type.Etype == TINT64 {
-					n = mkcall("int64tofloat64", n.Type, init, conv(n.Left, Types[TINT64]))
+					n = conv(mkcall("int64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TINT64])), n.Type)
 					break
 				}
 
 				if n.Left.Type.Etype == TUINT64 {
-					n = mkcall("uint64tofloat64", n.Type, init, conv(n.Left, Types[TUINT64]))
+					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
+					break
+				}
+			}
+		}
+
+		if Thearch.LinkArch.Family == sys.I386 {
+			if n.Left.Type.IsFloat() {
+				if n.Type.Etype == TINT64 {
+					n = mkcall("float64toint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+					break
+				}
+
+				if n.Type.Etype == TUINT64 {
+					n = mkcall("float64touint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+					break
+				}
+				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINTPTR {
+					n = mkcall("float64touint32", n.Type, init, conv(n.Left, Types[TFLOAT64]))
+					break
+				}
+			}
+			if n.Type.IsFloat() {
+				if n.Left.Type.Etype == TINT64 {
+					n = conv(mkcall("int64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TINT64])), n.Type)
+					break
+				}
+
+				if n.Left.Type.Etype == TUINT64 {
+					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
+					break
+				}
+				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINTPTR {
+					n = conv(mkcall("uint32tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT32])), n.Type)
 					break
 				}
 			}
@@ -3303,6 +3336,7 @@ func samecheap(a *Node, b *Node) bool {
 // The result of walkrotate MUST be assigned back to n, e.g.
 // 	n.Left = walkrotate(n.Left)
 func walkrotate(n *Node) *Node {
+	//TODO: enable LROT on ARM64 once the old backend is gone
 	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM64, sys.PPC64) {
 		return n
 	}
@@ -3494,16 +3528,6 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			n2 := Nod(OMUL, n1, nr)
 			n = Nod(OSUB, nl, n2)
 			goto ret
-		}
-
-		// TODO(zhongwei) Test shows that TUINT8, TINT8, TUINT16 and TINT16's "quick division" method
-		// on current arm64 backend is slower than hardware div instruction on ARM64 due to unnecessary
-		// data movement between registers. It could be enabled when generated code is good enough.
-		if Thearch.LinkArch.Family == sys.ARM64 {
-			switch Simtype[nl.Type.Etype] {
-			case TUINT8, TINT8, TUINT16, TINT16:
-				return n
-			}
 		}
 
 		switch Simtype[nl.Type.Etype] {
