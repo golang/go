@@ -4416,13 +4416,19 @@ func BenchmarkClient(b *testing.B) {
 	b.StopTimer()
 	defer afterTest(b)
 
-	port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
-	if port == "" {
-		port = "39207"
-	}
 	var data = []byte("Hello world.\n")
 	if server := os.Getenv("TEST_BENCH_SERVER"); server != "" {
 		// Server process mode.
+		port := os.Getenv("TEST_BENCH_SERVER_PORT") // can be set by user
+		if port == "" {
+			port = "0"
+		}
+		ln, err := net.Listen("tcp", "localhost:"+port)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		fmt.Println(ln.Addr().String())
 		HandleFunc("/", func(w ResponseWriter, r *Request) {
 			r.ParseForm()
 			if r.Form.Get("stop") != "" {
@@ -4431,32 +4437,43 @@ func BenchmarkClient(b *testing.B) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write(data)
 		})
-		log.Fatal(ListenAndServe("localhost:"+port, nil))
+		var srv Server
+		log.Fatal(srv.Serve(ln))
 	}
 
 	// Start server process.
 	cmd := exec.Command(os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkClient$")
 	cmd.Env = append(os.Environ(), "TEST_BENCH_SERVER=yes")
+	cmd.Stderr = os.Stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		b.Fatal(err)
+	}
 	if err := cmd.Start(); err != nil {
 		b.Fatalf("subprocess failed to start: %v", err)
 	}
 	defer cmd.Process.Kill()
+
+	// Wait for the server in the child process to respond and tell us
+	// its listening address, once it's started listening:
+	timer := time.AfterFunc(10*time.Second, func() {
+		cmd.Process.Kill()
+	})
+	defer timer.Stop()
+	bs := bufio.NewScanner(stdout)
+	if !bs.Scan() {
+		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
+	}
+	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
+	timer.Stop()
+	if _, err := getNoBody(url); err != nil {
+		b.Fatalf("initial probe of child process failed: %v", err)
+	}
+
 	done := make(chan error)
 	go func() {
 		done <- cmd.Wait()
 	}()
-
-	// Wait for the server process to respond.
-	url := "http://localhost:" + port + "/"
-	for i := 0; i < 100; i++ {
-		time.Sleep(100 * time.Millisecond)
-		if _, err := getNoBody(url); err == nil {
-			break
-		}
-		if i == 99 {
-			b.Fatalf("subprocess does not respond")
-		}
-	}
 
 	// Do b.N requests to the server.
 	b.StartTimer()
