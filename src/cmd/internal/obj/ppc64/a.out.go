@@ -185,6 +185,15 @@ const (
 	NOSCHED = 1 << 9
 )
 
+// Bit settings from the CR
+
+const (
+	C_COND_LT = iota // 0 result is negative
+	C_COND_GT        // 1 result is positive
+	C_COND_EQ        // 2 result is zero
+	C_COND_SO        // 3 summary overflow
+)
+
 const (
 	C_NONE = iota
 	C_REG
@@ -210,8 +219,8 @@ const (
 	C_LAUTO
 	C_SEXT
 	C_LEXT
-	C_ZOREG
-	C_SOREG
+	C_ZOREG // conjecture: either (1) register + zeroed offset, or (2) "R0" implies zero or C_REG
+	C_SOREG // register + signed offset
 	C_LOREG
 	C_FPSCR
 	C_MSR
@@ -315,6 +324,8 @@ const (
 	AFMOVDU
 	AFMOVS
 	AFMOVSU
+	AFMOVSX
+	AFMOVSZ
 	AFMSUB
 	AFMSUBCC
 	AFMSUBS

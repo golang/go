@@ -59,6 +59,8 @@ var Anames = []string{
 	"SQRTD",
 	"ABSF",
 	"ABSD",
+	"NEGF",
+	"NEGD",
 	"SRL",
 	"SRA",
 	"SLL",

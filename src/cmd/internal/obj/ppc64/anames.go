@@ -91,6 +91,8 @@ var Anames = []string{
 	"FMOVDU",
 	"FMOVS",
 	"FMOVSU",
+	"FMOVSX",
+	"FMOVSZ",
 	"FMSUB",
 	"FMSUBCC",
 	"FMSUBS",

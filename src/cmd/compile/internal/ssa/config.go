@@ -20,11 +20,18 @@ type Config struct {
 	lowerBlock      func(*Block) bool          // lowering function
 	lowerValue      func(*Value, *Config) bool // lowering function
 	registers       []Register                 // machine registers
+	gpRegMask       regMask                    // general purpose integer register mask
+	fpRegMask       regMask                    // floating point register mask
+	FPReg           int8                       // register number of frame pointer, -1 if not used
+	hasGReg         bool                       // has hardware g register
 	fe              Frontend                   // callbacks into compiler frontend
 	HTML            *HTMLWriter                // html writer, for debugging
 	ctxt            *obj.Link                  // Generic arch information
 	optimize        bool                       // Do optimization
 	noDuffDevice    bool                       // Don't use Duff's device
+	nacl            bool                       // GOOS=nacl
+	use387          bool                       // GO386=387
+	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
 	curFunc         *Func
 
@@ -106,6 +113,7 @@ type Frontend interface {
 	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
 	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
 	SplitStruct(LocalSlot, int) LocalSlot
+	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
 
 	// Line returns a string describing the given line number.
 	Line(int32) string
@@ -128,27 +136,85 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64
 		c.registers = registersAMD64[:]
-	case "386":
+		c.gpRegMask = gpRegMaskAMD64
+		c.fpRegMask = fpRegMaskAMD64
+		c.FPReg = framepointerRegAMD64
+		c.hasGReg = false
+	case "amd64p32":
 		c.IntSize = 4
 		c.PtrSize = 4
 		c.lowerBlock = rewriteBlockAMD64
-		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
+		c.lowerValue = rewriteValueAMD64
+		c.registers = registersAMD64[:]
+		c.gpRegMask = gpRegMaskAMD64
+		c.fpRegMask = fpRegMaskAMD64
+		c.FPReg = framepointerRegAMD64
+		c.hasGReg = false
+		c.noDuffDevice = true
+	case "386":
+		c.IntSize = 4
+		c.PtrSize = 4
+		c.lowerBlock = rewriteBlock386
+		c.lowerValue = rewriteValue386
+		c.registers = registers386[:]
+		c.gpRegMask = gpRegMask386
+		c.fpRegMask = fpRegMask386
+		c.FPReg = framepointerReg386
+		c.hasGReg = false
 	case "arm":
 		c.IntSize = 4
 		c.PtrSize = 4
 		c.lowerBlock = rewriteBlockARM
 		c.lowerValue = rewriteValueARM
 		c.registers = registersARM[:]
+		c.gpRegMask = gpRegMaskARM
+		c.fpRegMask = fpRegMaskARM
+		c.FPReg = framepointerRegARM
+		c.hasGReg = true
+	case "arm64":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.lowerBlock = rewriteBlockARM64
+		c.lowerValue = rewriteValueARM64
+		c.registers = registersARM64[:]
+		c.gpRegMask = gpRegMaskARM64
+		c.fpRegMask = fpRegMaskARM64
+		c.FPReg = framepointerRegARM64
+		c.hasGReg = true
+	case "ppc64le":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.lowerBlock = rewriteBlockPPC64
+		c.lowerValue = rewriteValuePPC64
+		c.registers = registersPPC64[:]
+		c.gpRegMask = gpRegMaskPPC64
+		c.fpRegMask = fpRegMaskPPC64
+		c.FPReg = framepointerRegPPC64
+		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
+		c.NeedsFpScratch = true
+		c.hasGReg = true
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
+	c.nacl = obj.Getgoos() == "nacl"
 
-	// Don't use Duff's device on Plan 9, because floating
+	// Don't use Duff's device on Plan 9 AMD64, because floating
 	// point operations are not allowed in note handler.
-	if obj.Getgoos() == "plan9" {
+	if obj.Getgoos() == "plan9" && arch == "amd64" {
 		c.noDuffDevice = true
+	}
+
+	if c.nacl {
+		c.noDuffDevice = true // Don't use Duff's device on NaCl
+
+		// ARM assembler rewrites DIV/MOD to runtime calls, which
+		// clobber R12 on nacl
+		opcodeTable[OpARMDIV].reg.clobbers |= 1 << 12  // R12
+		opcodeTable[OpARMDIVU].reg.clobbers |= 1 << 12 // R12
+		opcodeTable[OpARMMOD].reg.clobbers |= 1 << 12  // R12
+		opcodeTable[OpARMMODU].reg.clobbers |= 1 << 12 // R12
 	}
 
 	// Assign IDs to preallocated values/blocks.
@@ -178,6 +244,11 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	}
 
 	return c
+}
+
+func (c *Config) Set387(b bool) {
+	c.NeedsFpScratch = b
+	c.use387 = b
 }
 
 func (c *Config) Frontend() Frontend      { return c.fe }

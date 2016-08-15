@@ -4,8 +4,6 @@
 
 package ssa
 
-const flagRegMask = regMask(1) << 33 // TODO: arch-specific
-
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
 // spilled/restored.
@@ -33,7 +31,7 @@ func flagalloc(f *Func) {
 				if v == flag {
 					flag = nil
 				}
-				if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
+				if opcodeTable[v.Op].clobberFlags {
 					flag = nil
 				}
 				for _, a := range v.Args {
@@ -97,7 +95,7 @@ func flagalloc(f *Func) {
 					continue
 				}
 				// Recalculate a
-				c := a.copyInto(b)
+				c := copyFlags(a, b)
 				// Update v.
 				v.SetArg(i, c)
 				// Remember the most-recently computed flag value.
@@ -105,7 +103,7 @@ func flagalloc(f *Func) {
 			}
 			// Issue v.
 			b.Values = append(b.Values, v)
-			if opcodeTable[v.Op].reg.clobbers&flagRegMask != 0 {
+			if opcodeTable[v.Op].clobberFlags {
 				flag = nil
 			}
 			if v.Type.IsFlags() {
@@ -121,7 +119,7 @@ func flagalloc(f *Func) {
 		if v := end[b.ID]; v != nil && v != flag {
 			// Need to reissue flag generator for use by
 			// subsequent blocks.
-			_ = v.copyInto(b)
+			copyFlags(v, b)
 			// Note: this flag generator is not properly linked up
 			// with the flag users. This breaks the SSA representation.
 			// We could fix up the users with another pass, but for now
@@ -134,4 +132,20 @@ func flagalloc(f *Func) {
 	for _, b := range f.Blocks {
 		b.FlagsLiveAtEnd = end[b.ID] != nil
 	}
+}
+
+// copyFlags copies v (flag generator) into b, returns the copy.
+// If v's arg is also flags, copy recursively.
+func copyFlags(v *Value, b *Block) *Value {
+	flagsArgs := make(map[int]*Value)
+	for i, a := range v.Args {
+		if a.Type.IsFlags() || a.Type.IsTuple() {
+			flagsArgs[i] = copyFlags(a, b)
+		}
+	}
+	c := v.copyInto(b)
+	for i, a := range flagsArgs {
+		c.SetArg(i, a)
+	}
+	return c
 }
