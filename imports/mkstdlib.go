@@ -51,6 +51,7 @@ func main() {
 		mustOpen(api("go1.4.txt")),
 		mustOpen(api("go1.5.txt")),
 		mustOpen(api("go1.6.txt")),
+		mustOpen(api("go1.7.txt")),
 	)
 	sc := bufio.NewScanner(f)
 	fullImport := map[string]string{} // "zip.NewReader" => "archive/zip"
