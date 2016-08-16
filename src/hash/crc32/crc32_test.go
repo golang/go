@@ -67,56 +67,68 @@ func TestGolden(t *testing.T) {
 			t.Errorf("Castagnoli(%s) = 0x%x want 0x%x", g.in, s, g.castagnoli)
 		}
 
-		if len(g.in) > 0 {
-			// The SSE4.2 implementation of this has code to deal
-			// with misaligned data so we ensure that we test that
-			// too.
-			castagnoli = New(castagnoliTab)
-			io.WriteString(castagnoli, g.in[:1])
-			io.WriteString(castagnoli, g.in[1:])
-			s = castagnoli.Sum32()
-			if s != g.castagnoli {
-				t.Errorf("Castagnoli[misaligned](%s) = 0x%x want 0x%x", g.in, s, g.castagnoli)
+		// The SSE4.2 implementation of this has code to deal
+		// with misaligned data so we ensure that we test that
+		// too.
+		for delta := 1; delta <= 7; delta++ {
+			if len(g.in) > delta {
+				in := []byte(g.in)
+				castagnoli = New(castagnoliTab)
+				castagnoli.Write(in[:delta])
+				castagnoli.Write(in[delta:])
+				s = castagnoli.Sum32()
+				if s != g.castagnoli {
+					t.Errorf("Castagnoli[misaligned](%s) = 0x%x want 0x%x", g.in, s, g.castagnoli)
+				}
 			}
 		}
 	}
 }
 
 func BenchmarkIEEECrc40B(b *testing.B) {
-	benchmark(b, NewIEEE(), 40)
+	benchmark(b, NewIEEE(), 40, 0)
 }
 
 func BenchmarkIEEECrc1KB(b *testing.B) {
-	benchmark(b, NewIEEE(), 1<<10)
+	benchmark(b, NewIEEE(), 1<<10, 0)
 }
 
 func BenchmarkIEEECrc4KB(b *testing.B) {
-	benchmark(b, NewIEEE(), 4<<10)
+	benchmark(b, NewIEEE(), 4<<10, 0)
 }
 
 func BenchmarkIEEECrc32KB(b *testing.B) {
-	benchmark(b, NewIEEE(), 32<<10)
+	benchmark(b, NewIEEE(), 32<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc15B(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 15, 0)
+}
+
+func BenchmarkCastagnoliCrc15BMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 15, 1)
 }
 
 func BenchmarkCastagnoliCrc40B(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 40)
+	benchmark(b, New(MakeTable(Castagnoli)), 40, 0)
 }
 
 func BenchmarkCastagnoliCrc1KB(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 1<<10)
+	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 0)
 }
 
 func BenchmarkCastagnoliCrc4KB(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 4<<10)
+	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 0)
 }
 
 func BenchmarkCastagnoliCrc32KB(b *testing.B) {
-	benchmark(b, New(MakeTable(Castagnoli)), 32<<10)
+	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 0)
 }
 
-func benchmark(b *testing.B, h hash.Hash32, n int64) {
+func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
 	b.SetBytes(n)
-	data := make([]byte, n)
+	data := make([]byte, n+alignment)
+	data = data[alignment:]
 	for i := range data {
 		data[i] = byte(i)
 	}
