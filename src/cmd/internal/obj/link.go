@@ -112,13 +112,17 @@ import (
 //			val = int32(y)
 //
 //	reg<<shift, reg>>shift, reg->shift, reg@>shift
-//		Shifted register value, for ARM.
+//		Shifted register value, for ARM and ARM64.
 //		In this form, reg must be a register and shift can be a register or an integer constant.
 //		Encoding:
 //			type = TYPE_SHIFT
+//		On ARM:
 //			offset = (reg&15) | shifttype<<5 | count
 //			shifttype = 0, 1, 2, 3 for <<, >>, ->, @>
 //			count = (reg&15)<<8 | 1<<4 for a register shift count, (n&31)<<7 for an integer constant.
+//		On ARM64:
+//			offset = (reg&31)<<16 | shifttype<<22 | (count&63)<<10
+//			shifttype = 0, 1, 2 for <<, >>, ->
 //
 //	(reg, reg)
 //		A destination register pair. When used as the last argument of an instruction,

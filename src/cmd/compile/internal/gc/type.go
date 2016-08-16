@@ -1207,6 +1207,7 @@ func (t *Type) ChanDir() ChanDir {
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
 func (t *Type) IsVoid() bool   { return false }
+func (t *Type) IsTuple() bool  { return false }
 
 // IsUntyped reports whether t is an untyped type.
 func (t *Type) IsUntyped() bool {

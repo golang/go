@@ -79,6 +79,8 @@ var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
 	arm.AMULF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
 	arm.ASUBD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 	arm.ASUBF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
+	arm.ANEGD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
+	arm.ANEGF & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
 	arm.ASQRTD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 
 	// Conversions.

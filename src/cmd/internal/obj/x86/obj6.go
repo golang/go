@@ -36,6 +36,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 )
 
 func CanUse1InsnTLS(ctxt *obj.Link) bool {
@@ -333,6 +334,13 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		lea = ALEAL
 		mov = AMOVL
 		reg = REG_CX
+		if p.As == ALEAL && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+			// Special case: clobber the destination register with
+			// the PC so we don't have to clobber CX.
+			// The SSA backend depends on CX not being clobbered across LEAL.
+			// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
+			reg = p.To.Reg
+		}
 	}
 
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
@@ -391,7 +399,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			dest = p.To
 			p.As = mov
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_CX
+			p.To.Reg = reg
 			p.To.Sym = nil
 			p.To.Name = obj.NAME_NONE
 		}
@@ -412,7 +420,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			q.As = pAs
 			q.To = dest
 			q.From.Type = obj.TYPE_REG
-			q.From.Reg = REG_CX
+			q.From.Reg = reg
 		}
 	}
 	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
@@ -509,7 +517,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 		return
 	}
 	// Any Prog (aside from the above special cases) with an Addr with Name ==
-	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.cx
+	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.XX
 	// inserted before it.
 	isName := func(a *obj.Addr) bool {
 		if a.Sym == nil || (a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR) || a.Reg != 0 {
@@ -542,12 +550,18 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 	if !isName(&p.From) && !isName(&p.To) && (p.From3 == nil || !isName(p.From3)) {
 		return
 	}
+	var dst int16 = REG_CX
+	if (p.As == ALEAL || p.As == AMOVL) && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+		dst = p.To.Reg
+		// Why?  See the comment near the top of rewriteToUseGot above.
+		// AMOVLs might be introduced by the GOT rewrites.
+	}
 	q := obj.Appendp(ctxt, p)
 	q.RegTo2 = 1
 	r := obj.Appendp(ctxt, q)
 	r.RegTo2 = 1
 	q.As = obj.ACALL
-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
+	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
 	q.To.Type = obj.TYPE_MEM
 	q.To.Name = obj.NAME_EXTERN
 	q.To.Sym.Local = true
@@ -557,6 +571,15 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
 	r.From3 = p.From3
 	r.Reg = p.Reg
 	r.To = p.To
+	if isName(&p.From) {
+		r.From.Reg = dst
+	}
+	if isName(&p.To) {
+		r.To.Reg = dst
+	}
+	if p.From3 != nil && isName(p.From3) {
+		r.From3.Reg = dst
+	}
 	obj.Nopout(p)
 }
 
