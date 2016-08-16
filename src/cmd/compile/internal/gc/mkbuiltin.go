@@ -66,16 +66,9 @@ func mkbuiltin(w io.Writer, name string) {
 	}
 
 	// Look for $$B that introduces binary export data.
-	textual := false // TODO(gri) remove once we switched to binary export format
 	i := bytes.Index(b, []byte("\n$$B\n"))
 	if i < 0 {
-		// Look for $$ that introduces textual export data.
-		i = bytes.Index(b, []byte("\n$$\n"))
-		if i < 0 {
-			log.Fatal("did not find beginning of export data")
-		}
-		textual = true
-		i-- // textual data doesn't have B
+		log.Fatal("did not find beginning of export data")
 	}
 	b = b[i+5:]
 
@@ -87,27 +80,15 @@ func mkbuiltin(w io.Writer, name string) {
 	b = b[:i+4]
 
 	// Process and reformat export data.
+	const n = 40 // number of bytes per line
 	fmt.Fprintf(w, "\nconst %simport = \"\"", name)
-	if textual {
-		for _, p := range bytes.SplitAfter(b, []byte("\n")) {
-			// Chop leading white space.
-			p = bytes.TrimLeft(p, " \t")
-			if len(p) == 0 {
-				continue
-			}
-
-			fmt.Fprintf(w, " +\n\t%q", p)
+	for len(b) > 0 {
+		i := len(b)
+		if i > n {
+			i = n
 		}
-	} else {
-		const n = 40 // number of bytes per line
-		for len(b) > 0 {
-			i := len(b)
-			if i > n {
-				i = n
-			}
-			fmt.Fprintf(w, " +\n\t%q", b[:i])
-			b = b[i:]
-		}
+		fmt.Fprintf(w, " +\n\t%q", b[:i])
+		b = b[i:]
 	}
 	fmt.Fprintf(w, "\n")
 }

@@ -469,12 +469,6 @@ l0:
 		l.nlsemi = true
 		goto lx
 
-	case '#', '$', '?', '@', '\\':
-		if importpkg != nil {
-			goto lx
-		}
-		fallthrough
-
 	default:
 		// anything else is illegal
 		Yyerror("syntax error: illegal character %#U", c)
@@ -536,7 +530,7 @@ func (l *lexer) ident(c rune) {
 	// general case
 	for {
 		if c >= utf8.RuneSelf {
-			if unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || importpkg != nil && c == 0xb7 {
+			if unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) {
 				if cp.Len() == 0 && unicode.IsDigit(c) {
 					Yyerror("identifier cannot begin with digit %#U", c)
 				}
@@ -672,18 +666,10 @@ func (l *lexer) number(c rune) {
 				cp.WriteByte(byte(c))
 				c = l.getr()
 			}
-			// Falling through to exponent parsing here permits invalid
-			// floating-point numbers with fractional mantissa and base-2
-			// (p or P) exponent. We don't care because base-2 exponents
-			// can only show up in machine-generated textual export data
-			// which will use correct formatting.
 		}
 
 		// exponent
-		// base-2 exponent (p or P) is only allowed in export data (see #9036)
-		// TODO(gri) Once we switch to binary import data, importpkg will
-		// always be nil in this function. Simplify the code accordingly.
-		if c == 'e' || c == 'E' || importpkg != nil && (c == 'p' || c == 'P') {
+		if c == 'e' || c == 'E' {
 			isInt = false
 			cp.WriteByte(byte(c))
 			c = l.getr()
@@ -1124,9 +1110,7 @@ redo:
 	case 0:
 		yyerrorl(lexlineno, "illegal NUL byte")
 	case '\n':
-		if importpkg == nil {
-			lexlineno++
-		}
+		lexlineno++
 	case utf8.RuneError:
 		if w == 1 {
 			yyerrorl(lexlineno, "illegal UTF-8 sequence")

@@ -46,20 +46,6 @@ func compile(t *testing.T, dirname, filename string) string {
 	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
 }
 
-// TODO(gri) Remove this function once we switched to new export format by default.
-func compileNewExport(t *testing.T, dirname, filename string) string {
-	testenv.MustHaveGoBuild(t)
-	cmd := exec.Command("go", "tool", "compile", "-newexport", filename)
-	cmd.Dir = dirname
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("%s", out)
-		t.Fatalf("go tool compile %s failed: %s", filename, err)
-	}
-	// filename should end with ".go"
-	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
-}
-
 func testPath(t *testing.T, path, srcDir string) *types.Package {
 	t0 := time.Now()
 	pkg, err := Import(make(map[string]*types.Package), path, srcDir)
@@ -121,36 +107,13 @@ func TestImportTestdata(t *testing.T) {
 		// additional packages that are not strictly required for
 		// import processing alone (they are exported to err "on
 		// the safe side").
+		// TODO(gri) update the want list to be precise, now that
+		// the textual export data is gone.
 		got := fmt.Sprint(pkg.Imports())
 		for _, want := range []string{"go/ast", "go/token"} {
 			if !strings.Contains(got, want) {
 				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
 			}
-		}
-	}
-}
-
-// TODO(gri) Remove this function once we switched to new export format by default
-//           (and update the comment and want list in TestImportTestdata).
-func TestImportTestdataNewExport(t *testing.T) {
-	// This package only handles gc export data.
-	if runtime.Compiler != "gc" {
-		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
-		return
-	}
-
-	if outFn := compileNewExport(t, "testdata", "exports.go"); outFn != "" {
-		defer os.Remove(outFn)
-	}
-
-	if pkg := testPath(t, "./testdata/exports", "."); pkg != nil {
-		// The package's Imports list must include all packages
-		// explicitly imported by exports.go, plus all packages
-		// referenced indirectly via exported objects in exports.go.
-		want := `[package ast ("go/ast") package token ("go/token")]`
-		got := fmt.Sprint(pkg.Imports())
-		if got != want {
-			t.Errorf(`Package("exports").Imports() = %s, want %s`, got, want)
 		}
 	}
 }

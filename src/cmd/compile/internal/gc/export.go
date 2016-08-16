@@ -9,14 +9,12 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"fmt"
-	"sort"
 	"unicode"
 	"unicode/utf8"
 )
 
 var (
-	newexport    bool // if set, use new export format
-	Debug_export int  // if set, print debugging information about export data
+	Debug_export int // if set, print debugging information about export data
 	exportsize   int
 )
 
@@ -92,18 +90,6 @@ func autoexport(n *Node, ctxt Class) {
 		n.Sym.Flags |= SymAsm
 		asmlist = append(asmlist, n)
 	}
-}
-
-func dumppkg(p *Pkg) {
-	if p == nil || p == localpkg || p.Exported || p == builtinpkg {
-		return
-	}
-	p.Exported = true
-	suffix := ""
-	if !p.Direct {
-		suffix = " // indirect"
-	}
-	exportf("\timport %s %q%s\n", p.Name, p.Path, suffix)
 }
 
 // Look for anything we need for the inline body
@@ -224,53 +210,6 @@ func reexportdep(n *Node) {
 	reexportdeplist(n.Nbody)
 }
 
-func dumpexportconst(s *Sym) {
-	n := typecheck(s.Def, Erv)
-	if n == nil || n.Op != OLITERAL {
-		Fatalf("dumpexportconst: oconst nil: %v", s)
-	}
-
-	t := n.Type // may or may not be specified
-	dumpexporttype(t)
-
-	if t != nil && !t.IsUntyped() {
-		exportf("\tconst %v %v = %v\n", sconv(s, FmtSharp), Tconv(t, FmtSharp), vconv(n.Val(), FmtSharp))
-	} else {
-		exportf("\tconst %v = %v\n", sconv(s, FmtSharp), vconv(n.Val(), FmtSharp))
-	}
-}
-
-func dumpexportvar(s *Sym) {
-	n := s.Def
-	n = typecheck(n, Erv|Ecall)
-	if n == nil || n.Type == nil {
-		Yyerror("variable exported but not defined: %v", s)
-		return
-	}
-
-	t := n.Type
-	dumpexporttype(t)
-
-	if t.Etype == TFUNC && n.Class == PFUNC {
-		if n.Func != nil && n.Func.Inl.Len() != 0 {
-			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
-			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
-			if Debug['l'] < 2 {
-				typecheckinl(n)
-			}
-
-			// NOTE: The space after %#S here is necessary for ld's export data parser.
-			exportf("\tfunc %v %v { %v }\n", sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp), hconv(n.Func.Inl, FmtSharp|FmtBody))
-
-			reexportdeplist(n.Func.Inl)
-		} else {
-			exportf("\tfunc %v %v\n", sconv(s, FmtSharp), Tconv(t, FmtShort|FmtSharp))
-		}
-	} else {
-		exportf("\tvar %v %v\n", sconv(s, FmtSharp), Tconv(t, FmtSharp))
-	}
-}
-
 // methodbyname sorts types by symbol name.
 type methodbyname []*Field
 
@@ -278,167 +217,44 @@ func (x methodbyname) Len() int           { return len(x) }
 func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
 
-func dumpexporttype(t *Type) {
-	if t == nil {
-		return
-	}
-	if t.Printed || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
-		return
-	}
-	t.Printed = true
-
-	if t.Sym != nil {
-		dumppkg(t.Sym.Pkg)
-	}
-
-	switch t.Etype {
-	case TSTRUCT, TINTER:
-		for _, f := range t.Fields().Slice() {
-			dumpexporttype(f.Type)
-		}
-	case TFUNC:
-		dumpexporttype(t.Recvs())
-		dumpexporttype(t.Results())
-		dumpexporttype(t.Params())
-	case TMAP:
-		dumpexporttype(t.Val())
-		dumpexporttype(t.Key())
-	case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
-		dumpexporttype(t.Elem())
-	}
-
-	if t.Sym == nil {
-		return
-	}
-
-	var m []*Field
-	for _, f := range t.Methods().Slice() {
-		dumpexporttype(f.Type)
-		m = append(m, f)
-	}
-	sort.Sort(methodbyname(m))
-
-	exportf("\ttype %v %v\n", sconv(t.Sym, FmtSharp), Tconv(t, FmtSharp|FmtLong))
-	for _, f := range m {
-		if f.Nointerface {
-			exportf("\t//go:nointerface\n")
-		}
-		if f.Type.Nname() != nil && f.Type.Nname().Func.Inl.Len() != 0 { // nname was set by caninl
-
-			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
-			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
-			if Debug['l'] < 2 {
-				typecheckinl(f.Type.Nname())
-			}
-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), hconv(f.Type.Nname().Func.Inl, FmtSharp|FmtBody))
-			reexportdeplist(f.Type.Nname().Func.Inl)
-		} else {
-			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))
-		}
-	}
-}
-
-func dumpsym(s *Sym) {
-	if s.Flags&SymExported != 0 {
-		return
-	}
-	s.Flags |= SymExported
-
-	if s.Def == nil {
-		Yyerror("unknown export symbol: %v", s)
-		return
-	}
-
-	//	print("dumpsym %O %+S\n", s->def->op, s);
-	dumppkg(s.Pkg)
-
-	switch s.Def.Op {
-	default:
-		Yyerror("unexpected export symbol: %v %v", s.Def.Op, s)
-
-	case OLITERAL:
-		dumpexportconst(s)
-
-	case OTYPE:
-		if s.Def.Type.Etype == TFORW {
-			Yyerror("export of incomplete type %v", s)
-		} else {
-			dumpexporttype(s.Def.Type)
-		}
-
-	case ONAME:
-		dumpexportvar(s)
-	}
-}
-
 func dumpexport() {
 	if buildid != "" {
 		exportf("build id %q\n", buildid)
 	}
 
 	size := 0 // size of export section without enclosing markers
-	if newexport {
-		// binary export
-		// The linker also looks for the $$ marker - use char after $$ to distinguish format.
-		exportf("\n$$B\n") // indicate binary format
-		if debugFormat {
-			// save a copy of the export data
-			var copy bytes.Buffer
-			bcopy := bufio.NewWriter(&copy)
-			size = export(bcopy, Debug_export != 0)
-			bcopy.Flush() // flushing to bytes.Buffer cannot fail
-			if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
-				Fatalf("error writing export data: got %d bytes, want %d bytes, err = %v", n, size, err)
-			}
-			// export data must contain no '$' so that we can find the end by searching for "$$"
-			if bytes.IndexByte(copy.Bytes(), '$') >= 0 {
-				Fatalf("export data contains $")
-			}
-
-			// verify that we can read the copied export data back in
-			// (use empty package map to avoid collisions)
-			savedPkgMap := pkgMap
-			savedPkgs := pkgs
-			pkgMap = make(map[string]*Pkg)
-			pkgs = nil
-			importpkg = mkpkg("")
-			Import(bufio.NewReader(&copy)) // must not die
-			importpkg = nil
-			pkgs = savedPkgs
-			pkgMap = savedPkgMap
-		} else {
-			size = export(bout.Writer, Debug_export != 0)
+	// The linker also looks for the $$ marker - use char after $$ to distinguish format.
+	exportf("\n$$B\n") // indicate binary export format
+	if debugFormat {
+		// save a copy of the export data
+		var copy bytes.Buffer
+		bcopy := bufio.NewWriter(&copy)
+		size = export(bcopy, Debug_export != 0)
+		bcopy.Flush() // flushing to bytes.Buffer cannot fail
+		if n, err := bout.Write(copy.Bytes()); n != size || err != nil {
+			Fatalf("error writing export data: got %d bytes, want %d bytes, err = %v", n, size, err)
 		}
-		exportf("\n$$\n")
+		// export data must contain no '$' so that we can find the end by searching for "$$"
+		// TODO(gri) is this still needed?
+		if bytes.IndexByte(copy.Bytes(), '$') >= 0 {
+			Fatalf("export data contains $")
+		}
+
+		// verify that we can read the copied export data back in
+		// (use empty package map to avoid collisions)
+		savedPkgMap := pkgMap
+		savedPkgs := pkgs
+		pkgMap = make(map[string]*Pkg)
+		pkgs = nil
+		importpkg = mkpkg("")
+		Import(bufio.NewReader(&copy)) // must not die
+		importpkg = nil
+		pkgs = savedPkgs
+		pkgMap = savedPkgMap
 	} else {
-		// textual export
-		lno := lineno
-
-		exportf("\n$$\n") // indicate textual format
-		exportsize = 0
-		exportf("package %s", localpkg.Name)
-		if safemode {
-			exportf(" safe")
-		}
-		exportf("\n")
-
-		for _, p := range pkgs {
-			if p.Direct {
-				dumppkg(p)
-			}
-		}
-
-		// exportlist grows during iteration - cannot use range
-		for i := 0; i < len(exportlist); i++ {
-			n := exportlist[i]
-			lineno = n.Lineno
-			dumpsym(n.Sym)
-		}
-
-		size = exportsize
-		exportf("\n$$\n")
-		lineno = lno
+		size = export(bout.Writer, Debug_export != 0)
 	}
+	exportf("\n$$\n")
 
 	if Debug_export != 0 {
 		fmt.Printf("export data size = %d bytes\n", size)

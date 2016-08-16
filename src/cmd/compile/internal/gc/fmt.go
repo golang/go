@@ -73,7 +73,7 @@ const (
 const (
 	FErr = iota
 	FDbg
-	FExp
+	_ // formerly FExp - leave gap for now just in case there's some hard-wired dependency on the const value
 	FTypeId
 )
 
@@ -113,7 +113,8 @@ func setfmode(flags *FmtFlag) (fm int, fb bool) {
 	if *flags&FmtSign != 0 {
 		fmtmode = FDbg
 	} else if *flags&FmtSharp != 0 {
-		fmtmode = FExp
+		// for textual export format - no longer supported
+		Fatalf("textual export format request")
 	} else if *flags&FmtLeft != 0 {
 		fmtmode = FTypeId
 	}
@@ -340,7 +341,7 @@ func vconv(v Val, flag FmtFlag) string {
 	switch u := v.U.(type) {
 	case *Mpint:
 		if !u.Rune {
-			if (flag&FmtSharp != 0) || fmtmode == FExp {
+			if flag&FmtSharp != 0 {
 				return bconv(u, FmtSharp)
 			}
 			return bconv(u, 0)
@@ -359,13 +360,13 @@ func vconv(v Val, flag FmtFlag) string {
 		return fmt.Sprintf("('\\x00' + %v)", u)
 
 	case *Mpflt:
-		if (flag&FmtSharp != 0) || fmtmode == FExp {
+		if flag&FmtSharp != 0 {
 			return fconv(u, 0)
 		}
 		return fconv(u, FmtSharp)
 
 	case *Mpcplx:
-		if (flag&FmtSharp != 0) || fmtmode == FExp {
+		if flag&FmtSharp != 0 {
 			return fmt.Sprintf("(%v+%vi)", &u.Real, &u.Imag)
 		}
 		if v.U.(*Mpcplx).Real.CmpFloat64(0) == 0 {
@@ -474,14 +475,6 @@ func symfmt(s *Sym, flag FmtFlag) string {
 				return s.Pkg.Name + "." + s.Name // dcommontype, typehash
 			}
 			return s.Pkg.Prefix + "." + s.Name // (methodsym), typesym, weaksym
-
-		case FExp:
-			if s.Name != "" && s.Name[0] == '.' {
-				Fatalf("exporting synthetic symbol %s", s.Name)
-			}
-			if s.Pkg != builtinpkg {
-				return fmt.Sprintf("@%q.%s", s.Pkg.Path, s.Name)
-			}
 		}
 	}
 
@@ -493,8 +486,7 @@ func symfmt(s *Sym, flag FmtFlag) string {
 			p = s.Name[i+1:]
 		}
 
-		// exportname needs to see the name without the prefix too.
-		if (fmtmode == FExp && !exportname(p)) || fmtmode == FDbg {
+		if fmtmode == FDbg {
 			return fmt.Sprintf("@%q.%s", s.Pkg.Path, p)
 		}
 
@@ -559,9 +551,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 			if flag&FmtUnsigned != 0 {
 				return sconv(t.Sym, FmtUnsigned)
 			}
-			fallthrough
 
-		case FExp:
 			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
 				return fmt.Sprintf("%v·%d", t.Sym, t.Vargen)
 			}
@@ -660,15 +650,11 @@ func typefmt(t *Type, flag FmtFlag) string {
 
 		switch t.Results().NumFields() {
 		case 0:
-			break
+			// nothing to do
 
 		case 1:
-			if fmtmode != FExp {
-				buf.WriteString(" ")
-				buf.WriteString(Tconv(t.Results().Field(0).Type, 0)) // struct->field->field's type
-				break
-			}
-			fallthrough
+			buf.WriteString(" ")
+			buf.WriteString(Tconv(t.Results().Field(0).Type, 0)) // struct->field->field's type
 
 		default:
 			buf.WriteString(" ")
@@ -733,23 +719,13 @@ func typefmt(t *Type, flag FmtFlag) string {
 		return "undefined"
 
 	case TUNSAFEPTR:
-		if fmtmode == FExp {
-			return "@\"unsafe\".Pointer"
-		}
 		return "unsafe.Pointer"
 
 	case TDDDFIELD:
-		if fmtmode == FExp {
-			Fatalf("cannot use TDDDFIELD with old exporter")
-		}
 		return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
 
 	case Txxx:
 		return "Txxx"
-	}
-
-	if fmtmode == FExp {
-		Fatalf("missing %v case during export", t.Etype)
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
@@ -793,14 +769,6 @@ func stmtfmt(n *Node) string {
 
 	switch n.Op {
 	case ODCL:
-		if fmtmode == FExp {
-			switch n.Left.Class {
-			case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
-				f += fmt.Sprintf("var %v %v", n.Left, n.Left.Type)
-				goto ret
-			}
-		}
-
 		f += fmt.Sprintf("var %v %v", n.Left.Sym, n.Left.Type)
 
 	case ODCLFIELD:
@@ -814,10 +782,6 @@ func stmtfmt(n *Node) string {
 	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS, OASWB:
-		if fmtmode == FExp && n.Right == nil {
-			break
-		}
-
 		if n.Colas && !complexinit {
 			f += fmt.Sprintf("%v := %v", n.Left, n.Right)
 		} else {
@@ -947,7 +911,6 @@ func stmtfmt(n *Node) string {
 		f += fmt.Sprintf("%v: ", n.Left)
 	}
 
-ret:
 	if extrablock {
 		f += "}"
 	}
@@ -1124,22 +1087,8 @@ func exprfmt(n *Node, prec int) string {
 	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
 	case ONAME:
-		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+		if fmtmode == FErr && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
 			return "_"
-		}
-		if fmtmode == FExp && n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
-			return fmt.Sprintf("%v·%d", n.Sym, n.Name.Vargen)
-		}
-
-		// Special case: explicit name of func (*T) method(...) is turned into pkg.(*T).method,
-		// but for export, this should be rendered as (*pkg.T).meth.
-		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
-		if fmtmode == FExp && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
-			if n.Left.Type.IsPtr() {
-				return fmt.Sprintf("(%v).%v", n.Left.Type, sconv(n.Right.Sym, FmtShort|FmtByte))
-			} else {
-				return fmt.Sprintf("%v.%v", n.Left.Type, sconv(n.Right.Sym, FmtShort|FmtByte))
-			}
 		}
 		fallthrough
 
@@ -1209,63 +1158,20 @@ func exprfmt(n *Node, prec int) string {
 			return "composite literal"
 		}
 
-		if fmtmode == FExp && ptrlit {
-			// typecheck has overwritten OIND by OTYPE with pointer type.
-			return fmt.Sprintf("(&%v{ %v })", n.Right.Type.Elem(), hconv(n.List, FmtComma))
-		}
-
 		return fmt.Sprintf("(%v{ %v })", n.Right, hconv(n.List, FmtComma))
 
 	case OPTRLIT:
-		if fmtmode == FExp && n.Left.Implicit {
-			return Nconv(n.Left, 0)
-		}
 		return fmt.Sprintf("&%v", n.Left)
 
-	case OSTRUCTLIT:
-		if fmtmode == FExp { // requires special handling of field names
-			var f string
-			if n.Implicit {
-				f += "{"
-			} else {
-				f += fmt.Sprintf("(%v{", n.Type)
-			}
-			for i1, n1 := range n.List.Slice() {
-				f += fmt.Sprintf(" %v:%v", sconv(n1.Left.Sym, FmtShort|FmtByte), n1.Right)
-
-				if i1+1 < n.List.Len() {
-					f += ","
-				} else {
-					f += " "
-				}
-			}
-
-			if !n.Implicit {
-				f += "})"
-				return f
-			}
-			f += "}"
-			return f
-		}
-		fallthrough
-
-	case OARRAYLIT, OMAPLIT:
+	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
 		if fmtmode == FErr {
 			return fmt.Sprintf("%v literal", n.Type)
-		}
-		if fmtmode == FExp && n.Implicit {
-			return fmt.Sprintf("{ %v }", hconv(n.List, FmtComma))
 		}
 		return fmt.Sprintf("(%v{ %v })", n.Type, hconv(n.List, FmtComma))
 
 	case OKEY:
 		if n.Left != nil && n.Right != nil {
-			if fmtmode == FExp && n.Left.Type == structkey {
-				// requires special handling of field names
-				return fmt.Sprintf("%v:%v", sconv(n.Left.Sym, FmtShort|FmtByte), n.Right)
-			} else {
-				return fmt.Sprintf("%v:%v", n.Left, n.Right)
-			}
+			return fmt.Sprintf("%v:%v", n.Left, n.Right)
 		}
 
 		if n.Left == nil && n.Right != nil {
@@ -1473,7 +1379,7 @@ func nodefmt(n *Node, flag FmtFlag) string {
 	// we almost always want the original, except in export mode for literals
 	// this saves the importer some work, and avoids us having to redo some
 	// special casing for package unsafe
-	if (fmtmode != FExp || n.Op != OLITERAL) && n.Orig != nil {
+	if n.Op != OLITERAL && n.Orig != nil {
 		n = n.Orig
 	}
 
@@ -1643,7 +1549,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 
 		// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
 		// ~r%d is a (formerly) unnamed result.
-		if (fmtmode == FErr || fmtmode == FExp) && f.Nname != nil {
+		if fmtmode == FErr && f.Nname != nil {
 			if f.Nname.Orig != nil {
 				s = f.Nname.Orig.Sym
 				if s != nil && s.Name[0] == '~' {
@@ -1665,12 +1571,6 @@ func Fldconv(f *Field, flag FmtFlag) string {
 				name = sconv(s, FmtShort|FmtByte) // qualify non-exported names (used on structs, not on funarg)
 			} else {
 				name = sconv(s, 0)
-			}
-		} else if fmtmode == FExp {
-			if f.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
-				name = fmt.Sprintf("@%q.?", s.Pkg.Path)
-			} else {
-				name = "?"
 			}
 		}
 	}
@@ -1759,7 +1659,7 @@ func Nconv(n *Node, flag FmtFlag) string {
 
 	var str string
 	switch fmtmode {
-	case FErr, FExp:
+	case FErr:
 		str = nodefmt(n, flag)
 
 	case FDbg:
