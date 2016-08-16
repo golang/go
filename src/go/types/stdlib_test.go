@@ -100,9 +100,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 			switch cmd {
 			case "skip", "compiledir":
 				continue // ignore this file
-			// TODO(mdempsky): Remove -newparser=0 case once
-			// test/fixedbugs/issue11610.go is updated.
-			case "errorcheck", "errorcheck -newparser=0":
+			case "errorcheck":
 				expectErrors = true
 			}
 		}

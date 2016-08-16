@@ -578,6 +578,7 @@ func (p *noder) structType(expr *syntax.StructType) *Node {
 		l = append(l, n)
 	}
 
+	p.lineno(expr)
 	n := p.nod(expr, OTSTRUCT, nil, nil)
 	n.List.Set(l)
 	return n
