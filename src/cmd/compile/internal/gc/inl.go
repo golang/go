@@ -766,7 +766,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		ninit.Append(as)
 	}
 
-	retlabel := autolabel("i")
+	retlabel := autolabel(".i")
 	retlabel.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
 
 	inlgen++
