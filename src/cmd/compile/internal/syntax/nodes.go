@@ -8,6 +8,7 @@ package syntax
 // Nodes
 
 type Node interface {
+	Line() uint32
 	aNode()
 }
 
@@ -18,6 +19,10 @@ type node struct {
 }
 
 func (*node) aNode() {}
+
+func (n *node) Line() uint32 {
+	return n.line
+}
 
 func (n *node) init(p *parser) {
 	n.pos = uint32(p.pos)
