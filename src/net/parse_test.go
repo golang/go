@@ -93,7 +93,7 @@ func TestDtoi(t *testing.T) {
 		{"65536", 65536, 5, true},
 		{"123456789", big, 8, false},
 	} {
-		n, i, ok := dtoi(tt.in, 0)
+		n, i, ok := dtoi(tt.in)
 		if n != tt.out || i != tt.off || ok != tt.ok {
 			t.Errorf("got %d, %d, %v; want %d, %d, %v", n, i, ok, tt.out, tt.off, tt.ok)
 		}

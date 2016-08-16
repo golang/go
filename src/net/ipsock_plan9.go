@@ -63,7 +63,7 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
 			return nil, 0, &ParseError{Type: "IP address", Text: s}
 		}
 	}
-	p, _, ok := dtoi(s[i+1:], 0)
+	p, _, ok := dtoi(s[i+1:])
 	if !ok {
 		return nil, 0, &ParseError{Type: "port", Text: s}
 	}

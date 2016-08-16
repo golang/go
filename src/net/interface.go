@@ -215,7 +215,7 @@ func zoneToInt(zone string) int {
 	defer zoneCache.RUnlock()
 	index, ok := zoneCache.toIndex[zone]
 	if !ok {
-		index, _, _ = dtoi(zone, 0)
+		index, _, _ = dtoi(zone)
 	}
 	return index
 }
