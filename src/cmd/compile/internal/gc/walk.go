@@ -1126,7 +1126,7 @@ opswitch:
 					n = mkcall("float64touint64", n.Type, init, conv(n.Left, Types[TFLOAT64]))
 					break
 				}
-				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINTPTR {
+				if n.Type.Etype == TUINT32 || n.Type.Etype == TUINT || n.Type.Etype == TUINTPTR {
 					n = mkcall("float64touint32", n.Type, init, conv(n.Left, Types[TFLOAT64]))
 					break
 				}
@@ -1141,7 +1141,7 @@ opswitch:
 					n = conv(mkcall("uint64tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT64])), n.Type)
 					break
 				}
-				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINTPTR {
+				if n.Left.Type.Etype == TUINT32 || n.Left.Type.Etype == TUINT || n.Left.Type.Etype == TUINTPTR {
 					n = conv(mkcall("uint32tofloat64", Types[TFLOAT64], init, conv(n.Left, Types[TUINT32])), n.Type)
 					break
 				}
