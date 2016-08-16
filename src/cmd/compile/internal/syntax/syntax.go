@@ -49,7 +49,7 @@ func Read(src io.Reader, errh ErrorHandler, mode Mode) (*File, error) {
 	p.next()
 	ast := p.file()
 
-	if p.nerrors > 0 {
+	if errh == nil && p.nerrors > 0 {
 		return nil, fmt.Errorf("%d syntax errors", p.nerrors)
 	}
 
