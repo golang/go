@@ -422,6 +422,8 @@ func (p *parser) funcDecl() *FuncDecl {
 	f.Type = p.funcType()
 	f.Body = p.funcBody()
 
+	f.EndLine = uint32(p.line)
+
 	// TODO(gri) deal with function properties
 	// if noescape && body != nil {
 	// 	p.error("can only use //go:noescape with external func implementations")
@@ -624,6 +626,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 			f.init(p)
 			f.Type = t
 			f.Body = p.funcBody()
+			f.EndLine = uint32(p.line)
 			p.xnest--
 			p.fnest--
 			return f
@@ -739,6 +742,7 @@ loop:
 				t.Index[1] = p.expr()
 			}
 			if p.got(_Colon) {
+				t.Full = true
 				// x[i:j:...]
 				if t.Index[1] == nil {
 					p.error("middle index required in 3-index slice")
