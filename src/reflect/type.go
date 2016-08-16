@@ -1848,6 +1848,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := new(chanType)
 	*ch = *prototype
+	ch.tflag = 0
 	ch.dir = uintptr(dir)
 	ch.str = resolveReflectName(newName(s, "", "", false))
 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
@@ -1892,6 +1893,7 @@ func MapOf(key, elem Type) Type {
 	mt := new(mapType)
 	*mt = **(**mapType)(unsafe.Pointer(&imap))
 	mt.str = resolveReflectName(newName(s, "", "", false))
+	mt.tflag = 0
 	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
 	mt.key = ktyp
 	mt.elem = etyp

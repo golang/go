@@ -5720,6 +5720,8 @@ func TestTypeStrings(t *testing.T) {
 		{TypeOf(new(XM)), "*reflect_test.XM"},
 		{TypeOf(new(XM).String), "func() string"},
 		{TypeOf(new(XM)).Method(0).Type, "func(*reflect_test.XM) string"},
+		{ChanOf(3, TypeOf(XM{})), "chan reflect_test.XM"},
+		{MapOf(TypeOf(int(0)), TypeOf(XM{})), "map[int]reflect_test.XM"},
 	}
 
 	for i, test := range stringTests {
