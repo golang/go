@@ -421,19 +421,15 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// our request (as opposed to sending an error).
 		return false
 	}
-	if !req.isReplayable() {
-		// Don't retry non-idempotent requests.
-
-		// TODO: swap the nothingWrittenError and isReplayable checks,
-		// putting the "if nothingWrittenError => return true" case
-		// first, per golang.org/issue/15723
-		return false
-	}
-	switch err.(type) {
-	case nothingWrittenError:
+	if _, ok := err.(nothingWrittenError); ok {
 		// We never wrote anything, so it's safe to retry.
 		return true
-	case transportReadFromServerError:
+	}
+	if !req.isReplayable() {
+		// Don't retry non-idempotent requests.
+		return false
+	}
+	if _, ok := err.(transportReadFromServerError); ok {
 		// We got some non-EOF net.Conn.Read failure reading
 		// the 1st response byte from the server.
 		return true
