@@ -8,6 +8,7 @@ package syntax
 // Nodes
 
 type Node interface {
+	Line() uint32
 	aNode()
 }
 
@@ -18,6 +19,10 @@ type node struct {
 }
 
 func (*node) aNode() {}
+
+func (n *node) Line() uint32 {
+	return n.line
+}
 
 func (n *node) init(p *parser) {
 	n.pos = uint32(p.pos)
@@ -80,11 +85,12 @@ type (
 	}
 
 	FuncDecl struct {
-		Attr map[string]bool // go:attr map
-		Recv *Field          // nil means regular function
-		Name *Name
-		Type *FuncType
-		Body []Stmt // nil means no body (forward declaration)
+		Attr    map[string]bool // go:attr map
+		Recv    *Field          // nil means regular function
+		Name    *Name
+		Type    *FuncType
+		Body    []Stmt // nil means no body (forward declaration)
+		EndLine uint32 // TODO(mdempsky): Cleaner solution.
 		decl
 	}
 )
@@ -136,8 +142,9 @@ type (
 
 	// func Type { Body }
 	FuncLit struct {
-		Type *FuncType
-		Body []Stmt
+		Type    *FuncType
+		Body    []Stmt
+		EndLine uint32 // TODO(mdempsky): Cleaner solution.
 		expr
 	}
 
@@ -165,6 +172,11 @@ type (
 	SliceExpr struct {
 		X     Expr
 		Index [3]Expr
+		// Full indicates whether this is a simple or full slice expression.
+		// In a valid AST, this is equivalent to Index[2] != nil.
+		// TODO(mdempsky): This is only needed to report the "3-index
+		// slice of string" error when Index[2] is missing.
+		Full bool
 		expr
 	}
 
