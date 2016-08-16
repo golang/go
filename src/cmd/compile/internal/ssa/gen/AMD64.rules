@@ -522,7 +522,7 @@
 (XORQconst [c] (XORQconst [d] x)) -> (XORQconst [c ^ d] x)
 
 (MULLconst [c] (MULLconst [d] x)) -> (MULLconst [int64(int32(c * d))] x)
-(MULQconst [c] (MULQconst [d] x)) -> (MULQconst [c * d] x)
+(MULQconst [c] (MULQconst [d] x)) && is32Bit(c*d) -> (MULQconst [c * d] x)
 
 (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
 (ORQ (MOVQconst [c]) x) && is32Bit(c) -> (ORQconst [c] x)
