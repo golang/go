@@ -72,3 +72,70 @@ func newLocalListener(t *testing.T) net.Listener {
 	}
 	return ln
 }
+
+func dummyRequest(method string) *Request {
+	req, err := NewRequest(method, "http://fake.tld/", nil)
+	if err != nil {
+		panic(err)
+	}
+	return req
+}
+
+func TestTransportShouldRetryRequest(t *testing.T) {
+	tests := []struct {
+		pc  *persistConn
+		req *Request
+
+		err  error
+		want bool
+	}{
+		0: {
+			pc:   &persistConn{reused: false},
+			req:  dummyRequest("POST"),
+			err:  nothingWrittenError{},
+			want: false,
+		},
+		1: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequest("POST"),
+			err:  nothingWrittenError{},
+			want: true,
+		},
+		2: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequest("POST"),
+			err:  http2ErrNoCachedConn,
+			want: true,
+		},
+		3: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequest("POST"),
+			err:  errMissingHost,
+			want: false,
+		},
+		4: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequest("POST"),
+			err:  transportReadFromServerError{},
+			want: false,
+		},
+		5: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequest("GET"),
+			err:  transportReadFromServerError{},
+			want: true,
+		},
+		6: {
+			pc:   &persistConn{reused: true},
+			req:  dummyRequest("GET"),
+			err:  errServerClosedIdle,
+			want: true,
+		},
+	}
+	for i, tt := range tests {
+		got := tt.pc.shouldRetryRequest(tt.req, tt.err)
+		if got != tt.want {
+			t.Errorf("%d. shouldRetryRequest = %v; want %v", i, got, tt.want)
+		}
+	}
+}
