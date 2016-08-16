@@ -74,6 +74,27 @@ func cvt8(a float32) int32 {
 	return int32(a)
 }
 
+// make sure to cover int, uint cases (issue #16738)
+//go:noinline
+func cvt9(a float64) int {
+	return int(a)
+}
+
+//go:noinline
+func cvt10(a float64) uint {
+	return uint(a)
+}
+
+//go:noinline
+func cvt11(a float32) int {
+	return int(a)
+}
+
+//go:noinline
+func cvt12(a float32) uint {
+	return uint(a)
+}
+
 func TestFloatConvert(t *testing.T) {
 	if got := cvt1(3.5); got != 3 {
 		t.Errorf("cvt1 got %d, wanted 3", got)
@@ -98,5 +119,17 @@ func TestFloatConvert(t *testing.T) {
 	}
 	if got := cvt8(3.5); got != 3 {
 		t.Errorf("cvt8 got %d, wanted 3", got)
+	}
+	if got := cvt9(3.5); got != 3 {
+		t.Errorf("cvt9 got %d, wanted 3", got)
+	}
+	if got := cvt10(3.5); got != 3 {
+		t.Errorf("cvt10 got %d, wanted 3", got)
+	}
+	if got := cvt11(3.5); got != 3 {
+		t.Errorf("cvt11 got %d, wanted 3", got)
+	}
+	if got := cvt12(3.5); got != 3 {
+		t.Errorf("cvt12 got %d, wanted 3", got)
 	}
 }
