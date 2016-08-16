@@ -358,7 +358,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		n.Op = OCASE
 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
 
-		jmp := Nod(OGOTO, autolabel("s"), nil)
+		jmp := Nod(OGOTO, autolabel(".s"), nil)
 		if n.List.Len() == 0 {
 			if def != nil {
 				Yyerror("more than one default case")
@@ -577,7 +577,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		i.Nbody.Set1(typenil)
 	} else {
 		// Jump to default case.
-		lbl := autolabel("s")
+		lbl := autolabel(".s")
 		i.Nbody.Set1(Nod(OGOTO, lbl, nil))
 		// Wrap default case with label.
 		blk := Nod(OBLOCK, nil, nil)
