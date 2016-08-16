@@ -841,6 +841,9 @@ const (
 	OpARM64FNEGS
 	OpARM64FNEGD
 	OpARM64FSQRTD
+	OpARM64REV
+	OpARM64REVW
+	OpARM64REV16W
 	OpARM64SLL
 	OpARM64SLLconst
 	OpARM64SRL
@@ -1377,6 +1380,10 @@ const (
 	OpCvt32Uto64F
 	OpCvt32Fto32U
 	OpCvt64Fto32U
+	OpCvt64Uto32F
+	OpCvt64Uto64F
+	OpCvt32Fto64U
+	OpCvt64Fto64U
 	OpSelect0
 	OpSelect1
 )
@@ -10413,6 +10420,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "REV",
+		argLen: 1,
+		asm:    arm64.AREV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:   "REVW",
+		argLen: 1,
+		asm:    arm64.AREVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
+		name:   "REV16W",
+		argLen: 1,
+		asm:    arm64.AREV16W,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 268173311}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g
+			},
+			outputs: []outputInfo{
+				{0, 133955583}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26
+			},
+		},
+	},
+	{
 		name:   "SLL",
 		argLen: 2,
 		asm:    arm64.ALSL,
@@ -11762,7 +11808,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredZero",
-		auxType:      auxInt64,
 		argLen:       3,
 		clobberFlags: true,
 		reg: regInfo{
@@ -11775,7 +11820,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LoweredMove",
-		auxType:      auxInt64,
 		argLen:       4,
 		clobberFlags: true,
 		reg: regInfo{
@@ -14856,6 +14900,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Cvt64Fto32U",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt64Uto32F",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt64Uto64F",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt32Fto64U",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt64Fto64U",
 		argLen:  1,
 		generic: true,
 	},

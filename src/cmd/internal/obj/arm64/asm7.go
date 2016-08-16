@@ -2245,12 +2245,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 20: /* movT R,O(R) -> strT */
 		v := int32(regoff(ctxt, &p.To))
+		sz := int32(1 << uint(movesize(p.As)))
 
 		r := int(p.To.Reg)
 		if r == 0 {
 			r = int(o.param)
 		}
-		if v < 0 { /* unscaled 9-bit signed */
+		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
 			o1 = olsr9s(ctxt, int32(opstr9(ctxt, p.As)), v, r, int(p.From.Reg))
 		} else {
 			v = int32(offsetshift(ctxt, int64(v), int(o.a3)))
@@ -2259,16 +2260,16 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 21: /* movT O(R),R -> ldrT */
 		v := int32(regoff(ctxt, &p.From))
+		sz := int32(1 << uint(movesize(p.As)))
 
 		r := int(p.From.Reg)
 		if r == 0 {
 			r = int(o.param)
 		}
-		if v < 0 { /* unscaled 9-bit signed */
+		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
 			o1 = olsr9s(ctxt, int32(opldr9(ctxt, p.As)), v, r, int(p.To.Reg))
 		} else {
 			v = int32(offsetshift(ctxt, int64(v), int(o.a1)))
-
 			//print("offset=%lld v=%ld a1=%d\n", instoffset, v, o->a1);
 			o1 = olsr12u(ctxt, int32(opldr12(ctxt, p.As)), v, r, int(p.To.Reg))
 		}
