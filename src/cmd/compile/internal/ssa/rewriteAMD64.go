@@ -9753,7 +9753,7 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MULQconst [c] (MULQconst [d] x))
-	// cond:
+	// cond: is32Bit(c*d)
 	// result: (MULQconst [c * d] x)
 	for {
 		c := v.AuxInt
@@ -9763,6 +9763,9 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
 		}
 		d := v_0.AuxInt
 		x := v_0.Args[0]
+		if !(is32Bit(c * d)) {
+			break
+		}
 		v.reset(OpAMD64MULQconst)
 		v.AuxInt = c * d
 		v.AddArg(x)
