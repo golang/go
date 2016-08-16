@@ -206,6 +206,9 @@ func init() {
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},   // -arg0, float32
 		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},   // -arg0, float64
 		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"}, // sqrt(arg0), float64
+		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},       // byte reverse, 64-bit
+		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},     // byte reverse, 32-bit
+		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"}, // byte reverse in each 16-bit halfword, 32-bit
 
 		// shifts
 		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                      // arg0 << arg1, shift amount is mod 64
@@ -356,7 +359,6 @@ func init() {
 		// arg0 = address of memory to zero (in R16 aka arm64.REGRT1, changed as side effect)
 		// arg1 = address of the last element to zero
 		// arg2 = mem
-		// auxint = alignment
 		// returns mem
 		//	MOVD.P	ZR, 8(R16)
 		//	CMP	Rarg1, R16
@@ -365,7 +367,6 @@ func init() {
 		// the-end-of-the-memory - 8 is with the area to zero, ok to spill.
 		{
 			name:      "LoweredZero",
-			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R16"), gp},
@@ -379,7 +380,6 @@ func init() {
 		// arg1 = address of src memory (in R16 aka arm64.REGRT1, changed as side effect)
 		// arg2 = address of the last element of src
 		// arg3 = mem
-		// auxint = alignment
 		// returns mem
 		//	MOVD.P	8(R16), Rtmp
 		//	MOVD.P	Rtmp, 8(R17)
@@ -389,7 +389,6 @@ func init() {
 		// the-end-of-src - 8 is within the area to copy, ok to spill.
 		{
 			name:      "LoweredMove",
-			aux:       "Int64",
 			argLength: 4,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R17"), buildReg("R16"), gp},

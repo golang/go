@@ -1344,6 +1344,14 @@ var fpConvOpToSSA32 = map[twoTypes]twoOpsAndType{
 	twoTypes{TFLOAT64, TUINT32}: twoOpsAndType{ssa.OpCvt64Fto32U, ssa.OpCopy, TUINT32},
 }
 
+// uint64<->float conversions, only on machines that have intructions for that
+var uint64fpConvOpToSSA = map[twoTypes]twoOpsAndType{
+	twoTypes{TUINT64, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto32F, TUINT64},
+	twoTypes{TUINT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto64F, TUINT64},
+	twoTypes{TFLOAT32, TUINT64}: twoOpsAndType{ssa.OpCvt32Fto64U, ssa.OpCopy, TUINT64},
+	twoTypes{TFLOAT64, TUINT64}: twoOpsAndType{ssa.OpCvt64Fto64U, ssa.OpCopy, TUINT64},
+}
+
 var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
 	opAndTwoTypes{OLSH, TINT8, TUINT8}:   ssa.OpLsh8x8,
 	opAndTwoTypes{OLSH, TUINT8, TUINT8}:  ssa.OpLsh8x8,
@@ -1662,6 +1670,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
 			if s.config.IntSize == 4 && Thearch.LinkArch.Name != "amd64p32" {
 				if conv1, ok1 := fpConvOpToSSA32[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
+					conv = conv1
+				}
+			}
+			if Thearch.LinkArch.Name == "arm64" {
+				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
 			}

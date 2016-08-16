@@ -482,7 +482,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64UCVTFS,
 		ssa.OpARM64UCVTFD,
 		ssa.OpARM64FCVTSD,
-		ssa.OpARM64FCVTDS:
+		ssa.OpARM64FCVTDS,
+		ssa.OpARM64REV,
+		ssa.OpARM64REVW,
+		ssa.OpARM64REV16W:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
@@ -519,30 +522,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// CMP	Rarg1, R16
 		// BLE	-2(PC)
 		// arg1 is the address of the last element to zero
-		// auxint is alignment
-		var sz int64
-		var mov obj.As
-		switch {
-		case v.AuxInt%8 == 0:
-			sz = 8
-			mov = arm64.AMOVD
-		case v.AuxInt%4 == 0:
-			sz = 4
-			mov = arm64.AMOVW
-		case v.AuxInt%2 == 0:
-			sz = 2
-			mov = arm64.AMOVH
-		default:
-			sz = 1
-			mov = arm64.AMOVB
-		}
-		p := gc.Prog(mov)
+		p := gc.Prog(arm64.AMOVD)
 		p.Scond = arm64.C_XPOST
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = arm64.REGZERO
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = arm64.REG_R16
-		p.To.Offset = sz
+		p.To.Offset = 8
 		p2 := gc.Prog(arm64.ACMP)
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = gc.SSARegNum(v.Args[1])
@@ -556,37 +542,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// CMP	Rarg2, R16
 		// BLE	-3(PC)
 		// arg2 is the address of the last element of src
-		// auxint is alignment
-		var sz int64
-		var mov obj.As
-		switch {
-		case v.AuxInt%8 == 0:
-			sz = 8
-			mov = arm64.AMOVD
-		case v.AuxInt%4 == 0:
-			sz = 4
-			mov = arm64.AMOVW
-		case v.AuxInt%2 == 0:
-			sz = 2
-			mov = arm64.AMOVH
-		default:
-			sz = 1
-			mov = arm64.AMOVB
-		}
-		p := gc.Prog(mov)
+		p := gc.Prog(arm64.AMOVD)
 		p.Scond = arm64.C_XPOST
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = arm64.REG_R16
-		p.From.Offset = sz
+		p.From.Offset = 8
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm64.REGTMP
-		p2 := gc.Prog(mov)
+		p2 := gc.Prog(arm64.AMOVD)
 		p2.Scond = arm64.C_XPOST
 		p2.From.Type = obj.TYPE_REG
 		p2.From.Reg = arm64.REGTMP
 		p2.To.Type = obj.TYPE_MEM
 		p2.To.Reg = arm64.REG_R17
-		p2.To.Offset = sz
+		p2.To.Offset = 8
 		p3 := gc.Prog(arm64.ACMP)
 		p3.From.Type = obj.TYPE_REG
 		p3.From.Reg = gc.SSARegNum(v.Args[2])

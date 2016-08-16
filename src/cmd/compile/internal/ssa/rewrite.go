@@ -149,6 +149,18 @@ func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
 
+// isArg returns whether s is an arg symbol
+func isArg(s interface{}) bool {
+	_, ok := s.(*ArgSymbol)
+	return ok
+}
+
+// isAuto returns whether s is an auto symbol
+func isAuto(s interface{}) bool {
+	_, ok := s.(*AutoSymbol)
+	return ok
+}
+
 // nlz returns the number of leading zeros.
 func nlz(x int64) int64 {
 	// log2(0) == 1, so nlz(0) == 64
