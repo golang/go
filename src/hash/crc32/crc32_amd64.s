@@ -12,40 +12,79 @@ TEXT ·castagnoliSSE42(SB),NOSPLIT,$0
 
 	NOTL AX
 
-	/* If there's less than 8 bytes to process, we do it byte-by-byte. */
+	// If there are fewer than 8 bytes to process, skip alignment.
 	CMPQ CX, $8
-	JL cleanup
+	JL less_than_8
 
-	/* Process individual bytes until the input is 8-byte aligned. */
-startup:
 	MOVQ SI, BX
 	ANDQ $7, BX
 	JZ aligned
 
+	// Process the first few bytes to 8-byte align the input.
+
+	// BX = 8 - BX. We need to process this many bytes to align.
+	SUBQ $1, BX
+	XORQ $7, BX
+
+	BTQ $0, BX
+	JNC align_2
+
 	CRC32B (SI), AX
 	DECQ CX
 	INCQ SI
-	JMP startup
+
+align_2:
+	BTQ $1, BX
+	JNC align_4
+
+	// CRC32W (SI), AX
+	BYTE $0x66; BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+
+	SUBQ $2, CX
+	ADDQ $2, SI
+
+align_4:
+	BTQ $2, BX
+	JNC aligned
+
+	// CRC32L (SI), AX
+	BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+
+	SUBQ $4, CX
+	ADDQ $4, SI
 
 aligned:
-	/* The input is now 8-byte aligned and we can process 8-byte chunks. */
+	// The input is now 8-byte aligned and we can process 8-byte chunks.
 	CMPQ CX, $8
-	JL cleanup
+	JL less_than_8
 
 	CRC32Q (SI), AX
 	ADDQ $8, SI
 	SUBQ $8, CX
 	JMP aligned
 
-cleanup:
-	/* We may have some bytes left over that we process one at a time. */
-	CMPQ CX, $0
-	JE done
+less_than_8:
+	// We may have some bytes left over; process 4 bytes, then 2, then 1.
+	BTQ $2, CX
+	JNC less_than_4
+
+	// CRC32L (SI), AX
+	BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+	ADDQ $4, SI
+
+less_than_4:
+	BTQ $1, CX
+	JNC less_than_2
+
+	// CRC32W (SI), AX
+	BYTE $0x66; BYTE $0xf2; BYTE $0x0f; BYTE $0x38; BYTE $0xf1; BYTE $0x06
+	ADDQ $2, SI
+
+less_than_2:
+	BTQ $0, CX
+	JNC done
 
 	CRC32B (SI), AX
-	INCQ SI
-	DECQ CX
-	JMP cleanup
 
 done:
 	NOTL AX
