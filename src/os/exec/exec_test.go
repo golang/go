@@ -938,7 +938,7 @@ func TestContextCancel(t *testing.T) {
 	}
 
 	if err := w.Close(); err != nil {
-		t.Error("error closing write end of pipe: %v", err)
+		t.Errorf("error closing write end of pipe: %v", err)
 	}
 	<-readDone
 
