@@ -8,6 +8,7 @@ import "container/heap"
 
 const (
 	ScorePhi = iota // towards top of block
+	ScoreReadTuple
 	ScoreVarDef
 	ScoreMemory
 	ScoreDefault
@@ -83,7 +84,7 @@ func schedule(f *Func) {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
-			case v.Op == OpAMD64LoweredGetClosurePtr:
+			case v.Op == OpAMD64LoweredGetClosurePtr || v.Op == OpPPC64LoweredGetClosurePtr || v.Op == OpARMLoweredGetClosurePtr || v.Op == OpARM64LoweredGetClosurePtr || v.Op == Op386LoweredGetClosurePtr:
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
 				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
@@ -103,7 +104,14 @@ func schedule(f *Func) {
 				// reduce register pressure. It also helps make sure
 				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = ScoreMemory
-			case v.Type.IsFlags():
+			case v.Op == OpSelect0 || v.Op == OpSelect1:
+				// Schedule the pseudo-op of reading part of a tuple
+				// immediately after the tuple-generating op, since
+				// this value is already live. This also removes its
+				// false dependency on the other part of the tuple.
+				// Also ensures tuple is never spilled.
+				score[v.ID] = ScoreReadTuple
+			case v.Type.IsFlags() || v.Type.IsTuple():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
@@ -188,6 +196,7 @@ func schedule(f *Func) {
 
 		// Schedule highest priority value, update use counts, repeat.
 		order = order[:0]
+		tuples := make(map[ID][]*Value)
 		for {
 			// Find highest priority schedulable value.
 			// Note that schedule is assembled backwards.
@@ -199,7 +208,31 @@ func schedule(f *Func) {
 			v := heap.Pop(priq).(*Value)
 
 			// Add it to the schedule.
-			order = append(order, v)
+			// Do not emit tuple-reading ops until we're ready to emit the tuple-generating op.
+			//TODO: maybe remove ReadTuple score above, if it does not help on performance
+			switch {
+			case v.Op == OpSelect0:
+				if tuples[v.Args[0].ID] == nil {
+					tuples[v.Args[0].ID] = make([]*Value, 2)
+				}
+				tuples[v.Args[0].ID][0] = v
+			case v.Op == OpSelect1:
+				if tuples[v.Args[0].ID] == nil {
+					tuples[v.Args[0].ID] = make([]*Value, 2)
+				}
+				tuples[v.Args[0].ID][1] = v
+			case v.Type.IsTuple() && tuples[v.ID] != nil:
+				if tuples[v.ID][1] != nil {
+					order = append(order, tuples[v.ID][1])
+				}
+				if tuples[v.ID][0] != nil {
+					order = append(order, tuples[v.ID][0])
+				}
+				delete(tuples, v.ID)
+				fallthrough
+			default:
+				order = append(order, v)
+			}
 
 			// Update use counts of arguments.
 			for _, w := range v.Args {
