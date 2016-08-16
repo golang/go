@@ -531,7 +531,6 @@ func (t *test) run() {
 	}
 
 	useTmp := true
-	ssaMain := false
 	runcmd := func(args ...string) ([]byte, error) {
 		cmd := exec.Command(args[0], args[1:]...)
 		var buf bytes.Buffer
@@ -542,9 +541,6 @@ func (t *test) run() {
 			cmd.Env = envForDir(cmd.Dir)
 		} else {
 			cmd.Env = os.Environ()
-		}
-		if ssaMain && os.Getenv("GOARCH") == "amd64" {
-			cmd.Env = append(cmd.Env, "GOSSAPKG=main")
 		}
 		err := cmd.Run()
 		if err != nil {
@@ -680,7 +676,6 @@ func (t *test) run() {
 
 	case "run":
 		useTmp = false
-		ssaMain = true
 		cmd := []string{"go", "run"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
@@ -716,7 +711,6 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		ssaMain = true
 		cmd = []string{"go", "run"}
 		if *linkshared {
 			cmd = append(cmd, "-linkshared")
