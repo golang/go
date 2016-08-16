@@ -18,6 +18,10 @@ go	src=..
 					asm
 						testdata
 							+
+			compile
+				internal
+					syntax
+						parser.go
 			doc
 				main.go
 				pkg.go
