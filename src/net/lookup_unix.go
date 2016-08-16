@@ -26,7 +26,7 @@ func readProtocols() {
 			if len(f) < 2 {
 				continue
 			}
-			if proto, _, ok := dtoi(f[1], 0); ok {
+			if proto, _, ok := dtoi(f[1]); ok {
 				if _, ok := protocols[f[0]]; !ok {
 					protocols[f[0]] = proto
 				}

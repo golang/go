@@ -141,7 +141,7 @@ func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err
 	switch afnet {
 	case "ip", "ip4", "ip6":
 		protostr := net[i+1:]
-		proto, i, ok := dtoi(protostr, 0)
+		proto, i, ok := dtoi(protostr)
 		if !ok || i != len(protostr) {
 			proto, err = lookupProtocol(ctx, protostr)
 			if err != nil {

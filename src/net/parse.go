@@ -123,16 +123,16 @@ func getFields(s string) []string { return splitAtBytes(s, " \r\t\n") }
 // Bigger than we need, not too big to worry about overflow
 const big = 0xFFFFFF
 
-// Decimal to integer starting at &s[i0].
-// Returns number, new offset, success.
-func dtoi(s string, i0 int) (n int, i int, ok bool) {
+// Decimal to integer.
+// Returns number, characters consumed, success.
+func dtoi(s string) (n int, i int, ok bool) {
 	n = 0
 	neg := false
 	if len(s) > 0 && s[0] == '-' {
 		neg = true
 		s = s[1:]
 	}
-	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		n = n*10 + int(s[i]-'0')
 		if n >= big {
 			if neg {
@@ -141,7 +141,7 @@ func dtoi(s string, i0 int) (n int, i int, ok bool) {
 			return big, i, false
 		}
 	}
-	if i == i0 {
+	if i == 0 {
 		return 0, i, false
 	}
 	if neg {
@@ -151,11 +151,11 @@ func dtoi(s string, i0 int) (n int, i int, ok bool) {
 	return n, i, true
 }
 
-// Hexadecimal to integer starting at &s[i0].
-// Returns number, new offset, success.
-func xtoi(s string, i0 int) (n int, i int, ok bool) {
+// Hexadecimal to integer.
+// Returns number, characters consumed, success.
+func xtoi(s string) (n int, i int, ok bool) {
 	n = 0
-	for i = i0; i < len(s); i++ {
+	for i = 0; i < len(s); i++ {
 		if '0' <= s[i] && s[i] <= '9' {
 			n *= 16
 			n += int(s[i] - '0')
@@ -172,7 +172,7 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
 			return 0, i, false
 		}
 	}
-	if i == i0 {
+	if i == 0 {
 		return 0, i, false
 	}
 	return n, i, true
@@ -186,7 +186,7 @@ func xtoi2(s string, e byte) (byte, bool) {
 	if len(s) > 2 && s[2] != e {
 		return 0, false
 	}
-	n, ei, ok := xtoi(s[:2], 0)
+	n, ei, ok := xtoi(s[:2])
 	return byte(n), ok && ei == 2
 }
 

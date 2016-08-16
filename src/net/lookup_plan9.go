@@ -111,7 +111,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 		return 0, UnknownNetworkError(name)
 	}
 	s := f[1]
-	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
+	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
 		return n, nil
 	}
 	return 0, UnknownNetworkError(name)
@@ -186,7 +186,7 @@ func lookupPort(ctx context.Context, network, service string) (port int, err err
 	if i := byteIndex(s, '!'); i >= 0 {
 		s = s[i+1:] // remove address
 	}
-	if n, _, ok := dtoi(s, 0); ok {
+	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
 	return 0, unknownPortError
@@ -221,9 +221,9 @@ func lookupSRV(ctx context.Context, service, proto, name string) (cname string, 
 		if len(f) < 6 {
 			continue
 		}
-		port, _, portOk := dtoi(f[4], 0)
-		priority, _, priorityOk := dtoi(f[3], 0)
-		weight, _, weightOk := dtoi(f[2], 0)
+		port, _, portOk := dtoi(f[4])
+		priority, _, priorityOk := dtoi(f[3])
+		weight, _, weightOk := dtoi(f[2])
 		if !(portOk && priorityOk && weightOk) {
 			continue
 		}
@@ -244,7 +244,7 @@ func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
 		if len(f) < 4 {
 			continue
 		}
-		if pref, _, ok := dtoi(f[2], 0); ok {
+		if pref, _, ok := dtoi(f[2]); ok {
 			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
 		}
 	}

@@ -34,7 +34,7 @@ func readServices() {
 			continue
 		}
 		portnet := f[1] // "80/tcp"
-		port, j, ok := dtoi(portnet, 0)
+		port, j, ok := dtoi(portnet)
 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
 			continue
 		}

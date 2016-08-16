@@ -293,7 +293,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 			return
 		}
 		if '0' <= s[0] && s[0] <= '9' {
-			debugLevel, _, _ = dtoi(s, 0)
+			debugLevel, _, _ = dtoi(s)
 		} else {
 			dnsMode = s
 		}

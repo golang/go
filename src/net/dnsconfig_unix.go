@@ -91,19 +91,19 @@ func dnsReadConfig(filename string) *dnsConfig {
 			for _, s := range f[1:] {
 				switch {
 				case hasPrefix(s, "ndots:"):
-					n, _, _ := dtoi(s, 6)
+					n, _, _ := dtoi(s[6:])
 					if n < 1 {
 						n = 1
 					}
 					conf.ndots = n
 				case hasPrefix(s, "timeout:"):
-					n, _, _ := dtoi(s, 8)
+					n, _, _ := dtoi(s[8:])
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = time.Duration(n) * time.Second
 				case hasPrefix(s, "attempts:"):
-					n, _, _ := dtoi(s, 9)
+					n, _, _ := dtoi(s[9:])
 					if n < 1 {
 						n = 1
 					}
