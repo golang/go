@@ -182,7 +182,6 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
-	flag.BoolVar(&newexport, "newexport", true, "use new export format") // TODO(gri) remove eventually (issue 15323)
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
@@ -644,24 +643,10 @@ func loadsys() {
 	iota_ = -1000000
 	incannedimport = 1
 
-	// The first byte in the binary export format is a 'c' or 'd'
-	// specifying the encoding format. We could just check that
-	// byte, but this is a perhaps more robust. Also, it is not
-	// speed-critical.
-	// TODO(gri) simplify once textual export format has gone
-	if strings.HasPrefix(runtimeimport, "package") {
-		// textual export format
-		importpkg = Runtimepkg
-		parse_import(bufio.NewReader(strings.NewReader(runtimeimport)), nil)
-		importpkg = unsafepkg
-		parse_import(bufio.NewReader(strings.NewReader(unsafeimport)), nil)
-	} else {
-		// binary export format
-		importpkg = Runtimepkg
-		Import(bufio.NewReader(strings.NewReader(runtimeimport)))
-		importpkg = unsafepkg
-		Import(bufio.NewReader(strings.NewReader(unsafeimport)))
-	}
+	importpkg = Runtimepkg
+	Import(bufio.NewReader(strings.NewReader(runtimeimport)))
+	importpkg = unsafepkg
+	Import(bufio.NewReader(strings.NewReader(unsafeimport)))
 
 	importpkg = nil
 	incannedimport = 0
@@ -804,8 +789,8 @@ func importfile(f *Val, indent []byte) {
 	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
 
 	// In the importfile, if we find:
-	// $$\n  (old format): position the input right after $$\n and return
-	// $$B\n (new format): import directly, then feed the lexer a dummy statement
+	// $$\n  (textual format): not supported anymore
+	// $$B\n (binary format) : import directly, then feed the lexer a dummy statement
 
 	// look for $$
 	var c byte
@@ -829,11 +814,9 @@ func importfile(f *Val, indent []byte) {
 
 	switch c {
 	case '\n':
-		// old export format
-		parse_import(imp, indent)
+		Yyerror("cannot import %s: old export format no longer supported (recompile library)", path_)
 
 	case 'B':
-		// new export format
 		if Debug_export != 0 {
 			fmt.Printf("importing %s (%s)\n", path_, file)
 		}

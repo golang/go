@@ -174,8 +174,8 @@ const exportInlined = true // default: true
 // errors.
 // If disabled, only named types are tracked, possibly leading to slightly
 // less efficient encoding in rare cases. It also prevents the export of
-// some corner-case type declarations (but those are not handled correctly
-// with with the textual export format either).
+// some corner-case type declarations (but those were not handled correctly
+// with the former textual export format either).
 // TODO(gri) enable and remove once issues caused by it are fixed
 const trackAllTypes = false
 

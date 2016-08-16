@@ -80,7 +80,6 @@ func Import(in *bufio.Reader) {
 	p.pkg()
 
 	// defer some type-checking until all types are read in completely
-	// (parser.go:import_package)
 	tcok := typecheckok
 	typecheckok = true
 	defercheckwidth()
