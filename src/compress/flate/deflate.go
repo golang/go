@@ -724,7 +724,7 @@ func (w *Writer) Close() error {
 // the result of NewWriter or NewWriterDict called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
-	if dw, ok := w.d.w.w.(*dictWriter); ok {
+	if dw, ok := w.d.w.writer.(*dictWriter); ok {
 		// w was created with NewWriterDict
 		dw.w = dst
 		w.d.reset(dw)
