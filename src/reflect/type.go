@@ -29,6 +29,12 @@ import (
 // Use the Kind method to find out the kind of type before
 // calling kind-specific methods. Calling a method
 // inappropriate to the kind of type causes a run-time panic.
+//
+// You can use == with reflect.Type values to check whether two types
+// are the same.  If T1 and T2 are Go types, and v1 and v2 are values of
+// those types respectively, then reflect.TypeOf(v1) == reflect.TypeOf(v2)
+// if and only if both (interface{})(v2).(T1) and (interface{})(v1).(T2)
+// succeed.
 type Type interface {
 	// Methods applicable to all types.
 
