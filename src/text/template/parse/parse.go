@@ -277,7 +277,7 @@ func IsEmptyTree(n Node) bool {
 // parse is the top-level parser for a template, essentially the same
 // as itemList except it also parses {{define}} actions.
 // It runs to EOF.
-func (t *Tree) parse() (next Node) {
+func (t *Tree) parse() {
 	t.Root = t.newList(t.peek().pos)
 	for t.peek().typ != itemEOF {
 		if t.peek().typ == itemLeftDelim {
@@ -299,7 +299,6 @@ func (t *Tree) parse() (next Node) {
 			t.Root.append(n)
 		}
 	}
-	return nil
 }
 
 // parseDefinition parses a {{define}} ...  {{end}} template definition and
