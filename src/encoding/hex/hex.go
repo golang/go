@@ -12,7 +12,10 @@ import (
 	"io"
 )
 
-const hextable = "0123456789abcdef"
+var hextable = [16]byte{
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'a', 'b', 'c', 'd', 'e', 'f',
+}
 
 // EncodedLen returns the length of an encoding of n source bytes.
 func EncodedLen(n int) int { return n * 2 }
