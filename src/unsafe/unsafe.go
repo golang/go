@@ -76,8 +76,10 @@ type ArbitraryType int
 //	// equivalent to e := unsafe.Pointer(&x[i])
 //	e := unsafe.Pointer(uintptr(unsafe.Pointer(&x[0])) + i*unsafe.Sizeof(x[0]))
 //
-// It is valid both to add and to subtract offsets from a pointer in this way,
-// but the result must continue to point into the original allocated object.
+// It is valid both to add and to subtract offsets from a pointer in this way.
+// It is also valid to use &^ to round pointers, usually for alignment.
+// In all cases, the result must continue to point into the original allocated object.
+//
 // Unlike in C, it is not valid to advance a pointer just beyond the end of
 // its original allocation:
 //
