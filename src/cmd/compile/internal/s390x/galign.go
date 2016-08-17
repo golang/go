@@ -10,9 +10,6 @@ import (
 )
 
 func betypeinit() {
-	gc.Widthptr = 8
-	gc.Widthint = 8
-	gc.Widthreg = 8
 }
 
 func Main() {
