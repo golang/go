@@ -59,7 +59,6 @@ var pkgDeps = map[string][]string{
 	"math":          {"unsafe"},
 	"math/cmplx":    {"math"},
 	"math/rand":     {"L0", "math"},
-	"sort":          {},
 	"strconv":       {"L0", "unicode/utf8", "math"},
 	"unicode/utf16": {},
 	"unicode/utf8":  {},
@@ -109,6 +108,7 @@ var pkgDeps = map[string][]string{
 	"image/color":         {"L2"},                // interfaces
 	"image/color/palette": {"L2", "image/color"},
 	"reflect":             {"L2"},
+	"sort":                {"reflect"},
 
 	"L3": {
 		"L2",
