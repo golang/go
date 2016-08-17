@@ -94,5 +94,5 @@ func Equal(mac1, mac2 []byte) bool {
 	// We don't have to be constant time if the lengths of the MACs are
 	// different as that suggests that a completely different hash function
 	// was used.
-	return len(mac1) == len(mac2) && subtle.ConstantTimeCompare(mac1, mac2) == 1
+	return subtle.ConstantTimeCompare(mac1, mac2) == 1
 }
