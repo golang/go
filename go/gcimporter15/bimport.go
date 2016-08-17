@@ -26,7 +26,6 @@ type importer struct {
 	data    []byte
 	path    string
 	buf     []byte // for reading strings
-	version string
 
 	// object lists
 	strList       []string         // in order of appearance
@@ -60,26 +59,35 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		files:   make(map[string]*token.File),
 	}
 
-	// read low-level encoding format
-	switch format := p.rawByte(); format {
-	case 'c':
-		// compact format - nothing to do
-	case 'd':
-		p.debugFormat = true
-	default:
-		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
+	// read version info
+	if b := p.rawByte(); b == 'c' || b == 'd' {
+		// Go1.7 encoding; first byte encodes low-level
+		// encoding format (compact vs debug).
+		// For backward-compatibility only (avoid problems with
+		// old installed packages). Newly compiled packages use
+		// the extensible format string.
+		// TODO(gri) Remove this support eventually; after Go1.8.
+		if b == 'd' {
+			p.debugFormat = true
+		}
+		p.trackAllTypes = p.rawByte() == 'a'
+		p.posInfoFormat = p.int() != 0
+		const go17version = "v1"
+		if s := p.string(); s != go17version {
+			return p.read, nil, fmt.Errorf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
+		}
+	} else {
+		// Go1.8 extensible encoding
+		const exportVersion = "version 1"
+		if s := p.rawStringln(b); s != exportVersion {
+			return p.read, nil, fmt.Errorf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
+		}
+		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+		p.trackAllTypes = p.int() != 0
+		p.posInfoFormat = p.int() != 0
 	}
-
-	p.trackAllTypes = p.rawByte() == 'a'
-
-	p.posInfoFormat = p.int() != 0
 
 	// --- generic export data ---
-
-	p.version = p.string()
-	if p.version != "v0" && p.version != "v1" {
-		return p.read, nil, fmt.Errorf("unknown export data version: %s", p.version)
-	}
 
 	// populate typList with predeclared "known" types
 	p.typList = append(p.typList, predeclared...)
@@ -345,10 +353,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			recv, _ := p.paramList() // TODO(gri) do we need a full param list for the receiver?
 			params, isddd := p.paramList()
 			result, _ := p.paramList()
-
-			if p.version == "v1" {
-				p.int() // nointerface flag - discarded
-			}
+			p.int() // go:nointerface pragma - discarded
 
 			sig := types.NewSignature(recv.At(0), params, result, isddd)
 			t0.AddMethod(types.NewFunc(pos, parent, name, sig))
@@ -729,13 +734,23 @@ func (p *importer) marker(want byte) {
 	}
 }
 
-// rawInt64 should only be used by low-level decoders
+// rawInt64 should only be used by low-level decoders.
 func (p *importer) rawInt64() int64 {
 	i, err := binary.ReadVarint(p)
 	if err != nil {
 		panic(fmt.Sprintf("read error: %v", err))
 	}
 	return i
+}
+
+// rawStringln should only be used to read the initial version string.
+func (p *importer) rawStringln(b byte) string {
+	p.buf = p.buf[:0]
+	for b != '\n' {
+		p.buf = append(p.buf, b)
+		b = p.rawByte()
+	}
+	return string(p.buf)
 }
 
 // needed for binary.ReadVarint in rawInt64
