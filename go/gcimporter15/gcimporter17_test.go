@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.7
+// +build go1.7,!go1.8
 
 package gcimporter
 
@@ -15,7 +15,6 @@ import (
 	"testing"
 )
 
-// TODO(gri) Remove this function once we switched to new export format by default.
 func compileNewExport(t *testing.T, dirname, filename string) string {
 	/* testenv. */ MustHaveGoBuild(t)
 	cmd := exec.Command("go", "tool", "compile", "-newexport", filename)
@@ -29,8 +28,6 @@ func compileNewExport(t *testing.T, dirname, filename string) string {
 	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
 }
 
-// TODO(gri) Remove this function once we switched to new export format by default
-//           (and update the comment and want list in TestImportTestdata).
 func TestImportTestdataNewExport(t *testing.T) {
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
