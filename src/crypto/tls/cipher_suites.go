@@ -11,6 +11,7 @@ import (
 	"crypto/hmac"
 	"crypto/rc4"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"hash"
 )
@@ -73,25 +74,30 @@ type cipherSuite struct {
 }
 
 var cipherSuites = []*cipherSuite{
-	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
-	// and RC4 comes before AES-CBC (because of the Lucky13 attack).
+	// Ciphersuite order is chosen so that ECDHE comes before plain RSA and
+	// GCM is top preference.
 	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
-	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil},
-	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteDefaultOff, cipherRC4, macSHA1, nil},
+	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, 16, 32, 16, ecdheRSAKA, suiteECDHE | suiteTLS12, cipherAES, macSHA256, nil},
 	{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
+	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, 16, 32, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, cipherAES, macSHA256, nil},
 	{TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, 16, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
 	{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheRSAKA, suiteECDHE, cipherAES, macSHA1, nil},
 	{TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, 32, 20, 16, ecdheECDSAKA, suiteECDHE | suiteECDSA, cipherAES, macSHA1, nil},
 	{TLS_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, rsaKA, suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, rsaKA, suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
-	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil},
+	{TLS_RSA_WITH_AES_128_CBC_SHA256, 16, 32, 16, rsaKA, suiteTLS12, cipherAES, macSHA256, nil},
 	{TLS_RSA_WITH_AES_128_CBC_SHA, 16, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
 	{TLS_RSA_WITH_AES_256_CBC_SHA, 32, 20, 16, rsaKA, 0, cipherAES, macSHA1, nil},
 	{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, ecdheRSAKA, suiteECDHE, cipher3DES, macSHA1, nil},
 	{TLS_RSA_WITH_3DES_EDE_CBC_SHA, 24, 20, 8, rsaKA, 0, cipher3DES, macSHA1, nil},
+
+	// RC4-based cipher suites are disabled by default.
+	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil},
+	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil},
+	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteDefaultOff, cipherRC4, macSHA1, nil},
 }
 
 func cipherRC4(key, iv []byte, isRead bool) interface{} {
@@ -126,6 +132,12 @@ func macSHA1(version uint16, key []byte) macFunction {
 		return mac
 	}
 	return tls10MAC{hmac.New(sha1.New, key)}
+}
+
+// macSHA1 returns a SHA-256 based MAC. These are only supported in TLS 1.2 so
+// the given version is ignored.
+func macSHA256(version uint16, key []byte) macFunction {
+	return tls10MAC{hmac.New(sha256.New, key)}
 }
 
 type macFunction interface {
@@ -270,6 +282,7 @@ const (
 	TLS_RSA_WITH_3DES_EDE_CBC_SHA           uint16 = 0x000a
 	TLS_RSA_WITH_AES_128_CBC_SHA            uint16 = 0x002f
 	TLS_RSA_WITH_AES_256_CBC_SHA            uint16 = 0x0035
+	TLS_RSA_WITH_AES_128_CBC_SHA256         uint16 = 0x003c
 	TLS_RSA_WITH_AES_128_GCM_SHA256         uint16 = 0x009c
 	TLS_RSA_WITH_AES_256_GCM_SHA384         uint16 = 0x009d
 	TLS_ECDHE_ECDSA_WITH_RC4_128_SHA        uint16 = 0xc007
@@ -279,6 +292,8 @@ const (
 	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA     uint16 = 0xc012
 	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      uint16 = 0xc013
 	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA      uint16 = 0xc014
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 uint16 = 0xc023
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256   uint16 = 0xc027
 	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   uint16 = 0xc02f
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 uint16 = 0xc02b
 	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384   uint16 = 0xc030
