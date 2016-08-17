@@ -1,0 +1,7 @@
+Tools:
+
+Ports:
+
+API additions and behavior changes:
+
+net: support "option ndots:0" in resolv.conf (CL 24901)
