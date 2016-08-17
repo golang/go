@@ -33,6 +33,7 @@ func TestConcurrent(t *testing.T) {
 				seed += int64(Int63n(Int63()))
 				seed += int64(NormFloat64())
 				seed += int64(Uint32())
+				seed += int64(Uint64())
 				for _, p := range Perm(10) {
 					seed += int64(p)
 				}
