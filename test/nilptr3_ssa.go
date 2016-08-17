@@ -226,3 +226,11 @@ func p1() byte {
 	p := new([100]byte)
 	return p[5] // ERROR "removed nil check"
 }
+
+// make sure not to do nil check for access of PAUTOHEAP
+//go:noinline
+func (p *Struct) m() {}
+func c1() {
+	var x Struct
+	func() { x.m() }() // ERROR "removed nil check"
+}
