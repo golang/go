@@ -112,10 +112,11 @@ func TestAvoidDNSName(t *testing.T) {
 		{"foo.ONION", true},
 		{"foo.ONION.", true},
 
-		{"foo.local.", true},
-		{"foo.local", true},
-		{"foo.LOCAL", true},
-		{"foo.LOCAL.", true},
+		// But do resolve *.local address; Issue 16739
+		{"foo.local.", false},
+		{"foo.local", false},
+		{"foo.LOCAL", false},
+		{"foo.LOCAL.", false},
 
 		{"", true}, // will be rejected earlier too
 
