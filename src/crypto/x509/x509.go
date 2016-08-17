@@ -67,9 +67,8 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 			return nil, pkix.AlgorithmIdentifier{}, err
 		}
 		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
-		// This is a NULL parameters value which is technically
-		// superfluous, but most other code includes it and, by
-		// doing this, we match their public key hashes.
+		// This is a NULL parameters value which is required by
+		// https://tools.ietf.org/html/rfc3279#section-2.3.1.
 		publicKeyAlgorithm.Parameters = asn1.RawValue{
 			Tag: 5,
 		}
@@ -787,10 +786,19 @@ type distributionPointName struct {
 	RelativeName pkix.RDNSequence `asn1:"optional,tag:1"`
 }
 
+// asn1Null is the ASN.1 encoding of a NULL value.
+var asn1Null = []byte{5, 0}
+
 func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (interface{}, error) {
 	asn1Data := keyData.PublicKey.RightAlign()
 	switch algo {
 	case RSA:
+		// RSA public keys must have a NULL in the parameters
+		// (https://tools.ietf.org/html/rfc3279#section-2.3.1).
+		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1Null) {
+			return nil, errors.New("x509: RSA key missing NULL parameters")
+		}
+
 		p := new(rsaPublicKey)
 		rest, err := asn1.Unmarshal(asn1Data, p)
 		if err != nil {
