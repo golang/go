@@ -21,7 +21,6 @@ type importer struct {
 	data    []byte
 	path    string
 	buf     []byte // for reading strings
-	version string
 
 	// object lists
 	strList       []string         // in order of appearance
@@ -67,9 +66,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 
 	// --- generic export data ---
 
-	p.version = p.string()
-	if p.version != "v0" && p.version != "v1" {
-		return p.read, nil, fmt.Errorf("unknown export data version: %s", p.version)
+	if v := p.string(); v != "v1" {
+		return p.read, nil, fmt.Errorf("unknown export data version: %s", v)
 	}
 
 	// populate typList with predeclared "known" types
@@ -305,10 +303,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 			recv, _ := p.paramList() // TODO(gri) do we need a full param list for the receiver?
 			params, isddd := p.paramList()
 			result, _ := p.paramList()
-
-			if p.version == "v1" {
-				p.int() // nointerface flag - discarded
-			}
+			p.int() // go:nointerface pragma - discarded
 
 			sig := types.NewSignature(recv.At(0), params, result, isddd)
 			t0.AddMethod(types.NewFunc(token.NoPos, parent, name, sig))
