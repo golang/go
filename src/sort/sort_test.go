@@ -76,6 +76,17 @@ func TestStrings(t *testing.T) {
 	}
 }
 
+func TestSlice(t *testing.T) {
+	data := strings
+	Slice(data[:], func(i, j int) bool {
+		return data[i] < data[j]
+	})
+	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
+		t.Errorf("sorted %v", strings)
+		t.Errorf("   got %v", data)
+	}
+}
+
 func TestSortLarge_Random(t *testing.T) {
 	n := 1000000
 	if testing.Short() {
@@ -150,24 +161,46 @@ func TestNonDeterministicComparison(t *testing.T) {
 
 func BenchmarkSortString1K(b *testing.B) {
 	b.StopTimer()
+	unsorted := make([]string, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
+	}
+	data := make([]string, len(unsorted))
+
 	for i := 0; i < b.N; i++ {
-		data := make([]string, 1<<10)
-		for i := 0; i < len(data); i++ {
-			data[i] = strconv.Itoa(i ^ 0x2cc)
-		}
+		copy(data, unsorted)
 		b.StartTimer()
 		Strings(data)
 		b.StopTimer()
 	}
 }
 
+func BenchmarkSortString1K_Slice(b *testing.B) {
+	b.StopTimer()
+	unsorted := make([]string, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
+	}
+	data := make([]string, len(unsorted))
+
+	for i := 0; i < b.N; i++ {
+		copy(data, unsorted)
+		b.StartTimer()
+		Slice(data, func(i, j int) bool { return data[i] < data[j] })
+		b.StopTimer()
+	}
+}
+
 func BenchmarkStableString1K(b *testing.B) {
 	b.StopTimer()
+	unsorted := make([]string, 1<<10)
+	for i := 0; i < len(data); i++ {
+		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
+	}
+	data := make([]string, len(unsorted))
+
 	for i := 0; i < b.N; i++ {
-		data := make([]string, 1<<10)
-		for i := 0; i < len(data); i++ {
-			data[i] = strconv.Itoa(i ^ 0x2cc)
-		}
+		copy(data, unsorted)
 		b.StartTimer()
 		Stable(StringSlice(data))
 		b.StopTimer()
@@ -189,13 +222,30 @@ func BenchmarkSortInt1K(b *testing.B) {
 
 func BenchmarkStableInt1K(b *testing.B) {
 	b.StopTimer()
+	unsorted := make([]int, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = i ^ 0x2cc
+	}
+	data := make([]int, len(unsorted))
 	for i := 0; i < b.N; i++ {
-		data := make([]int, 1<<10)
-		for i := 0; i < len(data); i++ {
-			data[i] = i ^ 0x2cc
-		}
+		copy(data, unsorted)
 		b.StartTimer()
 		Stable(IntSlice(data))
+		b.StopTimer()
+	}
+}
+
+func BenchmarkStableInt1K_Slice(b *testing.B) {
+	b.StopTimer()
+	unsorted := make([]int, 1<<10)
+	for i := range unsorted {
+		unsorted[i] = i ^ 0x2cc
+	}
+	data := make([]int, len(unsorted))
+	for i := 0; i < b.N; i++ {
+		copy(data, unsorted)
+		b.StartTimer()
+		Slice(data, func(i, j int) bool { return data[i] < data[j] })
 		b.StopTimer()
 	}
 }
