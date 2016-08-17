@@ -153,13 +153,9 @@ const debugFormat = false // default: false
 // TODO(gri) disable and remove once there is only one export format again
 const forceObjFileStability = true
 
-// Supported export format versions.
+// Current export format version.
 // TODO(gri) Make this more systematic (issue #16244).
-const (
-	exportVersion0 = "v0"
-	exportVersion1 = "v1"
-	exportVersion  = exportVersion1
-)
+const exportVersion = "v1"
 
 // exportInlined enables the export of inlined function bodies and related
 // dependencies. The compiler should work w/o any loss of functionality with
@@ -734,14 +730,7 @@ func (p *exporter) typ(t *Type) {
 			p.paramList(sig.Recvs(), inlineable)
 			p.paramList(sig.Params(), inlineable)
 			p.paramList(sig.Results(), inlineable)
-
-			// for issue #16243
-			// We make this conditional for 1.7 to avoid consistency problems
-			// with installed packages compiled with an older version.
-			// TODO(gri) Clean up after 1.7 is out (issue #16244)
-			if exportVersion == exportVersion1 {
-				p.bool(m.Nointerface)
-			}
+			p.bool(m.Nointerface) // record go:nointerface pragma value (see also #16243)
 
 			var f *Func
 			if inlineable {
