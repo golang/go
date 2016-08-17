@@ -1577,6 +1577,10 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		return nil, errors.New("x509: certificate private key does not implement crypto.Signer")
 	}
 
+	if template.SerialNumber == nil {
+		return nil, errors.New("x509: no SerialNumber given")
+	}
+
 	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(key.Public(), template.SignatureAlgorithm)
 	if err != nil {
 		return nil, err
