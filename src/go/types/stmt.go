@@ -628,9 +628,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					T = x.typ
 				}
 				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
-				scopePos := clause.End()
-				if len(clause.Body) > 0 {
-					scopePos = clause.Body[0].Pos()
+				scopePos := clause.Pos() + token.Pos(len("default")) // for default clause (len(List) == 0)
+				if n := len(clause.List); n > 0 {
+					scopePos = clause.List[n-1].End()
 				}
 				check.declare(check.scope, nil, obj, scopePos)
 				check.recordImplicit(clause, obj)
@@ -822,12 +822,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 			// declare variables
 			if len(vars) > 0 {
+				scopePos := s.X.End()
 				for _, obj := range vars {
 					// spec: "The scope of a constant or variable identifier declared inside
 					// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
 					// for short variable declarations) and ends at the end of the innermost
 					// containing block."
-					scopePos := s.End()
 					check.declare(check.scope, nil /* recordDef already called */, obj, scopePos)
 				}
 			} else {

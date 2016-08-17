@@ -1016,7 +1016,11 @@ func TestScopeLookupParent(t *testing.T) {
 	}
 	var info Info
 	makePkg := func(path string, files ...*ast.File) {
-		imports[path], _ = conf.Check(path, fset, files, &info)
+		var err error
+		imports[path], err = conf.Check(path, fset, files, &info)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	makePkg("lib", mustParse("package lib; var X int"))
@@ -1024,17 +1028,44 @@ func TestScopeLookupParent(t *testing.T) {
 	// name at that point and checks that it resolves to a decl of
 	// the specified kind and line number.  "undef" means undefined.
 	mainSrc := `
+/*lib=pkgname:5*/ /*X=var:1*/ /*Pi=const:8*/ /*T=typename:9*/ /*Y=var:10*/ /*F=func:12*/
 package main
+
 import "lib"
-var Y = lib.X
-func f() {
-	print(Y) /*Y=var:4*/
-	z /*z=undef*/ := /*z=undef*/ 1 /*z=var:7*/
-	print(z)
-	/*f=func:5*/ /*lib=pkgname:3*/
-	type /*T=undef*/ T /*T=typename:10*/ *T
+import . "lib"
+
+const Pi = 3.1415
+type T struct{}
+var Y, _ = lib.X, X
+
+func F(){
+	const pi, e = 3.1415, /*pi=undef*/ 2.71828 /*pi=const:13*/ /*e=const:13*/
+	type /*t=undef*/ t /*t=typename:14*/ *t
+	print(Y) /*Y=var:10*/
+	x, Y := Y, /*x=undef*/ /*Y=var:10*/ Pi /*x=var:16*/ /*Y=var:16*/ ; _ = x; _ = Y
+	var F = /*F=func:12*/ F /*F=var:17*/ ; _ = F
+
+	var a []int
+	for i, x := range /*i=undef*/ /*x=var:16*/ a /*i=var:20*/ /*x=var:20*/ { _ = i; _ = x }
+
+	var i interface{}
+	switch y := i.(type) { /*y=undef*/
+	case /*y=undef*/ int /*y=var:23*/ :
+	case float32, /*y=undef*/ float64 /*y=var:23*/ :
+	default /*y=var:23*/:
+		println(y)
+	}
+	/*y=undef*/
+
+        switch int := i.(type) {
+        case /*int=typename:0*/ int /*int=var:31*/ :
+        	println(int)
+        default /*int=var:31*/ :
+        }
 }
+/*main=undef*/
 `
+
 	info.Uses = make(map[*ast.Ident]Object)
 	f := mustParse(mainSrc)
 	makePkg("main", f)
