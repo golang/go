@@ -61,7 +61,7 @@ func (file *File) Stat() (FileInfo, error) {
 func Stat(name string) (FileInfo, error) {
 	var fi FileInfo
 	var err error
-	for {
+	for i := 0; i < 255; i++ {
 		fi, err = Lstat(name)
 		if err != nil {
 			return fi, err
@@ -74,6 +74,7 @@ func Stat(name string) (FileInfo, error) {
 			return fi, err
 		}
 	}
+	return nil, &PathError{"Stat", name, syscall.ELOOP}
 }
 
 // Lstat returns the FileInfo structure describing the named file.
