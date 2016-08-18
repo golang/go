@@ -134,8 +134,8 @@ func macSHA1(version uint16, key []byte) macFunction {
 	return tls10MAC{hmac.New(sha1.New, key)}
 }
 
-// macSHA1 returns a SHA-256 based MAC. These are only supported in TLS 1.2 so
-// the given version is ignored.
+// macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2
+// so the given version is ignored.
 func macSHA256(version uint16, key []byte) macFunction {
 	return tls10MAC{hmac.New(sha256.New, key)}
 }
