@@ -1224,3 +1224,74 @@ func TestCompositeLitTypes(t *testing.T) {
 		cmptype(rhs.(*ast.CompositeLit).Type, test.typ)
 	}
 }
+
+// TestObjectParents verifies that objects have parent scopes or not
+// as specified by the Object interface.
+func TestObjectParents(t *testing.T) {
+	const src = `
+package p
+
+const C = 0
+
+type T1 struct {
+	a, b int
+	T2
+}
+
+type T2 interface {
+	im1()
+	im2()
+}
+
+func (T1) m1() {}
+func (*T1) m2() {}
+
+func f(x int) { y := x; print(y) }
+`
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "src", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info := &Info{
+		Defs: make(map[*ast.Ident]Object),
+	}
+	if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
+		t.Fatal(err)
+	}
+
+	for ident, obj := range info.Defs {
+		if obj == nil {
+			// only package names and implicit vars have a nil object
+			// (in this test we only need to handle the package name)
+			if ident.Name != "p" {
+				t.Errorf("%v has nil object", ident)
+			}
+			continue
+		}
+
+		// struct fields, type-associated and interface methods
+		// have no parent scope
+		wantParent := true
+		switch obj := obj.(type) {
+		case *Var:
+			if obj.IsField() {
+				wantParent = false
+			}
+		case *Func:
+			if obj.Type().(*Signature).Recv() != nil { // method
+				wantParent = false
+			}
+		}
+
+		gotParent := obj.Parent() != nil
+		switch {
+		case gotParent && !wantParent:
+			t.Errorf("%v: want no parent, got %s", ident, obj.Parent())
+		case !gotParent && wantParent:
+			t.Errorf("%v: no parent found", ident)
+		}
+	}
+}
