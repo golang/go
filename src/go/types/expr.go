@@ -1106,9 +1106,12 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		case *Array:
 			n := check.indexedElts(e.Elts, utyp.elem, utyp.len)
-			// if we have an "open" [...]T array, set the length now that we know it
+			// If we have an "open" [...]T array, set the length now that we know it
+			// and record the type for [...] (usually done by check.typExpr which is
+			// not called for [...]).
 			if openArray {
 				utyp.len = n
+				check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
 			}
 
 		case *Slice:
