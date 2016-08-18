@@ -450,7 +450,7 @@ func (c *Config) clone() *Config {
 }
 
 func (c *Config) serverInit() {
-	if c.SessionTicketsDisabled {
+	if c.SessionTicketsDisabled || len(c.ticketKeys()) != 0 {
 		return
 	}
 

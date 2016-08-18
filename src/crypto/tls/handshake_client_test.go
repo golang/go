@@ -648,19 +648,30 @@ func TestClientResumption(t *testing.T) {
 		t.Fatal("first ticket doesn't match ticket after resumption")
 	}
 
-	key2 := randomKey()
-	serverConfig.SetSessionTicketKeys([][32]byte{key2})
+	key1 := randomKey()
+	serverConfig.SetSessionTicketKeys([][32]byte{key1})
 
 	testResumeState("InvalidSessionTicketKey", false)
 	testResumeState("ResumeAfterInvalidSessionTicketKey", true)
 
-	serverConfig.SetSessionTicketKeys([][32]byte{randomKey(), key2})
+	key2 := randomKey()
+	serverConfig.SetSessionTicketKeys([][32]byte{key2, key1})
 	ticket = getTicket()
 	testResumeState("KeyChange", true)
 	if bytes.Equal(ticket, getTicket()) {
 		t.Fatal("new ticket wasn't included while resuming")
 	}
 	testResumeState("KeyChangeFinish", true)
+
+	// Reset serverConfig to ensure that calling SetSessionTicketKeys
+	// before the serverConfig is used works.
+	serverConfig = &Config{
+		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
+		Certificates: testConfig.Certificates,
+	}
+	serverConfig.SetSessionTicketKeys([][32]byte{key2})
+
+	testResumeState("FreshConfig", true)
 
 	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_RC4_128_SHA}
 	testResumeState("DifferentCipherSuite", false)
