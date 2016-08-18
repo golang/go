@@ -19,7 +19,7 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
-	Parent() *Scope // scope in which this object is declared
+	Parent() *Scope // scope in which this object is declared; nil for methods and struct fields
 	Pos() token.Pos // position of object identifier in declaration
 	Pkg() *Package  // nil for objects in the Universe scope and labels
 	Name() string   // package local object name
