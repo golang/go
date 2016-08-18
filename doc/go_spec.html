@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 26, 2016",
+	"Subtitle": "Version of September 1, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -4690,8 +4690,8 @@ TypeList        = Type { "," Type } .
 <p>
 The TypeSwitchGuard may include a
 <a href="#Short_variable_declarations">short variable declaration</a>.
-When that form is used, the variable is declared at the beginning of
-the <a href="#Blocks">implicit block</a> in each clause.
+When that form is used, the variable is declared at the end of the
+TypeSwitchCase in the <a href="#Blocks">implicit block</a> of each clause.
 In clauses with a case listing exactly one type, the variable
 has that type; otherwise, the variable has the type of the expression
 in the TypeSwitchGuard.
