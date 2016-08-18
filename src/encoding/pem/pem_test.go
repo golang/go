@@ -78,6 +78,48 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+const pemTooFewEndingDashes = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END FOO----`
+
+const pemWrongEndingType = `
+-----BEGIN FOO-----
+dGVzdA==
+-----END BAR-----`
+
+const pemMissingEndingSpace = `
+-----BEGIN FOO-----
+dGVzdA==
+-----ENDBAR-----`
+
+var badPEMTests = []struct {
+	name  string
+	input string
+}{
+	{
+		"too few trailing dashes",
+		pemTooFewEndingDashes,
+	},
+	{
+		"incorrect ending type",
+		pemWrongEndingType,
+	},
+	{
+		"missing ending space",
+		pemMissingEndingSpace,
+	},
+}
+
+func TestBadDecode(t *testing.T) {
+	for _, test := range badPEMTests {
+		result, _ := Decode([]byte(test.input))
+		if result != nil {
+			t.Errorf("unexpected success while parsing %q", test.name)
+		}
+	}
+}
+
 func TestEncode(t *testing.T) {
 	r := EncodeToMemory(privateKey2)
 	if string(r) != pemPrivateKey2 {

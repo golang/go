@@ -119,16 +119,33 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		rest = next
 	}
 
-	var endIndex int
+	var endIndex, endTrailerIndex int
+
 	// If there were no headers, the END line might occur
 	// immediately, without a leading newline.
 	if len(p.Headers) == 0 && bytes.HasPrefix(rest, pemEnd[1:]) {
 		endIndex = 0
+		endTrailerIndex = len(pemEnd) - 1
 	} else {
 		endIndex = bytes.Index(rest, pemEnd)
+		endTrailerIndex = endIndex + len(pemEnd)
 	}
 
 	if endIndex < 0 {
+		return decodeError(data, rest)
+	}
+
+	// After the "-----" of the ending line should be the same type and a
+	// final five dashes.
+	endTrailer := rest[endTrailerIndex:]
+	endTrailerLen := len(typeLine) + len(pemEndOfLine)
+	if len(endTrailer) < endTrailerLen {
+		return decodeError(data, rest)
+	}
+
+	endTrailer = endTrailer[:endTrailerLen]
+	if !bytes.HasPrefix(endTrailer, typeLine) ||
+		!bytes.HasSuffix(endTrailer, pemEndOfLine) {
 		return decodeError(data, rest)
 	}
 
