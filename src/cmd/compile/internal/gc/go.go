@@ -67,7 +67,7 @@ type Label struct {
 	Breakpc  *obj.Prog // pointer to code
 	Continpc *obj.Prog // pointer to code
 
-	Used bool
+	Used bool // for "label defined and not used" error
 }
 
 type SymFlags uint8
