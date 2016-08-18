@@ -60,12 +60,12 @@ type Node struct {
 	Colas     bool  // OAS resulting from :=
 	Diag      uint8 // already printed error about this
 	Noescape  bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
-	Walkdef   uint8
-	Typecheck uint8
+	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
+	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
 	Local     bool
 	IsStatic  bool // whether this Node will be converted to purely static data
 	Initorder uint8
-	Used      bool
+	Used      bool // for variable/label declared and not used error
 	Isddd     bool // is the argument variadic
 	Implicit  bool
 	Addrtaken bool  // address taken, even if not moved to heap
