@@ -70,9 +70,7 @@ const (
 	WSETINC  = 50  // increase for working sets    wsets
 	STATEINC = 200 // increase for states          statemem
 
-	NAMESIZE = 50
-	NTYPES   = 63
-	ISIZE    = 400
+	NTYPES = 63
 
 	PRIVATE = 0xE000 // unicode private use
 
