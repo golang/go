@@ -962,6 +962,28 @@ func TestEvalSymlinks(t *testing.T) {
 	}
 }
 
+func TestEvalSymlinksIsNotExist(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	defer chtmpdir(t)()
+
+	_, err := filepath.EvalSymlinks("notexist")
+	if !os.IsNotExist(err) {
+		t.Errorf("expected the file is not found, got %v\n", err)
+	}
+
+	err = os.Symlink("notexist", "link")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove("link")
+
+	_, err = filepath.EvalSymlinks("link")
+	if !os.IsNotExist(err) {
+		t.Errorf("expected the file is not found, got %v\n", err)
+	}
+}
+
 func TestIssue13582(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
