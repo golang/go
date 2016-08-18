@@ -367,7 +367,7 @@
 //
 // Generate runs commands described by directives within existing
 // files. Those commands can run any process but the intent is to
-// create or update Go source files, for instance by running yacc.
+// create or update Go source files.
 //
 // Go generate is never run automatically by go build, go get, go test,
 // and so on. It must be run explicitly.
@@ -430,10 +430,10 @@
 // can be used to create aliases or to handle multiword generators.
 // For example,
 //
-// 	//go:generate -command yacc go tool yacc
+// 	//go:generate -command foo go tool foo
 //
-// specifies that the command "yacc" represents the generator
-// "go tool yacc".
+// specifies that the command "foo" represents the generator
+// "go tool foo".
 //
 // Generate processes packages in the order given on the command line,
 // one at a time. If the command line lists .go files, they are treated
