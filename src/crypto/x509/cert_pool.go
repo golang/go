@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"bytes"
 	"encoding/pem"
 	"errors"
 	"runtime"
@@ -62,6 +63,21 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCer
 	}
 
 	return
+}
+
+func (s *CertPool) contains(cert *Certificate) bool {
+	if s == nil {
+		return false
+	}
+
+	candidates := s.byName[string(cert.RawSubject)]
+	for _, c := range candidates {
+		if bytes.Equal(cert.Raw, s.certs[c].Raw) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // AddCert adds a certificate to a pool.
