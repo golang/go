@@ -14,8 +14,7 @@ func dse(f *Func) {
 	defer f.retSparseSet(loadUse)
 	storeUse := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(storeUse)
-	shadowed := f.newSparseSet(f.NumValues())
-	defer f.retSparseSet(shadowed)
+	shadowed := newSparseMap(f.NumValues()) // TODO: cache
 	for _, b := range f.Blocks {
 		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
@@ -81,17 +80,23 @@ func dse(f *Func) {
 			shadowed.clear()
 		}
 		if v.Op == OpStore || v.Op == OpZero {
-			if shadowed.contains(v.Args[0].ID) {
+			var sz int64
+			if v.Op == OpStore {
+				sz = v.AuxInt
+			} else { // OpZero
+				sz = SizeAndAlign(v.AuxInt).Size()
+			}
+			if shadowedSize := int64(shadowed.get(v.Args[0].ID)); shadowedSize != -1 && shadowedSize >= sz {
 				// Modify store into a copy
 				if v.Op == OpStore {
 					// store addr value mem
 					v.SetArgs1(v.Args[2])
 				} else {
 					// zero addr mem
-					sz := v.Args[0].Type.ElemType().Size()
-					if SizeAndAlign(v.AuxInt).Size() != sz {
+					typesz := v.Args[0].Type.ElemType().Size()
+					if sz != typesz {
 						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
-							v.AuxInt, sz, v.LongString())
+							sz, typesz, v.LongString())
 					}
 					v.SetArgs1(v.Args[1])
 				}
@@ -99,7 +104,10 @@ func dse(f *Func) {
 				v.AuxInt = 0
 				v.Op = OpCopy
 			} else {
-				shadowed.add(v.Args[0].ID)
+				if sz > 0x7fffffff { // work around sparseMap's int32 value type
+					sz = 0x7fffffff
+				}
+				shadowed.set(v.Args[0].ID, int32(sz))
 			}
 		}
 		// walk to previous store
