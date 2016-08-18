@@ -533,6 +533,54 @@
 (MOVHstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVHstore [off1+off2] {sym} x val mem)
 (MOVBstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVBstore [off1+off2] {sym} x val mem)
 
+(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is16Bit(off1+off2) -> (FMOVSstore [off1+off2] {sym} ptr val mem)
+(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is16Bit(off1+off2) -> (FMOVDstore [off1+off2] {sym} ptr val mem)
+
+(MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+        (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+        (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+        (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+        (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+
+(FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+        (FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+        (FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+
+(MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVBZload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVBZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHZload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVHZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWZload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVWZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) ->
+        (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+
+// Fold offsets for loads.
+(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(off1+off2) -> (FMOVSload [off1+off2] {sym} ptr mem)
+(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(off1+off2) -> (FMOVDload [off1+off2] {sym} ptr mem)
+
+(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVDload [off1+off2] {sym} x mem)
+(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVWload [off1+off2] {sym} x mem)
+(MOVWZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVWZload [off1+off2] {sym} x mem)
+(MOVHload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVHload [off1+off2] {sym} x mem)
+(MOVHZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVHZload [off1+off2] {sym} x mem)
+(MOVBload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVBload [off1+off2] {sym} x mem)
+(MOVBZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVBZload [off1+off2] {sym} x mem)
+
 // Store of zero -> storezero
 (MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVDstorezero [off] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && c == 0 -> (MOVWstorezero [off] {sym} ptr mem)
