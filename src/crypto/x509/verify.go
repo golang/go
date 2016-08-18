@@ -262,9 +262,13 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	candidateChains, err := c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts)
-	if err != nil {
-		return
+	var candidateChains [][]*Certificate
+	if opts.Roots.contains(c) {
+		candidateChains = append(candidateChains, []*Certificate{c})
+	} else {
+		if candidateChains, err = c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts); err != nil {
+			return nil, err
+		}
 	}
 
 	keyUsages := opts.KeyUsages
