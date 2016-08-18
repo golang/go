@@ -1140,3 +1140,56 @@ func TestIssue15305(t *testing.T) {
 	}
 	t.Errorf("CallExpr has no type")
 }
+
+// TestCompositeLitTypes verifies that Info.Types registers the correct
+// types for composite literal expressions and composite literal type
+// expressions.
+func TestCompositeLitTypes(t *testing.T) {
+	for _, test := range []struct {
+		lit, typ string
+	}{
+		{`[16]byte{}`, `[16]byte`},
+		{`[...]byte{}`, `[0]byte`},                // test for issue #14092
+		{`[...]int{1, 2, 3}`, `[3]int`},           // test for issue #14092
+		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for issue #14092
+		{`[]int{}`, `[]int`},
+		{`map[string]bool{"foo": true}`, `map[string]bool`},
+		{`struct{}{}`, `struct{}`},
+		{`struct{x, y int; z complex128}{}`, `struct{x int; y int; z complex128}`},
+	} {
+		fset := token.NewFileSet()
+		f, err := parser.ParseFile(fset, test.lit, "package p; var _ = "+test.lit, 0)
+		if err != nil {
+			t.Fatalf("%s: %v", test.lit, err)
+		}
+
+		info := &Info{
+			Types: make(map[ast.Expr]TypeAndValue),
+		}
+		if _, err = new(Config).Check("p", fset, []*ast.File{f}, info); err != nil {
+			t.Fatalf("%s: %v", test.lit, err)
+		}
+
+		cmptype := func(x ast.Expr, want string) {
+			tv, ok := info.Types[x]
+			if !ok {
+				t.Errorf("%s: no Types entry found", test.lit)
+				return
+			}
+			if tv.Type == nil {
+				t.Errorf("%s: type is nil", test.lit)
+				return
+			}
+			if got := tv.Type.String(); got != want {
+				t.Errorf("%s: got %v, want %s", test.lit, got, want)
+			}
+		}
+
+		// test type of composite literal expression
+		rhs := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0]
+		cmptype(rhs, test.typ)
+
+		// test type of composite literal type expression
+		cmptype(rhs.(*ast.CompositeLit).Type, test.typ)
+	}
+}
