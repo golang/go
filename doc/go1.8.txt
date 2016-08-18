@@ -11,6 +11,8 @@ Ports:
 API additions and behavior changes:
 
 crypto/tls: set Conn.ConnectionState.ServerName unconditionally (CL 22862)
+crypto/tls: support AES-128-CBC cipher suites with SHA-256 (CL 27315)
+crypto/tls: don't generate random ticket keys if already set (CL 27317)
 crypto/x509: require a NULL parameters for RSA public keys (CL 16166)
 crypto/x509: return error for missing SerialNumber (CL 27238)
 crypto/x509: support PSS signatures (CL 24743)
