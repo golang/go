@@ -70,8 +70,6 @@ const (
 	WSETINC  = 50  // increase for working sets    wsets
 	STATEINC = 200 // increase for states          statemem
 
-	NTYPES = 63
-
 	PRIVATE = 0xE000 // unicode private use
 
 	// relationships which must hold:
@@ -206,8 +204,8 @@ type Wset struct {
 }
 
 // storage of types
-var ntypes int             // number of types defined
-var typeset [NTYPES]string // pointers to type tags
+var ntypes int                     // number of types defined
+var typeset = make(map[int]string) // pointers to type tags
 
 // token information
 
