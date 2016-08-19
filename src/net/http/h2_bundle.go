@@ -5460,12 +5460,15 @@ func http2bodyAndLength(req *Request) (body io.Reader, contentLen int64) {
 	// We have a body but a zero content length. Test to see if
 	// it's actually zero or just unset.
 	var buf [1]byte
-	n, rerr := io.ReadFull(body, buf[:])
+	n, rerr := body.Read(buf[:])
 	if rerr != nil && rerr != io.EOF {
 		return http2errorReader{rerr}, -1
 	}
 	if n == 1 {
 
+		if rerr == io.EOF {
+			return bytes.NewReader(buf[:]), 1
+		}
 		return io.MultiReader(bytes.NewReader(buf[:]), body), -1
 	}
 
@@ -5714,8 +5717,13 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Clos
 		}
 	}
 
+	if sentEnd {
+
+		return nil
+	}
+
 	var trls []byte
-	if !sentEnd && hasTrailers {
+	if hasTrailers {
 		cc.mu.Lock()
 		defer cc.mu.Unlock()
 		trls = cc.encodeTrailers(req)
