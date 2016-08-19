@@ -18896,6 +18896,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		// result: (NE (TESTB cond cond) yes no)
 		for {
 			v := b.Control
+			_ = v
 			cond := b.Control
 			yes := b.Succs[0]
 			no := b.Succs[1]
