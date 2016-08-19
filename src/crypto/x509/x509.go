@@ -296,6 +296,11 @@ var (
 	oidSHA512 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 3}
 
 	oidMGF1 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 8}
+
+	// oidISOSignatureSHA1WithRSA means the same as oidSignatureSHA1WithRSA
+	// but it's specified by ISO. Microsoft's makecert.exe has been known
+	// to produce certificates with this OID.
+	oidISOSignatureSHA1WithRSA = asn1.ObjectIdentifier{1, 3, 14, 3, 2, 29}
 )
 
 var signatureAlgorithmDetails = []struct {
@@ -307,6 +312,7 @@ var signatureAlgorithmDetails = []struct {
 	{MD2WithRSA, oidSignatureMD2WithRSA, RSA, crypto.Hash(0) /* no value for MD2 */},
 	{MD5WithRSA, oidSignatureMD5WithRSA, RSA, crypto.MD5},
 	{SHA1WithRSA, oidSignatureSHA1WithRSA, RSA, crypto.SHA1},
+	{SHA1WithRSA, oidISOSignatureSHA1WithRSA, RSA, crypto.SHA1},
 	{SHA256WithRSA, oidSignatureSHA256WithRSA, RSA, crypto.SHA256},
 	{SHA384WithRSA, oidSignatureSHA384WithRSA, RSA, crypto.SHA384},
 	{SHA512WithRSA, oidSignatureSHA512WithRSA, RSA, crypto.SHA512},
