@@ -590,6 +590,7 @@ var (
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errServerClosedIdle   = errors.New("http: server closed idle connection")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
+	errNotCachingH2Conn   = errors.New("http: not caching alternate protocol's connections")
 )
 
 // transportReadFromServerError is used by Transport.readLoop when the
@@ -632,6 +633,9 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	}
 	if pconn.isBroken() {
 		return errConnBroken
+	}
+	if pconn.alt != nil {
+		return errNotCachingH2Conn
 	}
 	pconn.markReused()
 	key := pconn.cacheKey
