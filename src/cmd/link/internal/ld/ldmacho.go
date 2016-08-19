@@ -92,7 +92,7 @@ type LdMachoSect struct {
 	flags   uint32
 	res1    uint32
 	res2    uint32
-	sym     *LSym
+	sym     *Symbol
 	rel     []LdMachoRel
 }
 
@@ -123,7 +123,7 @@ type LdMachoSym struct {
 	desc    uint16
 	kind    int8
 	value   uint64
-	sym     *LSym
+	sym     *Symbol
 }
 
 type LdMachoDysymtab struct {
@@ -433,9 +433,9 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	var sect *LdMachoSect
 	var rel *LdMachoRel
 	var rpi int
-	var s *LSym
-	var s1 *LSym
-	var outer *LSym
+	var s *Symbol
+	var s1 *Symbol
+	var outer *Symbol
 	var c *LdMachoCmd
 	var symtab *LdMachoSymtab
 	var dsymtab *LdMachoDysymtab

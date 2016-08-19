@@ -42,7 +42,7 @@ func PADDR(x uint32) uint32 {
 	return x &^ 0x80000000
 }
 
-func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
+func Addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) int64 {
 	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
@@ -94,7 +94,7 @@ func gentext() {
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
-func adddynrel(s *ld.LSym, r *ld.Reloc) {
+func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
@@ -472,11 +472,11 @@ func pereloc1(r *ld.Reloc, sectoff int64) bool {
 	return true
 }
 
-func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	return -1
 }
 
-func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+func archrelocvariant(r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return t
 }
@@ -508,7 +508,7 @@ func elfsetupplt() {
 	}
 }
 
-func addpltsym(s *ld.LSym) {
+func addpltsym(s *ld.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -576,7 +576,7 @@ func addpltsym(s *ld.LSym) {
 	}
 }
 
-func addgotsym(s *ld.LSym) {
+func addgotsym(s *ld.Symbol) {
 	if s.Got >= 0 {
 		return
 	}

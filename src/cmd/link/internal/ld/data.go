@@ -44,7 +44,7 @@ import (
 	"sync"
 )
 
-func Symgrow(ctxt *Link, s *LSym, siz int64) {
+func Symgrow(ctxt *Link, s *Symbol, siz int64) {
 	if int64(int(siz)) != siz {
 		log.Fatalf("symgrow size %d too long", siz)
 	}
@@ -58,12 +58,12 @@ func Symgrow(ctxt *Link, s *LSym, siz int64) {
 	s.P = s.P[:siz]
 }
 
-func Addrel(s *LSym) *Reloc {
+func Addrel(s *Symbol) *Reloc {
 	s.R = append(s.R, Reloc{})
 	return &s.R[len(s.R)-1]
 }
 
-func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
+func setuintxx(ctxt *Link, s *Symbol, off int64, v uint64, wid int64) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -87,7 +87,7 @@ func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	return off + wid
 }
 
-func Addbytes(ctxt *Link, s *LSym, bytes []byte) int64 {
+func Addbytes(ctxt *Link, s *Symbol, bytes []byte) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -98,13 +98,13 @@ func Addbytes(ctxt *Link, s *LSym, bytes []byte) int64 {
 	return s.Size
 }
 
-func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
+func adduintxx(ctxt *Link, s *Symbol, v uint64, wid int) int64 {
 	off := s.Size
 	setuintxx(ctxt, s, off, v, int64(wid))
 	return off
 }
 
-func Adduint8(ctxt *Link, s *LSym, v uint8) int64 {
+func Adduint8(ctxt *Link, s *Symbol, v uint8) int64 {
 	off := s.Size
 	if s.Type == 0 {
 		s.Type = obj.SDATA
@@ -116,31 +116,31 @@ func Adduint8(ctxt *Link, s *LSym, v uint8) int64 {
 	return off
 }
 
-func Adduint16(ctxt *Link, s *LSym, v uint16) int64 {
+func Adduint16(ctxt *Link, s *Symbol, v uint16) int64 {
 	return adduintxx(ctxt, s, uint64(v), 2)
 }
 
-func Adduint32(ctxt *Link, s *LSym, v uint32) int64 {
+func Adduint32(ctxt *Link, s *Symbol, v uint32) int64 {
 	return adduintxx(ctxt, s, uint64(v), 4)
 }
 
-func Adduint64(ctxt *Link, s *LSym, v uint64) int64 {
+func Adduint64(ctxt *Link, s *Symbol, v uint64) int64 {
 	return adduintxx(ctxt, s, v, 8)
 }
 
-func adduint(ctxt *Link, s *LSym, v uint64) int64 {
+func adduint(ctxt *Link, s *Symbol, v uint64) int64 {
 	return adduintxx(ctxt, s, v, SysArch.IntSize)
 }
 
-func setuint8(ctxt *Link, s *LSym, r int64, v uint8) int64 {
+func setuint8(ctxt *Link, s *Symbol, r int64, v uint8) int64 {
 	return setuintxx(ctxt, s, r, uint64(v), 1)
 }
 
-func setuint32(ctxt *Link, s *LSym, r int64, v uint32) int64 {
+func setuint32(ctxt *Link, s *Symbol, r int64, v uint32) int64 {
 	return setuintxx(ctxt, s, r, uint64(v), 4)
 }
 
-func Addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+func Addaddrplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -157,7 +157,7 @@ func Addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	return i + int64(r.Siz)
 }
 
-func Addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+func Addpcrelplus(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -177,11 +177,11 @@ func Addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	return i + int64(r.Siz)
 }
 
-func Addaddr(ctxt *Link, s *LSym, t *LSym) int64 {
+func Addaddr(ctxt *Link, s *Symbol, t *Symbol) int64 {
 	return Addaddrplus(ctxt, s, t, 0)
 }
 
-func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
+func setaddrplus(ctxt *Link, s *Symbol, off int64, t *Symbol, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -200,11 +200,11 @@ func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
 	return off + int64(r.Siz)
 }
 
-func setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
+func setaddr(ctxt *Link, s *Symbol, off int64, t *Symbol) int64 {
 	return setaddrplus(ctxt, s, off, t, 0)
 }
 
-func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
+func addsize(ctxt *Link, s *Symbol, t *Symbol) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -220,7 +220,7 @@ func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
 	return i + int64(r.Siz)
 }
 
-func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
+func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SDATA
 	}
@@ -243,11 +243,11 @@ func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
  * Used for the data block.
  */
 
-func listsubp(s *LSym) **LSym {
+func listsubp(s *Symbol) **Symbol {
 	return &s.Sub
 }
 
-func listsort(l *LSym, cmp func(*LSym, *LSym) int, nextp func(*LSym) **LSym) *LSym {
+func listsort(l *Symbol, cmp func(*Symbol, *Symbol) int, nextp func(*Symbol) **Symbol) *Symbol {
 	if l == nil || *nextp(l) == nil {
 		return l
 	}
@@ -319,9 +319,9 @@ func listsort(l *LSym, cmp func(*LSym, *LSym) int, nextp func(*LSym) **LSym) *LS
 	return l
 }
 
-func relocsym(s *LSym) {
+func relocsym(s *Symbol) {
 	var r *Reloc
-	var rs *LSym
+	var rs *Symbol
 	var i16 int16
 	var off int32
 	var siz int32
@@ -668,7 +668,7 @@ func reloc() {
 	}
 }
 
-func dynrelocsym(s *LSym) {
+func dynrelocsym(s *Symbol) {
 	if HEADTYPE == obj.Hwindows && Linkmode != LinkExternal {
 		rel := Linklookup(Ctxt, ".rel", 0)
 		if s == rel {
@@ -722,7 +722,7 @@ func dynrelocsym(s *LSym) {
 	}
 }
 
-func dynreloc(data *[obj.SXREF][]*LSym) {
+func dynreloc(data *[obj.SXREF][]*Symbol) {
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
 	if Debug['d'] != 0 && HEADTYPE != obj.Hwindows {
@@ -746,8 +746,8 @@ func dynreloc(data *[obj.SXREF][]*LSym) {
 	}
 }
 
-func blk(start *LSym, addr int64, size int64) {
-	var sym *LSym
+func blk(start *Symbol, addr int64, size int64) {
+	var sym *Symbol
 
 	for sym = start; sym != nil; sym = sym.Next {
 		if sym.Type&obj.SSUB == 0 && sym.Value >= addr {
@@ -867,7 +867,7 @@ func CodeblkPad(addr int64, size int64, pad []byte) {
 // blkSlice is a variant of blk that processes slices.
 // After text symbols are converted from a linked list to a slice,
 // delete blk and give this function its name.
-func blkSlice(syms []*LSym, addr, size int64, pad []byte) {
+func blkSlice(syms []*Symbol, addr, size int64, pad []byte) {
 	for i, s := range syms {
 		if s.Type&obj.SSUB == 0 && s.Value >= addr {
 			syms = syms[i:]
@@ -1019,7 +1019,7 @@ func strnputPad(s string, n int, pad []byte) {
 	}
 }
 
-var strdata []*LSym
+var strdata []*Symbol
 
 func addstrdata1(arg string) {
 	i := strings.Index(arg, "=")
@@ -1063,7 +1063,7 @@ func checkstrdata() {
 	}
 }
 
-func Addstring(s *LSym, str string) int64 {
+func Addstring(s *Symbol, str string) int64 {
 	if s.Type == 0 {
 		s.Type = obj.SNOPTRDATA
 	}
@@ -1080,7 +1080,7 @@ func Addstring(s *LSym, str string) int64 {
 
 // addgostring adds str, as a Go string value, to s. symname is the name of the
 // symbol used to define the string data and must be unique per linked object.
-func addgostring(s *LSym, symname, str string) {
+func addgostring(s *Symbol, symname, str string) {
 	sym := Linklookup(Ctxt, symname, 0)
 	if sym.Type != obj.Sxxx {
 		Diag("duplicate symname in addgostring: %s", symname)
@@ -1094,7 +1094,7 @@ func addgostring(s *LSym, symname, str string) {
 	adduint(Ctxt, s, uint64(len(str)))
 }
 
-func addinitarrdata(s *LSym) {
+func addinitarrdata(s *Symbol) {
 	p := s.Name + ".ptr"
 	sp := Linklookup(Ctxt, p, 0)
 	sp.Type = obj.SINITARR
@@ -1125,7 +1125,7 @@ func dosymtype() {
 }
 
 // symalign returns the required alignment for the given symbol s.
-func symalign(s *LSym) int32 {
+func symalign(s *Symbol) int32 {
 	min := int32(Thearch.Minalign)
 	if s.Align >= min {
 		return s.Align
@@ -1144,14 +1144,14 @@ func symalign(s *LSym) int32 {
 	return align
 }
 
-func aligndatsize(datsize int64, s *LSym) int64 {
+func aligndatsize(datsize int64, s *Symbol) int64 {
 	return Rnd(datsize, int64(symalign(s)))
 }
 
 const debugGCProg = false
 
 type GCProg struct {
-	sym *LSym
+	sym *Symbol
 	w   gcprog.Writer
 }
 
@@ -1176,7 +1176,7 @@ func (p *GCProg) End(size int64) {
 	}
 }
 
-func (p *GCProg) AddSym(s *LSym) {
+func (p *GCProg) AddSym(s *Symbol) {
 	typ := s.Gotype
 	// Things without pointers should be in SNOPTRDATA or SNOPTRBSS;
 	// everything we see should have pointers and should therefore have a type.
@@ -1214,7 +1214,7 @@ func (p *GCProg) AddSym(s *LSym) {
 type dataSortKey struct {
 	size int64
 	name string
-	lsym *LSym
+	lsym *Symbol
 }
 
 type bySizeAndName []dataSortKey
@@ -1237,8 +1237,8 @@ func checkdatsize(datsize int64, symn int) {
 	}
 }
 
-func list2slice(s *LSym) []*LSym {
-	var syms []*LSym
+func list2slice(s *Symbol) []*Symbol {
+	var syms []*Symbol
 	for ; s != nil; s = s.Next {
 		syms = append(syms, s)
 	}
@@ -1247,7 +1247,7 @@ func list2slice(s *LSym) []*LSym {
 
 // datap is a collection of reachable data symbols in address order.
 // Generated by dodata.
-var datap []*LSym
+var datap []*Symbol
 
 func dodata() {
 	if Debug['v'] != 0 {
@@ -1256,7 +1256,7 @@ func dodata() {
 	Bso.Flush()
 
 	// Collect data symbols by type into data.
-	var data [obj.SXREF][]*LSym
+	var data [obj.SXREF][]*Symbol
 	for _, s := range Ctxt.Allsym {
 		if !s.Attr.Reachable() || s.Attr.Special() {
 			continue
@@ -1285,7 +1285,7 @@ func dodata() {
 		for symnro := int16(obj.STYPE); symnro < obj.STYPERELRO; symnro++ {
 			symnrelro := symnro + obj.STYPERELRO - obj.STYPE
 
-			ro := []*LSym{}
+			ro := []*Symbol{}
 			relro := data[symnrelro]
 
 			for _, s := range data[symnro] {
@@ -1371,7 +1371,7 @@ func dodata() {
 		sect.Align = dataMaxAlign[obj.SELFGOT]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		var toc *LSym
+		var toc *Symbol
 		for _, s := range data[obj.SELFGOT] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
@@ -1753,7 +1753,7 @@ func dodata() {
 
 	dwarfgeneratedebugsyms()
 
-	var s *LSym
+	var s *Symbol
 	for s = dwarfp; s != nil && s.Type == obj.SDWARFSECT; s = s.Next {
 		sect = addsection(&Segdwarf, s.Name, 04)
 		sect.Align = 1
@@ -1804,11 +1804,11 @@ func dodata() {
 	}
 }
 
-func dodataSect(symn int, syms []*LSym) (result []*LSym, maxAlign int32) {
+func dodataSect(symn int, syms []*Symbol) (result []*Symbol, maxAlign int32) {
 	if HEADTYPE == obj.Hdarwin {
 		// Some symbols may no longer belong in syms
 		// due to movement in machosymorder.
-		newSyms := make([]*LSym, 0, len(syms))
+		newSyms := make([]*Symbol, 0, len(syms))
 		for _, s := range syms {
 			if int(s.Type) == symn {
 				newSyms = append(newSyms, s)

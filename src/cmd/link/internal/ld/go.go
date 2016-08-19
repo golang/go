@@ -132,7 +132,7 @@ func loadcgo(file string, pkg string, p string) {
 	var local string
 	var remote string
 	var lib string
-	var s *LSym
+	var s *Symbol
 
 	p0 := ""
 	for ; p != ""; p = next {
@@ -315,7 +315,7 @@ func adddynlib(lib string) {
 	}
 }
 
-func Adddynsym(ctxt *Link, s *LSym) {
+func Adddynsym(ctxt *Link, s *Symbol) {
 	if s.Dynid >= 0 || Linkmode == LinkExternal {
 		return
 	}

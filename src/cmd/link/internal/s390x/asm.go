@@ -98,7 +98,7 @@ func gentext() {
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
-func adddynrel(s *ld.LSym, r *ld.Reloc) {
+func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
@@ -380,7 +380,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	return -1
 }
 
-func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		return -1
 	}
@@ -398,7 +398,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	return -1
 }
 
-func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+func archrelocvariant(r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	switch r.Variant & ld.RV_TYPE_MASK {
 	default:
 		ld.Diag("unexpected relocation variant %d", r.Variant)
@@ -415,7 +415,7 @@ func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
 	}
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -478,7 +478,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 	}
 }
 
-func addgotsym(s *ld.LSym) {
+func addgotsym(s *ld.Symbol) {
 	if s.Got >= 0 {
 		return
 	}

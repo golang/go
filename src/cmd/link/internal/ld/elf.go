@@ -806,7 +806,7 @@ type ElfShdr struct {
 	addralign uint64
 	entsize   uint64
 	shnum     int
-	secsym    *LSym
+	secsym    *Symbol
 }
 
 /*
@@ -1173,7 +1173,7 @@ func elfhash(name string) uint32 {
 	return h
 }
 
-func Elfwritedynent(s *LSym, tag int, val uint64) {
+func Elfwritedynent(s *Symbol, tag int, val uint64) {
 	if elf64 {
 		Adduint64(Ctxt, s, uint64(tag))
 		Adduint64(Ctxt, s, val)
@@ -1183,11 +1183,11 @@ func Elfwritedynent(s *LSym, tag int, val uint64) {
 	}
 }
 
-func elfwritedynentsym(s *LSym, tag int, t *LSym) {
+func elfwritedynentsym(s *Symbol, tag int, t *Symbol) {
 	Elfwritedynentsymplus(s, tag, t, 0)
 }
 
-func Elfwritedynentsymplus(s *LSym, tag int, t *LSym, add int64) {
+func Elfwritedynentsymplus(s *Symbol, tag int, t *Symbol, add int64) {
 	if elf64 {
 		Adduint64(Ctxt, s, uint64(tag))
 	} else {
@@ -1196,7 +1196,7 @@ func Elfwritedynentsymplus(s *LSym, tag int, t *LSym, add int64) {
 	Addaddrplus(Ctxt, s, t, add)
 }
 
-func elfwritedynentsymsize(s *LSym, tag int, t *LSym) {
+func elfwritedynentsymsize(s *Symbol, tag int, t *Symbol) {
 	if elf64 {
 		Adduint64(Ctxt, s, uint64(tag))
 	} else {
@@ -1719,7 +1719,7 @@ func elfshreloc(sect *Section) *ElfShdr {
 	return sh
 }
 
-func elfrelocsect(sect *Section, syms []*LSym) {
+func elfrelocsect(sect *Section, syms []*Symbol) {
 	// If main section is SHT_NOBITS, nothing to relocate.
 	// Also nothing to relocate in .shstrtab.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
@@ -2086,7 +2086,7 @@ func doelf() {
 }
 
 // Do not write DT_NULL.  elfdynhash will finish it.
-func shsym(sh *ElfShdr, s *LSym) {
+func shsym(sh *ElfShdr, s *Symbol) {
 	addr := Symaddr(s)
 	if sh.flags&SHF_ALLOC != 0 {
 		sh.addr = uint64(addr)
@@ -2604,7 +2604,7 @@ elfobj:
 	}
 }
 
-func Elfadddynsym(ctxt *Link, s *LSym) {
+func Elfadddynsym(ctxt *Link, s *Symbol) {
 	if elf64 {
 		s.Dynid = int32(Nelfsym)
 		Nelfsym++

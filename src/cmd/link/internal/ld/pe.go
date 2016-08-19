@@ -324,7 +324,7 @@ var dosstub = []uint8{
 	0x00,
 }
 
-var rsrcsym *LSym
+var rsrcsym *Symbol
 
 var strtbl []byte
 
@@ -357,7 +357,7 @@ var sh [16]IMAGE_SECTION_HEADER
 var dd []IMAGE_DATA_DIRECTORY
 
 type Imp struct {
-	s       *LSym
+	s       *Symbol
 	off     uint64
 	next    *Imp
 	argsize int
@@ -373,7 +373,7 @@ type Dll struct {
 
 var dr *Dll
 
-var dexport [1024]*LSym
+var dexport [1024]*Symbol
 
 var nexport int
 
@@ -674,7 +674,7 @@ func addimports(datsect *IMAGE_SECTION_HEADER) {
 	Cseek(endoff)
 }
 
-type byExtname []*LSym
+type byExtname []*Symbol
 
 func (s byExtname) Len() int           { return len(s) }
 func (s byExtname) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
@@ -764,7 +764,7 @@ func addexports() {
 
 // perelocsect relocates symbols from first in section sect, and returns
 // the total number of relocations emitted.
-func perelocsect(sect *Section, syms []*LSym) int {
+func perelocsect(sect *Section, syms []*Symbol) int {
 	// If main section has no bits, nothing to relocate.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return 0
@@ -931,7 +931,7 @@ func newPEDWARFSection(name string, size int64) *IMAGE_SECTION_HEADER {
 func writePESymTableRecords() int {
 	var symcnt int
 
-	put := func(s *LSym, name string, type_ int, addr int64, size int64, ver int, gotype *LSym) {
+	put := func(s *Symbol, name string, type_ int, addr int64, size int64, ver int, gotype *Symbol) {
 		if s == nil {
 			return
 		}
@@ -1048,7 +1048,7 @@ func addpesymtable() {
 	}
 }
 
-func setpersrc(sym *LSym) {
+func setpersrc(sym *Symbol) {
 	if rsrcsym != nil {
 		Diag("too many .rsrc sections")
 	}

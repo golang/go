@@ -107,14 +107,14 @@ type PeSym struct {
 	type_   uint16
 	sclass  uint8
 	aux     uint8
-	sym     *LSym
+	sym     *Symbol
 }
 
 type PeSect struct {
 	name string
 	base []byte
 	size uint64
-	sym  *LSym
+	sym  *Symbol
 	sh   IMAGE_SECTION_HEADER
 }
 
@@ -153,7 +153,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 	var r []Reloc
 	var rp *Reloc
 	var rsect *PeSect
-	var s *LSym
+	var s *Symbol
 	var sym *PeSym
 	var symbuf [18]uint8
 	if err = binary.Read(f, binary.LittleEndian, &peobj.fh); err != nil {
@@ -502,7 +502,7 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 		name = name[:i]
 	}
 
-	var s *LSym
+	var s *Symbol
 	switch sym.type_ {
 	default:
 		err = fmt.Errorf("%s: invalid symbol type %d", sym.name, sym.type_)

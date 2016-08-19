@@ -264,7 +264,7 @@ type ElfSect struct {
 	align   uint64
 	entsize uint64
 	base    []byte
-	sym     *LSym
+	sym     *Symbol
 }
 
 type ElfObj struct {
@@ -303,12 +303,12 @@ type ElfSym struct {
 	type_ uint8
 	other uint8
 	shndx uint16
-	sym   *LSym
+	sym   *Symbol
 }
 
 var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
 
-func valuecmp(a *LSym, b *LSym) int {
+func valuecmp(a *Symbol, b *Symbol) int {
 	if a.Value < b.Value {
 		return -1
 	}
@@ -472,10 +472,10 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	var rela int
 	var rp *Reloc
 	var rsect *ElfSect
-	var s *LSym
+	var s *Symbol
 	var sect *ElfSect
 	var sym ElfSym
-	var symbols []*LSym
+	var symbols []*Symbol
 	if _, err := io.ReadFull(f, hdrbuf[:]); err != nil {
 		goto bad
 	}
@@ -745,7 +745,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 
 	// enter sub-symbols into symbol table.
 	// symbol 0 is the null symbol.
-	symbols = make([]*LSym, elfobj.nsymtab)
+	symbols = make([]*Symbol, elfobj.nsymtab)
 
 	for i := 1; i < elfobj.nsymtab; i++ {
 		if err = readelfsym(elfobj, i, &sym, 1); err != nil {
@@ -1022,7 +1022,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 		sym.other = b.Other
 	}
 
-	var s *LSym
+	var s *Symbol
 	if sym.name == "_GLOBAL_OFFSET_TABLE_" {
 		sym.name = ".got"
 	}
