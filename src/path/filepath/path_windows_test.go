@@ -309,9 +309,106 @@ func TestToNorm(t *testing.T) {
 	for _, test := range tests {
 		got, err := filepath.ToNorm(test.arg, stubBase)
 		if err != nil {
-			t.Errorf("unexpected toNorm error, arg: %s, err: %v\n", test.arg, err)
+			t.Errorf("toNorm(%s) failed: %v\n", test.arg, err)
 		} else if got != test.want {
-			t.Errorf("toNorm error, arg: %s, want: %s, got: %s\n", test.arg, test.want, got)
+			t.Errorf("toNorm(%s) returns %s, but %s expected\n", test.arg, got, test.want)
+		}
+	}
+
+	testPath := `{{tmp}}\test\foo\bar`
+
+	testsDir := []struct {
+		wd   string
+		arg  string
+		want string
+	}{
+		// test absolute paths
+		{".", `{{tmp}}\test\foo\bar`, `{{tmp}}\test\foo\bar`},
+		{".", `{{tmp}}\.\test/foo\bar`, `{{tmp}}\test\foo\bar`},
+		{".", `{{tmp}}\test\..\test\foo\bar`, `{{tmp}}\test\foo\bar`},
+		{".", `{{tmp}}\TEST\FOO\BAR`, `{{tmp}}\test\foo\bar`},
+
+		// test relative paths begin with drive letter
+		{`{{tmp}}\test`, `{{tmpvol}}.`, `{{tmpvol}}.`},
+		{`{{tmp}}\test`, `{{tmpvol}}..`, `{{tmpvol}}..`},
+		{`{{tmp}}\test`, `{{tmpvol}}foo\bar`, `{{tmpvol}}foo\bar`},
+		{`{{tmp}}\test`, `{{tmpvol}}.\foo\bar`, `{{tmpvol}}foo\bar`},
+		{`{{tmp}}\test`, `{{tmpvol}}foo\..\foo\bar`, `{{tmpvol}}foo\bar`},
+		{`{{tmp}}\test`, `{{tmpvol}}FOO\BAR`, `{{tmpvol}}foo\bar`},
+
+		// test relative paths begin with '\'
+		{".", `{{tmpnovol}}\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{".", `{{tmpnovol}}\.\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{".", `{{tmpnovol}}\test\..\test\foo\bar`, `{{tmpnovol}}\test\foo\bar`},
+		{".", `{{tmpnovol}}\TEST\FOO\BAR`, `{{tmpnovol}}\test\foo\bar`},
+
+		// test relative paths begin without '\'
+		{`{{tmp}}\test`, ".", `.`},
+		{`{{tmp}}\test`, "..", `..`},
+		{`{{tmp}}\test`, `foo\bar`, `foo\bar`},
+		{`{{tmp}}\test`, `.\foo\bar`, `foo\bar`},
+		{`{{tmp}}\test`, `foo\..\foo\bar`, `foo\bar`},
+		{`{{tmp}}\test`, `FOO\BAR`, `foo\bar`},
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		err := os.Chdir(cwd)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	tmp, err := ioutil.TempDir("", "testToNorm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	// ioutil.TempDir might return "non-canonical" name.
+	tmp, err = filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.MkdirAll(strings.Replace(testPath, "{{tmp}}", tmp, -1), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpVol := filepath.VolumeName(tmp)
+	tmpNoVol := tmp[len(tmpVol):]
+
+	for _, test := range testsDir {
+		wd := strings.Replace(strings.Replace(strings.Replace(test.wd, "{{tmp}}", tmp, -1), "{{tmpvol}}", tmpVol, -1), "{{tmpnovol}}", tmpNoVol, -1)
+		arg := strings.Replace(strings.Replace(strings.Replace(test.arg, "{{tmp}}", tmp, -1), "{{tmpvol}}", tmpVol, -1), "{{tmpnovol}}", tmpNoVol, -1)
+		want := strings.Replace(strings.Replace(strings.Replace(test.want, "{{tmp}}", tmp, -1), "{{tmpvol}}", tmpVol, -1), "{{tmpnovol}}", tmpNoVol, -1)
+
+		if test.wd == "." {
+			err := os.Chdir(cwd)
+			if err != nil {
+				t.Error(err)
+
+				continue
+			}
+		} else {
+			err := os.Chdir(wd)
+			if err != nil {
+				t.Error(err)
+
+				continue
+			}
+		}
+
+		got, err := filepath.ToNorm(arg, filepath.NormBase)
+		if err != nil {
+			t.Errorf("toNorm(%s) failed: %v (wd=%s)\n", arg, err, wd)
+		} else if got != want {
+			t.Errorf("toNorm(%s) returns %s, but %s expected (wd=%s)\n", arg, got, want, wd)
 		}
 	}
 }
