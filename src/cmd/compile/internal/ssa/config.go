@@ -194,6 +194,16 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.noDuffDevice = true // TODO: Resolve PPC64 DuffDevice (has zero, but not copy)
 		c.NeedsFpScratch = true
 		c.hasGReg = true
+	case "mips64", "mips64le":
+		c.IntSize = 8
+		c.PtrSize = 8
+		c.lowerBlock = rewriteBlockMIPS64
+		c.lowerValue = rewriteValueMIPS64
+		c.registers = registersMIPS64[:]
+		c.gpRegMask = gpRegMaskMIPS64
+		c.fpRegMask = fpRegMaskMIPS64
+		c.FPReg = framepointerRegMIPS64
+		c.hasGReg = true
 	default:
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}

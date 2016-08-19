@@ -17305,6 +17305,7 @@ func rewriteBlockARM(b *Block) bool {
 		// result: (NE (CMPconst [0] cond) yes no)
 		for {
 			v := b.Control
+			_ = v
 			cond := b.Control
 			yes := b.Succs[0]
 			no := b.Succs[1]

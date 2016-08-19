@@ -234,6 +234,7 @@ func genRules(arch arch) {
 				if strings.Contains(s[1], "(") {
 					genMatch0(w, arch, s[1], "v", map[string]struct{}{}, false, rule.loc)
 				} else {
+					fmt.Fprintf(w, "_ = v\n") // in case we don't use v
 					fmt.Fprintf(w, "%s := b.Control\n", s[1])
 				}
 			}
