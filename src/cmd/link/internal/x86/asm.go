@@ -38,7 +38,7 @@ import (
 )
 
 // Append 4 bytes to s and create a R_CALL relocation targeting t to fill them in.
-func addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) {
+func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
 	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
@@ -149,7 +149,7 @@ func gentext() {
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
-func adddynrel(s *ld.LSym, r *ld.Reloc) {
+func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
@@ -483,7 +483,7 @@ func pereloc1(r *ld.Reloc, sectoff int64) bool {
 	return true
 }
 
-func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		return -1
 	}
@@ -500,7 +500,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	return -1
 }
 
-func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+func archrelocvariant(r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return t
 }
@@ -532,7 +532,7 @@ func elfsetupplt() {
 	}
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -592,7 +592,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *ld.LSym) {
+func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Got >= 0 {
 		return
 	}

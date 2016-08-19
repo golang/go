@@ -119,7 +119,7 @@ func deadcode(ctxt *Link) {
 	}
 
 	// Remove dead text but keep file information (z symbols).
-	textp := make([]*LSym, 0, len(ctxt.Textp))
+	textp := make([]*Symbol, 0, len(ctxt.Textp))
 	for _, s := range ctxt.Textp {
 		if s.Attr.Reachable() {
 			textp = append(textp, s)
@@ -154,11 +154,11 @@ var markextra = []string{
 // the reflect.method struct: mtyp, ifn, and tfn.
 type methodref struct {
 	m   methodsig
-	src *LSym     // receiver type symbol
+	src *Symbol   // receiver type symbol
 	r   [3]*Reloc // R_METHODOFF relocations to fields of runtime.method
 }
 
-func (m methodref) ifn() *LSym { return m.r[1].Sym }
+func (m methodref) ifn() *Symbol { return m.r[1].Sym }
 
 func (m methodref) isExported() bool {
 	for _, r := range m.m {
@@ -170,7 +170,7 @@ func (m methodref) isExported() bool {
 // deadcodepass holds state for the deadcode flood fill.
 type deadcodepass struct {
 	ctxt            *Link
-	markQueue       []*LSym            // symbols to flood fill in next pass
+	markQueue       []*Symbol          // symbols to flood fill in next pass
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
 	reflectMethod   bool
@@ -189,7 +189,7 @@ func (d *deadcodepass) cleanupReloc(r *Reloc) {
 }
 
 // mark appends a symbol to the mark queue for flood filling.
-func (d *deadcodepass) mark(s, parent *LSym) {
+func (d *deadcodepass) mark(s, parent *Symbol) {
 	if s == nil || s.Attr.Reachable() {
 		return
 	}

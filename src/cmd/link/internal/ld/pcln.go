@@ -123,7 +123,7 @@ func addvarint(d *Pcdata, val uint32) {
 	p[0] = byte(v)
 }
 
-func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
+func addpctab(ftab *Symbol, off int32, d *Pcdata) int32 {
 	var start int32
 	if len(d.P) > 0 {
 		start = int32(len(ftab.P))
@@ -132,7 +132,7 @@ func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
 	return int32(setuint32(Ctxt, ftab, int64(off), uint32(start)))
 }
 
-func ftabaddstring(ftab *LSym, s string) int32 {
+func ftabaddstring(ftab *Symbol, s string) int32 {
 	n := int32(len(s)) + 1
 	start := int32(len(ftab.P))
 	Symgrow(Ctxt, ftab, int64(start)+int64(n)+1)
@@ -140,8 +140,8 @@ func ftabaddstring(ftab *LSym, s string) int32 {
 	return start
 }
 
-func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
-	var f *LSym
+func renumberfiles(ctxt *Link, files []*Symbol, d *Pcdata) {
+	var f *Symbol
 
 	// Give files numbers.
 	for i := 0; i < len(files); i++ {
@@ -186,7 +186,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 	*d = out
 }
 
-func container(s *LSym) int {
+func container(s *Symbol) int {
 	// We want to generate func table entries only for the "lowest level" symbols,
 	// not containers of subsymbols.
 	if s != nil && s.Type&obj.SCONTAINER != 0 {
@@ -204,8 +204,8 @@ var pclntab_zpcln FuncInfo
 var pclntabNfunc int32
 var pclntabFiletabOffset int32
 var pclntabPclntabOffset int32
-var pclntabFirstFunc *LSym
-var pclntabLastFunc *LSym
+var pclntabFirstFunc *Symbol
+var pclntabLastFunc *Symbol
 
 func pclntab() {
 	funcdata_bytes := int64(0)
@@ -243,7 +243,7 @@ func pclntab() {
 	pclntabPclntabOffset = int32(8 + SysArch.PtrSize)
 
 	nfunc = 0
-	var last *LSym
+	var last *Symbol
 	for _, Ctxt.Cursym = range Ctxt.Textp {
 		last = Ctxt.Cursym
 		if container(Ctxt.Cursym) != 0 {
@@ -420,7 +420,7 @@ func findfunctab() {
 			continue
 		}
 		p := s.Value
-		var e *LSym
+		var e *Symbol
 		i++
 		if i < len(Ctxt.Textp) {
 			e = Ctxt.Textp[i]

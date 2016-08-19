@@ -58,12 +58,12 @@ var headers = []struct {
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
-		Hash: []map[string]*LSym{
+		Hash: []map[string]*Symbol{
 			// preallocate about 2mb for hash of
 			// non static symbols
-			make(map[string]*LSym, 100000),
+			make(map[string]*Symbol, 100000),
 		},
-		Allsym: make([]*LSym, 0, 100000),
+		Allsym: make([]*Symbol, 0, 100000),
 		Arch:   arch,
 		Goroot: obj.Getgoroot(),
 	}
@@ -160,10 +160,10 @@ func linknew(arch *sys.Arch) *Link {
 	return ctxt
 }
 
-func linknewsym(ctxt *Link, name string, v int) *LSym {
+func linknewsym(ctxt *Link, name string, v int) *Symbol {
 	batch := ctxt.LSymBatch
 	if len(batch) == 0 {
-		batch = make([]LSym, 1000)
+		batch = make([]Symbol, 1000)
 	}
 	s := &batch[0]
 	ctxt.LSymBatch = batch[1:]
@@ -178,7 +178,7 @@ func linknewsym(ctxt *Link, name string, v int) *LSym {
 	return s
 }
 
-func Linklookup(ctxt *Link, name string, v int) *LSym {
+func Linklookup(ctxt *Link, name string, v int) *Symbol {
 	m := ctxt.Hash[v]
 	s := m[name]
 	if s != nil {
@@ -191,7 +191,7 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
 }
 
 // read-only lookup
-func Linkrlookup(ctxt *Link, name string, v int) *LSym {
+func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
 	return ctxt.Hash[v][name]
 }
 

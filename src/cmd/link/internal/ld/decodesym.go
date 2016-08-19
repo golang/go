@@ -28,7 +28,7 @@ const (
 	tflagExtraStar = 1 << 1
 )
 
-func decode_reloc(s *LSym, off int32) *Reloc {
+func decode_reloc(s *Symbol, off int32) *Reloc {
 	for i := range s.R {
 		if s.R[i].Off == off {
 			return &s.R[i]
@@ -37,7 +37,7 @@ func decode_reloc(s *LSym, off int32) *Reloc {
 	return nil
 }
 
-func decode_reloc_sym(s *LSym, off int32) *LSym {
+func decode_reloc_sym(s *Symbol, off int32) *Symbol {
 	r := decode_reloc(s, off)
 	if r == nil {
 		return nil
@@ -64,27 +64,27 @@ func structfieldSize() int { return 3 * SysArch.PtrSize }       // runtime.struc
 func uncommonSize() int    { return 4 + 2 + 2 + 4 + 4 }         // runtime.uncommontype
 
 // Type.commonType.kind
-func decodetype_kind(s *LSym) uint8 {
+func decodetype_kind(s *Symbol) uint8 {
 	return s.P[2*SysArch.PtrSize+7] & obj.KindMask //  0x13 / 0x1f
 }
 
 // Type.commonType.kind
-func decodetype_usegcprog(s *LSym) uint8 {
+func decodetype_usegcprog(s *Symbol) uint8 {
 	return s.P[2*SysArch.PtrSize+7] & obj.KindGCProg //  0x13 / 0x1f
 }
 
 // Type.commonType.size
-func decodetype_size(s *LSym) int64 {
+func decodetype_size(s *Symbol) int64 {
 	return int64(decode_inuxi(s.P, SysArch.PtrSize)) // 0x8 / 0x10
 }
 
 // Type.commonType.ptrdata
-func decodetype_ptrdata(s *LSym) int64 {
+func decodetype_ptrdata(s *Symbol) int64 {
 	return int64(decode_inuxi(s.P[SysArch.PtrSize:], SysArch.PtrSize)) // 0x8 / 0x10
 }
 
 // Type.commonType.tflag
-func decodetype_hasUncommon(s *LSym) bool {
+func decodetype_hasUncommon(s *Symbol) bool {
 	return s.P[2*SysArch.PtrSize+4]&tflagUncommon != 0
 }
 
@@ -103,7 +103,7 @@ func findShlibSection(path string, addr uint64) *elf.Section {
 }
 
 // Type.commonType.gc
-func decodetype_gcprog(s *LSym) []byte {
+func decodetype_gcprog(s *Symbol) []byte {
 	if s.Type == obj.SDYNIMPORT {
 		addr := decodetype_gcprog_shlib(s)
 		sect := findShlibSection(s.File, addr)
@@ -122,7 +122,7 @@ func decodetype_gcprog(s *LSym) []byte {
 	return decode_reloc_sym(s, 2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize)).P
 }
 
-func decodetype_gcprog_shlib(s *LSym) uint64 {
+func decodetype_gcprog_shlib(s *Symbol) uint64 {
 	if SysArch.Family == sys.ARM64 {
 		for _, shlib := range Ctxt.Shlibs {
 			if shlib.Path == s.File {
@@ -134,7 +134,7 @@ func decodetype_gcprog_shlib(s *LSym) uint64 {
 	return decode_inuxi(s.P[2*int32(SysArch.PtrSize)+8+1*int32(SysArch.PtrSize):], SysArch.PtrSize)
 }
 
-func decodetype_gcmask(s *LSym) []byte {
+func decodetype_gcmask(s *Symbol) []byte {
 	if s.Type == obj.SDYNIMPORT {
 		addr := decodetype_gcprog_shlib(s)
 		ptrdata := decodetype_ptrdata(s)
@@ -152,48 +152,48 @@ func decodetype_gcmask(s *LSym) []byte {
 }
 
 // Type.ArrayType.elem and Type.SliceType.Elem
-func decodetype_arrayelem(s *LSym) *LSym {
+func decodetype_arrayelem(s *Symbol) *Symbol {
 	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
 }
 
-func decodetype_arraylen(s *LSym) int64 {
+func decodetype_arraylen(s *Symbol) int64 {
 	return int64(decode_inuxi(s.P[commonsize()+2*SysArch.PtrSize:], SysArch.PtrSize))
 }
 
 // Type.PtrType.elem
-func decodetype_ptrelem(s *LSym) *LSym {
+func decodetype_ptrelem(s *Symbol) *Symbol {
 	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
 }
 
 // Type.MapType.key, elem
-func decodetype_mapkey(s *LSym) *LSym {
+func decodetype_mapkey(s *Symbol) *Symbol {
 	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
 }
 
-func decodetype_mapvalue(s *LSym) *LSym {
+func decodetype_mapvalue(s *Symbol) *Symbol {
 	return decode_reloc_sym(s, int32(commonsize())+int32(SysArch.PtrSize)) // 0x20 / 0x38
 }
 
 // Type.ChanType.elem
-func decodetype_chanelem(s *LSym) *LSym {
+func decodetype_chanelem(s *Symbol) *Symbol {
 	return decode_reloc_sym(s, int32(commonsize())) // 0x1c / 0x30
 }
 
 // Type.FuncType.dotdotdot
-func decodetype_funcdotdotdot(s *LSym) bool {
+func decodetype_funcdotdotdot(s *Symbol) bool {
 	return uint16(decode_inuxi(s.P[commonsize()+2:], 2))&(1<<15) != 0
 }
 
 // Type.FuncType.inCount
-func decodetype_funcincount(s *LSym) int {
+func decodetype_funcincount(s *Symbol) int {
 	return int(decode_inuxi(s.P[commonsize():], 2))
 }
 
-func decodetype_funcoutcount(s *LSym) int {
+func decodetype_funcoutcount(s *Symbol) int {
 	return int(uint16(decode_inuxi(s.P[commonsize()+2:], 2)) & (1<<15 - 1))
 }
 
-func decodetype_funcintype(s *LSym, i int) *LSym {
+func decodetype_funcintype(s *Symbol, i int) *Symbol {
 	uadd := commonsize() + 4
 	if SysArch.PtrSize == 8 {
 		uadd += 4
@@ -204,16 +204,16 @@ func decodetype_funcintype(s *LSym, i int) *LSym {
 	return decode_reloc_sym(s, int32(uadd+i*SysArch.PtrSize))
 }
 
-func decodetype_funcouttype(s *LSym, i int) *LSym {
+func decodetype_funcouttype(s *Symbol, i int) *Symbol {
 	return decodetype_funcintype(s, i+decodetype_funcincount(s))
 }
 
 // Type.StructType.fields.Slice::length
-func decodetype_structfieldcount(s *LSym) int {
+func decodetype_structfieldcount(s *Symbol) int {
 	return int(decode_inuxi(s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
 }
 
-func decodetype_structfieldarrayoff(s *LSym, i int) int {
+func decodetype_structfieldarrayoff(s *Symbol, i int) int {
 	off := commonsize() + 2*SysArch.PtrSize + 2*SysArch.IntSize
 	if decodetype_hasUncommon(s) {
 		off += uncommonSize()
@@ -223,7 +223,7 @@ func decodetype_structfieldarrayoff(s *LSym, i int) int {
 }
 
 // decodetype_str returns the contents of an rtype's str field (a nameOff).
-func decodetype_str(s *LSym) string {
+func decodetype_str(s *Symbol) string {
 	str := decodetype_name(s, 4*SysArch.PtrSize+8)
 	if s.P[2*SysArch.PtrSize+4]&tflagExtraStar != 0 {
 		return str[1:]
@@ -232,7 +232,7 @@ func decodetype_str(s *LSym) string {
 }
 
 // decodetype_name decodes the name from a reflect.name.
-func decodetype_name(s *LSym, off int) string {
+func decodetype_name(s *Symbol, off int) string {
 	r := decode_reloc(s, int32(off))
 	if r == nil {
 		return ""
@@ -243,23 +243,23 @@ func decodetype_name(s *LSym, off int) string {
 	return string(data[3 : 3+namelen])
 }
 
-func decodetype_structfieldname(s *LSym, i int) string {
+func decodetype_structfieldname(s *Symbol, i int) string {
 	off := decodetype_structfieldarrayoff(s, i)
 	return decodetype_name(s, off)
 }
 
-func decodetype_structfieldtype(s *LSym, i int) *LSym {
+func decodetype_structfieldtype(s *Symbol, i int) *Symbol {
 	off := decodetype_structfieldarrayoff(s, i)
 	return decode_reloc_sym(s, int32(off+SysArch.PtrSize))
 }
 
-func decodetype_structfieldoffs(s *LSym, i int) int64 {
+func decodetype_structfieldoffs(s *Symbol, i int) int64 {
 	off := decodetype_structfieldarrayoff(s, i)
 	return int64(decode_inuxi(s.P[off+2*SysArch.PtrSize:], SysArch.IntSize))
 }
 
 // InterfaceType.methods.length
-func decodetype_ifacemethodcount(s *LSym) int64 {
+func decodetype_ifacemethodcount(s *Symbol) int64 {
 	return int64(decode_inuxi(s.P[commonsize()+2*SysArch.PtrSize:], SysArch.IntSize))
 }
 
@@ -286,7 +286,7 @@ const (
 // the function type.
 //
 // Conveniently this is the layout of both runtime.method and runtime.imethod.
-func decode_methodsig(s *LSym, off, size, count int) []methodsig {
+func decode_methodsig(s *Symbol, off, size, count int) []methodsig {
 	var buf bytes.Buffer
 	var methods []methodsig
 	for i := 0; i < count; i++ {
@@ -318,7 +318,7 @@ func decode_methodsig(s *LSym, off, size, count int) []methodsig {
 	return methods
 }
 
-func decodetype_ifacemethods(s *LSym) []methodsig {
+func decodetype_ifacemethods(s *Symbol) []methodsig {
 	if decodetype_kind(s)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", s.Name))
 	}
@@ -335,7 +335,7 @@ func decodetype_ifacemethods(s *LSym) []methodsig {
 	return decode_methodsig(s, off, sizeofIMethod, numMethods)
 }
 
-func decodetype_methods(s *LSym) []methodsig {
+func decodetype_methods(s *Symbol) []methodsig {
 	if !decodetype_hasUncommon(s) {
 		panic(fmt.Sprintf("no methods on %q", s.Name))
 	}

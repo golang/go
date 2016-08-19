@@ -109,7 +109,7 @@ func braddoff(a int32, b int32) int32 {
 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
 }
 
-func adddynrel(s *ld.LSym, r *ld.Reloc) {
+func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
@@ -410,7 +410,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	return 0
 }
 
-func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		case obj.R_CALLARM:
@@ -487,12 +487,12 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	return -1
 }
 
-func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+func archrelocvariant(r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return t
 }
 
-func addpltreloc(ctxt *ld.Link, plt *ld.LSym, got *ld.LSym, sym *ld.LSym, typ int) *ld.Reloc {
+func addpltreloc(ctxt *ld.Link, plt *ld.Symbol, got *ld.Symbol, sym *ld.Symbol, typ int) *ld.Reloc {
 	r := ld.Addrel(plt)
 	r.Sym = got
 	r.Off = int32(plt.Size)
@@ -507,7 +507,7 @@ func addpltreloc(ctxt *ld.Link, plt *ld.LSym, got *ld.LSym, sym *ld.LSym, typ in
 	return r
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -546,7 +546,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 	}
 }
 
-func addgotsyminternal(ctxt *ld.Link, s *ld.LSym) {
+func addgotsyminternal(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Got >= 0 {
 		return
 	}
@@ -562,7 +562,7 @@ func addgotsyminternal(ctxt *ld.Link, s *ld.LSym) {
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *ld.LSym) {
+func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Got >= 0 {
 		return
 	}

@@ -84,7 +84,7 @@ var numelfsym int = 1 // 0 is reserved
 
 var elfbind int
 
-func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
+func putelfsym(x *Symbol, s string, t int, addr int64, size int64, ver int, go_ *Symbol) {
 	var type_ int
 
 	switch t {
@@ -184,7 +184,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	numelfsym++
 }
 
-func putelfsectionsym(s *LSym, shndx int) {
+func putelfsectionsym(s *Symbol, shndx int) {
 	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
 	s.Elfsym = int32(numelfsym)
 	numelfsym++
@@ -211,7 +211,7 @@ func Asmelfsym() {
 	genasmsym(putelfsym)
 }
 
-func putplan9sym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *LSym) {
+func putplan9sym(x *Symbol, s string, t int, addr int64, size int64, ver int, go_ *Symbol) {
 	switch t {
 	case 'T', 'L', 'D', 'B':
 		if ver != 0 {
@@ -267,7 +267,7 @@ func Asmplan9sym() {
 	genasmsym(putplan9sym)
 }
 
-var symt *LSym
+var symt *Symbol
 
 var encbuf [10]byte
 
@@ -360,8 +360,8 @@ func symtab() {
 	xdefine("runtime.egcbss", obj.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
-	var symtype *LSym
-	var symtyperel *LSym
+	var symtype *Symbol
+	var symtyperel *Symbol
 	if UseRelro() && (Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
 		s = Linklookup(Ctxt, "type.*", 0)
 
@@ -386,7 +386,7 @@ func symtab() {
 		symtyperel = s
 	}
 
-	groupSym := func(name string, t int16) *LSym {
+	groupSym := func(name string, t int16) *Symbol {
 		s := Linklookup(Ctxt, name, 0)
 		s.Type = t
 		s.Size = 0

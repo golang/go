@@ -196,7 +196,7 @@ func gentext() {
 
 // Construct a call stub in stub that calls symbol targ via its PLT
 // entry.
-func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
+func gencallstub(abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	if abicase != 1 {
 		// If we see R_PPC64_TOCSAVE or R_PPC64_REL24_NOTOC
 		// relocations, we'll need to implement cases 2 and 3.
@@ -240,7 +240,7 @@ func gencallstub(abicase int, stub *ld.LSym, targ *ld.LSym) {
 	ld.Adduint32(ld.Ctxt, stub, 0x4e800420) // bctr
 }
 
-func adddynrel(s *ld.LSym, r *ld.Reloc) {
+func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	targ := r.Sym
 	ld.Ctxt.Cursym = s
 
@@ -448,8 +448,8 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 }
 
 // Return the value of .TOC. for symbol s
-func symtoc(s *ld.LSym) int64 {
-	var toc *ld.LSym
+func symtoc(s *ld.Symbol) int64 {
+	var toc *ld.Symbol
 
 	if s.Outer != nil {
 		toc = ld.Linkrlookup(ld.Ctxt, ".TOC.", int(s.Outer.Version))
@@ -465,7 +465,7 @@ func symtoc(s *ld.LSym) int64 {
 	return toc.Value
 }
 
-func archrelocaddr(r *ld.Reloc, s *ld.LSym, val *int64) int {
+func archrelocaddr(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	var o1, o2 uint32
 	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 		o1 = uint32(*val >> 32)
@@ -514,7 +514,7 @@ func archrelocaddr(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	return 0
 }
 
-func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
@@ -607,7 +607,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	return -1
 }
 
-func archrelocvariant(r *ld.Reloc, s *ld.LSym, t int64) int64 {
+func archrelocvariant(r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	switch r.Variant & ld.RV_TYPE_MASK {
 	default:
 		ld.Diag("unexpected relocation variant %d", r.Variant)
@@ -698,7 +698,7 @@ overflow:
 	return t
 }
 
-func addpltsym(ctxt *ld.Link, s *ld.LSym) {
+func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 	if s.Plt >= 0 {
 		return
 	}
@@ -744,7 +744,7 @@ func addpltsym(ctxt *ld.Link, s *ld.LSym) {
 }
 
 // Generate the glink resolver stub if necessary and return the .glink section
-func ensureglinkresolver() *ld.LSym {
+func ensureglinkresolver() *ld.Symbol {
 	glink := ld.Linklookup(ld.Ctxt, ".glink", 0)
 	if glink.Size != 0 {
 		return glink

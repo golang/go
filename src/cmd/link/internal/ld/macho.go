@@ -121,7 +121,7 @@ const (
 
 var nkind [NumSymKind]int
 
-var sortsym []*LSym
+var sortsym []*Symbol
 
 var nsortsym int
 
@@ -602,7 +602,7 @@ func Asmbmacho() {
 	}
 }
 
-func symkind(s *LSym) int {
+func symkind(s *Symbol) int {
 	if s.Type == obj.SDYNIMPORT {
 		return SymKindUndef
 	}
@@ -612,7 +612,7 @@ func symkind(s *LSym) int {
 	return SymKindLocal
 }
 
-func addsym(s *LSym, name string, type_ int, addr int64, size int64, ver int, gotype *LSym) {
+func addsym(s *Symbol, name string, type_ int, addr int64, size int64, ver int, gotype *Symbol) {
 	if s == nil {
 		return
 	}
@@ -633,7 +633,7 @@ func addsym(s *LSym, name string, type_ int, addr int64, size int64, ver int, go
 	nsortsym++
 }
 
-type machoscmp []*LSym
+type machoscmp []*Symbol
 
 func (x machoscmp) Len() int {
 	return len(x)
@@ -656,7 +656,7 @@ func (x machoscmp) Less(i, j int) bool {
 	return s1.Extname < s2.Extname
 }
 
-func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
+func machogenasmsym(put func(*Symbol, string, int, int64, int64, int, *Symbol)) {
 	genasmsym(put)
 	for _, s := range Ctxt.Allsym {
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
@@ -675,7 +675,7 @@ func machosymorder() {
 		dynexp[i].Attr |= AttrReachable
 	}
 	machogenasmsym(addsym)
-	sortsym = make([]*LSym, nsortsym)
+	sortsym = make([]*Symbol, nsortsym)
 	nsortsym = 0
 	machogenasmsym(addsym)
 	sort.Sort(machoscmp(sortsym[:nsortsym]))
@@ -809,7 +809,7 @@ func Domacholink() int64 {
 	return Rnd(int64(size), int64(INITRND))
 }
 
-func machorelocsect(sect *Section, syms []*LSym) {
+func machorelocsect(sect *Section, syms []*Symbol) {
 	// If main section has no bits, nothing to relocate.
 	if sect.Vaddr >= sect.Seg.Vaddr+sect.Seg.Filelen {
 		return

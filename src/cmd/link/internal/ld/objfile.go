@@ -135,19 +135,19 @@ type objReader struct {
 	pkg  string
 	pn   string
 	// List of symbol references for the file being read.
-	dupSym *LSym
+	dupSym *Symbol
 
 	// rdBuf is used by readString and readSymName as scratch for reading strings.
 	rdBuf []byte
 
-	refs        []*LSym
+	refs        []*Symbol
 	data        []byte
 	reloc       []Reloc
 	pcdata      []Pcdata
 	autom       []Auto
-	funcdata    []*LSym
+	funcdata    []*Symbol
 	funcdataoff []int64
-	file        []*LSym
+	file        []*Symbol
 }
 
 func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
@@ -157,7 +157,7 @@ func LoadObjFile(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string)
 		pkg:    pkg,
 		ctxt:   ctxt,
 		pn:     pn,
-		dupSym: &LSym{Name: ".dup"},
+		dupSym: &Symbol{Name: ".dup"},
 	}
 	r.loadObjFile()
 	if f.Offset() != start+length {
@@ -192,7 +192,7 @@ func (r *objReader) loadObjFile() {
 	}
 
 	// Symbol references
-	r.refs = []*LSym{nil} // zeroth ref is nil
+	r.refs = []*Symbol{nil} // zeroth ref is nil
 	for {
 		c, err := r.rd.Peek(1)
 		if err != nil {
@@ -241,10 +241,10 @@ func (r *objReader) readSlices() {
 	n = r.readInt()
 	r.autom = make([]Auto, n)
 	n = r.readInt()
-	r.funcdata = make([]*LSym, n)
+	r.funcdata = make([]*Symbol, n)
 	r.funcdataoff = make([]int64, n)
 	n = r.readInt()
-	r.file = make([]*LSym, n)
+	r.file = make([]*Symbol, n)
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -265,7 +265,7 @@ func (r *objReader) readSym() {
 	nreloc := r.readInt()
 	isdup := false
 
-	var dup *LSym
+	var dup *Symbol
 	if s.Type != 0 && s.Type != obj.SXREF {
 		if (t == obj.SDATA || t == obj.SBSS || t == obj.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
 			if s.Size < int64(size) {
@@ -407,7 +407,7 @@ overwrite:
 	}
 }
 
-func (r *objReader) patchDWARFName(s *LSym) {
+func (r *objReader) patchDWARFName(s *Symbol) {
 	// This is kind of ugly. Really the package name should not
 	// even be included here.
 	if s.Size < 1 || s.P[0] != dwarf.DW_ABRV_FUNCTION {
@@ -618,7 +618,7 @@ func (r *objReader) readSymName() string {
 }
 
 // Reads the index of a symbol reference and resolves it to a symbol
-func (r *objReader) readSymIndex() *LSym {
+func (r *objReader) readSymIndex() *Symbol {
 	i := r.readInt()
 	return r.refs[i]
 }
