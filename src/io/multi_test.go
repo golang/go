@@ -196,3 +196,41 @@ func TestMultiReaderFlatten(t *testing.T) {
 			myDepth+2, readDepth)
 	}
 }
+
+// byteAndEOFReader is a Reader which reads one byte (the underlying
+// byte) and io.EOF at once in its Read call.
+type byteAndEOFReader byte
+
+func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		// Read(0 bytes) is useless. We expect no such useless
+		// calls in this test.
+		panic("unexpected call")
+	}
+	p[0] = byte(b)
+	return 1, EOF
+}
+
+// In Go 1.7, this yielded bytes forever.
+func TestMultiReaderSingleByteWithEOF(t *testing.T) {
+	got, err := ioutil.ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "ab"
+	if string(got) != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+}
+
+// Test that a reader returning (n, EOF) at the end of an MultiReader
+// chain continues to return EOF on its final read, rather than
+// yielding a (0, EOF).
+func TestMultiReaderFinalEOF(t *testing.T) {
+	r := MultiReader(bytes.NewReader(nil), byteAndEOFReader('a'))
+	buf := make([]byte, 2)
+	n, err := r.Read(buf)
+	if n != 1 || err != EOF {
+		t.Errorf("got %v, %v; want 1, EOF", n, err)
+	}
+}
