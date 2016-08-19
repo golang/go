@@ -917,7 +917,9 @@ func scavengelist(list *mSpanList, now, limit uint64) uintptr {
 				// more memory than we want.)
 				start = (start + sys.PhysPageSize - 1) &^ (sys.PhysPageSize - 1)
 				end &^= sys.PhysPageSize - 1
-				if start <= end {
+				if end <= start {
+					// start and end don't span a
+					// whole physical page.
 					continue
 				}
 			}
