@@ -110,6 +110,7 @@ func (tr *Reader) Next() (*Header, error) {
 	}
 
 	var hdr *Header
+	var rawHdr *block
 	var extHdrs map[string]string
 
 	// Externally, Next iterates through the tar archive as if it is a series of
@@ -124,7 +125,12 @@ loop:
 			return nil, tr.err
 		}
 
-		hdr = tr.readHeader()
+		hdr, rawHdr = tr.readHeader()
+		if tr.err != nil {
+			return nil, tr.err
+		}
+
+		tr.err = tr.handleRegularFile(hdr)
 		if tr.err != nil {
 			return nil, tr.err
 		}
@@ -161,26 +167,73 @@ loop:
 			}
 			continue loop // This is a meta header affecting the next header
 		default:
+			// The old GNU sparse format is handled here since it is technically
+			// just a regular file with additional attributes.
+
+			// TODO(dsnet): We should handle errors reported by mergePAX.
 			mergePAX(hdr, extHdrs)
 
-			// Check for a PAX format sparse file
-			sp, err := tr.checkForGNUSparsePAXHeaders(hdr, extHdrs)
-			if err != nil {
-				tr.err = err
-				return nil, err
-			}
-			if sp != nil {
-				// Current file is a PAX format GNU sparse file.
-				// Set the current file reader to a sparse file reader.
-				tr.curr, tr.err = newSparseFileReader(tr.curr, sp, hdr.Size)
-				if tr.err != nil {
-					return nil, tr.err
-				}
+			// TODO(dsnet): The extended headers may have updated the size.
+			// Thus, we must setup the regFileReader again here.
+			//
+			// See golang.org/issue/15573
+
+			tr.err = tr.handleSparseFile(hdr, rawHdr, extHdrs)
+			if tr.err != nil {
+				return nil, tr.err
 			}
 			break loop // This is a file, so stop
 		}
 	}
 	return hdr, nil
+}
+
+// handleRegularFile sets up the current file reader and padding such that it
+// can only read the following logical data section. It will properly handle
+// special headers that contain no data section.
+func (tr *Reader) handleRegularFile(hdr *Header) error {
+	nb := hdr.Size
+	if isHeaderOnlyType(hdr.Typeflag) {
+		nb = 0
+	}
+	if nb < 0 {
+		return ErrHeader
+	}
+
+	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
+	tr.curr = &regFileReader{r: tr.r, nb: nb}
+	return nil
+}
+
+// handleSparseFile checks if the current file is a sparse format of any type
+// and sets the curr reader appropriately.
+func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[string]string) error {
+	var sp []sparseEntry
+	var err error
+	if hdr.Typeflag == TypeGNUSparse {
+		var p parser
+		hdr.Size = p.parseNumeric(rawHdr.GNU().RealSize())
+		if p.err != nil {
+			return p.err
+		}
+
+		sp = tr.readOldGNUSparseMap(rawHdr)
+		if tr.err != nil {
+			return tr.err
+		}
+	} else {
+		sp, err = tr.checkForGNUSparsePAXHeaders(hdr, extHdrs)
+		if err != nil {
+			return err
+		}
+	}
+
+	// If sp is non-nil, then this is a sparse file.
+	// Note that it is possible for len(sp) to be zero.
+	if sp != nil {
+		tr.curr, err = newSparseFileReader(tr.curr, sp, hdr.Size)
+	}
+	return err
 }
 
 // checkForGNUSparsePAXHeaders checks the PAX headers for GNU sparse headers. If they are found, then
@@ -532,35 +585,36 @@ func (tr *Reader) skipUnread() error {
 }
 
 // readHeader reads the next block header and assumes that the underlying reader
-// is already aligned to a block boundary.
+// is already aligned to a block boundary. It returns the raw block of the
+// header in case further processing is required.
 //
 // The err will be set to io.EOF only when one of the following occurs:
 //	* Exactly 0 bytes are read and EOF is hit.
 //	* Exactly 1 block of zeros is read and EOF is hit.
 //	* At least 2 blocks of zeros are read.
-func (tr *Reader) readHeader() *Header {
+func (tr *Reader) readHeader() (*Header, *block) {
 	if _, tr.err = io.ReadFull(tr.r, tr.blk[:]); tr.err != nil {
-		return nil // io.EOF is okay here
+		return nil, nil // io.EOF is okay here
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
 	if bytes.Equal(tr.blk[:], zeroBlock[:]) {
 		if _, tr.err = io.ReadFull(tr.r, tr.blk[:]); tr.err != nil {
-			return nil // io.EOF is okay here
+			return nil, nil // io.EOF is okay here
 		}
 		if bytes.Equal(tr.blk[:], zeroBlock[:]) {
 			tr.err = io.EOF
 		} else {
 			tr.err = ErrHeader // zero block and then non-zero block
 		}
-		return nil
+		return nil, nil
 	}
 
 	// Verify the header matches a known format.
 	format := tr.blk.GetFormat()
 	if format == formatUnknown {
 		tr.err = ErrHeader
-		return nil
+		return nil, nil
 	}
 
 	var p parser
@@ -605,47 +659,12 @@ func (tr *Reader) readHeader() *Header {
 		}
 	}
 
-	nb := hdr.Size
-	if isHeaderOnlyType(hdr.Typeflag) {
-		nb = 0
-	}
-	if nb < 0 {
-		tr.err = ErrHeader
-		return nil
-	}
-
-	// Set the current file reader.
-	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
-	tr.curr = &regFileReader{r: tr.r, nb: nb}
-
-	// Check for old GNU sparse format entry.
-	if hdr.Typeflag == TypeGNUSparse {
-		// Get the real size of the file.
-		hdr.Size = p.parseNumeric(tr.blk.GNU().RealSize())
-		if p.err != nil {
-			tr.err = p.err
-			return nil
-		}
-
-		// Read the sparse map.
-		sp := tr.readOldGNUSparseMap(&tr.blk)
-		if tr.err != nil {
-			return nil
-		}
-
-		// Current file is a GNU sparse file. Update the current file reader.
-		tr.curr, tr.err = newSparseFileReader(tr.curr, sp, hdr.Size)
-		if tr.err != nil {
-			return nil
-		}
-	}
-
+	// Check for parsing errors.
 	if p.err != nil {
 		tr.err = p.err
-		return nil
+		return nil, nil
 	}
-
-	return hdr
+	return hdr, &tr.blk
 }
 
 // readOldGNUSparseMap reads the sparse map as stored in the old GNU sparse format.
