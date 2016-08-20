@@ -130,7 +130,7 @@ func archinit() {
 		}
 
 	case obj.Hlinux: /* mips64 elf */
-		ld.Elfinit()
+		ld.Elfinit(ld.Ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
 			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
@@ -143,7 +143,7 @@ func archinit() {
 		}
 
 	case obj.Hnacl:
-		ld.Elfinit()
+		ld.Elfinit(ld.Ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 16
 		if ld.INITTEXT == -1 {

@@ -171,13 +171,13 @@ type Link struct {
 	// Symbol lookup based on name and indexed by version.
 	Hash []map[string]*Symbol
 
-	Allsym     []*Symbol
-	Tlsg       *Symbol
-	Libdir     []string
-	Library    []*Library
-	Shlibs     []Shlib
-	Tlsoffset  int
-	Diag       func(string, ...interface{})
+	Allsym    []*Symbol
+	Tlsg      *Symbol
+	Libdir    []string
+	Library   []*Library
+	Shlibs    []Shlib
+	Tlsoffset int
+
 	Cursym     *Symbol
 	Version    int
 	Textp      []*Symbol

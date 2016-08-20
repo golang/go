@@ -156,17 +156,17 @@ func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	switch r.Type {
 	default:
 		if r.Type >= 256 {
-			ld.Diag("unexpected relocation type %d", r.Type)
+			ld.Ctxt.Diag("unexpected relocation type %d", r.Type)
 			return
 		}
 
 		// Handle relocations found in ELF object files.
 	case 256 + ld.R_386_PC32:
 		if targ.Type == obj.SDYNIMPORT {
-			ld.Diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
+			ld.Ctxt.Diag("unexpected R_386_PC32 relocation for dynamic symbol %s", targ.Name)
 		}
 		if targ.Type == 0 || targ.Type == obj.SXREF {
-			ld.Diag("unknown symbol %s in pcrel", targ.Name)
+			ld.Ctxt.Diag("unknown symbol %s in pcrel", targ.Name)
 		}
 		r.Type = obj.R_PCREL
 		r.Add += 4
@@ -204,7 +204,7 @@ func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 				return
 			}
 
-			ld.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+			ld.Ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
 			return
 		}
 
@@ -226,7 +226,7 @@ func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 
 	case 256 + ld.R_386_32:
 		if targ.Type == obj.SDYNIMPORT {
-			ld.Diag("unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
+			ld.Ctxt.Diag("unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = obj.R_ADDR
 		return
@@ -234,7 +234,7 @@ func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
 		r.Type = obj.R_ADDR
 		if targ.Type == obj.SDYNIMPORT {
-			ld.Diag("unexpected reloc for dynamic symbol %s", targ.Name)
+			ld.Ctxt.Diag("unexpected reloc for dynamic symbol %s", targ.Name)
 		}
 		return
 
@@ -255,7 +255,7 @@ func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 			// have symbol
 			// turn MOVL of GOT entry into LEAL of symbol itself
 			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
-				ld.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
+				ld.Ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
 				return
 			}
 
@@ -330,7 +330,7 @@ func adddynrel(s *ld.Symbol, r *ld.Reloc) {
 	}
 
 	ld.Ctxt.Cursym = s
-	ld.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ.Name, r.Type, targ.Type)
+	ld.Ctxt.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ.Name, r.Type, targ.Type)
 }
 
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
@@ -404,7 +404,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 
 	if rs.Type == obj.SHOSTOBJ {
 		if rs.Dynid < 0 {
-			ld.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+			ld.Ctxt.Diag("reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
 			return -1
 		}
 
@@ -413,7 +413,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	} else {
 		v = uint32(rs.Sect.Extnum)
 		if v == 0 {
-			ld.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
+			ld.Ctxt.Diag("reloc %d to symbol %s in non-macho section %s type=%d", r.Type, rs.Name, rs.Sect.Name, rs.Type)
 			return -1
 		}
 	}
@@ -459,7 +459,7 @@ func pereloc1(r *ld.Reloc, sectoff int64) bool {
 	rs := r.Xsym
 
 	if rs.Dynid < 0 {
-		ld.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
+		ld.Ctxt.Diag("reloc %d to non-coff symbol %s type=%d", r.Type, rs.Name, rs.Type)
 		return false
 	}
 
@@ -493,7 +493,7 @@ func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
+		*val = ld.Symaddr(ld.Ctxt, r.Sym) + r.Add - ld.Symaddr(ld.Ctxt, ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 	}
 
@@ -588,7 +588,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Adduint8(ctxt, plt, 0x25)
 		ld.Addaddrplus(ctxt, plt, ld.Linklookup(ctxt, ".got", 0), int64(s.Got))
 	} else {
-		ld.Diag("addpltsym: unsupported binary format")
+		ld.Ctxt.Diag("addpltsym: unsupported binary format")
 	}
 }
 
@@ -609,27 +609,27 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 	} else if ld.HEADTYPE == obj.Hdarwin {
 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
 	} else {
-		ld.Diag("addgotsym: unsupported binary format")
+		ld.Ctxt.Diag("addgotsym: unsupported binary format")
 	}
 }
 
-func asmb() {
+func asmb(ctxt *ld.Link) {
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ld.Bso.Flush()
 
 	if ld.Iself {
-		ld.Asmbelfsetup()
+		ld.Asmbelfsetup(ctxt)
 	}
 
 	sect := ld.Segtext.Sect
 	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	// 0xCC is INT $3 - breakpoint instruction
-	ld.CodeblkPad(int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
+	ld.CodeblkPad(ctxt, int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
 	for sect = sect.Next; sect != nil; sect = sect.Next {
 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-		ld.Datblk(int64(sect.Vaddr), int64(sect.Length))
+		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
 	}
 
 	if ld.Segrodata.Filelen > 0 {
@@ -639,7 +639,7 @@ func asmb() {
 		ld.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
-		ld.Datblk(int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
 	if ld.Debug['v'] != 0 {
@@ -648,14 +648,14 @@ func asmb() {
 	ld.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
-	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
 	ld.Cseek(int64(ld.Segdwarf.Fileoff))
-	ld.Dwarfblk(int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
 	if ld.HEADTYPE == obj.Hdarwin {
-		machlink = uint32(ld.Domacholink())
+		machlink = uint32(ld.Domacholink(ctxt))
 	}
 
 	ld.Symsize = 0
@@ -693,20 +693,20 @@ func asmb() {
 				if ld.Debug['v'] != 0 {
 					fmt.Fprintf(ld.Bso, "%5.2f elfsym\n", obj.Cputime())
 				}
-				ld.Asmelfsym()
+				ld.Asmelfsym(ctxt)
 				ld.Cflush()
 				ld.Cwrite(ld.Elfstrdat)
 
 				if ld.Linkmode == ld.LinkExternal {
-					ld.Elfemitreloc()
+					ld.Elfemitreloc(ctxt)
 				}
 			}
 
 		case obj.Hplan9:
-			ld.Asmplan9sym()
+			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
-			sym := ld.Linklookup(ld.Ctxt, "pclntab", 0)
+			sym := ld.Linklookup(ctxt, "pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {
@@ -723,7 +723,7 @@ func asmb() {
 
 		case obj.Hdarwin:
 			if ld.Linkmode == ld.LinkExternal {
-				ld.Machoemitreloc()
+				ld.Machoemitreloc(ctxt)
 			}
 		}
 	}
@@ -742,23 +742,23 @@ func asmb() {
 		ld.Lputb(uint32(ld.Segtext.Filelen)) /* sizes */
 		ld.Lputb(uint32(ld.Segdata.Filelen))
 		ld.Lputb(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ld.Lputb(uint32(ld.Symsize))      /* nsyms */
-		ld.Lputb(uint32(ld.Entryvalue())) /* va of entry */
-		ld.Lputb(uint32(ld.Spsize))       /* sp offsets */
-		ld.Lputb(uint32(ld.Lcsize))       /* line offsets */
+		ld.Lputb(uint32(ld.Symsize))          /* nsyms */
+		ld.Lputb(uint32(ld.Entryvalue(ctxt))) /* va of entry */
+		ld.Lputb(uint32(ld.Spsize))           /* sp offsets */
+		ld.Lputb(uint32(ld.Lcsize))           /* line offsets */
 
 	case obj.Hdarwin:
-		ld.Asmbmacho()
+		ld.Asmbmacho(ctxt)
 
 	case obj.Hlinux,
 		obj.Hfreebsd,
 		obj.Hnetbsd,
 		obj.Hopenbsd,
 		obj.Hnacl:
-		ld.Asmbelf(int64(symo))
+		ld.Asmbelf(ctxt, int64(symo))
 
 	case obj.Hwindows:
-		ld.Asmbpe()
+		ld.Asmbpe(ctxt)
 	}
 
 	ld.Cflush()

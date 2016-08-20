@@ -447,12 +447,12 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 	}
 }
 
-func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
+func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
-	Ctxt.IncVersion()
+	ctxt.IncVersion()
 	base := f.Offset()
 
 	var add uint64
@@ -544,54 +544,54 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	if e.Uint16(hdr.Type[:]) != ElfTypeRelocatable {
-		Diag("%s: elf but not elf relocatable object", pn)
+		ctxt.Diag("%s: elf but not elf relocatable object", pn)
 		return
 	}
 
 	switch SysArch.Family {
 	default:
-		Diag("%s: elf %s unimplemented", pn, SysArch.Name)
+		ctxt.Diag("%s: elf %s unimplemented", pn, SysArch.Name)
 		return
 
 	case sys.MIPS64:
 		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
-			Diag("%s: elf object but not mips64", pn)
+			ctxt.Diag("%s: elf object but not mips64", pn)
 			return
 		}
 
 	case sys.ARM:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
-			Diag("%s: elf object but not arm", pn)
+			ctxt.Diag("%s: elf object but not arm", pn)
 			return
 		}
 
 	case sys.AMD64:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachAmd64 || hdr.Ident[4] != ElfClass64 {
-			Diag("%s: elf object but not amd64", pn)
+			ctxt.Diag("%s: elf object but not amd64", pn)
 			return
 		}
 
 	case sys.ARM64:
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm64 || hdr.Ident[4] != ElfClass64 {
-			Diag("%s: elf object but not arm64", pn)
+			ctxt.Diag("%s: elf object but not arm64", pn)
 			return
 		}
 
 	case sys.I386:
 		if e != binary.LittleEndian || elfobj.machine != ElfMach386 || hdr.Ident[4] != ElfClass32 {
-			Diag("%s: elf object but not 386", pn)
+			ctxt.Diag("%s: elf object but not 386", pn)
 			return
 		}
 
 	case sys.PPC64:
 		if elfobj.machine != ElfMachPower64 || hdr.Ident[4] != ElfClass64 {
-			Diag("%s: elf object but not ppc64", pn)
+			ctxt.Diag("%s: elf object but not ppc64", pn)
 			return
 		}
 
 	case sys.S390X:
 		if elfobj.machine != ElfMachS390 || hdr.Ident[4] != ElfClass64 {
-			Diag("%s: elf object but not s390x", pn)
+			ctxt.Diag("%s: elf object but not s390x", pn)
 			return
 		}
 	}
@@ -667,7 +667,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	}
 
 	if elfobj.symtab.link <= 0 || elfobj.symtab.link >= uint32(elfobj.nsect) {
-		Diag("%s: elf object has symbol table with invalid string table link", pn)
+		ctxt.Diag("%s: elf object has symbol table with invalid string table link", pn)
 		return
 	}
 
@@ -709,7 +709,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = Linklookup(Ctxt, name, Ctxt.Version)
+		s = Linklookup(ctxt, name, ctxt.Version)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -748,7 +748,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	symbols = make([]*Symbol, elfobj.nsymtab)
 
 	for i := 1; i < elfobj.nsymtab; i++ {
-		if err = readelfsym(elfobj, i, &sym, 1); err != nil {
+		if err = readelfsym(ctxt, elfobj, i, &sym, 1); err != nil {
 			goto bad
 		}
 		symbols[i] = sym.sym
@@ -789,7 +789,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 			if strings.HasPrefix(sym.name, ".LASF") { // gcc on s390x does this
 				continue
 			}
-			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
+			ctxt.Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
 			continue
 		}
 
@@ -812,7 +812,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 		s.Outer = sect.sym
 		if sect.sym.Type == obj.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				Diag("%s: duplicate definition of %s", pn, s.Name)
+				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
 			s.Attr |= AttrExternal
 		}
@@ -822,7 +822,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 			if 2 <= flag && flag <= 6 {
 				s.Localentry = 1 << uint(flag-2)
 			} else if flag == 7 {
-				Diag("%s: invalid sym.other 0x%x for %s", pn, sym.other, s.Name)
+				ctxt.Diag("%s: invalid sym.other 0x%x for %s", pn, sym.other, s.Name)
 			}
 		}
 	}
@@ -842,13 +842,13 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= AttrOnList
-			Ctxt.Textp = append(Ctxt.Textp, s)
+			ctxt.Textp = append(ctxt.Textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
 				s.Attr |= AttrOnList
-				Ctxt.Textp = append(Ctxt.Textp, s)
+				ctxt.Textp = append(ctxt.Textp, s)
 			}
 		}
 	}
@@ -910,7 +910,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
 				rp.Sym = nil
 			} else {
-				if err = readelfsym(elfobj, int(info>>32), &sym, 0); err != nil {
+				if err = readelfsym(ctxt, elfobj, int(info>>32), &sym, 0); err != nil {
 					goto bad
 				}
 				sym.sym = symbols[info>>32]
@@ -923,7 +923,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 			}
 
 			rp.Type = 256 + int32(info)
-			rp.Siz = relSize(pn, uint32(info))
+			rp.Siz = relSize(ctxt, pn, uint32(info))
 			if rela != 0 {
 				rp.Add = int64(add)
 			} else {
@@ -933,7 +933,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 				} else if rp.Siz == 8 {
 					rp.Add = int64(e.Uint64(sect.base[rp.Off:]))
 				} else {
-					Diag("invalid rela size %d", rp.Siz)
+					ctxt.Diag("invalid rela size %d", rp.Siz)
 				}
 			}
 
@@ -957,7 +957,7 @@ func ldelf(f *bio.Reader, pkg string, length int64, pn string) {
 	return
 
 bad:
-	Diag("%s: malformed elf file: %v", pn, err)
+	ctxt.Diag("%s: malformed elf file: %v", pn, err)
 }
 
 func section(elfobj *ElfObj, name string) *ElfSect {
@@ -990,14 +990,14 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
+func readelfsym(ctxt *Link, elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
 	}
 
 	if i == 0 {
-		Diag("readym: read null symbol!")
+		ctxt.Diag("readym: read null symbol!")
 	}
 
 	if elfobj.is64 != 0 {
@@ -1040,7 +1040,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 		switch sym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
-				s = Linklookup(Ctxt, sym.name, 0)
+				s = Linklookup(ctxt, sym.name, 0)
 
 				// for global scoped hidden symbols we should insert it into
 				// symbol hash table, but mark them as hidden.
@@ -1066,7 +1066,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = Linklookup(Ctxt, sym.name, Ctxt.Version)
+					s = Linklookup(ctxt, sym.name, ctxt.Version)
 					s.Type |= obj.SHIDDEN
 				}
 
@@ -1077,14 +1077,14 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = linknewsym(Ctxt, sym.name, Ctxt.Version)
+				s = linknewsym(ctxt, sym.name, ctxt.Version)
 
 				s.Type |= obj.SHIDDEN
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = Linklookup(Ctxt, sym.name, 0)
+				s = Linklookup(ctxt, sym.name, 0)
 				if sym.other == 2 {
 					s.Type |= obj.SHIDDEN
 				}
@@ -1126,7 +1126,7 @@ func (x rbyoff) Less(i, j int) bool {
 	return false
 }
 
-func relSize(pn string, elftype uint32) uint8 {
+func relSize(ctxt *Link, pn string, elftype uint32) uint8 {
 	// TODO(mdempsky): Replace this with a struct-valued switch statement
 	// once golang.org/issue/15164 is fixed or found to not impair cmd/link
 	// performance.
@@ -1141,7 +1141,7 @@ func relSize(pn string, elftype uint32) uint8 {
 
 	switch uint32(SysArch.Family) | elftype<<24 {
 	default:
-		Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
+		ctxt.Diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 		fallthrough
 
 	case S390X | R_390_8<<24:

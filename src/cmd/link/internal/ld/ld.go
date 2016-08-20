@@ -118,7 +118,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	if shlibnamefile != "" {
 		shlibbytes, err := ioutil.ReadFile(shlibnamefile)
 		if err != nil {
-			Diag("cannot read %s: %v", shlibnamefile, err)
+			ctxt.Diag("cannot read %s: %v", shlibnamefile, err)
 		}
 		l.Shlib = strings.TrimSpace(string(shlibbytes))
 	}
