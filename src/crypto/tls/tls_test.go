@@ -494,6 +494,10 @@ func TestClone(t *testing.T) {
 		case "ClientSessionCache":
 			f.Set(reflect.ValueOf(NewLRUClientSessionCache(10)))
 			continue
+		case "KeyLogWriter":
+			f.Set(reflect.ValueOf(io.Writer(os.Stdout)))
+			continue
+
 		}
 
 		q, ok := quick.Value(f.Type(), rnd)

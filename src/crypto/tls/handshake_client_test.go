@@ -727,6 +727,47 @@ func TestLRUClientSessionCache(t *testing.T) {
 	}
 }
 
+func TestHandshakeClientKeyLog(t *testing.T) {
+	config := testConfig.clone()
+	buf := &bytes.Buffer{}
+	config.KeyLogWriter = buf
+
+	// config.Rand is zero reader, so client random is all-0
+	var zeroRandom = strings.Repeat("0", 64)
+
+	test := &clientTest{
+		name:    "KeyLogWriter",
+		command: []string{"openssl", "s_server"},
+		config:  config,
+		validate: func(state ConnectionState) error {
+			var format, clientRandom, masterSecret string
+			if _, err := fmt.Fscanf(buf, "%s %s %s\n", &format, &clientRandom, &masterSecret); err != nil {
+				return fmt.Errorf("failed to parse KeyLogWriter: " + err.Error())
+			}
+			if format != "CLIENT_RANDOM" {
+				return fmt.Errorf("got key log format %q, wanted CLIENT_RANDOM", format)
+			}
+			if clientRandom != zeroRandom {
+				return fmt.Errorf("got key log client random %q, wanted %q", clientRandom, zeroRandom)
+			}
+
+			// Master secret is random from server; check length only
+			if len(masterSecret) != 96 {
+				return fmt.Errorf("got wrong length master secret in key log %v, want 96", len(masterSecret))
+			}
+
+			// buf should contain no more lines
+			var trailingGarbage string
+			if _, err := fmt.Fscanln(buf, &trailingGarbage); err == nil {
+				return fmt.Errorf("expected exactly one key in log, got trailing garbage %q", trailingGarbage)
+			}
+
+			return nil
+		},
+	}
+	runClientTestTLS10(t, test)
+}
+
 func TestHandshakeClientALPNMatch(t *testing.T) {
 	config := testConfig.clone()
 	config.NextProtos = []string{"proto2", "proto1"}

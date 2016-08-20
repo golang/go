@@ -493,6 +493,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		return err
 	}
 	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.clientHello.random, hs.hello.random)
+	if err := config.writeKeyLog(hs.clientHello.random, hs.masterSecret); err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
 
 	// If we received a client cert in response to our certificate request message,
 	// the client will send us a certificateVerifyMsg immediately after the

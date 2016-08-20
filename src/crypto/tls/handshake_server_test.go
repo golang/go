@@ -747,6 +747,43 @@ func TestHandshakeServerECDHEECDSAAES(t *testing.T) {
 	runServerTestTLS12(t, test)
 }
 
+func TestHandshakeServerKeyLog(t *testing.T) {
+	config := testConfig.clone()
+	buf := &bytes.Buffer{}
+	config.KeyLogWriter = buf
+
+	test := &serverTest{
+		name:    "KeyLogWriter",
+		command: []string{"openssl", "s_client"},
+		config:  config,
+		validate: func(state ConnectionState) error {
+			var format, clientRandom, masterSecret string
+			if _, err := fmt.Fscanf(buf, "%s %s %s\n", &format, &clientRandom, &masterSecret); err != nil {
+				return fmt.Errorf("failed to parse KeyLogWriter: " + err.Error())
+			}
+			if format != "CLIENT_RANDOM" {
+				return fmt.Errorf("got key log format %q, wanted CLIENT_RANDOM", format)
+			}
+			// Both clientRandom and masterSecret are unpredictable in server handshake test
+			if len(clientRandom) != 64 {
+				return fmt.Errorf("got wrong length client random in key log %v, wanted 64", len(clientRandom))
+			}
+			if len(masterSecret) != 96 {
+				return fmt.Errorf("got wrong length master secret in key log %v, want 96", len(masterSecret))
+			}
+
+			// buf should contain no more lines
+			var trailingGarbage string
+			if _, err := fmt.Fscanln(buf, &trailingGarbage); err == nil {
+				return fmt.Errorf("expected exactly one key in log, got trailing garbage %q", trailingGarbage)
+			}
+
+			return nil
+		},
+	}
+	runServerTestTLS10(t, test)
+}
+
 func TestHandshakeServerALPN(t *testing.T) {
 	config := testConfig.clone()
 	config.NextProtos = []string{"proto1", "proto2"}
