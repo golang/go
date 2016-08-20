@@ -277,7 +277,7 @@ func (d *deadcodepass) flood() {
 
 		if strings.HasPrefix(s.Name, "type.") && s.Name[5] != '.' {
 			if decodetype_kind(s)&kindMask == kindInterface {
-				for _, sig := range decodetype_ifacemethods(s) {
+				for _, sig := range decodetype_ifacemethods(d.ctxt.Arch, s) {
 					if Debug['v'] > 1 {
 						fmt.Fprintf(d.ctxt.Bso, "reached iface method: %s\n", sig)
 					}
@@ -315,7 +315,7 @@ func (d *deadcodepass) flood() {
 			// Decode runtime type information for type methods
 			// to help work out which methods can be called
 			// dynamically via interfaces.
-			methodsigs := decodetype_methods(s)
+			methodsigs := decodetype_methods(d.ctxt.Arch, s)
 			if len(methods) != len(methodsigs) {
 				panic(fmt.Sprintf("%q has %d method relocations for %d methods", s.Name, len(methods), len(methodsigs)))
 			}

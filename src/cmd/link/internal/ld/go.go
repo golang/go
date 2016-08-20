@@ -28,7 +28,7 @@ func expandpkg(t0 string, pkg string) string {
 //	once the dust settles, try to move some code to
 //		libmach, so that other linkers and ar can share.
 
-func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int) {
+func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
 	if Debug['g'] != 0 {
@@ -121,11 +121,11 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
 		}
 		p1 += p0
 
-		loadcgo(filename, pkg, data[p0:p1])
+		loadcgo(ctxt, filename, pkg, data[p0:p1])
 	}
 }
 
-func loadcgo(file string, pkg string, p string) {
+func loadcgo(ctxt *Link, file string, pkg string, p string) {
 	var next string
 	var q string
 	var f []string
@@ -187,7 +187,7 @@ func loadcgo(file string, pkg string, p string) {
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s = Linklookup(Ctxt, local, 0)
+			s = Linklookup(ctxt, local, 0)
 			if local != f[1] {
 			}
 			if s.Type == 0 || s.Type == obj.SXREF || s.Type == obj.SHOSTOBJ {
@@ -208,7 +208,7 @@ func loadcgo(file string, pkg string, p string) {
 				goto err
 			}
 			local = f[1]
-			s = Linklookup(Ctxt, local, 0)
+			s = Linklookup(ctxt, local, 0)
 			s.Type = obj.SHOSTOBJ
 			s.Size = 0
 			continue
@@ -225,11 +225,11 @@ func loadcgo(file string, pkg string, p string) {
 				remote = local
 			}
 			local = expandpkg(local, pkg)
-			s = Linklookup(Ctxt, local, 0)
+			s = Linklookup(ctxt, local, 0)
 
 			switch Buildmode {
 			case BuildmodeCShared, BuildmodeCArchive:
-				if s == Linklookup(Ctxt, "main", 0) {
+				if s == Linklookup(ctxt, "main", 0) {
 					continue
 				}
 			}
@@ -298,20 +298,20 @@ err:
 
 var seenlib = make(map[string]bool)
 
-func adddynlib(lib string) {
+func adddynlib(ctxt *Link, lib string) {
 	if seenlib[lib] || Linkmode == LinkExternal {
 		return
 	}
 	seenlib[lib] = true
 
 	if Iself {
-		s := Linklookup(Ctxt, ".dynstr", 0)
+		s := Linklookup(ctxt, ".dynstr", 0)
 		if s.Size == 0 {
-			Addstring(s, "")
+			Addstring(ctxt, s, "")
 		}
-		Elfwritedynent(Linklookup(Ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
+		Elfwritedynent(ctxt, Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt, s, lib)))
 	} else {
-		Diag("adddynlib: unsupported binary format")
+		ctxt.Diag("adddynlib: unsupported binary format")
 	}
 }
 
@@ -323,11 +323,11 @@ func Adddynsym(ctxt *Link, s *Symbol) {
 	if Iself {
 		Elfadddynsym(ctxt, s)
 	} else if HEADTYPE == obj.Hdarwin {
-		Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
+		ctxt.Diag("adddynsym: missed symbol %s (%s)", s.Name, s.Extname)
 	} else if HEADTYPE == obj.Hwindows {
 		// already taken care of
 	} else {
-		Diag("adddynsym: unsupported binary format")
+		ctxt.Diag("adddynsym: unsupported binary format")
 	}
 }
 
@@ -359,19 +359,19 @@ func fieldtrack(ctxt *Link) {
 	if !s.Attr.Reachable() {
 		return
 	}
-	addstrdata(tracksym, buf.String())
+	addstrdata(ctxt, tracksym, buf.String())
 }
 
-func addexport() {
+func (ctxt *Link) addexport() {
 	if HEADTYPE == obj.Hdarwin {
 		return
 	}
 
 	for _, exp := range dynexp {
-		Adddynsym(Ctxt, exp)
+		Adddynsym(ctxt, exp)
 	}
 	for _, lib := range dynlib {
-		adddynlib(lib)
+		adddynlib(ctxt, lib)
 	}
 }
 

@@ -130,13 +130,13 @@ type PeObj struct {
 	snames []byte
 }
 
-func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
+func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(Bso, "%5.2f ldpe %s\n", obj.Cputime(), pn)
 	}
 
 	var sect *PeSect
-	Ctxt.IncVersion()
+	ctxt.IncVersion()
 	base := f.Offset()
 
 	peobj := new(PeObj)
@@ -246,7 +246,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 		}
 
 		name = fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s = Linklookup(Ctxt, name, Ctxt.Version)
+		s = Linklookup(ctxt, name, ctxt.Version)
 
 		switch sect.sh.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -271,7 +271,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 		s.Size = int64(sect.size)
 		sect.sym = s
 		if sect.name == ".rsrc" {
-			setpersrc(sect.sym)
+			setpersrc(ctxt, sect.sym)
 		}
 	}
 
@@ -300,7 +300,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 			rva := Le32(symbuf[0:])
 			symindex := Le32(symbuf[4:])
 			type_ := Le16(symbuf[8:])
-			if err = readpesym(peobj, int(symindex), &sym); err != nil {
+			if err = readpesym(ctxt, peobj, int(symindex), &sym); err != nil {
 				goto bad
 			}
 			if sym.sym == nil {
@@ -313,7 +313,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 			rp.Off = int32(rva)
 			switch type_ {
 			default:
-				Diag("%s: unknown relocation type %d;", pn, type_)
+				ctxt.Diag("%s: unknown relocation type %d;", pn, type_)
 				fallthrough
 
 			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
@@ -371,7 +371,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 			}
 		}
 
-		if err = readpesym(peobj, i, &sym); err != nil {
+		if err = readpesym(ctxt, peobj, i, &sym); err != nil {
 			goto bad
 		}
 
@@ -389,10 +389,10 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 		} else if sym.sectnum > 0 && uint(sym.sectnum) <= peobj.nsect {
 			sect = &peobj.sect[sym.sectnum-1]
 			if sect.sym == nil {
-				Diag("%s: %s sym == 0!", pn, s.Name)
+				ctxt.Diag("%s: %s sym == 0!", pn, s.Name)
 			}
 		} else {
-			Diag("%s: %s sectnum < 0!", pn, s.Name)
+			ctxt.Diag("%s: %s sectnum < 0!", pn, s.Name)
 		}
 
 		if sect == nil {
@@ -414,7 +414,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 		s.Outer = sect.sym
 		if sect.sym.Type == obj.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				Diag("%s: duplicate definition of %s", pn, s.Name)
+				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
 			s.Attr |= AttrExternal
 		}
@@ -435,13 +435,13 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= AttrOnList
-			Ctxt.Textp = append(Ctxt.Textp, s)
+			ctxt.Textp = append(ctxt.Textp, s)
 			for s = s.Sub; s != nil; s = s.Sub {
 				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
 				s.Attr |= AttrOnList
-				Ctxt.Textp = append(Ctxt.Textp, s)
+				ctxt.Textp = append(ctxt.Textp, s)
 			}
 		}
 	}
@@ -449,7 +449,7 @@ func ldpe(f *bio.Reader, pkg string, length int64, pn string) {
 	return
 
 bad:
-	Diag("%s: malformed pe file: %v", pn, err)
+	ctxt.Diag("%s: malformed pe file: %v", pn, err)
 }
 
 func pemap(peobj *PeObj, sect *PeSect) int {
@@ -475,7 +475,7 @@ func issect(s *PeSym) bool {
 	return s.sclass == IMAGE_SYM_CLASS_STATIC && s.type_ == 0 && s.name[0] == '.'
 }
 
-func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
+func readpesym(ctxt *Link, peobj *PeObj, i int, y **PeSym) (err error) {
 	if uint(i) >= peobj.npesym || i < 0 {
 		err = fmt.Errorf("invalid pe symbol index")
 		return err
@@ -511,10 +511,10 @@ func readpesym(peobj *PeObj, i int, y **PeSym) (err error) {
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch sym.sclass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = Linklookup(Ctxt, name, 0)
+			s = Linklookup(ctxt, name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = Linklookup(Ctxt, name, Ctxt.Version)
+			s = Linklookup(ctxt, name, ctxt.Version)
 			s.Attr |= AttrDuplicateOK
 
 		default:

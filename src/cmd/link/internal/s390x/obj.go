@@ -95,7 +95,7 @@ func archinit() {
 		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
 
 	case obj.Hlinux: // s390x ELF
-		ld.Elfinit()
+		ld.Elfinit(ld.Ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
 			ld.INITTEXT = 0x10000 + int64(ld.HEADR)

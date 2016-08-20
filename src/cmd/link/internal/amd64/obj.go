@@ -83,6 +83,8 @@ func linkarchinit() {
 }
 
 func archinit() {
+	ctxt := ld.Ctxt
+
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -151,7 +153,7 @@ func archinit() {
 		obj.Hopenbsd,   /* openbsd */
 		obj.Hdragonfly, /* dragonfly */
 		obj.Hsolaris:   /* solaris */
-		ld.Elfinit()
+		ld.Elfinit(ld.Ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
@@ -165,7 +167,7 @@ func archinit() {
 		}
 
 	case obj.Hnacl:
-		ld.Elfinit()
+		ld.Elfinit(ld.Ctxt)
 		ld.Debug['w']++ // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
@@ -180,7 +182,7 @@ func archinit() {
 		}
 
 	case obj.Hwindows: /* PE executable */
-		ld.Peinit()
+		ld.Peinit(ctxt)
 
 		ld.HEADR = ld.PEFILEHEADR
 		if ld.INITTEXT == -1 {

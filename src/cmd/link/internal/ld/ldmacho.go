@@ -415,7 +415,7 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	return 0
 }
 
-func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
+func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	var err error
 	var j int
 	var is64 bool
@@ -444,7 +444,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	var rp *Reloc
 	var name string
 
-	Ctxt.IncVersion()
+	ctxt.IncVersion()
 	base := f.Offset()
 	if _, err := io.ReadFull(f, hdr[:]); err != nil {
 		goto bad
@@ -487,18 +487,18 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 
 	switch SysArch.Family {
 	default:
-		Diag("%s: mach-o %s unimplemented", pn, SysArch.Name)
+		ctxt.Diag("%s: mach-o %s unimplemented", pn, SysArch.Name)
 		return
 
 	case sys.AMD64:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpuAmd64 {
-			Diag("%s: mach-o object but not amd64", pn)
+			ctxt.Diag("%s: mach-o object but not amd64", pn)
 			return
 		}
 
 	case sys.I386:
 		if e != binary.LittleEndian || m.cputype != LdMachoCpu386 {
-			Diag("%s: mach-o object but not 386", pn)
+			ctxt.Diag("%s: mach-o object but not 386", pn)
 			return
 		}
 	}
@@ -587,7 +587,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		name = fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s = Linklookup(Ctxt, name, Ctxt.Version)
+		s = Linklookup(ctxt, name, ctxt.Version)
 		if s.Type != 0 {
 			err = fmt.Errorf("duplicate %s/%s", sect.segname, sect.name)
 			goto bad
@@ -634,9 +634,9 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 		}
 		v := 0
 		if sym.type_&N_EXT == 0 {
-			v = Ctxt.Version
+			v = ctxt.Version
 		}
-		s = Linklookup(Ctxt, name, v)
+		s = Linklookup(ctxt, name, v)
 		if sym.type_&N_EXT == 0 {
 			s.Attr |= AttrDuplicateOK
 		}
@@ -673,7 +673,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 		}
 		if outer.Type == obj.STEXT {
 			if s.Attr.External() && !s.Attr.DuplicateOK() {
-				Diag("%s: duplicate definition of %s", pn, s.Name)
+				ctxt.Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
 			s.Attr |= AttrExternal
 		}
@@ -707,13 +707,13 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
 			s.Attr |= AttrOnList
-			Ctxt.Textp = append(Ctxt.Textp, s)
+			ctxt.Textp = append(ctxt.Textp, s)
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
 				if s1.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s1.Name)
 				}
 				s1.Attr |= AttrOnList
-				Ctxt.Textp = append(Ctxt.Textp, s1)
+				ctxt.Textp = append(ctxt.Textp, s1)
 			}
 		}
 	}
@@ -738,7 +738,7 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 			if rel.scattered != 0 {
 				if SysArch.Family != sys.I386 {
 					// mach-o only uses scattered relocation on 32-bit platforms
-					Diag("unexpected scattered relocation")
+					ctxt.Diag("unexpected scattered relocation")
 					continue
 				}
 
@@ -900,5 +900,5 @@ func ldmacho(f *bio.Reader, pkg string, length int64, pn string) {
 	return
 
 bad:
-	Diag("%s: malformed mach-o file: %v", pn, err)
+	ctxt.Diag("%s: malformed mach-o file: %v", pn, err)
 }

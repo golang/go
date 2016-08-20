@@ -48,9 +48,9 @@ var (
 func Ldmain() {
 	Bso = bufio.NewWriter(os.Stdout)
 
-	Ctxt = linknew(SysArch)
-	Ctxt.Diag = Diag
-	Ctxt.Bso = Bso
+	ctxt := linknew(SysArch)
+	Ctxt = ctxt // Export Ctxt because it's currently used by the arch-specific packages
+	ctxt.Bso = Bso
 
 	Debug = [128]int{}
 	nerrors = 0
@@ -79,12 +79,12 @@ func Ldmain() {
 	obj.Flagint64("D", "set data segment `address`", &INITDAT)
 	obj.Flagstr("E", "set `entry` symbol name", &INITENTRY)
 	obj.Flagfn1("I", "use `linker` as ELF dynamic linker", setinterp)
-	obj.Flagfn1("L", "add specified `directory` to library path", Lflag)
+	obj.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
 	obj.Flagfn1("H", "set header `type`", setheadtype)
 	obj.Flagint32("R", "set address rounding `quantum`", &INITRND)
 	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
 	obj.Flagfn0("V", "print version and exit", doversion)
-	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", addstrdata1)
+	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
 	obj.Flagcount("a", "disassemble output", &Debug['a'])
 	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
@@ -124,8 +124,8 @@ func Ldmain() {
 	obj.Flagparse(usage)
 
 	startProfile()
-	Ctxt.Bso = Bso
-	Ctxt.Debugvlog = int32(Debug['v'])
+	ctxt.Bso = Bso
+	ctxt.Debugvlog = int32(Debug['v'])
 	if flagShared != 0 {
 		if Buildmode == BuildmodeUnset {
 			Buildmode = BuildmodeCShared
@@ -148,12 +148,12 @@ func Ldmain() {
 		}
 	}
 
-	libinit() // creates outfile
+	libinit(ctxt) // creates outfile
 
 	if HEADTYPE == -1 {
 		HEADTYPE = int32(headtype(goos))
 	}
-	Ctxt.Headtype = int(HEADTYPE)
+	ctxt.Headtype = int(HEADTYPE)
 	if headstring == "" {
 		headstring = Headstr(int(HEADTYPE))
 	}
@@ -181,43 +181,43 @@ func Ldmain() {
 			}
 			pkglistfornote = append(pkglistfornote, pkgpath...)
 			pkglistfornote = append(pkglistfornote, '\n')
-			addlibpath(Ctxt, "command line", "command line", file, pkgpath, "")
+			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
 		}
 	} else {
-		addlibpath(Ctxt, "command line", "command line", flag.Arg(0), "main", "")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
 	}
-	loadlib()
+	ctxt.loadlib()
 
-	checkstrdata()
-	deadcode(Ctxt)
-	fieldtrack(Ctxt)
-	callgraph()
+	ctxt.checkstrdata()
+	deadcode(ctxt)
+	fieldtrack(ctxt)
+	ctxt.callgraph()
 
-	doelf()
+	ctxt.doelf()
 	if HEADTYPE == obj.Hdarwin {
-		domacho()
+		ctxt.domacho()
 	}
-	dostkcheck()
+	ctxt.dostkcheck()
 	if HEADTYPE == obj.Hwindows {
-		dope()
+		ctxt.dope()
 	}
-	addexport()
+	ctxt.addexport()
 	Thearch.Gentext() // trampolines, call stubs, etc.
-	textbuildid()
-	textaddress()
-	pclntab()
-	findfunctab()
-	symtab()
-	dodata()
-	address()
-	reloc()
-	Thearch.Asmb()
-	undef()
-	hostlink()
+	ctxt.textbuildid()
+	ctxt.textaddress()
+	ctxt.pclntab()
+	ctxt.findfunctab()
+	ctxt.symtab()
+	ctxt.dodata()
+	ctxt.address()
+	ctxt.reloc()
+	Thearch.Asmb(ctxt)
+	ctxt.undef()
+	ctxt.hostlink()
 	archive()
 	if Debug['v'] != 0 {
 		fmt.Fprintf(Bso, "%5.2f cpu time\n", obj.Cputime())
-		fmt.Fprintf(Bso, "%d symbols\n", len(Ctxt.Allsym))
+		fmt.Fprintf(Bso, "%d symbols\n", len(ctxt.Allsym))
 		fmt.Fprintf(Bso, "%d liveness data\n", liveness)
 	}
 
