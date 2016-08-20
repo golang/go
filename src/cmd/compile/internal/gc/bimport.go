@@ -51,25 +51,34 @@ func Import(in *bufio.Reader) {
 		strList: []string{""}, // empty string is mapped to 0
 	}
 
-	// read low-level encoding format
-	switch format := p.rawByte(); format {
-	case 'c':
-		// compact format - nothing to do
-	case 'd':
-		p.debugFormat = true
-	default:
-		Fatalf("importer: invalid encoding format in export data: got %q; want 'c' or 'd'", format)
+	// read version info
+	if b := p.rawByte(); b == 'c' || b == 'd' {
+		// Go1.7 encoding; first byte encodes low-level
+		// encoding format (compact vs debug).
+		// For backward-compatibility only (avoid problems with
+		// old installed packages). Newly compiled packages use
+		// the extensible format string.
+		// TODO(gri) Remove this support eventually; after Go1.8.
+		if b == 'd' {
+			p.debugFormat = true
+		}
+		p.trackAllTypes = p.rawByte() == 'a'
+		p.posInfoFormat = p.bool()
+		const go17version = "v1"
+		if s := p.string(); s != go17version {
+			Fatalf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
+		}
+	} else {
+		// Go1.8 extensible encoding
+		if s := p.rawStringln(b); s != exportVersion {
+			Fatalf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
+		}
+		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+		p.trackAllTypes = p.bool()
+		p.posInfoFormat = p.bool()
 	}
-
-	p.trackAllTypes = p.rawByte() == 'a'
-
-	p.posInfoFormat = p.bool()
 
 	// --- generic export data ---
-
-	if v := p.string(); v != exportVersion {
-		Fatalf("importer: unknown export data version: %s", v)
-	}
 
 	// populate typList with predeclared "known" types
 	p.typList = append(p.typList, predeclared()...)
@@ -1185,13 +1194,23 @@ func (p *importer) marker(want byte) {
 	}
 }
 
-// rawInt64 should only be used by low-level decoders
+// rawInt64 should only be used by low-level decoders.
 func (p *importer) rawInt64() int64 {
 	i, err := binary.ReadVarint(p)
 	if err != nil {
 		Fatalf("importer: read error: %v", err)
 	}
 	return i
+}
+
+// rawStringln should only be used to read the initial version string.
+func (p *importer) rawStringln(b byte) string {
+	p.buf = p.buf[:0]
+	for b != '\n' {
+		p.buf = append(p.buf, b)
+		b = p.rawByte()
+	}
+	return string(p.buf)
 }
 
 // needed for binary.ReadVarint in rawInt64
