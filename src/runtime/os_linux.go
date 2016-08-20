@@ -388,7 +388,6 @@ func osyield()
 //go:nowritebarrierrec
 func setsig(i int32, fn uintptr, restart bool) {
 	var sa sigactiont
-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER
 	if restart {
 		sa.sa_flags |= _SA_RESTART
@@ -431,8 +430,6 @@ func setsigstack(i int32) {
 //go:nowritebarrierrec
 func getsig(i int32) uintptr {
 	var sa sigactiont
-
-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
 		throw("rt_sigaction read failure")
 	}
