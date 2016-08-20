@@ -232,7 +232,6 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 		}
 		val = val.Elem()
 	}
-
 	if val.CanInterface() && val.Type().Implements(unmarshalerAttrType) {
 		// This is an unmarshaler with a non-pointer receiver,
 		// so it's likely to be incorrect, but we do what we're told.
@@ -257,9 +256,7 @@ func (p *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 			return pv.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(attr.Value))
 		}
 	}
-
-	copyValue(val, []byte(attr.Value))
-	return nil
+	return copyValue(val, []byte(attr.Value))
 }
 
 var (
