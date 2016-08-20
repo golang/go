@@ -387,6 +387,14 @@ type Config struct {
 	// The default, none, is correct for the vast majority of applications.
 	Renegotiation RenegotiationSupport
 
+	// KeyLogWriter optionally specifies a destination for TLS master secrets
+	// in NSS key log format that can be used to allow external programs
+	// such as Wireshark to decrypt TLS connections.
+	// See https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format.
+	// Use of KeyLogWriter compromises security and should only be
+	// used for debugging.
+	KeyLogWriter io.Writer
+
 	serverInitOnce sync.Once // guards calling (*Config).serverInit
 
 	// mutex protects sessionTicketKeys
@@ -446,6 +454,7 @@ func (c *Config) clone() *Config {
 		CurvePreferences:            c.CurvePreferences,
 		DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
 		Renegotiation:               c.Renegotiation,
+		KeyLogWriter:                c.KeyLogWriter,
 	}
 }
 
@@ -625,6 +634,16 @@ func (c *Config) BuildNameToCertificate() {
 			c.NameToCertificate[san] = cert
 		}
 	}
+}
+
+// writeKeyLog logs client random and master secret if logging enabled
+// by setting KeyLogWriter.
+func (c *Config) writeKeyLog(clientRandom, masterSecret []byte) error {
+	if c.KeyLogWriter == nil {
+		return nil
+	}
+	_, err := fmt.Fprintf(c.KeyLogWriter, "CLIENT_RANDOM %x %x\n", clientRandom, masterSecret)
+	return err
 }
 
 // A Certificate is a chain of one or more certificates, leaf first.
