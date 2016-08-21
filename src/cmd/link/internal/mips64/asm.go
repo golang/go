@@ -38,13 +38,13 @@ import (
 	"log"
 )
 
-func gentext() {}
+func gentext(ctxt *ld.Link) {}
 
-func adddynrel(s *ld.Symbol, r *ld.Reloc) {
+func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 	log.Fatalf("adddynrel not implemented")
 }
 
-func elfreloc1(r *ld.Reloc, sectoff int64) int {
+func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	// mips64 ELF relocation (endian neutral)
 	//		offset	uint64
 	//		sym		uint32
@@ -93,16 +93,15 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	return 0
 }
 
-func elfsetupplt() {
+func elfsetupplt(ctxt *ld.Link) {
 	return
 }
 
-func machoreloc1(r *ld.Reloc, sectoff int64) int {
+func machoreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	return -1
 }
 
-func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
-	ctxt := ld.Ctxt
+func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
@@ -121,7 +120,7 @@ func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			}
 
 			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
-				ld.Ctxt.Diag("missing section for %s", rs.Name)
+				ctxt.Diag("missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
 
@@ -143,7 +142,7 @@ func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		return 0
 
 	case obj.R_GOTOFF:
-		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ld.Ctxt, ".got", 0))
+		*val = ld.Symaddr(ctxt, r.Sym) + r.Add - ld.Symaddr(ctxt, ld.Linklookup(ctxt, ".got", 0))
 		return 0
 
 	case obj.R_ADDRMIPS,
@@ -161,7 +160,7 @@ func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(ctxt, r.Sym) + r.Add - 0x7000
 		if t < -32768 || t >= 32678 {
-			ld.Ctxt.Diag("TLS offset out of range %d", t)
+			ctxt.Diag("TLS offset out of range %d", t)
 		}
 		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
 		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
@@ -179,7 +178,7 @@ func archreloc(r *ld.Reloc, s *ld.Symbol, val *int64) int {
 	return -1
 }
 
-func archrelocvariant(r *ld.Reloc, s *ld.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 	return -1
 }
 
@@ -264,7 +263,7 @@ func asmb(ctxt *ld.Link) {
 			ld.Asmplan9sym(ctxt)
 			ld.Cflush()
 
-			sym := ld.Linklookup(ld.Ctxt, "pclntab", 0)
+			sym := ld.Linklookup(ctxt, "pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				for i := 0; int32(i) < ld.Lcsize; i++ {
@@ -276,7 +275,7 @@ func asmb(ctxt *ld.Link) {
 		}
 	}
 
-	ld.Ctxt.Cursym = nil
+	ctxt.Cursym = nil
 	if ld.Debug['v'] != 0 {
 		fmt.Fprintf(ld.Bso, "%5.2f header\n", obj.Cputime())
 	}

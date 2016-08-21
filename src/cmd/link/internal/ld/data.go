@@ -399,7 +399,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			case 8:
 				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if Thearch.Archreloc(r, s, &o) < 0 {
+			if Thearch.Archreloc(ctxt, r, s, &o) < 0 {
 				ctxt.Diag("unknown reloc %d", r.Type)
 			}
 
@@ -604,7 +604,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 		}
 
 		if r.Variant != RV_NONE {
-			o = Thearch.Archrelocvariant(r, s, o)
+			o = Thearch.Archrelocvariant(ctxt, r, s, o)
 		}
 
 		if false {
@@ -717,7 +717,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				ctxt.Diag("internal inconsistency: dynamic symbol %s is not reachable.", r.Sym.Name)
 			}
-			Thearch.Adddynrel(s, r)
+			Thearch.Adddynrel(ctxt, s, r)
 		}
 	}
 }

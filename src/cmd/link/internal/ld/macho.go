@@ -841,7 +841,7 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 			if r.Done != 0 {
 				continue
 			}
-			if Thearch.Machoreloc1(r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
+			if Thearch.Machoreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
 				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 			}
 		}
