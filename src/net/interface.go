@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// BUG(mikio): On NaCl, Plan9 and Solaris, methods and functions
+// related to Interface are not implemented.
+
+// BUG(mikio): On DragonFly BSD, NetBSD and OpenBSD, the
+// MulticastAddrs method of Interface is not implemented.
+
 var (
 	errInvalidInterface         = errors.New("invalid network interface")
 	errInvalidInterfaceIndex    = errors.New("invalid network interface index")

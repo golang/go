@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// BUG(mikio): On Windows, the File method of TCPListener is not
+// implemented.
+
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
 	IP   IP
