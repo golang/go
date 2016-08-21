@@ -130,7 +130,7 @@ func (r *Rpath) String() string {
 
 var (
 	Thearch Arch
-	Debug   [128]int
+	Debug   [128]bool
 	Lcsize  int32
 	rpath   Rpath
 	Spsize  int32
@@ -198,8 +198,8 @@ var (
 	elfglobalsymndx    int
 	flag_dumpdep       bool
 	flag_installsuffix string
-	flag_race          int
-	flag_msan          int
+	flag_race          bool
+	flag_msan          bool
 	Buildmode          BuildMode
 	Linkshared         bool
 	tracksym           string
@@ -209,10 +209,10 @@ var (
 	extldflags         string
 	extar              string
 	libgccfile         string
-	debug_s            int // backup old value of debug['s']
+	debug_s            bool // backup old value of debug['s']
 	HEADR              int32
 	HEADTYPE           int32
-	INITRND            int32
+	INITRND            int
 	INITTEXT           int64
 	INITDAT            int64
 	INITENTRY          string /* entry point */
@@ -393,10 +393,10 @@ func libinit(ctxt *Link) {
 	if flag_installsuffix != "" {
 		suffixsep = "_"
 		suffix = flag_installsuffix
-	} else if flag_race != 0 {
+	} else if flag_race {
 		suffixsep = "_"
 		suffix = "race"
-	} else if flag_msan != 0 {
+	} else if flag_msan {
 		suffixsep = "_"
 		suffix = "msan"
 	}
@@ -465,7 +465,7 @@ func loadinternal(ctxt *Link, name string) {
 	for i := 0; i < len(ctxt.Libdir); i++ {
 		if Linkshared {
 			shlibname := filepath.Join(ctxt.Libdir[i], name+".shlibname")
-			if Debug['v'] != 0 {
+			if ctxt.Debugvlog != 0 {
 				fmt.Fprintf(ctxt.Bso, "searching for %s.a in %s\n", name, shlibname)
 			}
 			if _, err := os.Stat(shlibname); err == nil {
@@ -475,7 +475,7 @@ func loadinternal(ctxt *Link, name string) {
 			}
 		}
 		pname := filepath.Join(ctxt.Libdir[i], name+".a")
-		if Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "searching for %s.a in %s\n", name, pname)
 		}
 		if _, err := os.Stat(pname); err == nil {
@@ -506,10 +506,10 @@ func (ctxt *Link) loadlib() {
 	if SysArch.Family == sys.ARM {
 		loadinternal(ctxt, "math")
 	}
-	if flag_race != 0 {
+	if flag_race {
 		loadinternal(ctxt, "runtime/race")
 	}
-	if flag_msan != 0 {
+	if flag_msan {
 		loadinternal(ctxt, "runtime/msan")
 	}
 
@@ -517,7 +517,7 @@ func (ctxt *Link) loadlib() {
 	for i = 0; i < len(ctxt.Library); i++ {
 		iscgo = iscgo || ctxt.Library[i].Pkg == "runtime/cgo"
 		if ctxt.Library[i].Shlib == "" {
-			if Debug['v'] > 1 {
+			if ctxt.Debugvlog > 1 {
 				fmt.Fprintf(ctxt.Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), ctxt.Library[i].File, ctxt.Library[i].Objref)
 			}
 			objfile(ctxt, ctxt.Library[i])
@@ -526,7 +526,7 @@ func (ctxt *Link) loadlib() {
 
 	for i = 0; i < len(ctxt.Library); i++ {
 		if ctxt.Library[i].Shlib != "" {
-			if Debug['v'] > 1 {
+			if ctxt.Debugvlog > 1 {
 				fmt.Fprintf(ctxt.Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), ctxt.Library[i].Shlib, ctxt.Library[i].Objref)
 			}
 			ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
@@ -561,7 +561,7 @@ func (ctxt *Link) loadlib() {
 		}
 
 		// Force external linking for msan.
-		if flag_msan != 0 {
+		if flag_msan {
 			Linkmode = LinkExternal
 		}
 	}
@@ -696,12 +696,12 @@ func (ctxt *Link) loadlib() {
 				}
 				args := hostlinkArchArgs()
 				args = append(args, "--print-libgcc-file-name")
-				if Debug['v'] != 0 {
+				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "%s %v\n", extld, args)
 				}
 				out, err := exec.Command(extld, args...).Output()
 				if err != nil {
-					if Debug['v'] != 0 {
+					if ctxt.Debugvlog != 0 {
 						fmt.Fprintln(ctxt.Bso, "not using a libgcc file because compiler failed")
 						fmt.Fprintf(ctxt.Bso, "%v\n%s\n", err, out)
 					}
@@ -733,7 +733,7 @@ func (ctxt *Link) loadlib() {
 	switch Buildmode {
 	case BuildmodeExe, BuildmodePIE:
 		if havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
-			Debug['d'] = 1
+			Debug['d'] = true
 		}
 	}
 
@@ -775,7 +775,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
 func objfile(ctxt *Link, lib *Library) {
 	pkg := pathtoprefix(lib.Pkg)
 
-	if Debug['v'] > 1 {
+	if ctxt.Debugvlog > 1 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
 	}
 	ctxt.Bso.Flush()
@@ -951,7 +951,7 @@ func hostlinksetup() {
 	// and turn off -s internally: the external linker needs the symbol
 	// information for its final link.
 	debug_s = Debug['s']
-	Debug['s'] = 0
+	Debug['s'] = false
 
 	// create temporary directory and arrange cleanup
 	if tmpdir == "" {
@@ -1043,7 +1043,7 @@ func (ctxt *Link) archive() {
 	argv = append(argv, filepath.Join(tmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
 
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "archive: %s\n", strings.Join(argv, " "))
 		ctxt.Bso.Flush()
 	}
@@ -1069,7 +1069,7 @@ func (l *Link) hostlink() {
 	argv = append(argv, extld)
 	argv = append(argv, hostlinkArchArgs()...)
 
-	if Debug['s'] == 0 && debug_s == 0 {
+	if !Debug['s'] && !debug_s {
 		argv = append(argv, "-gdwarf-2")
 	} else {
 		argv = append(argv, "-s")
@@ -1219,7 +1219,7 @@ func (l *Link) hostlink() {
 		}
 	}
 
-	sanitizers := flag_race != 0
+	sanitizers := flag_race
 
 	for _, flag := range ldflag {
 		if strings.HasPrefix(flag, "-fsanitize=") {
@@ -1269,7 +1269,7 @@ func (l *Link) hostlink() {
 		argv = append(argv, peimporteddlls()...)
 	}
 
-	if Debug['v'] != 0 {
+	if l.Debugvlog != 0 {
 		fmt.Fprintf(l.Bso, "host link:")
 		for _, v := range argv {
 			fmt.Fprintf(l.Bso, " %q", v)
@@ -1280,12 +1280,12 @@ func (l *Link) hostlink() {
 
 	if out, err := exec.Command(argv[0], argv[1:]...).CombinedOutput(); err != nil {
 		Exitf("running %s failed: %v\n%s", argv[0], err, out)
-	} else if Debug['v'] != 0 && len(out) > 0 {
+	} else if l.Debugvlog != 0 && len(out) > 0 {
 		fmt.Fprintf(l.Bso, "%s", out)
 		l.Bso.Flush()
 	}
 
-	if Debug['s'] == 0 && debug_s == 0 && HEADTYPE == obj.Hdarwin {
+	if !Debug['s'] && !debug_s && HEADTYPE == obj.Hdarwin {
 		// Skip combining dwarf on arm.
 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(tmpdir, "go.dwarf")
@@ -1383,7 +1383,7 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file 
 	t := fmt.Sprintf("%s %s %s ", goos, obj.Getgoarch(), obj.Getgoversion())
 
 	line = strings.TrimRight(line, "\n")
-	if !strings.HasPrefix(line[10:]+" ", t) && Debug['f'] == 0 {
+	if !strings.HasPrefix(line[10:]+" ", t) && !Debug['f'] {
 		ctxt.Diag("%s: object is [%s] expected [%s]", pn, line[10:], t)
 		return nil
 	}
@@ -1938,7 +1938,7 @@ func setheadtype(s string) {
 }
 
 func setinterp(s string) {
-	Debug['I'] = 1 // denote cmdline interpreter override
+	Debug['I'] = true // denote cmdline interpreter override
 	interpreter = s
 }
 
@@ -2070,7 +2070,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, i
 
 	// Otherwise, off is addressing the saved program counter.
 	// Something underhanded is going on. Say nothing.
-	if Debug['v'] != 0 || Debug['n'] != 0 {
+	if ctxt.Debugvlog != 0 || Debug['n'] {
 		fmt.Fprintf(ctxt.Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
 	}
 	ctxt.Bso.Flush()
@@ -2149,7 +2149,7 @@ func (ctxt *Link) undef() {
 }
 
 func (ctxt *Link) callgraph() {
-	if Debug['c'] == 0 {
+	if !Debug['c'] {
 		return
 	}
 
@@ -2177,7 +2177,7 @@ func (ctxt *Link) Diag(format string, args ...interface{}) {
 	}
 	fmt.Printf("%s%s%s\n", tn, sep, fmt.Sprintf(format, args...))
 	nerrors++
-	if Debug['h'] != 0 {
+	if Debug['h'] {
 		panic("error")
 	}
 	if nerrors > 20 {

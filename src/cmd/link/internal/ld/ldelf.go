@@ -448,7 +448,7 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 }
 
 func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 

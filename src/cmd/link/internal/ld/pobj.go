@@ -49,14 +49,9 @@ func Ldmain() {
 	ctxt := linknew(SysArch)
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 
-	Debug = [128]int{}
+	Debug = [128]bool{}
 	nerrors = 0
-	outfile = ""
 	HEADTYPE = -1
-	INITTEXT = -1
-	INITDAT = -1
-	INITRND = -1
-	INITENTRY = ""
 	Linkmode = LinkAuto
 
 	// For testing behavior of go command when tools crash silently.
@@ -69,61 +64,60 @@ func Ldmain() {
 	}
 
 	if SysArch.Family == sys.AMD64 && obj.Getgoos() == "plan9" {
-		obj.Flagcount("8", "use 64-bit addresses in symbol table", &Debug['8'])
+		flag.BoolVar(&Debug['8'], "8", false, "use 64-bit addresses in symbol table")
 	}
 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
-	obj.Flagcount("C", "check Go calls to C code", &Debug['C'])
-	obj.Flagint64("D", "set data segment `address`", &INITDAT)
-	obj.Flagstr("E", "set `entry` symbol name", &INITENTRY)
+	flag.BoolVar(&Debug['C'], "C", false, "check Go calls to C code")
+	flag.Int64Var(&INITDAT, "D", -1, "set data segment `address`")
+	flag.StringVar(&INITENTRY, "E", "", "set `entry` symbol name")
 	obj.Flagfn1("I", "use `linker` as ELF dynamic linker", setinterp)
 	obj.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
 	obj.Flagfn1("H", "set header `type`", setheadtype)
-	obj.Flagint32("R", "set address rounding `quantum`", &INITRND)
-	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
+	flag.IntVar(&INITRND, "R", -1, "set address rounding `quantum`")
+	flag.Int64Var(&INITTEXT, "T", -1, "set text segment `address`")
 	obj.Flagfn0("V", "print version and exit", doversion)
 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
-	obj.Flagcount("a", "disassemble output", &Debug['a'])
-	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)
+	flag.BoolVar(&Debug['a'], "a", false, "disassemble output")
+	flag.StringVar(&buildid, "buildid", "", "record `id` as Go toolchain build id")
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
-	obj.Flagcount("c", "dump call graph", &Debug['c'])
-	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
+	flag.BoolVar(&Debug['c'], "c", false, "dump call graph")
+	flag.BoolVar(&Debug['d'], "d", false, "disable dynamic executable")
 	flag.BoolVar(&flag_dumpdep, "dumpdep", false, "dump symbol dependency graph")
-	obj.Flagstr("extar", "archive program for buildmode=c-archive", &extar)
-	obj.Flagstr("extld", "use `linker` when linking in external mode", &extld)
-	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)
-	obj.Flagcount("f", "ignore version mismatch", &Debug['f'])
-	obj.Flagcount("g", "disable go package data checks", &Debug['g'])
-	obj.Flagcount("h", "halt on error", &Debug['h'])
-	obj.Flagstr("installsuffix", "set package directory `suffix`", &flag_installsuffix)
-	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
-	obj.Flagstr("libgcc", "compiler support lib for internal linking; use \"none\" to disable", &libgccfile)
+	flag.StringVar(&extar, "extar", "", "archive program for buildmode=c-archive")
+	flag.StringVar(&extld, "extld", "", "use `linker` when linking in external mode")
+	flag.StringVar(&extldflags, "extldflags", "", "pass `flags` to external linker")
+	flag.BoolVar(&Debug['f'], "f", false, "ignore version mismatch")
+	flag.BoolVar(&Debug['g'], "g", false, "disable go package data checks")
+	flag.BoolVar(&Debug['h'], "h", false, "halt on error")
+	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set package directory `suffix`")
+	flag.StringVar(&tracksym, "k", "", "set field tracking `symbol`")
+	flag.StringVar(&libgccfile, "libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
-	obj.Flagcount("msan", "enable MSan interface", &flag_msan)
-	obj.Flagcount("n", "dump symbol table", &Debug['n'])
-	obj.Flagstr("o", "write output to `file`", &outfile)
+	flag.BoolVar(&flag_msan, "msan", false, "enable MSan interface")
+	flag.BoolVar(&Debug['n'], "n", false, "dump symbol table")
+	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
-	obj.Flagcount("race", "enable race detector", &flag_race)
-	obj.Flagcount("s", "disable symbol table", &Debug['s'])
-	var flagShared int
+	flag.BoolVar(&flag_race, "race", false, "enable race detector")
+	flag.BoolVar(&Debug['s'], "s", false, "disable symbol table")
+	var flagShared bool
 	if SysArch.InFamily(sys.ARM, sys.AMD64) {
-		obj.Flagcount("shared", "generate shared object (implies -linkmode external)", &flagShared)
+		flag.BoolVar(&flagShared, "shared", false, "generate shared object (implies -linkmode external)")
 	}
-	obj.Flagstr("tmpdir", "use `directory` for temporary files", &tmpdir)
-	obj.Flagcount("u", "reject unsafe packages", &Debug['u'])
-	obj.Flagcount("v", "print link trace", &Debug['v'])
-	obj.Flagcount("w", "disable DWARF generation", &Debug['w'])
+	flag.StringVar(&tmpdir, "tmpdir", "", "use `directory` for temporary files")
+	flag.BoolVar(&Debug['u'], "u", false, "reject unsafe packages")
+	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
+	flag.BoolVar(&Debug['w'], "w", false, "disable DWARF generation")
 
-	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
-	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
-	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
+	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
+	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
+	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 
 	obj.Flagparse(usage)
 
 	startProfile()
 	ctxt.Bso = ctxt.Bso
-	ctxt.Debugvlog = int32(Debug['v'])
-	if flagShared != 0 {
+	if flagShared {
 		if Buildmode == BuildmodeUnset {
 			Buildmode = BuildmodeCShared
 		} else if Buildmode != BuildmodeCShared {
@@ -161,7 +155,7 @@ func Ldmain() {
 		Exitf("-linkshared can only be used on elf systems")
 	}
 
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
 	}
 	ctxt.Bso.Flush()
@@ -212,7 +206,7 @@ func Ldmain() {
 	ctxt.undef()
 	ctxt.hostlink()
 	ctxt.archive()
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f cpu time\n", obj.Cputime())
 		fmt.Fprintf(ctxt.Bso, "%d symbols\n", len(ctxt.Allsym))
 		fmt.Fprintf(ctxt.Bso, "%d liveness data\n", liveness)

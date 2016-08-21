@@ -166,7 +166,7 @@ func archinit(ctxt *ld.Link) {
 
 	case obj.Hnacl:
 		ld.Elfinit(ctxt)
-		ld.Debug['w']++ // disable dwarf, which gets confused and is useless anyway
+		ld.Debug['w'] = true // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
 		if ld.INITTEXT == -1 {

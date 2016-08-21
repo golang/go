@@ -652,7 +652,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 }
 
 func (ctxt *Link) reloc() {
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -725,10 +725,10 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
-	if Debug['d'] != 0 && HEADTYPE != obj.Hwindows {
+	if Debug['d'] && HEADTYPE != obj.Hwindows {
 		return
 	}
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -750,14 +750,14 @@ func Codeblk(ctxt *Link, addr int64, size int64) {
 	CodeblkPad(ctxt, addr, size, zeros[:])
 }
 func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
-	if Debug['a'] != 0 {
+	if Debug['a'] {
 		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(ctxt, ctxt.Textp, addr, size, pad)
 
 	/* again for printing */
-	if Debug['a'] == 0 {
+	if !Debug['a'] {
 		return
 	}
 
@@ -862,14 +862,14 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 }
 
 func Datblk(ctxt *Link, addr int64, size int64) {
-	if Debug['a'] != 0 {
+	if Debug['a'] {
 		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(ctxt, datap, addr, size, zeros[:])
 
 	/* again for printing */
-	if Debug['a'] == 0 {
+	if !Debug['a'] {
 		return
 	}
 
@@ -933,7 +933,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 }
 
 func Dwarfblk(ctxt *Link, addr int64, size int64) {
-	if Debug['a'] != 0 {
+	if Debug['a'] {
 		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
@@ -1194,7 +1194,7 @@ func checkdatsize(ctxt *Link, datsize int64, symn int) {
 var datap []*Symbol
 
 func (ctxt *Link) dodata() {
-	if Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f dodata\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -1439,7 +1439,7 @@ func (ctxt *Link) dodata() {
 
 	if len(data[obj.STLSBSS]) > 0 {
 		var sect *Section
-		if Iself && (Linkmode == LinkExternal || Debug['d'] == 0) && HEADTYPE != obj.Hopenbsd {
+		if Iself && (Linkmode == LinkExternal || !Debug['d']) && HEADTYPE != obj.Hopenbsd {
 			sect = addsection(&Segdata, ".tbss", 06)
 			sect.Align = int32(SysArch.PtrSize)
 			sect.Vaddr = 0

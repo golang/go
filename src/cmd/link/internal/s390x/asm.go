@@ -499,7 +499,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 }
 
 func asmb(ctxt *ld.Link) {
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -517,7 +517,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
 		ctxt.Bso.Flush()
@@ -526,7 +526,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -542,11 +542,11 @@ func asmb(ctxt *ld.Link) {
 
 	ld.Lcsize = 0
 	symo := uint32(0)
-	if ld.Debug['s'] == 0 {
+	if !ld.Debug['s'] {
 		if !ld.Iself {
 			ctxt.Diag("unsupported executable format")
 		}
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ctxt.Bso.Flush()
@@ -554,14 +554,14 @@ func asmb(ctxt *ld.Link) {
 		symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 
 		ld.Cseek(int64(symo))
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f elfsym\n", obj.Cputime())
 		}
 		ld.Asmelfsym(ctxt)
 		ld.Cflush()
 		ld.Cwrite(ld.Elfstrdat)
 
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
 
@@ -571,7 +571,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	ctxt.Cursym = nil
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -584,7 +584,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	ld.Cflush()
-	if ld.Debug['c'] != 0 {
+	if ld.Debug['c'] {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)

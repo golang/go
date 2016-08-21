@@ -1021,7 +1021,7 @@ func addpesymtable(ctxt *Link) {
 
 	// write COFF symbol table
 	var symcnt int
-	if Debug['s'] == 0 || Linkmode == LinkExternal {
+	if !Debug['s'] || Linkmode == LinkExternal {
 		symcnt = writePESymTableRecords(ctxt)
 	}
 
@@ -1168,7 +1168,7 @@ func Asmbpe(ctxt *Link) {
 		c = addinitarray(ctxt)
 	}
 
-	if Debug['s'] == 0 {
+	if !Debug['s'] {
 		dwarfaddpeheaders(ctxt)
 	}
 

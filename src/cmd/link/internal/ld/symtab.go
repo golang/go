@@ -226,7 +226,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64,
 		'Z',
 		'm':
 		l := 4
-		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && Debug['8'] == 0 {
+		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Debug['8'] {
 			Lputb(uint32(addr >> 32))
 			l = 8
 		}

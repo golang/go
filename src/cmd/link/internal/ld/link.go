@@ -162,7 +162,7 @@ type Link struct {
 	Goarm     int32
 	Headtype  int
 	Arch      *sys.Arch
-	Debugvlog int32
+	Debugvlog int
 	Bso       *bufio.Writer
 	Windows   int32
 	Goroot    string

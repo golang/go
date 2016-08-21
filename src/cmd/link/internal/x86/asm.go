@@ -614,7 +614,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 }
 
 func asmb(ctxt *ld.Link) {
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -633,7 +633,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
 		ctxt.Bso.Flush()
@@ -642,7 +642,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -662,9 +662,9 @@ func asmb(ctxt *ld.Link) {
 	ld.Spsize = 0
 	ld.Lcsize = 0
 	symo := uint32(0)
-	if ld.Debug['s'] == 0 {
+	if !ld.Debug['s'] {
 		// TODO: rationalize
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ctxt.Bso.Flush()
@@ -690,7 +690,7 @@ func asmb(ctxt *ld.Link) {
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
-				if ld.Debug['v'] != 0 {
+				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "%5.2f elfsym\n", obj.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
@@ -717,7 +717,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case obj.Hwindows:
-			if ld.Debug['v'] != 0 {
+			if ctxt.Debugvlog != 0 {
 				fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 			}
 
@@ -728,7 +728,7 @@ func asmb(ctxt *ld.Link) {
 		}
 	}
 
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f headr\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()

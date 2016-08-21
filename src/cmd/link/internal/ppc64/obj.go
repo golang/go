@@ -146,7 +146,7 @@ func archinit(ctxt *ld.Link) {
 
 	case obj.Hlinux: /* ppc64 elf */
 		if ld.SysArch == sys.ArchPPC64 {
-			ld.Debug['d'] = 1 // TODO(austin): ELF ABI v1 not supported yet
+			ld.Debug['d'] = true // TODO(austin): ELF ABI v1 not supported yet
 		}
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
