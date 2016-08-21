@@ -239,7 +239,7 @@ func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 
 /*
  * divide-and-conquer list-link
- * sort of LSym* structures.
+ * sort of Symbol* structures.
  * Used for the data block.
  */
 
@@ -1161,12 +1161,12 @@ func (p *GCProg) AddSym(s *Symbol) {
 	p.w.Append(prog[4:], nptr)
 }
 
-// dataSortKey is used to sort a slice of data symbol *LSym pointers.
+// dataSortKey is used to sort a slice of data symbol *Symbol pointers.
 // The sort keys are kept inline to improve cache behaviour while sorting.
 type dataSortKey struct {
 	size int64
 	name string
-	lsym *Symbol
+	sym  *Symbol
 }
 
 type bySizeAndName []dataSortKey
@@ -1786,7 +1786,7 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
 		symsSort[i] = dataSortKey{
 			size: s.Size,
 			name: s.Name,
-			lsym: s,
+			sym:  s,
 		}
 
 		switch s.Type {
@@ -1806,8 +1806,8 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
 	sort.Sort(bySizeAndName(symsSort))
 
 	for i, symSort := range symsSort {
-		syms[i] = symSort.lsym
-		align := symalign(symSort.lsym)
+		syms[i] = symSort.sym
+		align := symalign(symSort.sym)
 		if maxAlign < align {
 			maxAlign = align
 		}

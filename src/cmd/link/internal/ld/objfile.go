@@ -44,11 +44,11 @@ package ld
 // A symbol reference is a string name followed by a version.
 //
 // A symbol points to other symbols using an index into the symbol
-// reference sequence. Index 0 corresponds to a nil LSym* pointer.
+// reference sequence. Index 0 corresponds to a nil Object* pointer.
 // In the symbol layout described below "symref index" stands for this
 // index.
 //
-// Each symbol is laid out as the following fields (taken from LSym*):
+// Each symbol is laid out as the following fields (taken from Object*):
 //
 //	- byte 0xfe (sanity check for synchronization)
 //	- type [int]

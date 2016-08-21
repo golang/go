@@ -46,7 +46,7 @@ func putelfstr(s string) int {
 		putelfstr("")
 	}
 
-	// When dynamically linking, we create LSym's by reading the names from
+	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
 	// match exactly. Tools like DTrace will have to wait for now.
 	if !DynlinkingGo() {
@@ -168,7 +168,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 		// PLT. We force this by writing an additional local symbol for every
 		// global function symbol and making all relocations against the
 		// global symbol refer to this local symbol instead (see
-		// (*LSym).ElfsymForReloc). This is approximately equivalent to the
+		// (*Symbol).ElfsymForReloc). This is approximately equivalent to the
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
 		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
