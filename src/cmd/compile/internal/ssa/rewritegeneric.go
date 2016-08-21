@@ -316,6 +316,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpSliceLen(v, config)
 	case OpSlicePtr:
 		return rewriteValuegeneric_OpSlicePtr(v, config)
+	case OpSqrt:
+		return rewriteValuegeneric_OpSqrt(v, config)
 	case OpStore:
 		return rewriteValuegeneric_OpStore(v, config)
 	case OpStringLen:
@@ -9028,6 +9030,24 @@ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
 		x := v_0_0.Args[0]
 		v.reset(OpSlicePtr)
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpSqrt(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sqrt (Const64F [c]))
+	// cond:
+	// result: (Const64F [f2i(math.Sqrt(i2f(c)))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpConst64F {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst64F)
+		v.AuxInt = f2i(math.Sqrt(i2f(c)))
 		return true
 	}
 	return false

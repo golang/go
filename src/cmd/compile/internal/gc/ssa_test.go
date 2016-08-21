@@ -103,3 +103,5 @@ func TestSlice(t *testing.T) { runTest(t, "slice.go") }
 func TestNamedReturn(t *testing.T) { runTest(t, "namedReturn.go") }
 
 func TestDuplicateLoad(t *testing.T) { runTest(t, "dupLoad.go") }
+
+func TestSqrt(t *testing.T) { runTest(t, "sqrt_const.go") }

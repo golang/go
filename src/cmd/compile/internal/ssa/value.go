@@ -26,6 +26,7 @@ type Value struct {
 
 	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.
+	// Floats are stored in AuxInt using math.Float64bits(f).
 	AuxInt int64
 	Aux    interface{}
 
