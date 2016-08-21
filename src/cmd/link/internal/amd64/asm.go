@@ -600,14 +600,14 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 
 func asmb(ctxt *ld.Link) {
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f codeblk\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f codeblk\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	if ld.Iself {
 		ld.Asmbelfsetup(ctxt)
@@ -624,18 +624,18 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
-		ld.Bso.Flush()
+		ctxt.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f datblk\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
@@ -678,9 +678,9 @@ func asmb(ctxt *ld.Link) {
 	symo := int64(0)
 	if ld.Debug['s'] == 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f sym\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
-		ld.Bso.Flush()
+		ctxt.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 		case obj.Hplan9:
@@ -715,7 +715,7 @@ func asmb(ctxt *ld.Link) {
 				ld.Cwrite(ld.Elfstrdat)
 
 				if ld.Debug['v'] != 0 {
-					fmt.Fprintf(ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+					fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 				}
 
 				if ld.Linkmode == ld.LinkExternal {
@@ -739,7 +739,7 @@ func asmb(ctxt *ld.Link) {
 
 		case obj.Hwindows:
 			if ld.Debug['v'] != 0 {
-				fmt.Fprintf(ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+				fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 			}
 
 		case obj.Hdarwin:
@@ -750,9 +750,9 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f headr\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f headr\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:

@@ -392,9 +392,9 @@ func archrelocvariant(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, t int64) int64 {
 
 func asmb(ctxt *ld.Link) {
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	if ld.Iself {
 		ld.Asmbelfsetup(ctxt)
@@ -410,18 +410,18 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
-		ld.Bso.Flush()
+		ctxt.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f datblk\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
@@ -442,9 +442,9 @@ func asmb(ctxt *ld.Link) {
 	if ld.Debug['s'] == 0 {
 		// TODO: rationalize
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f sym\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
-		ld.Bso.Flush()
+		ctxt.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
@@ -464,7 +464,7 @@ func asmb(ctxt *ld.Link) {
 		default:
 			if ld.Iself {
 				if ld.Debug['v'] != 0 {
-					fmt.Fprintf(ld.Bso, "%5.2f elfsym\n", obj.Cputime())
+					fmt.Fprintf(ctxt.Bso, "%5.2f elfsym\n", obj.Cputime())
 				}
 				ld.Asmelfsym(ctxt)
 				ld.Cflush()
@@ -498,9 +498,9 @@ func asmb(ctxt *ld.Link) {
 
 	ctxt.Cursym = nil
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f header\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:

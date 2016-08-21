@@ -500,9 +500,9 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 
 func asmb(ctxt *ld.Link) {
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f asmb\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	if ld.Iself {
 		ld.Asmbelfsetup(ctxt)
@@ -518,18 +518,18 @@ func asmb(ctxt *ld.Link) {
 
 	if ld.Segrodata.Filelen > 0 {
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
-		ld.Bso.Flush()
+		ctxt.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f datblk\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
@@ -547,22 +547,22 @@ func asmb(ctxt *ld.Link) {
 			ctxt.Diag("unsupported executable format")
 		}
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f sym\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
-		ld.Bso.Flush()
+		ctxt.Bso.Flush()
 		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 		symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 
 		ld.Cseek(int64(symo))
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f elfsym\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f elfsym\n", obj.Cputime())
 		}
 		ld.Asmelfsym(ctxt)
 		ld.Cflush()
 		ld.Cwrite(ld.Elfstrdat)
 
 		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+			fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
 
 		if ld.Linkmode == ld.LinkExternal {
@@ -572,9 +572,9 @@ func asmb(ctxt *ld.Link) {
 
 	ctxt.Cursym = nil
 	if ld.Debug['v'] != 0 {
-		fmt.Fprintf(ld.Bso, "%5.2f header\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
 	}
-	ld.Bso.Flush()
+	ctxt.Bso.Flush()
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:

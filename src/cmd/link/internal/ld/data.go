@@ -653,9 +653,9 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 func (ctxt *Link) reloc() {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f reloc\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
 	}
-	Bso.Flush()
+	ctxt.Bso.Flush()
 
 	for _, s := range ctxt.Textp {
 		relocsym(ctxt, s)
@@ -729,9 +729,9 @@ func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
 		return
 	}
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f reloc\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
 	}
-	Bso.Flush()
+	ctxt.Bso.Flush()
 
 	for _, s := range ctxt.Textp {
 		dynrelocsym(ctxt, s)
@@ -800,7 +800,7 @@ func Codeblk(ctxt *Link, addr int64, size int64) {
 }
 func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	if Debug['a'] != 0 {
-		fmt.Fprintf(Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blkSlice(ctxt, ctxt.Textp, addr, size, pad)
@@ -832,36 +832,36 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 		}
 
 		if addr < sym.Value {
-			fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(addr))
+			fmt.Fprintf(ctxt.Bso, "%-20s %.8x|", "_", uint64(addr))
 			for ; addr < sym.Value; addr++ {
-				fmt.Fprintf(Bso, " %.2x", 0)
+				fmt.Fprintf(ctxt.Bso, " %.2x", 0)
 			}
-			fmt.Fprintf(Bso, "\n")
+			fmt.Fprintf(ctxt.Bso, "\n")
 		}
 
-		fmt.Fprintf(Bso, "%.6x\t%-20s\n", uint64(addr), sym.Name)
+		fmt.Fprintf(ctxt.Bso, "%.6x\t%-20s\n", uint64(addr), sym.Name)
 		q = sym.P
 
 		for len(q) >= 16 {
-			fmt.Fprintf(Bso, "%.6x\t% x\n", uint64(addr), q[:16])
+			fmt.Fprintf(ctxt.Bso, "%.6x\t% x\n", uint64(addr), q[:16])
 			addr += 16
 			q = q[16:]
 		}
 
 		if len(q) > 0 {
-			fmt.Fprintf(Bso, "%.6x\t% x\n", uint64(addr), q)
+			fmt.Fprintf(ctxt.Bso, "%.6x\t% x\n", uint64(addr), q)
 			addr += int64(len(q))
 		}
 	}
 
 	if addr < eaddr {
-		fmt.Fprintf(Bso, "%-20s %.8x|", "_", uint64(addr))
+		fmt.Fprintf(ctxt.Bso, "%-20s %.8x|", "_", uint64(addr))
 		for ; addr < eaddr; addr++ {
-			fmt.Fprintf(Bso, " %.2x", 0)
+			fmt.Fprintf(ctxt.Bso, " %.2x", 0)
 		}
 	}
 
-	Bso.Flush()
+	ctxt.Bso.Flush()
 }
 
 // blkSlice is a variant of blk that processes slices.
@@ -915,7 +915,7 @@ func blkSlice(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 
 func Datblk(ctxt *Link, addr int64, size int64) {
 	if Debug['a'] != 0 {
-		fmt.Fprintf(Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blkSlice(ctxt, datap, addr, size, zeros[:])
@@ -939,23 +939,23 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 			break
 		}
 		if addr < sym.Value {
-			fmt.Fprintf(Bso, "\t%.8x| 00 ...\n", uint64(addr))
+			fmt.Fprintf(ctxt.Bso, "\t%.8x| 00 ...\n", uint64(addr))
 			addr = sym.Value
 		}
 
-		fmt.Fprintf(Bso, "%s\n\t%.8x|", sym.Name, uint64(addr))
+		fmt.Fprintf(ctxt.Bso, "%s\n\t%.8x|", sym.Name, uint64(addr))
 		for i, b := range sym.P {
 			if i > 0 && i%16 == 0 {
-				fmt.Fprintf(Bso, "\n\t%.8x|", uint64(addr)+uint64(i))
+				fmt.Fprintf(ctxt.Bso, "\n\t%.8x|", uint64(addr)+uint64(i))
 			}
-			fmt.Fprintf(Bso, " %.2x", b)
+			fmt.Fprintf(ctxt.Bso, " %.2x", b)
 		}
 
 		addr += int64(len(sym.P))
 		for ; addr < sym.Value+sym.Size; addr++ {
-			fmt.Fprintf(Bso, " %.2x", 0)
+			fmt.Fprintf(ctxt.Bso, " %.2x", 0)
 		}
-		fmt.Fprintf(Bso, "\n")
+		fmt.Fprintf(ctxt.Bso, "\n")
 
 		if Linkmode != LinkExternal {
 			continue
@@ -974,19 +974,19 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 			case obj.R_CALL:
 				typ = "call"
 			}
-			fmt.Fprintf(Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
+			fmt.Fprintf(ctxt.Bso, "\treloc %.8x/%d %s %s+%#x [%#x]\n", uint(sym.Value+int64(r.Off)), r.Siz, typ, rsname, r.Add, r.Sym.Value+r.Add)
 		}
 	}
 
 	if addr < eaddr {
-		fmt.Fprintf(Bso, "\t%.8x| 00 ...\n", uint(addr))
+		fmt.Fprintf(ctxt.Bso, "\t%.8x| 00 ...\n", uint(addr))
 	}
-	fmt.Fprintf(Bso, "\t%.8x|\n", uint(eaddr))
+	fmt.Fprintf(ctxt.Bso, "\t%.8x|\n", uint(eaddr))
 }
 
 func Dwarfblk(ctxt *Link, addr int64, size int64) {
 	if Debug['a'] != 0 {
-		fmt.Fprintf(Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(ctxt, dwarfp, addr, size)
@@ -1255,9 +1255,9 @@ var datap []*Symbol
 
 func (ctxt *Link) dodata() {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f dodata\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f dodata\n", obj.Cputime())
 	}
-	Bso.Flush()
+	ctxt.Bso.Flush()
 
 	// Collect data symbols by type into data.
 	var data [obj.SXREF][]*Symbol
