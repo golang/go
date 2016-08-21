@@ -966,6 +966,9 @@ func (s *state) stmt(n *Node) {
 		p := s.expr(n.Left)
 		s.nilCheck(p)
 
+	case OSQRT:
+		s.expr(n.Left)
+
 	default:
 		s.Unimplementedf("unhandled stmt %s", n.Op)
 	}
