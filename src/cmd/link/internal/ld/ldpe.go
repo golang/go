@@ -428,7 +428,7 @@ func ldpe(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if s.Sub != nil {
-			s.Sub = listsort(s.Sub, valuecmp, listsubp)
+			s.Sub = listsort(s.Sub)
 		}
 		if s.Type == obj.STEXT {
 			if s.Attr.OnList() {
