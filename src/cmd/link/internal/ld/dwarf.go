@@ -1415,7 +1415,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	}
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f dwarf\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 	}
 
 	// Forctxt.Diagnostic messages.

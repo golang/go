@@ -368,7 +368,7 @@ func (ctxt *Link) pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
+		fmt.Fprintf(ctxt.Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
 	}
 }
 

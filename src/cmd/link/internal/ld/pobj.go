@@ -46,10 +46,8 @@ var (
 )
 
 func Ldmain() {
-	Bso = bufio.NewWriter(os.Stdout)
-
 	ctxt := linknew(SysArch)
-	ctxt.Bso = Bso
+	ctxt.Bso = bufio.NewWriter(os.Stdout)
 
 	Debug = [128]int{}
 	nerrors = 0
@@ -123,7 +121,7 @@ func Ldmain() {
 	obj.Flagparse(usage)
 
 	startProfile()
-	ctxt.Bso = Bso
+	ctxt.Bso = ctxt.Bso
 	ctxt.Debugvlog = int32(Debug['v'])
 	if flagShared != 0 {
 		if Buildmode == BuildmodeUnset {
@@ -164,9 +162,9 @@ func Ldmain() {
 	}
 
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
+		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(INITTEXT), uint64(INITDAT), uint32(INITRND))
 	}
-	Bso.Flush()
+	ctxt.Bso.Flush()
 
 	if Buildmode == BuildmodeShared {
 		for i := 0; i < flag.NArg(); i++ {
@@ -213,14 +211,14 @@ func Ldmain() {
 	Thearch.Asmb(ctxt)
 	ctxt.undef()
 	ctxt.hostlink()
-	archive()
+	ctxt.archive()
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f cpu time\n", obj.Cputime())
-		fmt.Fprintf(Bso, "%d symbols\n", len(ctxt.Allsym))
-		fmt.Fprintf(Bso, "%d liveness data\n", liveness)
+		fmt.Fprintf(ctxt.Bso, "%5.2f cpu time\n", obj.Cputime())
+		fmt.Fprintf(ctxt.Bso, "%d symbols\n", len(ctxt.Allsym))
+		fmt.Fprintf(ctxt.Bso, "%d liveness data\n", liveness)
 	}
 
-	Bso.Flush()
+	ctxt.Bso.Flush()
 
 	errorexit()
 }

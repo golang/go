@@ -399,13 +399,13 @@ func (a *elfAttributeList) done() bool {
 // find the one we are looking for. This format is slightly documented in "ELF
 // for the ARM Architecture" but mostly this is derived from reading the source
 // to gold and readelf.
-func parseArmAttributes(e binary.ByteOrder, data []byte) {
+func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 	// We assume the soft-float ABI unless we see a tag indicating otherwise.
 	if ehdr.flags == 0x5000002 {
 		ehdr.flags = 0x5000202
 	}
 	if data[0] != 'A' {
-		fmt.Fprintf(Bso, ".ARM.attributes has unexpected format %c\n", data[0])
+		fmt.Fprintf(ctxt.Bso, ".ARM.attributes has unexpected format %c\n", data[0])
 		return
 	}
 	data = data[1:]
@@ -416,7 +416,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 
 		nulIndex := bytes.IndexByte(sectiondata, 0)
 		if nulIndex < 0 {
-			fmt.Fprintf(Bso, "corrupt .ARM.attributes (section name not NUL-terminated)\n")
+			fmt.Fprintf(ctxt.Bso, "corrupt .ARM.attributes (section name not NUL-terminated)\n")
 			return
 		}
 		name := string(sectiondata[:nulIndex])
@@ -440,7 +440,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 					}
 				}
 				if attrList.err != nil {
-					fmt.Fprintf(Bso, "could not parse .ARM.attributes\n")
+					fmt.Fprintf(ctxt.Bso, "could not parse .ARM.attributes\n")
 				}
 			}
 		}
@@ -449,7 +449,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) {
 
 func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
-		fmt.Fprintf(Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
+		fmt.Fprintf(ctxt.Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
 	ctxt.IncVersion()
@@ -697,7 +697,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			if err = elfmap(elfobj, sect); err != nil {
 				goto bad
 			}
-			parseArmAttributes(e, sect.base[:sect.size])
+			parseArmAttributes(ctxt, e, sect.base[:sect.size])
 		}
 		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
 			continue
