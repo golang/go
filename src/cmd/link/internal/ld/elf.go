@@ -1640,7 +1640,7 @@ func elfshbits(ctxt *Link, sect *Section) *ElfShdr {
 			// in a loadable segment (e.g. the abihash note) but not for
 			// notes that we do not want to be mapped (e.g. the package
 			// list note). The real fix is probably to define new values
-			// for LSym.Type corresponding to mapped and unmapped notes
+			// for Symbol.Type corresponding to mapped and unmapped notes
 			// and handle them in dodata().
 			ctxt.Diag("sh.type_ == SHT_NOTE in elfshbits when linking internally")
 		}

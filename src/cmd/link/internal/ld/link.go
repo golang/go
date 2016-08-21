@@ -177,12 +177,12 @@ type Link struct {
 	Shlibs    []Shlib
 	Tlsoffset int
 
-	Cursym     *Symbol
-	Version    int
-	Textp      []*Symbol
-	Filesyms   []*Symbol
-	Moduledata *Symbol
-	LSymBatch  []Symbol
+	Cursym      *Symbol
+	Version     int
+	Textp       []*Symbol
+	Filesyms    []*Symbol
+	Moduledata  *Symbol
+	SymbolBatch []Symbol
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
