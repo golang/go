@@ -807,6 +807,11 @@ func (p *importer) node() *Node {
 		typ := p.typ()
 		n := nodlit(p.value(typ))
 		if !typ.IsUntyped() {
+			if typ.IsUnsafePtr() {
+				conv := Nod(OCALL, typenod(Types[TUINTPTR]), nil)
+				conv.List.Set1(n)
+				n = conv
+			}
 			conv := Nod(OCALL, typenod(typ), nil)
 			conv.List.Set1(n)
 			n = conv
