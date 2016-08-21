@@ -9,6 +9,12 @@ import (
 	"syscall"
 )
 
+// BUG(mikio): On NaCl, Plan 9 and Windows, the ReadMsgIP and
+// WriteMsgIP methods of IPConn are not implemented.
+
+// BUG(mikio): On Windows, the File method of IPConn is not
+// implemented.
+
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
 	IP   IP
