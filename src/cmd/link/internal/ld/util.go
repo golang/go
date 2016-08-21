@@ -7,10 +7,7 @@ package ld
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
 	"os"
-	"runtime"
-	"runtime/pprof"
 	"strings"
 	"time"
 )
@@ -80,40 +77,6 @@ func Exit(code int) {
 		f()
 	}
 	os.Exit(code)
-}
-
-var (
-	cpuprofile     string
-	memprofile     string
-	memprofilerate int64
-)
-
-func startProfile() {
-	if cpuprofile != "" {
-		f, err := os.Create(cpuprofile)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatalf("%v", err)
-		}
-		AtExit(pprof.StopCPUProfile)
-	}
-	if memprofile != "" {
-		if memprofilerate != 0 {
-			runtime.MemProfileRate = int(memprofilerate)
-		}
-		f, err := os.Create(memprofile)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		AtExit(func() {
-			runtime.GC() // profile all outstanding allocations
-			if err := pprof.WriteHeapProfile(f); err != nil {
-				log.Fatalf("%v", err)
-			}
-		})
-	}
 }
 
 func artrim(x []byte) string {

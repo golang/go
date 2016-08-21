@@ -31,13 +31,13 @@ func expandpkg(t0 string, pkg string) string {
 func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string, whence int) {
 	var p0, p1 int
 
-	if Debug['g'] {
+	if *flagG {
 		return
 	}
 
 	if int64(int(length)) != length {
 		fmt.Fprintf(os.Stderr, "%s: too much pkg data in %s\n", os.Args[0], filename)
-		if Debug['u'] {
+		if *flagU {
 			errorexit()
 		}
 		return
@@ -52,7 +52,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 	bdata := make([]byte, length)
 	if _, err := io.ReadFull(f, bdata); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: short pkg read %s\n", os.Args[0], filename)
-		if Debug['u'] {
+		if *flagU {
 			errorexit()
 		}
 		return
@@ -84,7 +84,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 		if pkg == "main" && !isMain {
 			Exitf("%s: not package main", filename)
 		}
-		if Debug['u'] && whence != ArchiveObj && !isSafe {
+		if *flagU && whence != ArchiveObj && !isSafe {
 			Exitf("load of unsafe package %s", filename)
 		}
 	}
@@ -101,7 +101,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 		i := strings.IndexByte(data[p0+1:], '\n')
 		if i < 0 {
 			fmt.Fprintf(os.Stderr, "%s: found $$ // cgo but no newline in %s\n", os.Args[0], filename)
-			if Debug['u'] {
+			if *flagU {
 				errorexit()
 			}
 			return
@@ -114,7 +114,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, pkg string, length int64, filename string,
 		}
 		if p1 < 0 {
 			fmt.Fprintf(os.Stderr, "%s: cannot find end of // cgo section in %s\n", os.Args[0], filename)
-			if Debug['u'] {
+			if *flagU {
 				errorexit()
 			}
 			return
@@ -163,7 +163,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				lib = f[3]
 			}
 
-			if Debug['d'] {
+			if *FlagD {
 				fmt.Fprintf(os.Stderr, "%s: %s: cannot use dynamic imports with -d flag\n", os.Args[0], file)
 				nerrors++
 				return
@@ -267,14 +267,14 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				goto err
 			}
 
-			if !Debug['I'] {
-				if interpreter != "" && interpreter != f[1] {
-					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], interpreter, f[1])
+			if *flagInterpreter != "" {
+				if *flagInterpreter != f[1] {
+					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], *flagInterpreter, f[1])
 					nerrors++
 					return
 				}
 
-				interpreter = f[1]
+				*flagInterpreter = f[1]
 			}
 
 			continue
@@ -352,14 +352,14 @@ func fieldtrack(ctxt *Link) {
 		}
 	}
 
-	if tracksym == "" {
+	if *flagFieldTrack == "" {
 		return
 	}
-	s := Linklookup(ctxt, tracksym, 0)
+	s := Linklookup(ctxt, *flagFieldTrack, 0)
 	if !s.Attr.Reachable() {
 		return
 	}
-	addstrdata(ctxt, tracksym, buf.String())
+	addstrdata(ctxt, *flagFieldTrack, buf.String())
 }
 
 func (ctxt *Link) addexport() {

@@ -701,7 +701,7 @@ func initdynexport(ctxt *Link) {
 func addexports(ctxt *Link) {
 	var e IMAGE_EXPORT_DIRECTORY
 
-	size := binary.Size(&e) + 10*nexport + len(outfile) + 1
+	size := binary.Size(&e) + 10*nexport + len(*flagOutfile) + 1
 	for i := 0; i < nexport; i++ {
 		size += len(dexport[i].Extname) + 1
 	}
@@ -741,7 +741,7 @@ func addexports(ctxt *Link) {
 	}
 
 	// put EXPORT Name Pointer Table
-	v := int(e.Name + uint32(len(outfile)) + 1)
+	v := int(e.Name + uint32(len(*flagOutfile)) + 1)
 
 	for i := 0; i < nexport; i++ {
 		Lputl(uint32(v))
@@ -754,7 +754,7 @@ func addexports(ctxt *Link) {
 	}
 
 	// put Names
-	strnput(outfile, len(outfile)+1)
+	strnput(*flagOutfile, len(*flagOutfile)+1)
 
 	for i := 0; i < nexport; i++ {
 		strnput(dexport[i].Extname, len(dexport[i].Extname)+1)
@@ -1021,7 +1021,7 @@ func addpesymtable(ctxt *Link) {
 
 	// write COFF symbol table
 	var symcnt int
-	if !Debug['s'] || Linkmode == LinkExternal {
+	if !*FlagS || Linkmode == LinkExternal {
 		symcnt = writePESymTableRecords(ctxt)
 	}
 
@@ -1114,7 +1114,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 
 	Cseek(int64(c.PointerToRawData))
 	chksectoff(ctxt, c, Cpos())
-	init_entry := Linklookup(ctxt, INITENTRY, 0)
+	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
 
 	switch obj.Getgoarch() {
@@ -1168,7 +1168,7 @@ func Asmbpe(ctxt *Link) {
 		c = addinitarray(ctxt)
 	}
 
-	if !Debug['s'] {
+	if !*FlagS {
 		dwarfaddpeheaders(ctxt)
 	}
 

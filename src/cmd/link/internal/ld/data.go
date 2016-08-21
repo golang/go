@@ -720,7 +720,7 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
 	// -d suppresses dynamic loader format, so we may as well not
 	// compute these sections or mark their symbols as reachable.
-	if Debug['d'] && HEADTYPE != obj.Hwindows {
+	if *FlagD && HEADTYPE != obj.Hwindows {
 		return
 	}
 	if ctxt.Debugvlog != 0 {
@@ -745,14 +745,14 @@ func Codeblk(ctxt *Link, addr int64, size int64) {
 	CodeblkPad(ctxt, addr, size, zeros[:])
 }
 func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
-	if Debug['a'] {
+	if *flagA {
 		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(ctxt, ctxt.Textp, addr, size, pad)
 
 	/* again for printing */
-	if !Debug['a'] {
+	if !*flagA {
 		return
 	}
 
@@ -857,14 +857,14 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 }
 
 func Datblk(ctxt *Link, addr int64, size int64) {
-	if Debug['a'] {
+	if *flagA {
 		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
 	blk(ctxt, datap, addr, size, zeros[:])
 
 	/* again for printing */
-	if !Debug['a'] {
+	if !*flagA {
 		return
 	}
 
@@ -928,7 +928,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 }
 
 func Dwarfblk(ctxt *Link, addr int64, size int64) {
-	if Debug['a'] {
+	if *flagA {
 		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
 	}
 
@@ -1060,7 +1060,7 @@ func dosymtype(ctxt *Link) {
 		// library initializer function.
 		switch Buildmode {
 		case BuildmodeCArchive, BuildmodeCShared:
-			if s.Name == INITENTRY {
+			if s.Name == *flagEntrySymbol {
 				addinitarrdata(ctxt, s)
 			}
 		}
@@ -1351,7 +1351,7 @@ func (ctxt *Link) dodata() {
 	checkdatsize(ctxt, datsize, obj.SNOPTRDATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
 
-	hasinitarr := Linkshared
+	hasinitarr := *FlagLinkshared
 
 	/* shared library initializer */
 	switch Buildmode {
@@ -1434,7 +1434,7 @@ func (ctxt *Link) dodata() {
 
 	if len(data[obj.STLSBSS]) > 0 {
 		var sect *Section
-		if Iself && (Linkmode == LinkExternal || !Debug['d']) && HEADTYPE != obj.Hopenbsd {
+		if Iself && (Linkmode == LinkExternal || !*FlagD) && HEADTYPE != obj.Hopenbsd {
 			sect = addsection(&Segdata, ".tbss", 06)
 			sect.Align = int32(SysArch.PtrSize)
 			sect.Vaddr = 0
@@ -1843,7 +1843,7 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
 // at the very beginning of the text segment.
 // This ``header'' is read by cmd/go.
 func (ctxt *Link) textbuildid() {
-	if Iself || buildid == "" {
+	if Iself || *flagBuildid == "" {
 		return
 	}
 
@@ -1851,7 +1851,7 @@ func (ctxt *Link) textbuildid() {
 	sym.Attr |= AttrReachable
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
-	data := "\xff Go build ID: " + strconv.Quote(buildid) + "\n \xff"
+	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
 	sym.Type = obj.STEXT
 	sym.P = []byte(data)
 	sym.Size = int64(len(sym.P))
@@ -1876,7 +1876,7 @@ func (ctxt *Link) textaddress() {
 	if HEADTYPE == obj.Hwindows {
 		Linklookup(ctxt, ".text", 0).Sect = sect
 	}
-	va := uint64(INITTEXT)
+	va := uint64(*FlagTextAddr)
 	sect.Vaddr = va
 	for _, sym := range ctxt.Textp {
 		sym.Sect = sect
@@ -1907,7 +1907,7 @@ func (ctxt *Link) textaddress() {
 
 // assign addresses
 func (ctxt *Link) address() {
-	va := uint64(INITTEXT)
+	va := uint64(*FlagTextAddr)
 	Segtext.Rwx = 05
 	Segtext.Vaddr = va
 	Segtext.Fileoff = uint64(HEADR)
@@ -1917,7 +1917,7 @@ func (ctxt *Link) address() {
 		va += s.Length
 	}
 
-	Segtext.Length = va - uint64(INITTEXT)
+	Segtext.Length = va - uint64(*FlagTextAddr)
 	Segtext.Filelen = Segtext.Length
 	if HEADTYPE == obj.Hnacl {
 		va += 32 // room for the "halt sled"
@@ -1926,7 +1926,7 @@ func (ctxt *Link) address() {
 	if Segrodata.Sect != nil {
 		// align to page boundary so as not to mix
 		// rodata and executable text.
-		va = uint64(Rnd(int64(va), int64(INITRND)))
+		va = uint64(Rnd(int64(va), int64(*FlagRound)))
 
 		Segrodata.Rwx = 04
 		Segrodata.Vaddr = va
@@ -1942,7 +1942,7 @@ func (ctxt *Link) address() {
 		Segrodata.Filelen = Segrodata.Length
 	}
 
-	va = uint64(Rnd(int64(va), int64(INITRND)))
+	va = uint64(Rnd(int64(va), int64(*FlagRound)))
 	Segdata.Rwx = 06
 	Segdata.Vaddr = va
 	Segdata.Fileoff = va - Segtext.Vaddr + Segtext.Fileoff
@@ -1985,10 +1985,10 @@ func (ctxt *Link) address() {
 
 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
 
-	va = uint64(Rnd(int64(va), int64(INITRND)))
+	va = uint64(Rnd(int64(va), int64(*FlagRound)))
 	Segdwarf.Rwx = 06
 	Segdwarf.Vaddr = va
-	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(INITRND)))
+	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(*FlagRound)))
 	Segdwarf.Filelen = 0
 	if HEADTYPE == obj.Hwindows {
 		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))

@@ -226,7 +226,7 @@ func asmb(ctxt *ld.Link) {
 
 	ld.Lcsize = 0
 	symo := uint32(0)
-	if ld.Debug['s'] {
+	if *ld.FlagS {
 		// TODO: rationalize
 		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
@@ -236,7 +236,7 @@ func asmb(ctxt *ld.Link) {
 		default:
 			if ld.Iself {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-				symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
+				symo = uint32(ld.Rnd(int64(symo), int64(*ld.FlagRound)))
 			}
 
 		case obj.Hplan9:
@@ -306,7 +306,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	ld.Cflush()
-	if ld.Debug['c'] {
+	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
 		fmt.Printf("bsssize=%d\n", ld.Segdata.Length-ld.Segdata.Filelen)

@@ -42,7 +42,7 @@ import (
 
 func Main() {
 	linkarchinit()
-	ld.Ldmain()
+	ld.Main()
 }
 
 func linkarchinit() {
@@ -121,28 +121,28 @@ func archinit(ctxt *ld.Link) {
 	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32 + 8
 
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = 0x200000 + int64(ld.HEADR)
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = 0x200000 + int64(ld.HEADR)
 		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
+		if *ld.FlagDataAddr == -1 {
+			*ld.FlagDataAddr = 0
 		}
-		if ld.INITRND == -1 {
-			ld.INITRND = 0x200000
+		if *ld.FlagRound == -1 {
+			*ld.FlagRound = 0x200000
 		}
 
 	case obj.Hdarwin: /* apple MACH */
 		ld.Machoinit()
 
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
-		if ld.INITRND == -1 {
-			ld.INITRND = 4096
+		if *ld.FlagRound == -1 {
+			*ld.FlagRound = 4096
 		}
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = 4096 + int64(ld.HEADR)
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
 		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
+		if *ld.FlagDataAddr == -1 {
+			*ld.FlagDataAddr = 0
 		}
 
 	case obj.Hlinux, /* elf64 executable */
@@ -154,47 +154,47 @@ func archinit(ctxt *ld.Link) {
 		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = (1 << 22) + int64(ld.HEADR)
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = (1 << 22) + int64(ld.HEADR)
 		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
+		if *ld.FlagDataAddr == -1 {
+			*ld.FlagDataAddr = 0
 		}
-		if ld.INITRND == -1 {
-			ld.INITRND = 4096
+		if *ld.FlagRound == -1 {
+			*ld.FlagRound = 4096
 		}
 
 	case obj.Hnacl:
 		ld.Elfinit(ctxt)
-		ld.Debug['w'] = true // disable dwarf, which gets confused and is useless anyway
+		*ld.FlagW = true // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = 0x20000
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = 0x20000
 		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
+		if *ld.FlagDataAddr == -1 {
+			*ld.FlagDataAddr = 0
 		}
-		if ld.INITRND == -1 {
-			ld.INITRND = 0x10000
+		if *ld.FlagRound == -1 {
+			*ld.FlagRound = 0x10000
 		}
 
 	case obj.Hwindows: /* PE executable */
 		ld.Peinit(ctxt)
 
 		ld.HEADR = ld.PEFILEHEADR
-		if ld.INITTEXT == -1 {
-			ld.INITTEXT = ld.PEBASE + int64(ld.PESECTHEADR)
+		if *ld.FlagTextAddr == -1 {
+			*ld.FlagTextAddr = ld.PEBASE + int64(ld.PESECTHEADR)
 		}
-		if ld.INITDAT == -1 {
-			ld.INITDAT = 0
+		if *ld.FlagDataAddr == -1 {
+			*ld.FlagDataAddr = 0
 		}
-		if ld.INITRND == -1 {
-			ld.INITRND = ld.PESECTALIGN
+		if *ld.FlagRound == -1 {
+			*ld.FlagRound = ld.PESECTALIGN
 		}
 	}
 
-	if ld.INITDAT != 0 && ld.INITRND != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
+	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
+		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
 	}
 }

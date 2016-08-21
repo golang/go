@@ -15,7 +15,7 @@ import (
 // deadcode marks all reachable symbols.
 //
 // The basis of the dead code elimination is a flood fill of symbols,
-// following their relocations, beginning at INITENTRY.
+// following their relocations, beginning at *flagEntrySymbol.
 //
 // This flood fill is wrapped in logic for pruning unused methods.
 // All methods are mentioned by relocations on their receiver's *rtype.
@@ -55,7 +55,7 @@ func deadcode(ctxt *Link) {
 	}
 
 	// First, flood fill any symbols directly reachable in the call
-	// graph from INITENTRY. Ignore all methods not directly called.
+	// graph from *flagEntrySymbol. Ignore all methods not directly called.
 	d.init()
 	d.flood()
 
@@ -196,7 +196,7 @@ func (d *deadcodepass) mark(s, parent *Symbol) {
 	if s.Attr.ReflectMethod() {
 		d.reflectMethod = true
 	}
-	if flag_dumpdep {
+	if *flagDumpDep {
 		p := "_"
 		if parent != nil {
 			p = parent.Name
@@ -217,7 +217,7 @@ func (d *deadcodepass) markMethod(m methodref) {
 }
 
 // init marks all initial symbols as reachable.
-// In a typical binary, this is INITENTRY.
+// In a typical binary, this is *flagEntrySymbol.
 func (d *deadcodepass) init() {
 	var names []string
 
@@ -240,8 +240,8 @@ func (d *deadcodepass) init() {
 	} else {
 		// In a normal binary, start at main.main and the init
 		// functions and mark what is reachable from there.
-		names = append(names, INITENTRY)
-		if Linkshared && Buildmode == BuildmodeExe {
+		names = append(names, *flagEntrySymbol)
+		if *FlagLinkshared && Buildmode == BuildmodeExe {
 			names = append(names, "main.main", "main.init")
 		}
 		for _, name := range markextra {
