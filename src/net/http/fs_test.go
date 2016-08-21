@@ -270,10 +270,10 @@ func TestFileServerEscapesNames(t *testing.T) {
 	tests := []struct {
 		name, escaped string
 	}{
-		{`simple_name`, `<a href="simple_name">simple_name</a>`},
-		{`"'<>&`, `<a href="%22%27%3C%3E&">&#34;&#39;&lt;&gt;&amp;</a>`},
-		{`?foo=bar#baz`, `<a href="%3Ffoo=bar%23baz">?foo=bar#baz</a>`},
-		{`<combo>?foo`, `<a href="%3Ccombo%3E%3Ffoo">&lt;combo&gt;?foo</a>`},
+		{`simple_name`, `<a href="./simple_name">simple_name</a>`},
+		{`"'<>&`, `<a href="./%22%27%3C%3E&">&#34;&#39;&lt;&gt;&amp;</a>`},
+		{`?foo=bar#baz`, `<a href="./%3Ffoo=bar%23baz">?foo=bar#baz</a>`},
+		{`<combo>?foo`, `<a href="./%3Ccombo%3E%3Ffoo">&lt;combo&gt;?foo</a>`},
 	}
 
 	// We put each test file in its own directory in the fakeFS so we can look at it in isolation.
@@ -349,7 +349,7 @@ func TestFileServerSortsNames(t *testing.T) {
 		t.Fatalf("read Body: %v", err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "<a href=\"a\">a</a>\n<a href=\"b\">b</a>") {
+	if !strings.Contains(s, "<a href=\"./a\">a</a>\n<a href=\"./b\">b</a>") {
 		t.Errorf("output appears to be unsorted:\n%s", s)
 	}
 }
