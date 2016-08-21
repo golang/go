@@ -79,7 +79,7 @@ func linkarchinit() {
 	ld.Thearch.Solarisdynld = "XXX"
 }
 
-func archinit() {
+func archinit(ctxt *ld.Link) {
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -95,7 +95,7 @@ func archinit() {
 		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
 
 	case obj.Hlinux: // s390x ELF
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
 			ld.INITTEXT = 0x10000 + int64(ld.HEADR)

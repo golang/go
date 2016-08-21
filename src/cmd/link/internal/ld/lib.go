@@ -95,16 +95,16 @@ type Arch struct {
 	Openbsddynld     string
 	Dragonflydynld   string
 	Solarisdynld     string
-	Adddynrel        func(*Symbol, *Reloc)
-	Archinit         func()
-	Archreloc        func(*Reloc, *Symbol, *int64) int
-	Archrelocvariant func(*Reloc, *Symbol, int64) int64
+	Adddynrel        func(*Link, *Symbol, *Reloc)
+	Archinit         func(*Link)
+	Archreloc        func(*Link, *Reloc, *Symbol, *int64) int
+	Archrelocvariant func(*Link, *Reloc, *Symbol, int64) int64
 	Asmb             func(*Link)
-	Elfreloc1        func(*Reloc, int64) int
-	Elfsetupplt      func()
-	Gentext          func()
-	Machoreloc1      func(*Reloc, int64) int
-	PEreloc1         func(*Reloc, int64) bool
+	Elfreloc1        func(*Link, *Reloc, int64) int
+	Elfsetupplt      func(*Link)
+	Gentext          func(*Link)
+	Machoreloc1      func(*Link, *Reloc, int64) int
+	PEreloc1         func(*Link, *Reloc, int64) bool
 	Wput             func(uint16)
 	Lput             func(uint32)
 	Vput             func(uint64)
@@ -209,8 +209,7 @@ var (
 	extldflags         string
 	extar              string
 	libgccfile         string
-	debug_s            int   // backup old value of debug['s']
-	Ctxt               *Link // Global pointer to ctxt used by arch-specific packages
+	debug_s            int // backup old value of debug['s']
 	HEADR              int32
 	HEADTYPE           int32
 	INITRND            int32

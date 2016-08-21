@@ -82,9 +82,7 @@ func linkarchinit() {
 	ld.Thearch.Solarisdynld = "/lib/amd64/ld.so.1"
 }
 
-func archinit() {
-	ctxt := ld.Ctxt
-
+func archinit(ctxt *ld.Link) {
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -153,7 +151,7 @@ func archinit() {
 		obj.Hopenbsd,   /* openbsd */
 		obj.Hdragonfly, /* dragonfly */
 		obj.Hsolaris:   /* solaris */
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
@@ -167,7 +165,7 @@ func archinit() {
 		}
 
 	case obj.Hnacl:
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 		ld.Debug['w']++ // disable dwarf, which gets confused and is useless anyway
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32

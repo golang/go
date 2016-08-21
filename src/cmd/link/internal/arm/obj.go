@@ -78,7 +78,7 @@ func linkarchinit() {
 	ld.Thearch.Solarisdynld = "XXX"
 }
 
-func archinit() {
+func archinit(ctxt *ld.Link) {
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -128,7 +128,7 @@ func archinit() {
 		obj.Hopenbsd:
 		ld.Debug['d'] = 0
 		// with dynamic linking
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
 			ld.INITTEXT = 0x10000 + int64(ld.HEADR)
@@ -141,7 +141,7 @@ func archinit() {
 		}
 
 	case obj.Hnacl:
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 16
 		if ld.INITTEXT == -1 {

@@ -49,7 +49,6 @@ func Ldmain() {
 	Bso = bufio.NewWriter(os.Stdout)
 
 	ctxt := linknew(SysArch)
-	Ctxt = ctxt // Export Ctxt because it's currently used by the arch-specific packages
 	ctxt.Bso = Bso
 
 	Debug = [128]int{}
@@ -158,7 +157,7 @@ func Ldmain() {
 		headstring = Headstr(int(HEADTYPE))
 	}
 
-	Thearch.Archinit()
+	Thearch.Archinit(ctxt)
 
 	if Linkshared && !Iself {
 		Exitf("-linkshared can only be used on elf systems")
@@ -202,7 +201,7 @@ func Ldmain() {
 		ctxt.dope()
 	}
 	ctxt.addexport()
-	Thearch.Gentext() // trampolines, call stubs, etc.
+	Thearch.Gentext(ctxt) // trampolines, call stubs, etc.
 	ctxt.textbuildid()
 	ctxt.textaddress()
 	ctxt.pclntab()

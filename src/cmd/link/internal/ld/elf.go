@@ -1762,7 +1762,7 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 			if r.Xsym.ElfsymForReloc() == 0 {
 				ctxt.Diag("reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
-			if Thearch.Elfreloc1(r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
+			if Thearch.Elfreloc1(ctxt, r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
 				ctxt.Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
 			}
 		}
@@ -1990,7 +1990,7 @@ func (ctxt *Link) doelf() {
 			s.Type = obj.SELFRXSECT
 		}
 
-		Thearch.Elfsetupplt()
+		Thearch.Elfsetupplt(ctxt)
 
 		s = Linklookup(ctxt, elfRelType+".plt", 0)
 		s.Attr |= AttrReachable

@@ -78,7 +78,7 @@ func linkarchinit() {
 	ld.Thearch.Solarisdynld = "/lib/ld.so.1"
 }
 
-func archinit() {
+func archinit(ctxt *ld.Link) {
 	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
 	// Go was built; see ../../make.bash.
 	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
@@ -87,7 +87,7 @@ func archinit() {
 
 	if ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ld.DynlinkingGo() {
 		ld.Linkmode = ld.LinkExternal
-		got := ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+		got := ld.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
 		got.Type = obj.SDYNIMPORT
 		got.Attr |= ld.AttrReachable
 	}
@@ -145,7 +145,7 @@ func archinit() {
 		obj.Hfreebsd,
 		obj.Hnetbsd,
 		obj.Hopenbsd:
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 
 		ld.HEADR = ld.ELFRESERVE
 		if ld.INITTEXT == -1 {
@@ -159,7 +159,7 @@ func archinit() {
 		}
 
 	case obj.Hnacl:
-		ld.Elfinit(ld.Ctxt)
+		ld.Elfinit(ctxt)
 		ld.HEADR = 0x10000
 		ld.Funcalign = 32
 		if ld.INITTEXT == -1 {
@@ -173,7 +173,7 @@ func archinit() {
 		}
 
 	case obj.Hwindows: /* PE executable */
-		ld.Peinit(ld.Ctxt)
+		ld.Peinit(ctxt)
 
 		ld.HEADR = ld.PEFILEHEADR
 		if ld.INITTEXT == -1 {
