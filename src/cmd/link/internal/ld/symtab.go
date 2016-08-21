@@ -226,7 +226,7 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64,
 		'Z',
 		'm':
 		l := 4
-		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Debug['8'] {
+		if HEADTYPE == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
 			Lputb(uint32(addr >> 32))
 			l = 8
 		}
@@ -483,7 +483,7 @@ func (ctxt *Link) symtab() {
 	}
 
 	if Buildmode == BuildmodeShared {
-		abihashgostr := Linklookup(ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
+		abihashgostr := Linklookup(ctxt, "go.link.abihash."+filepath.Base(*flagOutfile), 0)
 		abihashgostr.Attr |= AttrReachable
 		abihashgostr.Type = obj.SRODATA
 		hashsym := Linklookup(ctxt, "go.link.abihashbytes", 0)
@@ -538,7 +538,7 @@ func (ctxt *Link) symtab() {
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	if len(ctxt.Shlibs) > 0 {
-		thismodulename := filepath.Base(outfile)
+		thismodulename := filepath.Base(*flagOutfile)
 		switch Buildmode {
 		case BuildmodeExe, BuildmodePIE:
 			// When linking an executable, outfile is just "a.out". Make

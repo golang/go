@@ -1398,10 +1398,10 @@ var prototypedies map[string]*dwarf.DWDie
  *
  */
 func dwarfgeneratedebugsyms(ctxt *Link) {
-	if Debug['w'] { // disable dwarf
+	if *FlagW { // disable dwarf
 		return
 	}
-	if Debug['s'] && HEADTYPE != obj.Hdarwin {
+	if *FlagS && HEADTYPE != obj.Hdarwin {
 		return
 	}
 	if HEADTYPE == obj.Hplan9 {
@@ -1483,7 +1483,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
  *  Elf.
  */
 func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
-	if Debug['w'] { // disable dwarf
+	if *FlagW { // disable dwarf
 		return
 	}
 
@@ -1508,7 +1508,7 @@ func dwarfaddshstrings(ctxt *Link, shstrtab *Symbol) {
 // Add section symbols for DWARF debug info.  This is called before
 // dwarfaddelfheaders.
 func dwarfaddelfsectionsyms(ctxt *Link) {
-	if Debug['w'] { // disable dwarf
+	if *FlagW { // disable dwarf
 		return
 	}
 	if Linkmode != LinkExternal {
@@ -1528,7 +1528,7 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
  * Windows PE
  */
 func dwarfaddpeheaders(ctxt *Link) {
-	if Debug['w'] { // disable dwarf
+	if *FlagW { // disable dwarf
 		return
 	}
 	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {

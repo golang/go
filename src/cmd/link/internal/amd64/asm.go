@@ -657,7 +657,7 @@ func asmb(ctxt *ld.Link) {
 		break
 
 	case obj.Hdarwin:
-		ld.Debug['8'] = true /* 64-bit addresses */
+		ld.Flag8 = true /* 64-bit addresses */
 
 	case obj.Hlinux,
 		obj.Hfreebsd,
@@ -665,7 +665,7 @@ func asmb(ctxt *ld.Link) {
 		obj.Hopenbsd,
 		obj.Hdragonfly,
 		obj.Hsolaris:
-		ld.Debug['8'] = true /* 64-bit addresses */
+		ld.Flag8 = true /* 64-bit addresses */
 
 	case obj.Hnacl,
 		obj.Hwindows:
@@ -676,7 +676,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Spsize = 0
 	ld.Lcsize = 0
 	symo := int64(0)
-	if !ld.Debug['s'] {
+	if !*ld.FlagS {
 		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
@@ -684,11 +684,11 @@ func asmb(ctxt *ld.Link) {
 		switch ld.HEADTYPE {
 		default:
 		case obj.Hplan9:
-			ld.Debug['s'] = true
+			*ld.FlagS = true
 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case obj.Hdarwin:
-			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(ld.INITRND))) + uint64(machlink))
+			symo = int64(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
 		case obj.Hlinux,
 			obj.Hfreebsd,
@@ -698,7 +698,7 @@ func asmb(ctxt *ld.Link) {
 			obj.Hsolaris,
 			obj.Hnacl:
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
-			symo = ld.Rnd(symo, int64(ld.INITRND))
+			symo = ld.Rnd(symo, int64(*ld.FlagRound))
 
 		case obj.Hwindows:
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)

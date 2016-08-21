@@ -295,7 +295,7 @@ func machowrite() int {
 }
 
 func (ctxt *Link) domacho() {
-	if Debug['d'] {
+	if *FlagD {
 		return
 	}
 
@@ -340,7 +340,7 @@ func Machoadddynlib(lib string) {
 
 	if load_budget < 0 {
 		HEADR += 4096
-		INITTEXT += 4096
+		*FlagTextAddr += 4096
 		load_budget += 4096
 	}
 
@@ -415,7 +415,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *Section, segname string) {
 
 func Asmbmacho(ctxt *Link) {
 	/* apple MACH */
-	va := INITTEXT - int64(HEADR)
+	va := *FlagTextAddr - int64(HEADR)
 
 	mh := getMachoHdr()
 	switch SysArch.Family {
@@ -460,7 +460,7 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	/* text */
-	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(INITRND))
+	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
 
 	if Linkmode != LinkExternal {
 		ms = newMachoSeg("__TEXT", 20)
@@ -493,7 +493,7 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	/* dwarf */
-	if !Debug['w'] {
+	if !*FlagW {
 		if Linkmode != LinkExternal {
 			ms = newMachoSeg("__DWARF", 20)
 			ms.vaddr = Segdwarf.Vaddr
@@ -539,7 +539,7 @@ func Asmbmacho(ctxt *Link) {
 		}
 	}
 
-	if !Debug['d'] {
+	if !*FlagD {
 		// must match domacholink below
 		s1 := Linklookup(ctxt, ".machosymtab", 0)
 		s2 := Linklookup(ctxt, ".linkedit.plt", 0)
@@ -548,7 +548,7 @@ func Asmbmacho(ctxt *Link) {
 
 		if Linkmode != LinkExternal {
 			ms := newMachoSeg("__LINKEDIT", 0)
-			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(INITRND)))
+			ms.vaddr = uint64(va) + uint64(v) + uint64(Rnd(int64(Segdata.Length), int64(*FlagRound)))
 			ms.vsize = uint64(s1.Size) + uint64(s2.Size) + uint64(s3.Size) + uint64(s4.Size)
 			ms.fileoffset = uint64(linkoff)
 			ms.filesize = ms.vsize
@@ -797,7 +797,7 @@ func Domacholink(ctxt *Link) int64 {
 	size := int(s1.Size + s2.Size + s3.Size + s4.Size)
 
 	if size > 0 {
-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(INITRND)) + Rnd(int64(Segdata.Filelen), int64(INITRND)) + Rnd(int64(Segdwarf.Filelen), int64(INITRND))
+		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
 		Cseek(linkoff)
 
 		Cwrite(s1.P[:s1.Size])
@@ -806,7 +806,7 @@ func Domacholink(ctxt *Link) int64 {
 		Cwrite(s4.P[:s4.Size])
 	}
 
-	return Rnd(int64(size), int64(INITRND))
+	return Rnd(int64(size), int64(*FlagRound))
 }
 
 func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {

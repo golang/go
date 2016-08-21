@@ -64,7 +64,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 	} else {
 		// try dot, -L "libdir", and then goroot.
 		for _, dir := range ctxt.Libdir {
-			if Linkshared {
+			if *FlagLinkshared {
 				pname = dir + "/" + pkg + ".shlibname"
 				if _, err := os.Stat(pname); err == nil {
 					isshlib = true
