@@ -690,7 +690,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if s.Sub != nil {
-			s.Sub = listsort(s.Sub, valuecmp, listsubp)
+			s.Sub = listsort(s.Sub)
 
 			// assign sizes, now that we know symbols in sorted order.
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {

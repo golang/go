@@ -308,16 +308,6 @@ type ElfSym struct {
 
 var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
 
-func valuecmp(a *Symbol, b *Symbol) int {
-	if a.Value < b.Value {
-		return -1
-	}
-	if a.Value > b.Value {
-		return +1
-	}
-	return 0
-}
-
 const (
 	Tag_file                 = 1
 	Tag_CPU_name             = 4
@@ -835,7 +825,7 @@ func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 			continue
 		}
 		if s.Sub != nil {
-			s.Sub = listsort(s.Sub, valuecmp, listsubp)
+			s.Sub = listsort(s.Sub)
 		}
 		if s.Type == obj.STEXT {
 			if s.Attr.OnList() {

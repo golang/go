@@ -238,46 +238,41 @@ func addaddrplus4(ctxt *Link, s *Symbol, t *Symbol, add int64) int64 {
 }
 
 /*
- * divide-and-conquer list-link
- * sort of Symbol* structures.
- * Used for the data block.
+ * divide-and-conquer list-link (by Sub) sort of Symbol* by Value.
+ * Used for sub-symbols when loading host objects (see e.g. ldelf.go).
  */
 
-func listsubp(s *Symbol) **Symbol {
-	return &s.Sub
-}
-
-func listsort(l *Symbol, cmp func(*Symbol, *Symbol) int, nextp func(*Symbol) **Symbol) *Symbol {
-	if l == nil || *nextp(l) == nil {
+func listsort(l *Symbol) *Symbol {
+	if l == nil || l.Sub == nil {
 		return l
 	}
 
 	l1 := l
 	l2 := l
 	for {
-		l2 = *nextp(l2)
+		l2 = l2.Sub
 		if l2 == nil {
 			break
 		}
-		l2 = *nextp(l2)
+		l2 = l2.Sub
 		if l2 == nil {
 			break
 		}
-		l1 = *nextp(l1)
+		l1 = l1.Sub
 	}
 
-	l2 = *nextp(l1)
-	*nextp(l1) = nil
-	l1 = listsort(l, cmp, nextp)
-	l2 = listsort(l2, cmp, nextp)
+	l2 = l1.Sub
+	l1.Sub = nil
+	l1 = listsort(l)
+	l2 = listsort(l2)
 
 	/* set up lead element */
-	if cmp(l1, l2) < 0 {
+	if l1.Value < l2.Value {
 		l = l1
-		l1 = *nextp(l1)
+		l1 = l1.Sub
 	} else {
 		l = l2
-		l2 = *nextp(l2)
+		l2 = l2.Sub
 	}
 
 	le := l
@@ -285,37 +280,37 @@ func listsort(l *Symbol, cmp func(*Symbol, *Symbol) int, nextp func(*Symbol) **S
 	for {
 		if l1 == nil {
 			for l2 != nil {
-				*nextp(le) = l2
+				le.Sub = l2
 				le = l2
-				l2 = *nextp(l2)
+				l2 = l2.Sub
 			}
 
-			*nextp(le) = nil
+			le.Sub = nil
 			break
 		}
 
 		if l2 == nil {
 			for l1 != nil {
-				*nextp(le) = l1
+				le.Sub = l1
 				le = l1
-				l1 = *nextp(l1)
+				l1 = l1.Sub
 			}
 
 			break
 		}
 
-		if cmp(l1, l2) < 0 {
-			*nextp(le) = l1
+		if l1.Value < l2.Value {
+			le.Sub = l1
 			le = l1
-			l1 = *nextp(l1)
+			l1 = l1.Sub
 		} else {
-			*nextp(le) = l2
+			le.Sub = l2
 			le = l2
-			l2 = *nextp(l2)
+			l2 = l2.Sub
 		}
 	}
 
-	*nextp(le) = nil
+	le.Sub = nil
 	return l
 }
 
