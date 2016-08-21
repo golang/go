@@ -138,7 +138,7 @@ func archinit(ctxt *ld.Link) {
 		}
 
 	case obj.Hdarwin: /* apple MACH */
-		ld.Debug['w'] = 1 // disable DWARF generation
+		ld.Debug['w'] = true // disable DWARF generation
 		ld.Machoinit()
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if ld.INITTEXT == -1 {

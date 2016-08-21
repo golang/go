@@ -1837,7 +1837,7 @@ func (ctxt *Link) doelf() {
 	// binutils could correctly calculate PT_TLS size.
 	// see https://golang.org/issue/5200.
 	if HEADTYPE != obj.Hopenbsd {
-		if Debug['d'] == 0 || Linkmode == LinkExternal {
+		if !Debug['d'] || Linkmode == LinkExternal {
 			Addstring(ctxt, shstrtab, ".tbss")
 		}
 	}
@@ -1867,7 +1867,7 @@ func (ctxt *Link) doelf() {
 	Addstring(ctxt, shstrtab, relro_prefix+".gopclntab")
 
 	if Linkmode == LinkExternal {
-		Debug['d'] = 1
+		Debug['d'] = true
 
 		Addstring(ctxt, shstrtab, elfRelType+".text")
 		Addstring(ctxt, shstrtab, elfRelType+".rodata")
@@ -1904,7 +1904,7 @@ func (ctxt *Link) doelf() {
 		Addstring(ctxt, shstrtab, elfRelType+".init_array")
 	}
 
-	if Debug['s'] == 0 {
+	if !Debug['s'] {
 		Addstring(ctxt, shstrtab, ".symtab")
 		Addstring(ctxt, shstrtab, ".strtab")
 		dwarfaddshstrings(ctxt, shstrtab)
@@ -1912,7 +1912,7 @@ func (ctxt *Link) doelf() {
 
 	Addstring(ctxt, shstrtab, ".shstrtab")
 
-	if Debug['d'] == 0 { /* -d suppresses dynamic loader format */
+	if !Debug['d'] { /* -d suppresses dynamic loader format */
 		Addstring(ctxt, shstrtab, ".interp")
 		Addstring(ctxt, shstrtab, ".hash")
 		Addstring(ctxt, shstrtab, ".got")
@@ -2198,7 +2198,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 		Segtext.Filelen += uint64(o)
 	}
 
-	if Debug['d'] == 0 { /* -d suppresses dynamic loader format */
+	if !Debug['d'] { /* -d suppresses dynamic loader format */
 		/* interpreter */
 		sh := elfshname(ctxt, ".interp")
 
@@ -2286,7 +2286,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 	elfphload(ctxt, &Segdata)
 
 	/* Dynamic linking sections */
-	if Debug['d'] == 0 {
+	if !Debug['d'] {
 		sh := elfshname(ctxt, ".dynsym")
 		sh.type_ = SHT_DYNSYM
 		sh.flags = SHF_ALLOC
@@ -2471,7 +2471,7 @@ elfobj:
 	eh.shstrndx = uint16(sh.shnum)
 
 	// put these sections early in the list
-	if Debug['s'] == 0 {
+	if !Debug['s'] {
 		elfshname(ctxt, ".symtab")
 		elfshname(ctxt, ".strtab")
 	}
@@ -2515,7 +2515,7 @@ elfobj:
 		sh.flags = 0
 	}
 
-	if Debug['s'] == 0 {
+	if !Debug['s'] {
 		sh := elfshname(ctxt, ".symtab")
 		sh.type_ = SHT_SYMTAB
 		sh.off = uint64(symo)
@@ -2581,7 +2581,7 @@ elfobj:
 	a += int64(elfwritehdr())
 	a += int64(elfwritephdrs())
 	a += int64(elfwriteshdrs())
-	if Debug['d'] == 0 {
+	if !Debug['d'] {
 		a += int64(elfwriteinterp(ctxt))
 	}
 	if Linkmode != LinkExternal {

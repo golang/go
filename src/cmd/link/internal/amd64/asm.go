@@ -599,12 +599,12 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 }
 
 func asmb(ctxt *ld.Link) {
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
 
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f codeblk\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -623,7 +623,7 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		if ld.Debug['v'] != 0 {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
 		}
 		ctxt.Bso.Flush()
@@ -632,7 +632,7 @@ func asmb(ctxt *ld.Link) {
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()
@@ -657,7 +657,7 @@ func asmb(ctxt *ld.Link) {
 		break
 
 	case obj.Hdarwin:
-		ld.Debug['8'] = 1 /* 64-bit addresses */
+		ld.Debug['8'] = true /* 64-bit addresses */
 
 	case obj.Hlinux,
 		obj.Hfreebsd,
@@ -665,7 +665,7 @@ func asmb(ctxt *ld.Link) {
 		obj.Hopenbsd,
 		obj.Hdragonfly,
 		obj.Hsolaris:
-		ld.Debug['8'] = 1 /* 64-bit addresses */
+		ld.Debug['8'] = true /* 64-bit addresses */
 
 	case obj.Hnacl,
 		obj.Hwindows:
@@ -676,15 +676,15 @@ func asmb(ctxt *ld.Link) {
 	ld.Spsize = 0
 	ld.Lcsize = 0
 	symo := int64(0)
-	if ld.Debug['s'] == 0 {
-		if ld.Debug['v'] != 0 {
+	if !ld.Debug['s'] {
+		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ctxt.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 		case obj.Hplan9:
-			ld.Debug['s'] = 1
+			ld.Debug['s'] = true
 			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
 
 		case obj.Hdarwin:
@@ -714,7 +714,7 @@ func asmb(ctxt *ld.Link) {
 				ld.Cflush()
 				ld.Cwrite(ld.Elfstrdat)
 
-				if ld.Debug['v'] != 0 {
+				if ctxt.Debugvlog != 0 {
 					fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 				}
 
@@ -738,7 +738,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case obj.Hwindows:
-			if ld.Debug['v'] != 0 {
+			if ctxt.Debugvlog != 0 {
 				fmt.Fprintf(ctxt.Bso, "%5.2f dwarf\n", obj.Cputime())
 			}
 
@@ -749,7 +749,7 @@ func asmb(ctxt *ld.Link) {
 		}
 	}
 
-	if ld.Debug['v'] != 0 {
+	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f headr\n", obj.Cputime())
 	}
 	ctxt.Bso.Flush()

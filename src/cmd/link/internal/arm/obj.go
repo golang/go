@@ -126,7 +126,7 @@ func archinit(ctxt *ld.Link) {
 		obj.Hfreebsd,
 		obj.Hnetbsd,
 		obj.Hopenbsd:
-		ld.Debug['d'] = 0
+		ld.Debug['d'] = false
 		// with dynamic linking
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
@@ -155,7 +155,7 @@ func archinit(ctxt *ld.Link) {
 		}
 
 	case obj.Hdarwin: /* apple MACH */
-		ld.Debug['w'] = 1 // disable DWARF generation
+		ld.Debug['w'] = true // disable DWARF generation
 		ld.Machoinit()
 		ld.HEADR = ld.INITIAL_MACHO_HEADR
 		if ld.INITTEXT == -1 {

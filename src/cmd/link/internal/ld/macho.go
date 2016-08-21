@@ -295,7 +295,7 @@ func machowrite() int {
 }
 
 func (ctxt *Link) domacho() {
-	if Debug['d'] != 0 {
+	if Debug['d'] {
 		return
 	}
 
@@ -493,7 +493,7 @@ func Asmbmacho(ctxt *Link) {
 	}
 
 	/* dwarf */
-	if Debug['w'] == 0 {
+	if !Debug['w'] {
 		if Linkmode != LinkExternal {
 			ms = newMachoSeg("__DWARF", 20)
 			ms.vaddr = Segdwarf.Vaddr
@@ -539,7 +539,7 @@ func Asmbmacho(ctxt *Link) {
 		}
 	}
 
-	if Debug['d'] == 0 {
+	if !Debug['d'] {
 		// must match domacholink below
 		s1 := Linklookup(ctxt, ".machosymtab", 0)
 		s2 := Linklookup(ctxt, ".linkedit.plt", 0)
