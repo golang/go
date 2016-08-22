@@ -576,7 +576,7 @@ func (ctxt *Link) symtab() {
 	// creating the moduledata from scratch and it does not have a
 	// compiler-provided size, so read it from the type data.
 	moduledatatype := Linkrlookup(ctxt, "type.runtime.moduledata", 0)
-	moduledata.Size = decodetype_size(ctxt.Arch, moduledatatype)
+	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
 	Symgrow(ctxt, moduledata, moduledata.Size)
 
 	lastmoduledatap := Linklookup(ctxt, "runtime.lastmoduledatap", 0)

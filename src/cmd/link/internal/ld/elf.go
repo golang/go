@@ -66,10 +66,10 @@ import (
  * padded to a word boundary.  The values of n_namesz and n_descsz do
  * not include the padding.
  */
-type Elf_Note struct {
-	n_namesz uint32
-	n_descsz uint32
-	n_type   uint32
+type elfNote struct {
+	nNamesz uint32
+	nDescsz uint32
+	nType   uint32
 }
 
 const (

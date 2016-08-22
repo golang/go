@@ -717,9 +717,9 @@ func addexports(ctxt *Link) {
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
 
-	va_name := va + binary.Size(&e) + nexport*4
-	va_addr := va + binary.Size(&e)
-	va_na := va + binary.Size(&e) + nexport*8
+	vaName := va + binary.Size(&e) + nexport*4
+	vaAddr := va + binary.Size(&e)
+	vaNa := va + binary.Size(&e) + nexport*8
 
 	e.Characteristics = 0
 	e.MajorVersion = 0
@@ -728,9 +728,9 @@ func addexports(ctxt *Link) {
 	e.NumberOfNames = uint32(nexport)
 	e.Name = uint32(va+binary.Size(&e)) + uint32(nexport)*10 // Program names.
 	e.Base = 1
-	e.AddressOfFunctions = uint32(va_addr)
-	e.AddressOfNames = uint32(va_name)
-	e.AddressOfNameOrdinals = uint32(va_na)
+	e.AddressOfFunctions = uint32(vaAddr)
+	e.AddressOfNames = uint32(vaName)
+	e.AddressOfNameOrdinals = uint32(vaNa)
 
 	// put IMAGE_EXPORT_DIRECTORY
 	binary.Write(&coutbuf, binary.LittleEndian, &e)

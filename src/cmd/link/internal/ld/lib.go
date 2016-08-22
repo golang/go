@@ -1416,7 +1416,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		ctxt.Diag("cannot read symbols from shared library: %s", libpath)
 		return
 	}
-	gcdata_locations := make(map[uint64]*Symbol)
+	gcdataLocations := make(map[uint64]*Symbol)
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -1439,11 +1439,11 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			// the type data.
 			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
 				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
-				gcdata_locations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
+				gcdataLocations[elfsym.Value+2*uint64(SysArch.PtrSize)+8+1*uint64(SysArch.PtrSize)] = lsym
 			}
 		}
 	}
-	gcdata_addresses := make(map[*Symbol]uint64)
+	gcdataAddresses := make(map[*Symbol]uint64)
 	if SysArch.Family == sys.ARM64 {
 		for _, sect := range f.Sections {
 			if sect.Type == elf.SHT_RELA {
@@ -1461,8 +1461,8 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 					if t != elf.R_AARCH64_RELATIVE {
 						continue
 					}
-					if lsym, ok := gcdata_locations[rela.Off]; ok {
-						gcdata_addresses[lsym] = uint64(rela.Addend)
+					if lsym, ok := gcdataLocations[rela.Off]; ok {
+						gcdataAddresses[lsym] = uint64(rela.Addend)
 					}
 				}
 			}
@@ -1480,7 +1480,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	}
 	ctxt.Textp = textp
 
-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdata_addresses: gcdata_addresses})
+	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
 }
 
 func mywhatsys() {
@@ -1552,9 +1552,9 @@ func Be32(b []byte) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-type Chain struct {
+type chain struct {
 	sym   *Symbol
-	up    *Chain
+	up    *chain
 	limit int // limit on entry to sym
 }
 
@@ -1575,7 +1575,7 @@ func callsize(ctxt *Link) int {
 }
 
 func (ctxt *Link) dostkcheck() {
-	var ch Chain
+	var ch chain
 
 	morestack = Linklookup(ctxt, "runtime.morestack", 0)
 
@@ -1616,7 +1616,7 @@ func (ctxt *Link) dostkcheck() {
 	}
 }
 
-func stkcheck(ctxt *Link, up *Chain, depth int) int {
+func stkcheck(ctxt *Link, up *chain, depth int) int {
 	limit := up.limit
 	s := up.sym
 
@@ -1659,7 +1659,7 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
 		return 0
 	}
 
-	var ch Chain
+	var ch chain
 	ch.up = up
 
 	if !s.Attr.NoSplit() {
@@ -1684,7 +1684,7 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
 	ri := 0
 
 	endr := len(s.R)
-	var ch1 Chain
+	var ch1 chain
 	var pcsp Pciter
 	var r *Reloc
 	for pciterinit(ctxt, &pcsp, &s.FuncInfo.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
@@ -1729,12 +1729,12 @@ func stkcheck(ctxt *Link, up *Chain, depth int) int {
 	return 0
 }
 
-func stkbroke(ctxt *Link, ch *Chain, limit int) {
+func stkbroke(ctxt *Link, ch *chain, limit int) {
 	ctxt.Diag("nosplit stack overflow")
 	stkprint(ctxt, ch, limit)
 }
 
-func stkprint(ctxt *Link, ch *Chain, limit int) {
+func stkprint(ctxt *Link, ch *chain, limit int) {
 	var name string
 
 	if ch.sym != nil {
