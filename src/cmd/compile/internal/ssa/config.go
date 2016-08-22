@@ -22,6 +22,7 @@ type Config struct {
 	registers       []Register                 // machine registers
 	gpRegMask       regMask                    // general purpose integer register mask
 	fpRegMask       regMask                    // floating point register mask
+	specialRegMask  regMask                    // special register mask
 	FPReg           int8                       // register number of frame pointer, -1 if not used
 	hasGReg         bool                       // has hardware g register
 	fe              Frontend                   // callbacks into compiler frontend
@@ -202,6 +203,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.registers = registersMIPS64[:]
 		c.gpRegMask = gpRegMaskMIPS64
 		c.fpRegMask = fpRegMaskMIPS64
+		c.specialRegMask = specialRegMaskMIPS64
 		c.FPReg = framepointerRegMIPS64
 		c.hasGReg = true
 	default:

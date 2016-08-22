@@ -160,14 +160,14 @@ func init() {
 	)
 	ops := []opData{
 		// binary ops
-		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},     // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},   // arg0 + auxInt
-		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                        // arg0 - arg1
-		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},     // arg0 - auxInt
-		{name: "MULV", argLength: 2, reg: gp2hilo, asm: "MULV", commutative: true},   // arg0 * arg1, signed, results hi,lo
-		{name: "MULVU", argLength: 2, reg: gp2hilo, asm: "MULVU", commutative: true}, // arg0 * arg1, unsigned, results hi,lo
-		{name: "DIVV", argLength: 2, reg: gp2hilo, asm: "DIVV"},                      // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
-		{name: "DIVVU", argLength: 2, reg: gp2hilo, asm: "DIVVU"},                    // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},                             // arg0 + arg1
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},                           // arg0 + auxInt
+		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                                                // arg0 - arg1
+		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},                             // arg0 - auxInt
+		{name: "MULV", argLength: 2, reg: gp2hilo, asm: "MULV", commutative: true, typ: "(Int64,Int64)"},     // arg0 * arg1, signed, results hi,lo
+		{name: "MULVU", argLength: 2, reg: gp2hilo, asm: "MULVU", commutative: true, typ: "(UInt64,UInt64)"}, // arg0 * arg1, unsigned, results hi,lo
+		{name: "DIVV", argLength: 2, reg: gp2hilo, asm: "DIVV", typ: "(Int64,Int64)"},                        // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "DIVVU", argLength: 2, reg: gp2hilo, asm: "DIVVU", typ: "(UInt64,UInt64)"},                    // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
@@ -252,16 +252,16 @@ func init() {
 
 		{name: "MOVVnop", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true}, // nop, return arg0 in same register
 
-		{name: "MOVWF", argLength: 1, reg: fp11, asm: "MOVWF"}, // int32 -> float32
-		{name: "MOVWD", argLength: 1, reg: fp11, asm: "MOVWD"}, // int32 -> float64
-		{name: "MOVVF", argLength: 1, reg: fp11, asm: "MOVVF"}, // int64 -> float32
-		{name: "MOVVD", argLength: 1, reg: fp11, asm: "MOVVD"}, // int64 -> float64
-		{name: "MOVFW", argLength: 1, reg: fp11, asm: "MOVFW"}, // float32 -> int32
-		{name: "MOVDW", argLength: 1, reg: fp11, asm: "MOVDW"}, // float64 -> int32
-		{name: "MOVFV", argLength: 1, reg: fp11, asm: "MOVFV"}, // float32 -> int64
-		{name: "MOVDV", argLength: 1, reg: fp11, asm: "MOVDV"}, // float64 -> int64
-		{name: "MOVFD", argLength: 1, reg: fp11, asm: "MOVFD"}, // float32 -> float64
-		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"}, // float64 -> float32
+		{name: "MOVWF", argLength: 1, reg: fp11, asm: "MOVWF"},     // int32 -> float32
+		{name: "MOVWD", argLength: 1, reg: fp11, asm: "MOVWD"},     // int32 -> float64
+		{name: "MOVVF", argLength: 1, reg: fp11, asm: "MOVVF"},     // int64 -> float32
+		{name: "MOVVD", argLength: 1, reg: fp11, asm: "MOVVD"},     // int64 -> float64
+		{name: "TRUNCFW", argLength: 1, reg: fp11, asm: "TRUNCFW"}, // float32 -> int32
+		{name: "TRUNCDW", argLength: 1, reg: fp11, asm: "TRUNCDW"}, // float64 -> int32
+		{name: "TRUNCFV", argLength: 1, reg: fp11, asm: "TRUNCFV"}, // float32 -> int64
+		{name: "TRUNCDV", argLength: 1, reg: fp11, asm: "TRUNCDV"}, // float64 -> int64
+		{name: "MOVFD", argLength: 1, reg: fp11, asm: "MOVFD"},     // float32 -> float64
+		{name: "MOVDF", argLength: 1, reg: fp11, asm: "MOVDF"},     // float64 -> float32
 
 		// function calls
 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true},                                              // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
@@ -269,6 +269,67 @@ func init() {
 		{name: "CALLdefer", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                                // call deferproc.  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLgo", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "Int64", clobberFlags: true},                                                   // call newproc.  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64", clobberFlags: true},                         // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+
+		// duffzero
+		// arg0 = address of memory to zero
+		// arg1 = mem
+		// auxint = offset into duffzero code to start executing
+		// returns mem
+		// R1 aka mips.REGRT1 changed as side effect
+		{
+			name:      "DUFFZERO",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:   []regMask{gp},
+				clobbers: buildReg("R1"),
+			},
+		},
+
+		// large or unaligned zeroing
+		// arg0 = address of memory to zero (in R1, changed as side effect)
+		// arg1 = address of the last element to zero
+		// arg2 = mem
+		// auxint = alignment
+		// returns mem
+		//	SUBV	$8, R1
+		//	MOVV	R0, 8(R1)
+		//	ADDV	$8, R1
+		//	BNE	Rarg1, R1, -2(PC)
+		{
+			name:      "LoweredZero",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R1"), gp},
+				clobbers: buildReg("R1"),
+			},
+			clobberFlags: true,
+		},
+
+		// large or unaligned move
+		// arg0 = address of dst memory (in R2, changed as side effect)
+		// arg1 = address of src memory (in R1, changed as side effect)
+		// arg2 = address of the last element of src
+		// arg3 = mem
+		// auxint = alignment
+		// returns mem
+		//	SUBV	$8, R1
+		//	MOVV	8(R1), Rtmp
+		//	MOVV	Rtmp, (R2)
+		//	ADDV	$8, R1
+		//	ADDV	$8, R2
+		//	BNE	Rarg2, R1, -4(PC)
+		{
+			name:      "LoweredMove",
+			aux:       "Int64",
+			argLength: 4,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
+				clobbers: buildReg("R1 R2"),
+			},
+			clobberFlags: true,
+		},
 
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}}, // panic if arg0 is nil.  arg1=mem.
@@ -309,6 +370,7 @@ func init() {
 		regnames:        regNamesMIPS64,
 		gpregmask:       gp,
 		fpregmask:       fp,
+		specialregmask:  hi | lo,
 		framepointerreg: -1, // not used
 	})
 }
