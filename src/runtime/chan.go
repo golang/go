@@ -294,7 +294,7 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
 	// stack writes only happen when the goroutine is running and are
 	// only done by that goroutine. Using a write barrier is sufficient to
 	// make up for violating that assumption, but the write barrier has to work.
-	// typedmemmove will call heapBitsBulkBarrier, but the target bytes
+	// typedmemmove will call bulkBarrierPreWrite, but the target bytes
 	// are not in the heap, so that will not help. We arrange to call
 	// memmove and typeBitsBulkBarrier instead.
 
@@ -302,8 +302,8 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
 	// be updated if the destination's stack gets copied (shrunk).
 	// So make sure that no preemption points can happen between read & use.
 	dst := sg.elem
+	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.size)
 	memmove(dst, src, t.size)
-	typeBitsBulkBarrier(t, uintptr(dst), t.size)
 }
 
 func closechan(c *hchan) {

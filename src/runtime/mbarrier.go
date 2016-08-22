@@ -7,7 +7,7 @@
 // For the concurrent garbage collector, the Go compiler implements
 // updates to pointer-valued fields that may be in heap objects by
 // emitting calls to write barriers. This file contains the actual write barrier
-// implementation, markwb, and the various wrappers called by the
+// implementation, gcmarkwb_m, and the various wrappers called by the
 // compiler to implement pointer assignment, slice assignment,
 // typed memmove, and so on.
 
@@ -18,7 +18,7 @@ import (
 	"unsafe"
 )
 
-// markwb is the mark-phase write barrier, the only barrier we have.
+// gcmarkwb_m is the mark-phase write barrier, the only barrier we have.
 // The rest of this file exists only to make calls to this function.
 //
 // This is the Dijkstra barrier coarsened to always shade the ptr (dst) object.
@@ -98,7 +98,16 @@ import (
 // barriers for writes to globals so that we don't have to rescan
 // global during mark termination.
 //
+//
+// Publication ordering:
+//
+// The write barrier is *pre-publication*, meaning that the write
+// barrier happens prior to the *slot = ptr write that may make ptr
+// reachable by some goroutine that currently cannot reach it.
+//
+//
 //go:nowritebarrierrec
+//go:systemstack
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	if writeBarrier.needed {
 		if ptr != 0 && inheap(ptr) {
@@ -107,6 +116,9 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	}
 }
 
+// writebarrierptr_prewrite1 invokes a write barrier for *dst = src
+// prior to the write happening.
+//
 // Write barrier calls must not happen during critical GC and scheduler
 // related operations. In particular there are times when the GC assumes
 // that the world is stopped but scheduler related code is still being
@@ -117,7 +129,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 // that we are in one these critical section and throw if the write is of
 // a pointer to a heap object.
 //go:nosplit
-func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
+func writebarrierptr_prewrite1(dst *uintptr, src uintptr) {
 	mp := acquirem()
 	if mp.inwb || mp.dying > 0 {
 		releasem(mp)
@@ -125,7 +137,7 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 	}
 	systemstack(func() {
 		if mp.p == 0 && memstats.enablegc && !mp.inwb && inheap(src) {
-			throw("writebarrierptr_nostore1 called with mp.p == nil")
+			throw("writebarrierptr_prewrite1 called with mp.p == nil")
 		}
 		mp.inwb = true
 		gcmarkwb_m(dst, src)
@@ -138,11 +150,11 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 // but if we do that, Go inserts a write barrier on *dst = src.
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
-	*dst = src
 	if writeBarrier.cgo {
 		cgoCheckWriteBarrier(dst, src)
 	}
 	if !writeBarrier.needed {
+		*dst = src
 		return
 	}
 	if src != 0 && src < minPhysPageSize {
@@ -151,13 +163,16 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 			throw("bad pointer in write barrier")
 		})
 	}
-	writebarrierptr_nostore1(dst, src)
+	writebarrierptr_prewrite1(dst, src)
+	*dst = src
 }
 
-// Like writebarrierptr, but the store has already been applied.
-// Do not reapply.
+// writebarrierptr_prewrite is like writebarrierptr, but the store
+// will be performed by the caller after this call. The caller must
+// not allow preemption between this call and the write.
+//
 //go:nosplit
-func writebarrierptr_nostore(dst *uintptr, src uintptr) {
+func writebarrierptr_prewrite(dst *uintptr, src uintptr) {
 	if writeBarrier.cgo {
 		cgoCheckWriteBarrier(dst, src)
 	}
@@ -167,20 +182,26 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	if src != 0 && src < minPhysPageSize {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
-	writebarrierptr_nostore1(dst, src)
+	writebarrierptr_prewrite1(dst, src)
 }
 
 // typedmemmove copies a value of type t to dst from src.
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+	if typ.kind&kindNoPointers == 0 {
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
+	}
+	// There's a race here: if some other goroutine can write to
+	// src, it may change some pointer in src after we've
+	// performed the write barrier but before we perform the
+	// memory copy. This safe because the write performed by that
+	// other goroutine must also be accompanied by a write
+	// barrier, so at worst we've unnecessarily greyed the old
+	// pointer that was in src.
 	memmove(dst, src, typ.size)
 	if writeBarrier.cgo {
 		cgoCheckMemmove(typ, dst, src, 0, typ.size)
 	}
-	if typ.kind&kindNoPointers != 0 {
-		return
-	}
-	heapBitsBulkBarrier(uintptr(dst), typ.size)
 }
 
 //go:linkname reflect_typedmemmove reflect.typedmemmove
@@ -200,19 +221,21 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 // dst and src point off bytes into the value and only copies size bytes.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+	if writeBarrier.needed && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
+		// Pointer-align start address for bulk barrier.
+		adst, asrc, asize := dst, src, size
+		if frag := -off & (sys.PtrSize - 1); frag != 0 {
+			adst = add(dst, frag)
+			asrc = add(src, frag)
+			asize -= frag
+		}
+		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), asize&^(sys.PtrSize-1))
+	}
+
 	memmove(dst, src, size)
 	if writeBarrier.cgo {
 		cgoCheckMemmove(typ, dst, src, off, size)
 	}
-	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize {
-		return
-	}
-
-	if frag := -off & (sys.PtrSize - 1); frag != 0 {
-		dst = add(dst, frag)
-		size -= frag
-	}
-	heapBitsBulkBarrier(uintptr(dst), size&^(sys.PtrSize-1))
 }
 
 // reflectcallmove is invoked by reflectcall to copy the return values
@@ -226,10 +249,10 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 //
 //go:nosplit
 func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
-	memmove(dst, src, size)
 	if writeBarrier.needed && typ != nil && typ.kind&kindNoPointers == 0 && size >= sys.PtrSize {
-		heapBitsBulkBarrier(uintptr(dst), size)
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
 	}
+	memmove(dst, src, size)
 }
 
 //go:nosplit
