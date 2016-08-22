@@ -136,6 +136,9 @@ func (rw *ResponseRecorder) Flush() {
 // first write call, or at the time of this call, if the handler never
 // did a write.
 //
+// The Response.Body is guaranteed to be non-nil and Body.Read call is
+// guaranteed to not return any error other than io.EOF.
+//
 // Result must only be called after the handler has finished running.
 func (rw *ResponseRecorder) Result() *http.Response {
 	if rw.result != nil {
