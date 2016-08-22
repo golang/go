@@ -211,7 +211,7 @@ func (b byteAndEOFReader) Read(p []byte) (n int, err error) {
 	return 1, EOF
 }
 
-// In Go 1.7, this yielded bytes forever.
+// This used to yield bytes forever; issue 16795.
 func TestMultiReaderSingleByteWithEOF(t *testing.T) {
 	got, err := ioutil.ReadAll(LimitReader(MultiReader(byteAndEOFReader('a'), byteAndEOFReader('b')), 10))
 	if err != nil {
