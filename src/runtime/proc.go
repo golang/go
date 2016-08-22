@@ -2831,13 +2831,15 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 		// This is a stack-to-stack copy. If write barriers
 		// are enabled and the source stack is grey (the
 		// destination is always black), then perform a
-		// barrier copy.
+		// barrier copy. We do this *after* the memmove
+		// because the destination stack may have garbage on
+		// it.
 		if writeBarrier.needed && !_g_.m.curg.gcscandone {
 			f := findfunc(fn.fn)
 			stkmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
 			// We're in the prologue, so it's always stack map index 0.
 			bv := stackmapdata(stkmap, 0)
-			bulkBarrierBitmap(spArg, uintptr(narg), 0, bv.bytedata)
+			bulkBarrierBitmap(spArg, spArg, uintptr(narg), 0, bv.bytedata)
 		}
 	}
 
