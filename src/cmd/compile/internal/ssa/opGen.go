@@ -1051,10 +1051,10 @@ const (
 	OpMIPS64MOVWD
 	OpMIPS64MOVVF
 	OpMIPS64MOVVD
-	OpMIPS64MOVFW
-	OpMIPS64MOVDW
-	OpMIPS64MOVFV
-	OpMIPS64MOVDV
+	OpMIPS64TRUNCFW
+	OpMIPS64TRUNCDW
+	OpMIPS64TRUNCFV
+	OpMIPS64TRUNCDV
 	OpMIPS64MOVFD
 	OpMIPS64MOVDF
 	OpMIPS64CALLstatic
@@ -1062,6 +1062,9 @@ const (
 	OpMIPS64CALLdefer
 	OpMIPS64CALLgo
 	OpMIPS64CALLinter
+	OpMIPS64DUFFZERO
+	OpMIPS64LoweredZero
+	OpMIPS64LoweredMove
 	OpMIPS64LoweredNilCheck
 	OpMIPS64FPFlagTrue
 	OpMIPS64FPFlagFalse
@@ -12905,9 +12908,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVFW",
+		name:   "TRUNCFW",
 		argLen: 1,
-		asm:    mips.AMOVFW,
+		asm:    mips.ATRUNCFW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
@@ -12918,9 +12921,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVDW",
+		name:   "TRUNCDW",
 		argLen: 1,
-		asm:    mips.AMOVDW,
+		asm:    mips.ATRUNCDW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
@@ -12931,9 +12934,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVFV",
+		name:   "TRUNCFV",
 		argLen: 1,
-		asm:    mips.AMOVFV,
+		asm:    mips.ATRUNCFV,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
@@ -12944,9 +12947,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVDV",
+		name:   "TRUNCDV",
 		argLen: 1,
-		asm:    mips.AMOVDV,
+		asm:    mips.ATRUNCDV,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 385057768005959680}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31
@@ -13032,6 +13035,44 @@ var opcodeTable = [...]opInfo{
 				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
 			},
 			clobbers: 2114440025016893438, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31 HI LO
+		},
+	},
+	{
+		name:    "DUFFZERO",
+		auxType: auxInt64,
+		argLen:  2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+			},
+			clobbers: 2, // R1
+		},
+	},
+	{
+		name:         "LoweredZero",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2},        // R1
+				{1, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+			},
+			clobbers: 2, // R1
+		},
+	},
+	{
+		name:         "LoweredMove",
+		auxType:      auxInt64,
+		argLen:       4,
+		clobberFlags: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4},        // R2
+				{1, 2},        // R1
+				{2, 33554430}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25
+			},
+			clobbers: 6, // R1 R2
 		},
 	},
 	{
@@ -16141,6 +16182,7 @@ var registers386 = [...]Register{
 }
 var gpRegMask386 = regMask(239)
 var fpRegMask386 = regMask(65280)
+var specialRegMask386 = regMask(0)
 var framepointerReg386 = int8(5)
 var registersAMD64 = [...]Register{
 	{0, "AX"},
@@ -16179,6 +16221,7 @@ var registersAMD64 = [...]Register{
 }
 var gpRegMaskAMD64 = regMask(65519)
 var fpRegMaskAMD64 = regMask(4294901760)
+var specialRegMaskAMD64 = regMask(0)
 var framepointerRegAMD64 = int8(5)
 var registersARM = [...]Register{
 	{0, "R0"},
@@ -16217,6 +16260,7 @@ var registersARM = [...]Register{
 }
 var gpRegMaskARM = regMask(5119)
 var fpRegMaskARM = regMask(4294901760)
+var specialRegMaskARM = regMask(0)
 var framepointerRegARM = int8(-1)
 var registersARM64 = [...]Register{
 	{0, "R0"},
@@ -16285,6 +16329,7 @@ var registersARM64 = [...]Register{
 }
 var gpRegMaskARM64 = regMask(133955583)
 var fpRegMaskARM64 = regMask(288230375077969920)
+var specialRegMaskARM64 = regMask(0)
 var framepointerRegARM64 = int8(-1)
 var registersMIPS64 = [...]Register{
 	{0, "R0"},
@@ -16352,6 +16397,7 @@ var registersMIPS64 = [...]Register{
 }
 var gpRegMaskMIPS64 = regMask(33554430)
 var fpRegMaskMIPS64 = regMask(385057768005959680)
+var specialRegMaskMIPS64 = regMask(1729382256910270464)
 var framepointerRegMIPS64 = int8(-1)
 var registersPPC64 = [...]Register{
 	{0, "SP"},
@@ -16415,4 +16461,5 @@ var registersPPC64 = [...]Register{
 }
 var gpRegMaskPPC64 = regMask(536866812)
 var fpRegMaskPPC64 = regMask(288230371856744448)
+var specialRegMaskPPC64 = regMask(0)
 var framepointerRegPPC64 = int8(0)
