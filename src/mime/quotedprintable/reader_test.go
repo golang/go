@@ -58,6 +58,9 @@ func TestReader(t *testing.T) {
 		{in: "foo=\nbar", want: "foobar"},
 		{in: "foo=\rbar", want: "foo", err: "quotedprintable: invalid hex byte 0x0d"},
 		{in: "foo=\r\r\r \nbar", want: "foo", err: `quotedprintable: invalid bytes after =: "\r\r\r \n"`},
+		// Issue 15486, accept trailing soft line-break at end of input.
+		{in: "foo=", want: "foo"},
+		{in: "=", want: "", err: `quotedprintable: invalid bytes after =: ""`},
 
 		// Example from RFC 2045:
 		{in: "Now's the time =\n" + "for all folk to come=\n" + " to the aid of their country.",
