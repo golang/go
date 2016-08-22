@@ -198,7 +198,7 @@ func container(s *Symbol) int {
 // pclntab initializes the pclntab symbol with
 // runtime function and file name information.
 
-var pclntab_zpcln FuncInfo
+var pclntabZpcln FuncInfo
 
 // These variables are used to initialize runtime.firstmoduledata, see symtab.go:symtab.
 var pclntabNfunc int32
@@ -208,7 +208,7 @@ var pclntabFirstFunc *Symbol
 var pclntabLastFunc *Symbol
 
 func (ctxt *Link) pclntab() {
-	funcdata_bytes := int64(0)
+	funcdataBytes := int64(0)
 	ftab := Linklookup(ctxt, "runtime.pclntab", 0)
 	ftab.Type = obj.SPCLNTAB
 	ftab.Attr |= AttrReachable
@@ -251,7 +251,7 @@ func (ctxt *Link) pclntab() {
 		}
 		pcln := ctxt.Cursym.FuncInfo
 		if pcln == nil {
-			pcln = &pclntab_zpcln
+			pcln = &pclntabZpcln
 		}
 
 		if pclntabFirstFunc == nil {
@@ -294,7 +294,7 @@ func (ctxt *Link) pclntab() {
 		// TODO: Remove entirely.
 		off = int32(setuint32(ctxt, ftab, int64(off), 0x1234567))
 
-		if pcln != &pclntab_zpcln {
+		if pcln != &pclntabZpcln {
 			renumberfiles(ctxt, pcln.File, &pcln.Pcfile)
 			if false {
 				// Sanity check the new numbering
@@ -330,7 +330,7 @@ func (ctxt *Link) pclntab() {
 					setuintxx(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), uint64(pcln.Funcdataoff[i]), int64(SysArch.PtrSize))
 				} else {
 					// TODO: Dedup.
-					funcdata_bytes += pcln.Funcdata[i].Size
+					funcdataBytes += pcln.Funcdata[i].Size
 
 					setaddrplus(ctxt, ftab, int64(off)+int64(SysArch.PtrSize)*int64(i), pcln.Funcdata[i], pcln.Funcdataoff[i])
 				}
@@ -368,7 +368,7 @@ func (ctxt *Link) pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdata_bytes)
+		fmt.Fprintf(ctxt.Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdataBytes)
 	}
 }
 

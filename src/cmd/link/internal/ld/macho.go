@@ -131,7 +131,7 @@ var nsortsym int
 // "big enough" header size. The initial header is
 // one page, the non-dynamic library stuff takes
 // up about 1300 bytes; we overestimate that as 2k.
-var load_budget int = INITIAL_MACHO_HEADR - 2*1024
+var loadBudget int = INITIAL_MACHO_HEADR - 2*1024
 
 func Machoinit() {
 	macho64 = SysArch.RegSize == 8
@@ -336,12 +336,12 @@ func Machoadddynlib(lib string) {
 	// and 24 bytes of header metadata. If not enough
 	// space, grab another page of initial space at the
 	// beginning of the output file.
-	load_budget -= (len(lib)+7)/8*8 + 24
+	loadBudget -= (len(lib)+7)/8*8 + 24
 
-	if load_budget < 0 {
+	if loadBudget < 0 {
 		HEADR += 4096
 		*FlagTextAddr += 4096
-		load_budget += 4096
+		loadBudget += 4096
 	}
 
 	dylib = append(dylib, lib)

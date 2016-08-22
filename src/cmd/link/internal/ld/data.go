@@ -1133,15 +1133,15 @@ func (p *GCProg) AddSym(s *Symbol) {
 	}
 
 	ptrsize := int64(SysArch.PtrSize)
-	nptr := decodetype_ptrdata(p.ctxt.Arch, typ) / ptrsize
+	nptr := decodetypePtrdata(p.ctxt.Arch, typ) / ptrsize
 
 	if debugGCProg {
 		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", s.Name, s.Value, s.Value/ptrsize, nptr)
 	}
 
-	if decodetype_usegcprog(typ) == 0 {
+	if decodetypeUsegcprog(typ) == 0 {
 		// Copy pointers from mask into program.
-		mask := decodetype_gcmask(p.ctxt, typ)
+		mask := decodetypeGcmask(p.ctxt, typ)
 		for i := int64(0); i < nptr; i++ {
 			if (mask[i/8]>>uint(i%8))&1 != 0 {
 				p.w.Ptr(s.Value/ptrsize + i)
@@ -1151,7 +1151,7 @@ func (p *GCProg) AddSym(s *Symbol) {
 	}
 
 	// Copy program.
-	prog := decodetype_gcprog(p.ctxt, typ)
+	prog := decodetypeGcprog(p.ctxt, typ)
 	p.w.ZeroUntil(s.Value / ptrsize)
 	p.w.Append(prog[4:], nptr)
 }
@@ -1539,12 +1539,12 @@ func (ctxt *Link) dodata() {
 	// situation.
 	// TODO(mwhudson): It would make sense to do this more widely, but it makes
 	// the system linker segfault on darwin.
-	relro_perms := 04
-	relro_prefix := ""
+	relroPerms := 04
+	relroPrefix := ""
 
 	if UseRelro() {
-		relro_perms = 06
-		relro_prefix = ".data.rel.ro"
+		relroPerms = 06
+		relroPrefix = ".data.rel.ro"
 		/* data only written by relocations */
 		sect = addsection(segro, ".data.rel.ro", 06)
 
@@ -1587,7 +1587,7 @@ func (ctxt *Link) dodata() {
 	}
 
 	/* typelink */
-	sect = addsection(segro, relro_prefix+".typelink", relro_perms)
+	sect = addsection(segro, relroPrefix+".typelink", relroPerms)
 	sect.Align = dataMaxAlign[obj.STYPELINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1604,7 +1604,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* itablink */
-	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
+	sect = addsection(segro, relroPrefix+".itablink", relroPerms)
 	sect.Align = dataMaxAlign[obj.SITABLINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1621,7 +1621,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gosymtab */
-	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
+	sect = addsection(segro, relroPrefix+".gosymtab", relroPerms)
 	sect.Align = dataMaxAlign[obj.SSYMTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1638,7 +1638,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gopclntab */
-	sect = addsection(segro, relro_prefix+".gopclntab", relro_perms)
+	sect = addsection(segro, relroPrefix+".gopclntab", relroPerms)
 	sect.Align = dataMaxAlign[obj.SPCLNTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1794,7 +1794,7 @@ func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlig
 		case obj.STYPELINK:
 			// Sort typelinks by the rtype.string field so the reflect
 			// package can binary search type links.
-			symsSort[i].name = string(decodetype_str(s.R[0].Sym))
+			symsSort[i].name = string(decodetypeStr(s.R[0].Sym))
 		}
 	}
 

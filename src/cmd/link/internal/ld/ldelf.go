@@ -309,13 +309,13 @@ type ElfSym struct {
 var ElfMagic = [4]uint8{0x7F, 'E', 'L', 'F'}
 
 const (
-	Tag_file                 = 1
-	Tag_CPU_name             = 4
-	Tag_CPU_raw_name         = 5
-	Tag_compatibility        = 32
-	Tag_nodefaults           = 64
-	Tag_also_compatible_with = 65
-	Tag_ABI_VFP_args         = 28
+	TagFile               = 1
+	TagCPUName            = 4
+	TagCPURawName         = 5
+	TagCompatibility      = 32
+	TagNoDefaults         = 64
+	TagAlsoCompatibleWith = 65
+	TagABIVFPArgs         = 28
 )
 
 type elfAttribute struct {
@@ -356,7 +356,7 @@ func (a *elfAttributeList) uleb128() uint64 {
 func (a *elfAttributeList) armAttr() elfAttribute {
 	attr := elfAttribute{tag: a.uleb128()}
 	switch {
-	case attr.tag == Tag_compatibility:
+	case attr.tag == TagCompatibility:
 		attr.ival = a.uleb128()
 		attr.sval = a.string()
 
@@ -367,7 +367,7 @@ func (a *elfAttributeList) armAttr() elfAttribute {
 		attr.sval = a.string()
 
 	// Tag with string argument
-	case attr.tag == Tag_CPU_name || attr.tag == Tag_CPU_raw_name || (attr.tag >= 32 && attr.tag&1 != 0):
+	case attr.tag == TagCPUName || attr.tag == TagCPURawName || (attr.tag >= 32 && attr.tag&1 != 0):
 		attr.sval = a.string()
 
 	default: // Tag with integer argument
@@ -421,11 +421,11 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 			subsectiondata := sectiondata[sz+4 : subsectionsize]
 			sectiondata = sectiondata[subsectionsize:]
 
-			if subsectiontag == Tag_file {
+			if subsectiontag == TagFile {
 				attrList := elfAttributeList{data: subsectiondata}
 				for !attrList.done() {
 					attr := attrList.armAttr()
-					if attr.tag == Tag_ABI_VFP_args && attr.ival == 1 {
+					if attr.tag == TagABIVFPArgs && attr.ival == 1 {
 						ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
 					}
 				}

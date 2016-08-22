@@ -43,7 +43,7 @@ const (
 	N_STAB = 0xe0
 )
 
-type LdMachoObj struct {
+type ldMachoObj struct {
 	f          *bio.Reader
 	base       int64 // off in f where Mach-O begins
 	length     int64 // length of Mach-O
@@ -54,20 +54,20 @@ type LdMachoObj struct {
 	subcputype uint
 	filetype   uint32
 	flags      uint32
-	cmd        []LdMachoCmd
+	cmd        []ldMachoCmd
 	ncmd       uint
 }
 
-type LdMachoCmd struct {
+type ldMachoCmd struct {
 	type_ int
 	off   uint32
 	size  uint32
-	seg   LdMachoSeg
-	sym   LdMachoSymtab
-	dsym  LdMachoDysymtab
+	seg   ldMachoSeg
+	sym   ldMachoSymtab
+	dsym  ldMachoDysymtab
 }
 
-type LdMachoSeg struct {
+type ldMachoSeg struct {
 	name     string
 	vmaddr   uint64
 	vmsize   uint64
@@ -77,10 +77,10 @@ type LdMachoSeg struct {
 	initprot uint32
 	nsect    uint32
 	flags    uint32
-	sect     []LdMachoSect
+	sect     []ldMachoSect
 }
 
-type LdMachoSect struct {
+type ldMachoSect struct {
 	name    string
 	segname string
 	addr    uint64
@@ -93,10 +93,10 @@ type LdMachoSect struct {
 	res1    uint32
 	res2    uint32
 	sym     *Symbol
-	rel     []LdMachoRel
+	rel     []ldMachoRel
 }
 
-type LdMachoRel struct {
+type ldMachoRel struct {
 	addr      uint32
 	symnum    uint32
 	pcrel     uint8
@@ -107,16 +107,16 @@ type LdMachoRel struct {
 	value     uint32
 }
 
-type LdMachoSymtab struct {
+type ldMachoSymtab struct {
 	symoff  uint32
 	nsym    uint32
 	stroff  uint32
 	strsize uint32
 	str     []byte
-	sym     []LdMachoSym
+	sym     []ldMachoSym
 }
 
-type LdMachoSym struct {
+type ldMachoSym struct {
 	name    string
 	type_   uint8
 	sectnum uint8
@@ -126,7 +126,7 @@ type LdMachoSym struct {
 	sym     *Symbol
 }
 
-type LdMachoDysymtab struct {
+type ldMachoDysymtab struct {
 	ilocalsym      uint32
 	nlocalsym      uint32
 	iextdefsym     uint32
@@ -175,7 +175,7 @@ const (
 	LdMachoFilePreload    = 5
 )
 
-func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int {
+func unpackcmd(p []byte, m *ldMachoObj, c *ldMachoCmd, type_ uint, sz uint) int {
 	e4 := m.e.Uint32
 	e8 := m.e.Uint64
 
@@ -198,12 +198,12 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int 
 		c.seg.initprot = e4(p[44:])
 		c.seg.nsect = e4(p[48:])
 		c.seg.flags = e4(p[52:])
-		c.seg.sect = make([]LdMachoSect, c.seg.nsect)
+		c.seg.sect = make([]ldMachoSect, c.seg.nsect)
 		if uint32(sz) < 56+c.seg.nsect*68 {
 			return -1
 		}
 		p = p[56:]
-		var s *LdMachoSect
+		var s *ldMachoSect
 		for i := 0; uint32(i) < c.seg.nsect; i++ {
 			s = &c.seg.sect[i]
 			s.name = cstring(p[0:16])
@@ -233,12 +233,12 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int 
 		c.seg.initprot = e4(p[60:])
 		c.seg.nsect = e4(p[64:])
 		c.seg.flags = e4(p[68:])
-		c.seg.sect = make([]LdMachoSect, c.seg.nsect)
+		c.seg.sect = make([]ldMachoSect, c.seg.nsect)
 		if uint32(sz) < 72+c.seg.nsect*80 {
 			return -1
 		}
 		p = p[72:]
-		var s *LdMachoSect
+		var s *ldMachoSect
 		for i := 0; uint32(i) < c.seg.nsect; i++ {
 			s = &c.seg.sect[i]
 			s.name = cstring(p[0:16])
@@ -293,11 +293,11 @@ func unpackcmd(p []byte, m *LdMachoObj, c *LdMachoCmd, type_ uint, sz uint) int 
 	return 0
 }
 
-func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
+func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 	if sect.rel != nil || sect.nreloc == 0 {
 		return 0
 	}
-	rel := make([]LdMachoRel, sect.nreloc)
+	rel := make([]ldMachoRel, sect.nreloc)
 	n := int(sect.nreloc * 8)
 	buf := make([]byte, n)
 	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 {
@@ -307,7 +307,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
 		return -1
 	}
 	var p []byte
-	var r *LdMachoRel
+	var r *ldMachoRel
 	var v uint32
 	for i := 0; uint32(i) < sect.nreloc; i++ {
 		r = &rel[i]
@@ -345,7 +345,7 @@ func macholoadrel(m *LdMachoObj, sect *LdMachoSect) int {
 	return 0
 }
 
-func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
+func macholoaddsym(m *ldMachoObj, d *ldMachoDysymtab) int {
 	n := int(d.nindirectsyms)
 
 	p := make([]byte, n*4)
@@ -363,7 +363,7 @@ func macholoaddsym(m *LdMachoObj, d *LdMachoDysymtab) int {
 	return 0
 }
 
-func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
+func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	if symtab.sym != nil {
 		return 0
 	}
@@ -388,9 +388,9 @@ func macholoadsym(m *LdMachoObj, symtab *LdMachoSymtab) int {
 	if _, err := io.ReadFull(m.f, symbuf); err != nil {
 		return -1
 	}
-	sym := make([]LdMachoSym, symtab.nsym)
+	sym := make([]ldMachoSym, symtab.nsym)
 	p := symbuf
-	var s *LdMachoSym
+	var s *ldMachoSym
 	var v uint32
 	for i := 0; uint32(i) < symtab.nsym; i++ {
 		s = &sym[i]
@@ -428,18 +428,18 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	var ty uint32
 	var sz uint32
 	var off uint32
-	var m *LdMachoObj
+	var m *ldMachoObj
 	var e binary.ByteOrder
-	var sect *LdMachoSect
-	var rel *LdMachoRel
+	var sect *ldMachoSect
+	var rel *ldMachoRel
 	var rpi int
 	var s *Symbol
 	var s1 *Symbol
 	var outer *Symbol
-	var c *LdMachoCmd
-	var symtab *LdMachoSymtab
-	var dsymtab *LdMachoDysymtab
-	var sym *LdMachoSym
+	var c *ldMachoCmd
+	var symtab *ldMachoSymtab
+	var dsymtab *ldMachoDysymtab
+	var sym *ldMachoSym
 	var r []Reloc
 	var rp *Reloc
 	var name string
@@ -471,7 +471,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		f.Seek(4, 1) // skip reserved word in header
 	}
 
-	m = new(LdMachoObj)
+	m = new(ldMachoObj)
 
 	m.f = f
 	m.e = e
@@ -503,7 +503,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 		}
 	}
 
-	m.cmd = make([]LdMachoCmd, ncmd)
+	m.cmd = make([]ldMachoCmd, ncmd)
 	off = uint32(len(hdr))
 	cmdp = make([]byte, cmdsz)
 	if _, err2 := io.ReadFull(f, cmdp); err2 != nil {
@@ -778,7 +778,7 @@ func ldmacho(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 
 				// now consider the desired symbol.
 				// find the section where it lives.
-				var ks *LdMachoSect
+				var ks *ldMachoSect
 				for k := 0; uint32(k) < c.seg.nsect; k++ {
 					ks = &c.seg.sect[k]
 					if ks.addr <= uint64(rel.value) && uint64(rel.value) < ks.addr+ks.size {
