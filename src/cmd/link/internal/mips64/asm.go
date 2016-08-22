@@ -226,7 +226,7 @@ func asmb(ctxt *ld.Link) {
 
 	ld.Lcsize = 0
 	symo := uint32(0)
-	if *ld.FlagS {
+	if !*ld.FlagS {
 		// TODO: rationalize
 		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
