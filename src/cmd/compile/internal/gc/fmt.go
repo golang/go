@@ -113,8 +113,7 @@ func setfmode(flags *FmtFlag) (fm int, fb bool) {
 	if *flags&FmtSign != 0 {
 		fmtmode = FDbg
 	} else if *flags&FmtSharp != 0 {
-		// for textual export format - no longer supported
-		Fatalf("textual export format request")
+		// ignore (textual export format no longer supported)
 	} else if *flags&FmtLeft != 0 {
 		fmtmode = FTypeId
 	}
