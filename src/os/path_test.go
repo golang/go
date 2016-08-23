@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"internal/testenv"
 	"io/ioutil"
 	. "os"
 	"path/filepath"
@@ -169,14 +170,7 @@ func TestRemoveAll(t *testing.T) {
 }
 
 func TestMkdirAllWithSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
-	}
+	testenv.MustHaveSymlink(t)
 
 	tmpDir, err := ioutil.TempDir("", "TestMkdirAllWithSymlink-")
 	if err != nil {
