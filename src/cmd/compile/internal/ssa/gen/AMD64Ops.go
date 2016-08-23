@@ -122,8 +122,7 @@ func init() {
 		gp1flags = regInfo{inputs: []regMask{gpsp}}
 		flagsgp  = regInfo{inputs: nil, outputs: gponly}
 
-		// for CMOVconst -- uses AX to hold constant temporary.
-		gp1flagsgp = regInfo{inputs: []regMask{gp &^ ax}, clobbers: ax, outputs: []regMask{gp &^ ax}}
+		gp11flags = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
 
 		readflags = regInfo{inputs: nil, outputs: gponly}
 		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
@@ -285,21 +284,16 @@ func init() {
 		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true, clobberFlags: true}, // ^arg0
 		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, clobberFlags: true}, // ^arg0
 
-		{name: "BSFQ", argLength: 1, reg: gp11, asm: "BSFQ", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
-		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
-		{name: "BSFW", argLength: 1, reg: gp11, asm: "BSFW", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
-
-		{name: "BSRQ", argLength: 1, reg: gp11, asm: "BSRQ", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
-		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
-		{name: "BSRW", argLength: 1, reg: gp11, asm: "BSRW", clobberFlags: true}, // arg0 # of high-order zeroes ; undef if zero
+		// BSF{L,Q} returns a tuple [result, flags]
+		// result is undefined if the input is zero.
+		// flags are set to "equal" if the input is zero, "not equal" otherwise.
+		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"}, // # of low-order zeroes in 64-bit arg
+		{name: "BSFL", argLength: 1, reg: gp11flags, asm: "BSFL", typ: "(UInt32,Flags)"}, // # of low-order zeroes in 32-bit arg
 
 		// Note ASM for ops moves whole register
-		{name: "CMOVQEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVQEQ", typ: "UInt64", aux: "Int64", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z set
-		{name: "CMOVLEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLEQ", typ: "UInt32", aux: "Int32", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z set
-		{name: "CMOVWEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLEQ", typ: "UInt16", aux: "Int16", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z set
-		{name: "CMOVQNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVQNE", typ: "UInt64", aux: "Int64", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z not set
-		{name: "CMOVLNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLNE", typ: "UInt32", aux: "Int32", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z not set
-		{name: "CMOVWNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLNE", typ: "UInt16", aux: "Int16", resultInArg0: true, clobberFlags: true}, // replace arg0 w/ constant if Z not set
+		//
+		{name: "CMOVQEQ", argLength: 3, reg: gp21, asm: "CMOVQEQ", resultInArg0: true}, // if arg2 encodes "equal" return arg1 else arg0
+		{name: "CMOVLEQ", argLength: 3, reg: gp21, asm: "CMOVLEQ", resultInArg0: true}, // if arg2 encodes "equal" return arg1 else arg0
 
 		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes

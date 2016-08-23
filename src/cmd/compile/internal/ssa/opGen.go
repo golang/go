@@ -479,16 +479,8 @@ const (
 	OpAMD64NOTL
 	OpAMD64BSFQ
 	OpAMD64BSFL
-	OpAMD64BSFW
-	OpAMD64BSRQ
-	OpAMD64BSRL
-	OpAMD64BSRW
-	OpAMD64CMOVQEQconst
-	OpAMD64CMOVLEQconst
-	OpAMD64CMOVWEQconst
-	OpAMD64CMOVQNEconst
-	OpAMD64CMOVLNEconst
-	OpAMD64CMOVWNEconst
+	OpAMD64CMOVQEQ
+	OpAMD64CMOVLEQ
 	OpAMD64BSWAPQ
 	OpAMD64BSWAPL
 	OpAMD64SQRTSD
@@ -1378,12 +1370,8 @@ const (
 	OpCom16
 	OpCom32
 	OpCom64
-	OpCtz16
 	OpCtz32
 	OpCtz64
-	OpClz16
-	OpClz32
-	OpClz64
 	OpBswap32
 	OpBswap64
 	OpSqrt
@@ -5487,188 +5475,60 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BSFQ",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABSFQ,
+		name:   "BSFQ",
+		argLen: 1,
+		asm:    x86.ABSFQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
+				{1, 0},
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:         "BSFL",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABSFL,
+		name:   "BSFL",
+		argLen: 1,
+		asm:    x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 			outputs: []outputInfo{
+				{1, 0},
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:         "BSFW",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABSFW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "BSRQ",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABSRQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "BSRL",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABSRL,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "BSRW",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABSRW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			outputs: []outputInfo{
-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "CMOVQEQconst",
-		auxType:      auxInt64,
-		argLen:       2,
+		name:         "CMOVQEQ",
+		argLen:       3,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ACMOVQEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
 	{
-		name:         "CMOVLEQconst",
-		auxType:      auxInt32,
-		argLen:       2,
+		name:         "CMOVLEQ",
+		argLen:       3,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          x86.ACMOVLEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
-			clobbers: 1, // AX
 			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "CMOVWEQconst",
-		auxType:      auxInt16,
-		argLen:       2,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ACMOVLEQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 1, // AX
-			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "CMOVQNEconst",
-		auxType:      auxInt64,
-		argLen:       2,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ACMOVQNE,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 1, // AX
-			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "CMOVLNEconst",
-		auxType:      auxInt32,
-		argLen:       2,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ACMOVLNE,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 1, // AX
-			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-		},
-	},
-	{
-		name:         "CMOVWNEconst",
-		auxType:      auxInt16,
-		argLen:       2,
-		resultInArg0: true,
-		clobberFlags: true,
-		asm:          x86.ACMOVLNE,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
-			},
-			clobbers: 1, // AX
-			outputs: []outputInfo{
-				{0, 65518}, // CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
 	},
@@ -15638,32 +15498,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Ctz16",
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "Ctz32",
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Ctz64",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Clz16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Clz32",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Clz64",
 		argLen:  1,
 		generic: true,
 	},

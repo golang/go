@@ -415,23 +415,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
-	case ssa.OpAMD64CMOVQEQconst, ssa.OpAMD64CMOVLEQconst, ssa.OpAMD64CMOVWEQconst,
-		ssa.OpAMD64CMOVQNEconst, ssa.OpAMD64CMOVLNEconst, ssa.OpAMD64CMOVWNEconst:
+	case ssa.OpAMD64CMOVQEQ, ssa.OpAMD64CMOVLEQ:
 		r := gc.SSARegNum(v)
 		if r != gc.SSARegNum(v.Args[0]) {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
-
-		// Constant into AX
-		p := gc.Prog(moveByType(v.Type))
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
-
-		p = gc.Prog(v.Op.Asm())
+		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x86.REG_AX
+		p.From.Reg = gc.SSARegNum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 
@@ -846,9 +837,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSFW,
-		ssa.OpAMD64BSRQ, ssa.OpAMD64BSRL, ssa.OpAMD64BSRW,
-		ssa.OpAMD64SQRTSD:
+	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum0(v)
+	case ssa.OpAMD64SQRTSD:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
