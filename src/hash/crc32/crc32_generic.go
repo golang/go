@@ -9,6 +9,10 @@ package crc32
 // This file contains the generic version of updateCastagnoli which does
 // slicing-by-8, or uses the fallback for very small sizes.
 
+func castagnoliInitArch() (needGenericTables bool) {
+	return true
+}
+
 func updateCastagnoli(crc uint32, p []byte) uint32 {
 	// Use slicing-by-8 on larger inputs.
 	if len(p) >= sliceBy8Cutoff {

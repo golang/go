@@ -7,6 +7,7 @@ package crc32
 import (
 	"hash"
 	"io"
+	"math/rand"
 	"testing"
 )
 
@@ -85,6 +86,41 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+func TestCastagnoliSSE42(t *testing.T) {
+	if !sse42 {
+		t.Skip("SSE42 not supported")
+	}
+
+	// Init the SSE42 tables.
+	MakeTable(Castagnoli)
+
+	// Manually init the software implementation to compare against.
+	castagnoliTable = makeTable(Castagnoli)
+	castagnoliTable8 = makeTable8(Castagnoli)
+
+	// The optimized SSE4.2 implementation behaves differently for different
+	// lengths (especially around multiples of K*3). Crosscheck against the
+	// software implementation for various lengths.
+	for _, base := range []int{castagnoliK1, castagnoliK2, castagnoliK1 + castagnoliK2} {
+		for _, baseMult := range []int{2, 3, 5, 6, 9, 30} {
+			for _, variation := range []int{0, 1, 2, 3, 4, 7, 10, 16, 32, 50, 128} {
+				for _, varMult := range []int{-2, -1, +1, +2} {
+					length := base*baseMult + variation*varMult
+					p := make([]byte, length)
+					_, _ = rand.Read(p)
+					crcInit := uint32(rand.Int63())
+					correct := updateSlicingBy8(crcInit, castagnoliTable8, p)
+					result := updateCastagnoli(crcInit, p)
+					if result != correct {
+						t.Errorf("SSE42 implementation = 0x%x want 0x%x (buffer length %d)",
+							result, correct, len(p))
+					}
+				}
+			}
+		}
+	}
+}
+
 func BenchmarkIEEECrc40B(b *testing.B) {
 	benchmark(b, NewIEEE(), 40, 0)
 }
@@ -113,16 +149,40 @@ func BenchmarkCastagnoliCrc40B(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 40, 0)
 }
 
+func BenchmarkCastagnoliCrc40BMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 40, 1)
+}
+
+func BenchmarkCastagnoliCrc512(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 512, 0)
+}
+
+func BenchmarkCastagnoliCrc512Misaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 512, 1)
+}
+
 func BenchmarkCastagnoliCrc1KB(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc1KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 1)
 }
 
 func BenchmarkCastagnoliCrc4KB(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 0)
 }
 
+func BenchmarkCastagnoliCrc4KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 1)
+}
+
 func BenchmarkCastagnoliCrc32KB(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc32KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 1)
 }
 
 func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
