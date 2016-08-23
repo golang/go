@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Note: some of these functions are semantically inlined
+// by the compiler (in src/cmd/compile/internal/gc/ssa.go).
+
 #include "textflag.h"
 
 // bool Cas(int32 *val, int32 old, int32 new)

@@ -935,7 +935,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore,
 				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
 				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
-				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore:
+				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore,
+				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload:
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
 						gc.Warnl(v.Line, "removed nil check")
@@ -951,7 +952,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 					return
 				}
 			}
-			if w.Type.IsMemory() {
+			if w.Type.IsMemory() || w.Type.IsTuple() && w.Type.FieldType(1).IsMemory() {
 				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
 					// these ops are OK
 					mem = w
@@ -976,6 +977,24 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Line, "generated nil check")
 		}
+	case ssa.OpAMD64MOVLatomicload, ssa.OpAMD64MOVQatomicload:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum0(v)
+	case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ:
+		r := gc.SSARegNum0(v)
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+		}
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[1])
+		gc.AddAux(&p.To, v)
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}

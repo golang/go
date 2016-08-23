@@ -196,17 +196,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 	case ssa.Op386ADDLcarry, ssa.Op386SUBLcarry:
 		// output 0 is carry/borrow, output 1 is the low 32 bits.
-		r := gc.SSARegNum1(v)
+		r := gc.SSARegNum0(v)
 		if r != gc.SSARegNum(v.Args[0]) {
-			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
+			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
 		}
 		opregreg(v.Op.Asm(), r, gc.SSARegNum(v.Args[1]))
 
 	case ssa.Op386ADDLconstcarry, ssa.Op386SUBLconstcarry:
 		// output 0 is carry/borrow, output 1 is the low 32 bits.
-		r := gc.SSARegNum1(v)
+		r := gc.SSARegNum0(v)
 		if r != gc.SSARegNum(v.Args[0]) {
-			v.Fatalf("input[0] and output[1] not in same register %s", v.LongString())
+			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
 		}
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST

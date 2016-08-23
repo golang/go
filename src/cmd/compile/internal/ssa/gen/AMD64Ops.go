@@ -134,6 +134,7 @@ func init() {
 		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
 		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
 		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gpstorexchg     = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp}}
 
 		fp01    = regInfo{inputs: nil, outputs: fponly}
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -509,6 +510,20 @@ func init() {
 		{name: "FlagLT_UGT"}, // signed < and unsigned >
 		{name: "FlagGT_UGT"}, // signed > and unsigned <
 		{name: "FlagGT_ULT"}, // signed > and unsigned >
+
+		// Atomic loads.  These are just normal loads but return <value,memory> tuples
+		// so they can be properly ordered with other loads.
+		// load from arg0+auxint+aux.  arg1=mem.
+		{name: "MOVLatomicload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff"},
+		{name: "MOVQatomicload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff"},
+		// Atomic stores.  We use XCHG to get the right memory ordering semantics.
+		// These ops return a tuple of <old memory contents, memory>.  The old contents are
+		// ignored for now but they are allocated to a register so that the argument register
+		// is properly clobbered (together with resultInArg0).
+		// store arg0 to arg1+auxint+aux, arg2=mem.
+		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
+		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true},
+		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true},
 	}
 
 	var AMD64blocks = []blockData{

@@ -477,7 +477,7 @@ func inlnode(n *Node) *Node {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
 		}
-		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall1(n) { // normal case
+		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd)
 		} else if n.isMethodCalledAsFunction() && n.Left.Sym.Def != nil {
 			n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)

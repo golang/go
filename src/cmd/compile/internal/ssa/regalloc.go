@@ -1204,7 +1204,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					if mask == 0 {
 						continue
 					}
-					if opcodeTable[v.Op].resultInArg0 && out.idx == len(regspec.outputs)-1 {
+					if opcodeTable[v.Op].resultInArg0 && out.idx == 0 {
 						if !opcodeTable[v.Op].commutative {
 							// Output must use the same register as input 0.
 							r := register(s.f.getHome(args[0].ID).(*Register).Num)

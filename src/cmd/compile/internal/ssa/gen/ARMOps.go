@@ -99,17 +99,17 @@ func init() {
 	var (
 		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
 		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11carry = regInfo{inputs: []regMask{gpg}, outputs: []regMask{0, gp}}
+		gp11carry = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
 		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp1flags  = regInfo{inputs: []regMask{gpg}}
 		gp1flags1 = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp21carry = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{0, gp}}
+		gp21carry = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, 0}}
 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
 		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gp31carry = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{0, gp}}
+		gp31carry = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp, 0}}
 		gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}}
 		gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
 		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}

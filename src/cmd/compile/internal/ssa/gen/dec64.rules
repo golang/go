@@ -39,16 +39,16 @@
 		(Add32withcarry <config.fe.TypeInt32()>
 			(Int64Hi x)
 			(Int64Hi y)
-			(Select0 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y))))
-		(Select1 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
+			(Select1 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y))))
+		(Select0 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
 
 (Sub64 x y) ->
 	(Int64Make
 		(Sub32withcarry <config.fe.TypeInt32()>
 			(Int64Hi x)
 			(Int64Hi y)
-			(Select0 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y))))
-		(Select1 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
+			(Select1 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y))))
+		(Select0 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
 
 (Mul64 x y) ->
 	(Int64Make
