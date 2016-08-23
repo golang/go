@@ -844,6 +844,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			sec, value, err = getnum(value, std == stdZeroSecond)
 			if sec < 0 || 60 <= sec {
 				rangeErrString = "second"
+				break
 			}
 			// Special case: do we have a fractional second but no
 			// fractional second in the format?
