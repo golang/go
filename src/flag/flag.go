@@ -238,7 +238,8 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 // rather than using the next command-line argument.
 //
 // Set is called once, in command line order, for each flag present.
-// String must work on the zero value of the dynamic type.
+// The flag package may call the String method with a zero-valued receiver,
+// such as a nil pointer.
 type Value interface {
 	String() string
 	Set(string) error
