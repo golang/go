@@ -6,6 +6,7 @@ package filepath_test
 
 import (
 	"errors"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,8 +15,6 @@ import (
 	"strings"
 	"testing"
 )
-
-var supportsSymlinks = true
 
 type PathTest struct {
 	path, result string
@@ -776,13 +775,7 @@ func simpleJoin(dir, path string) string {
 }
 
 func TestEvalSymlinks(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-	if !supportsSymlinks {
-		t.Skip("skipping because symlinks are not supported")
-	}
+	testenv.MustHaveSymlink(t)
 
 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
 	if err != nil {
@@ -896,13 +889,7 @@ func TestEvalSymlinks(t *testing.T) {
 }
 
 func TestIssue13582(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
-	if !supportsSymlinks {
-		t.Skip("skipping because symlinks are not supported")
-	}
+	testenv.MustHaveSymlink(t)
 
 	tmpDir, err := ioutil.TempDir("", "issue13582")
 	if err != nil {

@@ -6,6 +6,7 @@ package filepath_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	. "path/filepath"
@@ -174,15 +175,7 @@ var globSymlinkTests = []struct {
 }
 
 func TestGlobSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
-
-	}
+	testenv.MustHaveSymlink(t)
 
 	tmpDir, err := ioutil.TempDir("", "globsymlink")
 	if err != nil {
