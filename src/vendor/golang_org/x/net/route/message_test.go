@@ -93,3 +93,26 @@ func TestMonitorAndParseRIB(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}
 }
+
+func TestParseRIBWithFuzz(t *testing.T) {
+	for _, fuzz := range []string{
+		"0\x00\x05\x050000000000000000" +
+			"00000000000000000000" +
+			"00000000000000000000" +
+			"00000000000000000000" +
+			"0000000000000\x02000000" +
+			"00000000",
+		"\x02\x00\x05\f0000000000000000" +
+			"0\x0200000000000000",
+		"\x02\x00\x05\x100000000000000\x1200" +
+			"0\x00\xff\x00",
+		"\x02\x00\x05\f0000000000000000" +
+			"0\x12000\x00\x02\x0000",
+		"\x00\x00\x00\x01\x00",
+		"00000",
+	} {
+		for typ := RIBType(0); typ < 256; typ++ {
+			ParseRIB(typ, []byte(fuzz))
+		}
+	}
+}
