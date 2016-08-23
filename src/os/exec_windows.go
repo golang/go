@@ -63,7 +63,9 @@ func (p *Process) signal(sig Signal) error {
 		return errors.New("os: process already finished")
 	}
 	if sig == Kill {
-		return terminateProcess(p.Pid, 1)
+		err := terminateProcess(p.Pid, 1)
+		runtime.KeepAlive(p)
+		return err
 	}
 	// TODO(rsc): Handle Interrupt too?
 	return syscall.Errno(syscall.EWINDOWS)
