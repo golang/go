@@ -2205,29 +2205,29 @@ func Asmbelf(ctxt *Link, symo int64) {
 		sh.type_ = SHT_PROGBITS
 		sh.flags = SHF_ALLOC
 		sh.addralign = 1
-		if *flagInterpreter == "" {
+		if interpreter == "" {
 			switch HEADTYPE {
 			case obj.Hlinux:
-				*flagInterpreter = Thearch.Linuxdynld
+				interpreter = Thearch.Linuxdynld
 
 			case obj.Hfreebsd:
-				*flagInterpreter = Thearch.Freebsddynld
+				interpreter = Thearch.Freebsddynld
 
 			case obj.Hnetbsd:
-				*flagInterpreter = Thearch.Netbsddynld
+				interpreter = Thearch.Netbsddynld
 
 			case obj.Hopenbsd:
-				*flagInterpreter = Thearch.Openbsddynld
+				interpreter = Thearch.Openbsddynld
 
 			case obj.Hdragonfly:
-				*flagInterpreter = Thearch.Dragonflydynld
+				interpreter = Thearch.Dragonflydynld
 
 			case obj.Hsolaris:
-				*flagInterpreter = Thearch.Solarisdynld
+				interpreter = Thearch.Solarisdynld
 			}
 		}
 
-		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), *flagInterpreter))
+		resoff -= int64(elfinterp(sh, uint64(startva), uint64(resoff), interpreter))
 
 		ph := newElfPhdr(ctxt)
 		ph.type_ = PT_INTERP
