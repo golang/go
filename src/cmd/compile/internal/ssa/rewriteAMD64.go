@@ -24,12 +24,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpAMD64ANDQ(v, config)
 	case OpAMD64ANDQconst:
 		return rewriteValueAMD64_OpAMD64ANDQconst(v, config)
-	case OpAMD64CMOVLEQconst:
-		return rewriteValueAMD64_OpAMD64CMOVLEQconst(v, config)
-	case OpAMD64CMOVQEQconst:
-		return rewriteValueAMD64_OpAMD64CMOVQEQconst(v, config)
-	case OpAMD64CMOVWEQconst:
-		return rewriteValueAMD64_OpAMD64CMOVWEQconst(v, config)
 	case OpAMD64CMPB:
 		return rewriteValueAMD64_OpAMD64CMPB(v, config)
 	case OpAMD64CMPBconst:
@@ -330,8 +324,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpConstNil(v, config)
 	case OpConvert:
 		return rewriteValueAMD64_OpConvert(v, config)
-	case OpCtz16:
-		return rewriteValueAMD64_OpCtz16(v, config)
 	case OpCtz32:
 		return rewriteValueAMD64_OpCtz32(v, config)
 	case OpCtz64:
@@ -1552,279 +1544,6 @@ func rewriteValueAMD64_OpAMD64ANDQconst(v *Value, config *Config) bool {
 		d := v_0.AuxInt
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = c & d
-		return true
-	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64CMOVLEQconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (CMOVLEQconst x (InvertFlags y) [c])
-	// cond:
-	// result: (CMOVLNEconst x y [c])
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64InvertFlags {
-			break
-		}
-		y := v_1.Args[0]
-		v.reset(OpAMD64CMOVLNEconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	// match: (CMOVLEQconst _ (FlagEQ) [c])
-	// cond:
-	// result: (Const32 [c])
-	for {
-		c := v.AuxInt
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagEQ {
-			break
-		}
-		v.reset(OpConst32)
-		v.AuxInt = c
-		return true
-	}
-	// match: (CMOVLEQconst x (FlagLT_ULT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagLT_ULT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVLEQconst x (FlagLT_UGT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagLT_UGT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVLEQconst x (FlagGT_ULT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagGT_ULT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVLEQconst x (FlagGT_UGT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagGT_UGT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64CMOVQEQconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (CMOVQEQconst x (InvertFlags y) [c])
-	// cond:
-	// result: (CMOVQNEconst x y [c])
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64InvertFlags {
-			break
-		}
-		y := v_1.Args[0]
-		v.reset(OpAMD64CMOVQNEconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	// match: (CMOVQEQconst _ (FlagEQ) [c])
-	// cond:
-	// result: (Const64 [c])
-	for {
-		c := v.AuxInt
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagEQ {
-			break
-		}
-		v.reset(OpConst64)
-		v.AuxInt = c
-		return true
-	}
-	// match: (CMOVQEQconst x (FlagLT_ULT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagLT_ULT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVQEQconst x (FlagLT_UGT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagLT_UGT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVQEQconst x (FlagGT_ULT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagGT_ULT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVQEQconst x (FlagGT_UGT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagGT_UGT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	return false
-}
-func rewriteValueAMD64_OpAMD64CMOVWEQconst(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (CMOVWEQconst x (InvertFlags y) [c])
-	// cond:
-	// result: (CMOVWNEconst x y [c])
-	for {
-		c := v.AuxInt
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64InvertFlags {
-			break
-		}
-		y := v_1.Args[0]
-		v.reset(OpAMD64CMOVWNEconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	// match: (CMOVWEQconst _ (FlagEQ) [c])
-	// cond:
-	// result: (Const16 [c])
-	for {
-		c := v.AuxInt
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagEQ {
-			break
-		}
-		v.reset(OpConst16)
-		v.AuxInt = c
-		return true
-	}
-	// match: (CMOVWEQconst x (FlagLT_ULT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagLT_ULT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVWEQconst x (FlagLT_UGT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagLT_UGT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVWEQconst x (FlagGT_ULT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagGT_ULT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-	// match: (CMOVWEQconst x (FlagGT_UGT))
-	// cond:
-	// result: x
-	for {
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpAMD64FlagGT_UGT {
-			break
-		}
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
 		return true
 	}
 	return false
@@ -13633,45 +13352,29 @@ func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteValueAMD64_OpCtz16(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (Ctz16 <t> x)
-	// cond:
-	// result: (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
-	for {
-		t := v.Type
-		x := v.Args[0]
-		v.reset(OpAMD64CMOVWEQconst)
-		v.AuxInt = 16
-		v0 := b.NewValue0(v.Line, OpAMD64BSFW, t)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeFlags)
-		v1.AuxInt = 0
-		v1.AddArg(x)
-		v.AddArg(v1)
-		return true
-	}
-}
 func rewriteValueAMD64_OpCtz32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Ctz32 <t> x)
 	// cond:
-	// result: (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
+	// result: (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpAMD64CMOVLEQconst)
-		v.AuxInt = 32
-		v0 := b.NewValue0(v.Line, OpAMD64BSFL, t)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeFlags)
-		v1.AuxInt = 0
+		v.reset(OpAMD64CMOVLEQ)
+		v0 := b.NewValue0(v.Line, OpSelect0, t)
+		v1 := b.NewValue0(v.Line, OpAMD64BSFL, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
 		v1.AddArg(x)
-		v.AddArg(v1)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpAMD64MOVLconst, t)
+		v2.AuxInt = 32
+		v.AddArg(v2)
+		v3 := b.NewValue0(v.Line, OpSelect1, TypeFlags)
+		v4 := b.NewValue0(v.Line, OpAMD64BSFL, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
+		v4.AddArg(x)
+		v3.AddArg(v4)
+		v.AddArg(v3)
 		return true
 	}
 }
@@ -13680,19 +13383,24 @@ func rewriteValueAMD64_OpCtz64(v *Value, config *Config) bool {
 	_ = b
 	// match: (Ctz64 <t> x)
 	// cond:
-	// result: (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
+	// result: (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
 	for {
 		t := v.Type
 		x := v.Args[0]
-		v.reset(OpAMD64CMOVQEQconst)
-		v.AuxInt = 64
-		v0 := b.NewValue0(v.Line, OpAMD64BSFQ, t)
-		v0.AddArg(x)
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeFlags)
-		v1.AuxInt = 0
+		v.reset(OpAMD64CMOVQEQ)
+		v0 := b.NewValue0(v.Line, OpSelect0, t)
+		v1 := b.NewValue0(v.Line, OpAMD64BSFQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
 		v1.AddArg(x)
-		v.AddArg(v1)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpAMD64MOVQconst, t)
+		v2.AuxInt = 64
+		v.AddArg(v2)
+		v3 := b.NewValue0(v.Line, OpSelect1, TypeFlags)
+		v4 := b.NewValue0(v.Line, OpAMD64BSFQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
+		v4.AddArg(x)
+		v3.AddArg(v4)
+		v.AddArg(v3)
 		return true
 	}
 }

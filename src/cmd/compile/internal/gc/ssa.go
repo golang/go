@@ -2536,7 +2536,7 @@ func isSSAIntrinsic1(s *Sym) bool {
 	if s != nil && s.Pkg != nil && s.Pkg.Path == "runtime/internal/sys" {
 		switch s.Name {
 		case
-			"Ctz64", "Ctz32", "Ctz16",
+			"Ctz64", "Ctz32",
 			"Bswap64", "Bswap32":
 			return true
 		}
@@ -2569,8 +2569,6 @@ func (s *state) intrinsicCall1(n *Node) *ssa.Value {
 		result = s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
 	case "Ctz32":
 		result = s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
-	case "Ctz16":
-		result = s.newValue1(ssa.OpCtz16, Types[TUINT16], s.intrinsicFirstArg(n))
 	case "Bswap64":
 		result = s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
 	case "Bswap32":

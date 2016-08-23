@@ -98,10 +98,8 @@
 (OffPtr [off] ptr) && config.PtrSize == 4 -> (ADDLconst [off] ptr)
 
 // Lowering other arithmetic
-// TODO: CMPQconst 0 below is redundant because BSF sets Z but how to remove?
-(Ctz64 <t> x) -> (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
-(Ctz32 <t> x) -> (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
-(Ctz16 <t> x) -> (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
+(Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
+(Ctz32 <t> x) -> (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
 
 (Bswap64 x) -> (BSWAPQ x)
 (Bswap32 x) -> (BSWAPL x)
@@ -1281,31 +1279,6 @@
 (CMPLconst x [0]) -> (TESTL x x)
 (CMPWconst x [0]) -> (TESTW x x)
 (CMPBconst x [0]) -> (TESTB x x)
-
-// Optimizing conditional moves
-(CMOVQEQconst x (InvertFlags y) [c]) -> (CMOVQNEconst x y [c])
-(CMOVLEQconst x (InvertFlags y) [c]) -> (CMOVLNEconst x y [c])
-(CMOVWEQconst x (InvertFlags y) [c]) -> (CMOVWNEconst x y [c])
-
-(CMOVQEQconst _ (FlagEQ) [c]) -> (Const64 [c])
-(CMOVLEQconst _ (FlagEQ) [c]) -> (Const32 [c])
-(CMOVWEQconst _ (FlagEQ) [c]) -> (Const16 [c])
-
-(CMOVQEQconst x (FlagLT_ULT)) -> x
-(CMOVLEQconst x (FlagLT_ULT)) -> x
-(CMOVWEQconst x (FlagLT_ULT)) -> x
-
-(CMOVQEQconst x (FlagLT_UGT)) -> x
-(CMOVLEQconst x (FlagLT_UGT)) -> x
-(CMOVWEQconst x (FlagLT_UGT)) -> x
-
-(CMOVQEQconst x (FlagGT_ULT)) -> x
-(CMOVLEQconst x (FlagGT_ULT)) -> x
-(CMOVWEQconst x (FlagGT_ULT)) -> x
-
-(CMOVQEQconst x (FlagGT_UGT)) -> x
-(CMOVLEQconst x (FlagGT_UGT)) -> x
-(CMOVWEQconst x (FlagGT_UGT)) -> x
 
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
