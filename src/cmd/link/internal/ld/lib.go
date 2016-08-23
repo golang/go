@@ -179,6 +179,7 @@ var (
 	Funcalign       int
 	iscgo           bool
 	elfglobalsymndx int
+	interpreter     string
 
 	debug_s  bool // backup old value of debug['s']
 	HEADR    int32
