@@ -858,11 +858,9 @@ func (p *exporter) method(m *Field) {
 	p.paramList(m.Type.Results(), false)
 }
 
-// fieldName is like qualifiedName but it doesn't record the package
-// for blank (_) or exported names.
+// fieldName is like qualifiedName but it doesn't record the package for exported names.
 func (p *exporter) fieldName(t *Field) {
 	name := t.Sym.Name
-
 	if t.Embedded != 0 {
 		name = "" // anonymous field
 		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
@@ -871,8 +869,7 @@ func (p *exporter) fieldName(t *Field) {
 		}
 	}
 	p.string(name)
-
-	if name != "_" && name != "" && !exportname(name) {
+	if name != "" && !exportname(name) {
 		p.pkg(t.Sym.Pkg)
 	}
 }
