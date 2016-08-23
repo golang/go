@@ -810,9 +810,6 @@ func (p *exporter) typ(t *Type) {
 }
 
 func (p *exporter) qualifiedName(sym *Sym) {
-	if strings.Contains(sym.Name, ".") {
-		Fatalf("exporter: invalid symbol name: %s", sym.Name)
-	}
 	p.string(sym.Name)
 	p.pkg(sym.Pkg)
 }
@@ -834,7 +831,7 @@ func (p *exporter) fieldList(t *Type) {
 
 func (p *exporter) field(f *Field) {
 	p.pos(f.Nname)
-	p.fieldName(f.Sym, f)
+	p.fieldName(f)
 	p.typ(f.Type)
 	p.string(f.Note)
 }
@@ -856,37 +853,27 @@ func (p *exporter) methodList(t *Type) {
 
 func (p *exporter) method(m *Field) {
 	p.pos(m.Nname)
-	p.fieldName(m.Sym, m)
+	p.fieldName(m)
 	p.paramList(m.Type.Params(), false)
 	p.paramList(m.Type.Results(), false)
 }
 
 // fieldName is like qualifiedName but it doesn't record the package
 // for blank (_) or exported names.
-func (p *exporter) fieldName(sym *Sym, t *Field) {
-	if t != nil && sym != t.Sym {
-		Fatalf("exporter: invalid fieldName parameters")
-	}
+func (p *exporter) fieldName(t *Field) {
+	name := t.Sym.Name
 
-	name := sym.Name
-	if t != nil {
-		if t.Embedded == 0 {
-			name = sym.Name
-		} else if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
-			// anonymous field with unexported base type name: use "?" as field name
-			// (bname != "" per spec, but we are conservative in case of errors)
-			name = "?"
-		} else {
-			name = ""
+	if t.Embedded != 0 {
+		name = "" // anonymous field
+		if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
+			// anonymous field with unexported base type name
+			name = "?" // unexported name to force export of package
 		}
 	}
-
-	if strings.Contains(name, ".") {
-		Fatalf("exporter: invalid symbol name: %s", name)
-	}
 	p.string(name)
-	if name == "?" || name != "_" && name != "" && !exportname(name) {
-		p.pkg(sym.Pkg)
+
+	if name != "_" && name != "" && !exportname(name) {
+		p.pkg(t.Sym.Pkg)
 	}
 }
 
@@ -895,10 +882,8 @@ func basetypeName(t *Type) string {
 	if s == nil && t.IsPtr() {
 		s = t.Elem().Sym // deref
 	}
+	// s should exist, but be conservative
 	if s != nil {
-		if strings.Contains(s.Name, ".") {
-			Fatalf("exporter: invalid symbol name: %s", s.Name)
-		}
 		return s.Name
 	}
 	return ""

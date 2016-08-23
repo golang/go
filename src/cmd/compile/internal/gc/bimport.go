@@ -595,7 +595,7 @@ func (p *importer) fieldName() *Sym {
 		// (see parser.go:sym). The binary exporter only exports blank as a non-exported
 		// identifier without qualification.
 		pkg = builtinpkg
-	} else if name == "?" || name != "" && !exportname(name) {
+	} else if name != "" && !exportname(name) {
 		if name == "?" {
 			name = ""
 		}
