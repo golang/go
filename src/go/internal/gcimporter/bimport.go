@@ -492,19 +492,15 @@ func (p *importer) method(parent *types.Package) *types.Func {
 }
 
 func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
+	name := p.string()
 	pkg := parent
 	if pkg == nil {
 		// use the imported package instead
 		pkg = p.pkgList[0]
 	}
-	name := p.string()
-	if name == "" {
-		return pkg, "" // anonymous
-	}
-	if name == "?" || name != "_" && !exported(name) {
-		// explicitly qualified field
+	if name != "" && !exported(name) {
 		if name == "?" {
-			name = "" // anonymous
+			name = ""
 		}
 		pkg = p.pkg()
 	}

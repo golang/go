@@ -590,12 +590,7 @@ func (p *importer) method() *Node {
 func (p *importer) fieldName() *Sym {
 	name := p.string()
 	pkg := localpkg
-	if name == "_" {
-		// During imports, unqualified non-exported identifiers are from builtinpkg
-		// (see parser.go:sym). The binary exporter only exports blank as a non-exported
-		// identifier without qualification.
-		pkg = builtinpkg
-	} else if name != "" && !exportname(name) {
+	if name != "" && !exportname(name) {
 		if name == "?" {
 			name = ""
 		}
