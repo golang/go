@@ -26,6 +26,7 @@ type importer struct {
 	data    []byte
 	path    string
 	buf     []byte // for reading strings
+	version int
 
 	// object lists
 	strList       []string         // in order of appearance
@@ -76,12 +77,14 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 		if s := p.string(); s != go17version {
 			return p.read, nil, fmt.Errorf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
 		}
+		p.version = 0
 	} else {
 		// Go1.8 extensible encoding
 		const exportVersion = "version 1"
 		if s := p.rawStringln(b); s != exportVersion {
 			return p.read, nil, fmt.Errorf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
 		}
+		p.version = 1
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
@@ -532,19 +535,20 @@ func (p *importer) method(parent *types.Package) *types.Func {
 }
 
 func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
+	name := p.string()
 	pkg := parent
 	if pkg == nil {
 		// use the imported package instead
 		pkg = p.pkgList[0]
 	}
-	name := p.string()
-	if name == "" {
-		return pkg, "" // anonymous
+	if p.version < 1 && name == "_" {
+		// versions < 1 don't export a package for _ fields
+		// TODO: remove once versions are not supported anymore
+		return pkg, name
 	}
-	if name == "?" || name != "_" && !exported(name) {
-		// explicitly qualified field
+	if name != "" && !exported(name) {
 		if name == "?" {
-			name = "" // anonymous
+			name = ""
 		}
 		pkg = p.pkg()
 	}

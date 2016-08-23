@@ -455,8 +455,7 @@ func (p *exporter) method(m *types.Func) {
 	p.paramList(sig.Results(), false)
 }
 
-// fieldName is like qualifiedName but it doesn't record the package
-// for blank (_) or exported names.
+// fieldName is like qualifiedName but it doesn't record the package for exported names.
 func (p *exporter) fieldName(f *types.Var) {
 	name := f.Name()
 
@@ -468,12 +467,12 @@ func (p *exporter) fieldName(f *types.Var) {
 			base = ptr.Elem()
 		}
 		if named, ok := base.(*types.Named); ok && !named.Obj().Exported() {
-			name = "?"
+			// anonymous field with unexported base type name
+			name = "?" // unexported name to force export of package
 		}
 	}
-
 	p.string(name)
-	if name == "?" || name != "_" && !f.Exported() {
+	if !f.Exported() {
 		p.pkg(f.Pkg(), false)
 	}
 }
