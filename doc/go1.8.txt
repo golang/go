@@ -3,6 +3,7 @@ Tools:
 
 compile: SSA for 386, arm, arm64, ppc64le, ... (many CLs)
 yacc: "go tool yacc" is removed. now at golang.org/x/tools/cmd/goyacc (CL 27324, CL 27325)
+go: -buildmode=c-archive now builds PIC on ELF (CL 24180)
 
 Ports:
 
