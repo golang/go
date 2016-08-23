@@ -464,6 +464,19 @@
 
 (If cond yes no) -> (NE (TESTB cond cond) yes no)
 
+// Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
+(AtomicLoad32 ptr mem) -> (MOVLatomicload ptr mem)
+(AtomicLoad64 ptr mem) -> (MOVQatomicload ptr mem)
+(AtomicLoadPtr ptr mem) && config.PtrSize == 8 -> (MOVQatomicload ptr mem)
+(AtomicLoadPtr ptr mem) && config.PtrSize == 4 -> (MOVLatomicload ptr mem)
+
+// Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
+// TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
+(AtomicStore32 ptr val mem) -> (Select1 (XCHGL <MakeTuple(config.Frontend().TypeUInt32(),TypeMem)> val ptr mem))
+(AtomicStore64 ptr val mem) -> (Select1 (XCHGQ <MakeTuple(config.Frontend().TypeUInt64(),TypeMem)> val ptr mem))
+(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
+(AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 4 -> (Select1 (XCHGL <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
+
 // ***************************
 // Above: lowering rules
 // Below: optimizations
@@ -1626,3 +1639,23 @@
 	(MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 (MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
 	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+
+// Merge ADDQconst and LEAQ into atomic loads.
+(MOVQatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(MOVQatomicload [off1+off2] {sym} ptr mem)
+(MOVLatomicload [off1] {sym} (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(MOVLatomicload [off1+off2] {sym} ptr mem)
+(MOVQatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVQatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVLatomicload [off1] {sym1} (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+	(MOVLatomicload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+
+// Merge ADDQconst and LEAQ into atomic stores.
+(XCHGQ [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(XCHGQ [off1+off2] {sym} val ptr mem)
+(XCHGQ [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && ptr.Op != OpSB ->
+	(XCHGQ [off1+off2] {mergeSym(sym1,sym2)} val ptr mem)
+(XCHGL [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(XCHGL [off1+off2] {sym} val ptr mem)
+(XCHGL [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && ptr.Op != OpSB ->
+	(XCHGL [off1+off2] {mergeSym(sym1,sym2)} val ptr mem)

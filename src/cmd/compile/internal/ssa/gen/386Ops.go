@@ -106,8 +106,8 @@ func init() {
 		gp11sp    = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp11carry = regInfo{inputs: []regMask{gp}, outputs: []regMask{0, gp}}
-		gp21carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{0, gp}}
+		gp11carry = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
+		gp21carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
 		gp1carry1 = regInfo{inputs: []regMask{gp}, outputs: gponly}
 		gp2carry1 = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 		gp21sp    = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}

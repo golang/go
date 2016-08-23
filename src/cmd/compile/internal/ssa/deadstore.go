@@ -29,6 +29,10 @@ func dse(f *Func) {
 			}
 			if v.Type.IsMemory() {
 				stores = append(stores, v)
+				if v.Op == OpSelect1 {
+					// Use the args of the tuple-generating op.
+					v = v.Args[0]
+				}
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.add(a.ID)

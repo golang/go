@@ -126,7 +126,7 @@ func rewriteValuedec64_OpAdd64(v *Value, config *Config) bool {
 	_ = b
 	// match: (Add64 x y)
 	// cond:
-	// result: (Int64Make 		(Add32withcarry <config.fe.TypeInt32()> 			(Int64Hi x) 			(Int64Hi y) 			(Select0 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y)))) 		(Select1 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
+	// result: (Int64Make 		(Add32withcarry <config.fe.TypeInt32()> 			(Int64Hi x) 			(Int64Hi y) 			(Select1 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y)))) 		(Select0 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
@@ -138,8 +138,8 @@ func rewriteValuedec64_OpAdd64(v *Value, config *Config) bool {
 		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
 		v2.AddArg(y)
 		v0.AddArg(v2)
-		v3 := b.NewValue0(v.Line, OpSelect0, TypeFlags)
-		v4 := b.NewValue0(v.Line, OpAdd32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
+		v3 := b.NewValue0(v.Line, OpSelect1, TypeFlags)
+		v4 := b.NewValue0(v.Line, OpAdd32carry, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
 		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
 		v5.AddArg(x)
 		v4.AddArg(v5)
@@ -149,8 +149,8 @@ func rewriteValuedec64_OpAdd64(v *Value, config *Config) bool {
 		v3.AddArg(v4)
 		v0.AddArg(v3)
 		v.AddArg(v0)
-		v7 := b.NewValue0(v.Line, OpSelect1, config.fe.TypeUInt32())
-		v8 := b.NewValue0(v.Line, OpAdd32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
+		v7 := b.NewValue0(v.Line, OpSelect0, config.fe.TypeUInt32())
+		v8 := b.NewValue0(v.Line, OpAdd32carry, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
 		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
 		v9.AddArg(x)
 		v8.AddArg(v9)
@@ -2361,7 +2361,7 @@ func rewriteValuedec64_OpSub64(v *Value, config *Config) bool {
 	_ = b
 	// match: (Sub64 x y)
 	// cond:
-	// result: (Int64Make 		(Sub32withcarry <config.fe.TypeInt32()> 			(Int64Hi x) 			(Int64Hi y) 			(Select0 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y)))) 		(Select1 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
+	// result: (Int64Make 		(Sub32withcarry <config.fe.TypeInt32()> 			(Int64Hi x) 			(Int64Hi y) 			(Select1 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y)))) 		(Select0 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
 	for {
 		x := v.Args[0]
 		y := v.Args[1]
@@ -2373,8 +2373,8 @@ func rewriteValuedec64_OpSub64(v *Value, config *Config) bool {
 		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
 		v2.AddArg(y)
 		v0.AddArg(v2)
-		v3 := b.NewValue0(v.Line, OpSelect0, TypeFlags)
-		v4 := b.NewValue0(v.Line, OpSub32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
+		v3 := b.NewValue0(v.Line, OpSelect1, TypeFlags)
+		v4 := b.NewValue0(v.Line, OpSub32carry, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
 		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
 		v5.AddArg(x)
 		v4.AddArg(v5)
@@ -2384,8 +2384,8 @@ func rewriteValuedec64_OpSub64(v *Value, config *Config) bool {
 		v3.AddArg(v4)
 		v0.AddArg(v3)
 		v.AddArg(v0)
-		v7 := b.NewValue0(v.Line, OpSelect1, config.fe.TypeUInt32())
-		v8 := b.NewValue0(v.Line, OpSub32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
+		v7 := b.NewValue0(v.Line, OpSelect0, config.fe.TypeUInt32())
+		v8 := b.NewValue0(v.Line, OpSub32carry, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
 		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
 		v9.AddArg(x)
 		v8.AddArg(v9)

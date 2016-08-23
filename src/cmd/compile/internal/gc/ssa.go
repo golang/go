@@ -571,7 +571,14 @@ func (s *state) stmt(n *Node) {
 	case OEMPTY, ODCLCONST, ODCLTYPE, OFALL:
 
 	// Expression statements
-	case OCALLFUNC, OCALLMETH, OCALLINTER:
+	case OCALLFUNC:
+		if isIntrinsicCall(n) {
+			s.intrinsicCall(n)
+			return
+		}
+		fallthrough
+
+	case OCALLMETH, OCALLINTER:
 		s.call(n, callNormal)
 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC &&
 			(compiling_runtime && n.Left.Sym.Name == "throw" ||
@@ -2107,8 +2114,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
 
 	case OCALLFUNC:
-		if isIntrinsicCall1(n) {
-			return s.intrinsicCall1(n)
+		if isIntrinsicCall(n) {
+			return s.intrinsicCall(n)
 		}
 		fallthrough
 
@@ -2516,12 +2523,12 @@ const (
 	callGo
 )
 
-// isSSAIntrinsic1 returns true if n is a call to a recognized 1-arg intrinsic
+// isSSAIntrinsic returns true if n is a call to a recognized intrinsic
 // that can be handled by the SSA backend.
 // SSA uses this, but so does the front end to see if should not
 // inline a function because it is a candidate for intrinsic
 // substitution.
-func isSSAIntrinsic1(s *Sym) bool {
+func isSSAIntrinsic(s *Sym) bool {
 	// The test below is not quite accurate -- in the event that
 	// a function is disabled on a per-function basis, for example
 	// because of hash-keyed binary failure search, SSA might be
@@ -2541,38 +2548,74 @@ func isSSAIntrinsic1(s *Sym) bool {
 			return true
 		}
 	}
+	if s != nil && s.Pkg != nil && s.Pkg.Path == "runtime/internal/atomic" {
+		switch s.Name {
+		case "Load", "Load64", "Loadint64", "Loadp", "Loaduint", "Loaduintptr":
+			return true
+		case "Store", "Store64", "StorepNoWB", "Storeuintptr":
+			return true
+		}
+	}
 	return false
 }
 
-func isIntrinsicCall1(n *Node) bool {
+func isIntrinsicCall(n *Node) bool {
 	if n == nil || n.Left == nil {
 		return false
 	}
-	return isSSAIntrinsic1(n.Left.Sym)
+	return isSSAIntrinsic(n.Left.Sym)
 }
 
-// intrinsicFirstArg extracts arg from n.List and eval
-func (s *state) intrinsicFirstArg(n *Node) *ssa.Value {
-	x := n.List.First()
+// intrinsicArg extracts the ith arg from n.List and returns its value.
+func (s *state) intrinsicArg(n *Node, i int) *ssa.Value {
+	x := n.List.Slice()[i]
 	if x.Op == OAS {
 		x = x.Right
 	}
 	return s.expr(x)
 }
+func (s *state) intrinsicFirstArg(n *Node) *ssa.Value {
+	return s.intrinsicArg(n, 0)
+}
 
-// intrinsicCall1 converts a call to a recognized 1-arg intrinsic
-// into the intrinsic
-func (s *state) intrinsicCall1(n *Node) *ssa.Value {
+// intrinsicCall converts a call to a recognized intrinsic function into the intrinsic SSA operation.
+func (s *state) intrinsicCall(n *Node) (ret *ssa.Value) {
 	var result *ssa.Value
-	switch n.Left.Sym.Name {
-	case "Ctz64":
+	name := n.Left.Sym.Name
+	switch {
+	case name == "Ctz64":
 		result = s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
-	case "Ctz32":
+		ret = result
+	case name == "Ctz32":
 		result = s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
-	case "Bswap64":
+		ret = result
+	case name == "Bswap64":
 		result = s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
-	case "Bswap32":
+		ret = result
+	case name == "Bswap32":
 		result = s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
+		ret = result
+	case name == "Load" || name == "Loaduint" && s.config.IntSize == 4 || name == "Loaduintptr" && s.config.PtrSize == 4:
+		result = s.newValue2(ssa.OpAtomicLoad32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TUINT32], result)
+	case name == "Load64" || name == "Loadint64" || name == "Loaduint" && s.config.IntSize == 8 || name == "Loaduintptr" && s.config.PtrSize == 8:
+		result = s.newValue2(ssa.OpAtomicLoad64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TUINT64], result)
+	case name == "Loadp":
+		result = s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(Ptrto(Types[TUINT8]), ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Ptrto(Types[TUINT8]), result)
+	case name == "Store" || name == "Storeuintptr" && s.config.PtrSize == 4:
+		result = s.newValue3(ssa.OpAtomicStore32, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = result
+	case name == "Store64" || name == "Storeuintptr" && s.config.PtrSize == 8:
+		result = s.newValue3(ssa.OpAtomicStore64, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = result
+	case name == "StorepNoWB":
+		result = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = result
 	}
 	if result == nil {
 		Fatalf("Unknown special call: %v", n.Left.Sym)
@@ -2580,7 +2623,7 @@ func (s *state) intrinsicCall1(n *Node) *ssa.Value {
 	if ssa.IntrinsicsDebug > 0 {
 		Warnl(n.Lineno, "intrinsic substitution for %v with %s", n.Left.Sym.Name, result.LongString())
 	}
-	return result
+	return
 }
 
 // Calls the function n using the specified call type.
