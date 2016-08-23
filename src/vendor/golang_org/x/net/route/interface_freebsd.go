@@ -13,11 +13,11 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
 		extOff = int(nativeEndian.Uint16(b[18:20]))
 		bodyOff = int(nativeEndian.Uint16(b[16:18]))
 	} else {
-		if len(b) < w.bodyOff {
-			return nil, errMessageTooShort
-		}
 		extOff = w.extOff
 		bodyOff = w.bodyOff
+	}
+	if len(b) < extOff || len(b) < bodyOff {
+		return nil, errInvalidMessage
 	}
 	l := int(nativeEndian.Uint16(b[:2]))
 	if len(b) < l {
@@ -53,10 +53,10 @@ func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message, 
 		}
 		bodyOff = int(nativeEndian.Uint16(b[16:18]))
 	} else {
-		if len(b) < w.bodyOff {
-			return nil, errMessageTooShort
-		}
 		bodyOff = w.bodyOff
+	}
+	if len(b) < bodyOff {
+		return nil, errInvalidMessage
 	}
 	l := int(nativeEndian.Uint16(b[:2]))
 	if len(b) < l {

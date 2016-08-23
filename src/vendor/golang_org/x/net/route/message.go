@@ -42,6 +42,12 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
 	for len(b) > 4 {
 		nmsgs++
 		l := int(nativeEndian.Uint16(b[:2]))
+		if l == 0 {
+			return nil, errInvalidMessage
+		}
+		if len(b) < l {
+			return nil, errMessageTooShort
+		}
 		if b[2] != sysRTM_VERSION {
 			b = b[l:]
 			continue
