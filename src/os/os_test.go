@@ -25,8 +25,6 @@ import (
 	"time"
 )
 
-var supportsSymlinks = true
-
 var dot = []string{
 	"dir_unix.go",
 	"env.go",
@@ -652,14 +650,8 @@ func chtmpdir(t *testing.T) func() {
 }
 
 func TestSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "nacl", "plan9":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
-	}
+	testenv.MustHaveSymlink(t)
+
 	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
 	Remove(from) // Just in case.
@@ -719,14 +711,8 @@ func TestSymlink(t *testing.T) {
 }
 
 func TestLongSymlink(t *testing.T) {
-	switch runtime.GOOS {
-	case "android", "plan9", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	case "windows":
-		if !supportsSymlinks {
-			t.Skipf("skipping on %s", runtime.GOOS)
-		}
-	}
+	testenv.MustHaveSymlink(t)
+
 	defer chtmpdir(t)()
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.

@@ -18,22 +18,6 @@ import (
 var supportJunctionLinks = true
 
 func init() {
-	tmpdir, err := ioutil.TempDir("", "symtest")
-	if err != nil {
-		panic("failed to create temp directory: " + err.Error())
-	}
-	defer os.RemoveAll(tmpdir)
-
-	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
-	if err != nil {
-		err = err.(*os.LinkError).Err
-		switch err {
-		case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
-			supportsSymlinks = false
-		}
-	}
-	defer os.Remove("target")
-
 	b, _ := osexec.Command("cmd", "/c", "mklink", "/?").Output()
 	if !strings.Contains(string(b), " /J ") {
 		supportJunctionLinks = false
