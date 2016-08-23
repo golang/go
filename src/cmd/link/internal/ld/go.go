@@ -267,8 +267,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 				goto err
 			}
 
-			if *flagInterpreter != "" {
-				if *flagInterpreter != f[1] {
+			if !flagInterpreterSet {
+				if *flagInterpreter != "" && *flagInterpreter != f[1] {
 					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], *flagInterpreter, f[1])
 					nerrors++
 					return
