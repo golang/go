@@ -807,6 +807,10 @@ func (p *importer) node() *Node {
 		typ := p.typ()
 		n := nodlit(p.value(typ))
 		if !typ.IsUntyped() {
+			// Type-checking simplifies unsafe.Pointer(uintptr(c))
+			// to unsafe.Pointer(c) which then cannot type-checked
+			// again. Re-introduce explicit uintptr(c) conversion.
+			// (issue 16317).
 			if typ.IsUnsafePtr() {
 				conv := Nod(OCALL, typenod(Types[TUINTPTR]), nil)
 				conv.List.Set1(n)
