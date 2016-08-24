@@ -649,8 +649,8 @@ func relocsym(ctxt *Link, s *Symbol) {
 func (ctxt *Link) reloc() {
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 
 	for _, s := range ctxt.Textp {
 		relocsym(ctxt, s)
@@ -725,8 +725,8 @@ func dynreloc(ctxt *Link, data *[obj.SXREF][]*Symbol) {
 	}
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f reloc\n", obj.Cputime())
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 
 	for _, s := range ctxt.Textp {
 		dynrelocsym(ctxt, s)
@@ -805,9 +805,8 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 		for ; addr < eaddr; addr++ {
 			fmt.Fprintf(ctxt.Bso, " %.2x", 0)
 		}
+		ctxt.Bso.Flush()
 	}
-
-	ctxt.Bso.Flush()
 }
 
 func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
@@ -1191,8 +1190,8 @@ var datap []*Symbol
 func (ctxt *Link) dodata() {
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f dodata\n", obj.Cputime())
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 
 	// Collect data symbols by type into data.
 	var data [obj.SXREF][]*Symbol

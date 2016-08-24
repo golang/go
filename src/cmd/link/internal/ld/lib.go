@@ -655,8 +655,8 @@ func objfile(ctxt *Link, lib *Library) {
 
 	if ctxt.Debugvlog > 1 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 	f, err := bio.Open(lib.File)
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
@@ -1945,8 +1945,8 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, i
 	// Something underhanded is going on. Say nothing.
 	if ctxt.Debugvlog != 0 || *flagN {
 		fmt.Fprintf(ctxt.Bso, "%5.2f symsize = %d\n", obj.Cputime(), uint32(Symsize))
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 }
 
 func Symaddr(ctxt *Link, s *Symbol) int64 {
