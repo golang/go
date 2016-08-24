@@ -10,11 +10,11 @@ import (
 	"runtime"
 )
 
-func hasSymlink() bool {
+func hasSymlink() (ok bool, reason string) {
 	switch runtime.GOOS {
 	case "android", "nacl", "plan9":
-		return false
+		return false, ""
 	}
 
-	return true
+	return true, ""
 }

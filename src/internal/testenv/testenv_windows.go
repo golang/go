@@ -13,7 +13,7 @@ import (
 )
 
 var symlinkOnce sync.Once
-var winHasSymlink = true
+var winSymlinkErr error
 
 func initWinHasSymlink() {
 	tmpdir, err := ioutil.TempDir("", "symtest")
@@ -27,14 +27,23 @@ func initWinHasSymlink() {
 		err = err.(*os.LinkError).Err
 		switch err {
 		case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
-			winHasSymlink = false
+			winSymlinkErr = err
 		}
 	}
 	os.Remove("target")
 }
 
-func hasSymlink() bool {
+func hasSymlink() (ok bool, reason string) {
 	symlinkOnce.Do(initWinHasSymlink)
 
-	return winHasSymlink
+	switch winSymlinkErr {
+	case nil:
+		return true, ""
+	case syscall.EWINDOWS:
+		return false, ": symlinks are not supported on your version of Windows"
+	case syscall.ERROR_PRIVILEGE_NOT_HELD:
+		return false, ": you don't have enough privileges to create symlinks"
+	}
+
+	return false, ""
 }
