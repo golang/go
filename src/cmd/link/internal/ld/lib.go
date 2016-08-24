@@ -229,6 +229,10 @@ func (w *outBuf) WriteString(s string) (n int, err error) {
 	return n, err
 }
 
+func (w *outBuf) Offset() int64 {
+	return w.off
+}
+
 var coutbuf outBuf
 
 const pkgname = "__.PKGDEF"
@@ -1769,10 +1773,6 @@ func Cflush() {
 	if err := coutbuf.w.Flush(); err != nil {
 		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
 	}
-}
-
-func Cpos() int64 {
-	return coutbuf.off
 }
 
 func Cseek(p int64) {

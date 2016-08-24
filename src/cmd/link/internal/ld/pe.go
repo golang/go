@@ -570,7 +570,7 @@ func peimporteddlls() []string {
 }
 
 func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
-	startoff := Cpos()
+	startoff := coutbuf.Offset()
 	dynamic := Linklookup(ctxt, ".windynamic", 0)
 
 	// skip import descriptor table (will write it later)
@@ -583,7 +583,7 @@ func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
 
 	// write dll names
 	for d := dr; d != nil; d = d.next {
-		d.nameoff = uint64(Cpos()) - uint64(startoff)
+		d.nameoff = uint64(coutbuf.Offset()) - uint64(startoff)
 		strput(d.name)
 	}
 
@@ -591,18 +591,18 @@ func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
 	var m *Imp
 	for d := dr; d != nil; d = d.next {
 		for m = d.ms; m != nil; m = m.next {
-			m.off = uint64(nextsectoff) + uint64(Cpos()) - uint64(startoff)
+			m.off = uint64(nextsectoff) + uint64(coutbuf.Offset()) - uint64(startoff)
 			Wputl(0) // hint
 			strput(m.s.Extname)
 		}
 	}
 
 	// write OriginalFirstThunks
-	oftbase := uint64(Cpos()) - uint64(startoff)
+	oftbase := uint64(coutbuf.Offset()) - uint64(startoff)
 
-	n = uint64(Cpos())
+	n = uint64(coutbuf.Offset())
 	for d := dr; d != nil; d = d.next {
-		d.thunkoff = uint64(Cpos()) - n
+		d.thunkoff = uint64(coutbuf.Offset()) - n
 		for m = d.ms; m != nil; m = m.next {
 			if pe64 != 0 {
 				Vputl(m.off)
@@ -619,13 +619,13 @@ func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
 	}
 
 	// add pe section and pad it at the end
-	n = uint64(Cpos()) - uint64(startoff)
+	n = uint64(coutbuf.Offset()) - uint64(startoff)
 
 	isect := addpesection(ctxt, ".idata", int(n), int(n))
 	isect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE
 	chksectoff(ctxt, isect, startoff)
 	strnput("", int(uint64(isect.SizeOfRawData)-n))
-	endoff := Cpos()
+	endoff := coutbuf.Offset()
 
 	// write FirstThunks (allocated in .data section)
 	ftbase := uint64(dynamic.Value) - uint64(datsect.VirtualAddress) - PEBASE
@@ -666,7 +666,6 @@ func addimports(ctxt *Link, datsect *IMAGE_SECTION_HEADER) {
 
 	// update data directory
 	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.VirtualAddress
-
 	dd[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.VirtualSize
 	dd[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
 	dd[IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
@@ -712,7 +711,7 @@ func addexports(ctxt *Link) {
 
 	sect := addpesection(ctxt, ".edata", size, size)
 	sect.Characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
-	chksectoff(ctxt, sect, Cpos())
+	chksectoff(ctxt, sect, coutbuf.Offset())
 	va := int(sect.VirtualAddress)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.VirtualSize
@@ -772,7 +771,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
 
 	relocs := 0
 
-	sect.Reloff = uint64(Cpos())
+	sect.Reloff = uint64(coutbuf.Offset())
 	for i, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
@@ -814,18 +813,18 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
 		}
 	}
 
-	sect.Rellen = uint64(Cpos()) - sect.Reloff
+	sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
 
 	return relocs
 }
 
 // peemitreloc emits relocation entries for go.o in external linking.
 func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
-	for Cpos()&7 != 0 {
+	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
 
-	text.PointerToRelocations = uint32(Cpos())
+	text.PointerToRelocations = uint32(coutbuf.Offset())
 	// first entry: extended relocs
 	Lputl(0) // placeholder for number of relocation + 1
 	Lputl(0)
@@ -836,7 +835,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 		n += perelocsect(ctxt, sect, datap)
 	}
 
-	cpos := Cpos()
+	cpos := coutbuf.Offset()
 	Cseek(int64(text.PointerToRelocations))
 	Lputl(uint32(n))
 	Cseek(cpos)
@@ -859,7 +858,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 		n += perelocsect(ctxt, sect, datap)
 	}
 
-	cpos = Cpos()
+	cpos = coutbuf.Offset()
 	Cseek(int64(data.PointerToRelocations))
 	Lputl(uint32(n))
 	Cseek(cpos)
@@ -873,7 +872,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 
 	dottext := Linklookup(ctxt, ".text", 0)
 	ctors.NumberOfRelocations = 1
-	ctors.PointerToRelocations = uint32(Cpos())
+	ctors.PointerToRelocations = uint32(coutbuf.Offset())
 	sectoff := ctors.VirtualAddress
 	Lputl(sectoff)
 	Lputl(uint32(dottext.Dynid))
@@ -1017,7 +1016,7 @@ func writePESymTableRecords(ctxt *Link) int {
 }
 
 func addpesymtable(ctxt *Link) {
-	symtabStartPos := Cpos()
+	symtabStartPos := coutbuf.Offset()
 
 	// write COFF symbol table
 	var symcnt int
@@ -1063,7 +1062,7 @@ func addpersrc(ctxt *Link) {
 
 	h := addpesection(ctxt, ".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
 	h.Characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
-	chksectoff(ctxt, h, Cpos())
+	chksectoff(ctxt, h, coutbuf.Offset())
 
 	// relocation
 	var p []byte
@@ -1113,7 +1112,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 	c.SizeOfRawData = uint32(size)
 
 	Cseek(int64(c.PointerToRawData))
-	chksectoff(ctxt, c, Cpos())
+	chksectoff(ctxt, c, coutbuf.Offset())
 	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
 
