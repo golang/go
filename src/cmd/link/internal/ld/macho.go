@@ -186,7 +186,7 @@ var dylib []string
 var linkoff int64
 
 func machowrite() int {
-	o1 := Cpos()
+	o1 := coutbuf.Offset()
 
 	loadsize := 4 * 4 * ndebug
 	for i := 0; i < len(load); i++ {
@@ -291,7 +291,7 @@ func machowrite() int {
 		}
 	}
 
-	return int(Cpos() - o1)
+	return int(coutbuf.Offset() - o1)
 }
 
 func (ctxt *Link) domacho() {
@@ -815,7 +815,7 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		return
 	}
 
-	sect.Reloff = uint64(Cpos())
+	sect.Reloff = uint64(coutbuf.Offset())
 	for i, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
@@ -847,11 +847,11 @@ func machorelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		}
 	}
 
-	sect.Rellen = uint64(Cpos()) - sect.Reloff
+	sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
 }
 
 func Machoemitreloc(ctxt *Link) {
-	for Cpos()&7 != 0 {
+	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
 

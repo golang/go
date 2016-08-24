@@ -746,7 +746,7 @@ func Codeblk(ctxt *Link, addr int64, size int64) {
 }
 func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	if *flagA {
-		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(ctxt.Bso, "codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, coutbuf.Offset())
 	}
 
 	blk(ctxt, ctxt.Textp, addr, size, pad)
@@ -857,7 +857,7 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 
 func Datblk(ctxt *Link, addr int64, size int64) {
 	if *flagA {
-		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(ctxt.Bso, "datblk [%#x,%#x) at offset %#x\n", addr, addr+size, coutbuf.Offset())
 	}
 
 	blk(ctxt, datap, addr, size, zeros[:])
@@ -928,7 +928,7 @@ func Datblk(ctxt *Link, addr int64, size int64) {
 
 func Dwarfblk(ctxt *Link, addr int64, size int64) {
 	if *flagA {
-		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+		fmt.Fprintf(ctxt.Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, coutbuf.Offset())
 	}
 
 	blk(ctxt, dwarfp, addr, size, zeros[:])

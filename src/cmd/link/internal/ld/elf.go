@@ -1729,7 +1729,7 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		return
 	}
 
-	sect.Reloff = uint64(Cpos())
+	sect.Reloff = uint64(coutbuf.Offset())
 	for i, s := range syms {
 		if !s.Attr.Reachable() {
 			continue
@@ -1768,11 +1768,11 @@ func elfrelocsect(ctxt *Link, sect *Section, syms []*Symbol) {
 		}
 	}
 
-	sect.Rellen = uint64(Cpos()) - sect.Reloff
+	sect.Rellen = uint64(coutbuf.Offset()) - sect.Reloff
 }
 
 func Elfemitreloc(ctxt *Link) {
-	for Cpos()&7 != 0 {
+	for coutbuf.Offset()&7 != 0 {
 		Cput(0)
 	}
 
