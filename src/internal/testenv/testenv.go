@@ -129,14 +129,16 @@ func MustHaveExternalNetwork(t *testing.T) {
 
 // HasSymlink reports whether the current system can use os.Symlink.
 func HasSymlink() bool {
-	return hasSymlink()
+	ok, _ := hasSymlink()
+	return ok
 }
 
 // MustHaveSymlink reports whether the current system can use os.Symlink.
 // If not, MustHaveSymlink calls t.Skip with an explanation.
 func MustHaveSymlink(t *testing.T) {
-	if !HasSymlink() {
-		t.Skipf("skipping test: cannot make symlinks on %s/%s", runtime.GOOS, runtime.GOARCH)
+	ok, reason := hasSymlink()
+	if !ok {
+		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
 	}
 }
 
