@@ -7,6 +7,7 @@
 package net
 
 import (
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -33,6 +34,7 @@ var serverInit sync.Once
 func (pd *pollDesc) init(fd *netFD) error {
 	serverInit.Do(runtime_pollServerInit)
 	ctx, errno := runtime_pollOpen(uintptr(fd.sysfd))
+	runtime.KeepAlive(fd)
 	if errno != 0 {
 		return syscall.Errno(errno)
 	}

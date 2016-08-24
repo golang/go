@@ -541,7 +541,7 @@ func (fd *netFD) acceptOne(rawsa []syscall.RawSockaddrAny, o *operation) (*netFD
 		netfd.Close()
 		return nil, os.NewSyscallError("setsockopt", err)
 	}
-
+	runtime.KeepAlive(fd)
 	return netfd, nil
 }
 
