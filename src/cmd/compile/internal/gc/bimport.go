@@ -212,6 +212,12 @@ func (p *importer) verifyTypes() {
 	}
 }
 
+// numImport tracks how often a package with a given name is imported.
+// It is used to provide a better error message (by using the package
+// path to disambiguate) if a package that appears multiple times with
+// the same name appears in an error message.
+var numImport = make(map[string]int)
+
 func (p *importer) pkg() *Pkg {
 	// if the package was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
@@ -244,7 +250,7 @@ func (p *importer) pkg() *Pkg {
 		Fatalf("importer: package path %q for pkg index %d", path, len(p.pkgList))
 	}
 
-	// see importimport (export.go)
+	// add package to pkgList
 	pkg := importpkg
 	if path != "" {
 		pkg = mkpkg(path)

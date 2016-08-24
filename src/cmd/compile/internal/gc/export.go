@@ -295,34 +295,6 @@ func pkgtype(s *Sym) *Type {
 	return s.Def.Type
 }
 
-// numImport tracks how often a package with a given name is imported.
-// It is used to provide a better error message (by using the package
-// path to disambiguate) if a package that appears multiple times with
-// the same name appears in an error message.
-var numImport = make(map[string]int)
-
-func importimport(s *Sym, path string) {
-	// Informational: record package name
-	// associated with import path, for use in
-	// human-readable messages.
-
-	if isbadimport(path) {
-		errorexit()
-	}
-	p := mkpkg(path)
-	if p.Name == "" {
-		p.Name = s.Name
-		numImport[s.Name]++
-	} else if p.Name != s.Name {
-		Yyerror("conflicting names %s and %s for package %q", p.Name, s.Name, p.Path)
-	}
-
-	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
-		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
-		errorexit()
-	}
-}
-
 // importconst declares symbol s as an imported constant with type t and value n.
 func importconst(s *Sym, t *Type, n *Node) {
 	importsym(s, OLITERAL)
