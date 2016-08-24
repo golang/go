@@ -176,8 +176,8 @@ func Main() {
 
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 
 	if Buildmode == BuildmodeShared {
 		for i := 0; i < flag.NArg(); i++ {

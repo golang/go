@@ -584,8 +584,8 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 func asmb(ctxt *ld.Link) {
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f asmb\n", obj.Cputime())
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 
 	if ld.Iself {
 		ld.Asmbelfsetup(ctxt)
@@ -602,8 +602,8 @@ func asmb(ctxt *ld.Link) {
 	if ld.Segrodata.Filelen > 0 {
 		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f rodatblk\n", obj.Cputime())
+			ctxt.Bso.Flush()
 		}
-		ctxt.Bso.Flush()
 
 		ld.Cseek(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
@@ -611,8 +611,8 @@ func asmb(ctxt *ld.Link) {
 
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f datblk\n", obj.Cputime())
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
@@ -634,8 +634,8 @@ func asmb(ctxt *ld.Link) {
 		// TODO: rationalize
 		if ctxt.Debugvlog != 0 {
 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())
+			ctxt.Bso.Flush()
 		}
-		ctxt.Bso.Flush()
 		switch ld.HEADTYPE {
 		default:
 			if ld.Iself {
@@ -690,8 +690,8 @@ func asmb(ctxt *ld.Link) {
 	ctxt.Cursym = nil
 	if ctxt.Debugvlog != 0 {
 		fmt.Fprintf(ctxt.Bso, "%5.2f header\n", obj.Cputime())
+		ctxt.Bso.Flush()
 	}
-	ctxt.Bso.Flush()
 	ld.Cseek(0)
 	switch ld.HEADTYPE {
 	default:
