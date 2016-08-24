@@ -138,4 +138,5 @@ func Rename(oldpath, newpath string) error {
 }
 
 //sys	GetACP() (acp uint32) = kernel32.GetACP
+//sys	GetConsoleCP() (ccp uint32) = kernel32.GetConsoleCP
 //sys	MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) = kernel32.MultiByteToWideChar
