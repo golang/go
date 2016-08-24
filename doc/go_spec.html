@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of May 31, 2016",
+	"Subtitle": "Version of August 24, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -2933,6 +2933,7 @@ used in an <a href="#Assignments">assignment</a> or initialization of the specia
 v, ok = a[x]
 v, ok := a[x]
 var v, ok = a[x]
+var v, ok T = a[x]
 </pre>
 
 <p>
@@ -3130,6 +3131,7 @@ A type assertion used in an <a href="#Assignments">assignment</a> or initializat
 v, ok = x.(T)
 v, ok := x.(T)
 var v, ok = x.(T)
+var v, ok T1 = x.(T)
 </pre>
 
 <p>
@@ -3737,6 +3739,7 @@ A receive expression used in an <a href="#Assignments">assignment</a> or initial
 x, ok = &lt;-ch
 x, ok := &lt;-ch
 var x, ok = &lt;-ch
+var x, ok T = &lt;-ch
 </pre>
 
 <p>
