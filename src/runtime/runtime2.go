@@ -575,11 +575,6 @@ const (
 	_LockInternal = 2
 )
 
-type sigtabtt struct {
-	flags int32
-	name  *int8
-}
-
 const (
 	_SigNotify   = 1 << iota // let signal.Notify have signal, even if from kernel
 	_SigKill                 // if signal.Notify doesn't take it, exit quietly
