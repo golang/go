@@ -43,6 +43,7 @@ var (
 	procGetComputerNameExW   = modkernel32.NewProc("GetComputerNameExW")
 	procMoveFileExW          = modkernel32.NewProc("MoveFileExW")
 	procGetACP               = modkernel32.NewProc("GetACP")
+	procGetConsoleCP         = modkernel32.NewProc("GetConsoleCP")
 	procMultiByteToWideChar  = modkernel32.NewProc("MultiByteToWideChar")
 )
 
@@ -81,6 +82,12 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 func GetACP() (acp uint32) {
 	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
 	acp = uint32(r0)
+	return
+}
+
+func GetConsoleCP() (ccp uint32) {
+	r0, _, _ := syscall.Syscall(procGetConsoleCP.Addr(), 0, 0, 0, 0)
+	ccp = uint32(r0)
 	return
 }
 
