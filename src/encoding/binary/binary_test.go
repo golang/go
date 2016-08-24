@@ -27,6 +27,8 @@ type Struct struct {
 	Complex64  complex64
 	Complex128 complex128
 	Array      [4]uint8
+	Bool       bool
+	BoolArray  [4]bool
 }
 
 type T struct {
@@ -58,6 +60,9 @@ var s = Struct{
 	),
 
 	[4]uint8{0x43, 0x44, 0x45, 0x46},
+
+	true,
+	[4]bool{true, false, true, false},
 }
 
 var big = []byte{
@@ -76,6 +81,9 @@ var big = []byte{
 	51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
 
 	67, 68, 69, 70,
+
+	1,
+	1, 0, 1, 0,
 }
 
 var little = []byte{
@@ -94,6 +102,9 @@ var little = []byte{
 	58, 57, 56, 55, 54, 53, 52, 51, 66, 65, 64, 63, 62, 61, 60, 59,
 
 	67, 68, 69, 70,
+
+	1,
+	1, 0, 1, 0,
 }
 
 var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
@@ -139,6 +150,25 @@ func TestWriteSlice(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err := Write(buf, BigEndian, res)
 	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
+}
+
+func TestReadBool(t *testing.T) {
+	var res bool
+	var err error
+	err = Read(bytes.NewReader([]byte{0}), BigEndian, &res)
+	checkResult(t, "ReadBool", BigEndian, err, res, false)
+	res = false
+	err = Read(bytes.NewReader([]byte{1}), BigEndian, &res)
+	checkResult(t, "ReadBool", BigEndian, err, res, true)
+	res = false
+	err = Read(bytes.NewReader([]byte{2}), BigEndian, &res)
+	checkResult(t, "ReadBool", BigEndian, err, res, true)
+}
+
+func TestReadBoolSlice(t *testing.T) {
+	slice := make([]bool, 4)
+	err := Read(bytes.NewReader([]byte{0, 1, 2, 255}), BigEndian, slice)
+	checkResult(t, "ReadBoolSlice", BigEndian, err, slice, []bool{false, true, true, true})
 }
 
 // Addresses of arrays are easier to manipulate with reflection than are slices.
@@ -422,16 +452,15 @@ func BenchmarkReadInts(b *testing.B) {
 		Read(r, BigEndian, &ls.Uint32)
 		Read(r, BigEndian, &ls.Uint64)
 	}
-
+	b.StopTimer()
 	want := s
 	want.Float32 = 0
 	want.Float64 = 0
 	want.Complex64 = 0
 	want.Complex128 = 0
-	for i := range want.Array {
-		want.Array[i] = 0
-	}
-	b.StopTimer()
+	want.Array = [4]uint8{0, 0, 0, 0}
+	want.Bool = false
+	want.BoolArray = [4]bool{false, false, false, false}
 	if b.N > 0 && !reflect.DeepEqual(ls, want) {
 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
 	}
