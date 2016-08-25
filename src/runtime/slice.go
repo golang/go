@@ -36,26 +36,37 @@ func maxSliceCap(elemsize uintptr) uintptr {
 	return _MaxMem / elemsize
 }
 
-// TODO: take uintptrs instead of int64s?
-func makeslice(et *_type, len64, cap64 int64) slice {
+func makeslice(et *_type, len, cap int) slice {
 	// NOTE: The len > maxElements check here is not strictly necessary,
 	// but it produces a 'len out of range' error instead of a 'cap out of range' error
 	// when someone does make([]T, bignumber). 'cap out of range' is true too,
 	// but since the cap is only being supplied implicitly, saying len is clearer.
 	// See issue 4085.
 	maxElements := maxSliceCap(et.size)
-	len := int(len64)
-	if len64 < 0 || int64(len) != len64 || uintptr(len) > maxElements {
+	if len < 0 || uintptr(len) > maxElements {
 		panic(errorString("makeslice: len out of range"))
 	}
 
-	cap := int(cap64)
-	if cap < len || int64(cap) != cap64 || uintptr(cap) > maxElements {
+	if cap < len || uintptr(cap) > maxElements {
 		panic(errorString("makeslice: cap out of range"))
 	}
 
 	p := mallocgc(et.size*uintptr(cap), et, true)
 	return slice{p, len, cap}
+}
+
+func makeslice64(et *_type, len64, cap64 int64) slice {
+	len := int(len64)
+	if int64(len) != len64 {
+		panic(errorString("makeslice: len out of range"))
+	}
+
+	cap := int(cap64)
+	if int64(cap) != cap64 {
+		panic(errorString("makeslice: cap out of range"))
+	}
+
+	return makeslice(et, len, cap)
 }
 
 // growslice handles slice growth during append.
