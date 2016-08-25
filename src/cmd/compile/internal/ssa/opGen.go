@@ -590,6 +590,12 @@ const (
 	OpAMD64MOVQatomicload
 	OpAMD64XCHGL
 	OpAMD64XCHGQ
+	OpAMD64XADDLlock
+	OpAMD64XADDQlock
+	OpAMD64CMPXCHGLlock
+	OpAMD64CMPXCHGQlock
+	OpAMD64ANDBlock
+	OpAMD64ORBlock
 
 	OpARMADD
 	OpARMADDconst
@@ -1501,6 +1507,14 @@ const (
 	OpAtomicStore32
 	OpAtomicStore64
 	OpAtomicStorePtrNoWB
+	OpAtomicExchange32
+	OpAtomicExchange64
+	OpAtomicAdd32
+	OpAtomicAdd64
+	OpAtomicCompareAndSwap32
+	OpAtomicCompareAndSwap64
+	OpAtomicAnd8
+	OpAtomicOr8
 )
 
 var opcodeTable = [...]opInfo{
@@ -6856,6 +6870,98 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "XADDLlock",
+		auxType:      auxSymOff,
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AXADDL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:         "XADDQlock",
+		auxType:      auxSymOff,
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AXADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{1, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:    "CMPXCHGLlock",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.ACMPXCHGL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1},     // AX
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			clobbers: 1, // AX
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:    "CMPXCHGQlock",
+		auxType: auxSymOff,
+		argLen:  4,
+		asm:     x86.ACMPXCHGQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1},     // AX
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+			clobbers: 1, // AX
+			outputs: []outputInfo{
+				{1, 0},
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
+		},
+	},
+	{
+		name:    "ANDBlock",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:    "ORBlock",
+		auxType: auxSymOff,
+		argLen:  3,
+		asm:     x86.AORB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
 		},
 	},
@@ -16251,6 +16357,46 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "AtomicStorePtrNoWB",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AtomicExchange32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AtomicExchange64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AtomicAdd32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AtomicAdd64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AtomicCompareAndSwap32",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AtomicCompareAndSwap64",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AtomicAnd8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AtomicOr8",
 		argLen:  3,
 		generic: true,
 	},

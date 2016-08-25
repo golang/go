@@ -462,6 +462,11 @@ func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *s
 	return s.curBlock.NewValue3I(s.peekLine(), op, t, aux, arg0, arg1, arg2)
 }
 
+// newValue4 adds a new value with four arguments to the current block.
+func (s *state) newValue4(op ssa.Op, t ssa.Type, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue4(s.peekLine(), op, t, arg0, arg1, arg2, arg3)
+}
+
 // entryNewValue0 adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
 	return s.f.Entry.NewValue0(s.peekLine(), op, t)
@@ -2554,6 +2559,14 @@ func isSSAIntrinsic(s *Sym) bool {
 			return true
 		case "Store", "Store64", "StorepNoWB", "Storeuintptr":
 			return true
+		case "Xchg", "Xchg64", "Xchguintptr":
+			return true
+		case "Xadd", "Xadd64", "Xaddint64", "Xadduintptr":
+			return true
+		case "Cas", "Cas64", "Casp1", "Casuintptr":
+			return true
+		case "And8", "Or8":
+			return true
 		}
 	}
 	return false
@@ -2615,6 +2628,36 @@ func (s *state) intrinsicCall(n *Node) (ret *ssa.Value) {
 		s.vars[&memVar] = result
 	case name == "StorepNoWB":
 		result = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = result
+	case name == "Xchg" || name == "Xchguintptr" && s.config.PtrSize == 4:
+		result = s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TUINT32], result)
+	case name == "Xchg64" || name == "Xchguintptr" && s.config.PtrSize == 8:
+		result = s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TUINT64], result)
+	case name == "Xadd" || name == "Xadduintptr" && s.config.PtrSize == 4:
+		result = s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TUINT32], result)
+	case name == "Xadd64" || name == "Xaddint64" || name == "Xadduintptr" && s.config.PtrSize == 8:
+		result = s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TUINT64], result)
+	case name == "Cas" || (name == "Casp1" || name == "Casuintptr") && s.config.PtrSize == 4:
+		result = s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TBOOL], result)
+	case name == "Cas64" || (name == "Casp1" || name == "Casuintptr") && s.config.PtrSize == 8:
+		result = s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
+		s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, result)
+		ret = s.newValue1(ssa.OpSelect0, Types[TBOOL], result)
+	case name == "And8":
+		result = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
+		s.vars[&memVar] = result
+	case name == "Or8":
+		result = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 		s.vars[&memVar] = result
 	}
 	if result == nil {

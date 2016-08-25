@@ -315,6 +315,18 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, 
 	return v
 }
 
+// NewValue4 returns a new value in the block with four arguments and zero aux values.
+func (b *Block) NewValue4(line int32, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.newValue(op, t, b, line)
+	v.AuxInt = 0
+	v.Args = []*Value{arg0, arg1, arg2, arg3}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
+	arg3.Uses++
+	return v
+}
+
 // constVal returns a constant value for c.
 func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value {
 	if f.constants == nil {

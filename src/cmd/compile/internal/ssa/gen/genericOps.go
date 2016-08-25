@@ -445,12 +445,20 @@ var genericOps = []opData{
 	// Atomic loads return a new memory so that the loads are properly ordered
 	// with respect to other loads and stores.
 	// TODO: use for sync/atomic at some point.
-	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},   // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},   // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"}, // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
-	{name: "AtomicStore32", argLength: 3, typ: "Mem"},           // Store arg1 to arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStore64", argLength: 3, typ: "Mem"},           // Store arg1 to arg0.  arg2=memory.  Returns memory.
-	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem"},      // Store arg1 to arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicLoad32", argLength: 2, typ: "(UInt32,Mem)"},         // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoad64", argLength: 2, typ: "(UInt64,Mem)"},         // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicLoadPtr", argLength: 2, typ: "(BytePtr,Mem)"},       // Load from arg0.  arg1=memory.  Returns loaded value and new memory.
+	{name: "AtomicStore32", argLength: 3, typ: "Mem"},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStore64", argLength: 3, typ: "Mem"},                 // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem"},            // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)"},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)"},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)"},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicAdd64", argLength: 3, typ: "(UInt64,Mem)"},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)"}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
+	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)"}, // if *arg0==arg1, then set *arg0=arg2.  Returns true iff store happens and new memory.
+	{name: "AtomicAnd8", argLength: 3, typ: "Mem"},                    // *arg0 &= arg1.  arg2=memory.  Returns memory.
+	{name: "AtomicOr8", argLength: 3, typ: "Mem"},                     // *arg0 |= arg1.  arg2=memory.  Returns memory.
 }
 
 //     kind           control    successors       implicit exit
