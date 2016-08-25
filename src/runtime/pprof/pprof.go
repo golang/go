@@ -540,6 +540,8 @@ func writeHeap(w io.Writer, debug int) error {
 	fmt.Fprintf(w, "# MSpan = %d / %d\n", s.MSpanInuse, s.MSpanSys)
 	fmt.Fprintf(w, "# MCache = %d / %d\n", s.MCacheInuse, s.MCacheSys)
 	fmt.Fprintf(w, "# BuckHashSys = %d\n", s.BuckHashSys)
+	fmt.Fprintf(w, "# GCSys = %d\n", s.GCSys)
+	fmt.Fprintf(w, "# OtherSys = %d\n", s.OtherSys)
 
 	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
