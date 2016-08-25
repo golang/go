@@ -224,49 +224,49 @@ var classnames = []string{
 	"PFUNC",
 }
 
-// Fmt "%J": Node details.
+// Node details
 func jconv(n *Node, flag FmtFlag) string {
-	var buf bytes.Buffer
+	var p printer
 
 	c := flag & FmtShort
 
 	if c == 0 && n.Ullman != 0 {
-		fmt.Fprintf(&buf, " u(%d)", n.Ullman)
+		p.f(" u(%d)", n.Ullman)
 	}
 
 	if c == 0 && n.Addable {
-		fmt.Fprintf(&buf, " a(%v)", n.Addable)
+		p.f(" a(%v)", n.Addable)
 	}
 
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
-		fmt.Fprintf(&buf, " g(%d)", n.Name.Vargen)
+		p.f(" g(%d)", n.Name.Vargen)
 	}
 
 	if n.Lineno != 0 {
-		fmt.Fprintf(&buf, " l(%d)", n.Lineno)
+		p.f(" l(%d)", n.Lineno)
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {
-		fmt.Fprintf(&buf, " x(%d%+d)", n.Xoffset, stkdelta[n])
+		p.f(" x(%d%+d)", n.Xoffset, stkdelta[n])
 	}
 
 	if n.Class != 0 {
 		if int(n.Class) < len(classnames) {
-			fmt.Fprintf(&buf, " class(%s)", classnames[n.Class])
+			p.f(" class(%s)", classnames[n.Class])
 		} else {
-			fmt.Fprintf(&buf, " class(%d?)", n.Class)
+			p.f(" class(%d?)", n.Class)
 		}
 	}
 
 	if n.Colas {
-		fmt.Fprintf(&buf, " colas(%v)", n.Colas)
+		p.f(" colas(%v)", n.Colas)
 	}
 
 	if n.Name != nil && n.Name.Funcdepth != 0 {
-		fmt.Fprintf(&buf, " f(%d)", n.Name.Funcdepth)
+		p.f(" f(%d)", n.Name.Funcdepth)
 	}
 	if n.Func != nil && n.Func.Depth != 0 {
-		fmt.Fprintf(&buf, " ff(%d)", n.Func.Depth)
+		p.f(" ff(%d)", n.Func.Depth)
 	}
 
 	switch n.Esc {
@@ -274,65 +274,66 @@ func jconv(n *Node, flag FmtFlag) string {
 		break
 
 	case EscHeap:
-		buf.WriteString(" esc(h)")
+		p.s(" esc(h)")
 
 	case EscScope:
-		buf.WriteString(" esc(s)")
+		p.s(" esc(s)")
 
 	case EscNone:
-		buf.WriteString(" esc(no)")
+		p.s(" esc(no)")
 
 	case EscNever:
 		if c == 0 {
-			buf.WriteString(" esc(N)")
+			p.s(" esc(N)")
 		}
 
 	default:
-		fmt.Fprintf(&buf, " esc(%d)", n.Esc)
+		p.f(" esc(%d)", n.Esc)
 	}
 
 	if e, ok := n.Opt().(*NodeEscState); ok && e.Escloopdepth != 0 {
-		fmt.Fprintf(&buf, " ld(%d)", e.Escloopdepth)
+		p.f(" ld(%d)", e.Escloopdepth)
 	}
 
 	if c == 0 && n.Typecheck != 0 {
-		fmt.Fprintf(&buf, " tc(%d)", n.Typecheck)
+		p.f(" tc(%d)", n.Typecheck)
 	}
 
 	if c == 0 && n.IsStatic {
-		buf.WriteString(" static")
+		p.s(" static")
 	}
 
 	if n.Isddd {
-		fmt.Fprintf(&buf, " isddd(%v)", n.Isddd)
+		p.f(" isddd(%v)", n.Isddd)
 	}
 
 	if n.Implicit {
-		fmt.Fprintf(&buf, " implicit(%v)", n.Implicit)
+		p.f(" implicit(%v)", n.Implicit)
 	}
 
 	if n.Embedded != 0 {
-		fmt.Fprintf(&buf, " embedded(%d)", n.Embedded)
+		p.f(" embedded(%d)", n.Embedded)
 	}
 
 	if n.Addrtaken {
-		buf.WriteString(" addrtaken")
+		p.s(" addrtaken")
 	}
 
 	if n.Assigned {
-		buf.WriteString(" assigned")
+		p.s(" assigned")
 	}
 	if n.Bounded {
-		buf.WriteString(" bounded")
+		p.s(" bounded")
 	}
 	if n.NonNil {
-		buf.WriteString(" nonnil")
+		p.s(" nonnil")
 	}
 
 	if c == 0 && n.Used {
-		fmt.Fprintf(&buf, " used(%v)", n.Used)
+		p.f(" used(%v)", n.Used)
 	}
-	return buf.String()
+
+	return p.String()
 }
 
 // Fmt "%V": Values
@@ -1726,4 +1727,32 @@ func dumplist(s string, l Nodes) {
 
 func Dump(s string, n *Node) {
 	fmt.Printf("%s [%p]%v\n", s, n, Nconv(n, FmtSign))
+}
+
+// printer is a buffer for creating longer formatted strings.
+type printer struct {
+	buf []byte
+}
+
+// printer implements io.Writer.
+func (p *printer) Write(buf []byte) (n int, err error) {
+	p.buf = append(p.buf, buf...)
+	return len(buf), nil
+}
+
+// printer implements the Stringer interface.
+func (p *printer) String() string {
+	return string(p.buf)
+}
+
+// s prints the string s to p and returns p.
+func (p *printer) s(s string) *printer {
+	p.buf = append(p.buf, s...)
+	return p
+}
+
+// f prints the formatted arguments to p and returns p.
+func (p *printer) f(format string, args ...interface{}) *printer {
+	fmt.Fprintf(p, format, args...)
+	return p
 }
