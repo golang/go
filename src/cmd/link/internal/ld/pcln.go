@@ -6,7 +6,6 @@ package ld
 
 import (
 	"cmd/internal/obj"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -368,7 +367,7 @@ func (ctxt *Link) pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdataBytes)
+		ctxt.Logf("%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), ftab.Size, funcdataBytes)
 	}
 }
 

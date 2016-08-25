@@ -33,7 +33,6 @@ package ld
 
 import (
 	"cmd/internal/obj"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -80,8 +79,8 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 
 	pname = path.Clean(pname)
 
-	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
-		fmt.Fprintf(ctxt.Bso, "%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
 	}
 
 	if isshlib {
@@ -105,8 +104,8 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 		}
 	}
 
-	if ctxt.Debugvlog > 1 && ctxt.Bso != nil {
-		fmt.Fprintf(ctxt.Bso, "%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", obj.Cputime(), srcref, objref, file, pkg, shlibnamefile)
+	if ctxt.Debugvlog > 1 {
+		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlibnamefile: %s\n", obj.Cputime(), srcref, objref, file, pkg, shlibnamefile)
 	}
 
 	ctxt.Library = append(ctxt.Library, &Library{})

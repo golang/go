@@ -359,8 +359,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			if autosize == 0 && cursym.Text.Mark&LEAF == 0 {
 				if ctxt.Debugvlog != 0 {
-					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
-					ctxt.Bso.Flush()
+					ctxt.Logf("save suppressed in: %s\n", cursym.Name)
 				}
 
 				cursym.Text.Mark |= LEAF

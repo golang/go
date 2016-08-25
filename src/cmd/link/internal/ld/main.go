@@ -133,7 +133,6 @@ func Main() {
 	obj.Flagparse(usage)
 
 	startProfile()
-	ctxt.Bso = ctxt.Bso
 	if flagShared {
 		if Buildmode == BuildmodeUnset {
 			Buildmode = BuildmodeCShared
@@ -175,8 +174,7 @@ func Main() {
 	}
 
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
-		ctxt.Bso.Flush()
+		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", HEADTYPE, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
 	}
 
 	if Buildmode == BuildmodeShared {
@@ -226,9 +224,9 @@ func Main() {
 	ctxt.hostlink()
 	ctxt.archive()
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "%5.2f cpu time\n", obj.Cputime())
-		fmt.Fprintf(ctxt.Bso, "%d symbols\n", len(ctxt.Allsym))
-		fmt.Fprintf(ctxt.Bso, "%d liveness data\n", liveness)
+		ctxt.Logf("%5.2f cpu time\n", obj.Cputime())
+		ctxt.Logf("%d symbols\n", len(ctxt.Allsym))
+		ctxt.Logf("%d liveness data\n", liveness)
 	}
 
 	ctxt.Bso.Flush()

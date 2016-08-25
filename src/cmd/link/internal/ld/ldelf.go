@@ -395,7 +395,8 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 		ehdr.flags = 0x5000202
 	}
 	if data[0] != 'A' {
-		fmt.Fprintf(ctxt.Bso, ".ARM.attributes has unexpected format %c\n", data[0])
+		// TODO(dfc) should this be ctxt.Diag ?
+		ctxt.Logf(".ARM.attributes has unexpected format %c\n", data[0])
 		return
 	}
 	data = data[1:]
@@ -406,7 +407,8 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 
 		nulIndex := bytes.IndexByte(sectiondata, 0)
 		if nulIndex < 0 {
-			fmt.Fprintf(ctxt.Bso, "corrupt .ARM.attributes (section name not NUL-terminated)\n")
+			// TODO(dfc) should this be ctxt.Diag ?
+			ctxt.Logf("corrupt .ARM.attributes (section name not NUL-terminated)\n")
 			return
 		}
 		name := string(sectiondata[:nulIndex])
@@ -430,7 +432,8 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 					}
 				}
 				if attrList.err != nil {
-					fmt.Fprintf(ctxt.Bso, "could not parse .ARM.attributes\n")
+					// TODO(dfc) should this be ctxt.Diag ?
+					ctxt.Logf("could not parse .ARM.attributes\n")
 				}
 			}
 		}
@@ -439,7 +442,7 @@ func parseArmAttributes(ctxt *Link, e binary.ByteOrder, data []byte) {
 
 func ldelf(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
+		ctxt.Logf("%5.2f ldelf %s\n", obj.Cputime(), pn)
 	}
 
 	ctxt.IncVersion()

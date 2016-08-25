@@ -46,7 +46,7 @@ import (
 // Any unreached text symbols are removed from ctxt.Textp.
 func deadcode(ctxt *Link) {
 	if ctxt.Debugvlog != 0 {
-		fmt.Fprintf(ctxt.Bso, "%5.2f deadcode\n", obj.Cputime())
+		ctxt.Logf("%5.2f deadcode\n", obj.Cputime())
 	}
 
 	d := &deadcodepass{
@@ -181,7 +181,7 @@ func (d *deadcodepass) cleanupReloc(r *Reloc) {
 		r.Type = obj.R_ADDROFF
 	} else {
 		if d.ctxt.Debugvlog > 1 {
-			fmt.Fprintf(d.ctxt.Bso, "removing method %s\n", r.Sym.Name)
+			d.ctxt.Logf("removing method %s\n", r.Sym.Name)
 		}
 		r.Sym = nil
 		r.Siz = 0
@@ -265,7 +265,7 @@ func (d *deadcodepass) flood() {
 		d.markQueue = d.markQueue[1:]
 		if s.Type == obj.STEXT {
 			if d.ctxt.Debugvlog > 1 {
-				fmt.Fprintf(d.ctxt.Bso, "marktext %s\n", s.Name)
+				d.ctxt.Logf("marktext %s\n", s.Name)
 			}
 			if s.FuncInfo != nil {
 				for _, a := range s.FuncInfo.Autom {
@@ -279,7 +279,7 @@ func (d *deadcodepass) flood() {
 			if decodetypeKind(s)&kindMask == kindInterface {
 				for _, sig := range decodeIfaceMethods(d.ctxt.Arch, s) {
 					if d.ctxt.Debugvlog > 1 {
-						fmt.Fprintf(d.ctxt.Bso, "reached iface method: %s\n", sig)
+						d.ctxt.Logf("reached iface method: %s\n", sig)
 					}
 					d.ifaceMethod[sig] = true
 				}
