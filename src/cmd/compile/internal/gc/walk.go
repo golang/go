@@ -1506,11 +1506,27 @@ opswitch:
 			r = walkexpr(r, init)
 			n = r
 		} else {
-			// makeslice(et *Type, nel int64, max int64) (ary []any)
-			fn := syslook("makeslice")
+			// n escapes; set up a call to makeslice.
+			// When len and cap can fit into int, use makeslice instead of
+			// makeslice64, which is faster and shorter on 32 bit platforms.
 
+			len, cap := l, r
+
+			fnname := "makeslice64"
+			argtype := Types[TINT64]
+
+			// typechecking guarantees that TIDEAL len/cap are positive and fit in an int.
+			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
+			// will be handled by the negative range checks in makeslice during runtime.
+			if (len.Type.IsKind(TIDEAL) || Maxintval[len.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) &&
+				(cap.Type.IsKind(TIDEAL) || Maxintval[cap.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) {
+				fnname = "makeslice"
+				argtype = Types[TINT]
+			}
+
+			fn := syslook(fnname)
 			fn = substArgTypes(fn, t.Elem()) // any-1
-			n = mkcall1(fn, n.Type, init, typename(t.Elem()), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
+			n = mkcall1(fn, t, init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
 		}
 
 	case ORUNESTR:
