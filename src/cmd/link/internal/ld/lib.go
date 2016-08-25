@@ -1812,6 +1812,28 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
 	if s.Type == obj.STEXT {
 		put(ctxt, s, s.Name, TextSym, s.Value, nil)
 	}
+
+	n := 0
+
+	// Generate base addresses for all text sections if there are multiple
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+		if n == 0 {
+			n++
+			continue
+		}
+		if sect.Name != ".text" {
+			break
+		}
+		s = ctxt.Syms.ROLookup(fmt.Sprintf("runtime.text.%d", n), 0)
+		if s == nil {
+			break
+		}
+		if s.Type == obj.STEXT {
+			put(ctxt, s, s.Name, TextSym, s.Value, nil)
+		}
+		n++
+	}
+
 	s = ctxt.Syms.Lookup("runtime.etext", 0)
 	if s.Type == obj.STEXT {
 		put(ctxt, s, s.Name, TextSym, s.Value, nil)

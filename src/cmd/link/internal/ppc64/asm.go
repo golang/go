@@ -811,12 +811,14 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelfsetup()
 	}
 
-	sect := ld.Segtext.Sect
-	ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
-	for sect = sect.Next; sect != nil; sect = sect.Next {
+	for sect := ld.Segtext.Sect; sect != nil; sect = sect.Next {
 		ld.Cseek(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+		// Handle additional text sections with Codeblk
+		if sect.Name == ".text" {
+			ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+		} else {
+			ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+		}
 	}
 
 	if ld.Segrodata.Filelen > 0 {
