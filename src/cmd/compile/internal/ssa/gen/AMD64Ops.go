@@ -135,6 +135,7 @@ func init() {
 		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
 		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
 		gpstorexchg     = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp}}
+		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
 
 		fp01    = regInfo{inputs: nil, outputs: fponly}
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -516,14 +517,46 @@ func init() {
 		// load from arg0+auxint+aux.  arg1=mem.
 		{name: "MOVLatomicload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff"},
 		{name: "MOVQatomicload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff"},
-		// Atomic stores.  We use XCHG to get the right memory ordering semantics.
-		// These ops return a tuple of <old memory contents, memory>.  The old contents are
-		// ignored for now but they are allocated to a register so that the argument register
-		// is properly clobbered (together with resultInArg0).
+
+		// Atomic stores and exchanges.  Stores use XCHG to get the right memory ordering semantics.
 		// store arg0 to arg1+auxint+aux, arg2=mem.
+		// These ops return a tuple of <old contents of *(arg1+auxint+aux), memory>.
 		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
 		{name: "XCHGL", argLength: 3, reg: gpstorexchg, asm: "XCHGL", aux: "SymOff", resultInArg0: true},
 		{name: "XCHGQ", argLength: 3, reg: gpstorexchg, asm: "XCHGQ", aux: "SymOff", resultInArg0: true},
+
+		// Atomic adds.
+		// *(arg1+auxint+aux) += arg0.  arg2=mem.
+		// Returns a tuple of <old contents of *(arg1+auxint+aux), memory>.
+		// Note: arg0 and arg1 are backwards compared to MOVLstore (to facilitate resultInArg0)!
+		{name: "XADDLlock", argLength: 3, reg: gpstorexchg, asm: "XADDL", typ: "(UInt32,Mem)", aux: "SymOff", resultInArg0: true},
+		{name: "XADDQlock", argLength: 3, reg: gpstorexchg, asm: "XADDQ", typ: "(UInt64,Mem)", aux: "SymOff", resultInArg0: true},
+
+		// Compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *(arg0+auxint+aux) == arg1 {
+		//   *(arg0+auxint+aux) = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// Note that these instructions also return the old value in AX, but we ignore it.
+		// TODO: have these return flags instead of bool.  The current system generates:
+		//    CMPXCHGQ ...
+		//    SETEQ AX
+		//    CMPB  AX, $0
+		//    JNE ...
+		// instead of just
+		//    CMPXCHGQ ...
+		//    JEQ ...
+		// but we can't do that because memory-using ops can't generate flags yet
+		// (flagalloc wants to move flag-generating instructions around).
+		{name: "CMPXCHGLlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGL", aux: "SymOff"},
+		{name: "CMPXCHGQlock", argLength: 4, reg: cmpxchg, asm: "CMPXCHGQ", aux: "SymOff"},
+
+		// Atomic memory updates.
+		{name: "ANDBlock", argLength: 3, reg: gpstore, asm: "ANDB", aux: "SymOff"}, // *(arg0+auxint+aux) &= arg1
+		{name: "ORBlock", argLength: 3, reg: gpstore, asm: "ORB", aux: "SymOff"},   // *(arg0+auxint+aux) |= arg1
 	}
 
 	var AMD64blocks = []blockData{

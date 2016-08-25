@@ -936,8 +936,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
 				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
 				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore,
-				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload:
+				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload,
+				ssa.OpAMD64CMPXCHGQlock, ssa.OpAMD64CMPXCHGLlock,
+				ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
+						gc.Warnl(v.Line, "removed nil check")
+					}
+					return
+				}
+			case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ, ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
+				if w.Args[1] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
 						gc.Warnl(v.Line, "removed nil check")
 					}
@@ -994,6 +1003,40 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = r
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[1])
+		gc.AddAux(&p.To, v)
+	case ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
+		r := gc.SSARegNum0(v)
+		if r != gc.SSARegNum(v.Args[0]) {
+			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+		}
+		gc.Prog(x86.ALOCK)
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = r
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[1])
+		gc.AddAux(&p.To, v)
+	case ssa.OpAMD64CMPXCHGLlock, ssa.OpAMD64CMPXCHGQlock:
+		if gc.SSARegNum(v.Args[1]) != x86.REG_AX {
+			v.Fatalf("input[1] not in AX %s", v.LongString())
+		}
+		gc.Prog(x86.ALOCK)
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[0])
+		gc.AddAux(&p.To, v)
+		p = gc.Prog(x86.ASETEQ)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum0(v)
+	case ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
+		gc.Prog(x86.ALOCK)
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = gc.SSARegNum(v.Args[1])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())

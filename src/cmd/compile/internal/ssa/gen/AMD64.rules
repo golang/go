@@ -477,6 +477,24 @@
 (AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 8 -> (Select1 (XCHGQ <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
 (AtomicStorePtrNoWB ptr val mem) && config.PtrSize == 4 -> (Select1 (XCHGL <MakeTuple(config.Frontend().TypeBytePtr(),TypeMem)> val ptr mem))
 
+// Atomic exchanges.
+(AtomicExchange32 ptr val mem) -> (XCHGL val ptr mem)
+(AtomicExchange64 ptr val mem) -> (XCHGQ val ptr mem)
+
+// Atomic adds.
+(Select0 <t> (AtomicAdd32 ptr val mem)) -> (ADDL (Select0 <t> (XADDLlock val ptr mem)) val)
+(Select1     (AtomicAdd32 ptr val mem)) ->       (Select1     (XADDLlock val ptr mem))
+(Select0 <t> (AtomicAdd64 ptr val mem)) -> (ADDQ (Select0 <t> (XADDQlock val ptr mem)) val)
+(Select1     (AtomicAdd64 ptr val mem)) ->       (Select1     (XADDQlock val ptr mem))
+
+// Atomic compare and swap.
+(AtomicCompareAndSwap32 ptr old new_ mem) -> (CMPXCHGLlock ptr old new_ mem)
+(AtomicCompareAndSwap64 ptr old new_ mem) -> (CMPXCHGQlock ptr old new_ mem)
+
+// Atomic memory updates.
+(AtomicAnd8 ptr val mem) -> (ANDBlock ptr val mem)
+(AtomicOr8 ptr val mem) -> (ORBlock ptr val mem)
+
 // ***************************
 // Above: lowering rules
 // Below: optimizations
@@ -1659,3 +1677,17 @@
 	(XCHGL [off1+off2] {sym} val ptr mem)
 (XCHGL [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) && ptr.Op != OpSB ->
 	(XCHGL [off1+off2] {mergeSym(sym1,sym2)} val ptr mem)
+
+// Merge ADDQconst into atomic adds.
+// TODO: merging LEAQ doesn't work, assembler doesn't like the resulting instructions.
+(XADDQlock [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(XADDQlock [off1+off2] {sym} val ptr mem)
+(XADDLlock [off1] {sym} val (ADDQconst [off2] ptr) mem) && is32Bit(off1+off2) ->
+	(XADDLlock [off1+off2] {sym} val ptr mem)
+
+// Merge ADDQconst into atomic compare and swaps.
+// TODO: merging LEAQ doesn't work, assembler doesn't like the resulting instructions.
+(CMPXCHGQlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && is32Bit(off1+off2) ->
+	(CMPXCHGQlock [off1+off2] {sym} ptr old new_ mem)
+(CMPXCHGLlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && is32Bit(off1+off2) ->
+	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
