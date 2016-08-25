@@ -1574,7 +1574,10 @@ func Fldconv(f *Field, flag FmtFlag) string {
 			if f.Funarg != FunargNone {
 				name = Nconv(f.Nname, 0)
 			} else if flag&FmtLong != 0 {
-				name = sconv(s, FmtShort|FmtByte) // qualify non-exported names (used on structs, not on funarg)
+				name = sconv(s, FmtShort|FmtByte)
+				if !exportname(name) && flag&FmtUnsigned == 0 {
+					name = sconv(s, 0) // qualify non-exported names (used on structs, not on funarg)
+				}
 			} else {
 				name = sconv(s, 0)
 			}
