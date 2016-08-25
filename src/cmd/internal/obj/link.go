@@ -33,6 +33,7 @@ package obj
 import (
 	"bufio"
 	"cmd/internal/sys"
+	"fmt"
 )
 
 // An Addr is an argument to an instruction.
@@ -685,6 +686,11 @@ type Link struct {
 func (ctxt *Link) Diag(format string, args ...interface{}) {
 	ctxt.Errors++
 	ctxt.DiagFunc(format, args...)
+}
+
+func (ctxt *Link) Logf(format string, args ...interface{}) {
+	fmt.Fprintf(ctxt.Bso, format, args...)
+	ctxt.Bso.Flush()
 }
 
 // The smallest possible offset from the hardware stack pointer to a local

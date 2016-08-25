@@ -370,7 +370,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
 	var q *obj.Prog
 	for bflag != 0 {
 		if ctxt.Debugvlog != 0 {
-			fmt.Fprintf(ctxt.Bso, "%5.2f span1\n", obj.Cputime())
+			ctxt.Logf("%5.2f span1\n", obj.Cputime())
 		}
 		bflag = 0
 		c = 0

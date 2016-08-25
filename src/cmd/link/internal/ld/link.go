@@ -208,6 +208,11 @@ func (l *Link) IncVersion() {
 	l.Hash = append(l.Hash, make(map[string]*Symbol))
 }
 
+func (l *Link) Logf(format string, args ...interface{}) {
+	fmt.Fprintf(l.Bso, format, args...)
+	l.Bso.Flush()
+}
+
 type Library struct {
 	Objref string
 	Srcref string

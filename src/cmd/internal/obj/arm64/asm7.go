@@ -585,7 +585,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	 */
 	for bflag != 0 {
 		if ctxt.Debugvlog != 0 {
-			fmt.Fprintf(ctxt.Bso, "%5.2f span1\n", obj.Cputime())
+			ctxt.Logf("%5.2f span1\n", obj.Cputime())
 		}
 		bflag = 0
 		c = 0
@@ -4197,7 +4197,7 @@ func omovlit(ctxt *obj.Link, as obj.As, p *obj.Prog, a *obj.Addr, dr int) uint32
 	var o1 int32
 	if p.Pcond == nil { /* not in literal pool */
 		aclass(ctxt, a)
-		fmt.Fprintf(ctxt.Bso, "omovlit add %d (%#x)\n", ctxt.Instoffset, uint64(ctxt.Instoffset))
+		ctxt.Logf("omovlit add %d (%#x)\n", ctxt.Instoffset, uint64(ctxt.Instoffset))
 
 		/* TODO: could be clever, and use general constant builder */
 		o1 = int32(opirr(ctxt, AADD))

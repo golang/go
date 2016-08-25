@@ -4,10 +4,7 @@
 
 package obj
 
-import (
-	"fmt"
-	"log"
-)
+import "log"
 
 func addvarint(ctxt *Link, d *Pcdata, val uint32) {
 	var v uint32
@@ -39,7 +36,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 	dst.P = dst.P[:0]
 
 	if ctxt.Debugpcln != 0 {
-		fmt.Fprintf(ctxt.Bso, "funcpctab %s [valfunc=%s]\n", func_.Name, desc)
+		ctxt.Logf("funcpctab %s [valfunc=%s]\n", func_.Name, desc)
 	}
 
 	val := int32(-1)
@@ -52,7 +49,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 	pc := func_.Text.Pc
 
 	if ctxt.Debugpcln != 0 {
-		fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(pc), val, func_.Text)
+		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Text)
 	}
 
 	started := int32(0)
@@ -64,7 +61,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if val == oldval && started != 0 {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
+				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
 		}
@@ -76,7 +73,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if p.Link != nil && p.Link.Pc == p.Pc {
 			val = valfunc(ctxt, func_, val, p, 1, arg)
 			if ctxt.Debugpcln != 0 {
-				fmt.Fprintf(ctxt.Bso, "%6x %6s %v\n", uint64(p.Pc), "", p)
+				ctxt.Logf("%6x %6s %v\n", uint64(p.Pc), "", p)
 			}
 			continue
 		}
@@ -96,7 +93,7 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		// where the 0x80 bit indicates that the integer continues.
 
 		if ctxt.Debugpcln != 0 {
-			fmt.Fprintf(ctxt.Bso, "%6x %6d %v\n", uint64(p.Pc), val, p)
+			ctxt.Logf("%6x %6d %v\n", uint64(p.Pc), val, p)
 		}
 
 		if started != 0 {
@@ -118,18 +115,18 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 
 	if started != 0 {
 		if ctxt.Debugpcln != 0 {
-			fmt.Fprintf(ctxt.Bso, "%6x done\n", uint64(func_.Text.Pc+func_.Size))
+			ctxt.Logf("%6x done\n", uint64(func_.Text.Pc+func_.Size))
 		}
 		addvarint(ctxt, dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
 		addvarint(ctxt, dst, 0) // terminator
 	}
 
 	if ctxt.Debugpcln != 0 {
-		fmt.Fprintf(ctxt.Bso, "wrote %d bytes to %p\n", len(dst.P), dst)
+		ctxt.Logf("wrote %d bytes to %p\n", len(dst.P), dst)
 		for i := 0; i < len(dst.P); i++ {
-			fmt.Fprintf(ctxt.Bso, " %02x", dst.P[i])
+			ctxt.Logf(" %02x", dst.P[i])
 		}
-		fmt.Fprintf(ctxt.Bso, "\n")
+		ctxt.Logf("\n")
 	}
 
 	ctxt.Debugpcln -= int32(dbg)
