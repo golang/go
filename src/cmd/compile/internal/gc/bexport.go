@@ -157,9 +157,8 @@ const debugFormat = false // default: false
 // TODO(gri) disable and remove once there is only one export format again
 const forceObjFileStability = true
 
-// Current export format version.
-// Must not start with 'c' or 'd' (initials of prior format).
-const exportVersion = "version 1"
+// Current export format version. Increase with each format change.
+const exportVersion = 1
 
 // exportInlined enables the export of inlined function bodies and related
 // dependencies. The compiler should work w/o any loss of functionality with
@@ -217,7 +216,10 @@ func export(out *bufio.Writer, trace bool) int {
 	}
 
 	// write version info
-	p.rawStringln(exportVersion)
+	// The version string must start with "version %d" where %d is the version
+	// number. Additional debugging information may follow after a blank; that
+	// text is ignored by the importer.
+	p.rawStringln(fmt.Sprintf("version %d", exportVersion))
 	var debug string
 	if debugFormat {
 		debug = "debug"
