@@ -338,6 +338,8 @@ func jconv(n *Node, flag FmtFlag) string {
 
 // Fmt "%V": Values
 func vconv(v Val, flag FmtFlag) string {
+	var p printer
+
 	switch u := v.U.(type) {
 	case *Mpint:
 		if !u.Rune {
@@ -347,17 +349,19 @@ func vconv(v Val, flag FmtFlag) string {
 			return bconv(u, 0)
 		}
 
-		x := u.Int64()
-		if ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'' {
-			return fmt.Sprintf("'%c'", int(x))
+		switch x := u.Int64(); {
+		case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
+			p.f("'%c'", int(x))
+
+		case 0 <= x && x < 1<<16:
+			p.f("'\\u%04x'", uint(int(x)))
+
+		case 0 <= x && x <= utf8.MaxRune:
+			p.f("'\\U%08x'", uint64(x))
+
+		default:
+			p.f("('\\x00' + %v)", u)
 		}
-		if 0 <= x && x < 1<<16 {
-			return fmt.Sprintf("'\\u%04x'", uint(int(x)))
-		}
-		if 0 <= x && x <= utf8.MaxRune {
-			return fmt.Sprintf("'\\U%08x'", uint64(x))
-		}
-		return fmt.Sprintf("('\\x00' + %v)", u)
 
 	case *Mpflt:
 		if flag&FmtSharp != 0 {
@@ -366,19 +370,22 @@ func vconv(v Val, flag FmtFlag) string {
 		return fconv(u, FmtSharp)
 
 	case *Mpcplx:
-		if flag&FmtSharp != 0 {
-			return fmt.Sprintf("(%v+%vi)", &u.Real, &u.Imag)
-		}
-		if v.U.(*Mpcplx).Real.CmpFloat64(0) == 0 {
-			return fmt.Sprintf("%vi", fconv(&u.Imag, FmtSharp))
-		}
-		if v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
+		switch {
+		case flag&FmtSharp != 0:
+			p.f("(%v+%vi)", &u.Real, &u.Imag)
+
+		case v.U.(*Mpcplx).Real.CmpFloat64(0) == 0:
+			p.f("%vi", fconv(&u.Imag, FmtSharp))
+
+		case v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0:
 			return fconv(&u.Real, FmtSharp)
+
+		case v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0:
+			p.f("(%v%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
+
+		default:
+			p.f("(%v+%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
 		}
-		if v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0 {
-			return fmt.Sprintf("(%v%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
-		}
-		return fmt.Sprintf("(%v+%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
 
 	case string:
 		return strconv.Quote(u)
@@ -391,9 +398,12 @@ func vconv(v Val, flag FmtFlag) string {
 
 	case *NilVal:
 		return "nil"
+
+	default:
+		p.f("<ctype=%d>", v.Ctype())
 	}
 
-	return fmt.Sprintf("<ctype=%d>", v.Ctype())
+	return p.String()
 }
 
 /*
