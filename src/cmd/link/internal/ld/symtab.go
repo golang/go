@@ -302,6 +302,62 @@ func (libs byPkg) Swap(a, b int) {
 	libs[a], libs[b] = libs[b], libs[a]
 }
 
+// Create a table with information on the text sections.
+
+func textsectionmap(ctxt *Link) uint32 {
+
+	t := ctxt.Syms.Lookup("runtime.textsectionmap", 0)
+	t.Type = obj.SRODATA
+	t.Attr |= AttrReachable
+	nsections := int64(0)
+
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+		if sect.Name == ".text" {
+			nsections++
+		} else {
+			break
+		}
+	}
+	Symgrow(t, nsections*(2*int64(SysArch.IntSize)+int64(SysArch.PtrSize)))
+
+	off := int64(0)
+	n := 0
+
+	// The vaddr for each text section is the difference between the section's
+	// Vaddr and the Vaddr for the first text section as determined at compile
+	// time.
+
+	// The symbol for the first text section is named runtime.text as before.
+	// Additional text sections are named runtime.text.n where n is the
+	// order of creation starting with 1. These symbols provide the section's
+	// address after relocation by the linker.
+
+	textbase := Segtext.Sect.Vaddr
+	for sect := Segtext.Sect; sect != nil; sect = sect.Next {
+		if sect.Name != ".text" {
+			break
+		}
+		off = setuintxx(ctxt, t, off, sect.Vaddr-textbase, int64(SysArch.IntSize))
+		off = setuintxx(ctxt, t, off, sect.Length, int64(SysArch.IntSize))
+		if n == 0 {
+			s := ctxt.Syms.ROLookup("runtime.text", 0)
+			if s == nil {
+				Errorf(nil, "Unable to find symbol runtime.text\n")
+			}
+			off = setaddr(ctxt, t, off, s)
+
+		} else {
+			s := ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
+			if s == nil {
+				Errorf(nil, "Unable to find symbol runtime.text.%d\n", n)
+			}
+			off = setaddr(ctxt, t, off, s)
+		}
+		n++
+	}
+	return uint32(n)
+}
+
 func (ctxt *Link) symtab() {
 	dosymtype(ctxt)
 
@@ -492,6 +548,8 @@ func (ctxt *Link) symtab() {
 		adduint(ctxt, abihashgostr, uint64(hashsym.Size))
 	}
 
+	nsections := textsectionmap(ctxt)
+
 	// Information about the layout of the executable image for the
 	// runtime to use. Any changes here must be matched by changes to
 	// the definition of moduledata in runtime/symtab.go.
@@ -530,6 +588,12 @@ func (ctxt *Link) symtab() {
 	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.gcbss", 0))
 	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.types", 0))
 	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.etypes", 0))
+
+	// text section information
+	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.textsectionmap", 0))
+	adduint(ctxt, moduledata, uint64(nsections))
+	adduint(ctxt, moduledata, uint64(nsections))
+
 	// The typelinks slice
 	Addaddr(ctxt, moduledata, ctxt.Syms.Lookup("runtime.typelink", 0))
 	adduint(ctxt, moduledata, uint64(ntypelinks))

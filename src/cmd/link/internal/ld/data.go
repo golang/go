@@ -544,7 +544,14 @@ func relocsym(ctxt *Link, s *Symbol) {
 			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
 
 		case obj.R_ADDROFF:
-			o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
+			// The method offset tables using this relocation expect the offset to be relative
+			// to the start of the first text section, even if there are multiple.
+
+			if r.Sym.Sect.Name == ".text" {
+				o = Symaddr(r.Sym) - int64(Segtext.Vaddr) + r.Add
+			} else {
+				o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
+			}
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
@@ -1881,11 +1888,11 @@ func (ctxt *Link) textaddress() {
 
 	sect.Align = int32(Funcalign)
 	ctxt.Syms.Lookup("runtime.text", 0).Sect = sect
-	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
 	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
 		ctxt.Syms.Lookup(".text", 0).Sect = sect
 	}
 	va := uint64(*FlagTextAddr)
+	n := 1
 	sect.Vaddr = va
 	for _, sym := range ctxt.Textp {
 		sym.Sect = sect
@@ -1901,14 +1908,38 @@ func (ctxt *Link) textaddress() {
 		for sub := sym; sub != nil; sub = sub.Sub {
 			sub.Value += int64(va)
 		}
-		if sym.Size < MINFUNC {
-			va += MINFUNC // spacing required for findfunctab
-		} else {
-			va += uint64(sym.Size)
+		funcsize := uint64(MINFUNC) // spacing required for findfunctab
+		if sym.Size > MINFUNC {
+			funcsize = uint64(sym.Size)
 		}
+
+		// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
+		// call target offset field in the bl instruction.  Splitting into smaller text
+		// sections smaller than this limit allows the GNU linker to modify the long calls
+		// appropriately.  The limit allows for the space needed for tables inserted by the linker.
+
+		// If this function doesn't fit in the current text section, then create a new one.
+
+		// Only break at outermost syms.
+
+		if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
+
+			// Set the length for the previous text section
+			sect.Length = va - sect.Vaddr
+
+			// Create new section, set the starting Vaddr
+			sect = addsection(&Segtext, ".text", 05)
+			sect.Vaddr = va
+
+			// Create a symbol for the start of the secondary text sections
+			ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect
+			n++
+		}
+		va += funcsize
 	}
 
 	sect.Length = va - sect.Vaddr
+	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
 }
 
 // assign addresses
@@ -2052,6 +2083,11 @@ func (ctxt *Link) address() {
 		pclntab  = ctxt.Syms.Lookup("runtime.pclntab", 0).Sect
 		types    = ctxt.Syms.Lookup("runtime.types", 0).Sect
 	)
+	lasttext := text
+	// Could be multiple .text sections
+	for sect := text.Next; sect != nil && sect.Name == ".text"; sect = sect.Next {
+		lasttext = sect
+	}
 
 	for _, s := range datap {
 		if s.Sect != nil {
@@ -2079,10 +2115,20 @@ func (ctxt *Link) address() {
 	}
 
 	ctxt.xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
-	ctxt.xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
+	ctxt.xdefine("runtime.etext", obj.STEXT, int64(lasttext.Vaddr+lasttext.Length))
 	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
 		ctxt.xdefine(".text", obj.STEXT, int64(text.Vaddr))
 	}
+
+	// If there are multiple text sections, create runtime.text.n for
+	// their section Vaddr, using n for index
+	n := 1
+	for sect := Segtext.Sect.Next; sect != nil && sect.Name == ".text"; sect = sect.Next {
+		symname := fmt.Sprintf("runtime.text.%d", n)
+		ctxt.xdefine(symname, obj.STEXT, int64(sect.Vaddr))
+		n++
+	}
+
 	ctxt.xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
 	ctxt.xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	ctxt.xdefine("runtime.types", obj.SRODATA, int64(types.Vaddr))

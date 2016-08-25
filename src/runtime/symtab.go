@@ -195,8 +195,9 @@ type moduledata struct {
 	end, gcdata, gcbss    uintptr
 	types, etypes         uintptr
 
-	typelinks []int32 // offsets from types
-	itablinks []*itab
+	textsectmap []textsect
+	typelinks   []int32 // offsets from types
+	itablinks   []*itab
 
 	ptab []ptabEntry
 
@@ -226,6 +227,14 @@ var lastmoduledatap *moduledata // linker symbol
 type functab struct {
 	entry   uintptr
 	funcoff uintptr
+}
+
+// Mapping information for secondary text sections
+
+type textsect struct {
+	vaddr    uintptr // prelinked section vaddr
+	length   uintptr // section length
+	baseaddr uintptr // relocated section address
 }
 
 const minfunc = 16                 // minimum function size
@@ -370,12 +379,23 @@ func findfunc(pc uintptr) *_func {
 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
 	idx := ffb.idx + uint32(ffb.subbuckets[i])
 	if pc < datap.ftab[idx].entry {
-		throw("findfunc: bad findfunctab entry")
-	}
 
-	// linear search to find func with pc >= entry.
-	for datap.ftab[idx+1].entry <= pc {
-		idx++
+		// If there are multiple text sections then the buckets for the secondary
+		// text sections will be off because the addresses in those text sections
+		// were relocated to higher addresses.  Search back to find it.
+
+		for datap.ftab[idx].entry > pc && idx > 0 {
+			idx--
+		}
+		if idx == 0 {
+			throw("findfunc: bad findfunctab entry idx")
+		}
+	} else {
+
+		// linear search to find func with pc >= entry.
+		for datap.ftab[idx+1].entry <= pc {
+			idx++
+		}
 	}
 	return (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff]))
 }
