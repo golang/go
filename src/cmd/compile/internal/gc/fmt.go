@@ -463,47 +463,47 @@ func (et EType) String() string {
 }
 
 // Fmt "%S": syms
-func symfmt(s *Sym, flag FmtFlag) string {
+func (p *printer) symfmt(s *Sym, flag FmtFlag) *printer {
 	if s.Pkg != nil && flag&FmtShort == 0 {
 		switch fmtmode {
 		case FErr: // This is for the user
 			if s.Pkg == builtinpkg || s.Pkg == localpkg {
-				return s.Name
+				return p.s(s.Name)
 			}
 
 			// If the name was used by multiple packages, display the full path,
 			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
-				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
+				return p.f("%q.%s", s.Pkg.Path, s.Name)
 			}
-			return s.Pkg.Name + "." + s.Name
+			return p.s(s.Pkg.Name + "." + s.Name)
 
 		case FDbg:
-			return s.Pkg.Name + "." + s.Name
+			return p.s(s.Pkg.Name + "." + s.Name)
 
 		case FTypeId:
 			if flag&FmtUnsigned != 0 {
-				return s.Pkg.Name + "." + s.Name // dcommontype, typehash
+				return p.s(s.Pkg.Name + "." + s.Name) // dcommontype, typehash
 			}
-			return s.Pkg.Prefix + "." + s.Name // (methodsym), typesym, weaksym
+			return p.s(s.Pkg.Prefix + "." + s.Name) // (methodsym), typesym, weaksym
 		}
 	}
 
 	if flag&FmtByte != 0 {
 		// FmtByte (hh) implies FmtShort (h)
 		// skip leading "type." in method name
-		p := s.Name
-		if i := strings.LastIndex(s.Name, "."); i >= 0 {
-			p = s.Name[i+1:]
+		name := s.Name
+		if i := strings.LastIndex(name, "."); i >= 0 {
+			name = name[i+1:]
 		}
 
 		if fmtmode == FDbg {
-			return fmt.Sprintf("@%q.%s", s.Pkg.Path, p)
+			return p.f("@%q.%s", s.Pkg.Path, name)
 		}
 
-		return p
+		return p.s(name)
 	}
 
-	return s.Name
+	return p.s(s.Name)
 }
 
 var basicnames = []string{
@@ -1390,7 +1390,7 @@ func exprfmt(n *Node, prec int) string {
 	return fmt.Sprintf("<node %v>", n.Op)
 }
 
-func nodefmt(n *Node, flag FmtFlag) string {
+func (p *printer) nodefmt(n *Node, flag FmtFlag) *printer {
 	t := n.Type
 
 	// we almost always want the original, except in export mode for literals
@@ -1402,115 +1402,104 @@ func nodefmt(n *Node, flag FmtFlag) string {
 
 	if flag&FmtLong != 0 && t != nil {
 		if t.Etype == TNIL {
-			return "nil"
+			return p.s("nil")
 		} else {
-			return fmt.Sprintf("%v (type %v)", n, t)
+			return p.f("%v (type %v)", n, t)
 		}
 	}
 
 	// TODO inlining produces expressions with ninits. we can't print these yet.
 
 	if opprec[n.Op] < 0 {
-		return stmtfmt(n)
+		return p.s(stmtfmt(n))
 	}
 
-	return exprfmt(n, 0)
+	return p.s(exprfmt(n, 0))
 }
 
-var dumpdepth int
-
-func indent(buf *bytes.Buffer) {
-	buf.WriteString("\n")
-	for i := 0; i < dumpdepth; i++ {
-		buf.WriteString(".   ")
-	}
-}
-
-func nodedump(n *Node, flag FmtFlag) string {
+func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 	if n == nil {
-		return ""
+		return p
 	}
 
 	recur := flag&FmtShort == 0
 
-	var buf bytes.Buffer
 	if recur {
-		indent(&buf)
-		if dumpdepth > 10 {
-			buf.WriteString("...")
-			return buf.String()
+		p.indent()
+		if p.dumpdepth > 10 {
+			return p.s("...")
 		}
 
 		if n.Ninit.Len() != 0 {
-			fmt.Fprintf(&buf, "%v-init%v", n.Op, n.Ninit)
-			indent(&buf)
+			p.f("%v-init%v", n.Op, n.Ninit)
+			p.indent()
 		}
 	}
 
 	switch n.Op {
 	default:
-		fmt.Fprintf(&buf, "%v%v", n.Op, jconv(n, 0))
+		p.f("%v%v", n.Op, jconv(n, 0))
 
 	case OREGISTER, OINDREG:
-		fmt.Fprintf(&buf, "%v-%v%v", n.Op, obj.Rconv(int(n.Reg)), jconv(n, 0))
+		p.f("%v-%v%v", n.Op, obj.Rconv(int(n.Reg)), jconv(n, 0))
 
 	case OLITERAL:
-		fmt.Fprintf(&buf, "%v-%v%v", n.Op, vconv(n.Val(), 0), jconv(n, 0))
+		p.f("%v-%v%v", n.Op, vconv(n.Val(), 0), jconv(n, 0))
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
-			fmt.Fprintf(&buf, "%v-%v%v", n.Op, n.Sym, jconv(n, 0))
+			p.f("%v-%v%v", n.Op, n.Sym, jconv(n, 0))
 		} else {
-			fmt.Fprintf(&buf, "%v%v", n.Op, jconv(n, 0))
+			p.f("%v%v", n.Op, jconv(n, 0))
 		}
 		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
+			p.indent()
+			p.f("%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}
 
 	case OASOP:
-		fmt.Fprintf(&buf, "%v-%v%v", n.Op, Op(n.Etype), jconv(n, 0))
+		p.f("%v-%v%v", n.Op, Op(n.Etype), jconv(n, 0))
 
 	case OTYPE:
-		fmt.Fprintf(&buf, "%v %v%v type=%v", n.Op, n.Sym, jconv(n, 0), n.Type)
+		p.f("%v %v%v type=%v", n.Op, n.Sym, jconv(n, 0), n.Type)
 		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
+			p.indent()
+			p.f("%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}
 	}
 
 	if n.Sym != nil && n.Op != ONAME {
-		fmt.Fprintf(&buf, " %v", n.Sym)
+		p.f(" %v", n.Sym)
 	}
 
 	if n.Type != nil {
-		fmt.Fprintf(&buf, " %v", n.Type)
+		p.f(" %v", n.Type)
 	}
 
 	if recur {
 		if n.Left != nil {
-			buf.WriteString(Nconv(n.Left, 0))
+			p.s(Nconv(n.Left, 0))
 		}
 		if n.Right != nil {
-			buf.WriteString(Nconv(n.Right, 0))
+			p.s(Nconv(n.Right, 0))
 		}
 		if n.List.Len() != 0 {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-list%v", n.Op, n.List)
+			p.indent()
+			p.f("%v-list%v", n.Op, n.List)
 		}
 
 		if n.Rlist.Len() != 0 {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-rlist%v", n.Op, n.Rlist)
+			p.indent()
+			p.f("%v-rlist%v", n.Op, n.Rlist)
 		}
 
 		if n.Nbody.Len() != 0 {
-			indent(&buf)
-			fmt.Fprintf(&buf, "%v-body%v", n.Op, n.Nbody)
+			p.indent()
+			p.f("%v-body%v", n.Op, n.Nbody)
 		}
 	}
 
-	return buf.String()
+	return p
 }
 
 func (s *Sym) String() string {
@@ -1520,6 +1509,8 @@ func (s *Sym) String() string {
 // Fmt "%S": syms
 // Flags:  "%hS" suppresses qualifying with package
 func sconv(s *Sym, flag FmtFlag) string {
+	var p printer
+
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
 	}
@@ -1534,11 +1525,12 @@ func sconv(s *Sym, flag FmtFlag) string {
 
 	sf := flag
 	sm, sb := setfmode(&flag)
-	str := symfmt(s, flag)
+	p.symfmt(s, flag)
 	flag = sf
 	fmtmode = sm
 	fmtbody = sb
-	return str
+
+	return p.String()
 }
 
 func (t *Type) String() string {
@@ -1671,21 +1663,22 @@ func (n *Node) String() string {
 // Flags: 'l' suffix with "(type %T)" where possible
 //	  '+h' in debug mode, don't recurse, no multiline output
 func Nconv(n *Node, flag FmtFlag) string {
+	var p printer
+
 	if n == nil {
 		return "<N>"
 	}
 	sf := flag
 	sm, sb := setfmode(&flag)
 
-	var str string
 	switch fmtmode {
 	case FErr:
-		str = nodefmt(n, flag)
+		p.nodefmt(n, flag)
 
 	case FDbg:
-		dumpdepth++
-		str = nodedump(n, flag)
-		dumpdepth--
+		p.dumpdepth++
+		p.nodedump(n, flag)
+		p.dumpdepth--
 
 	default:
 		Fatalf("unhandled %%N mode")
@@ -1694,7 +1687,8 @@ func Nconv(n *Node, flag FmtFlag) string {
 	flag = sf
 	fmtbody = sb
 	fmtmode = sm
-	return str
+
+	return p.String()
 }
 
 func (n Nodes) String() string {
@@ -1741,7 +1735,8 @@ func Dump(s string, n *Node) {
 
 // printer is a buffer for creating longer formatted strings.
 type printer struct {
-	buf []byte
+	buf       []byte
+	dumpdepth int
 }
 
 // printer implements io.Writer.
@@ -1765,4 +1760,12 @@ func (p *printer) s(s string) *printer {
 func (p *printer) f(format string, args ...interface{}) *printer {
 	fmt.Fprintf(p, format, args...)
 	return p
+}
+
+// indent prints indentation to p.
+func (p *printer) indent() {
+	p.s("\n")
+	for i := 0; i < p.dumpdepth; i++ {
+		p.s(".   ")
+	}
 }
