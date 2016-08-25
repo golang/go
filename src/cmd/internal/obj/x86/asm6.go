@@ -857,6 +857,8 @@ var yvex_ri3 = []ytab{
 var yvex_xyi3 = []ytab{
 	{Yu8, Yxm, Yxr, Zvex_i_rm_r, 2},
 	{Yu8, Yym, Yyr, Zvex_i_rm_r, 2},
+	{Yi8, Yxm, Yxr, Zvex_i_rm_r, 2},
+	{Yi8, Yym, Yyr, Zvex_i_rm_r, 2},
 }
 
 var yvex_yyi4 = []ytab{ //TODO don't hide 4 op, some version have xmm version
@@ -1712,7 +1714,7 @@ var optab =
 	{AVPBROADCASTB, yvex_vpbroadcast, Pvex, [23]uint8{VEX_128_66_0F38_W0, 0x78, VEX_256_66_0F38_W0, 0x78}},
 	{AVPTEST, yvex_xy2, Pvex, [23]uint8{VEX_128_66_0F38_WIG, 0x17, VEX_256_66_0F38_WIG, 0x17}},
 	{AVPSHUFB, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F38_WIG, 0x00, VEX_256_66_0F38_WIG, 0x00}},
-	{AVPSHUFD, yvex_xyi3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x70, VEX_256_66_0F_WIG, 0x70}},
+	{AVPSHUFD, yvex_xyi3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x70, VEX_256_66_0F_WIG, 0x70, VEX_128_66_0F_WIG, 0x70, VEX_256_66_0F_WIG, 0x70}},
 	{AVPOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xeb, VEX_256_66_0F_WIG, 0xeb}},
 	{AVPADDQ, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xd4, VEX_256_66_0F_WIG, 0xd4}},
 	{AVPADDD, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xfe, VEX_256_66_0F_WIG, 0xfe}},
