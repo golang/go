@@ -10,7 +10,7 @@ import (
 	"net/http/httptrace"
 )
 
-func ExampleTrace() {
+func Example() {
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 	trace := &httptrace.ClientTrace{
 		GotConn: func(connInfo httptrace.GotConnInfo) {

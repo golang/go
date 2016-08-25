@@ -79,7 +79,7 @@ func TestTokens(t *testing.T) {
 				continue
 			}
 			if got.prec != want.prec {
-				t.Errorf("got prec = %s; want %s", got.prec, want.prec)
+				t.Errorf("got prec = %d; want %d", got.prec, want.prec)
 				continue
 			}
 			nlsemi = want.tok == _IncOp
