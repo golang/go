@@ -199,6 +199,11 @@ func markroot(gcw *gcWork, i uint32) {
 			gp = allgs[i-baseStacks]
 		} else if baseRescan <= i && i < end {
 			gp = work.rescan.list[i-baseRescan].ptr()
+			if gp.gcRescan != int32(i-baseRescan) {
+				// Looking for issue #17099.
+				println("runtime: gp", gp, "found at rescan index", i-baseRescan, "but should be at", gp.gcRescan)
+				throw("bad g rescan index")
+			}
 		} else {
 			throw("markroot: bad index")
 		}
