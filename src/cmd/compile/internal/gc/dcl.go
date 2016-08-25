@@ -1123,15 +1123,7 @@ bad:
 	return nil
 }
 
-func methodname(n *Node, t *Type) *Node {
-	s := methodsym(n.Sym, t, 0)
-	if s == nil {
-		return n
-	}
-	return newname(s)
-}
-
-func methodname1(n *Node, t *Node) *Node {
+func methodname(n *Node, t *Node) *Node {
 	star := ""
 	if t.Op == OIND {
 		star = "*"

@@ -244,7 +244,6 @@ type objReader struct {
 	dataOffset int64
 	limit      int64
 	tmp        [256]byte
-	pkg        string
 	pkgprefix  string
 }
 

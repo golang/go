@@ -337,24 +337,6 @@ func datagostring(sval string, a *obj.Addr) {
 	a.Etype = uint8(TSTRING)
 }
 
-func dgostringptr(s *Sym, off int, str string) int {
-	if str == "" {
-		return duintptr(s, off, 0)
-	}
-	return dgostrlitptr(s, off, &str)
-}
-
-func dgostrlitptr(s *Sym, off int, lit *string) int {
-	if lit == nil {
-		return duintptr(s, off, 0)
-	}
-	off = int(Rnd(int64(off), int64(Widthptr)))
-	symhdr, _ := stringsym(*lit)
-	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, symhdr, 0)
-	off += Widthptr
-	return off
-}
-
 func dsname(s *Sym, off int, t string) int {
 	return dsnameLSym(Linksym(s), off, t)
 }

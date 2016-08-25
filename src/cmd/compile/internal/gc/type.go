@@ -677,12 +677,6 @@ func (t *Type) wantEtype(et EType) {
 	}
 }
 
-func (t *Type) wantEtype2(et1, et2 EType) {
-	if t.Etype != et1 && t.Etype != et2 {
-		Fatalf("want %v or %v, but have %v", et1, et2, t)
-	}
-}
-
 func (t *Type) RecvsP() **Type {
 	t.wantEtype(TFUNC)
 	return &t.Extra.(*FuncType).Receiver
