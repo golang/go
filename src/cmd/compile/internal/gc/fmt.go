@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 	"strconv"
@@ -530,21 +529,21 @@ var basicnames = []string{
 	TBLANK:      "blank",
 }
 
-func typefmt(t *Type, flag FmtFlag) string {
+func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 	if t == nil {
-		return "<T>"
+		return p.s("<T>")
 	}
 
 	if t == bytetype || t == runetype {
 		// in %-T mode collapse rune and byte with their originals.
 		if fmtmode != FTypeId {
-			return sconv(t.Sym, FmtShort)
+			return p.s(sconv(t.Sym, FmtShort))
 		}
 		t = Types[t.Etype]
 	}
 
 	if t == errortype {
-		return "error"
+		return p.s("error")
 	}
 
 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
@@ -553,21 +552,21 @@ func typefmt(t *Type, flag FmtFlag) string {
 		case FTypeId:
 			if flag&FmtShort != 0 {
 				if t.Vargen != 0 {
-					return fmt.Sprintf("%v·%d", sconv(t.Sym, FmtShort), t.Vargen)
+					p.f("%v·%d", sconv(t.Sym, FmtShort), t.Vargen)
 				}
-				return sconv(t.Sym, FmtShort)
+				return p.s(sconv(t.Sym, FmtShort))
 			}
 
 			if flag&FmtUnsigned != 0 {
-				return sconv(t.Sym, FmtUnsigned)
+				return p.s(sconv(t.Sym, FmtUnsigned))
 			}
 
 			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
-				return fmt.Sprintf("%v·%d", t.Sym, t.Vargen)
+				p.f("%v·%d", t.Sym, t.Vargen)
 			}
 		}
 
-		return sconv(t.Sym, 0)
+		return p.s(sconv(t.Sym, 0))
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
@@ -575,102 +574,100 @@ func typefmt(t *Type, flag FmtFlag) string {
 		if fmtmode == FErr && (t == idealbool || t == idealstring) {
 			prefix = "untyped "
 		}
-		return prefix + basicnames[t.Etype]
+		return p.s(prefix + basicnames[t.Etype])
 	}
 
 	if fmtmode == FDbg {
 		fmtmode = 0
-		str := t.Etype.String() + "-" + typefmt(t, flag)
+		p.s(t.Etype.String()).s("-").typefmt(t, flag)
 		fmtmode = FDbg
-		return str
+		return p
 	}
 
 	switch t.Etype {
 	case TPTR32, TPTR64:
 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
-			return "*" + Tconv(t.Elem(), FmtShort)
+			return p.s("*" + Tconv(t.Elem(), FmtShort))
 		}
-		return "*" + t.Elem().String()
+		return p.s("*" + t.Elem().String())
 
 	case TARRAY:
 		if t.isDDDArray() {
-			return "[...]" + t.Elem().String()
+			return p.s("[...]" + t.Elem().String())
 		}
-		return fmt.Sprintf("[%d]%v", t.NumElem(), t.Elem())
+		p.f("[%d]%v", t.NumElem(), t.Elem())
 
 	case TSLICE:
-		return "[]" + t.Elem().String()
+		return p.s("[]" + t.Elem().String())
 
 	case TCHAN:
 		switch t.ChanDir() {
 		case Crecv:
-			return "<-chan " + t.Elem().String()
+			return p.s("<-chan " + t.Elem().String())
 
 		case Csend:
-			return "chan<- " + t.Elem().String()
+			return p.s("chan<- " + t.Elem().String())
 		}
 
 		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == Crecv {
-			return "chan (" + t.Elem().String() + ")"
+			return p.s("chan (" + t.Elem().String() + ")")
 		}
-		return "chan " + t.Elem().String()
+		return p.s("chan " + t.Elem().String())
 
 	case TMAP:
-		return "map[" + t.Key().String() + "]" + t.Val().String()
+		return p.s("map[" + t.Key().String() + "]" + t.Val().String())
 
 	case TINTER:
-		var buf bytes.Buffer
-		buf.WriteString("interface {")
+		p.s("interface {")
 		for i, f := range t.Fields().Slice() {
 			if i != 0 {
-				buf.WriteString(";")
+				p.s(";")
 			}
-			buf.WriteString(" ")
+			p.s(" ")
 			switch {
 			case f.Sym == nil:
 				// Check first that a symbol is defined for this type.
 				// Wrong interface definitions may have types lacking a symbol.
 				break
 			case exportname(f.Sym.Name):
-				buf.WriteString(sconv(f.Sym, FmtShort))
+				p.s(sconv(f.Sym, FmtShort))
 			default:
-				buf.WriteString(sconv(f.Sym, FmtUnsigned))
+				p.s(sconv(f.Sym, FmtUnsigned))
 			}
-			buf.WriteString(Tconv(f.Type, FmtShort))
+			p.s(Tconv(f.Type, FmtShort))
 		}
 		if t.NumFields() != 0 {
-			buf.WriteString(" ")
+			p.s(" ")
 		}
-		buf.WriteString("}")
-		return buf.String()
+		p.s("}")
+		return p
 
 	case TFUNC:
-		var buf bytes.Buffer
 		if flag&FmtShort != 0 {
 			// no leading func
 		} else {
 			if t.Recv() != nil {
-				buf.WriteString("method")
-				buf.WriteString(Tconv(t.Recvs(), 0))
-				buf.WriteString(" ")
+				p.s("method")
+				p.s(Tconv(t.Recvs(), 0))
+				p.s(" ")
 			}
-			buf.WriteString("func")
+			p.s("func")
 		}
-		buf.WriteString(Tconv(t.Params(), 0))
+		p.s(Tconv(t.Params(), 0))
 
 		switch t.Results().NumFields() {
 		case 0:
 			// nothing to do
 
 		case 1:
-			buf.WriteString(" ")
-			buf.WriteString(Tconv(t.Results().Field(0).Type, 0)) // struct->field->field's type
+			p.s(" ")
+			p.s(Tconv(t.Results().Field(0).Type, 0)) // struct->field->field's type
 
 		default:
-			buf.WriteString(" ")
-			buf.WriteString(Tconv(t.Results(), 0))
+			p.s(" ")
+			p.s(Tconv(t.Results(), 0))
 		}
-		return buf.String()
+		return p
 
 	case TSTRUCT:
 		if m := t.StructType().Map; m != nil {
@@ -678,68 +675,67 @@ func typefmt(t *Type, flag FmtFlag) string {
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			if mt.Bucket == t {
-				return "map.bucket[" + m.Key().String() + "]" + m.Val().String()
+				return p.s("map.bucket[" + m.Key().String() + "]" + m.Val().String())
 			}
 
 			if mt.Hmap == t {
-				return "map.hdr[" + m.Key().String() + "]" + m.Val().String()
+				return p.s("map.hdr[" + m.Key().String() + "]" + m.Val().String())
 			}
 
 			if mt.Hiter == t {
-				return "map.iter[" + m.Key().String() + "]" + m.Val().String()
+				return p.s("map.iter[" + m.Key().String() + "]" + m.Val().String())
 			}
 
 			Yyerror("unknown internal map type")
 		}
 
-		var buf bytes.Buffer
 		if t.IsFuncArgStruct() {
-			buf.WriteString("(")
+			p.s("(")
 			var flag1 FmtFlag
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
 				flag1 = FmtShort
 			}
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
-					buf.WriteString(", ")
+					p.s(", ")
 				}
-				buf.WriteString(Fldconv(f, flag1))
+				p.s(Fldconv(f, flag1))
 			}
-			buf.WriteString(")")
+			p.s(")")
 		} else {
-			buf.WriteString("struct {")
+			p.s("struct {")
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
-					buf.WriteString(";")
+					p.s(";")
 				}
-				buf.WriteString(" ")
-				buf.WriteString(Fldconv(f, FmtLong))
+				p.s(" ")
+				p.s(Fldconv(f, FmtLong))
 			}
 			if t.NumFields() != 0 {
-				buf.WriteString(" ")
+				p.s(" ")
 			}
-			buf.WriteString("}")
+			p.s("}")
 		}
-		return buf.String()
+		return p
 
 	case TFORW:
 		if t.Sym != nil {
-			return "undefined " + t.Sym.String()
+			return p.s("undefined " + t.Sym.String())
 		}
-		return "undefined"
+		return p.s("undefined")
 
 	case TUNSAFEPTR:
-		return "unsafe.Pointer"
+		return p.s("unsafe.Pointer")
 
 	case TDDDFIELD:
-		return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
+		p.f("%v <%v> %v", t.Etype, t.Sym, t.DDDField())
 
 	case Txxx:
-		return "Txxx"
+		return p.s("Txxx")
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
-	return fmt.Sprintf("%v <%v> %v", t.Etype, t.Sym, t.Elem())
+	return p.f("%v <%v> %v", t.Etype, t.Sym, t.Elem())
 }
 
 // Statements which may be rendered with a simplestmt as init.
@@ -1601,6 +1597,8 @@ func Fldconv(f *Field, flag FmtFlag) string {
 //	  'h' omit 'func' and receiver from function types, short type names
 //	  'u' package name, not prefix (FTypeId mode, sticky)
 func Tconv(t *Type, flag FmtFlag) string {
+	var p printer
+
 	if t == nil {
 		return "<T>"
 	}
@@ -1620,7 +1618,7 @@ func Tconv(t *Type, flag FmtFlag) string {
 		flag |= FmtUnsigned
 	}
 
-	str := typefmt(t, flag)
+	p.typefmt(t, flag)
 
 	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
 		fmtpkgpfx--
@@ -1630,7 +1628,8 @@ func Tconv(t *Type, flag FmtFlag) string {
 	fmtbody = sb
 	fmtmode = sm
 	t.Trecur--
-	return str
+
+	return p.String()
 }
 
 func (n *Node) String() string {
