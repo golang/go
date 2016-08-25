@@ -157,6 +157,7 @@ systime:
 	// Fall back to system call (usually first call in this thread).
 	MOVQ	SP, DI
 	MOVQ	$0, SI
+	MOVQ	$0, DX  // required as of Sierra; Issue 16570
 	MOVL	$(0x2000000+116), AX
 	SYSCALL
 	CMPQ	AX, $0
@@ -244,6 +245,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$32
 	MOVQ R8, 24(SP) // ctx
 	MOVQ $runtime·sigtrampgo(SB), AX
 	CALL AX
+	INT $3 // not reached (see issue 16453)
 
 TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI		// arg 1 addr

@@ -383,6 +383,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return resp, nil
 		}
 		if !pconn.shouldRetryRequest(req, err) {
+			// Issue 16465: return underlying net.Conn.Read error from peek,
+			// as we've historically done.
+			if e, ok := err.(transportReadFromServerError); ok {
+				err = e.err
+			}
 			return nil, err
 		}
 		testHookRoundTripRetried()
@@ -393,6 +398,15 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
 func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+	if err == http2ErrNoCachedConn {
+		// Issue 16582: if the user started a bunch of
+		// requests at once, they can all pick the same conn
+		// and violate the server's max concurrent streams.
+		// Instead, match the HTTP/1 behavior for now and dial
+		// again to get a new TCP connection, rather than failing
+		// this request.
+		return true
+	}
 	if err == errMissingHost {
 		// User error.
 		return false
@@ -415,11 +429,19 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// first, per golang.org/issue/15723
 		return false
 	}
-	if _, ok := err.(nothingWrittenError); ok {
+	switch err.(type) {
+	case nothingWrittenError:
 		// We never wrote anything, so it's safe to retry.
 		return true
+	case transportReadFromServerError:
+		// We got some non-EOF net.Conn.Read failure reading
+		// the 1st response byte from the server.
+		return true
 	}
-	if err == errServerClosedIdle || err == errServerClosedConn {
+	if err == errServerClosedIdle {
+		// The server replied with io.EOF while we were trying to
+		// read the response. Probably an unfortunately keep-alive
+		// timeout, just as the client was writing a request.
 		return true
 	}
 	return false // conservatively
@@ -566,9 +588,24 @@ var (
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errServerClosedIdle   = errors.New("http: server closed idle connection")
-	errServerClosedConn   = errors.New("http: server closed connection")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
 )
+
+// transportReadFromServerError is used by Transport.readLoop when the
+// 1 byte peek read fails and we're actually anticipating a response.
+// Usually this is just due to the inherent keep-alive shut down race,
+// where the server closed the connection at the same time the client
+// wrote. The underlying err field is usually io.EOF or some
+// ECONNRESET sort of thing which varies by platform. But it might be
+// the user's custom net.Conn.Read error too, so we carry it along for
+// them to return from Transport.RoundTrip.
+type transportReadFromServerError struct {
+	err error
+}
+
+func (e transportReadFromServerError) Error() string {
+	return fmt.Sprintf("net/http: Transport failed to read from server: %v", e.err)
+}
 
 func (t *Transport) putOrCloseIdleConn(pconn *persistConn) {
 	if err := t.tryPutIdleConn(pconn); err != nil {
@@ -1293,7 +1330,10 @@ func (pc *persistConn) mapRoundTripErrorFromReadLoop(startBytesWritten int64, er
 	if pc.isCanceled() {
 		return errRequestCanceled
 	}
-	if err == errServerClosedIdle || err == errServerClosedConn {
+	if err == errServerClosedIdle {
+		return err
+	}
+	if _, ok := err.(transportReadFromServerError); ok {
 		return err
 	}
 	if pc.isBroken() {
@@ -1314,7 +1354,11 @@ func (pc *persistConn) mapRoundTripErrorAfterClosed(startBytesWritten int64) err
 		return errRequestCanceled
 	}
 	err := pc.closed
-	if err == errServerClosedIdle || err == errServerClosedConn {
+	if err == errServerClosedIdle {
+		// Don't decorate
+		return err
+	}
+	if _, ok := err.(transportReadFromServerError); ok {
 		// Don't decorate
 		return err
 	}
@@ -1383,7 +1427,7 @@ func (pc *persistConn) readLoop() {
 		if err == nil {
 			resp, err = pc.readResponse(rc, trace)
 		} else {
-			err = errServerClosedConn
+			err = transportReadFromServerError{err}
 			closeErr = err
 		}
 
@@ -1784,6 +1828,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	var re responseAndError
 	var respHeaderTimer <-chan time.Time
 	cancelChan := req.Request.Cancel
+	ctxDoneChan := req.Context().Done()
 WaitResponse:
 	for {
 		testHookWaitResLoop()
@@ -1815,9 +1860,11 @@ WaitResponse:
 		case <-cancelChan:
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
-		case <-req.Context().Done():
+			ctxDoneChan = nil
+		case <-ctxDoneChan:
 			pc.t.CancelRequest(req.Request)
 			cancelChan = nil
+			ctxDoneChan = nil
 		}
 	}
 

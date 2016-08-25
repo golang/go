@@ -4716,3 +4716,14 @@ func BenchmarkCloseNotifier(b *testing.B) {
 	}
 	b.StopTimer()
 }
+
+// Verify this doesn't race (Issue 16505)
+func TestConcurrentServerServe(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		ln1 := &oneConnListener{conn: nil}
+		ln2 := &oneConnListener{conn: nil}
+		srv := Server{}
+		go func() { srv.Serve(ln1) }()
+		go func() { srv.Serve(ln2) }()
+	}
+}

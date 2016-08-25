@@ -2129,8 +2129,8 @@ type Server struct {
 	ErrorLog *log.Logger
 
 	disableKeepAlives int32     // accessed atomically.
-	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
-	nextProtoErr      error
+	nextProtoOnce     sync.Once // guards setupHTTP2_* init
+	nextProtoErr      error     // result of http2.ConfigureServer if used
 }
 
 // A ConnState represents the state of a client connection to a server.
@@ -2260,10 +2260,8 @@ func (srv *Server) Serve(l net.Listener) error {
 	}
 	var tempDelay time.Duration // how long to sleep on accept failure
 
-	if srv.shouldConfigureHTTP2ForServe() {
-		if err := srv.setupHTTP2(); err != nil {
-			return err
-		}
+	if err := srv.setupHTTP2_Serve(); err != nil {
+		return err
 	}
 
 	// TODO: allow changing base context? can't imagine concrete
@@ -2408,7 +2406,7 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
 	// before we clone it and create the TLS Listener.
-	if err := srv.setupHTTP2(); err != nil {
+	if err := srv.setupHTTP2_ListenAndServeTLS(); err != nil {
 		return err
 	}
 
@@ -2436,14 +2434,36 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	return srv.Serve(tlsListener)
 }
 
-func (srv *Server) setupHTTP2() error {
+// setupHTTP2_ListenAndServeTLS conditionally configures HTTP/2 on
+// srv and returns whether there was an error setting it up. If it is
+// not configured for policy reasons, nil is returned.
+func (srv *Server) setupHTTP2_ListenAndServeTLS() error {
 	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
 	return srv.nextProtoErr
 }
 
+// setupHTTP2_Serve is called from (*Server).Serve and conditionally
+// configures HTTP/2 on srv using a more conservative policy than
+// setupHTTP2_ListenAndServeTLS because Serve may be called
+// concurrently.
+//
+// The tests named TestTransportAutomaticHTTP2* and
+// TestConcurrentServerServe in server_test.go demonstrate some
+// of the supported use cases and motivations.
+func (srv *Server) setupHTTP2_Serve() error {
+	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults_Serve)
+	return srv.nextProtoErr
+}
+
+func (srv *Server) onceSetNextProtoDefaults_Serve() {
+	if srv.shouldConfigureHTTP2ForServe() {
+		srv.onceSetNextProtoDefaults()
+	}
+}
+
 // onceSetNextProtoDefaults configures HTTP/2, if the user hasn't
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
-// It must only be called via srv.nextProtoOnce (use srv.setupHTTP2).
+// It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
 func (srv *Server) onceSetNextProtoDefaults() {
 	if strings.Contains(os.Getenv("GODEBUG"), "http2server=0") {
 		return

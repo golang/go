@@ -86,3 +86,26 @@ func tighten(f *Func) {
 		}
 	}
 }
+
+// phiTighten moves constants closer to phi users.
+// This pass avoids having lots of constants live for lots of the program.
+// See issue 16407.
+func phiTighten(f *Func) {
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op != OpPhi {
+				continue
+			}
+			for i, a := range v.Args {
+				if !a.rematerializeable() {
+					continue // not a constant we can move around
+				}
+				if a.Block == b.Preds[i].b {
+					continue // already in the right place
+				}
+				// Make a copy of a, put in predecessor block.
+				v.SetArg(i, a.copyInto(b.Preds[i].b))
+			}
+		}
+	}
+}

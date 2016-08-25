@@ -393,10 +393,15 @@ func gcAssistAlloc(gp *g) {
 	}
 
 	// Compute the amount of scan work we need to do to make the
-	// balance positive. We over-assist to build up credit for
-	// future allocations and amortize the cost of assisting.
-	debtBytes := -gp.gcAssistBytes + gcOverAssistBytes
+	// balance positive. When the required amount of work is low,
+	// we over-assist to build up credit for future allocations
+	// and amortize the cost of assisting.
+	debtBytes := -gp.gcAssistBytes
 	scanWork := int64(gcController.assistWorkPerByte * float64(debtBytes))
+	if scanWork < gcOverAssistWork {
+		scanWork = gcOverAssistWork
+		debtBytes = int64(gcController.assistBytesPerWork * float64(scanWork))
+	}
 
 retry:
 	// Steal as much credit as we can from the background GC's

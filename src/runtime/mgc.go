@@ -742,11 +742,10 @@ const gcCreditSlack = 2000
 // can accumulate on a P before updating gcController.assistTime.
 const gcAssistTimeSlack = 5000
 
-// gcOverAssistBytes determines how many extra allocation bytes of
-// assist credit a GC assist builds up when an assist happens. This
-// amortizes the cost of an assist by pre-paying for this many bytes
-// of future allocations.
-const gcOverAssistBytes = 1 << 20
+// gcOverAssistWork determines how many extra units of scan work a GC
+// assist does when an assist happens. This amortizes the cost of an
+// assist by pre-paying for this many bytes of future allocations.
+const gcOverAssistWork = 64 << 10
 
 var work struct {
 	full  uint64                   // lock-free list of full blocks workbuf

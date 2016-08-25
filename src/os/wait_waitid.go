@@ -28,6 +28,12 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
 	runtime.KeepAlive(psig)
 	if e != 0 {
+		// waitid has been available since Linux 2.6.9, but
+		// reportedly is not available in Ubuntu on Windows.
+		// See issue 16610.
+		if e == syscall.ENOSYS {
+			return false, nil
+		}
 		return false, NewSyscallError("waitid", e)
 	}
 	return true, nil

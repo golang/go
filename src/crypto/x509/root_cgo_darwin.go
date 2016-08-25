@@ -10,8 +10,64 @@ package x509
 #cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 
+#include <errno.h>
+#include <sys/sysctl.h>
+
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
+
+// FetchPEMRoots_MountainLion is the version of FetchPEMRoots from Go 1.6
+// which still works on OS X 10.8 (Mountain Lion).
+// It lacks support for admin & user cert domains.
+// See golang.org/issue/16473
+int FetchPEMRoots_MountainLion(CFDataRef *pemRoots) {
+	if (pemRoots == NULL) {
+		return -1;
+	}
+	CFArrayRef certs = NULL;
+	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
+	if (err != noErr) {
+		return -1;
+	}
+	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
+	int i, ncerts = CFArrayGetCount(certs);
+	for (i = 0; i < ncerts; i++) {
+		CFDataRef data = NULL;
+		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
+		if (cert == NULL) {
+			continue;
+		}
+		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
+		// Once we support weak imports via cgo we should prefer that, and fall back to this
+		// for older systems.
+		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+		if (err != noErr) {
+			continue;
+		}
+		if (data != NULL) {
+			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
+			CFRelease(data);
+		}
+	}
+	CFRelease(certs);
+	*pemRoots = combinedData;
+	return 0;
+}
+
+// useOldCode reports whether the running machine is OS X 10.8 Mountain Lion
+// or older. We only support Mountain Lion and higher, but we'll at least try our
+// best on older machines and continue to use the old code path.
+//
+// See golang.org/issue/16473
+int useOldCode() {
+	char str[256];
+	size_t size = sizeof(str);
+	memset(str, 0, size);
+	sysctlbyname("kern.osrelease", str, &size, NULL, 0);
+	// OS X 10.8 is osrelease "12.*", 10.7 is 11.*, 10.6 is 10.*.
+	// We never supported things before that.
+	return memcmp(str, "12.", 3) == 0 || memcmp(str, "11.", 3) == 0 || memcmp(str, "10.", 3) == 0;
+}
 
 // FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
 //
@@ -21,6 +77,10 @@ package x509
 // Note: The CFDataRef returned in pemRoots must be released (using CFRelease) after
 // we've consumed its content.
 int FetchPEMRoots(CFDataRef *pemRoots) {
+	if (useOldCode()) {
+		return FetchPEMRoots_MountainLion(pemRoots);
+	}
+
 	// Get certificates from all domains, not just System, this lets
 	// the user add CAs to their "login" keychain, and Admins to add
 	// to the "System" keychain

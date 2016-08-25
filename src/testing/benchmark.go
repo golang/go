@@ -263,10 +263,9 @@ func (b *B) launch() {
 	for n := 1; !b.failed && b.duration < d && n < 1e9; {
 		last := n
 		// Predict required iterations.
-		if b.nsPerOp() == 0 {
-			n = 1e9
-		} else {
-			n = int(d.Nanoseconds() / b.nsPerOp())
+		n = int(d.Nanoseconds())
+		if nsop := b.nsPerOp(); nsop != 0 {
+			n /= int(nsop)
 		}
 		// Run more iterations than we think we'll need (1.2x).
 		// Don't grow too fast in case we had timing errors previously.
