@@ -1047,13 +1047,13 @@ var opprec = []int{
 	OEND:        0,
 }
 
-func exprfmt(n *Node, prec int) string {
+func (p *printer) exprfmt(n *Node, prec int) *printer {
 	for n != nil && n.Implicit && (n.Op == OIND || n.Op == OADDR) {
 		n = n.Left
 	}
 
 	if n == nil {
-		return "<N>"
+		return p.s("<N>")
 	}
 
 	nprec := opprec[n.Op]
@@ -1062,197 +1062,186 @@ func exprfmt(n *Node, prec int) string {
 	}
 
 	if prec > nprec {
-		return fmt.Sprintf("(%v)", n)
+		return p.f("(%v)", n)
 	}
 
 	switch n.Op {
 	case OPAREN:
-		return fmt.Sprintf("(%v)", n.Left)
+		return p.f("(%v)", n.Left)
 
 	case ODDDARG:
-		return "... argument"
+		return p.s("... argument")
 
 	case OREGISTER:
-		return obj.Rconv(int(n.Reg))
+		return p.s(obj.Rconv(int(n.Reg)))
 
 	case OLITERAL: // this is a bit of a mess
 		if fmtmode == FErr {
 			if n.Orig != nil && n.Orig != n {
-				return exprfmt(n.Orig, prec)
+				return p.exprfmt(n.Orig, prec)
 			}
 			if n.Sym != nil {
-				return sconv(n.Sym, 0)
+				return p.s(sconv(n.Sym, 0))
 			}
 		}
 		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
-			return exprfmt(n.Orig, prec)
+			return p.exprfmt(n.Orig, prec)
 		}
 		if n.Type != nil && n.Type.Etype != TIDEAL && n.Type.Etype != TNIL && n.Type != idealbool && n.Type != idealstring {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == Crecv) {
-				return fmt.Sprintf("(%v)(%v)", n.Type, vconv(n.Val(), 0))
+				return p.f("(%v)(%v)", n.Type, vconv(n.Val(), 0))
 			} else {
-				return fmt.Sprintf("%v(%v)", n.Type, vconv(n.Val(), 0))
+				return p.f("%v(%v)", n.Type, vconv(n.Val(), 0))
 			}
 		}
 
-		return vconv(n.Val(), 0)
+		return p.s(vconv(n.Val(), 0))
 
 	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
 	case ONAME:
 		if fmtmode == FErr && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
-			return "_"
+			return p.s("_")
 		}
 		fallthrough
 
 	case OPACK, ONONAME:
-		return sconv(n.Sym, 0)
+		return p.s(sconv(n.Sym, 0))
 
 	case OTYPE:
 		if n.Type == nil && n.Sym != nil {
-			return sconv(n.Sym, 0)
+			return p.s(sconv(n.Sym, 0))
 		}
-		return Tconv(n.Type, 0)
+		return p.s(Tconv(n.Type, 0))
 
 	case OTARRAY:
 		if n.Left != nil {
-			return fmt.Sprintf("[]%v", n.Left)
+			return p.f("[]%v", n.Left)
 		}
-		return fmt.Sprintf("[]%v", n.Right) // happens before typecheck
+		return p.f("[]%v", n.Right) // happens before typecheck
 
 	case OTMAP:
-		return fmt.Sprintf("map[%v]%v", n.Left, n.Right)
+		return p.f("map[%v]%v", n.Left, n.Right)
 
 	case OTCHAN:
 		switch ChanDir(n.Etype) {
 		case Crecv:
-			return fmt.Sprintf("<-chan %v", n.Left)
+			return p.f("<-chan %v", n.Left)
 
 		case Csend:
-			return fmt.Sprintf("chan<- %v", n.Left)
+			return p.f("chan<- %v", n.Left)
 
 		default:
 			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && ChanDir(n.Left.Etype) == Crecv {
-				return fmt.Sprintf("chan (%v)", n.Left)
+				return p.f("chan (%v)", n.Left)
 			} else {
-				return fmt.Sprintf("chan %v", n.Left)
+				return p.f("chan %v", n.Left)
 			}
 		}
 
 	case OTSTRUCT:
-		return "<struct>"
+		return p.s("<struct>")
 
 	case OTINTER:
-		return "<inter>"
+		return p.s("<inter>")
 
 	case OTFUNC:
-		return "<func>"
+		return p.s("<func>")
 
 	case OCLOSURE:
 		if fmtmode == FErr {
-			return "func literal"
+			return p.s("func literal")
 		}
 		if n.Nbody.Len() != 0 {
-			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
+			return p.f("%v { %v }", n.Type, n.Nbody)
 		}
-		return fmt.Sprintf("%v { %v }", n.Type, n.Func.Closure.Nbody)
+		return p.f("%v { %v }", n.Type, n.Func.Closure.Nbody)
 
 	case OCOMPLIT:
 		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && n.Right.Type.IsPtr()
 		if fmtmode == FErr {
 			if n.Right != nil && n.Right.Type != nil && !n.Implicit {
 				if ptrlit {
-					return fmt.Sprintf("&%v literal", n.Right.Type.Elem())
+					return p.f("&%v literal", n.Right.Type.Elem())
 				} else {
-					return fmt.Sprintf("%v literal", n.Right.Type)
+					return p.f("%v literal", n.Right.Type)
 				}
 			}
 
-			return "composite literal"
+			return p.s("composite literal")
 		}
 
-		return fmt.Sprintf("(%v{ %v })", n.Right, hconv(n.List, FmtComma))
+		return p.f("(%v{ %v })", n.Right, hconv(n.List, FmtComma))
 
 	case OPTRLIT:
-		return fmt.Sprintf("&%v", n.Left)
+		return p.f("&%v", n.Left)
 
 	case OSTRUCTLIT, OARRAYLIT, OMAPLIT:
 		if fmtmode == FErr {
-			return fmt.Sprintf("%v literal", n.Type)
+			return p.f("%v literal", n.Type)
 		}
-		return fmt.Sprintf("(%v{ %v })", n.Type, hconv(n.List, FmtComma))
+		return p.f("(%v{ %v })", n.Type, hconv(n.List, FmtComma))
 
 	case OKEY:
 		if n.Left != nil && n.Right != nil {
-			return fmt.Sprintf("%v:%v", n.Left, n.Right)
+			return p.f("%v:%v", n.Left, n.Right)
 		}
 
 		if n.Left == nil && n.Right != nil {
-			return fmt.Sprintf(":%v", n.Right)
+			return p.f(":%v", n.Right)
 		}
 		if n.Left != nil && n.Right == nil {
-			return fmt.Sprintf("%v:", n.Left)
+			return p.f("%v:", n.Left)
 		}
-		return ":"
+		return p.s(":")
 
 	case OCALLPART:
-		var f string
-		f += exprfmt(n.Left, nprec)
+		p.exprfmt(n.Left, nprec)
 		if n.Right == nil || n.Right.Sym == nil {
-			f += ".<nil>"
-			return f
+			return p.s(".<nil>")
 		}
-		f += fmt.Sprintf(".%v", sconv(n.Right.Sym, FmtShort|FmtByte))
-		return f
+		return p.f(".%v", sconv(n.Right.Sym, FmtShort|FmtByte))
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
-		var f string
-		f += exprfmt(n.Left, nprec)
+		p.exprfmt(n.Left, nprec)
 		if n.Sym == nil {
-			f += ".<nil>"
-			return f
+			return p.s(".<nil>")
 		}
-		f += fmt.Sprintf(".%v", sconv(n.Sym, FmtShort|FmtByte))
-		return f
+		return p.f(".%v", sconv(n.Sym, FmtShort|FmtByte))
 
 	case ODOTTYPE, ODOTTYPE2:
-		var f string
-		f += exprfmt(n.Left, nprec)
+		p.exprfmt(n.Left, nprec)
 		if n.Right != nil {
-			f += fmt.Sprintf(".(%v)", n.Right)
-			return f
+			return p.f(".(%v)", n.Right)
 		}
-		f += fmt.Sprintf(".(%v)", n.Type)
-		return f
+		return p.f(".(%v)", n.Type)
 
 	case OINDEX, OINDEXMAP:
-		return fmt.Sprintf("%s[%v]", exprfmt(n.Left, nprec), n.Right)
+		return p.exprfmt(n.Left, nprec).f("[%v]", n.Right)
 
 	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
-		var buf bytes.Buffer
-		buf.WriteString(exprfmt(n.Left, nprec))
-		buf.WriteString("[")
+		p.exprfmt(n.Left, nprec)
+		p.s("[")
 		low, high, max := n.SliceBounds()
 		if low != nil {
-			buf.WriteString(low.String())
+			p.s(low.String())
 		}
-		buf.WriteString(":")
+		p.s(":")
 		if high != nil {
-			buf.WriteString(high.String())
+			p.s(high.String())
 		}
 		if n.Op.IsSlice3() {
-			buf.WriteString(":")
+			p.s(":")
 			if max != nil {
-				buf.WriteString(max.String())
+				p.s(max.String())
 			}
 		}
-		buf.WriteString("]")
-		return buf.String()
+		return p.s("]")
 
 	case OCOPY, OCOMPLEX:
-		return fmt.Sprintf("%#v(%v, %v)", n.Op, n.Left, n.Right)
+		return p.f("%#v(%v, %v)", n.Op, n.Left, n.Right)
 
 	case OCONV,
 		OCONVIFACE,
@@ -1263,12 +1252,12 @@ func exprfmt(n *Node, prec int) string {
 		OSTRARRAYRUNE,
 		ORUNESTR:
 		if n.Type == nil || n.Type.Sym == nil {
-			return fmt.Sprintf("(%v)(%v)", n.Type, n.Left)
+			return p.f("(%v)(%v)", n.Type, n.Left)
 		}
 		if n.Left != nil {
-			return fmt.Sprintf("%v(%v)", n.Type, n.Left)
+			return p.f("%v(%v)", n.Type, n.Left)
 		}
-		return fmt.Sprintf("%v(%v)", n.Type, hconv(n.List, FmtComma))
+		return p.f("%v(%v)", n.Type, hconv(n.List, FmtComma))
 
 	case OREAL,
 		OIMAG,
@@ -1284,34 +1273,31 @@ func exprfmt(n *Node, prec int) string {
 		OPRINT,
 		OPRINTN:
 		if n.Left != nil {
-			return fmt.Sprintf("%#v(%v)", n.Op, n.Left)
+			return p.f("%#v(%v)", n.Op, n.Left)
 		}
 		if n.Isddd {
-			return fmt.Sprintf("%#v(%v...)", n.Op, hconv(n.List, FmtComma))
+			return p.f("%#v(%v...)", n.Op, hconv(n.List, FmtComma))
 		}
-		return fmt.Sprintf("%#v(%v)", n.Op, hconv(n.List, FmtComma))
+		return p.f("%#v(%v)", n.Op, hconv(n.List, FmtComma))
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
-		var f string
-		f += exprfmt(n.Left, nprec)
+		p.exprfmt(n.Left, nprec)
 		if n.Isddd {
-			f += fmt.Sprintf("(%v...)", hconv(n.List, FmtComma))
-			return f
+			return p.f("(%v...)", hconv(n.List, FmtComma))
 		}
-		f += fmt.Sprintf("(%v)", hconv(n.List, FmtComma))
-		return f
+		return p.f("(%v)", hconv(n.List, FmtComma))
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		if n.List.Len() != 0 { // pre-typecheck
-			return fmt.Sprintf("make(%v, %v)", n.Type, hconv(n.List, FmtComma))
+			return p.f("make(%v, %v)", n.Type, hconv(n.List, FmtComma))
 		}
 		if n.Right != nil {
-			return fmt.Sprintf("make(%v, %v, %v)", n.Type, n.Left, n.Right)
+			return p.f("make(%v, %v, %v)", n.Type, n.Left, n.Right)
 		}
 		if n.Left != nil && (n.Op == OMAKESLICE || !n.Left.Type.IsUntyped()) {
-			return fmt.Sprintf("make(%v, %v)", n.Type, n.Left)
+			return p.f("make(%v, %v)", n.Type, n.Left)
 		}
-		return fmt.Sprintf("make(%v)", n.Type)
+		return p.f("make(%v)", n.Type)
 
 		// Unary
 	case OPLUS,
@@ -1321,12 +1307,11 @@ func exprfmt(n *Node, prec int) string {
 		OIND,
 		ONOT,
 		ORECV:
-		f := n.Op.GoString() // %#v
+		p.s(n.Op.GoString()) // %#v
 		if n.Left.Op == n.Op {
-			f += " "
+			p.s(" ")
 		}
-		f += exprfmt(n.Left, nprec+1)
-		return f
+		return p.exprfmt(n.Left, nprec+1)
 
 		// Binary
 	case OADD,
@@ -1349,43 +1334,38 @@ func exprfmt(n *Node, prec int) string {
 		OSEND,
 		OSUB,
 		OXOR:
-		var f string
-		f += exprfmt(n.Left, nprec)
-
-		f += fmt.Sprintf(" %#v ", n.Op)
-		f += exprfmt(n.Right, nprec+1)
-		return f
+		p.exprfmt(n.Left, nprec)
+		p.f(" %#v ", n.Op)
+		p.exprfmt(n.Right, nprec+1)
+		return p
 
 	case OADDSTR:
-		var f string
 		i := 0
 		for _, n1 := range n.List.Slice() {
 			if i != 0 {
-				f += " + "
+				p.s(" + ")
 			}
-			f += exprfmt(n1, nprec)
+			p.exprfmt(n1, nprec)
 			i++
 		}
-
-		return f
+		return p
 
 	case OCMPSTR, OCMPIFACE:
-		var f string
-		f += exprfmt(n.Left, nprec)
+		p.exprfmt(n.Left, nprec)
 		// TODO(marvin): Fix Node.EType type union.
-		f += fmt.Sprintf(" %#v ", Op(n.Etype))
-		f += exprfmt(n.Right, nprec+1)
-		return f
+		p.f(" %#v ", Op(n.Etype))
+		p.exprfmt(n.Right, nprec+1)
+		return p
 
 	case ODCLCONST:
 		// if exporting, DCLCONST should just be removed as its usage
 		// has already been replaced with literals
 		if fmtbody {
-			return ""
+			return p.s("")
 		}
 	}
 
-	return fmt.Sprintf("<node %v>", n.Op)
+	return p.f("<node %v>", n.Op)
 }
 
 func (p *printer) nodefmt(n *Node, flag FmtFlag) *printer {
@@ -1412,7 +1392,7 @@ func (p *printer) nodefmt(n *Node, flag FmtFlag) *printer {
 		return p.stmtfmt(n)
 	}
 
-	return p.s(exprfmt(n, 0))
+	return p.exprfmt(n, 0)
 }
 
 func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
