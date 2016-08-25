@@ -752,9 +752,7 @@ func stmtwithinit(op Op) bool {
 	return false
 }
 
-func stmtfmt(n *Node) string {
-	var f string
-
+func (p *printer) stmtfmt(n *Node) *printer {
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
 	// and inlining. If it doesn't fit the syntax, emit an enclosing
@@ -770,22 +768,22 @@ func stmtfmt(n *Node) string {
 	extrablock := complexinit && stmtwithinit(n.Op)
 
 	if extrablock {
-		f += "{"
+		p.s("{")
 	}
 
 	if complexinit {
-		f += fmt.Sprintf(" %v; ", n.Ninit)
+		p.f(" %v; ", n.Ninit)
 	}
 
 	switch n.Op {
 	case ODCL:
-		f += fmt.Sprintf("var %v %v", n.Left.Sym, n.Left.Type)
+		p.f("var %v %v", n.Left.Sym, n.Left.Type)
 
 	case ODCLFIELD:
 		if n.Left != nil {
-			f += fmt.Sprintf("%v %v", n.Left, n.Right)
+			p.f("%v %v", n.Left, n.Right)
 		} else {
-			f += Nconv(n.Right, 0)
+			p.s(Nconv(n.Right, 0))
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
@@ -793,121 +791,121 @@ func stmtfmt(n *Node) string {
 	// the "v = <N>" again.
 	case OAS, OASWB:
 		if n.Colas && !complexinit {
-			f += fmt.Sprintf("%v := %v", n.Left, n.Right)
+			p.f("%v := %v", n.Left, n.Right)
 		} else {
-			f += fmt.Sprintf("%v = %v", n.Left, n.Right)
+			p.f("%v = %v", n.Left, n.Right)
 		}
 
 	case OASOP:
 		if n.Implicit {
 			if Op(n.Etype) == OADD {
-				f += fmt.Sprintf("%v++", n.Left)
+				p.f("%v++", n.Left)
 			} else {
-				f += fmt.Sprintf("%v--", n.Left)
+				p.f("%v--", n.Left)
 			}
 			break
 		}
 
-		f += fmt.Sprintf("%v %#v= %v", n.Left, Op(n.Etype), n.Right)
+		p.f("%v %#v= %v", n.Left, Op(n.Etype), n.Right)
 
 	case OAS2:
 		if n.Colas && !complexinit {
-			f += fmt.Sprintf("%v := %v", hconv(n.List, FmtComma), hconv(n.Rlist, FmtComma))
+			p.f("%v := %v", hconv(n.List, FmtComma), hconv(n.Rlist, FmtComma))
 			break
 		}
 		fallthrough
 
 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		f += fmt.Sprintf("%v = %v", hconv(n.List, FmtComma), hconv(n.Rlist, FmtComma))
+		p.f("%v = %v", hconv(n.List, FmtComma), hconv(n.Rlist, FmtComma))
 
 	case ORETURN:
-		f += fmt.Sprintf("return %v", hconv(n.List, FmtComma))
+		p.f("return %v", hconv(n.List, FmtComma))
 
 	case ORETJMP:
-		f += fmt.Sprintf("retjmp %v", n.Sym)
+		p.f("retjmp %v", n.Sym)
 
 	case OPROC:
-		f += fmt.Sprintf("go %v", n.Left)
+		p.f("go %v", n.Left)
 
 	case ODEFER:
-		f += fmt.Sprintf("defer %v", n.Left)
+		p.f("defer %v", n.Left)
 
 	case OIF:
 		if simpleinit {
-			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.First(), n.Left, n.Nbody)
+			p.f("if %v; %v { %v }", n.Ninit.First(), n.Left, n.Nbody)
 		} else {
-			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
+			p.f("if %v { %v }", n.Left, n.Nbody)
 		}
 		if n.Rlist.Len() != 0 {
-			f += fmt.Sprintf(" else { %v }", n.Rlist)
+			p.f(" else { %v }", n.Rlist)
 		}
 
 	case OFOR:
 		if fmtmode == FErr { // TODO maybe only if FmtShort, same below
-			f += "for loop"
+			p.s("for loop")
 			break
 		}
 
-		f += "for"
+		p.s("for")
 		if simpleinit {
-			f += fmt.Sprintf(" %v;", n.Ninit.First())
+			p.f(" %v;", n.Ninit.First())
 		} else if n.Right != nil {
-			f += " ;"
+			p.s(" ;")
 		}
 
 		if n.Left != nil {
-			f += fmt.Sprintf(" %v", n.Left)
+			p.f(" %v", n.Left)
 		}
 
 		if n.Right != nil {
-			f += fmt.Sprintf("; %v", n.Right)
+			p.f("; %v", n.Right)
 		} else if simpleinit {
-			f += ";"
+			p.s(";")
 		}
 
-		f += fmt.Sprintf(" { %v }", n.Nbody)
+		p.f(" { %v }", n.Nbody)
 
 	case ORANGE:
 		if fmtmode == FErr {
-			f += "for loop"
+			p.s("for loop")
 			break
 		}
 
 		if n.List.Len() == 0 {
-			f += fmt.Sprintf("for range %v { %v }", n.Right, n.Nbody)
+			p.f("for range %v { %v }", n.Right, n.Nbody)
 			break
 		}
 
-		f += fmt.Sprintf("for %v = range %v { %v }", hconv(n.List, FmtComma), n.Right, n.Nbody)
+		p.f("for %v = range %v { %v }", hconv(n.List, FmtComma), n.Right, n.Nbody)
 
 	case OSELECT, OSWITCH:
 		if fmtmode == FErr {
-			f += fmt.Sprintf("%v statement", n.Op)
+			p.f("%v statement", n.Op)
 			break
 		}
 
-		f += n.Op.GoString() // %#v
+		p.s(n.Op.GoString()) // %#v
 		if simpleinit {
-			f += fmt.Sprintf(" %v;", n.Ninit.First())
+			p.f(" %v;", n.Ninit.First())
 		}
 		if n.Left != nil {
-			f += fmt.Sprintf(" %s ", Nconv(n.Left, 0))
+			p.f(" %s ", Nconv(n.Left, 0))
 		}
 
-		f += fmt.Sprintf(" { %v }", n.List)
+		p.f(" { %v }", n.List)
 
 	case OXCASE:
 		if n.List.Len() != 0 {
-			f += fmt.Sprintf("case %v: %v", hconv(n.List, FmtComma), n.Nbody)
+			p.f("case %v: %v", hconv(n.List, FmtComma), n.Nbody)
 		} else {
-			f += fmt.Sprintf("default: %v", n.Nbody)
+			p.f("default: %v", n.Nbody)
 		}
 
 	case OCASE:
 		if n.Left != nil {
-			f += fmt.Sprintf("case %v: %v", n.Left, n.Nbody)
+			p.f("case %v: %v", n.Left, n.Nbody)
 		} else {
-			f += fmt.Sprintf("default: %v", n.Nbody)
+			p.f("default: %v", n.Nbody)
 		}
 
 	case OBREAK,
@@ -916,23 +914,23 @@ func stmtfmt(n *Node) string {
 		OFALL,
 		OXFALL:
 		if n.Left != nil {
-			f += fmt.Sprintf("%#v %v", n.Op, n.Left)
+			p.f("%#v %v", n.Op, n.Left)
 		} else {
-			f += n.Op.GoString() // %#v
+			p.s(n.Op.GoString()) // %#v
 		}
 
 	case OEMPTY:
 		break
 
 	case OLABEL:
-		f += fmt.Sprintf("%v: ", n.Left)
+		p.f("%v: ", n.Left)
 	}
 
 	if extrablock {
-		f += "}"
+		p.s("}")
 	}
 
-	return f
+	return p
 }
 
 var opprec = []int{
@@ -1411,7 +1409,7 @@ func (p *printer) nodefmt(n *Node, flag FmtFlag) *printer {
 	// TODO inlining produces expressions with ninits. we can't print these yet.
 
 	if opprec[n.Op] < 0 {
-		return p.s(stmtfmt(n))
+		return p.stmtfmt(n)
 	}
 
 	return p.s(exprfmt(n, 0))
@@ -1698,6 +1696,8 @@ func (n Nodes) String() string {
 // Fmt '%H': Nodes.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
 func hconv(l Nodes, flag FmtFlag) string {
+	var p printer
+
 	if l.Len() == 0 && fmtmode == FDbg {
 		return "<nil>"
 	}
@@ -1711,18 +1711,18 @@ func hconv(l Nodes, flag FmtFlag) string {
 		sep = ", "
 	}
 
-	var buf bytes.Buffer
 	for i, n := range l.Slice() {
-		buf.WriteString(Nconv(n, 0))
+		p.s(Nconv(n, 0))
 		if i+1 < l.Len() {
-			buf.WriteString(sep)
+			p.s(sep)
 		}
 	}
 
 	flag = sf
 	fmtbody = sb
 	fmtmode = sm
-	return buf.String()
+
+	return p.String()
 }
 
 func dumplist(s string, l Nodes) {
