@@ -1,4 +1,4 @@
-// +build amd64 arm amd64p32 386 arm64
+// +build amd64 arm amd64p32 386 arm64 mips64 mips64le
 // errorcheck -0 -l -live -wb=0
 
 // Copyright 2014 The Go Authors. All rights reserved.

@@ -264,6 +264,104 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
 		return rewriteValueMIPS64_OpLsh8x64(v, config)
 	case OpLsh8x8:
 		return rewriteValueMIPS64_OpLsh8x8(v, config)
+	case OpMIPS64ADDV:
+		return rewriteValueMIPS64_OpMIPS64ADDV(v, config)
+	case OpMIPS64ADDVconst:
+		return rewriteValueMIPS64_OpMIPS64ADDVconst(v, config)
+	case OpMIPS64AND:
+		return rewriteValueMIPS64_OpMIPS64AND(v, config)
+	case OpMIPS64ANDconst:
+		return rewriteValueMIPS64_OpMIPS64ANDconst(v, config)
+	case OpMIPS64MOVBUload:
+		return rewriteValueMIPS64_OpMIPS64MOVBUload(v, config)
+	case OpMIPS64MOVBUreg:
+		return rewriteValueMIPS64_OpMIPS64MOVBUreg(v, config)
+	case OpMIPS64MOVBload:
+		return rewriteValueMIPS64_OpMIPS64MOVBload(v, config)
+	case OpMIPS64MOVBreg:
+		return rewriteValueMIPS64_OpMIPS64MOVBreg(v, config)
+	case OpMIPS64MOVBstore:
+		return rewriteValueMIPS64_OpMIPS64MOVBstore(v, config)
+	case OpMIPS64MOVBstorezero:
+		return rewriteValueMIPS64_OpMIPS64MOVBstorezero(v, config)
+	case OpMIPS64MOVDload:
+		return rewriteValueMIPS64_OpMIPS64MOVDload(v, config)
+	case OpMIPS64MOVDstore:
+		return rewriteValueMIPS64_OpMIPS64MOVDstore(v, config)
+	case OpMIPS64MOVFload:
+		return rewriteValueMIPS64_OpMIPS64MOVFload(v, config)
+	case OpMIPS64MOVFstore:
+		return rewriteValueMIPS64_OpMIPS64MOVFstore(v, config)
+	case OpMIPS64MOVHUload:
+		return rewriteValueMIPS64_OpMIPS64MOVHUload(v, config)
+	case OpMIPS64MOVHUreg:
+		return rewriteValueMIPS64_OpMIPS64MOVHUreg(v, config)
+	case OpMIPS64MOVHload:
+		return rewriteValueMIPS64_OpMIPS64MOVHload(v, config)
+	case OpMIPS64MOVHreg:
+		return rewriteValueMIPS64_OpMIPS64MOVHreg(v, config)
+	case OpMIPS64MOVHstore:
+		return rewriteValueMIPS64_OpMIPS64MOVHstore(v, config)
+	case OpMIPS64MOVHstorezero:
+		return rewriteValueMIPS64_OpMIPS64MOVHstorezero(v, config)
+	case OpMIPS64MOVVload:
+		return rewriteValueMIPS64_OpMIPS64MOVVload(v, config)
+	case OpMIPS64MOVVreg:
+		return rewriteValueMIPS64_OpMIPS64MOVVreg(v, config)
+	case OpMIPS64MOVVstore:
+		return rewriteValueMIPS64_OpMIPS64MOVVstore(v, config)
+	case OpMIPS64MOVVstorezero:
+		return rewriteValueMIPS64_OpMIPS64MOVVstorezero(v, config)
+	case OpMIPS64MOVWUload:
+		return rewriteValueMIPS64_OpMIPS64MOVWUload(v, config)
+	case OpMIPS64MOVWUreg:
+		return rewriteValueMIPS64_OpMIPS64MOVWUreg(v, config)
+	case OpMIPS64MOVWload:
+		return rewriteValueMIPS64_OpMIPS64MOVWload(v, config)
+	case OpMIPS64MOVWreg:
+		return rewriteValueMIPS64_OpMIPS64MOVWreg(v, config)
+	case OpMIPS64MOVWstore:
+		return rewriteValueMIPS64_OpMIPS64MOVWstore(v, config)
+	case OpMIPS64MOVWstorezero:
+		return rewriteValueMIPS64_OpMIPS64MOVWstorezero(v, config)
+	case OpMIPS64NEGV:
+		return rewriteValueMIPS64_OpMIPS64NEGV(v, config)
+	case OpMIPS64NOR:
+		return rewriteValueMIPS64_OpMIPS64NOR(v, config)
+	case OpMIPS64NORconst:
+		return rewriteValueMIPS64_OpMIPS64NORconst(v, config)
+	case OpMIPS64OR:
+		return rewriteValueMIPS64_OpMIPS64OR(v, config)
+	case OpMIPS64ORconst:
+		return rewriteValueMIPS64_OpMIPS64ORconst(v, config)
+	case OpMIPS64SGT:
+		return rewriteValueMIPS64_OpMIPS64SGT(v, config)
+	case OpMIPS64SGTU:
+		return rewriteValueMIPS64_OpMIPS64SGTU(v, config)
+	case OpMIPS64SGTUconst:
+		return rewriteValueMIPS64_OpMIPS64SGTUconst(v, config)
+	case OpMIPS64SGTconst:
+		return rewriteValueMIPS64_OpMIPS64SGTconst(v, config)
+	case OpMIPS64SLLV:
+		return rewriteValueMIPS64_OpMIPS64SLLV(v, config)
+	case OpMIPS64SLLVconst:
+		return rewriteValueMIPS64_OpMIPS64SLLVconst(v, config)
+	case OpMIPS64SRAV:
+		return rewriteValueMIPS64_OpMIPS64SRAV(v, config)
+	case OpMIPS64SRAVconst:
+		return rewriteValueMIPS64_OpMIPS64SRAVconst(v, config)
+	case OpMIPS64SRLV:
+		return rewriteValueMIPS64_OpMIPS64SRLV(v, config)
+	case OpMIPS64SRLVconst:
+		return rewriteValueMIPS64_OpMIPS64SRLVconst(v, config)
+	case OpMIPS64SUBV:
+		return rewriteValueMIPS64_OpMIPS64SUBV(v, config)
+	case OpMIPS64SUBVconst:
+		return rewriteValueMIPS64_OpMIPS64SUBVconst(v, config)
+	case OpMIPS64XOR:
+		return rewriteValueMIPS64_OpMIPS64XOR(v, config)
+	case OpMIPS64XORconst:
+		return rewriteValueMIPS64_OpMIPS64XORconst(v, config)
 	case OpMod16:
 		return rewriteValueMIPS64_OpMod16(v, config)
 	case OpMod16u:
@@ -402,6 +500,10 @@ func rewriteValueMIPS64(v *Value, config *Config) bool {
 		return rewriteValueMIPS64_OpRsh8x64(v, config)
 	case OpRsh8x8:
 		return rewriteValueMIPS64_OpRsh8x8(v, config)
+	case OpSelect0:
+		return rewriteValueMIPS64_OpSelect0(v, config)
+	case OpSelect1:
+		return rewriteValueMIPS64_OpSelect1(v, config)
 	case OpSignExt16to32:
 		return rewriteValueMIPS64_OpSignExt16to32(v, config)
 	case OpSignExt16to64:
@@ -3082,6 +3184,3095 @@ func rewriteValueMIPS64_OpLsh8x8(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValueMIPS64_OpMIPS64ADDV(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ADDV (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (ADDVconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64ADDVconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADDV x (MOVVconst [c]))
+	// cond: is32Bit(c)
+	// result: (ADDVconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64ADDVconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADDV x (NEGV y))
+	// cond:
+	// result: (SUBV x y)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64NEGV {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpMIPS64SUBV)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDV (NEGV y) x)
+	// cond:
+	// result: (SUBV x y)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64NEGV {
+			break
+		}
+		y := v_0.Args[0]
+		x := v.Args[1]
+		v.reset(OpMIPS64SUBV)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64ADDVconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ADDVconst [off1] (MOVVaddr [off2] {sym} ptr))
+	// cond:
+	// result: (MOVVaddr [off1+off2] {sym} ptr)
+	for {
+		off1 := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym := v_0.Aux
+		ptr := v_0.Args[0]
+		v.reset(OpMIPS64MOVVaddr)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		return true
+	}
+	// match: (ADDVconst [0]  x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADDVconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [c+d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = c + d
+		return true
+	}
+	// match: (ADDVconst [c] (ADDVconst [d] x))
+	// cond: is32Bit(c+d)
+	// result: (ADDVconst [c+d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(c + d)) {
+			break
+		}
+		v.reset(OpMIPS64ADDVconst)
+		v.AuxInt = c + d
+		v.AddArg(x)
+		return true
+	}
+	// match: (ADDVconst [c] (SUBVconst [d] x))
+	// cond: is32Bit(c-d)
+	// result: (ADDVconst [c-d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64SUBVconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(c - d)) {
+			break
+		}
+		v.reset(OpMIPS64ADDVconst)
+		v.AuxInt = c - d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64AND(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AND (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (ANDconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64ANDconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (AND x (MOVVconst [c]))
+	// cond: is32Bit(c)
+	// result: (ANDconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64ANDconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (AND x x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64ANDconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ANDconst [0]  _)
+	// cond:
+	// result: (MOVVconst [0])
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (ANDconst [-1] x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != -1 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (ANDconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [c&d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = c & d
+		return true
+	}
+	// match: (ANDconst [c] (ANDconst [d] x))
+	// cond:
+	// result: (ANDconst [c&d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ANDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		v.reset(OpMIPS64ANDconst)
+		v.AuxInt = c & d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVBUload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBUload [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVBUload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBUload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBUload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBUload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVBUreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBUreg x:(MOVBUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg x:(MOVBUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBUreg (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [int64(uint8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(uint8(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVBload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBload  [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVBload  [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVBreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBreg x:(MOVBload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBreg x:(MOVBreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBreg  (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [int64(int8(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(int8(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVBstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVVconst [0]) mem)
+	// cond:
+	// result: (MOVBstorezero [off] {sym} ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstorezero)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVBreg x) mem)
+	// cond:
+	// result: (MOVBstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVBreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVBUreg x) mem)
+	// cond:
+	// result: (MOVBstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVHreg x) mem)
+	// cond:
+	// result: (MOVBstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVHreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVHUreg x) mem)
+	// cond:
+	// result: (MOVBstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVWreg x) mem)
+	// cond:
+	// result: (MOVBstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVWreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstore [off] {sym} ptr (MOVWUreg x) mem)
+	// cond:
+	// result: (MOVBstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVWUreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVBstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVBstorezero(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVBstorezero [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVBstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVBstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVDload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVDload  [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVDload  [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVDload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVDload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVDload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVDstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVDstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVDstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVDstore [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVDstore)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVFload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVFload  [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVFload  [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVFload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVFload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVFload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVFload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVFstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVFstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVFstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVFstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVFstore [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVFstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVFstore)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVHUload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHUload [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVHUload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHUload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHUload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHUload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVHUreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHUreg x:(MOVBUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHUreg x:(MOVHUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHUreg x:(MOVBUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHUreg x:(MOVHUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHUreg (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [int64(uint16(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(uint16(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVHload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHload  [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVHload  [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVHreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHreg x:(MOVBload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVBUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVHload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVBreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVBUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVHreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg  (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [int64(int16(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(int16(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVHstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHstore)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off] {sym} ptr (MOVVconst [0]) mem)
+	// cond:
+	// result: (MOVHstorezero [off] {sym} ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVHstorezero)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off] {sym} ptr (MOVHreg x) mem)
+	// cond:
+	// result: (MOVHstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVHreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVHstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off] {sym} ptr (MOVHUreg x) mem)
+	// cond:
+	// result: (MOVHstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVHstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off] {sym} ptr (MOVWreg x) mem)
+	// cond:
+	// result: (MOVHstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVWreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVHstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstore [off] {sym} ptr (MOVWUreg x) mem)
+	// cond:
+	// result: (MOVHstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVWUreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVHstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVHstorezero(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVHstorezero [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVHstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVHstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVVload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVVload  [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVVload  [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVVload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVVload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVVreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVVreg x)
+	// cond: x.Uses == 1
+	// result: (MOVVnop x)
+	for {
+		x := v.Args[0]
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpMIPS64MOVVnop)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVVreg  (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = c
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVVstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVVstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVVstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVVstore [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVVstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVstore)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVVstore [off] {sym} ptr (MOVVconst [0]) mem)
+	// cond:
+	// result: (MOVVstorezero [off] {sym} ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVVstorezero)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVVstorezero(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVVstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVVstorezero [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVVstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVVstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWUload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWUload [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVWUload [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWUload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWUload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWUload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWUreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWUreg x:(MOVBUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVHUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVWUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVWUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVBUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVHUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVWUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVWUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [int64(uint32(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(uint32(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWload(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWload  [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVWload  [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWload)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWload [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWload)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWreg x:(MOVBload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVBUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVHload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVHUload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHUload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVWload _ _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVWload {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVBreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVBUreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVHreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVHreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVHreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVWreg _))
+	// cond:
+	// result: (MOVVreg x)
+	for {
+		x := v.Args[0]
+		if x.Op != OpMIPS64MOVWreg {
+			break
+		}
+		v.reset(OpMIPS64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg  (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [int64(int32(c))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(int32(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWstore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWstore [off1] {sym} (ADDVconst [off2] ptr) val mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWstore)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWstore)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [off] {sym} ptr (MOVVconst [0]) mem)
+	// cond:
+	// result: (MOVWstorezero [off] {sym} ptr mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_1.AuxInt != 0 {
+			break
+		}
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVWstorezero)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [off] {sym} ptr (MOVWreg x) mem)
+	// cond:
+	// result: (MOVWstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVWreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVWstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstore [off] {sym} ptr (MOVWUreg x) mem)
+	// cond:
+	// result: (MOVWstore [off] {sym} ptr x mem)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		ptr := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVWUreg {
+			break
+		}
+		x := v_1.Args[0]
+		mem := v.Args[2]
+		v.reset(OpMIPS64MOVWstore)
+		v.AuxInt = off
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(x)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64MOVWstorezero(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVWstorezero [off1] {sym} (ADDVconst [off2] ptr) mem)
+	// cond: is32Bit(off1+off2)
+	// result: (MOVWstorezero [off1+off2] {sym} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		off2 := v_0.AuxInt
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(is32Bit(off1 + off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = sym
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	// match: (MOVWstorezero [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem)
+	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2)
+	// result: (MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+	for {
+		off1 := v.AuxInt
+		sym1 := v.Aux
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVaddr {
+			break
+		}
+		off2 := v_0.AuxInt
+		sym2 := v_0.Aux
+		ptr := v_0.Args[0]
+		mem := v.Args[1]
+		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2)) {
+			break
+		}
+		v.reset(OpMIPS64MOVWstorezero)
+		v.AuxInt = off1 + off2
+		v.Aux = mergeSym(sym1, sym2)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64NEGV(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NEGV (MOVVconst [c]))
+	// cond:
+	// result: (MOVVconst [-c])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = -c
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64NOR(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NOR (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (NORconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64NORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (NOR x (MOVVconst [c]))
+	// cond: is32Bit(c)
+	// result: (NORconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64NORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64NORconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NORconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [^(c|d)])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = ^(c | d)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64OR(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (OR  (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (ORconst  [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64ORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR  x (MOVVconst [c]))
+	// cond: is32Bit(c)
+	// result: (ORconst  [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64ORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (OR  x x)
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64ORconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ORconst  [0]  x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (ORconst  [-1] _)
+	// cond:
+	// result: (MOVVconst [-1])
+	for {
+		if v.AuxInt != -1 {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = -1
+		return true
+	}
+	// match: (ORconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [c|d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = c | d
+		return true
+	}
+	// match: (ORconst [c] (ORconst [d] x))
+	// cond: is32Bit(c|d)
+	// result: (ORconst [c|d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ORconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(c | d)) {
+			break
+		}
+		v.reset(OpMIPS64ORconst)
+		v.AuxInt = c | d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SGT(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SGT  (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (SGTconst  [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64SGTconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SGTU(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SGTU (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (SGTUconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64SGTUconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SGTUconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SGTUconst [c] (MOVVconst [d]))
+	// cond: uint64(c)>uint64(d)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		if !(uint64(c) > uint64(d)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTUconst [c] (MOVVconst [d]))
+	// cond: uint64(c)<=uint64(d)
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		if !(uint64(c) <= uint64(d)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTUconst [c] (MOVBUreg _))
+	// cond: 0xff < uint64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		if !(0xff < uint64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTUconst [c] (MOVHUreg _))
+	// cond: 0xffff < uint64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		if !(0xffff < uint64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTUconst [c] (ANDconst [m] _))
+	// cond: uint64(m) < uint64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ANDconst {
+			break
+		}
+		m := v_0.AuxInt
+		if !(uint64(m) < uint64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTUconst [c] (SRLVconst _ [d]))
+	// cond: 0 < d && d <= 63 && 1<<uint64(64-d) <= uint64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64SRLVconst {
+			break
+		}
+		d := v_0.AuxInt
+		if !(0 < d && d <= 63 && 1<<uint64(64-d) <= uint64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SGTconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SGTconst [c] (MOVVconst [d]))
+	// cond: int64(c)>int64(d)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		if !(int64(c) > int64(d)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTconst [c] (MOVVconst [d]))
+	// cond: int64(c)<=int64(d)
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		if !(int64(c) <= int64(d)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTconst [c] (MOVBreg _))
+	// cond: 0x7f < int64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVBreg {
+			break
+		}
+		if !(0x7f < int64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTconst [c] (MOVBreg _))
+	// cond: int64(c) <= -0x80
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVBreg {
+			break
+		}
+		if !(int64(c) <= -0x80) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTconst [c] (MOVBUreg _))
+	// cond: 0xff < int64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		if !(0xff < int64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTconst [c] (MOVBUreg _))
+	// cond: int64(c) < 0
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVBUreg {
+			break
+		}
+		if !(int64(c) < 0) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTconst [c] (MOVHreg _))
+	// cond: 0x7fff < int64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVHreg {
+			break
+		}
+		if !(0x7fff < int64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTconst [c] (MOVHreg _))
+	// cond: int64(c) <= -0x8000
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVHreg {
+			break
+		}
+		if !(int64(c) <= -0x8000) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTconst [c] (MOVHUreg _))
+	// cond: 0xffff < int64(c)
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		if !(0xffff < int64(c)) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTconst [c] (MOVHUreg _))
+	// cond: int64(c) < 0
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVHUreg {
+			break
+		}
+		if !(int64(c) < 0) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTconst [c] (MOVWUreg _))
+	// cond: int64(c) < 0
+	// result: (MOVVconst [0])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVWUreg {
+			break
+		}
+		if !(int64(c) < 0) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SGTconst [c] (ANDconst [m] _))
+	// cond: 0 <= m && m < c
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ANDconst {
+			break
+		}
+		m := v_0.AuxInt
+		if !(0 <= m && m < c) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SGTconst [c] (SRLVconst _ [d]))
+	// cond: 0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c
+	// result: (MOVVconst [1])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64SRLVconst {
+			break
+		}
+		d := v_0.AuxInt
+		if !(0 <= c && 0 < d && d <= 63 && 1<<uint64(64-d) <= c) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 1
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SLLV(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SLLV _ (MOVVconst [c]))
+	// cond: uint64(c)>=64
+	// result: (MOVVconst [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 64) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SLLV x (MOVVconst [c]))
+	// cond:
+	// result: (SLLVconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpMIPS64SLLVconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SLLVconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SLLVconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [int64(d)<<uint64(c)])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(d) << uint64(c)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SRAV(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRAV x (MOVVconst [c]))
+	// cond: uint64(c)>=64
+	// result: (SRAVconst x [63])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 64) {
+			break
+		}
+		v.reset(OpMIPS64SRAVconst)
+		v.AuxInt = 63
+		v.AddArg(x)
+		return true
+	}
+	// match: (SRAV x (MOVVconst [c]))
+	// cond:
+	// result: (SRAVconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpMIPS64SRAVconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SRAVconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRAVconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [int64(d)>>uint64(c)])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(d) >> uint64(c)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SRLV(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRLV _ (MOVVconst [c]))
+	// cond: uint64(c)>=64
+	// result: (MOVVconst [0])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(uint64(c) >= 64) {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SRLV x (MOVVconst [c]))
+	// cond:
+	// result: (SRLVconst x [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		v.reset(OpMIPS64SRLVconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SRLVconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SRLVconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [int64(uint64(d)>>uint64(c))])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(uint64(d) >> uint64(c))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SUBV(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBV x (MOVVconst [c]))
+	// cond: is32Bit(c)
+	// result: (SUBVconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64SUBVconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBV x x)
+	// cond:
+	// result: (MOVVconst [0])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SUBV (MOVVconst [0]) x)
+	// cond:
+	// result: (NEGV x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0.AuxInt != 0 {
+			break
+		}
+		x := v.Args[1]
+		v.reset(OpMIPS64NEGV)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64SUBVconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SUBVconst [0]  x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBVconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [d-c])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = d - c
+		return true
+	}
+	// match: (SUBVconst [c] (SUBVconst [d] x))
+	// cond: is32Bit(-c-d)
+	// result: (ADDVconst [-c-d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64SUBVconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(-c - d)) {
+			break
+		}
+		v.reset(OpMIPS64ADDVconst)
+		v.AuxInt = -c - d
+		v.AddArg(x)
+		return true
+	}
+	// match: (SUBVconst [c] (ADDVconst [d] x))
+	// cond: is32Bit(-c+d)
+	// result: (ADDVconst [-c+d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64ADDVconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(-c + d)) {
+			break
+		}
+		v.reset(OpMIPS64ADDVconst)
+		v.AuxInt = -c + d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64XOR(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XOR (MOVVconst [c]) x)
+	// cond: is32Bit(c)
+	// result: (XORconst [c] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v.Args[1]
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64XORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR x (MOVVconst [c]))
+	// cond: is32Bit(c)
+	// result: (XORconst [c] x)
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(is32Bit(c)) {
+			break
+		}
+		v.reset(OpMIPS64XORconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (XOR x x)
+	// cond:
+	// result: (MOVVconst [0])
+	for {
+		x := v.Args[0]
+		if x != v.Args[1] {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpMIPS64XORconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (XORconst [0]  x)
+	// cond:
+	// result: x
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORconst [-1] x)
+	// cond:
+	// result: (NORconst [0] x)
+	for {
+		if v.AuxInt != -1 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpMIPS64NORconst)
+		v.AuxInt = 0
+		v.AddArg(x)
+		return true
+	}
+	// match: (XORconst [c] (MOVVconst [d]))
+	// cond:
+	// result: (MOVVconst [c^d])
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = c ^ d
+		return true
+	}
+	// match: (XORconst [c] (XORconst [d] x))
+	// cond: is32Bit(c^d)
+	// result: (XORconst [c^d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64XORconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(c ^ d)) {
+			break
+		}
+		v.reset(OpMIPS64XORconst)
+		v.AuxInt = c ^ d
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValueMIPS64_OpMod16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -5173,6 +8364,374 @@ func rewriteValueMIPS64_OpRsh8x8(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValueMIPS64_OpSelect0(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Select0 (DIVVU _ (MOVVconst [1])))
+	// cond:
+	// result: (MOVVconst [0])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_1.AuxInt != 1 {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (Select0 (DIVVU x (MOVVconst [c])))
+	// cond: isPowerOfTwo(c)
+	// result: (ANDconst [c-1] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpMIPS64ANDconst)
+		v.AuxInt = c - 1
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select0 (DIVV  (MOVVconst [c]) (MOVVconst [d])))
+	// cond:
+	// result: (MOVVconst [int64(c)%int64(d)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVV {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0_1.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(c) % int64(d)
+		return true
+	}
+	// match: (Select0 (DIVVU (MOVVconst [c]) (MOVVconst [d])))
+	// cond:
+	// result: (MOVVconst [int64(uint64(c)%uint64(d))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0_1.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(uint64(c) % uint64(d))
+		return true
+	}
+	return false
+}
+func rewriteValueMIPS64_OpSelect1(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Select1 (MULVU x (MOVVconst [-1])))
+	// cond:
+	// result: (NEGV x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_1.AuxInt != -1 {
+			break
+		}
+		v.reset(OpMIPS64NEGV)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (MULVU _ (MOVVconst [0])))
+	// cond:
+	// result: (MOVVconst [0])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_1.AuxInt != 0 {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (Select1 (MULVU x (MOVVconst [1])))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_1.AuxInt != 1 {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (MULVU x (MOVVconst [c])))
+	// cond: isPowerOfTwo(c)
+	// result: (SLLVconst [log2(c)] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpMIPS64SLLVconst)
+		v.AuxInt = log2(c)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (MULVU (MOVVconst [-1]) x))
+	// cond:
+	// result: (NEGV x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_0.AuxInt != -1 {
+			break
+		}
+		x := v_0.Args[1]
+		v.reset(OpMIPS64NEGV)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (MULVU (MOVVconst [0]) _))
+	// cond:
+	// result: (MOVVconst [0])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_0.AuxInt != 0 {
+			break
+		}
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (Select1 (MULVU (MOVVconst [1]) x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_0.AuxInt != 1 {
+			break
+		}
+		x := v_0.Args[1]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (MULVU (MOVVconst [c]) x))
+	// cond: isPowerOfTwo(c)
+	// result: (SLLVconst [log2(c)] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_0.AuxInt
+		x := v_0.Args[1]
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpMIPS64SLLVconst)
+		v.AuxInt = log2(c)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (DIVVU x (MOVVconst [1])))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		if v_0_1.AuxInt != 1 {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (DIVVU x (MOVVconst [c])))
+	// cond: isPowerOfTwo(c)
+	// result: (SRLVconst [log2(c)] x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_1.AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpMIPS64SRLVconst)
+		v.AuxInt = log2(c)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Select1 (MULVU (MOVVconst [c]) (MOVVconst [d])))
+	// cond:
+	// result: (MOVVconst [c*d])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64MULVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0_1.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = c * d
+		return true
+	}
+	// match: (Select1 (DIVV  (MOVVconst [c]) (MOVVconst [d])))
+	// cond:
+	// result: (MOVVconst [int64(c)/int64(d)])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVV {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0_1.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(c) / int64(d)
+		return true
+	}
+	// match: (Select1 (DIVVU (MOVVconst [c]) (MOVVconst [d])))
+	// cond:
+	// result: (MOVVconst [int64(uint64(c)/uint64(d))])
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpMIPS64DIVVU {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpMIPS64MOVVconst {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != OpMIPS64MOVVconst {
+			break
+		}
+		d := v_0_1.AuxInt
+		v.reset(OpMIPS64MOVVconst)
+		v.AuxInt = int64(uint64(c) / uint64(d))
+		return true
+	}
+	return false
+}
 func rewriteValueMIPS64_OpSignExt16to32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -6153,6 +9712,345 @@ func rewriteValueMIPS64_OpZeroExt8to64(v *Value, config *Config) bool {
 }
 func rewriteBlockMIPS64(b *Block) bool {
 	switch b.Kind {
+	case BlockMIPS64EQ:
+		// match: (EQ (FPFlagTrue cmp) yes no)
+		// cond:
+		// result: (FPF cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64FPFlagTrue {
+				break
+			}
+			cmp := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64FPF
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (FPFlagFalse cmp) yes no)
+		// cond:
+		// result: (FPT cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64FPFlagFalse {
+				break
+			}
+			cmp := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64FPT
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (XORconst [1] cmp:(SGT _ _)) yes no)
+		// cond:
+		// result: (NE cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGT {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64NE
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (XORconst [1] cmp:(SGTU _ _)) yes no)
+		// cond:
+		// result: (NE cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGTU {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64NE
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (XORconst [1] cmp:(SGTconst _)) yes no)
+		// cond:
+		// result: (NE cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGTconst {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64NE
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (XORconst [1] cmp:(SGTUconst _)) yes no)
+		// cond:
+		// result: (NE cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGTUconst {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64NE
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (SGTUconst [1] x) yes no)
+		// cond:
+		// result: (NE x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGTUconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			x := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64NE
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (SGTU x (MOVVconst [0])) yes no)
+		// cond:
+		// result: (EQ x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGTU {
+				break
+			}
+			x := v.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != OpMIPS64MOVVconst {
+				break
+			}
+			if v_1.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64EQ
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (SGTconst [0] x) yes no)
+		// cond:
+		// result: (GEZ x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGTconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64GEZ
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ (SGT x (MOVVconst [0])) yes no)
+		// cond:
+		// result: (LEZ x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGT {
+				break
+			}
+			x := v.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != OpMIPS64MOVVconst {
+				break
+			}
+			if v_1.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64LEZ
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ  (MOVVconst [0]) yes no)
+		// cond:
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (EQ  (MOVVconst [c]) yes no)
+		// cond: c != 0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c != 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+	case BlockMIPS64GEZ:
+		// match: (GEZ (MOVVconst [c]) yes no)
+		// cond: c >= 0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c >= 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (GEZ (MOVVconst [c]) yes no)
+		// cond: c <  0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c < 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+	case BlockMIPS64GTZ:
+		// match: (GTZ (MOVVconst [c]) yes no)
+		// cond: c >  0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c > 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (GTZ (MOVVconst [c]) yes no)
+		// cond: c <= 0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c <= 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
 	case BlockIf:
 		// match: (If cond yes no)
 		// cond:
@@ -6167,6 +10065,90 @@ func rewriteBlockMIPS64(b *Block) bool {
 			b.SetControl(cond)
 			_ = yes
 			_ = no
+			return true
+		}
+	case BlockMIPS64LEZ:
+		// match: (LEZ (MOVVconst [c]) yes no)
+		// cond: c <= 0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c <= 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (LEZ (MOVVconst [c]) yes no)
+		// cond: c >  0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c > 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+	case BlockMIPS64LTZ:
+		// match: (LTZ (MOVVconst [c]) yes no)
+		// cond: c <  0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c < 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (LTZ (MOVVconst [c]) yes no)
+		// cond: c >= 0
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c >= 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
 			return true
 		}
 	case BlockMIPS64NE:
@@ -6200,6 +10182,226 @@ func rewriteBlockMIPS64(b *Block) bool {
 			no := b.Succs[1]
 			b.Kind = BlockMIPS64FPF
 			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (XORconst [1] cmp:(SGT _ _)) yes no)
+		// cond:
+		// result: (EQ cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGT {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64EQ
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (XORconst [1] cmp:(SGTU _ _)) yes no)
+		// cond:
+		// result: (EQ cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGTU {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64EQ
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (XORconst [1] cmp:(SGTconst _)) yes no)
+		// cond:
+		// result: (EQ cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGTconst {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64EQ
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (XORconst [1] cmp:(SGTUconst _)) yes no)
+		// cond:
+		// result: (EQ cmp yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64XORconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			cmp := v.Args[0]
+			if cmp.Op != OpMIPS64SGTUconst {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64EQ
+			b.SetControl(cmp)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (SGTUconst [1] x) yes no)
+		// cond:
+		// result: (EQ x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGTUconst {
+				break
+			}
+			if v.AuxInt != 1 {
+				break
+			}
+			x := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64EQ
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (SGTU x (MOVVconst [0])) yes no)
+		// cond:
+		// result: (NE x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGTU {
+				break
+			}
+			x := v.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != OpMIPS64MOVVconst {
+				break
+			}
+			if v_1.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64NE
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (SGTconst [0] x) yes no)
+		// cond:
+		// result: (LTZ x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGTconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			x := v.Args[0]
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64LTZ
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE (SGT x (MOVVconst [0])) yes no)
+		// cond:
+		// result: (GTZ x yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64SGT {
+				break
+			}
+			x := v.Args[0]
+			v_1 := v.Args[1]
+			if v_1.Op != OpMIPS64MOVVconst {
+				break
+			}
+			if v_1.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockMIPS64GTZ
+			b.SetControl(x)
+			_ = yes
+			_ = no
+			return true
+		}
+		// match: (NE  (MOVVconst [0]) yes no)
+		// cond:
+		// result: (First nil no yes)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			if v.AuxInt != 0 {
+				break
+			}
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			b.Kind = BlockFirst
+			b.SetControl(nil)
+			b.swapSuccessors()
+			_ = no
+			_ = yes
+			return true
+		}
+		// match: (NE  (MOVVconst [c]) yes no)
+		// cond: c != 0
+		// result: (First nil yes no)
+		for {
+			v := b.Control
+			if v.Op != OpMIPS64MOVVconst {
+				break
+			}
+			c := v.AuxInt
+			yes := b.Succs[0]
+			no := b.Succs[1]
+			if !(c != 0) {
+				break
+			}
+			b.Kind = BlockFirst
+			b.SetControl(nil)
 			_ = yes
 			_ = no
 			return true

@@ -201,9 +201,9 @@ func init() {
 
 		// comparisons
 		{name: "SGT", argLength: 2, reg: gp21, asm: "SGT", typ: "Bool"},                      // 1 if arg0 > arg1 (signed), 0 otherwise
-		{name: "SGTconst", argLength: 2, reg: gp21, asm: "SGT", aux: "Int64", typ: "Bool"},   // 1 if arg0 > auxInt (signed), 0 otherwise
+		{name: "SGTconst", argLength: 1, reg: gp11, asm: "SGT", aux: "Int64", typ: "Bool"},   // 1 if auxInt > arg0 (signed), 0 otherwise
 		{name: "SGTU", argLength: 2, reg: gp21, asm: "SGTU", typ: "Bool"},                    // 1 if arg0 > arg1 (unsigned), 0 otherwise
-		{name: "SGTUconst", argLength: 2, reg: gp21, asm: "SGTU", aux: "Int64", typ: "Bool"}, // 1 if arg0 > auxInt (unsigned), 0 otherwise
+		{name: "SGTUconst", argLength: 1, reg: gp11, asm: "SGTU", aux: "Int64", typ: "Bool"}, // 1 if auxInt > arg0 (unsigned), 0 otherwise
 
 		{name: "CMPEQF", argLength: 2, reg: fp2flags, asm: "CMPEQF", typ: "Flags"}, // flags=true if arg0 = arg1, float32
 		{name: "CMPEQD", argLength: 2, reg: fp2flags, asm: "CMPEQD", typ: "Flags"}, // flags=true if arg0 = arg1, float64
