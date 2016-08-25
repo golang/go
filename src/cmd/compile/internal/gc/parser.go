@@ -1891,7 +1891,7 @@ func (p *parser) fndcl() *Node {
 
 		f := Nod(ODCLFUNC, nil, nil)
 		f.Func.Shortname = newfuncname(name)
-		f.Func.Nname = methodname1(f.Func.Shortname, recv.Right)
+		f.Func.Nname = methodname(f.Func.Shortname, recv.Right)
 		f.Func.Nname.Name.Defn = f
 		f.Func.Nname.Name.Param.Ntype = t
 		declare(f.Func.Nname, PFUNC)

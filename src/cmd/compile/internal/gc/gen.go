@@ -103,23 +103,6 @@ func (n *Node) isParamHeapCopy() bool {
 	return n.Op == ONAME && n.Class == PAUTOHEAP && n.Name.Param.Stackcopy != nil
 }
 
-// paramClass reports the parameter class (PPARAM or PPARAMOUT)
-// of the node, which may be an unmoved on-stack parameter
-// or the on-heap or on-stack copy of a parameter that moved to the heap.
-// If the node is not a parameter, paramClass returns Pxxx.
-func (n *Node) paramClass() Class {
-	if n.Op != ONAME {
-		return Pxxx
-	}
-	if n.Class == PPARAM || n.Class == PPARAMOUT {
-		return n.Class
-	}
-	if n.isParamHeapCopy() {
-		return n.Name.Param.Stackcopy.Class
-	}
-	return Pxxx
-}
-
 // moveToHeap records the parameter or local variable n as moved to the heap.
 func moveToHeap(n *Node) {
 	if Debug['r'] != 0 {

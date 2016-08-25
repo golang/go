@@ -444,7 +444,7 @@ func (p *importer) typ() *Type {
 			result := p.paramList()
 			nointerface := p.bool()
 
-			n := methodname1(newname(sym), recv[0].Right)
+			n := methodname(newname(sym), recv[0].Right)
 			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
 			addmethod(sym, n.Type, tsym.Pkg, false, nointerface)

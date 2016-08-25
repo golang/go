@@ -3434,20 +3434,6 @@ var u64_f32 u2fcvtTab = u2fcvtTab{
 	one:   (*state).constInt64,
 }
 
-// Excess generality on a machine with 64-bit integer registers.
-// Not used on AMD64.
-var u32_f32 u2fcvtTab = u2fcvtTab{
-	geq:   ssa.OpGeq32,
-	cvt2F: ssa.OpCvt32to32F,
-	and:   ssa.OpAnd32,
-	rsh:   ssa.OpRsh32Ux32,
-	or:    ssa.OpOr32,
-	add:   ssa.OpAdd32F,
-	one: func(s *state, t ssa.Type, x int64) *ssa.Value {
-		return s.constInt32(t, int32(x))
-	},
-}
-
 func (s *state) uint64Tofloat64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
 	return s.uintTofloat(&u64_f64, n, x, ft, tt)
 }
@@ -4117,20 +4103,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	removevardef(ptxt)
 
 	f.Config.HTML.Close()
-}
-
-// movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
-func movZero(as obj.As, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
-	p := Prog(as)
-	// TODO: use zero register on archs that support it.
-	p.From.Type = obj.TYPE_CONST
-	p.From.Offset = 0
-	p.To.Type = obj.TYPE_MEM
-	p.To.Reg = regnum
-	p.To.Offset = offset
-	offset += width
-	nleft = nbytes - width
-	return nleft, offset
 }
 
 type FloatingEQNEJump struct {

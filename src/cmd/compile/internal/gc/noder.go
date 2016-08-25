@@ -258,7 +258,7 @@ func (p *noder) funcHeader(fun *syntax.FuncDecl) *Node {
 		// Receiver MethodName Signature
 
 		f.Func.Shortname = newfuncname(name)
-		f.Func.Nname = methodname1(f.Func.Shortname, t.Left.Right)
+		f.Func.Nname = methodname(f.Func.Shortname, t.Left.Right)
 	}
 
 	f.Func.Nname.Name.Defn = f
@@ -953,10 +953,6 @@ func (p *noder) mkname(name *syntax.Name) *Node {
 func (p *noder) newname(name *syntax.Name) *Node {
 	// TODO(mdempsky): Set line number?
 	return newname(p.name(name))
-}
-
-func (p *noder) oldname(name *syntax.Name) *Node {
-	return oldname(p.name(name))
 }
 
 func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
