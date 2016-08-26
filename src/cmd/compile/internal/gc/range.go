@@ -4,6 +4,8 @@
 
 package gc
 
+import "unicode/utf8"
+
 // range
 func typecheckrange(n *Node) {
 	var toomany int
@@ -284,34 +286,63 @@ func walkrange(n *Node) {
 		body = append(body, Nod(OAS, hv1, nil))
 
 	case TSTRING:
+		// Transform string range statements like "for v1, v2 = range a" into
+		//
+		// ha := a
+		// for hv1 := 0; hv1 < len(ha); {
+		//   v1 = hv1
+		//   hv2 := rune(ha[hv1])
+		//   if hv2 < utf8.RuneSelf {
+		//      hv1++
+		//   } else {
+		//      hv2, hv1 = charntorune(ha, hv1)
+		//   }
+		//   v2 = hv2
+		//   // original body
+		// }
+
 		// orderstmt arranged for a copy of the string variable.
 		ha := a
 
-		ohv1 := temp(Types[TINT])
-
 		hv1 := temp(Types[TINT])
+		hv2 := temp(runetype)
+
+		// hv1 := 0
 		init = append(init, Nod(OAS, hv1, nil))
 
-		var a *Node
-		var hv2 *Node
-		if v2 == nil {
-			a = Nod(OAS, hv1, mkcall("stringiter", Types[TINT], nil, ha, hv1))
-		} else {
-			hv2 = temp(runetype)
-			a = Nod(OAS2, nil, nil)
-			a.List.Set([]*Node{hv1, hv2})
-			fn := syslook("stringiter2")
-			a.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
-		}
+		// hv1 < len(ha)
+		n.Left = Nod(OLT, hv1, Nod(OLEN, ha, nil))
 
-		n.Left = Nod(ONE, hv1, Nodintconst(0))
-		n.Left.Ninit.Set([]*Node{Nod(OAS, ohv1, hv1), a})
-
-		body = nil
 		if v1 != nil {
-			body = []*Node{Nod(OAS, v1, ohv1)}
+			// v1 = hv1
+			body = append(body, Nod(OAS, v1, hv1))
 		}
+
+		// hv2 := ha[hv1]
+		nind := Nod(OINDEX, ha, hv1)
+		nind.Bounded = true
+		body = append(body, Nod(OAS, hv2, conv(nind, runetype)))
+
+		// if hv2 < utf8.RuneSelf
+		nif := Nod(OIF, nil, nil)
+		nif.Left = Nod(OLT, nind, Nodintconst(utf8.RuneSelf))
+
+		// hv1++
+		nif.Nbody.Set1(Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1))))
+
+		// } else {
+		eif := Nod(OAS2, nil, nil)
+		nif.Rlist.Set1(eif)
+
+		// hv2, hv1 = charntorune(ha, hv1)
+		eif.List.Set2(hv2, hv1)
+		fn := syslook("charntorune")
+		eif.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
+
+		body = append(body, nif)
+
 		if v2 != nil {
+			// v2 = hv2
 			body = append(body, Nod(OAS, v2, hv2))
 		}
 	}

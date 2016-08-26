@@ -375,13 +375,11 @@ func writeConsole(handle uintptr, buf unsafe.Pointer, bufLen int32) int {
 
 	total := len(s)
 	w := 0
-	for len(s) > 0 {
+	for _, r := range s {
 		if w >= len(utf16tmp)-2 {
 			writeConsoleUTF16(handle, utf16tmp[:w])
 			w = 0
 		}
-		r, n := charntorune(s)
-		s = s[n:]
 		if r < 0x10000 {
 			utf16tmp[w] = uint16(r)
 			w++

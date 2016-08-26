@@ -82,28 +82,42 @@ func BenchmarkCompareStringBig(b *testing.B) {
 	b.SetBytes(int64(len(s1)))
 }
 
-func BenchmarkRuneIterate(b *testing.B) {
-	bytes := make([]byte, 100)
-	for i := range bytes {
-		bytes[i] = byte('A')
-	}
-	s := string(bytes)
-	for i := 0; i < b.N; i++ {
-		for range s {
-		}
-	}
+var stringdata = []struct{ name, data string }{
+	{"ASCII", "01234567890"},
+	{"Japanese", "日本語日本語日本語"},
 }
 
-func BenchmarkRuneIterate2(b *testing.B) {
-	bytes := make([]byte, 100)
-	for i := range bytes {
-		bytes[i] = byte('A')
-	}
-	s := string(bytes)
-	for i := 0; i < b.N; i++ {
-		for range s {
+func BenchmarkRuneIterate(b *testing.B) {
+	b.Run("range", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					for range sd.data {
+					}
+				}
+			})
 		}
-	}
+	})
+	b.Run("range1", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					for _ = range sd.data {
+					}
+				}
+			})
+		}
+	})
+	b.Run("range2", func(b *testing.B) {
+		for _, sd := range stringdata {
+			b.Run(sd.name, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					for _, _ = range sd.data {
+					}
+				}
+			})
+		}
+	})
 }
 
 func BenchmarkArrayEqual(b *testing.B) {
