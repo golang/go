@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -21,6 +22,7 @@ type importer struct {
 	data    []byte
 	path    string
 	buf     []byte // for reading strings
+	version int    // export format version
 
 	// object lists
 	strList       []string         // in order of appearance
@@ -40,17 +42,28 @@ type importer struct {
 
 // BImportData imports a package from the serialized package data
 // and returns the number of bytes consumed and a reference to the package.
-// If data is obviously malformed, an error is returned but in
-// general it is not recommended to call BImportData on untrusted data.
-func BImportData(imports map[string]*types.Package, data []byte, path string) (int, *types.Package, error) {
+// If the export data version is not recognized or the format is otherwise
+// compromised, an error is returned.
+func BImportData(imports map[string]*types.Package, data []byte, path string) (_ int, _ *types.Package, err error) {
+	// catch panics and return them as errors
+	defer func() {
+		if e := recover(); e != nil {
+			// The package (filename) causing the problem is added to this
+			// error by a wrapper in the caller (Import in gcimporter.go).
+			err = fmt.Errorf("cannot import, possibly version skew (%v) - reinstall package", e)
+		}
+	}()
+
 	p := importer{
 		imports: imports,
 		data:    data,
 		path:    path,
+		version: -1,           // unknown version
 		strList: []string{""}, // empty string is mapped to 0
 	}
 
 	// read version info
+	var versionstr string
 	if b := p.rawByte(); b == 'c' || b == 'd' {
 		// Go1.7 encoding; first byte encodes low-level
 		// encoding format (compact vs debug).
@@ -63,19 +76,34 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 		}
 		p.trackAllTypes = p.rawByte() == 'a'
 		p.posInfoFormat = p.int() != 0
-		const go17version = "v1"
-		if s := p.string(); s != go17version {
-			return p.read, nil, fmt.Errorf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
+		versionstr = p.string()
+		if versionstr == "v1" {
+			p.version = 0
 		}
 	} else {
 		// Go1.8 extensible encoding
-		const exportVersion = "version 1"
-		if s := p.rawStringln(b); s != exportVersion {
-			return p.read, nil, fmt.Errorf("importer: unknown export data format: %s (imported package compiled with old compiler?)", s)
+		// read version string and extract version number (ignore anything after the version number)
+		versionstr = p.rawStringln(b)
+		if s := strings.SplitN(versionstr, " ", 3); len(s) >= 2 && s[0] == "version" {
+			if v, err := strconv.Atoi(s[1]); err == nil && v > 0 {
+				p.version = v
+			}
 		}
+	}
+
+	// read version specific flags - extend as necessary
+	switch p.version {
+	// case 2:
+	// 	...
+	//	fallthrough
+	case 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
+	case 0:
+		// Go1.7 encoding format - nothing to do here
+	default:
+		errorf("unknown export format version %d (%q)", p.version, versionstr)
 	}
 
 	// --- generic export data ---
@@ -99,7 +127,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 
 	// self-verification
 	if count := p.int(); count != objcount {
-		panic(fmt.Sprintf("got %d objects; want %d", objcount, count))
+		errorf("got %d objects; want %d", objcount, count)
 	}
 
 	// ignore compiler-specific import data
@@ -127,6 +155,10 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	return p.read, pkg, nil
 }
 
+func errorf(format string, args ...interface{}) {
+	panic(fmt.Sprintf(format, args...))
+}
+
 func (p *importer) pkg() *types.Package {
 	// if the package was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
@@ -136,7 +168,7 @@ func (p *importer) pkg() *types.Package {
 
 	// otherwise, i is the package tag (< 0)
 	if i != packageTag {
-		panic(fmt.Sprintf("unexpected package tag %d", i))
+		errorf("unexpected package tag %d", i)
 	}
 
 	// read package data
@@ -145,13 +177,13 @@ func (p *importer) pkg() *types.Package {
 
 	// we should never see an empty package name
 	if name == "" {
-		panic("empty package name in import")
+		errorf("empty package name in import")
 	}
 
 	// an empty path denotes the package we are currently importing;
 	// it must be the first package we see
 	if (path == "") != (len(p.pkgList) == 0) {
-		panic(fmt.Sprintf("package path %q for pkg index %d", path, len(p.pkgList)))
+		errorf("package path %q for pkg index %d", path, len(p.pkgList))
 	}
 
 	// if the package was imported before, use that one; otherwise create a new one
@@ -163,7 +195,7 @@ func (p *importer) pkg() *types.Package {
 		pkg = types.NewPackage(path, name)
 		p.imports[path] = pkg
 	} else if pkg.Name() != name {
-		panic(fmt.Sprintf("conflicting names %s and %s for package %q", pkg.Name(), name, path))
+		errorf("conflicting names %s and %s for package %q", pkg.Name(), name, path)
 	}
 	p.pkgList = append(p.pkgList, pkg)
 
@@ -180,7 +212,7 @@ func (p *importer) declare(obj types.Object) {
 		// imported.
 		// (See also the comment in cmd/compile/internal/gc/bimport.go importer.obj,
 		// switch case importing functions).
-		panic(fmt.Sprintf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj))
+		errorf("inconsistent import:\n\t%v\npreviously imported as:\n\t%v\n", alt, obj)
 	}
 }
 
@@ -211,7 +243,7 @@ func (p *importer) obj(tag int) {
 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
 
 	default:
-		panic(fmt.Sprintf("unexpected object tag %d", tag))
+		errorf("unexpected object tag %d", tag)
 	}
 }
 
@@ -283,7 +315,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		}
 
 		if _, ok := obj.(*types.TypeName); !ok {
-			panic(fmt.Sprintf("pkg = %s, name = %s => %s", parent, name, obj))
+			errorf("pkg = %s, name = %s => %s", parent, name, obj)
 		}
 
 		// associate new named type with obj if it doesn't exist yet
@@ -390,7 +422,7 @@ func (p *importer) typ(parent *types.Package) types.Type {
 
 		// no embedded interfaces with gc compiler
 		if p.int() != 0 {
-			panic("unexpected embedded interface")
+			errorf("unexpected embedded interface")
 		}
 
 		t := types.NewInterface(p.methodList(parent), nil)
@@ -426,14 +458,15 @@ func (p *importer) typ(parent *types.Package) types.Type {
 		case 3 /* Cboth */ :
 			dir = types.SendRecv
 		default:
-			panic(fmt.Sprintf("unexpected channel dir %d", d))
+			errorf("unexpected channel dir %d", d)
 		}
 		val := p.typ(parent)
 		*t = *types.NewChan(dir, val)
 		return t
 
 	default:
-		panic(fmt.Sprintf("unexpected type tag %d", i))
+		errorf("unexpected type tag %d", i)
+		panic("unreachable")
 	}
 }
 
@@ -464,7 +497,7 @@ func (p *importer) field(parent *types.Package) *types.Var {
 		case *types.Named:
 			name = typ.Obj().Name()
 		default:
-			panic("anonymous field expected")
+			errorf("anonymous field expected")
 		}
 		anonymous = true
 	}
@@ -497,6 +530,10 @@ func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
 	if pkg == nil {
 		// use the imported package instead
 		pkg = p.pkgList[0]
+	}
+	if p.version == 0 && name == "_" {
+		// version 0 didn't export a package for _ fields
+		return pkg, name
 	}
 	if name != "" && !exported(name) {
 		if name == "?" {
@@ -539,7 +576,7 @@ func (p *importer) param(named bool) (*types.Var, bool) {
 	if named {
 		name = p.string()
 		if name == "" {
-			panic("expected named parameter")
+			errorf("expected named parameter")
 		}
 		if name != "_" {
 			pkg = p.pkg()
@@ -577,7 +614,8 @@ func (p *importer) value() constant.Value {
 	case stringTag:
 		return constant.MakeString(p.string())
 	default:
-		panic(fmt.Sprintf("unexpected value tag %d", tag))
+		errorf("unexpected value tag %d", tag)
+		panic("unreachable")
 	}
 }
 
@@ -640,7 +678,7 @@ func (p *importer) tagOrIndex() int {
 func (p *importer) int() int {
 	x := p.int64()
 	if int64(int(x)) != x {
-		panic("exported integer too large")
+		errorf("exported integer too large")
 	}
 	return int(x)
 }
@@ -679,12 +717,12 @@ func (p *importer) string() string {
 
 func (p *importer) marker(want byte) {
 	if got := p.rawByte(); got != want {
-		panic(fmt.Sprintf("incorrect marker: got %c; want %c (pos = %d)", got, want, p.read))
+		errorf("incorrect marker: got %c; want %c (pos = %d)", got, want, p.read)
 	}
 
 	pos := p.read
 	if n := int(p.rawInt64()); n != pos {
-		panic(fmt.Sprintf("incorrect position: got %d; want %d", n, pos))
+		errorf("incorrect position: got %d; want %d", n, pos)
 	}
 }
 
@@ -692,7 +730,7 @@ func (p *importer) marker(want byte) {
 func (p *importer) rawInt64() int64 {
 	i, err := binary.ReadVarint(p)
 	if err != nil {
-		panic(fmt.Sprintf("read error: %v", err))
+		errorf("read error: %v", err)
 	}
 	return i
 }
@@ -727,7 +765,7 @@ func (p *importer) rawByte() byte {
 		case '|':
 			// nothing to do
 		default:
-			panic("unexpected escape sequence in export data")
+			errorf("unexpected escape sequence in export data")
 		}
 	}
 	p.data = p.data[r:]

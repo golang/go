@@ -106,7 +106,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 		f.Close()
 		if err != nil {
 			// add file name to error
-			err = fmt.Errorf("reading export data: %s: %v", filename, err)
+			err = fmt.Errorf("%s: %v", filename, err)
 		}
 	}()
 
@@ -118,7 +118,7 @@ func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types
 
 	switch hdr {
 	case "$$\n":
-		err = fmt.Errorf("cannot import %s: old export format no longer supported (recompile library)", path)
+		err = fmt.Errorf("import %q: old export format no longer supported (recompile library)", path)
 	case "$$B\n":
 		var data []byte
 		data, err = ioutil.ReadAll(buf)
