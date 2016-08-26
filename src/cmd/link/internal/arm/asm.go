@@ -59,7 +59,7 @@ import (
 //                      c: R_ARM_GOT_PREL       local.moduledata
 
 func gentext(ctxt *ld.Link) {
-	if !ld.DynlinkingGo() {
+	if !ctxt.DynlinkingGo() {
 		return
 	}
 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)

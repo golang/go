@@ -39,7 +39,7 @@ import (
 )
 
 func gentext(ctxt *ld.Link) {
-	if !ld.DynlinkingGo() {
+	if !ctxt.DynlinkingGo() {
 		return
 	}
 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
@@ -249,7 +249,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
+			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Attr.Local()) && r.Sym.Type == obj.STEXT && ctxt.DynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}

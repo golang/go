@@ -155,7 +155,7 @@ type Section struct {
 
 // DynlinkingGo returns whether we are producing Go code that can live
 // in separate shared libraries linked together at runtime.
-func DynlinkingGo() bool {
+func (ctxt *Link) DynlinkingGo() bool {
 	return Buildmode == BuildmodeShared || *FlagLinkshared
 }
 
@@ -307,7 +307,7 @@ func libinit(ctxt *Link) {
 		}
 	}
 
-	if !DynlinkingGo() {
+	if !ctxt.DynlinkingGo() {
 		Linklookup(ctxt, *flagEntrySymbol, 0).Type = obj.SXREF
 	}
 }
@@ -466,7 +466,7 @@ func (ctxt *Link) loadlib() {
 			if ctxt.Library[i].Shlib != "" {
 				ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
 			} else {
-				if DynlinkingGo() {
+				if ctxt.DynlinkingGo() {
 					Exitf("cannot implicitly include runtime/cgo in a shared library")
 				}
 				objfile(ctxt, ctxt.Library[i])
@@ -998,7 +998,7 @@ func (l *Link) hostlink() {
 		argv = append(argv, "-shared")
 	}
 
-	if Iself && DynlinkingGo() {
+	if Iself && l.DynlinkingGo() {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
@@ -1639,7 +1639,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		// should never be called directly.
 		// onlyctxt.Diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
-		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() &&
+		if depth == 1 && s.Type != obj.SXREF && !ctxt.DynlinkingGo() &&
 			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
 			ctxt.Diag("call to external function %s", s.Name)
 		}

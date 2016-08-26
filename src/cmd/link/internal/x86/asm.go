@@ -50,7 +50,7 @@ func addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) {
 }
 
 func gentext(ctxt *ld.Link) {
-	if ld.DynlinkingGo() {
+	if ctxt.DynlinkingGo() {
 		// We need get_pc_thunk.
 	} else {
 		switch ld.Buildmode {

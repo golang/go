@@ -360,7 +360,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 		// We need to be able to reference dynimport symbols when linking against
 		// shared libraries, and Solaris needs it always
-		if HEADTYPE != obj.Hsolaris && r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT && !DynlinkingGo() {
+		if HEADTYPE != obj.Hsolaris && r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT && !ctxt.DynlinkingGo() {
 			if !(SysArch.Family == sys.PPC64 && Linkmode == LinkExternal && r.Sym.Name == ".TOC.") {
 				ctxt.Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
 			}

@@ -46,14 +46,6 @@ func putelfstr(s string) int {
 		putelfstr("")
 	}
 
-	// When dynamically linking, we create Symbols by reading the names from
-	// the symbol tables of the shared libraries and so the names need to
-	// match exactly. Tools like DTrace will have to wait for now.
-	if !DynlinkingGo() {
-		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
-		s = strings.Replace(s, "·", ".", -1)
-	}
-
 	off := len(Elfstrdat)
 	Elfstrdat = append(Elfstrdat, s...)
 	Elfstrdat = append(Elfstrdat, 0)
@@ -144,7 +136,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 	// To avoid filling the dynamic table with lots of unnecessary symbols,
 	// mark all Go symbols local (not global) in the final executable.
 	// But when we're dynamically linking, we need all those global symbols.
-	if !DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
+	if !ctxt.DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
 		bind = STB_LOCAL
 	}
 
@@ -155,14 +147,22 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
 		other |= 3 << 5
 	}
 
-	if DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
+	// When dynamically linking, we create Symbols by reading the names from
+	// the symbol tables of the shared libraries and so the names need to
+	// match exactly. Tools like DTrace will have to wait for now.
+	if !ctxt.DynlinkingGo() {
+		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
+		s = strings.Replace(s, "·", ".", -1)
+	}
+
+	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
@@ -376,7 +376,7 @@ func (ctxt *Link) symtab() {
 		s.Size = 0
 		s.Attr |= AttrReachable
 		symtyperel = s
-	} else if !DynlinkingGo() {
+	} else if !ctxt.DynlinkingGo() {
 		s = Linklookup(ctxt, "type.*", 0)
 
 		s.Type = obj.STYPE
@@ -401,7 +401,7 @@ func (ctxt *Link) symtab() {
 	)
 
 	var symgofuncrel *Symbol
-	if !DynlinkingGo() {
+	if !ctxt.DynlinkingGo() {
 		if UseRelro() {
 			symgofuncrel = groupSym("go.funcrel.*", obj.SGOFUNCRELRO)
 		} else {
@@ -435,7 +435,7 @@ func (ctxt *Link) symtab() {
 
 		switch {
 		case strings.HasPrefix(s.Name, "type."):
-			if !DynlinkingGo() {
+			if !ctxt.DynlinkingGo() {
 				s.Attr |= AttrHidden
 			}
 			if UseRelro() {
@@ -478,7 +478,7 @@ func (ctxt *Link) symtab() {
 			s.Outer = symgcbits
 
 		case strings.HasSuffix(s.Name, "·f"):
-			if !DynlinkingGo() {
+			if !ctxt.DynlinkingGo() {
 				s.Attr |= AttrHidden
 			}
 			if UseRelro() {

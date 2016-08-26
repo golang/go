@@ -48,7 +48,7 @@ import (
 //
 // The job of appending the moduledata is delegated to runtime.addmoduledata.
 func gentext(ctxt *ld.Link) {
-	if !ld.DynlinkingGo() {
+	if !ctxt.DynlinkingGo() {
 		return
 	}
 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)

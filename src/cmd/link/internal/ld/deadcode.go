@@ -63,7 +63,7 @@ func deadcode(ctxt *Link) {
 	methSym := Linkrlookup(ctxt, "reflect.Value.Method", 0)
 	reflectSeen := false
 
-	if DynlinkingGo() {
+	if ctxt.DynlinkingGo() {
 		// Exported methods may satisfy interfaces we don't know
 		// about yet when dynamically linking.
 		reflectSeen = true
