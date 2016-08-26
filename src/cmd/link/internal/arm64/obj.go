@@ -103,10 +103,6 @@ func archinit(ctxt *ld.Link) {
 		break
 	}
 
-	if ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
-		ld.Linkmode = ld.LinkExternal
-	}
-
 	switch ld.Headtype {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)

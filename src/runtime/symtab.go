@@ -198,6 +198,8 @@ type moduledata struct {
 	typelinks []int32 // offsets from types
 	itablinks []*itab
 
+	ptab []ptabEntry
+
 	modulename   string
 	modulehashes []modulehash
 

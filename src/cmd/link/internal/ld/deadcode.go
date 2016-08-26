@@ -243,6 +243,16 @@ func (d *deadcodepass) init() {
 		names = append(names, *flagEntrySymbol)
 		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
 			names = append(names, "main.main", "main.init")
+		} else if Buildmode == BuildmodePlugin {
+			pluginInit := d.ctxt.Library[0].Pkg + ".init"
+			names = append(names, pluginInit, "go.plugin.tabs")
+
+			// We don't keep the go.plugin.exports symbol,
+			// but we do keep the symbols it refers to.
+			exports := Linkrlookup(d.ctxt, "go.plugin.exports", 0)
+			for _, r := range exports.R {
+				d.mark(r.Sym, nil)
+			}
 		}
 		for _, name := range markextra {
 			names = append(names, name)

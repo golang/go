@@ -585,7 +585,7 @@ func (r *objReader) readSymName() string {
 			}
 			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
 
-			if r.ctxt.DynlinkingGo() {
+			if Buildmode == BuildmodeShared || *FlagLinkshared {
 				// These types are included in the symbol
 				// table when dynamically linking. To keep
 				// binary size down, we replace the names

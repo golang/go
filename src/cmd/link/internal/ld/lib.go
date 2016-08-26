@@ -164,14 +164,18 @@ type Section struct {
 // DynlinkingGo returns whether we are producing Go code that can live
 // in separate shared libraries linked together at runtime.
 func (ctxt *Link) DynlinkingGo() bool {
-	return Buildmode == BuildmodeShared || *FlagLinkshared
+	if !ctxt.Loaded {
+		panic("DynlinkingGo called before all symbols loaded")
+	}
+	canUsePlugins := Linkrlookup(ctxt, "plugin.Open", 0) != nil
+	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || canUsePlugins
 }
 
 // UseRelro returns whether to make use of "read only relocations" aka
 // relro.
 func UseRelro() bool {
 	switch Buildmode {
-	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE, BuildmodePlugin:
 		return Iself
 	default:
 		return *FlagLinkshared
@@ -299,15 +303,11 @@ func libinit(ctxt *Link) {
 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", obj.GOARCH, obj.GOOS)
 		case BuildmodeExe, BuildmodePIE:
 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", obj.GOARCH, obj.GOOS)
-		case BuildmodeShared:
-			// No *flagEntrySymbol for -buildmode=shared
+		case BuildmodeShared, BuildmodePlugin:
+			// No *flagEntrySymbol for -buildmode=shared and plugin
 		default:
 			ctxt.Diag("unknown *flagEntrySymbol for buildmode %v", Buildmode)
 		}
-	}
-
-	if !ctxt.DynlinkingGo() {
-		Linklookup(ctxt, *flagEntrySymbol, 0).Type = obj.SXREF
 	}
 }
 
@@ -400,7 +400,7 @@ func (ctxt *Link) findLibPath(libname string) string {
 
 func (ctxt *Link) loadlib() {
 	switch Buildmode {
-	case BuildmodeCShared:
+	case BuildmodeCShared, BuildmodePlugin:
 		s := Linklookup(ctxt, "runtime.islibrary", 0)
 		s.Attr |= AttrDuplicateOK
 		Adduint8(ctxt, s, 1)
@@ -453,9 +453,14 @@ func (ctxt *Link) loadlib() {
 			Linkmode = LinkExternal
 		}
 
-		// Force external linking for PIE binaries on systems
-		// that do not support internal PIE linking.
-		if Buildmode == BuildmodePIE {
+		// These build modes depend on the external linker
+		// to handle some relocations (such as TLS IE) not
+		// yet supported by the internal linker.
+		switch Buildmode {
+		case BuildmodeCArchive, BuildmodeCShared, BuildmodePIE, BuildmodePlugin, BuildmodeShared:
+			Linkmode = LinkExternal
+		}
+		if *FlagLinkshared {
 			Linkmode = LinkExternal
 		}
 
@@ -492,7 +497,7 @@ func (ctxt *Link) loadlib() {
 			if ctxt.Library[i].Shlib != "" {
 				ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
 			} else {
-				if ctxt.DynlinkingGo() {
+				if Buildmode == BuildmodeShared || *FlagLinkshared {
 					Exitf("cannot implicitly include runtime/cgo in a shared library")
 				}
 				objfile(ctxt, ctxt.Library[i])
@@ -531,7 +536,13 @@ func (ctxt *Link) loadlib() {
 	tlsg.Attr |= AttrReachable
 	ctxt.Tlsg = tlsg
 
-	moduledata := Linklookup(ctxt, "runtime.firstmoduledata", 0)
+	var moduledata *Symbol
+	if Buildmode == BuildmodePlugin {
+		moduledata = Linklookup(ctxt, "local.pluginmoduledata", 0)
+		moduledata.Attr |= AttrLocal
+	} else {
+		moduledata = Linklookup(ctxt, "runtime.firstmoduledata", 0)
+	}
 	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
 		// If the module (toolchain-speak for "executable or shared
 		// library") we are linking contains the runtime package, it
@@ -626,6 +637,8 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// We've loaded all the code now.
+	ctxt.Loaded = true
+
 	// If there are no dynamic libraries needed, gcc disables dynamic linking.
 	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
 	// assumes that a dynamic binary always refers to at least one dynamic library.
@@ -639,6 +652,14 @@ func (ctxt *Link) loadlib() {
 	if Buildmode == BuildmodeExe {
 		if havedynamic == 0 && Headtype != obj.Hdarwin && Headtype != obj.Hsolaris {
 			*FlagD = true
+		}
+	}
+
+	if SysArch == sys.Arch386 {
+		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
+			got := Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+			got.Type = obj.SDYNIMPORT
+			got.Attr |= AttrReachable
 		}
 	}
 
@@ -1012,7 +1033,7 @@ func (l *Link) hostlink() {
 			// non-closeable: a dlclose will do nothing.
 			argv = append(argv, "-shared", "-Wl,-z,nodelete")
 		}
-	case BuildmodeShared:
+	case BuildmodeShared, BuildmodePlugin:
 		if UseRelro() {
 			argv = append(argv, "-Wl,-z,relro")
 		}
@@ -1658,7 +1679,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 		// onlyctxt.Diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
 		if depth == 1 && s.Type != obj.SXREF && !ctxt.DynlinkingGo() &&
-			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
+			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared && Buildmode != BuildmodePlugin {
 			ctxt.Diag("call to external function %s", s.Name)
 		}
 		return -1

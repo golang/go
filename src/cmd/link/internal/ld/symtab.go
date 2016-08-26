@@ -553,6 +553,22 @@ func (ctxt *Link) symtab() {
 	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.itablink", 0))
 	adduint(ctxt, moduledata, uint64(nitablinks))
 	adduint(ctxt, moduledata, uint64(nitablinks))
+	// The ptab slice
+	if Buildmode == BuildmodePlugin {
+		ptab := Linkrlookup(ctxt, "go.plugin.tabs", 0)
+		ptab.Attr |= AttrReachable
+		ptab.Attr |= AttrLocal
+		ptab.Type = obj.SRODATA
+
+		nentries := uint64(len(ptab.P) / 8) // sizeof(nameOff) + sizeof(typeOff)
+		Addaddr(ctxt, moduledata, ptab)
+		adduint(ctxt, moduledata, nentries)
+		adduint(ctxt, moduledata, nentries)
+	} else {
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0)
+		adduint(ctxt, moduledata, 0)
+	}
 	if len(ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(*flagOutfile)
 		switch Buildmode {
