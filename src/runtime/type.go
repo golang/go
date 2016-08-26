@@ -446,14 +446,11 @@ func typelinksinit() {
 	if firstmoduledata.next == nil {
 		return
 	}
-	typehash := make(map[uint32][]*_type)
+	typehash := make(map[uint32][]*_type, len(firstmoduledata.typelinks))
 
-	modules := []*moduledata{}
-	for md := &firstmoduledata; md != nil; md = md.next {
-		modules = append(modules, md)
-	}
-	prev, modules := modules[len(modules)-1], modules[:len(modules)-1]
-	for len(modules) > 0 {
+	prev := &firstmoduledata
+	md := firstmoduledata.next
+	for md != nil {
 		// Collect types from the previous module into typehash.
 	collect:
 		for _, tl := range prev.typelinks {
@@ -473,23 +470,25 @@ func typelinksinit() {
 			typehash[t.hash] = append(tlist, t)
 		}
 
-		// If any of this module's typelinks match a type from a
-		// prior module, prefer that prior type by adding the offset
-		// to this module's typemap.
-		md := modules[len(modules)-1]
-		md.typemap = make(map[typeOff]*_type, len(md.typelinks))
-		for _, tl := range md.typelinks {
-			t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
-			for _, candidate := range typehash[t.hash] {
-				if typesEqual(t, candidate) {
-					t = candidate
-					break
+		if md.typemap == nil {
+			// If any of this module's typelinks match a type from a
+			// prior module, prefer that prior type by adding the offset
+			// to this module's typemap.
+			md.typemap = make(map[typeOff]*_type, len(md.typelinks))
+			for _, tl := range md.typelinks {
+				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+				for _, candidate := range typehash[t.hash] {
+					if typesEqual(t, candidate) {
+						t = candidate
+						break
+					}
 				}
+				md.typemap[typeOff(tl)] = t
 			}
-			md.typemap[typeOff(tl)] = t
 		}
 
-		prev, modules = md, modules[:len(modules)-1]
+		prev = md
+		md = md.next
 	}
 }
 
