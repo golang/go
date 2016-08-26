@@ -406,6 +406,21 @@ func buildModeInit() {
 			fatalf("-buildmode=shared and -o not supported together")
 		}
 		ldBuildmode = "shared"
+	case "plugin":
+		pkgsFilter = pkgsMain
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
+			switch platform {
+			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
+				"android/amd64", "android/arm", "android/arm64", "android/386":
+			default:
+				fatalf("-buildmode=plugin not supported on %s\n", platform)
+			}
+			codegenArg = "-dynlink"
+		}
+		exeSuffix = ".so"
+		ldBuildmode = "plugin"
 	default:
 		fatalf("buildmode=%s not supported", buildBuildmode)
 	}
@@ -1665,7 +1680,7 @@ func (b *builder) install(a *action) (err error) {
 	perm := os.FileMode(0666)
 	if a1.link {
 		switch buildBuildmode {
-		case "c-archive", "c-shared":
+		case "c-archive", "c-shared", "plugin":
 		default:
 			perm = 0777
 		}
@@ -2959,7 +2974,7 @@ func (tools gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile stri
 // maybePIC adds -fPIC to the list of arguments if needed.
 func (tools gccgoToolchain) maybePIC(args []string) []string {
 	switch buildBuildmode {
-	case "c-shared", "shared":
+	case "c-shared", "shared", "plugin":
 		args = append(args, "-fPIC")
 	}
 	return args
