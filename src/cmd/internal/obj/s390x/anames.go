@@ -79,6 +79,8 @@ var Anames = []string{
 	"FSUBS",
 	"FSQRT",
 	"FSQRTS",
+	"FIEBR",
+	"FIDBR",
 	"CEFBRA",
 	"CDFBRA",
 	"CEGBRA",

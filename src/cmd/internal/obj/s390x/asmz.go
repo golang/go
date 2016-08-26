@@ -191,6 +191,7 @@ var optab = []Optab{
 	Optab{AFMOVD, C_ZCON, C_NONE, C_NONE, C_FREG, 67, 0},
 	Optab{ACEFBRA, C_REG, C_NONE, C_NONE, C_FREG, 82, 0},
 	Optab{ACFEBRA, C_FREG, C_NONE, C_NONE, C_REG, 83, 0},
+	Optab{AFIEBR, C_SCON, C_FREG, C_NONE, C_FREG, 48, 0},
 
 	// load symbol address (plus offset)
 	Optab{AMOVD, C_SYMADDR, C_NONE, C_NONE, C_REG, 19, 0},
@@ -912,6 +913,8 @@ func buildop(ctxt *obj.Link) {
 			opset(ACLFDBR, r)
 			opset(ACLGEBR, r)
 			opset(ACLGDBR, r)
+		case AFIEBR:
+			opset(AFIDBR, r)
 		case ACMPBEQ:
 			opset(ACMPBGE, r)
 			opset(ACMPBGT, r)
@@ -3204,6 +3207,20 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			}
 			zRRE(op_LCGR, uint32(p.To.Reg), uint32(r), asm)
 		}
+
+	case 48: // floating-point round to integer
+		m3 := vregoff(ctxt, &p.From)
+		if 0 > m3 || m3 > 7 {
+			ctxt.Diag("mask (%v) must be in the range [0, 7]", m3)
+		}
+		var opcode uint32
+		switch p.As {
+		case AFIEBR:
+			opcode = op_FIEBR
+		case AFIDBR:
+			opcode = op_FIDBR
+		}
+		zRRF(opcode, uint32(m3), 0, uint32(p.To.Reg), uint32(p.Reg), asm)
 
 	case 67: // fmov $0 freg
 		var opcode uint32
