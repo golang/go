@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	osexec "os/exec"
@@ -227,5 +228,28 @@ func TestDeleteReadOnly(t *testing.T) {
 	}
 	if err = os.Remove(p); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestStatSymlinkLoop(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	defer chtmpdir(t)()
+
+	err := os.Symlink("x", "y")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove("y")
+
+	err = os.Symlink("y", "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove("x")
+
+	_, err = os.Stat("x")
+	if perr, ok := err.(*os.PathError); !ok || perr.Err != syscall.ELOOP {
+		t.Errorf("expected *PathError with ELOOP, got %T: %v\n", err, err)
 	}
 }
