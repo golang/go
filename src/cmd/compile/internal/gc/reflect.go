@@ -18,9 +18,15 @@ type itabEntry struct {
 	sym      *Sym
 }
 
+type ptabEntry struct {
+	s *Sym
+	t *Type
+}
+
 // runtime interface and reflection data structures
 var signatlist []*Node
 var itabs []itabEntry
+var ptabs []ptabEntry
 
 type Sig struct {
 	name   string
@@ -1403,6 +1409,31 @@ func dumptypestructs() {
 		ilink := Pkglookup(Tconv(i.t, FmtLeft)+","+Tconv(i.itype, FmtLeft), itablinkpkg)
 		dsymptr(ilink, 0, i.sym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+	}
+
+	// process ptabs
+	if localpkg.Name == "main" && len(ptabs) > 0 {
+		ot := 0
+		s := obj.Linklookup(Ctxt, "go.plugin.tabs", 0)
+		for _, p := range ptabs {
+			// Dump ptab symbol into go.pluginsym package.
+			//
+			// type ptab struct {
+			//	name nameOff
+			//	typ  typeOff // pointer to symbol
+			// }
+			nsym := dname(p.s.Name, "", nil, true)
+			ot = dsymptrOffLSym(s, ot, nsym, 0)
+			ot = dsymptrOffLSym(s, ot, Linksym(typesym(p.t)), 0)
+		}
+		ggloblLSym(s, int32(ot), int16(obj.RODATA))
+
+		ot = 0
+		s = obj.Linklookup(Ctxt, "go.plugin.exports", 0)
+		for _, p := range ptabs {
+			ot = dsymptrLSym(s, ot, Linksym(p.s), 0)
+		}
+		ggloblLSym(s, int32(ot), int16(obj.RODATA))
 	}
 
 	// generate import strings for imported packages
