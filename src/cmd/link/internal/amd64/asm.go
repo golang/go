@@ -59,7 +59,7 @@ func gentext(ctxt *ld.Link) {
 		return
 	}
 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
-	if addmoduledata.Type == obj.STEXT {
+	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return
@@ -86,6 +86,9 @@ func gentext(ctxt *ld.Link) {
 	//    c:	c3                   	retq
 	o(0xc3)
 	ctxt.Textp = append(ctxt.Textp, initfunc)
+	if ld.Buildmode == ld.BuildmodePlugin {
+		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+	}
 	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal

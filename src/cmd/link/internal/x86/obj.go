@@ -85,13 +85,6 @@ func archinit(ctxt *ld.Link) {
 		ld.Linkmode = ld.LinkInternal
 	}
 
-	if (ld.Buildmode == ld.BuildmodeCArchive && ld.Iself) || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ctxt.DynlinkingGo() {
-		ld.Linkmode = ld.LinkExternal
-		got := ld.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
-		got.Type = obj.SDYNIMPORT
-		got.Attr |= ld.AttrReachable
-	}
-
 	switch ld.Headtype {
 	default:
 		if ld.Linkmode == ld.LinkAuto {

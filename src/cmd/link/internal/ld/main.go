@@ -37,6 +37,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -158,7 +159,8 @@ func Main() {
 		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", Headtype, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
 	}
 
-	if Buildmode == BuildmodeShared {
+	switch Buildmode {
+	case BuildmodeShared:
 		for i := 0; i < flag.NArg(); i++ {
 			arg := flag.Arg(i)
 			parts := strings.SplitN(arg, "=", 2)
@@ -172,7 +174,10 @@ func Main() {
 			pkglistfornote = append(pkglistfornote, '\n')
 			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
 		}
-	} else {
+	case BuildmodePlugin:
+		pluginName := strings.TrimSuffix(filepath.Base(flag.Arg(0)), ".a")
+		addlibpath(ctxt, "command line", "command line", flag.Arg(0), pluginName, "")
+	default:
 		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
 	}
 	ctxt.loadlib()

@@ -165,6 +165,8 @@ type Link struct {
 	Bso       *bufio.Writer
 	Windows   int32
 
+	Loaded bool // set after all inputs have been loaded as symbols
+
 	// Symbol lookup based on name and indexed by version.
 	Hash []map[string]*Symbol
 

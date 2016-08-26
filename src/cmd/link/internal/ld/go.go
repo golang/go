@@ -228,7 +228,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			s = Linklookup(ctxt, local, 0)
 
 			switch Buildmode {
-			case BuildmodeCShared, BuildmodeCArchive:
+			case BuildmodeCShared, BuildmodeCArchive, BuildmodePlugin:
 				if s == Linklookup(ctxt, "main", 0) {
 					continue
 				}
