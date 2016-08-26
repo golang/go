@@ -286,6 +286,8 @@ const (
 	AFSUBS
 	AFSQRT
 	AFSQRTS
+	AFIEBR
+	AFIDBR
 
 	// convert from int32/int64 to float/float64
 	ACEFBRA

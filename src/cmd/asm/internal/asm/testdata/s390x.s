@@ -178,6 +178,8 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	FABS	F1, F2                 // b3100021
 	FSQRTS	F3, F4                 // b3140043
 	FSQRT	F5, F15                // b31500f5
+	FIEBR	$0, F0, F1             // b3570010
+	FIDBR	$7, F2, F3             // b35f7032
 
 	VL	(R15), V1              // e710f0000006
 	VST	V1, (R15)              // e710f000000e
