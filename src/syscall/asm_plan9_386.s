@@ -107,7 +107,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	RET
 
 TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
-	MOVL	trap+0(SP), AX	// syscall entry
+	MOVL	trap+0(FP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL	8(SP), SI
 	LEAL	4(SP), DI
