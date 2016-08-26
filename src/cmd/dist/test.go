@@ -540,6 +540,9 @@ func (t *tester) registerTests() {
 		if t.supportedBuildmode("shared") {
 			t.registerTest("testshared", "../misc/cgo/testshared", "go", "test")
 		}
+		if t.supportedBuildmode("plugin") {
+			t.registerTest("testplugin", "../misc/cgo/testplugin", "./test.bash")
+		}
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
@@ -719,6 +722,12 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		return false
 	case "shared":
+		switch pair {
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
+			return true
+		}
+		return false
+	case "plugin":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
 			return true
