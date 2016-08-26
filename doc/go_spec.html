@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 24, 2016",
+	"Subtitle": "Version of August 26, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -2320,7 +2320,7 @@ days := [...]string{"Sat", "Sun"}  // len(days) == 2
 
 <p>
 A slice literal describes the entire underlying array literal.
-Thus, the length and capacity of a slice literal are the maximum
+Thus the length and capacity of a slice literal are the maximum
 element index plus one. A slice literal has the form
 </p>
 
@@ -6162,9 +6162,10 @@ func init() { … }
 </pre>
 
 <p>
-Multiple such functions may be defined, even within a single
-source file. The <code>init</code> identifier is not
-<a href="#Declarations_and_scope">declared</a> and thus
+Multiple such functions may be defined per package, even within a single
+source file. In the package block, the <code>init</code> identifier can
+be used only to declare <code>init</code> functions, yet the identifier
+itself is not <a href="#Declarations_and_scope">declared</a>. Thus
 <code>init</code> functions cannot be referred to from anywhere
 in a program.
 </p>
