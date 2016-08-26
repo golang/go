@@ -842,8 +842,9 @@ opswitch:
 		}
 		n1.Etype = 1 // addr does not escape
 		fn := chanfn("chanrecv2", 2, r.Left.Type)
-		r = mkcall1(fn, n.List.Second().Type, init, typename(r.Left.Type), r.Left, n1)
-		n = Nod(OAS, n.List.Second(), r)
+		ok := n.List.Second()
+		call := mkcall1(fn, ok.Type, init, typename(r.Left.Type), r.Left, n1)
+		n = Nod(OAS, ok, call)
 		n = typecheck(n, Etop)
 
 		// a,b = m[i];
@@ -898,8 +899,8 @@ opswitch:
 		// mapaccess2* returns a typed bool, but due to spec changes,
 		// the boolean result of i.(T) is now untyped so we make it the
 		// same type as the variable on the lhs.
-		if !isblank(n.List.Second()) {
-			r.Type.Field(1).Type = n.List.Second().Type
+		if ok := n.List.Second(); !isblank(ok) && ok.Type.IsBoolean() {
+			r.Type.Field(1).Type = ok.Type
 		}
 		n.Rlist.Set1(r)
 		n.Op = OAS2FUNC
@@ -933,6 +934,7 @@ opswitch:
 
 	case OAS2DOTTYPE:
 		e := n.Rlist.First() // i.(T)
+
 		// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
 		// It needs to be removed in all three places.
 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
@@ -956,6 +958,9 @@ opswitch:
 		ok := n.List.Second()
 		if !isblank(ok) {
 			oktype = ok.Type
+		}
+		if !oktype.IsBoolean() {
+			Fatalf("orderstmt broken: got %L, want boolean", oktype)
 		}
 
 		fromKind := from.Type.iet()

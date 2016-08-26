@@ -573,16 +573,29 @@ func orderstmt(n *Node, order *Order) {
 
 		orderexprlist(n.List, order)
 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // i in i.(T)
-		if isblank(n.List.First()) {
-			order.out = append(order.out, n)
-		} else {
+
+		var tmp1, tmp2 *Node
+		if !isblank(n.List.First()) {
 			typ := n.Rlist.First().Type
-			tmp1 := ordertemp(typ, order, haspointers(typ))
-			order.out = append(order.out, n)
+			tmp1 = ordertemp(typ, order, haspointers(typ))
+		}
+		if !isblank(n.List.Second()) && !n.List.Second().Type.IsBoolean() {
+			tmp2 = ordertemp(Types[TBOOL], order, false)
+		}
+
+		order.out = append(order.out, n)
+
+		if tmp1 != nil {
 			r := Nod(OAS, n.List.First(), tmp1)
 			r = typecheck(r, Etop)
 			ordermapassign(r, order)
-			n.List.Set([]*Node{tmp1, n.List.Second()})
+			n.List.SetIndex(0, tmp1)
+		}
+		if tmp2 != nil {
+			r := okas(n.List.Second(), tmp2)
+			r = typecheck(r, Etop)
+			ordermapassign(r, order)
+			n.List.SetIndex(1, tmp2)
 		}
 
 		cleantemp(t, order)
@@ -596,17 +609,12 @@ func orderstmt(n *Node, order *Order) {
 		n.Rlist.First().Left = orderexpr(n.Rlist.First().Left, order, nil) // arg to recv
 		ch := n.Rlist.First().Left.Type
 		tmp1 := ordertemp(ch.Elem(), order, haspointers(ch.Elem()))
-		var tmp2 *Node
-		if !isblank(n.List.Second()) {
-			tmp2 = ordertemp(n.List.Second().Type, order, false)
-		} else {
-			tmp2 = ordertemp(Types[TBOOL], order, false)
-		}
+		tmp2 := ordertemp(Types[TBOOL], order, false)
 		order.out = append(order.out, n)
 		r := Nod(OAS, n.List.First(), tmp1)
 		r = typecheck(r, Etop)
 		ordermapassign(r, order)
-		r = Nod(OAS, n.List.Second(), tmp2)
+		r = okas(n.List.Second(), tmp2)
 		r = typecheck(r, Etop)
 		ordermapassign(r, order)
 		n.List.Set([]*Node{tmp1, tmp2})
@@ -882,8 +890,8 @@ func orderstmt(n *Node, order *Order) {
 							n2.Ninit.Append(tmp2)
 						}
 
-						r.List.Set1(ordertemp(tmp1.Type, order, false))
-						tmp2 = Nod(OAS, tmp1, r.List.First())
+						r.List.Set1(ordertemp(Types[TBOOL], order, false))
+						tmp2 = okas(tmp1, r.List.First())
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
 					}
@@ -1205,4 +1213,13 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 
 	lineno = lno
 	return n
+}
+
+// okas creates and returns an assignment of val to ok,
+// including an explicit conversion if necessary.
+func okas(ok, val *Node) *Node {
+	if !isblank(ok) {
+		val = conv(val, ok.Type)
+	}
+	return Nod(OAS, ok, val)
 }
