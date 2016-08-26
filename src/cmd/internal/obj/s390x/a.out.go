@@ -364,6 +364,18 @@ const (
 	ALA
 	ALAY
 
+	// interlocked load and op
+	ALAA
+	ALAAG
+	ALAAL
+	ALAALG
+	ALAN
+	ALANG
+	ALAX
+	ALAXG
+	ALAO
+	ALAOG
+
 	// load/store multiple
 	ALMY
 	ALMG
