@@ -209,7 +209,7 @@ func genRules(arch arch) {
 
 	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
-	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
+	fmt.Fprintf(w, "func rewriteBlock%s(b *Block, config *Config) bool {\n", arch.name)
 	fmt.Fprintf(w, "switch b.Kind {\n")
 	ops = nil
 	for op := range blockrules {

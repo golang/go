@@ -17,7 +17,7 @@ type Config struct {
 	arch            string                     // "amd64", etc.
 	IntSize         int64                      // 4 or 8
 	PtrSize         int64                      // 4 or 8
-	lowerBlock      func(*Block) bool          // lowering function
+	lowerBlock      func(*Block, *Config) bool // lowering function
 	lowerValue      func(*Value, *Config) bool // lowering function
 	registers       []Register                 // machine registers
 	gpRegMask       regMask                    // general purpose integer register mask

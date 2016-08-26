@@ -9710,7 +9710,7 @@ func rewriteValueMIPS64_OpZeroExt8to64(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteBlockMIPS64(b *Block) bool {
+func rewriteBlockMIPS64(b *Block, config *Config) bool {
 	switch b.Kind {
 	case BlockMIPS64EQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)
