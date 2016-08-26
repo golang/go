@@ -1404,7 +1404,7 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 
 	if recur {
 		p.indent()
-		if p.dumpdepth > 10 {
+		if dumpdepth > 10 {
 			return p.s("...")
 		}
 
@@ -1654,9 +1654,9 @@ func Nconv(n *Node, flag FmtFlag) string {
 		p.nodefmt(n, flag)
 
 	case FDbg:
-		p.dumpdepth++
+		dumpdepth++
 		p.nodedump(n, flag)
-		p.dumpdepth--
+		dumpdepth--
 
 	default:
 		Fatalf("unhandled %%N mode")
@@ -1715,8 +1715,7 @@ func Dump(s string, n *Node) {
 
 // printer is a buffer for creating longer formatted strings.
 type printer struct {
-	buf       []byte
-	dumpdepth int
+	buf []byte
 }
 
 // printer implements io.Writer.
@@ -1742,10 +1741,13 @@ func (p *printer) f(format string, args ...interface{}) *printer {
 	return p
 }
 
+// TODO(gri) make this a field of printer
+var dumpdepth int
+
 // indent prints indentation to p.
 func (p *printer) indent() {
 	p.s("\n")
-	for i := 0; i < p.dumpdepth; i++ {
+	for i := 0; i < dumpdepth; i++ {
 		p.s(".   ")
 	}
 }
