@@ -877,6 +877,40 @@ func TestEvalSymlinks(t *testing.T) {
 			t.Errorf(`EvalSymlinks(".") in %q directory returns %q, want "." or %q`, d.path, p, want)
 		}()
 
+		// test EvalSymlinks("C:.") on Windows
+		if runtime.GOOS == "windows" {
+			func() {
+				defer func() {
+					err := os.Chdir(wd)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}()
+
+				err := os.Chdir(path)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+
+				volDot := filepath.VolumeName(tmpDir) + "."
+
+				p, err := filepath.EvalSymlinks(volDot)
+				if err != nil {
+					t.Errorf(`EvalSymlinks("%s") in %q directory error: %v`, volDot, d.path, err)
+					return
+				}
+				if p == volDot {
+					return
+				}
+				want := filepath.Clean(findEvalSymlinksTestDirsDest(t, testdirs, d.path))
+				if p == want {
+					return
+				}
+				t.Errorf(`EvalSymlinks("%s") in %q directory returns %q, want %q or %q`, volDot, d.path, p, volDot, want)
+			}()
+		}
+
 		// test EvalSymlinks(".."+path)
 		func() {
 			defer func() {
