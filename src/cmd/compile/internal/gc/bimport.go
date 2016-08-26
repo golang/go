@@ -623,6 +623,11 @@ func (p *importer) method() *Node {
 // parser.go:sym,hidden_importsym
 func (p *importer) fieldName() *Sym {
 	name := p.string()
+	if p.version == 0 && name == "_" {
+		// version 0 didn't export a package for _ fields
+		// but used the builtin package instead
+		return builtinpkg.Lookup(name)
+	}
 	pkg := localpkg
 	if name != "" && !exportname(name) {
 		if name == "?" {
