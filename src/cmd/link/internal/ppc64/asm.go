@@ -185,7 +185,7 @@ func genaddmoduledata(ctxt *ld.Link) {
 }
 
 func gentext(ctxt *ld.Link) {
-	if ld.DynlinkingGo() {
+	if ctxt.DynlinkingGo() {
 		genaddmoduledata(ctxt)
 	}
 

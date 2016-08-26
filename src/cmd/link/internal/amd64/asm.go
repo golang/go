@@ -55,7 +55,7 @@ func Addcall(ctxt *ld.Link, s *ld.Symbol, t *ld.Symbol) int64 {
 }
 
 func gentext(ctxt *ld.Link) {
-	if !ld.DynlinkingGo() {
+	if !ctxt.DynlinkingGo() {
 		return
 	}
 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
@@ -342,7 +342,7 @@ func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
 	case obj.R_CALL:
 		if r.Siz == 4 {
 			if r.Xsym.Type == obj.SDYNIMPORT {
-				if ld.DynlinkingGo() {
+				if ctxt.DynlinkingGo() {
 					ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
 				} else {
 					ld.Thearch.Vput(ld.R_X86_64_GOTPCREL | uint64(elfsym)<<32)
