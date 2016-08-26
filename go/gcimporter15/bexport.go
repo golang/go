@@ -40,9 +40,8 @@ const debugFormat = false // default: false
 // If trace is set, debugging output is printed to std out.
 const trace = false // default: false
 
-// Current export format version.
-// Must not start with 'c' or 'd' (initials of prior format).
-const exportVersion = "version 1"
+// Current export format version. Increase with each format change.
+const exportVersion = 1
 
 // trackAllTypes enables cycle tracking for all types, not just named
 // types. The existing compiler invariants assume that unnamed types
@@ -86,7 +85,10 @@ func BExportData(fset *token.FileSet, pkg *types.Package) []byte {
 	}
 
 	// write version info
-	p.rawStringln(exportVersion)
+	// The version string must start with "version %d" where %d is the version
+	// number. Additional debugging information may follow after a blank; that
+	// text is ignored by the importer.
+	p.rawStringln(fmt.Sprintf("version %d", exportVersion))
 	var debug string
 	if debugFormat {
 		debug = "debug"
