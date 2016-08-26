@@ -7159,7 +7159,7 @@ func rewriteValuePPC64_OpZeroExt8to64(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteBlockPPC64(b *Block) bool {
+func rewriteBlockPPC64(b *Block, config *Config) bool {
 	switch b.Kind {
 	case BlockPPC64EQ:
 		// match: (EQ (FlagEQ) yes no)

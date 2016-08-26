@@ -18803,7 +18803,7 @@ func rewriteValueAMD64_OpZeroExt8to64(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteBlockAMD64(b *Block) bool {
+func rewriteBlockAMD64(b *Block, config *Config) bool {
 	switch b.Kind {
 	case BlockAMD64EQ:
 		// match: (EQ (InvertFlags cmp) yes no)

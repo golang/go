@@ -896,3 +896,18 @@
 (Div64F x (Const64F [f2i(-1)])) -> (Neg32F x)
 
 (Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
+
+// recognize runtime.newobject and don't Zero/Nilcheck it
+(Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
+	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+	&& mem2 == mem
+	&& isSameSym(sym, "runtime.newobject")
+	-> mem
+(Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
+	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+	&& isSameSym(sym, "runtime.newobject")
+	-> (Plain nil succ)
+(Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
+	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+	&& isSameSym(sym, "runtime.newobject")
+	-> (Plain nil succ)

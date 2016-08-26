@@ -358,6 +358,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpXor64(v, config)
 	case OpXor8:
 		return rewriteValuegeneric_OpXor8(v, config)
+	case OpZero:
+		return rewriteValuegeneric_OpZero(v, config)
 	}
 	return false
 }
@@ -10969,7 +10971,43 @@ func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
 	}
 	return false
 }
-func rewriteBlockgeneric(b *Block) bool {
+func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
+	// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& mem2 == mem 	&& isSameSym(sym, "runtime.newobject")
+	// result: mem
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpLoad {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpOffPtr {
+			break
+		}
+		c := v_0_0.AuxInt
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpSP {
+			break
+		}
+		mem := v_0.Args[1]
+		if mem.Op != OpStaticCall {
+			break
+		}
+		sym := mem.Aux
+		mem2 := v.Args[1]
+		if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && mem2 == mem && isSameSym(sym, "runtime.newobject")) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteBlockgeneric(b *Block, config *Config) bool {
 	switch b.Kind {
 	case BlockCheck:
 		// match: (Check (NilCheck (GetG _) _) next)
@@ -10988,6 +11026,80 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Kind = BlockPlain
 			b.SetControl(nil)
 			_ = next
+			return true
+		}
+		// match: (Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
+		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
+		// result: (Plain nil succ)
+		for {
+			v := b.Control
+			if v.Op != OpNilCheck {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpLoad {
+				break
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpOffPtr {
+				break
+			}
+			c := v_0_0.AuxInt
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpSP {
+				break
+			}
+			mem := v_0.Args[1]
+			if mem.Op != OpStaticCall {
+				break
+			}
+			sym := mem.Aux
+			succ := b.Succs[0]
+			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
+				break
+			}
+			b.Kind = BlockPlain
+			b.SetControl(nil)
+			_ = succ
+			return true
+		}
+		// match: (Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
+		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
+		// result: (Plain nil succ)
+		for {
+			v := b.Control
+			if v.Op != OpNilCheck {
+				break
+			}
+			v_0 := v.Args[0]
+			if v_0.Op != OpOffPtr {
+				break
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpLoad {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpOffPtr {
+				break
+			}
+			c := v_0_0_0.AuxInt
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpSP {
+				break
+			}
+			mem := v_0_0.Args[1]
+			if mem.Op != OpStaticCall {
+				break
+			}
+			sym := mem.Aux
+			succ := b.Succs[0]
+			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
+				break
+			}
+			b.Kind = BlockPlain
+			b.SetControl(nil)
+			_ = succ
 			return true
 		}
 	case BlockIf:

@@ -14719,7 +14719,7 @@ func rewriteValueARM64_OpZeroExt8to64(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteBlockARM64(b *Block) bool {
+func rewriteBlockARM64(b *Block, config *Config) bool {
 	switch b.Kind {
 	case BlockARM64EQ:
 		// match: (EQ (FlagEQ) yes no)

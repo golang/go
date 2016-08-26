@@ -2527,7 +2527,7 @@ func rewriteValuedec64_OpZeroExt8to64(v *Value, config *Config) bool {
 		return true
 	}
 }
-func rewriteBlockdec64(b *Block) bool {
+func rewriteBlockdec64(b *Block, config *Config) bool {
 	switch b.Kind {
 	}
 	return false
