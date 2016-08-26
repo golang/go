@@ -5,6 +5,7 @@
 package gcimporter
 
 import (
+	"bytes"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -114,6 +115,70 @@ func TestImportTestdata(t *testing.T) {
 			if !strings.Contains(got, want) {
 				t.Errorf(`Package("exports").Imports() = %s, does not contain %s`, got, want)
 			}
+		}
+	}
+}
+
+func TestVersionHandling(t *testing.T) {
+	skipSpecialPlatforms(t) // we really only need to exclude nacl platforms, but this is fine
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+		return
+	}
+
+	const dir = "./testdata/versions"
+	list, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, f := range list {
+		name := f.Name()
+		if !strings.HasSuffix(name, ".a") {
+			continue // not a package file
+		}
+		if strings.Contains(name, "corrupted") {
+			continue // don't process a leftover corrupted file
+		}
+		pkgpath := "./" + name[:len(name)-2]
+
+		// test that export data can be imported
+		_, err := Import(make(map[string]*types.Package), pkgpath, dir)
+		if err != nil {
+			t.Errorf("import %q failed: %v", pkgpath, err)
+			continue
+		}
+
+		// create file with corrupted export data
+		// 1) read file
+		data, err := ioutil.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// 2) find export data
+		i := bytes.Index(data, []byte("\n$$B\n")) + 5
+		j := bytes.Index(data[i:], []byte("\n$$\n")) + i
+		if i < 0 || j < 0 || i > j {
+			t.Fatalf("export data section not found (i = %d, j = %d)", i, j)
+		}
+		// 3) corrupt the data (increment every 7th byte)
+		for k := j - 13; k >= i; k -= 7 {
+			data[k]++
+		}
+		// 4) write the file
+		pkgpath += "_corrupted"
+		filename := filepath.Join(dir, pkgpath) + ".a"
+		ioutil.WriteFile(filename, data, 0666)
+		defer os.Remove(filename)
+
+		// test that importing the corrupted file results in an error
+		_, err = Import(make(map[string]*types.Package), pkgpath, dir)
+		if err == nil {
+			t.Errorf("import corrupted %q succeeded", pkgpath)
+		} else if msg := err.Error(); !strings.Contains(msg, "version skew") {
+			t.Errorf("import %q error incorrect (%s)", pkgpath, msg)
 		}
 	}
 }
