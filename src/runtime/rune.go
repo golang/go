@@ -49,115 +49,97 @@ const (
 	surrogateMin = 0xD800
 	surrogateMax = 0xDFFF
 
-	bad = runeerror
-
 	runemax = 0x10FFFF /* maximum rune value */
 )
 
-/*
- * Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
- * This is a slower but "safe" version of the old chartorune
- * that works on strings that are not necessarily null-terminated.
- *
- * If you know for sure that your string is null-terminated,
- * chartorune will be a bit faster.
- *
- * It is guaranteed not to attempt to access "length"
- * past the incoming pointer.  This is to avoid
- * possible access violations.  If the string appears to be
- * well-formed but incomplete (i.e., to get the whole Rune
- * we'd need to read past str+length) then we'll set the Rune
- * to Bad and return 0.
- *
- * Note that if we have decoding problems for other
- * reasons, we return 1 instead of 0.
- */
-func charntorune(s string) (rune, int) {
-	/* When we're not allowed to read anything */
-	if len(s) <= 0 {
-		return bad, 1
+// charntorune returns the rune at the start of
+// s[k:] and the index after the rune in s.
+//
+// If the string appears to be incomplete or decoding problems
+// are encountered (runeerror, k + 1) is returned to ensure
+// progress when charntorune is used to iterate over a string.
+//
+// Modified by Wei-Hwa Huang, Google Inc., on 2004-09-24
+func charntorune(s string, k int) (rune, int) {
+	// When we're not allowed to read anything */
+	if len(s) <= k {
+		return runeerror, k + 1
 	}
 
-	/*
-	 * one character sequence (7-bit value)
-	 *	00000-0007F => T1
-	 */
+	s = s[k:]
+
+	// one character sequence (7-bit value)
+	// 00000-0007F => T1
 	c := s[0]
 	if c < tx {
-		return rune(c), 1
+		return rune(c), k + 1
 	}
 
 	// If we can't read more than one character we must stop
 	if len(s) <= 1 {
-		return bad, 1
+		return runeerror, k + 1
 	}
 
-	/*
-	 * two character sequence (11-bit value)
-	 *	0080-07FF => t2 tx
-	 */
+	// two character sequence (11-bit value)
+	// 0080-07FF => t2 tx
 	c1 := s[1] ^ tx
 	if (c1 & testx) != 0 {
-		return bad, 1
+		return runeerror, k + 1
 	}
 	if c < t3 {
 		if c < t2 {
-			return bad, 1
+			return runeerror, k + 1
 		}
 		l := ((rune(c) << bitx) | rune(c1)) & rune2
 		if l <= rune1 {
-			return bad, 1
+			return runeerror, k + 1
 		}
-		return l, 2
+		return l, k + 2
 	}
 
 	// If we can't read more than two characters we must stop
 	if len(s) <= 2 {
-		return bad, 1
+		return runeerror, k + 1
 	}
 
-	/*
-	 * three character sequence (16-bit value)
-	 *	0800-FFFF => t3 tx tx
-	 */
+	// three character sequence (16-bit value)
+	// 0800-FFFF => t3 tx tx
 	c2 := s[2] ^ tx
 	if (c2 & testx) != 0 {
-		return bad, 1
+		return runeerror, k + 1
 	}
 	if c < t4 {
 		l := ((((rune(c) << bitx) | rune(c1)) << bitx) | rune(c2)) & rune3
 		if l <= rune2 {
-			return bad, 1
+			return runeerror, k + 1
 		}
 		if surrogateMin <= l && l <= surrogateMax {
-			return bad, 1
+			return runeerror, k + 1
 		}
-		return l, 3
+		return l, k + 3
 	}
 
 	if len(s) <= 3 {
-		return bad, 1
+		return runeerror, k + 1
 	}
 
-	/*
-	 * four character sequence (21-bit value)
-	 *	10000-1FFFFF => t4 tx tx tx
-	 */
+	// four character sequence (21-bit value)
+	// 10000-1FFFFF => t4 tx tx tx
 	c3 := s[3] ^ tx
 	if (c3 & testx) != 0 {
-		return bad, 1
+		return runeerror, k + 1
 	}
 	if c < t5 {
 		l := ((((((rune(c) << bitx) | rune(c1)) << bitx) | rune(c2)) << bitx) | rune(c3)) & rune4
 		if l <= rune3 || l > runemax {
-			return bad, 1
+			return runeerror, k + 1
 		}
-		return l, 4
+		return l, k + 4
 	}
 
 	// Support for 5-byte or longer UTF-8 would go here, but
-	// since we don't have that, we'll just return bad.
-	return bad, 1
+	// since we don't have that, we'll just return runeerror.
+	return runeerror, k + 1
 }
 
 // runetochar converts r to bytes and writes the result to str.

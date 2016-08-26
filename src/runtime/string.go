@@ -163,12 +163,10 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.
 	n := 0
-	t := s
-	for len(s) > 0 {
-		_, k := charntorune(s)
-		s = s[k:]
+	for range s {
 		n++
 	}
+
 	var a []rune
 	if buf != nil && n <= len(buf) {
 		*buf = [tmpStringBufSize]rune{}
@@ -176,10 +174,9 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	} else {
 		a = rawruneslice(n)
 	}
+
 	n = 0
-	for len(t) > 0 {
-		r, k := charntorune(t)
-		t = t[k:]
+	for _, r := range s {
 		a[n] = r
 		n++
 	}
@@ -242,42 +239,6 @@ func intstring(buf *[4]byte, v int64) string {
 	}
 	n := runetochar(b, rune(v))
 	return s[:n]
-}
-
-// stringiter returns the index of the next
-// rune after the rune that starts at s[k].
-func stringiter(s string, k int) int {
-	if k >= len(s) {
-		// 0 is end of iteration
-		return 0
-	}
-
-	c := s[k]
-	if c < runeself {
-		return k + 1
-	}
-
-	// multi-char rune
-	_, n := charntorune(s[k:])
-	return k + n
-}
-
-// stringiter2 returns the rune that starts at s[k]
-// and the index where the next rune starts.
-func stringiter2(s string, k int) (int, rune) {
-	if k >= len(s) {
-		// 0 is end of iteration
-		return 0, 0
-	}
-
-	c := s[k]
-	if c < runeself {
-		return k + 1, rune(c)
-	}
-
-	// multi-char rune
-	r, n := charntorune(s[k:])
-	return k + n, r
 }
 
 // rawstring allocates storage for a new string. The returned
