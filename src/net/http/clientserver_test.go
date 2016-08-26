@@ -56,6 +56,10 @@ const (
 	h2Mode = true
 )
 
+var optQuietLog = func(ts *httptest.Server) {
+	ts.Config.ErrorLog = quietLog
+}
+
 func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
 	cst := &clientServerTest{
 		t:  t,
@@ -1077,7 +1081,7 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "Handler saw headers: %q", r.Header)
-	}))
+	}), optQuietLog)
 	defer cst.close()
 	cst.tr.DisableKeepAlives = true
 

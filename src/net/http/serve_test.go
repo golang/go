@@ -759,7 +759,7 @@ func TestServeHTTP10Close(t *testing.T) {
 
 // TestClientCanClose verifies that clients can also force a connection to close.
 func TestClientCanClose(t *testing.T) {
-	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nConnection: close\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nHost: foo\r\nConnection: close\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
 		// Nothing.
 	}))
 }
@@ -767,7 +767,7 @@ func TestClientCanClose(t *testing.T) {
 // TestHandlersCanSetConnectionClose verifies that handlers can force a connection to close,
 // even for HTTP/1.1 requests.
 func TestHandlersCanSetConnectionClose11(t *testing.T) {
-	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "close")
 	}))
 }
@@ -2377,7 +2377,7 @@ func testRequestLimit(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Fatalf("didn't expect to get request in Handler")
-	}))
+	}), optQuietLog)
 	defer cst.close()
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
 	var bytesPerHeader = len("header12345: val12345\r\n")
@@ -4119,7 +4119,11 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		io.WriteString(&conn.readBuf, methodTarget+tt.proto+"\r\n"+tt.host+"\r\n")
 
 		ln := &oneConnListener{conn}
-		go Serve(ln, HandlerFunc(func(ResponseWriter, *Request) {}))
+		srv := Server{
+			ErrorLog: quietLog,
+			Handler:  HandlerFunc(func(ResponseWriter, *Request) {}),
+		}
+		go srv.Serve(ln)
 		<-conn.closec
 		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
 		if err != nil {
@@ -4184,9 +4188,10 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"X-Foo: bar\r\n", 200},
 		{"Foo: a space\r\n", 200},
 
-		{"A space: foo\r\n", 400},    // space in header
-		{"foo\xffbar: foo\r\n", 400}, // binary in header
-		{"foo\x00bar: foo\r\n", 400}, // binary in header
+		{"A space: foo\r\n", 400},                            // space in header
+		{"foo\xffbar: foo\r\n", 400},                         // binary in header
+		{"foo\x00bar: foo\r\n", 400},                         // binary in header
+		{"Foo: " + strings.Repeat("x", 1<<21) + "\r\n", 431}, // header too large
 
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
@@ -4199,7 +4204,11 @@ func TestServerValidatesHeaders(t *testing.T) {
 		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
 
 		ln := &oneConnListener{conn}
-		go Serve(ln, HandlerFunc(func(ResponseWriter, *Request) {}))
+		srv := Server{
+			ErrorLog: quietLog,
+			Handler:  HandlerFunc(func(ResponseWriter, *Request) {}),
+		}
+		go srv.Serve(ln)
 		<-conn.closec
 		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
 		if err != nil {

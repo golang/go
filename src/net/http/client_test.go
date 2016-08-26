@@ -1017,6 +1017,7 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	ts.Config.ErrorLog = quietLog
 	defer ts.Close()
 
 	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))

@@ -1682,6 +1682,23 @@ func (e badRequestError) Error() string { return "Bad Request: " + string(e) }
 // trace to the server's error log.
 var ErrAbortHandler = errors.New("net/http: abort Handler")
 
+// isCommonNetReadError reports whether err is a common error
+// encountered during reading a request off the network when the
+// client has gone away or had its read fail somehow. This is used to
+// determine which logs are interesting enough to log about.
+func isCommonNetReadError(err error) bool {
+	if err == io.EOF {
+		return true
+	}
+	if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+		return true
+	}
+	if oe, ok := err.(*net.OpError); ok && oe.Op == "read" {
+		return true
+	}
+	return false
+}
+
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
@@ -1737,27 +1754,31 @@ func (c *conn) serve(ctx context.Context) {
 			c.setState(c.rwc, StateActive)
 		}
 		if err != nil {
+			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
+
 			if err == errTooLarge {
 				// Their HTTP client may or may not be
 				// able to read this if we're
 				// responding to them and hanging up
 				// while they're still writing their
 				// request. Undefined behavior.
-				io.WriteString(c.rwc, "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large")
+				const publicErr = "431 Request Header Fields Too Large"
+				c.server.logf("http: %s", publicErr)
+				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				c.closeWriteAndWait()
 				return
 			}
-			if err == io.EOF {
+			if isCommonNetReadError(err) {
 				return // don't reply
 			}
-			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-				return // don't reply
-			}
-			var publicErr string
+
+			publicErr := "400 Bad Request"
 			if v, ok := err.(badRequestError); ok {
-				publicErr = ": " + string(v)
+				publicErr = publicErr + ": " + string(v)
 			}
-			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n400 Bad Request"+publicErr)
+
+			c.server.logf("http: %s", publicErr)
+			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 			return
 		}
 
