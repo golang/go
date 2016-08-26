@@ -400,6 +400,15 @@ func (ctxt *Link) symtab() {
 		symgcbits      = groupSym("runtime.gcbits.*", obj.SGCBITS)
 	)
 
+	var symgofuncrel *Symbol
+	if !DynlinkingGo() {
+		if UseRelro() {
+			symgofuncrel = groupSym("go.funcrel.*", obj.SGOFUNCRELRO)
+		} else {
+			symgofuncrel = symgofunc
+		}
+	}
+
 	symtypelink := Linklookup(ctxt, "runtime.typelink", 0)
 	symtypelink.Type = obj.STYPELINK
 
@@ -468,10 +477,17 @@ func (ctxt *Link) symtab() {
 			s.Attr |= AttrHidden
 			s.Outer = symgcbits
 
-		case strings.HasPrefix(s.Name, "go.func."):
-			s.Type = obj.SGOFUNC
-			s.Attr |= AttrHidden
-			s.Outer = symgofunc
+		case strings.HasSuffix(s.Name, "·f"):
+			if !DynlinkingGo() {
+				s.Attr |= AttrHidden
+			}
+			if UseRelro() {
+				s.Type = obj.SGOFUNCRELRO
+				s.Outer = symgofuncrel
+			} else {
+				s.Type = obj.SGOFUNC
+				s.Outer = symgofunc
+			}
 
 		case strings.HasPrefix(s.Name, "gcargs."), strings.HasPrefix(s.Name, "gclocals."), strings.HasPrefix(s.Name, "gclocals·"):
 			s.Type = obj.SGOFUNC
