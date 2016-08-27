@@ -135,6 +135,47 @@ func TestReverseProxy(t *testing.T) {
 
 }
 
+// Issue 16875: remove any proxied headers mentioned in the "Connection"
+// header value.
+func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
+	const fakeConnectionToken = "X-Fake-Connection-Token"
+	const backendResponse = "I am the backend"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c := r.Header.Get(fakeConnectionToken); c != "" {
+			t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
+		}
+		if c := r.Header.Get("Upgrade"); c != "" {
+			t.Errorf("handler got header %q = %q; want empty", "Upgrade", c)
+		}
+		io.WriteString(w, backendResponse)
+	}))
+	defer backend.Close()
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
+	getReq.Header.Set("Connection", "Upgrade, "+fakeConnectionToken)
+	getReq.Header.Set("Upgrade", "foo")
+	getReq.Header.Set(fakeConnectionToken, "should be deleted")
+	res, err := http.DefaultClient.Do(getReq)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("reading body: %v", err)
+	}
+	if got, want := string(bodyBytes), backendResponse; got != want {
+		t.Errorf("got body %q; want %q", got, want)
+	}
+}
+
 func TestXForwardedFor(t *testing.T) {
 	const prevForwardedFor = "client ip"
 	const backendResponse = "I am the backend"
