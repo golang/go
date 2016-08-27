@@ -271,6 +271,27 @@ you will need to abide by the guidelines at
 
 <h2 id="Design">Design</h2>
 
+<h3 id="runtime">
+Does Go have a runtime?</h3>
+
+<p>
+Go does have an extensive library, called the <em>runtime</em>,
+that is part of every Go program.
+The runtime library implements garbage collection, concurrency,
+stack management, and other critical features of the Go language.
+Although it is more central to the language, Go's runtime is analogous
+to <code>libc</code>, the C library.
+</p>
+
+<p>
+It is important to understand, however, that Go's runtime does not
+include a virtual machine, such as is provided by the Java runtime.
+Go programs are compiled ahead of time to native machine code.
+Thus, although the term is often used to describe the virtual
+environment in which a program runs, in Go the word &ldquo;runtime&rdquo;
+is just the name given to the library providing critical language services.
+</p>
+
 <h3 id="unicode_identifiers">
 What's up with Unicode identifiers?</h3>
 
@@ -881,7 +902,7 @@ would be satisfied by the method
 func (v Value) Copy() Value
 </pre>
 
-because <code>Value</code> implements the empty interface.
+<p>because <code>Value</code> implements the empty interface.
 In Go method types must match exactly, so <code>Value</code> does not
 implement <code>Copyable</code>.
 Go separates the notion of what a
