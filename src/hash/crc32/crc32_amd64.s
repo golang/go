@@ -4,13 +4,13 @@
 
 #include "textflag.h"
 
-// castagnoliSSE42 updates the (non-inverted) crc with the given buffer.
-//
 // func castagnoliSSE42(crc uint32, p []byte) uint32
 TEXT ·castagnoliSSE42(SB),NOSPLIT,$0
 	MOVL crc+0(FP), AX  // CRC value
 	MOVQ p+8(FP), SI  // data pointer
 	MOVQ p_len+16(FP), CX  // len(p)
+
+	NOTL AX
 
 	// If there are fewer than 8 bytes to process, skip alignment.
 	CMPQ CX, $8
@@ -87,51 +87,8 @@ less_than_2:
 	CRC32B (SI), AX
 
 done:
+	NOTL AX
 	MOVL AX, ret+32(FP)
-	RET
-
-// castagnoliSSE42Triple updates three (non-inverted) crcs with (24*rounds)
-// bytes from each buffer.
-//
-// func castagnoliSSE42Triple(
-//     crc1, crc2, crc3 uint32,
-//     a, b, c []byte,
-//     rounds uint32,
-// ) (retA uint32, retB uint32, retC uint32)
-TEXT ·castagnoliSSE42Triple(SB),NOSPLIT,$0
-	MOVL crcA+0(FP), AX
-	MOVL crcB+4(FP), CX
-	MOVL crcC+8(FP), DX
-
-	MOVQ a+16(FP), R8   // data pointer
-	MOVQ b+40(FP), R9   // data pointer
-	MOVQ c+64(FP), R10  // data pointer
-
-	MOVL rounds+88(FP), R11
-
-loop:
-	CRC32Q (R8), AX
-	CRC32Q (R9), CX
-	CRC32Q (R10), DX
-
-	CRC32Q 8(R8), AX
-	CRC32Q 8(R9), CX
-	CRC32Q 8(R10), DX
-
-	CRC32Q 16(R8), AX
-	CRC32Q 16(R9), CX
-	CRC32Q 16(R10), DX
-
-	ADDQ $24, R8
-	ADDQ $24, R9
-	ADDQ $24, R10
-
-	DECQ R11
-	JNZ loop
-
-	MOVL AX, retA+96(FP)
-	MOVL CX, retB+100(FP)
-	MOVL DX, retC+104(FP)
 	RET
 
 // func haveSSE42() bool
