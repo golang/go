@@ -25,6 +25,10 @@ func vectorizedCastagnoli(crc uint32, p []byte) uint32
 //go:noescape
 func vectorizedIEEE(crc uint32, p []byte) uint32
 
+func castagnoliInitArch() (needGenericTables bool) {
+	return true
+}
+
 func genericCastagnoli(crc uint32, p []byte) uint32 {
 	// Use slicing-by-8 on larger inputs.
 	if len(p) >= sliceBy8Cutoff {

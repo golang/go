@@ -113,16 +113,40 @@ func BenchmarkCastagnoliCrc40B(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 40, 0)
 }
 
+func BenchmarkCastagnoliCrc40BMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 40, 1)
+}
+
+func BenchmarkCastagnoliCrc512(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 512, 0)
+}
+
+func BenchmarkCastagnoliCrc512Misaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 512, 1)
+}
+
 func BenchmarkCastagnoliCrc1KB(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc1KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 1<<10, 1)
 }
 
 func BenchmarkCastagnoliCrc4KB(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 0)
 }
 
+func BenchmarkCastagnoliCrc4KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 4<<10, 1)
+}
+
 func BenchmarkCastagnoliCrc32KB(b *testing.B) {
 	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 0)
+}
+
+func BenchmarkCastagnoliCrc32KBMisaligned(b *testing.B) {
+	benchmark(b, New(MakeTable(Castagnoli)), 32<<10, 1)
 }
 
 func benchmark(b *testing.B, h hash.Hash32, n, alignment int64) {
