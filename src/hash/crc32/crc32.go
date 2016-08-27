@@ -52,14 +52,8 @@ var castagnoliTable8 *slicing8Table
 var castagnoliOnce sync.Once
 
 func castagnoliInit() {
-	// Call the arch-specific init function and let it decide if we will need
-	// the tables for the generic implementation.
-	needGenericTables := castagnoliInitArch()
-
-	if needGenericTables {
-		castagnoliTable = makeTable(Castagnoli)
-		castagnoliTable8 = makeTable8(Castagnoli)
-	}
+	castagnoliTable = makeTable(Castagnoli)
+	castagnoliTable8 = makeTable8(Castagnoli)
 }
 
 // IEEETable is the table for the IEEE polynomial.
