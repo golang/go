@@ -103,9 +103,9 @@ func isHILO(r int16) bool {
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type, r int16) obj.As {
 	if isFPreg(r) {
-		if t.IsFloat() && t.Size() == 4 { // float32
+		if t.Size() == 4 { // float32 or int32
 			return mips.AMOVF
-		} else { // float64 or integer in FP register
+		} else { // float64 or int64
 			return mips.AMOVD
 		}
 	} else {
@@ -138,9 +138,9 @@ func loadByType(t ssa.Type, r int16) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t ssa.Type, r int16) obj.As {
 	if isFPreg(r) {
-		if t.IsFloat() && t.Size() == 4 { // float32
+		if t.Size() == 4 { // float32 or int32
 			return mips.AMOVF
-		} else { // float64 or integer in FP register
+		} else { // float64 or int64
 			return mips.AMOVD
 		}
 	} else {
