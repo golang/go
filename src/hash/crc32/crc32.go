@@ -57,9 +57,12 @@ func castagnoliInit() {
 	needGenericTables := castagnoliInitArch()
 
 	if needGenericTables {
-		castagnoliTable = makeTable(Castagnoli)
 		castagnoliTable8 = makeTable8(Castagnoli)
 	}
+
+	// Even if we don't need the contents of this table, we use it as a handle
+	// returned by MakeTable. We should find a way to clean this up (see #16909).
+	castagnoliTable = makeTable(Castagnoli)
 }
 
 // IEEETable is the table for the IEEE polynomial.
