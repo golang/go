@@ -11,37 +11,31 @@ package crc32
 // support.
 func haveSSE42() bool
 
-// castagnoliSSE42 is defined in crc32_amd64.s and uses the SSE4.2 CRC32
+// castagnoliSSE42 is defined in crc32_amd64p32.s and uses the SSE4.2 CRC32
 // instruction.
 //go:noescape
 func castagnoliSSE42(crc uint32, p []byte) uint32
 
 var sse42 = haveSSE42()
 
-func castagnoliInitArch() (needGenericTables bool) {
-	// We only need the generic implementation tables if we don't have SSE4.2.
-	return !sse42
+func archAvailableCastagnoli() bool {
+	return sse42
 }
 
-func updateCastagnoli(crc uint32, p []byte) uint32 {
-	if sse42 {
-		return castagnoliSSE42(crc, p)
+func archInitCastagnoli() {
+	if !sse42 {
+		panic("not available")
 	}
-	// Use slicing-by-8 on larger inputs.
-	if len(p) >= sliceBy8Cutoff {
-		return updateSlicingBy8(crc, castagnoliTable8, p)
-	}
-	return update(crc, castagnoliTable, p)
+	// No initialization necessary.
 }
 
-func updateIEEE(crc uint32, p []byte) uint32 {
-	// Use slicing-by-8 on larger inputs.
-	if len(p) >= sliceBy8Cutoff {
-		ieeeTable8Once.Do(func() {
-			ieeeTable8 = makeTable8(IEEE)
-		})
-		return updateSlicingBy8(crc, ieeeTable8, p)
+func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
+	if !sse42 {
+		panic("not available")
 	}
-
-	return update(crc, IEEETable, p)
+	return castagnoliSSE42(crc, p)
 }
+
+func archAvailableIEEE() bool                    { return false }
+func archInitIEEE()                              { panic("not available") }
+func archUpdateIEEE(crc uint32, p []byte) uint32 { panic("not available") }
