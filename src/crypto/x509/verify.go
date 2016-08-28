@@ -108,8 +108,9 @@ func (e UnknownAuthorityError) Error() string {
 		if len(certName) == 0 {
 			if len(e.hintCert.Subject.Organization) > 0 {
 				certName = e.hintCert.Subject.Organization[0]
+			} else {
+				certName = "serial:" + e.hintCert.SerialNumber.String()
 			}
-			certName = "serial:" + e.hintCert.SerialNumber.String()
 		}
 		s += fmt.Sprintf(" (possibly because of %q while trying to verify candidate authority certificate %q)", e.hintErr, certName)
 	}
