@@ -47,6 +47,12 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 	-o ../bin/go_android_${GOARCH}_exec \
 	../misc/android/go_android_exec.go
 
+export pkgdir=$(dirname $(go list -f '{{.Target}}' runtime))
+if [ "$pkgdir" = "" ]; then
+	echo "could not find android pkg dir" 1>&2
+	exit 1
+fi
+
 export ANDROID_TEST_DIR=/tmp/androidtest-$$
 
 function cleanup() {
@@ -68,7 +74,7 @@ mkdir -p $FAKE_GOROOT/pkg
 cp -a "${GOROOT}/src" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
-cp -a "${GOROOT}/pkg/android_$GOARCH" "${FAKE_GOROOT}/pkg/"
+cp -a "${pkgdir}" "${FAKE_GOROOT}/pkg/"
 
 echo '# Syncing test files to android device'
 adb shell mkdir -p /data/local/tmp/goroot
