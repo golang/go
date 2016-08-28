@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// AMD64-specific hardware-assisted CRC32 algorithms. See crc32.go for a
+// description of the interface that each architecture-specific file
+// implements.
+
 package crc32
 
 import "unsafe"
@@ -45,9 +49,13 @@ type sse42Table [4]Table
 var castagnoliSSE42TableK1 *sse42Table
 var castagnoliSSE42TableK2 *sse42Table
 
-func castagnoliInitArch() (needGenericTables bool) {
+func archAvailableCastagnoli() bool {
+	return sse42
+}
+
+func archInitCastagnoli() {
 	if !sse42 {
-		return true
+		panic("arch-specific Castagnoli not available")
 	}
 	castagnoliSSE42TableK1 = new(sse42Table)
 	castagnoliSSE42TableK2 = new(sse42Table)
@@ -65,7 +73,6 @@ func castagnoliInitArch() (needGenericTables bool) {
 			castagnoliSSE42TableK2[b][i] = castagnoliSSE42(val, tmp[:])
 		}
 	}
-	return false
 }
 
 // castagnoliShift computes the CRC32-C of K1 or K2 zeroes (depending on the
@@ -78,13 +85,9 @@ func castagnoliShift(table *sse42Table, crc uint32) uint32 {
 		table[0][crc&0xFF]
 }
 
-func updateCastagnoli(crc uint32, p []byte) uint32 {
+func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
 	if !sse42 {
-		// Use slicing-by-8 on larger inputs.
-		if len(p) >= sliceBy8Cutoff {
-			return updateSlicingBy8(crc, castagnoliTable8, p)
-		}
-		return update(crc, castagnoliTable, p)
+		panic("not available")
 	}
 
 	// This method is inspired from the algorithm in Intel's white paper:
@@ -193,24 +196,33 @@ func updateCastagnoli(crc uint32, p []byte) uint32 {
 	return ^crc
 }
 
-func updateIEEE(crc uint32, p []byte) uint32 {
-	if useFastIEEE && len(p) >= 64 {
+func archAvailableIEEE() bool {
+	return useFastIEEE
+}
+
+var archIeeeTable8 *slicing8Table
+
+func archInitIEEE() {
+	if !useFastIEEE {
+		panic("not available")
+	}
+	// We still use slicing-by-8 for small buffers.
+	archIeeeTable8 = slicingMakeTable(IEEE)
+}
+
+func archUpdateIEEE(crc uint32, p []byte) uint32 {
+	if !useFastIEEE {
+		panic("not available")
+	}
+
+	if len(p) >= 64 {
 		left := len(p) & 15
 		do := len(p) - left
 		crc = ^ieeeCLMUL(^crc, p[:do])
-		if left > 0 {
-			crc = update(crc, IEEETable, p[do:])
-		}
+		p = p[do:]
+	}
+	if len(p) == 0 {
 		return crc
 	}
-
-	// Use slicing-by-8 on larger inputs.
-	if len(p) >= sliceBy8Cutoff {
-		ieeeTable8Once.Do(func() {
-			ieeeTable8 = makeTable8(IEEE)
-		})
-		return updateSlicingBy8(crc, ieeeTable8, p)
-	}
-
-	return update(crc, IEEETable, p)
+	return slicingUpdate(crc, archIeeeTable8, p)
 }
