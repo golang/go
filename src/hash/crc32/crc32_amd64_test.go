@@ -15,11 +15,10 @@ func TestCastagnoliSSE42(t *testing.T) {
 	}
 
 	// Init the SSE42 tables.
-	MakeTable(Castagnoli)
+	castagnoliOnce.Do(castagnoliInit)
 
-	// Manually init the software implementation to compare against.
-	castagnoliTable = makeTable(Castagnoli)
-	castagnoliTable8 = makeTable8(Castagnoli)
+	// Generate a table to use with the non-SSE version.
+	slicingTable := makeTable8(Castagnoli)
 
 	// The optimized SSE4.2 implementation behaves differently for different
 	// lengths (especially around multiples of K*3). Crosscheck against the
@@ -32,7 +31,7 @@ func TestCastagnoliSSE42(t *testing.T) {
 					p := make([]byte, length)
 					_, _ = rand.Read(p)
 					crcInit := uint32(rand.Int63())
-					correct := updateSlicingBy8(crcInit, castagnoliTable8, p)
+					correct := updateSlicingBy8(crcInit, slicingTable, p)
 					result := updateCastagnoli(crcInit, p)
 					if result != correct {
 						t.Errorf("SSE42 implementation = 0x%x want 0x%x (buffer length %d)",

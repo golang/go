@@ -51,6 +51,9 @@ var golden = []test{
 
 func TestGolden(t *testing.T) {
 	castagnoliTab := MakeTable(Castagnoli)
+	if castagnoliTab == nil {
+		t.Errorf("nil Castagnoli Table")
+	}
 
 	for _, g := range golden {
 		ieee := NewIEEE()
