@@ -592,6 +592,8 @@ const (
 	OpAMD64XCHGQ
 	OpAMD64XADDLlock
 	OpAMD64XADDQlock
+	OpAMD64AddTupleFirst32
+	OpAMD64AddTupleFirst64
 	OpAMD64CMPXCHGLlock
 	OpAMD64CMPXCHGQlock
 	OpAMD64ANDBlock
@@ -6904,6 +6906,16 @@ var opcodeTable = [...]opInfo{
 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 			},
 		},
+	},
+	{
+		name:   "AddTupleFirst32",
+		argLen: 2,
+		reg:    regInfo{},
+	},
+	{
+		name:   "AddTupleFirst64",
+		argLen: 2,
+		reg:    regInfo{},
 	},
 	{
 		name:    "CMPXCHGLlock",

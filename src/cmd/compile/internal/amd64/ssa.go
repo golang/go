@@ -888,6 +888,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpAMD64FlagEQ, ssa.OpAMD64FlagLT_ULT, ssa.OpAMD64FlagLT_UGT, ssa.OpAMD64FlagGT_ULT, ssa.OpAMD64FlagGT_UGT:
 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
+	case ssa.OpAMD64AddTupleFirst32, ssa.OpAMD64AddTupleFirst64:
+		v.Fatalf("AddTupleFirst* should never make it to codegen %v", v.LongString())
 	case ssa.OpAMD64REPSTOSQ:
 		gc.Prog(x86.AREP)
 		gc.Prog(x86.ASTOSQ)

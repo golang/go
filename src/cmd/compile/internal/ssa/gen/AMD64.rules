@@ -482,10 +482,12 @@
 (AtomicExchange64 ptr val mem) -> (XCHGQ val ptr mem)
 
 // Atomic adds.
-(Select0 <t> (AtomicAdd32 ptr val mem)) -> (ADDL (Select0 <t> (XADDLlock val ptr mem)) val)
-(Select1     (AtomicAdd32 ptr val mem)) ->       (Select1     (XADDLlock val ptr mem))
-(Select0 <t> (AtomicAdd64 ptr val mem)) -> (ADDQ (Select0 <t> (XADDQlock val ptr mem)) val)
-(Select1     (AtomicAdd64 ptr val mem)) ->       (Select1     (XADDQlock val ptr mem))
+(AtomicAdd32 ptr val mem) -> (AddTupleFirst32 (XADDLlock val ptr mem) val)
+(AtomicAdd64 ptr val mem) -> (AddTupleFirst64 (XADDQlock val ptr mem) val)
+(Select0 <t> (AddTupleFirst32 tuple val)) -> (ADDL val (Select0 <t> tuple))
+(Select1     (AddTupleFirst32 tuple _  )) -> (Select1 tuple)
+(Select0 <t> (AddTupleFirst64 tuple val)) -> (ADDQ val (Select0 <t> tuple))
+(Select1     (AddTupleFirst64 tuple _  )) -> (Select1 tuple)
 
 // Atomic compare and swap.
 (AtomicCompareAndSwap32 ptr old new_ mem) -> (CMPXCHGLlock ptr old new_ mem)

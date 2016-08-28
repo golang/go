@@ -306,6 +306,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpAnd8(v, config)
 	case OpAndB:
 		return rewriteValueAMD64_OpAndB(v, config)
+	case OpAtomicAdd32:
+		return rewriteValueAMD64_OpAtomicAdd32(v, config)
+	case OpAtomicAdd64:
+		return rewriteValueAMD64_OpAtomicAdd64(v, config)
 	case OpAtomicAnd8:
 		return rewriteValueAMD64_OpAtomicAnd8(v, config)
 	case OpAtomicCompareAndSwap32:
@@ -13469,6 +13473,46 @@ func rewriteValueAMD64_OpAndB(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpAtomicAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd32 ptr val mem)
+	// cond:
+	// result: (AddTupleFirst32 (XADDLlock val ptr mem) val)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpAMD64AddTupleFirst32)
+		v0 := b.NewValue0(v.Line, OpAMD64XADDLlock, MakeTuple(config.fe.TypeUInt32(), TypeMem))
+		v0.AddArg(val)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(val)
+		return true
+	}
+}
+func rewriteValueAMD64_OpAtomicAdd64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd64 ptr val mem)
+	// cond:
+	// result: (AddTupleFirst64 (XADDQlock val ptr mem) val)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpAMD64AddTupleFirst64)
+		v0 := b.NewValue0(v.Line, OpAMD64XADDQlock, MakeTuple(config.fe.TypeUInt64(), TypeMem))
+		v0.AddArg(val)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v.AddArg(val)
+		return true
+	}
+}
 func rewriteValueAMD64_OpAtomicAnd8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -17807,50 +17851,40 @@ func rewriteValueAMD64_OpRsh8x8(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpSelect0(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Select0 <t> (AtomicAdd32 ptr val mem))
+	// match: (Select0 <t> (AddTupleFirst32 tuple val))
 	// cond:
-	// result: (ADDL (Select0 <t> (XADDLlock val ptr mem)) val)
+	// result: (ADDL val (Select0 <t> tuple))
 	for {
 		t := v.Type
 		v_0 := v.Args[0]
-		if v_0.Op != OpAtomicAdd32 {
+		if v_0.Op != OpAMD64AddTupleFirst32 {
 			break
 		}
-		ptr := v_0.Args[0]
+		tuple := v_0.Args[0]
 		val := v_0.Args[1]
-		mem := v_0.Args[2]
 		v.reset(OpAMD64ADDL)
-		v0 := b.NewValue0(v.Line, OpSelect0, t)
-		v1 := b.NewValue0(v.Line, OpAMD64XADDLlock, MakeTuple(config.fe.TypeUInt32(), TypeMem))
-		v1.AddArg(val)
-		v1.AddArg(ptr)
-		v1.AddArg(mem)
-		v0.AddArg(v1)
-		v.AddArg(v0)
 		v.AddArg(val)
+		v0 := b.NewValue0(v.Line, OpSelect0, t)
+		v0.AddArg(tuple)
+		v.AddArg(v0)
 		return true
 	}
-	// match: (Select0 <t> (AtomicAdd64 ptr val mem))
+	// match: (Select0 <t> (AddTupleFirst64 tuple val))
 	// cond:
-	// result: (ADDQ (Select0 <t> (XADDQlock val ptr mem)) val)
+	// result: (ADDQ val (Select0 <t> tuple))
 	for {
 		t := v.Type
 		v_0 := v.Args[0]
-		if v_0.Op != OpAtomicAdd64 {
+		if v_0.Op != OpAMD64AddTupleFirst64 {
 			break
 		}
-		ptr := v_0.Args[0]
+		tuple := v_0.Args[0]
 		val := v_0.Args[1]
-		mem := v_0.Args[2]
 		v.reset(OpAMD64ADDQ)
-		v0 := b.NewValue0(v.Line, OpSelect0, t)
-		v1 := b.NewValue0(v.Line, OpAMD64XADDQlock, MakeTuple(config.fe.TypeUInt64(), TypeMem))
-		v1.AddArg(val)
-		v1.AddArg(ptr)
-		v1.AddArg(mem)
-		v0.AddArg(v1)
-		v.AddArg(v0)
 		v.AddArg(val)
+		v0 := b.NewValue0(v.Line, OpSelect0, t)
+		v0.AddArg(tuple)
+		v.AddArg(v0)
 		return true
 	}
 	return false
@@ -17858,42 +17892,30 @@ func rewriteValueAMD64_OpSelect0(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpSelect1(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Select1     (AtomicAdd32 ptr val mem))
+	// match: (Select1     (AddTupleFirst32 tuple _  ))
 	// cond:
-	// result: (Select1     (XADDLlock val ptr mem))
+	// result: (Select1 tuple)
 	for {
 		v_0 := v.Args[0]
-		if v_0.Op != OpAtomicAdd32 {
+		if v_0.Op != OpAMD64AddTupleFirst32 {
 			break
 		}
-		ptr := v_0.Args[0]
-		val := v_0.Args[1]
-		mem := v_0.Args[2]
+		tuple := v_0.Args[0]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Line, OpAMD64XADDLlock, MakeTuple(config.fe.TypeUInt32(), TypeMem))
-		v0.AddArg(val)
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
+		v.AddArg(tuple)
 		return true
 	}
-	// match: (Select1     (AtomicAdd64 ptr val mem))
+	// match: (Select1     (AddTupleFirst64 tuple _  ))
 	// cond:
-	// result: (Select1     (XADDQlock val ptr mem))
+	// result: (Select1 tuple)
 	for {
 		v_0 := v.Args[0]
-		if v_0.Op != OpAtomicAdd64 {
+		if v_0.Op != OpAMD64AddTupleFirst64 {
 			break
 		}
-		ptr := v_0.Args[0]
-		val := v_0.Args[1]
-		mem := v_0.Args[2]
+		tuple := v_0.Args[0]
 		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Line, OpAMD64XADDQlock, MakeTuple(config.fe.TypeUInt64(), TypeMem))
-		v0.AddArg(val)
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
+		v.AddArg(tuple)
 		return true
 	}
 	return false
