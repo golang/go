@@ -30,6 +30,10 @@ if [ "$GOARM" != "7" ]; then
 	echo "android only supports GOARM=7, got GOARM=$GOARM" 1>&2
 	exit 1
 fi
+if [ "$GOARCH" = "" ]; then
+	echo "GOARCH must be set" 1>&2
+	exit 1
+fi
 
 export CGO_ENABLED=1
 unset GOBIN
