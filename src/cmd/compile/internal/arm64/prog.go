@@ -78,6 +78,10 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
 	arm64.AREV & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
 	arm64.AREVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
 	arm64.AREV16W & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+	arm64.ARBIT & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
+	arm64.ARBITW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
+	arm64.ACLZ & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
+	arm64.ACLZW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite},
 
 	// Floating point.
 	arm64.AFADDD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
@@ -119,15 +123,23 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
 	arm64.AUCVTFWS & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
 
 	// Moves
-	arm64.AMOVB & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AMOVBU & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AMOVH & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AMOVHU & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AMOVWU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AMOVD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
-	arm64.AFMOVS & obj.AMask: {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
-	arm64.AFMOVD & obj.AMask: {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.AMOVB & obj.AMask:   {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AMOVBU & obj.AMask:  {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AMOVH & obj.AMask:   {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AMOVHU & obj.AMask:  {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AMOVW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AMOVWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AMOVD & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.AFMOVS & obj.AMask:  {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
+	arm64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ALDARW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ALDAR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ALDAXRW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ALDAXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ASTLRW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ASTLR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ASTLXRW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ASTLXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
 
 	// Jumps
 	arm64.AB & obj.AMask:    {Flags: gc.Jump | gc.Break},

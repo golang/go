@@ -44,6 +44,7 @@ type opData struct {
 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
 	commutative       bool  // this operation is commutative on its first 2 arguments (e.g. addition)
 	resultInArg0      bool  // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
+	resultNotInArgs   bool  // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool  // this op clobbers flags register
 }
 
@@ -167,6 +168,9 @@ func genOp() {
 				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
 					log.Fatalf("input[1] and output[0] must use the same registers for %s", v.name)
 				}
+			}
+			if v.resultNotInArgs {
+				fmt.Fprintln(w, "resultNotInArgs: true,")
 			}
 			if v.clobberFlags {
 				fmt.Fprintln(w, "clobberFlags: true,")

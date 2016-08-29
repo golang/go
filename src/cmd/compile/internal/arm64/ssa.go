@@ -80,8 +80,7 @@ var ssaRegToReg = []int16{
 	arm64.REG_F30,
 	arm64.REG_F31,
 
-	arm64.REG_NZCV, // flag
-	0,              // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
+	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
 }
 
 // Smallest possible faulting page at address zero,
@@ -405,12 +404,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = gc.SSARegNum(v)
+	case ssa.OpARM64LDAR,
+		ssa.OpARM64LDARW:
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = gc.SSARegNum(v.Args[0])
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = gc.SSARegNum0(v)
 	case ssa.OpARM64MOVBstore,
 		ssa.OpARM64MOVHstore,
 		ssa.OpARM64MOVWstore,
 		ssa.OpARM64MOVDstore,
 		ssa.OpARM64FMOVSstore,
-		ssa.OpARM64FMOVDstore:
+		ssa.OpARM64FMOVDstore,
+		ssa.OpARM64STLR,
+		ssa.OpARM64STLRW:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[1])
@@ -427,6 +436,120 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = gc.SSARegNum(v.Args[0])
 		gc.AddAux(&p.To, v)
+	case ssa.OpARM64LoweredAtomicExchange64,
+		ssa.OpARM64LoweredAtomicExchange32:
+		// LDAXR	(Rarg0), Rout
+		// STLXR	Rarg1, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -2(PC)
+		ld := arm64.ALDAXR
+		st := arm64.ASTLXR
+		if v.Op == ssa.OpARM64LoweredAtomicExchange32 {
+			ld = arm64.ALDAXRW
+			st = arm64.ASTLXRW
+		}
+		r0 := gc.SSARegNum(v.Args[0])
+		r1 := gc.SSARegNum(v.Args[1])
+		out := gc.SSARegNum0(v)
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+		p1 := gc.Prog(st)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_MEM
+		p1.To.Reg = r0
+		p1.RegTo2 = arm64.REGTMP
+		p2 := gc.Prog(arm64.ACBNZ)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = arm64.REGTMP
+		p2.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p2, p)
+	case ssa.OpARM64LoweredAtomicAdd64,
+		ssa.OpARM64LoweredAtomicAdd32:
+		// LDAXR	(Rarg0), Rout
+		// ADD		Rarg1, Rout
+		// STLXR	Rout, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -3(PC)
+		ld := arm64.ALDAXR
+		st := arm64.ASTLXR
+		if v.Op == ssa.OpARM64LoweredAtomicAdd32 {
+			ld = arm64.ALDAXRW
+			st = arm64.ASTLXRW
+		}
+		r0 := gc.SSARegNum(v.Args[0])
+		r1 := gc.SSARegNum(v.Args[1])
+		out := gc.SSARegNum0(v)
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+		p1 := gc.Prog(arm64.AADD)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = out
+		p2 := gc.Prog(st)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = out
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = r0
+		p2.RegTo2 = arm64.REGTMP
+		p3 := gc.Prog(arm64.ACBNZ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = arm64.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
+	case ssa.OpARM64LoweredAtomicCas64,
+		ssa.OpARM64LoweredAtomicCas32:
+		// LDAXR	(Rarg0), Rtmp
+		// CMP		Rarg1, Rtmp
+		// BNE		3(PC)
+		// STLXR	Rarg2, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -4(PC)
+		// CSET		EQ, Rout
+		ld := arm64.ALDAXR
+		st := arm64.ASTLXR
+		cmp := arm64.ACMP
+		if v.Op == ssa.OpARM64LoweredAtomicCas32 {
+			ld = arm64.ALDAXRW
+			st = arm64.ASTLXRW
+			cmp = arm64.ACMPW
+		}
+		r0 := gc.SSARegNum(v.Args[0])
+		r1 := gc.SSARegNum(v.Args[1])
+		r2 := gc.SSARegNum(v.Args[2])
+		out := gc.SSARegNum0(v)
+		p := gc.Prog(ld)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = arm64.REGTMP
+		p1 := gc.Prog(cmp)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.Reg = arm64.REGTMP
+		p2 := gc.Prog(arm64.ABNE)
+		p2.To.Type = obj.TYPE_BRANCH
+		p3 := gc.Prog(st)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = r2
+		p3.To.Type = obj.TYPE_MEM
+		p3.To.Reg = r0
+		p3.RegTo2 = arm64.REGTMP
+		p4 := gc.Prog(arm64.ACBNZ)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = arm64.REGTMP
+		p4.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p4, p)
+		p5 := gc.Prog(arm64.ACSET)
+		p5.From.Type = obj.TYPE_REG // assembler encodes conditional bits in Reg
+		p5.From.Reg = arm64.COND_EQ
+		p5.To.Type = obj.TYPE_REG
+		p5.To.Reg = out
+		gc.Patch(p2, p5)
 	case ssa.OpARM64MOVBreg,
 		ssa.OpARM64MOVBUreg,
 		ssa.OpARM64MOVHreg,
@@ -485,7 +608,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64FCVTDS,
 		ssa.OpARM64REV,
 		ssa.OpARM64REVW,
-		ssa.OpARM64REV16W:
+		ssa.OpARM64REV16W,
+		ssa.OpARM64RBIT,
+		ssa.OpARM64RBITW,
+		ssa.OpARM64CLZ,
+		ssa.OpARM64CLZW:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
@@ -636,9 +763,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			case ssa.OpARM64MOVBload, ssa.OpARM64MOVBUload, ssa.OpARM64MOVHload, ssa.OpARM64MOVHUload,
 				ssa.OpARM64MOVWload, ssa.OpARM64MOVWUload, ssa.OpARM64MOVDload,
 				ssa.OpARM64FMOVSload, ssa.OpARM64FMOVDload,
+				ssa.OpARM64LDAR, ssa.OpARM64LDARW,
 				ssa.OpARM64MOVBstore, ssa.OpARM64MOVHstore, ssa.OpARM64MOVWstore, ssa.OpARM64MOVDstore,
 				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore,
-				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero:
+				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero,
+				ssa.OpARM64STLR, ssa.OpARM64STLRW,
+				ssa.OpARM64LoweredAtomicExchange64, ssa.OpARM64LoweredAtomicExchange32,
+				ssa.OpARM64LoweredAtomicAdd64, ssa.OpARM64LoweredAtomicAdd32,
+				ssa.OpARM64LoweredAtomicCas64, ssa.OpARM64LoweredAtomicCas32:
 				// arg0 is ptr, auxint is offset
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
@@ -664,7 +796,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				}
 			default:
 			}
-			if w.Type.IsMemory() {
+			if w.Type.IsMemory() || w.Type.IsTuple() && w.Type.FieldType(1).IsMemory() {
 				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
 					// these ops are OK
 					mem = w

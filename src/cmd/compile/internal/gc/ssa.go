@@ -2545,6 +2545,14 @@ type sizedIntrinsicKey struct {
 	size int
 }
 
+// enableOnArch returns fn on given archs, nil otherwise
+func enableOnArch(fn func(*state, *Node) *ssa.Value, archs ...sys.ArchFamily) func(*state, *Node) *ssa.Value {
+	if Thearch.LinkArch.InFamily(archs...) {
+		return fn
+	}
+	return nil
+}
+
 func intrinsicInit() {
 	i := &intrinsicInfo{}
 	intrinsics = i
@@ -2552,90 +2560,90 @@ func intrinsicInit() {
 	// initial set of intrinsics.
 	i.std = map[intrinsicKey]intrinsicBuilder{
 		/******** runtime/internal/sys ********/
-		intrinsicKey{"runtime/internal/sys", "Ctz32"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
-		},
-		intrinsicKey{"runtime/internal/sys", "Ctz64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/sys", "Ctz64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
-		},
-		intrinsicKey{"runtime/internal/sys", "Bswap32"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/sys", "Bswap32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
-		},
-		intrinsicKey{"runtime/internal/sys", "Bswap64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/sys", "Bswap64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
-		},
+		}, sys.AMD64, sys.ARM64),
 
 		/******** runtime/internal/atomic ********/
-		intrinsicKey{"runtime/internal/atomic", "Load"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/atomic", "Load"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
-		},
-		intrinsicKey{"runtime/internal/atomic", "Load64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "Load64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoad64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
-		},
-		intrinsicKey{"runtime/internal/atomic", "Loadp"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "Loadp"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(Ptrto(Types[TUINT8]), ssa.TypeMem), s.intrinsicArg(n, 0), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Ptrto(Types[TUINT8]), v)
-		},
+		}, sys.AMD64, sys.ARM64),
 
-		intrinsicKey{"runtime/internal/atomic", "Store"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/atomic", "Store"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		},
-		intrinsicKey{"runtime/internal/atomic", "Store64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "Store64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		},
-		intrinsicKey{"runtime/internal/atomic", "StorepNoWB"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "StorepNoWB"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		},
+		}, sys.AMD64, sys.ARM64),
 
-		intrinsicKey{"runtime/internal/atomic", "Xchg"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/atomic", "Xchg"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
-		},
-		intrinsicKey{"runtime/internal/atomic", "Xchg64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "Xchg64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
-		},
+		}, sys.AMD64, sys.ARM64),
 
-		intrinsicKey{"runtime/internal/atomic", "Xadd"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/atomic", "Xadd"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
-		},
-		intrinsicKey{"runtime/internal/atomic", "Xadd64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "Xadd64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
-		},
+		}, sys.AMD64, sys.ARM64),
 
-		intrinsicKey{"runtime/internal/atomic", "Cas"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/atomic", "Cas"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
-		},
-		intrinsicKey{"runtime/internal/atomic", "Cas64"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64, sys.ARM64),
+		intrinsicKey{"runtime/internal/atomic", "Cas64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.intrinsicArg(n, 2), s.mem())
 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
-		},
+		}, sys.AMD64, sys.ARM64),
 
-		intrinsicKey{"runtime/internal/atomic", "And8"}: func(s *state, n *Node) *ssa.Value {
+		intrinsicKey{"runtime/internal/atomic", "And8"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		},
-		intrinsicKey{"runtime/internal/atomic", "Or8"}: func(s *state, n *Node) *ssa.Value {
+		}, sys.AMD64),
+		intrinsicKey{"runtime/internal/atomic", "Or8"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		},
+		}, sys.AMD64),
 	}
 
 	// aliases internal to runtime/internal/atomic
@@ -2749,11 +2757,9 @@ func findIntrinsic(sym *Sym) intrinsicBuilder {
 	// so far has only been noticed for Bswap32 and the 16-bit count
 	// leading/trailing instructions, but heuristics might change
 	// in the future or on different architectures).
-	if !ssaEnabled || ssa.IntrinsicsDisable || Thearch.LinkArch.Family != sys.AMD64 {
+	if !ssaEnabled || ssa.IntrinsicsDisable {
 		return nil
 	}
-	// TODO: parameterize this code by architecture. Maybe we should ask the SSA
-	// backend if it can lower the ops involved?
 	if sym == nil || sym.Pkg == nil {
 		return nil
 	}

@@ -220,8 +220,36 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpAnd8(v, config)
 	case OpAndB:
 		return rewriteValueARM64_OpAndB(v, config)
+	case OpAtomicAdd32:
+		return rewriteValueARM64_OpAtomicAdd32(v, config)
+	case OpAtomicAdd64:
+		return rewriteValueARM64_OpAtomicAdd64(v, config)
+	case OpAtomicCompareAndSwap32:
+		return rewriteValueARM64_OpAtomicCompareAndSwap32(v, config)
+	case OpAtomicCompareAndSwap64:
+		return rewriteValueARM64_OpAtomicCompareAndSwap64(v, config)
+	case OpAtomicExchange32:
+		return rewriteValueARM64_OpAtomicExchange32(v, config)
+	case OpAtomicExchange64:
+		return rewriteValueARM64_OpAtomicExchange64(v, config)
+	case OpAtomicLoad32:
+		return rewriteValueARM64_OpAtomicLoad32(v, config)
+	case OpAtomicLoad64:
+		return rewriteValueARM64_OpAtomicLoad64(v, config)
+	case OpAtomicLoadPtr:
+		return rewriteValueARM64_OpAtomicLoadPtr(v, config)
+	case OpAtomicStore32:
+		return rewriteValueARM64_OpAtomicStore32(v, config)
+	case OpAtomicStore64:
+		return rewriteValueARM64_OpAtomicStore64(v, config)
+	case OpAtomicStorePtrNoWB:
+		return rewriteValueARM64_OpAtomicStorePtrNoWB(v, config)
 	case OpAvg64u:
 		return rewriteValueARM64_OpAvg64u(v, config)
+	case OpBswap32:
+		return rewriteValueARM64_OpBswap32(v, config)
+	case OpBswap64:
+		return rewriteValueARM64_OpBswap64(v, config)
 	case OpClosureCall:
 		return rewriteValueARM64_OpClosureCall(v, config)
 	case OpCom16:
@@ -250,6 +278,10 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpConstNil(v, config)
 	case OpConvert:
 		return rewriteValueARM64_OpConvert(v, config)
+	case OpCtz32:
+		return rewriteValueARM64_OpCtz32(v, config)
+	case OpCtz64:
+		return rewriteValueARM64_OpCtz64(v, config)
 	case OpCvt32Fto32:
 		return rewriteValueARM64_OpCvt32Fto32(v, config)
 	case OpCvt32Fto32U:
@@ -9064,6 +9096,208 @@ func rewriteValueARM64_OpAndB(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpAtomicAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd32 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicAdd32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicAdd64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAdd64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAdd64 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicAdd64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicCompareAndSwap32 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas32 ptr old new_ mem)
+	for {
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpARM64LoweredAtomicCas32)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicCompareAndSwap64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicCompareAndSwap64 ptr old new_ mem)
+	// cond:
+	// result: (LoweredAtomicCas64 ptr old new_ mem)
+	for {
+		ptr := v.Args[0]
+		old := v.Args[1]
+		new_ := v.Args[2]
+		mem := v.Args[3]
+		v.reset(OpARM64LoweredAtomicCas64)
+		v.AddArg(ptr)
+		v.AddArg(old)
+		v.AddArg(new_)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicExchange32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicExchange32 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange32 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicExchange32)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicExchange64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicExchange64 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicExchange64 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicExchange64)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicLoad32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoad32  ptr mem)
+	// cond:
+	// result: (LDARW ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARM64LDARW)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicLoad64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoad64  ptr mem)
+	// cond:
+	// result: (LDAR  ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARM64LDAR)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicLoadPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicLoadPtr ptr mem)
+	// cond:
+	// result: (LDAR  ptr mem)
+	for {
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		v.reset(OpARM64LDAR)
+		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicStore32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStore32      ptr val mem)
+	// cond:
+	// result: (STLRW ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64STLRW)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicStore64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStore64      ptr val mem)
+	// cond:
+	// result: (STLR  ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64STLR)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicStorePtrNoWB(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicStorePtrNoWB ptr val mem)
+	// cond:
+	// result: (STLR  ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64STLR)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValueARM64_OpAvg64u(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -9094,6 +9328,32 @@ func rewriteValueARM64_OpAvg64u(v *Value, config *Config) bool {
 		v5.AuxInt = 1
 		v3.AddArg(v5)
 		v.AddArg(v3)
+		return true
+	}
+}
+func rewriteValueARM64_OpBswap32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Bswap32 x)
+	// cond:
+	// result: (REVW x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64REVW)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_OpBswap64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Bswap64 x)
+	// cond:
+	// result: (REV x)
+	for {
+		x := v.Args[0]
+		v.reset(OpARM64REV)
+		v.AddArg(x)
 		return true
 	}
 }
@@ -9283,6 +9543,38 @@ func rewriteValueARM64_OpConvert(v *Value, config *Config) bool {
 		v.reset(OpARM64MOVDconvert)
 		v.AddArg(x)
 		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpCtz32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Ctz32 <t> x)
+	// cond:
+	// result: (CLZW (RBITW <t> x))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpARM64CLZW)
+		v0 := b.NewValue0(v.Line, OpARM64RBITW, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpCtz64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Ctz64 <t> x)
+	// cond:
+	// result: (CLZ (RBIT <t> x))
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpARM64CLZ)
+		v0 := b.NewValue0(v.Line, OpARM64RBIT, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }

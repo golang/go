@@ -1189,8 +1189,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Before we pick a register for the output value, allow input registers
 			// to be deallocated. We do this here so that the output can use the
 			// same register as a dying input.
-			s.nospill = 0
-			s.advanceUses(v) // frees any registers holding args that are no longer live
+			if !opcodeTable[v.Op].resultNotInArgs {
+				s.nospill = 0
+				s.advanceUses(v) // frees any registers holding args that are no longer live
+			}
 
 			// Dump any registers which will be clobbered
 			s.freeRegs(regspec.clobbers)
@@ -1262,6 +1264,12 @@ func (s *regAllocState) regalloc(f *Func) {
 						s.assignReg(r, v, v)
 					}
 				}
+			}
+
+			// deallocate dead args, if we have not done so
+			if opcodeTable[v.Op].resultNotInArgs {
+				s.nospill = 0
+				s.advanceUses(v) // frees any registers holding args that are no longer live
 			}
 
 			// Issue the Value itself.
