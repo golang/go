@@ -86,6 +86,12 @@
 
 (Sqrt x) -> (FSQRTD x)
 
+(Ctz64 <t> x) -> (CLZ (RBIT <t> x))
+(Ctz32 <t> x) -> (CLZW (RBITW <t> x))
+
+(Bswap64 x) -> (REV x)
+(Bswap32 x) -> (REVW x)
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
@@ -465,6 +471,25 @@
 (If (GreaterEqualU cc) yes no) -> (UGE cc yes no)
 
 (If cond yes no) -> (NE (CMPconst [0] cond) yes no)
+
+// atomic intrinsics
+// Note: these ops do not accept offset.
+(AtomicLoad32  ptr mem) -> (LDARW ptr mem)
+(AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
+(AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
+
+(AtomicStore32      ptr val mem) -> (STLRW ptr val mem)
+(AtomicStore64      ptr val mem) -> (STLR  ptr val mem)
+(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
+
+(AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)
+(AtomicExchange64 ptr val mem) -> (LoweredAtomicExchange64 ptr val mem)
+
+(AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd32 ptr val mem)
+(AtomicAdd64 ptr val mem) -> (LoweredAtomicAdd64 ptr val mem)
+
+(AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
+(AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
 
 // Optimizations
 

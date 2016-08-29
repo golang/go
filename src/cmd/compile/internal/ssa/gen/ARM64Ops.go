@@ -141,18 +141,13 @@ func init() {
 		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		gp2flags  = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1 = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		//gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
-		//gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		//gp3flags  = regInfo{inputs: []regMask{gp, gp, gp}}
-		//gp3flags1 = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
-		//gp2load   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		//gp2store  = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}}
-		fp01 = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11 = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		//fp1flags  = regInfo{inputs: []regMask{fp}}
+		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
+		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
@@ -209,6 +204,10 @@ func init() {
 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},       // byte reverse, 64-bit
 		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},     // byte reverse, 32-bit
 		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"}, // byte reverse in each 16-bit halfword, 32-bit
+		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},     // bit reverse, 64-bit
+		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},   // bit reverse, 32-bit
+		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},       // count leading zero, 64-bit
+		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},     // count leading zero, 32-bit
 
 		// shifts
 		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                      // arg0 << arg1, shift amount is mod 64
@@ -425,6 +424,51 @@ func init() {
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
 		{name: "InvertFlags", argLength: 1}, // reverse direction of arg0
+
+		// atomic loads.
+		// load from arg0. arg1=mem.
+		// returns <value,memory> so they can be properly ordered with other loads.
+		{name: "LDAR", argLength: 2, reg: gpload, asm: "LDAR"},
+		{name: "LDARW", argLength: 2, reg: gpload, asm: "LDARW"},
+
+		// atomic stores.
+		// store arg1 to arg0. arg2=mem. returns memory.
+		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR"},
+		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW"},
+
+		// atomic exchange.
+		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>.
+		// LDAXR	(Rarg0), Rout
+		// STLXR	Rarg1, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -2(PC)
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true},
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true},
+
+		// atomic add.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+		// LDAXR	(Rarg0), Rout
+		// ADD		Rarg1, Rout
+		// STLXR	Rout, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -3(PC)
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true},
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true},
+
+		// atomic compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// LDAXR	(Rarg0), Rtmp
+		// CMP		Rarg1, Rtmp
+		// BNE		3(PC)
+		// STLXR	Rarg2, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -4(PC)
+		// CSET		EQ, Rout
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true},
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true},
 	}
 
 	blocks := []blockData{
