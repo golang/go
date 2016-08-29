@@ -8,6 +8,7 @@ package types_test
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -79,5 +80,33 @@ var s struct {
 	offsets := sizes.Offsetsof(fields)
 	if offsets[0] != 0 || offsets[1] != 4 {
 		t.Errorf("OffsetsOf(%v) = %v want %v", ts, offsets, []int{0, 4})
+	}
+}
+
+func TestIssue16902(t *testing.T) {
+	const src = `
+package a
+
+import "unsafe"
+
+const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
+`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "x.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
+	conf := types.Config{
+		Importer: importer.Default(),
+		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
+	}
+	_, err = conf.Check("x", fset, []*ast.File{f}, &info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tv := range info.Types {
+		_ = conf.Sizes.Sizeof(tv.Type)
+		_ = conf.Sizes.Alignof(tv.Type)
 	}
 }
