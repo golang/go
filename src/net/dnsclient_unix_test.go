@@ -40,9 +40,9 @@ func TestDNSTransportFallback(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	for _, tt := range dnsTransportFallbackTests {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(tt.timeout)*time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		msg, err := exchange(ctx, tt.server, tt.name, tt.qtype)
+		msg, err := exchange(ctx, tt.server, tt.name, tt.qtype, time.Second)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -82,9 +82,9 @@ func TestSpecialDomainName(t *testing.T) {
 
 	server := "8.8.8.8:53"
 	for _, tt := range specialDomainNameTests {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		msg, err := exchange(ctx, server, tt.name, tt.qtype)
+		msg, err := exchange(ctx, server, tt.name, tt.qtype, 3*time.Second)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -501,7 +501,7 @@ func TestErrorForOriginalNameWhenSearching(t *testing.T) {
 	d := &fakeDNSDialer{}
 	testHookDNSDialer = func() dnsDialer { return d }
 
-	d.rh = func(s string, q *dnsMsg) (*dnsMsg, error) {
+	d.rh = func(s string, q *dnsMsg, _ time.Time) (*dnsMsg, error) {
 		r := &dnsMsg{
 			dnsMsgHdr: dnsMsgHdr{
 				id: q.id,
@@ -540,14 +540,15 @@ func TestIgnoreLameReferrals(t *testing.T) {
 	}
 	defer conf.teardown()
 
-	if err := conf.writeAndUpdate([]string{"nameserver 192.0.2.1", "nameserver 192.0.2.2"}); err != nil {
+	if err := conf.writeAndUpdate([]string{"nameserver 192.0.2.1", // the one that will give a lame referral
+		"nameserver 192.0.2.2"}); err != nil {
 		t.Fatal(err)
 	}
 
 	d := &fakeDNSDialer{}
 	testHookDNSDialer = func() dnsDialer { return d }
 
-	d.rh = func(s string, q *dnsMsg) (*dnsMsg, error) {
+	d.rh = func(s string, q *dnsMsg, _ time.Time) (*dnsMsg, error) {
 		t.Log(s, q)
 		r := &dnsMsg{
 			dnsMsgHdr: dnsMsgHdr{
@@ -634,28 +635,30 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 
 type fakeDNSDialer struct {
 	// reply handler
-	rh func(s string, q *dnsMsg) (*dnsMsg, error)
+	rh func(s string, q *dnsMsg, t time.Time) (*dnsMsg, error)
 }
 
 func (f *fakeDNSDialer) dialDNS(_ context.Context, n, s string) (dnsConn, error) {
-	return &fakeDNSConn{f.rh, s}, nil
+	return &fakeDNSConn{f.rh, s, time.Time{}}, nil
 }
 
 type fakeDNSConn struct {
-	rh func(s string, q *dnsMsg) (*dnsMsg, error)
+	rh func(s string, q *dnsMsg, t time.Time) (*dnsMsg, error)
 	s  string
+	t  time.Time
 }
 
 func (f *fakeDNSConn) Close() error {
 	return nil
 }
 
-func (f *fakeDNSConn) SetDeadline(time.Time) error {
+func (f *fakeDNSConn) SetDeadline(t time.Time) error {
+	f.t = t
 	return nil
 }
 
 func (f *fakeDNSConn) dnsRoundTrip(q *dnsMsg) (*dnsMsg, error) {
-	return f.rh(f.s, q)
+	return f.rh(f.s, q, f.t)
 }
 
 // UDP round-tripper algorithm should ignore invalid DNS responses (issue 13281).
@@ -723,5 +726,74 @@ func TestIgnoreDNSForgeries(t *testing.T) {
 
 	if got := resp.answer[0].(*dnsRR_A).A; got != TestAddr {
 		t.Errorf("got address %v, want %v", got, TestAddr)
+	}
+}
+
+// Issue 16865. If a name server times out, continue to the next.
+func TestRetryTimeout(t *testing.T) {
+	origTestHookDNSDialer := testHookDNSDialer
+	defer func() { testHookDNSDialer = origTestHookDNSDialer }()
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	if err := conf.writeAndUpdate([]string{"nameserver 192.0.2.1", // the one that will timeout
+		"nameserver 192.0.2.2"}); err != nil {
+		t.Fatal(err)
+	}
+
+	d := &fakeDNSDialer{}
+	testHookDNSDialer = func() dnsDialer { return d }
+
+	var deadline0 time.Time
+
+	d.rh = func(s string, q *dnsMsg, deadline time.Time) (*dnsMsg, error) {
+		t.Log(s, q, deadline)
+
+		if deadline.IsZero() {
+			t.Error("zero deadline")
+		}
+
+		if s == "192.0.2.1:53" {
+			deadline0 = deadline
+			time.Sleep(10 * time.Millisecond)
+			return nil, errTimeout
+		}
+
+		if deadline == deadline0 {
+			t.Error("deadline didn't change")
+		}
+
+		r := &dnsMsg{
+			dnsMsgHdr: dnsMsgHdr{
+				id:                  q.id,
+				response:            true,
+				recursion_available: true,
+			},
+			question: q.question,
+			answer: []dnsRR{
+				&dnsRR_CNAME{
+					Hdr: dnsRR_Header{
+						Name:   q.question[0].Name,
+						Rrtype: dnsTypeCNAME,
+						Class:  dnsClassINET,
+					},
+					Cname: "golang.org",
+				},
+			},
+		}
+		return r, nil
+	}
+
+	_, err = goLookupCNAME(context.Background(), "www.golang.org")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if deadline0.IsZero() {
+		t.Error("deadline0 still zero", deadline0)
 	}
 }
