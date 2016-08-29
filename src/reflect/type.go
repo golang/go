@@ -30,11 +30,8 @@ import (
 // calling kind-specific methods. Calling a method
 // inappropriate to the kind of type causes a run-time panic.
 //
-// You can use == with reflect.Type values to check whether two types
-// are the same.  If T1 and T2 are Go types, and v1 and v2 are values of
-// those types respectively, then reflect.TypeOf(v1) == reflect.TypeOf(v2)
-// if and only if both (interface{})(v2).(T1) and (interface{})(v1).(T2)
-// succeed.
+// Type values are comparable, such as with the == operator.
+// Two Type values are equal if they represent identical types.
 type Type interface {
 	// Methods applicable to all types.
 
@@ -86,7 +83,7 @@ type Type interface {
 	// String returns a string representation of the type.
 	// The string representation may use shortened package names
 	// (e.g., base64 instead of "encoding/base64") and is not
-	// guaranteed to be unique among types. To test for equality,
+	// guaranteed to be unique among types. To test for type identity,
 	// compare the Types directly.
 	String() string
 
