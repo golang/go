@@ -1,5 +1,5 @@
 // Inferno's libkern/vlrt-arm.c
-// http://code.google.com/p/inferno-os/source/browse/libkern/vlrt-arm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/libkern/vlrt-arm.c
 //
 //         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.

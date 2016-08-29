@@ -1,5 +1,5 @@
 // Inferno utils/8l/asm.c
-// http://code.google.com/p/inferno-os/source/browse/utils/8l/asm.c
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/8l/asm.c
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -54,7 +54,7 @@ import (
 // Data layout and relocation.
 
 // Derived from Inferno utils/6l/l.h
-// http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
+// https://bitbucket.org/inferno-os/inferno-os/src/default/utils/6l/l.h
 //
 //	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
 //	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
