@@ -7,8 +7,12 @@
 package os_test
 
 import (
+	"io"
+	"io/ioutil"
 	. "os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -176,5 +180,40 @@ func TestLchown(t *testing.T) {
 
 		// Check that link target's gid is unchanged.
 		checkUidGid(t, f.Name(), int(sys.Uid), int(sys.Gid))
+	}
+}
+
+// Issue 16919: Readdir must return a non-empty slice or an error.
+func TestReaddirRemoveRace(t *testing.T) {
+	oldStat := *LstatP
+	defer func() { *LstatP = oldStat }()
+	*LstatP = func(name string) (FileInfo, error) {
+		if strings.HasSuffix(name, "some-file") {
+			// Act like it's been deleted.
+			return nil, ErrNotExist
+		}
+		return oldStat(name)
+	}
+	dir := newDir("TestReaddirRemoveRace", t)
+	defer RemoveAll(dir)
+	if err := ioutil.WriteFile(filepath.Join(dir, "some-file"), []byte("hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	d, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	fis, err := d.Readdir(2) // notably, greater than zero
+	if len(fis) == 0 && err == nil {
+		// This is what used to happen (Issue 16919)
+		t.Fatal("Readdir = empty slice & err == nil")
+	}
+	if len(fis) != 0 || err != io.EOF {
+		t.Errorf("Readdir = %d entries: %v; want 0, io.EOF", len(fis), err)
+		for i, fi := range fis {
+			t.Errorf("  entry[%d]: %q, %v", i, fi.Name(), fi.Mode())
+		}
+		t.FailNow()
 	}
 }
