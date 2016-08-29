@@ -86,10 +86,10 @@ func Import(in *bufio.Reader) {
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 2:
+	// case 3:
 	// 	...
 	//	fallthrough
-	case 1:
+	case 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.bool()
 		p.posInfoFormat = p.bool()
@@ -1000,14 +1000,14 @@ func (p *importer) node() *Node {
 	// --------------------------------------------------------------------
 	// statements
 	case ODCL:
-		var lhs *Node
-		if p.bool() {
-			lhs = p.expr()
-		} else {
-			lhs = dclname(p.sym())
+		if p.version < 2 {
+			// versions 0 and 1 exported a bool here but it
+			// was always false - simply ignore in this case
+			p.bool()
 		}
-		// TODO(gri) avoid list created here!
-		return liststmt(variter([]*Node{lhs}, typenod(p.typ()), nil))
+		lhs := dclname(p.sym())
+		typ := typenod(p.typ())
+		return liststmt(variter([]*Node{lhs}, typ, nil)) // TODO(gri) avoid list creation
 
 	// case ODCLFIELD:
 	//	unimplemented

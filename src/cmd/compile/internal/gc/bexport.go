@@ -158,7 +158,7 @@ const debugFormat = false // default: false
 const forceObjFileStability = true
 
 // Current export format version. Increase with each format change.
-const exportVersion = 1
+const exportVersion = 2
 
 // exportInlined enables the export of inlined function bodies and related
 // dependencies. The compiler should work w/o any loss of functionality with
@@ -1418,17 +1418,7 @@ func (p *exporter) stmt(n *Node) {
 	switch op := n.Op; op {
 	case ODCL:
 		p.op(ODCL)
-		switch n.Left.Class {
-		case PPARAM, PPARAMOUT, PAUTO, PAUTOHEAP:
-			// TODO(gri) when is this not PAUTO?
-			// Also, originally this didn't look like
-			// the default case. Investigate.
-			fallthrough
-		default:
-			// TODO(gri) Can we ever reach here?
-			p.bool(false)
-			p.sym(n.Left)
-		}
+		p.sym(n.Left)
 		p.typ(n.Left.Type)
 
 	// case ODCLFIELD:
