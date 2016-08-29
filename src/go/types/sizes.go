@@ -167,7 +167,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
 	if T.NumFields() > 0 {
 		// compute offsets on demand
 		if s := conf.Sizes; s != nil {
-			offsets := s.Offsetsof(T.fields)
+			offsets = s.Offsetsof(T.fields)
 			// sanity checks
 			if len(offsets) != T.NumFields() {
 				panic("Config.Sizes.Offsetsof returned the wrong number of offsets")
