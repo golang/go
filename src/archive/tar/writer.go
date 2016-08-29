@@ -45,26 +45,26 @@ type Writer struct {
 // NewWriter creates a new Writer writing to w.
 func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
-// Flush finishes writing the current file (optional).
+// Flush finishes writing the current file's block padding.
+// The current file must be fully written before Flush can be called.
+//
+// Deprecated: This is unecessary as the next call to WriteHeader or Close
+// will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.nb > 0 {
 		tw.err = fmt.Errorf("archive/tar: missed writing %d bytes", tw.nb)
 		return tw.err
 	}
-
-	n := tw.nb + tw.pad
-	for n > 0 && tw.err == nil {
-		nr := n
-		if nr > blockSize {
-			nr = blockSize
-		}
-		var nw int
-		nw, tw.err = tw.w.Write(zeroBlock[0:nr])
-		n -= int64(nw)
-	}
-	tw.nb = 0
-	tw.pad = 0
+	tw.err = tw.writePadding()
 	return tw.err
+}
+
+func (tw *Writer) writePadding() error {
+	if _, err := tw.w.Write(zeroBlock[:tw.pad]); err != nil {
+		return err
+	}
+	tw.pad = 0
+	return nil
 }
 
 var (
@@ -318,10 +318,7 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	if _, err := tw.Write(buf.Bytes()); err != nil {
 		return err
 	}
-	if err := tw.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return tw.writePadding()
 }
 
 // Write writes to the current entry in the tar archive.
