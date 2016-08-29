@@ -93,10 +93,10 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (_
 
 	// read version specific flags - extend as necessary
 	switch p.version {
-	// case 2:
+	// case 3:
 	// 	...
 	//	fallthrough
-	case 1:
+	case 2, 1:
 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
 		p.trackAllTypes = p.int() != 0
 		p.posInfoFormat = p.int() != 0
