@@ -141,7 +141,7 @@ func (d *Dialer) dialDNS(ctx context.Context, network, server string) (dnsConn, 
 }
 
 // exchange sends a query on the connection and hopes for a response.
-func exchange(ctx context.Context, server, name string, qtype uint16) (*dnsMsg, error) {
+func exchange(ctx context.Context, server, name string, qtype uint16, timeout time.Duration) (*dnsMsg, error) {
 	d := testHookDNSDialer()
 	out := dnsMsg{
 		dnsMsgHdr: dnsMsgHdr{
@@ -152,6 +152,12 @@ func exchange(ctx context.Context, server, name string, qtype uint16) (*dnsMsg, 
 		},
 	}
 	for _, network := range []string{"udp", "tcp"} {
+		// TODO(mdempsky): Refactor so defers from UDP-based
+		// exchanges happen before TCP-based exchange.
+
+		ctx, cancel := context.WithDeadline(ctx, time.Now().Add(timeout))
+		defer cancel()
+
 		c, err := d.dialDNS(ctx, network, server)
 		if err != nil {
 			return nil, err
@@ -180,17 +186,10 @@ func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) 
 		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
 	}
 
-	deadline := time.Now().Add(cfg.timeout)
-	if old, ok := ctx.Deadline(); !ok || deadline.Before(old) {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, deadline)
-		defer cancel()
-	}
-
 	var lastErr error
 	for i := 0; i < cfg.attempts; i++ {
 		for _, server := range cfg.servers {
-			msg, err := exchange(ctx, server, name, qtype)
+			msg, err := exchange(ctx, server, name, qtype, cfg.timeout)
 			if err != nil {
 				lastErr = &DNSError{
 					Err:    err.Error(),
