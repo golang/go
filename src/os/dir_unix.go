@@ -34,6 +34,11 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
 		}
 		fi = append(fi, fip)
 	}
+	if len(fi) == 0 && err == nil && n > 0 {
+		// Per File.Readir, the slice must be non-empty or err
+		// must be non-nil if n > 0.
+		err = io.EOF
+	}
 	return fi, err
 }
 
