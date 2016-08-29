@@ -230,6 +230,14 @@ var untarTests = []*untarTest{
 		},
 	},
 	{
+		file: "testdata/pax-bad-hdr-file.tar",
+		err:  ErrHeader,
+	},
+	{
+		file: "testdata/pax-bad-mtime-file.tar",
+		err:  ErrHeader,
+	},
+	{
 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
 		headers: []*Header{
 			{
