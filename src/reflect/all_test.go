@@ -1535,6 +1535,34 @@ func BenchmarkCall(b *testing.B) {
 	})
 }
 
+func BenchmarkCallArgCopy(b *testing.B) {
+	byteArray := func(n int) Value {
+		return Zero(ArrayOf(n, TypeOf(byte(0))))
+	}
+	sizes := [...]struct {
+		fv  Value
+		arg Value
+	}{
+		{ValueOf(func(a [128]byte) {}), byteArray(128)},
+		{ValueOf(func(a [256]byte) {}), byteArray(256)},
+		{ValueOf(func(a [1024]byte) {}), byteArray(1024)},
+		{ValueOf(func(a [4096]byte) {}), byteArray(4096)},
+		{ValueOf(func(a [65536]byte) {}), byteArray(65536)},
+	}
+	for _, size := range sizes {
+		bench := func(b *testing.B) {
+			args := []Value{size.arg}
+			b.SetBytes(int64(size.arg.Len()))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				size.fv.Call(args)
+			}
+		}
+		name := fmt.Sprintf("size=%v", size.arg.Len())
+		b.Run(name, bench)
+	}
+}
+
 func TestMakeFunc(t *testing.T) {
 	f := dummy
 	fv := MakeFunc(TypeOf(f), func(in []Value) []Value { return in })
