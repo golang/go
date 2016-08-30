@@ -378,74 +378,87 @@ func (n *Node) jconv(s fmt.State) {
 	}
 }
 
+func (v Val) Format(s fmt.State, format rune) {
+	switch format {
+	case 's', 'v':
+		v.vconv(s)
+
+	default:
+		fmt.Fprintf(s, "%%!%c(Val)", format)
+	}
+}
+
 // Fmt "%V": Values
-func vconv(v Val, flag FmtFlag) string {
-	var p printer
+func (v Val) vconv(s fmt.State) {
+	flag := fmtFlag(s)
 
 	switch u := v.U.(type) {
 	case *Mpint:
 		if !u.Rune {
 			if flag&FmtSharp != 0 {
-				return bconv(u, FmtSharp)
+				fmt.Fprint(s, bconv(u, FmtSharp))
+				return
 			}
-			return bconv(u, 0)
+			fmt.Fprint(s, bconv(u, 0))
+			return
 		}
 
 		switch x := u.Int64(); {
 		case ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'':
-			p.f("'%c'", int(x))
+			fmt.Fprintf(s, "'%c'", int(x))
 
 		case 0 <= x && x < 1<<16:
-			p.f("'\\u%04x'", uint(int(x)))
+			fmt.Fprintf(s, "'\\u%04x'", uint(int(x)))
 
 		case 0 <= x && x <= utf8.MaxRune:
-			p.f("'\\U%08x'", uint64(x))
+			fmt.Fprintf(s, "'\\U%08x'", uint64(x))
 
 		default:
-			p.f("('\\x00' + %v)", u)
+			fmt.Fprintf(s, "('\\x00' + %v)", u)
 		}
 
 	case *Mpflt:
 		if flag&FmtSharp != 0 {
-			return fconv(u, 0)
+			fmt.Fprint(s, fconv(u, 0))
+			return
 		}
-		return fconv(u, FmtSharp)
+		fmt.Fprint(s, fconv(u, FmtSharp))
+		return
 
 	case *Mpcplx:
 		switch {
 		case flag&FmtSharp != 0:
-			p.f("(%v+%vi)", &u.Real, &u.Imag)
+			fmt.Fprintf(s, "(%v+%vi)", &u.Real, &u.Imag)
 
 		case v.U.(*Mpcplx).Real.CmpFloat64(0) == 0:
-			p.f("%vi", fconv(&u.Imag, FmtSharp))
+			fmt.Fprintf(s, "%vi", fconv(&u.Imag, FmtSharp))
 
 		case v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0:
-			return fconv(&u.Real, FmtSharp)
+			fmt.Fprint(s, fconv(&u.Real, FmtSharp))
 
 		case v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0:
-			p.f("(%v%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
+			fmt.Fprintf(s, "(%v%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
 
 		default:
-			p.f("(%v+%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
+			fmt.Fprintf(s, "(%v+%vi)", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp))
 		}
 
 	case string:
-		return strconv.Quote(u)
+		fmt.Fprint(s, strconv.Quote(u))
 
 	case bool:
+		t := "false"
 		if u {
-			return "true"
+			t = "true"
 		}
-		return "false"
+		fmt.Fprint(s, t)
 
 	case *NilVal:
-		return "nil"
+		fmt.Fprint(s, "nil")
 
 	default:
-		p.f("<ctype=%d>", v.Ctype())
+		fmt.Fprintf(s, "<ctype=%d>", v.Ctype())
 	}
-
-	return p.String()
 }
 
 /*
@@ -1139,13 +1152,13 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 			// Need parens when type begins with what might
 			// be misinterpreted as a unary operator: * or <-.
 			if n.Type.IsPtr() || (n.Type.IsChan() && n.Type.ChanDir() == Crecv) {
-				return p.f("(%v)(%v)", n.Type, vconv(n.Val(), 0))
+				return p.f("(%v)(%v)", n.Type, n.Val())
 			} else {
-				return p.f("%v(%v)", n.Type, vconv(n.Val(), 0))
+				return p.f("%v(%v)", n.Type, n.Val())
 			}
 		}
 
-		return p.s(vconv(n.Val(), 0))
+		return p.f("%s", n.Val())
 
 	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
@@ -1463,7 +1476,7 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 		p.f("%v-%v%j", n.Op, obj.Rconv(int(n.Reg)), n)
 
 	case OLITERAL:
-		p.f("%v-%v%j", n.Op, vconv(n.Val(), 0), n)
+		p.f("%v-%v%j", n.Op, n.Val(), n)
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
