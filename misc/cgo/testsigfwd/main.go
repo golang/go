@@ -50,6 +50,7 @@ static void iohandler(int signum) {
 
 static void* sigioThread(void* arg __attribute__ ((unused))) {
 	raise(SIGIO);
+	return NULL;
 }
 
 static void sigioOnThread() {
