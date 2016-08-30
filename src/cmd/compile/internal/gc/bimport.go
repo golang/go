@@ -467,6 +467,11 @@ func (p *importer) typ() *Type {
 			p.pos()
 			sym := p.fieldSym()
 
+			// during import unexported method names should be in the type's package
+			if !exportname(sym.Name) && sym.Pkg != tsym.Pkg {
+				Fatalf("imported method name %v in wrong package %s\n", sconv(sym, FmtSign), tsym.Pkg.Name)
+			}
+
 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
 			params := p.paramList()
 			result := p.paramList()
@@ -475,7 +480,7 @@ func (p *importer) typ() *Type {
 			n := methodname(newname(sym), recv[0].Right)
 			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
-			addmethod(sym, n.Type, tsym.Pkg, false, nointerface)
+			addmethod(sym, n.Type, false, nointerface)
 			p.funcList = append(p.funcList, n)
 			importlist = append(importlist, n)
 
