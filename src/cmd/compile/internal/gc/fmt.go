@@ -213,25 +213,38 @@ var goopnames = []string{
 }
 
 func (o Op) String() string {
-	return oconv(o, 0)
+	return fmt.Sprintf("%v", o)
 }
 
 func (o Op) GoString() string {
-	return oconv(o, FmtSharp)
+	return fmt.Sprintf("%#v", o)
 }
 
-func oconv(o Op, flag FmtFlag) string {
+func (o Op) Format(s fmt.State, format rune) {
+	switch format {
+	case 's', 'v':
+		o.oconv(s)
+
+	default:
+		fmt.Fprintf(s, "%%!%c(Op=%d)", format, o)
+	}
+}
+
+func (o Op) oconv(s fmt.State) {
+	flag := fmtFlag(s)
 	if (flag&FmtSharp != 0) || fmtmode != FDbg {
 		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
-			return goopnames[o]
+			fmt.Fprint(s, goopnames[o])
+			return
 		}
 	}
 
 	if o >= 0 && int(o) < len(opnames) && opnames[o] != "" {
-		return opnames[o]
+		fmt.Fprint(s, opnames[o])
+		return
 	}
 
-	return fmt.Sprintf("O-%d", o)
+	fmt.Sprintf("O-%d", o)
 }
 
 var classnames = []string{
