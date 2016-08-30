@@ -1167,52 +1167,37 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		return
 	}
 
-	pa := rf.Type // base type
-	mt := methtype(pa)
+	mt := methtype(rf.Type)
 	if mt == nil || mt.Sym == nil {
-		t = pa
-		if t == nil { // rely on typecheck having complained before
-			return
-		}
-		if t != nil {
-			if t.IsPtr() {
-				if t.Sym != nil {
-					Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
-					return
-				}
-
-				t = t.Elem()
-			}
-
-			if t.Broke { // rely on typecheck having complained before
-				return
-			}
-			if t.Sym == nil {
-				Yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
-				return
-			}
-
-			if t.IsPtr() {
+		pa := rf.Type
+		t := pa
+		if t != nil && t.IsPtr() {
+			if t.Sym != nil {
 				Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return
 			}
-
-			if t.IsInterface() {
-				Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
-				return
-			}
+			t = t.Elem()
 		}
 
-		// Should have picked off all the reasons above,
-		// but just in case, fall back to generic error.
-		Yyerror("invalid receiver type %v (%v / %v)", pa, Tconv(pa, FmtLong), Tconv(t, FmtLong))
-
+		switch {
+		case t == nil || t.Broke:
+			// rely on typecheck having complained before
+		case t.Sym == nil:
+			Yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
+		case t.IsPtr():
+			Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+		case t.IsInterface():
+			Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
+		default:
+			// Should have picked off all the reasons above,
+			// but just in case, fall back to generic error.
+			Yyerror("invalid receiver type %v (%v / %v)", pa, Tconv(pa, FmtLong), Tconv(t, FmtLong))
+		}
 		return
 	}
 
-	pa = mt
-	if local && !pa.Local {
-		Yyerror("cannot define new methods on non-local type %v", pa)
+	if local && !mt.Local {
+		Yyerror("cannot define new methods on non-local type %v", mt)
 		return
 	}
 
@@ -1220,10 +1205,10 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		return
 	}
 
-	if pa.IsStruct() {
-		for _, f := range pa.Fields().Slice() {
+	if mt.IsStruct() {
+		for _, f := range mt.Fields().Slice() {
 			if f.Sym == msym {
-				Yyerror("type %v has both field and method named %v", pa, msym)
+				Yyerror("type %v has both field and method named %v", mt, msym)
 				return
 			}
 		}
@@ -1232,14 +1217,14 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	n := Nod(ODCLFIELD, newname(msym), nil)
 	n.Type = t
 
-	for _, f := range pa.Methods().Slice() {
+	for _, f := range mt.Methods().Slice() {
 		if msym.Name != f.Sym.Name {
 			continue
 		}
 		// Eqtype only checks that incoming and result parameters match,
 		// so explicitly check that the receiver parameters match too.
 		if !Eqtype(t, f.Type) || !Eqtype(t.Recv().Type, f.Type.Recv().Type) {
-			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", pa, msym, f.Type, t)
+			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
 		}
 		return
 	}
@@ -1252,7 +1237,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		Fatalf("imported method name %v in wrong package %s\n", sconv(f.Sym, FmtSign), tpkg.Name)
 	}
 
-	pa.Methods().Append(f)
+	mt.Methods().Append(f)
 }
 
 func funccompile(n *Node) {
