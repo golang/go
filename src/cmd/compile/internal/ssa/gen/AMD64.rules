@@ -738,11 +738,23 @@
 // This prevents a single load from being split into multiple loads
 // which then might return different values.  See test/atomicload.go.
 (MOVBQSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQSX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
 (MOVBQZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
 (MOVWQSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQSX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
 (MOVWQZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
 (MOVLQSX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+(MOVLQSX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
 (MOVLQZX x:(MOVLload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
+(MOVLQZX x:(MOVQload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVLload <v.Type> [off] {sym} ptr mem)
 
 (MOVBQZX x:(MOVBloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVBloadidx1 <v.Type> [off] {sym} ptr idx mem)
 (MOVWQZX x:(MOVWloadidx1 [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWloadidx1 <v.Type> [off] {sym} ptr idx mem)
