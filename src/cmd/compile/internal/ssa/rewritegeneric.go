@@ -9971,6 +9971,34 @@ func rewriteValuegeneric_OpTrunc16to8(v *Value, config *Config) bool {
 		v.AuxInt = int64(int8(c))
 		return true
 	}
+	// match: (Trunc16to8  (ZeroExt8to16  x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to16 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc16to8  (SignExt8to16  x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt8to16 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (Trunc16to8  (And16 (Const16 [y]) x))
 	// cond: y&0xFF == 0xFF
 	// result: (Trunc16to8 x)
@@ -10008,6 +10036,60 @@ func rewriteValuegeneric_OpTrunc32to16(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		v.reset(OpConst16)
 		v.AuxInt = int64(int16(c))
+		return true
+	}
+	// match: (Trunc32to16 (ZeroExt8to32  x))
+	// cond:
+	// result: (ZeroExt8to16  x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to32 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpZeroExt8to16)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc32to16 (ZeroExt16to32 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to32 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc32to16 (SignExt8to32  x))
+	// cond:
+	// result: (SignExt8to16  x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt8to32 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpSignExt8to16)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc32to16 (SignExt16to32 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt16to32 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	// match: (Trunc32to16 (And32 (Const32 [y]) x))
@@ -10049,6 +10131,34 @@ func rewriteValuegeneric_OpTrunc32to8(v *Value, config *Config) bool {
 		v.AuxInt = int64(int8(c))
 		return true
 	}
+	// match: (Trunc32to8  (ZeroExt8to32  x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to32 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc32to8  (SignExt8to32  x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt8to32 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (Trunc32to8  (And32 (Const32 [y]) x))
 	// cond: y&0xFF == 0xFF
 	// result: (Trunc32to8 x)
@@ -10086,6 +10196,60 @@ func rewriteValuegeneric_OpTrunc64to16(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		v.reset(OpConst16)
 		v.AuxInt = int64(int16(c))
+		return true
+	}
+	// match: (Trunc64to16 (ZeroExt8to64  x))
+	// cond:
+	// result: (ZeroExt8to16  x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpZeroExt8to16)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to16 (ZeroExt16to64 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to16 (SignExt8to64  x))
+	// cond:
+	// result: (SignExt8to16  x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt8to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpSignExt8to16)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to16 (SignExt16to64 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt16to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	// match: (Trunc64to16 (And64 (Const64 [y]) x))
@@ -10127,6 +10291,86 @@ func rewriteValuegeneric_OpTrunc64to32(v *Value, config *Config) bool {
 		v.AuxInt = int64(int32(c))
 		return true
 	}
+	// match: (Trunc64to32 (ZeroExt8to64  x))
+	// cond:
+	// result: (ZeroExt8to32  x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpZeroExt8to32)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to32 (ZeroExt16to64 x))
+	// cond:
+	// result: (ZeroExt16to32 x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt16to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpZeroExt16to32)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to32 (ZeroExt32to64 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt32to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to32 (SignExt8to64  x))
+	// cond:
+	// result: (SignExt8to32  x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt8to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpSignExt8to32)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to32 (SignExt16to64 x))
+	// cond:
+	// result: (SignExt16to32 x)
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt16to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpSignExt16to32)
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to32 (SignExt32to64 x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt32to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (Trunc64to32 (And64 (Const64 [y]) x))
 	// cond: y&0xFFFFFFFF == 0xFFFFFFFF
 	// result: (Trunc64to32 x)
@@ -10164,6 +10408,34 @@ func rewriteValuegeneric_OpTrunc64to8(v *Value, config *Config) bool {
 		c := v_0.AuxInt
 		v.reset(OpConst8)
 		v.AuxInt = int64(int8(c))
+		return true
+	}
+	// match: (Trunc64to8  (ZeroExt8to64  x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpZeroExt8to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (Trunc64to8  (SignExt8to64  x))
+	// cond:
+	// result: x
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpSignExt8to64 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	// match: (Trunc64to8  (And64 (Const64 [y]) x))
