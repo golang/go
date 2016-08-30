@@ -15,6 +15,7 @@ import (
 type scanner struct {
 	source
 	nlsemi bool // if set '\n' and EOF translate to ';'
+	pragma Pragma
 
 	// current token, valid after calling next()
 	pos, line int
@@ -24,12 +25,13 @@ type scanner struct {
 	op        Operator // valid if tok is _Operator, _AssignOp, or _IncOp
 	prec      int      // valid if tok is _Operator, _AssignOp, or _IncOp
 
-	pragmas []Pragma
+	pragh PragmaHandler
 }
 
-func (s *scanner) init(src io.Reader, errh ErrorHandler) {
+func (s *scanner) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
 	s.source.init(src, errh)
 	s.nlsemi = false
+	s.pragh = pragh
 }
 
 func (s *scanner) next() {
@@ -540,6 +542,10 @@ func (s *scanner) lineComment() {
 	// recognize pragmas
 	var prefix string
 	r := s.getr()
+	if s.pragh == nil {
+		goto skip
+	}
+
 	switch r {
 	case 'g':
 		prefix = "go:"
@@ -565,10 +571,7 @@ func (s *scanner) lineComment() {
 		}
 		r = s.getr()
 	}
-	s.pragmas = append(s.pragmas, Pragma{
-		Line: s.line,
-		Text: strings.TrimSuffix(string(s.stopLit()), "\r"),
-	})
+	s.pragma |= s.pragh(0, s.line, strings.TrimSuffix(string(s.stopLit()), "\r"))
 	return
 
 skip:

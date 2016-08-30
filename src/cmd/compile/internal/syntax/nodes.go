@@ -10,6 +10,7 @@ package syntax
 type Node interface {
 	Line() uint32
 	aNode()
+	init(p *parser)
 }
 
 type node struct {
@@ -35,14 +36,8 @@ func (n *node) init(p *parser) {
 type File struct {
 	PkgName  *Name
 	DeclList []Decl
-	Pragmas  []Pragma
 	Lines    int
 	node
-}
-
-type Pragma struct {
-	Line int
-	Text string
 }
 
 // ----------------------------------------------------------------------------
@@ -90,6 +85,7 @@ type (
 		Name    *Name
 		Type    *FuncType
 		Body    []Stmt // nil means no body (forward declaration)
+		Pragma  Pragma // TODO(mdempsky): Cleaner solution.
 		EndLine uint32 // TODO(mdempsky): Cleaner solution.
 		decl
 	}
@@ -130,7 +126,8 @@ type (
 	CompositeLit struct {
 		Type     Expr // nil means no literal type
 		ElemList []Expr
-		NKeys    int // number of elements with keys
+		NKeys    int    // number of elements with keys
+		EndLine  uint32 // TODO(mdempsky): Cleaner solution.
 		expr
 	}
 
