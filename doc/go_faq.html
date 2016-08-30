@@ -1262,11 +1262,17 @@ size of value should use an explicitly sized type, like <code>int64</code>.
 Prior to Go 1.1, the 64-bit Go compilers (both gc and gccgo) used
 a 32-bit representation for <code>int</code>. As of Go 1.1 they use
 a 64-bit representation.
+</p>
+
+<p>
 On the other hand, floating-point scalars and complex
-numbers are always sized: <code>float32</code>, <code>complex64</code>,
-etc., because programmers should be aware of precision when using
-floating-point numbers.
-The default size of a floating-point constant is <code>float64</code>.
+types are always sized (there are no <code>float</code> or <code>complex</code> basic types),
+because programmers should be aware of precision when using floating-point numbers.
+The default type used for an (untyped) floating-point constant is <code>float64</code>.
+Thus <code>foo := 3.0</code> declares a variable <code>foo</code> of type <code>float64</code>.
+For a <code>float32</code> variable initialized by a constant, the variable type must be specified explicitly
+in the variable declaration <code>var foo float32 = 3.0</code>, or the constant must be given a 
+type with a conversion as in <code>foo := float32(3.0)</code>.
 </p>
 
 <h3 id="stack_or_heap">
