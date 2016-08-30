@@ -17,16 +17,47 @@ import (
 // See the respective function's documentation for details.
 type FmtFlag int
 
-const (
-	FmtLeft     FmtFlag = 1 << iota // "-"
-	FmtSharp                        // "#"
-	FmtSign                         // "+"
-	FmtUnsigned                     // "u"
-	FmtShort                        // "h"
-	FmtLong                         // "l"
-	FmtComma                        // ","
-	FmtByte                         // "hh"
+const ( //                                          fmt.Format flag/width/prec
+	FmtLeft     FmtFlag = 1 << iota // "-"	=>  '-'
+	FmtSharp                        // "#"  =>  '#'
+	FmtSign                         // "+"  =>  '+'
+	FmtUnsigned                     // "u"  =>  ' '
+	FmtShort                        // "h"  =>  hasWidth && width == 1
+	FmtLong                         // "l"  =>  hasWidth && width == 2
+	FmtComma                        // ","  =>  '.' (== hasPrec)
+	FmtByte                         // "hh" =>  '0'
 )
+
+func fmtFlag(s fmt.State) FmtFlag {
+	var flag FmtFlag
+	if s.Flag('-') {
+		flag |= FmtLeft
+	}
+	if s.Flag('#') {
+		flag |= FmtSharp
+	}
+	if s.Flag('+') {
+		flag |= FmtSign
+	}
+	if s.Flag(' ') {
+		flag |= FmtUnsigned
+	}
+	if w, ok := s.Width(); ok {
+		switch w {
+		case 1:
+			flag |= FmtShort
+		case 2:
+			flag |= FmtLong
+		}
+	}
+	if _, ok := s.Precision(); ok {
+		flag |= FmtComma
+	}
+	if s.Flag('0') {
+		flag |= FmtByte
+	}
+	return flag
+}
 
 //
 // Format conversions
@@ -213,49 +244,60 @@ var classnames = []string{
 	"PFUNC",
 }
 
-// Node details
-func jconv(n *Node, flag FmtFlag) string {
-	var p printer
+func (n *Node) Format(s fmt.State, format rune) {
+	switch format {
+	case 's', 'v':
+		fmt.Fprint(s, Nconv(n, fmtFlag(s)))
 
-	c := flag & FmtShort
+	case 'j':
+		n.jconv(s)
+
+	default:
+		fmt.Fprintf(s, "%%!%c(*Node=%p)", format, n)
+	}
+}
+
+// Node details
+func (n *Node) jconv(s fmt.State) {
+	c := fmtFlag(s) & FmtShort
 
 	if c == 0 && n.Ullman != 0 {
-		p.f(" u(%d)", n.Ullman)
+		fmt.Fprintf(s, " u(%d)", n.Ullman)
 	}
 
 	if c == 0 && n.Addable {
-		p.f(" a(%v)", n.Addable)
+		fmt.Fprintf(s, " a(%v)", n.Addable)
 	}
 
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
-		p.f(" g(%d)", n.Name.Vargen)
+		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
 	}
 
 	if n.Lineno != 0 {
-		p.f(" l(%d)", n.Lineno)
+		fmt.Fprintf(s, " l(%d)", n.Lineno)
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {
-		p.f(" x(%d%+d)", n.Xoffset, stkdelta[n])
+		fmt.Fprintf(s, " x(%d%+d)", n.Xoffset, stkdelta[n])
 	}
 
 	if n.Class != 0 {
 		if int(n.Class) < len(classnames) {
-			p.f(" class(%s)", classnames[n.Class])
+			fmt.Fprintf(s, " class(%s)", classnames[n.Class])
 		} else {
-			p.f(" class(%d?)", n.Class)
+			fmt.Fprintf(s, " class(%d?)", n.Class)
 		}
 	}
 
 	if n.Colas {
-		p.f(" colas(%v)", n.Colas)
+		fmt.Fprintf(s, " colas(%v)", n.Colas)
 	}
 
 	if n.Name != nil && n.Name.Funcdepth != 0 {
-		p.f(" f(%d)", n.Name.Funcdepth)
+		fmt.Fprintf(s, " f(%d)", n.Name.Funcdepth)
 	}
 	if n.Func != nil && n.Func.Depth != 0 {
-		p.f(" ff(%d)", n.Func.Depth)
+		fmt.Fprintf(s, " ff(%d)", n.Func.Depth)
 	}
 
 	switch n.Esc {
@@ -263,66 +305,64 @@ func jconv(n *Node, flag FmtFlag) string {
 		break
 
 	case EscHeap:
-		p.s(" esc(h)")
+		fmt.Fprint(s, " esc(h)")
 
 	case EscScope:
-		p.s(" esc(s)")
+		fmt.Fprint(s, " esc(s)")
 
 	case EscNone:
-		p.s(" esc(no)")
+		fmt.Fprint(s, " esc(no)")
 
 	case EscNever:
 		if c == 0 {
-			p.s(" esc(N)")
+			fmt.Fprint(s, " esc(N)")
 		}
 
 	default:
-		p.f(" esc(%d)", n.Esc)
+		fmt.Fprintf(s, " esc(%d)", n.Esc)
 	}
 
 	if e, ok := n.Opt().(*NodeEscState); ok && e.Escloopdepth != 0 {
-		p.f(" ld(%d)", e.Escloopdepth)
+		fmt.Fprintf(s, " ld(%d)", e.Escloopdepth)
 	}
 
 	if c == 0 && n.Typecheck != 0 {
-		p.f(" tc(%d)", n.Typecheck)
+		fmt.Fprintf(s, " tc(%d)", n.Typecheck)
 	}
 
 	if c == 0 && n.IsStatic {
-		p.s(" static")
+		fmt.Fprint(s, " static")
 	}
 
 	if n.Isddd {
-		p.f(" isddd(%v)", n.Isddd)
+		fmt.Fprintf(s, " isddd(%v)", n.Isddd)
 	}
 
 	if n.Implicit {
-		p.f(" implicit(%v)", n.Implicit)
+		fmt.Fprintf(s, " implicit(%v)", n.Implicit)
 	}
 
 	if n.Embedded != 0 {
-		p.f(" embedded(%d)", n.Embedded)
+		fmt.Fprintf(s, " embedded(%d)", n.Embedded)
 	}
 
 	if n.Addrtaken {
-		p.s(" addrtaken")
+		fmt.Fprint(s, " addrtaken")
 	}
 
 	if n.Assigned {
-		p.s(" assigned")
+		fmt.Fprint(s, " assigned")
 	}
 	if n.Bounded {
-		p.s(" bounded")
+		fmt.Fprint(s, " bounded")
 	}
 	if n.NonNil {
-		p.s(" nonnil")
+		fmt.Fprint(s, " nonnil")
 	}
 
 	if c == 0 && n.Used {
-		p.f(" used(%v)", n.Used)
+		fmt.Fprintf(s, " used(%v)", n.Used)
 	}
-
-	return p.String()
 }
 
 // Fmt "%V": Values
@@ -1404,19 +1444,19 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 
 	switch n.Op {
 	default:
-		p.f("%v%v", n.Op, jconv(n, 0))
+		p.f("%v%j", n.Op, n)
 
 	case OREGISTER, OINDREG:
-		p.f("%v-%v%v", n.Op, obj.Rconv(int(n.Reg)), jconv(n, 0))
+		p.f("%v-%v%j", n.Op, obj.Rconv(int(n.Reg)), n)
 
 	case OLITERAL:
-		p.f("%v-%v%v", n.Op, vconv(n.Val(), 0), jconv(n, 0))
+		p.f("%v-%v%j", n.Op, vconv(n.Val(), 0), n)
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
-			p.f("%v-%v%v", n.Op, n.Sym, jconv(n, 0))
+			p.f("%v-%v%j", n.Op, n.Sym, n)
 		} else {
-			p.f("%v%v", n.Op, jconv(n, 0))
+			p.f("%v%j", n.Op, n)
 		}
 		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
 			p.indent()
@@ -1424,10 +1464,10 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 		}
 
 	case OASOP:
-		p.f("%v-%v%v", n.Op, Op(n.Etype), jconv(n, 0))
+		p.f("%v-%v%j", n.Op, Op(n.Etype), n)
 
 	case OTYPE:
-		p.f("%v %v%v type=%v", n.Op, n.Sym, jconv(n, 0), n.Type)
+		p.f("%v %v%j type=%v", n.Op, n.Sym, n, n.Type)
 		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
 			p.indent()
 			p.f("%v-ntype%v", n.Op, n.Name.Param.Ntype)
