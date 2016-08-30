@@ -28,7 +28,7 @@ type parser struct {
 	nerrors int // error count
 }
 
-func (p *parser) init(src io.Reader, errh ErrorHandler) {
+func (p *parser) init(src io.Reader, errh ErrorHandler, pragh PragmaHandler) {
 	p.scanner.init(src, func(pos, line int, msg string) {
 		p.nerrors++
 		if !debug && errh != nil {
@@ -36,7 +36,7 @@ func (p *parser) init(src io.Reader, errh ErrorHandler) {
 			return
 		}
 		panic(fmt.Sprintf("%d: %s\n", line, msg))
-	})
+	}, pragh)
 
 	p.fnest = 0
 	p.xnest = 0
@@ -245,6 +245,10 @@ func (p *parser) file() *File {
 			continue
 		}
 
+		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
+		// since comments before may set pragmas for the next function decl.
+		p.pragma = 0
+
 		if p.tok != _EOF && !p.got(_Semi) {
 			p.syntax_error("after top level declaration")
 			p.advance(_Const, _Type, _Var, _Func)
@@ -253,7 +257,6 @@ func (p *parser) file() *File {
 	// p.tok == _EOF
 
 	f.Lines = p.source.line
-	f.Pragmas = p.pragmas
 
 	return f
 }
@@ -372,6 +375,9 @@ func (p *parser) varDecl(group *Group) Decl {
 		}
 	}
 	d.Group = group
+	if gcCompat {
+		d.init(p)
+	}
 
 	return d
 }
@@ -426,8 +432,12 @@ func (p *parser) funcDecl() *FuncDecl {
 
 	f.Name = p.name()
 	f.Type = p.funcType()
+	if gcCompat {
+		f.node = f.Type.node
+	}
 	f.Body = p.funcBody()
 
+	f.Pragma = p.pragma
 	f.EndLine = uint32(p.line)
 
 	// TODO(gri) deal with function properties
@@ -465,6 +475,9 @@ func (p *parser) binaryExpr(prec int) Expr {
 		tprec := p.prec
 		p.next()
 		t.Y = p.binaryExpr(tprec)
+		if gcCompat {
+			t.init(p)
+		}
 		x = t
 	}
 	return x
@@ -485,6 +498,9 @@ func (p *parser) unaryExpr() Expr {
 			x.Op = p.op
 			p.next()
 			x.X = p.unaryExpr()
+			if gcCompat {
+				x.init(p)
+			}
 			return x
 
 		case And:
@@ -730,6 +746,9 @@ loop:
 				p.syntax_error("expecting name or (")
 				p.advance(_Semi, _Rparen)
 			}
+			if gcCompat {
+				x.init(p)
+			}
 
 		case _Lbrack:
 			p.next()
@@ -851,6 +870,9 @@ func (p *parser) complitexpr() *CompositeLit {
 			l.init(p)
 			l.Key = e
 			l.Value = p.bare_complitexpr()
+			if gcCompat {
+				l.init(p)
+			}
 			e = l
 			x.NKeys++
 		}
@@ -860,6 +882,7 @@ func (p *parser) complitexpr() *CompositeLit {
 		}
 	}
 
+	x.EndLine = uint32(p.line)
 	p.xnest--
 	p.want(_Rbrace)
 
@@ -996,6 +1019,9 @@ func (p *parser) funcType() *FuncType {
 	typ.init(p)
 	typ.ParamList = p.paramList()
 	typ.ResultList = p.funcResult()
+	if gcCompat {
+		typ.init(p)
+	}
 	return typ
 }
 
@@ -1133,6 +1159,10 @@ func (p *parser) addField(styp *StructType, name *Name, typ Expr, tag *BasicLit)
 	f.Name = name
 	f.Type = typ
 	styp.FieldList = append(styp.FieldList, f)
+
+	if gcCompat && name != nil {
+		f.node = name.node
+	}
 
 	if debug && tag != nil && len(styp.FieldList) != len(styp.TagList) {
 		panic("inconsistent struct field list")
@@ -1443,6 +1473,9 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 			s.init(p)
 			s.Chan = lhs
 			s.Value = p.expr()
+			if gcCompat {
+				s.init(p)
+			}
 			return s
 
 		default:
@@ -1509,6 +1542,9 @@ func (p *parser) rangeClause(lhs Expr, def bool) *RangeClause {
 	r.Lhs = lhs
 	r.Def = def
 	r.X = p.expr()
+	if gcCompat {
+		r.init(p)
+	}
 	return r
 }
 
@@ -1583,6 +1619,9 @@ func (p *parser) forStmt() Stmt {
 
 	p.want(_For)
 	s.Init, s.Cond, s.Post = p.header(true)
+	if gcCompat {
+		s.init(p)
+	}
 	s.Body = p.stmtBody("for clause")
 
 	return s
@@ -1670,6 +1709,10 @@ func (p *parser) ifStmt() *IfStmt {
 	s.Init, s.Cond, _ = p.header(false)
 	if s.Cond == nil {
 		p.error("missing condition in if statement")
+	}
+
+	if gcCompat {
+		s.init(p)
 	}
 
 	s.Then = p.stmtBody("if clause")
@@ -1913,6 +1956,9 @@ func (p *parser) stmt() Stmt {
 		s.init(p)
 		if p.tok != _Semi && p.tok != _Rbrace {
 			s.Results = p.exprList()
+		}
+		if gcCompat {
+			s.init(p)
 		}
 		return s
 

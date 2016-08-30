@@ -22,7 +22,7 @@ var src = flag.String("src", "parser.go", "source file to parse")
 var verify = flag.Bool("verify", false, "verify idempotent printing")
 
 func TestParse(t *testing.T) {
-	_, err := ReadFile(*src, nil, 0)
+	_, err := ReadFile(*src, nil, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestStdLib(t *testing.T) {
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
-				ast, err := ReadFile(filename, nil, 0)
+				ast, err := ReadFile(filename, nil, nil, 0)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -133,7 +133,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := ReadBytes(buf1.Bytes(), nil, 0)
+	ast2, err := ReadBytes(buf1.Bytes(), nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}

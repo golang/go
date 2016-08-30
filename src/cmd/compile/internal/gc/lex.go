@@ -7,6 +7,7 @@ package gc
 import (
 	"bufio"
 	"bytes"
+	"cmd/compile/internal/syntax"
 	"cmd/internal/obj"
 	"fmt"
 	"io"
@@ -60,7 +61,7 @@ func plan9quote(s string) string {
 	return s
 }
 
-type Pragma uint16
+type Pragma syntax.Pragma
 
 const (
 	Nointerface       Pragma = 1 << iota
