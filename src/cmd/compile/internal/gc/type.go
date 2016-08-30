@@ -153,7 +153,6 @@ type Type struct {
 	Etype      EType // kind of type
 	Noalg      bool  // suppress hash and eq algorithm generation
 	Trecur     uint8 // to detect loops
-	Printed    bool  // prevent duplicate export printing
 	Local      bool  // created in this file
 	Deferwidth bool
 	Broke      bool  // broken type definition.
