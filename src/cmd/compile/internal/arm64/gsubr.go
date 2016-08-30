@@ -43,10 +43,6 @@ var resvd = []int{
 	arm64.REGRT1,
 	arm64.REGRT2,
 	arm64.REG_R31, // REGZERO and REGSP
-	arm64.FREGZERO,
-	arm64.FREGHALF,
-	arm64.FREGONE,
-	arm64.FREGTWO,
 }
 
 /*

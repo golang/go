@@ -35,8 +35,6 @@ crosscall1:
 	sdc1	$f30, 136($29)
 	sdc1	$f31, 144($29)
 
-	dla	$23,_cgo_reginit
-
 	// prepare SB register = pc & 0xffffffff00000000
 	bal	1f
 1:
@@ -44,7 +42,6 @@ crosscall1:
 	dsll	$28, $28, 32
 
 	move	$20, $4 // save R4
-	jalr	$23	// call _cgo_reginit, set up Go ABI constant registers
 	move	$1, $6
 	jalr	$5	// call setg_gcc (clobbers R4)
 	jalr	$20	// call fn

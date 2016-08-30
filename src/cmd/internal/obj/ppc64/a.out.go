@@ -132,29 +132,24 @@ const (
 	REG_LR  = REG_SPR0 + 8
 	REG_CTR = REG_SPR0 + 9
 
-	REGZERO  = REG_R0 /* set to zero */
-	REGSP    = REG_R1
-	REGSB    = REG_R2
-	REGRET   = REG_R3
-	REGARG   = -1      /* -1 disables passing the first argument in register */
-	REGRT1   = REG_R3  /* reserved for runtime, duffzero and duffcopy */
-	REGRT2   = REG_R4  /* reserved for runtime, duffcopy */
-	REGMIN   = REG_R7  /* register variables allocated from here to REGMAX */
-	REGCTXT  = REG_R11 /* context for closures */
-	REGTLS   = REG_R13 /* C ABI TLS base pointer */
-	REGMAX   = REG_R27
-	REGEXT   = REG_R30 /* external registers allocated from here down */
-	REGG     = REG_R30 /* G */
-	REGTMP   = REG_R31 /* used by the linker */
-	FREGRET  = REG_F0
-	FREGMIN  = REG_F17 /* first register variable */
-	FREGMAX  = REG_F26 /* last register variable for 9g only */
-	FREGEXT  = REG_F26 /* first external register */
-	FREGCVI  = REG_F27 /* floating conversion constant */
-	FREGZERO = REG_F28 /* both float and double */
-	FREGHALF = REG_F29 /* double */
-	FREGONE  = REG_F30 /* double */
-	FREGTWO  = REG_F31 /* double */
+	REGZERO = REG_R0 /* set to zero */
+	REGSP   = REG_R1
+	REGSB   = REG_R2
+	REGRET  = REG_R3
+	REGARG  = -1      /* -1 disables passing the first argument in register */
+	REGRT1  = REG_R3  /* reserved for runtime, duffzero and duffcopy */
+	REGRT2  = REG_R4  /* reserved for runtime, duffcopy */
+	REGMIN  = REG_R7  /* register variables allocated from here to REGMAX */
+	REGCTXT = REG_R11 /* context for closures */
+	REGTLS  = REG_R13 /* C ABI TLS base pointer */
+	REGMAX  = REG_R27
+	REGEXT  = REG_R30 /* external registers allocated from here down */
+	REGG    = REG_R30 /* G */
+	REGTMP  = REG_R31 /* used by the linker */
+	FREGRET = REG_F0
+	FREGMIN = REG_F17 /* first register variable */
+	FREGMAX = REG_F26 /* last register variable for 9g only */
+	FREGEXT = REG_F26 /* first external register */
 )
 
 /*

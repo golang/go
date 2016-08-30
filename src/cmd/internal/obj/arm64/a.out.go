@@ -229,14 +229,10 @@ const (
 	REGZERO = REG_R31
 	REGSP   = REG_RSP
 
-	FREGRET  = REG_F0
-	FREGMIN  = REG_F7  // first register variable
-	FREGMAX  = REG_F26 // last register variable for 7g only
-	FREGEXT  = REG_F26 // first external register
-	FREGZERO = REG_F28 // both float and double
-	FREGHALF = REG_F29 // double
-	FREGONE  = REG_F30 // double
-	FREGTWO  = REG_F31 // double
+	FREGRET = REG_F0
+	FREGMIN = REG_F7  // first register variable
+	FREGMAX = REG_F26 // last register variable for 7g only
+	FREGEXT = REG_F26 // first external register
 )
 
 const (

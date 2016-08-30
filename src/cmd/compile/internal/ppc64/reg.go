@@ -119,9 +119,6 @@ func excludedregs() uint64 {
 		regbits |= RtoB(ppc64.REG_R2)
 		regbits |= RtoB(ppc64.REG_R12)
 	}
-	// Also exclude floating point registers with fixed constants
-	regbits |= RtoB(ppc64.REG_F27) | RtoB(ppc64.REG_F28) | RtoB(ppc64.REG_F29) | RtoB(ppc64.REG_F30) | RtoB(ppc64.REG_F31)
-
 	return regbits
 }
 

@@ -88,13 +88,13 @@ var regNamesMIPS64 = []string{
 	"F21",
 	"F22",
 	"F23",
-	"F24", // 0.0
+	"F24",
 	"F25",
-	"F26", // 0.5
+	"F26",
 	"F27",
-	"F28", // 1.0
+	"F28",
 	"F29",
-	"F30", // 2.0
+	"F30",
 	"F31",
 
 	"HI", // high bits of multiplication
@@ -132,7 +132,7 @@ func init() {
 		gpsp       = gp | buildReg("SP")
 		gpspg      = gpg | buildReg("SP")
 		gpspsbg    = gpspg | buildReg("SB")
-		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F25 F27 F29 F31")
+		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		lo         = buildReg("LO")
 		hi         = buildReg("HI")
 		callerSave = gp | fp | lo | hi | buildReg("g") // runtime.setg (and anything calling it) may clobber g

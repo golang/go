@@ -47,10 +47,6 @@ var resvd = []int{
 	mips.REGTMP,
 	mips.REG_R26, // kernel
 	mips.REG_R27, // kernel
-	mips.FREGZERO,
-	mips.FREGHALF,
-	mips.FREGONE,
-	mips.FREGTWO,
 }
 
 /*
@@ -516,8 +512,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 		if ft == gc.TUINT64 {
 			p1 := ginsbranch(mips.ABEQ, nil, &rtmp, nil, 0)
-			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], mips.FREGTWO)
-			gins(mips.AMULD, &r1, &r2)
+			gins(mips.AADDD, &r2, &r2)
 			gc.Patch(p1, gc.Pc)
 		}
 
