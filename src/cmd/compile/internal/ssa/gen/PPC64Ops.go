@@ -77,11 +77,11 @@ var regNamesPPC64 = []string{
 	"F24",
 	"F25",
 	"F26",
-	// "F27", // reserved for "floating conversion constant"
-	// "F28", // 0.0
-	// "F29", // 0.5
-	// "F30", // 1.0
-	// "F31", // 2.0
+	"F27",
+	"F28",
+	"F29",
+	"F30",
+	"F31",
 
 	// "CR0",
 	// "CR1",

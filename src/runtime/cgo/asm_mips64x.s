@@ -46,7 +46,6 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
 	SLLV	$32, RSB
-	JAL	runtime·reginit(SB)
 	JAL	runtime·load_g(SB)
 	JAL	(R4)
 

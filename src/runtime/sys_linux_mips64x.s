@@ -238,9 +238,6 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$64
 	SRLV	$32, R31, RSB
 	SLLV	$32, RSB
 
-	// initialize essential registers (just in case)
-	JAL	runtime·reginit(SB)
-
 	// this might be called in external code context,
 	// where g is not set.
 	MOVB	runtime·iscgo(SB), R1
@@ -328,8 +325,6 @@ TEXT runtime·clone(SB),NOSPLIT,$-8
 	RET
 
 	// In child, on new stack.
-	// initialize essential registers
-	JAL	runtime·reginit(SB)
 	MOVV	-32(R29), R16
 	MOVV	$1234, R1
 	BEQ	R16, R1, 2(PC)

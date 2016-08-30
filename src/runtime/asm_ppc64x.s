@@ -106,12 +106,6 @@ TEXT _cgo_reginit(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·reginit(SB),NOSPLIT|NOFRAME,$0-0
 	// set R0 to zero, it's expected by the toolchain
 	XOR R0, R0
-	// initialize essential FP registers
-	FMOVD	$4503601774854144.0, F27
-	FMOVD	$0.5, F29
-	FSUB	F29, F29, F28
-	FADD	F29, F29, F30
-	FADD	F30, F30, F31
 	RET
 
 /*

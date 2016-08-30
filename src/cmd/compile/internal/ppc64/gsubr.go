@@ -51,11 +51,6 @@ var resvd = []int{
 	// TODO(austin): Consolidate REGTLS and REGG?
 	ppc64.REGG,
 	ppc64.REGTMP, // REGTMP
-	ppc64.FREGCVI,
-	ppc64.FREGZERO,
-	ppc64.FREGHALF,
-	ppc64.FREGONE,
-	ppc64.FREGTWO,
 }
 
 /*
@@ -500,8 +495,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		gc.Regfree(&r1)
 		if ft == gc.TUINT64 {
 			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1) // use CR0 here again
-			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
-			gins(ppc64.AFMUL, &r1, &r2)
+			gins(ppc64.AFADD, &r2, &r2)
 			gc.Patch(p1, gc.Pc)
 		}
 		gmove(&r2, t)
