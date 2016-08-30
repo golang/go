@@ -537,7 +537,7 @@ func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 	if t == bytetype || t == runetype {
 		// in %-T mode collapse rune and byte with their originals.
 		if fmtmode != FTypeId {
-			return p.s(sconv(t.Sym, FmtShort))
+			return p.sconv(t.Sym, FmtShort)
 		}
 		t = Types[t.Etype]
 	}
@@ -554,11 +554,11 @@ func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 				if t.Vargen != 0 {
 					return p.f("%v·%d", sconv(t.Sym, FmtShort), t.Vargen)
 				}
-				return p.s(sconv(t.Sym, FmtShort))
+				return p.sconv(t.Sym, FmtShort)
 			}
 
 			if flag&FmtUnsigned != 0 {
-				return p.s(sconv(t.Sym, FmtUnsigned))
+				return p.sconv(t.Sym, FmtUnsigned)
 			}
 
 			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
@@ -566,7 +566,7 @@ func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 			}
 		}
 
-		return p.s(sconv(t.Sym, 0))
+		return p.sconv(t.Sym, 0)
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
@@ -629,11 +629,11 @@ func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 				// Wrong interface definitions may have types lacking a symbol.
 				break
 			case exportname(f.Sym.Name):
-				p.s(sconv(f.Sym, FmtShort))
+				p.sconv(f.Sym, FmtShort)
 			default:
-				p.s(sconv(f.Sym, FmtUnsigned))
+				p.sconv(f.Sym, FmtUnsigned)
 			}
-			p.s(Tconv(f.Type, FmtShort))
+			p.Tconv(f.Type, FmtShort)
 		}
 		if t.NumFields() != 0 {
 			p.s(" ")
@@ -646,12 +646,12 @@ func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 		} else {
 			if t.Recv() != nil {
 				p.s("method")
-				p.s(Tconv(t.Recvs(), 0))
+				p.Tconv(t.Recvs(), 0)
 				p.s(" ")
 			}
 			p.s("func")
 		}
-		p.s(Tconv(t.Params(), 0))
+		p.Tconv(t.Params(), 0)
 
 		switch t.Results().NumFields() {
 		case 0:
@@ -659,11 +659,11 @@ func (p *printer) typefmt(t *Type, flag FmtFlag) *printer {
 
 		case 1:
 			p.s(" ")
-			p.s(Tconv(t.Results().Field(0).Type, 0)) // struct->field->field's type
+			p.Tconv(t.Results().Field(0).Type, 0) // struct->field->field's type
 
 		default:
 			p.s(" ")
-			p.s(Tconv(t.Results(), 0))
+			p.Tconv(t.Results(), 0)
 		}
 		return p
 
@@ -777,7 +777,7 @@ func (p *printer) stmtfmt(n *Node) *printer {
 		if n.Left != nil {
 			p.f("%v %v", n.Left, n.Right)
 		} else {
-			p.s(Nconv(n.Right, 0))
+			p.Nconv(n.Right, 0)
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
@@ -1075,7 +1075,7 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 				return p.exprfmt(n.Orig, prec)
 			}
 			if n.Sym != nil {
-				return p.s(sconv(n.Sym, 0))
+				return p.sconv(n.Sym, 0)
 			}
 		}
 		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
@@ -1102,13 +1102,13 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 		fallthrough
 
 	case OPACK, ONONAME:
-		return p.s(sconv(n.Sym, 0))
+		return p.sconv(n.Sym, 0)
 
 	case OTYPE:
 		if n.Type == nil && n.Sym != nil {
-			return p.s(sconv(n.Sym, 0))
+			return p.sconv(n.Sym, 0)
 		}
-		return p.s(Tconv(n.Type, 0))
+		return p.Tconv(n.Type, 0)
 
 	case OTARRAY:
 		if n.Left != nil {
@@ -1450,10 +1450,10 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 
 	if recur {
 		if n.Left != nil {
-			p.s(Nconv(n.Left, 0))
+			p.Nconv(n.Left, 0)
 		}
 		if n.Right != nil {
-			p.s(Nconv(n.Right, 0))
+			p.Nconv(n.Right, 0)
 		}
 		if n.List.Len() != 0 {
 			p.indent()
@@ -1474,6 +1474,12 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 	return p
 }
 
+func (s *Sym) Print(p *printer) {
+	p.sconv(s, 0)
+}
+
+var _ Printable = new(Sym) // verify that Sym implements Printable
+
 func (s *Sym) String() string {
 	return sconv(s, 0)
 }
@@ -1481,18 +1487,20 @@ func (s *Sym) String() string {
 // Fmt "%S": syms
 // Flags:  "%hS" suppresses qualifying with package
 func sconv(s *Sym, flag FmtFlag) string {
-	var p printer
+	return new(printer).sconv(s, flag).String()
+}
 
+func (p *printer) sconv(s *Sym, flag FmtFlag) *printer {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
 	}
 
 	if s == nil {
-		return "<S>"
+		return p.s("<S>")
 	}
 
 	if s.Name == "_" {
-		return "_"
+		return p.s("_")
 	}
 
 	sf := flag
@@ -1502,8 +1510,14 @@ func sconv(s *Sym, flag FmtFlag) string {
 	fmtmode = sm
 	fmtbody = sb
 
-	return p.String()
+	return p
 }
+
+func (t *Type) Print(p *printer) {
+	p.Tconv(t, 0)
+}
+
+var _ Printable = new(Type) // verify Type implements Printable
 
 func (t *Type) String() string {
 	return Tconv(t, 0)
@@ -1595,14 +1609,16 @@ func Fldconv(f *Field, flag FmtFlag) string {
 //	  'h' omit 'func' and receiver from function types, short type names
 //	  'u' package name, not prefix (FTypeId mode, sticky)
 func Tconv(t *Type, flag FmtFlag) string {
-	var p printer
+	return new(printer).Tconv(t, flag).String()
+}
 
+func (p *printer) Tconv(t *Type, flag FmtFlag) *printer {
 	if t == nil {
-		return "<T>"
+		return p.s("<T>")
 	}
 
 	if t.Trecur > 4 {
-		return "<...>"
+		return p.s("<...>")
 	}
 
 	t.Trecur++
@@ -1627,8 +1643,14 @@ func Tconv(t *Type, flag FmtFlag) string {
 	fmtmode = sm
 	t.Trecur--
 
-	return p.String()
+	return p
 }
+
+func (n *Node) Print(p *printer) {
+	p.Nconv(n, 0)
+}
+
+var _ Printable = new(Node) // verify that Node implements Printable
 
 func (n *Node) String() string {
 	return Nconv(n, 0)
@@ -1638,10 +1660,12 @@ func (n *Node) String() string {
 // Flags: 'l' suffix with "(type %T)" where possible
 //	  '+h' in debug mode, don't recurse, no multiline output
 func Nconv(n *Node, flag FmtFlag) string {
-	var p printer
+	return new(printer).Nconv(n, flag).String()
+}
 
+func (p *printer) Nconv(n *Node, flag FmtFlag) *printer {
 	if n == nil {
-		return "<N>"
+		return p.s("<N>")
 	}
 	sf := flag
 	sm, sb := setfmode(&flag)
@@ -1663,8 +1687,14 @@ func Nconv(n *Node, flag FmtFlag) string {
 	fmtbody = sb
 	fmtmode = sm
 
-	return p.String()
+	return p
 }
+
+func (n Nodes) Print(p *printer) {
+	p.hconv(n, 0)
+}
+
+var _ Printable = Nodes{} // verify that Nodes implements Printable
 
 func (n Nodes) String() string {
 	return hconv(n, 0)
@@ -1673,10 +1703,12 @@ func (n Nodes) String() string {
 // Fmt '%H': Nodes.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
 func hconv(l Nodes, flag FmtFlag) string {
-	var p printer
+	return new(printer).hconv(l, flag).String()
+}
 
+func (p *printer) hconv(l Nodes, flag FmtFlag) *printer {
 	if l.Len() == 0 && fmtmode == FDbg {
-		return "<nil>"
+		return p.s("<nil>")
 	}
 
 	sf := flag
@@ -1689,7 +1721,7 @@ func hconv(l Nodes, flag FmtFlag) string {
 	}
 
 	for i, n := range l.Slice() {
-		p.s(Nconv(n, 0))
+		p.Nconv(n, 0)
 		if i+1 < l.Len() {
 			p.s(sep)
 		}
@@ -1699,7 +1731,7 @@ func hconv(l Nodes, flag FmtFlag) string {
 	fmtbody = sb
 	fmtmode = sm
 
-	return p.String()
+	return p
 }
 
 func dumplist(s string, l Nodes) {
@@ -1713,6 +1745,13 @@ func Dump(s string, n *Node) {
 // printer is a buffer for creating longer formatted strings.
 type printer struct {
 	buf []byte
+}
+
+// Types that implement the Printable interface print
+// to a printer directly without first converting to
+// a string.
+type Printable interface {
+	Print(*printer)
 }
 
 // printer implements io.Writer.
@@ -1733,8 +1772,27 @@ func (p *printer) s(s string) *printer {
 }
 
 // f prints the formatted arguments to p and returns p.
+// %v arguments that implement the Printable interface
+// are printed to p via that interface.
 func (p *printer) f(format string, args ...interface{}) *printer {
-	fmt.Fprintf(p, format, args...)
+	for len(format) > 0 {
+		i := strings.IndexByte(format, '%')
+		if i < 0 || i+1 >= len(format) || format[i+1] != 'v' || len(args) == 0 {
+			break // don't be clever, let fmt.Fprintf handle this for now
+		}
+		// found "%v" and at least one argument (and no other %x before)
+		p.s(format[:i])
+		format = format[i+len("%v"):]
+		if a, ok := args[0].(Printable); ok {
+			a.Print(p)
+		} else {
+			fmt.Fprintf(p, "%v", args[0])
+		}
+		args = args[1:]
+	}
+	if len(format) > 0 || len(args) > 0 {
+		fmt.Fprintf(p, format, args...)
+	}
 	return p
 }
 
