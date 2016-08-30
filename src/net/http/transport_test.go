@@ -3257,7 +3257,7 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 
 	cst.tr.ExpectContinueTimeout = 1 * time.Second
 
-	var mu sync.Mutex
+	var mu sync.Mutex // guards buf
 	var buf bytes.Buffer
 	logf := func(format string, args ...interface{}) {
 		mu.Lock()
@@ -3299,8 +3299,8 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		Wait100Continue: func() { logf("Wait100Continue") },
 		Got100Continue:  func() { logf("Got100Continue") },
 		WroteRequest: func(e httptrace.WroteRequestInfo) {
-			close(gotWroteReqEvent)
 			logf("WroteRequest: %+v", e)
+			close(gotWroteReqEvent)
 		},
 	}
 	if noHooks {
@@ -3332,7 +3332,10 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 		return
 	}
 
+	mu.Lock()
 	got := buf.String()
+	mu.Unlock()
+
 	wantOnce := func(sub string) {
 		if strings.Count(got, sub) != 1 {
 			t.Errorf("expected substring %q exactly once in output.", sub)
@@ -3371,7 +3374,7 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 	defer tr.CloseIdleConnections()
 	c := &Client{Transport: tr}
 
-	var mu sync.Mutex
+	var mu sync.Mutex // guards buf
 	var buf bytes.Buffer
 	logf := func(format string, args ...interface{}) {
 		mu.Lock()
@@ -3395,7 +3398,10 @@ func TestTransportEventTraceRealDNS(t *testing.T) {
 		t.Fatal("expected error during DNS lookup")
 	}
 
+	mu.Lock()
 	got := buf.String()
+	mu.Unlock()
+
 	wantSub := func(sub string) {
 		if !strings.Contains(got, sub) {
 			t.Errorf("expected substring %q in output.", sub)
