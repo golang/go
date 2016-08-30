@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"cmd/compile/internal/syntax"
-	"cmd/internal/obj"
 )
 
 func parseFile(filename string) {
@@ -1014,50 +1013,7 @@ func (p *noder) pragma() Pragma {
 			verb = verb[:i]
 		}
 
-		switch verb {
-		case "go:nointerface":
-			if obj.Fieldtrack_enabled != 0 {
-				res |= Nointerface
-			}
-		case "go:noescape":
-			res |= Noescape
-		case "go:norace":
-			res |= Norace
-		case "go:nosplit":
-			res |= Nosplit
-		case "go:noinline":
-			res |= Noinline
-		case "go:systemstack":
-			if !compiling_runtime {
-				Yyerror("//go:systemstack only allowed in runtime")
-			}
-			res |= Systemstack
-		case "go:nowritebarrier":
-			if !compiling_runtime {
-				Yyerror("//go:nowritebarrier only allowed in runtime")
-			}
-			res |= Nowritebarrier
-		case "go:nowritebarrierrec":
-			if !compiling_runtime {
-				Yyerror("//go:nowritebarrierrec only allowed in runtime")
-			}
-			res |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
-		case "go:cgo_unsafe_args":
-			res |= CgoUnsafeArgs
-		case "go:uintptrescapes":
-			// For the next function declared in the file
-			// any uintptr arguments may be pointer values
-			// converted to uintptr. This directive
-			// ensures that the referenced allocated
-			// object, if any, is retained and not moved
-			// until the call completes, even though from
-			// the types alone it would appear that the
-			// object is no longer needed during the
-			// call. The conversion to uintptr must appear
-			// in the argument list.
-			// Used in syscall/dll_windows.go.
-			res |= UintptrEscapes
-		}
+		res |= PragmaValue(verb)
 	}
 	return res
 }
