@@ -122,7 +122,7 @@ func (fd *netFD) setWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
-	diff := int64(t.Sub(time.Now()))
+	diff := int64(time.Until(t))
 	d := runtimeNano() + diff
 	if d <= 0 && diff > 0 {
 		// If the user has a deadline in the future, but the delay calculation

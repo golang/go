@@ -376,7 +376,7 @@ func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
 		deadline:  deadline,
 	}
 	propagateCancel(parent, c)
-	d := deadline.Sub(time.Now())
+	d := time.Until(deadline)
 	if d <= 0 {
 		c.cancel(true, DeadlineExceeded) // deadline has already passed
 		return c, func() { c.cancel(true, Canceled) }
@@ -406,7 +406,7 @@ func (c *timerCtx) Deadline() (deadline time.Time, ok bool) {
 }
 
 func (c *timerCtx) String() string {
-	return fmt.Sprintf("%v.WithDeadline(%s [%s])", c.cancelCtx.Context, c.deadline, c.deadline.Sub(time.Now()))
+	return fmt.Sprintf("%v.WithDeadline(%s [%s])", c.cancelCtx.Context, c.deadline, time.Until(c.deadline))
 }
 
 func (c *timerCtx) cancel(removeFromParent bool, err error) {
