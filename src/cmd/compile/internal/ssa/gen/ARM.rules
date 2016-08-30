@@ -78,6 +78,24 @@
 
 (Sqrt x) -> (SQRTD x)
 
+// count trailing zero
+// 32 - CLZ(x&-x - 1)
+(Ctz32 <t> x) -> (RSBconst [32] (CLZ <t> (SUBconst <t> (AND <t> x (RSBconst <t> [0] x)) [1])))
+
+// byte swap
+// let (a, b, c, d) be the bytes of x from high to low
+// t1 = x right rotate 16 bits -- (c,   d,   a,   b  )
+// t2 = x ^ t1                 -- (a^c, b^d, a^c, b^d)
+// t3 = t2 &^ 0xff0000         -- (a^c, 0,   a^c, b^d)
+// t4 = t3 >> 8                -- (0,   a^c, 0,   a^c)
+// t5 = x right rotate 8 bits  -- (d,   a,   b,   c  )
+// result = t4 ^ t5            -- (d,   c,   b,   a  )
+// using shifted ops this can be done in 4 instructions.
+(Bswap32 <t> x) ->
+	(XOR <t>
+		(SRLconst <t> (BICconst <t> (XOR <t> x (SRRconst <t> [16] x)) [0xff0000]) [8])
+		(SRRconst <t> x [8]))
+
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
 (OrB x y) -> (OR x y)
@@ -918,6 +936,8 @@
 (XOR (SRLconst [c] y) x) -> (XORshiftRL x y [c])
 (XOR x (SRAconst [c] y)) -> (XORshiftRA x y [c])
 (XOR (SRAconst [c] y) x) -> (XORshiftRA x y [c])
+(XOR x (SRRconst [c] y)) -> (XORshiftRR x y [c])
+(XOR (SRRconst [c] y) x) -> (XORshiftRR x y [c])
 (XOR x (SLL y z)) -> (XORshiftLLreg x y z)
 (XOR (SLL y z) x) -> (XORshiftLLreg x y z)
 (XOR x (SRL y z)) -> (XORshiftRLreg x y z)
@@ -987,6 +1007,7 @@
 (XORshiftLL (MOVWconst [c]) x [d]) -> (XORconst [c] (SLLconst <x.Type> x [d]))
 (XORshiftRL (MOVWconst [c]) x [d]) -> (XORconst [c] (SRLconst <x.Type> x [d]))
 (XORshiftRA (MOVWconst [c]) x [d]) -> (XORconst [c] (SRAconst <x.Type> x [d]))
+(XORshiftRR (MOVWconst [c]) x [d]) -> (XORconst [c] (SRRconst <x.Type> x [d]))
 (CMPshiftLL (MOVWconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SLLconst <x.Type> x [d])))
 (CMPshiftRL (MOVWconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SRLconst <x.Type> x [d])))
 (CMPshiftRA (MOVWconst [c]) x [d]) -> (InvertFlags (CMPconst [c] (SRAconst <x.Type> x [d])))
@@ -1068,6 +1089,7 @@
 (XORshiftLL x (MOVWconst [c]) [d]) -> (XORconst x [int64(uint32(c)<<uint64(d))])
 (XORshiftRL x (MOVWconst [c]) [d]) -> (XORconst x [int64(uint32(c)>>uint64(d))])
 (XORshiftRA x (MOVWconst [c]) [d]) -> (XORconst x [int64(int32(c)>>uint64(d))])
+(XORshiftRR x (MOVWconst [c]) [d]) -> (XORconst x [int64(uint32(c)>>uint64(d)|uint32(c)<<uint64(32-d))])
 (BICshiftLL x (MOVWconst [c]) [d]) -> (BICconst x [int64(uint32(c)<<uint64(d))])
 (BICshiftRL x (MOVWconst [c]) [d]) -> (BICconst x [int64(uint32(c)>>uint64(d))])
 (BICshiftRA x (MOVWconst [c]) [d]) -> (BICconst x [int64(int32(c)>>uint64(d))])
@@ -1177,6 +1199,7 @@
 (ADD a (MUL x y)) -> (MULA x y a)
 
 (AND x (MVN y)) -> (BIC x y)
+(AND (MVN y) x) -> (BIC x y)
 
 // simplification with *shift ops
 (SUBshiftLL x (SLLconst x [c]) [d]) && c==d -> (MOVWconst [0])
@@ -1198,8 +1221,11 @@
 (BICshiftRL x (SRLconst x [c]) [d]) && c==d -> (MOVWconst [0])
 (BICshiftRA x (SRAconst x [c]) [d]) && c==d -> (MOVWconst [0])
 (AND x (MVNshiftLL y [c])) -> (BICshiftLL x y [c])
+(AND (MVNshiftLL y [c]) x) -> (BICshiftLL x y [c])
 (AND x (MVNshiftRL y [c])) -> (BICshiftRL x y [c])
+(AND (MVNshiftRL y [c]) x) -> (BICshiftRL x y [c])
 (AND x (MVNshiftRA y [c])) -> (BICshiftRA x y [c])
+(AND (MVNshiftRA y [c]) x) -> (BICshiftRA x y [c])
 
 // floating point optimizations
 (CMPF x (MOVFconst [0])) -> (CMPF0 x)

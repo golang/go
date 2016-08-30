@@ -14,10 +14,14 @@ func rewriteValuedec64(v *Value, config *Config) bool {
 		return rewriteValuedec64_OpAnd64(v, config)
 	case OpArg:
 		return rewriteValuedec64_OpArg(v, config)
+	case OpBswap64:
+		return rewriteValuedec64_OpBswap64(v, config)
 	case OpCom64:
 		return rewriteValuedec64_OpCom64(v, config)
 	case OpConst64:
 		return rewriteValuedec64_OpConst64(v, config)
+	case OpCtz64:
+		return rewriteValuedec64_OpCtz64(v, config)
 	case OpEq64:
 		return rewriteValuedec64_OpEq64(v, config)
 	case OpGeq64:
@@ -236,6 +240,28 @@ func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValuedec64_OpBswap64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Bswap64 x)
+	// cond:
+	// result: (Int64Make 		(Bswap32 <config.fe.TypeUInt32()> (Int64Lo x)) 		(Bswap32 <config.fe.TypeUInt32()> (Int64Hi x)))
+	for {
+		x := v.Args[0]
+		v.reset(OpInt64Make)
+		v0 := b.NewValue0(v.Line, OpBswap32, config.fe.TypeUInt32())
+		v1 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpBswap32, config.fe.TypeUInt32())
+		v3 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
+		v3.AddArg(x)
+		v2.AddArg(v3)
+		v.AddArg(v2)
+		return true
+	}
+}
 func rewriteValuedec64_OpCom64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -298,6 +324,42 @@ func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
 		return true
 	}
 	return false
+}
+func rewriteValuedec64_OpCtz64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Ctz64 x)
+	// cond:
+	// result: (Int64Make 		(Const32 <config.fe.TypeUInt32()> [0]) 		(Add32 <config.fe.TypeUInt32()> 			(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x)) 			(And32 <config.fe.TypeUInt32()> 				(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x))) 				(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x)))))
+	for {
+		x := v.Args[0]
+		v.reset(OpInt64Make)
+		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
+		v0.AuxInt = 0
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpAdd32, config.fe.TypeUInt32())
+		v2 := b.NewValue0(v.Line, OpCtz32, config.fe.TypeUInt32())
+		v3 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
+		v3.AddArg(x)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v4 := b.NewValue0(v.Line, OpAnd32, config.fe.TypeUInt32())
+		v5 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
+		v6 := b.NewValue0(v.Line, OpZeromask, config.fe.TypeUInt32())
+		v7 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
+		v7.AddArg(x)
+		v6.AddArg(v7)
+		v5.AddArg(v6)
+		v4.AddArg(v5)
+		v8 := b.NewValue0(v.Line, OpCtz32, config.fe.TypeUInt32())
+		v9 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
+		v9.AddArg(x)
+		v8.AddArg(v9)
+		v4.AddArg(v8)
+		v1.AddArg(v4)
+		v.AddArg(v1)
+		return true
+	}
 }
 func rewriteValuedec64_OpEq64(v *Value, config *Config) bool {
 	b := v.Block

@@ -644,6 +644,7 @@ const (
 	OpARMNEGF
 	OpARMNEGD
 	OpARMSQRTD
+	OpARMCLZ
 	OpARMSLL
 	OpARMSLLconst
 	OpARMSRL
@@ -669,6 +670,7 @@ const (
 	OpARMXORshiftLL
 	OpARMXORshiftRL
 	OpARMXORshiftRA
+	OpARMXORshiftRR
 	OpARMBICshiftLL
 	OpARMBICshiftRL
 	OpARMBICshiftRA
@@ -7642,6 +7644,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "CLZ",
+		argLen: 1,
+		asm:    arm.ACLZ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:   "SLL",
 		argLen: 2,
 		asm:    arm.ASLL,
@@ -7995,6 +8010,21 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "XORshiftRA",
+		auxType: auxInt32,
+		argLen:  2,
+		asm:     arm.AEOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+			},
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "XORshiftRR",
 		auxType: auxInt32,
 		argLen:  2,
 		asm:     arm.AEOR,
