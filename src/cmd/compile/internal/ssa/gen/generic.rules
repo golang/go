@@ -47,6 +47,27 @@
 (Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
 (Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
 
+(Trunc16to8  (ZeroExt8to16  x)) -> x
+(Trunc32to8  (ZeroExt8to32  x)) -> x
+(Trunc32to16 (ZeroExt8to32  x)) -> (ZeroExt8to16  x)
+(Trunc32to16 (ZeroExt16to32 x)) -> x
+(Trunc64to8  (ZeroExt8to64  x)) -> x
+(Trunc64to16 (ZeroExt8to64  x)) -> (ZeroExt8to16  x)
+(Trunc64to16 (ZeroExt16to64 x)) -> x
+(Trunc64to32 (ZeroExt8to64  x)) -> (ZeroExt8to32  x)
+(Trunc64to32 (ZeroExt16to64 x)) -> (ZeroExt16to32 x)
+(Trunc64to32 (ZeroExt32to64 x)) -> x
+(Trunc16to8  (SignExt8to16  x)) -> x
+(Trunc32to8  (SignExt8to32  x)) -> x
+(Trunc32to16 (SignExt8to32  x)) -> (SignExt8to16  x)
+(Trunc32to16 (SignExt16to32 x)) -> x
+(Trunc64to8  (SignExt8to64  x)) -> x
+(Trunc64to16 (SignExt8to64  x)) -> (SignExt8to16  x)
+(Trunc64to16 (SignExt16to64 x)) -> x
+(Trunc64to32 (SignExt8to64  x)) -> (SignExt8to32  x)
+(Trunc64to32 (SignExt16to64 x)) -> (SignExt16to32 x)
+(Trunc64to32 (SignExt32to64 x)) -> x
+
 // const negation is currently handled by frontend
 //(Neg8 (Const8 [c])) -> (Const8 [-c])
 //(Neg16 (Const16 [c])) -> (Const16 [-c])
