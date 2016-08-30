@@ -27,7 +27,6 @@ const (
 	FmtLong             // "l"
 	FmtComma            // ","
 	FmtByte             // "hh"
-	FmtBody             // for printing export bodies
 )
 
 //
@@ -80,8 +79,6 @@ var fmtmode int = FErr
 
 var fmtpkgpfx int // %uT stickyness
 
-var fmtbody bool
-
 //
 // E.g. for %S:	%+S %#S %-S	print an identifier properly qualified for debug/export/internal mode.
 //
@@ -106,9 +103,8 @@ var fmtbody bool
 //	%-uT		type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
 //
 
-func setfmode(flags *FmtFlag) (fm int, fb bool) {
+func setfmode(flags *FmtFlag) (fm int) {
 	fm = fmtmode
-	fb = fmtbody
 	if *flags&FmtSign != 0 {
 		fmtmode = FDbg
 	} else if *flags&FmtSharp != 0 {
@@ -117,11 +113,7 @@ func setfmode(flags *FmtFlag) (fm int, fb bool) {
 		fmtmode = FTypeId
 	}
 
-	if *flags&FmtBody != 0 {
-		fmtbody = true
-	}
-
-	*flags &^= (FmtSharp | FmtLeft | FmtSign | FmtBody)
+	*flags &^= (FmtSharp | FmtLeft | FmtSign)
 	return
 }
 
@@ -1350,13 +1342,6 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 		p.f(" %#v ", Op(n.Etype))
 		p.exprfmt(n.Right, nprec+1)
 		return p
-
-	case ODCLCONST:
-		// if exporting, DCLCONST should just be removed as its usage
-		// has already been replaced with literals
-		if fmtbody {
-			return p.s("")
-		}
 	}
 
 	return p.f("<node %v>", n.Op)
@@ -1504,11 +1489,10 @@ func (p *printer) sconv(s *Sym, flag FmtFlag) *printer {
 	}
 
 	sf := flag
-	sm, sb := setfmode(&flag)
+	sm := setfmode(&flag)
 	p.symfmt(s, flag)
 	flag = sf
 	fmtmode = sm
-	fmtbody = sb
 
 	return p
 }
@@ -1529,7 +1513,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	}
 
 	sf := flag
-	sm, sb := setfmode(&flag)
+	sm := setfmode(&flag)
 
 	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
 		fmtpkgpfx++
@@ -1585,12 +1569,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 		str = name + " " + typ
 	}
 
-	// The fmtbody flag is intended to suppress escape analysis annotations
-	// when printing a function type used in a function body.
-	// (The escape analysis tags do not apply to func vars.)
-	// But it must not suppress struct field tags.
-	// See golang.org/issue/13777 and golang.org/issue/14331.
-	if flag&FmtShort == 0 && (!fmtbody || f.Funarg == FunargNone) && f.Note != "" {
+	if flag&FmtShort == 0 && f.Funarg == FunargNone && f.Note != "" {
 		str += " " + strconv.Quote(f.Note)
 	}
 
@@ -1599,7 +1578,6 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	}
 
 	flag = sf
-	fmtbody = sb
 	fmtmode = sm
 	return str
 }
@@ -1623,7 +1601,7 @@ func (p *printer) Tconv(t *Type, flag FmtFlag) *printer {
 
 	t.Trecur++
 	sf := flag
-	sm, sb := setfmode(&flag)
+	sm := setfmode(&flag)
 
 	if fmtmode == FTypeId && (sf&FmtUnsigned != 0) {
 		fmtpkgpfx++
@@ -1639,7 +1617,6 @@ func (p *printer) Tconv(t *Type, flag FmtFlag) *printer {
 	}
 
 	flag = sf
-	fmtbody = sb
 	fmtmode = sm
 	t.Trecur--
 
@@ -1668,7 +1645,7 @@ func (p *printer) Nconv(n *Node, flag FmtFlag) *printer {
 		return p.s("<N>")
 	}
 	sf := flag
-	sm, sb := setfmode(&flag)
+	sm := setfmode(&flag)
 
 	switch fmtmode {
 	case FErr:
@@ -1684,7 +1661,6 @@ func (p *printer) Nconv(n *Node, flag FmtFlag) *printer {
 	}
 
 	flag = sf
-	fmtbody = sb
 	fmtmode = sm
 
 	return p
@@ -1712,7 +1688,7 @@ func (p *printer) hconv(l Nodes, flag FmtFlag) *printer {
 	}
 
 	sf := flag
-	sm, sb := setfmode(&flag)
+	sm := setfmode(&flag)
 	sep := "; "
 	if fmtmode == FDbg {
 		sep = "\n"
@@ -1728,7 +1704,6 @@ func (p *printer) hconv(l Nodes, flag FmtFlag) *printer {
 	}
 
 	flag = sf
-	fmtbody = sb
 	fmtmode = sm
 
 	return p
