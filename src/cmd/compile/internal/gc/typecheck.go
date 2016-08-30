@@ -3492,7 +3492,6 @@ func copytype(n *Node, t *Type) {
 	t.methods = Fields{}
 	t.allMethods = Fields{}
 	t.Nod = nil
-	t.Printed = false
 	t.Deferwidth = false
 
 	// Update nodes waiting on this type.
