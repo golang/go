@@ -75,6 +75,54 @@ const (
 	UintptrEscapes           // pointers converted to uintptr escape
 )
 
+func PragmaValue(verb string) Pragma {
+	switch verb {
+	case "go:nointerface":
+		if obj.Fieldtrack_enabled != 0 {
+			return Nointerface
+		}
+	case "go:noescape":
+		return Noescape
+	case "go:norace":
+		return Norace
+	case "go:nosplit":
+		return Nosplit
+	case "go:noinline":
+		return Noinline
+	case "go:systemstack":
+		if !compiling_runtime {
+			Yyerror("//go:systemstack only allowed in runtime")
+		}
+		return Systemstack
+	case "go:nowritebarrier":
+		if !compiling_runtime {
+			Yyerror("//go:nowritebarrier only allowed in runtime")
+		}
+		return Nowritebarrier
+	case "go:nowritebarrierrec":
+		if !compiling_runtime {
+			Yyerror("//go:nowritebarrierrec only allowed in runtime")
+		}
+		return Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+	case "go:cgo_unsafe_args":
+		return CgoUnsafeArgs
+	case "go:uintptrescapes":
+		// For the next function declared in the file
+		// any uintptr arguments may be pointer values
+		// converted to uintptr. This directive
+		// ensures that the referenced allocated
+		// object, if any, is retained and not moved
+		// until the call completes, even though from
+		// the types alone it would appear that the
+		// object is no longer needed during the
+		// call. The conversion to uintptr must appear
+		// in the argument list.
+		// Used in syscall/dll_windows.go.
+		return UintptrEscapes
+	}
+	return 0
+}
+
 type lexer struct {
 	// source
 	bin        *bufio.Reader
@@ -888,48 +936,8 @@ func (l *lexer) getlinepragma() rune {
 				break
 			}
 			Lookup(f[1]).Linkname = f[2]
-		case "go:nointerface":
-			if obj.Fieldtrack_enabled != 0 {
-				l.pragma |= Nointerface
-			}
-		case "go:noescape":
-			l.pragma |= Noescape
-		case "go:norace":
-			l.pragma |= Norace
-		case "go:nosplit":
-			l.pragma |= Nosplit
-		case "go:noinline":
-			l.pragma |= Noinline
-		case "go:systemstack":
-			if !compiling_runtime {
-				Yyerror("//go:systemstack only allowed in runtime")
-			}
-			l.pragma |= Systemstack
-		case "go:nowritebarrier":
-			if !compiling_runtime {
-				Yyerror("//go:nowritebarrier only allowed in runtime")
-			}
-			l.pragma |= Nowritebarrier
-		case "go:nowritebarrierrec":
-			if !compiling_runtime {
-				Yyerror("//go:nowritebarrierrec only allowed in runtime")
-			}
-			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
-		case "go:cgo_unsafe_args":
-			l.pragma |= CgoUnsafeArgs
-		case "go:uintptrescapes":
-			// For the next function declared in the file
-			// any uintptr arguments may be pointer values
-			// converted to uintptr. This directive
-			// ensures that the referenced allocated
-			// object, if any, is retained and not moved
-			// until the call completes, even though from
-			// the types alone it would appear that the
-			// object is no longer needed during the
-			// call. The conversion to uintptr must appear
-			// in the argument list.
-			// Used in syscall/dll_windows.go.
-			l.pragma |= UintptrEscapes
+		default:
+			l.pragma |= PragmaValue(verb)
 		}
 		return c
 	}
