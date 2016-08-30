@@ -430,8 +430,9 @@ func ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 	return key
 }
 
-// clone returns a copy of c. Only the exported fields are copied.
-func (c *Config) clone() *Config {
+// Clone returns a shallow clone of c.
+// Only the exported fields are copied.
+func (c *Config) Clone() *Config {
 	return &Config{
 		Rand:                        c.Rand,
 		Time:                        c.Time,

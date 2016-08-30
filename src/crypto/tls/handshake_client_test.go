@@ -535,7 +535,7 @@ func TestHandshakeClientECDHEECDSAAES128CBCSHA256(t *testing.T) {
 }
 
 func TestHandshakeClientCertRSA(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
 	config.Certificates = []Certificate{cert}
 
@@ -571,7 +571,7 @@ func TestHandshakeClientCertRSA(t *testing.T) {
 }
 
 func TestHandshakeClientCertECDSA(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientECDSACertificatePEM), []byte(clientECDSAKeyPEM))
 	config.Certificates = []Certificate{cert}
 
@@ -728,7 +728,7 @@ func TestLRUClientSessionCache(t *testing.T) {
 }
 
 func TestHandshakeClientKeyLog(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	buf := &bytes.Buffer{}
 	config.KeyLogWriter = buf
 
@@ -769,7 +769,7 @@ func TestHandshakeClientKeyLog(t *testing.T) {
 }
 
 func TestHandshakeClientALPNMatch(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.NextProtos = []string{"proto2", "proto1"}
 
 	test := &clientTest{
@@ -790,7 +790,7 @@ func TestHandshakeClientALPNMatch(t *testing.T) {
 }
 
 func TestHandshakeClientALPNNoMatch(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.NextProtos = []string{"proto3"}
 
 	test := &clientTest{
@@ -814,7 +814,7 @@ func TestHandshakeClientALPNNoMatch(t *testing.T) {
 const sctsBase64 = "ABIBaQFnAHUApLkJkLQYWBSHuxOizGdwCjw1mAT5G9+443fNDsgN3BAAAAFHl5nuFgAABAMARjBEAiAcS4JdlW5nW9sElUv2zvQyPoZ6ejKrGGB03gjaBZFMLwIgc1Qbbn+hsH0RvObzhS+XZhr3iuQQJY8S9G85D9KeGPAAdgBo9pj4H2SCvjqM7rkoHUz8cVFdZ5PURNEKZ6y7T0/7xAAAAUeX4bVwAAAEAwBHMEUCIDIhFDgG2HIuADBkGuLobU5a4dlCHoJLliWJ1SYT05z6AiEAjxIoZFFPRNWMGGIjskOTMwXzQ1Wh2e7NxXE1kd1J0QsAdgDuS723dc5guuFCaR+r4Z5mow9+X7By2IMAxHuJeqj9ywAAAUhcZIqHAAAEAwBHMEUCICmJ1rBT09LpkbzxtUC+Hi7nXLR0J+2PmwLp+sJMuqK+AiEAr0NkUnEVKVhAkccIFpYDqHOlZaBsuEhWWrYpg2RtKp0="
 
 func TestHandshakClientSCTs(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 
 	scts, err := base64.StdEncoding.DecodeString(sctsBase64)
 	if err != nil {
@@ -849,7 +849,7 @@ func TestHandshakClientSCTs(t *testing.T) {
 }
 
 func TestRenegotiationRejected(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	test := &clientTest{
 		name:                        "RenegotiationRejected",
 		command:                     []string{"openssl", "s_server", "-state"},
@@ -871,7 +871,7 @@ func TestRenegotiationRejected(t *testing.T) {
 }
 
 func TestRenegotiateOnce(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.Renegotiation = RenegotiateOnceAsClient
 
 	test := &clientTest{
@@ -885,7 +885,7 @@ func TestRenegotiateOnce(t *testing.T) {
 }
 
 func TestRenegotiateTwice(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.Renegotiation = RenegotiateFreelyAsClient
 
 	test := &clientTest{
@@ -899,7 +899,7 @@ func TestRenegotiateTwice(t *testing.T) {
 }
 
 func TestRenegotiateTwiceRejected(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.Renegotiation = RenegotiateOnceAsClient
 
 	test := &clientTest{

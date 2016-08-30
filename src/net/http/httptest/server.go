@@ -114,9 +114,10 @@ func (s *Server) StartTLS() {
 	}
 
 	existingConfig := s.TLS
-	s.TLS = new(tls.Config)
 	if existingConfig != nil {
-		*s.TLS = *existingConfig
+		s.TLS = existingConfig.Clone()
+	} else {
+		s.TLS = new(tls.Config)
 	}
 	if s.TLS.NextProtos == nil {
 		s.TLS.NextProtos = []string{"http/1.1"}

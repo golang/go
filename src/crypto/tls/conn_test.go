@@ -124,7 +124,7 @@ func TestCertificateSelection(t *testing.T) {
 func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 	clientConn, serverConn := net.Pipe()
 
-	serverConfig := config.clone()
+	serverConfig := config.Clone()
 	serverConfig.DynamicRecordSizingDisabled = false
 	tlsConn := Server(serverConn, serverConfig)
 
@@ -225,19 +225,19 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 }
 
 func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithCBC(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithAEAD(t *testing.T) {
-	config := testConfig.clone()
+	config := testConfig.Clone()
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	runDynamicRecordSizingTest(t, config)
 }
