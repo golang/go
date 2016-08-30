@@ -1392,6 +1392,10 @@ func TestUnaligned64(t *testing.T) {
 	if unsafe.Sizeof(int(0)) != 4 {
 		t.Skip("test only runs on 32-bit systems")
 	}
+	if runtime.GOARCH == "amd64p32" {
+		// amd64p32 can handle unaligned atomics.
+		t.Skip("test not needed on amd64p32")
+	}
 
 	x := make([]uint32, 4)
 	p := (*uint64)(unsafe.Pointer(&x[1])) // misaligned
