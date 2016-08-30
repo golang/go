@@ -602,6 +602,20 @@
 (Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
 (Trunc16to8  (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
 
+(ZeroExt8to64  (Trunc64to8  x:(Rsh64Ux64 _ (Const64 [s])))) && s >= 56 -> x
+(ZeroExt16to64 (Trunc64to16 x:(Rsh64Ux64 _ (Const64 [s])))) && s >= 48 -> x
+(ZeroExt32to64 (Trunc64to32 x:(Rsh64Ux64 _ (Const64 [s])))) && s >= 32 -> x
+(ZeroExt8to32  (Trunc32to8  x:(Rsh32Ux64 _ (Const64 [s])))) && s >= 24 -> x
+(ZeroExt16to32 (Trunc32to16 x:(Rsh32Ux64 _ (Const64 [s])))) && s >= 16 -> x
+(ZeroExt8to16  (Trunc16to8  x:(Rsh16Ux64 _ (Const64 [s])))) && s >= 8 -> x
+
+(SignExt8to64  (Trunc64to8  x:(Rsh64x64 _ (Const64 [s])))) && s >= 56 -> x
+(SignExt16to64 (Trunc64to16 x:(Rsh64x64 _ (Const64 [s])))) && s >= 48 -> x
+(SignExt32to64 (Trunc64to32 x:(Rsh64x64 _ (Const64 [s])))) && s >= 32 -> x
+(SignExt8to32  (Trunc32to8  x:(Rsh32x64 _ (Const64 [s])))) && s >= 24 -> x
+(SignExt16to32 (Trunc32to16 x:(Rsh32x64 _ (Const64 [s])))) && s >= 16 -> x
+(SignExt8to16  (Trunc16to8  x:(Rsh16x64 _ (Const64 [s])))) && s >= 8 -> x
+
 (Slicemask (Const32 [x])) && x > 0 -> (Const32 [-1])
 (Slicemask (Const32 [0]))          -> (Const32 [0])
 (Slicemask (Const64 [x])) && x > 0 -> (Const64 [-1])
