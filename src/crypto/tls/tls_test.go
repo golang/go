@@ -241,7 +241,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfig.clone()
+		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -251,7 +251,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 		srvCh <- srv
 	}()
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
 		t.Fatal(err)
@@ -295,7 +295,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			serverConfig := testConfig.clone()
+			serverConfig := testConfig.Clone()
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				t.Fatal(err)
@@ -304,7 +304,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 		}
 	}()
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -394,7 +394,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfig.clone()
+		serverConfig := testConfig.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -414,7 +414,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 		Conn: cconn,
 	}
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	tconn := Client(conn, clientConfig)
 	if err := tconn.Handshake(); err != nil {
 		t.Fatal(err)
@@ -507,7 +507,7 @@ func TestClone(t *testing.T) {
 		f.Set(q)
 	}
 
-	c2 := c1.clone()
+	c2 := c1.Clone()
 
 	if !reflect.DeepEqual(&c1, c2) {
 		t.Errorf("clone failed to copy a field")
@@ -555,7 +555,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfig.clone()
+			serverConfig := testConfig.Clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -568,7 +568,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
 	}()
 
 	b.SetBytes(totalBytes)
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, bufsize)
@@ -645,7 +645,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfig.clone()
+			serverConfig := testConfig.Clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(&slowConn{sconn, bps}, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -655,7 +655,7 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
 		}
 	}()
 
-	clientConfig := testConfig.clone()
+	clientConfig := testConfig.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 
 	buf := make([]byte, 16384)

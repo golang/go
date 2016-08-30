@@ -135,7 +135,7 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 	// from the hostname we're connecting to.
 	if config.ServerName == "" {
 		// Make a copy to avoid polluting argument or default.
-		c := config.clone()
+		c := config.Clone()
 		c.ServerName = hostname
 		config = c
 	}
