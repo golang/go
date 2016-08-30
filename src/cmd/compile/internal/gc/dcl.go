@@ -1153,8 +1153,7 @@ func methodname(n *Node, t *Node) *Node {
 // Add a method, declared as a function.
 // - msym is the method symbol
 // - t is function type (with receiver)
-// - tpkg is the package of the type declaring the method during import, or nil (ignored) --- for verification only
-func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
+func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 	// get field sym
 	if msym == nil {
 		Fatalf("no method symbol")
@@ -1231,11 +1230,6 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 
 	f := structfield(n)
 	f.Nointerface = nointerface
-
-	// during import unexported method names should be in the type's package
-	if tpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != tpkg {
-		Fatalf("imported method name %v in wrong package %s\n", sconv(f.Sym, FmtSign), tpkg.Name)
-	}
 
 	mt.Methods().Append(f)
 }
