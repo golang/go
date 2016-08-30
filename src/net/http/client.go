@@ -329,6 +329,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 		select {
 		case <-initialReqCancel:
 			doCancel()
+			timer.Stop()
 		case <-timer.C:
 			doCancel()
 		case <-stopTimerCh:
