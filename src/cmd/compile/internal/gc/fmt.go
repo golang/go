@@ -18,15 +18,14 @@ import (
 type FmtFlag int
 
 const (
-	FmtWidth    FmtFlag = 1 << iota
-	FmtLeft             // "-"
-	FmtSharp            // "#"
-	FmtSign             // "+"
-	FmtUnsigned         // "u"
-	FmtShort            // "h"
-	FmtLong             // "l"
-	FmtComma            // ","
-	FmtByte             // "hh"
+	FmtLeft     FmtFlag = 1 << iota // "-"
+	FmtSharp                        // "#"
+	FmtSign                         // "+"
+	FmtUnsigned                     // "u"
+	FmtShort                        // "h"
+	FmtLong                         // "l"
+	FmtComma                        // ","
+	FmtByte                         // "hh"
 )
 
 //
@@ -71,7 +70,6 @@ const (
 const (
 	FErr = iota
 	FDbg
-	_ // formerly FExp - leave gap for now just in case there's some hard-wired dependency on the const value
 	FTypeId
 )
 
