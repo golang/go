@@ -37,7 +37,7 @@ func dotest(t *testing.T) {
 	// the resulting binary looks like it was built from pclinetest.s,
 	// but we have renamed it to keep it away from the go tool.
 	pclinetestBinary = filepath.Join(pclineTempDir, "pclinetest")
-	cmd := exec.Command("go", "tool", "asm", "-o", pclinetestBinary+".o", "pclinetest.asm")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", pclinetestBinary+".o", "pclinetest.asm")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -58,7 +58,7 @@ func dotest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd = exec.Command("go", "tool", "link", "-H", "linux",
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-H", "linux",
 		"-o", pclinetestBinary, pclinetestBinary+".o")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

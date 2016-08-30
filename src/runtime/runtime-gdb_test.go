@@ -93,7 +93,7 @@ func TestGdbPython(t *testing.T) {
 		t.Fatalf("failed to create file: %v", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
 	cmd.Dir = dir
 	out, err := testEnv(cmd).CombinedOutput()
 	if err != nil {
@@ -137,7 +137,7 @@ func TestGdbPython(t *testing.T) {
 		// This can happen when using all.bash with
 		// GOROOT_FINAL set, because the tests are run before
 		// the final installation of the files.
-		cmd := exec.Command("go", "env", "GOROOT")
+		cmd := exec.Command(testenv.GoToolPath(t), "env", "GOROOT")
 		cmd.Env = []string{}
 		out, err := cmd.CombinedOutput()
 		if err != nil && bytes.Contains(out, []byte("cannot find GOROOT")) {
@@ -227,7 +227,7 @@ func TestGdbBacktrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create file: %v", err)
 	}
-	cmd := exec.Command("go", "build", "-o", "a.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe")
 	cmd.Dir = dir
 	out, err := testEnv(cmd).CombinedOutput()
 	if err != nil {

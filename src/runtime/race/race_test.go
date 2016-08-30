@@ -15,6 +15,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"log"
 	"math/rand"
@@ -43,7 +44,7 @@ const (
 )
 
 func TestRace(t *testing.T) {
-	testOutput, err := runTests()
+	testOutput, err := runTests(t)
 	if err != nil {
 		t.Fatalf("Failed to run tests: %v\n%v", err, string(testOutput))
 	}
@@ -141,14 +142,14 @@ func processLog(testName string, tsanLog []string) string {
 // runTests assures that the package and its dependencies is
 // built with instrumentation enabled and returns the output of 'go test'
 // which includes possible data race reports from ThreadSanitizer.
-func runTests() ([]byte, error) {
+func runTests(t *testing.T) ([]byte, error) {
 	tests, err := filepath.Glob("./testdata/*_test.go")
 	if err != nil {
 		return nil, err
 	}
 	args := []string{"test", "-race", "-v"}
 	args = append(args, tests...)
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	// The following flags turn off heuristics that suppress seemingly identical reports.
 	// It is required because the tests contain a lot of data races on the same addresses
 	// (the tests are simple and the memory is constantly reused).

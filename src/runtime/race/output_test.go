@@ -7,6 +7,7 @@
 package race_test
 
 import (
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -41,7 +42,7 @@ func TestOutput(t *testing.T) {
 			t.Fatalf("failed to close file: %v", err)
 		}
 		// Pass -l to the compiler to test stack traces.
-		cmd := exec.Command("go", test.run, "-race", "-gcflags=-l", src)
+		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-gcflags=-l", src)
 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
 		for _, env := range os.Environ() {
 			if strings.HasPrefix(env, "GODEBUG=") ||

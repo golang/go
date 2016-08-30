@@ -938,7 +938,7 @@ func TestParsePEMCRL(t *testing.T) {
 func TestImports(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 
-	if err := exec.Command("go", "run", "x509_test_import.go").Run(); err != nil {
+	if err := exec.Command(testenv.GoToolPath(t), "run", "x509_test_import.go").Run(); err != nil {
 		t.Errorf("failed to run x509_test_import.go: %s", err)
 	}
 }

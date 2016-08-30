@@ -25,7 +25,7 @@ func buildTest(t *testing.T, filename string) {
 func doTest(t *testing.T, filename string, kind string) {
 	testenv.MustHaveGoBuild(t)
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
+	cmd := exec.Command(testenv.GoToolPath(t), kind, filepath.Join("testdata", filename))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {

@@ -255,7 +255,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
 
-	cmd := testEnv(exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn))
+	cmd := testEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1", exe, fn))
 
 	found := false
 	for i, e := range cmd.Env {

@@ -25,7 +25,7 @@ func buildObjdump(t *testing.T) (tmp, exe string) {
 	}
 
 	exe = filepath.Join(tmp, "testobjdump.exe")
-	out, err := exec.Command("go", "build", "-o", exe, "cmd/objdump").CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, "cmd/objdump").CombinedOutput()
 	if err != nil {
 		os.RemoveAll(tmp)
 		t.Fatalf("go build -o %v cmd/objdump: %v\n%s", exe, err, string(out))
@@ -66,7 +66,7 @@ func testDisasm(t *testing.T, flags ...string) {
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
 	args = append(args, "testdata/fmthello.go")
-	out, err := exec.Command("go", args...).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
 	}
