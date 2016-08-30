@@ -556,7 +556,7 @@ func overflow(v Val, t *Type) {
 	}
 
 	if doesoverflow(v, t) {
-		Yyerror("constant %s overflows %v", vconv(v, 0), t)
+		Yyerror("constant %s overflows %v", v, t)
 	}
 }
 

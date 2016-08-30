@@ -382,7 +382,7 @@ func dumpasmhdr() {
 		}
 		switch n.Op {
 		case OLITERAL:
-			fmt.Fprintf(b, "#define const_%s %v\n", n.Sym.Name, vconv(n.Val(), FmtSharp))
+			fmt.Fprintf(b, "#define const_%s %#v\n", n.Sym.Name, n.Val())
 
 		case OTYPE:
 			t := n.Type
