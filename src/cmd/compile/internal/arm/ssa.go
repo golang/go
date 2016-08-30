@@ -407,6 +407,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARMRSBSshiftRA:
 		p := genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum0(v), arm.SHIFT_AR, v.AuxInt)
 		p.Scond = arm.C_SBIT
+	case ssa.OpARMXORshiftRR:
+		genshift(v.Op.Asm(), gc.SSARegNum(v.Args[0]), gc.SSARegNum(v.Args[1]), gc.SSARegNum(v), arm.SHIFT_RR, v.AuxInt)
 	case ssa.OpARMMVNshiftLL:
 		genshift(v.Op.Asm(), 0, gc.SSARegNum(v.Args[0]), gc.SSARegNum(v), arm.SHIFT_LL, v.AuxInt)
 	case ssa.OpARMMVNshiftRL:
@@ -666,6 +668,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		}
 		fallthrough
 	case ssa.OpARMMVN,
+		ssa.OpARMCLZ,
 		ssa.OpARMSQRTD,
 		ssa.OpARMNEGF,
 		ssa.OpARMNEGD,
