@@ -10,9 +10,6 @@ import (
 
 // function literals aka closures
 func closurehdr(ntype *Node) {
-	var name *Node
-	var a *Node
-
 	n := Nod(OCLOSURE, nil, nil)
 	n.Func.Ntype = ntype
 	n.Func.Depth = Funcdepth
@@ -31,11 +28,11 @@ func closurehdr(ntype *Node) {
 	ntype.List.Set(nil)
 	ntype.Rlist.Set(nil)
 	for _, n1 := range n.List.Slice() {
-		name = n1.Left
+		name := n1.Left
 		if name != nil {
 			name = newname(name.Sym)
 		}
-		a = Nod(ODCLFIELD, name, n1.Right)
+		a := Nod(ODCLFIELD, name, n1.Right)
 		a.Isddd = n1.Isddd
 		if name != nil {
 			name.Isddd = a.Isddd
@@ -43,7 +40,7 @@ func closurehdr(ntype *Node) {
 		ntype.List.Append(a)
 	}
 	for _, n2 := range n.Rlist.Slice() {
-		name = n2.Left
+		name := n2.Left
 		if name != nil {
 			name = newname(name.Sym)
 		}
@@ -164,14 +161,15 @@ func closurename(n *Node) *Sym {
 	gen := 0
 	outer := ""
 	prefix := ""
-	if n.Func.Outerfunc == nil {
+	switch {
+	case n.Func.Outerfunc == nil:
 		// Global closure.
 		outer = "glob."
 
 		prefix = "func"
 		closurename_closgen++
 		gen = closurename_closgen
-	} else if n.Func.Outerfunc.Op == ODCLFUNC {
+	case n.Func.Outerfunc.Op == ODCLFUNC:
 		// The outermost closure inside of a named function.
 		outer = n.Func.Outerfunc.Func.Nname.Sym.Name
 
@@ -187,14 +185,14 @@ func closurename(n *Node) *Sym {
 			closurename_closgen++
 			gen = closurename_closgen
 		}
-	} else if n.Func.Outerfunc.Op == OCLOSURE {
+	case n.Func.Outerfunc.Op == OCLOSURE:
 		// Nested closure, recurse.
 		outer = closurename(n.Func.Outerfunc).Name
 
 		prefix = ""
 		n.Func.Outerfunc.Func.Closgen++
 		gen = n.Func.Outerfunc.Func.Closgen
-	} else {
+	default:
 		Fatalf("closurename called for %v", Nconv(n, FmtShort))
 	}
 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
@@ -374,15 +372,13 @@ func transformclosure(xfunc *Node) {
 		// The closure is not called, so it is going to stay as closure.
 		var body []*Node
 		offset := int64(Widthptr)
-		var addr *Node
-		var cv *Node
 		for _, v := range func_.Func.Cvars.Slice() {
 			if v.Op == OXXX {
 				continue
 			}
 
 			// cv refers to the field inside of closure OSTRUCTLIT.
-			cv = Nod(OCLOSUREVAR, nil, nil)
+			cv := Nod(OCLOSUREVAR, nil, nil)
 
 			cv.Type = v.Type
 			if !v.Name.Byval {
@@ -401,7 +397,7 @@ func transformclosure(xfunc *Node) {
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
-				addr = newname(Lookupf("&%s", v.Sym.Name))
+				addr := newname(Lookupf("&%s", v.Sym.Name))
 				addr.Name.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
 				addr.Used = true
@@ -481,12 +477,11 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 	typ := Nod(OTSTRUCT, nil, nil)
 
 	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
-	var typ1 *Node
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
 			continue
 		}
-		typ1 = typenod(v.Type)
+		typ1 := typenod(v.Type)
 		if !v.Name.Byval {
 			typ1 = Nod(OIND, typ1, nil)
 		}
@@ -579,21 +574,17 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	Curfn = nil
 
 	xtype := Nod(OTFUNC, nil, nil)
-	i := 0
 	var l []*Node
 	var callargs []*Node
 	ddd := false
 	xfunc := Nod(ODCLFUNC, nil, nil)
 	Curfn = xfunc
-	var fld *Node
-	var n *Node
-	for _, t := range t0.Params().Fields().Slice() {
-		n = newname(LookupN("a", i))
-		i++
+	for i, t := range t0.Params().Fields().Slice() {
+		n := newname(LookupN("a", i))
 		n.Class = PPARAM
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
 		callargs = append(callargs, n)
-		fld = Nod(ODCLFIELD, n, typenod(t.Type))
+		fld := Nod(ODCLFIELD, n, typenod(t.Type))
 		if t.Isddd {
 			fld.Isddd = true
 			ddd = true
@@ -603,12 +594,10 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	}
 
 	xtype.List.Set(l)
-	i = 0
 	l = nil
 	var retargs []*Node
-	for _, t := range t0.Results().Fields().Slice() {
-		n = newname(LookupN("r", i))
-		i++
+	for i, t := range t0.Results().Fields().Slice() {
+		n := newname(LookupN("r", i))
 		n.Class = PPARAMOUT
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
 		retargs = append(retargs, n)
