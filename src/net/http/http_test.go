@@ -66,7 +66,7 @@ func TestCleanHost(t *testing.T) {
 // server code.
 func TestCmdGoNoHTTPServer(t *testing.T) {
 	goBin := testenv.GoToolPath(t)
-	out, err := exec.Command("go", "tool", "nm", goBin).CombinedOutput()
+	out, err := exec.Command(goBin, "tool", "nm", goBin).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v: %s", err, out)
 	}

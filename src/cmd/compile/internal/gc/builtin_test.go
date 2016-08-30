@@ -20,7 +20,7 @@ func TestBuiltin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	new, err := exec.Command("go", "run", "mkbuiltin.go", "-stdout").Output()
+	new, err := exec.Command(testenv.GoToolPath(t), "run", "mkbuiltin.go", "-stdout").Output()
 	if err != nil {
 		t.Fatal(err)
 	}

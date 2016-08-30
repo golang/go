@@ -35,8 +35,7 @@ func skipSpecialPlatforms(t *testing.T) {
 }
 
 func compile(t *testing.T, dirname, filename string) string {
-	testenv.MustHaveGoBuild(t)
-	cmd := exec.Command("go", "tool", "compile", filename)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {

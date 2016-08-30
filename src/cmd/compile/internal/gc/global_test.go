@@ -47,14 +47,14 @@ func main() {
 	dst := filepath.Join(dir, "test")
 
 	// Compile source.
-	cmd := exec.Command("go", "build", "-o", dst, src)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("could not build target: %v", err)
 	}
 
 	// Check destination to see if scanf code was included.
-	cmd = exec.Command("go", "tool", "nm", dst)
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "nm", dst)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("could not read target: %v", err)
@@ -91,7 +91,7 @@ func main() {
 	f.Close()
 
 	// Compile source.
-	cmd := exec.Command("go", "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("could not build target: %v", err)

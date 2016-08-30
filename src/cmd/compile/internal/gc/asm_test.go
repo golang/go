@@ -34,7 +34,7 @@ func TestAssembly(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	for _, test := range asmTests {
-		asm := compileToAsm(dir, test.arch, fmt.Sprintf(template, test.function))
+		asm := compileToAsm(t, dir, test.arch, fmt.Sprintf(template, test.function))
 		// Get rid of code for "".init. Also gets rid of type algorithms & other junk.
 		if i := strings.Index(asm, "\n\"\".init "); i >= 0 {
 			asm = asm[:i+1]
@@ -49,7 +49,7 @@ func TestAssembly(t *testing.T) {
 
 // compile compiles the package pkg for architecture arch and
 // returns the generated assembly.  dir is a scratch directory.
-func compileToAsm(dir, arch, pkg string) string {
+func compileToAsm(t *testing.T, dir, arch, pkg string) string {
 	// Create source.
 	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
@@ -60,7 +60,7 @@ func compileToAsm(dir, arch, pkg string) string {
 	f.Close()
 
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
 	cmd.Env = mergeEnvLists([]string{"GOARCH=" + arch}, os.Environ())
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -139,7 +139,7 @@ func TestLineNumber(t *testing.T) {
 		t.Fatalf("could not write file: %v", err)
 	}
 
-	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("fail to run go tool compile: %v", err)
