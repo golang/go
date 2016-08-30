@@ -569,9 +569,9 @@ func substAny(t *Type, types *[]*Type) *Type {
 				results = results.Copy()
 			}
 			t = t.Copy()
-			*t.RecvsP() = recvs
-			*t.ResultsP() = results
-			*t.ParamsP() = params
+			t.FuncType().Receiver = recvs
+			t.FuncType().Results = results
+			t.FuncType().Params = params
 		}
 
 	case TSTRUCT:
@@ -676,24 +676,9 @@ func (t *Type) wantEtype(et EType) {
 	}
 }
 
-func (t *Type) RecvsP() **Type {
-	t.wantEtype(TFUNC)
-	return &t.Extra.(*FuncType).Receiver
-}
-
-func (t *Type) ParamsP() **Type {
-	t.wantEtype(TFUNC)
-	return &t.Extra.(*FuncType).Params
-}
-
-func (t *Type) ResultsP() **Type {
-	t.wantEtype(TFUNC)
-	return &t.Extra.(*FuncType).Results
-}
-
-func (t *Type) Recvs() *Type   { return *t.RecvsP() }
-func (t *Type) Params() *Type  { return *t.ParamsP() }
-func (t *Type) Results() *Type { return *t.ResultsP() }
+func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
+func (t *Type) Params() *Type  { return t.FuncType().Params }
+func (t *Type) Results() *Type { return t.FuncType().Results }
 
 // Recv returns the receiver of function type t, if any.
 func (t *Type) Recv() *Field {

@@ -1034,9 +1034,9 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 	if this != nil {
 		rcvr = []*Node{this}
 	}
-	*t.RecvsP() = tofunargs(rcvr, FunargRcvr)
-	*t.ResultsP() = tofunargs(out, FunargResults)
-	*t.ParamsP() = tofunargs(in, FunargParams)
+	t.FuncType().Receiver = tofunargs(rcvr, FunargRcvr)
+	t.FuncType().Results = tofunargs(out, FunargResults)
+	t.FuncType().Params = tofunargs(in, FunargParams)
 
 	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
 

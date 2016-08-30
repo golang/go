@@ -375,9 +375,9 @@ func makeErrorInterface() *Type {
 	out.SetFields([]*Field{field})
 
 	f := typ(TFUNC)
-	*f.RecvsP() = rcvr
-	*f.ResultsP() = out
-	*f.ParamsP() = in
+	f.FuncType().Receiver = rcvr
+	f.FuncType().Results = out
+	f.FuncType().Params = in
 
 	t := typ(TINTER)
 	field = newField()
