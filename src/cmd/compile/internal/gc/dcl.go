@@ -1168,8 +1168,8 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	}
 
 	pa := rf.Type // base type
-	mt := methtype(pa, 1)
-	if mt == nil {
+	mt := methtype(pa)
+	if mt == nil || mt.Sym == nil {
 		t = pa
 		if t == nil { // rely on typecheck having complained before
 			return

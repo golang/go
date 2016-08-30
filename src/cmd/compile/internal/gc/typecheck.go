@@ -2359,7 +2359,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 
 	// Find the base type: methtype will fail if t
 	// is not of the form T or *T.
-	mt := methtype(t, 0)
+	mt := methtype(t)
 	if mt == nil {
 		return false
 	}
@@ -2410,7 +2410,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 
 	var f2 *Field
 	if n.Left.Type == t || n.Left.Type.Sym == nil {
-		mt := methtype(t, 0)
+		mt := methtype(t)
 		if mt != nil {
 			// Use f2->method, not f2->xmethod: adddot has
 			// already inserted all the necessary embedded dots.
