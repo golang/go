@@ -282,7 +282,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
 // Generates stub functions as needed.
 func methods(t *Type) []*Sig {
 	// method type
-	mt := methtype(t, 0)
+	mt := methtype(t)
 
 	if mt == nil {
 		return nil
