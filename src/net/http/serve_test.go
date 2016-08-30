@@ -1737,7 +1737,7 @@ restart:
 		if !c.rd.IsZero() {
 			// If the deadline falls in the middle of our sleep window, deduct
 			// part of the sleep, then return a timeout.
-			if remaining := c.rd.Sub(time.Now()); remaining < cue {
+			if remaining := time.Until(c.rd); remaining < cue {
 				c.script[0] = cue - remaining
 				time.Sleep(remaining)
 				return 0, syscall.ETIMEDOUT

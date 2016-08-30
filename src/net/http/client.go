@@ -324,7 +324,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
 	var once sync.Once
 	stopTimer = func() { once.Do(func() { close(stopTimerCh) }) }
 
-	timer := time.NewTimer(deadline.Sub(time.Now()))
+	timer := time.NewTimer(time.Until(deadline))
 	go func() {
 		select {
 		case <-initialReqCancel:
