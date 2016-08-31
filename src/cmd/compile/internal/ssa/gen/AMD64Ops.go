@@ -92,7 +92,6 @@ func init() {
 		ax         = buildReg("AX")
 		cx         = buildReg("CX")
 		dx         = buildReg("DX")
-		x15        = buildReg("X15")
 		gp         = buildReg("AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15")
 		gpsp       = gp | buildReg("SP")
@@ -137,10 +136,8 @@ func init() {
 		gpstorexchg     = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp}}
 		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
 
-		fp01    = regInfo{inputs: nil, outputs: fponly}
-		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
-		fp21x15 = regInfo{inputs: []regMask{fp &^ x15, fp &^ x15},
-			clobbers: x15, outputs: []regMask{fp &^ x15}}
+		fp01     = regInfo{inputs: nil, outputs: fponly}
+		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
 		fpgp     = regInfo{inputs: fponly, outputs: gponly}
 		gpfp     = regInfo{inputs: gponly, outputs: fponly}
 		fp11     = regInfo{inputs: fponly, outputs: fponly}
@@ -157,12 +154,12 @@ func init() {
 		// fp ops
 		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS", commutative: true, resultInArg0: true}, // fp32 add
 		{name: "ADDSD", argLength: 2, reg: fp21, asm: "ADDSD", commutative: true, resultInArg0: true}, // fp64 add
-		{name: "SUBSS", argLength: 2, reg: fp21x15, asm: "SUBSS", resultInArg0: true},                 // fp32 sub
-		{name: "SUBSD", argLength: 2, reg: fp21x15, asm: "SUBSD", resultInArg0: true},                 // fp64 sub
+		{name: "SUBSS", argLength: 2, reg: fp21, asm: "SUBSS", resultInArg0: true},                    // fp32 sub
+		{name: "SUBSD", argLength: 2, reg: fp21, asm: "SUBSD", resultInArg0: true},                    // fp64 sub
 		{name: "MULSS", argLength: 2, reg: fp21, asm: "MULSS", commutative: true, resultInArg0: true}, // fp32 mul
 		{name: "MULSD", argLength: 2, reg: fp21, asm: "MULSD", commutative: true, resultInArg0: true}, // fp64 mul
-		{name: "DIVSS", argLength: 2, reg: fp21x15, asm: "DIVSS", resultInArg0: true},                 // fp32 div
-		{name: "DIVSD", argLength: 2, reg: fp21x15, asm: "DIVSD", resultInArg0: true},                 // fp64 div
+		{name: "DIVSS", argLength: 2, reg: fp21, asm: "DIVSS", resultInArg0: true},                    // fp32 div
+		{name: "DIVSD", argLength: 2, reg: fp21, asm: "DIVSD", resultInArg0: true},                    // fp64 div
 
 		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},            // fp32 load
 		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},            // fp64 load
