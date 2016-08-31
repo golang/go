@@ -260,7 +260,7 @@ var classnames = []string{
 func (n *Node) Format(s fmt.State, format rune) {
 	switch format {
 	case 's', 'v':
-		fmt.Fprint(s, Nconv(n, fmtFlag(s)))
+		n.Nconv(s)
 
 	case 'j':
 		n.jconv(s)
@@ -866,7 +866,7 @@ func (p *printer) stmtfmt(n *Node) *printer {
 		if n.Left != nil {
 			p.f("%v %v", n.Left, n.Right)
 		} else {
-			p.Nconv(n.Right, 0)
+			p.f("%v", n.Right)
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
@@ -972,7 +972,7 @@ func (p *printer) stmtfmt(n *Node) *printer {
 			p.f(" %v;", n.Ninit.First())
 		}
 		if n.Left != nil {
-			p.f(" %s ", Nconv(n.Left, 0))
+			p.f(" %v ", n.Left)
 		}
 
 		p.f(" { %v }", n.List)
@@ -1543,10 +1543,10 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 
 	if recur {
 		if n.Left != nil {
-			p.Nconv(n.Left, 0)
+			p.f("%v", n.Left)
 		}
 		if n.Right != nil {
-			p.Nconv(n.Right, 0)
+			p.f("%v", n.Right)
 		}
 		if n.List.Len() != 0 {
 			p.indent()
@@ -1649,7 +1649,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 
 		if s != nil && f.Embedded == 0 {
 			if f.Funarg != FunargNone {
-				name = Nconv(f.Nname, 0)
+				name = f.Nname.String()
 			} else if flag&FmtLong != 0 {
 				name = fmt.Sprintf("%01v", s)
 				if !exportname(name) && flag&FmtUnsigned == 0 {
@@ -1735,37 +1735,31 @@ func (t *Type) tconv(s fmt.State) {
 	t.Trecur--
 }
 
-func (n *Node) Print(p *printer) {
-	p.Nconv(n, 0)
-}
-
-var _ Printable = new(Node) // verify that Node implements Printable
-
 func (n *Node) String() string {
-	return Nconv(n, 0)
+	return fmt.Sprint(n)
 }
 
 // Fmt '%N': Nodes.
 // Flags: 'l' suffix with "(type %T)" where possible
 //	  '+h' in debug mode, don't recurse, no multiline output
-func Nconv(n *Node, flag FmtFlag) string {
-	return new(printer).Nconv(n, flag).String()
-}
+func (n *Node) Nconv(s fmt.State) {
+	flag := fmtFlag(s)
 
-func (p *printer) Nconv(n *Node, flag FmtFlag) *printer {
 	if n == nil {
-		return p.s("<N>")
+		fmt.Fprint(s, "<N>")
+		return
 	}
+
 	sf := flag
 	sm := setfmode(&flag)
 
 	switch fmtmode {
 	case FErr:
-		p.nodefmt(n, flag)
+		fmt.Fprint(s, new(printer).nodefmt(n, flag).String())
 
 	case FDbg:
 		dumpdepth++
-		p.nodedump(n, flag)
+		fmt.Fprint(s, new(printer).nodedump(n, flag).String())
 		dumpdepth--
 
 	default:
@@ -1774,8 +1768,6 @@ func (p *printer) Nconv(n *Node, flag FmtFlag) *printer {
 
 	flag = sf
 	fmtmode = sm
-
-	return p
 }
 
 func (n Nodes) Print(p *printer) {
@@ -1809,7 +1801,7 @@ func (p *printer) hconv(l Nodes, flag FmtFlag) *printer {
 	}
 
 	for i, n := range l.Slice() {
-		p.Nconv(n, 0)
+		p.f("%v", n)
 		if i+1 < l.Len() {
 			p.s(sep)
 		}
@@ -1826,7 +1818,7 @@ func dumplist(s string, l Nodes) {
 }
 
 func Dump(s string, n *Node) {
-	fmt.Printf("%s [%p]%v\n", s, n, Nconv(n, FmtSign))
+	fmt.Printf("%s [%p]%+v\n", s, n, n)
 }
 
 // printer is a buffer for creating longer formatted strings.

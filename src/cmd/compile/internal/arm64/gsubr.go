@@ -133,7 +133,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+		fmt.Printf("gmove %2v -> %2v\n", f, t)
 	}
 
 	ft := int(gc.Simsimtype(f.Type))

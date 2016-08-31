@@ -393,10 +393,10 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	if nvar >= NVAR {
 		if Debug['w'] > 1 && node != nil {
-			Fatalf("variable not optimized: %v", Nconv(node, FmtSharp))
+			Fatalf("variable not optimized: %#v", node)
 		}
 		if Debug['v'] > 0 {
-			Warn("variable not optimized: %v", Nconv(node, FmtSharp))
+			Warn("variable not optimized: %#v", node)
 		}
 
 		// If we're not tracking a word in a variable, mark the rest as
@@ -488,7 +488,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	if Debug['R'] != 0 {
-		fmt.Printf("bit=%2d et=%v w=%d+%d %v %v flag=%d\n", i, et, o, w, Nconv(node, FmtSharp), Ctxt.Dconv(a), v.addr)
+		fmt.Printf("bit=%2d et=%v w=%d+%d %#v %v flag=%d\n", i, et, o, w, node, Ctxt.Dconv(a), v.addr)
 	}
 	Ostats.Nvar++
 

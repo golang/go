@@ -178,7 +178,7 @@ func bignodes() {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %v -> %v\n", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+		fmt.Printf("gmove %2v -> %2v\n", f, t)
 	}
 
 	ft := gc.Simsimtype(f.Type)

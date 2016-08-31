@@ -490,7 +490,7 @@ OpSwitch:
 
 		if !t.IsPtr() {
 			if top&(Erv|Etop) != 0 {
-				Yyerror("invalid indirect of %v", Nconv(n.Left, FmtLong))
+				Yyerror("invalid indirect of %2v", n.Left)
 				n.Type = nil
 				return n
 			}
@@ -1380,7 +1380,7 @@ OpSwitch:
 		break OpSwitch
 
 	badcall1:
-		Yyerror("invalid argument %v for %v", Nconv(n.Left, FmtLong), n.Op)
+		Yyerror("invalid argument %2v for %v", n.Left, n.Op)
 		n.Type = nil
 		return n
 
@@ -1681,7 +1681,7 @@ OpSwitch:
 		n.Op = convertop(t, n.Type, &why)
 		if n.Op == 0 {
 			if n.Diag == 0 && !n.Type.Broke {
-				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, FmtLong), n.Type, why)
+				Yyerror("cannot convert %2v to type %v%s", n.Left, n.Type, why)
 				n.Diag = 1
 			}
 
@@ -2006,7 +2006,7 @@ OpSwitch:
 		if n.Left != nil {
 			t := n.Left.Type
 			if t != nil && !t.IsBoolean() {
-				Yyerror("non-bool %v used as for condition", Nconv(n.Left, FmtLong))
+				Yyerror("non-bool %2v used as for condition", n.Left)
 			}
 		}
 		n.Right = typecheck(n.Right, Etop)
@@ -2021,7 +2021,7 @@ OpSwitch:
 		if n.Left != nil {
 			t := n.Left.Type
 			if t != nil && !t.IsBoolean() {
-				Yyerror("non-bool %v used as if condition", Nconv(n.Left, FmtLong))
+				Yyerror("non-bool %2v used as if condition", n.Left)
 			}
 		}
 		typecheckslice(n.Nbody.Slice(), Etop)
@@ -2466,7 +2466,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
 			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
-				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Sym, Nconv(n.Left, FmtLong))
+				Yyerror("calling method %v with receiver %2v requires explicit dereference", n.Sym, n.Left)
 				for tt.Etype == Tptr {
 					// Stop one level early for method with pointer receiver.
 					if rcvr.Etype == Tptr && tt.Elem().Etype != Tptr {
@@ -3250,7 +3250,7 @@ func checkassignto(src *Type, dst *Node) {
 	var why string
 
 	if assignop(src, dst.Type, &why) == 0 {
-		Yyerror("cannot assign %v to %v in multiple assignment%s", src, Nconv(dst, FmtLong), why)
+		Yyerror("cannot assign %v to %2v in multiple assignment%s", src, dst, why)
 		return
 	}
 }
@@ -3669,7 +3669,7 @@ func typecheckdef(n *Node) *Node {
 			}
 
 			if !e.Type.IsUntyped() && !Eqtype(t, e.Type) {
-				Yyerror("cannot use %v as type %v in const initializer", Nconv(e, FmtLong), t)
+				Yyerror("cannot use %2v as type %v in const initializer", e, t)
 				goto ret
 			}
 
