@@ -18,14 +18,14 @@ func F1(a uintptr) {} // ERROR "escaping uintptr"
 
 //go:uintptrescapes
 //go:noinline
-func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "live at entry" "a does not escape"
+func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "a does not escape"
 
 func G() {
-	var t int // ERROR "moved to heap"
+	var t int                       // ERROR "moved to heap"
 	F1(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to F1: autotmp" "&t escapes to heap"
 }
 
 func H() {
-	var v int // ERROR "moved to heap"
+	var v int                                // ERROR "moved to heap"
 	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: autotmp" "live at call to F2: autotmp" "escapes to heap"
 }

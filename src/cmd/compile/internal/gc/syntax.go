@@ -77,7 +77,6 @@ type Node struct {
 
 const (
 	hasBreak = 1 << iota
-	notLiveAtEnd
 	isClosureVar
 	isOutputParamHeapAddr
 	noInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
@@ -91,16 +90,6 @@ func (n *Node) SetHasBreak(b bool) {
 		n.flags |= hasBreak
 	} else {
 		n.flags &^= hasBreak
-	}
-}
-func (n *Node) NotLiveAtEnd() bool {
-	return n.flags&notLiveAtEnd != 0
-}
-func (n *Node) SetNotLiveAtEnd(b bool) {
-	if b {
-		n.flags |= notLiveAtEnd
-	} else {
-		n.flags &^= notLiveAtEnd
 	}
 }
 func (n *Node) isClosureVar() bool {

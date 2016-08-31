@@ -543,31 +543,16 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 	bvresetall(avarinit)
 
 	if prog.As == obj.ARET {
-		// Return instructions implicitly read all the arguments. For
-		// the sake of correctness, out arguments must be read. For the
-		// sake of backtrace quality, we read in arguments as well.
-		//
-		// A return instruction with a p.to is a tail return, which brings
-		// the stack pointer back up (if it ever went down) and then jumps
-		// to a new function entirely. That form of instruction must read
-		// all the parameters for correctness, and similarly it must not
-		// read the out arguments - they won't be set until the new
-		// function runs.
+		// Return instructions read all of the out arguments.
 		for i, node := range vars {
 			switch node.Class {
-			case PPARAM:
-				if !node.NotLiveAtEnd() {
-					bvset(uevar, int32(i))
-				}
-
-				// If the result had its address taken, it is being tracked
+			// If the result had its address taken, it is being tracked
 			// by the avarinit code, which does not use uevar.
 			// If we added it to uevar too, we'd not see any kill
 			// and decide that the variable was live entry, which it is not.
 			// So only use uevar in the non-addrtaken case.
-			// The p.to.type == thearch.D_NONE limits the bvset to
-			// non-tail-call return instructions; see note above
-			// the for loop for details.
+			// The p.to.type == obj.TYPE_NONE limits the bvset to
+			// non-tail-call return instructions; see note below for details.
 			case PPARAMOUT:
 				if !node.Addrtaken && prog.To.Type == obj.TYPE_NONE {
 					bvset(uevar, int32(i))
@@ -577,6 +562,12 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 
 		return
 	}
+	// A return instruction with a p.to is a tail return, which brings
+	// the stack pointer back up (if it ever went down) and then jumps
+	// to a new function entirely. That form of instruction must read
+	// all the parameters for correctness, and similarly it must not
+	// read the out arguments - they won't be set until the new
+	// function runs.
 	if prog.As == obj.AJMP && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
 		// This is a tail call. Ensure the arguments are still alive.
 		// See issue 16016.

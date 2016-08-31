@@ -17,14 +17,14 @@ type T struct{ M string }
 
 var b bool
 
-func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: q xx" "live at call to newobject: q xx" "live at call to writebarrierptr: q &xx"
+func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: xx" "live at call to newobject: xx" "live at call to writebarrierptr: &xx"
 	// xx was copied from the stack to the heap on the previous line:
 	// xx was live for the first two prints but then it switched to &xx
 	// being live. We should not see plain xx again.
 	if b {
-		global = &xx // ERROR "live at call to writebarrierptr: q &xx[^x]*$"
+		global = &xx // ERROR "live at call to writebarrierptr: &xx[^x]*$"
 	}
-	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject: q( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: q (e|err.data err.type)$"
+	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject:( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: (e|err.data err.type)$"
 	if err != nil {
 		return err
 	}

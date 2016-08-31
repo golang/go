@@ -133,9 +133,6 @@ func moveToHeap(n *Node) {
 		stackcopy.Xoffset = n.Xoffset
 		stackcopy.Class = n.Class
 		stackcopy.Name.Heapaddr = heapaddr
-		if n.Class == PPARAM {
-			stackcopy.SetNotLiveAtEnd(true)
-		}
 		if n.Class == PPARAMOUT {
 			// Make sure the pointer to the heap copy is kept live throughout the function.
 			// The function could panic at any point, and then a defer could recover.
