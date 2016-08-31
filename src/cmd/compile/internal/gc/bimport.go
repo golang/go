@@ -469,7 +469,7 @@ func (p *importer) typ() *Type {
 
 			// during import unexported method names should be in the type's package
 			if !exportname(sym.Name) && sym.Pkg != tsym.Pkg {
-				Fatalf("imported method name %v in wrong package %s\n", sconv(sym, FmtSign), tsym.Pkg.Name)
+				Fatalf("imported method name %+v in wrong package %s\n", sym, tsym.Pkg.Name)
 			}
 
 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
