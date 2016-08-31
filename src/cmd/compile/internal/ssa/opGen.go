@@ -15873,13 +15873,13 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Move",
-		auxType: auxInt64,
+		auxType: auxSizeAndAlign,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "Zero",
-		auxType: auxInt64,
+		auxType: auxSizeAndAlign,
 		argLen:  2,
 		generic: true,
 	},

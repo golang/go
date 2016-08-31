@@ -165,6 +165,8 @@ func checkFunc(f *Func) {
 				if !isExactFloat32(v) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
+			case auxSizeAndAlign:
+				canHaveAuxInt = true
 			case auxString, auxSym:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff:
