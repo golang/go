@@ -1386,7 +1386,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 		Yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
-		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, FmtSign))
+		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)
 
 	case CTBOOL:
 		t1 := Types[TBOOL]

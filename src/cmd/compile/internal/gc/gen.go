@@ -716,7 +716,7 @@ func gen(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("gen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+		Fatalf("gen: unknown op %+1v", n)
 
 	case OCASE,
 		OFALL,

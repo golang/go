@@ -184,7 +184,7 @@ func walkstmt(n *Node) *Node {
 		ORECOVER,
 		OGETG:
 		if n.Typecheck == 0 {
-			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+			Fatalf("missing typecheck: %+v", n)
 		}
 		wascopy := n.Op == OCOPY
 		init := n.Ninit
@@ -199,7 +199,7 @@ func walkstmt(n *Node) *Node {
 	// the value received.
 	case ORECV:
 		if n.Typecheck == 0 {
-			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
+			Fatalf("missing typecheck: %+v", n)
 		}
 		init := n.Ninit
 		n.Ninit.Set(nil)
@@ -366,7 +366,7 @@ func walkstmt(n *Node) *Node {
 	}
 
 	if n.Op == ONAME {
-		Fatalf("walkstmt ended up with name: %v", Nconv(n, FmtSign))
+		Fatalf("walkstmt ended up with name: %+v", n)
 	}
 	return n
 }
@@ -500,7 +500,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 	}
 
 	if n.Typecheck != 1 {
-		Fatalf("missed typecheck: %v\n", Nconv(n, FmtSign))
+		Fatalf("missed typecheck: %+v", n)
 	}
 
 	if n.Op == ONAME && n.Class == PAUTOHEAP {
@@ -515,7 +515,7 @@ opswitch:
 	switch n.Op {
 	default:
 		Dump("walk", n)
-		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, FmtShort|FmtSign))
+		Fatalf("walkexpr: switch 1 unknown op %+1v", n)
 
 	case OTYPE,
 		ONONAME,
@@ -2217,7 +2217,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 func applywritebarrier(n *Node) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
 		if Debug_wb > 1 {
-			Warnl(n.Lineno, "marking %v for barrier", Nconv(n.Left, 0))
+			Warnl(n.Lineno, "marking %v for barrier", n.Left)
 		}
 		n.Op = OASWB
 		return n

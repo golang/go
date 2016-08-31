@@ -48,7 +48,7 @@ func typecheckrange(n *Node) {
 	toomany = 0
 	switch t.Etype {
 	default:
-		Yyerror("cannot range over %v", Nconv(n.Right, FmtLong))
+		Yyerror("cannot range over %2v", n.Right)
 		goto out
 
 	case TARRAY, TSLICE:
@@ -104,7 +104,7 @@ func typecheckrange(n *Node) {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
-			Yyerror("cannot assign type %v to %v in range%s", t1, Nconv(v1, FmtLong), why)
+			Yyerror("cannot assign type %v to %2v in range%s", t1, v1, why)
 		}
 		checkassign(n, v1)
 	}
@@ -113,7 +113,7 @@ func typecheckrange(n *Node) {
 		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
-			Yyerror("cannot assign type %v to %v in range%s", t2, Nconv(v2, FmtLong), why)
+			Yyerror("cannot assign type %v to %2v in range%s", t2, v2, why)
 		}
 		checkassign(n, v2)
 	}

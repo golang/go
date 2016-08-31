@@ -1594,7 +1594,7 @@ hardmem:
 
 	// should not happen
 fatal:
-	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, gc.FmtLong), gc.Nconv(t, gc.FmtLong))
+	gc.Fatalf("gmove %2v -> %2v", f, t)
 
 	return
 }

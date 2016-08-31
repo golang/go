@@ -201,7 +201,7 @@ func init2(n *Node, out *[]*Node) {
 	}
 
 	if n.Op == ONAME && n.Ninit.Len() != 0 {
-		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, FmtSign))
+		Fatalf("name %v with ninit: %+v\n", n.Sym, n)
 	}
 
 	init1(n, out)

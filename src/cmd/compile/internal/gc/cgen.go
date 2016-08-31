@@ -361,7 +361,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	default:
 		Dump("cgen", n)
 		Dump("cgen-res", res)
-		Fatalf("cgen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+		Fatalf("cgen: unknown op %+1v", n)
 
 	case OOROR, OANDAND,
 		OEQ, ONE,
@@ -1553,7 +1553,7 @@ func Agen(n *Node, res *Node) {
 	switch n.Op {
 	default:
 		Dump("bad agen", n)
-		Fatalf("agen: unknown op %v", Nconv(n, FmtShort|FmtSign))
+		Fatalf("agen: unknown op %+1v", n)
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
@@ -1864,7 +1864,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	case OLITERAL:
 		// n is a constant.
 		if !Isconst(n, CTBOOL) {
-			Fatalf("bgen: non-bool const %v\n", Nconv(n, FmtLong))
+			Fatalf("bgen: non-bool const %2v\n", n)
 		}
 		if genval {
 			Cgen(Nodbool(wantTrue == n.Val().U.(bool)), res)

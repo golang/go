@@ -107,7 +107,7 @@ func typecheckclosure(func_ *Node, top int) {
 		if !n.Name.Captured {
 			n.Name.Captured = true
 			if n.Name.Decldepth == 0 {
-				Fatalf("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, FmtShort))
+				Fatalf("typecheckclosure: var %1v does not have decldepth assigned", n)
 			}
 
 			// Ignore assignments to the variable in straightline code
@@ -193,7 +193,7 @@ func closurename(n *Node) *Sym {
 		n.Func.Outerfunc.Func.Closgen++
 		gen = n.Func.Outerfunc.Func.Closgen
 	default:
-		Fatalf("closurename called for %v", Nconv(n, FmtShort))
+		Fatalf("closurename called for %1v", n)
 	}
 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
 	return n.Sym

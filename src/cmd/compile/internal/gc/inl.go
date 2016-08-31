@@ -40,7 +40,7 @@ func fnpkg(fn *Node) *Pkg {
 			rcvr = rcvr.Elem()
 		}
 		if rcvr.Sym == nil {
-			Fatalf("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, FmtLong), rcvr)
+			Fatalf("receiver with no sym: [%v] %2v  (%v)", fn.Sym, fn, rcvr)
 		}
 		return rcvr.Sym.Pkg
 	}
@@ -65,7 +65,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 || Debug_export != 0 {
-		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, FmtLong), hconv(fn.Func.Inl, FmtSharp))
+		fmt.Printf("typecheck import [%v] %2v { %v }\n", fn.Sym, fn, hconv(fn.Func.Inl, FmtSharp))
 	}
 
 	save_safemode := safemode
@@ -89,7 +89,7 @@ func caninl(fn *Node) {
 		Fatalf("caninl %v", fn)
 	}
 	if fn.Func.Nname == nil {
-		Fatalf("caninl no nname %v", Nconv(fn, FmtSign))
+		Fatalf("caninl no nname %+v", fn)
 	}
 
 	var reason string // reason, if any, that the function was not inlined
@@ -165,7 +165,7 @@ func caninl(fn *Node) {
 	fn.Type.SetNname(n)
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %v as: %#v { %v }\n", fn.Line(), Nconv(n, FmtSharp), fn.Type, hconv(n.Func.Inl, FmtSharp))
+		fmt.Printf("%v: can inline %#v as: %#v { %v }\n", fn.Line(), n, fn.Type, hconv(n.Func.Inl, FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
@@ -211,7 +211,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 	case OCALLMETH:
 		t := n.Left.Type
 		if t == nil {
-			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
+			Fatalf("no function type for [%p] %+v\n", n.Left, n.Left)
 		}
 		if t.Nname() == nil {
 			Fatalf("no function definition for [%p] %+v\n", t, t)
@@ -327,7 +327,7 @@ func inlconv2expr(n *Node) *Node {
 // statements.
 func inlconv2list(n *Node) []*Node {
 	if n.Op != OINLCALL || n.Rlist.Len() == 0 {
-		Fatalf("inlconv2list %v\n", Nconv(n, FmtSign))
+		Fatalf("inlconv2list %+v\n", n)
 	}
 
 	s := n.Rlist.Slice()
@@ -475,7 +475,7 @@ func inlnode(n *Node) *Node {
 	switch n.Op {
 	case OCALLFUNC:
 		if Debug['m'] > 3 {
-			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
+			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd)
@@ -485,12 +485,12 @@ func inlnode(n *Node) *Node {
 
 	case OCALLMETH:
 		if Debug['m'] > 3 {
-			fmt.Printf("%v:call to meth %v\n", n.Line(), Nconv(n.Left.Right, FmtLong))
+			fmt.Printf("%v:call to meth %2v\n", n.Line(), n.Left.Right)
 		}
 
 		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
 		if n.Left.Type == nil {
-			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
+			Fatalf("no function type for [%p] %+v\n", n.Left, n.Left)
 		}
 
 		if n.Left.Type.Nname() == nil {
@@ -562,7 +562,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("%v: Before inlining: %v\n", n.Line(), Nconv(n, FmtSign))
+		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
 	}
 
 	ninit := n.Ninit
@@ -623,10 +623,10 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			Fatalf("missing inlvar for %v\n", t.Nname)
 		}
 		if n.Left.Left == nil {
-			Fatalf("method call without receiver: %v", Nconv(n, FmtSign))
+			Fatalf("method call without receiver: %+v", n)
 		}
 		if t == nil {
-			Fatalf("method call unknown receiver type: %v", Nconv(n, FmtSign))
+			Fatalf("method call unknown receiver type: %+v", n)
 		}
 		as := Nod(OAS, tinlvar(t), n.Left.Left)
 		if as != nil {
@@ -682,7 +682,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	if fn.Type.Recv() != nil && n.Left.Op != ODOTMETH {
 		// non-method call to method
 		if n.List.Len() == 0 {
-			Fatalf("non-method call to method without first arg: %v", Nconv(n, FmtSign))
+			Fatalf("non-method call to method without first arg: %+v", n)
 		}
 
 		// append receiver inlvar to LHS.
@@ -692,7 +692,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 			Fatalf("missing inlvar for %v\n", t.Nname)
 		}
 		if t == nil {
-			Fatalf("method call unknown receiver type: %v", Nconv(n, FmtSign))
+			Fatalf("method call unknown receiver type: %+v", n)
 		}
 		as.List.Append(tinlvar(t))
 		li++
@@ -843,7 +843,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	fn.Func.Inl.Set(body)
 
 	if Debug['m'] > 2 {
-		fmt.Printf("%v: After inlining %v\n\n", n.Line(), Nconv(n, FmtSign))
+		fmt.Printf("%v: After inlining %+v\n\n", n.Line(), n)
 	}
 
 	return n
@@ -854,7 +854,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 // PPARAM's, PAUTOS and PPARAMOUTs of the called function.
 func inlvar(var_ *Node) *Node {
 	if Debug['m'] > 3 {
-		fmt.Printf("inlvar %v\n", Nconv(var_, FmtSign))
+		fmt.Printf("inlvar %+v\n", var_)
 	}
 
 	n := newname(var_.Sym)
@@ -923,13 +923,13 @@ func (subst *inlsubst) node(n *Node) *Node {
 	case ONAME:
 		if n.Name.Inlvar != nil { // These will be set during inlnode
 			if Debug['m'] > 2 {
-				fmt.Printf("substituting name %v  ->  %v\n", Nconv(n, FmtSign), Nconv(n.Name.Inlvar, FmtSign))
+				fmt.Printf("substituting name %+v  ->  %+v\n", n, n.Name.Inlvar)
 			}
 			return n.Name.Inlvar
 		}
 
 		if Debug['m'] > 2 {
-			fmt.Printf("not substituting name %v\n", Nconv(n, FmtSign))
+			fmt.Printf("not substituting name %+v\n", n)
 		}
 		return n
 
@@ -978,7 +978,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 		m.Ninit.Set(nil)
 
 		if n.Op == OCLOSURE {
-			Fatalf("cannot inline function containing closure: %v", Nconv(n, FmtSign))
+			Fatalf("cannot inline function containing closure: %+v", n)
 		}
 
 		m.Left = subst.node(n.Left)
