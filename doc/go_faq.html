@@ -1269,10 +1269,19 @@ On the other hand, floating-point scalars and complex
 types are always sized (there are no <code>float</code> or <code>complex</code> basic types),
 because programmers should be aware of precision when using floating-point numbers.
 The default type used for an (untyped) floating-point constant is <code>float64</code>.
-Thus <code>foo := 3.0</code> declares a variable <code>foo</code> of type <code>float64</code>.
-For a <code>float32</code> variable initialized by a constant, the variable type must be specified explicitly
-in the variable declaration <code>var foo float32 = 3.0</code>, or the constant must be given a 
-type with a conversion as in <code>foo := float32(3.0)</code>.
+Thus <code>foo</code> <code>:=</code> <code>3.0</code> declares a variable <code>foo</code>
+of type <code>float64</code>.
+For a <code>float32</code> variable initialized by an (untyped) constant, the variable type
+must be specified explicitly in the variable declaration:
+</p>
+
+<pre>
+var foo float32 = 3.0
+</pre>
+
+<p>
+Alternatively, the constant must be given a type with a conversion as in
+<code>foo := float32(3.0)</code>.
 </p>
 
 <h3 id="stack_or_heap">
