@@ -277,8 +277,8 @@ move_256through2048:
 	JMP	tail
 
 avxUnaligned:
-	// There are two implementations of move algorithm.
-	// The first one for non-ovelapped memory regions. It uses forward copying.
+	// There are two implementations of the move algorithm.
+	// The first one for non-overlapped memory regions. It uses forward copying.
 	// The second one for overlapped regions. It uses backward copying
 	MOVQ	DI, CX
 	SUBQ	SI, CX
