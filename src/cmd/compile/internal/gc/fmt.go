@@ -213,7 +213,7 @@ var goopnames = []string{
 }
 
 func (o Op) String() string {
-	return fmt.Sprintf("%v", o)
+	return fmt.Sprint(o)
 }
 
 func (o Op) GoString() string {
@@ -518,28 +518,34 @@ func (et EType) String() string {
 }
 
 // Fmt "%S": syms
-func (p *printer) symfmt(s *Sym, flag FmtFlag) *printer {
+func (s *Sym) symfmt(f fmt.State, flag FmtFlag) {
 	if s.Pkg != nil && flag&FmtShort == 0 {
 		switch fmtmode {
 		case FErr: // This is for the user
 			if s.Pkg == builtinpkg || s.Pkg == localpkg {
-				return p.s(s.Name)
+				fmt.Fprint(f, s.Name)
+				return
 			}
 
 			// If the name was used by multiple packages, display the full path,
 			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
-				return p.f("%q.%s", s.Pkg.Path, s.Name)
+				fmt.Fprintf(f, "%q.%s", s.Pkg.Path, s.Name)
+				return
 			}
-			return p.s(s.Pkg.Name + "." + s.Name)
+			fmt.Fprint(f, s.Pkg.Name+"."+s.Name)
+			return
 
 		case FDbg:
-			return p.s(s.Pkg.Name + "." + s.Name)
+			fmt.Fprint(f, s.Pkg.Name+"."+s.Name)
+			return
 
 		case FTypeId:
 			if flag&FmtUnsigned != 0 {
-				return p.s(s.Pkg.Name + "." + s.Name) // dcommontype, typehash
+				fmt.Fprint(f, s.Pkg.Name+"."+s.Name) // dcommontype, typehash
+				return
 			}
-			return p.s(s.Pkg.Prefix + "." + s.Name) // (methodsym), typesym, weaksym
+			fmt.Fprint(f, s.Pkg.Prefix+"."+s.Name) // (methodsym), typesym, weaksym
+			return
 		}
 	}
 
@@ -552,13 +558,15 @@ func (p *printer) symfmt(s *Sym, flag FmtFlag) *printer {
 		}
 
 		if fmtmode == FDbg {
-			return p.f("@%q.%s", s.Pkg.Path, name)
+			fmt.Fprintf(f, "@%q.%s", s.Pkg.Path, name)
+			return
 		}
 
-		return p.s(name)
+		fmt.Fprint(f, name)
+		return
 	}
 
-	return p.s(s.Name)
+	fmt.Fprint(f, s.Name)
 }
 
 var basicnames = []string{
@@ -611,15 +619,15 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 		case FTypeId:
 			if flag&FmtShort != 0 {
 				if t.Vargen != 0 {
-					fmt.Fprintf(s, "%v·%d", sconv(t.Sym, FmtShort), t.Vargen)
+					fmt.Fprintf(s, "%1v·%d", t.Sym, t.Vargen)
 					return
 				}
-				fmt.Fprint(s, sconv(t.Sym, FmtShort))
+				fmt.Fprintf(s, "%1v", t.Sym)
 				return
 			}
 
 			if flag&FmtUnsigned != 0 {
-				fmt.Fprint(s, sconv(t.Sym, FmtUnsigned))
+				fmt.Fprintf(s, "% v", t.Sym)
 				return
 			}
 
@@ -629,7 +637,7 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			}
 		}
 
-		fmt.Fprint(s, sconv(t.Sym, 0))
+		fmt.Fprint(s, t.Sym)
 		return
 	}
 
@@ -705,9 +713,9 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 				// Wrong interface definitions may have types lacking a symbol.
 				break
 			case exportname(f.Sym.Name):
-				fmt.Fprint(s, sconv(f.Sym, FmtShort))
+				fmt.Fprintf(s, "%1v", f.Sym)
 			default:
-				fmt.Fprint(s, sconv(f.Sym, FmtUnsigned))
+				fmt.Fprintf(s, "% v", f.Sym)
 			}
 			fmt.Fprintf(s, "%1v", f.Type)
 		}
@@ -1167,7 +1175,7 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 				return p.exprfmt(n.Orig, prec)
 			}
 			if n.Sym != nil {
-				return p.sconv(n.Sym, 0)
+				return p.s(n.Sym.String())
 			}
 		}
 		if n.Val().Ctype() == CTNIL && n.Orig != nil && n.Orig != n {
@@ -1194,11 +1202,11 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 		fallthrough
 
 	case OPACK, ONONAME:
-		return p.sconv(n.Sym, 0)
+		return p.s(n.Sym.String())
 
 	case OTYPE:
 		if n.Type == nil && n.Sym != nil {
-			return p.sconv(n.Sym, 0)
+			return p.s(n.Sym.String())
 		}
 		return p.f("%v", n.Type)
 
@@ -1288,14 +1296,14 @@ func (p *printer) exprfmt(n *Node, prec int) *printer {
 		if n.Right == nil || n.Right.Sym == nil {
 			return p.s(".<nil>")
 		}
-		return p.f(".%v", sconv(n.Right.Sym, FmtShort|FmtByte))
+		return p.f(".%01v", n.Right.Sym)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		p.exprfmt(n.Left, nprec)
 		if n.Sym == nil {
 			return p.s(".<nil>")
 		}
-		return p.f(".%v", sconv(n.Sym, FmtShort|FmtByte))
+		return p.f(".%01v", n.Sym)
 
 	case ODOTTYPE, ODOTTYPE2:
 		p.exprfmt(n.Left, nprec)
@@ -1559,42 +1567,44 @@ func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
 	return p
 }
 
-func (s *Sym) Print(p *printer) {
-	p.sconv(s, 0)
+func (s *Sym) Format(f fmt.State, format rune) {
+	switch format {
+	case 's', 'v':
+		s.sconv(f)
+
+	default:
+		fmt.Fprintf(f, "%%!%c(*Sym=%p)", format, s)
+	}
 }
 
-var _ Printable = new(Sym) // verify that Sym implements Printable
-
 func (s *Sym) String() string {
-	return sconv(s, 0)
+	return fmt.Sprint(s)
 }
 
 // Fmt "%S": syms
 // Flags:  "%hS" suppresses qualifying with package
-func sconv(s *Sym, flag FmtFlag) string {
-	return new(printer).sconv(s, flag).String()
-}
+func (s *Sym) sconv(f fmt.State) {
+	flag := fmtFlag(f)
 
-func (p *printer) sconv(s *Sym, flag FmtFlag) *printer {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
 	}
 
 	if s == nil {
-		return p.s("<S>")
+		fmt.Fprint(f, "<S>")
+		return
 	}
 
 	if s.Name == "_" {
-		return p.s("_")
+		fmt.Fprint(f, "_")
+		return
 	}
 
 	sf := flag
 	sm := setfmode(&flag)
-	p.symfmt(s, flag)
+	s.symfmt(f, flag)
 	flag = sf
 	fmtmode = sm
-
-	return p
 }
 
 func (t *Type) String() string {
@@ -1641,12 +1651,12 @@ func Fldconv(f *Field, flag FmtFlag) string {
 			if f.Funarg != FunargNone {
 				name = Nconv(f.Nname, 0)
 			} else if flag&FmtLong != 0 {
-				name = sconv(s, FmtShort|FmtByte)
+				name = fmt.Sprintf("%01v", s)
 				if !exportname(name) && flag&FmtUnsigned == 0 {
-					name = sconv(s, 0) // qualify non-exported names (used on structs, not on funarg)
+					name = s.String() // qualify non-exported names (used on structs, not on funarg)
 				}
 			} else {
-				name = sconv(s, 0)
+				name = s.String()
 			}
 		}
 	}
@@ -1759,7 +1769,7 @@ func (p *printer) Nconv(n *Node, flag FmtFlag) *printer {
 		dumpdepth--
 
 	default:
-		Fatalf("unhandled %%N mode")
+		Fatalf("unhandled %%N mode: %d", fmtmode)
 	}
 
 	flag = sf
