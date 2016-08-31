@@ -126,6 +126,8 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxSizeAndAlign:
+		return fmt.Sprintf(" [%s]", SizeAndAlign(v.AuxInt))
 	case auxFloat32, auxFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
