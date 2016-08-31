@@ -100,6 +100,8 @@ type mstats struct {
 	// must be complete.
 	gc_trigger uint64
 
+	_ uint32 // force 8-byte alignment of heap_live and prevent an alignment check crash on MIPS32.
+
 	// heap_live is the number of bytes considered live by the GC.
 	// That is: retained by the most recent GC plus allocated
 	// since then. heap_live <= heap_alloc, since heap_alloc
@@ -410,6 +412,11 @@ func init() {
 	if sizeof_C_MStats != unsafe.Sizeof(memStats) {
 		println(sizeof_C_MStats, unsafe.Sizeof(memStats))
 		throw("MStats vs MemStatsType size mismatch")
+	}
+
+	if unsafe.Offsetof(memstats.heap_live)%8 != 0 {
+		println(unsafe.Offsetof(memstats.heap_live))
+		throw("memstats.heap_live not aligned to 8 bytes")
 	}
 }
 
