@@ -893,16 +893,16 @@ func (n *Node) stmtfmt(s fmt.State) {
 
 	case OAS2:
 		if n.Colas && !complexinit {
-			fmt.Fprintf(s, "%v := %v", hconv(n.List, FmtComma), hconv(n.Rlist, FmtComma))
+			fmt.Fprintf(s, "%.v := %.v", n.List, n.Rlist)
 			break
 		}
 		fallthrough
 
 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		fmt.Fprintf(s, "%v = %v", hconv(n.List, FmtComma), hconv(n.Rlist, FmtComma))
+		fmt.Fprintf(s, "%.v = %.v", n.List, n.Rlist)
 
 	case ORETURN:
-		fmt.Fprintf(s, "return %v", hconv(n.List, FmtComma))
+		fmt.Fprintf(s, "return %.v", n.List)
 
 	case ORETJMP:
 		fmt.Fprintf(s, "retjmp %v", n.Sym)
@@ -959,7 +959,7 @@ func (n *Node) stmtfmt(s fmt.State) {
 			break
 		}
 
-		fmt.Fprintf(s, "for %v = range %v { %v }", hconv(n.List, FmtComma), n.Right, n.Nbody)
+		fmt.Fprintf(s, "for %.v = range %v { %v }", n.List, n.Right, n.Nbody)
 
 	case OSELECT, OSWITCH:
 		if fmtmode == FErr {
@@ -979,7 +979,7 @@ func (n *Node) stmtfmt(s fmt.State) {
 
 	case OXCASE:
 		if n.List.Len() != 0 {
-			fmt.Fprintf(s, "case %v", hconv(n.List, FmtComma))
+			fmt.Fprintf(s, "case %.v", n.List)
 		} else {
 			fmt.Fprint(s, "default")
 		}
@@ -1296,7 +1296,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 
-		fmt.Fprintf(s, "(%v{ %v })", n.Right, hconv(n.List, FmtComma))
+		fmt.Fprintf(s, "(%v{ %.v })", n.Right, n.List)
 		return
 
 	case OPTRLIT:
@@ -1308,7 +1308,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprintf(s, "%v literal", n.Type)
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %v })", n.Type, hconv(n.List, FmtComma))
+		fmt.Fprintf(s, "(%v{ %.v })", n.Type, n.List)
 		return
 
 	case OKEY:
@@ -1400,7 +1400,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprintf(s, "%v(%v)", n.Type, n.Left)
 			return
 		}
-		fmt.Fprintf(s, "%v(%v)", n.Type, hconv(n.List, FmtComma))
+		fmt.Fprintf(s, "%v(%.v)", n.Type, n.List)
 		return
 
 	case OREAL,
@@ -1421,24 +1421,24 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		if n.Isddd {
-			fmt.Fprintf(s, "%#v(%v...)", n.Op, hconv(n.List, FmtComma))
+			fmt.Fprintf(s, "%#v(%.v...)", n.Op, n.List)
 			return
 		}
-		fmt.Fprintf(s, "%#v(%v)", n.Op, hconv(n.List, FmtComma))
+		fmt.Fprintf(s, "%#v(%.v)", n.Op, n.List)
 		return
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n.Left.exprfmt(s, nprec)
 		if n.Isddd {
-			fmt.Fprintf(s, "(%v...)", hconv(n.List, FmtComma))
+			fmt.Fprintf(s, "(%.v...)", n.List)
 			return
 		}
-		fmt.Fprintf(s, "(%v)", hconv(n.List, FmtComma))
+		fmt.Fprintf(s, "(%.v)", n.List)
 		return
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		if n.List.Len() != 0 { // pre-typecheck
-			fmt.Fprintf(s, "make(%v, %v)", n.Type, hconv(n.List, FmtComma))
+			fmt.Fprintf(s, "make(%v, %.v)", n.Type, n.List)
 			return
 		}
 		if n.Right != nil {
@@ -1831,25 +1831,28 @@ func (n *Node) Nconv(s fmt.State) {
 	fmtmode = sm
 }
 
-func (n Nodes) Print(p *printer) {
-	p.hconv(n, 0)
+func (l Nodes) Format(s fmt.State, format rune) {
+	switch format {
+	case 's', 'v':
+		l.hconv(s)
+
+	default:
+		fmt.Fprintf(s, "%%!%c(Nodes)", format)
+	}
 }
 
-var _ Printable = Nodes{} // verify that Nodes implements Printable
-
 func (n Nodes) String() string {
-	return hconv(n, 0)
+	return fmt.Sprint(n)
 }
 
 // Fmt '%H': Nodes.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
-func hconv(l Nodes, flag FmtFlag) string {
-	return new(printer).hconv(l, flag).String()
-}
+func (l Nodes) hconv(s fmt.State) {
+	flag := fmtFlag(s)
 
-func (p *printer) hconv(l Nodes, flag FmtFlag) *printer {
 	if l.Len() == 0 && fmtmode == FDbg {
-		return p.s("<nil>")
+		fmt.Fprint(s, "<nil>")
+		return
 	}
 
 	sf := flag
@@ -1862,20 +1865,18 @@ func (p *printer) hconv(l Nodes, flag FmtFlag) *printer {
 	}
 
 	for i, n := range l.Slice() {
-		p.f("%v", n)
+		fmt.Fprint(s, n)
 		if i+1 < l.Len() {
-			p.s(sep)
+			fmt.Fprint(s, sep)
 		}
 	}
 
 	flag = sf
 	fmtmode = sm
-
-	return p
 }
 
 func dumplist(s string, l Nodes) {
-	fmt.Printf("%s%v\n", s, hconv(l, FmtSign))
+	fmt.Printf("%s%+v\n", s, l)
 }
 
 func Dump(s string, n *Node) {

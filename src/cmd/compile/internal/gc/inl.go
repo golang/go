@@ -65,7 +65,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 || Debug_export != 0 {
-		fmt.Printf("typecheck import [%v] %2v { %v }\n", fn.Sym, fn, hconv(fn.Func.Inl, FmtSharp))
+		fmt.Printf("typecheck import [%v] %2v { %#v }\n", fn.Sym, fn, fn.Func.Inl)
 	}
 
 	save_safemode := safemode
@@ -165,7 +165,7 @@ func caninl(fn *Node) {
 	fn.Type.SetNname(n)
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %#v as: %#v { %v }\n", fn.Line(), n, fn.Type, hconv(n.Func.Inl, FmtSharp))
+		fmt.Printf("%v: can inline %#v as: %#v { %#v }\n", fn.Line(), n, fn.Type, n.Func.Inl)
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
@@ -556,7 +556,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 
 	// Bingo, we have a function node, and it has an inlineable body
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: inlining call to %v %#v { %v }\n", n.Line(), fn.Sym, fn.Type, hconv(fn.Func.Inl, FmtSharp))
+		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", n.Line(), fn.Sym, fn.Type, fn.Func.Inl)
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
@@ -752,7 +752,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		}
 
 		if li < n.List.Len() || t != nil {
-			Fatalf("arg count mismatch: %#v vs %v\n", fn.Type.Params(), hconv(n.List, FmtComma))
+			Fatalf("arg count mismatch: %#v vs %.v\n", fn.Type.Params(), n.List)
 		}
 	}
 
