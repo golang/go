@@ -420,7 +420,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		switch u := n.Val().U.(type) {
 		default:
-			Fatalf("naddr: const %v", Tconv(n.Type, FmtLong))
+			Fatalf("naddr: const %2v", n.Type)
 
 		case *Mpflt:
 			a.Type = obj.TYPE_FCONST

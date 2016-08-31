@@ -1095,15 +1095,15 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
 		if t0.Sym == nil && t0.IsPtr() {
-			p = fmt.Sprintf("(%v).%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
+			p = fmt.Sprintf("(%-1v).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
 		} else {
-			p = fmt.Sprintf("%v.%s.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Pkg.Prefix, nsym.Name, suffix)
+			p = fmt.Sprintf("%-1v.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
 		}
 	} else {
 		if t0.Sym == nil && t0.IsPtr() {
-			p = fmt.Sprintf("(%v).%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
+			p = fmt.Sprintf("(%-1v).%s%s", t0, nsym.Name, suffix)
 		} else {
-			p = fmt.Sprintf("%v.%s%s", Tconv(t0, FmtLeft|FmtShort), nsym.Name, suffix)
+			p = fmt.Sprintf("%-1v.%s%s", t0, nsym.Name, suffix)
 		}
 	}
 
@@ -1190,7 +1190,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 		default:
 			// Should have picked off all the reasons above,
 			// but just in case, fall back to generic error.
-			Yyerror("invalid receiver type %v (%v / %v)", pa, Tconv(pa, FmtLong), Tconv(t, FmtLong))
+			Yyerror("invalid receiver type %v (%2v / %2v)", pa, pa, t)
 		}
 		return
 	}

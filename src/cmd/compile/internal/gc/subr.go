@@ -810,11 +810,11 @@ func assignop(src *Type, dst *Type, why *string) Op {
 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 			} else if have != nil && have.Sym == missing.Sym {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 			} else if ptr != 0 {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 			} else if have != nil {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 			} else {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 			}
@@ -1139,10 +1139,10 @@ func syslook(name string) *Node {
 // typehash computes a hash value for type t to use in type switch
 // statements.
 func typehash(t *Type) uint32 {
-	// Tconv already contains all the necessary logic to generate
+	// fmt.Sprintf("%- v", t) already contains all the necessary logic to generate
 	// a representation that completely describes the type, so using
 	// it here avoids duplicating that code.
-	p := Tconv(t, FmtLeft|FmtUnsigned)
+	p := fmt.Sprintf("%- v", t)
 
 	// Using MD5 is overkill, but reduces accidental collisions.
 	h := md5.Sum([]byte(p))

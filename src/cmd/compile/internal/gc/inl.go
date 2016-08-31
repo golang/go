@@ -165,7 +165,7 @@ func caninl(fn *Node) {
 	fn.Type.SetNname(n)
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(n, FmtSharp), Tconv(fn.Type, FmtSharp), hconv(n.Func.Inl, FmtSharp))
+		fmt.Printf("%v: can inline %v as: %#v { %v }\n", fn.Line(), Nconv(n, FmtSharp), fn.Type, hconv(n.Func.Inl, FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
@@ -214,7 +214,7 @@ func ishairy(n *Node, budget *int32, reason *string) bool {
 			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, FmtSign))
 		}
 		if t.Nname() == nil {
-			Fatalf("no function definition for [%p] %v\n", t, Tconv(t, FmtSign))
+			Fatalf("no function definition for [%p] %+v\n", t, t)
 		}
 		if inlfn := t.Nname().Func; inlfn.Inl.Len() != 0 {
 			*budget -= inlfn.InlCost
@@ -494,7 +494,7 @@ func inlnode(n *Node) *Node {
 		}
 
 		if n.Left.Type.Nname() == nil {
-			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, FmtSign))
+			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
 		n = mkinlcall(n, n.Left.Type.Nname(), n.Isddd)
@@ -556,7 +556,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 
 	// Bingo, we have a function node, and it has an inlineable body
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, FmtSharp), hconv(fn.Func.Inl, FmtSharp))
+		fmt.Printf("%v: inlining call to %v %#v { %v }\n", n.Line(), fn.Sym, fn.Type, hconv(fn.Func.Inl, FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
@@ -752,7 +752,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		}
 
 		if li < n.List.Len() || t != nil {
-			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(fn.Type.Params(), FmtSharp), hconv(n.List, FmtComma))
+			Fatalf("arg count mismatch: %#v vs %v\n", fn.Type.Params(), hconv(n.List, FmtComma))
 		}
 	}
 

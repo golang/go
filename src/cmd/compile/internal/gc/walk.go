@@ -1875,7 +1875,7 @@ func dumpnodetypes(l []*Node, what string) string {
 		if s != "" {
 			s += ", "
 		}
-		s += Tconv(r.Type, 0)
+		s += r.Type.String()
 	}
 	if s == "" {
 		s = fmt.Sprintf("[no arguments %s]", what)
@@ -3951,7 +3951,7 @@ func usemethod(n *Node) {
 			return
 		}
 	}
-	if Tconv(res0.Type, 0) != "reflect.Method" {
+	if res0.Type.String() != "reflect.Method" {
 		return
 	}
 

@@ -964,11 +964,11 @@ OpSwitch:
 			var ptr int
 			if !implements(n.Type, t, &missing, &have, &ptr) {
 				if have != nil && have.Sym == missing.Sym {
-					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", n.Type, t, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
 					Yyerror("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type, t, missing.Sym)
 				} else if have != nil {
-					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", n.Type, t, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
+					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else {
 					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type, t, missing.Sym)
 				}
@@ -1515,7 +1515,7 @@ OpSwitch:
 		l := args.First()
 		r := args.Second()
 		if l.Type != nil && !l.Type.IsMap() {
-			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, FmtLong))
+			Yyerror("first argument to delete must be map; have %2v", l.Type)
 			n.Type = nil
 			return n
 		}
@@ -1559,7 +1559,7 @@ OpSwitch:
 				return n
 			}
 
-			Yyerror("first argument to append must be slice; have %v", Tconv(t, FmtLong))
+			Yyerror("first argument to append must be slice; have %2v", t)
 			n.Type = nil
 			return n
 		}
@@ -1642,25 +1642,25 @@ OpSwitch:
 			if Eqtype(n.Left.Type.Elem(), bytetype) {
 				break OpSwitch
 			}
-			Yyerror("arguments to copy have different element types: %v and string", Tconv(n.Left.Type, FmtLong))
+			Yyerror("arguments to copy have different element types: %2v and string", n.Left.Type)
 			n.Type = nil
 			return n
 		}
 
 		if !n.Left.Type.IsSlice() || !n.Right.Type.IsSlice() {
 			if !n.Left.Type.IsSlice() && !n.Right.Type.IsSlice() {
-				Yyerror("arguments to copy must be slices; have %v, %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
+				Yyerror("arguments to copy must be slices; have %2v, %2v", n.Left.Type, n.Right.Type)
 			} else if !n.Left.Type.IsSlice() {
-				Yyerror("first argument to copy should be slice; have %v", Tconv(n.Left.Type, FmtLong))
+				Yyerror("first argument to copy should be slice; have %2v", n.Left.Type)
 			} else {
-				Yyerror("second argument to copy should be slice or string; have %v", Tconv(n.Right.Type, FmtLong))
+				Yyerror("second argument to copy should be slice or string; have %2v", n.Right.Type)
 			}
 			n.Type = nil
 			return n
 		}
 
 		if !Eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
-			Yyerror("arguments to copy have different element types: %v and %v", Tconv(n.Left.Type, FmtLong), Tconv(n.Right.Type, FmtLong))
+			Yyerror("arguments to copy have different element types: %2v and %2v", n.Left.Type, n.Right.Type)
 			n.Type = nil
 			return n
 		}

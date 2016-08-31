@@ -1595,7 +1595,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		var i int64
 		switch n.Val().Ctype() {
 		default:
-			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
+			Fatalf("convconst ctype=%d %2v", n.Val().Ctype(), t)
 
 		case CTINT, CTRUNE:
 			i = n.Int64()
@@ -1632,7 +1632,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	Fatalf("convconst %v constant", Tconv(t, FmtLong))
+	Fatalf("convconst %2v constant", t)
 }
 
 // complex multiply v *= rv
