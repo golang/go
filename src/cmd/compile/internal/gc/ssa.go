@@ -3104,17 +3104,16 @@ func etypesign(e EType) int8 {
 func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
 	switch sym.(type) {
 	default:
-		s.Fatalf("sym %v is of uknown type %T", sym, sym)
+		s.Fatalf("sym %v is of unknown type %T", sym, sym)
 	case *ssa.ExternSymbol, *ssa.ArgSymbol, *ssa.AutoSymbol:
 		// these are the only valid types
 	}
 
 	if lsym, ok := s.varsyms[n]; ok {
 		return lsym
-	} else {
-		s.varsyms[n] = sym
-		return sym
 	}
+	s.varsyms[n] = sym
+	return sym
 }
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
@@ -4692,17 +4691,25 @@ func fieldIdx(n *Node) int {
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
 	curfn      *Node
-	stksize    int64 // stack size for current frame
-	stkptrsize int64 // prefix of stack containing pointers
+	strings    map[string]interface{} // map from constant string to data symbols
+	stksize    int64                  // stack size for current frame
+	stkptrsize int64                  // prefix of stack containing pointers
 	log        bool
 }
 
 // StringData returns a symbol (a *Sym wrapped in an interface) which
 // is the data component of a global string constant containing s.
-func (*ssafn) StringData(s string) interface{} {
-	// TODO: is idealstring correct?  It might not matter...
+func (e *ssafn) StringData(s string) interface{} {
+	if aux, ok := e.strings[s]; ok {
+		return aux
+	}
+	if e.strings == nil {
+		e.strings = make(map[string]interface{})
+	}
 	data := stringsym(s)
-	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
+	aux := &ssa.ExternSymbol{Typ: idealstring, Sym: data}
+	e.strings[s] = aux
+	return aux
 }
 
 func (e *ssafn) Auto(t ssa.Type) ssa.GCNode {
