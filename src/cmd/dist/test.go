@@ -502,7 +502,7 @@ func (t *tester) registerTests() {
 			})
 		}
 		if t.supportedBuildmode("c-archive") {
-			t.registerHostTest("testcarchive", "misc/cgo/testcarchive", "carchive_test.go")
+			t.registerHostTest("testcarchive", "../misc/cgo/testcarchive", "misc/cgo/testcarchive", "carchive_test.go")
 		}
 		if t.supportedBuildmode("c-shared") {
 			t.registerTest("testcshared", "../misc/cgo/testcshared", "./test.bash")
@@ -700,26 +700,26 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	}
 }
 
-func (t *tester) registerHostTest(name, dirBanner, pkg string) {
+func (t *tester) registerHostTest(name, heading, dir, pkg string) {
 	t.tests = append(t.tests, distTest{
 		name:    name,
-		heading: dirBanner,
+		heading: heading,
 		fn: func(dt *distTest) error {
 			t.runPending(dt)
-			return t.runHostTest(dirBanner, pkg)
+			return t.runHostTest(dir, pkg)
 		},
 	})
 }
 
-func (t *tester) runHostTest(dirBanner, pkg string) error {
+func (t *tester) runHostTest(dir, pkg string) error {
 	env := mergeEnvLists([]string{"GOARCH=" + t.gohostarch, "GOOS=" + t.gohostos}, os.Environ())
-	defer os.Remove(filepath.Join(t.goroot, dirBanner, "test.test"))
-	cmd := t.dirCmd(dirBanner, "go", "test", t.tags(), "-c", "-o", "test.test", pkg)
+	defer os.Remove(filepath.Join(t.goroot, dir, "test.test"))
+	cmd := t.dirCmd(dir, "go", "test", t.tags(), "-c", "-o", "test.test", pkg)
 	cmd.Env = env
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	return t.dirCmd(dirBanner, "./test.test").Run()
+	return t.dirCmd(dir, "./test.test").Run()
 }
 
 func (t *tester) cgoTest(dt *distTest) error {
