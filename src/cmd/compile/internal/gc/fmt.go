@@ -1883,64 +1883,10 @@ func Dump(s string, n *Node) {
 	fmt.Printf("%s [%p]%+v\n", s, n, n)
 }
 
-// printer is a buffer for creating longer formatted strings.
-type printer struct {
-	buf []byte
-}
-
-// Types that implement the Printable interface print
-// to a printer directly without first converting to
-// a string.
-type Printable interface {
-	Print(*printer)
-}
-
-// printer implements io.Writer.
-func (p *printer) Write(buf []byte) (n int, err error) {
-	p.buf = append(p.buf, buf...)
-	return len(buf), nil
-}
-
-// printer implements the Stringer interface.
-func (p *printer) String() string {
-	return string(p.buf)
-}
-
-// s prints the string s to p and returns p.
-func (p *printer) s(s string) *printer {
-	p.buf = append(p.buf, s...)
-	return p
-}
-
-// f prints the formatted arguments to p and returns p.
-// %v arguments that implement the Printable interface
-// are printed to p via that interface.
-func (p *printer) f(format string, args ...interface{}) *printer {
-	for len(format) > 0 {
-		i := strings.IndexByte(format, '%')
-		if i < 0 || i+1 >= len(format) || format[i+1] != 'v' || len(args) == 0 {
-			break // don't be clever, let fmt.Fprintf handle this for now
-		}
-		// found "%v" and at least one argument (and no other %x before)
-		p.s(format[:i])
-		format = format[i+len("%v"):]
-		if a, ok := args[0].(Printable); ok {
-			a.Print(p)
-		} else {
-			fmt.Fprintf(p, "%v", args[0])
-		}
-		args = args[1:]
-	}
-	if len(format) > 0 || len(args) > 0 {
-		fmt.Fprintf(p, format, args...)
-	}
-	return p
-}
-
-// TODO(gri) make this a field of printer
+// TODO(gri) make variable local somehow
 var dumpdepth int
 
-// indent prints indentation to p.
+// indent prints indentation to s.
 func indent(s fmt.State) {
 	fmt.Fprint(s, "\n")
 	for i := 0; i < dumpdepth; i++ {
