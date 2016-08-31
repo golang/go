@@ -18,6 +18,7 @@ func TestGetfsstat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("num fs = %v", n)
 
 	data := make([]syscall.Statfs_t, n)
 	n, err = syscall.Getfsstat(data, MNT_WAIT)
@@ -26,9 +27,9 @@ func TestGetfsstat(t *testing.T) {
 	}
 
 	empty := syscall.Statfs_t{}
-	for _, stat := range data {
+	for i, stat := range data {
 		if stat == empty {
-			t.Fatal("an empty Statfs_t struct was returned")
+			t.Errorf("index %v is an empty Statfs_t struct", i)
 		}
 	}
 }
