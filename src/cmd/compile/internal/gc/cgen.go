@@ -599,7 +599,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, FmtLong))
+		Fatalf("cgen: OLEN: unknown type %2v", nl.Type)
 
 	case OCAP:
 		if nl.Type.IsChan() {
@@ -637,7 +637,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		Fatalf("cgen: OCAP: unknown type %v", Tconv(nl.Type, FmtLong))
+		Fatalf("cgen: OCAP: unknown type %2v", nl.Type)
 
 	case OADDR:
 		if n.Bounded { // let race detector avoid nil checks

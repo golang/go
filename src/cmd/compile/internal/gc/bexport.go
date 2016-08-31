@@ -807,7 +807,7 @@ func (p *exporter) typ(t *Type) {
 		p.typ(t.Elem())
 
 	default:
-		Fatalf("exporter: unexpected type: %s (Etype = %d)", Tconv(t, 0), t.Etype)
+		Fatalf("exporter: unexpected type: %s (Etype = %d)", t, t.Etype)
 	}
 }
 

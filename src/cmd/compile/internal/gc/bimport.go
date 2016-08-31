@@ -235,7 +235,7 @@ func (p *importer) verifyTypes() {
 		pt := pair.pt
 		t := pair.t
 		if !Eqtype(pt.Orig, t) {
-			formatErrorf("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", pt.Sym, Tconv(pt, FmtLong), pt.Sym.Importdef.Path, Tconv(t, FmtLong), importpkg.Path)
+			formatErrorf("inconsistent definition for type %v during import\n\t%2v (in %q)\n\t%2v (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
 		}
 	}
 }
@@ -416,7 +416,7 @@ func (p *importer) importtype(pt, t *Type) {
 	}
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import type %v %v\n", pt, Tconv(t, FmtLong))
+		fmt.Printf("import type %v %2v\n", pt, t)
 	}
 }
 

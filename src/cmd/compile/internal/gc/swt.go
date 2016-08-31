@@ -4,7 +4,10 @@
 
 package gc
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 const (
 	// expression switch
@@ -162,7 +165,7 @@ func typecheckswitch(n *Node) {
 						ls[i1] = n1
 					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, FmtShort), missing.Sym, Tconv(missing.Type, FmtShort))
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%1v\n\twant %v%1v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 						} else if !missing.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym)
 						}
@@ -642,9 +645,9 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 		}
 		n := c.node.Left
 		tv := typeVal{
-			// Tconv here serves to completely describe the type.
+			// fmt.Sprintf("% -v", n.Type) here serves to completely describe the type.
 			// See the comments in func typehash.
-			typ: Tconv(n.Type, FmtLeft|FmtUnsigned),
+			typ: fmt.Sprintf("% -v", n.Type),
 			val: n.Val().Interface(),
 		}
 		prev, dup := seen[tv]

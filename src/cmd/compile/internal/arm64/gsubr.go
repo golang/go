@@ -210,7 +210,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, gc.FmtLong), gc.Tconv(t.Type, gc.FmtLong))
+		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
 
 		/*
 		 * integer copy and truncate

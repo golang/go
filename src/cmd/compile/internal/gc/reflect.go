@@ -864,7 +864,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 
 	exported := false
-	p := Tconv(t, FmtLeft|FmtUnsigned)
+	p := fmt.Sprintf("%- v", t)
 	// If we're writing out type T,
 	// we are very likely to write out type *T as well.
 	// Use the string "*T"[1:] for "T", so that the two
@@ -926,22 +926,22 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 }
 
 func typesym(t *Type) *Sym {
-	return Pkglookup(Tconv(t, FmtLeft), typepkg)
+	return Pkglookup(fmt.Sprintf("%-v", t), typepkg)
 }
 
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func tracksym(t *Type, f *Field) *Sym {
-	return Pkglookup(Tconv(t, FmtLeft)+"."+f.Sym.Name, trackpkg)
+	return Pkglookup(fmt.Sprintf("%-v.%s", t, f.Sym.Name), trackpkg)
 }
 
 func typelinkLSym(t *Type) *obj.LSym {
-	name := "go.typelink." + Tconv(t, FmtLeft) // complete, unambiguous type name
+	name := fmt.Sprintf("go.typelink.%-v", t) // complete, unambiguous type name
 	return obj.Linklookup(Ctxt, name, 0)
 }
 
 func typesymprefix(prefix string, t *Type) *Sym {
-	p := prefix + "." + Tconv(t, FmtLeft)
+	p := fmt.Sprintf("%s.%-v", prefix, t)
 	s := Pkglookup(p, typepkg)
 
 	//print("algsym: %s -> %+S\n", p, s);
@@ -981,7 +981,7 @@ func itabname(t, itype *Type) *Node {
 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
 		Fatalf("itabname %v", t)
 	}
-	s := Pkglookup(Tconv(t, FmtLeft)+","+Tconv(itype, FmtLeft), itabpkg)
+	s := Pkglookup(fmt.Sprintf("%-v,%-v", t, itype), itabpkg)
 	if s.Def == nil {
 		n := newname(s)
 		n.Type = Types[TUINT8]
@@ -1406,7 +1406,7 @@ func dumptypestructs() {
 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
 		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
 
-		ilink := Pkglookup(Tconv(i.t, FmtLeft)+","+Tconv(i.itype, FmtLeft), itablinkpkg)
+		ilink := Pkglookup(fmt.Sprintf("%-v,%-v", i.t, i.itype), itablinkpkg)
 		dsymptr(ilink, 0, i.sym, 0)
 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
 	}

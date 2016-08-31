@@ -540,9 +540,9 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 
 	rcvrtype := fn.Left.Type
 	if exportname(meth.Name) {
-		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Name)
+		p = fmt.Sprintf("(%-1v).%s-fm", rcvrtype, meth.Name)
 	} else {
-		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), sconv(meth, FmtLeft))
+		p = fmt.Sprintf("(%-1v).(%v)-fm", rcvrtype, sconv(meth, FmtLeft))
 	}
 	basetype := rcvrtype
 	if rcvrtype.IsPtr() {
