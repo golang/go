@@ -1544,89 +1544,88 @@ func (n *Node) nodefmt(s fmt.State, flag FmtFlag) {
 	n.exprfmt(s, 0)
 }
 
-func (p *printer) nodedump(n *Node, flag FmtFlag) *printer {
+func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
 	if n == nil {
-		return p
+		return
 	}
 
 	recur := flag&FmtShort == 0
 
 	if recur {
-		p.indent()
+		indent(s)
 		if dumpdepth > 10 {
-			return p.s("...")
+			fmt.Fprint(s, "...")
+			return
 		}
 
 		if n.Ninit.Len() != 0 {
-			p.f("%v-init%v", n.Op, n.Ninit)
-			p.indent()
+			fmt.Fprintf(s, "%v-init%v", n.Op, n.Ninit)
+			indent(s)
 		}
 	}
 
 	switch n.Op {
 	default:
-		p.f("%v%j", n.Op, n)
+		fmt.Fprintf(s, "%v%j", n.Op, n)
 
 	case OREGISTER, OINDREG:
-		p.f("%v-%v%j", n.Op, obj.Rconv(int(n.Reg)), n)
+		fmt.Fprintf(s, "%v-%v%j", n.Op, obj.Rconv(int(n.Reg)), n)
 
 	case OLITERAL:
-		p.f("%v-%v%j", n.Op, n.Val(), n)
+		fmt.Fprintf(s, "%v-%v%j", n.Op, n.Val(), n)
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
-			p.f("%v-%v%j", n.Op, n.Sym, n)
+			fmt.Fprintf(s, "%v-%v%j", n.Op, n.Sym, n)
 		} else {
-			p.f("%v%j", n.Op, n)
+			fmt.Fprintf(s, "%v%j", n.Op, n)
 		}
 		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
-			p.indent()
-			p.f("%v-ntype%v", n.Op, n.Name.Param.Ntype)
+			indent(s)
+			fmt.Fprintf(s, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}
 
 	case OASOP:
-		p.f("%v-%v%j", n.Op, Op(n.Etype), n)
+		fmt.Fprintf(s, "%v-%v%j", n.Op, Op(n.Etype), n)
 
 	case OTYPE:
-		p.f("%v %v%j type=%v", n.Op, n.Sym, n, n.Type)
+		fmt.Fprintf(s, "%v %v%j type=%v", n.Op, n.Sym, n, n.Type)
 		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
-			p.indent()
-			p.f("%v-ntype%v", n.Op, n.Name.Param.Ntype)
+			indent(s)
+			fmt.Fprintf(s, "%v-ntype%v", n.Op, n.Name.Param.Ntype)
 		}
 	}
 
 	if n.Sym != nil && n.Op != ONAME {
-		p.f(" %v", n.Sym)
+		fmt.Fprintf(s, " %v", n.Sym)
 	}
 
 	if n.Type != nil {
-		p.f(" %v", n.Type)
+		fmt.Fprintf(s, " %v", n.Type)
 	}
 
 	if recur {
 		if n.Left != nil {
-			p.f("%v", n.Left)
+			fmt.Fprintf(s, "%v", n.Left)
 		}
 		if n.Right != nil {
-			p.f("%v", n.Right)
+			fmt.Fprintf(s, "%v", n.Right)
 		}
 		if n.List.Len() != 0 {
-			p.indent()
-			p.f("%v-list%v", n.Op, n.List)
+			indent(s)
+			fmt.Fprintf(s, "%v-list%v", n.Op, n.List)
 		}
 
 		if n.Rlist.Len() != 0 {
-			p.indent()
-			p.f("%v-rlist%v", n.Op, n.Rlist)
+			indent(s)
+			fmt.Fprintf(s, "%v-rlist%v", n.Op, n.Rlist)
 		}
 
 		if n.Nbody.Len() != 0 {
-			p.indent()
-			p.f("%v-body%v", n.Op, n.Nbody)
+			indent(s)
+			fmt.Fprintf(s, "%v-body%v", n.Op, n.Nbody)
 		}
 	}
-
-	return p
 }
 
 func (s *Sym) Format(f fmt.State, format rune) {
@@ -1821,7 +1820,7 @@ func (n *Node) Nconv(s fmt.State) {
 
 	case FDbg:
 		dumpdepth++
-		fmt.Fprint(s, new(printer).nodedump(n, flag).String())
+		n.nodedump(s, flag)
 		dumpdepth--
 
 	default:
@@ -1941,9 +1940,9 @@ func (p *printer) f(format string, args ...interface{}) *printer {
 var dumpdepth int
 
 // indent prints indentation to p.
-func (p *printer) indent() {
-	p.s("\n")
+func indent(s fmt.State) {
+	fmt.Fprint(s, "\n")
 	for i := 0; i < dumpdepth; i++ {
-		p.s(".   ")
+		fmt.Fprint(s, ".   ")
 	}
 }
