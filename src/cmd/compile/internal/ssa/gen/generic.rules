@@ -221,6 +221,59 @@
 (Xor16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Xor16 (Const16 <t> [c]) x)
 (Xor8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Xor8  (Const8  <t> [c]) x)
 
+// fold negation into comparison operators
+(Not (Eq64 x y)) -> (Neq64 x y)
+(Not (Eq32 x y)) -> (Neq32 x y)
+(Not (Eq16 x y)) -> (Neq16 x y)
+(Not (Eq8  x y)) -> (Neq8  x y)
+(Not (EqB  x y)) -> (NeqB  x y)
+
+(Not (Neq64 x y)) -> (Eq64 x y)
+(Not (Neq32 x y)) -> (Eq32 x y)
+(Not (Neq16 x y)) -> (Eq16 x y)
+(Not (Neq8  x y)) -> (Eq8  x y)
+(Not (NeqB  x y)) -> (EqB  x y)
+
+(Not (Greater64 x y)) -> (Leq64 x y)
+(Not (Greater32 x y)) -> (Leq32 x y)
+(Not (Greater16 x y)) -> (Leq16 x y)
+(Not (Greater8  x y)) -> (Leq8  x y)
+
+(Not (Greater64U x y)) -> (Leq64U x y)
+(Not (Greater32U x y)) -> (Leq32U x y)
+(Not (Greater16U x y)) -> (Leq16U x y)
+(Not (Greater8U  x y)) -> (Leq8U  x y)
+
+(Not (Geq64 x y)) -> (Less64 x y)
+(Not (Geq32 x y)) -> (Less32 x y)
+(Not (Geq16 x y)) -> (Less16 x y)
+(Not (Geq8  x y)) -> (Less8  x y)
+
+(Not (Geq64U x y)) -> (Less64U x y)
+(Not (Geq32U x y)) -> (Less32U x y)
+(Not (Geq16U x y)) -> (Less16U x y)
+(Not (Geq8U  x y)) -> (Less8U  x y)
+
+(Not (Less64 x y)) -> (Geq64 x y)
+(Not (Less32 x y)) -> (Geq32 x y)
+(Not (Less16 x y)) -> (Geq16 x y)
+(Not (Less8  x y)) -> (Geq8  x y)
+
+(Not (Less64U x y)) -> (Geq64U x y)
+(Not (Less32U x y)) -> (Geq32U x y)
+(Not (Less16U x y)) -> (Geq16U x y)
+(Not (Less8U  x y)) -> (Geq8U  x y)
+
+(Not (Leq64 x y)) -> (Greater64 x y)
+(Not (Leq32 x y)) -> (Greater32 x y)
+(Not (Leq16 x y)) -> (Greater16 x y)
+(Not (Leq8  x y)) -> (Greater8 x y)
+
+(Not (Leq64U x y)) -> (Greater64U x y)
+(Not (Leq32U x y)) -> (Greater32U x y)
+(Not (Leq16U x y)) -> (Greater16U x y)
+(Not (Leq8U  x y)) -> (Greater8U  x y)
+
 // Distribute multiplication c * (d+x) -> c*d + c*x. Useful for:
 // a[i].b = ...; a[i+1].b = ...
 (Mul64 (Const64 <t> [c]) (Add64 <t> (Const64 <t> [d]) x)) ->
