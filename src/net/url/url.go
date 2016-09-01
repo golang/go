@@ -492,15 +492,12 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 			goto Error
 		}
 	}
-	if url.Path, err = unescape(rest, encodePath); err != nil {
+	// Set Path and, optionally, RawPath.
+	// RawPath is a hint of the encoding of Path. We don't want to set it if
+	// the default escaping of Path is equivalent, to help make sure that people
+	// don't rely on it in general.
+	if err := url.setPath(rest); err != nil {
 		goto Error
-	}
-	// RawPath is a hint as to the encoding of Path to use
-	// in url.EscapedPath. If that method already gets the
-	// right answer without RawPath, leave it empty.
-	// This will help make sure that people don't rely on it in general.
-	if url.EscapedPath() != rest && validEncodedPath(rest) {
-		url.RawPath = rest
 	}
 	return url, nil
 
@@ -584,6 +581,29 @@ func parseHost(host string) (string, error) {
 		return "", err
 	}
 	return host, nil
+}
+
+// setPath sets the Path and RawPath fields of the URL based on the provided
+// escaped path p. It maintains the invariant that RawPath is only specified
+// when it differs from the default encoding of the path.
+// For example:
+// - setPath("/foo/bar")   will set Path="/foo/bar" and RawPath=""
+// - setPath("/foo%2fbar") will set Path="/foo/bar" and RawPath="/foo%2fbar"
+// setPath will return an error only if the provided path contains an invalid
+// escaping.
+func (u *URL) setPath(p string) error {
+	path, err := unescape(p, encodePath)
+	if err != nil {
+		return err
+	}
+	u.Path = path
+	if escp := escape(path, encodePath); p == escp {
+		// Default encoding is fine.
+		u.RawPath = ""
+	} else {
+		u.RawPath = p
+	}
+	return nil
 }
 
 // EscapedPath returns the escaped form of u.Path.
@@ -880,7 +900,9 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 	}
 	if ref.Scheme != "" || ref.Host != "" || ref.User != nil {
 		// The "absoluteURI" or "net_path" cases.
-		url.Path = resolvePath(ref.Path, "")
+		// We can ignore the error from setPath since we know we provided a
+		// validly-escaped path.
+		url.setPath(resolvePath(ref.EscapedPath(), ""))
 		return &url
 	}
 	if ref.Opaque != "" {
@@ -900,7 +922,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
 	// The "abs_path" or "rel_path" cases.
 	url.Host = u.Host
 	url.User = u.User
-	url.Path = resolvePath(u.Path, ref.Path)
+	url.setPath(resolvePath(u.EscapedPath(), ref.EscapedPath()))
 	return &url
 }
 
