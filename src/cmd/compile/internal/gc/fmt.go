@@ -664,7 +664,6 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			return
 		}
 		fmt.Fprint(s, "*"+t.Elem().String())
-		return
 
 	case TARRAY:
 		if t.isDDDArray() {
@@ -672,11 +671,9 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			return
 		}
 		fmt.Fprintf(s, "[%d]%v", t.NumElem(), t.Elem())
-		return
 
 	case TSLICE:
 		fmt.Fprint(s, "[]"+t.Elem().String())
-		return
 
 	case TCHAN:
 		switch t.ChanDir() {
@@ -694,11 +691,9 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			return
 		}
 		fmt.Fprint(s, "chan "+t.Elem().String())
-		return
 
 	case TMAP:
 		fmt.Fprint(s, "map["+t.Key().String()+"]"+t.Val().String())
-		return
 
 	case TINTER:
 		fmt.Fprint(s, "interface {")
@@ -723,7 +718,6 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			fmt.Fprint(s, " ")
 		}
 		fmt.Fprint(s, "}")
-		return
 
 	case TFUNC:
 		if flag&FmtShort != 0 {
@@ -746,7 +740,6 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 		default:
 			fmt.Fprintf(s, " %v", t.Results())
 		}
-		return
 
 	case TSTRUCT:
 		if m := t.StructType().Map; m != nil {
@@ -798,7 +791,6 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			}
 			fmt.Fprint(s, "}")
 		}
-		return
 
 	case TFORW:
 		if t.Sym != nil {
@@ -806,23 +798,20 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 			return
 		}
 		fmt.Fprint(s, "undefined")
-		return
 
 	case TUNSAFEPTR:
 		fmt.Fprint(s, "unsafe.Pointer")
-		return
 
 	case TDDDFIELD:
 		fmt.Fprintf(s, "%v <%v> %v", t.Etype, t.Sym, t.DDDField())
-		return
 
 	case Txxx:
 		fmt.Fprint(s, "Txxx")
-		return
-	}
 
-	// Don't know how to handle - fall back to detailed prints.
-	fmt.Fprintf(s, "%v <%v> %v", t.Etype, t.Sym, t.Elem())
+	default:
+		// Don't know how to handle - fall back to detailed prints.
+		fmt.Fprintf(s, "%v <%v> %v", t.Etype, t.Sym, t.Elem())
+	}
 }
 
 // Statements which may be rendered with a simplestmt as init.
@@ -1162,15 +1151,12 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 	switch n.Op {
 	case OPAREN:
 		fmt.Fprintf(s, "(%v)", n.Left)
-		return
 
 	case ODDDARG:
 		fmt.Fprint(s, "... argument")
-		return
 
 	case OREGISTER:
 		fmt.Fprint(s, obj.Rconv(int(n.Reg)))
-		return
 
 	case OLITERAL: // this is a bit of a mess
 		if fmtmode == FErr {
@@ -1200,7 +1186,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 		}
 
 		fmt.Fprintf(s, "%s", n.Val())
-		return
 
 	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
@@ -1210,10 +1195,8 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fallthrough
-
 	case OPACK, ONONAME:
 		fmt.Fprint(s, n.Sym.String())
-		return
 
 	case OTYPE:
 		if n.Type == nil && n.Sym != nil {
@@ -1221,7 +1204,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%v", n.Type)
-		return
 
 	case OTARRAY:
 		if n.Left != nil {
@@ -1229,43 +1211,34 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "[]%v", n.Right) // happens before typecheck
-		return
 
 	case OTMAP:
 		fmt.Fprintf(s, "map[%v]%v", n.Left, n.Right)
-		return
 
 	case OTCHAN:
 		switch ChanDir(n.Etype) {
 		case Crecv:
 			fmt.Fprintf(s, "<-chan %v", n.Left)
-			return
 
 		case Csend:
 			fmt.Fprintf(s, "chan<- %v", n.Left)
-			return
 
 		default:
 			if n.Left != nil && n.Left.Op == OTCHAN && n.Left.Sym == nil && ChanDir(n.Left.Etype) == Crecv {
 				fmt.Fprintf(s, "chan (%v)", n.Left)
-				return
 			} else {
 				fmt.Fprintf(s, "chan %v", n.Left)
-				return
 			}
 		}
 
 	case OTSTRUCT:
 		fmt.Fprint(s, "<struct>")
-		return
 
 	case OTINTER:
 		fmt.Fprint(s, "<inter>")
-		return
 
 	case OTFUNC:
 		fmt.Fprint(s, "<func>")
-		return
 
 	case OCLOSURE:
 		if fmtmode == FErr {
@@ -1277,7 +1250,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
-		return
 
 	case OCOMPLIT:
 		ptrlit := n.Right != nil && n.Right.Implicit && n.Right.Type != nil && n.Right.Type.IsPtr()
@@ -1295,13 +1267,10 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprint(s, "composite literal")
 			return
 		}
-
 		fmt.Fprintf(s, "(%v{ %.v })", n.Right, n.List)
-		return
 
 	case OPTRLIT:
 		fmt.Fprintf(s, "&%v", n.Left)
-		return
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		if fmtmode == FErr {
@@ -1309,7 +1278,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "(%v{ %.v })", n.Type, n.List)
-		return
 
 	case OKEY:
 		if n.Left != nil && n.Right != nil {
@@ -1326,7 +1294,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprint(s, ":")
-		return
 
 	case OCALLPART:
 		n.Left.exprfmt(s, nprec)
@@ -1335,7 +1302,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, ".%01v", n.Right.Sym)
-		return
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		n.Left.exprfmt(s, nprec)
@@ -1344,7 +1310,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, ".%01v", n.Sym)
-		return
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left.exprfmt(s, nprec)
@@ -1353,12 +1318,10 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, ".(%v)", n.Type)
-		return
 
 	case OINDEX, OINDEXMAP:
 		n.Left.exprfmt(s, nprec)
 		fmt.Fprintf(s, "[%v]", n.Right)
-		return
 
 	case OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
 		n.Left.exprfmt(s, nprec)
@@ -1378,11 +1341,9 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			}
 		}
 		fmt.Fprint(s, "]")
-		return
 
 	case OCOPY, OCOMPLEX:
 		fmt.Fprintf(s, "%#v(%v, %v)", n.Op, n.Left, n.Right)
-		return
 
 	case OCONV,
 		OCONVIFACE,
@@ -1401,7 +1362,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%v(%.v)", n.Type, n.List)
-		return
 
 	case OREAL,
 		OIMAG,
@@ -1425,7 +1385,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%#v(%.v)", n.Op, n.List)
-		return
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n.Left.exprfmt(s, nprec)
@@ -1434,7 +1393,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "(%.v)", n.List)
-		return
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		if n.List.Len() != 0 { // pre-typecheck
@@ -1450,7 +1408,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "make(%v)", n.Type)
-		return
 
 		// Unary
 	case OPLUS,
@@ -1465,7 +1422,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprint(s, " ")
 		}
 		n.Left.exprfmt(s, nprec+1)
-		return
 
 		// Binary
 	case OADD,
@@ -1491,7 +1447,6 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 		n.Left.exprfmt(s, nprec)
 		fmt.Fprintf(s, " %#v ", n.Op)
 		n.Right.exprfmt(s, nprec+1)
-		return
 
 	case OADDSTR:
 		i := 0
@@ -1502,17 +1457,16 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			n1.exprfmt(s, nprec)
 			i++
 		}
-		return
 
 	case OCMPSTR, OCMPIFACE:
 		n.Left.exprfmt(s, nprec)
 		// TODO(marvin): Fix Node.EType type union.
 		fmt.Fprintf(s, " %#v ", Op(n.Etype))
 		n.Right.exprfmt(s, nprec+1)
-		return
-	}
 
-	fmt.Fprintf(s, "<node %v>", n.Op)
+	default:
+		fmt.Fprintf(s, "<node %v>", n.Op)
+	}
 }
 
 func (n *Node) nodefmt(s fmt.State, flag FmtFlag) {
