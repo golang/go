@@ -73,12 +73,15 @@ func tighten(f *Func) {
 					// make two memory values live across a block boundary.
 					continue
 				}
-				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
+				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && (len(v.Args) < 2 || v.Type.IsBoolean()) {
 					// v is used in exactly one block, and it is not b.
 					// Furthermore, it takes at most one input,
 					// so moving it will not increase the
 					// number of live values anywhere.
 					// Move v to that block.
+					// Also move bool generators even if they have more than 1 input.
+					// They will likely be converted to flags, and we want flag
+					// generators moved next to uses (because we only have 1 flag register).
 					c := home[v.ID]
 					c.Values = append(c.Values, v)
 					v.Block = c
