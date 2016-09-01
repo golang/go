@@ -3000,14 +3000,6 @@ func BenchmarkSinh(b *testing.B) {
 
 var Global float64
 
-func BenchmarkSqrt(b *testing.B) {
-	x, y := 0.0, 10.0
-	for i := 0; i < b.N; i++ {
-		x += Sqrt(y)
-	}
-	Global = x
-}
-
 func BenchmarkSqrtIndirect(b *testing.B) {
 	x, y := 0.0, 10.0
 	f := Sqrt
@@ -3017,10 +3009,27 @@ func BenchmarkSqrtIndirect(b *testing.B) {
 	Global = x
 }
 
-func BenchmarkSqrtGo(b *testing.B) {
-	x, y := 0.0, 10.0
+func BenchmarkSqrtLatency(b *testing.B) {
+	x := 10.0
 	for i := 0; i < b.N; i++ {
-		x += SqrtGo(y)
+		x = Sqrt(x)
+	}
+	Global = x
+}
+
+func BenchmarkSqrtIndirectLatency(b *testing.B) {
+	x := 10.0
+	f := Sqrt
+	for i := 0; i < b.N; i++ {
+		x = f(x)
+	}
+	Global = x
+}
+
+func BenchmarkSqrtGoLatency(b *testing.B) {
+	x := 10.0
+	for i := 0; i < b.N; i++ {
+		x = SqrtGo(x)
 	}
 	Global = x
 }
