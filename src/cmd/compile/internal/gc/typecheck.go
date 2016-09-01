@@ -3754,6 +3754,11 @@ ret:
 }
 
 func checkmake(t *Type, arg string, n *Node) bool {
+	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
+		Yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
+		return false
+	}
+
 	if n.Op == OLITERAL {
 		switch n.Val().Ctype() {
 		case CTINT, CTRUNE, CTFLT, CTCPLX:
@@ -3777,11 +3782,6 @@ func checkmake(t *Type, arg string, n *Node) bool {
 		default:
 			break
 		}
-	}
-
-	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
-		Yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
-		return false
 	}
 
 	// Defaultlit still necessary for non-constant: n might be 1<<k.
