@@ -945,6 +945,15 @@ var resolveReferenceTests = []struct {
 	// Fragment
 	{"http://foo.com/bar", ".#frag", "http://foo.com/#frag"},
 
+	// Paths with escaping (issue 16947).
+	{"http://foo.com/foo%2fbar/", "../baz", "http://foo.com/baz"},
+	{"http://foo.com/1/2%2f/3%2f4/5", "../../a/b/c", "http://foo.com/1/a/b/c"},
+	{"http://foo.com/1/2/3", "./a%2f../../b/..%2fc", "http://foo.com/1/2/b/..%2fc"},
+	{"http://foo.com/1/2%2f/3%2f4/5", "./a%2f../b/../c", "http://foo.com/1/2%2f/3%2f4/a%2f../c"},
+	{"http://foo.com/foo%20bar/", "../baz", "http://foo.com/baz"},
+	{"http://foo.com/foo", "../bar%2fbaz", "http://foo.com/bar%2fbaz"},
+	{"http://foo.com/foo%2dbar/", "./baz-quux", "http://foo.com/foo%2dbar/baz-quux"},
+
 	// RFC 3986: Normal Examples
 	// http://tools.ietf.org/html/rfc3986#section-5.4.1
 	{"http://a/b/c/d;p?q", "g:h", "g:h"},
@@ -1013,8 +1022,8 @@ func TestResolveReference(t *testing.T) {
 		base := mustParse(test.base)
 		rel := mustParse(test.rel)
 		url := base.ResolveReference(rel)
-		if url.String() != test.expected {
-			t.Errorf("URL(%q).ResolveReference(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
+		if got := url.String(); got != test.expected {
+			t.Errorf("URL(%q).ResolveReference(%q)\ngot  %q\nwant %q", test.base, test.rel, got, test.expected)
 		}
 		// Ensure that new instances are returned.
 		if base == url {
@@ -1024,8 +1033,8 @@ func TestResolveReference(t *testing.T) {
 		url, err := base.Parse(test.rel)
 		if err != nil {
 			t.Errorf("URL(%q).Parse(%q) failed: %v", test.base, test.rel, err)
-		} else if url.String() != test.expected {
-			t.Errorf("URL(%q).Parse(%q) == %q, got %q", test.base, test.rel, test.expected, url.String())
+		} else if got := url.String(); got != test.expected {
+			t.Errorf("URL(%q).Parse(%q)\ngot  %q\nwant %q", test.base, test.rel, got, test.expected)
 		} else if base == url {
 			// Ensure that new instances are returned for the wrapper too.
 			t.Errorf("Expected URL.Parse to return new URL instance.")
