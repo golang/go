@@ -128,9 +128,13 @@ func schedule(f *Func) {
 		// the calculated store chain is good only for this block.
 		for _, v := range b.Values {
 			if v.Op != OpPhi && v.Type.IsMemory() {
+				mem := v
+				if v.Op == OpSelect1 {
+					v = v.Args[0]
+				}
 				for _, w := range v.Args {
 					if w.Type.IsMemory() {
-						nextMem[w.ID] = v
+						nextMem[w.ID] = mem
 					}
 				}
 			}
