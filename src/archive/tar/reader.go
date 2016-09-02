@@ -175,11 +175,14 @@ loop:
 				return nil, err
 			}
 
-			// TODO(dsnet): The extended headers may have updated the size.
-			// Thus, we must setup the regFileReader again here.
-			//
-			// See golang.org/issue/15573
+			// The extended headers may have updated the size.
+			// Thus, setup the regFileReader again after merging PAX headers.
+			if err := tr.handleRegularFile(hdr); err != nil {
+				return nil, err
+			}
 
+			// Sparse formats rely on being able to read from the logical data
+			// section; there must be a preceding call to handleRegularFile.
 			if err := tr.handleSparseFile(hdr, rawHdr, extHdrs); err != nil {
 				return nil, err
 			}
