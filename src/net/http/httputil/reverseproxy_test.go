@@ -9,6 +9,7 @@ package httputil
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"log"
@@ -301,14 +302,14 @@ func TestReverseProxyCancelation(t *testing.T) {
 
 	reqInFlight := make(chan struct{})
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		close(reqInFlight)
+		close(reqInFlight) // cause the client to cancel its request
 
 		select {
 		case <-time.After(10 * time.Second):
 			// Note: this should only happen in broken implementations, and the
 			// closenotify case should be instantaneous.
-			t.Log("Failed to close backend connection")
-			t.Fail()
+			t.Error("Handler never saw CloseNotify")
+			return
 		case <-w.(http.CloseNotifier).CloseNotify():
 		}
 
@@ -341,13 +342,13 @@ func TestReverseProxyCancelation(t *testing.T) {
 	}()
 	res, err := http.DefaultClient.Do(getReq)
 	if res != nil {
-		t.Fatal("Non-nil response")
+		t.Error("got response %v; want nil", res.Status)
 	}
 	if err == nil {
 		// This should be an error like:
 		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
 		//    use of closed network connection
-		t.Fatal("DefaultClient.Do() returned nil error")
+		t.Error("DefaultClient.Do() returned nil error; want non-nil error")
 	}
 }
 
@@ -534,5 +535,35 @@ func TestReverseProxy_Post(t *testing.T) {
 	bodyBytes, _ := ioutil.ReadAll(res.Body)
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
+	}
+}
+
+type RoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn RoundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+// Issue 16036: send a Request with a nil Body when possible
+func TestReverseProxy_NilBody(t *testing.T) {
+	backendURL, _ := url.Parse("http://fake.tld/")
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+	proxyHandler.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Body != nil {
+			t.Error("Body != nil; want a nil Body")
+		}
+		return nil, errors.New("done testing the interesting part; so force a 502 Gateway error")
+	})
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	res, err := http.DefaultClient.Get(frontend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 502 {
+		t.Errorf("status code = %v; want 502 (Gateway Error)", res.Status)
 	}
 }
