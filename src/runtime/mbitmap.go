@@ -80,11 +80,11 @@ const (
 	bitPointer = 1 << 0
 	bitScan    = 1 << 4
 
-	heapBitsShift   = 1                     // shift offset between successive bitPointer or bitMarked entries
+	heapBitsShift   = 1                     // shift offset between successive bitPointer or bitScan entries
 	heapBitmapScale = sys.PtrSize * (8 / 2) // number of data bytes described by one heap bitmap byte
 
-	// all mark/pointer bits in a byte
-	bitMarkedAll  = bitScan | bitScan<<heapBitsShift | bitScan<<(2*heapBitsShift) | bitScan<<(3*heapBitsShift)
+	// all scan/pointer bits in a byte
+	bitScanAll    = bitScan | bitScan<<heapBitsShift | bitScan<<(2*heapBitsShift) | bitScan<<(3*heapBitsShift)
 	bitPointerAll = bitPointer | bitPointer<<heapBitsShift | bitPointer<<(2*heapBitsShift) | bitPointer<<(3*heapBitsShift)
 )
 
@@ -481,7 +481,7 @@ func (h heapBits) forward(n uintptr) heapBits {
 	return heapBits{subtractb(h.bitp, n/4), uint32(n%4) * heapBitsShift}
 }
 
-// The caller can test isMarked and isPointer by &-ing with bitMarked and bitPointer.
+// The caller can test morePointers and isPointer by &-ing with bitScan and bitPointer.
 // The result includes in its higher bits the bits for subsequent words
 // described by the same bitmap byte.
 func (h heapBits) bits() uint32 {
@@ -730,7 +730,7 @@ func (h heapBits) initSpan(s *mspan) {
 		end := h.bitp
 		bitp := subtractb(end, nbyte-1)
 		for {
-			*bitp = bitPointerAll | bitMarkedAll
+			*bitp = bitPointerAll | bitScanAll
 			if bitp == end {
 				break
 			}
@@ -945,7 +945,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		b := uint32(*ptrmask)
 		hb := (b & 3) | bitScan
 		if gcphase == _GCoff {
-			// bitPointer == 1, bitMarked is 1 << 4, heapBitsShift is 1.
+			// bitPointer == 1, bitScan is 1 << 4, heapBitsShift is 1.
 			// 110011 is shifted h.shift and complemented.
 			// This clears out the bits that are about to be
 			// ored into *h.hbitp in the next instructions.
@@ -1128,7 +1128,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 
 	// Phase 1: Special case for leading byte (shift==0) or half-byte (shift==4).
 	// The leading byte is special because it contains the bits for word 1,
-	// which does not have the marked bits set.
+	// which does not have the scan bit set.
 	// The leading half-byte is special because it's a half a byte and must be
 	// manipulated atomically.
 	switch {
@@ -1177,7 +1177,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		hb |= bitScan << (2 * heapBitsShift)
 		b >>= 2
 		nb -= 2
-		// Note: no bitMarker for second word because that's
+		// Note: no bitScan for second word because that's
 		// the checkmark.
 		if gcphase == _GCoff {
 			*hbitp &^= uint8((bitPointer | bitScan | (bitPointer << heapBitsShift)) << (2 * heapBitsShift))
@@ -1211,7 +1211,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 		// but we'll stop at the break and then truncate
 		// appropriately in Phase 3.
 		hb = b & bitPointerAll
-		hb |= bitMarkedAll
+		hb |= bitScanAll
 		if w += 4; w >= nw {
 			break
 		}
@@ -1259,7 +1259,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 
 		// Emit bitmap byte.
 		hb = b & bitPointerAll
-		hb |= bitMarkedAll
+		hb |= bitScanAll
 		if w += 4; w >= nw {
 			break
 		}
@@ -1275,7 +1275,7 @@ Phase3:
 		// there are more entries than possible pointer slots.
 		// Discard the excess entries (can't be more than 3).
 		mask := uintptr(1)<<(4-(w-nw)) - 1
-		hb &= mask | mask<<4 // apply mask to both pointer bits and mark bits
+		hb &= mask | mask<<4 // apply mask to both pointer bits and scan bits
 	}
 
 	// Change nw from counting possibly-pointer words to total words in allocation.
@@ -1525,11 +1525,11 @@ Run:
 				dst = add1(dst)
 				bits >>= 8
 			} else {
-				v := bits&bitPointerAll | bitMarkedAll
+				v := bits&bitPointerAll | bitScanAll
 				*dst = uint8(v)
 				dst = subtract1(dst)
 				bits >>= 4
-				v = bits&bitPointerAll | bitMarkedAll
+				v = bits&bitPointerAll | bitScanAll
 				*dst = uint8(v)
 				dst = subtract1(dst)
 				bits >>= 4
@@ -1563,11 +1563,11 @@ Run:
 					dst = add1(dst)
 					bits >>= 8
 				} else {
-					v := bits&0xf | bitMarkedAll
+					v := bits&0xf | bitScanAll
 					*dst = uint8(v)
 					dst = subtract1(dst)
 					bits >>= 4
-					v = bits&0xf | bitMarkedAll
+					v = bits&0xf | bitScanAll
 					*dst = uint8(v)
 					dst = subtract1(dst)
 					bits >>= 4
@@ -1694,7 +1694,7 @@ Run:
 					}
 				} else {
 					for nbits >= 4 {
-						*dst = uint8(bits&0xf | bitMarkedAll)
+						*dst = uint8(bits&0xf | bitScanAll)
 						dst = subtract1(dst)
 						bits >>= 4
 						nbits -= 4
@@ -1752,7 +1752,7 @@ Run:
 			for i := c / 4; i > 0; i-- {
 				bits |= (uintptr(*src) & 0xf) << nbits
 				src = subtract1(src)
-				*dst = uint8(bits&0xf | bitMarkedAll)
+				*dst = uint8(bits&0xf | bitScanAll)
 				dst = subtract1(dst)
 				bits >>= 4
 			}
@@ -1778,7 +1778,7 @@ Run:
 		totalBits = (uintptr(unsafe.Pointer(dstStart))-uintptr(unsafe.Pointer(dst)))*4 + nbits
 		nbits += -nbits & 3
 		for ; nbits > 0; nbits -= 4 {
-			v := bits&0xf | bitMarkedAll
+			v := bits&0xf | bitScanAll
 			*dst = uint8(v)
 			dst = subtract1(dst)
 			bits >>= 4
