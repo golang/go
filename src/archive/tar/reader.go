@@ -208,13 +208,7 @@ func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[strin
 	var sp []sparseEntry
 	var err error
 	if hdr.Typeflag == TypeGNUSparse {
-		var p parser
-		hdr.Size = p.parseNumeric(rawHdr.GNU().RealSize())
-		if p.err != nil {
-			return p.err
-		}
-
-		sp, err = tr.readOldGNUSparseMap(rawHdr)
+		sp, err = tr.readOldGNUSparseMap(hdr, rawHdr)
 		if err != nil {
 			return err
 		}
@@ -493,46 +487,56 @@ func (tr *Reader) readHeader() (*Header, *block, error) {
 	return hdr, &tr.blk, p.err
 }
 
-// readOldGNUSparseMap reads the sparse map as stored in the old GNU sparse format.
-// The sparse map is stored in the tar header if it's small enough. If it's larger than four entries,
-// then one or more extension headers are used to store the rest of the sparse map.
-func (tr *Reader) readOldGNUSparseMap(blk *block) ([]sparseEntry, error) {
-	var p parser
-	var s sparseArray = blk.GNU().Sparse()
-	var sp = make([]sparseEntry, 0, s.MaxEntries())
-	for i := 0; i < s.MaxEntries(); i++ {
-		offset := p.parseOctal(s.Entry(i).Offset())
-		numBytes := p.parseOctal(s.Entry(i).NumBytes())
-		if p.err != nil {
-			return nil, p.err
-		}
-		if offset == 0 && numBytes == 0 {
-			break
-		}
-		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
+// readOldGNUSparseMap reads the sparse map from the old GNU sparse format.
+// The sparse map is stored in the tar header if it's small enough.
+// If it's larger than four entries, then one or more extension headers are used
+// to store the rest of the sparse map.
+//
+// The Header.Size does not reflect the size of any extended headers used.
+// Thus, this function will read from the raw io.Reader to fetch extra headers.
+// This method mutates blk in the process.
+func (tr *Reader) readOldGNUSparseMap(hdr *Header, blk *block) ([]sparseEntry, error) {
+	// Make sure that the input format is GNU.
+	// Unfortunately, the STAR format also has a sparse header format that uses
+	// the same type flag but has a completely different layout.
+	if blk.GetFormat() != formatGNU {
+		return nil, ErrHeader
 	}
 
-	for s.IsExtended()[0] > 0 {
-		// There are more entries. Read an extension header and parse its entries.
-		var blk block
-		if _, err := io.ReadFull(tr.r, blk[:]); err != nil {
-			return nil, err
-		}
-		s = blk.Sparse()
-
+	var p parser
+	hdr.Size = p.parseNumeric(blk.GNU().RealSize())
+	if p.err != nil {
+		return nil, p.err
+	}
+	var s sparseArray = blk.GNU().Sparse()
+	var sp = make([]sparseEntry, 0, s.MaxEntries())
+	for {
 		for i := 0; i < s.MaxEntries(); i++ {
-			offset := p.parseOctal(s.Entry(i).Offset())
-			numBytes := p.parseOctal(s.Entry(i).NumBytes())
+			// This termination condition is identical to GNU and BSD tar.
+			if s.Entry(i).Offset()[0] == 0x00 {
+				break // Don't return, need to process extended headers (even if empty)
+			}
+			offset := p.parseNumeric(s.Entry(i).Offset())
+			numBytes := p.parseNumeric(s.Entry(i).NumBytes())
 			if p.err != nil {
 				return nil, p.err
 			}
-			if offset == 0 && numBytes == 0 {
-				break
-			}
 			sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
 		}
+
+		if s.IsExtended()[0] > 0 {
+			// There are more entries. Read an extension header and parse its entries.
+			if _, err := io.ReadFull(tr.r, blk[:]); err != nil {
+				if err == io.EOF {
+					err = io.ErrUnexpectedEOF
+				}
+				return nil, err
+			}
+			s = blk.Sparse()
+			continue
+		}
+		return sp, nil // Done
 	}
-	return sp, nil
 }
 
 // readGNUSparseMap1x0 reads the sparse map as stored in GNU's PAX sparse format
