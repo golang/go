@@ -894,7 +894,7 @@ func (p *printer) stmtfmt(n *Node) *printer {
 		case n.List.Len() > 0:
 			// range
 			if n.List.Len() != 2 {
-				Fatalf("bad OCASE list length %d", n.List)
+				Fatalf("bad OCASE list length %d", n.List.Len())
 			}
 			p.f("case %v..%v", n.List.First(), n.List.Second())
 		default:
