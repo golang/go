@@ -86,12 +86,11 @@ func TestDtoi(t *testing.T) {
 		ok  bool
 	}{
 		{"", 0, 0, false},
-
-		{"-123456789", -big, 9, false},
-		{"-1", -1, 2, true},
 		{"0", 0, 1, true},
 		{"65536", 65536, 5, true},
 		{"123456789", big, 8, false},
+		{"-0", 0, 0, false},
+		{"-1234", 0, 0, false},
 	} {
 		n, i, ok := dtoi(tt.in)
 		if n != tt.out || i != tt.off || ok != tt.ok {
