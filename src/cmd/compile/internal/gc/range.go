@@ -295,7 +295,7 @@ func walkrange(n *Node) {
 		//   if hv2 < utf8.RuneSelf {
 		//      hv1++
 		//   } else {
-		//      hv2, hv1 = charntorune(ha, hv1)
+		//      hv2, hv1 = decoderune(ha, hv1)
 		//   }
 		//   v2 = hv2
 		//   // original body
@@ -334,9 +334,9 @@ func walkrange(n *Node) {
 		eif := nod(OAS2, nil, nil)
 		nif.Rlist.Set1(eif)
 
-		// hv2, hv1 = charntorune(ha, hv1)
+		// hv2, hv1 = decoderune(ha, hv1)
 		eif.List.Set2(hv2, hv1)
-		fn := syslook("charntorune")
+		fn := syslook("decoderune")
 		eif.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
 
 		body = append(body, nif)
