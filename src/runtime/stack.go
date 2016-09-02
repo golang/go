@@ -598,7 +598,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 				// Live analysis wrong?
 				getg().m.traceback = 2
 				print("runtime: bad pointer in frame ", funcname(f), " at ", pp, ": ", hex(p), "\n")
-				throw("invalid stack pointer")
+				throw("invalid pointer found on stack")
 			}
 			if minp <= p && p < maxp {
 				if stackDebug >= 3 {
