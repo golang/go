@@ -618,6 +618,64 @@ func TestSparseFileReader(t *testing.T) {
 	}
 }
 
+func TestReadOldGNUSparseMap(t *testing.T) {
+	const (
+		t00 = "00000000000\x0000000000000\x00"
+		t11 = "00000000001\x0000000000001\x00"
+		t12 = "00000000001\x0000000000002\x00"
+		t21 = "00000000002\x0000000000001\x00"
+	)
+
+	mkBlk := func(size, sp0, sp1, sp2, sp3, ext string, format int) *block {
+		var blk block
+		copy(blk.GNU().RealSize(), size)
+		copy(blk.GNU().Sparse().Entry(0), sp0)
+		copy(blk.GNU().Sparse().Entry(1), sp1)
+		copy(blk.GNU().Sparse().Entry(2), sp2)
+		copy(blk.GNU().Sparse().Entry(3), sp3)
+		copy(blk.GNU().Sparse().IsExtended(), ext)
+		if format != formatUnknown {
+			blk.SetFormat(format)
+		}
+		return &blk
+	}
+
+	vectors := []struct {
+		data   string        // Input data
+		rawHdr *block        // Input raw header
+		want   []sparseEntry // Expected sparse entries to be outputted
+		err    error         // Expected error to be returned
+	}{
+		{"", mkBlk("", "", "", "", "", "", formatUnknown), nil, ErrHeader},
+		{"", mkBlk("1234", "fewa", "", "", "", "", formatGNU), nil, ErrHeader},
+		{"", mkBlk("0031", "", "", "", "", "", formatGNU), nil, nil},
+		{"", mkBlk("1234", t00, t11, "", "", "", formatGNU),
+			[]sparseEntry{{0, 0}, {1, 1}}, nil},
+		{"", mkBlk("1234", t11, t12, t21, t11, "", formatGNU),
+			[]sparseEntry{{1, 1}, {1, 2}, {2, 1}, {1, 1}}, nil},
+		{"", mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
+			[]sparseEntry{}, io.ErrUnexpectedEOF},
+		{t11 + t11,
+			mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
+			[]sparseEntry{}, io.ErrUnexpectedEOF},
+		{t11 + t21 + strings.Repeat("\x00", 512),
+			mkBlk("1234", t11, t12, t21, t11, "\x80", formatGNU),
+			[]sparseEntry{{1, 1}, {1, 2}, {2, 1}, {1, 1}, {1, 1}, {2, 1}}, nil},
+	}
+
+	for i, v := range vectors {
+		tr := Reader{r: strings.NewReader(v.data)}
+		hdr := new(Header)
+		got, err := tr.readOldGNUSparseMap(hdr, v.rawHdr)
+		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+			t.Errorf("test %d, readOldGNUSparseMap(...): got %v, want %v", i, got, v.want)
+		}
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+		}
+	}
+}
+
 func TestReadGNUSparseMap0x1(t *testing.T) {
 	const (
 		maxUint = ^uint(0)
@@ -854,8 +912,7 @@ func TestReadTruncation(t *testing.T) {
 		{pax + trash[:1], 0, io.ErrUnexpectedEOF},
 		{pax + trash[:511], 0, io.ErrUnexpectedEOF},
 		{sparse[:511], 0, io.ErrUnexpectedEOF},
-		// TODO(dsnet): This should pass, but currently fails.
-		// {sparse[:512], 0, io.ErrUnexpectedEOF},
+		{sparse[:512], 0, io.ErrUnexpectedEOF},
 		{sparse[:3584], 1, io.EOF},
 		{sparse[:9200], 1, io.EOF}, // Terminate in padding of sparse header
 		{sparse[:9216], 1, io.EOF},
