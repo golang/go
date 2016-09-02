@@ -238,6 +238,23 @@ var untarTests = []*untarTest{
 		err:  ErrHeader,
 	},
 	{
+		file: "testdata/pax-pos-size-file.tar",
+		headers: []*Header{{
+			Name:     "foo",
+			Mode:     0640,
+			Uid:      319973,
+			Gid:      5000,
+			Size:     999,
+			ModTime:  time.Unix(1442282516, 0),
+			Typeflag: '0',
+			Uname:    "joetsai",
+			Gname:    "eng",
+		}},
+		chksums: []string{
+			"0afb597b283fe61b5d4879669a350556",
+		},
+	},
+	{
 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
 		headers: []*Header{
 			{
