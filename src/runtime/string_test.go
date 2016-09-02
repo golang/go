@@ -92,6 +92,7 @@ func BenchmarkConcatStringAndBytes(b *testing.B) {
 var stringdata = []struct{ name, data string }{
 	{"ASCII", "01234567890"},
 	{"Japanese", "日本語日本語日本語"},
+	{"MixedLength", "$Ѐࠀက퀀𐀀\U00040000\U0010FFFF"},
 }
 
 func BenchmarkRuneIterate(b *testing.B) {

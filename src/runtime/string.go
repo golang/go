@@ -196,7 +196,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 	var dum [4]byte
 	size1 := 0
 	for _, r := range a {
-		size1 += runetochar(dum[:], r)
+		size1 += encoderune(dum[:], r)
 	}
 	s, b := rawstringtmp(buf, size1+3)
 	size2 := 0
@@ -205,7 +205,7 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 		if size2 >= size1 {
 			break
 		}
-		size2 += runetochar(b[size2:], r)
+		size2 += encoderune(b[size2:], r)
 	}
 	return s[:size2]
 }
@@ -235,9 +235,9 @@ func intstring(buf *[4]byte, v int64) string {
 		s, b = rawstring(4)
 	}
 	if int64(rune(v)) != v {
-		v = runeerror
+		v = runeError
 	}
-	n := runetochar(b, rune(v))
+	n := encoderune(b, rune(v))
 	return s[:n]
 }
 
@@ -378,7 +378,7 @@ func gostringw(strw *uint16) string {
 	str := (*[_MaxMem/2/2 - 1]uint16)(unsafe.Pointer(strw))
 	n1 := 0
 	for i := 0; str[i] != 0; i++ {
-		n1 += runetochar(buf[:], rune(str[i]))
+		n1 += encoderune(buf[:], rune(str[i]))
 	}
 	s, b := rawstring(n1 + 4)
 	n2 := 0
@@ -387,7 +387,7 @@ func gostringw(strw *uint16) string {
 		if n2 >= n1 {
 			break
 		}
-		n2 += runetochar(b[n2:], rune(str[i]))
+		n2 += encoderune(b[n2:], rune(str[i]))
 	}
 	b[n2] = 0 // for luck
 	return s[:n2]
