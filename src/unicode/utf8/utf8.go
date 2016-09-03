@@ -347,6 +347,7 @@ func EncodeRune(p []byte, r rune) int {
 		p[0] = byte(r)
 		return 1
 	case i <= rune2Max:
+		_ = p[1] // eliminate bounds checks
 		p[0] = t2 | byte(r>>6)
 		p[1] = tx | byte(r)&maskx
 		return 2
@@ -354,11 +355,13 @@ func EncodeRune(p []byte, r rune) int {
 		r = RuneError
 		fallthrough
 	case i <= rune3Max:
+		_ = p[2] // eliminate bounds checks
 		p[0] = t3 | byte(r>>12)
 		p[1] = tx | byte(r>>6)&maskx
 		p[2] = tx | byte(r)&maskx
 		return 3
 	default:
+		_ = p[3] // eliminate bounds checks
 		p[0] = t4 | byte(r>>18)
 		p[1] = tx | byte(r>>12)&maskx
 		p[2] = tx | byte(r>>6)&maskx
