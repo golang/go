@@ -42,10 +42,6 @@ type Writer struct {
 	paxHdrBuff block // buffer to use in writeHeader when writing a PAX header
 }
 
-type formatter struct {
-	err error // Last error seen
-}
-
 // NewWriter creates a new Writer writing to w.
 func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
 
@@ -69,56 +65,6 @@ func (tw *Writer) Flush() error {
 	tw.nb = 0
 	tw.pad = 0
 	return tw.err
-}
-
-// Write s into b, terminating it with a NUL if there is room.
-func (f *formatter) formatString(b []byte, s string) {
-	if len(s) > len(b) {
-		f.err = ErrFieldTooLong
-		return
-	}
-	ascii := toASCII(s)
-	copy(b, ascii)
-	if len(ascii) < len(b) {
-		b[len(ascii)] = 0
-	}
-}
-
-// Encode x as an octal ASCII string and write it into b with leading zeros.
-func (f *formatter) formatOctal(b []byte, x int64) {
-	s := strconv.FormatInt(x, 8)
-	// leading zeros, but leave room for a NUL.
-	for len(s)+1 < len(b) {
-		s = "0" + s
-	}
-	f.formatString(b, s)
-}
-
-// fitsInBase256 reports whether x can be encoded into n bytes using base-256
-// encoding. Unlike octal encoding, base-256 encoding does not require that the
-// string ends with a NUL character. Thus, all n bytes are available for output.
-//
-// If operating in binary mode, this assumes strict GNU binary mode; which means
-// that the first byte can only be either 0x80 or 0xff. Thus, the first byte is
-// equivalent to the sign bit in two's complement form.
-func fitsInBase256(n int, x int64) bool {
-	var binBits = uint(n-1) * 8
-	return n >= 9 || (x >= -1<<binBits && x < 1<<binBits)
-}
-
-// Write x into b, as binary (GNUtar/star extension).
-func (f *formatter) formatNumeric(b []byte, x int64) {
-	if fitsInBase256(len(b), x) {
-		for i := len(b) - 1; i >= 0; i-- {
-			b[i] = byte(x)
-			x >>= 8
-		}
-		b[0] |= 0x80 // Highest bit indicates binary format
-		return
-	}
-
-	f.formatOctal(b, 0) // Last resort, just write zero
-	f.err = ErrFieldTooLong
 }
 
 var (
@@ -338,22 +284,6 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 		return err
 	}
 	return nil
-}
-
-// formatPAXRecord formats a single PAX record, prefixing it with the
-// appropriate length.
-func formatPAXRecord(k, v string) string {
-	const padding = 3 // Extra padding for ' ', '=', and '\n'
-	size := len(k) + len(v) + padding
-	size += len(strconv.Itoa(size))
-	record := fmt.Sprintf("%d %s=%s\n", size, k, v)
-
-	// Final adjustment if adding size field increased the record size.
-	if len(record) != size {
-		size = len(record)
-		record = fmt.Sprintf("%d %s=%s\n", size, k, v)
-	}
-	return record
 }
 
 // Write writes to the current entry in the tar archive.

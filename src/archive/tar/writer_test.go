@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
 	"os"
 	"reflect"
 	"sort"
@@ -605,118 +604,6 @@ func TestSplitUSTARPath(t *testing.T) {
 		if prefix != v.prefix || suffix != v.suffix || ok != v.ok {
 			t.Errorf("splitUSTARPath(%q):\ngot  (%q, %q, %v)\nwant (%q, %q, %v)",
 				v.input, prefix, suffix, ok, v.prefix, v.suffix, v.ok)
-		}
-	}
-}
-
-func TestFormatPAXRecord(t *testing.T) {
-	var medName = strings.Repeat("CD", 50)
-	var longName = strings.Repeat("AB", 100)
-
-	var vectors = []struct {
-		inputKey string
-		inputVal string
-		output   string
-	}{
-		{"k", "v", "6 k=v\n"},
-		{"path", "/etc/hosts", "19 path=/etc/hosts\n"},
-		{"path", longName, "210 path=" + longName + "\n"},
-		{"path", medName, "110 path=" + medName + "\n"},
-		{"foo", "ba", "9 foo=ba\n"},
-		{"foo", "bar", "11 foo=bar\n"},
-		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n"},
-		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n"},
-		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n"},
-		{"\x00hello", "\x00world", "17 \x00hello=\x00world\n"},
-	}
-
-	for _, v := range vectors {
-		output := formatPAXRecord(v.inputKey, v.inputVal)
-		if output != v.output {
-			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
-				v.inputKey, v.inputVal, output, v.output)
-		}
-	}
-}
-
-func TestFitsInBase256(t *testing.T) {
-	var vectors = []struct {
-		input int64
-		width int
-		ok    bool
-	}{
-		{+1, 8, true},
-		{0, 8, true},
-		{-1, 8, true},
-		{1 << 56, 8, false},
-		{(1 << 56) - 1, 8, true},
-		{-1 << 56, 8, true},
-		{(-1 << 56) - 1, 8, false},
-		{121654, 8, true},
-		{-9849849, 8, true},
-		{math.MaxInt64, 9, true},
-		{0, 9, true},
-		{math.MinInt64, 9, true},
-		{math.MaxInt64, 12, true},
-		{0, 12, true},
-		{math.MinInt64, 12, true},
-	}
-
-	for _, v := range vectors {
-		ok := fitsInBase256(v.width, v.input)
-		if ok != v.ok {
-			t.Errorf("checkNumeric(%d, %d): got %v, want %v", v.input, v.width, ok, v.ok)
-		}
-	}
-}
-
-func TestFormatNumeric(t *testing.T) {
-	var vectors = []struct {
-		input  int64
-		output string
-		ok     bool
-	}{
-		// Test base-256 (binary) encoded values.
-		{-1, "\xff", true},
-		{-1, "\xff\xff", true},
-		{-1, "\xff\xff\xff", true},
-		{(1 << 0), "0", false},
-		{(1 << 8) - 1, "\x80\xff", true},
-		{(1 << 8), "0\x00", false},
-		{(1 << 16) - 1, "\x80\xff\xff", true},
-		{(1 << 16), "00\x00", false},
-		{-1 * (1 << 0), "\xff", true},
-		{-1*(1<<0) - 1, "0", false},
-		{-1 * (1 << 8), "\xff\x00", true},
-		{-1*(1<<8) - 1, "0\x00", false},
-		{-1 * (1 << 16), "\xff\x00\x00", true},
-		{-1*(1<<16) - 1, "00\x00", false},
-		{537795476381659745, "0000000\x00", false},
-		{537795476381659745, "\x80\x00\x00\x00\x07\x76\xa2\x22\xeb\x8a\x72\x61", true},
-		{-615126028225187231, "0000000\x00", false},
-		{-615126028225187231, "\xff\xff\xff\xff\xf7\x76\xa2\x22\xeb\x8a\x72\x61", true},
-		{math.MaxInt64, "0000000\x00", false},
-		{math.MaxInt64, "\x80\x00\x00\x00\x7f\xff\xff\xff\xff\xff\xff\xff", true},
-		{math.MinInt64, "0000000\x00", false},
-		{math.MinInt64, "\xff\xff\xff\xff\x80\x00\x00\x00\x00\x00\x00\x00", true},
-		{math.MaxInt64, "\x80\x7f\xff\xff\xff\xff\xff\xff\xff", true},
-		{math.MinInt64, "\xff\x80\x00\x00\x00\x00\x00\x00\x00", true},
-	}
-
-	for _, v := range vectors {
-		var f formatter
-		output := make([]byte, len(v.output))
-		f.formatNumeric(output, v.input)
-		ok := (f.err == nil)
-		if ok != v.ok {
-			if v.ok {
-				t.Errorf("formatNumeric(%d): got formatting failure, want success", v.input)
-			} else {
-				t.Errorf("formatNumeric(%d): got formatting success, want failure", v.input)
-			}
-		}
-		if string(output) != v.output {
-			t.Errorf("formatNumeric(%d): got %q, want %q", v.input, output, v.output)
 		}
 	}
 }

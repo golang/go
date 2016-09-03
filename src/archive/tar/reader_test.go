@@ -465,81 +465,6 @@ func TestPartialRead(t *testing.T) {
 	}
 }
 
-func TestParsePAXHeader(t *testing.T) {
-	paxTests := [][3]string{
-		{"a", "a=name", "10 a=name\n"}, // Test case involving multiple acceptable lengths
-		{"a", "a=name", "9 a=name\n"},  // Test case involving multiple acceptable length
-		{"mtime", "mtime=1350244992.023960108", "30 mtime=1350244992.023960108\n"}}
-	for _, test := range paxTests {
-		key, expected, raw := test[0], test[1], test[2]
-		reader := bytes.NewReader([]byte(raw))
-		headers, err := parsePAX(reader)
-		if err != nil {
-			t.Errorf("Couldn't parse correctly formatted headers: %v", err)
-			continue
-		}
-		if strings.EqualFold(headers[key], expected) {
-			t.Errorf("mtime header incorrectly parsed: got %s, wanted %s", headers[key], expected)
-			continue
-		}
-		trailer := make([]byte, 100)
-		n, err := reader.Read(trailer)
-		if err != io.EOF || n != 0 {
-			t.Error("Buffer wasn't consumed")
-		}
-	}
-	badHeaderTests := [][]byte{
-		[]byte("3 somelongkey=\n"),
-		[]byte("50 tooshort=\n"),
-	}
-	for _, test := range badHeaderTests {
-		if _, err := parsePAX(bytes.NewReader(test)); err != ErrHeader {
-			t.Fatal("Unexpected success when parsing bad header")
-		}
-	}
-}
-
-func TestParsePAXTime(t *testing.T) {
-	// Some valid PAX time values
-	timestamps := map[string]time.Time{
-		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The common case
-		"1350244992.02396010":   time.Unix(1350244992, 23960100), // Lower precision value
-		"1350244992.0239601089": time.Unix(1350244992, 23960108), // Higher precision value
-		"1350244992":            time.Unix(1350244992, 0),        // Low precision value
-	}
-	for input, expected := range timestamps {
-		ts, err := parsePAXTime(input)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !ts.Equal(expected) {
-			t.Fatalf("Time parsing failure %s %s", ts, expected)
-		}
-	}
-}
-
-func TestMergePAX(t *testing.T) {
-	hdr := new(Header)
-	// Test a string, integer, and time based value.
-	headers := map[string]string{
-		"path":  "a/b/c",
-		"uid":   "1000",
-		"mtime": "1350244992.023960108",
-	}
-	err := mergePAX(hdr, headers)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := &Header{
-		Name:    "a/b/c",
-		Uid:     1000,
-		ModTime: time.Unix(1350244992, 23960108),
-	}
-	if !reflect.DeepEqual(hdr, want) {
-		t.Errorf("incorrect merge: got %+v, want %+v", hdr, want)
-	}
-}
-
 func TestSparseFileReader(t *testing.T) {
 	var vectors = []struct {
 		realSize   int64         // Real size of the output file
@@ -1035,116 +960,78 @@ func TestReadHeaderOnly(t *testing.T) {
 	}
 }
 
-func TestParsePAXRecord(t *testing.T) {
-	var medName = strings.Repeat("CD", 50)
-	var longName = strings.Repeat("AB", 100)
+func TestMergePAX(t *testing.T) {
+	vectors := []struct {
+		in   map[string]string
+		want *Header
+		ok   bool
+	}{{
+		in: map[string]string{
+			"path":  "a/b/c",
+			"uid":   "1000",
+			"mtime": "1350244992.023960108",
+		},
+		want: &Header{
+			Name:    "a/b/c",
+			Uid:     1000,
+			ModTime: time.Unix(1350244992, 23960108),
+		},
+		ok: true,
+	}, {
+		in: map[string]string{
+			"gid": "gtgergergersagersgers",
+		},
+	}, {
+		in: map[string]string{
+			"missing":          "missing",
+			"SCHILY.xattr.key": "value",
+		},
+		want: &Header{
+			Xattrs: map[string]string{"key": "value"},
+		},
+		ok: true,
+	}}
 
-	var vectors = []struct {
-		input     string
-		residual  string
-		outputKey string
-		outputVal string
-		ok        bool
-	}{
-		{"6 k=v\n\n", "\n", "k", "v", true},
-		{"19 path=/etc/hosts\n", "", "path", "/etc/hosts", true},
-		{"210 path=" + longName + "\nabc", "abc", "path", longName, true},
-		{"110 path=" + medName + "\n", "", "path", medName, true},
-		{"9 foo=ba\n", "", "foo", "ba", true},
-		{"11 foo=bar\n\x00", "\x00", "foo", "bar", true},
-		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
-		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
-		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
-		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
-		{"1 k=1\n", "1 k=1\n", "", "", false},
-		{"6 k~1\n", "6 k~1\n", "", "", false},
-		{"6_k=1\n", "6_k=1\n", "", "", false},
-		{"6 k=1 ", "6 k=1 ", "", "", false},
-		{"632 k=1\n", "632 k=1\n", "", "", false},
-		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
-		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
-		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
-	}
-
-	for _, v := range vectors {
-		key, val, res, err := parsePAXRecord(v.input)
-		ok := (err == nil)
-		if v.ok != ok {
-			if v.ok {
-				t.Errorf("parsePAXRecord(%q): got parsing failure, want success", v.input)
-			} else {
-				t.Errorf("parsePAXRecord(%q): got parsing success, want failure", v.input)
-			}
+	for i, v := range vectors {
+		got := new(Header)
+		err := mergePAX(got, v.in)
+		if v.ok && !reflect.DeepEqual(*got, *v.want) {
+			t.Errorf("test %d, mergePAX(...):\ngot  %+v\nwant %+v", i, *got, *v.want)
 		}
-		if ok && (key != v.outputKey || val != v.outputVal) {
-			t.Errorf("parsePAXRecord(%q): got (%q: %q), want (%q: %q)",
-				v.input, key, val, v.outputKey, v.outputVal)
-		}
-		if res != v.residual {
-			t.Errorf("parsePAXRecord(%q): got residual %q, want residual %q",
-				v.input, res, v.residual)
+		if ok := err == nil; ok != v.ok {
+			t.Errorf("test %d, mergePAX(...): got %v, want %v", i, ok, v.ok)
 		}
 	}
 }
 
-func TestParseNumeric(t *testing.T) {
-	var vectors = []struct {
-		input  string
-		output int64
-		ok     bool
+func TestParsePAX(t *testing.T) {
+	vectors := []struct {
+		in   string
+		want map[string]string
+		ok   bool
 	}{
-		// Test base-256 (binary) encoded values.
-		{"", 0, true},
-		{"\x80", 0, true},
-		{"\x80\x00", 0, true},
-		{"\x80\x00\x00", 0, true},
-		{"\xbf", (1 << 6) - 1, true},
-		{"\xbf\xff", (1 << 14) - 1, true},
-		{"\xbf\xff\xff", (1 << 22) - 1, true},
-		{"\xff", -1, true},
-		{"\xff\xff", -1, true},
-		{"\xff\xff\xff", -1, true},
-		{"\xc0", -1 * (1 << 6), true},
-		{"\xc0\x00", -1 * (1 << 14), true},
-		{"\xc0\x00\x00", -1 * (1 << 22), true},
-		{"\x87\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
-		{"\x80\x00\x00\x00\x07\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
-		{"\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
-		{"\xff\xff\xff\xff\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
-		{"\x80\x7f\xff\xff\xff\xff\xff\xff\xff", math.MaxInt64, true},
-		{"\x80\x80\x00\x00\x00\x00\x00\x00\x00", 0, false},
-		{"\xff\x80\x00\x00\x00\x00\x00\x00\x00", math.MinInt64, true},
-		{"\xff\x7f\xff\xff\xff\xff\xff\xff\xff", 0, false},
-		{"\xf5\xec\xd1\xc7\x7e\x5f\x26\x48\x81\x9f\x8f\x9b", 0, false},
-
-		// Test base-8 (octal) encoded values.
-		{"0000000\x00", 0, true},
-		{" \x0000000\x00", 0, true},
-		{" \x0000003\x00", 3, true},
-		{"00000000227\x00", 0227, true},
-		{"032033\x00 ", 032033, true},
-		{"320330\x00 ", 0320330, true},
-		{"0000660\x00 ", 0660, true},
-		{"\x00 0000660\x00 ", 0660, true},
-		{"0123456789abcdef", 0, false},
-		{"0123456789\x00abcdef", 0, false},
-		{"01234567\x0089abcdef", 342391, true},
-		{"0123\x7e\x5f\x264123", 0, false},
+		{"", nil, true},
+		{"6 k=1\n", map[string]string{"k": "1"}, true},
+		{"10 a=name\n", map[string]string{"a": "name"}, true},
+		{"9 a=name\n", map[string]string{"a": "name"}, true},
+		{"30 mtime=1350244992.023960108\n", map[string]string{"mtime": "1350244992.023960108"}, true},
+		{"3 somelongkey=\n", nil, false},
+		{"50 tooshort=\n", nil, false},
+		{"23 GNU.sparse.offset=0\n25 GNU.sparse.numbytes=1\n" +
+			"23 GNU.sparse.offset=2\n25 GNU.sparse.numbytes=3\n",
+			map[string]string{"GNU.sparse.map": "0,1,2,3"}, true},
+		{"13 key1=haha\n13 key2=nana\n13 key3=kaka\n",
+			map[string]string{"key1": "haha", "key2": "nana", "key3": "kaka"}, true},
 	}
 
-	for _, v := range vectors {
-		var p parser
-		num := p.parseNumeric([]byte(v.input))
-		ok := (p.err == nil)
-		if v.ok != ok {
-			if v.ok {
-				t.Errorf("parseNumeric(%q): got parsing failure, want success", v.input)
-			} else {
-				t.Errorf("parseNumeric(%q): got parsing success, want failure", v.input)
-			}
+	for i, v := range vectors {
+		r := strings.NewReader(v.in)
+		got, err := parsePAX(r)
+		if !reflect.DeepEqual(got, v.want) && !(len(got) == 0 && len(v.want) == 0) {
+			t.Errorf("test %d, parsePAX(...):\ngot  %v\nwant %v", i, got, v.want)
 		}
-		if ok && num != v.output {
-			t.Errorf("parseNumeric(%q): got %d, want %d", v.input, num, v.output)
+		if ok := err == nil; ok != v.ok {
+			t.Errorf("test %d, parsePAX(...): got %v, want %v", i, ok, v.ok)
 		}
 	}
 }
