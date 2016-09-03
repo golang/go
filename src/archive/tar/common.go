@@ -20,6 +20,10 @@ import (
 	"time"
 )
 
+// BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
+// architectures. If a large value is encountered when decoding, the result
+// stored in Header will be the truncated version.
+
 // Header type flags.
 const (
 	TypeReg           = '0'    // regular file
