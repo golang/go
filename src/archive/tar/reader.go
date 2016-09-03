@@ -22,8 +22,6 @@ var (
 	ErrHeader = errors.New("archive/tar: invalid tar header")
 )
 
-const maxNanoSecondIntSize = 9
-
 // A Reader provides sequential access to the contents of a tar archive.
 // A tar archive consists of a sequence of files.
 // The Next method advances to the next file in the archive (including the first),
@@ -38,10 +36,6 @@ type Reader struct {
 	// It is only the responsibility of every exported method of Reader to
 	// ensure that this error is sticky.
 	err error
-}
-
-type parser struct {
-	err error // Last error seen
 }
 
 // A numBytesReader is an io.Reader with a numBytes method, returning the number
@@ -346,42 +340,6 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
 	return nil
 }
 
-// parsePAXTime takes a string of the form %d.%d as described in
-// the PAX specification.
-func parsePAXTime(t string) (time.Time, error) {
-	buf := []byte(t)
-	pos := bytes.IndexByte(buf, '.')
-	var seconds, nanoseconds int64
-	var err error
-	if pos == -1 {
-		seconds, err = strconv.ParseInt(t, 10, 0)
-		if err != nil {
-			return time.Time{}, err
-		}
-	} else {
-		seconds, err = strconv.ParseInt(string(buf[:pos]), 10, 0)
-		if err != nil {
-			return time.Time{}, err
-		}
-		nanoBuf := string(buf[pos+1:])
-		// Pad as needed before converting to a decimal.
-		// For example .030 -> .030000000 -> 30000000 nanoseconds
-		if len(nanoBuf) < maxNanoSecondIntSize {
-			// Right pad
-			nanoBuf += strings.Repeat("0", maxNanoSecondIntSize-len(nanoBuf))
-		} else if len(nanoBuf) > maxNanoSecondIntSize {
-			// Right truncate
-			nanoBuf = nanoBuf[:maxNanoSecondIntSize]
-		}
-		nanoseconds, err = strconv.ParseInt(nanoBuf, 10, 0)
-		if err != nil {
-			return time.Time{}, err
-		}
-	}
-	ts := time.Unix(seconds, nanoseconds)
-	return ts, nil
-}
-
 // parsePAX parses PAX headers.
 // If an extended header (type 'x') is invalid, ErrHeader is returned
 func parsePAX(r io.Reader) (map[string]string, error) {
@@ -421,111 +379,6 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 		headers[paxGNUSparseMap] = sparseMap.String()
 	}
 	return headers, nil
-}
-
-// parsePAXRecord parses the input PAX record string into a key-value pair.
-// If parsing is successful, it will slice off the currently read record and
-// return the remainder as r.
-//
-// A PAX record is of the following form:
-//	"%d %s=%s\n" % (size, key, value)
-func parsePAXRecord(s string) (k, v, r string, err error) {
-	// The size field ends at the first space.
-	sp := strings.IndexByte(s, ' ')
-	if sp == -1 {
-		return "", "", s, ErrHeader
-	}
-
-	// Parse the first token as a decimal integer.
-	n, perr := strconv.ParseInt(s[:sp], 10, 0) // Intentionally parse as native int
-	if perr != nil || n < 5 || int64(len(s)) < n {
-		return "", "", s, ErrHeader
-	}
-
-	// Extract everything between the space and the final newline.
-	rec, nl, rem := s[sp+1:n-1], s[n-1:n], s[n:]
-	if nl != "\n" {
-		return "", "", s, ErrHeader
-	}
-
-	// The first equals separates the key from the value.
-	eq := strings.IndexByte(rec, '=')
-	if eq == -1 {
-		return "", "", s, ErrHeader
-	}
-	return rec[:eq], rec[eq+1:], rem, nil
-}
-
-// parseString parses bytes as a NUL-terminated C-style string.
-// If a NUL byte is not found then the whole slice is returned as a string.
-func (*parser) parseString(b []byte) string {
-	n := 0
-	for n < len(b) && b[n] != 0 {
-		n++
-	}
-	return string(b[0:n])
-}
-
-// parseNumeric parses the input as being encoded in either base-256 or octal.
-// This function may return negative numbers.
-// If parsing fails or an integer overflow occurs, err will be set.
-func (p *parser) parseNumeric(b []byte) int64 {
-	// Check for base-256 (binary) format first.
-	// If the first bit is set, then all following bits constitute a two's
-	// complement encoded number in big-endian byte order.
-	if len(b) > 0 && b[0]&0x80 != 0 {
-		// Handling negative numbers relies on the following identity:
-		//	-a-1 == ^a
-		//
-		// If the number is negative, we use an inversion mask to invert the
-		// data bytes and treat the value as an unsigned number.
-		var inv byte // 0x00 if positive or zero, 0xff if negative
-		if b[0]&0x40 != 0 {
-			inv = 0xff
-		}
-
-		var x uint64
-		for i, c := range b {
-			c ^= inv // Inverts c only if inv is 0xff, otherwise does nothing
-			if i == 0 {
-				c &= 0x7f // Ignore signal bit in first byte
-			}
-			if (x >> 56) > 0 {
-				p.err = ErrHeader // Integer overflow
-				return 0
-			}
-			x = x<<8 | uint64(c)
-		}
-		if (x >> 63) > 0 {
-			p.err = ErrHeader // Integer overflow
-			return 0
-		}
-		if inv == 0xff {
-			return ^int64(x)
-		}
-		return int64(x)
-	}
-
-	// Normal case is base-8 (octal) format.
-	return p.parseOctal(b)
-}
-
-func (p *parser) parseOctal(b []byte) int64 {
-	// Because unused fields are filled with NULs, we need
-	// to skip leading NULs. Fields may also be padded with
-	// spaces or NULs.
-	// So we remove leading and trailing NULs and spaces to
-	// be sure.
-	b = bytes.Trim(b, " \x00")
-
-	if len(b) == 0 {
-		return 0
-	}
-	x, perr := strconv.ParseUint(p.parseString(b), 8, 64)
-	if perr != nil {
-		p.err = ErrHeader
-	}
-	return int64(x)
 }
 
 // skipUnread skips any unread bytes in the existing file entry, as well as any

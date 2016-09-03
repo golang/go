@@ -13,7 +13,6 @@
 package tar
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -269,28 +268,6 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 		return h, sysStat(fi, h)
 	}
 	return h, nil
-}
-
-func isASCII(s string) bool {
-	for _, c := range s {
-		if c >= 0x80 {
-			return false
-		}
-	}
-	return true
-}
-
-func toASCII(s string) string {
-	if isASCII(s) {
-		return s
-	}
-	var buf bytes.Buffer
-	for _, c := range s {
-		if c < 0x80 {
-			buf.WriteByte(byte(c))
-		}
-	}
-	return buf.String()
 }
 
 // isHeaderOnlyType checks if the given type flag is of the type that has no
