@@ -269,13 +269,13 @@ func (tr *Reader) checkForGNUSparsePAXHeaders(hdr *Header, headers map[string]st
 		hdr.Name = sparseName
 	}
 	if sparseSizeOk {
-		realSize, err := strconv.ParseInt(sparseSize, 10, 0)
+		realSize, err := strconv.ParseInt(sparseSize, 10, 64)
 		if err != nil {
 			return nil, ErrHeader
 		}
 		hdr.Size = realSize
 	} else if sparseRealSizeOk {
-		realSize, err := strconv.ParseInt(sparseRealSize, 10, 0)
+		realSize, err := strconv.ParseInt(sparseRealSize, 10, 64)
 		if err != nil {
 			return nil, ErrHeader
 		}
@@ -312,11 +312,11 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
 		case paxGname:
 			hdr.Gname = v
 		case paxUid:
-			id64, err = strconv.ParseInt(v, 10, 0)
-			hdr.Uid = int(id64)
+			id64, err = strconv.ParseInt(v, 10, 64)
+			hdr.Uid = int(id64) // Integer overflow possible
 		case paxGid:
-			id64, err = strconv.ParseInt(v, 10, 0)
-			hdr.Gid = int(id64)
+			id64, err = strconv.ParseInt(v, 10, 64)
+			hdr.Gid = int(id64) // Integer overflow possible
 		case paxAtime:
 			hdr.AccessTime, err = parsePAXTime(v)
 		case paxMtime:
@@ -324,7 +324,7 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
 		case paxCtime:
 			hdr.ChangeTime, err = parsePAXTime(v)
 		case paxSize:
-			hdr.Size, err = strconv.ParseInt(v, 10, 0)
+			hdr.Size, err = strconv.ParseInt(v, 10, 64)
 		default:
 			if strings.HasPrefix(k, paxXattr) {
 				if hdr.Xattrs == nil {
