@@ -352,7 +352,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	if ft.dotdotdot() {
 		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string() + " because dotdotdot")
 	}
-	if ft.dotdotdot() || ft.inCount != 1 {
+	if ft.inCount != 1 {
 		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string())
 	}
 	fint := ft.in()[0]
