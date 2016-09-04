@@ -508,7 +508,7 @@ const (
 // data statements for the constant
 // part of the composite literal.
 
-// staticname return a name backed by a static data symbol.
+// staticname returns a name backed by a static data symbol.
 // Callers should set n.Name.Readonly = true on the
 // returned node for readonly nodes.
 func staticname(t *Type) *Node {
@@ -822,7 +822,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	init.Append(a)
 }
 
-func maplit(ctxt initContext, n *Node, m *Node, init *Nodes) {
+func maplit(n *Node, m *Node, init *Nodes) {
 	// make the map var
 	nerr := nerrors
 
@@ -969,7 +969,7 @@ func maplit(ctxt initContext, n *Node, m *Node, init *Nodes) {
 	}
 }
 
-func anylit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+func anylit(n *Node, var_ *Node, init *Nodes) {
 	t := n.Type
 	switch n.Op {
 	default:
@@ -999,7 +999,7 @@ func anylit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 
 		var_ = Nod(OIND, var_, nil)
 		var_ = typecheck(var_, Erv|Easgn)
-		anylit(ctxt, n.Left, var_, init)
+		anylit(n.Left, var_, init)
 
 	case OSTRUCTLIT, OARRAYLIT:
 		if !t.IsStruct() && !t.IsArray() {
@@ -1007,32 +1007,25 @@ func anylit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		if var_.isSimpleName() && n.List.Len() > 4 {
-			if ctxt == inInitFunction {
-				// lay out static data
-				vstat := staticname(t)
-				vstat.Name.Readonly = true
+			// lay out static data
+			vstat := staticname(t)
+			vstat.Name.Readonly = true
 
-				litctxt := ctxt
-				if n.Op == OARRAYLIT {
-					litctxt = inNonInitFunction
-				}
-				fixedlit(litctxt, initKindStatic, n, vstat, init)
-
-				// copy static to var
-				a := Nod(OAS, var_, vstat)
-
-				a = typecheck(a, Etop)
-				a = walkexpr(a, init)
-				init.Append(a)
-
-				// add expressions to automatic
-				fixedlit(ctxt, initKindDynamic, n, var_, init)
-
-				break
+			ctxt := inInitFunction
+			if n.Op == OARRAYLIT {
+				ctxt = inNonInitFunction
 			}
+			fixedlit(ctxt, initKindStatic, n, vstat, init)
 
-			fixedlit(ctxt, initKindStatic, n, var_, init)
-			fixedlit(ctxt, initKindDynamic, n, var_, init)
+			// copy static to var
+			a := Nod(OAS, var_, vstat)
+
+			a = typecheck(a, Etop)
+			a = walkexpr(a, init)
+			init.Append(a)
+
+			// add expressions to automatic
+			fixedlit(inInitFunction, initKindDynamic, n, var_, init)
 			break
 		}
 
@@ -1050,48 +1043,48 @@ func anylit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 			init.Append(a)
 		}
 
-		fixedlit(ctxt, initKindLocalCode, n, var_, init)
+		fixedlit(inInitFunction, initKindLocalCode, n, var_, init)
 
 	case OSLICELIT:
-		slicelit(ctxt, n, var_, init)
+		slicelit(inInitFunction, n, var_, init)
 
 	case OMAPLIT:
 		if !t.IsMap() {
 			Fatalf("anylit: not map")
 		}
-		maplit(ctxt, n, var_, init)
+		maplit(n, var_, init)
 	}
 }
 
 func oaslit(n *Node, init *Nodes) bool {
 	if n.Left == nil || n.Right == nil {
-		// not a special composit literal assignment
+		// not a special composite literal assignment
 		return false
 	}
 	if n.Left.Type == nil || n.Right.Type == nil {
-		// not a special composit literal assignment
+		// not a special composite literal assignment
 		return false
 	}
 	if !n.Left.isSimpleName() {
-		// not a special composit literal assignment
+		// not a special composite literal assignment
 		return false
 	}
 	if !Eqtype(n.Left.Type, n.Right.Type) {
-		// not a special composit literal assignment
+		// not a special composite literal assignment
 		return false
 	}
 
 	switch n.Right.Op {
 	default:
-		// not a special composit literal assignment
+		// not a special composite literal assignment
 		return false
 
 	case OSTRUCTLIT, OARRAYLIT, OSLICELIT, OMAPLIT:
 		if vmatch1(n.Left, n.Right) {
-			// not a special composit literal assignment
+			// not a special composite literal assignment
 			return false
 		}
-		anylit(inInitFunction, n.Right, n.Left, init)
+		anylit(n.Right, n.Left, init)
 	}
 
 	n.Op = OEMPTY
