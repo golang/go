@@ -841,18 +841,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpVarLive:
 		gc.Gvarlive(v.Aux.(*gc.Node))
 	case ssa.OpKeepAlive:
-		if !v.Args[0].Type.IsPtrShaped() {
-			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
-		}
-		n, off := gc.AutoVar(v.Args[0])
-		if n == nil {
-			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
-		}
-		if off != 0 {
-			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
-		}
-		gc.Gvarlive(n)
-
+		gc.KeepAlive(v)
 	case ssa.OpPhi:
 		gc.CheckLoweredPhi(v)
 
