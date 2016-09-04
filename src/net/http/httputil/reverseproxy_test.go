@@ -342,7 +342,7 @@ func TestReverseProxyCancelation(t *testing.T) {
 	}()
 	res, err := http.DefaultClient.Do(getReq)
 	if res != nil {
-		t.Error("got response %v; want nil", res.Status)
+		t.Errorf("got response %v; want nil", res.Status)
 	}
 	if err == nil {
 		// This should be an error like:
