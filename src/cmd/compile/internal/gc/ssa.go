@@ -4568,6 +4568,25 @@ func CheckLoweredGetClosurePtr(v *ssa.Value) {
 	}
 }
 
+// KeepAlive marks the variable referenced by OpKeepAlive as live.
+// Called during ssaGenValue.
+func KeepAlive(v *ssa.Value) {
+	if v.Op != ssa.OpKeepAlive {
+		v.Fatalf("KeepAlive called with non-KeepAlive value: %v", v.LongString())
+	}
+	if !v.Args[0].Type.IsPtrShaped() {
+		v.Fatalf("keeping non-pointer alive %v", v.Args[0])
+	}
+	n, off := AutoVar(v.Args[0])
+	if n == nil {
+		v.Fatalf("KeepAlive with non-spilled value %s %s", v, v.Args[0])
+	}
+	if off != 0 {
+		v.Fatalf("KeepAlive with non-zero offset spill location %s:%d", n, off)
+	}
+	Gvarlive(n)
+}
+
 // AutoVar returns a *Node and int64 representing the auto variable and offset within it
 // where v should be spilled.
 func AutoVar(v *ssa.Value) (*Node, int64) {
