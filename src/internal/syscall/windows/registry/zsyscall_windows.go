@@ -10,6 +10,31 @@ import (
 
 var _ unsafe.Pointer
 
+// Do the interface allocations only once for common
+// Errno values.
+const (
+	errnoWSAEINPROGRESS = 10036
+)
+
+var (
+	errWSAEINPROGRESS error = syscall.Errno(errnoWSAEINPROGRESS)
+)
+
+// errnoErr returns common boxed Errno values, to prevent
+// allocations at runtime.
+func errnoErr(e syscall.Errno) error {
+	switch e {
+	case 0:
+		return nil
+	case errnoWSAEINPROGRESS:
+		return errWSAEINPROGRESS
+	}
+	// TODO: add more here, after collecting data on the common
+	// error values see on Windows. (perhaps when running
+	// all.bat?)
+	return e
+}
+
 var (
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
@@ -76,7 +101,7 @@ func expandEnvironmentStrings(src *uint16, dst *uint16, size uint32) (n uint32, 
 	n = uint32(r0)
 	if n == 0 {
 		if e1 != 0 {
-			err = error(e1)
+			err = errnoErr(e1)
 		} else {
 			err = syscall.EINVAL
 		}
