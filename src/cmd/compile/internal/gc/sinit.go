@@ -860,7 +860,9 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	init.Append(a)
 }
 
-func maplit(n *Node, m *Node, init *Nodes) {
+func maplit(ctxt int, n *Node, m *Node, init *Nodes) {
+	ctxt = 0
+
 	// make the map var
 	nerr := nerrors
 
@@ -892,8 +894,8 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		dowidth(tv)
 
 		// make and initialize static arrays
-		vstatk := staticname(tk, 0)
-		vstatv := staticname(tv, 0)
+		vstatk := staticname(tk, ctxt)
+		vstatv := staticname(tv, ctxt)
 
 		b := int64(0)
 		for _, r := range n.List.Slice() {
@@ -1005,7 +1007,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	}
 }
 
-func anylit(n *Node, var_ *Node, init *Nodes) {
+func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	t := n.Type
 	switch n.Op {
 	default:
@@ -1035,7 +1037,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 
 		var_ = Nod(OIND, var_, nil)
 		var_ = typecheck(var_, Erv|Easgn)
-		anylit(n.Left, var_, init)
+		anylit(ctxt, n.Left, var_, init)
 
 	case OSTRUCTLIT:
 		if !t.IsStruct() {
@@ -1043,21 +1045,27 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 		}
 
 		if var_.isSimpleName() && n.List.Len() > 4 {
-			// lay out static data
-			vstat := staticname(t, 0)
+			if ctxt == 0 {
+				// lay out static data
+				vstat := staticname(t, ctxt)
 
-			structlit(0, 1, n, vstat, init)
+				structlit(ctxt, 1, n, vstat, init)
 
-			// copy static to var
-			a := Nod(OAS, var_, vstat)
+				// copy static to var
+				a := Nod(OAS, var_, vstat)
 
-			a = typecheck(a, Etop)
-			a = walkexpr(a, init)
-			init.Append(a)
+				a = typecheck(a, Etop)
+				a = walkexpr(a, init)
+				init.Append(a)
 
-			// add expressions to automatic
-			structlit(0, 2, n, var_, init)
+				// add expressions to automatic
+				structlit(ctxt, 2, n, var_, init)
 
+				break
+			}
+
+			structlit(ctxt, 1, n, var_, init)
+			structlit(ctxt, 2, n, var_, init)
 			break
 		}
 
@@ -1069,11 +1077,11 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 			init.Append(a)
 		}
 
-		structlit(0, 3, n, var_, init)
+		structlit(ctxt, 3, n, var_, init)
 
 	case OARRAYLIT:
 		if t.IsSlice() {
-			slicelit(0, n, var_, init)
+			slicelit(ctxt, n, var_, init)
 			break
 		}
 		if !t.IsArray() {
@@ -1081,20 +1089,27 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 		}
 
 		if var_.isSimpleName() && n.List.Len() > 4 {
-			// lay out static data
-			vstat := staticname(t, 0)
+			if ctxt == 0 {
+				// lay out static data
+				vstat := staticname(t, ctxt)
 
-			arraylit(1, 1, n, vstat, init)
+				arraylit(1, 1, n, vstat, init)
 
-			// copy static to automatic
-			a := Nod(OAS, var_, vstat)
-			a = typecheck(a, Etop)
-			a = walkexpr(a, init)
-			init.Append(a)
+				// copy static to automatic
+				a := Nod(OAS, var_, vstat)
 
-			// add expressions to automatic
-			arraylit(0, 2, n, var_, init)
+				a = typecheck(a, Etop)
+				a = walkexpr(a, init)
+				init.Append(a)
 
+				// add expressions to automatic
+				arraylit(ctxt, 2, n, var_, init)
+
+				break
+			}
+
+			arraylit(ctxt, 1, n, var_, init)
+			arraylit(ctxt, 2, n, var_, init)
 			break
 		}
 
@@ -1106,13 +1121,13 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 			init.Append(a)
 		}
 
-		arraylit(0, 3, n, var_, init)
+		arraylit(ctxt, 3, n, var_, init)
 
 	case OMAPLIT:
 		if !t.IsMap() {
 			Fatalf("anylit: not map")
 		}
-		maplit(n, var_, init)
+		maplit(ctxt, n, var_, init)
 	}
 }
 
@@ -1134,6 +1149,14 @@ func oaslit(n *Node, init *Nodes) bool {
 		return false
 	}
 
+	// context is init() function.
+	// implies generated data executed
+	// exactly once and not subject to races.
+	ctxt := 0
+
+	//	if(n->dodata == 1)
+	//		ctxt = 1;
+
 	switch n.Right.Op {
 	default:
 		// not a special composit literal assignment
@@ -1144,7 +1167,7 @@ func oaslit(n *Node, init *Nodes) bool {
 			// not a special composit literal assignment
 			return false
 		}
-		anylit(n.Right, n.Left, init)
+		anylit(ctxt, n.Right, n.Left, init)
 	}
 
 	n.Op = OEMPTY

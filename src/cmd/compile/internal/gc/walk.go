@@ -1647,7 +1647,7 @@ opswitch:
 			break
 		}
 		var_ := temp(n.Type)
-		anylit(n, var_, init)
+		anylit(0, n, var_, init)
 		n = var_
 
 	case OSEND:
