@@ -10,6 +10,31 @@ import (
 
 var _ unsafe.Pointer
 
+// Do the interface allocations only once for common
+// Errno values.
+const (
+	errnoWSAEINPROGRESS = 10036
+)
+
+var (
+	errWSAEINPROGRESS error = syscall.Errno(errnoWSAEINPROGRESS)
+)
+
+// errnoErr returns common boxed Errno values, to prevent
+// allocations at runtime.
+func errnoErr(e syscall.Errno) error {
+	switch e {
+	case 0:
+		return nil
+	case errnoWSAEINPROGRESS:
+		return errWSAEINPROGRESS
+	}
+	// TODO: add more here, after collecting data on the common
+	// error values see on Windows. (perhaps when running
+	// all.bat?)
+	return e
+}
+
 var (
 	modiphlpapi = syscall.NewLazyDLL(sysdll.Add("iphlpapi.dll"))
 	modkernel32 = syscall.NewLazyDLL(sysdll.Add("kernel32.dll"))
@@ -33,7 +58,7 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetComputerNameExW.Addr(), 3, uintptr(nameformat), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)))
 	if r1 == 0 {
 		if e1 != 0 {
-			err = error(e1)
+			err = errnoErr(e1)
 		} else {
 			err = syscall.EINVAL
 		}
@@ -45,7 +70,7 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
 	if r1 == 0 {
 		if e1 != 0 {
-			err = error(e1)
+			err = errnoErr(e1)
 		} else {
 			err = syscall.EINVAL
 		}
@@ -64,7 +89,7 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 	nwrite = int32(r0)
 	if nwrite == 0 {
 		if e1 != 0 {
-			err = error(e1)
+			err = errnoErr(e1)
 		} else {
 			err = syscall.EINVAL
 		}
