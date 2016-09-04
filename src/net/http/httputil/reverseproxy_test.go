@@ -156,12 +156,17 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	frontend := httptest.NewServer(proxyHandler)
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyHandler.ServeHTTP(w, r)
+		if c := r.Header.Get("Upgrade"); c != "original value" {
+			t.Errorf("handler modified header %q = %q; want %q", "Upgrade", c, "original value")
+		}
+	}))
 	defer frontend.Close()
 
 	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
 	getReq.Header.Set("Connection", "Upgrade, "+fakeConnectionToken)
-	getReq.Header.Set("Upgrade", "foo")
+	getReq.Header.Set("Upgrade", "original value")
 	getReq.Header.Set(fakeConnectionToken, "should be deleted")
 	res, err := http.DefaultClient.Do(getReq)
 	if err != nil {
