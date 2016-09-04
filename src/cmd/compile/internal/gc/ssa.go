@@ -1857,19 +1857,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 		if n.Type.IsFloat() {
 			return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
-		} else {
-			// do a size-appropriate check for zero
-			cmp := s.newValue2(s.ssaOp(ONE, n.Type), Types[TBOOL], b, s.zeroVal(n.Type))
-			s.check(cmp, panicdivide)
-			return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 		}
+		return s.intDivide(n, a, b)
 	case OMOD:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
-		// do a size-appropriate check for zero
-		cmp := s.newValue2(s.ssaOp(ONE, n.Type), Types[TBOOL], b, s.zeroVal(n.Type))
-		s.check(cmp, panicdivide)
-		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+		return s.intDivide(n, a, b)
 	case OADD, OSUB:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
@@ -3228,6 +3221,22 @@ func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b.AddEdgeTo(bNext)
 	b.AddEdgeTo(bPanic)
 	s.startBlock(bNext)
+}
+
+func (s *state) intDivide(n *Node, a, b *ssa.Value) *ssa.Value {
+	needcheck := true
+	switch b.Op {
+	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
+		if b.AuxInt != 0 {
+			needcheck = false
+		}
+	}
+	if needcheck {
+		// do a size-appropriate check for zero
+		cmp := s.newValue2(s.ssaOp(ONE, n.Type), Types[TBOOL], b, s.zeroVal(n.Type))
+		s.check(cmp, panicdivide)
+	}
+	return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 }
 
 // rtcall issues a call to the given runtime function fn with the listed args.
