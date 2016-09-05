@@ -6872,6 +6872,7 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxSymOff,
 		argLen:       3,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -6888,6 +6889,7 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxSymOff,
 		argLen:       3,
 		resultInArg0: true,
+		clobberFlags: true,
 		asm:          x86.AXADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -6910,10 +6912,11 @@ var opcodeTable = [...]opInfo{
 		reg:    regInfo{},
 	},
 	{
-		name:    "CMPXCHGLlock",
-		auxType: auxSymOff,
-		argLen:  4,
-		asm:     x86.ACMPXCHGL,
+		name:         "CMPXCHGLlock",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		asm:          x86.ACMPXCHGL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1},     // AX
@@ -6928,10 +6931,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "CMPXCHGQlock",
-		auxType: auxSymOff,
-		argLen:  4,
-		asm:     x86.ACMPXCHGQ,
+		name:         "CMPXCHGQlock",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		asm:          x86.ACMPXCHGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1},     // AX
@@ -6946,10 +6950,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "ANDBlock",
-		auxType: auxSymOff,
-		argLen:  3,
-		asm:     x86.AANDB,
+		name:         "ANDBlock",
+		auxType:      auxSymOff,
+		argLen:       3,
+		clobberFlags: true,
+		asm:          x86.AANDB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
@@ -6958,10 +6963,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "ORBlock",
-		auxType: auxSymOff,
-		argLen:  3,
-		asm:     x86.AORB,
+		name:         "ORBlock",
+		auxType:      auxSymOff,
+		argLen:       3,
+		clobberFlags: true,
+		asm:          x86.AORB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
