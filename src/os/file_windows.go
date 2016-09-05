@@ -15,11 +15,6 @@ import (
 	"unsafe"
 )
 
-// File represents an open file descriptor.
-type File struct {
-	*file
-}
-
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
 // can overwrite this data, which could cause the finalizer
