@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMultiReader(t *testing.T) {
@@ -232,5 +233,34 @@ func TestMultiReaderFinalEOF(t *testing.T) {
 	n, err := r.Read(buf)
 	if n != 1 || err != EOF {
 		t.Errorf("got %v, %v; want 1, EOF", n, err)
+	}
+}
+
+func TestMultiReaderFreesExhaustedReaders(t *testing.T) {
+	var mr Reader
+	closed := make(chan struct{})
+	{
+		buf1 := bytes.NewReader([]byte("foo"))
+		buf2 := bytes.NewReader([]byte("bar"))
+		mr = MultiReader(buf1, buf2)
+		runtime.SetFinalizer(buf1, func(*bytes.Reader) {
+			close(closed)
+		})
+	}
+
+	buf := make([]byte, 4)
+	if n, err := ReadFull(mr, buf); err != nil || string(buf) != "foob" {
+		t.Fatalf(`ReadFull = %d (%q), %v; want 3, "foo", nil`, n, buf[:n], err)
+	}
+
+	runtime.GC()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for collection of buf1")
+	}
+
+	if n, err := ReadFull(mr, buf[:2]); err != nil || string(buf[:2]) != "ar" {
+		t.Fatalf(`ReadFull = %d (%q), %v; want 2, "ar", nil`, n, buf[:n], err)
 	}
 }
