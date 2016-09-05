@@ -12,6 +12,11 @@ import (
 // Getpagesize returns the underlying system's memory page size.
 func Getpagesize() int { return syscall.Getpagesize() }
 
+// File represents an open file descriptor.
+type File struct {
+	*file // os specific
+}
+
 // A FileInfo describes a file and is returned by Stat and Lstat.
 type FileInfo interface {
 	Name() string       // base name of the file
