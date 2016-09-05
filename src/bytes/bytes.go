@@ -131,14 +131,12 @@ func LastIndexByte(s []byte, c byte) int {
 // It returns the byte index of the first occurrence in s of the given rune.
 // It returns -1 if rune is not present in s.
 func IndexRune(s []byte, r rune) int {
-	for i := 0; i < len(s); {
-		r1, size := utf8.DecodeRune(s[i:])
-		if r == r1 {
-			return i
-		}
-		i += size
+	if r < utf8.RuneSelf {
+		return IndexByte(s, byte(r))
 	}
-	return -1
+	var b [utf8.UTFMax]byte
+	n := utf8.EncodeRune(b[:], r)
+	return Index(s, b[:n])
 }
 
 // IndexAny interprets s as a sequence of UTF-8-encoded Unicode code points.
