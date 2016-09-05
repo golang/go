@@ -15,13 +15,14 @@ const MNT_WAIT = 1
 
 func TestGetfsstat(t *testing.T) {
 	n, err := syscall.Getfsstat(nil, MNT_WAIT)
+	t.Logf("Getfsstat(nil, MNT_WAIT) = (%v, %v)", n, err)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("num fs = %v", n)
 
 	data := make([]syscall.Statfs_t, n)
 	n, err = syscall.Getfsstat(data, MNT_WAIT)
+	t.Logf("Getfsstat([]syscall.Statfs_t, MNT_WAIT) = (%v, %v)", n, err)
 	if err != nil {
 		t.Fatal(err)
 	}
