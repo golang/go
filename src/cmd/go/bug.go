@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -83,15 +82,7 @@ func printCDetails() {
 }
 
 func inspectGoVersion() {
-	resp, err := http.Get("https://golang.org/VERSION?m=text")
-	if err != nil {
-		if buildV {
-			fmt.Printf("failed to GET golang.org/VERSION: %v\n", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	data, err := httpGET("https://golang.org/VERSION?m=text")
 	if err != nil {
 		if buildV {
 			fmt.Printf("failed to read from golang.org/VERSION: %v\n", err)
@@ -102,7 +93,7 @@ func inspectGoVersion() {
 	// golang.org/VERSION currently returns a whitespace-free string,
 	// but just in case, protect against that changing.
 	// Similarly so for runtime.Version.
-	release := string(bytes.TrimSpace(body))
+	release := string(bytes.TrimSpace(data))
 	vers := strings.TrimSpace(runtime.Version())
 
 	if vers == release {
