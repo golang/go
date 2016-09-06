@@ -453,9 +453,9 @@ func (ctxt *Link) loadlib() {
 			Linkmode = LinkExternal
 		}
 
-		// Force external linking for PIE executables, as
-		// internal linking does not support TLS_IE.
-		if Buildmode == BuildmodePIE {
+		// Force external linking for PIE binaries on systems
+		// that do not support internal PIE linking.
+		if Buildmode == BuildmodePIE && (obj.GOOS != "linux" || SysArch.Family != sys.AMD64) {
 			Linkmode = LinkExternal
 		}
 
@@ -636,8 +636,7 @@ func (ctxt *Link) loadlib() {
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
-	switch Buildmode {
-	case BuildmodeExe, BuildmodePIE:
+	if Buildmode == BuildmodeExe {
 		if havedynamic == 0 && Headtype != obj.Hdarwin && Headtype != obj.Hsolaris {
 			*FlagD = true
 		}
