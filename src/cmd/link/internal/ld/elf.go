@@ -2589,6 +2589,8 @@ elfobj:
 
 	if Linkmode == LinkExternal {
 		eh.type_ = ET_REL
+	} else if Buildmode == BuildmodePIE {
+		eh.type_ = ET_DYN
 	} else {
 		eh.type_ = ET_EXEC
 	}
