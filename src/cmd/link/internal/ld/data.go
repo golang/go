@@ -456,6 +456,9 @@ func relocsym(ctxt *Link, s *Symbol) {
 				}
 				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
 				o = int64(ctxt.Tlsoffset)
+				// TODO: o += r.Add when SysArch.Family != sys.AMD64?
+				// Why do we treat r.Add differently on AMD64?
+				// Is the external linker using Xadd at all?
 			} else {
 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", s.Name)
 			}
