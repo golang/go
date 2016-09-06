@@ -798,6 +798,9 @@ func tlsIEtoLE(s *ld.Symbol, off, size int) {
 	//
 	// To determine the instruction and register, we study the op codes.
 	// Consult an AMD64 instruction encoding guide to decipher this.
+	if off < 3 {
+		log.Fatal("R_X86_64_GOTTPOFF reloc not preceded by MOVQ or ADDQ instruction")
+	}
 	op := s.P[off-3 : off]
 	reg := op[2] >> 3
 
