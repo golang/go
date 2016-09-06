@@ -586,13 +586,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				o += Symaddr(ctxt, r.Sym)
 			}
 
-			// NOTE: The (int32) cast on the next line works around a bug in Plan 9's 8c
-			// compiler. The expression s->value + r->off + r->siz is int32 + int32 +
-			// uchar, and Plan 9 8c incorrectly treats the expression as type uint32
-			// instead of int32, causing incorrect values when sign extended for adding
-			// to o. The bug only occurs on Plan 9, because this C program is compiled by
-			// the standard host compiler (gcc on most other systems).
-			o += r.Add - (s.Value + int64(r.Off) + int64(int32(r.Siz)))
+			o += r.Add - (s.Value + int64(r.Off) + int64(r.Siz))
 
 		case obj.R_SIZE:
 			o = r.Sym.Size + r.Add
