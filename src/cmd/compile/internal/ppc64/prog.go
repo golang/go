@@ -112,6 +112,8 @@ var progtable = [ppc64.ALAST & obj.AMask]obj.ProgInfo{
 	// Jumps
 	ppc64.ABR & obj.AMask:  {Flags: gc.Jump | gc.Break},
 	ppc64.ABL & obj.AMask:  {Flags: gc.Call},
+	ppc64.ABVS & obj.AMask: {Flags: gc.Cjmp},
+	ppc64.ABVC & obj.AMask: {Flags: gc.Cjmp},
 	ppc64.ABEQ & obj.AMask: {Flags: gc.Cjmp},
 	ppc64.ABNE & obj.AMask: {Flags: gc.Cjmp},
 	ppc64.ABGE & obj.AMask: {Flags: gc.Cjmp},
