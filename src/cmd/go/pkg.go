@@ -849,7 +849,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	// Currently build modes c-shared, pie, and -linkshared force
 	// external linking mode, and external linking mode forces an
 	// import of runtime/cgo.
-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "pie" || buildLinkshared) {
+	pieCgo := buildBuildmode == "pie" && (buildContext.GOOS != "linux" || buildContext.GOARCH != "amd64")
+	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || pieCgo || buildLinkshared) {
 		importPaths = append(importPaths, "runtime/cgo")
 	}
 
