@@ -111,6 +111,14 @@ type Arch struct {
 	Append16         func(b []byte, v uint16) []byte
 	Append32         func(b []byte, v uint32) []byte
 	Append64         func(b []byte, v uint64) []byte
+
+	// TLSIEtoLE converts a TLS Initial Executable relocation to
+	// a TLS Local Executable relocation.
+	//
+	// This is possible when a TLS IE relocation refers to a local
+	// symbol in an executable, which is typical when internally
+	// linking PIE binaries.
+	TLSIEtoLE func(s *Symbol, off, size int)
 }
 
 var (

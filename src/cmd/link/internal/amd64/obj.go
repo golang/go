@@ -73,6 +73,7 @@ func linkarchinit() {
 	ld.Thearch.Append16 = ld.Append16l
 	ld.Thearch.Append32 = ld.Append32l
 	ld.Thearch.Append64 = ld.Append64l
+	ld.Thearch.TLSIEtoLE = tlsIEtoLE
 
 	ld.Thearch.Linuxdynld = "/lib64/ld-linux-x86-64.so.2"
 	ld.Thearch.Freebsddynld = "/libexec/ld-elf.so.1"
