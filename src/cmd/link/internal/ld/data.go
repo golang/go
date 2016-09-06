@@ -448,7 +448,17 @@ func relocsym(ctxt *Link, s *Symbol) {
 				}
 				break
 			}
-			log.Fatalf("cannot handle R_TLS_IE when linking internally")
+			if Buildmode == BuildmodePIE && Iself {
+				// We are linking the final executable, so we
+				// can optimize any TLS IE relocation to LE.
+				if Thearch.TLSIEtoLE == nil {
+					log.Fatalf("internal linking of TLS IE not supported on %s", SysArch.Family)
+				}
+				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
+				o = int64(ctxt.Tlsoffset)
+			} else {
+				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", s.Name)
+			}
 
 		case obj.R_ADDR:
 			if Linkmode == LinkExternal && r.Sym.Type != obj.SCONST {
