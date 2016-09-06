@@ -560,14 +560,6 @@ func substAny(t *Type, types *[]*Type) *Type {
 		params := substAny(t.Params(), types)
 		results := substAny(t.Results(), types)
 		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
-			// Note that this code has to be aware of the
-			// representation underlying Recvs/Results/Params.
-			if recvs == t.Recvs() {
-				recvs = recvs.Copy()
-			}
-			if results == t.Results() {
-				results = results.Copy()
-			}
 			t = t.Copy()
 			t.FuncType().Receiver = recvs
 			t.FuncType().Results = results
