@@ -236,6 +236,7 @@ const (
 	PT_LOPROC            = 0x70000000
 	PT_HIPROC            = 0x7fffffff
 	PT_GNU_STACK         = 0x6474e551
+	PT_GNU_RELRO         = 0x6474e552
 	PT_PAX_FLAGS         = 0x65041580
 	PF_X                 = 0x1
 	PF_W                 = 0x2
@@ -1599,6 +1600,17 @@ func elfphload(ctxt *Link, seg *Segment) *ElfPhdr {
 	return ph
 }
 
+func elfphrelro(ctxt *Link, seg *Segment) {
+	ph := newElfPhdr(ctxt)
+	ph.type_ = PT_GNU_RELRO
+	ph.vaddr = seg.Vaddr
+	ph.paddr = seg.Vaddr
+	ph.memsz = seg.Length
+	ph.off = seg.Fileoff
+	ph.filesz = seg.Filelen
+	ph.align = uint64(*FlagRound)
+}
+
 func elfshname(ctxt *Link, name string) *ElfShdr {
 	var off int
 	var sh *ElfShdr
@@ -2291,6 +2303,7 @@ func Asmbelf(ctxt *Link, symo int64) {
 	}
 	if Segrelrodata.Sect != nil {
 		elfphload(ctxt, &Segrelrodata)
+		elfphrelro(ctxt, &Segrelrodata)
 	}
 	elfphload(ctxt, &Segdata)
 
