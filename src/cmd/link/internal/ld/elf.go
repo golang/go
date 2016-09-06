@@ -1783,6 +1783,9 @@ func Elfemitreloc(ctxt *Link) {
 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 		elfrelocsect(ctxt, sect, datap)
 	}
+	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+		elfrelocsect(ctxt, sect, datap)
+	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfrelocsect(ctxt, sect, datap)
 	}
@@ -2114,6 +2117,9 @@ func Asmbelfsetup(ctxt *Link) {
 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 		elfshalloc(ctxt, sect)
 	}
+	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+		elfshalloc(ctxt, sect)
+	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfshalloc(ctxt, sect)
 	}
@@ -2282,6 +2288,9 @@ func Asmbelf(ctxt *Link, symo int64) {
 	elfphload(ctxt, &Segtext)
 	if Segrodata.Sect != nil {
 		elfphload(ctxt, &Segrodata)
+	}
+	if Segrelrodata.Sect != nil {
+		elfphload(ctxt, &Segrelrodata)
 	}
 	elfphload(ctxt, &Segdata)
 
@@ -2482,6 +2491,9 @@ elfobj:
 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
 		elfshbits(ctxt, sect)
 	}
+	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
+		elfshbits(ctxt, sect)
+	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfshbits(ctxt, sect)
 	}
@@ -2494,6 +2506,9 @@ elfobj:
 			elfshreloc(ctxt, sect)
 		}
 		for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+			elfshreloc(ctxt, sect)
+		}
+		for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
 			elfshreloc(ctxt, sect)
 		}
 		for sect := Segdata.Sect; sect != nil; sect = sect.Next {

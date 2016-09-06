@@ -1508,6 +1508,33 @@ func (ctxt *Link) dodata() {
 	}
 	sect.Length = uint64(datsize) - sect.Vaddr
 
+	/* read-only ELF, Mach-O sections */
+	for _, s := range data[obj.SELFROSECT] {
+		sect = addsection(segro, s.Name, 04)
+		sect.Align = symalign(s)
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		s.Sect = sect
+		s.Type = obj.SRODATA
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		datsize += s.Size
+		sect.Length = uint64(datsize) - sect.Vaddr
+	}
+	checkdatsize(ctxt, datsize, obj.SELFROSECT)
+
+	for _, s := range data[obj.SMACHOPLT] {
+		sect = addsection(segro, s.Name, 04)
+		sect.Align = symalign(s)
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		s.Sect = sect
+		s.Type = obj.SRODATA
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		datsize += s.Size
+		sect.Length = uint64(datsize) - sect.Vaddr
+	}
+	checkdatsize(ctxt, datsize, obj.SMACHOPLT)
+
 	// There is some data that are conceptually read-only but are written to by
 	// relocations. On GNU systems, we can arrange for the dynamic linker to
 	// mprotect sections after relocations are applied by giving them write
@@ -1518,14 +1545,26 @@ func (ctxt *Link) dodata() {
 	// situation.
 	// TODO(mwhudson): It would make sense to do this more widely, but it makes
 	// the system linker segfault on darwin.
-	relroPerms := 04
-	relroPrefix := ""
+	addrelrosection := func(suffix string) *Section {
+		return addsection(segro, suffix, 04)
+	}
 
 	if UseRelro() {
-		relroPerms = 06
-		relroPrefix = ".data.rel.ro"
+		addrelrosection = func(suffix string) *Section {
+			seg := &Segrelrodata
+			if Linkmode == LinkExternal {
+				// Using a separate segment with an external
+				// linker results in some programs moving
+				// their data sections unexpectedly, which
+				// corrupts the moduledata. So we use the
+				// rodata segment and let the external linker
+				// sort out a rel.ro segment.
+				seg = &Segrodata
+			}
+			return addsection(seg, ".data.rel.ro"+suffix, 06)
+		}
 		/* data only written by relocations */
-		sect = addsection(segro, ".data.rel.ro", 06)
+		sect = addrelrosection("")
 
 		sect.Vaddr = 0
 		Linklookup(ctxt, "runtime.types", 0).Sect = sect
@@ -1554,11 +1593,10 @@ func (ctxt *Link) dodata() {
 		}
 
 		sect.Length = uint64(datsize) - sect.Vaddr
-
 	}
 
 	/* typelink */
-	sect = addsection(segro, relroPrefix+".typelink", relroPerms)
+	sect = addrelrosection(".typelink")
 	sect.Align = dataMaxAlign[obj.STYPELINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1575,7 +1613,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* itablink */
-	sect = addsection(segro, relroPrefix+".itablink", relroPerms)
+	sect = addrelrosection(".itablink")
 	sect.Align = dataMaxAlign[obj.SITABLINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1592,7 +1630,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gosymtab */
-	sect = addsection(segro, relroPrefix+".gosymtab", relroPerms)
+	sect = addrelrosection(".gosymtab")
 	sect.Align = dataMaxAlign[obj.SSYMTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1609,7 +1647,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gopclntab */
-	sect = addsection(segro, relroPrefix+".gopclntab", relroPerms)
+	sect = addrelrosection(".gopclntab")
 	sect.Align = dataMaxAlign[obj.SPCLNTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
@@ -1624,33 +1662,6 @@ func (ctxt *Link) dodata() {
 	}
 	checkdatsize(ctxt, datsize, obj.SRODATA)
 	sect.Length = uint64(datsize) - sect.Vaddr
-
-	/* read-only ELF, Mach-O sections */
-	for _, s := range data[obj.SELFROSECT] {
-		sect = addsection(segro, s.Name, 04)
-		sect.Align = symalign(s)
-		datsize = Rnd(datsize, int64(sect.Align))
-		sect.Vaddr = uint64(datsize)
-		s.Sect = sect
-		s.Type = obj.SRODATA
-		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		datsize += s.Size
-		sect.Length = uint64(datsize) - sect.Vaddr
-	}
-	checkdatsize(ctxt, datsize, obj.SELFROSECT)
-
-	for _, s := range data[obj.SMACHOPLT] {
-		sect = addsection(segro, s.Name, 04)
-		sect.Align = symalign(s)
-		datsize = Rnd(datsize, int64(sect.Align))
-		sect.Vaddr = uint64(datsize)
-		s.Sect = sect
-		s.Type = obj.SRODATA
-		s.Value = int64(uint64(datsize) - sect.Vaddr)
-		datsize += s.Size
-		sect.Length = uint64(datsize) - sect.Vaddr
-	}
-	checkdatsize(ctxt, datsize, obj.SMACHOPLT)
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if datsize != int64(uint32(datsize)) {
@@ -1708,6 +1719,10 @@ func (ctxt *Link) dodata() {
 		n++
 	}
 	for sect := Segrodata.Sect; sect != nil; sect = sect.Next {
+		sect.Extnum = int16(n)
+		n++
+	}
+	for sect := Segrelrodata.Sect; sect != nil; sect = sect.Next {
 		sect.Extnum = int16(n)
 		n++
 	}
@@ -1897,6 +1912,17 @@ func (ctxt *Link) address() {
 	if Segrodata.Sect != nil {
 		// align to page boundary so as not to mix
 		// rodata and executable text.
+		//
+		// Note: gold or GNU ld will reduce the size of the executable
+		// file by arranging for the relro segment to end at a page
+		// boundary, and overlap the end of the text segment with the
+		// start of the relro segment in the file.  The PT_LOAD segments
+		// will be such that the last page of the text segment will be
+		// mapped twice, once r-x and once starting out rw- and, after
+		// relocation processing, changed to r--.
+		//
+		// Ideally the last page of the text segment would not be
+		// writable even for this short period.
 		va = uint64(Rnd(int64(va), int64(*FlagRound)))
 
 		Segrodata.Rwx = 04
@@ -1911,6 +1937,24 @@ func (ctxt *Link) address() {
 
 		Segrodata.Length = va - Segrodata.Vaddr
 		Segrodata.Filelen = Segrodata.Length
+	}
+	if Segrelrodata.Sect != nil {
+		// align to page boundary so as not to mix
+		// rodata, rel-ro data, and executable text.
+		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+
+		Segrelrodata.Rwx = 06
+		Segrelrodata.Vaddr = va
+		Segrelrodata.Fileoff = va - Segrodata.Vaddr + Segrodata.Fileoff
+		Segrelrodata.Filelen = 0
+		for s := Segrelrodata.Sect; s != nil; s = s.Next {
+			va = uint64(Rnd(int64(va), int64(s.Align)))
+			s.Vaddr = va
+			va += s.Length
+		}
+
+		Segrelrodata.Length = va - Segrelrodata.Vaddr
+		Segrelrodata.Filelen = Segrelrodata.Length
 	}
 
 	va = uint64(Rnd(int64(va), int64(*FlagRound)))
@@ -1979,24 +2023,15 @@ func (ctxt *Link) address() {
 
 	Segdwarf.Filelen = va - Segdwarf.Vaddr
 
-	text := Segtext.Sect
-	var rodata *Section
-	if Segrodata.Sect != nil {
-		rodata = Segrodata.Sect
-	} else {
-		rodata = text.Next
-	}
-	var relrodata *Section
-	typelink := rodata.Next
-	if UseRelro() {
-		// There is another section (.data.rel.ro) when building a shared
-		// object on elf systems.
-		relrodata = typelink
-		typelink = typelink.Next
-	}
-	itablink := typelink.Next
-	symtab := itablink.Next
-	pclntab := symtab.Next
+	var (
+		text     = Segtext.Sect
+		rodata   = Linklookup(ctxt, "runtime.rodata", 0).Sect
+		typelink = Linklookup(ctxt, "runtime.typelink", 0).Sect
+		itablink = Linklookup(ctxt, "runtime.itablink", 0).Sect
+		symtab   = Linklookup(ctxt, "runtime.symtab", 0).Sect
+		pclntab  = Linklookup(ctxt, "runtime.pclntab", 0).Sect
+		types    = Linklookup(ctxt, "runtime.types", 0).Sect
+	)
 
 	for _, s := range datap {
 		ctxt.Cursym = s
@@ -2023,11 +2058,6 @@ func (ctxt *Link) address() {
 		sectSym := Linklookup(ctxt, ".note.go.abihash", 0)
 		s.Sect = sectSym.Sect
 		s.Value = int64(sectSym.Sect.Vaddr + 16)
-	}
-
-	types := relrodata
-	if types == nil {
-		types = rodata
 	}
 
 	ctxt.xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
