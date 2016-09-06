@@ -13,29 +13,32 @@ import (
 )
 
 const MNT_WAIT = 1
+const MNT_NOWAIT = 2
 
 func TestGetfsstat(t *testing.T) {
-	n, err := syscall.Getfsstat(nil, MNT_WAIT)
-	t.Logf("Getfsstat(nil, MNT_WAIT) = (%v, %v)", n, err)
+	const flags = MNT_NOWAIT // see Issue 16937
+	n, err := syscall.Getfsstat(nil, flags)
+	t.Logf("Getfsstat(nil, %d) = (%v, %v)", flags, n, err)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	data := make([]syscall.Statfs_t, n)
-	n, err = syscall.Getfsstat(data, MNT_WAIT)
-	t.Logf("Getfsstat([]syscall.Statfs_t, MNT_WAIT) = (%v, %v)", n, err)
+	n2, err := syscall.Getfsstat(data, flags)
+	t.Logf("Getfsstat([]syscall.Statfs_t, %d) = (%v, %v)", flags, n2, err)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	empty := syscall.Statfs_t{}
+	if n != n2 {
+		t.Errorf("Getfsstat(nil) = %d, but subsequent Getfsstat(slice) = %d", n, n2)
+	}
 	for i, stat := range data {
-		if stat == empty {
+		if stat == (syscall.Statfs_t{}) {
 			t.Errorf("index %v is an empty Statfs_t struct", i)
 		}
 	}
 	if t.Failed() {
-		for i, stat := range data {
+		for i, stat := range data[:n2] {
 			t.Logf("data[%v] = %+v", i, stat)
 		}
 		mount, err := exec.Command("mount").CombinedOutput()
