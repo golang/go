@@ -7,6 +7,7 @@
 package syscall_test
 
 import (
+	"os/exec"
 	"syscall"
 	"testing"
 )
@@ -31,6 +32,17 @@ func TestGetfsstat(t *testing.T) {
 	for i, stat := range data {
 		if stat == empty {
 			t.Errorf("index %v is an empty Statfs_t struct", i)
+		}
+	}
+	if t.Failed() {
+		for i, stat := range data {
+			t.Logf("data[%v] = %+v", i, stat)
+		}
+		mount, err := exec.Command("mount").CombinedOutput()
+		if err != nil {
+			t.Logf("mount: %v\n%s", err, mount)
+		} else {
+			t.Logf("mount: %s", mount)
 		}
 	}
 }
