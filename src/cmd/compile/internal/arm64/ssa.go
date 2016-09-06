@@ -637,7 +637,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				ssa.OpARM64MOVWload, ssa.OpARM64MOVWUload, ssa.OpARM64MOVDload,
 				ssa.OpARM64FMOVSload, ssa.OpARM64FMOVDload,
 				ssa.OpARM64MOVBstore, ssa.OpARM64MOVHstore, ssa.OpARM64MOVWstore, ssa.OpARM64MOVDstore,
-				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore:
+				ssa.OpARM64FMOVSstore, ssa.OpARM64FMOVDstore,
+				ssa.OpARM64MOVBstorezero, ssa.OpARM64MOVHstorezero, ssa.OpARM64MOVWstorezero, ssa.OpARM64MOVDstorezero:
 				// arg0 is ptr, auxint is offset
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
