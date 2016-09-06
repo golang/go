@@ -191,10 +191,11 @@ var (
 )
 
 var (
-	Segtext   Segment
-	Segrodata Segment
-	Segdata   Segment
-	Segdwarf  Segment
+	Segtext      Segment
+	Segrodata    Segment
+	Segrelrodata Segment
+	Segdata      Segment
+	Segdwarf     Segment
 )
 
 /* whence for ldpkg */

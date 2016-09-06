@@ -384,6 +384,7 @@ const (
 	STEXT
 	SELFRXSECT
 
+	// Read-only sections.
 	STYPE
 	SSTRING
 	SGOSTRING
@@ -393,6 +394,11 @@ const (
 	SRODATA
 	SFUNCTAB
 
+	SELFROSECT
+	SMACHOPLT
+
+	// Read-only sections with relocations.
+	//
 	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
 	// When linking a shared object, some conceptually "read only" types need to
 	// be written to by relocations and putting them in a section called
@@ -412,12 +418,13 @@ const (
 	SRODATARELRO
 	SFUNCTABRELRO
 
+	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
 	STYPELINK
 	SITABLINK
 	SSYMTAB
 	SPCLNTAB
-	SELFROSECT
-	SMACHOPLT
+
+	// Writable sections.
 	SELFSECT
 	SMACHO
 	SMACHOGOT
