@@ -22,14 +22,18 @@ type Buffer struct {
 }
 
 // The readOp constants describe the last action performed on
-// the buffer, so that UnreadRune and UnreadByte can
-// check for invalid usage.
+// the buffer, so that UnreadRune and UnreadByte can check for
+// invalid usage. opReadRuneX constants are choosen such that
+// converted to int they correspond to the rune size that was read.
 type readOp int
 
 const (
-	opInvalid  readOp = iota // Non-read operation.
-	opReadRune               // Read rune.
-	opRead                   // Any other read operation.
+	opRead      readOp = -1 // Any other read operation.
+	opInvalid          = 0  // Non-read operation.
+	opReadRune1        = 1  // Read rune of size 1.
+	opReadRune2        = 2  // Read rune of size 2.
+	opReadRune3        = 3  // Read rune of size 3.
+	opReadRune4        = 4  // Read rune of size 4.
 )
 
 // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.
@@ -319,14 +323,15 @@ func (b *Buffer) ReadRune() (r rune, size int, err error) {
 		b.Truncate(0)
 		return 0, 0, io.EOF
 	}
-	b.lastRead = opReadRune
 	c := b.buf[b.off]
 	if c < utf8.RuneSelf {
 		b.off++
+		b.lastRead = opReadRune1
 		return rune(c), 1, nil
 	}
 	r, n := utf8.DecodeRune(b.buf[b.off:])
 	b.off += n
+	b.lastRead = readOp(n)
 	return r, n, nil
 }
 
@@ -336,14 +341,13 @@ func (b *Buffer) ReadRune() (r rune, size int, err error) {
 // it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
 func (b *Buffer) UnreadRune() error {
-	if b.lastRead != opReadRune {
+	if b.lastRead <= opInvalid {
 		return errors.New("bytes.Buffer: UnreadRune: previous operation was not ReadRune")
 	}
-	b.lastRead = opInvalid
-	if b.off > 0 {
-		_, n := utf8.DecodeLastRune(b.buf[0:b.off])
-		b.off -= n
+	if b.off >= int(b.lastRead) {
+		b.off -= int(b.lastRead)
 	}
+	b.lastRead = opInvalid
 	return nil
 }
 
@@ -351,7 +355,7 @@ func (b *Buffer) UnreadRune() error {
 // read operation. If write has happened since the last read, UnreadByte
 // returns an error.
 func (b *Buffer) UnreadByte() error {
-	if b.lastRead != opReadRune && b.lastRead != opRead {
+	if b.lastRead == opInvalid {
 		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a read")
 	}
 	b.lastRead = opInvalid
