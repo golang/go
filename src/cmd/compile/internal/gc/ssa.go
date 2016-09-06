@@ -2706,17 +2706,17 @@ func intrinsicInit() {
 		i.std[intrinsicKey{"runtime/internal/atomic", "Store64"}]
 
 	i.std[intrinsicKey{"sync/atomic", "SwapInt32"}] =
-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap"}]
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
 	i.std[intrinsicKey{"sync/atomic", "SwapInt64"}] =
-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap64"}]
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
 	i.std[intrinsicKey{"sync/atomic", "SwapUint32"}] =
-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap"}]
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
 	i.std[intrinsicKey{"sync/atomic", "SwapUint64"}] =
-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap64"}]
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
 	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "SwapUintptr", 4}] =
-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap"}]
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
 	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "SwapUintptr", 8}] =
-		i.std[intrinsicKey{"runtime/internal/atomic", "Swap64"}]
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
 
 	i.std[intrinsicKey{"sync/atomic", "CompareAndSwapInt32"}] =
 		i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}]
