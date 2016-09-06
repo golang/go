@@ -422,6 +422,18 @@ func (t *tester) registerTests() {
 		})
 	}
 
+	// Test internal linking of PIE binaries where it is supported.
+	if t.goos == "linux" && t.goarch == "amd64" {
+		t.tests = append(t.tests, distTest{
+			name:    "pie_internal",
+			heading: "internal linking of -buildmode=pie",
+			fn: func(dt *distTest) error {
+				t.addCmd(dt, "src", "go", "test", "reflect", "-short", "-buildmode=pie", "-ldflags=-linkmode=internal", t.timeout(60), t.tags(), t.runFlag(""))
+				return nil
+			},
+		})
+	}
+
 	// sync tests
 	t.tests = append(t.tests, distTest{
 		name:    "sync_cpu",
