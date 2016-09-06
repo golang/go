@@ -4,6 +4,8 @@
 
 package strings
 
+//go:noescape
+
 // indexShortStr returns the index of the first instance of c in s, or -1 if c is not present in s.
 // indexShortStr requires 2 <= len(c) <= shortStringLen
 func indexShortStr(s, c string) int // ../runtime/asm_$GOARCH.s

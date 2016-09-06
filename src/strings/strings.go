@@ -176,17 +176,11 @@ func LastIndex(s, sep string) int {
 // IndexRune returns the index of the first instance of the Unicode code point
 // r, or -1 if rune is not present in s.
 func IndexRune(s string, r rune) int {
-	switch {
-	case r < utf8.RuneSelf:
+	if r < utf8.RuneSelf {
 		return IndexByte(s, byte(r))
-	default:
-		for i, c := range s {
-			if c == r {
-				return i
-			}
-		}
 	}
-	return -1
+
+	return Index(s, string(r))
 }
 
 // IndexAny returns the index of the first instance of any Unicode code point

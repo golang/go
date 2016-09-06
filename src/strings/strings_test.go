@@ -244,6 +244,20 @@ func TestIndexRune(t *testing.T) {
 			t.Errorf("IndexRune(%q,%d)= %v; want %v", test.s, test.rune, actual, test.out)
 		}
 	}
+
+	haystack := "test世界"
+	allocs := testing.AllocsPerRun(1000, func() {
+		if i := IndexRune(haystack, 's'); i != 2 {
+			t.Fatalf("'s' at %d; want 2", i)
+		}
+		if i := IndexRune(haystack, '世'); i != 4 {
+			t.Fatalf("'世' at %d; want 4", i)
+		}
+	})
+
+	if allocs != 0 {
+		t.Errorf(`expected no allocations, got %f`, allocs)
+	}
 }
 
 const benchmarkString = "some_text=some☺value"
@@ -254,6 +268,17 @@ func BenchmarkIndexRune(b *testing.B) {
 	}
 	for i := 0; i < b.N; i++ {
 		IndexRune(benchmarkString, '☺')
+	}
+}
+
+var benchmarkLongString = Repeat(" ", 100) + benchmarkString
+
+func BenchmarkIndexRuneLongString(b *testing.B) {
+	if got := IndexRune(benchmarkLongString, '☺'); got != 114 {
+		b.Fatalf("wrong index: expected 114, got=%d", got)
+	}
+	for i := 0; i < b.N; i++ {
+		IndexRune(benchmarkLongString, '☺')
 	}
 }
 
