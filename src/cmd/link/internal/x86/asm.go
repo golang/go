@@ -159,7 +159,7 @@ func gentext(ctxt *ld.Link) {
 	ld.Addaddr(ctxt, initarray_entry, initfunc)
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
+func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	targ := r.Sym
 	ctxt.Cursym = s
 
@@ -167,7 +167,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 	default:
 		if r.Type >= 256 {
 			ctxt.Diag("unexpected relocation type %d", r.Type)
-			return
+			return false
 		}
 
 		// Handle relocations found in ELF object files.
@@ -180,7 +180,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 		}
 		r.Type = obj.R_PCREL
 		r.Add += 4
-		return
+		return true
 
 	case 256 + ld.R_386_PLT32:
 		r.Type = obj.R_PCREL
@@ -191,7 +191,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			r.Add += int64(targ.Plt)
 		}
 
-		return
+		return true
 
 	case 256 + ld.R_386_GOT32, 256 + ld.R_386_GOT32X:
 		if targ.Type != obj.SDYNIMPORT {
@@ -201,7 +201,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 				s.P[r.Off-2] = 0x8d
 
 				r.Type = obj.R_GOTOFF
-				return
+				return true
 			}
 
 			if r.Off >= 2 && s.P[r.Off-2] == 0xff && s.P[r.Off-1] == 0xb3 {
@@ -211,42 +211,42 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 
 				s.P[r.Off-1] = 0x68
 				r.Type = obj.R_ADDR
-				return
+				return true
 			}
 
 			ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
-			return
+			return false
 		}
 
 		addgotsym(ctxt, targ)
 		r.Type = obj.R_CONST // write r->add during relocsym
 		r.Sym = nil
 		r.Add += int64(targ.Got)
-		return
+		return true
 
 	case 256 + ld.R_386_GOTOFF:
 		r.Type = obj.R_GOTOFF
-		return
+		return true
 
 	case 256 + ld.R_386_GOTPC:
 		r.Type = obj.R_PCREL
 		r.Sym = ld.Linklookup(ctxt, ".got", 0)
 		r.Add += 4
-		return
+		return true
 
 	case 256 + ld.R_386_32:
 		if targ.Type == obj.SDYNIMPORT {
 			ctxt.Diag("unexpected R_386_32 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = obj.R_ADDR
-		return
+		return true
 
 	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 0:
 		r.Type = obj.R_ADDR
 		if targ.Type == obj.SDYNIMPORT {
 			ctxt.Diag("unexpected reloc for dynamic symbol %s", targ.Name)
 		}
-		return
+		return true
 
 	case 512 + ld.MACHO_GENERIC_RELOC_VANILLA*2 + 1:
 		if targ.Type == obj.SDYNIMPORT {
@@ -254,11 +254,11 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			r.Sym = ld.Linklookup(ctxt, ".plt", 0)
 			r.Add = int64(targ.Plt)
 			r.Type = obj.R_PCREL
-			return
+			return true
 		}
 
 		r.Type = obj.R_PCREL
-		return
+		return true
 
 	case 512 + ld.MACHO_FAKE_GOTPCREL:
 		if targ.Type != obj.SDYNIMPORT {
@@ -266,33 +266,32 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			// turn MOVL of GOT entry into LEAL of symbol itself
 			if r.Off < 2 || s.P[r.Off-2] != 0x8b {
 				ctxt.Diag("unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
-				return
+				return false
 			}
 
 			s.P[r.Off-2] = 0x8d
 			r.Type = obj.R_PCREL
-			return
+			return true
 		}
 
 		addgotsym(ctxt, targ)
 		r.Sym = ld.Linklookup(ctxt, ".got", 0)
 		r.Add += int64(targ.Got)
 		r.Type = obj.R_PCREL
-		return
+		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
 	if targ.Type != obj.SDYNIMPORT {
-		return
+		return true
 	}
-
 	switch r.Type {
 	case obj.R_CALL,
 		obj.R_PCREL:
 		addpltsym(ctxt, targ)
 		r.Sym = ld.Linklookup(ctxt, ".plt", 0)
 		r.Add = int64(targ.Plt)
-		return
+		return true
 
 	case obj.R_ADDR:
 		if s.Type != obj.SDATA {
@@ -305,7 +304,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_386_32))
 			r.Type = obj.R_CONST // write r->add during relocsym
 			r.Sym = nil
-			return
+			return true
 		}
 
 		if ld.Headtype == obj.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
@@ -330,17 +329,16 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			ld.Adduint32(ctxt, got, 0)
 			ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(targ.Dynid))
 			r.Type = 256 // ignore during relocsym
-			return
+			return true
 		}
 
 		if (ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui) && s.Size == int64(ld.SysArch.PtrSize) {
 			// nothing to do, the relocation will be laid out in pereloc1
-			return
+			return true
 		}
 	}
 
-	ctxt.Cursym = s
-	ctxt.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ.Name, r.Type, targ.Type)
+	return false
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {

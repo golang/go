@@ -240,7 +240,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *ld.Symbol, targ *ld.Symbol) {
 	ld.Adduint32(ctxt, stub, 0x4e800420) // bctr
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
+func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	targ := r.Sym
 	ctxt.Cursym = s
 
@@ -248,7 +248,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 	default:
 		if r.Type >= 256 {
 			ctxt.Diag("unexpected relocation type %d", r.Type)
-			return
+			return false
 		}
 
 		// Handle relocations found in ELF object files.
@@ -267,7 +267,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			ctxt.Diag("unexpected R_PPC64_REL24 for dyn import")
 		}
 
-		return
+		return true
 
 	case 256 + ld.R_PPC_REL32:
 		r.Type = obj.R_PCREL
@@ -277,7 +277,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			ctxt.Diag("unexpected R_PPC_REL32 for dyn import")
 		}
 
-		return
+		return true
 
 	case 256 + ld.R_PPC64_ADDR64:
 		r.Type = obj.R_ADDR
@@ -292,65 +292,65 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			r.Type = 256 // ignore during relocsym
 		}
 
-		return
+		return true
 
 	case 256 + ld.R_PPC64_TOC16:
 		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_LO | ld.RV_CHECK_OVERFLOW
-		return
+		return true
 
 	case 256 + ld.R_PPC64_TOC16_LO:
 		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_LO
-		return
+		return true
 
 	case 256 + ld.R_PPC64_TOC16_HA:
 		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
-		return
+		return true
 
 	case 256 + ld.R_PPC64_TOC16_HI:
 		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
-		return
+		return true
 
 	case 256 + ld.R_PPC64_TOC16_DS:
 		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_DS | ld.RV_CHECK_OVERFLOW
-		return
+		return true
 
 	case 256 + ld.R_PPC64_TOC16_LO_DS:
 		r.Type = obj.R_POWER_TOC
 		r.Variant = ld.RV_POWER_DS
-		return
+		return true
 
 	case 256 + ld.R_PPC64_REL16_LO:
 		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_POWER_LO
 		r.Add += 2 // Compensate for relocation size of 2
-		return
+		return true
 
 	case 256 + ld.R_PPC64_REL16_HI:
 		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_POWER_HI | ld.RV_CHECK_OVERFLOW
 		r.Add += 2
-		return
+		return true
 
 	case 256 + ld.R_PPC64_REL16_HA:
 		r.Type = obj.R_PCREL
 		r.Variant = ld.RV_POWER_HA | ld.RV_CHECK_OVERFLOW
 		r.Add += 2
-		return
+		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
 	if targ.Type != obj.SDYNIMPORT {
-		return
+		return true
 	}
 
 	// TODO(austin): Translate our relocations to ELF
 
-	ctxt.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ.Name, r.Type, targ.Type)
+	return false
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {
