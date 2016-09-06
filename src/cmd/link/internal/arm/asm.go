@@ -109,7 +109,7 @@ func braddoff(a int32, b int32) int32 {
 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
+func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	targ := r.Sym
 	ctxt.Cursym = s
 
@@ -117,7 +117,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 	default:
 		if r.Type >= 256 {
 			ctxt.Diag("unexpected relocation type %d", r.Type)
-			return
+			return false
 		}
 
 		// Handle relocations found in ELF object files.
@@ -130,11 +130,11 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
 		}
 
-		return
+		return true
 
 	case 256 + ld.R_ARM_THM_PC22: // R_ARM_THM_CALL
 		ld.Exitf("R_ARM_THM_CALL, are you using -marm?")
-		return
+		return false
 
 	case 256 + ld.R_ARM_GOT32: // R_ARM_GOT_BREL
 		if targ.Type != obj.SDYNIMPORT {
@@ -146,7 +146,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 		r.Type = obj.R_CONST // write r->add during relocsym
 		r.Sym = nil
 		r.Add += int64(targ.Got)
-		return
+		return true
 
 	case 256 + ld.R_ARM_GOT_PREL: // GOT(nil) + A - nil
 		if targ.Type != obj.SDYNIMPORT {
@@ -158,19 +158,19 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 		r.Type = obj.R_PCREL
 		r.Sym = ld.Linklookup(ctxt, ".got", 0)
 		r.Add += int64(targ.Got) + 4
-		return
+		return true
 
 	case 256 + ld.R_ARM_GOTOFF: // R_ARM_GOTOFF32
 		r.Type = obj.R_GOTOFF
 
-		return
+		return true
 
 	case 256 + ld.R_ARM_GOTPC: // R_ARM_BASE_PREL
 		r.Type = obj.R_PCREL
 
 		r.Sym = ld.Linklookup(ctxt, ".got", 0)
 		r.Add += 4
-		return
+		return true
 
 	case 256 + ld.R_ARM_CALL:
 		r.Type = obj.R_CALLARM
@@ -180,20 +180,20 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
 		}
 
-		return
+		return true
 
 	case 256 + ld.R_ARM_REL32: // R_ARM_REL32
 		r.Type = obj.R_PCREL
 
 		r.Add += 4
-		return
+		return true
 
 	case 256 + ld.R_ARM_ABS32:
 		if targ.Type == obj.SDYNIMPORT {
 			ctxt.Diag("unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = obj.R_ADDR
-		return
+		return true
 
 		// we can just ignore this, because we are targeting ARM V5+ anyway
 	case 256 + ld.R_ARM_V4BX:
@@ -203,7 +203,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 		}
 
 		r.Sym = nil
-		return
+		return true
 
 	case 256 + ld.R_ARM_PC24,
 		256 + ld.R_ARM_JUMP24:
@@ -214,12 +214,12 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt/4))
 		}
 
-		return
+		return true
 	}
 
 	// Handle references to ELF symbols from our own object files.
 	if targ.Type != obj.SDYNIMPORT {
-		return
+		return true
 	}
 
 	switch r.Type {
@@ -227,7 +227,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 		addpltsym(ctxt, targ)
 		r.Sym = ld.Linklookup(ctxt, ".plt", 0)
 		r.Add = int64(targ.Plt)
-		return
+		return true
 
 	case obj.R_ADDR:
 		if s.Type != obj.SDATA {
@@ -240,12 +240,11 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(targ.Dynid), ld.R_ARM_GLOB_DAT)) // we need a nil + A dynamic reloc
 			r.Type = obj.R_CONST                                                            // write r->add during relocsym
 			r.Sym = nil
-			return
+			return true
 		}
 	}
 
-	ctxt.Cursym = s
-	ctxt.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", targ.Name, r.Type, targ.Type)
+	return false
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {

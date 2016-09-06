@@ -86,8 +86,9 @@ func gentext(ctxt *ld.Link) {
 	ld.Addaddr(ctxt, initarray_entry, initfunc)
 }
 
-func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
+func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 	log.Fatalf("adddynrel not implemented")
+	return false
 }
 
 func elfreloc1(ctxt *ld.Link, r *ld.Reloc, sectoff int64) int {

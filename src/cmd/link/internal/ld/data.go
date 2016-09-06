@@ -701,11 +701,21 @@ func dynrelocsym(ctxt *Link, s *Symbol) {
 
 	for ri := 0; ri < len(s.R); ri++ {
 		r := &s.R[ri]
+		if Buildmode == BuildmodePIE && Linkmode == LinkInternal {
+			// It's expected that some relocations will be done
+			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+			// don't worry if Adddynrel returns false.
+			Thearch.Adddynrel(ctxt, s, r)
+			continue
+		}
 		if r.Sym != nil && r.Sym.Type == obj.SDYNIMPORT || r.Type >= 256 {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				ctxt.Diag("internal inconsistency: dynamic symbol %s is not reachable.", r.Sym.Name)
 			}
-			Thearch.Adddynrel(ctxt, s, r)
+			if !Thearch.Adddynrel(ctxt, s, r) {
+				ctxt.Cursym = s
+				ctxt.Diag("unsupported relocation for dynamic symbol %s (type=%d stype=%d)", r.Sym.Name, r.Type, r.Sym.Type)
+			}
 		}
 	}
 }
