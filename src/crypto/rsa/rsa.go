@@ -268,9 +268,8 @@ NextSetOfPrimes:
 
 		g := new(big.Int)
 		priv.D = new(big.Int)
-		y := new(big.Int)
 		e := big.NewInt(int64(priv.E))
-		g.GCD(priv.D, y, e, totient)
+		g.GCD(priv.D, nil, e, totient)
 
 		if g.Cmp(bigOne) == 0 {
 			if priv.D.Sign() < 0 {
