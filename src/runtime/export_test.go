@@ -167,9 +167,6 @@ func GostringW(w []uint16) (s string) {
 	return
 }
 
-var Gostringnocopy = gostringnocopy
-var Maxstring = &maxstring
-
 type Uintreg sys.Uintreg
 
 var Open = open

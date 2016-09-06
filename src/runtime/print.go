@@ -199,10 +199,6 @@ func printpointer(p unsafe.Pointer) {
 }
 
 func printstring(s string) {
-	if uintptr(len(s)) > maxstring {
-		gwrite(bytes("[string too long]"))
-		return
-	}
 	gwrite(bytes(s))
 }
 
