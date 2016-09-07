@@ -386,7 +386,7 @@ func (ctxt *Link) symtab() {
 		symtyperel = s
 	}
 
-	groupSym := func(name string, t int16) *Symbol {
+	groupSym := func(name string, t obj.SymKind) *Symbol {
 		s := Linklookup(ctxt, name, 0)
 		s.Type = t
 		s.Size = 0

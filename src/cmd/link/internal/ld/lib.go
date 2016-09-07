@@ -1949,9 +1949,9 @@ func Symaddr(ctxt *Link, s *Symbol) int64 {
 	return s.Value
 }
 
-func (ctxt *Link) xdefine(p string, t int, v int64) {
+func (ctxt *Link) xdefine(p string, t obj.SymKind, v int64) {
 	s := Linklookup(ctxt, p, 0)
-	s.Type = int16(t)
+	s.Type = t
 	s.Value = v
 	s.Attr |= AttrReachable
 	s.Attr |= AttrSpecial

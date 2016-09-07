@@ -316,7 +316,7 @@ const (
 // An LSym is the sort of symbol that is written to an object file.
 type LSym struct {
 	Name      string
-	Type      int16
+	Type      SymKind
 	Version   int16
 	Dupok     bool
 	Cfunc     bool
@@ -371,9 +371,16 @@ type Pcln struct {
 	Lastindex   int
 }
 
-// LSym.type
+// A SymKind describes the kind of memory represented by a symbol.
+type SymKind int16
+
+// Defined SymKind values.
+//
+// TODO(rsc): Give idiomatic Go names.
+// TODO(rsc): Reduce the number of symbol types in the object files.
+//go:generate stringer -type=SymKind
 const (
-	Sxxx = iota
+	Sxxx SymKind = iota
 	STEXT
 	SELFRXSECT
 
@@ -434,11 +441,38 @@ const (
 	SHOSTOBJ
 	SDWARFSECT
 	SDWARFINFO
-	SSUB       = 1 << 8
-	SMASK      = SSUB - 1
-	SHIDDEN    = 1 << 9
-	SCONTAINER = 1 << 10 // has a sub-symbol
+	SSUB       = SymKind(1 << 8)
+	SMASK      = SymKind(SSUB - 1)
+	SHIDDEN    = SymKind(1 << 9)
+	SCONTAINER = SymKind(1 << 10) // has a sub-symbol
 )
+
+// ReadOnly are the symbol kinds that form read-only sections. In some
+// cases, if they will require relocations, they are transformed into
+// rel-ro sections using RelROMap.
+var ReadOnly = []SymKind{
+	STYPE,
+	SSTRING,
+	SGOSTRING,
+	SGOSTRINGHDR,
+	SGOFUNC,
+	SGCBITS,
+	SRODATA,
+	SFUNCTAB,
+}
+
+// RelROMap describes the transformation of read-only symbols to rel-ro
+// symbols.
+var RelROMap = map[SymKind]SymKind{
+	STYPE:        STYPERELRO,
+	SSTRING:      SSTRINGRELRO,
+	SGOSTRING:    SGOSTRINGRELRO,
+	SGOSTRINGHDR: SGOSTRINGHDRRELRO,
+	SGOFUNC:      SGOFUNCRELRO,
+	SGCBITS:      SGCBITSRELRO,
+	SRODATA:      SRODATARELRO,
+	SFUNCTAB:     SFUNCTABRELRO,
+}
 
 type Reloc struct {
 	Off  int32
