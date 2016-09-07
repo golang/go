@@ -323,6 +323,8 @@ var optab = []Optab{
 	{AADDME, C_REG, C_NONE, C_NONE, C_REG, 47, 4, 0},
 	{AEXTSB, C_REG, C_NONE, C_NONE, C_REG, 48, 4, 0},
 	{AEXTSB, C_NONE, C_NONE, C_NONE, C_REG, 48, 4, 0},
+	{AISEL, C_LCON, C_REG, C_REG, C_REG, 84, 4, 0},
+	{AISEL, C_ZCON, C_REG, C_REG, C_REG, 84, 4, 0},
 	{ANEG, C_REG, C_NONE, C_NONE, C_REG, 47, 4, 0},
 	{ANEG, C_NONE, C_NONE, C_NONE, C_REG, 47, 4, 0},
 	{AREM, C_REG, C_NONE, C_NONE, C_REG, 50, 12, 0},
@@ -1167,6 +1169,9 @@ func buildop(ctxt *obj.Link) {
 		case AFCMPO:
 			opset(AFCMPU, r0)
 
+		case AISEL:
+			opset(AISEL, r0)
+
 		case AMTFSB0:
 			opset(AMTFSB0CC, r0)
 			opset(AMTFSB1, r0)
@@ -1350,6 +1355,10 @@ func OP_RLW(op uint32, a uint32, s uint32, sh uint32, mb uint32, me uint32) uint
 	return op | (s&31)<<21 | (a&31)<<16 | (sh&31)<<11 | (mb&31)<<6 | (me&31)<<1
 }
 
+func AOP_ISEL(op uint32, t uint32, a uint32, b uint32, bc uint32) uint32 {
+	return op | (t&31)<<21 | (a&31)<<16 | (b&31)<<11 | (bc&0x1F)<<6
+}
+
 const (
 	/* each rhs is OPVCC(_, _, _, _) */
 	OP_ADD    = 31<<26 | 266<<1 | 0<<10 | 0
@@ -1359,6 +1368,7 @@ const (
 	OP_EXTSB  = 31<<26 | 954<<1 | 0<<10 | 0
 	OP_EXTSH  = 31<<26 | 922<<1 | 0<<10 | 0
 	OP_EXTSW  = 31<<26 | 986<<1 | 0<<10 | 0
+	OP_ISEL   = 31<<26 | 15<<1 | 0<<10 | 0
 	OP_MCRF   = 19<<26 | 0<<1 | 0<<10 | 0
 	OP_MCRFS  = 63<<26 | 64<<1 | 0<<10 | 0
 	OP_MCRXR  = 31<<26 | 512<<1 | 0<<10 | 0
@@ -2522,6 +2532,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = obj.R_ADDRPOWER_GOT
+	case 84: // ISEL BC,RA,RB,RT -> isel rt,ra,rb,bc
+		bc := vregoff(ctxt, &p.From)
+
+		// rt = To.Reg, ra = p.Reg, rb = p.From3.Reg
+		o1 = AOP_ISEL(OP_ISEL, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From3.Reg), uint32(bc))
 	}
 
 	out[0] = o1
