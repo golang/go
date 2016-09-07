@@ -605,7 +605,7 @@ func installPackages(args []string, forGet bool) {
 				errorf("go install: no install location for %s: hidden by %s", p.Dir, p.ConflictDir)
 			default:
 				errorf("go install: no install location for directory %s outside GOPATH\n"+
-					"\tFor more details see: go help gopath", p.Dir)
+					"\tFor more details see: 'go help gopath'", p.Dir)
 			}
 		}
 	}

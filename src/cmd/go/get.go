@@ -49,7 +49,7 @@ Get also accepts build flags to control the installation. See 'go help build'.
 
 When checking out a new package, get creates the target directory
 GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
-get uses the first one. See 'go help gopath'.
+get uses the first one. For more details see: 'go help gopath'.
 
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important
@@ -393,11 +393,11 @@ func downloadPackage(p *Package) error {
 		// Package not found. Put in first directory of $GOPATH.
 		list := filepath.SplitList(buildContext.GOPATH)
 		if len(list) == 0 {
-			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: go help gopath")
+			return fmt.Errorf("cannot download, $GOPATH not set. For more details see: 'go help gopath'")
 		}
 		// Guard against people setting GOPATH=$GOROOT.
 		if list[0] == goroot {
-			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: go help gopath")
+			return fmt.Errorf("cannot download, $GOPATH must not be set to $GOROOT. For more details see: 'go help gopath'")
 		}
 		p.build.SrcRoot = filepath.Join(list[0], "src")
 		p.build.PkgRoot = filepath.Join(list[0], "pkg")

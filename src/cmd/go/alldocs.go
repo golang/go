@@ -514,7 +514,7 @@
 //
 // When checking out a new package, get creates the target directory
 // GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
-// get uses the first one. See 'go help gopath'.
+// get uses the first one. For more details see: 'go help gopath'.
 //
 // When checking out or updating a package, get looks for a branch or tag
 // that matches the locally installed version of Go. The most important
@@ -1074,7 +1074,7 @@
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
 // 	GOPATH
-// 		See 'go help gopath'.
+// 		For more details see: 'go help gopath'.
 // 	GORACE
 // 		Options for the race detector.
 // 		See https://golang.org/doc/articles/race_detector.html.
@@ -1125,10 +1125,10 @@
 //
 // Import path syntax
 //
-// An import path (see 'go help packages') denotes a package
-// stored in the local file system.  In general, an import path denotes
-// either a standard package (such as "unicode/utf8") or a package
-// found in one of the work spaces (see 'go help gopath').
+// An import path (see 'go help packages') denotes a package stored in the local
+// file system.  In general, an import path denotes either a standard package (such
+// as "unicode/utf8") or a package found in one of the work spaces (For more
+// details see: 'go help gopath').
 //
 // Relative import paths
 //
@@ -1260,8 +1260,8 @@
 // same meta tag and then git clone https://code.org/r/p/exproj into
 // GOPATH/src/example.org.
 //
-// New downloaded packages are written to the first directory
-// listed in the GOPATH environment variable (see 'go help gopath').
+// New downloaded packages are written to the first directory listed in the GOPATH
+// environment variable (For more details see: 'go help gopath').
 //
 // The go command attempts to download the version of the
 // package appropriate for the Go release being used.
@@ -1305,7 +1305,7 @@
 //
 // Otherwise, the import path P denotes the package found in
 // the directory DIR/src/P for some DIR listed in the GOPATH
-// environment variable (see 'go help gopath').
+// environment variable (For more details see: 'go help gopath').
 //
 // If no import paths are given, the action applies to the
 // package in the current directory.
