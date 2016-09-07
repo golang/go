@@ -254,7 +254,7 @@ func (r *objReader) readSym() {
 	if c, err := r.rd.ReadByte(); c != symPrefix || err != nil {
 		log.Fatalln("readSym out of sync")
 	}
-	t := r.readInt()
+	t := obj.SymKind(r.readInt())
 	s := r.readSymIndex()
 	flags := r.readInt()
 	dupok := flags&1 != 0
@@ -302,9 +302,9 @@ overwrite:
 		log.Fatalf("missing type for %s in %s", s.Name, r.pn)
 	}
 	if t == obj.SBSS && (s.Type == obj.SRODATA || s.Type == obj.SNOPTRBSS) {
-		t = int(s.Type)
+		t = s.Type
 	}
-	s.Type = int16(t)
+	s.Type = t
 	if s.Size < int64(size) {
 		s.Size = int64(size)
 	}

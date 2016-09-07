@@ -42,7 +42,7 @@ import (
 type Symbol struct {
 	Name        string
 	Extname     string
-	Type        int16
+	Type        obj.SymKind
 	Version     int16
 	Attr        Attribute
 	Localentry  uint8

@@ -1168,7 +1168,7 @@ func (d bySizeAndName) Less(i, j int) bool {
 
 const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
 
-func checkdatsize(ctxt *Link, datsize int64, symn int) {
+func checkdatsize(ctxt *Link, datsize int64, symn obj.SymKind) {
 	if datsize > cutoff {
 		ctxt.Diag("too much data in section %v (over %d bytes)", symn, cutoff)
 	}
@@ -1210,8 +1210,8 @@ func (ctxt *Link) dodata() {
 		// "read only" data with relocations needs to go in its own section
 		// when building a shared library. We do this by boosting objects of
 		// type SXXX with relocations to type SXXXRELRO.
-		for symnro := int16(obj.STYPE); symnro < obj.STYPERELRO; symnro++ {
-			symnrelro := symnro + obj.STYPERELRO - obj.STYPE
+		for _, symnro := range obj.ReadOnly {
+			symnrelro := obj.RelROMap[symnro]
 
 			ro := []*Symbol{}
 			relro := data[symnrelro]
@@ -1256,7 +1256,7 @@ func (ctxt *Link) dodata() {
 	var dataMaxAlign [obj.SXREF]int32
 	var wg sync.WaitGroup
 	for symn := range data {
-		symn := symn
+		symn := obj.SymKind(symn)
 		wg.Add(1)
 		go func() {
 			data[symn], dataMaxAlign[symn] = dodataSect(ctxt, symn, data[symn])
@@ -1271,14 +1271,14 @@ func (ctxt *Link) dodata() {
 	// to generate garbage collection information.
 	datsize := int64(0)
 
-	// Writable sections.
-	writableSects := []int{
+	// Writable data sections that do not need any specialized handling.
+	writable := []obj.SymKind{
 		obj.SELFSECT,
 		obj.SMACHO,
 		obj.SMACHOGOT,
 		obj.SWINDOWS,
 	}
-	for _, symn := range writableSects {
+	for _, symn := range writable {
 		for _, s := range data[symn] {
 			sect := addsection(&Segdata, s.Name, 06)
 			sect.Align = symalign(s)
@@ -1489,24 +1489,14 @@ func (ctxt *Link) dodata() {
 		Linklookup(ctxt, "runtime.types", 0).Sect = sect
 		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
 	}
-	roSects := []int{
-		obj.STYPE,
-		obj.SSTRING,
-		obj.SGOSTRING,
-		obj.SGOSTRINGHDR,
-		obj.SGOFUNC,
-		obj.SGCBITS,
-		obj.SRODATA,
-		obj.SFUNCTAB,
-	}
-	for _, symn := range roSects {
+	for _, symn := range obj.ReadOnly {
 		align := dataMaxAlign[symn]
 		if sect.Align < align {
 			sect.Align = align
 		}
 	}
 	datsize = Rnd(datsize, int64(sect.Align))
-	for _, symn := range roSects {
+	for _, symn := range obj.ReadOnly {
 		for _, s := range data[symn] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
@@ -1540,24 +1530,16 @@ func (ctxt *Link) dodata() {
 		sect.Vaddr = 0
 		Linklookup(ctxt, "runtime.types", 0).Sect = sect
 		Linklookup(ctxt, "runtime.etypes", 0).Sect = sect
-		relroSects := []int{
-			obj.STYPERELRO,
-			obj.SSTRINGRELRO,
-			obj.SGOSTRINGRELRO,
-			obj.SGOSTRINGHDRRELRO,
-			obj.SGOFUNCRELRO,
-			obj.SGCBITSRELRO,
-			obj.SRODATARELRO,
-			obj.SFUNCTABRELRO,
-		}
-		for _, symn := range relroSects {
+		for _, symnro := range obj.ReadOnly {
+			symn := obj.RelROMap[symnro]
 			align := dataMaxAlign[symn]
 			if sect.Align < align {
 				sect.Align = align
 			}
 		}
 		datsize = Rnd(datsize, int64(sect.Align))
-		for _, symn := range relroSects {
+		for _, symnro := range obj.ReadOnly {
+			symn := obj.RelROMap[symnro]
 			for _, s := range data[symn] {
 				datsize = aligndatsize(datsize, s)
 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
@@ -1739,13 +1721,13 @@ func (ctxt *Link) dodata() {
 	}
 }
 
-func dodataSect(ctxt *Link, symn int, syms []*Symbol) (result []*Symbol, maxAlign int32) {
+func dodataSect(ctxt *Link, symn obj.SymKind, syms []*Symbol) (result []*Symbol, maxAlign int32) {
 	if Headtype == obj.Hdarwin {
 		// Some symbols may no longer belong in syms
 		// due to movement in machosymorder.
 		newSyms := make([]*Symbol, 0, len(syms))
 		for _, s := range syms {
-			if int(s.Type) == symn {
+			if s.Type == symn {
 				newSyms = append(newSyms, s)
 			}
 		}

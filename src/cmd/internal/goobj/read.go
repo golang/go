@@ -29,50 +29,48 @@ type SymKind int
 // TODO(rsc): Give idiomatic Go names.
 // TODO(rsc): Reduce the number of symbol types in the object files.
 const (
-	_ SymKind = iota
-
 	// readonly, executable
-	STEXT      SymKind = obj.STEXT
-	SELFRXSECT SymKind = obj.SELFRXSECT
+	STEXT      = SymKind(obj.STEXT)
+	SELFRXSECT = SymKind(obj.SELFRXSECT)
 
 	// readonly, non-executable
-	STYPE      SymKind = obj.STYPE
-	SSTRING    SymKind = obj.SSTRING
-	SGOSTRING  SymKind = obj.SGOSTRING
-	SGOFUNC    SymKind = obj.SGOFUNC
-	SRODATA    SymKind = obj.SRODATA
-	SFUNCTAB   SymKind = obj.SFUNCTAB
-	STYPELINK  SymKind = obj.STYPELINK
-	SITABLINK  SymKind = obj.SITABLINK
-	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
-	SPCLNTAB   SymKind = obj.SPCLNTAB
-	SELFROSECT SymKind = obj.SELFROSECT
+	STYPE      = SymKind(obj.STYPE)
+	SSTRING    = SymKind(obj.SSTRING)
+	SGOSTRING  = SymKind(obj.SGOSTRING)
+	SGOFUNC    = SymKind(obj.SGOFUNC)
+	SRODATA    = SymKind(obj.SRODATA)
+	SFUNCTAB   = SymKind(obj.SFUNCTAB)
+	STYPELINK  = SymKind(obj.STYPELINK)
+	SITABLINK  = SymKind(obj.SITABLINK)
+	SSYMTAB    = SymKind(obj.SSYMTAB) // TODO: move to unmapped section
+	SPCLNTAB   = SymKind(obj.SPCLNTAB)
+	SELFROSECT = SymKind(obj.SELFROSECT)
 
 	// writable, non-executable
-	SMACHOPLT  SymKind = obj.SMACHOPLT
-	SELFSECT   SymKind = obj.SELFSECT
-	SMACHO     SymKind = obj.SMACHO // Mach-O __nl_symbol_ptr
-	SMACHOGOT  SymKind = obj.SMACHOGOT
-	SWINDOWS   SymKind = obj.SWINDOWS
-	SELFGOT    SymKind = obj.SELFGOT
-	SNOPTRDATA SymKind = obj.SNOPTRDATA
-	SINITARR   SymKind = obj.SINITARR
-	SDATA      SymKind = obj.SDATA
-	SBSS       SymKind = obj.SBSS
-	SNOPTRBSS  SymKind = obj.SNOPTRBSS
-	STLSBSS    SymKind = obj.STLSBSS
+	SMACHOPLT  = SymKind(obj.SMACHOPLT)
+	SELFSECT   = SymKind(obj.SELFSECT)
+	SMACHO     = SymKind(obj.SMACHO) // Mach-O __nl_symbol_ptr
+	SMACHOGOT  = SymKind(obj.SMACHOGOT)
+	SWINDOWS   = SymKind(obj.SWINDOWS)
+	SELFGOT    = SymKind(obj.SELFGOT)
+	SNOPTRDATA = SymKind(obj.SNOPTRDATA)
+	SINITARR   = SymKind(obj.SINITARR)
+	SDATA      = SymKind(obj.SDATA)
+	SBSS       = SymKind(obj.SBSS)
+	SNOPTRBSS  = SymKind(obj.SNOPTRBSS)
+	STLSBSS    = SymKind(obj.STLSBSS)
 
 	// not mapped
-	SXREF             SymKind = obj.SXREF
-	SMACHOSYMSTR      SymKind = obj.SMACHOSYMSTR
-	SMACHOSYMTAB      SymKind = obj.SMACHOSYMTAB
-	SMACHOINDIRECTPLT SymKind = obj.SMACHOINDIRECTPLT
-	SMACHOINDIRECTGOT SymKind = obj.SMACHOINDIRECTGOT
-	SFILE             SymKind = obj.SFILE
-	SFILEPATH         SymKind = obj.SFILEPATH
-	SCONST            SymKind = obj.SCONST
-	SDYNIMPORT        SymKind = obj.SDYNIMPORT
-	SHOSTOBJ          SymKind = obj.SHOSTOBJ
+	SXREF             = SymKind(obj.SXREF)
+	SMACHOSYMSTR      = SymKind(obj.SMACHOSYMSTR)
+	SMACHOSYMTAB      = SymKind(obj.SMACHOSYMTAB)
+	SMACHOINDIRECTPLT = SymKind(obj.SMACHOINDIRECTPLT)
+	SMACHOINDIRECTGOT = SymKind(obj.SMACHOINDIRECTGOT)
+	SFILE             = SymKind(obj.SFILE)
+	SFILEPATH         = SymKind(obj.SFILEPATH)
+	SCONST            = SymKind(obj.SCONST)
+	SDYNIMPORT        = SymKind(obj.SDYNIMPORT)
+	SHOSTOBJ          = SymKind(obj.SHOSTOBJ)
 )
 
 var symKindStrings = []string{
