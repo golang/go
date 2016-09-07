@@ -77,48 +77,18 @@ func hashStrRev(sep string) (uint32, uint32) {
 func Count(s, sep string) int {
 	n := 0
 	// special cases
-	switch {
-	case len(sep) == 0:
+	if len(sep) == 0 {
 		return utf8.RuneCountInString(s) + 1
-	case len(sep) == 1:
-		// special case worth making fast
-		c := sep[0]
-		for i := 0; i < len(s); i++ {
-			if s[i] == c {
-				n++
-			}
-		}
-		return n
-	case len(sep) > len(s):
-		return 0
-	case len(sep) == len(s):
-		if sep == s {
-			return 1
-		}
-		return 0
 	}
-	// Rabin-Karp search
-	hashsep, pow := hashStr(sep)
-	h := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	lastmatch := 0
-	if h == hashsep && s[:len(sep)] == sep {
+	offset := 0
+	for {
+		i := Index(s[offset:], sep)
+		if i == -1 {
+			return n
+		}
 		n++
-		lastmatch = len(sep)
+		offset += i + len(sep)
 	}
-	for i := len(sep); i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-len(sep)])
-		i++
-		if h == hashsep && lastmatch <= i-len(sep) && s[i-len(sep):i] == sep {
-			n++
-			lastmatch = i
-		}
-	}
-	return n
 }
 
 // Contains reports whether substr is within s.
