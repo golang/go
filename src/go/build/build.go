@@ -636,7 +636,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			format = "\t%s"
 		}
 		if len(tried.gopath) == 0 {
-			paths = append(paths, "\t($GOPATH not set)")
+			paths = append(paths, "\t($GOPATH not set. For more details see: 'go help gopath')")
 		}
 		return p, fmt.Errorf("cannot find package %q in any of:\n%s", path, strings.Join(paths, "\n"))
 	}

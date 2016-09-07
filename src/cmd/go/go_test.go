@@ -1622,8 +1622,8 @@ func TestMissingGOPATHIsReported(t *testing.T) {
 	defer tg.cleanup()
 	tg.setenv("GOPATH", "")
 	tg.runFail("install", "foo/quxx")
-	if tg.grepCountBoth(`\(\$GOPATH not set\)$`) != 1 {
-		t.Error(`go install foo/quxx expected error: ($GOPATH not set)`)
+	if tg.grepCountBoth(`\(\$GOPATH not set\. For more details see: 'go help gopath'\)$`) != 1 {
+		t.Error(`go install foo/quxx expected error: ($GOPATH not set. For more details see: 'go help gopath')`)
 	}
 }
 
