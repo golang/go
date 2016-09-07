@@ -15,11 +15,10 @@ import (
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf       []byte            // contents are the bytes buf[off : len(buf)]
-	off       int               // read at &buf[off], write at &buf[len(buf)]
-	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each call to WriteRune
-	bootstrap [64]byte          // memory to hold first slice; helps small buffers avoid allocation.
-	lastRead  readOp            // last read operation, so that Unread* can work correctly.
+	buf       []byte   // contents are the bytes buf[off : len(buf)]
+	off       int      // read at &buf[off], write at &buf[len(buf)]
+	bootstrap [64]byte // memory to hold first slice; helps small buffers avoid allocation.
+	lastRead  readOp   // last read operation, so that Unread* can work correctly.
 }
 
 // The readOp constants describe the last action performed on
@@ -246,8 +245,10 @@ func (b *Buffer) WriteRune(r rune) (n int, err error) {
 		b.WriteByte(byte(r))
 		return 1, nil
 	}
-	n = utf8.EncodeRune(b.runeBytes[0:], r)
-	b.Write(b.runeBytes[0:n])
+	b.lastRead = opInvalid
+	m := b.grow(utf8.UTFMax)
+	n = utf8.EncodeRune(b.buf[m:m+utf8.UTFMax], r)
+	b.buf = b.buf[:m+n]
 	return n, nil
 }
 
