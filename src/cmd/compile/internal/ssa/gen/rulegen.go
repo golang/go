@@ -616,7 +616,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
 			if strict {
 				return false
 			} else {
-				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s[0], archname, op.argLength, len(args))
+				log.Printf("%s: op %s (%s) should have %d args, has %d", loc, s[0], archname, x.argLength, len(args))
 			}
 		}
 		return true
