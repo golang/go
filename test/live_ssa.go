@@ -646,3 +646,12 @@ func good40() {
 	printnl() // ERROR "live at call to printnl: autotmp_[0-9]+ ret$"
 	_ = t
 }
+
+func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
+	ddd2(x, y) // ERROR "live at call to ddd2: x y autotmp_[0-9]+$"
+	printnl()  // ERROR "live at call to printnl: x y$"
+	// Note: no autotmp live at printnl.  See issue 16996.
+}
+func ddd2(a ...*int) { // ERROR "live at entry to ddd2: a$"
+	sink = a[0]
+}
