@@ -119,6 +119,7 @@ var Anames = []string{
 	"FSUBCC",
 	"FSUBS",
 	"FSUBSCC",
+	"ISEL",
 	"MOVMW",
 	"LBAR",
 	"LSW",
