@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -74,7 +77,8 @@ func printOSDetails(w io.Writer) {
 		printCmdOut(w, "", "sw_vers")
 	case "linux":
 		printCmdOut(w, "uname -sr: ", "uname", "-sr")
-		printCmdOut(w, "libc:", "/lib/libc.so.6")
+		printCmdOut(w, "", "lsb_release", "-a")
+		printGlibcVersion(w)
 	case "openbsd", "netbsd", "freebsd", "dragonfly":
 		printCmdOut(w, "uname -v: ", "uname", "-v")
 	case "solaris":
@@ -97,10 +101,7 @@ func printCDetails(w io.Writer) {
 		// There's apparently no combination of command line flags
 		// to get gdb to spit out its version without the license and warranty.
 		// Print up to the first newline.
-		idx := bytes.Index(out, []byte{'\n'})
-		line := out[:idx]
-		line = bytes.TrimSpace(line)
-		fmt.Fprintf(w, "gdb --version: %s\n", line)
+		fmt.Fprintf(w, "gdb --version: %s\n", firstLine(out))
 	} else {
 		if buildV {
 			fmt.Printf("failed to run gdb --version: %v\n", err)
@@ -144,4 +145,57 @@ func printCmdOut(w io.Writer, prefix, path string, args ...string) {
 		return
 	}
 	fmt.Fprintf(w, "%s%s\n", prefix, bytes.TrimSpace(out))
+}
+
+// firstLine returns the first line of a given byte slice.
+func firstLine(buf []byte) []byte {
+	idx := bytes.IndexByte(buf, '\n')
+	if idx > 0 {
+		buf = buf[:idx]
+	}
+	return bytes.TrimSpace(buf)
+}
+
+// printGlibcVersion prints information about the glibc version.
+// It ignores failures.
+func printGlibcVersion(w io.Writer) {
+	tempdir := os.TempDir()
+	if tempdir == "" {
+		return
+	}
+	src := []byte(`int main() {}`)
+	srcfile := filepath.Join(tempdir, "go-bug.c")
+	outfile := filepath.Join(tempdir, "go-bug")
+	err := ioutil.WriteFile(srcfile, src, 0644)
+	if err != nil {
+		return
+	}
+	defer os.Remove(srcfile)
+	cmd := exec.Command("gcc", "-o", outfile, srcfile)
+	if _, err = cmd.CombinedOutput(); err != nil {
+		return
+	}
+	defer os.Remove(outfile)
+
+	cmd = exec.Command("ldd", outfile)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return
+	}
+	re := regexp.MustCompile(`libc\.so[^ ]* => ([^ ]+)`)
+	m := re.FindStringSubmatch(string(out))
+	if m == nil {
+		return
+	}
+	cmd = exec.Command(m[1])
+	out, err = cmd.Output()
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(w, "%s: %s\n", m[1], firstLine(out))
+
+	// print another line (the one containing version string) in case of musl libc
+	if idx := bytes.IndexByte(out, '\n'); bytes.Index(out, []byte("musl")) != -1 && idx > -1 {
+		fmt.Fprintf(w, "%s\n", firstLine(out[idx+1:]))
+	}
 }
