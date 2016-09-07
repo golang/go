@@ -1572,7 +1572,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		if haspointers(t.Type) {
-			if escassignfromtag(e, note, nE.Escretval, src)&EscMask == EscNone && up.Op != ODEFER && up.Op != OPROC {
+			if escassignfromtag(e, note, nE.Escretval, src) == EscNone && up.Op != ODEFER && up.Op != OPROC {
 				a := src
 				for a.Op == OCONVNOP {
 					a = a.Left
