@@ -36,7 +36,7 @@ func init() {
 	// That little dot ۰ is an Arabic zero numeral (U+06F0), categories [Nd].
 	externals = map[string]externalFn{
 		"(*sync.Pool).Get":                 ext۰sync۰Pool۰Get,
-		"(*sync.Pool).Put":                 ext۰sync۰Pool۰Put,
+		"(*sync.Pool).Put":                 ext۰nop,
 		"(reflect.Value).Bool":             ext۰reflect۰Value۰Bool,
 		"(reflect.Value).CanAddr":          ext۰reflect۰Value۰CanAddr,
 		"(reflect.Value).CanInterface":     ext۰reflect۰Value۰CanInterface,
@@ -72,6 +72,7 @@ func init() {
 		"(reflect.rtype).Out":              ext۰reflect۰rtype۰Out,
 		"(reflect.rtype).Size":             ext۰reflect۰rtype۰Size,
 		"(reflect.rtype).String":           ext۰reflect۰rtype۰String,
+		"bytes.init":                       ext۰nop, // avoid asm dependency
 		"bytes.Equal":                      ext۰bytes۰Equal,
 		"bytes.IndexByte":                  ext۰bytes۰IndexByte,
 		"hash/crc32.haveSSE42":             ext۰crc32۰haveSSE42,
@@ -87,7 +88,7 @@ func init() {
 		"math.hasSSE4":                     ext۰math۰hasSSE4,
 		"os.Pipe":                          ext۰os۰Pipe,
 		"os.runtime_args":                  ext۰os۰runtime_args,
-		"os.runtime_beforeExit":            ext۰os۰runtime_beforeExit,
+		"os.runtime_beforeExit":            ext۰nop,
 		"reflect.New":                      ext۰reflect۰New,
 		"reflect.SliceOf":                  ext۰reflect۰SliceOf,
 		"reflect.TypeOf":                   ext۰reflect۰TypeOf,
@@ -103,23 +104,24 @@ func init() {
 		"runtime.GOMAXPROCS":               ext۰runtime۰GOMAXPROCS,
 		"runtime.Goexit":                   ext۰runtime۰Goexit,
 		"runtime.Gosched":                  ext۰runtime۰Gosched,
-		"runtime.init":                     ext۰runtime۰init,
+		"runtime.init":                     ext۰nop,
 		"runtime.NumCPU":                   ext۰runtime۰NumCPU,
 		"runtime.NumGoroutine":             ext۰runtime۰NumGoroutine,
 		"runtime.ReadMemStats":             ext۰runtime۰ReadMemStats,
-		"runtime.SetFinalizer":             ext۰runtime۰SetFinalizer,
+		"runtime.SetFinalizer":             ext۰nop, // ignore
 		"(*runtime.Func).Entry":            ext۰runtime۰Func۰Entry,
 		"(*runtime.Func).FileLine":         ext۰runtime۰Func۰FileLine,
 		"(*runtime.Func).Name":             ext۰runtime۰Func۰Name,
 		"runtime.environ":                  ext۰runtime۰environ,
 		"runtime.getgoroot":                ext۰runtime۰getgoroot,
+		"strings.init":                     ext۰nop, // avoid asm dependency
 		"strings.Index":                    ext۰strings۰Index,
 		"strings.IndexByte":                ext۰strings۰IndexByte,
-		"sync.runtime_Semacquire":          ext۰sync۰runtime_Semacquire,
-		"sync.runtime_Semrelease":          ext۰sync۰runtime_Semrelease,
-		"sync.runtime_Syncsemcheck":        ext۰sync۰runtime_Syncsemcheck,
-		"sync.runtime_notifyListCheck":     ext۰sync۰runtime_notifyListCheck,
-		"sync.runtime_registerPoolCleanup": ext۰sync۰runtime_registerPoolCleanup,
+		"sync.runtime_Semacquire":          ext۰nop, // unimplementable
+		"sync.runtime_Semrelease":          ext۰nop, // unimplementable
+		"sync.runtime_Syncsemcheck":        ext۰nop, // unimplementable
+		"sync.runtime_notifyListCheck":     ext۰nop,
+		"sync.runtime_registerPoolCleanup": ext۰nop,
 		"sync/atomic.AddInt32":             ext۰atomic۰AddInt32,
 		"sync/atomic.AddUint32":            ext۰atomic۰AddUint32,
 		"sync/atomic.AddUint64":            ext۰atomic۰AddUint64,
@@ -157,6 +159,8 @@ func wrapError(err error) value {
 	return iface{t: errorType, v: err.Error()}
 }
 
+func ext۰nop(fr *frame, args []value) value { return nil }
+
 func ext۰sync۰Pool۰Get(fr *frame, args []value) value {
 	Pool := fr.i.prog.ImportedPackage("sync").Type("Pool").Object()
 	_, newIndex, _ := types.LookupFieldOrMethod(Pool.Type(), false, Pool.Pkg(), "New")
@@ -164,10 +168,6 @@ func ext۰sync۰Pool۰Get(fr *frame, args []value) value {
 	if New := (*args[0].(*value)).(structure)[newIndex[0]]; New != nil {
 		return call(fr.i, fr, 0, New, nil)
 	}
-	return nil
-}
-
-func ext۰sync۰Pool۰Put(fr *frame, args []value) value {
 	return nil
 }
 
@@ -246,10 +246,6 @@ func ext۰os۰runtime_args(fr *frame, args []value) value {
 	return fr.i.osArgs
 }
 
-func ext۰os۰runtime_beforeExit(fr *frame, args []value) value {
-	return nil
-}
-
 func ext۰runtime۰Breakpoint(fr *frame, args []value) value {
 	runtime.Breakpoint()
 	return nil
@@ -320,43 +316,13 @@ func ext۰runtime۰getgoroot(fr *frame, args []value) value {
 }
 
 func ext۰strings۰IndexByte(fr *frame, args []value) value {
-	// func IndexByte(s string, c byte) int
-	s := args[0].(string)
-	c := args[1].(byte)
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
+	// Call compiled version to avoid asm dependency.
+	return strings.IndexByte(args[0].(string), args[1].(byte))
 }
 
 func ext۰strings۰Index(fr *frame, args []value) value {
-	// Call compiled version to avoid tricky asm dependency.
+	// Call compiled version to avoid asm dependency.
 	return strings.Index(args[0].(string), args[1].(string))
-}
-
-func ext۰sync۰runtime_Semacquire(fr *frame, args []value) value {
-	// TODO(adonovan): fix: implement.
-	return nil
-}
-
-func ext۰sync۰runtime_Semrelease(fr *frame, args []value) value {
-	// TODO(adonovan): fix: implement.
-	return nil
-}
-
-func ext۰sync۰runtime_Syncsemcheck(fr *frame, args []value) value {
-	// TODO(adonovan): fix: implement.
-	return nil
-}
-
-func ext۰sync۰runtime_notifyListCheck(fr *frame, args []value) value {
-	return nil // no-op
-}
-
-func ext۰sync۰runtime_registerPoolCleanup(fr *frame, args []value) value {
-	return nil // no-op
 }
 
 func ext۰runtime۰GOMAXPROCS(fr *frame, args []value) value {
@@ -378,10 +344,6 @@ func ext۰runtime۰GC(fr *frame, args []value) value {
 
 func ext۰runtime۰Gosched(fr *frame, args []value) value {
 	runtime.Gosched()
-	return nil
-}
-
-func ext۰runtime۰init(fr *frame, args []value) value {
 	return nil
 }
 
@@ -452,10 +414,6 @@ func ext۰atomic۰AddUint64(fr *frame, args []value) value {
 	newv := (*p).(uint64) + args[1].(uint64)
 	*p = newv
 	return newv
-}
-
-func ext۰runtime۰SetFinalizer(fr *frame, args []value) value {
-	return nil // ignore
 }
 
 // Pretend: type runtime.Func struct { entry *ssa.Function }
