@@ -23,6 +23,7 @@ func trim(f *Func) {
 		j := b.Succs[0].i
 		p.Succs[i] = Edge{s, j}
 		s.Preds[j] = Edge{p, i}
+		f.invalidateCFG()
 	}
 	tail := f.Blocks[n:]
 	for i := range tail {
