@@ -189,6 +189,7 @@ func nto(x int64) int64 {
 }
 
 // log2 returns logarithm in base of uint64(n), with log2(0) = -1.
+// Rounds down.
 func log2(n int64) (l int64) {
 	l = -1
 	x := uint64(n)
