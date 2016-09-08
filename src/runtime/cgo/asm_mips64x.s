@@ -18,9 +18,9 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	 *  first arg.
 	 */
 	ADDV	$(-8*23), R29
-	MOVV	R5, (8*1)(R29)
-	MOVV	R6, (8*2)(R29)
-	MOVV	R7, (8*3)(R29)
+	MOVV	R5, (8*1)(R29) // void*
+	MOVW	R6, (8*2)(R29) // int32
+	MOVV	R7, (8*3)(R29) // uintptr
 	MOVV	R16, (8*4)(R29)
 	MOVV	R17, (8*5)(R29)
 	MOVV	R18, (8*6)(R29)
@@ -49,9 +49,6 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	JAL	runtime·load_g(SB)
 	JAL	(R4)
 
-	MOVV	(8*1)(R29), R5
-	MOVV	(8*2)(R29), R6
-	MOVV	(8*3)(R29), R7
 	MOVV	(8*4)(R29), R16
 	MOVV	(8*5)(R29), R17
 	MOVV	(8*6)(R29), R18
