@@ -504,15 +504,9 @@ func gopanic(e interface{}) {
 // getargp returns the location where the caller
 // writes outgoing function call arguments.
 //go:nosplit
+//go:noinline
 func getargp(x int) uintptr {
 	// x is an argument mainly so that we can return its address.
-	// However, we need to make the function complex enough
-	// that it won't be inlined. We always pass x = 0, so this code
-	// does nothing other than keep the compiler from thinking
-	// the function is simple enough to inline.
-	if x > 0 {
-		return getcallersp(unsafe.Pointer(&x)) * 0
-	}
 	return uintptr(noescape(unsafe.Pointer(&x)))
 }
 
