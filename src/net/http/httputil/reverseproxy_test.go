@@ -148,6 +148,9 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 		if c := r.Header.Get("Upgrade"); c != "" {
 			t.Errorf("handler got header %q = %q; want empty", "Upgrade", c)
 		}
+		w.Header().Set("Connection", "Upgrade, "+fakeConnectionToken)
+		w.Header().Set("Upgrade", "should be deleted")
+		w.Header().Set(fakeConnectionToken, "should be deleted")
 		io.WriteString(w, backendResponse)
 	}))
 	defer backend.Close()
@@ -179,6 +182,12 @@ func TestReverseProxyStripHeadersPresentInConnection(t *testing.T) {
 	}
 	if got, want := string(bodyBytes), backendResponse; got != want {
 		t.Errorf("got body %q; want %q", got, want)
+	}
+	if c := res.Header.Get("Upgrade"); c != "" {
+		t.Errorf("handler got header %q = %q; want empty", "Upgrade", c)
+	}
+	if c := res.Header.Get(fakeConnectionToken); c != "" {
+		t.Errorf("handler got header %q = %q; want empty", fakeConnectionToken, c)
 	}
 }
 
