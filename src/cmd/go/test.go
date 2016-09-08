@@ -135,27 +135,10 @@ const testFlag2 = `
 	    By default, no benchmarks run. To run all benchmarks,
 	    use '-bench .' or '-bench=.'.
 
-	-benchmem
-	    Print memory allocation statistics for benchmarks.
-
 	-benchtime t
 	    Run enough iterations of each benchmark to take t, specified
 	    as a time.Duration (for example, -benchtime 1h30s).
 	    The default is 1 second (1s).
-
-	-blockprofile block.out
-	    Write a goroutine blocking profile to the specified file
-	    when all tests are complete.
-	    Writes test binary as -c would.
-
-	-blockprofilerate n
-	    Control the detail provided in goroutine blocking profiles by
-	    calling runtime.SetBlockProfileRate with n.
-	    See 'go doc runtime.SetBlockProfileRate'.
-	    The profiler aims to sample, on average, one blocking event every
-	    n nanoseconds the program spends blocked.  By default,
-	    if -test.blockprofile is set without this flag, all blocking events
-	    are recorded, equivalent to -test.blockprofilerate=1.
 
 	-count n
 	    Run each test and benchmark n times (default 1).
@@ -182,32 +165,10 @@ const testFlag2 = `
 	    Packages are specified as import paths.
 	    Sets -cover.
 
-	-coverprofile cover.out
-	    Write a coverage profile to the file after all tests have passed.
-	    Sets -cover.
-
 	-cpu 1,2,4
 	    Specify a list of GOMAXPROCS values for which the tests or
 	    benchmarks should be executed.  The default is the current value
 	    of GOMAXPROCS.
-
-	-cpuprofile cpu.out
-	    Write a CPU profile to the specified file before exiting.
-	    Writes test binary as -c would.
-
-	-memprofile mem.out
-	    Write a memory profile to the file after all tests have passed.
-	    Writes test binary as -c would.
-
-	-memprofilerate n
-	    Enable more precise (and expensive) memory profiles by setting
-	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
-	    To profile all memory allocations, use -test.memprofilerate=1
-	    and pass --alloc_space flag to the pprof tool.
-
-	-outputdir directory
-	    Place output files from profiling in the specified directory,
-	    by default the directory in which "go test" is running.
 
 	-parallel n
 	    Allow parallel execution of test functions that call t.Parallel.
@@ -234,12 +195,54 @@ const testFlag2 = `
 	    If a test runs longer than t, panic.
 	    The default is 10 minutes (10m).
 
-	-trace trace.out
-	    Write an execution trace to the specified file before exiting.
-
 	-v
 	    Verbose output: log all tests as they are run. Also print all
 	    text from Log and Logf calls even if the test succeeds.
+
+The following flags are also recognized by 'go test' and can be used to
+profile the tests during execution::
+
+	-benchmem
+	    Print memory allocation statistics for benchmarks.
+
+	-blockprofile block.out
+	    Write a goroutine blocking profile to the specified file
+	    when all tests are complete.
+	    Writes test binary as -c would.
+
+	-blockprofilerate n
+	    Control the detail provided in goroutine blocking profiles by
+	    calling runtime.SetBlockProfileRate with n.
+	    See 'go doc runtime.SetBlockProfileRate'.
+	    The profiler aims to sample, on average, one blocking event every
+	    n nanoseconds the program spends blocked.  By default,
+	    if -test.blockprofile is set without this flag, all blocking events
+	    are recorded, equivalent to -test.blockprofilerate=1.
+
+	-coverprofile cover.out
+	    Write a coverage profile to the file after all tests have passed.
+	    Sets -cover.
+
+	-cpuprofile cpu.out
+	    Write a CPU profile to the specified file before exiting.
+	    Writes test binary as -c would.
+
+	-memprofile mem.out
+	    Write a memory profile to the file after all tests have passed.
+	    Writes test binary as -c would.
+
+	-memprofilerate n
+	    Enable more precise (and expensive) memory profiles by setting
+	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
+	    To profile all memory allocations, use -test.memprofilerate=1
+	    and pass --alloc_space flag to the pprof tool.
+
+	-outputdir directory
+	    Place output files from profiling in the specified directory,
+	    by default the directory in which "go test" is running.
+
+	-trace trace.out
+	    Write an execution trace to the specified file before exiting.
 
 Each of these flags is also recognized with an optional 'test.' prefix,
 as in -test.v. When invoking the generated test binary (the result of
