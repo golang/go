@@ -48,9 +48,6 @@
 	Pointer:
 		%p	base 16 notation, with leading 0x
 
-	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
-	Similarly, there is no need to specify the size of the operand (int8, int64).
-
 	The default format for %v is:
 		bool:                    %t
 		int, int8 etc.:          %d
