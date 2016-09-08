@@ -244,7 +244,7 @@ func (o Op) oconv(s fmt.State) {
 		return
 	}
 
-	fmt.Sprintf("O-%d", o)
+	fmt.Fprintf(s, "O-%d", o)
 }
 
 var classnames = []string{
