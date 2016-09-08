@@ -22,13 +22,13 @@ const ( //                                          fmt.Format flag/width/prec
 	FmtSharp                        // "#"  =>  '#'
 	FmtSign                         // "+"  =>  '+'
 	FmtUnsigned                     // "u"  =>  ' '
-	FmtShort                        // "h"  =>  hasWidth && width == 1
-	FmtLong                         // "l"  =>  hasWidth && width == 2
+	FmtShort                        // "h"  =>  hasWidth && width == 1; or verb == 'S' (Short)
+	FmtLong                         // "l"  =>  hasWidth && width == 2; or verb == 'L' (Long)
 	FmtComma                        // ","  =>  '.' (== hasPrec)
 	FmtByte                         // "hh" =>  '0'
 )
 
-func fmtFlag(s fmt.State) FmtFlag {
+func fmtFlag(s fmt.State, verb rune) FmtFlag {
 	var flag FmtFlag
 	if s.Flag('-') {
 		flag |= FmtLeft
@@ -55,6 +55,12 @@ func fmtFlag(s fmt.State) FmtFlag {
 	}
 	if s.Flag('0') {
 		flag |= FmtByte
+	}
+	switch verb {
+	case 'S':
+		flag |= FmtShort
+	case 'L':
+		flag |= FmtLong
 	}
 	return flag
 }
@@ -220,18 +226,17 @@ func (o Op) GoString() string {
 	return fmt.Sprintf("%#v", o)
 }
 
-func (o Op) Format(s fmt.State, format rune) {
-	switch format {
+func (o Op) Format(s fmt.State, verb rune) {
+	switch verb {
 	case 's', 'v':
-		o.oconv(s)
+		o.oconv(s, fmtFlag(s, verb))
 
 	default:
-		fmt.Fprintf(s, "%%!%c(Op=%d)", format, o)
+		fmt.Fprintf(s, "%%!%c(Op=%d)", verb, int(o))
 	}
 }
 
-func (o Op) oconv(s fmt.State) {
-	flag := fmtFlag(s)
+func (o Op) oconv(s fmt.State, flag FmtFlag) {
 	if (flag&FmtSharp != 0) || fmtmode != FDbg {
 		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
 			fmt.Fprint(s, goopnames[o])
@@ -244,7 +249,7 @@ func (o Op) oconv(s fmt.State) {
 		return
 	}
 
-	fmt.Fprintf(s, "O-%d", o)
+	fmt.Fprintf(s, "O-%d", int(o))
 }
 
 var classnames = []string{
@@ -257,22 +262,22 @@ var classnames = []string{
 	"PFUNC",
 }
 
-func (n *Node) Format(s fmt.State, format rune) {
-	switch format {
+func (n *Node) Format(s fmt.State, verb rune) {
+	switch verb {
 	case 's', 'v':
-		n.Nconv(s)
+		n.Nconv(s, fmtFlag(s, verb))
 
 	case 'j':
-		n.jconv(s)
+		n.jconv(s, fmtFlag(s, verb))
 
 	default:
-		fmt.Fprintf(s, "%%!%c(*Node=%p)", format, n)
+		fmt.Fprintf(s, "%%!%c(*Node=%p)", verb, n)
 	}
 }
 
 // Node details
-func (n *Node) jconv(s fmt.State) {
-	c := fmtFlag(s) & FmtShort
+func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+	c := flag & FmtShort
 
 	if c == 0 && n.Ullman != 0 {
 		fmt.Fprintf(s, " u(%d)", n.Ullman)
@@ -378,20 +383,18 @@ func (n *Node) jconv(s fmt.State) {
 	}
 }
 
-func (v Val) Format(s fmt.State, format rune) {
-	switch format {
+func (v Val) Format(s fmt.State, verb rune) {
+	switch verb {
 	case 's', 'v':
-		v.vconv(s)
+		v.vconv(s, fmtFlag(s, verb))
 
 	default:
-		fmt.Fprintf(s, "%%!%c(Val)", format)
+		fmt.Fprintf(s, "%%!%c(Val)", verb)
 	}
 }
 
 // Fmt "%V": Values
-func (v Val) vconv(s fmt.State) {
-	flag := fmtFlag(s)
-
+func (v Val) vconv(s fmt.State, flag FmtFlag) {
 	switch u := v.U.(type) {
 	case *Mpint:
 		if !u.Rune {
@@ -1582,13 +1585,13 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
 	}
 }
 
-func (s *Sym) Format(f fmt.State, format rune) {
-	switch format {
+func (s *Sym) Format(f fmt.State, verb rune) {
+	switch verb {
 	case 's', 'v':
-		s.sconv(f)
+		s.sconv(f, fmtFlag(f, verb))
 
 	default:
-		fmt.Fprintf(f, "%%!%c(*Sym=%p)", format, s)
+		fmt.Fprintf(f, "%%!%c(*Sym=%p)", verb, s)
 	}
 }
 
@@ -1598,9 +1601,7 @@ func (s *Sym) String() string {
 
 // Fmt "%S": syms
 // Flags:  "%hS" suppresses qualifying with package
-func (s *Sym) sconv(f fmt.State) {
-	flag := fmtFlag(f)
-
+func (s *Sym) sconv(f fmt.State, flag FmtFlag) {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
 	}
@@ -1701,13 +1702,13 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	return str
 }
 
-func (t *Type) Format(s fmt.State, format rune) {
-	switch format {
+func (t *Type) Format(s fmt.State, verb rune) {
+	switch verb {
 	case 's', 'v':
-		t.tconv(s)
+		t.tconv(s, fmtFlag(s, verb))
 
 	default:
-		fmt.Fprintf(s, "%%!%c(*Type=%p)", format, t)
+		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
 	}
 }
 
@@ -1715,9 +1716,7 @@ func (t *Type) Format(s fmt.State, format rune) {
 // Flags: 'l' print definition, not name
 //	  'h' omit 'func' and receiver from function types, short type names
 //	  'u' package name, not prefix (FTypeId mode, sticky)
-func (t *Type) tconv(s fmt.State) {
-	flag := fmtFlag(s)
-
+func (t *Type) tconv(s fmt.State, flag FmtFlag) {
 	if t == nil {
 		fmt.Fprint(s, "<T>")
 		return
@@ -1757,9 +1756,7 @@ func (n *Node) String() string {
 // Fmt '%N': Nodes.
 // Flags: 'l' suffix with "(type %T)" where possible
 //	  '+h' in debug mode, don't recurse, no multiline output
-func (n *Node) Nconv(s fmt.State) {
-	flag := fmtFlag(s)
-
+func (n *Node) Nconv(s fmt.State, flag FmtFlag) {
 	if n == nil {
 		fmt.Fprint(s, "<N>")
 		return
@@ -1785,13 +1782,13 @@ func (n *Node) Nconv(s fmt.State) {
 	fmtmode = sm
 }
 
-func (l Nodes) Format(s fmt.State, format rune) {
-	switch format {
+func (l Nodes) Format(s fmt.State, verb rune) {
+	switch verb {
 	case 's', 'v':
-		l.hconv(s)
+		l.hconv(s, fmtFlag(s, verb))
 
 	default:
-		fmt.Fprintf(s, "%%!%c(Nodes)", format)
+		fmt.Fprintf(s, "%%!%c(Nodes)", verb)
 	}
 }
 
@@ -1801,9 +1798,7 @@ func (n Nodes) String() string {
 
 // Fmt '%H': Nodes.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
-func (l Nodes) hconv(s fmt.State) {
-	flag := fmtFlag(s)
-
+func (l Nodes) hconv(s fmt.State, flag FmtFlag) {
 	if l.Len() == 0 && fmtmode == FDbg {
 		fmt.Fprint(s, "<nil>")
 		return
