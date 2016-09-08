@@ -20,6 +20,7 @@ TEXT runtime·checkvectorfacility(SB),NOSPLIT,$32-0
 	MOVD    $2, R0
 	MOVD	R1, tmp-32(SP)
 	MOVD    $x-24(SP), R1
+	XC	$24, 0(R1), 0(R1)
 //      STFLE   0(R1)
 	WORD    $0xB2B01000
 	MOVBZ   z-8(SP), R1
