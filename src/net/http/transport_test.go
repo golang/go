@@ -3369,6 +3369,15 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
 }
 
 func TestTransportEventTraceRealDNS(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		// Skip this test in short mode (the default for
+		// all.bash), in case the user is using a shady/ISP
+		// DNS server hijacking queries.
+		// See issues 16732, 16716.
+		// Our builders use 8.8.8.8, though, which correctly
+		// returns NXDOMAIN, so still run this test there.
+		t.Skip("skipping in short mode")
+	}
 	defer afterTest(t)
 	tr := &Transport{}
 	defer tr.CloseIdleConnections()
