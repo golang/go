@@ -34,7 +34,6 @@ package ld
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
-	"fmt"
 	"log"
 )
 
@@ -165,108 +164,4 @@ func Linklookup(ctxt *Link, name string, v int) *Symbol {
 // read-only lookup
 func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
 	return ctxt.Hash[v][name]
-}
-
-// A BuildMode indicates the sort of object we are building:
-//   "exe": build a main package and everything it imports into an executable.
-//   "c-shared": build a main package, plus all packages that it imports, into a
-//     single C shared library. The only callable symbols will be those functions
-//     marked as exported.
-//   "shared": combine all packages passed on the command line, and their
-//     dependencies, into a single shared library that will be used when
-//     building with the -linkshared option.
-type BuildMode uint8
-
-const (
-	BuildmodeUnset BuildMode = iota
-	BuildmodeExe
-	BuildmodePIE
-	BuildmodeCArchive
-	BuildmodeCShared
-	BuildmodeShared
-	BuildmodePlugin
-)
-
-func (mode *BuildMode) Set(s string) error {
-	badmode := func() error {
-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, obj.GOOS, obj.GOARCH)
-	}
-	switch s {
-	default:
-		return fmt.Errorf("invalid buildmode: %q", s)
-	case "exe":
-		*mode = BuildmodeExe
-	case "pie":
-		switch obj.GOOS {
-		case "android", "linux":
-		default:
-			return badmode()
-		}
-		*mode = BuildmodePIE
-	case "c-archive":
-		switch obj.GOOS {
-		case "darwin", "linux":
-		case "windows":
-			switch obj.GOARCH {
-			case "amd64", "386":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
-		*mode = BuildmodeCArchive
-	case "c-shared":
-		switch obj.GOARCH {
-		case "386", "amd64", "arm", "arm64":
-		default:
-			return badmode()
-		}
-		*mode = BuildmodeCShared
-	case "shared":
-		switch obj.GOOS {
-		case "linux":
-			switch obj.GOARCH {
-			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
-		*mode = BuildmodeShared
-	case "plugin":
-		switch obj.GOOS {
-		case "linux":
-			switch obj.GOARCH {
-			case "386", "amd64", "arm", "arm64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
-		*mode = BuildmodePlugin
-	}
-	return nil
-}
-
-func (mode *BuildMode) String() string {
-	switch *mode {
-	case BuildmodeUnset:
-		return "" // avoid showing a default in usage message
-	case BuildmodeExe:
-		return "exe"
-	case BuildmodePIE:
-		return "pie"
-	case BuildmodeCArchive:
-		return "c-archive"
-	case BuildmodeCShared:
-		return "c-shared"
-	case BuildmodeShared:
-		return "shared"
-	case BuildmodePlugin:
-		return "plugin"
-	}
-	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
 }

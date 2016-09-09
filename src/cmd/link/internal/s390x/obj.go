@@ -80,12 +80,6 @@ func linkarchinit() {
 }
 
 func archinit(ctxt *ld.Link) {
-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
-	// Go was built; see ../../make.bash.
-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
-		ld.Linkmode = ld.LinkInternal
-	}
-
 	switch ld.Headtype {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)

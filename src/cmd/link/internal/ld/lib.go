@@ -198,7 +198,6 @@ var (
 	Headtype obj.HeadType
 
 	nerrors  int
-	Linkmode int
 	liveness int64
 )
 
@@ -441,49 +440,12 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	if Linkmode == LinkAuto {
-		if iscgo && externalobj {
-			Linkmode = LinkExternal
-		} else {
-			Linkmode = LinkInternal
-		}
+	// We now have enough information to determine the link mode.
+	determineLinkMode(ctxt)
 
-		// Force external linking for android.
-		if obj.GOOS == "android" {
-			Linkmode = LinkExternal
-		}
-
-		// These build modes depend on the external linker
-		// to handle some relocations (such as TLS IE) not
-		// yet supported by the internal linker.
-		switch Buildmode {
-		case BuildmodeCArchive, BuildmodeCShared, BuildmodePIE, BuildmodePlugin, BuildmodeShared:
-			Linkmode = LinkExternal
-		}
-		if *FlagLinkshared {
-			Linkmode = LinkExternal
-		}
-
-		// cgo on Darwin must use external linking
-		// we can always use external linking, but then there will be circular
-		// dependency problems when compiling natively (external linking requires
-		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
-		// compiled using external linking.)
-		if SysArch.InFamily(sys.ARM, sys.ARM64) && Headtype == obj.Hdarwin && iscgo {
-			Linkmode = LinkExternal
-		}
-
-		// Force external linking for msan.
-		if *flagMsan {
-			Linkmode = LinkExternal
-		}
-	}
-
-	// cmd/7l doesn't support cgo internal linking
-	// This is https://golang.org/issue/10373.
-	// mips64x doesn't support cgo internal linking either (golang.org/issue/14449)
-	if iscgo && (obj.GOARCH == "arm64" || obj.GOARCH == "mips64" || obj.GOARCH == "mips64le") {
-		Linkmode = LinkExternal
+	if Linkmode == LinkExternal && SysArch.Family == sys.PPC64 {
+		toc := Linklookup(ctxt, ".TOC.", 0)
+		toc.Type = obj.SDYNIMPORT
 	}
 
 	if Linkmode == LinkExternal && !iscgo {

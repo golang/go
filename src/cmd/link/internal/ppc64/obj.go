@@ -35,7 +35,6 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
 	"fmt"
-	"log"
 )
 
 // Reading object files.
@@ -94,39 +93,6 @@ func linkarchinit() {
 }
 
 func archinit(ctxt *ld.Link) {
-	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
-	// Go was built; see ../../make.bash.
-	if ld.Linkmode == ld.LinkAuto && obj.Getgoextlinkenabled() == "0" {
-		ld.Linkmode = ld.LinkInternal
-	}
-
-	switch ld.Buildmode {
-	case ld.BuildmodePIE, ld.BuildmodeShared:
-		ld.Linkmode = ld.LinkExternal
-	}
-
-	if *ld.FlagLinkshared {
-		ld.Linkmode = ld.LinkExternal
-	}
-
-	if ld.Linkmode == ld.LinkExternal {
-		toc := ld.Linklookup(ctxt, ".TOC.", 0)
-		toc.Type = obj.SDYNIMPORT
-	}
-
-	switch ld.Headtype {
-	default:
-		if ld.Linkmode == ld.LinkAuto {
-			ld.Linkmode = ld.LinkInternal
-		}
-		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
-			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
-		}
-
-	case obj.Hlinux:
-		break
-	}
-
 	switch ld.Headtype {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.Headtype)
