@@ -972,7 +972,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			s.Branches = append(s.Branches, gc.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
+	case ssa.BlockPlain, ssa.BlockCheck:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH

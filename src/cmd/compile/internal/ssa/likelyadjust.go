@@ -28,7 +28,7 @@ type loop struct {
 	isInner bool  // True if never discovered to contain a loop
 
 	// register allocation uses this.
-	containsCall bool // if any block in this loop or any loop it contains is a BlockCall or BlockDefer
+	containsCall bool // if any block in this loop or any loop it contains has a call
 }
 
 // outerinner records that outer contains inner
@@ -50,8 +50,15 @@ func (l *loop) setContainsCall() {
 
 }
 func (l *loop) checkContainsCall(bb *Block) {
-	if bb.Kind == BlockCall || bb.Kind == BlockDefer {
+	if bb.Kind == BlockDefer {
 		l.setContainsCall()
+		return
+	}
+	for _, v := range bb.Values {
+		if opcodeTable[v.Op].call {
+			l.setContainsCall()
+			return
+		}
 	}
 }
 
@@ -132,7 +139,7 @@ func likelyadjust(f *Func) {
 			// Calls. TODO not all calls are equal, names give useful clues.
 			// Any name-based heuristics are only relative to other calls,
 			// and less influential than inferences from loop structure.
-		case BlockCall, BlockDefer:
+		case BlockDefer:
 			local[b.ID] = blCALL
 			certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
 
@@ -208,6 +215,13 @@ func likelyadjust(f *Func) {
 					if b.Likely == BranchUnknown {
 						b.Likely = prediction
 					}
+				}
+			}
+			// Look for calls in the block.  If there is one, make this block unlikely.
+			for _, v := range b.Values {
+				if opcodeTable[v.Op].call {
+					local[b.ID] = blCALL
+					certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
 				}
 			}
 		}

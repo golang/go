@@ -698,12 +698,8 @@ func (s *regAllocState) regalloc(f *Func) {
 		// Initialize liveSet and uses fields for this block.
 		// Walk backwards through the block doing liveness analysis.
 		liveSet.clear()
-		d := int32(len(b.Values))
-		if b.Kind == BlockCall || b.Kind == BlockDefer {
-			d += unlikelyDistance
-		}
 		for _, e := range s.live[b.ID] {
-			s.addUse(e.ID, d+e.dist) // pseudo-uses from beyond end of block
+			s.addUse(e.ID, int32(len(b.Values))+e.dist) // pseudo-uses from beyond end of block
 			liveSet.add(e.ID)
 		}
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
@@ -2200,14 +2196,8 @@ func (s *regAllocState) computeLive() {
 			// Add len(b.Values) to adjust from end-of-block distance
 			// to beginning-of-block distance.
 			live.clear()
-			d := int32(len(b.Values))
-			if b.Kind == BlockCall || b.Kind == BlockDefer {
-				// Because we keep no values in registers across a call,
-				// make every use past a call appear very far away.
-				d += unlikelyDistance
-			}
 			for _, e := range s.live[b.ID] {
-				live.set(e.ID, e.dist+d)
+				live.set(e.ID, e.dist+int32(len(b.Values)))
 			}
 
 			// Mark control value as live
@@ -2225,6 +2215,12 @@ func (s *regAllocState) computeLive() {
 					// save phi ops for later
 					phis = append(phis, v)
 					continue
+				}
+				if opcodeTable[v.Op].call {
+					c := live.contents()
+					for i := range c {
+						c[i].val += unlikelyDistance
+					}
 				}
 				for _, a := range v.Args {
 					if s.values[a.ID].needReg {

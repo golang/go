@@ -2894,7 +2894,6 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	}
 
 	// call target
-	bNext := s.f.NewBlock(ssa.BlockPlain)
 	var call *ssa.Value
 	switch {
 	case k == callDefer:
@@ -2912,29 +2911,29 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		Fatalf("bad call type %v %v", n.Op, n)
 	}
 	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
-
-	// Finish call block
 	s.vars[&memVar] = call
-	b := s.endBlock()
-	b.Kind = ssa.BlockCall
-	b.SetControl(call)
-	b.AddEdgeTo(bNext)
+
+	// Finish block for defers
 	if k == callDefer {
-		// Add recover edge to exit code.
+		b := s.endBlock()
 		b.Kind = ssa.BlockDefer
+		b.SetControl(call)
+		bNext := s.f.NewBlock(ssa.BlockPlain)
+		b.AddEdgeTo(bNext)
+		// Add recover edge to exit code.
 		r := s.f.NewBlock(ssa.BlockPlain)
 		s.startBlock(r)
 		s.exit()
 		b.AddEdgeTo(r)
 		b.Likely = ssa.BranchLikely
+		s.startBlock(bNext)
 	}
 
-	// Start exit block, find address of result.
-	s.startBlock(bNext)
 	// Keep input pointer args live across calls.  This is a bandaid until 1.8.
 	for _, n := range s.ptrargs {
 		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
 	}
+	// Find address of result.
 	res := n.Left.Type.Results()
 	if res.NumFields() == 0 || k != callNormal {
 		// call has no return value. Continue with the next statement.
@@ -3276,9 +3275,9 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn.Sym, s.mem())
 	s.vars[&memVar] = call
 
-	// Finish block
-	b := s.endBlock()
 	if !returns {
+		// Finish block
+		b := s.endBlock()
 		b.Kind = ssa.BlockExit
 		b.SetControl(call)
 		call.AuxInt = off - Ctxt.FixedFrameSize()
@@ -3287,11 +3286,6 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 		}
 		return nil
 	}
-	b.Kind = ssa.BlockCall
-	b.SetControl(call)
-	bNext := s.f.NewBlock(ssa.BlockPlain)
-	b.AddEdgeTo(bNext)
-	s.startBlock(bNext)
 
 	// Keep input pointer args live across calls.  This is a bandaid until 1.8.
 	for _, n := range s.ptrargs {
@@ -4267,7 +4261,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
-		if i < len(f.Blocks)-1 && (Debug['N'] == 0 || b.Kind == ssa.BlockCall) {
+		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
 			// If -N, leave next==nil so every block with successors
 			// ends in a JMP (except call blocks - plive doesn't like
 			// select{send,recv} followed by a JMP call).  Helps keep

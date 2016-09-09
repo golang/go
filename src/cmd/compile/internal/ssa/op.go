@@ -29,6 +29,7 @@ type opInfo struct {
 	resultInArg0      bool // (first, if a tuple) output of v and v.Args[0] must be allocated to the same register
 	resultNotInArgs   bool // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool // this op clobbers flags register
+	call              bool // is a function call
 }
 
 type inputInfo struct {
