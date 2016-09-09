@@ -94,7 +94,7 @@ func (b *boolValue) Set(s string) error {
 
 func (b *boolValue) Get() interface{} { return bool(*b) }
 
-func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
+func (b *boolValue) String() string { return strconv.FormatBool(bool(*b)) }
 
 func (b *boolValue) IsBoolFlag() bool { return true }
 
@@ -121,7 +121,7 @@ func (i *intValue) Set(s string) error {
 
 func (i *intValue) Get() interface{} { return int(*i) }
 
-func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
+func (i *intValue) String() string { return strconv.Itoa(int(*i)) }
 
 // -- int64 Value
 type int64Value int64
@@ -139,7 +139,7 @@ func (i *int64Value) Set(s string) error {
 
 func (i *int64Value) Get() interface{} { return int64(*i) }
 
-func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
+func (i *int64Value) String() string { return strconv.FormatInt(int64(*i), 10) }
 
 // -- uint Value
 type uintValue uint
@@ -157,7 +157,7 @@ func (i *uintValue) Set(s string) error {
 
 func (i *uintValue) Get() interface{} { return uint(*i) }
 
-func (i *uintValue) String() string { return fmt.Sprintf("%v", *i) }
+func (i *uintValue) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
 // -- uint64 Value
 type uint64Value uint64
@@ -175,7 +175,7 @@ func (i *uint64Value) Set(s string) error {
 
 func (i *uint64Value) Get() interface{} { return uint64(*i) }
 
-func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
+func (i *uint64Value) String() string { return strconv.FormatUint(uint64(*i), 10) }
 
 // -- string Value
 type stringValue string
@@ -192,7 +192,7 @@ func (s *stringValue) Set(val string) error {
 
 func (s *stringValue) Get() interface{} { return string(*s) }
 
-func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
+func (s *stringValue) String() string { return string(*s) }
 
 // -- float64 Value
 type float64Value float64
@@ -210,7 +210,7 @@ func (f *float64Value) Set(s string) error {
 
 func (f *float64Value) Get() interface{} { return float64(*f) }
 
-func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
+func (f *float64Value) String() string { return strconv.FormatFloat(float64(*f), 'g', -1, 64) }
 
 // -- time.Duration Value
 type durationValue time.Duration
