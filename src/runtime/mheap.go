@@ -102,9 +102,11 @@ var mheap_ mheap
 // * During GC (gcphase != _GCoff), a span *must not* transition from
 //   stack or in-use to free. Because concurrent GC may read a pointer
 //   and then look up its span, the span state must be monotonic.
+type mSpanState uint8
+
 const (
-	_MSpanInUse = iota // allocated for garbage collected heap
-	_MSpanStack        // allocated for use by stack allocator
+	_MSpanInUse mSpanState = iota // allocated for garbage collected heap
+	_MSpanStack                   // allocated for use by stack allocator
 	_MSpanFree
 	_MSpanDead
 )
@@ -186,21 +188,21 @@ type mspan struct {
 	// h->sweepgen is incremented by 2 after every GC
 
 	sweepgen    uint32
-	divMul      uint32   // for divide by elemsize - divMagic.mul
-	allocCount  uint16   // capacity - number of objects in freelist
-	sizeclass   uint8    // size class
-	incache     bool     // being used by an mcache
-	state       uint8    // mspaninuse etc
-	needzero    uint8    // needs to be zeroed before allocation
-	divShift    uint8    // for divide by elemsize - divMagic.shift
-	divShift2   uint8    // for divide by elemsize - divMagic.shift2
-	elemsize    uintptr  // computed from sizeclass or from npages
-	unusedsince int64    // first time spotted by gc in mspanfree state
-	npreleased  uintptr  // number of pages released to the os
-	limit       uintptr  // end of data in span
-	speciallock mutex    // guards specials list
-	specials    *special // linked list of special records sorted by offset.
-	baseMask    uintptr  // if non-0, elemsize is a power of 2, & this will get object allocation base
+	divMul      uint32     // for divide by elemsize - divMagic.mul
+	allocCount  uint16     // capacity - number of objects in freelist
+	sizeclass   uint8      // size class
+	incache     bool       // being used by an mcache
+	state       mSpanState // mspaninuse etc
+	needzero    uint8      // needs to be zeroed before allocation
+	divShift    uint8      // for divide by elemsize - divMagic.shift
+	divShift2   uint8      // for divide by elemsize - divMagic.shift2
+	elemsize    uintptr    // computed from sizeclass or from npages
+	unusedsince int64      // first time spotted by gc in mspanfree state
+	npreleased  uintptr    // number of pages released to the os
+	limit       uintptr    // end of data in span
+	speciallock mutex      // guards specials list
+	specials    *special   // linked list of special records sorted by offset.
+	baseMask    uintptr    // if non-0, elemsize is a power of 2, & this will get object allocation base
 }
 
 func (s *mspan) base() uintptr {
