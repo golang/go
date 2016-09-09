@@ -420,7 +420,7 @@ func Parse(rawurl string) (*URL, error) {
 	u, frag := split(rawurl, "#", true)
 	url, err := parse(u, false)
 	if err != nil {
-		return nil, err
+		return nil, &Error{"parse", u, err}
 	}
 	if frag == "" {
 		return url, nil
@@ -437,31 +437,35 @@ func Parse(rawurl string) (*URL, error) {
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
 func ParseRequestURI(rawurl string) (*URL, error) {
-	return parse(rawurl, true)
+	url, err := parse(rawurl, true)
+	if err != nil {
+		return nil, &Error{"parse", rawurl, err}
+	}
+	return url, nil
 }
 
 // parse parses a URL from a string in one of two contexts. If
 // viaRequest is true, the URL is assumed to have arrived via an HTTP request,
 // in which case only absolute URLs or path-absolute relative URLs are allowed.
 // If viaRequest is false, all forms of relative URLs are allowed.
-func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+func parse(rawurl string, viaRequest bool) (*URL, error) {
 	var rest string
+	var err error
 
 	if rawurl == "" && viaRequest {
-		err = errors.New("empty url")
-		goto Error
+		return nil, errors.New("empty url")
 	}
-	url = new(URL)
+	url := new(URL)
 
 	if rawurl == "*" {
 		url.Path = "*"
-		return
+		return url, nil
 	}
 
 	// Split off possible leading "http:", "mailto:", etc.
 	// Cannot contain escaped characters.
 	if url.Scheme, rest, err = getscheme(rawurl); err != nil {
-		goto Error
+		return nil, err
 	}
 	url.Scheme = strings.ToLower(url.Scheme)
 
@@ -479,8 +483,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 			return url, nil
 		}
 		if viaRequest {
-			err = errors.New("invalid URI for request")
-			goto Error
+			return nil, errors.New("invalid URI for request")
 		}
 	}
 
@@ -489,7 +492,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 		authority, rest = split(rest[2:], "/", false)
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
-			goto Error
+			return nil, err
 		}
 	}
 	// Set Path and, optionally, RawPath.
@@ -497,12 +500,9 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	// the default escaping of Path is equivalent, to help make sure that people
 	// don't rely on it in general.
 	if err := url.setPath(rest); err != nil {
-		goto Error
+		return nil, err
 	}
 	return url, nil
-
-Error:
-	return nil, &Error{"parse", rawurl, err}
 }
 
 func parseAuthority(authority string) (user *Userinfo, host string, err error) {
