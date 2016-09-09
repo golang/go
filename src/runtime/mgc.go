@@ -1025,6 +1025,13 @@ func gcStart(mode gcMode, forceTrigger bool) {
 		gcBgMarkPrepare() // Must happen before assist enable.
 		gcMarkRootPrepare()
 
+		// Mark all active tinyalloc blocks. Since we're
+		// allocating from these, they need to be black like
+		// other allocations. The alternative is to blacken
+		// the tiny block on every allocation from it, which
+		// would slow down the tiny allocator.
+		gcMarkTinyAllocs()
+
 		// At this point all Ps have enabled the write
 		// barrier, thus maintaining the no white to
 		// black invariant. Enable mutator assists to
