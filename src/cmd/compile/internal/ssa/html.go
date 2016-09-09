@@ -341,7 +341,8 @@ func (v *Value) HTML() string {
 	// TODO: Using the value ID as the class ignores the fact
 	// that value IDs get recycled and that some values
 	// are transmuted into other values.
-	return fmt.Sprintf("<span class=\"%[1]s ssa-value\">%[1]s</span>", v.String())
+	s := v.String()
+	return fmt.Sprintf("<span class=\"%s ssa-value\">%s</span>", s, s)
 }
 
 func (v *Value) LongHTML() string {
@@ -369,7 +370,8 @@ func (b *Block) HTML() string {
 	// TODO: Using the value ID as the class ignores the fact
 	// that value IDs get recycled and that some values
 	// are transmuted into other values.
-	return fmt.Sprintf("<span class=\"%[1]s ssa-block\">%[1]s</span>", html.EscapeString(b.String()))
+	s := html.EscapeString(b.String())
+	return fmt.Sprintf("<span class=\"%s ssa-block\">%s</span>", s, s)
 }
 
 func (b *Block) LongHTML() string {
