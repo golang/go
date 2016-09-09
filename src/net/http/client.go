@@ -447,6 +447,7 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 		deadline = c.deadline()
 		reqs     []*Request
 		resp     *Response
+		ireqhdr  = req.Header.clone()
 	)
 	uerr := func(err error) error {
 		req.closeBody()
@@ -486,6 +487,17 @@ func (c *Client) doFollowingRedirects(req *Request, shouldRedirect func(int) boo
 			}
 			if ireq.Method == "POST" || ireq.Method == "PUT" {
 				req.Method = "GET"
+			}
+			// Copy the initial request's Header values
+			// (at least the safe ones).  Do this before
+			// setting the Referer, in case the user set
+			// Referer on their first request. If they
+			// really want to override, they can do it in
+			// their CheckRedirect func.
+			for k, vv := range ireqhdr {
+				if shouldCopyHeaderOnRedirect(k, ireq.URL, u) {
+					req.Header[k] = vv
+				}
 			}
 			// Add the Referer header from the most recent
 			// request URL to the new one, if it's not https->http:
@@ -668,4 +680,53 @@ func (b *cancelTimerBody) Close() error {
 	err := b.rc.Close()
 	b.stop()
 	return err
+}
+
+func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
+	switch CanonicalHeaderKey(headerKey) {
+	case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
+		// Permit sending auth/cookie headers from "foo.com"
+		// to "sub.foo.com".
+
+		// Note that we don't send all cookies to subdomains
+		// automatically. This function is only used for
+		// Cookies set explicitly on the initial outgoing
+		// client request. Cookies automatically added via the
+		// CookieJar mechanism continue to follow each
+		// cookie's scope as set by Set-Cookie. But for
+		// outgoing requests with the Cookie header set
+		// directly, we don't know their scope, so we assume
+		// it's for *.domain.com.
+
+		// TODO(bradfitz): once issue 16142 is fixed, make
+		// this code use those URL accessors, and consider
+		// "http://foo.com" and "http://foo.com:80" as
+		// equivalent?
+
+		// TODO(bradfitz): better hostname canonicalization,
+		// at least once we figure out IDNA/Punycode (issue
+		// 13835).
+		ihost := strings.ToLower(initial.Host)
+		dhost := strings.ToLower(dest.Host)
+		return isDomainOrSubdomain(dhost, ihost)
+	}
+	// All other headers are copied:
+	return true
+}
+
+// isDomainOrSubdomain reports whether sub is a subdomain (or exact
+// match) of the parent domain.
+//
+// Both domains must already be in canonical form.
+func isDomainOrSubdomain(sub, parent string) bool {
+	if sub == parent {
+		return true
+	}
+	// If sub is "foo.example.com" and parent is "example.com",
+	// that means sub must end in "."+parent.
+	// Do it without allocating.
+	if !strings.HasSuffix(sub, parent) {
+		return false
+	}
+	return sub[len(sub)-len(parent)-1] == '.'
 }

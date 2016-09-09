@@ -160,3 +160,5 @@ func ExportHttp2ConfigureTransport(t *Transport) error {
 	t.h2transport = t2
 	return nil
 }
+
+var Export_shouldCopyHeaderOnRedirect = shouldCopyHeaderOnRedirect
