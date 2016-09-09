@@ -579,20 +579,6 @@ func ufmt(u *URL) string {
 		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
 }
 
-func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
-	for _, tt := range tests {
-		u, err := parse(tt.in)
-		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
-			continue
-		}
-		if !reflect.DeepEqual(u, tt.out) {
-			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
-				name, tt.in, ufmt(u), ufmt(tt.out))
-		}
-	}
-}
-
 func BenchmarkString(b *testing.B) {
 	b.StopTimer()
 	b.ReportAllocs()
@@ -618,7 +604,16 @@ func BenchmarkString(b *testing.B) {
 }
 
 func TestParse(t *testing.T) {
-	DoTest(t, Parse, "Parse", urltests)
+	for _, tt := range urltests {
+		u, err := Parse(tt.in)
+		if err != nil {
+			t.Errorf("Parse(%q) returned error %v", tt.in, err)
+			continue
+		}
+		if !reflect.DeepEqual(u, tt.out) {
+			t.Errorf("Parse(%q):\n\tgot  %v\n\twant %v\n", tt.in, ufmt(u), ufmt(tt.out))
+		}
+	}
 }
 
 const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
@@ -665,9 +660,10 @@ var parseRequestURLTests = []struct {
 func TestParseRequestURI(t *testing.T) {
 	for _, test := range parseRequestURLTests {
 		_, err := ParseRequestURI(test.url)
-		valid := err == nil
-		if valid != test.expectedValid {
-			t.Errorf("Expected valid=%v for %q; got %v", test.expectedValid, test.url, valid)
+		if test.expectedValid && err != nil {
+			t.Errorf("ParseRequestURI(%q) gave err %v; want no error", test.url, err)
+		} else if !test.expectedValid && err == nil {
+			t.Errorf("ParseRequestURI(%q) gave nil error; want some error", test.url)
 		}
 	}
 
@@ -676,45 +672,36 @@ func TestParseRequestURI(t *testing.T) {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	if url.Path != pathThatLooksSchemeRelative {
-		t.Errorf("Expected path %q; got %q", pathThatLooksSchemeRelative, url.Path)
-	}
-}
-
-func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
-	for _, tt := range tests {
-		u, err := parse(tt.in)
-		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
-			continue
-		}
-		expected := tt.in
-		if len(tt.roundtrip) > 0 {
-			expected = tt.roundtrip
-		}
-		s := u.String()
-		if s != expected {
-			t.Errorf("%s(%q).String() == %q (expected %q)", name, tt.in, s, expected)
-		}
+		t.Errorf("ParseRequestURI path:\ngot  %q\nwant %q", url.Path, pathThatLooksSchemeRelative)
 	}
 }
 
 func TestURLString(t *testing.T) {
-	DoTestString(t, Parse, "Parse", urltests)
-
-	// no leading slash on path should prepend
-	// slash on String() call
-	noslash := URLTest{
-		"http://www.google.com/search",
-		&URL{
-			Scheme: "http",
-			Host:   "www.google.com",
-			Path:   "search",
-		},
-		"",
+	for _, tt := range urltests {
+		u, err := Parse(tt.in)
+		if err != nil {
+			t.Errorf("Parse(%q) returned error %s", tt.in, err)
+			continue
+		}
+		expected := tt.in
+		if tt.roundtrip != "" {
+			expected = tt.roundtrip
+		}
+		s := u.String()
+		if s != expected {
+			t.Errorf("Parse(%q).String() == %q (expected %q)", tt.in, s, expected)
+		}
 	}
-	s := noslash.out.String()
-	if s != noslash.in {
-		t.Errorf("Expected %s; go %s", noslash.in, s)
+
+	// No leading slash on path should prepend
+	// slash on String() call
+	noslash := URL{
+		Scheme: "http",
+		Host:   "www.google.com",
+		Path:   "search",
+	}
+	if got, want := noslash.String(), "http://www.google.com/search"; got != want {
+		t.Errorf("No slash\ngot  %q\nwant %q", got, want)
 	}
 }
 
@@ -1013,7 +1000,7 @@ func TestResolveReference(t *testing.T) {
 	mustParse := func(url string) *URL {
 		u, err := Parse(url)
 		if err != nil {
-			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
+			t.Fatalf("Parse(%q) got err %v", url, err)
 		}
 		return u
 	}
@@ -1042,14 +1029,14 @@ func TestResolveReference(t *testing.T) {
 		// Ensure Opaque resets the URL.
 		url = base.ResolveReference(opaque)
 		if *url != *opaque {
-			t.Errorf("ResolveReference failed to resolve opaque URL: want %#v, got %#v", url, opaque)
+			t.Errorf("ResolveReference failed to resolve opaque URL:\ngot  %#v\nwant %#v", url, opaque)
 		}
 		// Test the convenience wrapper with an opaque URL too.
 		url, err = base.Parse("scheme:opaque")
 		if err != nil {
 			t.Errorf(`URL(%q).Parse("scheme:opaque") failed: %v`, test.base, err)
 		} else if *url != *opaque {
-			t.Errorf("Parse failed to resolve opaque URL: want %#v, got %#v", url, opaque)
+			t.Errorf("Parse failed to resolve opaque URL:\ngot  %#v\nwant %#v", opaque, url)
 		} else if base == url {
 			// Ensure that new instances are returned, again.
 			t.Errorf("Expected URL.Parse to return new URL instance.")
@@ -1471,11 +1458,11 @@ func TestURLErrorImplementsNetError(t *testing.T) {
 			continue
 		}
 		if err.Timeout() != tt.timeout {
-			t.Errorf("%d: err.Timeout(): want %v, have %v", i+1, tt.timeout, err.Timeout())
+			t.Errorf("%d: err.Timeout(): got %v, want %v", i+1, err.Timeout(), tt.timeout)
 			continue
 		}
 		if err.Temporary() != tt.temporary {
-			t.Errorf("%d: err.Temporary(): want %v, have %v", i+1, tt.temporary, err.Temporary())
+			t.Errorf("%d: err.Temporary(): got %v, want %v", i+1, err.Temporary(), tt.temporary)
 		}
 	}
 }
