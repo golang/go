@@ -11,6 +11,7 @@
 package testenv
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"os/exec"
@@ -67,26 +68,36 @@ func MustHaveGoRun(t *testing.T) {
 }
 
 // GoToolPath reports the path to the Go tool.
+// It is a convenience wrapper around GoTool.
 // If the tool is unavailable GoToolPath calls t.Skip.
 // If the tool should be available and isn't, GoToolPath calls t.Fatal.
 func GoToolPath(t *testing.T) string {
 	MustHaveGoBuild(t)
+	path, err := GoTool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
 
+// GoTool reports the path to the Go tool.
+func GoTool() (string, error) {
+	if !HasGoBuild() {
+		return "", errors.New("platform cannot run go tool")
+	}
 	var exeSuffix string
 	if runtime.GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
-
 	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
 	if _, err := os.Stat(path); err == nil {
-		return path
+		return path, nil
 	}
-
 	goBin, err := exec.LookPath("go" + exeSuffix)
 	if err != nil {
-		t.Fatalf("cannot find go tool: %v", err)
+		return "", errors.New("cannot find go tool: " + err.Error())
 	}
-	return goBin
+	return goBin, nil
 }
 
 // HasExec reports whether the current system can start new processes
