@@ -159,6 +159,8 @@ type Shlib struct {
 	gcdataAddresses map[*Symbol]uint64
 }
 
+// Link holds the context for writing object code from a compiler
+// or for reading that input into the linker.
 type Link struct {
 	Arch      *sys.Arch
 	Debugvlog int
@@ -264,18 +266,4 @@ const (
 
 	RV_CHECK_OVERFLOW = 1 << 8
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
-)
-
-// Pcdata iterator.
-//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
-
-// Link holds the context for writing object code from a compiler
-// to be linker input or for reading that input into the linker.
-
-// LinkArch is the definition of a single architecture.
-
-const (
-	LinkAuto = 0 + iota
-	LinkInternal
-	LinkExternal
 )

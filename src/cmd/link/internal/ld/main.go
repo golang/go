@@ -48,6 +48,7 @@ var (
 )
 
 func init() {
+	flag.Var(&Linkmode, "linkmode", "set link `mode`")
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
 	flag.Var(&Headtype, "H", "set header `type`")
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
@@ -59,7 +60,6 @@ var (
 
 	flagOutfile    = flag.String("o", "", "write output to `file`")
 	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
-	Buildmode      BuildMode
 
 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
@@ -120,7 +120,6 @@ func Main() {
 	obj.Flagfn0("V", "print version and exit", doversion)
 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
 	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
-	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
 
 	obj.Flagparse(usage)
 

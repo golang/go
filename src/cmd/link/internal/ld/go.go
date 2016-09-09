@@ -419,15 +419,3 @@ func importcycles() {
 		p.cycle()
 	}
 }
-
-func setlinkmode(arg string) {
-	if arg == "internal" {
-		Linkmode = LinkInternal
-	} else if arg == "external" {
-		Linkmode = LinkExternal
-	} else if arg == "auto" {
-		Linkmode = LinkAuto
-	} else {
-		Exitf("unknown link mode -linkmode %s", arg)
-	}
-}
