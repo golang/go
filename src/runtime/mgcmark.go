@@ -1320,9 +1320,22 @@ func gcDumpObject(label string, obj, off uintptr) {
 		print(" s=nil\n")
 		return
 	}
-	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
+	print(" s.base()=", hex(s.base()), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, " s.state=")
+	if 0 <= s.state && int(s.state) < len(mSpanStateNames) {
+		print(mSpanStateNames[s.state], "\n")
+	} else {
+		print("unknown(", s.state, ")\n")
+	}
+
 	skipped := false
-	for i := uintptr(0); i < s.elemsize; i += sys.PtrSize {
+	size := s.elemsize
+	if s.state == _MSpanStack && size == 0 {
+		// We're printing something from a stack frame. We
+		// don't know how big it is, so just show up to an
+		// including off.
+		size = off + sys.PtrSize
+	}
+	for i := uintptr(0); i < size; i += sys.PtrSize {
 		// For big objects, just print the beginning (because
 		// that usually hints at the object's type) and the
 		// fields around off.

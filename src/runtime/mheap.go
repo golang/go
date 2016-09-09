@@ -111,6 +111,15 @@ const (
 	_MSpanDead
 )
 
+// mSpanStateNames are the names of the span states, indexed by
+// mSpanState.
+var mSpanStateNames = []string{
+	"_MSpanInUse",
+	"_MSpanStack",
+	"_MSpanFree",
+	"_MSpanDead",
+}
+
 // mSpanList heads a linked list of spans.
 //
 // Linked list structure is based on BSD's "tail queue" data structure.
