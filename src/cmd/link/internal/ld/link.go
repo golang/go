@@ -160,12 +160,10 @@ type Shlib struct {
 }
 
 type Link struct {
-	Goarm     int32
 	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer
 	Windows   int32
-	Goroot    string
 
 	// Symbol lookup based on name and indexed by version.
 	Hash []map[string]*Symbol

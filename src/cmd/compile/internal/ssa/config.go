@@ -182,7 +182,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.fpRegMask = fpRegMaskARM64
 		c.FPReg = framepointerRegARM64
 		c.hasGReg = true
-		c.noDuffDevice = obj.Getgoos() == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+		c.noDuffDevice = obj.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
 	case "ppc64le":
 		c.IntSize = 8
 		c.PtrSize = 8
@@ -211,11 +211,11 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
-	c.nacl = obj.Getgoos() == "nacl"
+	c.nacl = obj.GOOS == "nacl"
 
 	// Don't use Duff's device on Plan 9 AMD64, because floating
 	// point operations are not allowed in note handler.
-	if obj.Getgoos() == "plan9" && arch == "amd64" {
+	if obj.GOOS == "plan9" && arch == "amd64" {
 		c.noDuffDevice = true
 	}
 

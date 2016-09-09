@@ -111,7 +111,7 @@ func Main() {
 	}
 
 	// TODO(matloob): define these above and then check flag values here
-	if SysArch.Family == sys.AMD64 && obj.Getgoos() == "plan9" {
+	if SysArch.Family == sys.AMD64 && obj.GOOS == "plan9" {
 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
 	}
 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
@@ -144,7 +144,7 @@ func Main() {
 	libinit(ctxt) // creates outfile
 
 	if Headtype == obj.Hunknown {
-		Headtype.Set(obj.Getgoos())
+		Headtype.Set(obj.GOOS)
 	}
 
 	ctxt.computeTLSOffset()

@@ -223,7 +223,7 @@ func (d *deadcodepass) init() {
 
 	if SysArch.Family == sys.ARM {
 		// mark some functions that are only referenced after linker code editing
-		if d.ctxt.Goarm == 5 {
+		if obj.GOARM == 5 {
 			names = append(names, "_sfloat")
 		}
 		names = append(names, "runtime.read_tls_fallback")

@@ -16,7 +16,7 @@ func betypeinit() {
 
 func Main() {
 	gc.Thearch.LinkArch = &mips.Linkmips64
-	if obj.Getgoarch() == "mips64le" {
+	if obj.GOARCH == "mips64le" {
 		gc.Thearch.LinkArch = &mips.Linkmips64le
 	}
 	gc.Thearch.REGSP = mips.REGSP

@@ -46,7 +46,7 @@ func Main() {
 }
 
 func linkarchinit() {
-	if obj.Getgoarch() == "mips64le" {
+	if obj.GOARCH == "mips64le" {
 		ld.SysArch = sys.ArchMIPS64LE
 	} else {
 		ld.SysArch = sys.ArchMIPS64

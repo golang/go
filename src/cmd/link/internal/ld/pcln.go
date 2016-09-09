@@ -374,7 +374,7 @@ func (ctxt *Link) pclntab() {
 func expandGoroot(s string) string {
 	const n = len("$GOROOT")
 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
-		root := goroot
+		root := obj.GOROOT
 		if final := os.Getenv("GOROOT_FINAL"); final != "" {
 			root = final
 		}

@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
 			}
 
-			if ctxt.Goarm < 7 {
+			if obj.GOARM < 7 {
 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
 				if progedit_tlsfallback == nil {
 					progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
@@ -626,7 +626,7 @@ func isfloatreg(a *obj.Addr) bool {
 }
 
 func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
-	if ctxt.Goarm > 5 {
+	if obj.GOARM > 5 {
 		return
 	}
 

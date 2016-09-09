@@ -66,7 +66,7 @@ func defframe(ptxt *obj.Prog) {
 	zerorange(p, int64(frame), lo, hi)
 }
 
-var darwin = obj.Getgoos() == "darwin"
+var darwin = obj.GOOS == "darwin"
 
 func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	cnt := hi - lo

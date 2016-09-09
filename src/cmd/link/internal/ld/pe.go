@@ -876,9 +876,9 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
 	sectoff := ctors.VirtualAddress
 	Lputl(sectoff)
 	Lputl(uint32(dottext.Dynid))
-	switch obj.Getgoarch() {
+	switch obj.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.Getgoarch())
+		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.GOARCH)
 		os.Exit(2)
 	case "386":
 		Wputl(IMAGE_REL_I386_DIR32)
@@ -1097,9 +1097,9 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 	// However, the entire Go runtime is initialized from just one function, so it is unlikely
 	// that this will need to grow in the future.
 	var size int
-	switch obj.Getgoarch() {
+	switch obj.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.Getgoarch())
+		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.GOARCH)
 		os.Exit(2)
 	case "386":
 		size = 4
@@ -1116,7 +1116,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
 	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
 
-	switch obj.Getgoarch() {
+	switch obj.GOARCH {
 	case "386":
 		Lputl(uint32(addr))
 	case "amd64":

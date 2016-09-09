@@ -2152,7 +2152,7 @@ func instinit() {
 	}
 }
 
-var isAndroid = (obj.Getgoos() == "android")
+var isAndroid = (obj.GOOS == "android")
 
 func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path

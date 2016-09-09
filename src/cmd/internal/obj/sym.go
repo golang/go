@@ -32,7 +32,6 @@
 package obj
 
 import (
-	"cmd/internal/sys"
 	"log"
 	"os"
 	"path/filepath"
@@ -43,7 +42,7 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.Hash = make(map[SymVer]*LSym)
 	ctxt.Arch = arch
 	ctxt.Version = HistVersion
-	ctxt.Goroot = Getgoroot()
+	ctxt.Goroot = GOROOT
 	ctxt.Goroot_final = os.Getenv("GOROOT_FINAL")
 
 	var buf string
@@ -54,22 +53,17 @@ func Linknew(arch *LinkArch) *Link {
 	buf = filepath.ToSlash(buf)
 	ctxt.Pathname = buf
 
-	ctxt.LineHist.GOROOT = ctxt.Goroot
+	ctxt.LineHist.GOROOT = GOROOT
 	ctxt.LineHist.GOROOT_FINAL = ctxt.Goroot_final
 	ctxt.LineHist.Dir = ctxt.Pathname
 
-	ctxt.Headtype.Set(Getgoos())
+	ctxt.Headtype.Set(GOOS)
 	if ctxt.Headtype < 0 {
-		log.Fatalf("unknown goos %s", Getgoos())
-	}
-
-	// On arm, record goarm.
-	if ctxt.Arch.Family == sys.ARM {
-		ctxt.Goarm = Getgoarm()
+		log.Fatalf("unknown goos %s", GOOS)
 	}
 
 	ctxt.Flag_optimize = true
-	ctxt.Framepointer_enabled = Framepointer_enabled(Getgoos(), arch.Name)
+	ctxt.Framepointer_enabled = Framepointer_enabled(GOOS, arch.Name)
 	return ctxt
 }
 
