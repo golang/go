@@ -1396,6 +1396,27 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
 	}
 }
 
+// gcMarkTinyAllocs greys all active tiny alloc blocks.
+//
+// The world must be stopped.
+func gcMarkTinyAllocs() {
+	for _, p := range &allp {
+		if p == nil || p.status == _Pdead {
+			break
+		}
+		c := p.mcache
+		if c == nil || c.tiny == 0 {
+			continue
+		}
+		_, hbits, span, objIndex := heapBitsForObject(c.tiny, 0, 0)
+		gcw := &p.gcw
+		greyobject(c.tiny, 0, 0, hbits, span, gcw, objIndex)
+		if gcBlackenPromptly {
+			gcw.dispose()
+		}
+	}
+}
+
 // Checkmarking
 
 // To help debug the concurrent GC we remark with the world
