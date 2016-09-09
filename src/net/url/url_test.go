@@ -1479,3 +1479,47 @@ func TestURLErrorImplementsNetError(t *testing.T) {
 		}
 	}
 }
+
+func TestURLHostname(t *testing.T) {
+	tests := []struct {
+		host string // URL.Host field
+		want string
+	}{
+		{"foo.com:80", "foo.com"},
+		{"foo.com", "foo.com"},
+		{"FOO.COM", "FOO.COM"}, // no canonicalization (yet?)
+		{"1.2.3.4", "1.2.3.4"},
+		{"1.2.3.4:80", "1.2.3.4"},
+		{"[1:2:3:4]", "1:2:3:4"},
+		{"[1:2:3:4]:80", "1:2:3:4"},
+		{"[::1]:80", "::1"},
+	}
+	for _, tt := range tests {
+		u := &URL{Host: tt.host}
+		got := u.Hostname()
+		if got != tt.want {
+			t.Errorf("Hostname for Host %q = %q; want %q", tt.host, got, tt.want)
+		}
+	}
+}
+
+func TestURLPort(t *testing.T) {
+	tests := []struct {
+		host string // URL.Host field
+		want string
+	}{
+		{"foo.com", ""},
+		{"foo.com:80", "80"},
+		{"1.2.3.4", ""},
+		{"1.2.3.4:80", "80"},
+		{"[1:2:3:4]", ""},
+		{"[1:2:3:4]:80", "80"},
+	}
+	for _, tt := range tests {
+		u := &URL{Host: tt.host}
+		got := u.Port()
+		if got != tt.want {
+			t.Errorf("Port for Host %q = %q; want %q", tt.host, got, tt.want)
+		}
+	}
+}
