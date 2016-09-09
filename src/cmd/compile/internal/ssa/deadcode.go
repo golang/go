@@ -54,6 +54,7 @@ func liveValues(f *Func, reachable []bool) []bool {
 	var q []*Value // stack-like worklist of unscanned values
 
 	// Starting set: all control values of reachable blocks are live.
+	// Calls are live (because callee can observe the memory state).
 	for _, b := range f.Blocks {
 		if !reachable[b.ID] {
 			continue
@@ -61,6 +62,12 @@ func liveValues(f *Func, reachable []bool) []bool {
 		if v := b.Control; v != nil && !live[v.ID] {
 			live[v.ID] = true
 			q = append(q, v)
+		}
+		for _, v := range b.Values {
+			if opcodeTable[v.Op].call && !live[v.ID] {
+				live[v.ID] = true
+				q = append(q, v)
+			}
 		}
 	}
 
