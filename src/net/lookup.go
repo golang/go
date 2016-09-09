@@ -15,12 +15,73 @@ import (
 // protocol numbers.
 //
 // See http://www.iana.org/assignments/protocol-numbers
+//
+// On Unix, this map is augmented by readProtocols via lookupProtocol.
 var protocols = map[string]int{
-	"icmp": 1, "ICMP": 1,
-	"igmp": 2, "IGMP": 2,
-	"tcp": 6, "TCP": 6,
-	"udp": 17, "UDP": 17,
-	"ipv6-icmp": 58, "IPV6-ICMP": 58, "IPv6-ICMP": 58,
+	"icmp":      1,
+	"igmp":      2,
+	"tcp":       6,
+	"udp":       17,
+	"ipv6-icmp": 58,
+}
+
+// services contains minimal mappings between services names and port
+// numbers for platforms that don't have a complete list of port numbers
+// (some Solaris distros, nacl, etc).
+// On Unix, this map is augmented by readServices via goLookupPort.
+var services = map[string]map[string]int{
+	"udp": {
+		"domain": 53,
+	},
+	"tcp": {
+		"ftp":    21,
+		"ftps":   990,
+		"gopher": 70, // ʕ◔ϖ◔ʔ
+		"http":   80,
+		"https":  443,
+		"imap2":  143,
+		"imap3":  220,
+		"imaps":  993,
+		"pop3":   110,
+		"pop3s":  995,
+		"smtp":   25,
+		"ssh":    22,
+		"telnet": 23,
+	},
+}
+
+const maxProtoLength = len("RSVP-E2E-IGNORE") + 10 // with room to grow
+
+func lookupProtocolMap(name string) (int, error) {
+	var lowerProtocol [maxProtoLength]byte
+	n := copy(lowerProtocol[:], name)
+	lowerASCIIBytes(lowerProtocol[:n])
+	proto, found := protocols[string(lowerProtocol[:n])]
+	if !found || n != len(name) {
+		return 0, &AddrError{Err: "unknown IP protocol specified", Addr: name}
+	}
+	return proto, nil
+}
+
+const maxServiceLength = len("mobility-header") + 10 // with room to grow
+
+func lookupPortMap(network, service string) (port int, error error) {
+	switch network {
+	case "tcp4", "tcp6":
+		network = "tcp"
+	case "udp4", "udp6":
+		network = "udp"
+	}
+
+	if m, ok := services[network]; ok {
+		var lowerService [maxServiceLength]byte
+		n := copy(lowerService[:], service)
+		lowerASCIIBytes(lowerService[:n])
+		if port, ok := m[string(lowerService[:n])]; ok && n == len(service) {
+			return port, nil
+		}
+	}
+	return 0, &AddrError{Err: "unknown port", Addr: network + "/" + service}
 }
 
 // LookupHost looks up the given host using the local resolver.

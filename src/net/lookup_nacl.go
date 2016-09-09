@@ -12,7 +12,7 @@ import (
 )
 
 func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
-	return 0, syscall.ENOPROTOOPT
+	return lookupProtocolMap(name)
 }
 
 func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
@@ -24,7 +24,7 @@ func lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
 }
 
 func lookupPort(ctx context.Context, network, service string) (port int, err error) {
-	return 0, syscall.ENOPROTOOPT
+	return goLookupPort(network, service)
 }
 
 func lookupCNAME(ctx context.Context, name string) (cname string, err error) {
