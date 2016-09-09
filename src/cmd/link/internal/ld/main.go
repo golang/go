@@ -125,21 +125,10 @@ func Main() {
 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
 	obj.Flagcount("v", "print link trace", &ctxt.Debugvlog)
 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
-	var flagShared bool
-	if SysArch.InFamily(sys.ARM, sys.AMD64) {
-		flag.BoolVar(&flagShared, "shared", false, "generate shared object (implies -linkmode external)")
-	}
 
 	obj.Flagparse(usage)
 
 	startProfile()
-	if flagShared {
-		if Buildmode == BuildmodeUnset {
-			Buildmode = BuildmodeCShared
-		} else if Buildmode != BuildmodeCShared {
-			Exitf("-shared and -buildmode=%s are incompatible", Buildmode.String())
-		}
-	}
 	if Buildmode == BuildmodeUnset {
 		Buildmode = BuildmodeExe
 	}
