@@ -1401,15 +1401,15 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
 	if *FlagW { // disable dwarf
 		return
 	}
-	if *FlagS && HEADTYPE != obj.Hdarwin {
+	if *FlagS && Headtype != obj.Hdarwin {
 		return
 	}
-	if HEADTYPE == obj.Hplan9 {
+	if Headtype == obj.Hplan9 {
 		return
 	}
 
 	if Linkmode == LinkExternal {
-		if !Iself && HEADTYPE != obj.Hdarwin {
+		if !Iself && Headtype != obj.Hdarwin {
 			return
 		}
 	}

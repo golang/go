@@ -2188,7 +2188,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 					if isAndroid {
 						return 0x65 // GS
 					}
-					log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
+					log.Fatalf("unknown TLS base register for %s", ctxt.Headtype)
 
 				case obj.Hdarwin,
 					obj.Hdragonfly,
@@ -2201,7 +2201,7 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 
 			switch ctxt.Headtype {
 			default:
-				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
+				log.Fatalf("unknown TLS base register for %s", ctxt.Headtype)
 
 			case obj.Hlinux:
 				if isAndroid {
@@ -4016,7 +4016,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 						// are handled in prefixof above and should not be listed here.
 						switch ctxt.Headtype {
 						default:
-							log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
+							log.Fatalf("unknown TLS base location for %s", ctxt.Headtype)
 
 						case obj.Hlinux,
 							obj.Hnacl:
@@ -4074,7 +4074,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 							ctxt.AsmBuf.Put1(0x8B)
 							asmand(ctxt, p, &pp.From, &p.To)
 
-						case obj.Hwindows:
+						case obj.Hwindows, obj.Hwindowsgui:
 							// Windows TLS base is always 0x14(FS).
 							pp.From = p.From
 
@@ -4092,7 +4092,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 					switch ctxt.Headtype {
 					default:
-						log.Fatalf("unknown TLS base location for %s", obj.Headstr(ctxt.Headtype))
+						log.Fatalf("unknown TLS base location for %s", ctxt.Headtype)
 
 					case obj.Hlinux:
 						if !ctxt.Flag_shared {
@@ -4146,7 +4146,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 							0x8B)
 						asmand(ctxt, p, &pp.From, &p.To)
 
-					case obj.Hwindows:
+					case obj.Hwindows, obj.Hwindowsgui:
 						// Windows TLS base is always 0x28(GS).
 						pp.From = p.From
 

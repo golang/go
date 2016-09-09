@@ -161,7 +161,6 @@ type Shlib struct {
 
 type Link struct {
 	Goarm     int32
-	Headtype  int
 	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer

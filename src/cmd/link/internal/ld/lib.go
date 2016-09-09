@@ -183,7 +183,7 @@ var (
 
 	debug_s  bool // backup old value of debug['s']
 	HEADR    int32
-	HEADTYPE int32
+	Headtype obj.HeadType
 
 	nerrors  int
 	Linkmode int
@@ -204,10 +204,6 @@ const (
 	FileObj = 0 + iota
 	ArchiveObj
 	Pkgdef
-)
-
-var (
-	headstring string
 )
 
 // TODO(dfc) outBuf duplicates bio.Writer
@@ -465,7 +461,7 @@ func (ctxt *Link) loadlib() {
 		// dependency problems when compiling natively (external linking requires
 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
 		// compiled using external linking.)
-		if SysArch.InFamily(sys.ARM, sys.ARM64) && HEADTYPE == obj.Hdarwin && iscgo {
+		if SysArch.InFamily(sys.ARM, sys.ARM64) && Headtype == obj.Hdarwin && iscgo {
 			Linkmode = LinkExternal
 		}
 
@@ -605,7 +601,7 @@ func (ctxt *Link) loadlib() {
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
 			}
-			if HEADTYPE == obj.Hwindows {
+			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
 				if p := ctxt.findLibPath("libmingwex.a"); p != "none" {
 					hostArchive(ctxt, p)
 				}
@@ -639,7 +635,7 @@ func (ctxt *Link) loadlib() {
 	// statically linked binaries.
 	switch Buildmode {
 	case BuildmodeExe, BuildmodePIE:
-		if havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
+		if havedynamic == 0 && Headtype != obj.Hdarwin && Headtype != obj.Hsolaris {
 			*FlagD = true
 		}
 	}
@@ -805,7 +801,7 @@ func ldhostobj(ld func(*Link, *bio.Reader, string, int64, string), f *bio.Reader
 	// force external linking for any libraries that link in code that
 	// uses errno. This can be removed if the Go linker ever supports
 	// these relocation types.
-	if HEADTYPE == obj.Hdragonfly {
+	if Headtype == obj.Hdragonfly {
 		if pkg == "net" || pkg == "os/user" {
 			isinternal = false
 		}
@@ -980,23 +976,20 @@ func (l *Link) hostlink() {
 		argv = append(argv, "-s")
 	}
 
-	if HEADTYPE == obj.Hdarwin {
+	switch Headtype {
+	case obj.Hdarwin:
 		argv = append(argv, "-Wl,-no_pie,-headerpad,1144")
-	}
-	if HEADTYPE == obj.Hopenbsd {
+	case obj.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
-	}
-	if HEADTYPE == obj.Hwindows {
-		if headstring == "windowsgui" {
-			argv = append(argv, "-mwindows")
-		} else {
-			argv = append(argv, "-mconsole")
-		}
+	case obj.Hwindows:
+		argv = append(argv, "-mconsole")
+	case obj.Hwindowsgui:
+		argv = append(argv, "-mwindows")
 	}
 
 	switch Buildmode {
 	case BuildmodeExe:
-		if HEADTYPE == obj.Hdarwin {
+		if Headtype == obj.Hdarwin {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
 	case BuildmodePIE:
@@ -1005,7 +998,7 @@ func (l *Link) hostlink() {
 		}
 		argv = append(argv, "-pie")
 	case BuildmodeCShared:
-		if HEADTYPE == obj.Hdarwin {
+		if Headtype == obj.Hdarwin {
 			argv = append(argv, "-dynamiclib", "-Wl,-read_only_relocs,suppress")
 		} else {
 			// ELF.
@@ -1170,7 +1163,7 @@ func (l *Link) hostlink() {
 			}
 		}
 	}
-	if HEADTYPE == obj.Hwindows {
+	if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
 		// libmingw32 and libmingwex have some inter-dependencies,
 		// so must use linker groups.
 		argv = append(argv, "-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group")
@@ -1191,7 +1184,7 @@ func (l *Link) hostlink() {
 		l.Logf("%s", out)
 	}
 
-	if !*FlagS && !debug_s && HEADTYPE == obj.Hdarwin {
+	if !*FlagS && !debug_s && Headtype == obj.Hdarwin {
 		// Skip combining dwarf on arm.
 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")
@@ -1828,16 +1821,6 @@ func usage() {
 	Exit(2)
 }
 
-func setheadtype(s string) {
-	h := headtype(s)
-	if h < 0 {
-		Exitf("unknown header type -H %s", s)
-	}
-
-	headstring = s
-	HEADTYPE = int32(headtype(s))
-}
-
 func doversion() {
 	Exitf("version %s", obj.Getgoversion())
 }
@@ -1905,7 +1888,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, i
 			put(ctxt, nil, s.Name, 'f', s.Value, 0, int(s.Version), nil)
 
 		case obj.SHOSTOBJ:
-			if HEADTYPE == obj.Hwindows || Iself {
+			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui || Iself {
 				put(ctxt, s, s.Name, 'U', s.Value, 0, int(s.Version), nil)
 			}
 
@@ -1916,7 +1899,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, i
 			put(ctxt, s, s.Extname, 'U', 0, 0, int(s.Version), nil)
 
 		case obj.STLSBSS:
-			if Linkmode == LinkExternal && HEADTYPE != obj.Hopenbsd {
+			if Linkmode == LinkExternal && Headtype != obj.Hopenbsd {
 				put(ctxt, s, s.Name, 't', Symaddr(ctxt, s), s.Size, int(s.Version), s.Gotype)
 			}
 		}

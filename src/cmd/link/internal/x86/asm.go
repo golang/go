@@ -308,7 +308,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			return
 		}
 
-		if ld.HEADTYPE == obj.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
+		if ld.Headtype == obj.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -333,7 +333,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			return
 		}
 
-		if ld.HEADTYPE == obj.Hwindows && s.Size == int64(ld.SysArch.PtrSize) {
+		if (ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui) && s.Size == int64(ld.SysArch.PtrSize) {
 			// nothing to do, the relocation will be laid out in pereloc1
 			return
 		}
@@ -582,7 +582,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_JMP_SLOT))
 
 		s.Plt = int32(plt.Size - 16)
-	} else if ld.HEADTYPE == obj.Hdarwin {
+	} else if ld.Headtype == obj.Hdarwin {
 		// Same laziness as in 6l.
 
 		plt := ld.Linklookup(ctxt, ".plt", 0)
@@ -616,7 +616,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 		rel := ld.Linklookup(ctxt, ".rel", 0)
 		ld.Addaddrplus(ctxt, rel, got, int64(s.Got))
 		ld.Adduint32(ctxt, rel, ld.ELF32_R_INFO(uint32(s.Dynid), ld.R_386_GLOB_DAT))
-	} else if ld.HEADTYPE == obj.Hdarwin {
+	} else if ld.Headtype == obj.Hdarwin {
 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
 	} else {
 		ctxt.Diag("addgotsym: unsupported binary format")
@@ -661,7 +661,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
-	if ld.HEADTYPE == obj.Hdarwin {
+	if ld.Headtype == obj.Hdarwin {
 		machlink = uint32(ld.Domacholink(ctxt))
 	}
 
@@ -674,7 +674,7 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f sym\n", obj.Cputime())
 		}
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -687,13 +687,13 @@ func asmb(ctxt *ld.Link) {
 		case obj.Hdarwin:
 			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
-		case obj.Hwindows:
+		case obj.Hwindows, obj.Hwindowsgui:
 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = uint32(ld.Rnd(int64(symo), ld.PEFILEALIGN))
 		}
 
 		ld.Cseek(int64(symo))
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				if ctxt.Debugvlog != 0 {
@@ -722,7 +722,7 @@ func asmb(ctxt *ld.Link) {
 				ld.Cflush()
 			}
 
-		case obj.Hwindows:
+		case obj.Hwindows, obj.Hwindowsgui:
 			if ctxt.Debugvlog != 0 {
 				ctxt.Logf("%5.2f dwarf\n", obj.Cputime())
 			}
@@ -738,7 +738,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f headr\n", obj.Cputime())
 	}
 	ld.Cseek(0)
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 	case obj.Hplan9: /* plan9 */
 		magic := int32(4*11*11 + 7)
@@ -762,7 +762,7 @@ func asmb(ctxt *ld.Link) {
 		obj.Hnacl:
 		ld.Asmbelf(ctxt, int64(symo))
 
-	case obj.Hwindows:
+	case obj.Hwindows, obj.Hwindowsgui:
 		ld.Asmbpe(ctxt)
 	}
 

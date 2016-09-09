@@ -92,13 +92,13 @@ func archinit(ctxt *ld.Link) {
 		got.Attr |= ld.AttrReachable
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
 			ld.Linkmode = ld.LinkInternal
 		}
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
 		}
 
 	case obj.Hdarwin,
@@ -106,13 +106,14 @@ func archinit(ctxt *ld.Link) {
 		obj.Hlinux,
 		obj.Hnetbsd,
 		obj.Hopenbsd,
-		obj.Hwindows:
+		obj.Hwindows,
+		obj.Hwindowsgui:
 		break
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
+		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
 	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32
@@ -172,7 +173,7 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case obj.Hwindows: /* PE executable */
+	case obj.Hwindows, obj.Hwindowsgui: /* PE executable */
 		ld.Peinit(ctxt)
 
 		ld.HEADR = ld.PEFILEHEADR

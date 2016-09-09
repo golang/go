@@ -284,7 +284,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// the BR26 relocation should be fully resolved at link time.
 			// That is the reason why the next if block is disabled. When the bug in ld64
 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-			if false && ld.HEADTYPE == obj.Hdarwin {
+			if false && ld.Headtype == obj.Hdarwin {
 				var o0, o1 uint32
 
 				if ctxt.Arch.ByteOrder == binary.BigEndian {
@@ -361,8 +361,8 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 
 	case obj.R_ARM64_TLS_LE:
 		r.Done = 0
-		if ld.HEADTYPE != obj.Hlinux {
-			ctxt.Diag("TLS reloc on unsupported OS %s", ld.Headstr(int(ld.HEADTYPE)))
+		if ld.Headtype != obj.Hlinux {
+			ctxt.Diag("TLS reloc on unsupported OS %s", ld.Headtype)
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
 		// de facto part of the ABI.
@@ -427,7 +427,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
-	if ld.HEADTYPE == obj.Hdarwin {
+	if ld.Headtype == obj.Hdarwin {
 		machlink = uint32(ld.Domacholink(ctxt))
 	}
 
@@ -441,7 +441,7 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f sym\n", obj.Cputime())
 		}
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -456,7 +456,7 @@ func asmb(ctxt *ld.Link) {
 		}
 
 		ld.Cseek(int64(symo))
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				if ctxt.Debugvlog != 0 {
@@ -497,7 +497,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f header\n", obj.Cputime())
 	}
 	ld.Cseek(0)
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 	case obj.Hplan9: /* plan 9 */
 		ld.Thearch.Lput(0x647)                      /* magic */

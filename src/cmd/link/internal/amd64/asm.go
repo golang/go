@@ -227,7 +227,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 	switch r.Type {
 	case obj.R_CALL,
 		obj.R_PCREL:
-		if ld.HEADTYPE == obj.Hwindows {
+		if ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui {
 			// nothing to do, the relocation will be laid out in pereloc1
 			return
 		} else {
@@ -240,7 +240,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 
 	case obj.R_ADDR:
 		if s.Type == obj.STEXT && ld.Iself {
-			if ld.HEADTYPE == obj.Hsolaris {
+			if ld.Headtype == obj.Hsolaris {
 				addpltsym(ctxt, targ)
 				r.Sym = ld.Linklookup(ctxt, ".plt", 0)
 				r.Add += int64(targ.Plt)
@@ -273,7 +273,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			return
 		}
 
-		if ld.HEADTYPE == obj.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
+		if ld.Headtype == obj.Hdarwin && s.Size == int64(ld.SysArch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -298,7 +298,7 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) {
 			return
 		}
 
-		if ld.HEADTYPE == obj.Hwindows {
+		if ld.Headtype == obj.Hwindows || ld.Headtype == obj.Hwindowsgui {
 			// nothing to do, the relocation will be laid out in pereloc1
 			return
 		}
@@ -548,7 +548,7 @@ func addpltsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Adduint64(ctxt, rela, 0)
 
 		s.Plt = int32(plt.Size - 16)
-	} else if ld.HEADTYPE == obj.Hdarwin {
+	} else if ld.Headtype == obj.Hdarwin {
 		// To do lazy symbol lookup right, we're supposed
 		// to tell the dynamic loader which library each
 		// symbol comes from and format the link info
@@ -590,7 +590,7 @@ func addgotsym(ctxt *ld.Link, s *ld.Symbol) {
 		ld.Addaddrplus(ctxt, rela, got, int64(s.Got))
 		ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(s.Dynid), ld.R_X86_64_GLOB_DAT))
 		ld.Adduint64(ctxt, rela, 0)
-	} else if ld.HEADTYPE == obj.Hdarwin {
+	} else if ld.Headtype == obj.Hdarwin {
 		ld.Adduint32(ctxt, ld.Linklookup(ctxt, ".linkedit.got", 0), uint32(s.Dynid))
 	} else {
 		ctxt.Diag("addgotsym: unsupported binary format")
@@ -639,13 +639,13 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := int64(0)
-	if ld.HEADTYPE == obj.Hdarwin {
+	if ld.Headtype == obj.Hdarwin {
 		machlink = ld.Domacholink(ctxt)
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
-		ctxt.Diag("unknown header type %d", ld.HEADTYPE)
+		ctxt.Diag("unknown header type %d", ld.Headtype)
 		fallthrough
 
 	case obj.Hplan9:
@@ -663,7 +663,8 @@ func asmb(ctxt *ld.Link) {
 		ld.Flag8 = true /* 64-bit addresses */
 
 	case obj.Hnacl,
-		obj.Hwindows:
+		obj.Hwindows,
+		obj.Hwindowsgui:
 		break
 	}
 
@@ -675,7 +676,7 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f sym\n", obj.Cputime())
 		}
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 		case obj.Hplan9:
 			*ld.FlagS = true
@@ -694,13 +695,14 @@ func asmb(ctxt *ld.Link) {
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, int64(*ld.FlagRound))
 
-		case obj.Hwindows:
+		case obj.Hwindows,
+			obj.Hwindowsgui:
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, ld.PEFILEALIGN)
 		}
 
 		ld.Cseek(symo)
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				ld.Cseek(symo)
@@ -731,7 +733,7 @@ func asmb(ctxt *ld.Link) {
 				ld.Cflush()
 			}
 
-		case obj.Hwindows:
+		case obj.Hwindows, obj.Hwindowsgui:
 			if ctxt.Debugvlog != 0 {
 				ctxt.Logf("%5.2f dwarf\n", obj.Cputime())
 			}
@@ -747,7 +749,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f headr\n", obj.Cputime())
 	}
 	ld.Cseek(0)
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 	case obj.Hplan9: /* plan9 */
 		magic := int32(4*26*26 + 7)
@@ -776,7 +778,8 @@ func asmb(ctxt *ld.Link) {
 		obj.Hnacl:
 		ld.Asmbelf(ctxt, symo)
 
-	case obj.Hwindows:
+	case obj.Hwindows,
+		obj.Hwindowsgui:
 		ld.Asmbpe(ctxt)
 	}
 

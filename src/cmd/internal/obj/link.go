@@ -626,7 +626,7 @@ const (
 // to be linker input or for reading that input into the linker.
 type Link struct {
 	Goarm         int32
-	Headtype      int
+	Headtype      HeadType
 	Arch          *LinkArch
 	Debugasm      int32
 	Debugvlog     int32
@@ -725,9 +725,11 @@ type LinkArch struct {
 	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
 }
 
-/* executable header types */
+// HeadType is the executable header type.
+type HeadType uint8
+
 const (
-	Hunknown = 0 + iota
+	Hunknown HeadType = iota
 	Hdarwin
 	Hdragonfly
 	Hfreebsd
@@ -738,7 +740,66 @@ const (
 	Hplan9
 	Hsolaris
 	Hwindows
+	Hwindowsgui
 )
+
+func (h *HeadType) Set(s string) error {
+	switch s {
+	case "darwin":
+		*h = Hdarwin
+	case "dragonfly":
+		*h = Hdragonfly
+	case "freebsd":
+		*h = Hfreebsd
+	case "linux", "android":
+		*h = Hlinux
+	case "nacl":
+		*h = Hnacl
+	case "netbsd":
+		*h = Hnetbsd
+	case "openbsd":
+		*h = Hopenbsd
+	case "plan9":
+		*h = Hplan9
+	case "solaris":
+		*h = Hsolaris
+	case "windows":
+		*h = Hwindows
+	case "windowsgui":
+		*h = Hwindowsgui
+	default:
+		return fmt.Errorf("invalid headtype: %q", s)
+	}
+	return nil
+}
+
+func (h *HeadType) String() string {
+	switch *h {
+	case Hdarwin:
+		return "darwin"
+	case Hdragonfly:
+		return "dragonfly"
+	case Hfreebsd:
+		return "freebsd"
+	case Hlinux:
+		return "linux"
+	case Hnacl:
+		return "nacl"
+	case Hnetbsd:
+		return "netbsd"
+	case Hopenbsd:
+		return "openbsd"
+	case Hplan9:
+		return "plan9"
+	case Hsolaris:
+		return "solaris"
+	case Hwindows:
+		return "windows"
+	case Hwindowsgui:
+		return "windowsgui"
+	}
+	return fmt.Sprintf("HeadType(%d)", *h)
+}
 
 // AsmBuf is a simple buffer to assemble variable-length x86 instructions into.
 type AsmBuf struct {

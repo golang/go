@@ -89,13 +89,13 @@ func archinit(ctxt *ld.Link) {
 		ld.Linkmode = ld.LinkExternal
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
 			ld.Linkmode = ld.LinkInternal
 		}
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
 		}
 
 	case obj.Hlinux,
@@ -105,9 +105,9 @@ func archinit(ctxt *ld.Link) {
 		break
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
+		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
 	case obj.Hplan9: /* plan 9 */
 		ld.HEADR = 32
