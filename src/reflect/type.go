@@ -1147,7 +1147,7 @@ func (tag StructTag) Get(key string) string {
 // the value returned by Lookup is unspecified.
 func (tag StructTag) Lookup(key string) (value string, ok bool) {
 	// When modifying this code, also update the validateStructTag code
-	// in golang.org/x/tools/cmd/vet/structtag.go.
+	// in cmd/vet/structtag.go.
 
 	for tag != "" {
 		// Skip leading space.
