@@ -616,7 +616,7 @@ func srvString(srvs []*SRV) string {
 func TestLookupPort(t *testing.T) {
 	// See http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
 	//
-	// Please be careful about adding new mappings for testings.
+	// Please be careful about adding new test cases.
 	// There are platforms having incomplete mappings for
 	// restricted resource access and security reasons.
 	type test struct {
@@ -648,8 +648,6 @@ func TestLookupPort(t *testing.T) {
 	}
 
 	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("not supported on %s", runtime.GOOS)
 	case "android":
 		if netGo {
 			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
@@ -669,4 +667,53 @@ func TestLookupPort(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Like TestLookupPort but with minimal tests that should always pass
+// because the answers are baked-in to the net package.
+func TestLookupPort_Minimal(t *testing.T) {
+	type test struct {
+		network string
+		name    string
+		port    int
+	}
+	var tests = []test{
+		{"tcp", "http", 80},
+		{"tcp", "HTTP", 80}, // case shouldn't matter
+		{"tcp", "https", 443},
+		{"tcp", "ssh", 22},
+		{"tcp", "gopher", 70},
+		{"tcp4", "http", 80},
+		{"tcp6", "http", 80},
+	}
+
+	for _, tt := range tests {
+		port, err := LookupPort(tt.network, tt.name)
+		if port != tt.port || err != nil {
+			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d, error=nil", tt.network, tt.name, port, err, tt.port)
+		}
+	}
+}
+
+func TestLookupProtocol_Minimal(t *testing.T) {
+	type test struct {
+		name string
+		want int
+	}
+	var tests = []test{
+		{"tcp", 6},
+		{"TcP", 6}, // case shouldn't matter
+		{"icmp", 1},
+		{"igmp", 2},
+		{"udp", 17},
+		{"ipv6-icmp", 58},
+	}
+
+	for _, tt := range tests {
+		got, err := lookupProtocol(context.Background(), tt.name)
+		if got != tt.want || err != nil {
+			t.Errorf("LookupProtocol(%q) = %d, %v; want %d, error=nil", tt.name, got, err, tt.want)
+		}
+	}
+
 }

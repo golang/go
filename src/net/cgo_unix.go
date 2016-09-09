@@ -96,6 +96,11 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 
 func cgoLookupServicePort(hints *C.struct_addrinfo, network, service string) (port int, err error) {
 	s := C.CString(service)
+	// Lowercase the service name in the C-allocated memory.
+	for i := 0; i < len(service); i++ {
+		bp := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(s)) + uintptr(i)))
+		*bp = lowerASCII(*bp)
+	}
 	var res *C.struct_addrinfo
 	defer C.free(unsafe.Pointer(s))
 	gerrno, err := C.getaddrinfo(nil, s, hints, &res)

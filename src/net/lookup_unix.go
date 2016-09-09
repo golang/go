@@ -45,11 +45,7 @@ func readProtocols() {
 // returns correspondent protocol number.
 func lookupProtocol(_ context.Context, name string) (int, error) {
 	onceReadProtocols.Do(readProtocols)
-	proto, found := protocols[name]
-	if !found {
-		return 0, &AddrError{Err: "unknown IP protocol specified", Addr: name}
-	}
-	return proto, nil
+	return lookupProtocolMap(name)
 }
 
 func lookupHost(ctx context.Context, host string) (addrs []string, err error) {
