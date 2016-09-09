@@ -37,14 +37,7 @@ import (
 	"fmt"
 )
 
-// Reading object files.
-
-func Main() {
-	linkarchinit()
-	ld.Main()
-}
-
-func linkarchinit() {
+func Init() {
 	ld.SysArch = sys.ArchAMD64
 	if obj.GOARCH == "amd64p32" {
 		ld.SysArch = sys.ArchAMD64P32

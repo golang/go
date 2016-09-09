@@ -37,14 +37,7 @@ import (
 	"fmt"
 )
 
-// Reading object files.
-
-func Main() {
-	linkarchinit()
-	ld.Main()
-}
-
-func linkarchinit() {
+func Init() {
 	if obj.GOARCH == "mips64le" {
 		ld.SysArch = sys.ArchMIPS64LE
 	} else {
