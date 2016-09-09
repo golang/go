@@ -21,6 +21,7 @@ import (
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -1228,4 +1229,112 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
 	}
 	// Check that this doesn't crash:
 	c.Get("http://dummy.tld")
+}
+
+// Issue 4800: copy (some) headers when Client follows a redirect
+func TestClientCopyHeadersOnRedirect(t *testing.T) {
+	const (
+		ua   = "some-agent/1.2"
+		xfoo = "foo-val"
+	)
+	var ts2URL string
+	ts1 := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		want := Header{
+			"User-Agent":      []string{ua},
+			"X-Foo":           []string{xfoo},
+			"Referer":         []string{ts2URL},
+			"Accept-Encoding": []string{"gzip"},
+		}
+		if !reflect.DeepEqual(r.Header, want) {
+			t.Errorf("Request.Header = %#v; want %#v", r.Header, want)
+		}
+		if t.Failed() {
+			w.Header().Set("Result", "got errors")
+		} else {
+			w.Header().Set("Result", "ok")
+		}
+	}))
+	defer ts1.Close()
+	ts2 := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		Redirect(w, r, ts1.URL, StatusFound)
+	}))
+	defer ts2.Close()
+	ts2URL = ts2.URL
+
+	tr := &Transport{}
+	defer tr.CloseIdleConnections()
+	c := &Client{
+		Transport: tr,
+		CheckRedirect: func(r *Request, via []*Request) error {
+			want := Header{
+				"User-Agent": []string{ua},
+				"X-Foo":      []string{xfoo},
+				"Referer":    []string{ts2URL},
+			}
+			if !reflect.DeepEqual(r.Header, want) {
+				t.Errorf("CheckRedirect Request.Header = %#v; want %#v", r.Header, want)
+			}
+			return nil
+		},
+	}
+
+	req, _ := NewRequest("GET", ts2.URL, nil)
+	req.Header.Add("User-Agent", ua)
+	req.Header.Add("X-Foo", xfoo)
+	req.Header.Add("Cookie", "foo=bar")
+	req.Header.Add("Authorization", "secretpassword")
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatal(res.Status)
+	}
+	if got := res.Header.Get("Result"); got != "ok" {
+		t.Errorf("result = %q; want ok", got)
+	}
+}
+
+// Part of Issue 4800
+func TestShouldCopyHeaderOnRedirect(t *testing.T) {
+	tests := []struct {
+		header     string
+		initialURL string
+		destURL    string
+		want       bool
+	}{
+		{"User-Agent", "http://foo.com/", "http://bar.com/", true},
+		{"X-Foo", "http://foo.com/", "http://bar.com/", true},
+
+		// Sensitive headers:
+		{"cookie", "http://foo.com/", "http://bar.com/", false},
+		{"cookie2", "http://foo.com/", "http://bar.com/", false},
+		{"authorization", "http://foo.com/", "http://bar.com/", false},
+		{"www-authenticate", "http://foo.com/", "http://bar.com/", false},
+
+		// But subdomains should work:
+		{"www-authenticate", "http://foo.com/", "http://foo.com/", true},
+		{"www-authenticate", "http://foo.com/", "http://sub.foo.com/", true},
+		{"www-authenticate", "http://foo.com/", "http://notfoo.com/", false},
+		// TODO(bradfitz): make this test work, once issue 16142 is fixed:
+		// {"www-authenticate", "http://foo.com:80/", "http://foo.com/", true},
+	}
+	for i, tt := range tests {
+		u0, err := url.Parse(tt.initialURL)
+		if err != nil {
+			t.Errorf("%d. initial URL %q parse error: %v", i, tt.initialURL, err)
+			continue
+		}
+		u1, err := url.Parse(tt.destURL)
+		if err != nil {
+			t.Errorf("%d. dest URL %q parse error: %v", i, tt.destURL, err)
+			continue
+		}
+		got := Export_shouldCopyHeaderOnRedirect(tt.header, u0, u1)
+		if got != tt.want {
+			t.Errorf("%d. shouldCopyHeaderOnRedirect(%q, %q => %q) = %v; want %v",
+				i, tt.header, tt.initialURL, tt.destURL, got, tt.want)
+		}
+	}
 }
