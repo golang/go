@@ -11,10 +11,10 @@ func init() {
 }
 
 var printerconfigFix = fix{
-	"printerconfig",
-	"2012-12-11",
-	printerconfig,
-	`Add element keys to Config composite literals.`,
+	name: "printerconfig",
+	date: "2012-12-11",
+	f:    printerconfig,
+	desc: `Add element keys to Config composite literals.`,
 }
 
 func printerconfig(f *ast.File) bool {
