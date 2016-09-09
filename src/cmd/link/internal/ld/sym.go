@@ -34,27 +34,9 @@ package ld
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
+	"fmt"
 	"log"
-	"strconv"
 )
-
-var headers = []struct {
-	name string
-	val  int
-}{
-	{"darwin", obj.Hdarwin},
-	{"dragonfly", obj.Hdragonfly},
-	{"freebsd", obj.Hfreebsd},
-	{"linux", obj.Hlinux},
-	{"android", obj.Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
-	{"nacl", obj.Hnacl},
-	{"netbsd", obj.Hnetbsd},
-	{"openbsd", obj.Hopenbsd},
-	{"plan9", obj.Hplan9},
-	{"solaris", obj.Hsolaris},
-	{"windows", obj.Hwindows},
-	{"windowsgui", obj.Hwindows},
-}
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
@@ -73,18 +55,21 @@ func linknew(arch *sys.Arch) *Link {
 		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
 	}
 
-	ctxt.Headtype = headtype(obj.Getgoos())
-	if ctxt.Headtype < 0 {
-		log.Fatalf("unknown goos %s", obj.Getgoos())
+	// On arm, record goarm.
+	if ctxt.Arch.Family == sys.ARM {
+		ctxt.Goarm = obj.Getgoarm()
 	}
 
-	// Record thread-local storage offset.
-	// TODO(rsc): Move tlsoffset back into the linker.
-	switch ctxt.Headtype {
-	default:
-		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
+	return ctxt
+}
 
-	case obj.Hplan9, obj.Hwindows:
+// computeTLSOffset records the thread-local storage offset.
+func (ctxt *Link) computeTLSOffset() {
+	switch Headtype {
+	default:
+		log.Fatalf("unknown thread-local storage offset for %s", Headtype)
+
+	case obj.Hplan9, obj.Hwindows, obj.Hwindowsgui:
 		break
 
 		/*
@@ -152,12 +137,6 @@ func linknew(arch *sys.Arch) *Link {
 		}
 	}
 
-	// On arm, record goarm.
-	if ctxt.Arch.Family == sys.ARM {
-		ctxt.Goarm = obj.Getgoarm()
-	}
-
-	return ctxt
 }
 
 func linknewsym(ctxt *Link, name string, v int) *Symbol {
@@ -195,20 +174,93 @@ func Linkrlookup(ctxt *Link, name string, v int) *Symbol {
 	return ctxt.Hash[v][name]
 }
 
-func Headstr(v int) string {
-	for i := 0; i < len(headers); i++ {
-		if v == headers[i].val {
-			return headers[i].name
-		}
+// A BuildMode indicates the sort of object we are building:
+//   "exe": build a main package and everything it imports into an executable.
+//   "c-shared": build a main package, plus all packages that it imports, into a
+//     single C shared library. The only callable symbols will be those functions
+//     marked as exported.
+//   "shared": combine all packages passed on the command line, and their
+//     dependencies, into a single shared library that will be used when
+//     building with the -linkshared option.
+type BuildMode uint8
+
+const (
+	BuildmodeUnset BuildMode = iota
+	BuildmodeExe
+	BuildmodePIE
+	BuildmodeCArchive
+	BuildmodeCShared
+	BuildmodeShared
+)
+
+func (mode *BuildMode) Set(s string) error {
+	goos := obj.Getgoos()
+	goarch := obj.Getgoarch()
+	badmode := func() error {
+		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
 	}
-	return strconv.Itoa(v)
+	switch s {
+	default:
+		return fmt.Errorf("invalid buildmode: %q", s)
+	case "exe":
+		*mode = BuildmodeExe
+	case "pie":
+		switch goos {
+		case "android", "linux":
+		default:
+			return badmode()
+		}
+		*mode = BuildmodePIE
+	case "c-archive":
+		switch goos {
+		case "darwin", "linux":
+		case "windows":
+			switch goarch {
+			case "amd64", "386":
+			default:
+				return badmode()
+			}
+		default:
+			return badmode()
+		}
+		*mode = BuildmodeCArchive
+	case "c-shared":
+		switch goarch {
+		case "386", "amd64", "arm", "arm64":
+		default:
+			return badmode()
+		}
+		*mode = BuildmodeCShared
+	case "shared":
+		switch goos {
+		case "linux":
+			switch goarch {
+			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+			default:
+				return badmode()
+			}
+		default:
+			return badmode()
+		}
+		*mode = BuildmodeShared
+	}
+	return nil
 }
 
-func headtype(name string) int {
-	for i := 0; i < len(headers); i++ {
-		if name == headers[i].name {
-			return headers[i].val
-		}
+func (mode *BuildMode) String() string {
+	switch *mode {
+	case BuildmodeUnset:
+		return "" // avoid showing a default in usage message
+	case BuildmodeExe:
+		return "exe"
+	case BuildmodePIE:
+		return "pie"
+	case BuildmodeCArchive:
+		return "c-archive"
+	case BuildmodeCShared:
+		return "c-shared"
+	case BuildmodeShared:
+		return "shared"
 	}
-	return -1
+	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
 }

@@ -571,7 +571,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f header\n", obj.Cputime())
 	}
 	ld.Cseek(0)
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 		ctxt.Diag("unsupported operating system")
 	case obj.Hlinux:

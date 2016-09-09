@@ -90,9 +90,9 @@ func archinit(ctxt *ld.Link) {
 		ld.Linkmode = ld.LinkExternal
 	}
 
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
-		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)
+		ld.Exitf("unknown -H option: %v", ld.Headtype)
 
 	case obj.Hlinux: // s390x ELF
 		ld.Elfinit(ctxt)

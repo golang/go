@@ -439,7 +439,7 @@ func archreloc(ctxt *ld.Link, r *ld.Reloc, s *ld.Symbol, val *int64) int {
 			// the section load address.
 			// we need to compensate that by removing the instruction's address
 			// from addend.
-			if ld.HEADTYPE == obj.Hdarwin {
+			if ld.Headtype == obj.Hdarwin {
 				r.Xadd -= ld.Symaddr(ctxt, s) + int64(r.Off)
 			}
 
@@ -618,7 +618,7 @@ func asmb(ctxt *ld.Link) {
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
 
 	machlink := uint32(0)
-	if ld.HEADTYPE == obj.Hdarwin {
+	if ld.Headtype == obj.Hdarwin {
 		machlink = uint32(ld.Domacholink(ctxt))
 	}
 
@@ -632,7 +632,7 @@ func asmb(ctxt *ld.Link) {
 		if ctxt.Debugvlog != 0 {
 			ctxt.Logf("%5.2f sym\n", obj.Cputime())
 		}
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -647,7 +647,7 @@ func asmb(ctxt *ld.Link) {
 		}
 
 		ld.Cseek(int64(symo))
-		switch ld.HEADTYPE {
+		switch ld.Headtype {
 		default:
 			if ld.Iself {
 				if ctxt.Debugvlog != 0 {
@@ -688,7 +688,7 @@ func asmb(ctxt *ld.Link) {
 		ctxt.Logf("%5.2f header\n", obj.Cputime())
 	}
 	ld.Cseek(0)
-	switch ld.HEADTYPE {
+	switch ld.Headtype {
 	default:
 	case obj.Hplan9: /* plan 9 */
 		ld.Lputb(0x647)                      /* magic */

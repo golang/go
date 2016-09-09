@@ -36,44 +36,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 )
-
-var headers = []struct {
-	name string
-	val  int
-}{
-	{"darwin", Hdarwin},
-	{"dragonfly", Hdragonfly},
-	{"freebsd", Hfreebsd},
-	{"linux", Hlinux},
-	{"android", Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
-	{"nacl", Hnacl},
-	{"netbsd", Hnetbsd},
-	{"openbsd", Hopenbsd},
-	{"plan9", Hplan9},
-	{"solaris", Hsolaris},
-	{"windows", Hwindows},
-	{"windowsgui", Hwindows},
-}
-
-func headtype(name string) int {
-	for i := 0; i < len(headers); i++ {
-		if name == headers[i].name {
-			return headers[i].val
-		}
-	}
-	return -1
-}
-
-func Headstr(v int) string {
-	for i := 0; i < len(headers); i++ {
-		if v == headers[i].val {
-			return headers[i].name
-		}
-	}
-	return strconv.Itoa(v)
-}
 
 func Linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
@@ -95,7 +58,7 @@ func Linknew(arch *LinkArch) *Link {
 	ctxt.LineHist.GOROOT_FINAL = ctxt.Goroot_final
 	ctxt.LineHist.Dir = ctxt.Pathname
 
-	ctxt.Headtype = headtype(Getgoos())
+	ctxt.Headtype.Set(Getgoos())
 	if ctxt.Headtype < 0 {
 		log.Fatalf("unknown goos %s", Getgoos())
 	}

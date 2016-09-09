@@ -1244,7 +1244,7 @@ func Asmbpe(ctxt *Link) {
 	oh.SizeOfImage = uint32(nextsectoff)
 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
 	oh.SizeOfHeaders = uint32(PEFILEHEADR)
-	if headstring == "windowsgui" {
+	if Headtype == obj.Hwindowsgui {
 		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
 		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
 	} else {
