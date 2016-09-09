@@ -68,7 +68,7 @@ func dumpobj1(outfile string, mode int) {
 	}
 
 	printheader := func() {
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
 		if buildid != "" {
 			fmt.Fprintf(bout, "build id %q\n", buildid)
 		}

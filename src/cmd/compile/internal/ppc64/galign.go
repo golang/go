@@ -19,7 +19,7 @@ func betypeinit() {
 
 func Main() {
 	gc.Thearch.LinkArch = &ppc64.Linkppc64
-	if obj.Getgoarch() == "ppc64le" {
+	if obj.GOARCH == "ppc64le" {
 		gc.Thearch.LinkArch = &ppc64.Linkppc64le
 	}
 	gc.Thearch.REGSP = ppc64.REGSP

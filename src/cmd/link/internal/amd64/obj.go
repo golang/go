@@ -47,7 +47,7 @@ func Main() {
 
 func linkarchinit() {
 	ld.SysArch = sys.ArchAMD64
-	if obj.Getgoarch() == "amd64p32" {
+	if obj.GOARCH == "amd64p32" {
 		ld.SysArch = sys.ArchAMD64P32
 	}
 

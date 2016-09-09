@@ -24,7 +24,7 @@ func Main() {
 	gc.Thearch.REGRETURN = x86.REG_AX
 	gc.Thearch.REGMIN = x86.REG_AX
 	gc.Thearch.REGMAX = x86.REG_DI
-	switch v := obj.Getgo386(); v {
+	switch v := obj.GO386; v {
 	case "387":
 		gc.Thearch.FREGMIN = x86.REG_F0
 		gc.Thearch.FREGMAX = x86.REG_F7

@@ -26,9 +26,6 @@ import (
 var imported_unsafe bool
 
 var (
-	goos    string
-	goarch  string
-	goroot  string
 	buildid string
 
 	flag_newparser bool
@@ -89,7 +86,7 @@ func doversion() {
 	if p != "" {
 		sep = " "
 	}
-	fmt.Printf("compile version %s%s%s\n", obj.Getgoversion(), sep, p)
+	fmt.Printf("compile version %s%s%s\n", obj.Version, sep, p)
 	os.Exit(0)
 }
 
@@ -107,8 +104,6 @@ func Main() {
 	timings.Start("fe", "init")
 
 	defer hidePanic()
-
-	goarch = obj.Getgoarch()
 
 	Ctxt = obj.Linknew(Thearch.LinkArch)
 	Ctxt.DiagFunc = Yyerror
@@ -151,10 +146,7 @@ func Main() {
 	mappkg.Name = "go.map"
 	mappkg.Prefix = "go.map"
 
-	goroot = obj.Getgoroot()
-	goos = obj.Getgoos()
-
-	Nacl = goos == "nacl"
+	Nacl = obj.GOOS == "nacl"
 	if Nacl {
 		flag_largemodel = true
 	}
@@ -533,7 +525,7 @@ func writebench(filename string) error {
 	}
 
 	var buf bytes.Buffer
-	fmt.Fprintln(&buf, "commit:", obj.Getgoversion())
+	fmt.Fprintln(&buf, "commit:", obj.Version)
 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
 	timings.Write(&buf, "BenchmarkCompile:"+myimportpath+":")
@@ -656,7 +648,7 @@ func findpkg(name string) (file string, ok bool) {
 		}
 	}
 
-	if goroot != "" {
+	if obj.GOROOT != "" {
 		suffix := ""
 		suffixsep := ""
 		if flag_installsuffix != "" {
@@ -670,11 +662,11 @@ func findpkg(name string) (file string, ok bool) {
 			suffix = "msan"
 		}
 
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", obj.GOROOT, obj.GOOS, obj.GOARCH, suffixsep, suffix, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
+		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", obj.GOROOT, obj.GOOS, obj.GOARCH, suffixsep, suffix, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
@@ -814,7 +806,7 @@ func importfile(f *Val, indent []byte) {
 			errorexit()
 		}
 
-		q := fmt.Sprintf("%s %s %s %s", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+		q := fmt.Sprintf("%s %s %s %s", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
 		if p[10:] != q {
 			Yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
 			errorexit()

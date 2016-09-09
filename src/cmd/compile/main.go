@@ -23,9 +23,9 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("compile: ")
 
-	switch obj.Getgoarch() {
+	switch obj.GOARCH {
 	default:
-		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.Getgoarch())
+		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.GOARCH)
 		os.Exit(2)
 	case "386":
 		x86.Main()

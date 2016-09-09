@@ -18,17 +18,17 @@ var (
 )
 
 func betypeinit() {
-	if obj.Getgoarch() == "amd64p32" {
+	if obj.GOARCH == "amd64p32" {
 		addptr = x86.AADDL
 		movptr = x86.AMOVL
 		leaptr = x86.ALEAL
 		cmpptr = x86.ACMPL
 	}
 
-	if gc.Ctxt.Flag_dynlink || obj.Getgoos() == "nacl" {
+	if gc.Ctxt.Flag_dynlink || obj.GOOS == "nacl" {
 		resvd = append(resvd, x86.REG_R15)
 	}
-	if gc.Ctxt.Framepointer_enabled || obj.Getgoos() == "nacl" {
+	if gc.Ctxt.Framepointer_enabled || obj.GOOS == "nacl" {
 		resvd = append(resvd, x86.REG_BP)
 	}
 	gc.Thearch.ReservedRegs = resvd
@@ -36,7 +36,7 @@ func betypeinit() {
 
 func Main() {
 	gc.Thearch.LinkArch = &x86.Linkamd64
-	if obj.Getgoarch() == "amd64p32" {
+	if obj.GOARCH == "amd64p32" {
 		gc.Thearch.LinkArch = &x86.Linkamd64p32
 	}
 	gc.Thearch.REGSP = x86.REGSP

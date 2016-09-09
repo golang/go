@@ -197,8 +197,6 @@ var (
 	Segdwarf  Segment
 )
 
-/* set by call to mywhatsys() */
-
 /* whence for ldpkg */
 const (
 	FileObj = 0 + iota
@@ -237,9 +235,6 @@ var (
 	// Set if we see an object compiled by the host compiler that is not
 	// from a package that is known to support internal linking mode.
 	externalobj = false
-	goroot      string
-	goarch      string
-	goos        string
 	theline     string
 )
 
@@ -262,7 +257,6 @@ func mayberemoveoutfile() {
 
 func libinit(ctxt *Link) {
 	Funcalign = Thearch.Funcalign
-	mywhatsys() // get goroot, goarch, goos
 
 	// add goroot to the end of the libdir list.
 	suffix := ""
@@ -279,7 +273,7 @@ func libinit(ctxt *Link) {
 		suffix = "msan"
 	}
 
-	Lflag(ctxt, filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s%s%s", goos, goarch, suffixsep, suffix)))
+	Lflag(ctxt, filepath.Join(obj.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", obj.GOOS, obj.GOARCH, suffixsep, suffix)))
 
 	mayberemoveoutfile()
 	f, err := os.OpenFile(*flagOutfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
@@ -293,9 +287,9 @@ func libinit(ctxt *Link) {
 	if *flagEntrySymbol == "" {
 		switch Buildmode {
 		case BuildmodeCShared, BuildmodeCArchive:
-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
+			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", obj.GOARCH, obj.GOOS)
 		case BuildmodeExe, BuildmodePIE:
-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
+			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", obj.GOARCH, obj.GOOS)
 		case BuildmodeShared:
 			// No *flagEntrySymbol for -buildmode=shared
 		default:
@@ -446,7 +440,7 @@ func (ctxt *Link) loadlib() {
 		}
 
 		// Force external linking for android.
-		if goos == "android" {
+		if obj.GOOS == "android" {
 			Linkmode = LinkExternal
 		}
 
@@ -474,7 +468,7 @@ func (ctxt *Link) loadlib() {
 	// cmd/7l doesn't support cgo internal linking
 	// This is https://golang.org/issue/10373.
 	// mips64x doesn't support cgo internal linking either (golang.org/issue/14449)
-	if iscgo && (goarch == "arm64" || goarch == "mips64" || goarch == "mips64le") {
+	if iscgo && (obj.GOARCH == "arm64" || obj.GOARCH == "mips64" || obj.GOARCH == "mips64le") {
 		Linkmode = LinkExternal
 	}
 
@@ -543,10 +537,10 @@ func (ctxt *Link) loadlib() {
 			s := Linklookup(ctxt, "runtime.goarm", 0)
 			s.Type = obj.SRODATA
 			s.Size = 0
-			Adduint8(ctxt, s, uint8(ctxt.Goarm))
+			Adduint8(ctxt, s, uint8(obj.GOARM))
 		}
 
-		if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
+		if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
 			s := Linklookup(ctxt, "runtime.framepointer_enabled", 0)
 			s.Type = obj.SRODATA
 			s.Size = 0
@@ -1062,7 +1056,7 @@ func (l *Link) hostlink() {
 	// only want to do this when producing a Windows output file
 	// on a Windows host.
 	outopt := *flagOutfile
-	if goos == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
+	if obj.GOOS == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
 		outopt += "."
 	}
 	argv = append(argv, "-o")
@@ -1278,8 +1272,8 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file 
 		return nil
 	}
 
-	// First, check that the basic goos, goarch, and version match.
-	t := fmt.Sprintf("%s %s %s ", goos, obj.Getgoarch(), obj.Getgoversion())
+	// First, check that the basic GOOS, GOARCH, and Version match.
+	t := fmt.Sprintf("%s %s %s ", obj.GOOS, obj.GOARCH, obj.Version)
 
 	line = strings.TrimRight(line, "\n")
 	if !strings.HasPrefix(line[10:]+" ", t) && !*flagF {
@@ -1501,12 +1495,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 	ctxt.Textp = textp
 
 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
-}
-
-func mywhatsys() {
-	goroot = obj.Getgoroot()
-	goos = obj.Getgoos()
-	goarch = obj.Getgoarch()
 }
 
 // Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
@@ -1822,7 +1810,7 @@ func usage() {
 }
 
 func doversion() {
-	Exitf("version %s", obj.Getgoversion())
+	Exitf("version %s", obj.Version)
 }
 
 func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, int, *Symbol)) {

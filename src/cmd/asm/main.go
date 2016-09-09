@@ -24,7 +24,7 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
 
-	GOARCH := obj.Getgoarch()
+	GOARCH := obj.GOARCH
 
 	architecture := arch.Set(GOARCH)
 	if architecture == nil {
@@ -51,7 +51,7 @@ func main() {
 	defer bio.MustClose(out)
 	buf := bufio.NewWriter(bio.MustWriter(out))
 
-	fmt.Fprintf(buf, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
+	fmt.Fprintf(buf, "go object %s %s %s\n", obj.GOOS, obj.GOARCH, obj.Version)
 	fmt.Fprintf(buf, "!\n")
 
 	var ok, diag bool

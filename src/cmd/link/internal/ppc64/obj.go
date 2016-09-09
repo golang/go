@@ -46,7 +46,7 @@ func Main() {
 }
 
 func linkarchinit() {
-	if obj.Getgoarch() == "ppc64le" {
+	if obj.GOARCH == "ppc64le" {
 		ld.SysArch = sys.ArchPPC64LE
 	} else {
 		ld.SysArch = sys.ArchPPC64

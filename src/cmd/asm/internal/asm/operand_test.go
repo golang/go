@@ -5,7 +5,6 @@
 package asm
 
 import (
-	"os"
 	"testing"
 
 	"cmd/asm/internal/arch"
@@ -16,8 +15,8 @@ import (
 // A simple in-out test: Do we print what we parse?
 
 func setArch(goarch string) (*arch.Arch, *obj.Link) {
-	os.Setenv("GOOS", "linux") // obj can handle this OS for all architectures.
-	os.Setenv("GOARCH", goarch)
+	obj.GOOS = "linux" // obj can handle this OS for all architectures.
+	obj.GOARCH = goarch
 	architecture := arch.Set(goarch)
 	if architecture == nil {
 		panic("asm: unrecognized architecture " + goarch)

@@ -47,17 +47,10 @@ func linknew(arch *sys.Arch) *Link {
 		},
 		Allsym: make([]*Symbol, 0, 100000),
 		Arch:   arch,
-		Goroot: obj.Getgoroot(),
 	}
 
-	p := obj.Getgoarch()
-	if p != arch.Name {
-		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
-	}
-
-	// On arm, record goarm.
-	if ctxt.Arch.Family == sys.ARM {
-		ctxt.Goarm = obj.Getgoarm()
+	if obj.GOARCH != arch.Name {
+		log.Fatalf("invalid obj.GOARCH %s (want %s)", obj.GOARCH, arch.Name)
 	}
 
 	return ctxt
@@ -83,7 +76,7 @@ func (ctxt *Link) computeTLSOffset() {
 		obj.Hopenbsd,
 		obj.Hdragonfly,
 		obj.Hsolaris:
-		if obj.Getgoos() == "android" {
+		if obj.GOOS == "android" {
 			switch ctxt.Arch.Family {
 			case sys.AMD64:
 				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
@@ -194,10 +187,8 @@ const (
 )
 
 func (mode *BuildMode) Set(s string) error {
-	goos := obj.Getgoos()
-	goarch := obj.Getgoarch()
 	badmode := func() error {
-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
+		return fmt.Errorf("buildmode %s not supported on %s/%s", s, obj.GOOS, obj.GOARCH)
 	}
 	switch s {
 	default:
@@ -205,17 +196,17 @@ func (mode *BuildMode) Set(s string) error {
 	case "exe":
 		*mode = BuildmodeExe
 	case "pie":
-		switch goos {
+		switch obj.GOOS {
 		case "android", "linux":
 		default:
 			return badmode()
 		}
 		*mode = BuildmodePIE
 	case "c-archive":
-		switch goos {
+		switch obj.GOOS {
 		case "darwin", "linux":
 		case "windows":
-			switch goarch {
+			switch obj.GOARCH {
 			case "amd64", "386":
 			default:
 				return badmode()
@@ -225,16 +216,16 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeCArchive
 	case "c-shared":
-		switch goarch {
+		switch obj.GOARCH {
 		case "386", "amd64", "arm", "arm64":
 		default:
 			return badmode()
 		}
 		*mode = BuildmodeCShared
 	case "shared":
-		switch goos {
+		switch obj.GOOS {
 		case "linux":
-			switch goarch {
+			switch obj.GOARCH {
 			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
 			default:
 				return badmode()

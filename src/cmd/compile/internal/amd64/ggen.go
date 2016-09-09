@@ -11,7 +11,7 @@ import (
 )
 
 // no floating point in note handlers on Plan 9
-var isPlan9 = obj.Getgoos() == "plan9"
+var isPlan9 = obj.GOOS == "plan9"
 
 func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size

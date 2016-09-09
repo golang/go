@@ -2794,7 +2794,7 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
 
 func chipzero5(ctxt *obj.Link, e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if ctxt.Goarm < 7 || e != 0 {
+	if obj.GOARM < 7 || e != 0 {
 		return -1
 	}
 	return 0
@@ -2802,7 +2802,7 @@ func chipzero5(ctxt *obj.Link, e float64) int {
 
 func chipfloat5(ctxt *obj.Link, e float64) int {
 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
-	if ctxt.Goarm < 7 {
+	if obj.GOARM < 7 {
 		return -1
 	}
 

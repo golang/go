@@ -625,7 +625,6 @@ const (
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
 type Link struct {
-	Goarm         int32
 	Headtype      HeadType
 	Arch          *LinkArch
 	Debugasm      int32

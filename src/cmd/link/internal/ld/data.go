@@ -399,7 +399,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 
 		case obj.R_TLS_LE:
-			isAndroidX86 := goos == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
 
 			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
 				r.Done = 0
@@ -433,7 +433,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			}
 
 		case obj.R_TLS_IE:
-			isAndroidX86 := goos == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
 
 			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
 				r.Done = 0

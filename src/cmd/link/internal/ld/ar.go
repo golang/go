@@ -165,7 +165,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
 
 		// For Mach-O and PE/386 files we strip a leading
 		// underscore from the symbol name.
-		if goos == "darwin" || (goos == "windows" && goarch == "386") {
+		if obj.GOOS == "darwin" || (obj.GOOS == "windows" && obj.GOARCH == "386") {
 			if name[0] == '_' && len(name) > 1 {
 				name = name[1:]
 			}

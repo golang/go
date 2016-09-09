@@ -567,7 +567,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
 				if ctxt.FixedFrameSize() == 0 {
 					offs -= int32(ctxt.Arch.PtrSize)
 				}
-				if Framepointer_enabled(Getgoos(), Getgoarch()) {
+				if Framepointer_enabled(GOOS, GOARCH) {
 					offs -= int32(ctxt.Arch.PtrSize)
 				}
 
