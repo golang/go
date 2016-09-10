@@ -82,6 +82,13 @@ func BenchmarkCompareStringBig(b *testing.B) {
 	b.SetBytes(int64(len(s1)))
 }
 
+func BenchmarkConcatStringAndBytes(b *testing.B) {
+	s1 := []byte("Gophers!")
+	for i := 0; i < b.N; i++ {
+		_ = "Hello " + string(s1)
+	}
+}
+
 var stringdata = []struct{ name, data string }{
 	{"ASCII", "01234567890"},
 	{"Japanese", "日本語日本語日本語"},

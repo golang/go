@@ -1410,6 +1410,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	s.stmtList(n.Ninit)
 	switch n.Op {
+	case OARRAYBYTESTRTMP:
+		slice := s.expr(n.Left)
+		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), slice)
+		len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+		return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
 	case OCFUNC:
 		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: n.Left.Sym})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
@@ -2484,6 +2489,22 @@ type sizedIntrinsicKey struct {
 	size int
 }
 
+// disableForInstrumenting returns nil when instrumenting, fn otherwise
+func disableForInstrumenting(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
+	if instrumenting {
+		return nil
+	}
+	return fn
+}
+
+// enableForRuntime returns fn when compiling runtime, nil otherwise
+func enableForRuntime(fn func(*state, *Node) *ssa.Value) func(*state, *Node) *ssa.Value {
+	if compiling_runtime {
+		return fn
+	}
+	return nil
+}
+
 // enableOnArch returns fn on given archs, nil otherwise
 func enableOnArch(fn func(*state, *Node) *ssa.Value, archs ...sys.ArchFamily) func(*state, *Node) *ssa.Value {
 	if Thearch.LinkArch.InFamily(archs...) {
@@ -2498,6 +2519,19 @@ func intrinsicInit() {
 
 	// initial set of intrinsics.
 	i.std = map[intrinsicKey]intrinsicBuilder{
+		/******** runtime ********/
+		intrinsicKey{"", "slicebytetostringtmp"}: enableForRuntime(disableForInstrumenting(func(s *state, n *Node) *ssa.Value {
+			// pkg name left empty because intrinsification only should apply
+			// inside the runtime package when non instrumented.
+			// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
+			// for the backend instead of slicebytetostringtmp calls
+			// when not instrumenting.
+			slice := s.intrinsicFirstArg(n)
+			ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), slice)
+			len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+			return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+		})),
+
 		/******** runtime/internal/sys ********/
 		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))

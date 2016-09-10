@@ -109,17 +109,20 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
 	return
 }
 
+// slicebytetostringtmp returns a "string" referring to the actual []byte bytes.
+//
+// Callers need to ensure that the returned string will not be used after
+// the calling goroutine modifies the original slice or synchronizes with
+// another goroutine.
+//
+// The function is only called when instrumenting
+// and otherwise intrinsified by the compiler.
+//
+// Some internal compiler optimizations use this function.
+// - Used for m[string(k)] lookup where m is a string-keyed map and k is a []byte.
+// - Used for "<"+string(b)+">" concatenation where b is []byte.
+// - Used for string(b)=="foo" comparison where b is []byte.
 func slicebytetostringtmp(b []byte) string {
-	// Return a "string" referring to the actual []byte bytes.
-	// This is only for use by internal compiler optimizations
-	// that know that the string form will be discarded before
-	// the calling goroutine could possibly modify the original
-	// slice or synchronize with another goroutine.
-	// First such case is a m[string(k)] lookup where
-	// m is a string-keyed map and k is a []byte.
-	// Second such case is "<"+string(b)+">" concatenation where b is []byte.
-	// Third such case is string(b)=="foo" comparison where b is []byte.
-
 	if raceenabled && len(b) > 0 {
 		racereadrangepc(unsafe.Pointer(&b[0]),
 			uintptr(len(b)),
