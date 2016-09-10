@@ -238,6 +238,9 @@ func PrintfTests() {
 	externalprintf.Logf(level, "%d", 42)                        // OK
 	externalprintf.Errorf(level, level, "foo %q bar", "foobar") // OK
 	externalprintf.Logf(level, "%d")                            // ERROR "format reads arg 1, have only 0 args"
+	var formatStr = "%s %s"
+	externalprintf.Sprintf(formatStr, "a", "b")     // OK
+	externalprintf.Logf(level, formatStr, "a", "b") // OK
 
 	// user-defined Println-like functions
 	ss := &someStruct{}
