@@ -12,24 +12,24 @@ import (
 	"unicode/utf8"
 )
 
-// TODO(gri) update documentation thoroughly
-
 // A FmtFlag value is a set of flags (or 0).
 // They control how the Xconv functions format their values.
 // See the respective function's documentation for details.
 type FmtFlag int
 
-const ( //                                          fmt.Format flag/prec or verb
-	FmtLeft     FmtFlag = 1 << iota // "-"	=>  '-'
-	FmtSharp                        // "#"  =>  '#'
-	FmtSign                         // "+"  =>  '+'
-	FmtUnsigned                     // "u"  =>  ' '
-	FmtShort                        // "h"  =>  verb == 'S' (Short)
-	FmtLong                         // "l"  =>  verb == 'L' (Long)
-	FmtComma                        // ","  =>  '.' (== hasPrec)
-	FmtByte                         // "hh" =>  '0'
+const ( //                                 fmt.Format flag/prec or verb
+	FmtLeft     FmtFlag = 1 << iota // '-'
+	FmtSharp                        // '#'
+	FmtSign                         // '+'
+	FmtUnsigned                     // ' '               (historic: u flag)
+	FmtShort                        // verb == 'S'       (historic: h flag)
+	FmtLong                         // verb == 'L'       (historic: l flag)
+	FmtComma                        // '.' (== hasPrec)  (historic: , flag)
+	FmtByte                         // '0'               (historic: hh flag)
 )
 
+// fmtFlag computes the (internal) FmtFlag
+// value given the fmt.State and format verb.
 func fmtFlag(s fmt.State, verb rune) FmtFlag {
 	var flag FmtFlag
 	if s.Flag('-') {
@@ -59,45 +59,38 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
 	return flag
 }
 
+// Format conversions:
+// TODO(gri) verify these; eliminate those not used anymore
 //
-// Format conversions
-//	%L int		Line numbers
+//	%v Op		Node opcodes
+//		Flags:  #: print Go syntax (automatic unless fmtmode == FDbg)
 //
-//	%E int		etype values (aka 'Kind')
+//	%j *Node	Node details
+//		Flags:  0: suppresses things not relevant until walk
 //
-//	%O int		Node Opcodes
-//		Flags: "%#O": print go syntax. (automatic unless fmtmode == FDbg)
+//	%v *Val		Constant values
 //
-//	%J Node*	Node details
-//		Flags: "%hJ" suppresses things not relevant until walk.
+//	%v *Sym		Symbols
+//	%S              unqualified identifier in any mode
+//		Flags:  +,- #: mode (see below)
+//			0: in export mode: unqualified identifier if exported, qualified if not
 //
-//	%V Val*		Constant values
+//	%v *Type	Types
+//	%S              omit "func" and receiver in function types
+//	%L              definition instead of name.
+//		Flags:  +,- #: mode (see below)
+//			' ' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
 //
-//	%S Sym*		Symbols
-//		Flags: +,- #: mode (see below)
-//			"%hS"	unqualified identifier in any mode
-//			"%hhS"  in export mode: unqualified identifier if exported, qualified if not
+//	%v *Node	Nodes
+//	%S              (only in +/debug mode) suppress recursion
+//	%L              (only in Error mode) print "foo (type Bar)"
+//		Flags:  +,- #: mode (see below)
 //
-//	%T Type*	Types
-//		Flags: +,- #: mode (see below)
-//			'l' definition instead of name.
-//			'h' omit "func" and receiver in function types
-//			'u' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
-//
-//	%N Node*	Nodes
-//		Flags: +,- #: mode (see below)
-//			'h' (only in +/debug mode) suppress recursion
-//			'l' (only in Error mode) print "foo (type Bar)"
-//
-//	%H Nodes	Nodes
-//		Flags: those of %N
-//			','  separate items with ',' instead of ';'
-//
-//   In mparith2.go and mparith3.go:
-//		%B Mpint*	Big integers
-//		%F Mpflt*	Big floats
-//
-//   %S, %T and %N obey use the following flags to set the format mode:
+//	%v Nodes	Node lists
+//		Flags:  those of *Node
+//			.: separate items with ',' instead of ';'
+
+// *Sym, *Type, and *Node types use the flags below to set the format mode
 const (
 	FErr = iota
 	FDbg
@@ -106,31 +99,33 @@ const (
 
 var fmtmode int = FErr
 
-var fmtpkgpfx int // %uT stickyness
+var fmtpkgpfx int // "% v" stickyness for *Type objects
 
+// The mode flags '+', '-', and '#' are sticky; they persist through
+// recursions of *Node, *Type, and *Sym values. The ' ' flag is
+// sticky only on *Type recursions and only used in %-/*Sym mode.
 //
-// E.g. for %S:	%+S %#S %-S	print an identifier properly qualified for debug/export/internal mode.
-//
-// The mode flags  +, - and # are sticky, meaning they persist through
-// recursions of %N, %T and %S, but not the h and l flags. The u flag is
-// sticky only on %T recursions and only used in %-/Sym mode.
+// Example: given a *Sym: %+v %#v %-v print an identifier properly qualified for debug/export/internal mode
 
-//
 // Useful format combinations:
+// TODO(gri): verify these
 //
-//	%+N   %+H	multiline recursive debug dump of node/nodelist
-//	%+hN  %+hH	non recursive debug dump
+// *Node, Nodes:
+//   %+v    multiline recursive debug dump of *Node/Nodes
+//   %+S    non-recursive debug dump
 //
-//	%#N   %#T	export format
-//	%#lT		type definition instead of name
-//	%#hT		omit"func" and receiver in function signature
+// *Node:
+//   %#v    Go format
+//   %L     "foo (type Bar)" for error messages
 //
-//	%lN		"foo (type Bar)" for error messages
+// *Type:
+//   %#v    Go format
+//   %#L    type definition instead of name
+//   %#S    omit"func" and receiver in function signature
 //
-//	%-T		type identifiers
-//	%-hT		type identifiers without "func" and arg names in type signatures (methodsym)
-//	%-uT		type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
-//
+//   %-v    type identifiers
+//   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
+//   %- v   type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
 
 func setfmode(flags *FmtFlag) (fm int) {
 	fm = fmtmode
@@ -145,8 +140,6 @@ func setfmode(flags *FmtFlag) (fm int) {
 	*flags &^= (FmtSharp | FmtLeft | FmtSign)
 	return
 }
-
-// Fmt "%L": Linenumbers
 
 var goopnames = []string{
 	OADDR:     "&",
@@ -269,7 +262,7 @@ func (n *Node) Format(s fmt.State, verb rune) {
 	}
 }
 
-// Node details
+// *Node details
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
@@ -387,7 +380,6 @@ func (v Val) Format(s fmt.State, verb rune) {
 	}
 }
 
-// Fmt "%V": Values
 func (v Val) vconv(s fmt.State, flag FmtFlag) {
 	switch u := v.U.(type) {
 	case *Mpint:
@@ -514,7 +506,6 @@ func (et EType) String() string {
 	return fmt.Sprintf("E-%d", et)
 }
 
-// Fmt "%S": syms
 func (s *Sym) symfmt(f fmt.State, flag FmtFlag) {
 	if s.Pkg != nil && flag&FmtShort == 0 {
 		switch fmtmode {
@@ -1593,8 +1584,7 @@ func (s *Sym) String() string {
 	return fmt.Sprint(s)
 }
 
-// Fmt "%S": syms
-// Flags:  "%hS" suppresses qualifying with package
+// "%S" suppresses qualifying with package
 func (s *Sym) sconv(f fmt.State, flag FmtFlag) {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
@@ -1706,10 +1696,9 @@ func (t *Type) Format(s fmt.State, verb rune) {
 	}
 }
 
-// Fmt "%T": types.
-// Flags: 'l' print definition, not name
-//	  'h' omit 'func' and receiver from function types, short type names
-//	  'u' package name, not prefix (FTypeId mode, sticky)
+// "%L"  print definition, not name
+// "%S"  omit 'func' and receiver from function types, short type names
+// "% v" package name, not prefix (FTypeId mode, sticky)
 func (t *Type) tconv(s fmt.State, flag FmtFlag) {
 	if t == nil {
 		fmt.Fprint(s, "<T>")
@@ -1747,9 +1736,8 @@ func (n *Node) String() string {
 	return fmt.Sprint(n)
 }
 
-// Fmt '%N': Nodes.
-// Flags: 'l' suffix with "(type %T)" where possible
-//	  '+h' in debug mode, don't recurse, no multiline output
+// "%L"  suffix with "(type %T)" where possible
+// "%+S" in debug mode, don't recurse, no multiline output
 func (n *Node) Nconv(s fmt.State, flag FmtFlag) {
 	if n == nil {
 		fmt.Fprint(s, "<N>")
@@ -1790,8 +1778,7 @@ func (n Nodes) String() string {
 	return fmt.Sprint(n)
 }
 
-// Fmt '%H': Nodes.
-// Flags: all those of %N plus ',': separate with comma's instead of semicolons.
+// Flags: all those of %N plus '.': separate with comma's instead of semicolons.
 func (l Nodes) hconv(s fmt.State, flag FmtFlag) {
 	if l.Len() == 0 && fmtmode == FDbg {
 		fmt.Fprint(s, "<nil>")
