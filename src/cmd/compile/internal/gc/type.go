@@ -1029,7 +1029,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		}
 
 	default:
-		e := fmt.Sprintf("Do not know how to compare %s with %s", t, x)
+		e := fmt.Sprintf("Do not know how to compare %v with %v", t, x)
 		panic(e)
 	}
 

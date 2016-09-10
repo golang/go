@@ -612,7 +612,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			if len(lhs) > 1 {
 				Yyerror("argument count mismatch: %d = %d", len(lhs), 1)
 			} else if (lhs[0].Op != ONAME && lhs[0].Op != OTYPE && lhs[0].Op != ONONAME && (lhs[0].Op != OLITERAL || lhs[0].Name == nil)) || isblank(lhs[0]) {
-				Yyerror("invalid variable name %s in type switch", lhs[0])
+				Yyerror("invalid variable name %v in type switch", lhs[0])
 			} else {
 				ts.Left = dclname(lhs[0].Sym)
 			} // it's a colas, so must not re-use an oldname

@@ -75,7 +75,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 		o += w
 		if o >= Thearch.MAXWIDTH {
-			Yyerror("type %2v too large", errtype)
+			Yyerror("type %L too large", errtype)
 			o = 8 // small but nonzero
 		}
 	}
@@ -253,7 +253,7 @@ func dowidth(t *Type) {
 		if t.Elem().Width != 0 {
 			cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
 			if uint64(t.NumElem()) > cap {
-				Yyerror("type %2v larger than address space", t)
+				Yyerror("type %L larger than address space", t)
 			}
 		}
 		w = t.NumElem() * t.Elem().Width

@@ -601,7 +601,7 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 	}
 	noff := int(Rnd(int64(ot), int64(Widthptr)))
 	if noff != ot {
-		Fatalf("unexpected alignment in dextratype for %s", t)
+		Fatalf("unexpected alignment in dextratype for %v", t)
 	}
 
 	for _, a := range m {
@@ -613,10 +613,10 @@ func dextratype(s *Sym, ot int, t *Type, dataAdd int) int {
 	dataAdd += uncommonSize(t)
 	mcount := len(m)
 	if mcount != int(uint16(mcount)) {
-		Fatalf("too many methods on %s: %d", t, mcount)
+		Fatalf("too many methods on %v: %d", t, mcount)
 	}
 	if dataAdd != int(uint32(dataAdd)) {
-		Fatalf("methods are too far away on %s: %d", t, dataAdd)
+		Fatalf("methods are too far away on %v: %d", t, dataAdd)
 	}
 
 	ot = duint16(s, ot, uint16(mcount))

@@ -616,7 +616,7 @@ func (l *lexer) ident(c rune) {
 
 	s := LookupBytes(name)
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: ident %s\n", s)
+		fmt.Printf("lex: ident %v\n", s)
 	}
 	l.sym_ = s
 	l.nlsemi = true

@@ -15,7 +15,8 @@
 // A new knownFormats table based on the found formats is printed
 // when the test is run in verbose mode (-v flag). The table
 // needs to be updated whenever a new (type, format) combination
-// is found and the format verb is not 'v' (as in "%v").
+// is found and the format verb is not 'v' or 'T' (as in "%v" or
+// "%T").
 //
 // Run as: go test -run Formats [-u][-v]
 //
@@ -120,8 +121,8 @@ func TestFormats(t *testing.T) {
 			}
 
 			// report an error if the format is unknown and this is the first
-			// time we see it; ignore "%v" which is always considered valid
-			if !known && !found && in != "%v" {
+			// time we see it; ignore "%v" and "%T" which are always valid
+			if !known && !found && in != "%v" && in != "%T" {
 				t.Errorf("%s: unknown format %q for %s argument", posString(p.arg), in, typ)
 			}
 
@@ -543,34 +544,31 @@ var knownFormats = map[string]string{
 	"*cmd/compile/internal/gc.Mpflt %v":               "",
 	"*cmd/compile/internal/gc.Mpint %v":               "",
 	"*cmd/compile/internal/gc.Node %#v":               "",
-	"*cmd/compile/internal/gc.Node %+1v":              "",
+	"*cmd/compile/internal/gc.Node %+S":               "",
 	"*cmd/compile/internal/gc.Node %+v":               "",
 	"*cmd/compile/internal/gc.Node %0j":               "",
-	"*cmd/compile/internal/gc.Node %1v":               "",
-	"*cmd/compile/internal/gc.Node %2v":               "",
+	"*cmd/compile/internal/gc.Node %L":                "",
+	"*cmd/compile/internal/gc.Node %S":                "",
 	"*cmd/compile/internal/gc.Node %j":                "",
 	"*cmd/compile/internal/gc.Node %p":                "",
-	"*cmd/compile/internal/gc.Node %s":                "",
 	"*cmd/compile/internal/gc.Node %v":                "",
 	"*cmd/compile/internal/gc.Sym % v":                "",
 	"*cmd/compile/internal/gc.Sym %+v":                "",
 	"*cmd/compile/internal/gc.Sym %-v":                "",
-	"*cmd/compile/internal/gc.Sym %01v":               "",
-	"*cmd/compile/internal/gc.Sym %1v":                "",
+	"*cmd/compile/internal/gc.Sym %0S":                "",
+	"*cmd/compile/internal/gc.Sym %S":                 "",
 	"*cmd/compile/internal/gc.Sym %p":                 "",
-	"*cmd/compile/internal/gc.Sym %s":                 "",
 	"*cmd/compile/internal/gc.Sym %v":                 "",
 	"*cmd/compile/internal/gc.Type % -v":              "",
 	"*cmd/compile/internal/gc.Type %#v":               "",
 	"*cmd/compile/internal/gc.Type %+v":               "",
 	"*cmd/compile/internal/gc.Type %- v":              "",
-	"*cmd/compile/internal/gc.Type %-1v":              "",
+	"*cmd/compile/internal/gc.Type %-S":               "",
 	"*cmd/compile/internal/gc.Type %-v":               "",
-	"*cmd/compile/internal/gc.Type %01v":              "",
-	"*cmd/compile/internal/gc.Type %1v":               "",
-	"*cmd/compile/internal/gc.Type %2v":               "",
+	"*cmd/compile/internal/gc.Type %0S":               "",
+	"*cmd/compile/internal/gc.Type %L":                "",
+	"*cmd/compile/internal/gc.Type %S":                "",
 	"*cmd/compile/internal/gc.Type %p":                "",
-	"*cmd/compile/internal/gc.Type %s":                "",
 	"*cmd/compile/internal/gc.Type %v":                "",
 	"*cmd/compile/internal/ssa.Block %s":              "",
 	"*cmd/compile/internal/ssa.Block %v":              "",
@@ -607,17 +605,14 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/gc.Level %d":                "",
 	"cmd/compile/internal/gc.Level %v":                "",
 	"cmd/compile/internal/gc.Node %#v":                "",
-	"cmd/compile/internal/gc.Nodes %#s":               "",
 	"cmd/compile/internal/gc.Nodes %#v":               "",
 	"cmd/compile/internal/gc.Nodes %+v":               "",
 	"cmd/compile/internal/gc.Nodes %.v":               "",
 	"cmd/compile/internal/gc.Nodes %v":                "",
 	"cmd/compile/internal/gc.Op %#v":                  "",
-	"cmd/compile/internal/gc.Op %d":                   "",
-	"cmd/compile/internal/gc.Op %s":                   "",
 	"cmd/compile/internal/gc.Op %v":                   "",
 	"cmd/compile/internal/gc.Val %#v":                 "",
-	"cmd/compile/internal/gc.Val %s":                  "",
+	"cmd/compile/internal/gc.Val %T":                  "",
 	"cmd/compile/internal/gc.Val %v":                  "",
 	"cmd/compile/internal/gc.initKind %d":             "",
 	"cmd/compile/internal/ssa.BlockKind %s":           "",

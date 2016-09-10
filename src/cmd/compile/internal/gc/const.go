@@ -556,7 +556,7 @@ func overflow(v Val, t *Type) {
 	}
 
 	if doesoverflow(v, t) {
-		Yyerror("constant %s overflows %v", v, t)
+		Yyerror("constant %v overflows %v", v, t)
 	}
 }
 
@@ -1595,7 +1595,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		var i int64
 		switch n.Val().Ctype() {
 		default:
-			Fatalf("convconst ctype=%d %2v", n.Val().Ctype(), t)
+			Fatalf("convconst ctype=%d %L", n.Val().Ctype(), t)
 
 		case CTINT, CTRUNE:
 			i = n.Int64()
@@ -1632,7 +1632,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	Fatalf("convconst %2v constant", t)
+	Fatalf("convconst %L constant", t)
 }
 
 // complex multiply v *= rv

@@ -71,7 +71,7 @@ func typecheckswitch(n *Node) {
 		n.Left.Right = typecheck(n.Left.Right, Erv)
 		t = n.Left.Right.Type
 		if t != nil && !t.IsInterface() {
-			Yyerror("cannot type switch on non-interface value %2v", n.Left.Right)
+			Yyerror("cannot type switch on non-interface value %L", n.Left.Right)
 		}
 	} else {
 		// expression switch
@@ -86,14 +86,14 @@ func typecheckswitch(n *Node) {
 		if t != nil {
 			switch {
 			case !okforeq[t.Etype]:
-				Yyerror("cannot switch on %2v", n.Left)
+				Yyerror("cannot switch on %L", n.Left)
 			case t.IsSlice():
 				nilonly = "slice"
 			case t.IsArray() && !t.IsComparable():
-				Yyerror("cannot switch on %2v", n.Left)
+				Yyerror("cannot switch on %L", n.Left)
 			case t.IsStruct():
 				if f := t.IncomparableField(); f != nil {
-					Yyerror("cannot switch on %2v (struct containing %v cannot be compared)", n.Left, f.Type)
+					Yyerror("cannot switch on %L (struct containing %v cannot be compared)", n.Left, f.Type)
 				}
 			case t.Etype == TFUNC:
 				nilonly = "func"
@@ -143,7 +143,7 @@ func typecheckswitch(n *Node) {
 					case nilonly != "" && !isnil(n1):
 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
 					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
-						Yyerror("invalid case %2v in switch (incomparable type)", n1)
+						Yyerror("invalid case %L in switch (incomparable type)", n1)
 					}
 
 				// type switch
@@ -159,15 +159,17 @@ func typecheckswitch(n *Node) {
 							niltype = ncase
 						}
 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
-						Yyerror("%2v is not a type", n1)
+						Yyerror("%L is not a type", n1)
 						// reset to original type
 						n1 = n.Left.Right
 						ls[i1] = n1
 					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
-							Yyerror("impossible type switch case: %2v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%1v\n\twant %v%1v", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+							Yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 						} else if !missing.Broke {
-							Yyerror("impossible type switch case: %2v cannot have dynamic type %v"+" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
+							Yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+								" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
 						}
 					}
 				}

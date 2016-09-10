@@ -490,7 +490,7 @@ OpSwitch:
 
 		if !t.IsPtr() {
 			if top&(Erv|Etop) != 0 {
-				Yyerror("invalid indirect of %2v", n.Left)
+				Yyerror("invalid indirect of %L", n.Left)
 				n.Type = nil
 				return n
 			}
@@ -861,7 +861,7 @@ OpSwitch:
 			}
 
 			if n.Type.Etype != TFUNC || !n.IsMethod() {
-				Yyerror("type %v has no method %1v", n.Left.Type, n.Right.Sym)
+				Yyerror("type %v has no method %S", n.Left.Type, n.Right.Sym)
 				n.Type = nil
 				return n
 			}
@@ -964,11 +964,13 @@ OpSwitch:
 			var ptr int
 			if !implements(n.Type, t, &missing, &have, &ptr) {
 				if have != nil && have.Sym == missing.Sym {
-					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+					Yyerror("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
+						"\t\thave %v%0S\n\t\twant %v%0S", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
 					Yyerror("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type, t, missing.Sym)
 				} else if have != nil {
-					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
+						"\t\thave %v%0S\n\t\twant %v%0S", n.Type, t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else {
 					Yyerror("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type, t, missing.Sym)
 				}
@@ -1380,7 +1382,7 @@ OpSwitch:
 		break OpSwitch
 
 	badcall1:
-		Yyerror("invalid argument %2v for %v", n.Left, n.Op)
+		Yyerror("invalid argument %L for %v", n.Left, n.Op)
 		n.Type = nil
 		return n
 
@@ -1519,7 +1521,7 @@ OpSwitch:
 		l := args.First()
 		r := args.Second()
 		if l.Type != nil && !l.Type.IsMap() {
-			Yyerror("first argument to delete must be map; have %2v", l.Type)
+			Yyerror("first argument to delete must be map; have %L", l.Type)
 			n.Type = nil
 			return n
 		}
@@ -1563,7 +1565,7 @@ OpSwitch:
 				return n
 			}
 
-			Yyerror("first argument to append must be slice; have %2v", t)
+			Yyerror("first argument to append must be slice; have %L", t)
 			n.Type = nil
 			return n
 		}
@@ -1646,25 +1648,25 @@ OpSwitch:
 			if Eqtype(n.Left.Type.Elem(), bytetype) {
 				break OpSwitch
 			}
-			Yyerror("arguments to copy have different element types: %2v and string", n.Left.Type)
+			Yyerror("arguments to copy have different element types: %L and string", n.Left.Type)
 			n.Type = nil
 			return n
 		}
 
 		if !n.Left.Type.IsSlice() || !n.Right.Type.IsSlice() {
 			if !n.Left.Type.IsSlice() && !n.Right.Type.IsSlice() {
-				Yyerror("arguments to copy must be slices; have %2v, %2v", n.Left.Type, n.Right.Type)
+				Yyerror("arguments to copy must be slices; have %L, %L", n.Left.Type, n.Right.Type)
 			} else if !n.Left.Type.IsSlice() {
-				Yyerror("first argument to copy should be slice; have %2v", n.Left.Type)
+				Yyerror("first argument to copy should be slice; have %L", n.Left.Type)
 			} else {
-				Yyerror("second argument to copy should be slice or string; have %2v", n.Right.Type)
+				Yyerror("second argument to copy should be slice or string; have %L", n.Right.Type)
 			}
 			n.Type = nil
 			return n
 		}
 
 		if !Eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
-			Yyerror("arguments to copy have different element types: %2v and %2v", n.Left.Type, n.Right.Type)
+			Yyerror("arguments to copy have different element types: %L and %L", n.Left.Type, n.Right.Type)
 			n.Type = nil
 			return n
 		}
@@ -1685,7 +1687,7 @@ OpSwitch:
 		n.Op = convertop(t, n.Type, &why)
 		if n.Op == 0 {
 			if n.Diag == 0 && !n.Type.Broke {
-				Yyerror("cannot convert %2v to type %v%s", n.Left, n.Type, why)
+				Yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
 				n.Diag = 1
 			}
 
@@ -2010,7 +2012,7 @@ OpSwitch:
 		if n.Left != nil {
 			t := n.Left.Type
 			if t != nil && !t.IsBoolean() {
-				Yyerror("non-bool %2v used as for condition", n.Left)
+				Yyerror("non-bool %L used as for condition", n.Left)
 			}
 		}
 		n.Right = typecheck(n.Right, Etop)
@@ -2025,7 +2027,7 @@ OpSwitch:
 		if n.Left != nil {
 			t := n.Left.Type
 			if t != nil && !t.IsBoolean() {
-				Yyerror("non-bool %2v used as if condition", n.Left)
+				Yyerror("non-bool %L used as if condition", n.Left)
 			}
 		}
 		typecheckslice(n.Nbody.Slice(), Etop)
@@ -2376,7 +2378,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 
 	// disallow T.m if m requires *T receiver
 	if f2.Type.Recv().Type.IsPtr() && !t.IsPtr() && f2.Embedded != 2 && !isifacemethod(f2.Type) {
-		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%1v)", n, t, f2.Sym)
+		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%S)", n, t, f2.Sym)
 		return false
 	}
 
@@ -2470,7 +2472,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
 			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
-				Yyerror("calling method %v with receiver %2v requires explicit dereference", n.Sym, n.Left)
+				Yyerror("calling method %v with receiver %L requires explicit dereference", n.Sym, n.Left)
 				for tt.Etype == Tptr {
 					// Stop one level early for method with pointer receiver.
 					if rcvr.Etype == Tptr && tt.Elem().Etype != Tptr {
@@ -3254,7 +3256,7 @@ func checkassignto(src *Type, dst *Node) {
 	var why string
 
 	if assignop(src, dst.Type, &why) == 0 {
-		Yyerror("cannot assign %v to %2v in multiple assignment%s", src, dst, why)
+		Yyerror("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}
 }
@@ -3673,7 +3675,7 @@ func typecheckdef(n *Node) *Node {
 			}
 
 			if !e.Type.IsUntyped() && !Eqtype(t, e.Type) {
-				Yyerror("cannot use %2v as type %v in const initializer", e, t)
+				Yyerror("cannot use %L as type %v in const initializer", e, t)
 				goto ret
 			}
 

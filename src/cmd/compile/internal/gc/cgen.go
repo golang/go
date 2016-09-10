@@ -361,7 +361,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	default:
 		Dump("cgen", n)
 		Dump("cgen-res", res)
-		Fatalf("cgen: unknown op %+1v", n)
+		Fatalf("cgen: unknown op %+S", n)
 
 	case OOROR, OANDAND,
 		OEQ, ONE,
@@ -599,7 +599,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		Fatalf("cgen: OLEN: unknown type %2v", nl.Type)
+		Fatalf("cgen: OLEN: unknown type %L", nl.Type)
 
 	case OCAP:
 		if nl.Type.IsChan() {
@@ -637,7 +637,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		Fatalf("cgen: OCAP: unknown type %2v", nl.Type)
+		Fatalf("cgen: OCAP: unknown type %L", nl.Type)
 
 	case OADDR:
 		if n.Bounded { // let race detector avoid nil checks
@@ -1553,7 +1553,7 @@ func Agen(n *Node, res *Node) {
 	switch n.Op {
 	default:
 		Dump("bad agen", n)
-		Fatalf("agen: unknown op %+1v", n)
+		Fatalf("agen: unknown op %+S", n)
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
@@ -1864,7 +1864,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	case OLITERAL:
 		// n is a constant.
 		if !Isconst(n, CTBOOL) {
-			Fatalf("bgen: non-bool const %2v\n", n)
+			Fatalf("bgen: non-bool const %L\n", n)
 		}
 		if genval {
 			Cgen(Nodbool(wantTrue == n.Val().U.(bool)), res)

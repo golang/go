@@ -810,11 +810,13 @@ func assignop(src *Type, dst *Type, why *string) Op {
 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 			} else if have != nil && have.Sym == missing.Sym {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
+					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 			} else if ptr != 0 {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 			} else if have != nil {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%01v\n\t\twant %v%01v", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
+					"\t\thave %v%0S\n\t\twant %v%0S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 			} else {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 			}
@@ -1013,7 +1015,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		Yyerror("cannot use %2v as type %v in %s%s", n, t, context(), why)
+		Yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
@@ -1062,7 +1064,7 @@ func (n *Node) SliceBounds() (low, high, max *Node) {
 		}
 		return n.Right.Left, n.Right.Right.Left, n.Right.Right.Right
 	}
-	Fatalf("SliceBounds op %s: %v", n.Op, n)
+	Fatalf("SliceBounds op %v: %v", n.Op, n)
 	return nil, nil, nil
 }
 
@@ -1072,7 +1074,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 	switch n.Op {
 	case OSLICE, OSLICEARR, OSLICESTR:
 		if max != nil {
-			Fatalf("SetSliceBounds %s given three bounds", n.Op)
+			Fatalf("SetSliceBounds %v given three bounds", n.Op)
 		}
 		if n.Right == nil {
 			n.Right = Nod(OKEY, low, high)
@@ -1090,7 +1092,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 		n.Right.Right.Right = max
 		return
 	}
-	Fatalf("SetSliceBounds op %s: %v", n.Op, n)
+	Fatalf("SetSliceBounds op %v: %v", n.Op, n)
 }
 
 // IsSlice3 reports whether o is a slice3 op (OSLICE3, OSLICE3ARR).
