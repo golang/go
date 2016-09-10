@@ -38,7 +38,7 @@ func ExampleDecode() {
 	// Hello Gopher!
 }
 
-func ExampleDecodedString() {
+func ExampleDecodeString() {
 	const s = "48656c6c6f20476f7068657221"
 	decoded, err := hex.DecodeString(s)
 	if err != nil {
