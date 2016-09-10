@@ -1226,10 +1226,11 @@ func initplan(n *Node) {
 
 	case OARRAYLIT, OSLICELIT:
 		for _, a := range n.List.Slice() {
-			if a.Op != OKEY || !smallintconst(a.Left) {
+			index := nonnegintconst(a.Left)
+			if a.Op != OKEY || index < 0 {
 				Fatalf("initplan fixedlit")
 			}
-			addvalue(p, n.Type.Elem().Width*a.Left.Int64(), a.Right)
+			addvalue(p, index*n.Type.Elem().Width, a.Right)
 		}
 
 	case OSTRUCTLIT:

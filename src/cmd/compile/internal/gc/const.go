@@ -1513,37 +1513,33 @@ func smallintconst(n *Node) bool {
 			return true
 
 		case TIDEAL, TINT64, TUINT64, TPTR64:
-			if n.Val().U.(*Mpint).Cmp(minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
-				break
+			v, ok := n.Val().U.(*Mpint)
+			if ok && v.Cmp(minintval[TINT32]) > 0 && v.Cmp(maxintval[TINT32]) < 0 {
+				return true
 			}
-			return true
 		}
 	}
 
 	return false
 }
 
-func nonnegconst(n *Node) int {
-	if n.Op == OLITERAL && n.Type != nil {
-		switch simtype[n.Type.Etype] {
-		// check negative and 2^31
-		case TINT8,
-			TUINT8,
-			TINT16,
-			TUINT16,
-			TINT32,
-			TUINT32,
-			TINT64,
-			TUINT64,
-			TIDEAL:
-			if n.Val().U.(*Mpint).Cmp(minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
-				break
-			}
-			return int(n.Int64())
-		}
+// nonnegintconst checks if Node n contains a constant expression
+// representable as a non-negative small integer, and returns its
+// (integer) value if that's the case. Otherwise, it returns -1.
+func nonnegintconst(n *Node) int64 {
+	if n.Op != OLITERAL {
+		return -1
 	}
 
-	return -1
+	// toint will leave n.Val unchanged if it's not castable to an
+	// Mpint, so we still have to guard the conversion.
+	v := toint(n.Val())
+	vi, ok := v.U.(*Mpint)
+	if !ok || vi.Val.Sign() < 0 || vi.Cmp(maxintval[TINT32]) > 0 {
+		return -1
+	}
+
+	return vi.Int64()
 }
 
 // convert x to type et and back to int64
