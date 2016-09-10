@@ -97,7 +97,7 @@ func archinit(ctxt *ld.Link) {
 			ld.Linkmode = ld.LinkInternal
 		}
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
-			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headtype)
+			log.Fatalf("cannot use -linkmode=external with -H %v", ld.Headtype)
 		}
 	case obj.Hlinux, obj.Hdarwin:
 		break

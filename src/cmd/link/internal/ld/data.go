@@ -429,7 +429,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 			} else if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui {
 				o = r.Add
 			} else {
-				log.Fatalf("unexpected R_TLS_LE relocation for %s", Headtype)
+				log.Fatalf("unexpected R_TLS_LE relocation for %v", Headtype)
 			}
 
 		case obj.R_TLS_IE:
