@@ -62,7 +62,7 @@ var (
 	fset          = token.NewFileSet()
 	formatStrings = make(map[*ast.BasicLit]bool)      // set of all potential format strings found
 	foundFormats  = make(map[string]bool)             // set of all formats found
-	callSites     = make(map[*ast.CallExpr]*callSite) // set of all calls using format strings
+	callSites     = make(map[*ast.CallExpr]*callSite) // map of all calls
 )
 
 // A File is a corresponding (filename, ast) pair.
@@ -82,6 +82,10 @@ func TestFormats(t *testing.T) {
 			}
 
 			importPath := filepath.Join("cmd/compile", path)
+			if blacklistedPackages[filepath.ToSlash(importPath)] {
+				return filepath.SkipDir
+			}
+
 			pkg, err := build.Import(importPath, path, 0)
 			if err != nil {
 				if _, ok := err.(*build.NoGoError); ok {
@@ -295,7 +299,7 @@ func collectPkgFormats(t *testing.T, pkg *build.Package) {
 		ast.Inspect(file, func(n ast.Node) bool {
 			if call, ok := n.(*ast.CallExpr); ok {
 				// ignore blacklisted functions
-				if functionBlacklisted[nodeString(call.Fun)] {
+				if blacklistedFunctions[nodeString(call.Fun)] {
 					return true
 				}
 				// look for an arguments that might be a format string
@@ -363,12 +367,7 @@ func nodeString(n ast.Node) string {
 
 // typeString returns a string representation of n.
 func typeString(typ types.Type) string {
-	s := typ.String()
-	// canonicalize path separators
-	if filepath.Separator != '/' {
-		s = strings.Replace(s, string(filepath.Separator), "/", -1)
-	}
-	return s
+	return filepath.ToSlash(typ.String())
 }
 
 // stringLit returns the unquoted string value and true if
@@ -449,14 +448,9 @@ func formatIter(s string, f func(i, j int) int) {
 				digits()
 			}
 			index()
-			// accept any char except for % as format flag
-			if r == '%' {
-				if i-i0 == 1 {
-					continue // skip "%%"
-				}
-				log.Fatalf("incorrect format string: %s", s)
-			}
-			if r >= 0 {
+			// accept any letter (a-z, A-Z) as format verb;
+			// ignore anything else
+			if 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' {
 				i = f(i0-1, i)
 			}
 		}
@@ -509,14 +503,16 @@ func formatReplace(in string, f func(i int, s string) string) string {
 	return string(append(buf, in[i0:]...))
 }
 
-// functionBlacklisted is the set of functions which may have
+// blacklistedPackages is the set of packages which can
+// be ignored.
+var blacklistedPackages = map[string]bool{
+	"cmd/compile/internal/big": true,
+}
+
+// blacklistedFunctions is the set of functions which may have
 // format-like arguments but which don't do any formatting and
 // thus may be ignored.
-var functionBlacklisted = map[string]bool{
-	"len": true,
-	"strings.ContainsRune": true,
-	"w.WriteString":        true,
-}
+var blacklistedFunctions = map[string]bool{}
 
 func init() {
 	// verify that knownFormats entries are correctly formatted
@@ -534,25 +530,13 @@ func init() {
 	}
 }
 
-// knownFormats entries are of the form "typename oldformat" -> "newformat".
+// knownFormats entries are of the form "typename format" -> "newformat".
 // An absent entry means that the format is not recognized as valid.
-// An empty new format means that the existing format should remain unchanged.
+// An empty new format means that the format should remain unchanged.
 // To print out a new table, run: go test -run Formats -v.
 var knownFormats = map[string]string{
-	"**cmd/compile/internal/big.Rat %v":               "",
 	"*bytes.Buffer %s":                                "",
-	"*cmd/compile/internal/big.Float %5s":             "",
-	"*cmd/compile/internal/big.Float %s":              "",
-	"*cmd/compile/internal/big.Float %v":              "",
 	"*cmd/compile/internal/big.Int %#x":               "",
-	"*cmd/compile/internal/big.Int %d":                "",
-	"*cmd/compile/internal/big.Int %s":                "",
-	"*cmd/compile/internal/big.Int %v":                "",
-	"*cmd/compile/internal/big.Int %x":                "",
-	"*cmd/compile/internal/big.Rat %p":                "",
-	"*cmd/compile/internal/big.Rat %s":                "",
-	"*cmd/compile/internal/big.Rat %v":                "",
-	"*cmd/compile/internal/big.matrix %s":             "",
 	"*cmd/compile/internal/gc.Bits %v":                "",
 	"*cmd/compile/internal/gc.Field %p":               "",
 	"*cmd/compile/internal/gc.Field %v":               "",
@@ -600,12 +584,9 @@ var knownFormats = map[string]string{
 	"*cmd/internal/obj.Prog %s":                       "",
 	"*cmd/internal/obj.Prog %v":                       "",
 	"[16]byte %x":                                     "",
-	"[]*cmd/compile/internal/big.Int %s":              "",
-	"[]*cmd/compile/internal/big.Rat %s":              "",
 	"[]*cmd/compile/internal/gc.Node %v":              "",
 	"[]*cmd/compile/internal/gc.Sig %#v":              "",
 	"[]*cmd/compile/internal/ssa.Value %v":            "",
-	"[]byte %q":                                       "",
 	"[]byte %s":                                       "",
 	"[]byte %x":                                       "",
 	"[]cmd/compile/internal/ssa.Edge %v":              "",
@@ -616,29 +597,7 @@ var knownFormats = map[string]string{
 	"byte %02x":                                       "",
 	"byte %08b":                                       "",
 	"byte %c":                                         "",
-	"byte %d":                                         "",
-	"byte %q":                                         "",
 	"cmd/compile/internal/arm.shift %d":               "",
-	"cmd/compile/internal/big.Accuracy %d":            "",
-	"cmd/compile/internal/big.Accuracy %s":            "",
-	"cmd/compile/internal/big.Bits %v":                "",
-	"cmd/compile/internal/big.ErrNaN %v":              "",
-	"cmd/compile/internal/big.Int %v":                 "",
-	"cmd/compile/internal/big.RoundingMode %d":        "",
-	"cmd/compile/internal/big.RoundingMode %s":        "",
-	"cmd/compile/internal/big.RoundingMode %v":        "",
-	"cmd/compile/internal/big.Word %#x":               "",
-	"cmd/compile/internal/big.Word %d":                "",
-	"cmd/compile/internal/big.Word %x":                "",
-	"cmd/compile/internal/big.argNN %+v":              "",
-	"cmd/compile/internal/big.argVV %+v":              "",
-	"cmd/compile/internal/big.argVW %+v":              "",
-	"cmd/compile/internal/big.argVWW %+v":             "",
-	"cmd/compile/internal/big.argWVW %+v":             "",
-	"cmd/compile/internal/big.argWW %+v":              "",
-	"cmd/compile/internal/big.argZZ %+v":              "",
-	"cmd/compile/internal/big.decimal %v":             "",
-	"cmd/compile/internal/big.nat %v":                 "",
 	"cmd/compile/internal/gc.Class %d":                "",
 	"cmd/compile/internal/gc.Ctype %d":                "",
 	"cmd/compile/internal/gc.Ctype %v":                "",
@@ -686,19 +645,11 @@ var knownFormats = map[string]string{
 	"cmd/compile/internal/syntax.token %q":            "",
 	"cmd/compile/internal/syntax.token %s":            "",
 	"cmd/internal/obj.As %v":                          "",
-	"error %q":                                        "",
-	"error %s":                                        "",
 	"error %v":                                        "",
-	"float32 %b":                                      "",
-	"float32 %g":                                      "",
 	"float64 %.2f":                                    "",
 	"float64 %.3f":                                    "",
-	"float64 %.5g":                                    "",
 	"float64 %.6g":                                    "",
-	"float64 %5g":                                     "",
-	"float64 %b":                                      "",
 	"float64 %g":                                      "",
-	"float64 %v":                                      "",
 	"fmt.Stringer %T":                                 "",
 	"int %#x":                                         "",
 	"int %-12d":                                       "",
@@ -706,7 +657,6 @@ var knownFormats = map[string]string{
 	"int %-6d":                                        "",
 	"int %-8o":                                        "",
 	"int %2d":                                         "",
-	"int %3d":                                         "",
 	"int %5d":                                         "",
 	"int %6d":                                         "",
 	"int %c":                                          "",
@@ -721,7 +671,6 @@ var knownFormats = map[string]string{
 	"int32 %d":                                        "",
 	"int32 %v":                                        "",
 	"int32 %x":                                        "",
-	"int64 %#x":                                       "",
 	"int64 %+d":                                       "",
 	"int64 %-10d":                                     "",
 	"int64 %X":                                        "",
@@ -736,45 +685,34 @@ var knownFormats = map[string]string{
 	"interface{} %s":                                  "",
 	"interface{} %v":                                  "",
 	"map[*cmd/compile/internal/gc.Node]*cmd/compile/internal/ssa.Value %v": "",
-	"reflect.Type %s": "",
-	"rune %#U":        "",
-	"rune %c":         "",
-	"rune %d":         "",
-	"rune %q":         "",
-	"string %-16s":    "",
-	"string %.*s":     "",
-	"string %q":       "",
-	"string %s":       "",
-	"string %v":       "",
-	"struct{format string; value interface{}; want string} %v":                                                        "",
-	"struct{in string; out string; base int; val int64; ok bool} %v":                                                  "",
-	"struct{s string; base int; frac bool; x cmd/compile/internal/big.nat; b int; count int; ok bool; next rune} %+v": "",
-	"struct{x cmd/compile/internal/big.nat; b int; s string} %+v":                                                     "",
-	"struct{x float64; format byte; prec int; want string} %v":                                                        "",
-	"struct{x string; prec uint; format byte; digits int; want string} %v":                                            "",
-	"time.Duration %10s":                                                                                              "",
-	"time.Duration %4d":                                                                                               "",
-	"time.Duration %d":                                                                                                "",
-	"time.Duration %v":                                                                                                "",
-	"uint %.4d":                                                                                                       "",
-	"uint %04x":                                                                                                       "",
-	"uint %d":                                                                                                         "",
-	"uint %v":                                                                                                         "",
-	"uint16 %d":                                                                                                       "",
-	"uint16 %v":                                                                                                       "",
-	"uint16 %x":                                                                                                       "",
-	"uint32 %#08x":                                                                                                    "",
-	"uint32 %#x":                                                                                                      "",
-	"uint32 %08x":                                                                                                     "",
-	"uint32 %d":                                                                                                       "",
-	"uint32 %x":                                                                                                       "",
-	"uint64 %#016x":                                                                                                   "",
-	"uint64 %#x":                                                                                                      "",
-	"uint64 %016x":                                                                                                    "",
-	"uint64 %08x":                                                                                                     "",
-	"uint64 %d":                                                                                                       "",
-	"uint64 %x":                                                                                                       "",
-	"uint8 %d":                                                                                                        "",
-	"uint8 %x":                                                                                                        "",
-	"uintptr %d":                                                                                                      "",
+	"reflect.Type %s":  "",
+	"rune %#U":         "",
+	"rune %c":          "",
+	"rune %d":          "",
+	"string %-16s":     "",
+	"string %.*s":      "",
+	"string %q":        "",
+	"string %s":        "",
+	"string %v":        "",
+	"time.Duration %d": "",
+	"time.Duration %v": "",
+	"uint %.4d":        "",
+	"uint %04x":        "",
+	"uint %d":          "",
+	"uint %v":          "",
+	"uint16 %d":        "",
+	"uint16 %v":        "",
+	"uint16 %x":        "",
+	"uint32 %#x":       "",
+	"uint32 %08x":      "",
+	"uint32 %d":        "",
+	"uint32 %x":        "",
+	"uint64 %#x":       "",
+	"uint64 %016x":     "",
+	"uint64 %08x":      "",
+	"uint64 %d":        "",
+	"uint64 %x":        "",
+	"uint8 %d":         "",
+	"uint8 %x":         "",
+	"uintptr %d":       "",
 }
