@@ -460,11 +460,9 @@ func TestTCPConcurrentAccept(t *testing.T) {
 
 func TestTCPReadWriteAllocs(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "windows":
+	case "nacl":
 		// NaCl needs to allocate pseudo file descriptor
 		// stuff. See syscall/fd_nacl.go.
-		// Windows uses closures and channels for IO
-		// completion port-based netpoll. See fd_windows.go.
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -474,7 +472,7 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 	}
 	defer ln.Close()
 	var server Conn
-	errc := make(chan error)
+	errc := make(chan error, 1)
 	go func() {
 		var err error
 		server, err = ln.Accept()
@@ -489,6 +487,7 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+
 	var buf [128]byte
 	allocs := testing.AllocsPerRun(1000, func() {
 		_, err := server.Write(buf[:])
@@ -497,6 +496,28 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		}
 		_, err = io.ReadFull(client, buf[:])
 		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs > 0 {
+		t.Fatalf("got %v; want 0", allocs)
+	}
+
+	var bufwrt [128]byte
+	ch := make(chan bool)
+	defer close(ch)
+	go func() {
+		for <-ch {
+			_, err := server.Write(bufwrt[:])
+			errc <- err
+		}
+	}()
+	allocs = testing.AllocsPerRun(1000, func() {
+		ch <- true
+		if _, err = io.ReadFull(client, buf[:]); err != nil {
+			t.Fatal(err)
+		}
+		if err := <-errc; err != nil {
 			t.Fatal(err)
 		}
 	})
