@@ -235,7 +235,7 @@ func (p *importer) verifyTypes() {
 		pt := pair.pt
 		t := pair.t
 		if !Eqtype(pt.Orig, t) {
-			formatErrorf("inconsistent definition for type %v during import\n\t%2v (in %q)\n\t%2v (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+			formatErrorf("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
 		}
 	}
 }
@@ -416,7 +416,7 @@ func (p *importer) importtype(pt, t *Type) {
 	}
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import type %v %2v\n", pt, t)
+		fmt.Printf("import type %v %L\n", pt, t)
 	}
 }
 
@@ -1133,8 +1133,8 @@ func (p *importer) node() *Node {
 		return nil
 
 	default:
-		Fatalf("cannot import %s (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", op, op)
+		Fatalf("cannot import %v (%d) node\n"+
+			"==> please file an issue and assign to gri@\n", op, int(op))
 		panic("unreachable") // satisfy compiler
 	}
 }

@@ -433,7 +433,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 	case OADDR:
 		if nr.Left.Op != ONAME {
-			Fatalf("gdata ADDR left op %s", nr.Left.Op)
+			Fatalf("gdata ADDR left op %v", nr.Left.Op)
 		}
 		to := nr.Left
 		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)

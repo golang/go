@@ -515,7 +515,7 @@ opswitch:
 	switch n.Op {
 	default:
 		Dump("walk", n)
-		Fatalf("walkexpr: switch 1 unknown op %+1v", n)
+		Fatalf("walkexpr: switch 1 unknown op %+S", n)
 
 	case OTYPE,
 		ONONAME,

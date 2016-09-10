@@ -449,7 +449,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		if expr.Lhs != nil {
 			n.Left = p.declName(expr.Lhs)
 			if isblank(n.Left) {
-				Yyerror("invalid variable name %s in type switch", n.Left)
+				Yyerror("invalid variable name %v in type switch", n.Left)
 			}
 		}
 		return n

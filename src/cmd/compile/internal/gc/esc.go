@@ -486,7 +486,7 @@ func escAnalyze(all []*Node, recursive bool) {
 	if Debug['m'] != 0 {
 		for _, n := range e.noesc {
 			if n.Esc == EscNone {
-				Warnl(n.Lineno, "%v %1v does not escape", e.curfnSym(n), n)
+				Warnl(n.Lineno, "%v %S does not escape", e.curfnSym(n), n)
 			}
 		}
 	}
@@ -743,7 +743,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
 			// that b does not escape when b contents do.
 			if Debug['m'] != 0 {
-				Warnl(n.Lineno, "%v ignoring self-assignment to %1v", e.curfnSym(n), n.Left)
+				Warnl(n.Lineno, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
 			}
 
 			break
@@ -847,7 +847,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			slice2 := n.List.Second()
 			escassignDereference(e, &e.theSink, slice2, e.stepAssign(nil, n, slice2, "appended slice...")) // lose track of assign of dereference
 			if Debug['m'] > 3 {
-				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %1v", e.curfnSym(n), n)
+				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %S", e.curfnSym(n), n)
 			}
 		}
 		escassignDereference(e, &e.theSink, n.List.First(), e.stepAssign(nil, n, n.List.First(), "appendee slice")) // The original elements are now leaked, too
@@ -998,7 +998,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("%v:[%d] %v escassign: %1v(%0j)[%v] = %1v(%0j)[%v]\n",
+		fmt.Printf("%v:[%d] %v escassign: %S(%0j)[%v] = %S(%0j)[%v]\n",
 			linestr(lineno), e.loopdepth, funcSym(Curfn),
 			dst, dst, dst.Op,
 			src, src, src.Op)
@@ -1278,7 +1278,7 @@ func escassignfromtag(e *EscState, note string, dsts Nodes, src *Node) uint16 {
 	}
 
 	if Debug['m'] > 3 {
-		fmt.Printf("%v::assignfromtag:: src=%1v, em=%s\n",
+		fmt.Printf("%v::assignfromtag:: src=%S, em=%s\n",
 			linestr(lineno), src, describeEscape(em))
 	}
 
@@ -1449,7 +1449,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		for _, n1 := range ll.Slice() {
 			escassignSinkNilWhy(e, n, n1, "parameter to indirect call")
 			if Debug['m'] > 3 {
-				fmt.Printf("%v::esccall:: indirect call <- %1v, untracked\n", linestr(lineno), n1)
+				fmt.Printf("%v::esccall:: indirect call <- %S, untracked\n", linestr(lineno), n1)
 			}
 		}
 		// Set up bogus outputs
@@ -1474,7 +1474,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
 		fn.Name.Defn != nil && fn.Name.Defn.Nbody.Len() != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 3 {
-			fmt.Printf("%v::esccall:: %1v in recursive group\n", linestr(lineno), n)
+			fmt.Printf("%v::esccall:: %S in recursive group\n", linestr(lineno), n)
 		}
 
 		// function in same mutually recursive group. Incorporate into flow graph.
@@ -1512,7 +1512,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 					// "..." arguments are untracked
 					for _, n2 := range lls {
 						if Debug['m'] > 3 {
-							fmt.Printf("%v::esccall:: ... <- %1v, untracked\n", linestr(lineno), n2)
+							fmt.Printf("%v::esccall:: ... <- %S, untracked\n", linestr(lineno), n2)
 						}
 						escassignSinkNilWhy(e, src, n2, "... arg to recursive call")
 					}
@@ -1537,7 +1537,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	if Debug['m'] > 3 {
-		fmt.Printf("%v::esccall:: %1v not recursive\n", linestr(lineno), n)
+		fmt.Printf("%v::esccall:: %S not recursive\n", linestr(lineno), n)
 	}
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
@@ -1614,7 +1614,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	// Store arguments into slice for ... arg.
 	for ; i < len(lls); i++ {
 		if Debug['m'] > 3 {
-			fmt.Printf("%v::esccall:: ... <- %1v\n", linestr(lineno), lls[i])
+			fmt.Printf("%v::esccall:: ... <- %S\n", linestr(lineno), lls[i])
 		}
 		if note == uintptrEscapesTag {
 			escassignSinkNilWhy(e, src, lls[i], "arg to uintptrescapes ...")
@@ -1637,7 +1637,7 @@ func escflows(e *EscState, dst, src *Node, why *EscStep) {
 	}
 
 	if Debug['m'] > 3 {
-		fmt.Printf("%v::flows:: %1v <- %1v\n", linestr(lineno), dst, src)
+		fmt.Printf("%v::flows:: %S <- %S\n", linestr(lineno), dst, src)
 	}
 
 	dstE := e.nodeEscState(dst)
@@ -1677,7 +1677,7 @@ func escflood(e *EscState, dst *Node) {
 
 	dstE := e.nodeEscState(dst)
 	if Debug['m'] > 2 {
-		fmt.Printf("\nescflood:%d: dst %1v scope:%v[%d]\n", e.walkgen, dst, e.curfnSym(dst), dstE.Escloopdepth)
+		fmt.Printf("\nescflood:%d: dst %S scope:%v[%d]\n", e.walkgen, dst, e.curfnSym(dst), dstE.Escloopdepth)
 	}
 
 	for i, l := range dstE.Escflowsrc {
@@ -1711,7 +1711,7 @@ func (es *EscStep) describe(src *Node) {
 		if nextDest != nil {
 			dst = nextDest.src
 		}
-		Warnl(src.Lineno, "\tfrom %s (%s) at %s", dst, step.why, dst.Line())
+		Warnl(src.Lineno, "\tfrom %v (%s) at %s", dst, step.why, dst.Line())
 	}
 	for step := step0; step != nil && step.busy; step = step.parent {
 		step.busy = false
@@ -1756,7 +1756,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %1v(%0j) scope:%v[%d] extraloopdepth=%v\n",
+		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %S(%0j) scope:%v[%d] extraloopdepth=%v\n",
 			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", src.Op, src, src, e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
 	}
 
@@ -1775,10 +1775,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		// 4. return *in
 		if Debug['m'] != 0 {
 			if Debug['m'] <= 2 {
-				Warnl(src.Lineno, "leaking param: %1v to result %v level=%v", src, dst.Sym, level.int())
+				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level.int())
 				step.describe(src)
 			} else {
-				Warnl(src.Lineno, "leaking param: %1v to result %v level=%v", src, dst.Sym, level)
+				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level)
 			}
 		}
 		if src.Esc&EscMask != EscReturn {
@@ -1795,7 +1795,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
-			Warnl(src.Lineno, "mark escaped content: %1v", src)
+			Warnl(src.Lineno, "mark escaped content: %S", src)
 			step.describe(src)
 		}
 	}
@@ -1811,11 +1811,11 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 				if Debug['m'] != 0 {
 					if Debug['m'] <= 2 {
 						if osrcesc != src.Esc {
-							Warnl(src.Lineno, "leaking param content: %1v", src)
+							Warnl(src.Lineno, "leaking param content: %S", src)
 							step.describe(src)
 						}
 					} else {
-						Warnl(src.Lineno, "leaking param content: %1v level=%v dst.eld=%v src.eld=%v dst=%1v",
+						Warnl(src.Lineno, "leaking param content: %S level=%v dst.eld=%v src.eld=%v dst=%S",
 							src, level, dstE.Escloopdepth, modSrcLoopdepth, dst)
 					}
 				}
@@ -1824,10 +1824,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 				if Debug['m'] != 0 {
 
 					if Debug['m'] <= 2 {
-						Warnl(src.Lineno, "leaking param: %1v", src)
+						Warnl(src.Lineno, "leaking param: %S", src)
 						step.describe(src)
 					} else {
-						Warnl(src.Lineno, "leaking param: %1v level=%v dst.eld=%v src.eld=%v dst=%1v",
+						Warnl(src.Lineno, "leaking param: %S level=%v dst.eld=%v src.eld=%v dst=%S",
 							src, level, dstE.Escloopdepth, modSrcLoopdepth, dst)
 					}
 				}
@@ -1838,7 +1838,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		// original variable.
 		if src.isClosureVar() {
 			if leaks && Debug['m'] != 0 {
-				Warnl(src.Lineno, "leaking closure reference %1v", src)
+				Warnl(src.Lineno, "leaking closure reference %S", src)
 				step.describe(src)
 			}
 			escwalk(e, level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
@@ -1857,10 +1857,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 					p = p.Left // merely to satisfy error messages in tests
 				}
 				if Debug['m'] > 2 {
-					Warnl(src.Lineno, "%1v escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
+					Warnl(src.Lineno, "%S escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
 						p, level, dst, dstE.Escloopdepth, modSrcLoopdepth)
 				} else {
-					Warnl(src.Lineno, "%1v escapes to heap", p)
+					Warnl(src.Lineno, "%S escapes to heap", p)
 					step.describe(src)
 				}
 			}
@@ -1878,7 +1878,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 && osrcesc != src.Esc {
-				Warnl(src.Lineno, "%1v escapes to heap", src)
+				Warnl(src.Lineno, "%S escapes to heap", src)
 				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
@@ -1910,7 +1910,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 && osrcesc != src.Esc {
-				Warnl(src.Lineno, "%1v escapes to heap", src)
+				Warnl(src.Lineno, "%S escapes to heap", src)
 				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
@@ -1950,7 +1950,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, 
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		if srcE.Escretval.Len() != 0 {
 			if Debug['m'] > 2 {
-				fmt.Printf("%v:[%d] dst %1v escwalk replace src: %1v with %1v\n",
+				fmt.Printf("%v:[%d] dst %S escwalk replace src: %S with %S\n",
 					linestr(lineno), e.loopdepth,
 					dst, src, srcE.Escretval.First())
 			}

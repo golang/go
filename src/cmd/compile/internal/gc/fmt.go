@@ -12,18 +12,20 @@ import (
 	"unicode/utf8"
 )
 
+// TODO(gri) update documentation thoroughly
+
 // A FmtFlag value is a set of flags (or 0).
 // They control how the Xconv functions format their values.
 // See the respective function's documentation for details.
 type FmtFlag int
 
-const ( //                                          fmt.Format flag/width/prec
+const ( //                                          fmt.Format flag/prec or verb
 	FmtLeft     FmtFlag = 1 << iota // "-"	=>  '-'
 	FmtSharp                        // "#"  =>  '#'
 	FmtSign                         // "+"  =>  '+'
 	FmtUnsigned                     // "u"  =>  ' '
-	FmtShort                        // "h"  =>  hasWidth && width == 1; or verb == 'S' (Short)
-	FmtLong                         // "l"  =>  hasWidth && width == 2; or verb == 'L' (Long)
+	FmtShort                        // "h"  =>  verb == 'S' (Short)
+	FmtLong                         // "l"  =>  verb == 'L' (Long)
 	FmtComma                        // ","  =>  '.' (== hasPrec)
 	FmtByte                         // "hh" =>  '0'
 )
@@ -41,14 +43,6 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
 	}
 	if s.Flag(' ') {
 		flag |= FmtUnsigned
-	}
-	if w, ok := s.Width(); ok {
-		switch w {
-		case 1:
-			flag |= FmtShort
-		case 2:
-			flag |= FmtLong
-		}
 	}
 	if _, ok := s.Precision(); ok {
 		flag |= FmtComma
@@ -228,7 +222,7 @@ func (o Op) GoString() string {
 
 func (o Op) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 's', 'v':
+	case 'v':
 		o.oconv(s, fmtFlag(s, verb))
 
 	default:
@@ -264,7 +258,7 @@ var classnames = []string{
 
 func (n *Node) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 's', 'v':
+	case 'v', 'S', 'L':
 		n.Nconv(s, fmtFlag(s, verb))
 
 	case 'j':
@@ -385,11 +379,11 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 
 func (v Val) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 's', 'v':
+	case 'v':
 		v.vconv(s, fmtFlag(s, verb))
 
 	default:
-		fmt.Fprintf(s, "%%!%c(Val)", verb)
+		fmt.Fprintf(s, "%%!%c(Val=%T)", verb, v)
 	}
 }
 
@@ -605,7 +599,7 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 	if t == bytetype || t == runetype {
 		// in %-T mode collapse rune and byte with their originals.
 		if fmtmode != FTypeId {
-			fmt.Fprintf(s, "%1v", t.Sym)
+			fmt.Fprintf(s, "%S", t.Sym)
 			return
 		}
 		t = Types[t.Etype]
@@ -622,10 +616,10 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 		case FTypeId:
 			if flag&FmtShort != 0 {
 				if t.Vargen != 0 {
-					fmt.Fprintf(s, "%1v·%d", t.Sym, t.Vargen)
+					fmt.Fprintf(s, "%S·%d", t.Sym, t.Vargen)
 					return
 				}
-				fmt.Fprintf(s, "%1v", t.Sym)
+				fmt.Fprintf(s, "%S", t.Sym)
 				return
 			}
 
@@ -663,7 +657,7 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 	switch t.Etype {
 	case TPTR32, TPTR64:
 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
-			fmt.Fprintf(s, "*%1v", t.Elem())
+			fmt.Fprintf(s, "*%S", t.Elem())
 			return
 		}
 		fmt.Fprint(s, "*"+t.Elem().String())
@@ -711,11 +705,11 @@ func (t *Type) typefmt(s fmt.State, flag FmtFlag) {
 				// Wrong interface definitions may have types lacking a symbol.
 				break
 			case exportname(f.Sym.Name):
-				fmt.Fprintf(s, "%1v", f.Sym)
+				fmt.Fprintf(s, "%S", f.Sym)
 			default:
 				fmt.Fprintf(s, "% v", f.Sym)
 			}
-			fmt.Fprintf(s, "%1v", f.Type)
+			fmt.Fprintf(s, "%S", f.Type)
 		}
 		if t.NumFields() != 0 {
 			fmt.Fprint(s, " ")
@@ -1188,7 +1182,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			}
 		}
 
-		fmt.Fprintf(s, "%s", n.Val())
+		fmt.Fprintf(s, "%v", n.Val())
 
 	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
@@ -1304,7 +1298,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%01v", n.Right.Sym)
+		fmt.Fprintf(s, ".%0S", n.Right.Sym)
 
 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
 		n.Left.exprfmt(s, nprec)
@@ -1312,7 +1306,7 @@ func (n *Node) exprfmt(s fmt.State, prec int) {
 			fmt.Fprint(s, ".<nil>")
 			return
 		}
-		fmt.Fprintf(s, ".%01v", n.Sym)
+		fmt.Fprintf(s, ".%0S", n.Sym)
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left.exprfmt(s, nprec)
@@ -1587,7 +1581,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
 
 func (s *Sym) Format(f fmt.State, verb rune) {
 	switch verb {
-	case 's', 'v':
+	case 'v', 'S':
 		s.sconv(f, fmtFlag(f, verb))
 
 	default:
@@ -1667,7 +1661,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 			if f.Funarg != FunargNone {
 				name = f.Nname.String()
 			} else if flag&FmtLong != 0 {
-				name = fmt.Sprintf("%01v", s)
+				name = fmt.Sprintf("%0S", s)
 				if !exportname(name) && flag&FmtUnsigned == 0 {
 					name = s.String() // qualify non-exported names (used on structs, not on funarg)
 				}
@@ -1704,7 +1698,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 
 func (t *Type) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 's', 'v':
+	case 'v', 'S', 'L':
 		t.tconv(s, fmtFlag(s, verb))
 
 	default:
@@ -1784,7 +1778,7 @@ func (n *Node) Nconv(s fmt.State, flag FmtFlag) {
 
 func (l Nodes) Format(s fmt.State, verb rune) {
 	switch verb {
-	case 's', 'v':
+	case 'v':
 		l.hconv(s, fmtFlag(s, verb))
 
 	default:

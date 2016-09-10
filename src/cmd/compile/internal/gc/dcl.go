@@ -121,7 +121,8 @@ func redeclare(s *Sym, where string) {
 			tmp = s.Pkg.Path
 		}
 		pkgstr := tmp
-		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", s, where, pkgstr)
+		Yyerror("%v redeclared %s\n"+
+			"\tprevious declaration during import %q", s, where, pkgstr)
 	} else {
 		line1 := lineno
 		line2 := s.Lastlineno
@@ -135,7 +136,8 @@ func redeclare(s *Sym, where string) {
 			line1 = s.Lastlineno
 		}
 
-		yyerrorl(line1, "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, linestr(line2))
+		yyerrorl(line1, "%v redeclared %s\n"+
+			"\tprevious declaration at %v", s, where, linestr(line2))
 	}
 }
 
@@ -1095,15 +1097,15 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 
 	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) {
 		if t0.Sym == nil && t0.IsPtr() {
-			p = fmt.Sprintf("(%-1v).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
+			p = fmt.Sprintf("(%-S).%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
 		} else {
-			p = fmt.Sprintf("%-1v.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
+			p = fmt.Sprintf("%-S.%s.%s%s", t0, nsym.Pkg.Prefix, nsym.Name, suffix)
 		}
 	} else {
 		if t0.Sym == nil && t0.IsPtr() {
-			p = fmt.Sprintf("(%-1v).%s%s", t0, nsym.Name, suffix)
+			p = fmt.Sprintf("(%-S).%s%s", t0, nsym.Name, suffix)
 		} else {
-			p = fmt.Sprintf("%-1v.%s%s", t0, nsym.Name, suffix)
+			p = fmt.Sprintf("%-S.%s%s", t0, nsym.Name, suffix)
 		}
 	}
 
@@ -1190,7 +1192,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 		default:
 			// Should have picked off all the reasons above,
 			// but just in case, fall back to generic error.
-			Yyerror("invalid receiver type %v (%2v / %2v)", pa, pa, t)
+			Yyerror("invalid receiver type %v (%L / %L)", pa, pa, t)
 		}
 		return
 	}

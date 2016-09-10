@@ -107,7 +107,7 @@ func typecheckclosure(func_ *Node, top int) {
 		if !n.Name.Captured {
 			n.Name.Captured = true
 			if n.Name.Decldepth == 0 {
-				Fatalf("typecheckclosure: var %1v does not have decldepth assigned", n)
+				Fatalf("typecheckclosure: var %S does not have decldepth assigned", n)
 			}
 
 			// Ignore assignments to the variable in straightline code
@@ -193,7 +193,7 @@ func closurename(n *Node) *Sym {
 		n.Func.Outerfunc.Func.Closgen++
 		gen = n.Func.Outerfunc.Func.Closgen
 	default:
-		Fatalf("closurename called for %1v", n)
+		Fatalf("closurename called for %S", n)
 	}
 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
 	return n.Sym
@@ -540,9 +540,9 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 
 	rcvrtype := fn.Left.Type
 	if exportname(meth.Name) {
-		p = fmt.Sprintf("(%-1v).%s-fm", rcvrtype, meth.Name)
+		p = fmt.Sprintf("(%-S).%s-fm", rcvrtype, meth.Name)
 	} else {
-		p = fmt.Sprintf("(%-1v).(%-v)-fm", rcvrtype, meth)
+		p = fmt.Sprintf("(%-S).(%-v)-fm", rcvrtype, meth)
 	}
 	basetype := rcvrtype
 	if rcvrtype.IsPtr() {

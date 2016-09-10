@@ -145,7 +145,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	case gc.TFLOAT32:
 		switch op {
 		default:
-			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
+			gc.Fatalf("ginscmp: no entry for op=%v type=%v", op, t)
 
 		case gc.OEQ,
 			gc.ONE:
@@ -162,7 +162,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	case gc.TFLOAT64:
 		switch op {
 		default:
-			gc.Fatalf("ginscmp: no entry for op=%s type=%v", op, t)
+			gc.Fatalf("ginscmp: no entry for op=%v type=%v", op, t)
 
 		case gc.OEQ,
 			gc.ONE:
@@ -215,7 +215,7 @@ func bignodes() {
  */
 func gmove(f *gc.Node, t *gc.Node) {
 	if gc.Debug['M'] != 0 {
-		fmt.Printf("gmove %2v -> %2v\n", f, t)
+		fmt.Printf("gmove %L -> %L\n", f, t)
 	}
 
 	ft := int(gc.Simsimtype(f.Type))
@@ -293,7 +293,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatalf("gmove %2v -> %2v", f.Type, t.Type)
+		gc.Fatalf("gmove %L -> %L", f.Type, t.Type)
 
 		/*
 		 * integer copy and truncate
@@ -718,7 +718,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry for op=%s type=%v", op, t)
+		gc.Fatalf("optoas: no entry for op=%v type=%v", op, t)
 
 	case OEQ_ | gc.TBOOL,
 		OEQ_ | gc.TINT8,

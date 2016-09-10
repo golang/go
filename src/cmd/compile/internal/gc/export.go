@@ -340,7 +340,7 @@ func importvar(s *Sym, t *Type) {
 	declare(n, PEXTERN)
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import var %v %2v\n", s, t)
+		fmt.Printf("import var %v %L\n", s, t)
 	}
 }
 
@@ -362,11 +362,11 @@ func importtype(pt *Type, t *Type) {
 		declare(n, PEXTERN)
 		checkwidth(pt)
 	} else if !Eqtype(pt.Orig, t) {
-		Yyerror("inconsistent definition for type %v during import\n\t%2v (in %q)\n\t%2v (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+		Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
 	}
 
 	if Debug['E'] != 0 {
-		fmt.Printf("import type %v %2v\n", pt, t)
+		fmt.Printf("import type %v %L\n", pt, t)
 	}
 }
 

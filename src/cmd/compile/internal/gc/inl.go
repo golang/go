@@ -40,7 +40,7 @@ func fnpkg(fn *Node) *Pkg {
 			rcvr = rcvr.Elem()
 		}
 		if rcvr.Sym == nil {
-			Fatalf("receiver with no sym: [%v] %2v  (%v)", fn.Sym, fn, rcvr)
+			Fatalf("receiver with no sym: [%v] %L  (%v)", fn.Sym, fn, rcvr)
 		}
 		return rcvr.Sym.Pkg
 	}
@@ -65,7 +65,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 || Debug_export != 0 {
-		fmt.Printf("typecheck import [%v] %2v { %#v }\n", fn.Sym, fn, fn.Func.Inl)
+		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym, fn, fn.Func.Inl)
 	}
 
 	save_safemode := safemode
@@ -485,7 +485,7 @@ func inlnode(n *Node) *Node {
 
 	case OCALLMETH:
 		if Debug['m'] > 3 {
-			fmt.Printf("%v:call to meth %2v\n", n.Line(), n.Left.Right)
+			fmt.Printf("%v:call to meth %L\n", n.Line(), n.Left.Right)
 		}
 
 		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.

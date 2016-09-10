@@ -396,7 +396,7 @@ func export(out *bufio.Writer, trace bool) int {
 			// function has inlineable body:
 			// write index and body
 			if p.trace {
-				p.tracef("\n----\nfunc { %#s }\n", f.Inl)
+				p.tracef("\n----\nfunc { %#v }\n", f.Inl)
 			}
 			p.int(i)
 			p.stmtList(f.Inl)
@@ -807,7 +807,7 @@ func (p *exporter) typ(t *Type) {
 		p.typ(t.Elem())
 
 	default:
-		Fatalf("exporter: unexpected type: %s (Etype = %d)", t, t.Etype)
+		Fatalf("exporter: unexpected type: %v (Etype = %d)", t, t.Etype)
 	}
 }
 
@@ -1387,8 +1387,8 @@ func (p *exporter) expr(n *Node) {
 		p.op(ODCLCONST)
 
 	default:
-		Fatalf("cannot export %s (%d) node\n"+
-			"==> please file an issue and assign to gri@\n", n.Op, n.Op)
+		Fatalf("cannot export %v (%d) node\n"+
+			"==> please file an issue and assign to gri@\n", n.Op, int(n.Op))
 	}
 }
 
@@ -1503,7 +1503,7 @@ func (p *exporter) stmt(n *Node) {
 		p.expr(n.Left)
 
 	default:
-		Fatalf("exporter: CANNOT EXPORT: %s\nPlease notify gri@\n", n.Op)
+		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
 	}
 }
 
@@ -1595,7 +1595,7 @@ func (p *exporter) bool(b bool) bool {
 func (p *exporter) op(op Op) {
 	if p.trace {
 		p.tracef("[")
-		defer p.tracef("= %s] ", op)
+		defer p.tracef("= %v] ", op)
 	}
 
 	p.int(int(op))
