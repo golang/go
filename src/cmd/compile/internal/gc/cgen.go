@@ -42,6 +42,10 @@ func cgen_wb(n, res *Node, wb bool) {
 	}
 
 	switch n.Op {
+	case OARRAYBYTESTRTMP:
+		sgen_wb(n.Left, res, n.Type.Width, wb)
+		return
+
 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
 		cgen_slice(n, res, wb)
 		return
@@ -1567,7 +1571,7 @@ func Agen(n *Node, res *Node) {
 		cgen_call(n, 0)
 		cgen_aret(n, res)
 
-	case OEFACE, ODOTTYPE, OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+	case OEFACE, ODOTTYPE, OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR, OARRAYBYTESTRTMP:
 		var n1 Node
 		Tempname(&n1, n.Type)
 		Cgen(n, &n1)

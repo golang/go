@@ -1554,6 +1554,14 @@ opswitch:
 
 		// slicebytetostringtmp([]byte) string;
 	case OARRAYBYTESTRTMP:
+		n.Left = walkexpr(n.Left, init)
+
+		if !instrumenting {
+			// Let the backend handle OARRAYBYTESTRTMP directly
+			// to avoid a function call to slicebytetostringtmp.
+			break
+		}
+
 		n = mkcall("slicebytetostringtmp", n.Type, init, n.Left)
 
 		// slicerunetostring(*[32]byte, []rune) string;
