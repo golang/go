@@ -258,6 +258,15 @@ NextLine:
 			}
 		}
 
+		// Temporarily ignore unrecognized printf verbs from cmd.
+		// The compiler now has several fancy verbs (CL 28339)
+		// used with types implementing fmt.Formatters,
+		// and I believe gri has plans to add many more.
+		// TODO: remove when issue 17057 is fixed.
+		if strings.HasPrefix(file, "cmd/") && strings.HasPrefix(msg, "unrecognized printf verb") {
+			continue
+		}
+
 		key := file + ": " + msg
 		if w[key] == 0 {
 			// Vet error with no match in the whitelist. Print it.
