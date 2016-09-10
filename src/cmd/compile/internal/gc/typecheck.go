@@ -2781,19 +2781,6 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	hash[h] = append(hash[h], orign)
 }
 
-func indexdup(n *Node, hash map[int64]*Node) {
-	if n.Op != OLITERAL {
-		Fatalf("indexdup: not OLITERAL")
-	}
-
-	v := n.Int64()
-	if hash[v] != nil {
-		yyerror("duplicate index in array literal: %d", v)
-		return
-	}
-	hash[v] = n
-}
-
 // iscomptype reports whether type t is a composite literal type
 // or a pointer to one.
 func iscomptype(t *Type) bool {
@@ -2890,16 +2877,17 @@ func typecheckcomplit(n *Node) *Node {
 		n.Type = nil
 
 	case TARRAY, TSLICE:
-		// Only allocate hash if there are some key/value pairs.
-		var hash map[int64]*Node
+		// If there are key/value pairs, create a map to keep seen
+		// keys so we can check for duplicate indices.
+		var indices map[int64]bool
 		for _, n1 := range n.List.Slice() {
 			if n1.Op == OKEY {
-				hash = make(map[int64]*Node)
+				indices = make(map[int64]bool)
 				break
 			}
 		}
-		length := int64(0)
-		i := 0
+
+		var length, i int64
 		checkBounds := t.IsArray() && !t.isDDDArray()
 		for i2, n2 := range n.List.Slice() {
 			l := n2
@@ -2913,19 +2901,25 @@ func typecheckcomplit(n *Node) *Node {
 
 			l.Left = typecheck(l.Left, Erv)
 			evconst(l.Left)
-			i = nonnegconst(l.Left)
+
+			i = nonnegintconst(l.Left)
 			if i < 0 && l.Left.Diag == 0 {
 				yyerror("index must be non-negative integer constant")
 				l.Left.Diag = 1
 				i = -(1 << 30) // stay negative for a while
 			}
 
-			if i >= 0 && hash != nil {
-				indexdup(l.Left, hash)
+			if i >= 0 && indices != nil {
+				if indices[i] {
+					yyerror("duplicate index in array literal: %d", i)
+				} else {
+					indices[i] = true
+				}
 			}
+
 			i++
-			if int64(i) > length {
-				length = int64(i)
+			if i > length {
+				length = i
 				if checkBounds && length > t.NumElem() {
 					setlineno(l)
 					yyerror("array index %d out of bounds [0:%d]", length-1, t.NumElem())
