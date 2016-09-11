@@ -1038,6 +1038,12 @@ func Is64(t *Type) bool {
 	return false
 }
 
+// IsMethod reports whether n is a method.
+// n must be a function or a method.
+func (n *Node) IsMethod() bool {
+	return n.Type.Recv() != nil
+}
+
 // SliceBounds returns n's slice bounds: low, high, and max in expr[low:high:max].
 // n must be a slice expression. max is nil if n is a simple slice expression.
 func (n *Node) SliceBounds() (low, high, max *Node) {

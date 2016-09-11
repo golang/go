@@ -32,7 +32,7 @@ import "fmt"
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *Node) *Pkg {
-	if fn.Type.Recv() != nil {
+	if fn.IsMethod() {
 		// method
 		rcvr := fn.Type.Recv().Type
 
@@ -615,7 +615,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	}
 
 	// assign receiver.
-	if fn.Type.Recv() != nil && n.Left.Op == ODOTMETH {
+	if fn.IsMethod() && n.Left.Op == ODOTMETH {
 		// method call with a receiver.
 		t := fn.Type.Recv()
 
@@ -679,7 +679,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 	li := 0
 
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
-	if fn.Type.Recv() != nil && n.Left.Op != ODOTMETH {
+	if fn.IsMethod() && n.Left.Op != ODOTMETH {
 		// non-method call to method
 		if n.List.Len() == 0 {
 			Fatalf("non-method call to method without first arg: %+v", n)
