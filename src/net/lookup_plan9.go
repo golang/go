@@ -170,7 +170,7 @@ func lookupPort(ctx context.Context, network, service string) (port int, err err
 	case "udp4", "udp6":
 		network = "udp"
 	}
-	lines, err := queryCS(ctx, network, "127.0.0.1", service)
+	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
 		return
 	}
