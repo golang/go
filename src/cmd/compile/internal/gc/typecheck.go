@@ -1397,6 +1397,10 @@ OpSwitch:
 			}
 
 			t := n.List.First().Left.Type
+			if !t.IsKind(TFUNC) {
+				// Bail. This error will be reported elsewhere.
+				return n
+			}
 			if t.Results().NumFields() != 2 {
 				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
 				n.Type = nil
