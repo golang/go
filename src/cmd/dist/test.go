@@ -329,6 +329,21 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 }
 
 func (t *tester) registerTests() {
+	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-vetall") {
+		// Run vet over std and cmd and call it quits.
+		t.tests = append(t.tests, distTest{
+			name:    "vet/all",
+			heading: "go vet std cmd",
+			fn: func(dt *distTest) error {
+				// This runs vet/all for the current platform.
+				// TODO: on a fast builder or builders, run over all platforms.
+				t.addCmd(dt, "src/cmd/vet/all", "go", "run", "main.go", "-all")
+				return nil
+			},
+		})
+		return
+	}
+
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
