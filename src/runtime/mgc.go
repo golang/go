@@ -1146,11 +1146,6 @@ top:
 		// this before waking blocked assists.
 		atomic.Store(&gcBlackenEnabled, 0)
 
-		// Flush the gcWork caches. This must be done before
-		// endCycle since endCycle depends on statistics kept
-		// in these caches.
-		gcFlushGCWork()
-
 		// Wake all blocked assists. These will run when we
 		// start the world again.
 		gcWakeAllAssists()
@@ -1160,6 +1155,8 @@ top:
 		// world again.
 		semrelease(&work.markDoneSema)
 
+		// endCycle depends on all gcWork cache stats being
+		// flushed. This is ensured by mark 2.
 		gcController.endCycle()
 
 		// Perform mark termination. This will restart the world.
@@ -1540,18 +1537,8 @@ func gcMarkWorkAvailable(p *p) bool {
 	return false
 }
 
-// gcFlushGCWork disposes the gcWork caches of all Ps. The world must
-// be stopped.
-//go:nowritebarrier
-func gcFlushGCWork() {
-	// Gather all cached GC work. All other Ps are stopped, so
-	// it's safe to manipulate their GC work caches.
-	for i := 0; i < int(gomaxprocs); i++ {
-		allp[i].gcw.dispose()
-	}
-}
-
 // gcMark runs the mark (or, for concurrent GC, mark termination)
+// All gcWork caches must be empty.
 // STW is in effect at this point.
 //TODO go:nowritebarrier
 func gcMark(start_time int64) {
@@ -1565,11 +1552,6 @@ func gcMark(start_time int64) {
 	work.tstart = start_time
 
 	gcCopySpans() // TODO(rlh): should this be hoisted and done only once? Right now it is done for normal marking and also for checkmarking.
-
-	// Make sure the per-P gcWork caches are empty. During mark
-	// termination, these caches can still be used temporarily,
-	// but must be disposed to the global lists immediately.
-	gcFlushGCWork()
 
 	// Queue root marking jobs.
 	gcMarkRootPrepare()
@@ -1609,6 +1591,8 @@ func gcMark(start_time int64) {
 	// Record that at least one root marking pass has completed.
 	work.markrootDone = true
 
+	// Double-check that all gcWork caches are empty. This should
+	// be ensured by mark 2 before we enter mark termination.
 	for i := 0; i < int(gomaxprocs); i++ {
 		gcw := &allp[i].gcw
 		if !gcw.empty() {

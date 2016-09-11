@@ -1386,6 +1386,11 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
 	gcw := &getg().m.p.ptr().gcw
 	gcw.bytesMarked += uint64(size)
 	gcw.scanWork += int64(scanSize)
+	if gcBlackenPromptly {
+		// There shouldn't be anything in the work queue, but
+		// we still need to flush stats.
+		gcw.dispose()
+	}
 }
 
 // Checkmarking
