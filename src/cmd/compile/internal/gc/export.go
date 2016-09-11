@@ -116,7 +116,7 @@ func reexportdep(n *Node) {
 			}
 
 			// nodes for method calls.
-			if n.Type == nil || n.Type.Recv() != nil {
+			if n.Type == nil || n.IsMethod() {
 				break
 			}
 			fallthrough
