@@ -585,16 +585,17 @@ func (s *state) stmt(n *Node) {
 
 	case OCALLMETH, OCALLINTER:
 		s.call(n, callNormal)
-		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC &&
-			(compiling_runtime && n.Left.Sym.Name == "throw" ||
-				n.Left.Sym.Pkg == Runtimepkg && (n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo" || n.Left.Sym.Name == "block")) {
-			m := s.mem()
-			b := s.endBlock()
-			b.Kind = ssa.BlockExit
-			b.SetControl(m)
-			// TODO: never rewrite OPANIC to OCALLFUNC in the
-			// first place. Need to wait until all backends
-			// go through SSA.
+		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC {
+			if fn := n.Left.Sym.Name; compiling_runtime && fn == "throw" ||
+				n.Left.Sym.Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "selectgo" || fn == "block") {
+				m := s.mem()
+				b := s.endBlock()
+				b.Kind = ssa.BlockExit
+				b.SetControl(m)
+				// TODO: never rewrite OPANIC to OCALLFUNC in the
+				// first place. Need to wait until all backends
+				// go through SSA.
+			}
 		}
 	case ODEFER:
 		s.call(n.Left, callDefer)
