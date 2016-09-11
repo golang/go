@@ -18,12 +18,15 @@ import (
 	"io/ioutil"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+
+	"golang_org/x/net/idna"
 )
 
 const (
@@ -175,11 +178,15 @@ type Request struct {
 	// For server requests Host specifies the host on which the
 	// URL is sought. Per RFC 2616, this is either the value of
 	// the "Host" header or the host name given in the URL itself.
-	// It may be of the form "host:port".
+	// It may be of the form "host:port". For international domain
+	// names, Host may be in Punycode or Unicode form. Use
+	// golang.org/x/net/idna to convert it to either format if
+	// needed.
 	//
 	// For client requests Host optionally overrides the Host
 	// header to send. If empty, the Request.Write method uses
-	// the value of URL.Host.
+	// the value of URL.Host. Host may contain an international
+	// domain name.
 	Host string
 
 	// Form contains the parsed form data, including both the URL
@@ -573,7 +580,11 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 	return nil
 }
 
-// cleanHost strips anything after '/' or ' '.
+// cleanHost cleans up the host sent in request's Host header.
+//
+// It both strips anything after '/' or ' ', and puts the value
+// into Punycode form, if necessary.
+//
 // Ideally we'd clean the Host header according to the spec:
 //   https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
 //   https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
@@ -584,9 +595,21 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 // first offending character.
 func cleanHost(in string) string {
 	if i := strings.IndexAny(in, " /"); i != -1 {
-		return in[:i]
+		in = in[:i]
 	}
-	return in
+	host, port, err := net.SplitHostPort(in)
+	if err != nil { // input was just a host
+		a, err := idna.ToASCII(in)
+		if err != nil {
+			return in // garbage in, garbage out
+		}
+		return a
+	}
+	a, err := idna.ToASCII(host)
+	if err != nil {
+		return in // garbage in, garbage out
+	}
+	return net.JoinHostPort(a, port)
 }
 
 // removeZone removes IPv6 zone identifier from host.

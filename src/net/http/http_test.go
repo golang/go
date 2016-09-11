@@ -51,6 +51,10 @@ func TestCleanHost(t *testing.T) {
 		{"www.google.com foo", "www.google.com"},
 		{"www.google.com/foo", "www.google.com"},
 		{" first character is a space", ""},
+		{"гофер.рф/foo", "xn--c1ae0ajs.xn--p1ai"},
+		{"bücher.de", "xn--bcher-kva.de"},
+		{"bücher.de:8080", "xn--bcher-kva.de:8080"},
+		{"[1::6]:8080", "[1::6]:8080"},
 	}
 	for _, tt := range tests {
 		got := cleanHost(tt.in)

@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"golang_org/x/net/idna"
 	"golang_org/x/net/lex/httplex"
 )
 
@@ -1943,11 +1944,15 @@ var portMap = map[string]string{
 
 // canonicalAddr returns url.Host but always with a ":port" suffix
 func canonicalAddr(url *url.URL) string {
-	addr := url.Host
-	if !hasPort(addr) {
-		return addr + ":" + portMap[url.Scheme]
+	addr := url.Hostname()
+	if v, err := idna.ToASCII(addr); err == nil {
+		addr = v
 	}
-	return addr
+	port := url.Port()
+	if port == "" {
+		port = portMap[url.Scheme]
+	}
+	return net.JoinHostPort(addr, port)
 }
 
 // bodyEOFSignal is used by the HTTP/1 transport when reading response
