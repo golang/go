@@ -137,13 +137,17 @@
 // of the top-level test and the sequence of names passed to Run, separated by
 // slashes, with an optional trailing sequence number for disambiguation.
 //
-// The argument to the -run and -bench command-line flags is a slash-separated
-// list of regular expressions that match each name element in turn.
-// For example:
+// The argument to the -run and -bench command-line flags is an unanchored regular
+// expression that matches the test's name. For tests with multiple slash-separated
+// elements, such as subtests, the argument is itself slash-separated, with
+// expressions matching each name element in turn. Because it is unanchored, an
+// empty expression matches any string.
+// For example, using "matching" to mean "whose name contains":
 //
-//     go test -run Foo     # Run top-level tests matching "Foo".
-//     go test -run Foo/A=  # Run subtests of Foo matching "A=".
-//     go test -run /A=1    # Run all subtests of a top-level test matching "A=1".
+//     go test -run ''      # Run all tests.
+//     go test -run Foo     # Run top-level tests matching "Foo", such as "TestFooBar".
+//     go test -run Foo/A=  # For top-level tests matching "Foo", run subtests matching "A=".
+//     go test -run /A=1    # For all top-level tests, run subtests matching "A=1".
 //
 // Subtests can also be used to control parallelism. A parent test will only
 // complete once all of its subtests complete. In this example, all tests are
