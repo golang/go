@@ -228,6 +228,11 @@ func is16Bit(n int64) bool {
 	return n == int64(int16(n))
 }
 
+// is20Bit reports whether n can be represented as a signed 20 bit integer.
+func is20Bit(n int64) bool {
+	return -(1<<19) <= n && n < (1<<19)
+}
+
 // b2i translates a boolean value to 0 or 1 for assigning to auxInt.
 func b2i(b bool) int64 {
 	if b {

@@ -233,8 +233,8 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// Handle divide-by-zero panic.
 	p1 := gins(optoas(gc.OCMP, t), &tr, nil)
 
-	p1.To.Type = obj.TYPE_REG
-	p1.To.Reg = s390x.REGZERO
+	p1.To.Type = obj.TYPE_CONST
+	p1.To.Offset = 0
 	p1 = gc.Gbranch(optoas(gc.ONE, t), nil, +1)
 	if panicdiv == nil {
 		panicdiv = gc.Sysfunc("panicdivide")
@@ -561,8 +561,8 @@ func expandchecks(firstp *obj.Prog) {
 		// crash by write to memory address 0.
 		p1.As = s390x.AMOVD
 
-		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = s390x.REGZERO
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = 0
 		p1.To.Type = obj.TYPE_MEM
 		p1.To.Reg = s390x.REGZERO
 		p1.To.Offset = 0

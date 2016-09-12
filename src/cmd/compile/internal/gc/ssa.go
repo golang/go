@@ -40,7 +40,7 @@ func shouldssa(fn *Node) bool {
 		if os.Getenv("SSATEST") == "" {
 			return false
 		}
-	case "amd64", "amd64p32", "arm", "386", "arm64", "ppc64le", "mips64", "mips64le":
+	case "amd64", "amd64p32", "arm", "386", "arm64", "ppc64le", "mips64", "mips64le", "s390x":
 		// Generally available.
 	}
 	if !ssaEnabled {
