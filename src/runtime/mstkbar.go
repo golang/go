@@ -148,6 +148,10 @@ var firstStackBarrierOffset = 1024
 // gcMaxStackBarriers returns the maximum number of stack barriers
 // that can be installed in a stack of stackSize bytes.
 func gcMaxStackBarriers(stackSize int) (n int) {
+	if debug.gcstackbarrieroff > 0 {
+		return 0
+	}
+
 	if firstStackBarrierOffset == 0 {
 		// Special debugging case for inserting stack barriers
 		// at every frame. Steal half of the stack for the
