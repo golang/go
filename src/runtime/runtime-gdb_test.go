@@ -105,17 +105,20 @@ func TestGdbPython(t *testing.T) {
 		"-ex", "set startup-with-shell off",
 		"-ex", "info auto-load python-scripts",
 		"-ex", "set python print-stack full",
-		"-ex", "br main.go:10",
+		"-ex", "br fmt.Println",
 		"-ex", "run",
 		"-ex", "echo BEGIN info goroutines\n",
 		"-ex", "info goroutines",
 		"-ex", "echo END\n",
+		"-ex", "up", // up from fmt.Println to main
 		"-ex", "echo BEGIN print mapvar\n",
 		"-ex", "print mapvar",
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN print strvar\n",
 		"-ex", "print strvar",
-		"-ex", "echo END\n"}
+		"-ex", "echo END\n",
+		"-ex", "down", // back to fmt.Println (goroutine 2 below only works at bottom of stack.  TODO: fix that)
+	}
 
 	// without framepointer, gdb cannot backtrace our non-standard
 	// stack frames on RISC architectures.
