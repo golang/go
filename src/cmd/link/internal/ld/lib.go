@@ -455,7 +455,7 @@ func (ctxt *Link) loadlib() {
 
 		// Force external linking for PIE binaries on systems
 		// that do not support internal PIE linking.
-		if Buildmode == BuildmodePIE && (obj.GOOS != "linux" || SysArch.Family != sys.AMD64) {
+		if Buildmode == BuildmodePIE {
 			Linkmode = LinkExternal
 		}
 
