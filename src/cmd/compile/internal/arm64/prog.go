@@ -134,10 +134,12 @@ var progtable = [arm64.ALAST & obj.AMask]obj.ProgInfo{
 	arm64.AFMOVD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ALDARW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ALDAR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ALDAXRB & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ALDAXRW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ALDAXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ASTLRW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ASTLR & obj.AMask:   {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
+	arm64.ASTLXRB & obj.AMask: {Flags: gc.SizeB | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ASTLXRW & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
 	arm64.ASTLXR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
 

@@ -1830,6 +1830,8 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ALDXRW, t)
 
 		case ALDAXR:
+			oprangeset(ALDAXRB, t)
+			oprangeset(ALDAXRH, t)
 			oprangeset(ALDAXRW, t)
 
 		case ALDXP:
@@ -1844,6 +1846,8 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASTXRW, t)
 
 		case ASTLXR:
+			oprangeset(ASTLXRB, t)
+			oprangeset(ASTLXRH, t)
 			oprangeset(ASTLXRW, t)
 
 		case ASTXP:

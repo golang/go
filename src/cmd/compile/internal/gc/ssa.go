@@ -2640,11 +2640,11 @@ func intrinsicInit() {
 		intrinsicKey{"runtime/internal/atomic", "And8"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		}, sys.AMD64),
+		}, sys.AMD64, sys.ARM64),
 		intrinsicKey{"runtime/internal/atomic", "Or8"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, s.intrinsicArg(n, 0), s.intrinsicArg(n, 1), s.mem())
 			return nil
-		}, sys.AMD64),
+		}, sys.AMD64, sys.ARM64),
 	}
 
 	// aliases internal to runtime/internal/atomic
