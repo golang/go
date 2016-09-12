@@ -212,10 +212,15 @@ const (
 	AADDME
 	AADDE
 	AADDZE
+	AADDW
 	ADIVW
 	ADIVWU
 	ADIVD
 	ADIVDU
+	AMODW
+	AMODWU
+	AMODD
+	AMODDU
 	AMULLW
 	AMULLD
 	AMULHD
@@ -226,7 +231,9 @@ const (
 	ASUBV
 	ASUBE
 	ASUBZE
+	ASUBW
 	ANEG
+	ANEGW
 
 	// integer moves
 	AMOVWBR
@@ -239,6 +246,14 @@ const (
 	AMOVWZ
 	AMOVD
 	AMOVDBR
+
+	// conditional moves
+	AMOVDEQ
+	AMOVDGE
+	AMOVDGT
+	AMOVDLE
+	AMOVDLT
+	AMOVDNE
 
 	// integer bitwise
 	AAND
@@ -276,6 +291,7 @@ const (
 	AFMULS
 	AFNABS
 	AFNEG
+	AFNEGS
 	AFNMADD
 	AFNMADDS
 	AFNMSUB
@@ -334,6 +350,8 @@ const (
 	ABGT
 	ABLE
 	ABLT
+	ABLEU
+	ABLTU
 	ABNE
 	ABVC
 	ABVS
