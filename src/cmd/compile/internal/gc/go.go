@@ -231,8 +231,6 @@ var funcsyms []*Node
 
 var dclcontext Class // PEXTERN/PAUTO
 
-var incannedimport int
-
 var statuniqgen int // name generator for static temps
 
 var iota_ int32

@@ -289,7 +289,7 @@ func (p *importer) pkg() *Pkg {
 	} else if pkg.Name != name {
 		Yyerror("conflicting package names %s and %s for path %q", pkg.Name, name, path)
 	}
-	if incannedimport == 0 && myimportpath != "" && path == myimportpath {
+	if myimportpath != "" && path == myimportpath {
 		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
 		errorexit()
 	}
