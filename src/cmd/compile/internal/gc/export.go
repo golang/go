@@ -344,32 +344,6 @@ func importvar(s *Sym, t *Type) {
 	}
 }
 
-// importtype and importer.importtype (bimport.go) need to remain in sync.
-func importtype(pt *Type, t *Type) {
-	// override declaration in unsafe.go for Pointer.
-	// there is no way in Go code to define unsafe.Pointer
-	// so we have to supply it.
-	if incannedimport != 0 && importpkg.Name == "unsafe" && pt.Nod.Sym.Name == "Pointer" {
-		t = Types[TUNSAFEPTR]
-	}
-
-	if pt.Etype == TFORW {
-		n := pt.Nod
-		copytype(pt.Nod, t)
-		pt.Nod = n // unzero nod
-		pt.Sym.Importdef = importpkg
-		pt.Sym.Lastlineno = lineno
-		declare(n, PEXTERN)
-		checkwidth(pt)
-	} else if !Eqtype(pt.Orig, t) {
-		Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
-	}
-
-	if Debug['E'] != 0 {
-		fmt.Printf("import type %v %L\n", pt, t)
-	}
-}
-
 func dumpasmhdr() {
 	b, err := bio.Create(asmhdr)
 	if err != nil {

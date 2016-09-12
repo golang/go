@@ -388,10 +388,7 @@ func (p *importer) newtyp(etype EType) *Type {
 	return t
 }
 
-// This is like the function importtype but it delays the
-// type identity check for types that have been seen already.
-// importer.importtype and importtype and (export.go) need to
-// remain in sync.
+// importtype declares that pt, an imported named type, has underlying type t.
 func (p *importer) importtype(pt, t *Type) {
 	// override declaration in unsafe.go for Pointer.
 	// there is no way in Go code to define unsafe.Pointer
@@ -409,10 +406,14 @@ func (p *importer) importtype(pt, t *Type) {
 		declare(n, PEXTERN)
 		checkwidth(pt)
 	} else {
-		// pt.Orig and t must be identical. Since t may not be
-		// fully set up yet, collect the types and verify identity
-		// later.
-		p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
+		// pt.Orig and t must be identical.
+		if p.trackAllTypes {
+			// If we track all types, t may not be fully set up yet.
+			// Collect the types and verify identity later.
+			p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
+		} else if !Eqtype(pt.Orig, t) {
+			Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+		}
 	}
 
 	if Debug['E'] != 0 {
@@ -442,13 +443,7 @@ func (p *importer) typ() *Type {
 		// read underlying type
 		// parser.go:hidden_type
 		t0 := p.typ()
-		if p.trackAllTypes {
-			// If we track all types, we cannot check equality of previously
-			// imported types until later. Use customized version of importtype.
-			p.importtype(t, t0)
-		} else {
-			importtype(t, t0)
-		}
+		p.importtype(t, t0)
 
 		// interfaces don't have associated methods
 		if t0.IsInterface() {
