@@ -1276,6 +1276,18 @@ func gcMarkTermination() {
 
 	systemstack(startTheWorldWithSema)
 
+	// Update heap profile stats if gcSweep didn't do it. This is
+	// relatively expensive, so we don't want to do it while the
+	// world is stopped, but it needs to happen ASAP after
+	// starting the world to prevent too many allocations from the
+	// next cycle leaking in. It must happen before releasing
+	// worldsema since there are applications that do a
+	// runtime.GC() to update the heap profile and then
+	// immediately collect the profile.
+	if _ConcurrentSweep && work.mode != gcForceBlockMode {
+		mProf_GC()
+	}
+
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
 
@@ -1714,7 +1726,6 @@ func gcSweep(mode gcMode) {
 		ready(sweep.g, 0, true)
 	}
 	unlock(&sweep.lock)
-	mProf_GC()
 }
 
 func gcCopySpans() {
