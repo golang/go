@@ -685,15 +685,12 @@ func loadsys() {
 
 	block = 1
 	iota_ = -1000000
-	incannedimport = 1
 
 	importpkg = Runtimepkg
 	Import(bufio.NewReader(strings.NewReader(runtimeimport)))
 	importpkg = unsafepkg
 	Import(bufio.NewReader(strings.NewReader(unsafeimport)))
-
 	importpkg = nil
-	incannedimport = 0
 }
 
 func importfile(f *Val, indent []byte) {

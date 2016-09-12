@@ -2096,9 +2096,7 @@ OpSwitch:
 	case ODCLTYPE:
 		ok |= Etop
 		n.Left = typecheck(n.Left, Etype)
-		if incannedimport == 0 {
-			checkwidth(n.Left.Type)
-		}
+		checkwidth(n.Left.Type)
 		break OpSwitch
 	}
 
@@ -2114,7 +2112,7 @@ OpSwitch:
 		}
 	}
 
-	if safemode && incannedimport == 0 && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
+	if safemode && importpkg == nil && compiling_wrappers == 0 && t != nil && t.Etype == TUNSAFEPTR {
 		Yyerror("cannot use unsafe.Pointer")
 	}
 
