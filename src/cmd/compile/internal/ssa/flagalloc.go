@@ -31,7 +31,7 @@ func flagalloc(f *Func) {
 				if v == flag {
 					flag = nil
 				}
-				if opcodeTable[v.Op].clobberFlags {
+				if v.clobbersFlags() {
 					flag = nil
 				}
 				for _, a := range v.Args {
@@ -103,7 +103,7 @@ func flagalloc(f *Func) {
 			}
 			// Issue v.
 			b.Values = append(b.Values, v)
-			if opcodeTable[v.Op].clobberFlags {
+			if v.clobbersFlags() {
 				flag = nil
 			}
 			if v.Type.IsFlags() {
@@ -132,6 +132,19 @@ func flagalloc(f *Func) {
 	for _, b := range f.Blocks {
 		b.FlagsLiveAtEnd = end[b.ID] != nil
 	}
+}
+
+func (v *Value) clobbersFlags() bool {
+	if opcodeTable[v.Op].clobberFlags {
+		return true
+	}
+	if v.Type.IsTuple() && (v.Type.FieldType(0).IsFlags() || v.Type.FieldType(1).IsFlags()) {
+		// This case handles the possibility where a flag value is generated but never used.
+		// In that case, there's no corresponding Select to overwrite the flags value,
+		// so we must consider flags clobbered by the tuple-generating instruction.
+		return true
+	}
+	return false
 }
 
 // copyFlags copies v (flag generator) into b, returns the copy.
