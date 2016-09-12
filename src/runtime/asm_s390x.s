@@ -110,22 +110,22 @@ nocgo:
 	MOVD	$runtime·mainPC(SB), R2		// entry
 	SUB     $24, R15
 	MOVD 	R2, 16(R15)
-	MOVD 	R0, 8(R15)
-	MOVD 	R0, 0(R15)
+	MOVD 	$0, 8(R15)
+	MOVD 	$0, 0(R15)
 	BL	runtime·newproc(SB)
 	ADD	$24, R15
 
 	// start this M
 	BL	runtime·mstart(SB)
 
-	MOVD	R0, 1(R0)
+	MOVD	$0, 1(R0)
 	RET
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	R0, 2(R0)
+	MOVD	$0, 2(R0)
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
@@ -175,7 +175,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	// Save caller state in g->sched
 	MOVD	R15, (g_sched+gobuf_sp)(g)
 	MOVD	LR, (g_sched+gobuf_pc)(g)
-	MOVD	R0, (g_sched+gobuf_lr)(g)
+	MOVD	$0, (g_sched+gobuf_lr)(g)
 	MOVD	g, (g_sched+gobuf_g)(g)
 
 	// Switch to m->g0 & its stack, call fn.
@@ -232,7 +232,7 @@ switch:
 	ADD	$16, R6	// get past prologue
 	MOVD	R6, (g_sched+gobuf_pc)(g)
 	MOVD	R15, (g_sched+gobuf_sp)(g)
-	MOVD	R0, (g_sched+gobuf_lr)(g)
+	MOVD	$0, (g_sched+gobuf_lr)(g)
 	MOVD	g, (g_sched+gobuf_g)(g)
 
 	// switch to g0
@@ -526,7 +526,7 @@ g0:
 	MOVD	(g_stack+stack_hi)(R5), R5
 	SUB	R2, R5
 	MOVD	R5, 160(R15)             // save depth in old g stack (can't just save SP, as stack might be copied during a callback)
-	MOVD	R0, 0(R15)              // clear back chain pointer (TODO can we give it real back trace information?)
+	MOVD	$0, 0(R15)              // clear back chain pointer (TODO can we give it real back trace information?)
 	MOVD	R4, R2                  // arg in R2
 	BL	R3                      // can clobber: R0-R5, R14, F0-F3, F5, F7-F15
 
