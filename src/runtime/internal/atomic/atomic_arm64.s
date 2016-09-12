@@ -111,3 +111,22 @@ again:
 
 TEXT runtime∕internal∕atomic·Xchguintptr(SB), NOSPLIT, $0-24
 	B	runtime∕internal∕atomic·Xchg64(SB)
+
+TEXT ·And8(SB), NOSPLIT, $0-9
+	MOVD	ptr+0(FP), R0
+	MOVB	val+8(FP), R1
+	LDAXRB	(R0), R2
+	AND	R1, R2
+	STLXRB	R2, (R0), R3
+	CBNZ	R3, -3(PC)
+	RET
+
+TEXT ·Or8(SB), NOSPLIT, $0-9
+	MOVD	ptr+0(FP), R0
+	MOVB	val+8(FP), R1
+	LDAXRB	(R0), R2
+	ORR	R1, R2
+	STLXRB	R2, (R0), R3
+	CBNZ	R3, -3(PC)
+	RET
+

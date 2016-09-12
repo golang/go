@@ -550,6 +550,35 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.To.Type = obj.TYPE_REG
 		p5.To.Reg = out
 		gc.Patch(p2, p5)
+	case ssa.OpARM64LoweredAtomicAnd8,
+		ssa.OpARM64LoweredAtomicOr8:
+		// LDAXRB	(Rarg0), Rtmp
+		// AND/OR	Rarg1, Rtmp
+		// STLXRB	Rtmp, (Rarg0), Rtmp
+		// CBNZ		Rtmp, -3(PC)
+		r0 := gc.SSARegNum(v.Args[0])
+		r1 := gc.SSARegNum(v.Args[1])
+		p := gc.Prog(arm64.ALDAXRB)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = r0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = arm64.REGTMP
+		p1 := gc.Prog(v.Op.Asm())
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = r1
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = arm64.REGTMP
+		p2 := gc.Prog(arm64.ASTLXRB)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = arm64.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = r0
+		p2.RegTo2 = arm64.REGTMP
+		p3 := gc.Prog(arm64.ACBNZ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = arm64.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p3, p)
 	case ssa.OpARM64MOVBreg,
 		ssa.OpARM64MOVBUreg,
 		ssa.OpARM64MOVHreg,
@@ -770,8 +799,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				ssa.OpARM64STLR, ssa.OpARM64STLRW,
 				ssa.OpARM64LoweredAtomicExchange64, ssa.OpARM64LoweredAtomicExchange32,
 				ssa.OpARM64LoweredAtomicAdd64, ssa.OpARM64LoweredAtomicAdd32,
-				ssa.OpARM64LoweredAtomicCas64, ssa.OpARM64LoweredAtomicCas32:
-				// arg0 is ptr, auxint is offset
+				ssa.OpARM64LoweredAtomicCas64, ssa.OpARM64LoweredAtomicCas32,
+				ssa.OpARM64LoweredAtomicAnd8, ssa.OpARM64LoweredAtomicOr8:
+				// arg0 is ptr, auxint is offset (atomic ops have auxint 0)
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
 						gc.Warnl(v.Line, "removed nil check")

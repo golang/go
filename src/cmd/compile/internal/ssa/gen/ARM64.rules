@@ -491,6 +491,9 @@
 (AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
 (AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
 
+(AtomicAnd8 ptr val mem) -> (LoweredAtomicAnd8 ptr val mem)
+(AtomicOr8  ptr val mem) -> (LoweredAtomicOr8  ptr val mem)
+
 // Optimizations
 
 // Absorb boolean tests into block

@@ -224,6 +224,8 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpAtomicAdd32(v, config)
 	case OpAtomicAdd64:
 		return rewriteValueARM64_OpAtomicAdd64(v, config)
+	case OpAtomicAnd8:
+		return rewriteValueARM64_OpAtomicAnd8(v, config)
 	case OpAtomicCompareAndSwap32:
 		return rewriteValueARM64_OpAtomicCompareAndSwap32(v, config)
 	case OpAtomicCompareAndSwap64:
@@ -238,6 +240,8 @@ func rewriteValueARM64(v *Value, config *Config) bool {
 		return rewriteValueARM64_OpAtomicLoad64(v, config)
 	case OpAtomicLoadPtr:
 		return rewriteValueARM64_OpAtomicLoadPtr(v, config)
+	case OpAtomicOr8:
+		return rewriteValueARM64_OpAtomicOr8(v, config)
 	case OpAtomicStore32:
 		return rewriteValueARM64_OpAtomicStore32(v, config)
 	case OpAtomicStore64:
@@ -9130,6 +9134,23 @@ func rewriteValueARM64_OpAtomicAdd64(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpAtomicAnd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicAnd8 ptr val mem)
+	// cond:
+	// result: (LoweredAtomicAnd8 ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicAnd8)
+		v.AddArg(ptr)
+		v.AddArg(val)
+		v.AddArg(mem)
+		return true
+	}
+}
 func rewriteValueARM64_OpAtomicCompareAndSwap32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -9243,6 +9264,23 @@ func rewriteValueARM64_OpAtomicLoadPtr(v *Value, config *Config) bool {
 		mem := v.Args[1]
 		v.reset(OpARM64LDAR)
 		v.AddArg(ptr)
+		v.AddArg(mem)
+		return true
+	}
+}
+func rewriteValueARM64_OpAtomicOr8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AtomicOr8  ptr val mem)
+	// cond:
+	// result: (LoweredAtomicOr8  ptr val mem)
+	for {
+		ptr := v.Args[0]
+		val := v.Args[1]
+		mem := v.Args[2]
+		v.reset(OpARM64LoweredAtomicOr8)
+		v.AddArg(ptr)
+		v.AddArg(val)
 		v.AddArg(mem)
 		return true
 	}
