@@ -390,13 +390,6 @@ func (p *importer) newtyp(etype EType) *Type {
 
 // importtype declares that pt, an imported named type, has underlying type t.
 func (p *importer) importtype(pt, t *Type) {
-	// override declaration in unsafe.go for Pointer.
-	// there is no way in Go code to define unsafe.Pointer
-	// so we have to supply it.
-	if incannedimport != 0 && importpkg.Name == "unsafe" && pt.Nod.Sym.Name == "Pointer" {
-		t = Types[TUNSAFEPTR]
-	}
-
 	if pt.Etype == TFORW {
 		n := pt.Nod
 		copytype(pt.Nod, t)
