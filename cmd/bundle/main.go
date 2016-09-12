@@ -107,6 +107,7 @@ var (
 	dstPath    = flag.String("dst", "", "set destination import `path` (default taken from current directory)")
 	pkgName    = flag.String("pkg", "", "set destination package `name` (default taken from current directory)")
 	prefix     = flag.String("prefix", "", "set bundled identifier prefix to `p` (default source package name + \"_\")")
+	underscore = flag.Bool("underscore", false, "rewrite golang.org to golang_org in imports; temporary workaround for golang.org/issue/16333")
 
 	importMap = map[string]string{}
 )
@@ -296,6 +297,9 @@ func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 			if isStandardImportPath(path) {
 				pkgStd[spec] = true
 			} else {
+				if *underscore {
+					spec = strings.Replace(spec, "golang.org/", "golang_org/", 1)
+				}
 				pkgExt[spec] = true
 			}
 		}
