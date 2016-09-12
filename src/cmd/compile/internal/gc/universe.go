@@ -163,7 +163,6 @@ func typeinit() {
 	t.Sym = Pkglookup("Pointer", unsafepkg)
 	t.Sym.Def = typenod(t)
 	t.Sym.Def.Name = new(Name)
-
 	dowidth(Types[TUNSAFEPTR])
 
 	Tptr = TPTR32

@@ -10,7 +10,7 @@
 
 package unsafe
 
-type Pointer uintptr // not really; filled in by compiler
+// Type Pointer is constructed directly in typeinit.
 
 // return types here are ignored; see unsafe.go
 func Offsetof(any) uintptr
