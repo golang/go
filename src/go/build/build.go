@@ -410,11 +410,16 @@ func (ctxt *Context) ImportDir(dir string, mode ImportMode) (*Package, error) {
 // containing no buildable Go source files. (It may still contain
 // test files, files hidden by build tags, and so on.)
 type NoGoError struct {
-	Dir string
+	Dir     string
+	Ignored bool // whether any Go files were ignored due to build tags
 }
 
 func (e *NoGoError) Error() string {
-	return "no buildable Go source files in " + e.Dir
+	msg := "no buildable Go source files in " + e.Dir
+	if e.Ignored {
+		msg += " (.go files ignored due to build tags)"
+	}
+	return msg
 }
 
 // MultiplePackageError describes a directory containing
@@ -846,7 +851,7 @@ Found:
 		return p, badGoError
 	}
 	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		return p, &NoGoError{p.Dir}
+		return p, &NoGoError{Dir: p.Dir, Ignored: len(p.IgnoredGoFiles) > 0}
 	}
 
 	for tag := range allTags {

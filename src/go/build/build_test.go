@@ -93,6 +93,17 @@ func TestEmptyFolderImport(t *testing.T) {
 	}
 }
 
+func TestIgnoredGoFilesImport(t *testing.T) {
+	_, err := Import(".", "testdata/ignored", 0)
+	e, ok := err.(*NoGoError)
+	if !ok {
+		t.Fatal(`Import("testdata/ignored") did not return NoGoError.`)
+	}
+	if !e.Ignored {
+		t.Fatal(`Import("testdata/ignored") should have ignored Go files.`)
+	}
+}
+
 func TestMultiplePackageImport(t *testing.T) {
 	_, err := Import(".", "testdata/multi", 0)
 	mpe, ok := err.(*MultiplePackageError)

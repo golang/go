@@ -1,0 +1,3 @@
+// +build alwaysignore
+
+package ignored
