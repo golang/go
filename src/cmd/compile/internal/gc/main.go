@@ -810,6 +810,7 @@ func importfile(f *Val, indent []byte) {
 	}
 
 	// process header lines
+	safe := false
 	for {
 		p, err = imp.ReadString('\n')
 		if err != nil {
@@ -819,9 +820,12 @@ func importfile(f *Val, indent []byte) {
 			break // header ends with blank line
 		}
 		if strings.HasPrefix(p, "safe") {
-			importpkg.Safe = true
+			safe = true
 			break // ok to ignore rest
 		}
+	}
+	if safemode && !safe {
+		Yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 
 	// assume files move (get installed)
@@ -866,10 +870,6 @@ func importfile(f *Val, indent []byte) {
 	default:
 		Yyerror("no import in %q", path_)
 		errorexit()
-	}
-
-	if safemode && !importpkg.Safe {
-		Yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 }
 

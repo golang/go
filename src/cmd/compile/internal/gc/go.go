@@ -22,9 +22,7 @@ type Pkg struct {
 	Pathsym  *obj.LSym
 	Prefix   string // escaped path for use in symbol table
 	Imported bool   // export data of this package was parsed
-	Exported bool   // import line written in export data
 	Direct   bool   // imported directly
-	Safe     bool   // whether the package is marked as safe
 	Syms     map[string]*Sym
 }
 
