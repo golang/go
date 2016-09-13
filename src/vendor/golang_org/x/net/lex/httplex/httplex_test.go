@@ -99,3 +99,21 @@ func TestHeaderValuesContainsToken(t *testing.T) {
 		}
 	}
 }
+
+func TestPunycodeHostPort(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"www.google.com", "www.google.com"},
+		{"гофер.рф", "xn--c1ae0ajs.xn--p1ai"},
+		{"bücher.de", "xn--bcher-kva.de"},
+		{"bücher.de:8080", "xn--bcher-kva.de:8080"},
+		{"[1::6]:8080", "[1::6]:8080"},
+	}
+	for _, tt := range tests {
+		got, err := PunycodeHostPort(tt.in)
+		if tt.want != got || err != nil {
+			t.Errorf("PunycodeHostPort(%q) = %q, %v, want %q, nil", tt.in, got, err, tt.want)
+		}
+	}
+}
