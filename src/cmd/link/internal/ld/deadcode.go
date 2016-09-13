@@ -241,7 +241,7 @@ func (d *deadcodepass) init() {
 		// In a normal binary, start at main.main and the init
 		// functions and mark what is reachable from there.
 		names = append(names, *flagEntrySymbol)
-		if *FlagLinkshared && Buildmode == BuildmodeExe {
+		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
 			names = append(names, "main.main", "main.init")
 		}
 		for _, name := range markextra {
