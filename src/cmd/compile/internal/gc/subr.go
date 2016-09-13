@@ -59,7 +59,7 @@ func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
 func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func Flusherrors() {
-	bstdout.Flush()
+	Ctxt.Bso.Flush()
 	if len(errors) == 0 {
 		return
 	}

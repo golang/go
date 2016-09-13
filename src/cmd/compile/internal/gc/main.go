@@ -107,8 +107,7 @@ func Main() {
 
 	Ctxt = obj.Linknew(Thearch.LinkArch)
 	Ctxt.DiagFunc = Yyerror
-	bstdout = bufio.NewWriter(os.Stdout)
-	Ctxt.Bso = bstdout
+	Ctxt.Bso = bufio.NewWriter(os.Stdout)
 
 	localpkg = mkpkg("")
 	localpkg.Prefix = "\"\""
