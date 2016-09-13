@@ -4,10 +4,7 @@
 
 package gc
 
-import (
-	"fmt"
-	"sort"
-)
+import "sort"
 
 const (
 	// expression switch
@@ -647,9 +644,9 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 		}
 		n := c.node.Left
 		tv := typeVal{
-			// fmt.Sprintf("% -v", n.Type) here serves to completely describe the type.
+			// n.Type.tconv(FmtLeft | FmtUnsigned) here serves to completely describe the type.
 			// See the comments in func typehash.
-			typ: fmt.Sprintf("% -v", n.Type),
+			typ: n.Type.tconv(FmtLeft | FmtUnsigned),
 			val: n.Val().Interface(),
 		}
 		prev, dup := seen[tv]
