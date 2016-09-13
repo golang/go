@@ -183,7 +183,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.FPReg = framepointerRegARM64
 		c.hasGReg = true
 		c.noDuffDevice = obj.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
-	case "ppc64le":
+	case "ppc64le", "ppc64":
 		c.IntSize = 8
 		c.PtrSize = 8
 		c.lowerBlock = rewriteBlockPPC64
