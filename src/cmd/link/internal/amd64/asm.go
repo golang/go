@@ -255,16 +255,59 @@ func adddynrel(ctxt *ld.Link, s *ld.Symbol, r *ld.Reloc) bool {
 			return true
 		}
 
-		if s.Type != obj.SDATA && s.Type != obj.SRODATA {
-			break
+		// Process dynamic relocations for the data sections.
+		if ld.Buildmode == ld.BuildmodePIE && ld.Linkmode == ld.LinkInternal {
+			// When internally linking, generate dynamic relocations
+			// for all typical R_ADDR relocations. The exception
+			// are those R_ADDR that are created as part of generating
+			// the dynamic relocations and must be resolved statically.
+			//
+			// There are three phases relevant to understanding this:
+			//
+			//	dodata()  // we are here
+			//	address() // symbol address assignment
+			//	reloc()   // resolution of static R_ADDR relocs
+			//
+			// At this point symbol addresses have not been
+			// assigned yet (as the final size of the .rela section
+			// will affect the addresses), and so we cannot write
+			// the Elf64_Rela.r_offset now. Instead we delay it
+			// until after the 'address' phase of the linker is
+			// complete. We do this via Addaddrplus, which creates
+			// a new R_ADDR relocation which will be resolved in
+			// the 'reloc' phase.
+			//
+			// These synthetic static R_ADDR relocs must be skipped
+			// now, or else we will be caught in an infinite loop
+			// of generating synthetic relocs for our synthetic
+			// relocs.
+			switch s.Name {
+			case ".dynsym", ".rela", ".got.plt", ".dynamic":
+				return false
+			}
+		} else {
+			// Either internally linking a static executable,
+			// in which case we can resolve these relocations
+			// statically in the 'reloc' phase, or externally
+			// linking, in which case the relocation will be
+			// prepared in the 'reloc' phase and passed to the
+			// external linker in the 'asmb' phase.
+			if s.Type != obj.SDATA && s.Type != obj.SRODATA {
+				break
+			}
 		}
+
 		if ld.Iself {
+			// TODO: We generate a R_X86_64_64 relocation for every R_ADDR, even
+			// though it would be more efficient (for the dynamic linker) if we
+			// generated R_X86_RELATIVE instead.
 			ld.Adddynsym(ctxt, targ)
 			rela := ld.Linklookup(ctxt, ".rela", 0)
 			ld.Addaddrplus(ctxt, rela, s, int64(r.Off))
 			if r.Siz == 8 {
 				ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_64))
 			} else {
+				// TODO: never happens, remove.
 				ld.Adduint64(ctxt, rela, ld.ELF64_R_INFO(uint32(targ.Dynid), ld.R_X86_64_32))
 			}
 			ld.Adduint64(ctxt, rela, uint64(r.Add))
