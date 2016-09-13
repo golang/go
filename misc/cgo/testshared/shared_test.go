@@ -394,6 +394,14 @@ func TestTrivialExecutable(t *testing.T) {
 	AssertHasRPath(t, "./bin/trivial", gorootInstallDir)
 }
 
+// Build a trivial program in PIE mode that links against the shared runtime and check it runs.
+func TestTrivialExecutablePIE(t *testing.T) {
+	goCmd(t, "build", "-buildmode=pie", "-o", "trivial.pie", "-linkshared", "trivial")
+	run(t, "trivial executable", "./trivial.pie")
+	AssertIsLinkedTo(t, "./trivial.pie", soname)
+	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+}
+
 // Build an executable that uses cgo linked against the shared runtime and check it
 // runs.
 func TestCgoExecutable(t *testing.T) {
