@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"bytes"
 	"cmd/internal/obj"
 	"fmt"
 	"strconv"
@@ -739,35 +738,35 @@ func (t *Type) typefmt(flag FmtFlag) string {
 			Yyerror("unknown internal map type")
 		}
 
-		var buf bytes.Buffer
+		buf := make([]byte, 0, 64)
 		if t.IsFuncArgStruct() {
-			buf.WriteString("(")
+			buf = append(buf, '(')
 			var flag1 FmtFlag
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
 				flag1 = FmtShort
 			}
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
-					buf.WriteString(", ")
+					buf = append(buf, ", "...)
 				}
-				buf.WriteString(Fldconv(f, flag1))
+				buf = append(buf, Fldconv(f, flag1)...)
 			}
-			buf.WriteString(")")
+			buf = append(buf, ')')
 		} else {
-			buf.WriteString("struct {")
+			buf = append(buf, "struct {"...)
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
-					buf.WriteString(";")
+					buf = append(buf, ';')
 				}
-				buf.WriteString(" ")
-				buf.WriteString(Fldconv(f, FmtLong))
+				buf = append(buf, ' ')
+				buf = append(buf, Fldconv(f, FmtLong)...)
 			}
 			if t.NumFields() != 0 {
-				buf.WriteString(" ")
+				buf = append(buf, ' ')
 			}
-			buf.WriteString("}")
+			buf = append(buf, '}')
 		}
-		return buf.String()
+		return string(buf)
 
 	case TFORW:
 		if t.Sym != nil {
