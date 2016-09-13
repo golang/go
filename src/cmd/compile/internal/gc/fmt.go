@@ -17,6 +17,9 @@ import (
 // See the respective function's documentation for details.
 type FmtFlag int
 
+// TODO(gri) The ' ' flag is not used anymore in %-formats.
+//           Eliminate eventually.
+
 const ( //                                 fmt.Format flag/prec or verb
 	FmtLeft     FmtFlag = 1 << iota // '-'
 	FmtSharp                        // '#'
@@ -1556,6 +1559,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
 	}
 }
 
+// "%S" suppresses qualifying with package
 func (s *Sym) Format(f fmt.State, verb rune) {
 	switch verb {
 	case 'v', 'S':
@@ -1570,7 +1574,7 @@ func (s *Sym) String() string {
 	return s.sconv(0)
 }
 
-// "%S" suppresses qualifying with package
+// See #16897 before changing the implementation of sconv.
 func (s *Sym) sconv(flag FmtFlag) string {
 	if flag&FmtLong != 0 {
 		panic("linksymfmt")
@@ -1671,6 +1675,9 @@ func Fldconv(f *Field, flag FmtFlag) string {
 	return str
 }
 
+// "%L"  print definition, not name
+// "%S"  omit 'func' and receiver from function types, short type names
+// "% v" package name, not prefix (FTypeId mode, sticky)
 func (t *Type) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v', 'S', 'L':
@@ -1681,9 +1688,7 @@ func (t *Type) Format(s fmt.State, verb rune) {
 	}
 }
 
-// "%L"  print definition, not name
-// "%S"  omit 'func' and receiver from function types, short type names
-// "% v" package name, not prefix (FTypeId mode, sticky)
+// See #16897 before changing the implementation of tconv.
 func (t *Type) tconv(flag FmtFlag) string {
 	if t == nil {
 		return "<T>"
