@@ -1,4 +1,4 @@
-// +build amd64,s390x
+// +build amd64 s390x
 // errorcheck -0 -d=ssa/phiopt/debug=3
 
 // Copyright 2016 The Go Authors. All rights reserved.
