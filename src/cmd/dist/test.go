@@ -423,8 +423,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Test internal linking of PIE binaries where it is supported.
-	// TODO(crawshaw): enable when golang.org/issue/17068 is resolved
-	if false && t.goos == "linux" && t.goarch == "amd64" {
+	if t.goos == "linux" && t.goarch == "amd64" {
 		t.tests = append(t.tests, distTest{
 			name:    "pie_internal",
 			heading: "internal linking of -buildmode=pie",
