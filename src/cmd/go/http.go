@@ -12,6 +12,7 @@
 package main
 
 import (
+	"cmd/internal/browser"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -113,3 +114,6 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 	}
 	return urlStr, res.Body, nil
 }
+
+func queryEscape(s string) string { return url.QueryEscape(s) }
+func openBrowser(url string) bool { return browser.Open(url) }
