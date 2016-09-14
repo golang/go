@@ -21,7 +21,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 var (
@@ -58,7 +60,7 @@ func main() {
 		vetPlatforms(allPlatforms())
 	default:
 		host := platform{os: build.Default.GOOS, arch: build.Default.GOARCH}
-		host.vet()
+		host.vet(runtime.GOMAXPROCS(-1))
 	}
 }
 
@@ -181,17 +183,29 @@ var ignorePathPrefixes = [...]string{
 }
 
 func vetPlatforms(pp []platform) {
-	for _, p := range pp {
-		p.vet()
+	ncpus := runtime.GOMAXPROCS(-1) / len(pp)
+	if ncpus < 1 {
+		ncpus = 1
 	}
+	var wg sync.WaitGroup
+	wg.Add(len(pp))
+	for _, p := range pp {
+		p := p
+		go func() {
+			p.vet(ncpus)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
-func (p platform) vet() {
+func (p platform) vet(ncpus int) {
 	if p.arch == "s390x" {
 		// TODO: reinstate when s390x gets vet support (issue 15454)
 		return
 	}
-	fmt.Printf("go run main.go -p %s\n", p)
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
 
 	// Load whitelist(s).
 	w := make(whitelist)
@@ -204,7 +218,7 @@ func (p platform) vet() {
 	// Not installing leads to non-obvious failures due to inability to typecheck.
 	// TODO: If go/loader ever makes it to the standard library, have vet use it,
 	// at which point vet can work off source rather than compiled packages.
-	cmd := exec.Command(cmdGoPath, "install", "std")
+	cmd := exec.Command(cmdGoPath, "install", "-p", strconv.Itoa(ncpus), "std")
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -271,9 +285,9 @@ NextLine:
 		if w[key] == 0 {
 			// Vet error with no match in the whitelist. Print it.
 			if *flagNoLines {
-				fmt.Printf("%s: %s\n", file, msg)
+				fmt.Fprintf(&buf, "%s: %s\n", file, msg)
 			} else {
-				fmt.Printf("%s:%s: %s\n", file, lineno, msg)
+				fmt.Fprintf(&buf, "%s:%s: %s\n", file, lineno, msg)
 			}
 			continue
 		}
@@ -293,15 +307,17 @@ NextLine:
 		for k, v := range w {
 			if v != 0 {
 				if !printedHeader {
-					fmt.Println("unmatched whitelist entries:")
+					fmt.Fprintln(&buf, "unmatched whitelist entries:")
 					printedHeader = true
 				}
 				for i := 0; i < v; i++ {
-					fmt.Println(k)
+					fmt.Fprintln(&buf, k)
 				}
 			}
 		}
 	}
+
+	os.Stdout.Write(buf.Bytes())
 }
 
 // nbits maps from architecture names to the number of bits in a pointer.
