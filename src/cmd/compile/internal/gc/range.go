@@ -354,7 +354,7 @@ func walkrange(n *Node) {
 	n.Left = typecheck(n.Left, Erv)
 	n.Right = typecheck(n.Right, Etop)
 	typecheckslice(body, Etop)
-	n.Nbody.Set(append(body, n.Nbody.Slice()...))
+	n.Nbody.Prepend(body...)
 	n = walkstmt(n)
 
 	lineno = lno

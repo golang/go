@@ -69,7 +69,7 @@ func instrument(fn *Node) {
 		nodpc.Type = Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
 		nd := mkcall("racefuncenter", nil, nil, &nodpc)
-		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
+		fn.Func.Enter.Prepend(nd)
 		nd = mkcall("racefuncexit", nil, nil)
 		fn.Func.Exit.Append(nd)
 	}

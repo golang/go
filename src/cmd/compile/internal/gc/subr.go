@@ -2198,7 +2198,7 @@ func addinit(n *Node, init []*Node) *Node {
 		n.Typecheck = 1
 	}
 
-	n.Ninit.Set(append(init, n.Ninit.Slice()...))
+	n.Ninit.Prepend(init...)
 	n.Ullman = UINF
 	return n
 }
