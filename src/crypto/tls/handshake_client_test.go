@@ -1168,3 +1168,57 @@ func TestAlertFlushing(t *testing.T) {
 		t.Errorf("expected server handshake to complete with one write, but saw %d", n)
 	}
 }
+
+func TestHandshakeRace(t *testing.T) {
+	// This test races a Read and Write to try and complete a handshake in
+	// order to provide some evidence that there are no races or deadlocks
+	// in the handshake locking.
+	for i := 0; i < 32; i++ {
+		c, s := net.Pipe()
+
+		go func() {
+			server := Server(s, testConfig)
+			if err := server.Handshake(); err != nil {
+				panic(err)
+			}
+
+			var request [1]byte
+			if n, err := server.Read(request[:]); err != nil || n != 1 {
+				panic(err)
+			}
+
+			server.Write(request[:])
+			server.Close()
+		}()
+
+		startWrite := make(chan struct{})
+		startRead := make(chan struct{})
+		readDone := make(chan struct{})
+
+		client := Client(c, testConfig)
+		go func() {
+			<-startWrite
+			var request [1]byte
+			client.Write(request[:])
+		}()
+
+		go func() {
+			<-startRead
+			var reply [1]byte
+			if n, err := client.Read(reply[:]); err != nil || n != 1 {
+				panic(err)
+			}
+			c.Close()
+			readDone <- struct{}{}
+		}()
+
+		if i&1 == 1 {
+			startWrite <- struct{}{}
+			startRead <- struct{}{}
+		} else {
+			startRead <- struct{}{}
+			startWrite <- struct{}{}
+		}
+		<-readDone
+	}
+}
