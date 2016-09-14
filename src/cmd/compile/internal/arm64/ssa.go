@@ -206,7 +206,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
-			v.Unimplementedf("load flags not implemented: %v", v.LongString())
+			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
 		p := gc.Prog(loadByType(v.Type))
@@ -227,7 +227,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.CheckLoweredPhi(v)
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
-			v.Unimplementedf("store flags not implemented: %v", v.LongString())
+			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
 		p := gc.Prog(storeByType(v.Type))
@@ -884,7 +884,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpARM64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	default:
-		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
 }
 
@@ -982,6 +982,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 
 	default:
-		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
 }

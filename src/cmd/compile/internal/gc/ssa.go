@@ -16,14 +16,10 @@ import (
 	"cmd/internal/sys"
 )
 
-var ssaEnabled = true
-
 var ssaConfig *ssa.Config
 var ssaExp ssaExport
 
 func initssa() *ssa.Config {
-	ssaExp.unimplemented = false
-	ssaExp.mustImplement = true
 	if ssaConfig == nil {
 		ssaConfig = ssa.NewConfig(Thearch.LinkArch.Name, &ssaExp, Ctxt, Debug['N'] == 0)
 		if Thearch.LinkArch.Name == "386" {
@@ -31,61 +27,6 @@ func initssa() *ssa.Config {
 		}
 	}
 	return ssaConfig
-}
-
-func shouldssa(fn *Node) bool {
-	switch Thearch.LinkArch.Name {
-	default:
-		// Only available for testing.
-		if os.Getenv("SSATEST") == "" {
-			return false
-		}
-	case "amd64", "amd64p32", "arm", "386", "arm64", "ppc64", "ppc64le", "mips64", "mips64le", "s390x":
-		// Generally available.
-	}
-	if !ssaEnabled {
-		return false
-	}
-
-	// Environment variable control of SSA CG
-	// 1. IF GOSSAFUNC == current function name THEN
-	//       compile this function with SSA and log output to ssa.html
-
-	// 2. IF GOSSAHASH == "" THEN
-	//       compile this function (and everything else) with SSA
-
-	// 3. IF GOSSAHASH == "n" or "N"
-	//       IF GOSSAPKG == current package name THEN
-	//          compile this function (and everything in this package) with SSA
-	//       ELSE
-	//          use the old back end for this function.
-	//       This is for compatibility with existing test harness and should go away.
-
-	// 4. IF GOSSAHASH is a suffix of the binary-rendered SHA1 hash of the function name THEN
-	//          compile this function with SSA
-	//       ELSE
-	//          compile this function with the old back end.
-
-	// Plan is for 3 to be removed when the tests are revised.
-	// SSA is now default, and is disabled by setting
-	// GOSSAHASH to n or N, or selectively with strings of
-	// 0 and 1.
-
-	name := fn.Func.Nname.Sym.Name
-
-	funcname := os.Getenv("GOSSAFUNC")
-	if funcname != "" {
-		// If GOSSAFUNC is set, compile only that function.
-		return name == funcname
-	}
-
-	pkg := os.Getenv("GOSSAPKG")
-	if pkg != "" {
-		// If GOSSAPKG is set, compile only that package.
-		return localpkg.Name == pkg
-	}
-
-	return initssa().DebugHashMatch("GOSSAHASH", name)
 }
 
 // buildssa builds an SSA function.
@@ -176,7 +117,7 @@ func buildssa(fn *Node) *ssa.Func {
 		case PFUNC:
 			// local function - already handled by frontend
 		default:
-			s.Unimplementedf("local variable with class %s unimplemented", classnames[n.Class])
+			s.Fatalf("local variable with class %s unimplemented", classnames[n.Class])
 		}
 	}
 
@@ -334,12 +275,9 @@ func (s *state) label(sym *Sym) *ssaLabel {
 	return lab
 }
 
-func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
-func (s *state) Log() bool                              { return s.config.Log() }
-func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
-func (s *state) Unimplementedf(msg string, args ...interface{}) {
-	s.config.Unimplementedf(s.peekLine(), msg, args...)
-}
+func (s *state) Logf(msg string, args ...interface{})              { s.config.Logf(msg, args...) }
+func (s *state) Log() bool                                         { return s.config.Log() }
+func (s *state) Fatalf(msg string, args ...interface{})            { s.config.Fatalf(s.peekLine(), msg, args...) }
 func (s *state) Warnl(line int32, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
 func (s *state) Debug_checknil() bool                              { return s.config.Debug_checknil() }
 
@@ -983,7 +921,7 @@ func (s *state) stmt(n *Node) {
 		s.expr(n.Left)
 
 	default:
-		s.Unimplementedf("unhandled stmt %v", n.Op)
+		s.Fatalf("unhandled stmt %v", n.Op)
 	}
 }
 
@@ -1272,7 +1210,7 @@ func (s *state) ssaOp(op Op, t *Type) ssa.Op {
 	etype := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
-		s.Unimplementedf("unhandled binary op %v %s", op, etype)
+		s.Fatalf("unhandled binary op %v %s", op, etype)
 	}
 	return x
 }
@@ -1447,7 +1385,7 @@ func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
 	etype2 := s.concreteEtype(u)
 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
 	if !ok {
-		s.Unimplementedf("unhandled shift op %v etype=%s/%s", op, etype1, etype2)
+		s.Fatalf("unhandled shift op %v etype=%s/%s", op, etype1, etype2)
 	}
 	return x
 }
@@ -1456,7 +1394,7 @@ func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
 	etype1 := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype1}]
 	if !ok {
-		s.Unimplementedf("unhandled rotate op %v etype=%s", op, etype1)
+		s.Fatalf("unhandled rotate op %v etype=%s", op, etype1)
 	}
 	return x
 }
@@ -1554,7 +1492,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 
 		default:
-			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
+			s.Fatalf("unhandled OLITERAL %v", n.Val().Ctype())
 			return nil
 		}
 	case OCONVNOP:
@@ -1752,7 +1690,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
 		}
 
-		s.Unimplementedf("unhandled OCONV %s -> %s", n.Left.Type.Etype, n.Type.Etype)
+		s.Fatalf("unhandled OCONV %s -> %s", n.Left.Type.Etype, n.Type.Etype)
 		return nil
 
 	case ODOTTYPE:
@@ -1966,7 +1904,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	case OINDREG:
 		if int(n.Reg) != Thearch.REGSP {
-			s.Unimplementedf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)
+			s.Fatalf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)
 			return nil
 		}
 		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
@@ -2129,7 +2067,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.append(n, false)
 
 	default:
-		s.Unimplementedf("unhandled expr %v", n.Op)
+		s.Fatalf("unhandled expr %v", n.Op)
 		return nil
 	}
 }
@@ -2510,7 +2448,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		}
 		return v
 	}
-	s.Unimplementedf("zero for type %v not implemented", t)
+	s.Fatalf("zero for type %v not implemented", t)
 	return nil
 }
 
@@ -2750,15 +2688,7 @@ func intrinsicInit() {
 // findIntrinsic returns a function which builds the SSA equivalent of the
 // function identified by the symbol sym.  If sym is not an intrinsic call, returns nil.
 func findIntrinsic(sym *Sym) intrinsicBuilder {
-	// The test below is not quite accurate -- in the event that
-	// a function is disabled on a per-function basis, for example
-	// because of hash-keyed binary failure search, SSA might be
-	// disabled for that function but it would not be noted here,
-	// and thus an inlining would not occur (in practice, inlining
-	// so far has only been noticed for Bswap32 and the 16-bit count
-	// leading/trailing instructions, but heuristics might change
-	// in the future or on different architectures).
-	if !ssaEnabled || ssa.IntrinsicsDisable {
+	if ssa.IntrinsicsDisable {
 		return nil
 	}
 	if sym == nil || sym.Pkg == nil {
@@ -3017,14 +2947,14 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp), false
 		default:
-			s.Unimplementedf("variable address class %v not implemented", classnames[n.Class])
+			s.Fatalf("variable address class %v not implemented", classnames[n.Class])
 			return nil, false
 		}
 	case OINDREG:
 		// indirect off a register
 		// used for storing/loading arguments/returns to/from callees
 		if int(n.Reg) != Thearch.REGSP {
-			s.Unimplementedf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
+			s.Fatalf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
 			return nil, false
 		}
 		return s.entryNewValue1I(ssa.OpOffPtr, t, n.Xoffset, s.sp), true
@@ -3067,7 +2997,7 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 		return s.call(n, callNormal), true
 
 	default:
-		s.Unimplementedf("unhandled addr %v", n.Op)
+		s.Fatalf("unhandled addr %v", n.Op)
 		return nil, false
 	}
 }
@@ -4086,7 +4016,7 @@ func (s *state) resolveFwdRef(v *ssa.Value, dm *sparseDefState) {
 		addr := s.decladdrs[name]
 		if addr == nil {
 			// TODO: closure args reach here.
-			s.Unimplementedf("unhandled closure arg %v at entry to function %s", name, b.Func.Name)
+			s.Fatalf("unhandled closure arg %v at entry to function %s", name, b.Func.Name)
 		}
 		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
 			s.Fatalf("variable live at start of function %s is not an argument %v", b.Func.Name, name)
@@ -4220,10 +4150,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	var s SSAGenState
 
 	e := f.Config.Frontend().(*ssaExport)
-	// We're about to emit a bunch of Progs.
-	// Since the only way to get here is to explicitly request it,
-	// just fail on unimplemented instead of trying to unwind our mess.
-	e.mustImplement = true
 
 	// Remember where each block starts.
 	s.bstart = make([]*obj.Prog, f.NumBlocks())
@@ -4634,9 +4560,7 @@ func fieldIdx(n *Node) int {
 
 // ssaExport exports a bunch of compiler services for the ssa backend.
 type ssaExport struct {
-	log           bool
-	unimplemented bool
-	mustImplement bool
+	log bool
 }
 
 func (s *ssaExport) TypeBool() ssa.Type    { return Types[TBOOL] }
@@ -4664,8 +4588,7 @@ func (*ssaExport) StringData(s string) interface{} {
 }
 
 func (e *ssaExport) Auto(t ssa.Type) ssa.GCNode {
-	n := temp(t.(*Type))   // Note: adds new auto to Curfn.Func.Dcl list
-	e.mustImplement = true // This modifies the input to SSA, so we want to make sure we succeed from here!
+	n := temp(t.(*Type)) // Note: adds new auto to Curfn.Func.Dcl list
 	return n
 }
 
@@ -4787,8 +4710,6 @@ func (e *ssaExport) namedAuto(name string, typ ssa.Type) ssa.GCNode {
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 
 	dowidth(t)
-	e.mustImplement = true
-
 	return n
 }
 
@@ -4802,8 +4723,7 @@ func (e *ssaExport) Line(line int32) string {
 
 // Log logs a message from the compiler.
 func (e *ssaExport) Logf(msg string, args ...interface{}) {
-	// If e was marked as unimplemented, anything could happen. Ignore.
-	if e.log && !e.unimplemented {
+	if e.log {
 		fmt.Printf(msg, args...)
 	}
 }
@@ -4814,26 +4734,8 @@ func (e *ssaExport) Log() bool {
 
 // Fatal reports a compiler error and exits.
 func (e *ssaExport) Fatalf(line int32, msg string, args ...interface{}) {
-	// If e was marked as unimplemented, anything could happen. Ignore.
-	if !e.unimplemented {
-		lineno = line
-		Fatalf(msg, args...)
-	}
-}
-
-// Unimplemented reports that the function cannot be compiled.
-// It will be removed once SSA work is complete.
-func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{}) {
-	if e.mustImplement {
-		lineno = line
-		Fatalf(msg, args...)
-	}
-	const alwaysLog = false // enable to calculate top unimplemented features
-	if !e.unimplemented && (e.log || alwaysLog) {
-		// first implementation failure, print explanation
-		fmt.Printf("SSA unimplemented: "+msg+"\n", args...)
-	}
-	e.unimplemented = true
+	lineno = line
+	Fatalf(msg, args...)
 }
 
 // Warnl reports a "warning", which is usually flag-triggered

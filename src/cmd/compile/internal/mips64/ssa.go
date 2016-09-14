@@ -201,7 +201,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// nothing to do
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
-			v.Unimplementedf("load flags not implemented: %v", v.LongString())
+			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
 		r := gc.SSARegNum(v)
@@ -232,7 +232,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.CheckLoweredPhi(v)
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
-			v.Unimplementedf("store flags not implemented: %v", v.LongString())
+			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
 		r := gc.SSARegNum(v.Args[0])
@@ -744,7 +744,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Closure pointer is R22 (mips.REGCTXT).
 		gc.CheckLoweredGetClosurePtr(v)
 	default:
-		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
 }
 
@@ -823,6 +823,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 			p.From.Reg = gc.SSARegNum(b.Control)
 		}
 	default:
-		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
 }

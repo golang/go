@@ -189,10 +189,9 @@ func (b *Block) swapSuccessors() {
 	b.Likely *= -1
 }
 
-func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
-func (b *Block) Log() bool                                      { return b.Func.Log() }
-func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
-func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
+func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
+func (b *Block) Log() bool                              { return b.Func.Log() }
+func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }
 
 type BranchPrediction int8
 

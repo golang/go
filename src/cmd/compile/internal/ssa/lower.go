@@ -33,7 +33,7 @@ func checkLower(f *Func) {
 			for _, a := range v.Args {
 				s += " " + a.Type.SimpleString()
 			}
-			f.Unimplementedf("%s", s)
+			f.Fatalf("%s", s)
 		}
 	}
 }

@@ -407,9 +407,6 @@ func (f *Func) ConstEmptyString(line int32, t Type) *Value {
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
 func (f *Func) Log() bool                              { return f.Config.Log() }
 func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
-func (f *Func) Unimplementedf(msg string, args ...interface{}) {
-	f.Config.Unimplementedf(f.Entry.Line, msg, args...)
-}
 
 func (f *Func) Free() {
 	// Clear values.

@@ -925,7 +925,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
 
 	default:
-		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+		v.Fatalf("genValue not implemented: %s", v.LongString())
 	}
 }
 
@@ -1045,6 +1045,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		//}
 
 	default:
-		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
 }

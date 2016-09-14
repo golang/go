@@ -97,7 +97,7 @@ func decomposeBuiltIn(f *Func) {
 		case t.IsFloat():
 			// floats are never decomposed, even ones bigger than IntSize
 		case t.Size() > f.Config.IntSize:
-			f.Unimplementedf("undecomposed named type %s %s", name, t)
+			f.Fatalf("undecomposed named type %s %s", name, t)
 		default:
 			newNames = append(newNames, name)
 		}
@@ -124,7 +124,7 @@ func decomposeBuiltInPhi(v *Value) {
 	case v.Type.IsFloat():
 		// floats are never decomposed, even ones bigger than IntSize
 	case v.Type.Size() > v.Block.Func.Config.IntSize:
-		v.Unimplementedf("undecomposed type %s", v.Type)
+		v.Fatalf("undecomposed type %s", v.Type)
 	}
 }
 
