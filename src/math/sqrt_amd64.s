@@ -6,7 +6,7 @@
 
 // func Sqrt(x float64) float64
 TEXT ·Sqrt(SB), NOSPLIT, $0
-	MOVSD  x+0(FP), X0
-	SQRTSD X0, X1
-	MOVSD  X1, ret+8(FP)
+	XORPS  X0, X0 // break dependency
+	SQRTSD x+0(FP), X0
+	MOVSD  X0, ret+8(FP)
 	RET
