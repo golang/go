@@ -622,6 +622,20 @@ const (
 	R_ADDRMIPSTLS
 )
 
+// IsDirectJump returns whether r is a relocation for a direct jump.
+// A direct jump is a CALL or JMP instruction that takes the target address
+// as immediate. The address is embedded into the instruction, possibly
+// with limited width.
+// An indirect jump is a CALL or JMP instruction that takes the target address
+// in register or memory.
+func (r RelocType) IsDirectJump() bool {
+	switch r {
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER, R_CALLMIPS, R_JMPMIPS:
+		return true
+	}
+	return false
+}
+
 type Auto struct {
 	Asym    *LSym
 	Link    *Auto

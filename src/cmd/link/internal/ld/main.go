@@ -86,6 +86,7 @@ var (
 	FlagW           = flag.Bool("w", false, "disable DWARF generation")
 	Flag8           bool // use 64-bit addresses in symbol table
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")

@@ -565,7 +565,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			p.To.Reg = REGTMP
 			p.To.Offset = 8 * 4 // offset of m.divmod
 
-			/* MOV b,REGTMP */
+			/* MOV b, R8 */
 			p = obj.Appendp(ctxt, p)
 			p.As = AMOVW
 			p.Lineno = q1.Lineno
@@ -575,7 +575,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				p.From.Reg = q1.To.Reg
 			}
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REGTMP
+			p.To.Reg = REG_R8
 			p.To.Offset = 0
 
 			/* CALL appropriate */

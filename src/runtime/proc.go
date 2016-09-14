@@ -169,7 +169,8 @@ func main() {
 		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
-	main_init()
+	fn := main_init // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
+	fn()
 	close(main_init_done)
 
 	needUnlock = false
@@ -180,7 +181,8 @@ func main() {
 		// has a main, but it is not executed.
 		return
 	}
-	main_main()
+	fn = main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
+	fn()
 	if raceenabled {
 		racefini()
 	}

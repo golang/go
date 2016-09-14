@@ -314,6 +314,48 @@ func listsort(l *Symbol) *Symbol {
 	return l
 }
 
+// isRuntimeDepPkg returns whether pkg is the runtime package or its dependency
+func isRuntimeDepPkg(pkg string) bool {
+	switch pkg {
+	case "runtime",
+		"sync/atomic": // runtime may call to sync/atomic, due to go:linkname
+		return true
+	}
+	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
+}
+
+// detect too-far jumps in function s, and add trampolines if necessary
+// (currently only ARM supports trampoline insertion)
+func trampoline(ctxt *Link, s *Symbol) {
+	if Thearch.Trampoline == nil {
+		return // no need or no support of trampolines on this arch
+	}
+	if Linkmode == LinkExternal {
+		return // currently only support internal linking
+	}
+
+	for ri := range s.R {
+		r := &s.R[ri]
+		if !r.Type.IsDirectJump() {
+			continue
+		}
+		if Symaddr(r.Sym) == 0 && r.Sym.Type != obj.SDYNIMPORT {
+			if r.Sym.File != s.File {
+				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
+					Errorf(s, "unresolved inter-package jump to %s(%s)", r.Sym, r.Sym.File)
+				}
+				// runtime and its dependent packages may call to each other.
+				// they are fine, as they will be laid down together.
+			}
+			continue
+		}
+
+		Thearch.Trampoline(ctxt, r, s)
+	}
+
+}
+
+// resolve relocations in s.
 func relocsym(ctxt *Link, s *Symbol) {
 	var r *Reloc
 	var rs *Symbol
@@ -325,6 +367,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r = &s.R[ri]
+
 		r.Done = 1
 		off = r.Off
 		siz = int32(r.Siz)
@@ -1978,52 +2021,86 @@ func (ctxt *Link) textaddress() {
 	va := uint64(*FlagTextAddr)
 	n := 1
 	sect.Vaddr = va
+	ntramps := 0
 	for _, sym := range ctxt.Textp {
-		sym.Sect = sect
-		if sym.Type&obj.SSUB != 0 {
-			continue
+		sect, n, va = assignAddress(ctxt, sect, n, sym, va)
+
+		trampoline(ctxt, sym) // resolve jumps, may add trampolines if jump too far
+
+		// lay down trampolines after each function
+		for ; ntramps < len(ctxt.tramps); ntramps++ {
+			tramp := ctxt.tramps[ntramps]
+			sect, n, va = assignAddress(ctxt, sect, n, tramp, va)
 		}
-		if sym.Align != 0 {
-			va = uint64(Rnd(int64(va), int64(sym.Align)))
-		} else {
-			va = uint64(Rnd(int64(va), int64(Funcalign)))
-		}
-		sym.Value = 0
-		for sub := sym; sub != nil; sub = sub.Sub {
-			sub.Value += int64(va)
-		}
-		funcsize := uint64(MINFUNC) // spacing required for findfunctab
-		if sym.Size > MINFUNC {
-			funcsize = uint64(sym.Size)
-		}
-
-		// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
-		// call target offset field in the bl instruction.  Splitting into smaller text
-		// sections smaller than this limit allows the GNU linker to modify the long calls
-		// appropriately.  The limit allows for the space needed for tables inserted by the linker.
-
-		// If this function doesn't fit in the current text section, then create a new one.
-
-		// Only break at outermost syms.
-
-		if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
-
-			// Set the length for the previous text section
-			sect.Length = va - sect.Vaddr
-
-			// Create new section, set the starting Vaddr
-			sect = addsection(&Segtext, ".text", 05)
-			sect.Vaddr = va
-
-			// Create a symbol for the start of the secondary text sections
-			ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect
-			n++
-		}
-		va += funcsize
 	}
 
 	sect.Length = va - sect.Vaddr
 	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
+
+	// merge tramps into Textp, keeping Textp in address order
+	if ntramps != 0 {
+		newtextp := make([]*Symbol, 0, len(ctxt.Textp)+ntramps)
+		i := 0
+		for _, sym := range ctxt.Textp {
+			for ; i < ntramps && ctxt.tramps[i].Value < sym.Value; i++ {
+				newtextp = append(newtextp, ctxt.tramps[i])
+			}
+			newtextp = append(newtextp, sym)
+		}
+		newtextp = append(newtextp, ctxt.tramps[i:ntramps]...)
+
+		ctxt.Textp = newtextp
+	}
+}
+
+// assigns address for a text symbol, returns (possibly new) section, its number, and the address
+// Note: once we have trampoline insertion support for external linking, this function
+// will not need to create new text sections, and so no need to return sect and n.
+func assignAddress(ctxt *Link, sect *Section, n int, sym *Symbol, va uint64) (*Section, int, uint64) {
+	sym.Sect = sect
+	if sym.Type&obj.SSUB != 0 {
+		return sect, n, va
+	}
+	if sym.Align != 0 {
+		va = uint64(Rnd(int64(va), int64(sym.Align)))
+	} else {
+		va = uint64(Rnd(int64(va), int64(Funcalign)))
+	}
+	sym.Value = 0
+	for sub := sym; sub != nil; sub = sub.Sub {
+		sub.Value += int64(va)
+	}
+
+	funcsize := uint64(MINFUNC) // spacing required for findfunctab
+	if sym.Size > MINFUNC {
+		funcsize = uint64(sym.Size)
+	}
+
+	// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
+	// call target offset field in the bl instruction.  Splitting into smaller text
+	// sections smaller than this limit allows the GNU linker to modify the long calls
+	// appropriately.  The limit allows for the space needed for tables inserted by the linker.
+
+	// If this function doesn't fit in the current text section, then create a new one.
+
+	// Only break at outermost syms.
+
+	if SysArch.InFamily(sys.PPC64) && sym.Outer == nil && Iself && Linkmode == LinkExternal && va-sect.Vaddr+funcsize > 0x1c00000 {
+
+		// Set the length for the previous text section
+		sect.Length = va - sect.Vaddr
+
+		// Create new section, set the starting Vaddr
+		sect = addsection(&Segtext, ".text", 05)
+		sect.Vaddr = va
+
+		// Create a symbol for the start of the secondary text sections
+		ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0).Sect = sect
+		n++
+	}
+	va += funcsize
+
+	return sect, n, va
 }
 
 // assign addresses
@@ -2245,4 +2322,15 @@ func (ctxt *Link) address() {
 	ctxt.xdefine("runtime.noptrbss", obj.SNOPTRBSS, int64(noptrbss.Vaddr))
 	ctxt.xdefine("runtime.enoptrbss", obj.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
 	ctxt.xdefine("runtime.end", obj.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+}
+
+// add a trampoline with symbol s (to be laid down after the current function)
+func (ctxt *Link) AddTramp(s *Symbol) {
+	s.Type = obj.STEXT
+	s.Attr |= AttrReachable
+	s.Attr |= AttrOnList
+	ctxt.tramps = append(ctxt.tramps, s)
+	if *FlagDebugTramp > 0 && ctxt.Debugvlog > 0 {
+		ctxt.Logf("trampoline %s inserted\n", s)
+	}
 }

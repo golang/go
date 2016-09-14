@@ -41,7 +41,7 @@ import (
 	"strings"
 )
 
-func addlib(ctxt *Link, src string, obj string, pathname string) {
+func addlib(ctxt *Link, src string, obj string, pathname string) *Library {
 	name := path.Clean(pathname)
 
 	// runtime.a -> runtime, runtime.6 -> runtime
@@ -53,7 +53,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 	// already loaded?
 	for i := 0; i < len(ctxt.Library); i++ {
 		if ctxt.Library[i].Pkg == pkg {
-			return
+			return ctxt.Library[i]
 		}
 	}
 
@@ -85,23 +85,22 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 	}
 
 	if isshlib {
-		addlibpath(ctxt, src, obj, "", pkg, pname)
-	} else {
-		addlibpath(ctxt, src, obj, pname, pkg, "")
+		return addlibpath(ctxt, src, obj, "", pkg, pname)
 	}
+	return addlibpath(ctxt, src, obj, pname, pkg, "")
 }
 
 /*
- * add library to library list.
+ * add library to library list, return added library.
  *	srcref: src file referring to package
  *	objref: object file referring to package
  *	file: object file, e.g., /home/rsc/go/pkg/container/vector.a
  *	pkg: package import path, e.g. container/vector
  */
-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) {
+func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlibnamefile string) *Library {
 	for i := 0; i < len(ctxt.Library); i++ {
 		if pkg == ctxt.Library[i].Pkg {
-			return
+			return ctxt.Library[i]
 		}
 	}
 
@@ -122,6 +121,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 		}
 		l.Shlib = strings.TrimSpace(string(shlibbytes))
 	}
+	return l
 }
 
 func atolwhex(s string) int64 {

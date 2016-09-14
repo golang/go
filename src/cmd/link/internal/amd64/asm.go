@@ -85,10 +85,10 @@ func gentext(ctxt *ld.Link) {
 	Addcall(ctxt, initfunc, addmoduledata)
 	//    c:	c3                   	retq
 	o(0xc3)
-	ctxt.Textp = append(ctxt.Textp, initfunc)
 	if ld.Buildmode == ld.BuildmodePlugin {
 		ctxt.Textp = append(ctxt.Textp, addmoduledata)
 	}
+	ctxt.Textp = append(ctxt.Textp, initfunc)
 	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
 	initarray_entry.Attr |= ld.AttrReachable
 	initarray_entry.Attr |= ld.AttrLocal

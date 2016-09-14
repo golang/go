@@ -203,8 +203,9 @@ DATA fast_udiv_tab<>+0x38(SB)/4, $0x85868788
 DATA fast_udiv_tab<>+0x3c(SB)/4, $0x81828384
 GLOBL fast_udiv_tab<>(SB), RODATA, $64
 
-// The linker will pass numerator in RTMP, and it also
-// expects the result in RTMP
+// The linker will pass numerator in R8
+#define Rn R8
+// The linker expects the result in RTMP
 #define RTMP R11
 
 TEXT _divu(SB), NOSPLIT, $16-0
@@ -225,7 +226,7 @@ TEXT _divu(SB), NOSPLIT, $16-0
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 
-	MOVW	RTMP, Rr		/* numerator */
+	MOVW	Rn, Rr			/* numerator */
 	MOVW	g_m(g), Rq
 	MOVW	m_divmod(Rq), Rq	/* denominator */
 	BL  	udiv(SB)
@@ -243,7 +244,7 @@ TEXT _modu(SB), NOSPLIT, $16-0
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 
-	MOVW	RTMP, Rr		/* numerator */
+	MOVW	Rn, Rr			/* numerator */
 	MOVW	g_m(g), Rq
 	MOVW	m_divmod(Rq), Rq	/* denominator */
 	BL  	udiv(SB)
@@ -260,7 +261,7 @@ TEXT _div(SB),NOSPLIT,$16-0
 	MOVW	Rr, 8(R13)
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
-	MOVW	RTMP, Rr		/* numerator */
+	MOVW	Rn, Rr			/* numerator */
 	MOVW	g_m(g), Rq
 	MOVW	m_divmod(Rq), Rq	/* denominator */
 	CMP 	$0, Rr
@@ -272,7 +273,7 @@ TEXT _div(SB),NOSPLIT,$16-0
 d0:
 	BL  	udiv(SB)  		/* none/both neg */
 	MOVW	Rq, RTMP
-	B		out1
+	B	out1
 d1:
 	CMP 	$0, Rq
 	BGE 	d0
@@ -293,7 +294,7 @@ TEXT _mod(SB),NOSPLIT,$16-0
 	MOVW	Rr, 8(R13)
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
-	MOVW	RTMP, Rr		/* numerator */
+	MOVW	Rn, Rr			/* numerator */
 	MOVW	g_m(g), Rq
 	MOVW	m_divmod(Rq), Rq	/* denominator */
 	CMP 	$0, Rq
