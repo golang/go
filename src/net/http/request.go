@@ -153,7 +153,8 @@ type Request struct {
 	// The value -1 indicates that the length is unknown.
 	// Values >= 0 indicate that the given number of bytes may
 	// be read from Body.
-	// For client requests, a value of 0 means unknown if Body is not nil.
+	// For client requests, a value of 0 with a non-nil Body is
+	// also treated as unknown.
 	ContentLength int64
 
 	// TransferEncoding lists the transfer encodings from outermost to
