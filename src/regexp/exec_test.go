@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"compress/bzip2"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -659,9 +660,14 @@ func makeText(n int) []byte {
 }
 
 func BenchmarkMatch(b *testing.B) {
+	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
+
 	for _, data := range benchData {
 		r := MustCompile(data.re)
 		for _, size := range benchSizes {
+			if isRaceBuilder && size.n > 1<<10 {
+				continue
+			}
 			t := makeText(size.n)
 			b.Run(data.name+"/"+size.name, func(b *testing.B) {
 				b.SetBytes(int64(size.n))
