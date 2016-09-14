@@ -7,7 +7,9 @@ package ld
 import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
+	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"unicode"
 )
@@ -244,7 +246,8 @@ func (d *deadcodepass) init() {
 		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
 			names = append(names, "main.main", "main.init")
 		} else if Buildmode == BuildmodePlugin {
-			pluginInit := d.ctxt.Library[0].Pkg + ".init"
+			pluginName := strings.TrimSuffix(filepath.Base(flag.Arg(0)), ".a")
+			pluginInit := pluginName + ".init"
 			names = append(names, pluginInit, "go.plugin.tabs")
 
 			// We don't keep the go.plugin.exports symbol,
