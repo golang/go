@@ -1,9 +1,5 @@
 // Non-platform-specific vet whitelist. See readme.txt for details.
 
-// Issue 16228. Fixed, just waiting for an http2 re-vendor.
-net/http/h2_bundle.go: assignment copies lock value to *cfg: crypto/tls.Config contains sync.Once contains sync.Mutex
-
-
 // Real problems that we can't fix.
 
 // This is a bad WriteTo signature. Errors are being ignored!
