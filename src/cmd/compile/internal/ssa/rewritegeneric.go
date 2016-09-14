@@ -232,6 +232,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpNeqPtr(v, config)
 	case OpNeqSlice:
 		return rewriteValuegeneric_OpNeqSlice(v, config)
+	case OpNilCheck:
+		return rewriteValuegeneric_OpNilCheck(v, config)
 	case OpNot:
 		return rewriteValuegeneric_OpNot(v, config)
 	case OpOffPtr:
@@ -6358,6 +6360,28 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		return true
 	}
 }
+func rewriteValuegeneric_OpNilCheck(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NilCheck (GetG mem) mem)
+	// cond:
+	// result: mem
+	for {
+		v_0 := v.Args[0]
+		if v_0.Op != OpGetG {
+			break
+		}
+		mem := v_0.Args[0]
+		if mem != v.Args[1] {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
 func rewriteValuegeneric_OpNot(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -11611,8 +11635,8 @@ func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
-	// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& mem2 == mem 	&& isSameSym(sym, "runtime.newobject")
+	// match: (Zero (Load (OffPtr [c] (SP)) mem) mem)
+	// cond: mem.Op == OpStaticCall 	&& isSameSym(mem.Aux, "runtime.newobject") 	&& c == config.ctxt.FixedFrameSize() + config.PtrSize
 	// result: mem
 	for {
 		v_0 := v.Args[0]
@@ -11629,12 +11653,10 @@ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
 			break
 		}
 		mem := v_0.Args[1]
-		if mem.Op != OpStaticCall {
+		if mem != v.Args[1] {
 			break
 		}
-		sym := mem.Aux
-		mem2 := v.Args[1]
-		if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && mem2 == mem && isSameSym(sym, "runtime.newobject")) {
+		if !(mem.Op == OpStaticCall && isSameSym(mem.Aux, "runtime.newobject") && c == config.ctxt.FixedFrameSize()+config.PtrSize) {
 			break
 		}
 		v.reset(OpCopy)
@@ -11646,99 +11668,6 @@ func rewriteValuegeneric_OpZero(v *Value, config *Config) bool {
 }
 func rewriteBlockgeneric(b *Block, config *Config) bool {
 	switch b.Kind {
-	case BlockCheck:
-		// match: (Check (NilCheck (GetG _) _) next)
-		// cond:
-		// result: (Plain nil next)
-		for {
-			v := b.Control
-			if v.Op != OpNilCheck {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpGetG {
-				break
-			}
-			next := b.Succs[0]
-			b.Kind = BlockPlain
-			b.SetControl(nil)
-			_ = next
-			return true
-		}
-		// match: (Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
-		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
-		// result: (Plain nil succ)
-		for {
-			v := b.Control
-			if v.Op != OpNilCheck {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpLoad {
-				break
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpOffPtr {
-				break
-			}
-			c := v_0_0.AuxInt
-			v_0_0_0 := v_0_0.Args[0]
-			if v_0_0_0.Op != OpSP {
-				break
-			}
-			mem := v_0.Args[1]
-			if mem.Op != OpStaticCall {
-				break
-			}
-			sym := mem.Aux
-			succ := b.Succs[0]
-			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
-				break
-			}
-			b.Kind = BlockPlain
-			b.SetControl(nil)
-			_ = succ
-			return true
-		}
-		// match: (Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
-		// cond: c == config.ctxt.FixedFrameSize() + config.PtrSize 	&& isSameSym(sym, "runtime.newobject")
-		// result: (Plain nil succ)
-		for {
-			v := b.Control
-			if v.Op != OpNilCheck {
-				break
-			}
-			v_0 := v.Args[0]
-			if v_0.Op != OpOffPtr {
-				break
-			}
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpLoad {
-				break
-			}
-			v_0_0_0 := v_0_0.Args[0]
-			if v_0_0_0.Op != OpOffPtr {
-				break
-			}
-			c := v_0_0_0.AuxInt
-			v_0_0_0_0 := v_0_0_0.Args[0]
-			if v_0_0_0_0.Op != OpSP {
-				break
-			}
-			mem := v_0_0.Args[1]
-			if mem.Op != OpStaticCall {
-				break
-			}
-			sym := mem.Aux
-			succ := b.Succs[0]
-			if !(c == config.ctxt.FixedFrameSize()+config.PtrSize && isSameSym(sym, "runtime.newobject")) {
-				break
-			}
-			b.Kind = BlockPlain
-			b.SetControl(nil)
-			_ = succ
-			return true
-		}
 	case BlockIf:
 		// match: (If (Not cond) yes no)
 		// cond:

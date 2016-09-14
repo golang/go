@@ -3129,20 +3129,13 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno int32) *ssa.Value {
 }
 
 // nilCheck generates nil pointer checking code.
-// Starts a new block on return, unless nil checks are disabled.
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
 	if Disable_checknil != 0 {
 		return
 	}
-	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
-	b := s.endBlock()
-	b.Kind = ssa.BlockCheck
-	b.SetControl(chk)
-	bNext := s.f.NewBlock(ssa.BlockPlain)
-	b.AddEdgeTo(bNext)
-	s.startBlock(bNext)
+	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
 }
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.

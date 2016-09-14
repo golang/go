@@ -303,6 +303,7 @@ var genericOps = []opData{
 	{name: "SP"},                 // stack pointer
 	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
 	{name: "Func", aux: "Sym"},   // entry address of a function
+	{name: "Invalid"},            // unused value
 
 	// Memory operations
 	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
@@ -354,7 +355,7 @@ var genericOps = []opData{
 	{name: "IsNonNil", argLength: 1, typ: "Bool"},        // arg0 != nil
 	{name: "IsInBounds", argLength: 2, typ: "Bool"},      // 0 <= arg0 < arg1. arg1 is guaranteed >= 0.
 	{name: "IsSliceInBounds", argLength: 2, typ: "Bool"}, // 0 <= arg0 <= arg1. arg1 is guaranteed >= 0.
-	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil, returns void.
+	{name: "NilCheck", argLength: 2, typ: "Void"},        // arg0=ptr, arg1=mem. Panics if arg0 is nil. Returns void.
 
 	// Pseudo-ops
 	{name: "GetG", argLength: 1}, // runtime.getg() (read g pointer). arg0=mem
@@ -476,7 +477,6 @@ var genericBlocks = []blockData{
 	{name: "Plain"},  // a single successor
 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
 	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
-	{name: "Check"},  // 1 successor, control is nilcheck op (of void type)
 	{name: "Ret"},    // no successors, control value is memory result
 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
 	{name: "Exit"},   // no successors, control value generates a panic

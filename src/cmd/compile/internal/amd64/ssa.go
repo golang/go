@@ -905,64 +905,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpKeepAlive:
 		gc.KeepAlive(v)
 	case ssa.OpAMD64LoweredNilCheck:
-		// Optimization - if the subsequent block has a load or store
-		// at the same address, we don't need to issue this instruction.
-		mem := v.Args[1]
-		for _, w := range v.Block.Succs[0].Block().Values {
-			if w.Op == ssa.OpPhi {
-				if w.Type.IsMemory() {
-					mem = w
-				}
-				continue
-			}
-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
-				// w doesn't use a store - can't be a memory op.
-				continue
-			}
-			if w.Args[len(w.Args)-1] != mem {
-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
-			}
-			switch w.Op {
-			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
-				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore,
-				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVLQSXload,
-				ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVOload,
-				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore,
-				ssa.OpAMD64MOVQatomicload, ssa.OpAMD64MOVLatomicload,
-				ssa.OpAMD64CMPXCHGQlock, ssa.OpAMD64CMPXCHGLlock,
-				ssa.OpAMD64ANDBlock, ssa.OpAMD64ORBlock:
-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ, ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
-				if w.Args[1] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
-				off := ssa.ValAndOff(v.AuxInt).Off()
-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			}
-			if w.Type.IsMemory() || w.Type.IsTuple() && w.Type.FieldType(1).IsMemory() {
-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
-					// these ops are OK
-					mem = w
-					continue
-				}
-				// We can't delay the nil check past the next store.
-				break
-			}
-		}
 		// Issue a load which will fault if the input is nil.
 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
 		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
@@ -1065,7 +1007,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCheck:
+	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH

@@ -47,6 +47,9 @@ type opData struct {
 	resultNotInArgs   bool  // outputs must not be allocated to the same registers as inputs
 	clobberFlags      bool  // this op clobbers flags register
 	call              bool  // is a function call
+	nilCheck          bool  // this op is a nil check on arg0
+	faultOnNilArg0    bool  // this op will fault if arg0 is nil (and aux encodes a small offset)
+	faultOnNilArg1    bool  // this op will fault if arg1 is nil (and aux encodes a small offset)
 }
 
 type blockData struct {
@@ -126,10 +129,13 @@ func genOp() {
 
 	// generate Op* declarations
 	fmt.Fprintln(w, "const (")
-	fmt.Fprintln(w, "OpInvalid Op = iota")
+	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
 	for _, a := range archs {
 		fmt.Fprintln(w)
 		for _, v := range a.ops {
+			if v.name == "Invalid" {
+				continue
+			}
 			fmt.Fprintf(w, "Op%s%s\n", a.Name(), v.name)
 		}
 	}
@@ -143,6 +149,9 @@ func genOp() {
 
 		pkg := path.Base(a.pkg)
 		for _, v := range a.ops {
+			if v.name == "Invalid" {
+				continue
+			}
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
 
@@ -178,6 +187,21 @@ func genOp() {
 			}
 			if v.call {
 				fmt.Fprintln(w, "call: true,")
+			}
+			if v.nilCheck {
+				fmt.Fprintln(w, "nilCheck: true,")
+			}
+			if v.faultOnNilArg0 {
+				fmt.Fprintln(w, "faultOnNilArg0: true,")
+				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "" {
+					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
+				}
+			}
+			if v.faultOnNilArg1 {
+				fmt.Fprintln(w, "faultOnNilArg1: true,")
+				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "" {
+					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
+				}
 			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")

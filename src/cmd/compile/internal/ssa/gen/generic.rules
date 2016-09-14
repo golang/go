@@ -770,7 +770,7 @@
     (ConstNil <config.fe.TypeBytePtr()>)
     (ConstNil <config.fe.TypeBytePtr()>))
 
-(Check (NilCheck (GetG _) _) next) -> (Plain nil next)
+(NilCheck (GetG mem) mem) -> mem
 
 (If (Not cond) yes no) -> (If cond no yes)
 (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
@@ -951,16 +951,20 @@
 (Sqrt (Const64F [c])) -> (Const64F [f2i(math.Sqrt(i2f(c)))])
 
 // recognize runtime.newobject and don't Zero/Nilcheck it
-(Zero (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) mem2)
+(Zero (Load (OffPtr [c] (SP)) mem) mem)
+        && mem.Op == OpStaticCall
+	&& isSameSym(mem.Aux, "runtime.newobject")
 	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
-	&& mem2 == mem
-	&& isSameSym(sym, "runtime.newobject")
 	-> mem
-(Check (NilCheck (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _)) _) succ)
-	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
-	&& isSameSym(sym, "runtime.newobject")
-	-> (Plain nil succ)
-(Check (NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem:(StaticCall {sym} _))) _) succ)
-	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
-	&& isSameSym(sym, "runtime.newobject")
-	-> (Plain nil succ)
+// nil checks just need to rewrite to something useless.
+// they will be deadcode eliminated soon afterwards.
+        //(NilCheck (Load (OffPtr [c] (SP)) mem) mem)
+        //        && mem.Op == OpStaticCall
+        //	&& isSameSym(mem.Aux, "runtime.newobject")
+        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+        //	-> (Invalid)
+        //(NilCheck (OffPtr (Load (OffPtr [c] (SP)) mem)) mem)
+        //        && mem.Op == OpStaticCall
+        //	&& isSameSym(mem.Aux, "runtime.newobject")
+        //	&& c == config.ctxt.FixedFrameSize() + config.PtrSize // offset of return value
+        //	-> (Invalid)
