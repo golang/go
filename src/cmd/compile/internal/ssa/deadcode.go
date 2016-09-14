@@ -68,6 +68,11 @@ func liveValues(f *Func, reachable []bool) []bool {
 				live[v.ID] = true
 				q = append(q, v)
 			}
+			if v.Type.IsVoid() && !live[v.ID] {
+				// The only Void ops are nil checks.  We must keep these.
+				live[v.ID] = true
+				q = append(q, v)
+			}
 		}
 	}
 

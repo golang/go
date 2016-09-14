@@ -274,8 +274,9 @@ var passes = [...]pass{
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "likelyadjust", fn: likelyadjust},
-	{name: "layout", fn: layout, required: true},       // schedule blocks
-	{name: "schedule", fn: schedule, required: true},   // schedule values
+	{name: "layout", fn: layout, required: true},     // schedule blocks
+	{name: "schedule", fn: schedule, required: true}, // schedule values
+	{name: "late nilcheck", fn: nilcheckelim2},
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
 	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
 	{name: "trim", fn: trim},                           // remove empty blocks
@@ -329,6 +330,8 @@ var passOrder = [...]constraint{
 	// checkLower must run after lowering & subsequent dead code elim
 	{"lower", "checkLower"},
 	{"lowered deadcode", "checkLower"},
+	// late nilcheck needs instructions to be scheduled.
+	{"schedule", "late nilcheck"},
 	// flagalloc needs instructions to be scheduled.
 	{"schedule", "flagalloc"},
 	// regalloc needs flags to be allocated first.

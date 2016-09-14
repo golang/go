@@ -820,54 +820,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpKeepAlive:
 		gc.KeepAlive(v)
 	case ssa.Op386LoweredNilCheck:
-		// Optimization - if the subsequent block has a load or store
-		// at the same address, we don't need to issue this instruction.
-		mem := v.Args[1]
-		for _, w := range v.Block.Succs[0].Block().Values {
-			if w.Op == ssa.OpPhi {
-				if w.Type.IsMemory() {
-					mem = w
-				}
-				continue
-			}
-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
-				// w doesn't use a store - can't be a memory op.
-				continue
-			}
-			if w.Args[len(w.Args)-1] != mem {
-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
-			}
-			switch w.Op {
-			case ssa.Op386MOVLload, ssa.Op386MOVWload, ssa.Op386MOVBload,
-				ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore,
-				ssa.Op386MOVBLSXload, ssa.Op386MOVWLSXload,
-				ssa.Op386MOVSSload, ssa.Op386MOVSDload,
-				ssa.Op386MOVSSstore, ssa.Op386MOVSDstore:
-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.Op386MOVLstoreconst, ssa.Op386MOVWstoreconst, ssa.Op386MOVBstoreconst:
-				off := ssa.ValAndOff(v.AuxInt).Off()
-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			}
-			if w.Type.IsMemory() {
-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
-					// these ops are OK
-					mem = w
-					continue
-				}
-				// We can't delay the nil check past the next store.
-				break
-			}
-		}
 		// Issue a load which will fault if the input is nil.
 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
 		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
@@ -925,7 +877,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	}
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCheck:
+	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH

@@ -638,65 +638,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			gc.Maxarg = v.AuxInt
 		}
 	case ssa.OpMIPS64LoweredNilCheck:
-		// Optimization - if the subsequent block has a load or store
-		// at the same address, we don't need to issue this instruction.
-		mem := v.Args[1]
-		for _, w := range v.Block.Succs[0].Block().Values {
-			if w.Op == ssa.OpPhi {
-				if w.Type.IsMemory() {
-					mem = w
-				}
-				continue
-			}
-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
-				// w doesn't use a store - can't be a memory op.
-				continue
-			}
-			if w.Args[len(w.Args)-1] != mem {
-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
-			}
-			switch w.Op {
-			case ssa.OpMIPS64MOVBload, ssa.OpMIPS64MOVBUload, ssa.OpMIPS64MOVHload, ssa.OpMIPS64MOVHUload,
-				ssa.OpMIPS64MOVWload, ssa.OpMIPS64MOVWUload, ssa.OpMIPS64MOVVload,
-				ssa.OpMIPS64MOVFload, ssa.OpMIPS64MOVDload,
-				ssa.OpMIPS64MOVBstore, ssa.OpMIPS64MOVHstore, ssa.OpMIPS64MOVWstore, ssa.OpMIPS64MOVVstore,
-				ssa.OpMIPS64MOVFstore, ssa.OpMIPS64MOVDstore,
-				ssa.OpMIPS64MOVBstorezero, ssa.OpMIPS64MOVHstorezero, ssa.OpMIPS64MOVWstorezero, ssa.OpMIPS64MOVVstorezero:
-				// arg0 is ptr, auxint is offset
-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpMIPS64DUFFZERO, ssa.OpMIPS64LoweredZero:
-				// arg0 is ptr
-				if w.Args[0] == v.Args[0] {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpMIPS64LoweredMove:
-				// arg0 is dst ptr, arg1 is src ptr
-				if w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0] {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			default:
-			}
-			if w.Type.IsMemory() {
-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
-					// these ops are OK
-					mem = w
-					continue
-				}
-				// We can't delay the nil check past the next store.
-				break
-			}
-		}
 		// Issue a load which will fault if arg is nil.
 		p := gc.Prog(mips.AMOVB)
 		p.From.Type = obj.TYPE_MEM
@@ -765,7 +706,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCheck:
+	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH

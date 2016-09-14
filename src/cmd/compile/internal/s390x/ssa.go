@@ -611,67 +611,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT:
 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XLoweredNilCheck:
-		// Optimization - if the subsequent block has a load or store
-		// at the same address, we don't need to issue this instruction.
-		mem := v.Args[1]
-		for _, w := range v.Block.Succs[0].Block().Values {
-			if w.Op == ssa.OpPhi {
-				if w.Type.IsMemory() {
-					mem = w
-				}
-				continue
-			}
-			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
-				// w doesn't use a store - can't be a memory op.
-				continue
-			}
-			if w.Args[len(w.Args)-1] != mem {
-				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
-			}
-			switch w.Op {
-			case ssa.OpS390XMOVDload,
-				ssa.OpS390XMOVBload, ssa.OpS390XMOVHload, ssa.OpS390XMOVWload,
-				ssa.OpS390XMOVBZload, ssa.OpS390XMOVHZload, ssa.OpS390XMOVWZload,
-				ssa.OpS390XMOVHBRload, ssa.OpS390XMOVWBRload, ssa.OpS390XMOVDBRload,
-				ssa.OpS390XMOVBstore, ssa.OpS390XMOVHstore, ssa.OpS390XMOVWstore, ssa.OpS390XMOVDstore,
-				ssa.OpS390XFMOVSload, ssa.OpS390XFMOVDload,
-				ssa.OpS390XFMOVSstore, ssa.OpS390XFMOVDstore,
-				ssa.OpS390XSTMG2, ssa.OpS390XSTMG3, ssa.OpS390XSTMG4,
-				ssa.OpS390XSTM2, ssa.OpS390XSTM3, ssa.OpS390XSTM4:
-				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpS390XMOVDstoreconst, ssa.OpS390XMOVWstoreconst, ssa.OpS390XMOVHstoreconst, ssa.OpS390XMOVBstoreconst,
-				ssa.OpS390XCLEAR:
-				off := ssa.ValAndOff(v.AuxInt).Off()
-				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			case ssa.OpS390XMVC:
-				off := ssa.ValAndOff(v.AuxInt).Off()
-				if (w.Args[0] == v.Args[0] || w.Args[1] == v.Args[0]) && w.Aux == nil && off >= 0 && off < minZeroPage {
-					if gc.Debug_checknil != 0 && int(v.Line) > 1 {
-						gc.Warnl(v.Line, "removed nil check")
-					}
-					return
-				}
-			}
-			if w.Type.IsMemory() {
-				if w.Op == ssa.OpVarDef || w.Op == ssa.OpVarKill || w.Op == ssa.OpVarLive {
-					// these ops are OK
-					mem = w
-					continue
-				}
-				// We can't delay the nil check past the next store.
-				break
-			}
-		}
 		// Issue a load which will fault if the input is nil.
 		p := gc.Prog(s390x.AMOVBZ)
 		p.From.Type = obj.TYPE_MEM
@@ -821,7 +760,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 	s.SetLineno(b.Line)
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCheck:
+	case ssa.BlockPlain:
 		if b.Succs[0].Block() != next {
 			p := gc.Prog(s390x.ABR)
 			p.To.Type = obj.TYPE_BRANCH
