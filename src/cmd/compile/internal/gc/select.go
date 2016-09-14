@@ -143,7 +143,7 @@ func walkselect(sel *Node) {
 				}
 
 				n.Op = OAS2
-				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
+				n.List.Prepend(n.Left)
 				n.Rlist.Set1(n.Right)
 				n.Right = nil
 				n.Left = nil

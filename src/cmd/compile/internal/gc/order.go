@@ -676,7 +676,7 @@ func orderstmt(n *Node, order *Order) {
 		n.Left = orderexprinplace(n.Left, order)
 		var l []*Node
 		cleantempnopop(t, order, &l)
-		n.Nbody.Set(append(l, n.Nbody.Slice()...))
+		n.Nbody.Prepend(l...)
 		orderblockNodes(&n.Nbody)
 		n.Right = orderstmtinplace(n.Right)
 		order.out = append(order.out, n)
@@ -690,10 +690,10 @@ func orderstmt(n *Node, order *Order) {
 		n.Left = orderexprinplace(n.Left, order)
 		var l []*Node
 		cleantempnopop(t, order, &l)
-		n.Nbody.Set(append(l, n.Nbody.Slice()...))
+		n.Nbody.Prepend(l...)
 		l = nil
 		cleantempnopop(t, order, &l)
-		n.Rlist.Set(append(l, n.Rlist.Slice()...))
+		n.Rlist.Prepend(l...)
 		poptemp(t, order)
 		orderblockNodes(&n.Nbody)
 		n.Rlist.Set(orderblock(n.Rlist))
@@ -917,7 +917,7 @@ func orderstmt(n *Node, order *Order) {
 		for _, n3 := range n.List.Slice() {
 			s := n3.Ninit.Slice()
 			cleantempnopop(t, order, &s)
-			n3.Nbody.Set(append(s, n3.Nbody.Slice()...))
+			n3.Nbody.Prepend(s...)
 			n3.Ninit.Set(nil)
 		}
 
@@ -1110,7 +1110,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 		var s []*Node
 
 		cleantempnopop(mark, order, &s)
-		n.Right.Ninit.Set(append(s, n.Right.Ninit.Slice()...))
+		n.Right.Ninit.Prepend(s...)
 		n.Right = orderexprinplace(n.Right, order)
 
 	case OCALLFUNC,

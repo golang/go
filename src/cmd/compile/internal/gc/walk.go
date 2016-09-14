@@ -669,7 +669,7 @@ opswitch:
 			// transformclosure already did all preparation work.
 
 			// Prepend captured variables to argument list.
-			n.List.Set(append(n.Left.Func.Enter.Slice(), n.List.Slice()...))
+			n.List.Prepend(n.Left.Func.Enter.Slice()...)
 
 			n.Left.Func.Enter.Set(nil)
 

@@ -376,7 +376,7 @@ func compile(fn *Node) {
 			if t.Nname != nil {
 				n := Nod(OAS, t.Nname, nil)
 				n = typecheck(n, Etop)
-				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
+				Curfn.Nbody.Prepend(n)
 			}
 		}
 	}

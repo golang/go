@@ -281,7 +281,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	// handle default case
 	if nerrors == 0 {
 		cas = append(cas, clauses.defjmp)
-		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
+		sw.Nbody.Prepend(cas...)
 		walkstmtlist(sw.Nbody.Slice())
 	}
 }
@@ -800,7 +800,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	// handle default case
 	if nerrors == 0 {
 		cas = append(cas, def)
-		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
+		sw.Nbody.Prepend(cas...)
 		sw.List.Set(nil)
 		walkstmtlist(sw.Nbody.Slice())
 	}
