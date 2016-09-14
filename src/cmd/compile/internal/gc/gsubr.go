@@ -692,42 +692,6 @@ func ginit() {
 	}
 }
 
-func gclean() {
-	for _, r := range Thearch.ReservedRegs {
-		reg[r-Thearch.REGMIN]--
-	}
-
-	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
-		n := reg[r-Thearch.REGMIN]
-		if n != 0 {
-			if Debug['v'] != 0 {
-				Regdump()
-			}
-			Yyerror("reg %v left allocated", obj.Rconv(r))
-		}
-	}
-
-	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
-		n := reg[r-Thearch.REGMIN]
-		if n != 0 {
-			if Debug['v'] != 0 {
-				Regdump()
-			}
-			Yyerror("reg %v left allocated", obj.Rconv(r))
-		}
-	}
-}
-
-func Anyregalloc() bool {
-	n := 0
-	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
-		if reg[r-Thearch.REGMIN] == 0 {
-			n++
-		}
-	}
-	return n > len(Thearch.ReservedRegs)
-}
-
 // allocate register of type t, leave in n.
 // if o != N, o may be reusable register.
 // caller must Regfree(n).
@@ -827,49 +791,6 @@ func Regfree(n *Node) {
 	if reg[i] == 0 {
 		regstk[i] = regstk[i][:0]
 	}
-}
-
-// Reginuse reports whether r is in use.
-func Reginuse(r int) bool {
-	switch {
-	case Thearch.REGMIN <= r && r <= Thearch.REGMAX,
-		Thearch.FREGMIN <= r && r <= Thearch.FREGMAX:
-		// ok
-	default:
-		Fatalf("reginuse: reg out of range")
-	}
-
-	return reg[r-Thearch.REGMIN] > 0
-}
-
-// Regrealloc(n) undoes the effect of Regfree(n),
-// so that a register can be given up but then reclaimed.
-func Regrealloc(n *Node) {
-	if n.Op != OREGISTER && n.Op != OINDREG {
-		Fatalf("regrealloc: not a register")
-	}
-	i := int(n.Reg)
-	if i == Thearch.REGSP {
-		return
-	}
-	switch {
-	case Thearch.REGMIN <= i && i <= Thearch.REGMAX,
-		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
-		// ok
-	default:
-		Fatalf("regrealloc: reg out of range")
-	}
-
-	i -= Thearch.REGMIN
-	if reg[i] == 0 && Debug['v'] > 0 {
-		if regstk[i] == nil {
-			regstk[i] = make([]byte, 4096)
-		}
-		stk := regstk[i]
-		n := runtime.Stack(stk[:cap(stk)], false)
-		regstk[i] = stk[:n]
-	}
-	reg[i]++
 }
 
 func Regdump() {

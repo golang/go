@@ -22,7 +22,6 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr     // size on 32bit platforms
 		_64bit uintptr     // size on 64bit platforms
 	}{
-		{Flow{}, 52, 88},
 		{Func{}, 96, 168},
 		{Name{}, 52, 80},
 		{Node{}, 92, 144},

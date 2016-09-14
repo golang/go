@@ -31,93 +31,6 @@
 package mips64
 
 import "cmd/internal/obj/mips"
-import "cmd/compile/internal/gc"
-
-const (
-	NREGVAR = 64 /* 32 general + 32 floating */
-)
-
-var regname = []string{
-	".R0",
-	".R1",
-	".R2",
-	".R3",
-	".R4",
-	".R5",
-	".R6",
-	".R7",
-	".R8",
-	".R9",
-	".R10",
-	".R11",
-	".R12",
-	".R13",
-	".R14",
-	".R15",
-	".R16",
-	".R17",
-	".R18",
-	".R19",
-	".R20",
-	".R21",
-	".R22",
-	".R23",
-	".R24",
-	".R25",
-	".R26",
-	".R27",
-	".R28",
-	".R29",
-	".R30",
-	".R31",
-	".F0",
-	".F1",
-	".F2",
-	".F3",
-	".F4",
-	".F5",
-	".F6",
-	".F7",
-	".F8",
-	".F9",
-	".F10",
-	".F11",
-	".F12",
-	".F13",
-	".F14",
-	".F15",
-	".F16",
-	".F17",
-	".F18",
-	".F19",
-	".F20",
-	".F21",
-	".F22",
-	".F23",
-	".F24",
-	".F25",
-	".F26",
-	".F27",
-	".F28",
-	".F29",
-	".F30",
-	".F31",
-}
-
-func regnames(n *int) []string {
-	*n = NREGVAR
-	return regname
-}
-
-func excludedregs() uint64 {
-	// Exclude registers with fixed functions
-	regbits := 1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGSB) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27)
-	return regbits
-}
-
-func doregbits(r int) uint64 {
-	return 0
-}
 
 /*
  * track register variables including external registers:
@@ -139,20 +52,4 @@ func RtoB(r int) uint64 {
 		return 1 << uint(32+r-mips.REG_F0)
 	}
 	return 0
-}
-
-func BtoR(b uint64) int {
-	b &= 0xffffffff
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + mips.REG_R0
-}
-
-func BtoF(b uint64) int {
-	b >>= 32
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + mips.REG_F0
 }

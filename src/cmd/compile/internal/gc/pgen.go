@@ -302,34 +302,6 @@ func allocauto(ptxt *obj.Prog) {
 	}
 }
 
-func Cgen_checknil(n *Node) {
-	if Disable_checknil != 0 {
-		return
-	}
-
-	// Ideally we wouldn't see any integer types here, but we do.
-	if n.Type == nil || (!n.Type.IsPtr() && !n.Type.IsInteger() && n.Type.Etype != TUNSAFEPTR) {
-		Dump("checknil", n)
-		Fatalf("bad checknil")
-	}
-
-	// Most architectures require that the address to be checked is
-	// in a register (it could be in memory).
-	needsReg := !Thearch.LinkArch.InFamily(sys.AMD64, sys.I386)
-
-	// Move the address to be checked into a register if necessary.
-	if (needsReg && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
-		var reg Node
-		Regalloc(&reg, Types[Tptr], n)
-		Cgen(n, &reg)
-		Thearch.Gins(obj.ACHECKNIL, &reg, nil)
-		Regfree(&reg)
-		return
-	}
-
-	Thearch.Gins(obj.ACHECKNIL, n, nil)
-}
-
 func compile(fn *Node) {
 	if Newproc == nil {
 		Newproc = Sysfunc("newproc")
