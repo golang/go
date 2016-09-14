@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -361,7 +362,9 @@ func (t *tester) registerTests() {
 		}
 		if t.race {
 			for _, pkg := range pkgs {
-				t.registerRaceBenchTest(pkg)
+				if t.packageHasBenchmarks(pkg) {
+					t.registerRaceBenchTest(pkg)
+				}
 			}
 		}
 	}
@@ -1085,4 +1088,39 @@ var cgoPackages = []string{
 	"crypto/x509",
 	"net",
 	"os/user",
+}
+
+var funcBenchmark = []byte("\nfunc Benchmark")
+
+// packageHasBenchmarks reports whether pkg has benchmarks.
+// On any error, it conservatively returns true.
+//
+// This exists just to eliminate work on the builders, since compiling
+// a test in race mode just to discover it has no benchmarks costs a
+// second or two per package, and this function returns false for
+// about 100 packages.
+func (t *tester) packageHasBenchmarks(pkg string) bool {
+	pkgDir := filepath.Join(t.goroot, "src", pkg)
+	d, err := os.Open(pkgDir)
+	if err != nil {
+		return true // conservatively
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return true // conservatively
+	}
+	for _, name := range names {
+		if !strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		slurp, err := ioutil.ReadFile(filepath.Join(pkgDir, name))
+		if err != nil {
+			return true // conservatively
+		}
+		if bytes.Contains(slurp, funcBenchmark) {
+			return true
+		}
+	}
+	return false
 }
