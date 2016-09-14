@@ -85,10 +85,6 @@ type Logger interface {
 	// Fatal reports a compiler error and exits.
 	Fatalf(line int32, msg string, args ...interface{})
 
-	// Unimplemented reports that the function cannot be compiled.
-	// It will be removed once SSA work is complete.
-	Unimplementedf(line int32, msg string, args ...interface{})
-
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(line int32, fmt_ string, args ...interface{})
 
@@ -218,7 +214,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.hasGReg = true
 		c.noDuffDevice = true
 	default:
-		fe.Unimplementedf(0, "arch %s not implemented", arch)
+		fe.Fatalf(0, "arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
@@ -294,11 +290,8 @@ func (c *Config) NewFunc() *Func {
 func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
 func (c *Config) Log() bool                                          { return c.fe.Log() }
 func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
-func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
-	c.fe.Unimplementedf(line, msg, args...)
-}
-func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
-func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
+func (c *Config) Warnl(line int32, msg string, args ...interface{})  { c.fe.Warnl(line, msg, args...) }
+func (c *Config) Debug_checknil() bool                               { return c.fe.Debug_checknil() }
 
 func (c *Config) logDebugHashMatch(evname, name string) {
 	file := c.logfiles[evname]

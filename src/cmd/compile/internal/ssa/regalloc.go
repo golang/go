@@ -373,7 +373,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 		}
 	}
 	if maxuse == -1 {
-		s.f.Unimplementedf("couldn't find register to spill")
+		s.f.Fatalf("couldn't find register to spill")
 	}
 	s.freeReg(r)
 	return r
@@ -505,7 +505,7 @@ func (s *regAllocState) init(f *Func) {
 		case "s390x":
 			// nothing to do, R10 & R11 already reserved
 		default:
-			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
+			s.f.Config.fe.Fatalf(0, "arch %s not implemented", s.f.Config.arch)
 		}
 	}
 	if s.f.Config.nacl {

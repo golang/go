@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"fmt"
@@ -400,9 +399,9 @@ func compile(fn *Node) {
 	}
 
 	// Build an SSA backend function.
-	var ssafn *ssa.Func
-	if shouldssa(Curfn) {
-		ssafn = buildssa(Curfn)
+	ssafn := buildssa(Curfn)
+	if nerrors != 0 {
+		return
 	}
 
 	continpc = nil
@@ -478,12 +477,8 @@ func compile(fn *Node) {
 		}
 	}
 
-	if ssafn != nil {
-		genssa(ssafn, ptxt, gcargs, gclocals)
-		ssafn.Free()
-	} else {
-		genlegacy(ptxt, gcargs, gclocals)
-	}
+	genssa(ssafn, ptxt, gcargs, gclocals)
+	ssafn.Free()
 }
 
 type symByName []*Sym
@@ -491,70 +486,3 @@ type symByName []*Sym
 func (a symByName) Len() int           { return len(a) }
 func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
 func (a symByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// genlegacy compiles Curfn using the legacy non-SSA code generator.
-func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
-	Genlist(Curfn.Func.Enter)
-	Genlist(Curfn.Nbody)
-	gclean()
-	checklabels()
-	if nerrors != 0 {
-		return
-	}
-	if Curfn.Func.Endlineno != 0 {
-		lineno = Curfn.Func.Endlineno
-	}
-
-	if Curfn.Type.Results().NumFields() != 0 {
-		Ginscall(throwreturn, 0)
-	}
-
-	ginit()
-
-	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
-	cgen_ret(nil)
-
-	if hasdefer {
-		// deferreturn pretends to have one uintptr argument.
-		// Reserve space for it so stack scanner is happy.
-		if Maxarg < int64(Widthptr) {
-			Maxarg = int64(Widthptr)
-		}
-	}
-
-	gclean()
-	if nerrors != 0 {
-		return
-	}
-
-	Pc.As = obj.ARET // overwrite AEND
-	Pc.Lineno = lineno
-
-	fixjmp(ptxt)
-	if Debug['N'] == 0 || Debug['R'] != 0 || Debug['P'] != 0 {
-		regopt(ptxt)
-		nilopt(ptxt)
-	}
-
-	Thearch.Expandchecks(ptxt)
-
-	allocauto(ptxt)
-
-	setlineno(Curfn)
-	if Stksize+Maxarg > 1<<31 {
-		Yyerror("stack frame too large (>2GB)")
-		return
-	}
-
-	// Emit garbage collection symbols.
-	liveness(Curfn, ptxt, gcargs, gclocals)
-
-	Thearch.Defframe(ptxt)
-
-	if Debug['f'] != 0 {
-		frame(0)
-	}
-
-	// Remove leftover instrumentation from the instruction stream.
-	removevardef(ptxt)
-}

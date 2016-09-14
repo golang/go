@@ -228,9 +228,6 @@ func (v *Value) Log() bool                            { return v.Block.Log() }
 func (v *Value) Fatalf(msg string, args ...interface{}) {
 	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
 }
-func (v *Value) Unimplementedf(msg string, args ...interface{}) {
-	v.Block.Func.Config.Unimplementedf(v.Line, msg, args...)
-}
 
 // isGenericIntConst returns whether v is a generic integer constant.
 func (v *Value) isGenericIntConst() bool {
