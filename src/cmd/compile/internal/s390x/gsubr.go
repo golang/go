@@ -69,39 +69,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	rawgins(as, &n1, n2)
 }
 
-// generate
-//	as n, $c (CMP/CMPU)
-func ginscon2(as obj.As, n2 *gc.Node, c int64) {
-	var n1 gc.Node
-
-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
-
-	switch as {
-	default:
-		gc.Fatalf("ginscon2")
-
-	case s390x.ACMP:
-		if -s390x.BIG <= c && c <= s390x.BIG {
-			rawgins(as, n2, &n1)
-			return
-		}
-
-	case s390x.ACMPU:
-		if 0 <= c && c <= 2*s390x.BIG {
-			rawgins(as, n2, &n1)
-			return
-		}
-	}
-
-	// MOV n1 into register first
-	var ntmp gc.Node
-	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
-
-	rawgins(s390x.AMOVD, &n1, &ntmp)
-	rawgins(as, n2, &ntmp)
-	gc.Regfree(&ntmp)
-}
-
 // gmvc tries to move f to t using a mvc instruction.
 // If successful it returns true, otherwise it returns false.
 func gmvc(f, t *gc.Node) bool {
@@ -169,12 +136,6 @@ func gins(as obj.As, f, t *gc.Node) *obj.Prog {
 		if as >= obj.A_ARCHSPECIFIC {
 			if x, ok := intLiteral(f); ok {
 				ginscon(as, x, t)
-				return nil // caller must not use
-			}
-		}
-		if as == s390x.ACMP || as == s390x.ACMPU {
-			if x, ok := intLiteral(t); ok {
-				ginscon2(as, f, x)
 				return nil // caller must not use
 			}
 		}

@@ -69,35 +69,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	rawgins(as, &n1, n2)
 }
 
-/*
- * generate
- *	as n, $c (CMP)
- */
-func ginscon2(as obj.As, n2 *gc.Node, c int64) {
-	var n1 gc.Node
-
-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
-
-	switch as {
-	default:
-		gc.Fatalf("ginscon2")
-
-	case arm64.ACMP:
-		if -arm64.BIG <= c && c <= arm64.BIG {
-			gcmp(as, n2, &n1)
-			return
-		}
-	}
-
-	// MOV n1 into register first
-	var ntmp gc.Node
-	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
-
-	rawgins(arm64.AMOVD, &n1, &ntmp)
-	gcmp(as, n2, &ntmp)
-	gc.Regfree(&ntmp)
-}
-
 // gins is called by the front end.
 // It synthesizes some multiple-instruction sequences
 // so the front end can stay simpler.
@@ -105,12 +76,6 @@ func gins(as obj.As, f, t *gc.Node) *obj.Prog {
 	if as >= obj.A_ARCHSPECIFIC {
 		if x, ok := f.IntLiteral(); ok {
 			ginscon(as, x, t)
-			return nil // caller must not use
-		}
-	}
-	if as == arm64.ACMP {
-		if x, ok := t.IntLiteral(); ok {
-			ginscon2(as, f, x)
 			return nil // caller must not use
 		}
 	}
