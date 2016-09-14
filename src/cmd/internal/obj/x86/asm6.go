@@ -352,28 +352,12 @@ var yxorb = []ytab{
 	{Ymb, Ynone, Yrb, Zm_r, 1},
 }
 
-var yxorl = []ytab{
-	{Yi8, Ynone, Yml, Zibo_m, 2},
-	{Yi32, Ynone, Yax, Zil_, 1},
-	{Yi32, Ynone, Yml, Zilo_m, 2},
-	{Yrl, Ynone, Yml, Zr_m, 1},
-	{Yml, Ynone, Yrl, Zm_r, 1},
-}
-
 var yaddl = []ytab{
 	{Yi8, Ynone, Yml, Zibo_m, 2},
 	{Yi32, Ynone, Yax, Zil_, 1},
 	{Yi32, Ynone, Yml, Zilo_m, 2},
 	{Yrl, Ynone, Yml, Zr_m, 1},
 	{Yml, Ynone, Yrl, Zm_r, 1},
-}
-
-var yincb = []ytab{
-	{Ynone, Ynone, Ymb, Zo_m, 2},
-}
-
-var yincw = []ytab{
-	{Ynone, Ynone, Yml, Zo_m, 2},
 }
 
 var yincl = []ytab{
@@ -413,13 +397,6 @@ var yshl = []ytab{
 	{Ycx, Ynone, Yml, Zo_m, 2},
 }
 
-var ytestb = []ytab{
-	{Yi32, Ynone, Yal, Zib_, 1},
-	{Yi32, Ynone, Ymb, Zibo_m, 2},
-	{Yrb, Ynone, Ymb, Zr_m, 1},
-	{Ymb, Ynone, Yrb, Zm_r, 1},
-}
-
 var ytestl = []ytab{
 	{Yi32, Ynone, Yax, Zil_, 1},
 	{Yi32, Ynone, Yml, Zilo_m, 2},
@@ -432,10 +409,6 @@ var ymovb = []ytab{
 	{Ymb, Ynone, Yrb, Zm_r, 1},
 	{Yi32, Ynone, Yrb, Zib_rp, 1},
 	{Yi32, Ynone, Ymb, Zibo_m, 2},
-}
-
-var ymbs = []ytab{
-	{Ymb, Ynone, Ynone, Zm_o, 2},
 }
 
 var ybtl = []ytab{
@@ -643,10 +616,6 @@ var yfadd = []ytab{
 	{Yf0, Ynone, Yrf, Zo_m, 2},
 }
 
-var yfaddp = []ytab{
-	{Yf0, Ynone, Yrf, Zo_m, 2},
-}
-
 var yfxch = []ytab{
 	{Yf0, Ynone, Yrf, Zo_m, 2},
 	{Yrf, Ynone, Yf0, Zm_o, 2},
@@ -659,11 +628,6 @@ var ycompp = []ytab{
 var ystsw = []ytab{
 	{Ynone, Ynone, Ym, Zo_m, 2},
 	{Ynone, Ynone, Yax, Zlit, 1},
-}
-
-var ystcw = []ytab{
-	{Ynone, Ynone, Ym, Zo_m, 2},
-	{Ym, Ynone, Ynone, Zm_o, 2},
 }
 
 var ysvrs = []ytab{
@@ -694,12 +658,6 @@ var yxcvm2 = []ytab{
 	{Ymm, Ynone, Yxr, Zm_r_xm, 2},
 }
 
-/*
-var yxmq = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
-}
-*/
-
 var yxr = []ytab{
 	{Yxr, Ynone, Yxr, Zm_r_xm, 1},
 }
@@ -714,10 +672,6 @@ var ymr = []ytab{
 
 var ymr_ml = []ytab{
 	{Ymr, Ynone, Yml, Zr_m_xm, 1},
-}
-
-var yxcmp = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
 }
 
 var yxcmpi = []ytab{
@@ -810,10 +764,6 @@ var yaes = []ytab{
 	{Yxm, Ynone, Yxr, Zlitm_r, 2},
 }
 
-var yaes2 = []ytab{
-	{Yu8, Yxm, Yxr, Zibm_r, 2},
-}
-
 var yxbegin = []ytab{
 	{Ynone, Ynone, Ybr, Zjmp, 1},
 }
@@ -883,11 +833,9 @@ var yvex_shift_dq = []ytab{
 
 var yvex_r3 = []ytab{
 	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
-	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
 }
 
 var yvex_vmr3 = []ytab{
-	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
 	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
 }
 
@@ -990,9 +938,9 @@ var optab =
 	{AAAM, ynone, P32, [23]uint8{0xd4, 0x0a}},
 	{AAAS, ynone, P32, [23]uint8{0x3f}},
 	{AADCB, yxorb, Pb, [23]uint8{0x14, 0x80, 02, 0x10, 0x10}},
-	{AADCL, yxorl, Px, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
-	{AADCQ, yxorl, Pw, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
-	{AADCW, yxorl, Pe, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+	{AADCL, yaddl, Px, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+	{AADCQ, yaddl, Pw, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
+	{AADCW, yaddl, Pe, [23]uint8{0x83, 02, 0x15, 0x81, 02, 0x11, 0x13}},
 	{AADDB, yxorb, Pb, [23]uint8{0x04, 0x80, 00, 0x00, 0x02}},
 	{AADDL, yaddl, Px, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
 	{AADDPD, yxm, Pq, [23]uint8{0x58}},
@@ -1003,13 +951,13 @@ var optab =
 	{AADDW, yaddl, Pe, [23]uint8{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
 	{AADJSP, nil, 0, [23]uint8{}},
 	{AANDB, yxorb, Pb, [23]uint8{0x24, 0x80, 04, 0x20, 0x22}},
-	{AANDL, yxorl, Px, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
+	{AANDL, yaddl, Px, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
 	{AANDNPD, yxm, Pq, [23]uint8{0x55}},
 	{AANDNPS, yxm, Pm, [23]uint8{0x55}},
 	{AANDPD, yxm, Pq, [23]uint8{0x54}},
 	{AANDPS, yxm, Pq, [23]uint8{0x54}},
-	{AANDQ, yxorl, Pw, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
-	{AANDW, yxorl, Pe, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
+	{AANDQ, yaddl, Pw, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
+	{AANDW, yaddl, Pe, [23]uint8{0x83, 04, 0x25, 0x81, 04, 0x21, 0x23}},
 	{AARPL, yrl_ml, P32, [23]uint8{0x63}},
 	{ABOUNDL, yrl_m, P32, [23]uint8{0x62}},
 	{ABOUNDW, yrl_m, Pe, [23]uint8{0x62}},
@@ -1101,8 +1049,8 @@ var optab =
 	{ACMPSS, yxcmpi, Px, [23]uint8{Pf3, 0xc2}},
 	{ACMPSW, ynone, Pe, [23]uint8{0xa7}},
 	{ACMPW, ycmpl, Pe, [23]uint8{0x83, 07, 0x3d, 0x81, 07, 0x39, 0x3b}},
-	{ACOMISD, yxcmp, Pe, [23]uint8{0x2f}},
-	{ACOMISS, yxcmp, Pm, [23]uint8{0x2f}},
+	{ACOMISD, yxm, Pe, [23]uint8{0x2f}},
+	{ACOMISS, yxm, Pm, [23]uint8{0x2f}},
 	{ACPUID, ynone, Pm, [23]uint8{0xa2}},
 	{ACVTPL2PD, yxcvm2, Px, [23]uint8{Pf3, 0xe6, Pe, 0x2a}},
 	{ACVTPL2PS, yxcvm2, Pm, [23]uint8{0x5b, 0, 0x2a, 0}},
@@ -1130,10 +1078,10 @@ var optab =
 	{ACQO, ynone, Pw, [23]uint8{0x99}},
 	{ADAA, ynone, P32, [23]uint8{0x27}},
 	{ADAS, ynone, P32, [23]uint8{0x2f}},
-	{ADECB, yincb, Pb, [23]uint8{0xfe, 01}},
+	{ADECB, yscond, Pb, [23]uint8{0xfe, 01}},
 	{ADECL, yincl, Px1, [23]uint8{0x48, 0xff, 01}},
 	{ADECQ, yincq, Pw, [23]uint8{0xff, 01}},
-	{ADECW, yincw, Pe, [23]uint8{0xff, 01}},
+	{ADECW, yincq, Pe, [23]uint8{0xff, 01}},
 	{ADIVB, ydivb, Pb, [23]uint8{0xf6, 06}},
 	{ADIVL, ydivl, Px, [23]uint8{0xf7, 06}},
 	{ADIVPD, yxm, Pe, [23]uint8{0x5e}},
@@ -1159,10 +1107,10 @@ var optab =
 	{AIMULW, yimul, Pe, [23]uint8{0xf7, 05, 0x6b, 0x69, Pm, 0xaf}},
 	{AIMUL3Q, yimul3, Pw, [23]uint8{0x6b, 00}},
 	{AINB, yin, Pb, [23]uint8{0xe4, 0xec}},
-	{AINCB, yincb, Pb, [23]uint8{0xfe, 00}},
+	{AINCB, yscond, Pb, [23]uint8{0xfe, 00}},
 	{AINCL, yincl, Px1, [23]uint8{0x40, 0xff, 00}},
 	{AINCQ, yincq, Pw, [23]uint8{0xff, 00}},
-	{AINCW, yincw, Pe, [23]uint8{0xff, 00}},
+	{AINCW, yincq, Pe, [23]uint8{0xff, 00}},
 	{AINL, yin, Px, [23]uint8{0xe5, 0xed}},
 	{AINSB, ynone, Pb, [23]uint8{0x6c}},
 	{AINSL, ynone, Px, [23]uint8{0x6d}},
@@ -1288,11 +1236,11 @@ var optab =
 	{ANOTQ, yscond, Pw, [23]uint8{0xf7, 02}},
 	{ANOTW, yscond, Pe, [23]uint8{0xf7, 02}},
 	{AORB, yxorb, Pb, [23]uint8{0x0c, 0x80, 01, 0x08, 0x0a}},
-	{AORL, yxorl, Px, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
+	{AORL, yaddl, Px, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
 	{AORPD, yxm, Pq, [23]uint8{0x56}},
 	{AORPS, yxm, Pm, [23]uint8{0x56}},
-	{AORQ, yxorl, Pw, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
-	{AORW, yxorl, Pe, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
+	{AORQ, yaddl, Pw, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
+	{AORW, yaddl, Pe, [23]uint8{0x83, 01, 0x0d, 0x81, 01, 0x09, 0x0b}},
 	{AOUTB, yin, Pb, [23]uint8{0xe6, 0xee}},
 	{AOUTL, yin, Px, [23]uint8{0xe7, 0xef}},
 	{AOUTSB, ynone, Pb, [23]uint8{0x6e}},
@@ -1450,9 +1398,9 @@ var optab =
 	{ASARQ, yshl, Pw, [23]uint8{0xd1, 07, 0xc1, 07, 0xd3, 07, 0xd3, 07}},
 	{ASARW, yshl, Pe, [23]uint8{0xd1, 07, 0xc1, 07, 0xd3, 07, 0xd3, 07}},
 	{ASBBB, yxorb, Pb, [23]uint8{0x1c, 0x80, 03, 0x18, 0x1a}},
-	{ASBBL, yxorl, Px, [23]uint8{0x83, 03, 0x1d, 0x81, 03, 0x19, 0x1b}},
-	{ASBBQ, yxorl, Pw, [23]uint8{0x83, 03, 0x1d, 0x81, 03, 0x19, 0x1b}},
-	{ASBBW, yxorl, Pe, [23]uint8{0x83, 03, 0x1d, 0x81, 03, 0x19, 0x1b}},
+	{ASBBL, yaddl, Px, [23]uint8{0x83, 03, 0x1d, 0x81, 03, 0x19, 0x1b}},
+	{ASBBQ, yaddl, Pw, [23]uint8{0x83, 03, 0x1d, 0x81, 03, 0x19, 0x1b}},
+	{ASBBW, yaddl, Pe, [23]uint8{0x83, 03, 0x1d, 0x81, 03, 0x19, 0x1b}},
 	{ASCASB, ynone, Pb, [23]uint8{0xae}},
 	{ASCASL, ynone, Px, [23]uint8{0xaf}},
 	{ASCASQ, ynone, Pw, [23]uint8{0xaf}},
@@ -1505,13 +1453,13 @@ var optab =
 	{ASUBW, yaddl, Pe, [23]uint8{0x83, 05, 0x2d, 0x81, 05, 0x29, 0x2b}},
 	{ASWAPGS, ynone, Pm, [23]uint8{0x01, 0xf8}},
 	{ASYSCALL, ynone, Px, [23]uint8{0x0f, 0x05}}, /* fast syscall */
-	{ATESTB, ytestb, Pb, [23]uint8{0xa8, 0xf6, 00, 0x84, 0x84}},
+	{ATESTB, yxorb, Pb, [23]uint8{0xa8, 0xf6, 00, 0x84, 0x84}},
 	{ATESTL, ytestl, Px, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
 	{ATESTQ, ytestl, Pw, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
 	{ATESTW, ytestl, Pe, [23]uint8{0xa9, 0xf7, 00, 0x85, 0x85}},
 	{obj.ATEXT, ytext, Px, [23]uint8{}},
-	{AUCOMISD, yxcmp, Pe, [23]uint8{0x2e}},
-	{AUCOMISS, yxcmp, Pm, [23]uint8{0x2e}},
+	{AUCOMISD, yxm, Pe, [23]uint8{0x2e}},
+	{AUCOMISS, yxm, Pm, [23]uint8{0x2e}},
 	{AUNPCKHPD, yxm, Pe, [23]uint8{0x15}},
 	{AUNPCKHPS, yxm, Pm, [23]uint8{0x15}},
 	{AUNPCKLPD, yxm, Pe, [23]uint8{0x14}},
@@ -1526,11 +1474,11 @@ var optab =
 	{AXCHGW, yxchg, Pe, [23]uint8{0x90, 0x90, 0x87, 0x87}},
 	{AXLAT, ynone, Px, [23]uint8{0xd7}},
 	{AXORB, yxorb, Pb, [23]uint8{0x34, 0x80, 06, 0x30, 0x32}},
-	{AXORL, yxorl, Px, [23]uint8{0x83, 06, 0x35, 0x81, 06, 0x31, 0x33}},
+	{AXORL, yaddl, Px, [23]uint8{0x83, 06, 0x35, 0x81, 06, 0x31, 0x33}},
 	{AXORPD, yxm, Pe, [23]uint8{0x57}},
 	{AXORPS, yxm, Pm, [23]uint8{0x57}},
-	{AXORQ, yxorl, Pw, [23]uint8{0x83, 06, 0x35, 0x81, 06, 0x31, 0x33}},
-	{AXORW, yxorl, Pe, [23]uint8{0x83, 06, 0x35, 0x81, 06, 0x31, 0x33}},
+	{AXORQ, yaddl, Pw, [23]uint8{0x83, 06, 0x35, 0x81, 06, 0x31, 0x33}},
+	{AXORW, yaddl, Pe, [23]uint8{0x83, 06, 0x35, 0x81, 06, 0x31, 0x33}},
 	{AFMOVB, yfmvx, Px, [23]uint8{0xdf, 04}},
 	{AFMOVBP, yfmvp, Px, [23]uint8{0xdf, 06}},
 	{AFMOVD, yfmvd, Px, [23]uint8{0xdd, 00, 0xdd, 02, 0xd9, 00, 0xdd, 02}},
@@ -1569,44 +1517,44 @@ var optab =
 	{AFUCOMIP, ycompp, Px, [23]uint8{0xdf, 05}},
 	{AFUCOMP, ycompp, Px, [23]uint8{0xdd, 05}},
 	{AFUCOMPP, ycompp, Px, [23]uint8{0xda, 13}},
-	{AFADDDP, yfaddp, Px, [23]uint8{0xde, 00}},
+	{AFADDDP, ycompp, Px, [23]uint8{0xde, 00}},
 	{AFADDW, yfmvx, Px, [23]uint8{0xde, 00}},
 	{AFADDL, yfmvx, Px, [23]uint8{0xda, 00}},
 	{AFADDF, yfmvx, Px, [23]uint8{0xd8, 00}},
 	{AFADDD, yfadd, Px, [23]uint8{0xdc, 00, 0xd8, 00, 0xdc, 00}},
-	{AFMULDP, yfaddp, Px, [23]uint8{0xde, 01}},
+	{AFMULDP, ycompp, Px, [23]uint8{0xde, 01}},
 	{AFMULW, yfmvx, Px, [23]uint8{0xde, 01}},
 	{AFMULL, yfmvx, Px, [23]uint8{0xda, 01}},
 	{AFMULF, yfmvx, Px, [23]uint8{0xd8, 01}},
 	{AFMULD, yfadd, Px, [23]uint8{0xdc, 01, 0xd8, 01, 0xdc, 01}},
-	{AFSUBDP, yfaddp, Px, [23]uint8{0xde, 05}},
+	{AFSUBDP, ycompp, Px, [23]uint8{0xde, 05}},
 	{AFSUBW, yfmvx, Px, [23]uint8{0xde, 04}},
 	{AFSUBL, yfmvx, Px, [23]uint8{0xda, 04}},
 	{AFSUBF, yfmvx, Px, [23]uint8{0xd8, 04}},
 	{AFSUBD, yfadd, Px, [23]uint8{0xdc, 04, 0xd8, 04, 0xdc, 05}},
-	{AFSUBRDP, yfaddp, Px, [23]uint8{0xde, 04}},
+	{AFSUBRDP, ycompp, Px, [23]uint8{0xde, 04}},
 	{AFSUBRW, yfmvx, Px, [23]uint8{0xde, 05}},
 	{AFSUBRL, yfmvx, Px, [23]uint8{0xda, 05}},
 	{AFSUBRF, yfmvx, Px, [23]uint8{0xd8, 05}},
 	{AFSUBRD, yfadd, Px, [23]uint8{0xdc, 05, 0xd8, 05, 0xdc, 04}},
-	{AFDIVDP, yfaddp, Px, [23]uint8{0xde, 07}},
+	{AFDIVDP, ycompp, Px, [23]uint8{0xde, 07}},
 	{AFDIVW, yfmvx, Px, [23]uint8{0xde, 06}},
 	{AFDIVL, yfmvx, Px, [23]uint8{0xda, 06}},
 	{AFDIVF, yfmvx, Px, [23]uint8{0xd8, 06}},
 	{AFDIVD, yfadd, Px, [23]uint8{0xdc, 06, 0xd8, 06, 0xdc, 07}},
-	{AFDIVRDP, yfaddp, Px, [23]uint8{0xde, 06}},
+	{AFDIVRDP, ycompp, Px, [23]uint8{0xde, 06}},
 	{AFDIVRW, yfmvx, Px, [23]uint8{0xde, 07}},
 	{AFDIVRL, yfmvx, Px, [23]uint8{0xda, 07}},
 	{AFDIVRF, yfmvx, Px, [23]uint8{0xd8, 07}},
 	{AFDIVRD, yfadd, Px, [23]uint8{0xdc, 07, 0xd8, 07, 0xdc, 06}},
 	{AFXCHD, yfxch, Px, [23]uint8{0xd9, 01, 0xd9, 01}},
 	{AFFREE, nil, 0, [23]uint8{}},
-	{AFLDCW, ystcw, Px, [23]uint8{0xd9, 05, 0xd9, 05}},
-	{AFLDENV, ystcw, Px, [23]uint8{0xd9, 04, 0xd9, 04}},
+	{AFLDCW, ysvrs, Px, [23]uint8{0xd9, 05, 0xd9, 05}},
+	{AFLDENV, ysvrs, Px, [23]uint8{0xd9, 04, 0xd9, 04}},
 	{AFRSTOR, ysvrs, Px, [23]uint8{0xdd, 04, 0xdd, 04}},
 	{AFSAVE, ysvrs, Px, [23]uint8{0xdd, 06, 0xdd, 06}},
-	{AFSTCW, ystcw, Px, [23]uint8{0xd9, 07, 0xd9, 07}},
-	{AFSTENV, ystcw, Px, [23]uint8{0xd9, 06, 0xd9, 06}},
+	{AFSTCW, ysvrs, Px, [23]uint8{0xd9, 07, 0xd9, 07}},
+	{AFSTENV, ysvrs, Px, [23]uint8{0xd9, 06, 0xd9, 06}},
 	{AFSTSW, ystsw, Px, [23]uint8{0xdd, 07, 0xdf, 0xe0}},
 	{AF2XM1, ynone, Px, [23]uint8{0xd9, 0xf0}},
 	{AFABS, ynone, Px, [23]uint8{0xd9, 0xe1}},
@@ -1644,7 +1592,7 @@ var optab =
 	{ACMPXCHGQ, yrl_ml, Pw, [23]uint8{0x0f, 0xb1}},
 	{ACMPXCHG8B, yscond, Pm, [23]uint8{0xc7, 01}},
 	{AINVD, ynone, Pm, [23]uint8{0x08}},
-	{AINVLPG, ymbs, Pm, [23]uint8{0x01, 07}},
+	{AINVLPG, ydivb, Pm, [23]uint8{0x01, 07}},
 	{ALFENCE, ynone, Pm, [23]uint8{0xae, 0xe8}},
 	{AMFENCE, ynone, Pm, [23]uint8{0xae, 0xf0}},
 	{AMOVNTIL, yrl_ml, Pm, [23]uint8{0xc3}},
@@ -1674,11 +1622,11 @@ var optab =
 	{AAESDEC, yaes, Pq, [23]uint8{0x38, 0xde, 0}},
 	{AAESDECLAST, yaes, Pq, [23]uint8{0x38, 0xdf, 0}},
 	{AAESIMC, yaes, Pq, [23]uint8{0x38, 0xdb, 0}},
-	{AAESKEYGENASSIST, yaes2, Pq, [23]uint8{0x3a, 0xdf, 0}},
-	{AROUNDPD, yaes2, Pq, [23]uint8{0x3a, 0x09, 0}},
-	{AROUNDPS, yaes2, Pq, [23]uint8{0x3a, 0x08, 0}},
-	{AROUNDSD, yaes2, Pq, [23]uint8{0x3a, 0x0b, 0}},
-	{AROUNDSS, yaes2, Pq, [23]uint8{0x3a, 0x0a, 0}},
+	{AAESKEYGENASSIST, yxshuf, Pq, [23]uint8{0x3a, 0xdf, 0}},
+	{AROUNDPD, yxshuf, Pq, [23]uint8{0x3a, 0x09, 0}},
+	{AROUNDPS, yxshuf, Pq, [23]uint8{0x3a, 0x08, 0}},
+	{AROUNDSD, yxshuf, Pq, [23]uint8{0x3a, 0x0b, 0}},
+	{AROUNDSS, yxshuf, Pq, [23]uint8{0x3a, 0x0a, 0}},
 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
 	{APCMPESTRI, yxshuf, Pq, [23]uint8{0x3a, 0x61, 0}},
