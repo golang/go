@@ -12,10 +12,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
+	"cmd/internal/browser"
 	"cmd/internal/pprof/plugin"
 	"cmd/internal/pprof/report"
 	"cmd/internal/pprof/svg"
@@ -85,18 +85,9 @@ func PProf(c Completer, interactive **bool) Commands {
 // on the current platform
 func browsers() []string {
 	var cmds []string
-	if exe := os.Getenv("BROWSER"); exe != "" {
-		cmds = append(cmds, exe)
+	for _, cmd := range browser.Commands() {
+		cmds = append(cmds, strings.Join(cmd, " "))
 	}
-	switch runtime.GOOS {
-	case "darwin":
-		cmds = append(cmds, "/usr/bin/open")
-	case "windows":
-		cmds = append(cmds, "cmd /c start")
-	default:
-		cmds = append(cmds, "xdg-open")
-	}
-	cmds = append(cmds, "chrome", "google-chrome", "firefox")
 	return cmds
 }
 

@@ -20,6 +20,7 @@ package main
 
 import (
 	"bufio"
+	"cmd/internal/browser"
 	"flag"
 	"fmt"
 	"html/template"
@@ -28,8 +29,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"runtime"
 	"sync"
 )
 
@@ -96,7 +95,7 @@ func main() {
 	ranges = splitTrace(data)
 
 	log.Printf("Opening browser")
-	if !startBrowser("http://" + ln.Addr().String()) {
+	if !browser.Open("http://" + ln.Addr().String()) {
 		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
 	}
 
@@ -161,24 +160,6 @@ var templMain = template.Must(template.New("").Parse(`
 </body>
 </html>
 `))
-
-// startBrowser tries to open the URL in a browser
-// and reports whether it succeeds.
-// Note: copied from x/tools/cmd/cover/html.go
-func startBrowser(url string) bool {
-	// try to start the browser
-	var args []string
-	switch runtime.GOOS {
-	case "darwin":
-		args = []string{"open"}
-	case "windows":
-		args = []string{"cmd", "/c", "start"}
-	default:
-		args = []string{"xdg-open"}
-	}
-	cmd := exec.Command(args[0], append(args[1:], url)...)
-	return cmd.Start() == nil
-}
 
 func dief(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg, args...)
