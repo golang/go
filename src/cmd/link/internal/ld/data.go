@@ -452,7 +452,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 				// We are linking the final executable, so we
 				// can optimize any TLS IE relocation to LE.
 				if Thearch.TLSIEtoLE == nil {
-					log.Fatalf("internal linking of TLS IE not supported on %s", SysArch.Family)
+					log.Fatalf("internal linking of TLS IE not supported on %v", SysArch.Family)
 				}
 				Thearch.TLSIEtoLE(s, int(off), int(r.Siz))
 				o = int64(ctxt.Tlsoffset)
