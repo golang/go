@@ -76,41 +76,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	rawgins(as, &n1, n2)
 }
 
-/*
- * generate
- *	as n, $c (CMP/CMPU)
- */
-func ginscon2(as obj.As, n2 *gc.Node, c int64) {
-	var n1 gc.Node
-
-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
-
-	switch as {
-	default:
-		gc.Fatalf("ginscon2")
-
-	case ppc64.ACMP:
-		if -ppc64.BIG <= c && c <= ppc64.BIG {
-			rawgins(as, n2, &n1)
-			return
-		}
-
-	case ppc64.ACMPU:
-		if 0 <= c && c <= 2*ppc64.BIG {
-			rawgins(as, n2, &n1)
-			return
-		}
-	}
-
-	// MOV n1 into register first
-	var ntmp gc.Node
-	gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
-
-	rawgins(ppc64.AMOVD, &n1, &ntmp)
-	rawgins(as, n2, &ntmp)
-	gc.Regfree(&ntmp)
-}
-
 // gins is called by the front end.
 // It synthesizes some multiple-instruction sequences
 // so the front end can stay simpler.
@@ -118,12 +83,6 @@ func gins(as obj.As, f, t *gc.Node) *obj.Prog {
 	if as >= obj.A_ARCHSPECIFIC {
 		if x, ok := f.IntLiteral(); ok {
 			ginscon(as, x, t)
-			return nil // caller must not use
-		}
-	}
-	if as == ppc64.ACMP || as == ppc64.ACMPU {
-		if x, ok := t.IntLiteral(); ok {
-			ginscon2(as, f, x)
 			return nil // caller must not use
 		}
 	}
