@@ -368,68 +368,11 @@ type Arch struct {
 	MAXWIDTH     int64
 	ReservedRegs []int
 
-	AddIndex            func(*Node, int64, *Node) bool // optional
-	Betypeinit          func()
-	Bgen_float          func(*Node, bool, int, *obj.Prog) // optional
-	Cgen64              func(*Node, *Node)                // only on 32-bit systems
-	Cgenindex           func(*Node, *Node, bool) *obj.Prog
-	Cgen_bmul           func(Op, *Node, *Node, *Node) bool
-	Cgen_float          func(*Node, *Node) // optional
-	Cgen_hmul           func(*Node, *Node, *Node)
-	RightShiftWithCarry func(*Node, uint, *Node)  // only on systems without RROTC instruction
-	AddSetCarry         func(*Node, *Node, *Node) // only on systems when ADD does not update carry flag
-	Cgen_shift          func(Op, bool, *Node, *Node, *Node)
-	Clearfat            func(*Node)
-	Cmp64               func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
-	Defframe            func(*obj.Prog)
-	Dodiv               func(Op, *Node, *Node, *Node)
-	Excise              func(*Flow)
-	Expandchecks        func(*obj.Prog)
-	Getg                func(*Node)
-	Gins                func(obj.As, *Node, *Node) *obj.Prog
-
-	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
-	// The returned prog should be Patch'ed with the jump target.
-	// If op is not satisfied, code falls through to the next emitted instruction.
-	// Likely is the branch prediction hint: +1 for likely, -1 for unlikely, 0 for no opinion.
-	//
-	// Ginscmp must be able to handle all kinds of arguments for n1 and n2,
-	// not just simple registers, although it can assume that there are no
-	// function calls needed during the evaluation, and on 32-bit systems
-	// the values are guaranteed not to be 64-bit values, so no in-memory
-	// temporaries are necessary.
-	Ginscmp func(op Op, t *Type, n1, n2 *Node, likely int) *obj.Prog
-
-	// Ginsboolval inserts instructions to convert the result
-	// of a just-completed comparison to a boolean value.
-	// The first argument is the conditional jump instruction
-	// corresponding to the desired value.
-	// The second argument is the destination.
-	// If not present, Ginsboolval will be emulated with jumps.
-	Ginsboolval func(obj.As, *Node)
-
-	Ginscon      func(obj.As, int64, *Node)
-	Ginsnop      func()
-	Gmove        func(*Node, *Node)
-	Igenindex    func(*Node, *Node, bool) *obj.Prog
-	Peep         func(*obj.Prog)
-	Proginfo     func(*obj.Prog) // fills in Prog.Info
-	Regtyp       func(*obj.Addr) bool
-	Sameaddr     func(*obj.Addr, *obj.Addr) bool
-	Smallindir   func(*obj.Addr, *obj.Addr) bool
-	Stackaddr    func(*obj.Addr) bool
-	Blockcopy    func(*Node, *Node, int64, int64, int64)
-	Sudoaddable  func(obj.As, *Node, *obj.Addr) bool
-	Sudoclean    func()
-	Excludedregs func() uint64
-	RtoB         func(int) uint64
-	FtoB         func(int) uint64
-	BtoR         func(uint64) int
-	BtoF         func(uint64) int
-	Optoas       func(Op, *Type) obj.As
-	Doregbits    func(int) uint64
-	Regnames     func(*int) []string
-	Use387       bool // should 8g use 387 FP instructions instead of sse2.
+	Betypeinit func()
+	Defframe   func(*obj.Prog)
+	Gins       func(obj.As, *Node, *Node) *obj.Prog
+	Proginfo   func(*obj.Prog) // fills in Prog.Info
+	Use387     bool            // should 8g use 387 FP instructions instead of sse2.
 
 	// SSARegToReg maps ssa register numbers to obj register numbers.
 	SSARegToReg []int16

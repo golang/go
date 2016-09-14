@@ -31,65 +31,6 @@
 package s390x
 
 import "cmd/internal/obj/s390x"
-import "cmd/compile/internal/gc"
-
-const (
-	NREGVAR = 32 /* 16 general + 16 floating */
-)
-
-var regname = []string{
-	".R0",
-	".R1",
-	".R2",
-	".R3",
-	".R4",
-	".R5",
-	".R6",
-	".R7",
-	".R8",
-	".R9",
-	".R10",
-	".R11",
-	".R12",
-	".R13",
-	".R14",
-	".R15",
-	".F0",
-	".F1",
-	".F2",
-	".F3",
-	".F4",
-	".F5",
-	".F6",
-	".F7",
-	".F8",
-	".F9",
-	".F10",
-	".F11",
-	".F12",
-	".F13",
-	".F14",
-	".F15",
-}
-
-func regnames(n *int) []string {
-	*n = NREGVAR
-	return regname
-}
-
-func excludedregs() uint64 {
-	// Exclude registers with fixed functions
-	return RtoB(s390x.REG_R0) |
-		RtoB(s390x.REGSP) |
-		RtoB(s390x.REGG) |
-		RtoB(s390x.REGTMP) |
-		RtoB(s390x.REGTMP2) |
-		RtoB(s390x.REG_LR)
-}
-
-func doregbits(r int) uint64 {
-	return 0
-}
 
 /*
  * track register variables including external registers:
@@ -110,21 +51,4 @@ func RtoB(r int) uint64 {
 		return 1 << uint(16+r-s390x.REG_F0)
 	}
 	return 0
-}
-
-func BtoR(b uint64) int {
-	b &= 0xffff
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + s390x.REG_R0
-}
-
-func BtoF(b uint64) int {
-	b >>= 16
-	b &= 0xffff
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + s390x.REG_F0
 }

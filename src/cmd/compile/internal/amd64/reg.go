@@ -30,72 +30,7 @@
 
 package amd64
 
-import (
-	"cmd/compile/internal/gc"
-	"cmd/internal/obj/x86"
-)
-
-const (
-	NREGVAR = 32
-)
-
-var regname = []string{
-	".AX",
-	".CX",
-	".DX",
-	".BX",
-	".SP",
-	".BP",
-	".SI",
-	".DI",
-	".R8",
-	".R9",
-	".R10",
-	".R11",
-	".R12",
-	".R13",
-	".R14",
-	".R15",
-	".X0",
-	".X1",
-	".X2",
-	".X3",
-	".X4",
-	".X5",
-	".X6",
-	".X7",
-	".X8",
-	".X9",
-	".X10",
-	".X11",
-	".X12",
-	".X13",
-	".X14",
-	".X15",
-}
-
-func regnames(n *int) []string {
-	*n = NREGVAR
-	return regname
-}
-
-func excludedregs() uint64 {
-	return RtoB(x86.REG_SP)
-}
-
-func doregbits(r int) uint64 {
-	b := uint64(0)
-	if r >= x86.REG_AX && r <= x86.REG_R15 {
-		b |= RtoB(r)
-	} else if r >= x86.REG_AL && r <= x86.REG_R15B {
-		b |= RtoB(r - x86.REG_AL + x86.REG_AX)
-	} else if r >= x86.REG_AH && r <= x86.REG_BH {
-		b |= RtoB(r - x86.REG_AH + x86.REG_AX)
-	} else if r >= x86.REG_X0 && r <= x86.REG_X0+15 {
-		b |= FtoB(r)
-	}
-	return b
-}
+import "cmd/internal/obj/x86"
 
 // For ProgInfo.
 const (
@@ -114,39 +49,4 @@ func RtoB(r int) uint64 {
 		return 0
 	}
 	return 1 << uint(r-x86.REG_AX)
-}
-
-func BtoR(b uint64) int {
-	b &= 0xffff
-	if gc.Nacl {
-		b &^= (1<<(x86.REG_BP-x86.REG_AX) | 1<<(x86.REG_R15-x86.REG_AX))
-	} else if gc.Ctxt.Framepointer_enabled {
-		// BP is part of the calling convention if framepointer_enabled.
-		b &^= (1 << (x86.REG_BP - x86.REG_AX))
-	}
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + x86.REG_AX
-}
-
-/*
- *	bit	reg
- *	16	X0
- *	...
- *	31	X15
- */
-func FtoB(f int) uint64 {
-	if f < x86.REG_X0 || f > x86.REG_X15 {
-		return 0
-	}
-	return 1 << uint(f-x86.REG_X0+16)
-}
-
-func BtoF(b uint64) int {
-	b &= 0xFFFF0000
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) - 16 + x86.REG_X0
 }

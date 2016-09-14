@@ -31,84 +31,10 @@
 package x86
 
 import "cmd/internal/obj/x86"
-import "cmd/compile/internal/gc"
-
-const (
-	NREGVAR = 16 /* 8 integer + 8 floating */
-)
-
-var regname = []string{
-	".ax",
-	".cx",
-	".dx",
-	".bx",
-	".sp",
-	".bp",
-	".si",
-	".di",
-	".x0",
-	".x1",
-	".x2",
-	".x3",
-	".x4",
-	".x5",
-	".x6",
-	".x7",
-}
-
-func regnames(n *int) []string {
-	*n = NREGVAR
-	return regname
-}
-
-func excludedregs() uint64 {
-	if gc.Ctxt.Flag_shared {
-		return RtoB(x86.REG_SP) | RtoB(x86.REG_CX)
-	} else {
-		return RtoB(x86.REG_SP)
-	}
-}
-
-func doregbits(r int) uint64 {
-	b := uint64(0)
-	if r >= x86.REG_AX && r <= x86.REG_DI {
-		b |= RtoB(r)
-	} else if r >= x86.REG_AL && r <= x86.REG_BL {
-		b |= RtoB(r - x86.REG_AL + x86.REG_AX)
-	} else if r >= x86.REG_AH && r <= x86.REG_BH {
-		b |= RtoB(r - x86.REG_AH + x86.REG_AX)
-	} else if r >= x86.REG_X0 && r <= x86.REG_X0+7 {
-		b |= FtoB(r)
-	}
-	return b
-}
 
 func RtoB(r int) uint64 {
 	if r < x86.REG_AX || r > x86.REG_DI {
 		return 0
 	}
 	return 1 << uint(r-x86.REG_AX)
-}
-
-func BtoR(b uint64) int {
-	b &= 0xff
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + x86.REG_AX
-}
-
-func FtoB(f int) uint64 {
-	if f < x86.REG_X0 || f > x86.REG_X7 {
-		return 0
-	}
-	return 1 << uint(f-x86.REG_X0+8)
-}
-
-func BtoF(b uint64) int {
-	b &= 0xFF00
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) - 8 + x86.REG_X0
 }

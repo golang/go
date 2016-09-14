@@ -31,59 +31,6 @@
 package arm
 
 import "cmd/internal/obj/arm"
-import "cmd/compile/internal/gc"
-
-const (
-	NREGVAR = 32
-)
-
-var regname = []string{
-	".R0",
-	".R1",
-	".R2",
-	".R3",
-	".R4",
-	".R5",
-	".R6",
-	".R7",
-	".R8",
-	".R9",
-	".R10",
-	".R11",
-	".R12",
-	".R13",
-	".R14",
-	".R15",
-	".F0",
-	".F1",
-	".F2",
-	".F3",
-	".F4",
-	".F5",
-	".F6",
-	".F7",
-	".F8",
-	".F9",
-	".F10",
-	".F11",
-	".F12",
-	".F13",
-	".F14",
-	".F15",
-}
-
-func regnames(n *int) []string {
-	*n = NREGVAR
-	return regname
-}
-
-func excludedregs() uint64 {
-	return RtoB(arm.REGSP) | RtoB(arm.REGLINK) | RtoB(arm.REGPC)
-}
-
-func doregbits(r int) uint64 {
-	return 0
-}
 
 /*
  *	bit	reg
@@ -115,22 +62,4 @@ func RtoB(r int) uint64 {
 	}
 
 	return 0
-}
-
-func BtoR(b uint64) int {
-	// TODO Allow R0 and R1, but be careful with a 0 return
-	// TODO Allow R9. Only R10 is reserved now (just g, not m).
-	b &= 0x11fc // excluded R9 and R10 for m and g, but not R12
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) + arm.REG_R0
-}
-
-func BtoF(b uint64) int {
-	b &= 0xfffc0000
-	if b == 0 {
-		return 0
-	}
-	return gc.Bitno(b) - 16 + arm.REG_F0
 }
