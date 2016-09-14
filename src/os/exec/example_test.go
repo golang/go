@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os/exec"
 	"strings"
@@ -72,4 +74,52 @@ func ExampleCmd_StdoutPipe() {
 		log.Fatal(err)
 	}
 	fmt.Printf("%s is %d years old\n", person.Name, person.Age)
+}
+
+func ExampleCmd_StdinPipe() {
+	cmd := exec.Command("cat")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, "values written to stdin are passed to cmd's standard input")
+	}()
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%s\n", out)
+}
+
+func ExampleCmd_StderrPipe() {
+	cmd := exec.Command("sh", "-c", "echo stdout; echo 1>&2 stderr")
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	slurp, _ := ioutil.ReadAll(stderr)
+	fmt.Printf("%s\n", slurp)
+
+	if err := cmd.Wait(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func ExampleCmd_CombinedOutput() {
+	cmd := exec.Command("sh", "-c", "echo stdout; echo 1>&2 stderr")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s\n", stdoutStderr)
 }
