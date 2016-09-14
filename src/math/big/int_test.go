@@ -1229,6 +1229,9 @@ func BenchmarkModSqrt224_3Mod4(b *testing.B) {
 }
 
 func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
+	if isRaceBuilder {
+		b.Skip("skipping on race builder")
+	}
 	p := tri(5430)
 	x := new(Int).SetUint64(2)
 	for i := 0; i < b.N; i++ {
@@ -1238,6 +1241,9 @@ func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
 }
 
 func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
+	if isRaceBuilder {
+		b.Skip("skipping on race builder")
+	}
 	p := tri(5430)
 	x := new(Int).SetUint64(2)
 	for i := 0; i < b.N; i++ {
