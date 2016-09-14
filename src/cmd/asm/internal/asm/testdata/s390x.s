@@ -144,6 +144,35 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
 	XORW	$65536, R1            // c01700010000
 	XORW	$-2, R1               // c017fffffffe
 
+	ADD	-524288(R1), R2       // e32010008008
+	ADD	524287(R3), R4        // e3403fff7f08
+	ADD	-524289(R1), R2       // c0a1fff7ffffe32a10000008
+	ADD	524288(R3), R4        // c0a100080000e34a30000008
+	ADD	-524289(R1)(R2*1), R3 // c0a1fff7ffff41aa2000e33a10000008
+	ADD	524288(R3)(R4*1), R5  // c0a10008000041aa4000e35a30000008
+	ADDC	(R1), R2              // e3201000000a
+	ADDW	(R5), R6              // 5a605000
+	ADDW	4095(R7), R8          // 5a807fff
+	ADDW	-1(R1), R2            // e3201fffff5a
+	ADDW	4096(R3), R4          // e3403000015a
+	MULLD	(R1)(R2*1), R3        // e3321000000c
+	MULLW	(R3)(R4*1), R5        // 71543000
+	MULLW	4096(R3), R4          // e34030000151
+	SUB	(R1), R2              // e32010000009
+	SUBC	(R1), R2              // e3201000000b
+	SUBE	(R1), R2              // e32010000089
+	SUBW	(R1), R2              // 5b201000
+	SUBW	-1(R1), R2            // e3201fffff5b
+	AND	(R1), R2              // e32010000080
+	ANDW	(R1), R2              // 54201000
+	ANDW	-1(R1), R2            // e3201fffff54
+	OR	(R1), R2              // e32010000081
+	ORW	(R1), R2              // 56201000
+	ORW	-1(R1), R2            // e3201fffff56
+	XOR	(R1), R2              // e32010000082
+	XORW	(R1), R2              // 57201000
+	XORW	-1(R1), R2            // e3201fffff57
+
 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
 	LAAG	R4, R5, -524288(R6)   // eb54600080e8
 	LAAL	R7, R8, 8192(R9)      // eb87900002fa

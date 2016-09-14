@@ -142,8 +142,12 @@ var optab = []Optab{
 	Optab{AADD, C_REG, C_NONE, C_NONE, C_REG, 2, 0},
 	Optab{AADD, C_LCON, C_REG, C_NONE, C_REG, 22, 0},
 	Optab{AADD, C_LCON, C_NONE, C_NONE, C_REG, 22, 0},
+	Optab{AADD, C_LOREG, C_NONE, C_NONE, C_REG, 12, 0},
+	Optab{AADD, C_LAUTO, C_NONE, C_NONE, C_REG, 12, REGSP},
 	Optab{ASUB, C_LCON, C_REG, C_NONE, C_REG, 21, 0},
 	Optab{ASUB, C_LCON, C_NONE, C_NONE, C_REG, 21, 0},
+	Optab{ASUB, C_LOREG, C_NONE, C_NONE, C_REG, 12, 0},
+	Optab{ASUB, C_LAUTO, C_NONE, C_NONE, C_REG, 12, REGSP},
 	Optab{AMULHD, C_REG, C_NONE, C_NONE, C_REG, 4, 0},
 	Optab{AMULHD, C_REG, C_REG, C_NONE, C_REG, 4, 0},
 	Optab{ADIVW, C_REG, C_REG, C_NONE, C_REG, 2, 0},
@@ -158,9 +162,13 @@ var optab = []Optab{
 	Optab{AAND, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
 	Optab{AAND, C_LCON, C_NONE, C_NONE, C_REG, 23, 0},
 	Optab{AAND, C_LCON, C_REG, C_NONE, C_REG, 23, 0},
+	Optab{AAND, C_LOREG, C_NONE, C_NONE, C_REG, 12, 0},
+	Optab{AAND, C_LAUTO, C_NONE, C_NONE, C_REG, 12, REGSP},
 	Optab{AANDW, C_REG, C_REG, C_NONE, C_REG, 6, 0},
 	Optab{AANDW, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
 	Optab{AANDW, C_LCON, C_NONE, C_NONE, C_REG, 24, 0},
+	Optab{AANDW, C_LOREG, C_NONE, C_NONE, C_REG, 12, 0},
+	Optab{AANDW, C_LAUTO, C_NONE, C_NONE, C_REG, 12, REGSP},
 	Optab{ASLD, C_REG, C_NONE, C_NONE, C_REG, 7, 0},
 	Optab{ASLD, C_REG, C_REG, C_NONE, C_REG, 7, 0},
 	Optab{ASLD, C_SCON, C_REG, C_NONE, C_REG, 7, 0},
@@ -2882,6 +2890,67 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			if p.To.Sym != nil {
 				addcallreloc(ctxt, p.To.Sym, p.To.Offset)
 			}
+		}
+
+	case 12:
+		r1 := p.To.Reg
+		d2 := vregoff(ctxt, &p.From)
+		b2 := p.From.Reg
+		if b2 == 0 {
+			b2 = o.param
+		}
+		x2 := p.From.Index
+		if -DISP20/2 > d2 || d2 >= DISP20/2 {
+			zRIL(_a, op_LGFI, REGTMP, uint32(d2), asm)
+			if x2 != 0 {
+				zRX(op_LA, REGTMP, REGTMP, uint32(x2), 0, asm)
+			}
+			x2 = REGTMP
+			d2 = 0
+		}
+		var opx, opxy uint32
+		switch p.As {
+		case AADD:
+			opxy = op_AG
+		case AADDC:
+			opxy = op_ALG
+		case AADDW:
+			opx = op_A
+			opxy = op_AY
+		case AMULLW:
+			opx = op_MS
+			opxy = op_MSY
+		case AMULLD:
+			opxy = op_MSG
+		case ASUB:
+			opxy = op_SG
+		case ASUBC:
+			opxy = op_SLG
+		case ASUBE:
+			opxy = op_SLBG
+		case ASUBW:
+			opx = op_S
+			opxy = op_SY
+		case AAND:
+			opxy = op_NG
+		case AANDW:
+			opx = op_N
+			opxy = op_NY
+		case AOR:
+			opxy = op_OG
+		case AORW:
+			opx = op_O
+			opxy = op_OY
+		case AXOR:
+			opxy = op_XG
+		case AXORW:
+			opx = op_X
+			opxy = op_XY
+		}
+		if opx != 0 && 0 <= d2 && d2 < DISP12 {
+			zRX(opx, uint32(r1), uint32(x2), uint32(b2), uint32(d2), asm)
+		} else {
+			zRXY(opxy, uint32(r1), uint32(x2), uint32(b2), uint32(d2), asm)
 		}
 
 	case 15: // br/bl (reg)

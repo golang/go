@@ -333,6 +333,22 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
+	case ssa.OpS390XADDWload, ssa.OpS390XADDload,
+		ssa.OpS390XMULLWload, ssa.OpS390XMULLDload,
+		ssa.OpS390XSUBWload, ssa.OpS390XSUBload,
+		ssa.OpS390XANDWload, ssa.OpS390XANDload,
+		ssa.OpS390XORWload, ssa.OpS390XORload,
+		ssa.OpS390XXORWload, ssa.OpS390XXORload:
+		r := v.Reg()
+		if r != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
+		p := gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[1].Reg()
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 	case ssa.OpS390XMOVDload,
 		ssa.OpS390XMOVWZload, ssa.OpS390XMOVHZload, ssa.OpS390XMOVBZload,
 		ssa.OpS390XMOVDBRload, ssa.OpS390XMOVWBRload, ssa.OpS390XMOVHBRload,
