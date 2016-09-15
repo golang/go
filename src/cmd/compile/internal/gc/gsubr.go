@@ -255,23 +255,11 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	p.From3.Offset = int64(flags)
 }
 
-func gjmp(to *obj.Prog) *obj.Prog {
-	p := Gbranch(obj.AJMP, nil, 0)
-	if to != nil {
-		Patch(p, to)
-	}
-	return p
-}
-
 func gtrack(s *Sym) {
 	p := Thearch.Gins(obj.AUSEFIELD, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
-}
-
-func gused(n *Node) {
-	Thearch.Gins(obj.ANOP, n, nil) // used
 }
 
 func Isfat(t *Type) bool {
@@ -653,16 +641,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	}
 	p.To.Val = to
 	p.To.Offset = to.Pc
-}
-
-func unpatch(p *obj.Prog) *obj.Prog {
-	if p.To.Type != obj.TYPE_BRANCH {
-		Fatalf("unpatch: not a branch")
-	}
-	q, _ := p.To.Val.(*obj.Prog)
-	p.To.Val = nil
-	p.To.Offset = 0
-	return q
 }
 
 var reg [100]int       // count of references to reg
