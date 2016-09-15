@@ -40,63 +40,63 @@ func doTest(t *testing.T, filename string, kind string) {
 }
 
 // TestShortCircuit tests OANDAND and OOROR expressions and short circuiting.
-func TestShortCircuit(t *testing.T) { runTest(t, "short_ssa.go") }
+func TestShortCircuit(t *testing.T) { runTest(t, "short.go") }
 
 // TestBreakContinue tests that continue and break statements do what they say.
-func TestBreakContinue(t *testing.T) { runTest(t, "break_ssa.go") }
+func TestBreakContinue(t *testing.T) { runTest(t, "break.go") }
 
 // TestTypeAssertion tests type assertions.
-func TestTypeAssertion(t *testing.T) { runTest(t, "assert_ssa.go") }
+func TestTypeAssertion(t *testing.T) { runTest(t, "assert.go") }
 
 // TestArithmetic tests that both backends have the same result for arithmetic expressions.
 func TestArithmetic(t *testing.T) {
 	if runtime.GOARCH == "386" {
 		t.Skip("legacy 386 compiler can't handle this test")
 	}
-	runTest(t, "arith_ssa.go")
+	runTest(t, "arith.go")
 }
 
 // TestFP tests that both backends have the same result for floating point expressions.
-func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
+func TestFP(t *testing.T) { runTest(t, "fp.go") }
 
 // TestArithmeticBoundary tests boundary results for arithmetic operations.
-func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary_ssa.go") }
+func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary.go") }
 
 // TestArithmeticConst tests results for arithmetic operations against constants.
-func TestArithmeticConst(t *testing.T) { runTest(t, "arithConst_ssa.go") }
+func TestArithmeticConst(t *testing.T) { runTest(t, "arithConst.go") }
 
-func TestChan(t *testing.T) { runTest(t, "chan_ssa.go") }
+func TestChan(t *testing.T) { runTest(t, "chan.go") }
 
-func TestCompound(t *testing.T) { runTest(t, "compound_ssa.go") }
+func TestCompound(t *testing.T) { runTest(t, "compound.go") }
 
-func TestCtl(t *testing.T) { runTest(t, "ctl_ssa.go") }
+func TestCtl(t *testing.T) { runTest(t, "ctl.go") }
 
-func TestLoadStore(t *testing.T) { runTest(t, "loadstore_ssa.go") }
+func TestLoadStore(t *testing.T) { runTest(t, "loadstore.go") }
 
-func TestMap(t *testing.T) { runTest(t, "map_ssa.go") }
+func TestMap(t *testing.T) { runTest(t, "map.go") }
 
-func TestRegalloc(t *testing.T) { runTest(t, "regalloc_ssa.go") }
+func TestRegalloc(t *testing.T) { runTest(t, "regalloc.go") }
 
-func TestString(t *testing.T) { runTest(t, "string_ssa.go") }
+func TestString(t *testing.T) { runTest(t, "string.go") }
 
-func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn_ssa.go") }
+func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn.go") }
 
 // TestClosure tests closure related behavior.
-func TestClosure(t *testing.T) { runTest(t, "closure_ssa.go") }
+func TestClosure(t *testing.T) { runTest(t, "closure.go") }
 
-func TestArray(t *testing.T) { runTest(t, "array_ssa.go") }
+func TestArray(t *testing.T) { runTest(t, "array.go") }
 
-func TestAppend(t *testing.T) { runTest(t, "append_ssa.go") }
+func TestAppend(t *testing.T) { runTest(t, "append.go") }
 
-func TestZero(t *testing.T) { runTest(t, "zero_ssa.go") }
+func TestZero(t *testing.T) { runTest(t, "zero.go") }
 
-func TestAddressed(t *testing.T) { runTest(t, "addressed_ssa.go") }
+func TestAddressed(t *testing.T) { runTest(t, "addressed.go") }
 
-func TestCopy(t *testing.T) { runTest(t, "copy_ssa.go") }
+func TestCopy(t *testing.T) { runTest(t, "copy.go") }
 
-func TestUnsafe(t *testing.T) { runTest(t, "unsafe_ssa.go") }
+func TestUnsafe(t *testing.T) { runTest(t, "unsafe.go") }
 
-func TestPhi(t *testing.T) { runTest(t, "phi_ssa.go") }
+func TestPhi(t *testing.T) { runTest(t, "phi.go") }
 
 func TestSlice(t *testing.T) { runTest(t, "slice.go") }
 
