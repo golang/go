@@ -68,7 +68,7 @@ func typecheckswitch(n *Node) {
 		n.Left.Right = typecheck(n.Left.Right, Erv)
 		t = n.Left.Right.Type
 		if t != nil && !t.IsInterface() {
-			Yyerror("cannot type switch on non-interface value %L", n.Left.Right)
+			yyerror("cannot type switch on non-interface value %L", n.Left.Right)
 		}
 	} else {
 		// expression switch
@@ -83,14 +83,14 @@ func typecheckswitch(n *Node) {
 		if t != nil {
 			switch {
 			case !okforeq[t.Etype]:
-				Yyerror("cannot switch on %L", n.Left)
+				yyerror("cannot switch on %L", n.Left)
 			case t.IsSlice():
 				nilonly = "slice"
 			case t.IsArray() && !t.IsComparable():
-				Yyerror("cannot switch on %L", n.Left)
+				yyerror("cannot switch on %L", n.Left)
 			case t.IsStruct():
 				if f := t.IncomparableField(); f != nil {
-					Yyerror("cannot switch on %L (struct containing %v cannot be compared)", n.Left, f.Type)
+					yyerror("cannot switch on %L (struct containing %v cannot be compared)", n.Left, f.Type)
 				}
 			case t.Etype == TFUNC:
 				nilonly = "func"
@@ -109,7 +109,7 @@ func typecheckswitch(n *Node) {
 			// default
 			if def != nil {
 				setlineno(ncase)
-				Yyerror("multiple defaults in switch (first at %v)", def.Line())
+				yyerror("multiple defaults in switch (first at %v)", def.Line())
 			} else {
 				def = ncase
 			}
@@ -130,17 +130,17 @@ func typecheckswitch(n *Node) {
 					n1 = ls[i1]
 					switch {
 					case n1.Op == OTYPE:
-						Yyerror("type %v is not an expression", n1.Type)
+						yyerror("type %v is not an expression", n1.Type)
 					case n1.Type != nil && assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
 						if n.Left != nil {
-							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
+							yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
 						} else {
-							Yyerror("invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
+							yyerror("invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
 						}
 					case nilonly != "" && !isnil(n1):
-						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+						yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
 					case t.IsInterface() && !n1.Type.IsInterface() && !n1.Type.IsComparable():
-						Yyerror("invalid case %L in switch (incomparable type)", n1)
+						yyerror("invalid case %L in switch (incomparable type)", n1)
 					}
 
 				// type switch
@@ -151,21 +151,21 @@ func typecheckswitch(n *Node) {
 					case n1.Op == OLITERAL && n1.Type.IsKind(TNIL):
 						// case nil:
 						if niltype != nil {
-							Yyerror("multiple nil cases in type switch (first at %v)", niltype.Line())
+							yyerror("multiple nil cases in type switch (first at %v)", niltype.Line())
 						} else {
 							niltype = ncase
 						}
 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
-						Yyerror("%L is not a type", n1)
+						yyerror("%L is not a type", n1)
 						// reset to original type
 						n1 = n.Left.Right
 						ls[i1] = n1
 					case !n1.Type.IsInterface() && t.IsInterface() && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
-							Yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
 								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 						} else if !missing.Broke {
-							Yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
 								" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
 						}
 					}
@@ -200,7 +200,7 @@ func typecheckswitch(n *Node) {
 func walkswitch(sw *Node) {
 	// convert switch {...} to switch true {...}
 	if sw.Left == nil {
-		sw.Left = Nodbool(true)
+		sw.Left = nodbool(true)
 		sw.Left = typecheck(sw.Left, Erv)
 	}
 
@@ -241,7 +241,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	// convert the switch into OIF statements
 	var cas []*Node
 	if s.kind == switchKindTrue || s.kind == switchKindFalse {
-		s.exprname = Nodbool(s.kind == switchKindTrue)
+		s.exprname = nodbool(s.kind == switchKindTrue)
 	} else if consttype(cond) >= 0 {
 		// leave constants to enable dead code elimination (issue 9608)
 		s.exprname = cond
@@ -378,7 +378,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		case 0:
 			// default
 			if def != nil {
-				Yyerror("more than one default case")
+				yyerror("more than one default case")
 			}
 			// reuse original default case
 			n.Right = jmp
@@ -454,12 +454,12 @@ func casebody(sw *Node, typeswvar *Node) {
 		if last.Xoffset == n.Xoffset && last.Op == OXFALL {
 			if typeswvar != nil {
 				setlineno(last)
-				Yyerror("cannot fallthrough in type switch")
+				yyerror("cannot fallthrough in type switch")
 			}
 
 			if i+1 >= sw.List.Len() {
 				setlineno(last)
-				Yyerror("cannot fallthrough final case in switch")
+				yyerror("cannot fallthrough final case in switch")
 			}
 
 			last.Op = OFALL
@@ -609,7 +609,7 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 					continue
 				}
 				setlineno(c.node)
-				Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+				yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
 				continue
 			}
 			if c.node.List.Len() == 2 {
@@ -623,7 +623,7 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 						continue
 					}
 					setlineno(c.node)
-					Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+					yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
 				}
 				continue
 			}
@@ -655,7 +655,7 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
 			continue
 		}
 		setlineno(c.node)
-		Yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
+		yyerror("duplicate case %v in switch\n\tprevious case at %v", prev.Left, prev.Line())
 	}
 }
 
@@ -674,13 +674,13 @@ func (s *typeSwitch) walk(sw *Node) {
 	}
 	if cond.Right == nil {
 		setlineno(sw)
-		Yyerror("type switch must have an assignment")
+		yyerror("type switch must have an assignment")
 		return
 	}
 
 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
 	if !cond.Right.Type.IsInterface() {
-		Yyerror("type switch must be on an interface")
+		yyerror("type switch must be on an interface")
 		return
 	}
 
@@ -739,7 +739,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		typ = itabType(typ)
 	}
 	// Load hash from type.
-	h := NodSym(ODOTPTR, typ, nil)
+	h := nodSym(ODOTPTR, typ, nil)
 	h.Type = Types[TUINT32]
 	h.Typecheck = 1
 	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type

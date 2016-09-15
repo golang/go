@@ -27,7 +27,7 @@ var renameinit_initgen int
 
 func renameinit() *Sym {
 	renameinit_initgen++
-	return LookupN("init.", renameinit_initgen)
+	return lookupN("init.", renameinit_initgen)
 }
 
 // hand-craft the following initialization code
@@ -70,7 +70,7 @@ func anyinit(n []*Node) bool {
 	}
 
 	// is there an explicit init function
-	s := Lookup("init.1")
+	s := lookup("init.1")
 
 	if s.Def != nil {
 		return true
@@ -101,14 +101,14 @@ func fninit(n []*Node) {
 	var r []*Node
 
 	// (1)
-	gatevar := newname(Lookup("initdone·"))
+	gatevar := newname(lookup("initdone·"))
 	addvar(gatevar, Types[TUINT8], PEXTERN)
 
 	// (2)
 	Maxarg = 0
 
 	fn := Nod(ODCLFUNC, nil, nil)
-	initsym := Lookup("init")
+	initsym := lookup("init")
 	fn.Func.Nname = newname(initsym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = Nod(OTFUNC, nil, nil)
@@ -153,7 +153,7 @@ func fninit(n []*Node) {
 	// (8)
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
-		s := LookupN("init.", i)
+		s := lookupN("init.", i)
 		if s.Def == nil {
 			break
 		}

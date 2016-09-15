@@ -24,12 +24,12 @@ func typecheckselect(sel *Node) {
 		if ncase.List.Len() == 0 {
 			// default
 			if def != nil {
-				Yyerror("multiple defaults in select (first at %v)", def.Line())
+				yyerror("multiple defaults in select (first at %v)", def.Line())
 			} else {
 				def = ncase
 			}
 		} else if ncase.List.Len() > 1 {
-			Yyerror("select cases cannot be lists")
+			yyerror("select cases cannot be lists")
 		} else {
 			ncase.List.SetIndex(0, typecheck(ncase.List.Index(0), Etop))
 			n = ncase.List.Index(0)
@@ -38,7 +38,7 @@ func typecheckselect(sel *Node) {
 			setlineno(n)
 			switch n.Op {
 			default:
-				Yyerror("select case must be receive, send or assign recv")
+				yyerror("select case must be receive, send or assign recv")
 
 				// convert x = <-c into OSELRECV(x, <-c).
 			// remove implicit conversions; the eventual assignment
@@ -49,7 +49,7 @@ func typecheckselect(sel *Node) {
 				}
 
 				if n.Right.Op != ORECV {
-					Yyerror("select assignment must have receive on right hand side")
+					yyerror("select assignment must have receive on right hand side")
 					break
 				}
 
@@ -58,7 +58,7 @@ func typecheckselect(sel *Node) {
 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
 			case OAS2RECV:
 				if n.Rlist.First().Op != ORECV {
-					Yyerror("select assignment must have receive on right hand side")
+					yyerror("select assignment must have receive on right hand side")
 					break
 				}
 
@@ -260,7 +260,7 @@ func walkselect(sel *Node) {
 	r = Nod(OAS, selv, nil)
 	r = typecheck(r, Etop)
 	init = append(init, r)
-	var_ = conv(conv(Nod(OADDR, selv, nil), Types[TUNSAFEPTR]), Ptrto(Types[TUINT8]))
+	var_ = conv(conv(Nod(OADDR, selv, nil), Types[TUNSAFEPTR]), ptrto(Types[TUINT8]))
 	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(sel.Xoffset))
 	r = typecheck(r, Etop)
 	init = append(init, r)
@@ -324,28 +324,28 @@ func selecttype(size int32) *Type {
 	// and then cache; and also cache Select per size.
 
 	scase := Nod(OTSTRUCT, nil, nil)
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
-	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(Types[TUINT8]))))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(Types[TUINT8]))))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("pc")), typenod(Types[TUINTPTR])))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("kind")), typenod(Types[TUINT16])))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("so")), typenod(Types[TUINT16])))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(Types[TUINT8]))))
+	scase.List.Append(Nod(ODCLFIELD, newname(lookup("releasetime")), typenod(Types[TUINT64])))
 	scase = typecheck(scase, Etype)
 	scase.Type.Noalg = true
 	scase.Type.Local = true
 
 	sel := Nod(OTSTRUCT, nil, nil)
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("ncase")), typenod(Types[TUINT16])))
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorder")), typenod(Ptrto(Types[TUINT8]))))
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("tcase")), typenod(Types[TUINT16])))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("ncase")), typenod(Types[TUINT16])))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("pollorder")), typenod(ptrto(Types[TUINT8]))))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("lockorder")), typenod(ptrto(Types[TUINT8]))))
 	arr := Nod(OTARRAY, nodintconst(int64(size)), scase)
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("scase")), arr))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("scase")), arr))
 	arr = Nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("lockorderarr")), arr))
 	arr = Nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
-	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
+	sel.List.Append(Nod(ODCLFIELD, newname(lookup("pollorderarr")), arr))
 	sel = typecheck(sel, Etype)
 	sel.Type.Noalg = true
 	sel.Type.Local = true

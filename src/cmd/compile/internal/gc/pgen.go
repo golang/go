@@ -19,7 +19,7 @@ var makefuncdatasym_nsym int
 func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
 	var nod Node
 
-	sym := LookupN(nameprefix, makefuncdatasym_nsym)
+	sym := lookupN(nameprefix, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
@@ -89,7 +89,7 @@ func gvardefx(n *Node, as obj.As) {
 		Fatalf("gvardef nil")
 	}
 	if n.Op != ONAME {
-		Yyerror("gvardef %#v; %v", n.Op, n)
+		yyerror("gvardef %#v; %v", n.Op, n)
 		return
 	}
 
@@ -132,7 +132,7 @@ func emitptrargsmap() {
 	if Curfn.Func.Nname.Sym.Name == "_" {
 		return
 	}
-	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
+	sym := lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
 
 	nptr := int(Curfn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
@@ -281,7 +281,7 @@ func allocauto(ptxt *obj.Prog) {
 		}
 		if Stksize >= 1<<31 {
 			setlineno(Curfn)
-			Yyerror("stack frame too large (>2GB)")
+			yyerror("stack frame too large (>2GB)")
 		}
 
 		stkdelta[n] = -Stksize - n.Xoffset
@@ -325,7 +325,7 @@ func compile(fn *Node) {
 
 	if fn.Nbody.Len() == 0 {
 		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
-			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
+			yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
 			return
 		}
 

@@ -48,7 +48,7 @@ func typecheckrange(n *Node) {
 	toomany = 0
 	switch t.Etype {
 	default:
-		Yyerror("cannot range over %L", n.Right)
+		yyerror("cannot range over %L", n.Right)
 		goto out
 
 	case TARRAY, TSLICE:
@@ -61,7 +61,7 @@ func typecheckrange(n *Node) {
 
 	case TCHAN:
 		if !t.ChanDir().CanRecv() {
-			Yyerror("invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
+			yyerror("invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
 			goto out
 		}
 
@@ -77,7 +77,7 @@ func typecheckrange(n *Node) {
 	}
 
 	if n.List.Len() > 2 || toomany != 0 {
-		Yyerror("too many variables in range")
+		yyerror("too many variables in range")
 	}
 
 	v1 = nil
@@ -104,7 +104,7 @@ func typecheckrange(n *Node) {
 		if v1.Name != nil && v1.Name.Defn == n {
 			v1.Type = t1
 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
-			Yyerror("cannot assign type %v to %L in range%s", t1, v1, why)
+			yyerror("cannot assign type %v to %L in range%s", t1, v1, why)
 		}
 		checkassign(n, v1)
 	}
@@ -113,7 +113,7 @@ func typecheckrange(n *Node) {
 		if v2.Name != nil && v2.Name.Defn == n {
 			v2.Type = t2
 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
-			Yyerror("cannot assign type %v to %L in range%s", t2, v2, why)
+			yyerror("cannot assign type %v to %L in range%s", t2, v2, why)
 		}
 		checkassign(n, v2)
 	}
@@ -182,7 +182,7 @@ func walkrange(n *Node) {
 		init = append(init, Nod(OAS, hv1, nil))
 		init = append(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
 		if v2 != nil {
-			hp = temp(Ptrto(n.Type.Elem()))
+			hp = temp(ptrto(n.Type.Elem()))
 			tmp := Nod(OINDEX, ha, nodintconst(0))
 			tmp.Bounded = true
 			init = append(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
@@ -235,20 +235,20 @@ func walkrange(n *Node) {
 
 		fn = substArgTypes(fn, t.Key(), t.Val(), th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
-		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
+		n.Left = Nod(ONE, nodSym(ODOT, hit, keysym), nodnil())
 
 		fn = syslook("mapiternext")
 		fn = substArgTypes(fn, th)
 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
-		key := NodSym(ODOT, hit, keysym)
+		key := nodSym(ODOT, hit, keysym)
 		key = Nod(OIND, key, nil)
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
 			body = []*Node{Nod(OAS, v1, key)}
 		} else {
-			val := NodSym(ODOT, hit, valsym)
+			val := nodSym(ODOT, hit, valsym)
 			val = Nod(OIND, val, nil)
 			a := Nod(OAS2, nil, nil)
 			a.List.Set([]*Node{v1, v2})
@@ -269,7 +269,7 @@ func walkrange(n *Node) {
 		}
 		hb := temp(Types[TBOOL])
 
-		n.Left = Nod(ONE, hb, Nodbool(false))
+		n.Left = Nod(ONE, hb, nodbool(false))
 		a := Nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
 		a.List.Set([]*Node{hv1, hb})
@@ -406,13 +406,13 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Left = Nod(ONE, Nod(OLEN, a, nil), nodintconst(0))
 
 	// hp = &a[0]
-	hp := temp(Ptrto(Types[TUINT8]))
+	hp := temp(ptrto(Types[TUINT8]))
 
 	tmp := Nod(OINDEX, a, nodintconst(0))
 	tmp.Bounded = true
 	tmp = Nod(OADDR, tmp, nil)
 	tmp = Nod(OCONVNOP, tmp, nil)
-	tmp.Type = Ptrto(Types[TUINT8])
+	tmp.Type = ptrto(Types[TUINT8])
 	n.Nbody.Append(Nod(OAS, hp, tmp))
 
 	// hn = len(a) * sizeof(elem(a))

@@ -35,7 +35,7 @@ func exportsym(n *Node) {
 	}
 	if n.Sym.Flags&(SymExport|SymPackage) != 0 {
 		if n.Sym.Flags&SymPackage != 0 {
-			Yyerror("export/package mismatch: %v", n.Sym)
+			yyerror("export/package mismatch: %v", n.Sym)
 		}
 		return
 	}
@@ -291,7 +291,7 @@ func pkgtype(s *Sym) *Type {
 	}
 
 	if s.Def.Type == nil {
-		Yyerror("pkgtype %v", s)
+		yyerror("pkgtype %v", s)
 	}
 	return s.Def.Type
 }
@@ -306,7 +306,7 @@ func importconst(s *Sym, t *Type, n *Node) {
 	}
 
 	if n.Op != OLITERAL {
-		Yyerror("expression must be a constant")
+		yyerror("expression must be a constant")
 		return
 	}
 
@@ -331,7 +331,7 @@ func importvar(s *Sym, t *Type) {
 		if eqtype(t, s.Def.Type) {
 			return
 		}
-		Yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)
+		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)
 	}
 
 	n := newname(s)

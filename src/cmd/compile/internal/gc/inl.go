@@ -722,7 +722,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
 		}
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
-		t, it := IterFields(fn.Type.Params())
+		t, it := iterFields(fn.Type.Params())
 		for t != nil {
 			if li >= n.List.Len() {
 				break
@@ -870,7 +870,7 @@ func inlvar(var_ *Node) *Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *Field, i int) *Node {
-	n := newname(LookupN("~r", i))
+	n := newname(lookupN("~r", i))
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = true
@@ -882,7 +882,7 @@ func retvar(t *Field, i int) *Node {
 // Synthesize a variable to store the inlined function's arguments
 // when they come from a multiple return call.
 func argvar(t *Type, i int) *Node {
-	n := newname(LookupN("~arg", i))
+	n := newname(lookupN("~arg", i))
 	n.Type = t.Elem()
 	n.Class = PAUTO
 	n.Used = true
@@ -969,7 +969,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 		*m = *n
 		m.Ninit.Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
-		m.Left = newname(Lookup(p))
+		m.Left = newname(lookup(p))
 
 		return m
 	default:

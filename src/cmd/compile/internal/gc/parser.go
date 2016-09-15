@@ -93,7 +93,7 @@ func (p *parser) syntax_error(msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		Yyerror("syntax error: %s", msg)
+		yyerror("syntax error: %s", msg)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (p *parser) syntax_error(msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	Yyerror("syntax error: unexpected %s", tok+msg)
+	yyerror("syntax error: unexpected %s", tok+msg)
 }
 
 // Like syntax_error, but reports error at given line rather than current lexer line.
@@ -328,7 +328,7 @@ func (p *parser) importdcl() {
 
 	case '.':
 		// import into my name space
-		my = Lookup(".")
+		my = lookup(".")
 		p.next()
 	}
 
@@ -358,7 +358,7 @@ func (p *parser) importdcl() {
 	ipkg.Direct = true
 
 	if my == nil {
-		my = Lookup(ipkg.Name)
+		my = lookup(ipkg.Name)
 	}
 
 	pack := Nod(OPACK, nil, nil)
@@ -372,7 +372,7 @@ func (p *parser) importdcl() {
 	}
 	if my.Name == "init" {
 		lineno = line
-		Yyerror("cannot import package as init - init must be a func")
+		yyerror("cannot import package as init - init must be a func")
 		return
 	}
 	if my.Name == "_" {
@@ -607,12 +607,12 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		if rhs[0].Op == OTYPESW {
 			ts := Nod(OTYPESW, nil, rhs[0].Right)
 			if len(rhs) > 1 {
-				Yyerror("expr.(type) must be alone in list")
+				yyerror("expr.(type) must be alone in list")
 			}
 			if len(lhs) > 1 {
-				Yyerror("argument count mismatch: %d = %d", len(lhs), 1)
+				yyerror("argument count mismatch: %d = %d", len(lhs), 1)
 			} else if (lhs[0].Op != ONAME && lhs[0].Op != OTYPE && lhs[0].Op != ONONAME && (lhs[0].Op != OLITERAL || lhs[0].Name == nil)) || isblank(lhs[0]) {
-				Yyerror("invalid variable name %v in type switch", lhs[0])
+				yyerror("invalid variable name %v in type switch", lhs[0])
 			} else {
 				ts.Left = dclname(lhs[0].Sym)
 			} // it's a colas, so must not re-use an oldname
@@ -866,7 +866,7 @@ func (p *parser) for_header() *Node {
 	if init != nil || post != nil {
 		// init ; test ; incr
 		if post != nil && post.Colas {
-			Yyerror("cannot declare in the for-increment")
+			yyerror("cannot declare in the for-increment")
 		}
 		h := Nod(OFOR, nil, nil)
 		if init != nil {
@@ -932,7 +932,7 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 		// accept potential vardcl but complain
 		// (for test/syntax/forvar.go)
 		if for_stmt && p.tok == LVAR {
-			Yyerror("var declaration not allowed in for initializer")
+			yyerror("var declaration not allowed in for initializer")
 			p.next()
 		}
 		init = p.simple_stmt(false, for_stmt)
@@ -992,7 +992,7 @@ func (p *parser) if_stmt() *Node {
 
 	stmt := p.if_header()
 	if stmt.Left == nil {
-		Yyerror("missing condition in if statement")
+		yyerror("missing condition in if statement")
 	}
 
 	stmt.Nbody.Set(p.loop_body("if clause"))
@@ -1192,10 +1192,10 @@ func (p *parser) pseudocall() *Node {
 	case OCALL:
 		return x
 	case OPAREN:
-		Yyerror("expression in go/defer must not be parenthesized")
+		yyerror("expression in go/defer must not be parenthesized")
 		// already progressed, no need to advance
 	default:
-		Yyerror("expression in go/defer must be function call")
+		yyerror("expression in go/defer must be function call")
 		// already progressed, no need to advance
 	}
 	return nil
@@ -1365,7 +1365,7 @@ loop:
 			case 0:
 				i := index[0]
 				if i == nil {
-					Yyerror("missing index in index expression")
+					yyerror("missing index in index expression")
 				}
 				x = Nod(OINDEX, x, i)
 			case 1:
@@ -1373,10 +1373,10 @@ loop:
 				x.SetSliceBounds(index[0], index[1], nil)
 			case 2:
 				if index[1] == nil {
-					Yyerror("middle index required in 3-index slice")
+					yyerror("middle index required in 3-index slice")
 				}
 				if index[2] == nil {
-					Yyerror("final index required in 3-index slice")
+					yyerror("final index required in 3-index slice")
 				}
 				x = Nod(OSLICE3, x, nil)
 				x.SetSliceBounds(index[0], index[1], index[2])
@@ -1581,7 +1581,7 @@ func (p *parser) dotdotdot() *Node {
 		return Nod(ODDD, typ, nil)
 	}
 
-	Yyerror("final argument in variadic function missing type")
+	yyerror("final argument in variadic function missing type")
 	return Nod(ODDD, typenod(typ(TINTER)), nil)
 }
 
@@ -1737,7 +1737,7 @@ func (p *parser) new_dotname(obj *Node) *Node {
 		obj.Used = true
 		return oldname(s)
 	}
-	return NodSym(OXDOT, obj, sel)
+	return nodSym(OXDOT, obj, sel)
 }
 
 func (p *parser) dotname() *Node {
@@ -1815,7 +1815,7 @@ func (p *parser) xfndcl() *Node {
 	f.Nbody.Set(body)
 	f.Noescape = p.pragma&Noescape != 0
 	if f.Noescape && len(body) != 0 {
-		Yyerror("can only use //go:noescape with external func implementations")
+		yyerror("can only use //go:noescape with external func implementations")
 	}
 	f.Func.Pragma = p.pragma
 	f.Func.Endlineno = lineno
@@ -1844,13 +1844,13 @@ func (p *parser) fndcl() *Node {
 		if name.Name == "init" {
 			name = renameinit()
 			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
-				Yyerror("func init must have no arguments and no return values")
+				yyerror("func init must have no arguments and no return values")
 			}
 		}
 
 		if localpkg.Name == "main" && name.Name == "main" {
 			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
-				Yyerror("func main must have no arguments and no return values")
+				yyerror("func main must have no arguments and no return values")
 			}
 		}
 
@@ -1875,17 +1875,17 @@ func (p *parser) fndcl() *Node {
 
 		// check after parsing header for fault-tolerance
 		if recv == nil {
-			Yyerror("method has no receiver")
+			yyerror("method has no receiver")
 			return nil
 		}
 
 		if len(rparam) > 1 {
-			Yyerror("method has multiple receivers")
+			yyerror("method has multiple receivers")
 			return nil
 		}
 
 		if recv.Op != ODCLFIELD {
-			Yyerror("bad receiver in method")
+			yyerror("bad receiver in method")
 			return nil
 		}
 
@@ -2026,7 +2026,7 @@ func (p *parser) structdcl() []*Node {
 
 			field.Right = Nod(OIND, field.Right, nil)
 			field.SetVal(tag)
-			Yyerror("cannot parenthesize embedded type")
+			yyerror("cannot parenthesize embedded type")
 			return []*Node{field}
 
 		} else {
@@ -2036,7 +2036,7 @@ func (p *parser) structdcl() []*Node {
 			tag := p.oliteral()
 
 			field.SetVal(tag)
-			Yyerror("cannot parenthesize embedded type")
+			yyerror("cannot parenthesize embedded type")
 			return []*Node{field}
 		}
 
@@ -2050,7 +2050,7 @@ func (p *parser) structdcl() []*Node {
 
 			field.Right = Nod(OIND, field.Right, nil)
 			field.SetVal(tag)
-			Yyerror("cannot parenthesize embedded type")
+			yyerror("cannot parenthesize embedded type")
 			return []*Node{field}
 
 		} else {
@@ -2100,7 +2100,7 @@ func (p *parser) packname(name *Sym) *Sym {
 
 		var pkg *Pkg
 		if name.Def == nil || name.Def.Op != OPACK {
-			Yyerror("%v is not a package", name)
+			yyerror("%v is not a package", name)
 			pkg = localpkg
 		} else {
 			name.Def.Used = true
@@ -2168,7 +2168,7 @@ func (p *parser) interfacedcl() *Node {
 		pname := p.packname(nil)
 		p.want(')')
 		n := Nod(ODCLFIELD, nil, oldname(pname))
-		Yyerror("cannot parenthesize embedded type")
+		yyerror("cannot parenthesize embedded type")
 		return n
 
 	default:
@@ -2287,7 +2287,7 @@ func (p *parser) param_list(dddOk bool) []*Node {
 				p.typ = T
 			}
 			if T == nil {
-				Yyerror("mixed named and unnamed function parameters")
+				yyerror("mixed named and unnamed function parameters")
 				break
 			}
 		}
@@ -2314,9 +2314,9 @@ func (p *parser) param_list(dddOk bool) []*Node {
 		// rewrite ...T parameter
 		if typ != nil && typ.Op == ODDD {
 			if !dddOk {
-				Yyerror("cannot use ... in receiver or result parameter list")
+				yyerror("cannot use ... in receiver or result parameter list")
 			} else if i+1 < len(params) {
-				Yyerror("can only use ... with final parameter in list")
+				yyerror("can only use ... with final parameter in list")
 			}
 			typ.Op = OTARRAY
 			typ.Right = typ.Left
@@ -2418,7 +2418,7 @@ func (p *parser) stmt() *Node {
 					break
 				}
 				if ln.Sym.Def != ln {
-					Yyerror("%s is shadowed during return", ln.Sym.Name)
+					yyerror("%s is shadowed during return", ln.Sym.Name)
 				}
 			}
 		}

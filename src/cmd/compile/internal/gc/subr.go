@@ -27,7 +27,7 @@ type Error struct {
 var errors []Error
 
 func errorexit() {
-	Flusherrors()
+	flusherrors()
 	if outfile != "" {
 		os.Remove(outfile)
 	}
@@ -58,7 +58,7 @@ func (x byLineno) Len() int           { return len(x) }
 func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
 func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-func Flusherrors() {
+func flusherrors() {
 	Ctxt.Bso.Flush()
 	if len(errors) == 0 {
 		return
@@ -74,7 +74,7 @@ func Flusherrors() {
 
 func hcrash() {
 	if Debug['h'] != 0 {
-		Flusherrors()
+		flusherrors()
 		if outfile != "" {
 			os.Remove(outfile)
 		}
@@ -108,7 +108,7 @@ func yyerrorl(line int32, format string, args ...interface{}) {
 		lasterror.syntax = line
 	} else {
 		// only one of multiple equal non-syntax errors per line
-		// (Flusherrors shows only one of them, so we filter them
+		// (flusherrors shows only one of them, so we filter them
 		// here as best as we can (they may not appear in order)
 		// so that we don't count them here and exit early, and
 		// then have nothing to show for.)
@@ -124,13 +124,13 @@ func yyerrorl(line int32, format string, args ...interface{}) {
 	hcrash()
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
-		Flusherrors()
+		flusherrors()
 		fmt.Printf("%v: too many errors\n", linestr(line))
 		errorexit()
 	}
 }
 
-func Yyerror(format string, args ...interface{}) {
+func yyerror(format string, args ...interface{}) {
 	yyerrorl(lineno, format, args...)
 }
 
@@ -143,12 +143,12 @@ func Warn(fmt_ string, args ...interface{}) {
 func Warnl(line int32, fmt_ string, args ...interface{}) {
 	adderr(line, fmt_, args...)
 	if Debug['m'] != 0 {
-		Flusherrors()
+		flusherrors()
 	}
 }
 
 func Fatalf(fmt_ string, args ...interface{}) {
-	Flusherrors()
+	flusherrors()
 
 	fmt.Printf("%v: internal compiler error: ", linestr(lineno))
 	fmt.Printf(fmt_, args...)
@@ -225,25 +225,25 @@ func setlineno(n *Node) int32 {
 	return lno
 }
 
-func Lookup(name string) *Sym {
+func lookup(name string) *Sym {
 	return localpkg.Lookup(name)
 }
 
-func Lookupf(format string, a ...interface{}) *Sym {
-	return Lookup(fmt.Sprintf(format, a...))
+func lookupf(format string, a ...interface{}) *Sym {
+	return lookup(fmt.Sprintf(format, a...))
 }
 
-func LookupBytes(name []byte) *Sym {
+func lookupBytes(name []byte) *Sym {
 	return localpkg.LookupBytes(name)
 }
 
-// LookupN looks up the symbol starting with prefix and ending with
-// the decimal n. If prefix is too long, LookupN panics.
-func LookupN(prefix string, n int) *Sym {
+// lookupN looks up the symbol starting with prefix and ending with
+// the decimal n. If prefix is too long, lookupN panics.
+func lookupN(prefix string, n int) *Sym {
 	var buf [20]byte // plenty long enough for all current users
 	copy(buf[:], prefix)
 	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
-	return LookupBytes(b)
+	return lookupBytes(b)
 }
 
 // autolabel generates a new Name node for use with
@@ -262,7 +262,7 @@ func autolabel(prefix string) *Node {
 	}
 	n := fn.Func.Label
 	fn.Func.Label++
-	return newname(LookupN(prefix, int(n)))
+	return newname(lookupN(prefix, int(n)))
 }
 
 var initSyms []*Sym
@@ -307,7 +307,7 @@ func Pkglookup(name string, pkg *Pkg) *Sym {
 
 func restrictlookup(name string, pkg *Pkg) *Sym {
 	if !exportname(name) && pkg != localpkg {
-		Yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
+		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
 	}
 	return Pkglookup(name, pkg)
 }
@@ -326,7 +326,7 @@ func importdot(opkg *Pkg, pack *Node) {
 		if !exportname(s.Name) || strings.ContainsRune(s.Name, 0xb7) { // 0xb7 = center dot
 			continue
 		}
-		s1 = Lookup(s.Name)
+		s1 = lookup(s.Name)
 		if s1.Def != nil {
 			pkgerror = fmt.Sprintf("during import %q", opkg.Path)
 			redeclare(s1, pkgerror)
@@ -381,9 +381,9 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
 	return n
 }
 
-// NodSym makes a Node with Op op and with the Left field set to left
+// nodSym makes a Node with Op op and with the Left field set to left
 // and the Sym field set to sym. This is for ODOT and friends.
-func NodSym(op Op, left *Node, sym *Sym) *Node {
+func nodSym(op Op, left *Node, sym *Sym) *Node {
 	n := Nod(op, left, nil)
 	n.Sym = sym
 	return n
@@ -468,7 +468,7 @@ func nodnil() *Node {
 	return c
 }
 
-func Nodbool(b bool) *Node {
+func nodbool(b bool) *Node {
 	c := nodintconst(0)
 	c.SetVal(Val{b})
 	c.Type = idealbool
@@ -482,13 +482,13 @@ func aindex(b *Node, t *Type) *Type {
 	if b != nil {
 		switch consttype(b) {
 		default:
-			Yyerror("array bound must be an integer expression")
+			yyerror("array bound must be an integer expression")
 
 		case CTINT, CTRUNE:
 			hasbound = true
 			bound = b.Int64()
 			if bound < 0 {
-				Yyerror("array bound must be non negative")
+				yyerror("array bound must be non negative")
 			}
 		}
 	}
@@ -526,7 +526,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		return &m
 
 	case ONONAME:
-		if n.Sym == Lookup("iota") {
+		if n.Sym == lookup("iota") {
 			// Not sure yet whether this is the real iota,
 			// but make a copy of the Node* just in case,
 			// so that all the copies of this const definition
@@ -681,8 +681,8 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 
 	switch t1.Etype {
 	case TINTER, TSTRUCT:
-		t1, i1 := IterFields(t1)
-		t2, i2 := IterFields(t2)
+		t1, i1 := iterFields(t1)
+		t2, i2 := iterFields(t2)
 		for ; t1 != nil && t2 != nil; t1, t2 = i1.Next(), i2.Next() {
 			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || t1.Note != t2.Note {
 				return false
@@ -700,8 +700,8 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		// equality, because they're never relevant.
 		for _, f := range paramsResults {
 			// Loop over fields in structs, ignoring argument names.
-			ta, ia := IterFields(f(t1))
-			tb, ib := IterFields(f(t2))
+			ta, ia := iterFields(f(t1))
+			tb, ib := iterFields(f(t2))
 			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
 				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, assumedEqual) {
 					return false
@@ -741,8 +741,8 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 		return false
 	}
 
-	f1, i1 := IterFields(t1)
-	f2, i2 := IterFields(t2)
+	f1, i1 := iterFields(t1)
+	f2, i2 := iterFields(t2)
 	for {
 		if !eqtype(f1.Type, f2.Type) {
 			return false
@@ -766,7 +766,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// TODO(rsc,lvd): This behaves poorly in the presence of inlining.
 	// https://golang.org/issue/2795
 	if safemode && importpkg == nil && src != nil && src.Etype == TUNSAFEPTR {
-		Yyerror("cannot use unsafe.Pointer")
+		yyerror("cannot use unsafe.Pointer")
 		errorexit()
 	}
 
@@ -985,7 +985,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	}
 
 	if t.Etype == TBLANK && n.Type.Etype == TNIL {
-		Yyerror("use of untyped nil")
+		yyerror("use of untyped nil")
 	}
 
 	old := n
@@ -1015,7 +1015,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		Yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
+		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
@@ -1135,9 +1135,9 @@ func initPtrto() {
 	ptrToInt32 = typPtr(Types[TINT32])
 }
 
-// Ptrto returns the Type *t.
+// ptrto returns the Type *t.
 // The returned struct must not be modified.
-func Ptrto(t *Type) *Type {
+func ptrto(t *Type) *Type {
 	if Tptr == 0 {
 		Fatalf("ptrto: no tptr")
 	}
@@ -1268,12 +1268,12 @@ func badtype(op Op, tl *Type, tr *Type) {
 	}
 
 	s := fmt_
-	Yyerror("illegal types for operand: %v%s", op, s)
+	yyerror("illegal types for operand: %v%s", op, s)
 }
 
-// Brcom returns !(op).
-// For example, Brcom(==) is !=.
-func Brcom(op Op) Op {
+// brcom returns !(op).
+// For example, brcom(==) is !=.
+func brcom(op Op) Op {
 	switch op {
 	case OEQ:
 		return ONE
@@ -1292,9 +1292,9 @@ func Brcom(op Op) Op {
 	return op
 }
 
-// Brrev returns reverse(op).
+// brrev returns reverse(op).
 // For example, Brrev(<) is >.
-func Brrev(op Op) Op {
+func brrev(op Op) Op {
 	switch op {
 	case OEQ:
 		return OEQ
@@ -1553,11 +1553,11 @@ func adddot(n *Node) *Node {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			n.Left = NodSym(ODOT, n.Left, path[c].field.Sym)
+			n.Left = nodSym(ODOT, n.Left, path[c].field.Sym)
 			n.Left.Implicit = true
 		}
 	case ambig:
-		Yyerror("ambiguous selector %v", n)
+		yyerror("ambiguous selector %v", n)
 		n.Left = nil
 	}
 
@@ -1702,7 +1702,7 @@ func structargs(tl *Type, mustname bool) []*Node {
 			// invent a name so that we can refer to it in the trampoline
 			buf := fmt.Sprintf(".anon%d", gen)
 			gen++
-			n = newname(Lookup(buf))
+			n = newname(lookup(buf))
 		} else if t.Sym != nil {
 			n = newname(t.Sym)
 		}
@@ -1758,7 +1758,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	dclcontext = PEXTERN
 	markdcl()
 
-	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
+	this := Nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr))
 	this.Left.Name.Param.Ntype = this.Right
 	in := structargs(method.Type.Params(), true)
 	out := structargs(method.Type.Results(), false)
@@ -1772,7 +1772,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		// Add a dummy padding argument after the
 		// receiver to make up the difference.
 		tpad := typArray(Types[TUINT8], Types[Tptr].Width-rcvr.Width)
-		pad := Nod(ODCLFIELD, newname(Lookup(".pad")), typenod(tpad))
+		pad := Nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad))
 		l = append(l, pad)
 	}
 
@@ -1821,7 +1821,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		fn.Nbody.Append(n)
 	}
 
-	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
+	dot := adddot(nodSym(OXDOT, this.Left, method.Sym))
 
 	// generate call
 	// It's not possible to use a tail call when dynamic linking on ppc64le. The
@@ -1886,7 +1886,7 @@ func hashmem(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(ptrto(t))))
 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
@@ -1906,7 +1906,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
 	path, ambig := dotpath(s, t, &m, ignorecase)
 	if path == nil {
 		if ambig {
-			Yyerror("%v.%v is ambiguous", t, s)
+			yyerror("%v.%v is ambiguous", t, s)
 		}
 		return nil
 	}
@@ -1919,7 +1919,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
 	}
 
 	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
-		Yyerror("%v.%v is a field, not a method", t, s)
+		yyerror("%v.%v is a field, not a method", t, s)
 		return nil
 	}
 
@@ -1986,7 +1986,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 
 		if rcvr.IsPtr() && !t0.IsPtr() && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
-				Yyerror("interface pointer mismatch")
+				yyerror("interface pointer mismatch")
 			}
 
 			*m = im
@@ -2154,40 +2154,40 @@ var reservedimports = []string{
 
 func isbadimport(path string) bool {
 	if strings.Contains(path, "\x00") {
-		Yyerror("import path contains NUL")
+		yyerror("import path contains NUL")
 		return true
 	}
 
 	for _, ri := range reservedimports {
 		if path == ri {
-			Yyerror("import path %q is reserved and cannot be used", path)
+			yyerror("import path %q is reserved and cannot be used", path)
 			return true
 		}
 	}
 
 	for _, r := range path {
 		if r == utf8.RuneError {
-			Yyerror("import path contains invalid UTF-8 sequence: %q", path)
+			yyerror("import path contains invalid UTF-8 sequence: %q", path)
 			return true
 		}
 
 		if r < 0x20 || r == 0x7f {
-			Yyerror("import path contains control character: %q", path)
+			yyerror("import path contains control character: %q", path)
 			return true
 		}
 
 		if r == '\\' {
-			Yyerror("import path contains backslash; use slash: %q", path)
+			yyerror("import path contains backslash; use slash: %q", path)
 			return true
 		}
 
 		if unicode.IsSpace(r) {
-			Yyerror("import path contains space character: %q", path)
+			yyerror("import path contains space character: %q", path)
 			return true
 		}
 
 		if strings.ContainsRune("!\"#$%&'()*,:;<=>?[]^`{|}", r) {
-			Yyerror("import path contains invalid character '%c': %q", r, path)
+			yyerror("import path contains invalid character '%c': %q", r, path)
 			return true
 		}
 	}
@@ -2233,8 +2233,8 @@ func isdirectiface(t *Type) bool {
 
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab *Node) *Node {
-	typ := NodSym(ODOTPTR, itab, nil)
-	typ.Type = Ptrto(Types[TUINT8])
+	typ := nodSym(ODOTPTR, itab, nil)
+	typ.Type = ptrto(Types[TUINT8])
 	typ.Typecheck = 1
 	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
 	typ.Bounded = true            // guaranteed not to fault
@@ -2245,13 +2245,13 @@ func itabType(itab *Node) *Node {
 // The concrete type must be known to have type t.
 // It follows the pointer if !isdirectiface(t).
 func ifaceData(n *Node, t *Type) *Node {
-	ptr := NodSym(OIDATA, n, nil)
+	ptr := nodSym(OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.Type = t
 		ptr.Typecheck = 1
 		return ptr
 	}
-	ptr.Type = Ptrto(t)
+	ptr.Type = ptrto(t)
 	ptr.Bounded = true
 	ptr.Typecheck = 1
 	ind := Nod(OIND, ptr, nil)

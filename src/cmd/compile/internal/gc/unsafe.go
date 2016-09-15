@@ -21,7 +21,7 @@ func unsafenmagic(nn *Node) *Node {
 	}
 
 	if args.Len() == 0 {
-		Yyerror("missing argument for %v", s)
+		yyerror("missing argument for %v", s)
 		return nil
 	}
 
@@ -60,7 +60,7 @@ func unsafenmagic(nn *Node) *Node {
 		case ODOT, ODOTPTR:
 			break
 		case OCALLPART:
-			Yyerror("invalid expression %v: argument is a method value", nn)
+			yyerror("invalid expression %v: argument is a method value", nn)
 			goto ret
 		default:
 			goto bad
@@ -74,7 +74,7 @@ func unsafenmagic(nn *Node) *Node {
 				// but accessing f must not otherwise involve
 				// indirection via embedded pointer types.
 				if r1.Left != base {
-					Yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
+					yyerror("invalid expression %v: selector implies indirection of embedded %v", nn, r1.Left)
 					goto ret
 				}
 				fallthrough
@@ -92,12 +92,12 @@ func unsafenmagic(nn *Node) *Node {
 	}
 
 	if args.Len() > 1 {
-		Yyerror("extra arguments for %v", s)
+		yyerror("extra arguments for %v", s)
 	}
 	goto ret
 
 bad:
-	Yyerror("invalid expression %v", nn)
+	yyerror("invalid expression %v", nn)
 
 ret:
 	// any side effects disappear; ignore init

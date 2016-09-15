@@ -451,7 +451,7 @@ func escAnalyze(all []*Node, recursive bool) {
 	e.theSink.Op = ONAME
 	e.theSink.Orig = &e.theSink
 	e.theSink.Class = PEXTERN
-	e.theSink.Sym = Lookup(".sink")
+	e.theSink.Sym = lookup(".sink")
 	e.nodeEscState(&e.theSink).Escloopdepth = -1
 	e.recursive = recursive
 
@@ -1097,7 +1097,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 		a := Nod(OADDR, src, nil)
 		a.Lineno = src.Lineno
 		e.nodeEscState(a).Escloopdepth = e.nodeEscState(src).Escloopdepth
-		a.Type = Ptrto(src.Type)
+		a.Type = ptrto(src.Type)
 		escflows(e, dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
 
 	// Flowing multiple returns to a single dst happens when
@@ -1392,7 +1392,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
 		src := Nod(ONAME, nil, nil)
 		buf := fmt.Sprintf(".out%d", i)
 		i++
-		src.Sym = Lookup(buf)
+		src.Sym = lookup(buf)
 		src.Type = t.Type
 		src.Class = PAUTO
 		src.Name.Curfn = Curfn
@@ -1502,7 +1502,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 					// Introduce ODDDARG node to represent ... allocation.
 					src = Nod(ODDDARG, nil, nil)
 					arr := typArray(n2.Type.Elem(), int64(len(lls)))
-					src.Type = Ptrto(arr) // make pointer so it will be tracked
+					src.Type = ptrto(arr) // make pointer so it will be tracked
 					src.Lineno = n.Lineno
 					e.track(src)
 					n.Right = src
@@ -1558,7 +1558,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	note := ""
 	i := 0
 	lls := ll.Slice()
-	for t, it := IterFields(fntype.Params()); i < len(lls); i++ {
+	for t, it := iterFields(fntype.Params()); i < len(lls); i++ {
 		src = lls[i]
 		note = t.Note
 		if t.Isddd && !n.Isddd {
@@ -1566,7 +1566,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			src = Nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
 			arr := typArray(t.Type.Elem(), int64(len(lls)-i))
-			src.Type = Ptrto(arr) // make pointer so it will be tracked
+			src.Type = ptrto(arr) // make pointer so it will be tracked
 			e.track(src)
 			n.Right = src
 		}

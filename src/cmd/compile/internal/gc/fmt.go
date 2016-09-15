@@ -738,7 +738,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
 				return "map.iter[" + m.Key().String() + "]" + m.Val().String()
 			}
 
-			Yyerror("unknown internal map type")
+			yyerror("unknown internal map type")
 		}
 
 		buf := make([]byte, 0, 64)
@@ -752,7 +752,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
 				if i != 0 {
 					buf = append(buf, ", "...)
 				}
-				buf = append(buf, Fldconv(f, flag1)...)
+				buf = append(buf, fldconv(f, flag1)...)
 			}
 			buf = append(buf, ')')
 		} else {
@@ -762,7 +762,7 @@ func (t *Type) typefmt(flag FmtFlag) string {
 					buf = append(buf, ';')
 				}
 				buf = append(buf, ' ')
-				buf = append(buf, Fldconv(f, FmtLong)...)
+				buf = append(buf, fldconv(f, FmtLong)...)
 			}
 			if t.NumFields() != 0 {
 				buf = append(buf, ' ')
@@ -1600,7 +1600,7 @@ func (t *Type) String() string {
 	return t.tconv(0)
 }
 
-func Fldconv(f *Field, flag FmtFlag) string {
+func fldconv(f *Field, flag FmtFlag) string {
 	if f == nil {
 		return "<T>"
 	}
@@ -1628,7 +1628,7 @@ func Fldconv(f *Field, flag FmtFlag) string {
 					if s.Name[1] == 'r' { // originally an unnamed result
 						s = nil
 					} else if s.Name[1] == 'b' { // originally the blank identifier _
-						s = Lookup("_")
+						s = lookup("_")
 					}
 				}
 			} else {
