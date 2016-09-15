@@ -44,24 +44,6 @@ var (
 	dpc     *obj.Prog
 )
 
-func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
-	p := Prog(as)
-	p.To.Type = obj.TYPE_BRANCH
-	p.To.Val = nil
-	if as != obj.AJMP && likely != 0 && !Thearch.LinkArch.InFamily(sys.PPC64, sys.ARM64, sys.MIPS64, sys.S390X) {
-		p.From.Type = obj.TYPE_CONST
-		if likely > 0 {
-			p.From.Offset = 1
-		}
-	}
-
-	if Debug['g'] != 0 {
-		fmt.Printf("%v\n", p)
-	}
-
-	return p
-}
-
 func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 

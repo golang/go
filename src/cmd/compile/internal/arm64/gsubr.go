@@ -172,13 +172,3 @@ func raddr(n *gc.Node, p *obj.Prog) {
 		p.Reg = a.Reg
 	}
 }
-
-func gcmp(as obj.As, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
-	if lhs.Op != gc.OREGISTER {
-		gc.Fatalf("bad operands to gcmp: %v %v", lhs.Op, rhs.Op)
-	}
-
-	p := rawgins(as, rhs, nil)
-	raddr(lhs, p)
-	return p
-}
