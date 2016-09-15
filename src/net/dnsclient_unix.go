@@ -125,7 +125,7 @@ func (d *Dialer) dialDNS(ctx context.Context, network, server string) (dnsConn, 
 	// Calling Dial here is scary -- we have to be sure not to
 	// dial a name that will require a DNS lookup, or Dial will
 	// call back here to translate it. The DNS config parser has
-	// already checked that all the cfg.servers[i] are IP
+	// already checked that all the cfg.servers are IP
 	// addresses, which Dial will use without a DNS lookup.
 	c, err := d.DialContext(ctx, network, server)
 	if err != nil {
@@ -182,13 +182,14 @@ func exchange(ctx context.Context, server, name string, qtype uint16, timeout ti
 // Do a lookup for a single name, which must be rooted
 // (otherwise answer will not find the answers).
 func tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, error) {
-	if len(cfg.servers) == 0 {
-		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
-	}
-
 	var lastErr error
+	serverOffset := cfg.serverOffset()
+	sLen := uint32(len(cfg.servers))
+
 	for i := 0; i < cfg.attempts; i++ {
-		for _, server := range cfg.servers {
+		for j := uint32(0); j < sLen; j++ {
+			server := cfg.servers[(serverOffset+j)%sLen]
+
 			msg, err := exchange(ctx, server, name, qtype, cfg.timeout)
 			if err != nil {
 				lastErr = &DNSError{
