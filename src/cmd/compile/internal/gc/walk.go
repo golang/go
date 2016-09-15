@@ -1419,10 +1419,10 @@ opswitch:
 					ncs = safeexpr(ncs, init)
 				}
 				// TODO(marvin): Fix Node.EType type union.
-				r := Nod(cmp, Nod(OLEN, ncs, nil), Nodintconst(int64(len(s))))
+				r := Nod(cmp, Nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
 				for i := 0; i < len(s); i++ {
-					cb := Nodintconst(int64(s[i]))
-					ncb := Nod(OINDEX, ncs, Nodintconst(int64(i)))
+					cb := nodintconst(int64(s[i]))
+					ncb := Nod(OINDEX, ncs, nodintconst(int64(i)))
 					r = Nod(and, r, Nod(cmp, ncb, cb))
 				}
 				r = typecheck(r, Erv)
