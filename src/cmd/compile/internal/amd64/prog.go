@@ -22,7 +22,7 @@ const (
 // Instructions not generated need not be listed.
 // As an exception to that rule, we typically write down all the
 // size variants of an operation even if we just use a subset.
-var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
+var progtable = [x86.ALAST & obj.AMask]gc.ProgInfo{
 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
@@ -60,9 +60,9 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.ABSWAPQ & obj.AMask: {Flags: gc.SizeQ | RightRdwr},
 
 	obj.ACALL & obj.AMask: {Flags: gc.RightAddr | gc.Call | gc.KillCarry},
-	x86.ACDQ & obj.AMask:  {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
-	x86.ACQO & obj.AMask:  {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
-	x86.ACWD & obj.AMask:  {Flags: gc.OK, Reguse: AX, Regset: AX | DX},
+	x86.ACDQ & obj.AMask:  {Flags: gc.OK},
+	x86.ACQO & obj.AMask:  {Flags: gc.OK},
+	x86.ACWD & obj.AMask:  {Flags: gc.OK},
 	x86.ACLD & obj.AMask:  {Flags: gc.OK},
 	x86.ASTD & obj.AMask:  {Flags: gc.OK},
 
@@ -99,17 +99,17 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.ADECL & obj.AMask:      {Flags: gc.SizeL | RightRdwr},
 	x86.ADECQ & obj.AMask:      {Flags: gc.SizeQ | RightRdwr},
 	x86.ADECW & obj.AMask:      {Flags: gc.SizeW | RightRdwr},
-	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
-	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
-	x86.ADIVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
-	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
+	x86.ADIVB & obj.AMask:      {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
+	x86.ADIVL & obj.AMask:      {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
+	x86.ADIVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry},
+	x86.ADIVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
 	x86.ADIVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 	x86.ADIVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
-	x86.AIDIVB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
-	x86.AIDIVL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
-	x86.AIDIVQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
-	x86.AIDIVW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX | DX, Regset: AX | DX},
-	x86.AIMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
+	x86.AIDIVB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
+	x86.AIDIVL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
+	x86.AIDIVQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry},
+	x86.AIDIVW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
+	x86.AIMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
 	x86.AIMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
 	x86.AIMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
 	x86.AIMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.ImulAXDX | gc.SetCarry},
@@ -156,20 +156,20 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.AMOVQ & obj.AMask:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVW & obj.AMask:      {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVUPS & obj.AMask:    {Flags: gc.LeftRead | gc.RightWrite | gc.Move},
-	x86.AMOVSB & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
-	x86.AMOVSL & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
-	x86.AMOVSQ & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
-	x86.AMOVSW & obj.AMask:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
-	obj.ADUFFCOPY & obj.AMask:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | X0},
+	x86.AMOVSB & obj.AMask:     {Flags: gc.OK},
+	x86.AMOVSL & obj.AMask:     {Flags: gc.OK},
+	x86.AMOVSQ & obj.AMask:     {Flags: gc.OK},
+	x86.AMOVSW & obj.AMask:     {Flags: gc.OK},
+	obj.ADUFFCOPY & obj.AMask:  {Flags: gc.OK},
 	x86.AMOVSD & obj.AMask:     {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVSS & obj.AMask:     {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
 
 	// We use&obj.AMask MOVAPD as a faster synonym for MOVSD.
 	x86.AMOVAPD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
-	x86.AMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX},
-	x86.AMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
-	x86.AMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
-	x86.AMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry, Reguse: AX, Regset: AX | DX},
+	x86.AMULB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | gc.SetCarry},
+	x86.AMULL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | gc.SetCarry},
+	x86.AMULQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.SetCarry},
+	x86.AMULW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | gc.SetCarry},
 	x86.AMULSD & obj.AMask:    {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 	x86.AMULSS & obj.AMask:    {Flags: gc.SizeF | gc.LeftRead | RightRdwr},
 	x86.ANEGB & obj.AMask:     {Flags: gc.SizeB | RightRdwr | gc.SetCarry},
@@ -195,8 +195,8 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.ARCRL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
 	x86.ARCRQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
 	x86.ARCRW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
-	x86.AREP & obj.AMask:      {Flags: gc.OK, Reguse: CX, Regset: CX},
-	x86.AREPN & obj.AMask:     {Flags: gc.OK, Reguse: CX, Regset: CX},
+	x86.AREP & obj.AMask:      {Flags: gc.OK},
+	x86.AREPN & obj.AMask:     {Flags: gc.OK},
 	obj.ARET & obj.AMask:      {Flags: gc.Break | gc.KillCarry},
 	x86.AROLB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
 	x86.AROLL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
@@ -243,11 +243,11 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.ASHRQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
 	x86.ASHRW & obj.AMask:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry},
 	x86.ASQRTSD & obj.AMask:   {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
-	x86.ASTOSB & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
-	x86.ASTOSL & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
-	x86.ASTOSQ & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
-	x86.ASTOSW & obj.AMask:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
-	obj.ADUFFZERO & obj.AMask: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
+	x86.ASTOSB & obj.AMask:    {Flags: gc.OK},
+	x86.ASTOSL & obj.AMask:    {Flags: gc.OK},
+	x86.ASTOSQ & obj.AMask:    {Flags: gc.OK},
+	x86.ASTOSW & obj.AMask:    {Flags: gc.OK},
+	obj.ADUFFZERO & obj.AMask: {Flags: gc.OK},
 	x86.ASUBB & obj.AMask:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.ASUBL & obj.AMask:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.ASUBQ & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
@@ -273,49 +273,15 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.AXORPS & obj.AMask:    {Flags: gc.LeftRead | RightRdwr},
 }
 
-func proginfo(p *obj.Prog) {
-	info := &p.Info
-	*info = progtable[p.As&obj.AMask]
+func proginfo(p *obj.Prog) gc.ProgInfo {
+	info := progtable[p.As&obj.AMask]
 	if info.Flags == 0 {
 		gc.Fatalf("unknown instruction %v", p)
 	}
 
-	if (info.Flags&gc.ShiftCX != 0) && p.From.Type != obj.TYPE_CONST {
-		info.Reguse |= CX
+	if info.Flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
+		info.Flags |= RightRdwr
 	}
 
-	if info.Flags&gc.ImulAXDX != 0 {
-		if p.To.Type == obj.TYPE_NONE {
-			info.Reguse |= AX
-			info.Regset |= AX | DX
-		} else {
-			info.Flags |= RightRdwr
-		}
-	}
-
-	// Addressing makes some registers used.
-	if p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_NONE {
-		info.Regindex |= RtoB(int(p.From.Reg))
-	}
-	if p.From.Index != x86.REG_NONE {
-		info.Regindex |= RtoB(int(p.From.Index))
-	}
-	if p.To.Type == obj.TYPE_MEM && p.To.Name == obj.NAME_NONE {
-		info.Regindex |= RtoB(int(p.To.Reg))
-	}
-	if p.To.Index != x86.REG_NONE {
-		info.Regindex |= RtoB(int(p.To.Index))
-	}
-	if gc.Ctxt.Flag_dynlink {
-		// When -dynlink is passed, many operations on external names (and
-		// also calling duffzero/duffcopy) use R15 as a scratch register.
-		if p.As == x86.ALEAQ || info.Flags == gc.Pseudo || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
-			return
-		}
-		if p.As == obj.ADUFFZERO || p.As == obj.ADUFFCOPY || (p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local) || (p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local) {
-			info.Reguse |= R15
-			info.Regset |= R15
-			return
-		}
-	}
+	return info
 }

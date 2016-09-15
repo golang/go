@@ -96,6 +96,14 @@ type Liveness struct {
 	livepointers     []bvec
 }
 
+// ProgInfo holds information about the instruction for use
+// by clients such as the compiler. The exact meaning of this
+// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+type ProgInfo struct {
+	_     struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
+	Flags uint32   // flag bits
+}
+
 // Constructs a new basic block containing a single instruction.
 func newblock(prog *obj.Prog) *BasicBlock {
 	if prog == nil {
@@ -400,7 +408,6 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 	bb := newblock(firstp)
 	cfg = append(cfg, bb)
 	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
-		Thearch.Proginfo(p)
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.To.Val == nil {
 				Fatalf("prog branch to nil")
@@ -594,7 +601,9 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		return
 	}
 
-	if prog.Info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
+	info := Thearch.Proginfo(prog)
+
+	if info.Flags&(LeftRead|LeftWrite|LeftAddr) != 0 {
 		from := &prog.From
 		if from.Node != nil && from.Sym != nil {
 			n := from.Node.(*Node)
@@ -602,10 +611,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 				if n.Addrtaken {
 					bvset(avarinit, pos)
 				} else {
-					if prog.Info.Flags&(LeftRead|LeftAddr) != 0 {
+					if info.Flags&(LeftRead|LeftAddr) != 0 {
 						bvset(uevar, pos)
 					}
-					if prog.Info.Flags&LeftWrite != 0 {
+					if info.Flags&LeftWrite != 0 {
 						if !isfat(n.Type) {
 							bvset(varkill, pos)
 						}
@@ -615,7 +624,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		}
 	}
 
-	if prog.Info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
+	if info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
 		to := &prog.To
 		if to.Node != nil && to.Sym != nil {
 			n := to.Node.(*Node)
@@ -636,10 +645,10 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 					// It is not a read. It is equivalent to RightWrite except that
 					// having the RightAddr bit set keeps the registerizer from
 					// trying to substitute a register for the memory location.
-					if (prog.Info.Flags&RightRead != 0) || prog.Info.Flags&(RightAddr|RightWrite) == RightAddr {
+					if (info.Flags&RightRead != 0) || info.Flags&(RightAddr|RightWrite) == RightAddr {
 						bvset(uevar, pos)
 					}
-					if prog.Info.Flags&RightWrite != 0 {
+					if info.Flags&RightWrite != 0 {
 						if !isfat(n.Type) || prog.As == obj.AVARDEF {
 							bvset(varkill, pos)
 						}
