@@ -68,10 +68,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 
 	if cnt < int64(4*gc.Widthptr) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
-			p = appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, int32(4+frame+lo+i))
+			p = appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, 4+frame+lo+i)
 		}
 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthptr)) {
-		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, int32(4+frame+lo), obj.TYPE_REG, arm.REG_R1, 0)
+		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
 		p.Reg = arm.REGSP
 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		f := gc.Sysfunc("duffzero")
@@ -79,9 +79,9 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 		gc.Afunclit(&p.To, f)
 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
 	} else {
-		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, int32(4+frame+lo), obj.TYPE_REG, arm.REG_R1, 0)
+		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
 		p.Reg = arm.REGSP
-		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, int32(cnt), obj.TYPE_REG, arm.REG_R2, 0)
+		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm.REG_R2, 0)
 		p.Reg = arm.REG_R1
 		p = appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REG_R1, 4)
 		p1 := p
@@ -95,17 +95,17 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 	return p
 }
 
-func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int32, ttype obj.AddrType, treg int, toffset int32) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
 	q.As = as
 	q.Lineno = p.Lineno
 	q.From.Type = ftype
-	q.From.Reg = int16(freg)
-	q.From.Offset = int64(foffset)
+	q.From.Reg = freg
+	q.From.Offset = foffset
 	q.To.Type = ttype
-	q.To.Reg = int16(treg)
-	q.To.Offset = int64(toffset)
+	q.To.Reg = treg
+	q.To.Offset = toffset
 	q.Link = p.Link
 	p.Link = q
 	return q
