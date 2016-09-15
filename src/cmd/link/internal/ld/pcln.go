@@ -358,7 +358,7 @@ func (ctxt *Link) pclntab() {
 	setuint32(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint32(start))
 
 	Symgrow(ctxt, ftab, int64(start)+(int64(len(ctxt.Filesyms))+1)*4)
-	setuint32(ctxt, ftab, int64(start), uint32(len(ctxt.Filesyms)))
+	setuint32(ctxt, ftab, int64(start), uint32(len(ctxt.Filesyms)+1))
 	for i := len(ctxt.Filesyms) - 1; i >= 0; i-- {
 		s := ctxt.Filesyms[i]
 		setuint32(ctxt, ftab, int64(start)+s.Value*4, uint32(ftabaddstring(ctxt, ftab, s.Name)))
