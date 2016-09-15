@@ -65,6 +65,7 @@ func buildssa(fn *Node) *ssa.Func {
 	s.f.Name = name
 	s.exitCode = fn.Func.Exit
 	s.panics = map[funcLine]*ssa.Block{}
+	s.config.DebugTest = s.config.DebugHashMatch("GOSSAHASH", name)
 
 	if name == os.Getenv("GOSSAFUNC") {
 		// TODO: tempfile? it is handy to have the location
