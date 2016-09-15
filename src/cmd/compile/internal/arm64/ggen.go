@@ -106,7 +106,6 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 }
 
 func ginsnop() {
-	var con gc.Node
-	gc.Nodconst(&con, gc.Types[gc.TINT], 0)
-	gins(arm64.AHINT, &con, nil)
+	p := gc.Prog(arm64.AHINT)
+	p.From.Type = obj.TYPE_CONST
 }

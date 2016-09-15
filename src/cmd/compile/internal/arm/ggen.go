@@ -96,8 +96,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 }
 
 func ginsnop() {
-	var r gc.Node
-	gc.Nodreg(&r, gc.Types[gc.TINT], arm.REG_R0)
-	p := gins(arm.AAND, &r, &r)
+	p := gc.Prog(arm.AAND)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = arm.REG_R0
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = arm.REG_R0
 	p.Scond = arm.C_SCOND_EQ
 }
