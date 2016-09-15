@@ -92,16 +92,16 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	return p
 }
 
-func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
 	q.As = as
 	q.Lineno = p.Lineno
 	q.From.Type = ftype
-	q.From.Reg = int16(freg)
+	q.From.Reg = freg
 	q.From.Offset = foffset
 	q.To.Type = ttype
-	q.To.Reg = int16(treg)
+	q.To.Reg = treg
 	q.To.Offset = toffset
 	q.Link = p.Link
 	p.Link = q
