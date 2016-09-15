@@ -30,31 +30,9 @@
 
 package arm
 
-import (
-	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
-	"cmd/internal/obj/arm"
-)
+import "cmd/internal/obj/arm"
 
 var resvd = []int{
 	arm.REG_R9,  // formerly reserved for m; might be okay to reuse now; not sure about NaCl
 	arm.REG_R10, // reserved for g
-}
-
-/*
- * insert n into reg slot of p
- */
-func raddr(n *gc.Node, p *obj.Prog) {
-	var a obj.Addr
-	gc.Naddr(&a, n)
-	if a.Type != obj.TYPE_REG {
-		if n != nil {
-			gc.Fatalf("bad in raddr: %v", n.Op)
-		} else {
-			gc.Fatalf("bad in raddr: <null>")
-		}
-		p.Reg = 0
-	} else {
-		p.Reg = a.Reg
-	}
 }

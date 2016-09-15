@@ -274,18 +274,6 @@ var progtable = [x86.ALAST & obj.AMask]obj.ProgInfo{
 	x86.AXORPS & obj.AMask:    {Flags: gc.LeftRead | RightRdwr},
 }
 
-func progflags(p *obj.Prog) uint32 {
-	flags := progtable[p.As&obj.AMask].Flags
-	if flags&gc.ImulAXDX != 0 && p.To.Type != obj.TYPE_NONE {
-		flags |= RightRdwr
-	}
-	return flags
-}
-
-func progcarryflags(p *obj.Prog) uint32 {
-	return progtable[p.As&obj.AMask].Flags
-}
-
 func proginfo(p *obj.Prog) {
 	info := &p.Info
 	*info = progtable[p.As&obj.AMask]

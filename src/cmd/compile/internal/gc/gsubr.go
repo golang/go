@@ -601,23 +601,3 @@ func Gins(as obj.As, f, t *Node) *obj.Prog {
 	}
 	return p
 }
-
-var reg [100]int       // count of references to reg
-var regstk [100][]byte // allocation sites, when -v is given
-
-func ginit() {
-	for r := range reg {
-		reg[r] = 1
-	}
-
-	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
-		reg[r-Thearch.REGMIN] = 0
-	}
-	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
-		reg[r-Thearch.REGMIN] = 0
-	}
-
-	for _, r := range Thearch.ReservedRegs {
-		reg[r-Thearch.REGMIN] = 1
-	}
-}
