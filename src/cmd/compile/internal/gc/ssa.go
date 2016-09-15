@@ -26,6 +26,7 @@ func initssa() *ssa.Config {
 			ssaConfig.Set387(Thearch.Use387)
 		}
 	}
+	ssaConfig.HTML = nil
 	return ssaConfig
 }
 
@@ -71,11 +72,6 @@ func buildssa(fn *Node) *ssa.Func {
 		s.config.HTML = ssa.NewHTMLWriter("ssa.html", s.config, name)
 		// TODO: generate and print a mapping from nodes to values and blocks
 	}
-	defer func() {
-		if !printssa {
-			s.config.HTML.Close()
-		}
-	}()
 
 	// Allocate starting block
 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
@@ -4298,6 +4294,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	removevardef(ptxt)
 
 	f.Config.HTML.Close()
+	f.Config.HTML = nil
 }
 
 type FloatingEQNEJump struct {
