@@ -368,8 +368,12 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpPPC64LessThan(v, config)
 	case OpPPC64MOVBZload:
 		return rewriteValuePPC64_OpPPC64MOVBZload(v, config)
+	case OpPPC64MOVBZreg:
+		return rewriteValuePPC64_OpPPC64MOVBZreg(v, config)
 	case OpPPC64MOVBload:
 		return rewriteValuePPC64_OpPPC64MOVBload(v, config)
+	case OpPPC64MOVBreg:
+		return rewriteValuePPC64_OpPPC64MOVBreg(v, config)
 	case OpPPC64MOVBstore:
 		return rewriteValuePPC64_OpPPC64MOVBstore(v, config)
 	case OpPPC64MOVBstorezero:
@@ -382,8 +386,12 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpPPC64MOVDstorezero(v, config)
 	case OpPPC64MOVHZload:
 		return rewriteValuePPC64_OpPPC64MOVHZload(v, config)
+	case OpPPC64MOVHZreg:
+		return rewriteValuePPC64_OpPPC64MOVHZreg(v, config)
 	case OpPPC64MOVHload:
 		return rewriteValuePPC64_OpPPC64MOVHload(v, config)
+	case OpPPC64MOVHreg:
+		return rewriteValuePPC64_OpPPC64MOVHreg(v, config)
 	case OpPPC64MOVHstore:
 		return rewriteValuePPC64_OpPPC64MOVHstore(v, config)
 	case OpPPC64MOVHstorezero:
@@ -1296,6 +1304,26 @@ func rewriteValuePPC64_OpEq16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Eq16 x y)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64Equal)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Eq16 x y)
 	// cond:
 	// result: (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
@@ -1384,6 +1412,26 @@ func rewriteValuePPC64_OpEq64F(v *Value, config *Config) bool {
 func rewriteValuePPC64_OpEq8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Eq8 x y)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64Equal)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Eq8 x y)
 	// cond:
 	// result: (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -3626,6 +3674,26 @@ func rewriteValuePPC64_OpNeq16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (Neq16 x y)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (NotEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64NotEqual)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Neq16 x y)
 	// cond:
 	// result: (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
@@ -3714,6 +3782,26 @@ func rewriteValuePPC64_OpNeq64F(v *Value, config *Config) bool {
 func rewriteValuePPC64_OpNeq8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Neq8 x y)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (NotEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64NotEqual)
+		v0 := b.NewValue0(v.Line, OpPPC64CMPW, TypeFlags)
+		v1 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Neq8 x y)
 	// cond:
 	// result: (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -4676,6 +4764,24 @@ func rewriteValuePPC64_OpPPC64MOVBZload(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBZreg x:(MOVBZload _ _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpPPC64MOVBZload {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64MOVBload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -4724,6 +4830,24 @@ func rewriteValuePPC64_OpPPC64MOVBload(v *Value, config *Config) bool {
 		v.Aux = sym
 		v.AddArg(x)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVBreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVBreg x:(MOVBload _ _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpPPC64MOVBload {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -5046,6 +5170,24 @@ func rewriteValuePPC64_OpPPC64MOVHZload(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHZreg x:(MOVHZload _ _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpPPC64MOVHZload {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValuePPC64_OpPPC64MOVHload(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -5094,6 +5236,24 @@ func rewriteValuePPC64_OpPPC64MOVHload(v *Value, config *Config) bool {
 		v.Aux = sym
 		v.AddArg(x)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64MOVHreg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MOVHreg x:(MOVHload _ _))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		if x.Op != OpPPC64MOVHload {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
 		return true
 	}
 	return false

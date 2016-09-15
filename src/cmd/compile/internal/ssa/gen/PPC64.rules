@@ -196,6 +196,9 @@
 
 // Lowering comparisons
 (EqB x y)  -> (ANDconst [1] (EQV x y))
+// Sign extension dependence on operand sign sets up for sign/zero-extension elision later
+(Eq8 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Eq16 x y) && isSigned(x.Type) && isSigned(y.Type) -> (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Eq16 x y) -> (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Eq32 x y) -> (Equal (CMPW x y))
@@ -205,6 +208,9 @@
 (EqPtr x y) -> (Equal (CMP x y))
 
 (NeqB x y)  -> (XOR x y)
+// Like Eq8 and Eq16, prefer sign extension likely to enable later elision.
+(Neq8 x y) && isSigned(x.Type) && isSigned(y.Type) -> (NotEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+(Neq16 x y) && isSigned(x.Type) && isSigned(y.Type) -> (NotEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 (Neq8 x y)  -> (NotEqual (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
 (Neq16 x y) -> (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Neq32 x y) -> (NotEqual (CMPW x y))
@@ -620,3 +626,9 @@
 (Trunc64to16 x) -> (MOVHreg x)
 (Trunc64to32 x) -> (MOVWreg x)
 
+// Note that MOV??reg returns a 64-bit int, x is not necessarily that wide
+// This may interact with other patterns in the future. (Compare with arm64)
+(MOVBZreg x:(MOVBZload _ _))  -> x
+(MOVBreg x:(MOVBload _ _))  -> x
+(MOVHZreg x:(MOVHZload _ _))  -> x
+(MOVHreg x:(MOVHload _ _))  -> x
