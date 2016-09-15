@@ -2409,7 +2409,7 @@ The <code>http</code> package contains this code:
 // Handler object that calls f.
 type HandlerFunc func(ResponseWriter, *Request)
 
-// ServeHTTP calls f(c, req).
+// ServeHTTP calls f(w, req).
 func (f HandlerFunc) ServeHTTP(w ResponseWriter, req *Request) {
     f(w, req)
 }
@@ -2447,7 +2447,7 @@ the handler installed at that page has value <code>ArgServer</code>
 and type <code>HandlerFunc</code>.
 The HTTP server will invoke the method <code>ServeHTTP</code>
 of that type, with <code>ArgServer</code> as the receiver, which will in turn call
-<code>ArgServer</code> (via the invocation <code>f(c, req)</code>
+<code>ArgServer</code> (via the invocation <code>f(w, req)</code>
 inside <code>HandlerFunc.ServeHTTP</code>).
 The arguments will then be displayed.
 </p>
