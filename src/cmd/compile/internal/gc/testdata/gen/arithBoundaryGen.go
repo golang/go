@@ -5,7 +5,7 @@
 // This program generates a test to verify that the standard arithmetic
 // operators properly handle some special cases. The test file should be
 // generated with a known working version of go.
-// launch with `go run arithBoundaryGen.go` a file called arithBoundary_ssa.go
+// launch with `go run arithBoundaryGen.go` a file called arithBoundary.go
 // will be written into the parent directory containing the tests
 
 package main
@@ -207,7 +207,7 @@ func main() {
 	}
 
 	// write to file
-	err = ioutil.WriteFile("../arithBoundary_ssa.go", src, 0666)
+	err = ioutil.WriteFile("../arithBoundary.go", src, 0666)
 	if err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
