@@ -1398,21 +1398,6 @@ func cheapexpr(n *Node, init *Nodes) *Node {
 	return copyexpr(n, n.Type, init)
 }
 
-func Setmaxarg(t *Type, extra int32) {
-	dowidth(t)
-	w := t.ArgWidth()
-	if w >= Thearch.MAXWIDTH {
-		Fatalf("bad argwid %v", t)
-	}
-	w += int64(extra)
-	if w >= Thearch.MAXWIDTH {
-		Fatalf("bad argwid %d + %v", extra, t)
-	}
-	if w > Maxarg {
-		Maxarg = w
-	}
-}
-
 // Code to resolve elided DOTs in embedded types.
 
 // A Dlist stores a pointer to a TFIELD Type embedded within

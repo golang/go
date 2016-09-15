@@ -69,53 +69,6 @@ func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	rawgins(as, &n1, n2)
 }
 
-// gmvc tries to move f to t using a mvc instruction.
-// If successful it returns true, otherwise it returns false.
-func gmvc(f, t *gc.Node) bool {
-	ft := int(gc.Simsimtype(f.Type))
-	tt := int(gc.Simsimtype(t.Type))
-
-	if ft != tt {
-		return false
-	}
-
-	if f.Op != gc.OINDREG || t.Op != gc.OINDREG {
-		return false
-	}
-
-	if f.Xoffset < 0 || f.Xoffset >= 4096-8 {
-		return false
-	}
-
-	if t.Xoffset < 0 || t.Xoffset >= 4096-8 {
-		return false
-	}
-
-	var len int64
-	switch ft {
-	case gc.TUINT8, gc.TINT8, gc.TBOOL:
-		len = 1
-	case gc.TUINT16, gc.TINT16:
-		len = 2
-	case gc.TUINT32, gc.TINT32, gc.TFLOAT32:
-		len = 4
-	case gc.TUINT64, gc.TINT64, gc.TFLOAT64, gc.TPTR64:
-		len = 8
-	case gc.TUNSAFEPTR:
-		len = int64(gc.Widthptr)
-	default:
-		return false
-	}
-
-	p := gc.Prog(s390x.AMVC)
-	gc.Naddr(&p.From, f)
-	gc.Naddr(&p.To, t)
-	p.From3 = new(obj.Addr)
-	p.From3.Offset = len
-	p.From3.Type = obj.TYPE_CONST
-	return true
-}
-
 func intLiteral(n *gc.Node) (x int64, ok bool) {
 	switch {
 	case n == nil:

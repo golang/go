@@ -349,15 +349,6 @@ func slicebytes(nam *Node, s string, len int) {
 	duintxx(nam.Sym, off, uint64(len), Widthint)
 }
 
-func Datastring(s string, a *obj.Addr) {
-	_, symdata := stringsym(s)
-	a.Type = obj.TYPE_MEM
-	a.Name = obj.NAME_EXTERN
-	a.Sym = symdata
-	a.Offset = 0
-	a.Etype = uint8(Simtype[TINT])
-}
-
 func datagostring(sval string, a *obj.Addr) {
 	symhdr, _ := stringsym(sval)
 	a.Type = obj.TYPE_MEM
