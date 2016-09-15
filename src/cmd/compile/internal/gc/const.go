@@ -190,13 +190,6 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	return fv
 }
 
-// NegOne returns a Node of type t with value -1.
-func NegOne(t *Type) *Node {
-	n := nodintconst(-1)
-	n = convlit(n, t)
-	return n
-}
-
 // canReuseNode indicates whether it is known to be safe
 // to reuse a Node.
 type canReuseNode bool
@@ -265,7 +258,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			n.SetVal(toint(n.Val()))
 		}
 		if t != nil && !t.IsInteger() {
-			Yyerror("invalid operation: %v (shift of type %v)", n, t)
+			yyerror("invalid operation: %v (shift of type %v)", n, t)
 			t = nil
 		}
 
@@ -412,7 +405,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 bad:
 	if n.Diag == 0 {
 		if !t.Broke {
-			Yyerror("cannot convert %v to type %v", n, t)
+			yyerror("cannot convert %v to type %v", n, t)
 		}
 		n.Diag = 1
 	}
@@ -475,7 +468,7 @@ func toflt(v Val) Val {
 		f := newMpflt()
 		f.Set(&u.Real)
 		if u.Imag.CmpFloat64(0) != 0 {
-			Yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		v.U = f
 	}
@@ -500,17 +493,17 @@ func toint(v Val) Val {
 			if u.Val.IsInt() {
 				msg = "constant %v overflows integer"
 			}
-			Yyerror(msg, fconv(u, FmtSharp))
+			yyerror(msg, fconv(u, FmtSharp))
 		}
 		v.U = i
 
 	case *Mpcplx:
 		i := new(Mpint)
 		if i.SetFloat(&u.Real) < 0 {
-			Yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v%vi truncated to integer", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		if u.Imag.CmpFloat64(0) != 0 {
-			Yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
+			yyerror("constant %v%vi truncated to real", fconv(&u.Real, FmtSharp), fconv(&u.Imag, FmtSharp|FmtSign))
 		}
 		v.U = i
 	}
@@ -556,7 +549,7 @@ func overflow(v Val, t *Type) {
 	}
 
 	if doesoverflow(v, t) {
-		Yyerror("constant %v overflows %v", v, t)
+		yyerror("constant %v overflows %v", v, t)
 	}
 }
 
@@ -744,7 +737,7 @@ func evconst(n *Node) {
 		switch uint32(n.Op)<<16 | uint32(v.Ctype()) {
 		default:
 			if n.Diag == 0 {
-				Yyerror("illegal constant expression %v %v", n.Op, nl.Type)
+				yyerror("illegal constant expression %v %v", n.Op, nl.Type)
 				n.Diag = 1
 			}
 			return
@@ -939,7 +932,7 @@ func evconst(n *Node) {
 	case ODIV_ | CTINT_,
 		ODIV_ | CTRUNE_:
 		if rv.U.(*Mpint).CmpInt64(0) == 0 {
-			Yyerror("division by zero")
+			yyerror("division by zero")
 			v.U.(*Mpint).SetOverflow()
 			break
 		}
@@ -949,7 +942,7 @@ func evconst(n *Node) {
 	case OMOD_ | CTINT_,
 		OMOD_ | CTRUNE_:
 		if rv.U.(*Mpint).CmpInt64(0) == 0 {
-			Yyerror("division by zero")
+			yyerror("division by zero")
 			v.U.(*Mpint).SetOverflow()
 			break
 		}
@@ -991,7 +984,7 @@ func evconst(n *Node) {
 
 	case ODIV_ | CTFLT_:
 		if rv.U.(*Mpflt).CmpFloat64(0) == 0 {
-			Yyerror("division by zero")
+			yyerror("division by zero")
 			v.U.(*Mpflt).SetFloat64(1.0)
 			break
 		}
@@ -1002,7 +995,7 @@ func evconst(n *Node) {
 	// which is not quite an ideal error.
 	case OMOD_ | CTFLT_:
 		if n.Diag == 0 {
-			Yyerror("illegal constant expression: floating-point %% operation")
+			yyerror("illegal constant expression: floating-point %% operation")
 			n.Diag = 1
 		}
 
@@ -1021,7 +1014,7 @@ func evconst(n *Node) {
 
 	case ODIV_ | CTCPLX_:
 		if rv.U.(*Mpcplx).Real.CmpFloat64(0) == 0 && rv.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
-			Yyerror("complex division by zero")
+			yyerror("complex division by zero")
 			rv.U.(*Mpcplx).Real.SetFloat64(1.0)
 			rv.U.(*Mpcplx).Imag.SetFloat64(0.0)
 			break
@@ -1209,7 +1202,7 @@ ret:
 	return
 
 settrue:
-	nn = Nodbool(true)
+	nn = nodbool(true)
 	nn.Orig = saveorig(n)
 	if !iscmp[n.Op] {
 		nn.Type = nl.Type
@@ -1218,7 +1211,7 @@ settrue:
 	return
 
 setfalse:
-	nn = Nodbool(false)
+	nn = nodbool(false)
 	nn.Orig = saveorig(n)
 	if !iscmp[n.Op] {
 		nn.Type = nl.Type
@@ -1228,7 +1221,7 @@ setfalse:
 
 illegal:
 	if n.Diag == 0 {
-		Yyerror("illegal constant expression: %v %v %v", nl.Type, n.Op, nr.Type)
+		yyerror("illegal constant expression: %v %v %v", nl.Type, n.Op, nr.Type)
 		n.Diag = 1
 	}
 }
@@ -1369,7 +1362,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 		if n.Val().Ctype() == CTNIL {
 			lineno = lno
 			if n.Diag == 0 {
-				Yyerror("use of untyped nil")
+				yyerror("use of untyped nil")
 				n.Diag = 1
 			}
 
@@ -1383,7 +1376,7 @@ func defaultlitreuse(n *Node, t *Type, reuse canReuseNode) *Node {
 			break
 		}
 
-		Yyerror("defaultlit: unknown literal: %v", n)
+		yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
 		Fatalf("defaultlit: idealkind is CTxxx: %+v", n)

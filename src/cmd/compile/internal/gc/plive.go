@@ -806,7 +806,7 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 	for _, ln := range fn.Func.Dcl {
 		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
 	}
-	Yyerror("checkauto: invariant lost")
+	yyerror("checkauto: invariant lost")
 }
 
 func checkparam(fn *Node, p *obj.Prog, n *Node) {
@@ -823,7 +823,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	for _, ln := range fn.Func.Dcl {
 		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
 	}
-	Yyerror("checkparam: invariant lost")
+	yyerror("checkparam: invariant lost")
 }
 
 func checkprog(fn *Node, p *obj.Prog) {
@@ -1423,7 +1423,7 @@ func livenessepilogue(lv *Liveness) {
 		}
 	}
 
-	Flusherrors()
+	flusherrors()
 }
 
 // FNV-1 hash function constants.

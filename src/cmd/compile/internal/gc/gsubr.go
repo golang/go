@@ -286,7 +286,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Sym = Linksym(n.Sym)
 		a.Offset = n.Xoffset
 		if a.Offset != int64(int32(a.Offset)) {
-			Yyerror("offset %d too large for OINDREG", a.Offset)
+			yyerror("offset %d too large for OINDREG", a.Offset)
 		}
 		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
 			a.Width = 0
@@ -317,7 +317,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		//if(a->node >= (Node*)&n)
 		//	fatal("stack node");
 		if s == nil {
-			s = Lookup(".noname")
+			s = lookup(".noname")
 		}
 		if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
 			s = Pkglookup(s.Name, n.Type.Sym.Pkg)
@@ -503,7 +503,7 @@ func nodarg(t interface{}, fp int) *Node {
 
 		// Build fake variable name for whole arg struct.
 		n = Nod(ONAME, nil, nil)
-		n.Sym = Lookup(".args")
+		n.Sym = lookup(".args")
 		n.Type = t
 		first := t.Field(0)
 		if first == nil {
@@ -566,7 +566,7 @@ func nodarg(t interface{}, fp int) *Node {
 	// or else the assignment to _ will be
 	// discarded during code generation.
 	if isblank(n) {
-		n.Sym = Lookup("__")
+		n.Sym = lookup("__")
 	}
 
 	switch fp {
@@ -648,7 +648,7 @@ Switch:
 				break Switch
 			}
 		}
-		Flusherrors()
+		flusherrors()
 		regdump()
 		Fatalf("out of fixed registers")
 
@@ -668,7 +668,7 @@ Switch:
 				break Switch
 			}
 		}
-		Flusherrors()
+		flusherrors()
 		regdump()
 		Fatalf("out of floating registers")
 

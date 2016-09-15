@@ -105,7 +105,7 @@ func moveToHeap(n *Node) {
 		Dump("MOVE", n)
 	}
 	if compiling_runtime {
-		Yyerror("%v escapes to heap, not allowed in runtime.", n)
+		yyerror("%v escapes to heap, not allowed in runtime.", n)
 	}
 	if n.Class == PAUTOHEAP {
 		Dump("n", n)
@@ -114,8 +114,8 @@ func moveToHeap(n *Node) {
 
 	// Allocate a local stack variable to hold the pointer to the heap copy.
 	// temp will add it to the function declaration list automatically.
-	heapaddr := temp(Ptrto(n.Type))
-	heapaddr.Sym = Lookup("&" + n.Sym.Name)
+	heapaddr := temp(ptrto(n.Type))
+	heapaddr.Sym = lookup("&" + n.Sym.Name)
 	heapaddr.Orig.Sym = heapaddr.Sym
 
 	// Parameters have a local stack copy used at function start/end
@@ -200,13 +200,13 @@ func tempname(nn *Node, t *Type) {
 	}
 
 	if t == nil {
-		Yyerror("tempname called with nil type")
+		yyerror("tempname called with nil type")
 		t = Types[TINT32]
 	}
 
 	// give each tmp a different name so that there
 	// a chance to registerizer them
-	s := LookupN("autotmp_", statuniqgen)
+	s := lookupN("autotmp_", statuniqgen)
 	statuniqgen++
 	n := Nod(ONAME, nil, nil)
 	n.Sym = s

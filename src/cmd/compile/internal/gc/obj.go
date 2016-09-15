@@ -53,7 +53,7 @@ func dumpobj1(outfile string, mode int) {
 	var err error
 	bout, err = bio.Create(outfile)
 	if err != nil {
-		Flusherrors()
+		flusherrors()
 		fmt.Printf("can't create %s: %v\n", outfile, err)
 		errorexit()
 	}

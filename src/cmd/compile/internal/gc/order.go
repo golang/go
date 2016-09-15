@@ -363,7 +363,7 @@ func ordercall(n *Node, order *Order) {
 	ordercallargs(&n.List, order)
 
 	if n.Op == OCALLFUNC {
-		t, it := IterFields(n.Left.Type.Params())
+		t, it := iterFields(n.Left.Type.Params())
 		for i := range n.List.Slice() {
 			// Check for "unsafe-uintptr" tag provided by escape analysis.
 			// If present and the argument is really a pointer being converted
@@ -815,7 +815,7 @@ func orderstmt(n *Node, order *Order) {
 			if r != nil {
 				switch r.Op {
 				default:
-					Yyerror("unknown op in select %v", r.Op)
+					yyerror("unknown op in select %v", r.Op)
 					Dump("select case", r)
 
 				// If this is case x := <-ch or case x, y := <-ch, the case has
@@ -837,7 +837,7 @@ func orderstmt(n *Node, order *Order) {
 					}
 
 					if r.Ninit.Len() != 0 {
-						Yyerror("ninit on select recv")
+						yyerror("ninit on select recv")
 						dumplist("ninit", r.Ninit)
 					}
 
@@ -899,7 +899,7 @@ func orderstmt(n *Node, order *Order) {
 
 				case OSEND:
 					if r.Ninit.Len() != 0 {
-						Yyerror("ninit on select send")
+						yyerror("ninit on select send")
 						dumplist("ninit", r.Ninit)
 					}
 

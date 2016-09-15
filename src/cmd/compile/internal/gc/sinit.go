@@ -162,7 +162,7 @@ func foundinitloop(node, visited *Node) {
 	// those errors probably confused us and
 	// there might not be a loop. Let the user
 	// fix those first.
-	Flusherrors()
+	flusherrors()
 	if nerrors > 0 {
 		errorexit()
 	}
@@ -533,7 +533,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 				*out = append(*out, Nod(OAS, a, val))
 			}
 			ptr := Nod(OADDR, a, nil)
-			n.Type = Ptrto(val.Type)
+			n.Type = ptrto(val.Type)
 			gdata(&n, ptr, Widthptr)
 		}
 
@@ -571,7 +571,7 @@ const (
 // Callers should set n.Name.Readonly = true on the
 // returned node for readonly nodes.
 func staticname(t *Type) *Node {
-	n := newname(LookupN("statictmp_", statuniqgen))
+	n := newname(lookupN("statictmp_", statuniqgen))
 	statuniqgen++
 	addvar(n, t, PEXTERN)
 	return n
@@ -694,7 +694,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 	case OARRAYLIT, OSLICELIT:
 		indexnode = func(index *Node) *Node { return Nod(OINDEX, var_, index) }
 	case OSTRUCTLIT:
-		indexnode = func(index *Node) *Node { return NodSym(ODOT, var_, index.Sym) }
+		indexnode = func(index *Node) *Node { return nodSym(ODOT, var_, index.Sym) }
 	default:
 		Fatalf("fixedlit bad op: %v", n.Op)
 	}
@@ -805,7 +805,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	// make new auto *array (3 declare)
-	vauto := temp(Ptrto(t))
+	vauto := temp(ptrto(t))
 
 	// set auto to point at new temp or heap (3 assign)
 	var a *Node

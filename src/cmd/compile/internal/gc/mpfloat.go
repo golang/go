@@ -128,7 +128,7 @@ func (a *Mpflt) Float64() float64 {
 
 	// check for overflow
 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
-		Yyerror("mpgetflt ovf")
+		yyerror("mpgetflt ovf")
 	}
 
 	return x + 0 // avoid -0 (should not be needed, but be conservative)
@@ -140,7 +140,7 @@ func (a *Mpflt) Float32() float64 {
 
 	// check for overflow
 	if math.IsInf(x, 0) && nsavederrors+nerrors == 0 {
-		Yyerror("mpgetflt32 ovf")
+		yyerror("mpgetflt32 ovf")
 	}
 
 	return x + 0 // avoid -0 (should not be needed, but be conservative)
@@ -187,13 +187,13 @@ func (a *Mpflt) SetString(as string) {
 		// - constant exponent out of range
 		// - decimal point and binary point in constant
 		// TODO(gri) use different conversion function or check separately
-		Yyerror("malformed constant: %s", as)
+		yyerror("malformed constant: %s", as)
 		a.Val.SetFloat64(0)
 		return
 	}
 
 	if f.IsInf() {
-		Yyerror("constant too large: %s", as)
+		yyerror("constant too large: %s", as)
 		a.Val.SetFloat64(0)
 		return
 	}

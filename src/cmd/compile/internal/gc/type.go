@@ -637,9 +637,9 @@ type Iter struct {
 	s []*Field
 }
 
-// IterFields returns the first field or method in struct or interface type t
+// iterFields returns the first field or method in struct or interface type t
 // and an Iter value to continue iterating across the rest.
-func IterFields(t *Type) (*Field, Iter) {
+func iterFields(t *Type) (*Field, Iter) {
 	return t.Fields().Iter()
 }
 
@@ -978,8 +978,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 
 		fallthrough
 	case TINTER:
-		t1, ti := IterFields(t)
-		x1, xi := IterFields(x)
+		t1, ti := iterFields(t)
+		x1, xi := iterFields(x)
 		for ; t1 != nil && x1 != nil; t1, x1 = ti.Next(), xi.Next() {
 			if t1.Embedded != x1.Embedded {
 				return cmpForNe(t1.Embedded < x1.Embedded)
@@ -1002,8 +1002,8 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 	case TFUNC:
 		for _, f := range recvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
-			ta, ia := IterFields(f(t))
-			tb, ib := IterFields(f(x))
+			ta, ia := iterFields(f(t))
+			tb, ib := iterFields(f(x))
 			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
 				if ta.Isddd != tb.Isddd {
 					return cmpForNe(!ta.Isddd)
@@ -1152,7 +1152,7 @@ func (t *Type) ElemType() ssa.Type {
 	return t.Elem()
 }
 func (t *Type) PtrTo() ssa.Type {
-	return Ptrto(t)
+	return ptrto(t)
 }
 
 func (t *Type) NumFields() int {

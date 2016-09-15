@@ -76,7 +76,7 @@ const (
 	UintptrEscapes           // pointers converted to uintptr escape
 )
 
-func PragmaValue(verb string) Pragma {
+func pragmaValue(verb string) Pragma {
 	switch verb {
 	case "go:nointerface":
 		if obj.Fieldtrack_enabled != 0 {
@@ -92,17 +92,17 @@ func PragmaValue(verb string) Pragma {
 		return Noinline
 	case "go:systemstack":
 		if !compiling_runtime {
-			Yyerror("//go:systemstack only allowed in runtime")
+			yyerror("//go:systemstack only allowed in runtime")
 		}
 		return Systemstack
 	case "go:nowritebarrier":
 		if !compiling_runtime {
-			Yyerror("//go:nowritebarrier only allowed in runtime")
+			yyerror("//go:nowritebarrier only allowed in runtime")
 		}
 		return Nowritebarrier
 	case "go:nowritebarrierrec":
 		if !compiling_runtime {
-			Yyerror("//go:nowritebarrierrec only allowed in runtime")
+			yyerror("//go:nowritebarrierrec only allowed in runtime")
 		}
 		return Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
 	case "go:cgo_unsafe_args":
@@ -355,7 +355,7 @@ l0:
 					continue
 				}
 				if c == EOF {
-					Yyerror("eof in comment")
+					yyerror("eof in comment")
 					errorexit()
 				}
 				c = l.getr()
@@ -520,7 +520,7 @@ l0:
 
 	default:
 		// anything else is illegal
-		Yyerror("syntax error: illegal character %#U", c)
+		yyerror("syntax error: illegal character %#U", c)
 		goto l0
 	}
 
@@ -581,10 +581,10 @@ func (l *lexer) ident(c rune) {
 		if c >= utf8.RuneSelf {
 			if unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) {
 				if cp.Len() == 0 && unicode.IsDigit(c) {
-					Yyerror("identifier cannot begin with digit %#U", c)
+					yyerror("identifier cannot begin with digit %#U", c)
 				}
 			} else {
-				Yyerror("invalid identifier character %#U", c)
+				yyerror("invalid identifier character %#U", c)
 			}
 			cp.WriteRune(c)
 		} else if isLetter(c) || isDigit(c) {
@@ -614,7 +614,7 @@ func (l *lexer) ident(c rune) {
 		}
 	}
 
-	s := LookupBytes(name)
+	s := lookupBytes(name)
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: ident %v\n", s)
 	}
@@ -686,7 +686,7 @@ func (l *lexer) number(c rune) {
 					c = l.getr()
 				}
 				if lexbuf.Len() == 2 {
-					Yyerror("malformed hex constant")
+					yyerror("malformed hex constant")
 				}
 			} else {
 				// decimal 0, octal, or float
@@ -727,7 +727,7 @@ func (l *lexer) number(c rune) {
 				c = l.getr()
 			}
 			if !isDigit(c) {
-				Yyerror("malformed floating point constant exponent")
+				yyerror("malformed floating point constant exponent")
 			}
 			for isDigit(c) {
 				cp.WriteByte(byte(c))
@@ -742,7 +742,7 @@ func (l *lexer) number(c rune) {
 			x.Real.SetFloat64(0.0)
 			x.Imag.SetString(str)
 			if x.Imag.Val.IsInf() {
-				Yyerror("overflow in imaginary constant")
+				yyerror("overflow in imaginary constant")
 				x.Imag.SetFloat64(0.0)
 			}
 			l.val.U = x
@@ -758,14 +758,14 @@ func (l *lexer) number(c rune) {
 
 	if isInt {
 		if malformedOctal {
-			Yyerror("malformed octal constant")
+			yyerror("malformed octal constant")
 		}
 
 		str = lexbuf.String()
 		x := new(Mpint)
 		x.SetString(str)
 		if x.Ovf {
-			Yyerror("overflow in constant")
+			yyerror("overflow in constant")
 			x.SetInt64(0)
 		}
 		l.val.U = x
@@ -780,7 +780,7 @@ func (l *lexer) number(c rune) {
 		x := newMpflt()
 		x.SetString(str)
 		if x.Val.IsInf() {
-			Yyerror("overflow in float constant")
+			yyerror("overflow in float constant")
 			x.SetFloat64(0.0)
 		}
 		l.val.U = x
@@ -837,7 +837,7 @@ func (l *lexer) rawString() {
 			continue
 		}
 		if c == EOF {
-			Yyerror("eof in string")
+			yyerror("eof in string")
 			break
 		}
 		if c == '`' {
@@ -858,7 +858,7 @@ func (l *lexer) rawString() {
 func (l *lexer) rune() {
 	r, b, ok := l.onechar('\'')
 	if !ok {
-		Yyerror("empty character literal or unescaped ' in character literal")
+		yyerror("empty character literal or unescaped ' in character literal")
 		r = '\''
 	}
 	if r == 0 {
@@ -866,7 +866,7 @@ func (l *lexer) rune() {
 	}
 
 	if c := l.getr(); c != '\'' {
-		Yyerror("missing '")
+		yyerror("missing '")
 		l.ungetr()
 	}
 
@@ -929,16 +929,16 @@ func (l *lexer) getlinepragma() rune {
 		switch verb {
 		case "go:linkname":
 			if !imported_unsafe {
-				Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
+				yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
 			}
 			f := strings.Fields(text)
 			if len(f) != 3 {
-				Yyerror("usage: //go:linkname localname linkname")
+				yyerror("usage: //go:linkname localname linkname")
 				break
 			}
-			Lookup(f[1]).Linkname = f[2]
+			lookup(f[1]).Linkname = f[2]
 		default:
-			l.pragma |= PragmaValue(verb)
+			l.pragma |= pragmaValue(verb)
 		}
 		return c
 	}
@@ -984,7 +984,7 @@ func (l *lexer) getlinepragma() rune {
 		return c // todo: make this an error instead? it is almost certainly a bug.
 	}
 	if n > 1e8 {
-		Yyerror("line number out of range")
+		yyerror("line number out of range")
 		errorexit()
 	}
 	if n <= 0 {
@@ -1012,7 +1012,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, local, remote)
 
 		default:
-			Yyerror(`usage: //go:%s local [remote]`, verb)
+			yyerror(`usage: //go:%s local [remote]`, verb)
 		}
 	case "cgo_import_dynamic":
 		switch {
@@ -1032,7 +1032,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, local, remote, library)
 
 		default:
-			Yyerror(`usage: //go:cgo_import_dynamic local [remote ["library"]]`)
+			yyerror(`usage: //go:cgo_import_dynamic local [remote ["library"]]`)
 		}
 	case "cgo_import_static":
 		switch {
@@ -1041,7 +1041,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, local)
 
 		default:
-			Yyerror(`usage: //go:cgo_import_static local`)
+			yyerror(`usage: //go:cgo_import_static local`)
 		}
 	case "cgo_dynamic_linker":
 		switch {
@@ -1050,7 +1050,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, path)
 
 		default:
-			Yyerror(`usage: //go:cgo_dynamic_linker "path"`)
+			yyerror(`usage: //go:cgo_dynamic_linker "path"`)
 		}
 	case "cgo_ldflag":
 		switch {
@@ -1059,7 +1059,7 @@ func pragcgo(text string) string {
 			return fmt.Sprintln(verb, arg)
 
 		default:
-			Yyerror(`usage: //go:cgo_ldflag "arg"`)
+			yyerror(`usage: //go:cgo_ldflag "arg"`)
 		}
 	}
 	return ""
@@ -1143,12 +1143,12 @@ func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
 	c := l.getr()
 	switch c {
 	case EOF:
-		Yyerror("eof in string")
+		yyerror("eof in string")
 		l.ungetr()
 		return
 
 	case '\n':
-		Yyerror("newline in string")
+		yyerror("newline in string")
 		l.ungetr()
 		return
 
@@ -1182,12 +1182,12 @@ func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
 				continue
 			}
 
-			Yyerror("non-octal character in escape sequence: %c", c)
+			yyerror("non-octal character in escape sequence: %c", c)
 			l.ungetr()
 		}
 
 		if x > 255 {
-			Yyerror("octal escape value > 255: %d", x)
+			yyerror("octal escape value > 255: %d", x)
 		}
 
 		return 0, byte(x), true
@@ -1211,7 +1211,7 @@ func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
 
 	default:
 		if c != quote {
-			Yyerror("unknown escape sequence: %c", c)
+			yyerror("unknown escape sequence: %c", c)
 		}
 	}
 
@@ -1221,7 +1221,7 @@ func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
 func (l *lexer) unichar(n int) rune {
 	x := l.hexchar(n)
 	if x > utf8.MaxRune || 0xd800 <= x && x < 0xe000 {
-		Yyerror("invalid Unicode code point in escape sequence: %#x", x)
+		yyerror("invalid Unicode code point in escape sequence: %#x", x)
 		x = utf8.RuneError
 	}
 	return rune(x)
@@ -1240,7 +1240,7 @@ func (l *lexer) hexchar(n int) uint32 {
 		case 'A' <= c && c <= 'F':
 			d = uint32(c - 'A' + 10)
 		default:
-			Yyerror("non-hex character in escape sequence: %c", c)
+			yyerror("non-hex character in escape sequence: %c", c)
 			l.ungetr()
 			return x
 		}

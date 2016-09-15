@@ -225,7 +225,7 @@ func formatErrorf(format string, args ...interface{}) {
 		Fatalf(format, args...)
 	}
 
-	Yyerror("cannot import %q due to version skew - reinstall package (%s)",
+	yyerror("cannot import %q due to version skew - reinstall package (%s)",
 		importpkg.Path, fmt.Sprintf(format, args...))
 	errorexit()
 }
@@ -287,10 +287,10 @@ func (p *importer) pkg() *Pkg {
 		pkg.Name = name
 		numImport[name]++
 	} else if pkg.Name != name {
-		Yyerror("conflicting package names %s and %s for path %q", pkg.Name, name, path)
+		yyerror("conflicting package names %s and %s for path %q", pkg.Name, name, path)
 	}
 	if myimportpath != "" && path == myimportpath {
-		Yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
+		yyerror("import %q: package depends on %q (import cycle)", importpkg.Path, path)
 		errorexit()
 	}
 	p.pkgList = append(p.pkgList, pkg)
@@ -405,7 +405,7 @@ func (p *importer) importtype(pt, t *Type) {
 			// Collect the types and verify identity later.
 			p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
 		} else if !eqtype(pt.Orig, t) {
-			Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
+			yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
 		}
 	}
 
@@ -905,7 +905,7 @@ func (p *importer) node() *Node {
 
 	case OXDOT:
 		// see parser.new_dotname
-		return NodSym(OXDOT, p.expr(), p.fieldSym())
+		return nodSym(OXDOT, p.expr(), p.fieldSym())
 
 	// case ODOTTYPE, ODOTTYPE2:
 	// 	unreachable - mapped to case ODOTTYPE below by exporter

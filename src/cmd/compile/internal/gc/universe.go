@@ -103,18 +103,18 @@ func lexinit() {
 	idealbool = typ(TBOOL)
 
 	s := Pkglookup("true", builtinpkg)
-	s.Def = Nodbool(true)
-	s.Def.Sym = Lookup("true")
+	s.Def = nodbool(true)
+	s.Def.Sym = lookup("true")
 	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
 	s = Pkglookup("false", builtinpkg)
-	s.Def = Nodbool(false)
-	s.Def.Sym = Lookup("false")
+	s.Def = nodbool(false)
+	s.Def.Sym = lookup("false")
 	s.Def.Name = new(Name)
 	s.Def.Type = idealbool
 
-	s = Lookup("_")
+	s = lookup("_")
 	s.Block = -100
 	s.Def = Nod(ONAME, nil, nil)
 	s.Def.Sym = s
@@ -361,7 +361,7 @@ func makeErrorInterface() *Type {
 	rcvr := typ(TSTRUCT)
 	rcvr.StructType().Funarg = FunargRcvr
 	field := newField()
-	field.Type = Ptrto(typ(TSTRUCT))
+	field.Type = ptrto(typ(TSTRUCT))
 	rcvr.SetFields([]*Field{field})
 
 	in := typ(TSTRUCT)
@@ -380,7 +380,7 @@ func makeErrorInterface() *Type {
 
 	t := typ(TINTER)
 	field = newField()
-	field.Sym = Lookup("Error")
+	field.Sym = lookup("Error")
 	field.Type = f
 	t.SetFields([]*Field{field})
 
@@ -448,7 +448,7 @@ func finishUniverse() {
 		if s.Def == nil || (s.Name == "any" && Debug['A'] == 0) {
 			continue
 		}
-		s1 := Lookup(s.Name)
+		s1 := lookup(s.Name)
 		if s1.Def != nil {
 			continue
 		}
@@ -461,5 +461,5 @@ func finishUniverse() {
 	nodfp.Type = Types[TINT32]
 	nodfp.Xoffset = 0
 	nodfp.Class = PPARAM
-	nodfp.Sym = Lookup(".fp")
+	nodfp.Sym = lookup(".fp")
 }

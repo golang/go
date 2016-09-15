@@ -230,7 +230,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		instrumentnode(&n.Left, init, 0, 0)
 		if n.Left.Type.IsMap() {
 			n1 := Nod(OCONVNOP, n.Left, nil)
-			n1.Type = Ptrto(Types[TUINT8])
+			n1.Type = ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)
 			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
@@ -375,17 +375,17 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		OAS2RECV,
 		OAS2MAPR,
 		OASOP:
-		Yyerror("instrument: %v must be lowered by now", n.Op)
+		yyerror("instrument: %v must be lowered by now", n.Op)
 
 		goto ret
 
 		// impossible nodes: only appear in backend.
 	case ORROTC, OEXTEND:
-		Yyerror("instrument: %v cannot exist now", n.Op)
+		yyerror("instrument: %v cannot exist now", n.Op)
 		goto ret
 
 	case OGETG:
-		Yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
+		yyerror("instrument: OGETG can happen only in runtime which we don't instrument")
 		goto ret
 
 	case OFOR:
@@ -587,7 +587,7 @@ func uintptraddr(n *Node) *Node {
 
 func detachexpr(n *Node, init *Nodes) *Node {
 	addr := Nod(OADDR, n, nil)
-	l := temp(Ptrto(n.Type))
+	l := temp(ptrto(n.Type))
 	as := Nod(OAS, l, addr)
 	as = typecheck(as, Etop)
 	as = walkexpr(as, init)

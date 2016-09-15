@@ -102,10 +102,10 @@ func mapbucket(t *Type) *Type {
 	dowidth(keytype)
 	dowidth(valtype)
 	if keytype.Width > MAXKEYSIZE {
-		keytype = Ptrto(keytype)
+		keytype = ptrto(keytype)
 	}
 	if valtype.Width > MAXVALSIZE {
-		valtype = Ptrto(valtype)
+		valtype = ptrto(valtype)
 	}
 
 	field := make([]*Field, 0, 5)
@@ -149,7 +149,7 @@ func mapbucket(t *Type) *Type {
 	// Arrange for the bucket to have no pointers by changing
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
-	otyp := Ptrto(bucket)
+	otyp := ptrto(bucket)
 	if !haspointers(t.Val()) && !haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
 		otyp = Types[TUINTPTR]
 	}
@@ -165,7 +165,7 @@ func mapbucket(t *Type) *Type {
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end. See comment above.
 	if ovf.Offset != bucket.Width-int64(Widthptr) {
-		Yyerror("bad math in mapbucket for %v", t)
+		yyerror("bad math in mapbucket for %v", t)
 	}
 
 	t.MapType().Bucket = bucket
@@ -188,8 +188,8 @@ func hmap(t *Type) *Type {
 		makefield("B", Types[TUINT8]),
 		makefield("noverflow", Types[TUINT16]),
 		makefield("hash0", Types[TUINT32]),
-		makefield("buckets", Ptrto(bucket)),
-		makefield("oldbuckets", Ptrto(bucket)),
+		makefield("buckets", ptrto(bucket)),
+		makefield("oldbuckets", ptrto(bucket)),
 		makefield("nevacuate", Types[TUINTPTR]),
 		makefield("overflow", Types[TUNSAFEPTR]),
 	}
@@ -226,12 +226,12 @@ func hiter(t *Type) *Type {
 	// }
 	// must match ../../../../runtime/hashmap.go:hiter.
 	var field [12]*Field
-	field[0] = makefield("key", Ptrto(t.Key()))
-	field[1] = makefield("val", Ptrto(t.Val()))
-	field[2] = makefield("t", Ptrto(Types[TUINT8]))
-	field[3] = makefield("h", Ptrto(hmap(t)))
-	field[4] = makefield("buckets", Ptrto(mapbucket(t)))
-	field[5] = makefield("bptr", Ptrto(mapbucket(t)))
+	field[0] = makefield("key", ptrto(t.Key()))
+	field[1] = makefield("val", ptrto(t.Val()))
+	field[2] = makefield("t", ptrto(Types[TUINT8]))
+	field[3] = makefield("h", ptrto(hmap(t)))
+	field[4] = makefield("buckets", ptrto(mapbucket(t)))
+	field[5] = makefield("bptr", ptrto(mapbucket(t)))
 	field[6] = makefield("overflow0", Types[TUNSAFEPTR])
 	field[7] = makefield("overflow1", Types[TUNSAFEPTR])
 	field[8] = makefield("startBucket", Types[TUINTPTR])
@@ -245,7 +245,7 @@ func hiter(t *Type) *Type {
 	i.SetFields(field[:])
 	dowidth(i)
 	if i.Width != int64(12*Widthptr) {
-		Yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+		yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
 	}
 	t.MapType().Hiter = i
 	i.StructType().Map = t
@@ -301,7 +301,7 @@ func methods(t *Type) []*Sig {
 	it := t
 
 	if !isdirectiface(it) {
-		it = Ptrto(t)
+		it = ptrto(t)
 	}
 
 	// make list of methods for t,
@@ -830,7 +830,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 
 	var sptr *Sym
-	tptr := Ptrto(t)
+	tptr := ptrto(t)
 	if !t.IsPtr() && (t.Sym != nil || methods(tptr) != nil) {
 		sptr = dtypesym(tptr)
 	}
@@ -972,7 +972,7 @@ func typenamesym(t *Type) *Sym {
 func typename(t *Type) *Node {
 	s := typenamesym(t)
 	n := Nod(OADDR, s.Def, nil)
-	n.Type = Ptrto(s.Def.Type)
+	n.Type = ptrto(s.Def.Type)
 	n.Addable = true
 	n.Ullman = 2
 	n.Typecheck = 1
@@ -995,7 +995,7 @@ func itabname(t, itype *Type) *Node {
 	}
 
 	n := Nod(OADDR, s.Def, nil)
-	n.Type = Ptrto(s.Def.Type)
+	n.Type = ptrto(s.Def.Type)
 	n.Addable = true
 	n.Ullman = 2
 	n.Typecheck = 1
@@ -1385,7 +1385,7 @@ func dumptypestructs() {
 		t := n.Type
 		dtypesym(t)
 		if t.Sym != nil {
-			dtypesym(Ptrto(t))
+			dtypesym(ptrto(t))
 		}
 	}
 
@@ -1458,14 +1458,14 @@ func dumptypestructs() {
 	// but using runtime means fewer copies in .6 files.
 	if myimportpath == "runtime" {
 		for i := EType(1); i <= TBOOL; i++ {
-			dtypesym(Ptrto(Types[i]))
+			dtypesym(ptrto(Types[i]))
 		}
-		dtypesym(Ptrto(Types[TSTRING]))
-		dtypesym(Ptrto(Types[TUNSAFEPTR]))
+		dtypesym(ptrto(Types[TSTRING]))
+		dtypesym(ptrto(Types[TUNSAFEPTR]))
 
 		// emit type structs for error and func(error) string.
 		// The latter is the type of an auto-generated wrapper.
-		dtypesym(Ptrto(errortype))
+		dtypesym(ptrto(errortype))
 
 		dtypesym(functype(nil, []*Node{Nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{Nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
 
@@ -1770,7 +1770,7 @@ func zeroaddr(size int64) *Node {
 		s.Def = x
 	}
 	z := Nod(OADDR, s.Def, nil)
-	z.Type = Ptrto(Types[TUINT8])
+	z.Type = ptrto(Types[TUINT8])
 	z.Addable = true
 	z.Typecheck = 1
 	return z

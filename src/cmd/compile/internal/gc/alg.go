@@ -198,10 +198,10 @@ func genhash(sym *Sym, t *Type) {
 	tfn := Nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
+	n := Nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
 	tfn.List.Append(n)
 	np := n.Left
-	n = Nod(ODCLFIELD, newname(Lookup("h")), typenod(Types[TUINTPTR]))
+	n = Nod(ODCLFIELD, newname(lookup("h")), typenod(Types[TUINTPTR]))
 	tfn.List.Append(n)
 	nh := n.Left
 	n = Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])) // return value
@@ -224,7 +224,7 @@ func genhash(sym *Sym, t *Type) {
 		hashel := hashfor(t.Elem())
 
 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
-		ni := newname(Lookup("i"))
+		ni := newname(lookup("i"))
 		ni.Type = Types[TINT]
 		n.List.Set1(ni)
 		n.Colas = true
@@ -260,7 +260,7 @@ func genhash(sym *Sym, t *Type) {
 			if !f.Type.IsRegularMemory() {
 				hashel := hashfor(f.Type)
 				call := Nod(OCALL, hashel, nil)
-				nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+				nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
 				na := Nod(OADDR, nx, nil)
 				na.Etype = 1 // no escape to heap
 				call.List.Append(na)
@@ -276,7 +276,7 @@ func genhash(sym *Sym, t *Type) {
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
 			call := Nod(OCALL, hashel, nil)
-			nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+			nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
 			na := Nod(OADDR, nx, nil)
 			na.Etype = 1 // no escape to heap
 			call.List.Append(na)
@@ -347,7 +347,7 @@ func hashfor(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(ptrto(t))))
 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn = typecheck(tfn, Etype)
@@ -374,10 +374,10 @@ func geneq(sym *Sym, t *Type) {
 	tfn := Nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
+	n := Nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
 	tfn.List.Append(n)
 	np := n.Left
-	n = Nod(ODCLFIELD, newname(Lookup("q")), typenod(Ptrto(t)))
+	n = Nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)))
 	tfn.List.Append(n)
 	nq := n.Left
 	n = Nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
@@ -401,7 +401,7 @@ func geneq(sym *Sym, t *Type) {
 		// unrolling.
 		nrange := Nod(ORANGE, nil, Nod(OIND, np, nil))
 
-		ni := newname(Lookup("i"))
+		ni := newname(lookup("i"))
 		ni.Type = Types[TINT]
 		nrange.List.Set1(ni)
 		nrange.Colas = true
@@ -418,14 +418,14 @@ func geneq(sym *Sym, t *Type) {
 		nif := Nod(OIF, nil, nil)
 		nif.Left = Nod(ONE, nx, ny)
 		r := Nod(ORETURN, nil, nil)
-		r.List.Append(Nodbool(false))
+		r.List.Append(nodbool(false))
 		nif.Nbody.Append(r)
 		nrange.Nbody.Append(nif)
 		fn.Nbody.Append(nrange)
 
 		// return true
 		ret := Nod(ORETURN, nil, nil)
-		ret.List.Append(Nodbool(true))
+		ret.List.Append(nodbool(true))
 		fn.Nbody.Append(ret)
 
 	case TSTRUCT:
@@ -474,7 +474,7 @@ func geneq(sym *Sym, t *Type) {
 		}
 
 		if cond == nil {
-			cond = Nodbool(true)
+			cond = nodbool(true)
 		}
 
 		ret := Nod(ORETURN, nil, nil)
@@ -518,8 +518,8 @@ func geneq(sym *Sym, t *Type) {
 // eqfield returns the node
 // 	p.field == q.field
 func eqfield(p *Node, q *Node, field *Sym) *Node {
-	nx := NodSym(OXDOT, p, field)
-	ny := NodSym(OXDOT, q, field)
+	nx := nodSym(OXDOT, p, field)
+	ny := nodSym(OXDOT, q, field)
 	ne := Nod(OEQ, nx, ny)
 	return ne
 }
@@ -527,9 +527,9 @@ func eqfield(p *Node, q *Node, field *Sym) *Node {
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
-	nx := Nod(OADDR, NodSym(OXDOT, p, field), nil)
+	nx := Nod(OADDR, nodSym(OXDOT, p, field), nil)
 	nx.Etype = 1 // does not escape
-	ny := Nod(OADDR, NodSym(OXDOT, q, field), nil)
+	ny := Nod(OADDR, nodSym(OXDOT, q, field), nil)
 	ny.Etype = 1 // does not escape
 	nx = typecheck(nx, Erv)
 	ny = typecheck(ny, Erv)

@@ -50,11 +50,11 @@ func walk(fn *Node) {
 				continue
 			}
 			lineno = defn.Left.Lineno
-			Yyerror("%v declared and not used", ln.Sym)
+			yyerror("%v declared and not used", ln.Sym)
 			defn.Left.Used = true // suppress repeats
 		} else {
 			lineno = ln.Lineno
-			Yyerror("%v declared and not used", ln.Sym)
+			yyerror("%v declared and not used", ln.Sym)
 		}
 	}
 
@@ -119,7 +119,7 @@ func adjustargs(n *Node, adjust int) {
 	callfunc := n.Left
 	for _, arg = range callfunc.List.Slice() {
 		if arg.Op != OAS {
-			Yyerror("call arg not assignment")
+			yyerror("call arg not assignment")
 		}
 		lhs = arg.Left
 		if lhs.Op == ONAME {
@@ -129,7 +129,7 @@ func adjustargs(n *Node, adjust int) {
 		}
 
 		if lhs.Op != OINDREG {
-			Yyerror("call argument store does not use OINDREG")
+			yyerror("call argument store does not use OINDREG")
 		}
 
 		// can't really check this in machine-indep code.
@@ -156,9 +156,9 @@ func walkstmt(n *Node) *Node {
 	switch n.Op {
 	default:
 		if n.Op == ONAME {
-			Yyerror("%v is not a top level statement", n.Sym)
+			yyerror("%v is not a top level statement", n.Sym)
 		} else {
-			Yyerror("%v is not a top level statement", n.Op)
+			yyerror("%v is not a top level statement", n.Op)
 		}
 		Dump("nottop", n)
 
@@ -226,7 +226,7 @@ func walkstmt(n *Node) *Node {
 		v := n.Left
 		if v.Class == PAUTOHEAP {
 			if compiling_runtime {
-				Yyerror("%v escapes to heap, not allowed in runtime.", v)
+				yyerror("%v escapes to heap, not allowed in runtime.", v)
 			}
 			if prealloc[v] == nil {
 				prealloc[v] = callnew(v.Type)
@@ -241,7 +241,7 @@ func walkstmt(n *Node) *Node {
 		walkstmtlist(n.List.Slice())
 
 	case OXCASE:
-		Yyerror("case statement out of place")
+		yyerror("case statement out of place")
 		n.Op = OCASE
 		fallthrough
 
@@ -361,7 +361,7 @@ func walkstmt(n *Node) *Node {
 		walkrange(n)
 
 	case OXFALL:
-		Yyerror("fallthrough statement out of place")
+		yyerror("fallthrough statement out of place")
 		n.Op = OFALL
 	}
 
@@ -907,7 +907,7 @@ opswitch:
 
 		// don't generate a = *var if a is _
 		if !isblank(a) {
-			var_ := temp(Ptrto(t.Val()))
+			var_ := temp(ptrto(t.Val()))
 			var_.Typecheck = 1
 			var_.NonNil = true // mapaccess always returns a non-nil pointer
 			n.List.SetIndex(0, var_)
@@ -980,7 +980,7 @@ opswitch:
 				tab := Nod(OITAB, from, nil)
 				if fromKind == 'E' {
 					typ := Nod(OCONVNOP, typename(t), nil)
-					typ.Type = Ptrto(Types[TUINTPTR])
+					typ.Type = ptrto(Types[TUINTPTR])
 					fast = Nod(OEQ, tab, typ)
 					break
 				}
@@ -1253,7 +1253,7 @@ opswitch:
 				Warn("index bounds check elided")
 			}
 			if smallintconst(n.Right) && !n.Bounded {
-				Yyerror("index out of bounds")
+				yyerror("index out of bounds")
 			}
 		} else if Isconst(n.Left, CTSTR) {
 			n.Bounded = bounded(r, int64(len(n.Left.Val().U.(string))))
@@ -1262,7 +1262,7 @@ opswitch:
 			}
 			if smallintconst(n.Right) {
 				if !n.Bounded {
-					Yyerror("index out of bounds")
+					yyerror("index out of bounds")
 				} else {
 					// replace "abc"[1] with 'b'.
 					// delayed until now because "abc"[1] is not
@@ -1277,7 +1277,7 @@ opswitch:
 
 		if Isconst(n.Right, CTINT) {
 			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
-				Yyerror("index out of bounds")
+				yyerror("index out of bounds")
 			}
 		}
 
@@ -1313,11 +1313,11 @@ opswitch:
 		}
 
 		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
-			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key)
+			n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), n.Left, key)
 		} else {
 			p = "mapaccess1_fat"
 			z := zeroaddr(w)
-			n = mkcall1(mapfn(p, t), Ptrto(t.Val()), init, typename(t), n.Left, key, z)
+			n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), n.Left, key, z)
 		}
 		n.NonNil = true // mapaccess always returns a non-nil pointer
 		n = Nod(OIND, n, nil)
@@ -1758,7 +1758,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		Yyerror("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+		yyerror("error in shape across %+v %v %+v / %d %d [%s]", nln, op, nrn, len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1785,7 +1785,7 @@ func fncall(l *Node, rt *Type) bool {
 // a expression list. called in
 //	expr-list = func()
 func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
-	r, saver := IterFields(nr)
+	r, saver := iterFields(nr)
 
 	var nn, mm []*Node
 	var ullmanOverflow bool
@@ -1825,7 +1825,7 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
 	}
 
 	if i < nl.Len() || r != nil {
-		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
+		yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
 	}
 
 	if ullmanOverflow {
@@ -1874,7 +1874,7 @@ func dumptypes(nl *Type, what string) string {
 		if s != "" {
 			s += ", "
 		}
-		s += Fldconv(l, 0)
+		s += fldconv(l, 0)
 	}
 	if s == "" {
 		s = fmt.Sprintf("[no arguments %s]", what)
@@ -1902,7 +1902,7 @@ func dumpnodetypes(l []*Node, what string) string {
 //	func(expr-list)
 func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, init *Nodes) []*Node {
 	lr0 := lr
-	l, savel := IterFields(nl)
+	l, savel := iterFields(nl)
 	var r *Node
 	if len(lr) > 0 {
 		r = lr[0]
@@ -1937,7 +1937,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 		init.Append(a)
 		lr = alist
 		r = lr[0]
-		l, savel = IterFields(nl)
+		l, savel = iterFields(nl)
 	}
 
 	for {
@@ -1946,7 +1946,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 			ll := savel.Next()
 
 			if ll != nil {
-				Yyerror("... must be last argument")
+				yyerror("... must be last argument")
 			}
 
 			// special case --
@@ -1973,9 +1973,9 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 				l1 := dumptypes(nl, "expected")
 				l2 := dumpnodetypes(lr0, "given")
 				if l != nil {
-					Yyerror("not enough arguments to %v\n\t%s\n\t%s", op, l1, l2)
+					yyerror("not enough arguments to %v\n\t%s\n\t%s", op, l1, l2)
 				} else {
-					Yyerror("too many arguments to %v\n\t%s\n\t%s", op, l1, l2)
+					yyerror("too many arguments to %v\n\t%s\n\t%s", op, l1, l2)
 				}
 			}
 
@@ -2118,7 +2118,7 @@ func callnew(t *Type) *Node {
 	dowidth(t)
 	fn := syslook("newobject")
 	fn = substArgTypes(fn, t)
-	v := mkcall1(fn, Ptrto(t), nil, typename(t))
+	v := mkcall1(fn, ptrto(t), nil, typename(t))
 	v.NonNil = true
 	return v
 }
@@ -2793,7 +2793,7 @@ func addstr(n *Node, init *Nodes) *Node {
 	c := n.List.Len()
 
 	if c < 2 {
-		Yyerror("addstr count %d too small", c)
+		yyerror("addstr count %d too small", c)
 	}
 
 	buf := nodnil()
@@ -3140,8 +3140,8 @@ func eqfor(t *Type, needsize *int) *Node {
 		n := newname(sym)
 		n.Class = PFUNC
 		ntype := Nod(OTFUNC, nil, nil)
-		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(ptrto(t))))
+		ntype.List.Append(Nod(ODCLFIELD, nil, typenod(ptrto(t))))
 		ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
 		ntype = typecheck(ntype, Etype)
 		n.Type = ntype.Type
@@ -3186,11 +3186,11 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		tab := Nod(OITAB, l, nil)
 		rtyp := typename(r.Type)
 		if l.Type.IsEmptyInterface() {
-			tab.Type = Ptrto(Types[TUINT8])
+			tab.Type = ptrto(Types[TUINT8])
 			tab.Typecheck = 1
 			eqtype = Nod(eq, tab, rtyp)
 		} else {
-			nonnil := Nod(Brcom(eq), nodnil(), tab)
+			nonnil := Nod(brcom(eq), nodnil(), tab)
 			match := Nod(eq, itabType(tab), rtyp)
 			eqtype = Nod(andor, nonnil, match)
 		}
@@ -3233,13 +3233,13 @@ func walkcompare(n *Node, init *Nodes) *Node {
 	// Chose not to inline. Call equality function directly.
 	if !inline {
 		// eq algs take pointers
-		pl := temp(Ptrto(t))
+		pl := temp(ptrto(t))
 		al := Nod(OAS, pl, Nod(OADDR, cmpl, nil))
 		al.Right.Etype = 1 // addr does not escape
 		al = typecheck(al, Etop)
 		init.Append(al)
 
-		pr := temp(Ptrto(t))
+		pr := temp(ptrto(t))
 		ar := Nod(OAS, pr, Nod(OADDR, cmpr, nil))
 		ar.Right.Etype = 1 // addr does not escape
 		ar = typecheck(ar, Etop)
@@ -3283,8 +3283,8 @@ func walkcompare(n *Node, init *Nodes) *Node {
 				continue
 			}
 			compare(
-				NodSym(OXDOT, cmpl, sym),
-				NodSym(OXDOT, cmpr, sym),
+				nodSym(OXDOT, cmpl, sym),
+				nodSym(OXDOT, cmpr, sym),
 			)
 		}
 	} else {
@@ -3296,7 +3296,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 		}
 	}
 	if expr == nil {
-		expr = Nodbool(n.Op == OEQ)
+		expr = nodbool(n.Op == OEQ)
 	}
 	n = finishcompare(n, expr, init)
 	return n
@@ -3448,9 +3448,9 @@ func walkinrange(n *Node, init *Nodes) *Node {
 			return n
 		}
 		if i&1 == 0 {
-			a, opl, b = b, Brrev(opl), a
+			a, opl, b = b, brrev(opl), a
 		} else {
-			x, opr, c = c, Brrev(opr), x
+			x, opr, c = c, brrev(opr), x
 		}
 	}
 
@@ -3459,8 +3459,8 @@ func walkinrange(n *Node, init *Nodes) *Node {
 	// Henceforth assume &&.
 	negateResult := n.Op == OOROR
 	if negateResult {
-		opl = Brcom(opl)
-		opr = Brcom(opr)
+		opl = brcom(opl)
+		opr = brcom(opr)
 	}
 
 	cmpdir := func(o Op) int {
@@ -3484,7 +3484,7 @@ func walkinrange(n *Node, init *Nodes) *Node {
 		// Switch and reverse ops and rename constants,
 		// to make it look like a ≤ b && b < c.
 		a, c = c, a
-		opl, opr = Brrev(opr), Brrev(opl)
+		opl, opr = brrev(opr), brrev(opl)
 	}
 
 	// We must ensure that c-a is non-negative.
@@ -3525,7 +3525,7 @@ func walkinrange(n *Node, init *Nodes) *Node {
 	rhs := nodintconst(bound)
 	if negateResult {
 		// Negate top level.
-		opr = Brcom(opr)
+		opr = brcom(opr)
 	}
 	cmp := Nod(opr, lhs, rhs)
 	cmp.Lineno = n.Lineno
@@ -4006,10 +4006,10 @@ func usefield(n *Node) {
 		outer = outer.Elem()
 	}
 	if outer.Sym == nil {
-		Yyerror("tracked field must be in named struct type")
+		yyerror("tracked field must be in named struct type")
 	}
 	if !exportname(field.Sym.Name) {
-		Yyerror("tracked field must be exported (upper case)")
+		yyerror("tracked field must be exported (upper case)")
 	}
 
 	sym := tracksym(outer, field)
@@ -4148,7 +4148,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 	for _, n1 := range n.List.Slice() {
 		buf = fmt.Sprintf("a%d", num)
 		num++
-		a = Nod(ODCLFIELD, newname(Lookup(buf)), typenod(n1.Type))
+		a = Nod(ODCLFIELD, newname(lookup(buf)), typenod(n1.Type))
 		t.List.Append(a)
 		printargs = append(printargs, a.Left)
 	}
@@ -4156,7 +4156,7 @@ func walkprintfunc(n *Node, init *Nodes) *Node {
 	fn := Nod(ODCLFUNC, nil, nil)
 	walkprintfunc_prgen++
 	buf = fmt.Sprintf("print·%d", walkprintfunc_prgen)
-	fn.Func.Nname = newname(Lookup(buf))
+	fn.Func.Nname = newname(lookup(buf))
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = t
 	declare(fn.Func.Nname, PFUNC)

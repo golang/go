@@ -106,7 +106,7 @@ func testdclstack() {
 			if nerrors != 0 {
 				errorexit()
 			}
-			Yyerror("mark left on the stack")
+			yyerror("mark left on the stack")
 		}
 	}
 }
@@ -121,7 +121,7 @@ func redeclare(s *Sym, where string) {
 			tmp = s.Pkg.Path
 		}
 		pkgstr := tmp
-		Yyerror("%v redeclared %s\n"+
+		yyerror("%v redeclared %s\n"+
 			"\tprevious declaration during import %q", s, where, pkgstr)
 	} else {
 		line1 := lineno
@@ -167,11 +167,11 @@ func declare(n *Node, ctxt Class) {
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if importpkg == nil && !typecheckok && s.Pkg != localpkg {
-		Yyerror("cannot declare name %v", s)
+		yyerror("cannot declare name %v", s)
 	}
 
 	if ctxt == PEXTERN && s.Name == "init" {
-		Yyerror("cannot declare init - must be func")
+		yyerror("cannot declare init - must be func")
 	}
 
 	gen := 0
@@ -255,7 +255,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		var e *Node
 		if doexpr {
 			if len(el) == 0 {
-				Yyerror("missing expression in var declaration")
+				yyerror("missing expression in var declaration")
 				break
 			}
 			e = el[0]
@@ -279,7 +279,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 	}
 
 	if len(el) != 0 {
-		Yyerror("extra expression in var declaration")
+		yyerror("extra expression in var declaration")
 	}
 	return init
 }
@@ -290,7 +290,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	lno := int32(0) // default is to leave line number alone in listtreecopy
 	if len(cl) == 0 {
 		if t != nil {
-			Yyerror("const declaration cannot have type without expression")
+			yyerror("const declaration cannot have type without expression")
 		}
 		cl = lastconst
 		t = lasttype
@@ -304,7 +304,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	var vv []*Node
 	for _, v := range vl {
 		if len(clcopy) == 0 {
-			Yyerror("missing value in const declaration")
+			yyerror("missing value in const declaration")
 			break
 		}
 
@@ -321,7 +321,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	}
 
 	if len(clcopy) != 0 {
-		Yyerror("extra expression in const declaration")
+		yyerror("extra expression in const declaration")
 	}
 	iota_ += 1
 	return vv
@@ -504,7 +504,7 @@ func ifacedcl(n *Node) {
 	}
 
 	if isblank(n.Left) {
-		Yyerror("methods must have a unique non-blank name")
+		yyerror("methods must have a unique non-blank name")
 	}
 
 	n.Func = new(Func)
@@ -603,7 +603,7 @@ func funcargs(nt *Node) {
 
 		if n.Left == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Left = newname(LookupN("~r", gen))
+			n.Left = newname(lookupN("~r", gen))
 			gen++
 		}
 
@@ -621,7 +621,7 @@ func funcargs(nt *Node) {
 			// Having multiple names causes too much confusion in later passes.
 			nn := *n.Left
 			nn.Orig = &nn
-			nn.Sym = LookupN("~b", gen)
+			nn.Sym = lookupN("~b", gen)
 			gen++
 			n.Left = &nn
 		}
@@ -726,12 +726,12 @@ func checkembeddedtype(t *Type) {
 	if t.Sym == nil && t.IsPtr() {
 		t = t.Elem()
 		if t.IsInterface() {
-			Yyerror("embedded type cannot be a pointer to interface")
+			yyerror("embedded type cannot be a pointer to interface")
 		}
 	}
 
 	if t.IsPtr() || t.IsUnsafePtr() {
-		Yyerror("embedded type cannot be a pointer")
+		yyerror("embedded type cannot be a pointer")
 	} else if t.Etype == TFORW && t.ForwardType().Embedlineno == 0 {
 		t.ForwardType().Embedlineno = lineno
 	}
@@ -770,7 +770,7 @@ func structfield(n *Node) *Field {
 	case string:
 		f.Note = u
 	default:
-		Yyerror("field annotation must be string")
+		yyerror("field annotation must be string")
 	case nil:
 		// noop
 	}
@@ -798,7 +798,7 @@ func checkdupfields(what string, ts ...*Type) {
 			}
 			if seen[f.Sym] {
 				lineno = f.Nname.Lineno
-				Yyerror("duplicate %s %s", what, f.Sym.Name)
+				yyerror("duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true
@@ -869,7 +869,7 @@ func interfacefield(n *Node) *Field {
 	}
 
 	if n.Val().Ctype() != CTxxx {
-		Yyerror("interface method cannot have annotation")
+		yyerror("interface method cannot have annotation")
 	}
 
 	f := newField()
@@ -904,11 +904,11 @@ func interfacefield(n *Node) *Field {
 					break
 
 				case TFORW:
-					Yyerror("interface type loop involving %v", n.Type)
+					yyerror("interface type loop involving %v", n.Type)
 					f.Broke = true
 
 				default:
-					Yyerror("interface contains embedded non-interface %v", n.Type)
+					yyerror("interface contains embedded non-interface %v", n.Type)
 					f.Broke = true
 				}
 			}
@@ -984,7 +984,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 
 	var n *Node
 	if exportname(name) {
-		n = newname(Lookup(name))
+		n = newname(lookup(name))
 	} else if s.Pkg == builtinpkg {
 		// The name of embedded builtins belongs to pkg.
 		n = newname(Pkglookup(name, pkg))
@@ -997,7 +997,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 }
 
 func fakethis() *Node {
-	n := Nod(ODCLFIELD, nil, typenod(Ptrto(typ(TSTRUCT))))
+	n := Nod(ODCLFIELD, nil, typenod(ptrto(typ(TSTRUCT))))
 	return n
 }
 
@@ -1084,7 +1084,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	// if t0 == *t and t0 has a sym,
 	// we want to see *t, not t0, in the method name.
 	if t != t0 && t0.Sym != nil {
-		t0 = Ptrto(t)
+		t0 = ptrto(t)
 	}
 
 	suffix = ""
@@ -1121,7 +1121,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
 	return s
 
 bad:
-	Yyerror("illegal receiver type: %v", t0)
+	yyerror("illegal receiver type: %v", t0)
 	return nil
 }
 
@@ -1144,7 +1144,7 @@ func methodname(n *Node, t *Node) *Node {
 	}
 
 	if exportname(t.Sym.Name) {
-		n = newfuncname(Lookup(p))
+		n = newfuncname(lookup(p))
 	} else {
 		n = newfuncname(Pkglookup(p, t.Sym.Pkg))
 	}
@@ -1164,7 +1164,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 	// get parent type sym
 	rf := t.Recv() // ptr to this structure
 	if rf == nil {
-		Yyerror("missing receiver")
+		yyerror("missing receiver")
 		return
 	}
 
@@ -1174,7 +1174,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 		t := pa
 		if t != nil && t.IsPtr() {
 			if t.Sym != nil {
-				Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+				yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 				return
 			}
 			t = t.Elem()
@@ -1184,21 +1184,21 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 		case t == nil || t.Broke:
 			// rely on typecheck having complained before
 		case t.Sym == nil:
-			Yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
+			yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
 		case t.IsPtr():
-			Yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+			yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 		case t.IsInterface():
-			Yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
+			yyerror("invalid receiver type %v (%v is an interface type)", pa, t)
 		default:
 			// Should have picked off all the reasons above,
 			// but just in case, fall back to generic error.
-			Yyerror("invalid receiver type %v (%L / %L)", pa, pa, t)
+			yyerror("invalid receiver type %v (%L / %L)", pa, pa, t)
 		}
 		return
 	}
 
 	if local && !mt.Local {
-		Yyerror("cannot define new methods on non-local type %v", mt)
+		yyerror("cannot define new methods on non-local type %v", mt)
 		return
 	}
 
@@ -1209,7 +1209,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 	if mt.IsStruct() {
 		for _, f := range mt.Fields().Slice() {
 			if f.Sym == msym {
-				Yyerror("type %v has both field and method named %v", mt, msym)
+				yyerror("type %v has both field and method named %v", mt, msym)
 				return
 			}
 		}
@@ -1225,7 +1225,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 		// eqtype only checks that incoming and result parameters match,
 		// so explicitly check that the receiver parameters match too.
 		if !eqtype(t, f.Type) || !eqtype(t.Recv().Type, f.Type.Recv().Type) {
-			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
+			yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
 		}
 		return
 	}

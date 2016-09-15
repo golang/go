@@ -71,7 +71,7 @@ func (a *Mpint) SetFloat(b *Mpflt) int {
 func (a *Mpint) Add(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpaddfixfix")
+			yyerror("ovf in mpaddfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -80,14 +80,14 @@ func (a *Mpint) Add(b *Mpint) {
 	a.Val.Add(&a.Val, &b.Val)
 
 	if a.checkOverflow(0) {
-		Yyerror("constant addition overflow")
+		yyerror("constant addition overflow")
 	}
 }
 
 func (a *Mpint) Sub(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpsubfixfix")
+			yyerror("ovf in mpsubfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -96,14 +96,14 @@ func (a *Mpint) Sub(b *Mpint) {
 	a.Val.Sub(&a.Val, &b.Val)
 
 	if a.checkOverflow(0) {
-		Yyerror("constant subtraction overflow")
+		yyerror("constant subtraction overflow")
 	}
 }
 
 func (a *Mpint) Mul(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpmulfixfix")
+			yyerror("ovf in mpmulfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -112,14 +112,14 @@ func (a *Mpint) Mul(b *Mpint) {
 	a.Val.Mul(&a.Val, &b.Val)
 
 	if a.checkOverflow(0) {
-		Yyerror("constant multiplication overflow")
+		yyerror("constant multiplication overflow")
 	}
 }
 
 func (a *Mpint) Quo(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpdivfixfix")
+			yyerror("ovf in mpdivfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -129,14 +129,14 @@ func (a *Mpint) Quo(b *Mpint) {
 
 	if a.checkOverflow(0) {
 		// can only happen for div-0 which should be checked elsewhere
-		Yyerror("constant division overflow")
+		yyerror("constant division overflow")
 	}
 }
 
 func (a *Mpint) Rem(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpmodfixfix")
+			yyerror("ovf in mpmodfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -146,14 +146,14 @@ func (a *Mpint) Rem(b *Mpint) {
 
 	if a.checkOverflow(0) {
 		// should never happen
-		Yyerror("constant modulo overflow")
+		yyerror("constant modulo overflow")
 	}
 }
 
 func (a *Mpint) Or(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mporfixfix")
+			yyerror("ovf in mporfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -165,7 +165,7 @@ func (a *Mpint) Or(b *Mpint) {
 func (a *Mpint) And(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpandfixfix")
+			yyerror("ovf in mpandfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -177,7 +177,7 @@ func (a *Mpint) And(b *Mpint) {
 func (a *Mpint) AndNot(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpandnotfixfix")
+			yyerror("ovf in mpandnotfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -189,7 +189,7 @@ func (a *Mpint) AndNot(b *Mpint) {
 func (a *Mpint) Xor(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mpxorfixfix")
+			yyerror("ovf in mpxorfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -201,7 +201,7 @@ func (a *Mpint) Xor(b *Mpint) {
 func (a *Mpint) Lsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mplshfixfix")
+			yyerror("ovf in mplshfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -213,13 +213,13 @@ func (a *Mpint) Lsh(b *Mpint) {
 		if s < 0 {
 			msg = "invalid negative shift count"
 		}
-		Yyerror("%s: %d", msg, s)
+		yyerror("%s: %d", msg, s)
 		a.SetInt64(0)
 		return
 	}
 
 	if a.checkOverflow(int(s)) {
-		Yyerror("constant shift overflow")
+		yyerror("constant shift overflow")
 		return
 	}
 	a.Val.Lsh(&a.Val, uint(s))
@@ -228,7 +228,7 @@ func (a *Mpint) Lsh(b *Mpint) {
 func (a *Mpint) Rsh(b *Mpint) {
 	if a.Ovf || b.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("ovf in mprshfixfix")
+			yyerror("ovf in mprshfixfix")
 		}
 		a.SetOverflow()
 		return
@@ -236,7 +236,7 @@ func (a *Mpint) Rsh(b *Mpint) {
 
 	s := b.Int64()
 	if s < 0 {
-		Yyerror("invalid negative shift count: %d", s)
+		yyerror("invalid negative shift count: %d", s)
 		if a.Val.Sign() < 0 {
 			a.SetInt64(-1)
 		} else {
@@ -266,7 +266,7 @@ func (a *Mpint) Neg() {
 func (a *Mpint) Int64() int64 {
 	if a.Ovf {
 		if nsavederrors+nerrors == 0 {
-			Yyerror("constant overflow")
+			yyerror("constant overflow")
 		}
 		return 0
 	}
@@ -288,12 +288,12 @@ func (a *Mpint) SetString(as string) {
 		// - malformed octal constant
 		// - malformed decimal constant
 		// TODO(gri) use different conversion function
-		Yyerror("malformed integer constant: %s", as)
+		yyerror("malformed integer constant: %s", as)
 		a.Val.SetUint64(0)
 		return
 	}
 	if a.checkOverflow(0) {
-		Yyerror("constant too large: %s", as)
+		yyerror("constant too large: %s", as)
 	}
 }
 

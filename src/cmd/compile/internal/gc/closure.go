@@ -195,7 +195,7 @@ func closurename(n *Node) *Sym {
 	default:
 		Fatalf("closurename called for %S", n)
 	}
-	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
+	n.Sym = lookupf("%s.%s%d", outer, prefix, gen)
 	return n.Sym
 }
 
@@ -342,8 +342,8 @@ func transformclosure(xfunc *Node) {
 				// we introduce function param &v *T
 				// and v remains PAUTOHEAP with &v heapaddr
 				// (accesses will implicitly deref &v).
-				addr := newname(Lookupf("&%s", v.Sym.Name))
-				addr.Type = Ptrto(v.Type)
+				addr := newname(lookupf("&%s", v.Sym.Name))
+				addr.Type = ptrto(v.Type)
 				addr.Class = PPARAM
 				v.Name.Heapaddr = addr
 				fld.Nname = addr
@@ -382,7 +382,7 @@ func transformclosure(xfunc *Node) {
 
 			cv.Type = v.Type
 			if !v.Name.Byval {
-				cv.Type = Ptrto(v.Type)
+				cv.Type = ptrto(v.Type)
 			}
 			offset = Rnd(offset, int64(cv.Type.Align))
 			cv.Xoffset = offset
@@ -397,7 +397,7 @@ func transformclosure(xfunc *Node) {
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
-				addr := newname(Lookupf("&%s", v.Sym.Name))
+				addr := newname(lookupf("&%s", v.Sym.Name))
 				addr.Name.Param.Ntype = Nod(OIND, typenod(v.Type), nil)
 				addr.Class = PAUTO
 				addr.Used = true
@@ -476,7 +476,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 
 	typ := Nod(OTSTRUCT, nil, nil)
 
-	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
+	typ.List.Set1(Nod(ODCLFIELD, newname(lookup(".F")), typenod(Types[TUINTPTR])))
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
 			continue
@@ -580,7 +580,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	xfunc := Nod(ODCLFUNC, nil, nil)
 	Curfn = xfunc
 	for i, t := range t0.Params().Fields().Slice() {
-		n := newname(LookupN("a", i))
+		n := newname(lookupN("a", i))
 		n.Class = PPARAM
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
 		callargs = append(callargs, n)
@@ -597,7 +597,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	l = nil
 	var retargs []*Node
 	for i, t := range t0.Results().Fields().Slice() {
-		n := newname(LookupN("r", i))
+		n := newname(lookupN("r", i))
 		n.Class = PPARAMOUT
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
 		retargs = append(retargs, n)
@@ -623,7 +623,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		cv.Xoffset = int64(cv.Type.Align)
 	}
 	ptr := Nod(ONAME, nil, nil)
-	ptr.Sym = Lookup("rcvr")
+	ptr.Sym = lookup("rcvr")
 	ptr.Class = PAUTO
 	ptr.Addable = true
 	ptr.Ullman = 1
@@ -636,11 +636,11 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 		ptr.Name.Param.Ntype = typenod(rcvrtype)
 		body = append(body, Nod(OAS, ptr, cv))
 	} else {
-		ptr.Name.Param.Ntype = typenod(Ptrto(rcvrtype))
+		ptr.Name.Param.Ntype = typenod(ptrto(rcvrtype))
 		body = append(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
 	}
 
-	call := Nod(OCALL, NodSym(OXDOT, ptr, meth), nil)
+	call := Nod(OCALL, nodSym(OXDOT, ptr, meth), nil)
 	call.List.Set(callargs)
 	call.Isddd = ddd
 	if t0.Results().NumFields() == 0 {
@@ -681,8 +681,8 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	}
 
 	typ := Nod(OTSTRUCT, nil, nil)
-	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR])))
-	typ.List.Append(Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
+	typ.List.Set1(Nod(ODCLFIELD, newname(lookup("F")), typenod(Types[TUINTPTR])))
+	typ.List.Append(Nod(ODCLFIELD, newname(lookup("R")), typenod(n.Left.Type)))
 
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = n.Esc
