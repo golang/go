@@ -307,7 +307,7 @@ func compile(fn *Node) {
 		Newproc = Sysfunc("newproc")
 		Deferproc = Sysfunc("deferproc")
 		Deferreturn = Sysfunc("deferreturn")
-		Panicindex = Sysfunc("panicindex")
+		panicindex = Sysfunc("panicindex")
 		panicslice = Sysfunc("panicslice")
 		panicdivide = Sysfunc("panicdivide")
 		growslice = Sysfunc("growslice")

@@ -49,7 +49,7 @@ var debugtab = []struct {
 }{
 	{"append", &Debug_append},         // print information about append compilation
 	{"closure", &Debug_closure},       // print information about closure compilation
-	{"disablenil", &Disable_checknil}, // disable nil checks
+	{"disablenil", &disable_checknil}, // disable nil checks
 	{"gcprog", &Debug_gcprog},         // print dump of GC programs
 	{"nil", &Debug_checknil},          // print information about nil checks
 	{"panic", &Debug_panic},           // do not hide any compiler panic

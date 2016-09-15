@@ -1193,7 +1193,7 @@ opswitch:
 		// rewrite complex div into function call.
 		et := n.Left.Type.Etype
 
-		if Iscomplex[et] && n.Op == ODIV {
+		if isComplex[et] && n.Op == ODIV {
 			t := n.Type
 			n = mkcall("complex128div", Types[TCOMPLEX128], init, conv(n.Left, Types[TCOMPLEX128]), conv(n.Right, Types[TCOMPLEX128]))
 			n = conv(n, t)
@@ -1201,7 +1201,7 @@ opswitch:
 		}
 
 		// Nothing to do for float divisions.
-		if Isfloat[et] {
+		if isFloat[et] {
 			break
 		}
 
@@ -1276,7 +1276,7 @@ opswitch:
 		}
 
 		if Isconst(n.Right, CTINT) {
-			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+			if n.Right.Val().U.(*Mpint).CmpInt64(0) < 0 || n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 				yyerror("index out of bounds")
 			}
 		}
@@ -1523,8 +1523,8 @@ opswitch:
 			// typechecking guarantees that TIDEAL len/cap are positive and fit in an int.
 			// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
 			// will be handled by the negative range checks in makeslice during runtime.
-			if (len.Type.IsKind(TIDEAL) || Maxintval[len.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) &&
-				(cap.Type.IsKind(TIDEAL) || Maxintval[cap.Type.Etype].Cmp(Maxintval[TUINT]) <= 0) {
+			if (len.Type.IsKind(TIDEAL) || maxintval[len.Type.Etype].Cmp(maxintval[TUINT]) <= 0) &&
+				(cap.Type.IsKind(TIDEAL) || maxintval[cap.Type.Etype].Cmp(maxintval[TUINT]) <= 0) {
 				fnname = "makeslice"
 				argtype = Types[TINT]
 			}
@@ -2063,7 +2063,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 		} else if n.Type.IsSlice() {
 			on = syslook("printslice")
 			on = substArgTypes(on, n.Type) // any-1
-		} else if Isint[et] {
+		} else if isInt[et] {
 			if et == TUINT64 {
 				if (t.Sym.Pkg == Runtimepkg || compiling_runtime) && t.Sym.Name == "hex" {
 					on = syslook("printhex")
@@ -2073,9 +2073,9 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			} else {
 				on = syslook("printint")
 			}
-		} else if Isfloat[et] {
+		} else if isFloat[et] {
 			on = syslook("printfloat")
-		} else if Iscomplex[et] {
+		} else if isComplex[et] {
 			on = syslook("printcomplex")
 		} else if et == TBOOL {
 			on = syslook("printbool")
@@ -3501,7 +3501,7 @@ func walkinrange(n *Node, init *Nodes) *Node {
 		// We need a ≤ b && ... to safely use unsigned comparison tricks.
 		// If a is not the maximum constant for b's type,
 		// we can increment a and switch to ≤.
-		if a.Int64() >= Maxintval[b.Type.Etype].Int64() {
+		if a.Int64() >= maxintval[b.Type.Etype].Int64() {
 			return n
 		}
 		a = nodintconst(a.Int64() + 1)
@@ -3675,7 +3675,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			goto ret
 		}
 
-		switch Simtype[nl.Type.Etype] {
+		switch simtype[nl.Type.Etype] {
 		default:
 			return n
 
@@ -3689,7 +3689,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			if m.Ua != 0 {
 				// Select a Go type with (at least) twice the width.
 				var twide *Type
-				switch Simtype[nl.Type.Etype] {
+				switch simtype[nl.Type.Etype] {
 				default:
 					return n
 
@@ -3780,7 +3780,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 				// nl & (2^pow-1) is (nl+1)%2^pow - 1.
 				var nc Node
 
-				Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-1)
+				Nodconst(&nc, Types[simtype[TUINT]], int64(w)-1)
 				n1 := Nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
 				if pow == 1 {
 					n1 = typecheck(n1, Erv)
@@ -3814,7 +3814,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 				// if nl < 0, we want to add 2^n-1 first.
 				var nc Node
 
-				Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-1)
+				Nodconst(&nc, Types[simtype[TUINT]], int64(w)-1)
 				n1 := Nod(ORSH, nl, &nc) // n1 = -1 iff nl < 0.
 				if pow == 1 {
 					// nl+1 is nl-(-1)
@@ -3823,7 +3823,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 					// Do a logical right right on -1 to keep pow bits.
 					var nc Node
 
-					Nodconst(&nc, Types[Simtype[TUINT]], int64(w)-int64(pow))
+					Nodconst(&nc, Types[simtype[TUINT]], int64(w)-int64(pow))
 					n2 := Nod(ORSH, conv(n1, nl.Type.toUnsigned()), &nc)
 					n.Left = Nod(OADD, nl, conv(n2, nl.Type))
 				}
@@ -3832,7 +3832,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 				n.Op = ORSH
 
 				var n2 Node
-				Nodconst(&n2, Types[Simtype[TUINT]], int64(pow))
+				Nodconst(&n2, Types[simtype[TUINT]], int64(pow))
 				n.Right = &n2
 				n.Typecheck = 0
 			}
@@ -3853,7 +3853,7 @@ func walkdiv(n *Node, init *Nodes) *Node {
 			// n = nl >> pow
 			n.Op = ORSH
 
-			Nodconst(&nc, Types[Simtype[TUINT]], int64(pow))
+			Nodconst(&nc, Types[simtype[TUINT]], int64(pow))
 		}
 
 		n.Typecheck = 0

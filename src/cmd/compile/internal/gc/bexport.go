@@ -1016,7 +1016,7 @@ func (p *exporter) value(x Val) {
 		p.tag(tag)
 
 	case *Mpint:
-		if Minintval[TINT64].Cmp(x) <= 0 && x.Cmp(Maxintval[TINT64]) <= 0 {
+		if minintval[TINT64].Cmp(x) <= 0 && x.Cmp(maxintval[TINT64]) <= 0 {
 			// common case: x fits into an int64 - use compact encoding
 			p.tag(int64Tag)
 			p.int64(x.Int64())

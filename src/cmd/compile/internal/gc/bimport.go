@@ -168,8 +168,8 @@ func Import(in *bufio.Reader) {
 		}
 		i0 = i
 
-		if Funcdepth != 0 {
-			formatErrorf("unexpected Funcdepth %d", Funcdepth)
+		if funcdepth != 0 {
+			formatErrorf("unexpected Funcdepth %d", funcdepth)
 		}
 
 		// Note: In the original code, funchdr and funcbody are called for

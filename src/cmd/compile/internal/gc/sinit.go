@@ -325,11 +325,11 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		a := inittemps[r]
 
 		n := *l
-		n.Xoffset = l.Xoffset + int64(Array_array)
+		n.Xoffset = l.Xoffset + int64(array_array)
 		gdata(&n, Nod(OADDR, a, nil), Widthptr)
-		n.Xoffset = l.Xoffset + int64(Array_nel)
+		n.Xoffset = l.Xoffset + int64(array_nel)
 		gdata(&n, r.Right, Widthint)
-		n.Xoffset = l.Xoffset + int64(Array_cap)
+		n.Xoffset = l.Xoffset + int64(array_cap)
 		gdata(&n, r.Right, Widthint)
 		return true
 
@@ -426,11 +426,11 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		a := staticname(ta)
 		inittemps[r] = a
 		n := *l
-		n.Xoffset = l.Xoffset + int64(Array_array)
+		n.Xoffset = l.Xoffset + int64(array_array)
 		gdata(&n, Nod(OADDR, a, nil), Widthptr)
-		n.Xoffset = l.Xoffset + int64(Array_nel)
+		n.Xoffset = l.Xoffset + int64(array_nel)
 		gdata(&n, r.Right, Widthint)
-		n.Xoffset = l.Xoffset + int64(Array_cap)
+		n.Xoffset = l.Xoffset + int64(array_cap)
 		gdata(&n, r.Right, Widthint)
 
 		// Fall through to init underlying array.
@@ -1373,15 +1373,15 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		}
 
 		if !reportOnly {
-			nam.Xoffset += int64(Array_array)
+			nam.Xoffset += int64(array_array)
 			gdata(&nam, ptr, Widthptr)
 
-			nam.Xoffset += int64(Array_nel) - int64(Array_array)
+			nam.Xoffset += int64(array_nel) - int64(array_array)
 			var nod1 Node
 			Nodconst(&nod1, Types[TINT], nr.Type.NumElem())
 			gdata(&nam, &nod1, Widthint)
 
-			nam.Xoffset += int64(Array_cap) - int64(Array_nel)
+			nam.Xoffset += int64(array_cap) - int64(array_nel)
 			gdata(&nam, &nod1, Widthint)
 		}
 

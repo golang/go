@@ -921,7 +921,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 4. src and dst are both integer or floating point types.
 	if (src.IsInteger() || src.IsFloat()) && (dst.IsInteger() || dst.IsFloat()) {
-		if Simtype[src.Etype] == Simtype[dst.Etype] {
+		if simtype[src.Etype] == simtype[dst.Etype] {
 			return OCONVNOP
 		}
 		return OCONV
@@ -929,7 +929,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 
 	// 5. src and dst are both complex types.
 	if src.IsComplex() && dst.IsComplex() {
-		if Simtype[src.Etype] == Simtype[dst.Etype] {
+		if simtype[src.Etype] == simtype[dst.Etype] {
 			return OCONVNOP
 		}
 		return OCONV
@@ -2007,7 +2007,7 @@ func Simsimtype(t *Type) EType {
 		return 0
 	}
 
-	et := Simtype[t.Etype]
+	et := simtype[t.Etype]
 	switch et {
 	case TPTR32:
 		et = TUINT32

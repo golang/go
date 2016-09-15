@@ -148,8 +148,8 @@ func dowidth(t *Type) {
 
 	// simtype == 0 during bootstrap
 	default:
-		if Simtype[t.Etype] != 0 {
-			et = Simtype[t.Etype]
+		if simtype[t.Etype] != 0 {
+			et = simtype[t.Etype]
 		}
 	}
 

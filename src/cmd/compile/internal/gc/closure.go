@@ -12,7 +12,7 @@ import (
 func closurehdr(ntype *Node) {
 	n := Nod(OCLOSURE, nil, nil)
 	n.Func.Ntype = ntype
-	n.Func.Depth = Funcdepth
+	n.Func.Depth = funcdepth
 	n.Func.Outerfunc = Curfn
 
 	funchdr(n)
