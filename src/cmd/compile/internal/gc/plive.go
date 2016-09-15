@@ -615,7 +615,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 						bvset(uevar, pos)
 					}
 					if prog.Info.Flags&LeftWrite != 0 {
-						if !Isfat(n.Type) {
+						if !isfat(n.Type) {
 							bvset(varkill, pos)
 						}
 					}
@@ -649,7 +649,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 						bvset(uevar, pos)
 					}
 					if prog.Info.Flags&RightWrite != 0 {
-						if !Isfat(n.Type) || prog.As == obj.AVARDEF {
+						if !isfat(n.Type) || prog.As == obj.AVARDEF {
 							bvset(varkill, pos)
 						}
 					}

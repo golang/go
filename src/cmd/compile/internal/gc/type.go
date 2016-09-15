@@ -892,7 +892,7 @@ func (r *Sym) cmpsym(s *Sym) ssa.Cmp {
 // ssa.CMPeq, ssa.CMPgt as t<x, t==x, t>x, for an arbitrary
 // and optimizer-centric notion of comparison.
 func (t *Type) cmp(x *Type) ssa.Cmp {
-	// This follows the structure of Eqtype in subr.go
+	// This follows the structure of eqtype in subr.go
 	// with two exceptions.
 	// 1. Symbols are compared more carefully because a <,=,> result is desired.
 	// 2. Maps are treated specially to avoid endless recursion -- maps

@@ -570,7 +570,7 @@ Outer:
 			continue
 		}
 		for _, n := range prev {
-			if Eqtype(n.Left.Type, c.node.Left.Type) {
+			if eqtype(n.Left.Type, c.node.Left.Type) {
 				yyerrorl(c.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
 				// avoid double-reporting errors
 				continue Outer
@@ -847,7 +847,7 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 				Fatalf("typeSwitch walkCases")
 			}
 			a := Nod(OIF, nil, nil)
-			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
+			a.Left = Nod(OEQ, s.hashname, nodintconst(int64(c.hash)))
 			a.Left = typecheck(a.Left, Erv)
 			a.Nbody.Set1(n.Right)
 			cas = append(cas, a)
@@ -858,7 +858,7 @@ func (s *typeSwitch) walkCases(cc []caseClause) *Node {
 	// find the middle and recur
 	half := len(cc) / 2
 	a := Nod(OIF, nil, nil)
-	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
+	a.Left = Nod(OLE, s.hashname, nodintconst(int64(cc[half-1].hash)))
 	a.Left = typecheck(a.Left, Erv)
 	a.Nbody.Set1(s.walkCases(cc[:half]))
 	a.Rlist.Set1(s.walkCases(cc[half:]))

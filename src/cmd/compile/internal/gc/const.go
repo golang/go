@@ -192,7 +192,7 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 
 // NegOne returns a Node of type t with value -1.
 func NegOne(t *Type) *Node {
-	n := Nodintconst(-1)
+	n := nodintconst(-1)
 	n = convlit(n, t)
 	return n
 }
@@ -296,7 +296,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 	}
 
 	// avoided repeated calculations, errors
-	if Eqtype(n.Type, t) {
+	if eqtype(n.Type, t) {
 		return n
 	}
 
@@ -1503,7 +1503,7 @@ func strlit(n *Node) string {
 	return n.Val().U.(string)
 }
 
-func Smallintconst(n *Node) bool {
+func smallintconst(n *Node) bool {
 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
 		switch Simtype[n.Type.Etype] {
 		case TINT8,

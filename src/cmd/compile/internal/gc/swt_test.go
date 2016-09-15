@@ -24,7 +24,7 @@ func TestCaseClauseByConstVal(t *testing.T) {
 		// CTFLT
 		{nodflt(0.1), nodflt(0.2)},
 		// CTINT
-		{Nodintconst(0), Nodintconst(1)},
+		{nodintconst(0), nodintconst(1)},
 		// CTRUNE
 		{nodrune('a'), nodrune('b')},
 		// CTSTR

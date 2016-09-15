@@ -525,7 +525,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			// expr LINCOP
 			p.next()
 
-			stmt := Nod(OASOP, lhs, Nodintconst(1))
+			stmt := Nod(OASOP, lhs, nodintconst(1))
 			stmt.Implicit = true
 			stmt.Etype = EType(p.op)
 			return stmt

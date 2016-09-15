@@ -1188,10 +1188,10 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left = orderexpr(n.Left, order, nil)
-		// TODO(rsc): The Isfat is for consistency with componentgen and walkexpr.
+		// TODO(rsc): The isfat is for consistency with componentgen and walkexpr.
 		// It needs to be removed in all three places.
 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
-		if !isdirectiface(n.Type) || Isfat(n.Type) || instrumenting {
+		if !isdirectiface(n.Type) || isfat(n.Type) || instrumenting {
 			n = ordercopyexpr(n, n.Type, order, 1)
 		}
 
