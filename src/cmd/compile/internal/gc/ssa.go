@@ -2619,6 +2619,8 @@ func intrinsicInit() {
 	// aliases internal to runtime/internal/atomic
 	i.std[intrinsicKey{"runtime/internal/atomic", "Loadint64"}] =
 		i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}]
+	i.std[intrinsicKey{"runtime/internal/atomic", "Xaddint64"}] =
+		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
 
 	// intrinsics which vary depending on the size of int/ptr.
 	i.intSized = map[sizedIntrinsicKey]intrinsicBuilder{
