@@ -19,25 +19,15 @@ func Main() {
 	gc.Thearch.LinkArch = &x86.Link386
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
-	gc.Thearch.REGCALLX = x86.REG_BX
-	gc.Thearch.REGCALLX2 = x86.REG_AX
-	gc.Thearch.REGRETURN = x86.REG_AX
-	gc.Thearch.REGMIN = x86.REG_AX
-	gc.Thearch.REGMAX = x86.REG_DI
 	switch v := obj.GO386; v {
 	case "387":
-		gc.Thearch.FREGMIN = x86.REG_F0
-		gc.Thearch.FREGMAX = x86.REG_F7
 		gc.Thearch.Use387 = true
 	case "sse2":
-		gc.Thearch.FREGMIN = x86.REG_X0
-		gc.Thearch.FREGMAX = x86.REG_X7
 	default:
 		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
 		gc.Exit(1)
 	}
 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
-	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe

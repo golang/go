@@ -165,3 +165,14 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
 
 	return p
 }
+
+func ginsnop() {
+	// This is actually not the x86 NOP anymore,
+	// but at the point where it gets used, AX is dead
+	// so it's okay if we lose the high bits.
+	p := gc.Prog(x86.AXCHGL)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = x86.REG_AX
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = x86.REG_AX
+}

@@ -21,15 +21,7 @@ func Main() {
 	}
 	gc.Thearch.REGSP = mips.REGSP
 	gc.Thearch.REGCTXT = mips.REGCTXT
-	gc.Thearch.REGCALLX = mips.REG_R1
-	gc.Thearch.REGCALLX2 = mips.REG_R2
-	gc.Thearch.REGRETURN = mips.REGRET
-	gc.Thearch.REGMIN = mips.REG_R0
-	gc.Thearch.REGMAX = mips.REG_R31
-	gc.Thearch.FREGMIN = mips.REG_F0
-	gc.Thearch.FREGMAX = mips.REG_F31
 	gc.Thearch.MAXWIDTH = 1 << 50
-	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe

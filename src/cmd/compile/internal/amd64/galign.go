@@ -18,13 +18,6 @@ func betypeinit() {
 	if obj.GOARCH == "amd64p32" {
 		leaptr = x86.ALEAL
 	}
-	if gc.Ctxt.Flag_dynlink || obj.GOOS == "nacl" {
-		resvd = append(resvd, x86.REG_R15)
-	}
-	if gc.Ctxt.Framepointer_enabled || obj.GOOS == "nacl" {
-		resvd = append(resvd, x86.REG_BP)
-	}
-	gc.Thearch.ReservedRegs = resvd
 }
 
 func Main() {
@@ -34,13 +27,6 @@ func Main() {
 	}
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
-	gc.Thearch.REGCALLX = x86.REG_BX
-	gc.Thearch.REGCALLX2 = x86.REG_AX
-	gc.Thearch.REGRETURN = x86.REG_AX
-	gc.Thearch.REGMIN = x86.REG_AX
-	gc.Thearch.REGMAX = x86.REG_R15
-	gc.Thearch.FREGMIN = x86.REG_X0
-	gc.Thearch.FREGMAX = x86.REG_X15
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Betypeinit = betypeinit

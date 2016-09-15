@@ -355,18 +355,9 @@ const (
 type Arch struct {
 	LinkArch *obj.LinkArch
 
-	REGSP        int
-	REGCTXT      int
-	REGCALLX     int // BX
-	REGCALLX2    int // AX
-	REGRETURN    int // AX
-	REGMIN       int
-	REGMAX       int
-	REGZERO      int // architectural zero register, if available
-	FREGMIN      int
-	FREGMAX      int
-	MAXWIDTH     int64
-	ReservedRegs []int
+	REGSP    int
+	REGCTXT  int
+	MAXWIDTH int64
 
 	Betypeinit func()
 	Defframe   func(*obj.Prog)
