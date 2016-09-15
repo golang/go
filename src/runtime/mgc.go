@@ -429,12 +429,11 @@ func (c *gcControllerState) startCycle() {
 	// error response).
 	if memstats.gc_trigger <= heapminimum {
 		memstats.heap_marked = uint64(float64(memstats.gc_trigger) / (1 + c.triggerRatio))
-		memstats.heap_reachable = memstats.heap_marked
 	}
 
 	// Re-compute the heap goal for this cycle in case something
 	// changed. This is the same calculation we use elsewhere.
-	memstats.next_gc = memstats.heap_reachable + memstats.heap_reachable*uint64(gcpercent)/100
+	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 
 	// Ensure that the heap goal is at least a little larger than
 	// the current live heap size. This may not be the case if GC
@@ -558,10 +557,6 @@ func (c *gcControllerState) endCycle() {
 	// growth if we had the desired CPU utilization). The
 	// difference between this estimate and the GOGC-based goal
 	// heap growth is the error.
-	//
-	// TODO(austin): gc_trigger is based on heap_reachable, not
-	// heap_marked, which means the actual growth ratio
-	// technically isn't comparable to the trigger ratio.
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
 	assistDuration := nanotime() - c.markStartTime
@@ -1624,14 +1619,14 @@ func gcMark(start_time int64) {
 
 	cachestats()
 
-	// Update the reachable heap stat.
-	memstats.heap_reachable = work.bytesMarked
+	// Update the marked heap stat.
+	memstats.heap_marked = work.bytesMarked
 
 	// Trigger the next GC cycle when the allocated heap has grown
-	// by triggerRatio over the reachable heap size. Assume that
-	// we're in steady state, so the reachable heap size is the
+	// by triggerRatio over the marked heap size. Assume that
+	// we're in steady state, so the marked heap size is the
 	// same now as it was at the beginning of the GC cycle.
-	memstats.gc_trigger = uint64(float64(memstats.heap_reachable) * (1 + gcController.triggerRatio))
+	memstats.gc_trigger = uint64(float64(memstats.heap_marked) * (1 + gcController.triggerRatio))
 	if memstats.gc_trigger < heapminimum {
 		memstats.gc_trigger = heapminimum
 	}
@@ -1644,15 +1639,13 @@ func gcMark(start_time int64) {
 	// cachestats (which flushes local statistics to these) and
 	// flushallmcaches (which modifies heap_live).
 	memstats.heap_live = work.bytesMarked
-	memstats.heap_marked = work.bytesMarked
 	memstats.heap_scan = uint64(gcController.scanWork)
 
 	minTrigger := memstats.heap_live + sweepMinHeapDistance*uint64(gcpercent)/100
 	if memstats.gc_trigger < minTrigger {
 		// The allocated heap is already past the trigger.
 		// This can happen if the triggerRatio is very low and
-		// the reachable heap estimate is less than the live
-		// heap size.
+		// the marked heap is less than the live heap size.
 		//
 		// Concurrent sweep happens in the heap growth from
 		// heap_live to gc_trigger, so bump gc_trigger up to ensure
@@ -1664,7 +1657,7 @@ func gcMark(start_time int64) {
 
 	// The next GC cycle should finish before the allocated heap
 	// has grown by GOGC/100.
-	memstats.next_gc = memstats.heap_reachable + memstats.heap_reachable*uint64(gcpercent)/100
+	memstats.next_gc = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 	if memstats.next_gc < memstats.gc_trigger {
 		memstats.next_gc = memstats.gc_trigger
 	}
