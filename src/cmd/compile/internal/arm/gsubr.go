@@ -34,91 +34,11 @@ import (
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
-	"fmt"
 )
 
 var resvd = []int{
 	arm.REG_R9,  // formerly reserved for m; might be okay to reuse now; not sure about NaCl
 	arm.REG_R10, // reserved for g
-}
-
-/*
- * generate one instruction:
- *	as f, t
- */
-func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
-	//	Node nod;
-	//	int32 v;
-
-	if f != nil && f.Op == gc.OINDEX {
-		gc.Fatalf("gins OINDEX not implemented")
-	}
-
-	//		gc.Regalloc(&nod, &regnode, Z);
-	//		v = constnode.vconst;
-	//		gc.Cgen(f->right, &nod);
-	//		constnode.vconst = v;
-	//		idx.reg = nod.reg;
-	//		gc.Regfree(&nod);
-	if t != nil && t.Op == gc.OINDEX {
-		gc.Fatalf("gins OINDEX not implemented")
-	}
-
-	//		gc.Regalloc(&nod, &regnode, Z);
-	//		v = constnode.vconst;
-	//		gc.Cgen(t->right, &nod);
-	//		constnode.vconst = v;
-	//		idx.reg = nod.reg;
-	//		gc.Regfree(&nod);
-
-	p := gc.Prog(as)
-	gc.Naddr(&p.From, f)
-	gc.Naddr(&p.To, t)
-
-	switch as {
-	case arm.ABL:
-		if p.To.Type == obj.TYPE_REG {
-			p.To.Type = obj.TYPE_MEM
-		}
-
-	case arm.ACMP, arm.ACMPF, arm.ACMPD:
-		if t != nil {
-			if f.Op != gc.OREGISTER {
-				/* generate a comparison
-				TODO(kaib): one of the args can actually be a small constant. relax the constraint and fix call sites.
-				*/
-				gc.Fatalf("bad operands to gcmp")
-			}
-			p.From = p.To
-			p.To = obj.Addr{}
-			raddr(f, p)
-		}
-
-	case arm.AMULU:
-		if f != nil && f.Op != gc.OREGISTER {
-			gc.Fatalf("bad operands to mul")
-		}
-
-	case arm.AMOVW:
-		if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR || p.From.Type == obj.TYPE_CONST) && (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) {
-			gc.Fatalf("gins double memory")
-		}
-
-	case arm.AADD:
-		if p.To.Type == obj.TYPE_MEM {
-			gc.Fatalf("gins arith to mem")
-		}
-
-	case arm.ARSB:
-		if p.From.Type == obj.TYPE_NONE {
-			gc.Fatalf("rsb with no from")
-		}
-	}
-
-	if gc.Debug['g'] != 0 {
-		fmt.Printf("%v\n", p)
-	}
-	return p
 }
 
 /*

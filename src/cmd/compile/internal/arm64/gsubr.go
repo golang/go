@@ -34,7 +34,6 @@ import (
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
-	"fmt"
 )
 
 var resvd = []int{
@@ -43,115 +42,6 @@ var resvd = []int{
 	arm64.REGRT1,
 	arm64.REGRT2,
 	arm64.REG_R31, // REGZERO and REGSP
-}
-
-/*
- * generate
- *	as $c, n
- */
-func ginscon(as obj.As, c int64, n2 *gc.Node) {
-	var n1 gc.Node
-
-	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
-
-	if as != arm64.AMOVD && (c < -arm64.BIG || c > arm64.BIG) || as == arm64.AMUL || n2 != nil && n2.Op != gc.OREGISTER {
-		// cannot have more than 16-bit of immediate in ADD, etc.
-		// instead, MOV into register first.
-		var ntmp gc.Node
-		gc.Regalloc(&ntmp, gc.Types[gc.TINT64], nil)
-
-		gins(arm64.AMOVD, &n1, &ntmp)
-		gins(as, &ntmp, n2)
-		gc.Regfree(&ntmp)
-		return
-	}
-
-	rawgins(as, &n1, n2)
-}
-
-// gins is called by the front end.
-// It synthesizes some multiple-instruction sequences
-// so the front end can stay simpler.
-func gins(as obj.As, f, t *gc.Node) *obj.Prog {
-	if as >= obj.A_ARCHSPECIFIC {
-		if x, ok := f.IntLiteral(); ok {
-			ginscon(as, x, t)
-			return nil // caller must not use
-		}
-	}
-	return rawgins(as, f, t)
-}
-
-/*
- * generate one instruction:
- *	as f, t
- */
-func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
-	// TODO(austin): Add self-move test like in 6g (but be careful
-	// of truncation moves)
-
-	p := gc.Prog(as)
-	gc.Naddr(&p.From, f)
-	gc.Naddr(&p.To, t)
-
-	switch as {
-	case arm64.ACMP, arm64.AFCMPS, arm64.AFCMPD:
-		if t != nil {
-			if f.Op != gc.OREGISTER {
-				gc.Fatalf("bad operands to gcmp")
-			}
-			p.From = p.To
-			p.To = obj.Addr{}
-			raddr(f, p)
-		}
-	}
-
-	// Bad things the front end has done to us. Crash to find call stack.
-	switch as {
-	case arm64.AAND, arm64.AMUL:
-		if p.From.Type == obj.TYPE_CONST {
-			gc.Debug['h'] = 1
-			gc.Fatalf("bad inst: %v", p)
-		}
-	case arm64.ACMP:
-		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
-			gc.Debug['h'] = 1
-			gc.Fatalf("bad inst: %v", p)
-		}
-	}
-
-	if gc.Debug['g'] != 0 {
-		fmt.Printf("%v\n", p)
-	}
-
-	w := int32(0)
-	switch as {
-	case arm64.AMOVB,
-		arm64.AMOVBU:
-		w = 1
-
-	case arm64.AMOVH,
-		arm64.AMOVHU:
-		w = 2
-
-	case arm64.AMOVW,
-		arm64.AMOVWU:
-		w = 4
-
-	case arm64.AMOVD:
-		if p.From.Type == obj.TYPE_CONST || p.From.Type == obj.TYPE_ADDR {
-			break
-		}
-		w = 8
-	}
-
-	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
-		gc.Dump("f", f)
-		gc.Dump("t", t)
-		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
-	}
-
-	return p
 }
 
 /*

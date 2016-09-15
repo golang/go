@@ -34,8 +34,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/sys"
 	"fmt"
-	"runtime"
-	"strings"
 )
 
 var (
@@ -73,19 +71,6 @@ func Prog(as obj.As) *obj.Prog {
 	p.As = as
 	p.Lineno = lineno
 	return p
-}
-
-func Nodreg(n *Node, t *Type, r int) {
-	if t == nil {
-		Fatalf("nodreg: t nil")
-	}
-
-	*n = Node{}
-	n.Op = OREGISTER
-	n.Addable = true
-	ullmancalc(n)
-	n.Reg = int16(r)
-	n.Type = t
 }
 
 func Afunclit(a *obj.Addr, n *Node) {
@@ -176,7 +161,7 @@ func fixautoused(p *obj.Prog) {
 }
 
 func ggloblnod(nam *Node) {
-	p := Thearch.Gins(obj.AGLOBL, nam, nil)
+	p := Gins(obj.AGLOBL, nam, nil)
 	p.Lineno = nam.Lineno
 	p.From.Sym.Gotype = Linksym(ngotype(nam))
 	p.To.Sym = nil
@@ -196,7 +181,7 @@ func ggloblsym(s *Sym, width int32, flags int16) {
 }
 
 func ggloblLSym(s *obj.LSym, width int32, flags int16) {
-	p := Thearch.Gins(obj.AGLOBL, nil, nil)
+	p := Gins(obj.AGLOBL, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = s
@@ -211,7 +196,7 @@ func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 }
 
 func gtrack(s *Sym) {
-	p := Thearch.Gins(obj.AUSEFIELD, nil, nil)
+	p := Gins(obj.AUSEFIELD, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
 	p.From.Sym = Linksym(s)
@@ -598,6 +583,25 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 	p.To.Offset = to.Pc
 }
 
+// Gins inserts instruction as. f is from, t is to.
+func Gins(as obj.As, f, t *Node) *obj.Prog {
+	switch as {
+	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATYPE,
+		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD, obj.AGLOBL:
+	default:
+		Fatalf("unhandled gins op %v", as)
+	}
+
+	p := Prog(as)
+	Naddr(&p.From, f)
+	Naddr(&p.To, t)
+
+	if Debug['g'] != 0 {
+		fmt.Printf("%v\n", p)
+	}
+	return p
+}
+
 var reg [100]int       // count of references to reg
 var regstk [100][]byte // allocation sites, when -v is given
 
@@ -615,133 +619,5 @@ func ginit() {
 
 	for _, r := range Thearch.ReservedRegs {
 		reg[r-Thearch.REGMIN] = 1
-	}
-}
-
-// allocate register of type t, leave in n.
-// if o != N, o may be reusable register.
-// caller must Regfree(n).
-func Regalloc(n *Node, t *Type, o *Node) {
-	if t == nil {
-		Fatalf("regalloc: t nil")
-	}
-	et := simtype[t.Etype]
-	if Ctxt.Arch.RegSize == 4 && (et == TINT64 || et == TUINT64) {
-		Fatalf("regalloc 64bit")
-	}
-
-	var i int
-Switch:
-	switch et {
-	default:
-		Fatalf("regalloc: unknown type %v", t)
-
-	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
-		if o != nil && o.Op == OREGISTER {
-			i = int(o.Reg)
-			if Thearch.REGMIN <= i && i <= Thearch.REGMAX {
-				break Switch
-			}
-		}
-		for i = Thearch.REGMIN; i <= Thearch.REGMAX; i++ {
-			if reg[i-Thearch.REGMIN] == 0 {
-				break Switch
-			}
-		}
-		flusherrors()
-		regdump()
-		Fatalf("out of fixed registers")
-
-	case TFLOAT32, TFLOAT64:
-		if Thearch.Use387 {
-			i = Thearch.FREGMIN // x86.REG_F0
-			break Switch
-		}
-		if o != nil && o.Op == OREGISTER {
-			i = int(o.Reg)
-			if Thearch.FREGMIN <= i && i <= Thearch.FREGMAX {
-				break Switch
-			}
-		}
-		for i = Thearch.FREGMIN; i <= Thearch.FREGMAX; i++ {
-			if reg[i-Thearch.REGMIN] == 0 { // note: REGMIN, not FREGMIN
-				break Switch
-			}
-		}
-		flusherrors()
-		regdump()
-		Fatalf("out of floating registers")
-
-	case TCOMPLEX64, TCOMPLEX128:
-		tempname(n, t)
-		return
-	}
-
-	ix := i - Thearch.REGMIN
-	if reg[ix] == 0 && Debug['v'] > 0 {
-		if regstk[ix] == nil {
-			regstk[ix] = make([]byte, 4096)
-		}
-		stk := regstk[ix]
-		n := runtime.Stack(stk[:cap(stk)], false)
-		regstk[ix] = stk[:n]
-	}
-	reg[ix]++
-	Nodreg(n, t, i)
-}
-
-func Regfree(n *Node) {
-	if n.Op == ONAME {
-		return
-	}
-	if n.Op != OREGISTER && n.Op != OINDREG {
-		Fatalf("regfree: not a register")
-	}
-	i := int(n.Reg)
-	if i == Thearch.REGSP {
-		return
-	}
-	switch {
-	case Thearch.REGMIN <= i && i <= Thearch.REGMAX,
-		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
-		// ok
-	default:
-		Fatalf("regfree: reg out of range")
-	}
-
-	i -= Thearch.REGMIN
-	if reg[i] <= 0 {
-		Fatalf("regfree: reg not allocated")
-	}
-	reg[i]--
-	if reg[i] == 0 {
-		regstk[i] = regstk[i][:0]
-	}
-}
-
-func regdump() {
-	if Debug['v'] == 0 {
-		fmt.Printf("run compiler with -v for register allocation sites\n")
-		return
-	}
-
-	dump := func(r int) {
-		stk := regstk[r-Thearch.REGMIN]
-		if len(stk) == 0 {
-			return
-		}
-		fmt.Printf("reg %v allocated at:\n", obj.Rconv(r))
-		fmt.Printf("\t%s\n", strings.Replace(strings.TrimSpace(string(stk)), "\n", "\n\t", -1))
-	}
-
-	for r := Thearch.REGMIN; r <= Thearch.REGMAX; r++ {
-		if reg[r-Thearch.REGMIN] != 0 {
-			dump(r)
-		}
-	}
-	for r := Thearch.FREGMIN; r <= Thearch.FREGMAX; r++ {
-		if reg[r-Thearch.REGMIN] == 0 {
-			dump(r)
-		}
 	}
 }

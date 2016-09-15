@@ -28,7 +28,6 @@ func Main() {
 
 	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe
-	gc.Thearch.Gins = gins
 	gc.Thearch.Proginfo = proginfo
 
 	gc.Thearch.SSARegToReg = ssaRegToReg

@@ -24,7 +24,7 @@ func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
 	Nodconst(&nod, Types[TINT32], funcdatakind)
-	Thearch.Gins(obj.AFUNCDATA, &nod, pnod)
+	Gins(obj.AFUNCDATA, &nod, pnod)
 	return sym
 }
 
@@ -96,9 +96,9 @@ func gvardefx(n *Node, as obj.As) {
 	switch n.Class {
 	case PAUTO, PPARAM, PPARAMOUT:
 		if as == obj.AVARLIVE {
-			Thearch.Gins(as, n, nil)
+			Gins(as, n, nil)
 		} else {
-			Thearch.Gins(as, nil, n)
+			Gins(as, nil, n)
 		}
 	}
 }
@@ -389,7 +389,7 @@ func compile(fn *Node) {
 	if isblank(nam) {
 		nam = nil
 	}
-	ptxt := Thearch.Gins(obj.ATEXT, nam, &nod1)
+	ptxt := Gins(obj.ATEXT, nam, &nod1)
 	Afunclit(&ptxt.From, Curfn.Func.Nname)
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok {
@@ -443,7 +443,7 @@ func compile(fn *Node) {
 		switch n.Class {
 		case PAUTO, PPARAM, PPARAMOUT:
 			Nodconst(&nod1, Types[TUINTPTR], n.Type.Width)
-			p := Thearch.Gins(obj.ATYPE, n, &nod1)
+			p := Gins(obj.ATYPE, n, &nod1)
 			p.From.Gotype = Linksym(ngotype(n))
 		}
 	}
