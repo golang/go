@@ -10,16 +10,12 @@ import (
 	"cmd/internal/obj/arm"
 )
 
-func betypeinit() {
-}
-
 func Main() {
 	gc.Thearch.LinkArch = &arm.Linkarm
 	gc.Thearch.REGSP = arm.REGSP
 	gc.Thearch.REGCTXT = arm.REGCTXT
 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
 
-	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Proginfo = proginfo
 

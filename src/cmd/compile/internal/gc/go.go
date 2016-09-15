@@ -359,10 +359,9 @@ type Arch struct {
 	REGCTXT  int
 	MAXWIDTH int64
 
-	Betypeinit func()
-	Defframe   func(*obj.Prog)
-	Proginfo   func(*obj.Prog) // fills in Prog.Info
-	Use387     bool            // should 8g use 387 FP instructions instead of sse2.
+	Defframe func(*obj.Prog)
+	Proginfo func(*obj.Prog) // fills in Prog.Info
+	Use387   bool            // should 8g use 387 FP instructions instead of sse2.
 
 	// SSARegToReg maps ssa register numbers to obj register numbers.
 	SSARegToReg []int16

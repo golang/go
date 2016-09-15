@@ -11,9 +11,6 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-func betypeinit() {
-}
-
 func Main() {
 	gc.Thearch.LinkArch = &mips.Linkmips64
 	if obj.GOARCH == "mips64le" {
@@ -23,7 +20,6 @@ func Main() {
 	gc.Thearch.REGCTXT = mips.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
-	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Proginfo = proginfo
 

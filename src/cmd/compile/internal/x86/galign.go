@@ -12,9 +12,6 @@ import (
 	"os"
 )
 
-func betypeinit() {
-}
-
 func Main() {
 	gc.Thearch.LinkArch = &x86.Link386
 	gc.Thearch.REGSP = x86.REGSP
@@ -29,7 +26,6 @@ func Main() {
 	}
 	gc.Thearch.MAXWIDTH = (1 << 32) - 1
 
-	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Proginfo = proginfo
 

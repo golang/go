@@ -10,26 +10,18 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-var (
-	leaptr = x86.ALEAQ
-)
-
-func betypeinit() {
-	if obj.GOARCH == "amd64p32" {
-		leaptr = x86.ALEAL
-	}
-}
+var leaptr = x86.ALEAQ
 
 func Main() {
 	gc.Thearch.LinkArch = &x86.Linkamd64
 	if obj.GOARCH == "amd64p32" {
 		gc.Thearch.LinkArch = &x86.Linkamd64p32
+		leaptr = x86.ALEAL
 	}
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
-	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Proginfo = proginfo
 

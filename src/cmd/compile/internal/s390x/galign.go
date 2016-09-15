@@ -9,16 +9,12 @@ import (
 	"cmd/internal/obj/s390x"
 )
 
-func betypeinit() {
-}
-
 func Main() {
 	gc.Thearch.LinkArch = &s390x.Links390x
 	gc.Thearch.REGSP = s390x.REGSP
 	gc.Thearch.REGCTXT = s390x.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
-	gc.Thearch.Betypeinit = betypeinit
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Proginfo = proginfo
 

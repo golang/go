@@ -291,7 +291,6 @@ func Main() {
 		Debug['l'] = 1 - Debug['l']
 	}
 
-	Thearch.Betypeinit()
 	Widthint = Thearch.LinkArch.IntSize
 	Widthptr = Thearch.LinkArch.PtrSize
 	Widthreg = Thearch.LinkArch.RegSize
