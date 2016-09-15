@@ -111,10 +111,6 @@ type mstats struct {
 	// unlike heap_live, heap_marked does not change until the
 	// next mark termination.
 	heap_marked uint64
-
-	// heap_reachable is an estimate of the reachable heap bytes
-	// at the end of the previous GC.
-	heap_reachable uint64
 }
 
 var memstats mstats
