@@ -62,10 +62,6 @@ func panicmem() {
 	panic(memoryError)
 }
 
-func throwreturn() {
-	throw("no return at end of a typed function - compiler is broken")
-}
-
 func throwinit() {
 	throw("recursive call during initialization - linker skew")
 }
