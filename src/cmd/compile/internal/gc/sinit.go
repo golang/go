@@ -286,7 +286,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 	orig := r
 	r = r.Name.Defn.Right
 
-	for r.Op == OCONVNOP && !Eqtype(r.Type, l.Type) {
+	for r.Op == OCONVNOP && !eqtype(r.Type, l.Type) {
 		r = r.Left
 	}
 
