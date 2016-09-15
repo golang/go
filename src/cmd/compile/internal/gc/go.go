@@ -404,8 +404,6 @@ var panicslice *Node
 
 var panicdivide *Node
 
-var throwreturn *Node
-
 var growslice *Node
 
 var writebarrierptr *Node
