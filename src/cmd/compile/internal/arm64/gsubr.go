@@ -30,11 +30,7 @@
 
 package arm64
 
-import (
-	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
-	"cmd/internal/obj/arm64"
-)
+import "cmd/internal/obj/arm64"
 
 var resvd = []int{
 	arm64.REGTMP,
@@ -42,23 +38,4 @@ var resvd = []int{
 	arm64.REGRT1,
 	arm64.REGRT2,
 	arm64.REG_R31, // REGZERO and REGSP
-}
-
-/*
- * insert n into reg slot of p
- */
-func raddr(n *gc.Node, p *obj.Prog) {
-	var a obj.Addr
-
-	gc.Naddr(&a, n)
-	if a.Type != obj.TYPE_REG {
-		if n != nil {
-			gc.Fatalf("bad in raddr: %v", n.Op)
-		} else {
-			gc.Fatalf("bad in raddr: <null>")
-		}
-		p.Reg = 0
-	} else {
-		p.Reg = a.Reg
-	}
 }

@@ -420,8 +420,6 @@ func compile(fn *Node) {
 		}
 	}
 
-	ginit()
-
 	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 
