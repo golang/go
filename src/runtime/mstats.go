@@ -46,7 +46,7 @@ type mstats struct {
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
-	next_gc         uint64 // next gc (in heap_live time)
+	next_gc         uint64 // goal heap_live for when next GC ends
 	last_gc         uint64 // last gc (in absolute time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
@@ -67,6 +67,13 @@ type mstats struct {
 	// Statistics below here are not exported to Go directly.
 
 	tinyallocs uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+
+	// gc_trigger is the heap size that triggers marking.
+	//
+	// When heap_live ≥ gc_trigger, the mark phase will start.
+	// This is also the heap size by which proportional sweeping
+	// must be complete.
+	gc_trigger uint64
 
 	// heap_live is the number of bytes considered live by the GC.
 	// That is: retained by the most recent GC plus allocated
