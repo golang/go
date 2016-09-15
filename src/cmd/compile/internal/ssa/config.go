@@ -33,6 +33,7 @@ type Config struct {
 	nacl            bool                       // GOOS=nacl
 	use387          bool                       // GO386=387
 	NeedsFpScratch  bool                       // No direct move between GP and FP register sets
+	DebugTest       bool                       // as a debugging aid for binary search using GOSSAHASH, make buggy new code conditional on this
 	sparsePhiCutoff uint64                     // Sparse phi location algorithm used above this #blocks*#variables score
 	curFunc         *Func
 
