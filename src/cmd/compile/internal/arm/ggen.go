@@ -62,53 +62,37 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 		return p
 	}
 	if *r0 == 0 {
-		p = appendpp(p, arm.AMOVW, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, arm.REG_R0, 0)
+		p = gc.Appendpp(p, arm.AMOVW, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, arm.REG_R0, 0)
 		*r0 = 1
 	}
 
 	if cnt < int64(4*gc.Widthptr) {
 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
-			p = appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, 4+frame+lo+i)
+			p = gc.Appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REGSP, 4+frame+lo+i)
 		}
 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthptr)) {
-		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
+		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
 		p.Reg = arm.REGSP
-		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
 		f := gc.Sysfunc("duffzero")
 		gc.Naddr(&p.To, f)
 		gc.Afunclit(&p.To, f)
 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
 	} else {
-		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
+		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+frame+lo, obj.TYPE_REG, arm.REG_R1, 0)
 		p.Reg = arm.REGSP
-		p = appendpp(p, arm.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm.REG_R2, 0)
+		p = gc.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm.REG_R2, 0)
 		p.Reg = arm.REG_R1
-		p = appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REG_R1, 4)
+		p = gc.Appendpp(p, arm.AMOVW, obj.TYPE_REG, arm.REG_R0, 0, obj.TYPE_MEM, arm.REG_R1, 4)
 		p1 := p
 		p.Scond |= arm.C_PBIT
-		p = appendpp(p, arm.ACMP, obj.TYPE_REG, arm.REG_R1, 0, obj.TYPE_NONE, 0, 0)
+		p = gc.Appendpp(p, arm.ACMP, obj.TYPE_REG, arm.REG_R1, 0, obj.TYPE_NONE, 0, 0)
 		p.Reg = arm.REG_R2
-		p = appendpp(p, arm.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+		p = gc.Appendpp(p, arm.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
 		gc.Patch(p, p1)
 	}
 
 	return p
-}
-
-func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
-	q := gc.Ctxt.NewProg()
-	gc.Clearp(q)
-	q.As = as
-	q.Lineno = p.Lineno
-	q.From.Type = ftype
-	q.From.Reg = freg
-	q.From.Offset = foffset
-	q.To.Type = ttype
-	q.To.Reg = treg
-	q.To.Offset = toffset
-	q.Link = p.Link
-	p.Link = q
-	return q
 }
 
 func ginsnop() {

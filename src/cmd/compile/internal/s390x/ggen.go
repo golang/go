@@ -80,7 +80,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	// need to create a copy of the stack pointer that we can adjust.
 	// We also need to do this if we are going to loop.
 	if offset < 0 || offset > 4096-clearLoopCutoff || cnt > clearLoopCutoff {
-		p = appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
+		p = gc.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset, obj.TYPE_REG, s390x.REGRT1, 0)
 		p.Reg = int16(s390x.REGSP)
 		reg = s390x.REGRT1
 		offset = 0
@@ -90,16 +90,16 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	if cnt > clearLoopCutoff {
 		n := cnt - (cnt % 256)
 		end := int16(s390x.REGRT2)
-		p = appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
+		p = gc.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, offset+n, obj.TYPE_REG, end, 0)
 		p.Reg = reg
-		p = appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
+		p = gc.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
 		p.From3 = new(obj.Addr)
 		p.From3.Type = obj.TYPE_CONST
 		p.From3.Offset = 256
 		pl := p
-		p = appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
-		p = appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
-		p = appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
+		p = gc.Appendpp(p, s390x.AADD, obj.TYPE_CONST, 0, 256, obj.TYPE_REG, reg, 0)
+		p = gc.Appendpp(p, s390x.ACMP, obj.TYPE_REG, reg, 0, obj.TYPE_REG, end, 0)
+		p = gc.Appendpp(p, s390x.ABNE, obj.TYPE_NONE, 0, 0, obj.TYPE_BRANCH, 0, 0)
 		gc.Patch(p, pl)
 
 		cnt -= n
@@ -126,11 +126,11 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 			case 2:
 				ins = s390x.AMOVH
 			}
-			p = appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
+			p = gc.Appendpp(p, ins, obj.TYPE_CONST, 0, 0, obj.TYPE_MEM, reg, offset)
 
 		// Handle clears that would require multiple move instructions with XC.
 		default:
-			p = appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
+			p = gc.Appendpp(p, s390x.AXC, obj.TYPE_MEM, reg, offset, obj.TYPE_MEM, reg, offset)
 			p.From3 = new(obj.Addr)
 			p.From3.Type = obj.TYPE_CONST
 			p.From3.Offset = n
@@ -141,22 +141,6 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
 	}
 
 	return p
-}
-
-func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset int64, ttype obj.AddrType, treg int16, toffset int64) *obj.Prog {
-	q := gc.Ctxt.NewProg()
-	gc.Clearp(q)
-	q.As = as
-	q.Lineno = p.Lineno
-	q.From.Type = ftype
-	q.From.Reg = freg
-	q.From.Offset = foffset
-	q.To.Type = ttype
-	q.To.Reg = treg
-	q.To.Offset = toffset
-	q.Link = p.Link
-	p.Link = q
-	return q
 }
 
 func ginsnop() {
