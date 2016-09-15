@@ -1938,7 +1938,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case n.Left.Type.IsString():
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, Panicindex)
+			i = s.extendIndex(i, panicindex)
 			if !n.Bounded {
 				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
 				s.boundsCheck(i, len)
@@ -2170,7 +2170,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_cap), addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_cap), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
 		s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
 		// load the value we just stored to avoid having to spill it
@@ -2191,7 +2191,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(Array_nel), addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, pt, int64(array_nel), addr)
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
 	}
 
@@ -2996,7 +2996,7 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, Panicindex)
+			i = s.extendIndex(i, panicindex)
 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
 			if !n.Bounded {
 				s.boundsCheck(i, len)
@@ -3006,7 +3006,7 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
 		} else { // array
 			a, isVolatile := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
-			i = s.extendIndex(i, Panicindex)
+			i = s.extendIndex(i, panicindex)
 			len := s.constInt(Types[TINT], n.Left.Type.NumElem())
 			if !n.Bounded {
 				s.boundsCheck(i, len)
@@ -3132,7 +3132,7 @@ func (s *state) exprPtr(n *Node, bounded bool, lineno int32) *ssa.Value {
 // Used only for automatically inserted nil checks,
 // not for user code like 'x != nil'.
 func (s *state) nilCheck(ptr *ssa.Value) {
-	if Disable_checknil != 0 {
+	if disable_checknil != 0 {
 		return
 	}
 	s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
@@ -3148,7 +3148,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 
 	// bounds check
 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
-	s.check(cmp, Panicindex)
+	s.check(cmp, panicindex)
 }
 
 // sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.

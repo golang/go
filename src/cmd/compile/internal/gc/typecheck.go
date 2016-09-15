@@ -1027,7 +1027,7 @@ OpSwitch:
 					yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.NumElem())
 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
 					yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
-				} else if n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+				} else if n.Right.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 					yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
 			}
@@ -2173,7 +2173,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
 		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
 			yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
 			return false
-		} else if r.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+		} else if r.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 			yyerror("invalid slice index %v (index too large)", r)
 			return false
 		}
@@ -3774,7 +3774,7 @@ func checkmake(t *Type, arg string, n *Node) bool {
 				return false
 			}
 
-			if n.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
+			if n.Val().U.(*Mpint).Cmp(maxintval[TINT]) > 0 {
 				yyerror("%s argument too large in make(%v)", arg, t)
 				return false
 			}

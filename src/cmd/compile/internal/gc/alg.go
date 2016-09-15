@@ -313,9 +313,9 @@ func genhash(sym *Sym, t *Type) {
 	old_safemode := safemode
 	safemode = false
 
-	Disable_checknil++
+	disable_checknil++
 	funccompile(fn)
-	Disable_checknil--
+	disable_checknil--
 
 	safemode = old_safemode
 }
@@ -507,12 +507,12 @@ func geneq(sym *Sym, t *Type) {
 	// We are comparing a struct or an array,
 	// neither of which can be nil, and our comparisons
 	// are shallow.
-	Disable_checknil++
+	disable_checknil++
 
 	funccompile(fn)
 
 	safemode = old_safemode
-	Disable_checknil--
+	disable_checknil--
 }
 
 // eqfield returns the node

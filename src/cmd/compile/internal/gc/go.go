@@ -105,11 +105,11 @@ const (
 // 	uchar	nel[4];		// number of elements
 // 	uchar	cap[4];		// allocated number of elements
 // } Array;
-var Array_array int // runtime offsetof(Array,array) - same for String
+var array_array int // runtime offsetof(Array,array) - same for String
 
-var Array_nel int // runtime offsetof(Array,nel) - same for String
+var array_nel int // runtime offsetof(Array,nel) - same for String
 
-var Array_cap int // runtime offsetof(Array,cap)
+var array_cap int // runtime offsetof(Array,cap)
 
 var sizeof_Array int // runtime sizeof(Array)
 
@@ -182,13 +182,13 @@ var localimport string
 
 var asmhdr string
 
-var Simtype [NTYPE]EType
+var simtype [NTYPE]EType
 
 var (
 	isforw    [NTYPE]bool
-	Isint     [NTYPE]bool
-	Isfloat   [NTYPE]bool
-	Iscomplex [NTYPE]bool
+	isInt     [NTYPE]bool
+	isFloat   [NTYPE]bool
+	isComplex [NTYPE]bool
 	issimple  [NTYPE]bool
 )
 
@@ -210,9 +210,9 @@ var (
 	iscmp [OEND]bool
 )
 
-var Minintval [NTYPE]*Mpint
+var minintval [NTYPE]*Mpint
 
-var Maxintval [NTYPE]*Mpint
+var maxintval [NTYPE]*Mpint
 
 var minfltval [NTYPE]*Mpflt
 
@@ -292,7 +292,7 @@ var Pc *obj.Prog
 
 var nodfp *Node
 
-var Disable_checknil int
+var disable_checknil int
 
 // interface to back end
 
@@ -398,7 +398,7 @@ var Deferproc *Node
 
 var Deferreturn *Node
 
-var Panicindex *Node
+var panicindex *Node
 
 var panicslice *Node
 

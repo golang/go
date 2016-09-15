@@ -308,7 +308,7 @@ func Naddr(a *obj.Addr, n *Node) {
 	case ONAME:
 		a.Etype = 0
 		if n.Type != nil {
-			a.Etype = uint8(Simtype[n.Type.Etype])
+			a.Etype = uint8(simtype[n.Type.Etype])
 		}
 		a.Offset = n.Xoffset
 		s := n.Sym
@@ -416,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
 			break // idata(nil)
 		}
 		if isdirectiface(n.Type) {
-			a.Etype = uint8(Simtype[n.Type.Etype])
+			a.Etype = uint8(simtype[n.Type.Etype])
 		} else {
 			a.Etype = uint8(Tptr)
 		}
@@ -430,8 +430,8 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // ptr(nil)
 		}
-		a.Etype = uint8(Simtype[Tptr])
-		a.Offset += int64(Array_array)
+		a.Etype = uint8(simtype[Tptr])
+		a.Offset += int64(array_array)
 		a.Width = int64(Widthptr)
 
 		// len of string or slice
@@ -441,8 +441,8 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // len(nil)
 		}
-		a.Etype = uint8(Simtype[TUINT])
-		a.Offset += int64(Array_nel)
+		a.Etype = uint8(simtype[TUINT])
+		a.Offset += int64(array_nel)
 		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
 		}
@@ -454,8 +454,8 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // cap(nil)
 		}
-		a.Etype = uint8(Simtype[TUINT])
-		a.Offset += int64(Array_cap)
+		a.Etype = uint8(simtype[TUINT])
+		a.Offset += int64(array_cap)
 		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
 		}
@@ -625,7 +625,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
 	if t == nil {
 		Fatalf("regalloc: t nil")
 	}
-	et := Simtype[t.Etype]
+	et := simtype[t.Etype]
 	if Ctxt.Arch.RegSize == 4 && (et == TINT64 || et == TUINT64) {
 		Fatalf("regalloc 64bit")
 	}

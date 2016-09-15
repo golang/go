@@ -356,7 +356,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			goto bad
 		}
 		ct := n.Val().Ctype()
-		if Isint[et] {
+		if isInt[et] {
 			switch ct {
 			default:
 				goto bad
@@ -368,7 +368,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			case CTINT:
 				overflow(n.Val(), t)
 			}
-		} else if Isfloat[et] {
+		} else if isFloat[et] {
 			switch ct {
 			default:
 				goto bad
@@ -380,7 +380,7 @@ func convlit1(n *Node, t *Type, explicit bool, reuse canReuseNode) *Node {
 			case CTFLT:
 				n.SetVal(Val{truncfltlit(n.Val().U.(*Mpflt), t)})
 			}
-		} else if Iscomplex[et] {
+		} else if isComplex[et] {
 			switch ct {
 			default:
 				goto bad
@@ -517,7 +517,7 @@ func doesoverflow(v Val, t *Type) bool {
 		if !t.IsInteger() {
 			Fatalf("overflow: %v integer constant", t)
 		}
-		return u.Cmp(Minintval[t.Etype]) < 0 || u.Cmp(Maxintval[t.Etype]) > 0
+		return u.Cmp(minintval[t.Etype]) < 0 || u.Cmp(maxintval[t.Etype]) > 0
 
 	case *Mpflt:
 		if !t.IsFloat() {
@@ -557,7 +557,7 @@ func tostr(v Val) Val {
 	switch u := v.U.(type) {
 	case *Mpint:
 		var i int64 = 0xFFFD
-		if u.Cmp(Minintval[TUINT32]) >= 0 && u.Cmp(Maxintval[TUINT32]) <= 0 {
+		if u.Cmp(minintval[TUINT32]) >= 0 && u.Cmp(maxintval[TUINT32]) <= 0 {
 			i = u.Int64()
 		}
 		v.U = string(i)
@@ -678,7 +678,7 @@ func evconst(n *Node) {
 		return
 	}
 	wl := nl.Type.Etype
-	if Isint[wl] || Isfloat[wl] || Iscomplex[wl] {
+	if isInt[wl] || isFloat[wl] || isComplex[wl] {
 		wl = TIDEAL
 	}
 
@@ -788,7 +788,7 @@ func evconst(n *Node) {
 				TUINT64,
 				TUINT,
 				TUINTPTR:
-				b.Set(Maxintval[et])
+				b.Set(maxintval[et])
 			}
 
 			v.U.(*Mpint).Xor(&b)
@@ -821,7 +821,7 @@ func evconst(n *Node) {
 		return
 	}
 	wr = nr.Type.Etype
-	if Isint[wr] || Isfloat[wr] || Iscomplex[wr] {
+	if isInt[wr] || isFloat[wr] || isComplex[wr] {
 		wr = TIDEAL
 	}
 
@@ -1498,7 +1498,7 @@ func strlit(n *Node) string {
 
 func smallintconst(n *Node) bool {
 	if n.Op == OLITERAL && Isconst(n, CTINT) && n.Type != nil {
-		switch Simtype[n.Type.Etype] {
+		switch simtype[n.Type.Etype] {
 		case TINT8,
 			TUINT8,
 			TINT16,
@@ -1510,7 +1510,7 @@ func smallintconst(n *Node) bool {
 			return true
 
 		case TIDEAL, TINT64, TUINT64, TPTR64:
-			if n.Val().U.(*Mpint).Cmp(Minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
+			if n.Val().U.(*Mpint).Cmp(minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
 				break
 			}
 			return true
@@ -1522,7 +1522,7 @@ func smallintconst(n *Node) bool {
 
 func nonnegconst(n *Node) int {
 	if n.Op == OLITERAL && n.Type != nil {
-		switch Simtype[n.Type.Etype] {
+		switch simtype[n.Type.Etype] {
 		// check negative and 2^31
 		case TINT8,
 			TUINT8,
@@ -1533,7 +1533,7 @@ func nonnegconst(n *Node) int {
 			TINT64,
 			TUINT64,
 			TIDEAL:
-			if n.Val().U.(*Mpint).Cmp(Minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
+			if n.Val().U.(*Mpint).Cmp(minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(maxintval[TINT32]) > 0 {
 				break
 			}
 			return int(n.Int64())
@@ -1583,7 +1583,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 	con.Type = t
 	con.SetVal(n.Val())
 
-	if Isint[tt] {
+	if isInt[tt] {
 		con.SetVal(Val{new(Mpint)})
 		var i int64
 		switch n.Val().Ctype() {
@@ -1605,7 +1605,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	if Isfloat[tt] {
+	if isFloat[tt] {
 		con.SetVal(toflt(con.Val()))
 		if con.Val().Ctype() != CTFLT {
 			Fatalf("convconst ctype=%d %v", con.Val().Ctype(), t)
@@ -1616,7 +1616,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	if Iscomplex[tt] {
+	if isComplex[tt] {
 		con.SetVal(tocplx(con.Val()))
 		if tt == TCOMPLEX64 {
 			con.Val().U.(*Mpcplx).Real = *truncfltlit(&con.Val().U.(*Mpcplx).Real, Types[TFLOAT32])

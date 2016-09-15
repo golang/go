@@ -211,7 +211,7 @@ func declare(n *Node, ctxt Class) {
 	s.Lastlineno = lineno
 	s.Def = n
 	n.Name.Vargen = int32(gen)
-	n.Name.Funcdepth = Funcdepth
+	n.Name.Funcdepth = funcdepth
 	n.Class = ctxt
 
 	autoexport(n, ctxt)
@@ -243,7 +243,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 			declare(v, dclcontext)
 			v.Name.Param.Ntype = t
 			v.Name.Defn = as2
-			if Funcdepth > 0 {
+			if funcdepth > 0 {
 				init = append(init, Nod(ODCL, v, nil))
 			}
 		}
@@ -266,8 +266,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		declare(v, dclcontext)
 		v.Name.Param.Ntype = t
 
-		if e != nil || Funcdepth > 0 || isblank(v) {
-			if Funcdepth > 0 {
+		if e != nil || funcdepth > 0 || isblank(v) {
+			if funcdepth > 0 {
 				init = append(init, Nod(ODCL, v, nil))
 			}
 			e = Nod(OAS, v, e)
@@ -386,7 +386,7 @@ func oldname(s *Sym) *Node {
 		return n
 	}
 
-	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
+	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {
 		// Inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
@@ -394,7 +394,7 @@ func oldname(s *Sym) *Node {
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
 		c := n.Name.Param.Innermost
-		if c == nil || c.Name.Funcdepth != Funcdepth {
+		if c == nil || c.Name.Funcdepth != funcdepth {
 			// Do not have a closure var for the active closure yet; make one.
 			c = Nod(ONAME, nil, nil)
 			c.Sym = s
@@ -404,7 +404,7 @@ func oldname(s *Sym) *Node {
 			c.Name.Defn = n
 			c.Addable = false
 			c.Ullman = 2
-			c.Name.Funcdepth = Funcdepth
+			c.Name.Funcdepth = funcdepth
 
 			// Link into list of active closure variables.
 			// Popped from list in func closurebody.
@@ -529,7 +529,7 @@ func ifacedcl(n *Node) {
 // returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
-	if Funcdepth == 0 && dclcontext != PEXTERN {
+	if funcdepth == 0 && dclcontext != PEXTERN {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
@@ -672,14 +672,14 @@ func funcargs2(t *Type) {
 }
 
 var funcstack []*Node // stack of previous values of Curfn
-var Funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
+var funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
 
 // start the function.
 // called before funcargs; undone at end of funcbody.
 func funcstart(n *Node) {
 	markdcl()
 	funcstack = append(funcstack, Curfn)
-	Funcdepth++
+	funcdepth++
 	Curfn = n
 }
 
@@ -693,8 +693,8 @@ func funcbody(n *Node) {
 	}
 	popdcl()
 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
-	Funcdepth--
-	if Funcdepth == 0 {
+	funcdepth--
+	if funcdepth == 0 {
 		dclcontext = PEXTERN
 	}
 }
@@ -1256,13 +1256,13 @@ func funccompile(n *Node) {
 
 	Stksize = 0
 	dclcontext = PAUTO
-	Funcdepth = n.Func.Depth + 1
+	funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
 	Pc = nil
 	continpc = nil
 	breakpc = nil
-	Funcdepth = 0
+	funcdepth = 0
 	dclcontext = PEXTERN
 	if nerrors != 0 {
 		// If we have compile errors, ignore any assembler/linker errors.
