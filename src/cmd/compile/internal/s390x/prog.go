@@ -17,7 +17,7 @@ import (
 // Instructions not generated need not be listed.
 // As an exception to that rule, we typically write down all the
 // size variants of an operation even if we just use a subset.
-var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
+var progtable = [s390x.ALAST & obj.AMask]gc.ProgInfo{
 	obj.ATYPE & obj.AMask:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT & obj.AMask:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA & obj.AMask: {Flags: gc.Pseudo},
@@ -167,9 +167,8 @@ var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
 	obj.ARET & obj.AMask: {Flags: gc.Break},
 }
 
-func proginfo(p *obj.Prog) {
-	info := &p.Info
-	*info = progtable[p.As&obj.AMask]
+func proginfo(p *obj.Prog) gc.ProgInfo {
+	info := progtable[p.As&obj.AMask]
 	if info.Flags == 0 {
 		gc.Fatalf("proginfo: unknown instruction %v", p)
 	}
@@ -179,29 +178,10 @@ func proginfo(p *obj.Prog) {
 		info.Flags |= gc.RightRead /*CanRegRead |*/
 	}
 
-	if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR) && p.From.Reg != 0 {
-		info.Regindex |= RtoB(int(p.From.Reg))
-	}
-
-	if (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) && p.To.Reg != 0 {
-		info.Regindex |= RtoB(int(p.To.Reg))
-	}
-
 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
 		info.Flags &^= gc.LeftRead
 		info.Flags |= gc.LeftAddr
 	}
 
-	switch p.As {
-	// load multiple sets a range of registers
-	case s390x.ALMG, s390x.ALMY:
-		for r := p.Reg; r <= p.To.Reg; r++ {
-			info.Regset |= RtoB(int(r))
-		}
-	// store multiple reads a range of registers
-	case s390x.ASTMG, s390x.ASTMY:
-		for r := p.From.Reg; r <= p.Reg; r++ {
-			info.Reguse |= RtoB(int(r))
-		}
-	}
+	return info
 }

@@ -345,8 +345,8 @@ type Arch struct {
 	MAXWIDTH int64
 
 	Defframe func(*obj.Prog)
-	Proginfo func(*obj.Prog) // fills in Prog.Info
-	Use387   bool            // should 8g use 387 FP instructions instead of sse2.
+	Proginfo func(*obj.Prog) ProgInfo
+	Use387   bool // should 8g use 387 FP instructions instead of sse2.
 
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)

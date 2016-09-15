@@ -21,7 +21,7 @@ const (
 // Instructions not generated need not be listed.
 // As an exception to that rule, we typically write down all the
 // size variants of an operation even if we just use a subset.
-var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
+var progtable = [arm.ALAST & obj.AMask]gc.ProgInfo{
 	obj.ATYPE:     {Flags: gc.Pseudo | gc.Skip},
 	obj.ATEXT:     {Flags: gc.Pseudo},
 	obj.AFUNCDATA: {Flags: gc.Pseudo},
@@ -135,9 +135,8 @@ var progtable = [arm.ALAST & obj.AMask]obj.ProgInfo{
 	obj.ARET:             {Flags: gc.Break},
 }
 
-func proginfo(p *obj.Prog) {
-	info := &p.Info
-	*info = progtable[p.As&obj.AMask]
+func proginfo(p *obj.Prog) gc.ProgInfo {
+	info := progtable[p.As&obj.AMask]
 	if info.Flags == 0 {
 		gc.Fatalf("unknown instruction %v", p)
 	}
@@ -156,11 +155,5 @@ func proginfo(p *obj.Prog) {
 		info.Flags |= gc.RightRead
 	}
 
-	switch p.As {
-	case arm.ADIV,
-		arm.ADIVU,
-		arm.AMOD,
-		arm.AMODU:
-		info.Regset |= RtoB(arm.REG_R12)
-	}
+	return info
 }
