@@ -899,7 +899,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	nerr := nerrors
 
 	a := Nod(OMAKE, nil, nil)
-	a.List.Set2(typenod(n.Type), Nodintconst(int64(len(n.List.Slice()))))
+	a.List.Set2(typenod(n.Type), nodintconst(int64(len(n.List.Slice()))))
 	litas(m, a, init)
 
 	// count the initializers
@@ -942,7 +942,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 			if isliteral(index) && isliteral(value) {
 				// build vstatk[b] = index
 				setlineno(index)
-				lhs := Nod(OINDEX, vstatk, Nodintconst(b))
+				lhs := Nod(OINDEX, vstatk, nodintconst(b))
 				as := Nod(OAS, lhs, index)
 				as = typecheck(as, Etop)
 				as = walkexpr(as, init)
@@ -951,7 +951,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 				// build vstatv[b] = value
 				setlineno(value)
-				lhs = Nod(OINDEX, vstatv, Nodintconst(b))
+				lhs = Nod(OINDEX, vstatv, nodintconst(b))
 				as = Nod(OAS, lhs, value)
 				as = typecheck(as, Etop)
 				as = walkexpr(as, init)
@@ -974,9 +974,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		kidx.Bounded = true
 		lhs := Nod(OINDEX, m, kidx)
 
-		zero := Nod(OAS, i, Nodintconst(0))
-		cond := Nod(OLT, i, Nodintconst(tk.NumElem()))
-		incr := Nod(OAS, i, Nod(OADD, i, Nodintconst(1)))
+		zero := Nod(OAS, i, nodintconst(0))
+		cond := Nod(OLT, i, nodintconst(tk.NumElem()))
+		incr := Nod(OAS, i, Nod(OADD, i, nodintconst(1)))
 		body := Nod(OAS, lhs, rhs)
 
 		loop := Nod(OFOR, cond, incr)
@@ -1141,7 +1141,7 @@ func oaslit(n *Node, init *Nodes) bool {
 		// not a special composite literal assignment
 		return false
 	}
-	if !Eqtype(n.Left.Type, n.Right.Type) {
+	if !eqtype(n.Left.Type, n.Right.Type) {
 		// not a special composite literal assignment
 		return false
 	}
@@ -1165,7 +1165,7 @@ func oaslit(n *Node, init *Nodes) bool {
 }
 
 func getlit(lit *Node) int {
-	if Smallintconst(lit) {
+	if smallintconst(lit) {
 		return int(lit.Int64())
 	}
 	return -1
@@ -1226,7 +1226,7 @@ func initplan(n *Node) {
 
 	case OARRAYLIT, OSLICELIT:
 		for _, a := range n.List.Slice() {
-			if a.Op != OKEY || !Smallintconst(a.Left) {
+			if a.Op != OKEY || !smallintconst(a.Left) {
 				Fatalf("initplan fixedlit")
 			}
 			addvalue(p, n.Type.Elem().Width*a.Left.Int64(), a.Right)
@@ -1332,7 +1332,7 @@ func genAsInitNoCheck(n *Node, reportOnly bool) bool {
 		return stataddr(&nam, nl) && nam.Class == PEXTERN
 	}
 
-	if nr.Type == nil || !Eqtype(nl.Type, nr.Type) {
+	if nr.Type == nil || !eqtype(nl.Type, nr.Type) {
 		return false
 	}
 

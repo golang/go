@@ -328,7 +328,7 @@ func importconst(s *Sym, t *Type, n *Node) {
 func importvar(s *Sym, t *Type) {
 	importsym(s, ONAME)
 	if s.Def != nil && s.Def.Op == ONAME {
-		if Eqtype(t, s.Def.Type) {
+		if eqtype(t, s.Def.Type) {
 			return
 		}
 		Yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, s.Def.Type, s.Importdef.Path, t, importpkg.Path)

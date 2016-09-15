@@ -354,7 +354,7 @@ func methods(t *Type) []*Sig {
 
 		if sig.isym.Flags&SymSiggen == 0 {
 			sig.isym.Flags |= SymSiggen
-			if !Eqtype(this, it) || this.Width < Types[Tptr].Width {
+			if !eqtype(this, it) || this.Width < Types[Tptr].Width {
 				compiling_wrappers = 1
 				genwrapper(it, f, sig.isym, 1)
 				compiling_wrappers = 0
@@ -363,7 +363,7 @@ func methods(t *Type) []*Sig {
 
 		if sig.tsym.Flags&SymSiggen == 0 {
 			sig.tsym.Flags |= SymSiggen
-			if !Eqtype(this, t) {
+			if !eqtype(this, t) {
 				compiling_wrappers = 1
 				genwrapper(t, f, sig.tsym, 0)
 				compiling_wrappers = 0

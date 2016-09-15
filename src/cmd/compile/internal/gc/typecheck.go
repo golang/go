@@ -36,7 +36,7 @@ func resolve(n *Node) *Node {
 			if r.Op != OIOTA {
 				n = r
 			} else if n.Name.Iota >= 0 {
-				n = Nodintconst(int64(n.Name.Iota))
+				n = nodintconst(int64(n.Name.Iota))
 			}
 		}
 	}
@@ -599,7 +599,7 @@ OpSwitch:
 			et = TINT
 		}
 		var aop Op = OXXX
-		if iscmp[n.Op] && t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+		if iscmp[n.Op] && t.Etype != TIDEAL && !eqtype(l.Type, r.Type) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
 			// the same type.
@@ -654,7 +654,7 @@ OpSwitch:
 			et = t.Etype
 		}
 
-		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
+		if t.Etype != TIDEAL && !eqtype(l.Type, r.Type) {
 			l, r = defaultlit2(l, r, true)
 			if r.Type.IsInterface() == l.Type.IsInterface() || aop == 0 {
 				Yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
@@ -1269,7 +1269,7 @@ OpSwitch:
 			// It isn't necessary, so just do a sanity check.
 			tp := t.Recv().Type
 
-			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
+			if l.Left == nil || !eqtype(l.Left.Type, tp) {
 				Fatalf("method receiver")
 			}
 
@@ -1434,7 +1434,7 @@ OpSwitch:
 			n.Right = r
 		}
 
-		if !Eqtype(l.Type, r.Type) {
+		if !eqtype(l.Type, r.Type) {
 			Yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
 			n.Type = nil
 			return n
@@ -1645,7 +1645,7 @@ OpSwitch:
 
 		// copy([]byte, string)
 		if n.Left.Type.IsSlice() && n.Right.Type.IsString() {
-			if Eqtype(n.Left.Type.Elem(), bytetype) {
+			if eqtype(n.Left.Type.Elem(), bytetype) {
 				break OpSwitch
 			}
 			Yyerror("arguments to copy have different element types: %L and string", n.Left.Type)
@@ -1665,7 +1665,7 @@ OpSwitch:
 			return n
 		}
 
-		if !Eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
+		if !eqtype(n.Left.Type.Elem(), n.Right.Type.Elem()) {
 			Yyerror("arguments to copy have different element types: %L and %L", n.Left.Type, n.Right.Type)
 			n.Type = nil
 			return n
@@ -1794,7 +1794,7 @@ OpSwitch:
 				}
 				n.Left = l
 			} else {
-				n.Left = Nodintconst(0)
+				n.Left = nodintconst(0)
 			}
 			n.Op = OMAKEMAP
 
@@ -1815,7 +1815,7 @@ OpSwitch:
 				}
 				n.Left = l
 			} else {
-				n.Left = Nodintconst(0)
+				n.Left = nodintconst(0)
 			}
 			n.Op = OMAKECHAN
 		}
@@ -2459,17 +2459,17 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		tt := n.Left.Type
 		dowidth(tt)
 		rcvr := f2.Type.Recv().Type
-		if !Eqtype(rcvr, tt) {
-			if rcvr.Etype == Tptr && Eqtype(rcvr.Elem(), tt) {
+		if !eqtype(rcvr, tt) {
+			if rcvr.Etype == Tptr && eqtype(rcvr.Elem(), tt) {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = Nod(OADDR, n.Left, nil)
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Elem(), rcvr) {
+			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && eqtype(tt.Elem(), rcvr) {
 				n.Left = Nod(OIND, n.Left, nil)
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
-			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && eqtype(derefall(tt), derefall(rcvr)) {
 				Yyerror("calling method %v with receiver %L requires explicit dereference", n.Sym, n.Left)
 				for tt.Etype == Tptr {
 					// Stop one level early for method with pointer receiver.
@@ -2763,7 +2763,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
 			a = a.Left
 		}
-		if !Eqtype(a.Type, n.Type) {
+		if !eqtype(a.Type, n.Type) {
 			continue
 		}
 		cmp.Right = a
@@ -2820,7 +2820,7 @@ func pushtype(n *Node, t *Type) {
 		n.Right.Implicit = true // * is okay
 	} else if Debug['s'] != 0 {
 		n.Right = typecheck(n.Right, Etype)
-		if n.Right.Type != nil && Eqtype(n.Right.Type, t) {
+		if n.Right.Type != nil && eqtype(n.Right.Type, t) {
 			fmt.Printf("%v: redundant type: %v\n", n.Line(), t)
 		}
 	}
@@ -2905,7 +2905,7 @@ func typecheckcomplit(n *Node) *Node {
 			l := n2
 			setlineno(l)
 			if l.Op != OKEY {
-				l = Nod(OKEY, Nodintconst(int64(i)), l)
+				l = Nod(OKEY, nodintconst(int64(i)), l)
 				l.Left.Type = Types[TINT]
 				l.Left.Typecheck = 1
 				n.List.SetIndex(i2, l)
@@ -2944,7 +2944,7 @@ func typecheckcomplit(n *Node) *Node {
 			t.SetNumElem(length)
 		}
 		if t.IsSlice() {
-			n.Right = Nodintconst(length)
+			n.Right = nodintconst(length)
 			n.Op = OSLICELIT
 		} else {
 			n.Op = OARRAYLIT
@@ -3181,7 +3181,7 @@ func checkassignlist(stmt *Node, l Nodes) {
 // Check whether l and r are the same side effect-free expression,
 // so that it is safe to reuse one instead of computing both.
 func samesafeexpr(l *Node, r *Node) bool {
-	if l.Op != r.Op || !Eqtype(l.Type, r.Type) {
+	if l.Op != r.Op || !eqtype(l.Type, r.Type) {
 		return false
 	}
 
@@ -3416,13 +3416,13 @@ func stringtoarraylit(n *Node) *Node {
 	if n.Type.Elem().Etype == TUINT8 {
 		// []byte
 		for i := 0; i < len(s); i++ {
-			l = append(l, Nod(OKEY, Nodintconst(int64(i)), Nodintconst(int64(s[0]))))
+			l = append(l, Nod(OKEY, nodintconst(int64(i)), nodintconst(int64(s[0]))))
 		}
 	} else {
 		// []rune
 		i := 0
 		for _, r := range s {
-			l = append(l, Nod(OKEY, Nodintconst(int64(i)), Nodintconst(int64(r))))
+			l = append(l, Nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
 			i++
 		}
 	}
@@ -3672,7 +3672,7 @@ func typecheckdef(n *Node) *Node {
 				goto ret
 			}
 
-			if !e.Type.IsUntyped() && !Eqtype(t, e.Type) {
+			if !e.Type.IsUntyped() && !eqtype(t, e.Type) {
 				Yyerror("cannot use %L as type %v in const initializer", e, t)
 				goto ret
 			}

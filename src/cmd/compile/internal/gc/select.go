@@ -261,7 +261,7 @@ func walkselect(sel *Node) {
 	r = typecheck(r, Etop)
 	init = append(init, r)
 	var_ = conv(conv(Nod(OADDR, selv, nil), Types[TUNSAFEPTR]), Ptrto(Types[TUINT8]))
-	r = mkcall("newselect", nil, nil, var_, Nodintconst(selv.Type.Width), Nodintconst(sel.Xoffset))
+	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(sel.Xoffset))
 	r = typecheck(r, Etop)
 	init = append(init, r)
 	// register cases
@@ -340,11 +340,11 @@ func selecttype(size int32) *Type {
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("ncase")), typenod(Types[TUINT16])))
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorder")), typenod(Ptrto(Types[TUINT8]))))
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
-	arr := Nod(OTARRAY, Nodintconst(int64(size)), scase)
+	arr := Nod(OTARRAY, nodintconst(int64(size)), scase)
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("scase")), arr))
-	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
+	arr = Nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
-	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
+	arr = Nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
 	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
 	sel = typecheck(sel, Etype)
 	sel.Type.Noalg = true

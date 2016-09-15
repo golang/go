@@ -281,7 +281,7 @@ func genhash(sym *Sym, t *Type) {
 			na.Etype = 1 // no escape to heap
 			call.List.Append(na)
 			call.List.Append(nh)
-			call.List.Append(Nodintconst(size))
+			call.List.Append(nodintconst(size))
 			fn.Nbody.Append(Nod(OAS, nh, call))
 
 			i = next
@@ -539,7 +539,7 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
 	call.List.Append(nx)
 	call.List.Append(ny)
 	if needsize {
-		call.List.Append(Nodintconst(size))
+		call.List.Append(nodintconst(size))
 	}
 
 	return call

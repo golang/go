@@ -183,13 +183,13 @@ func walkrange(n *Node) {
 		init = append(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
 		if v2 != nil {
 			hp = temp(Ptrto(n.Type.Elem()))
-			tmp := Nod(OINDEX, ha, Nodintconst(0))
+			tmp := Nod(OINDEX, ha, nodintconst(0))
 			tmp.Bounded = true
 			init = append(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
 		}
 
 		n.Left = Nod(OLT, hv1, hn)
-		n.Right = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
+		n.Right = Nod(OAS, hv1, Nod(OADD, hv1, nodintconst(1)))
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
@@ -208,7 +208,7 @@ func walkrange(n *Node) {
 			// Advancing during the increment ensures that the pointer p only points
 			// pass the end of the array during the final "p++; i++; if(i >= len(x)) break;",
 			// after which p is dead, so it cannot confuse the collector.
-			tmp := Nod(OADD, hp, Nodintconst(t.Elem().Width))
+			tmp := Nod(OADD, hp, nodintconst(t.Elem().Width))
 
 			tmp.Type = hp.Type
 			tmp.Typecheck = 1
@@ -325,10 +325,10 @@ func walkrange(n *Node) {
 
 		// if hv2 < utf8.RuneSelf
 		nif := Nod(OIF, nil, nil)
-		nif.Left = Nod(OLT, nind, Nodintconst(utf8.RuneSelf))
+		nif.Left = Nod(OLT, nind, nodintconst(utf8.RuneSelf))
 
 		// hv1++
-		nif.Nbody.Set1(Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1))))
+		nif.Nbody.Set1(Nod(OAS, hv1, Nod(OADD, hv1, nodintconst(1))))
 
 		// } else {
 		eif := Nod(OAS2, nil, nil)
@@ -403,12 +403,12 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Op = OIF
 
 	n.Nbody.Set(nil)
-	n.Left = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
+	n.Left = Nod(ONE, Nod(OLEN, a, nil), nodintconst(0))
 
 	// hp = &a[0]
 	hp := temp(Ptrto(Types[TUINT8]))
 
-	tmp := Nod(OINDEX, a, Nodintconst(0))
+	tmp := Nod(OINDEX, a, nodintconst(0))
 	tmp.Bounded = true
 	tmp = Nod(OADDR, tmp, nil)
 	tmp = Nod(OCONVNOP, tmp, nil)
@@ -419,7 +419,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	hn := temp(Types[TUINTPTR])
 
 	tmp = Nod(OLEN, a, nil)
-	tmp = Nod(OMUL, tmp, Nodintconst(elemsize))
+	tmp = Nod(OMUL, tmp, nodintconst(elemsize))
 	tmp = conv(tmp, Types[TUINTPTR])
 	n.Nbody.Append(Nod(OAS, hn, tmp))
 
@@ -429,7 +429,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(fn)
 
 	// i = len(a) - 1
-	v1 = Nod(OAS, v1, Nod(OSUB, Nod(OLEN, a, nil), Nodintconst(1)))
+	v1 = Nod(OAS, v1, Nod(OSUB, Nod(OLEN, a, nil), nodintconst(1)))
 
 	n.Nbody.Append(v1)
 

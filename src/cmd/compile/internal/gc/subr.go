@@ -427,7 +427,7 @@ func (x methcmp) Less(i, j int) bool {
 	return false
 }
 
-func Nodintconst(v int64) *Node {
+func nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
 	c.SetVal(Val{new(Mpint)})
@@ -462,14 +462,14 @@ func Nodconst(n *Node, t *Type, v int64) {
 }
 
 func nodnil() *Node {
-	c := Nodintconst(0)
+	c := nodintconst(0)
 	c.SetVal(Val{new(NilVal)})
 	c.Type = Types[TNIL]
 	return c
 }
 
 func Nodbool(b bool) *Node {
-	c := Nodintconst(0)
+	c := nodintconst(0)
 	c.SetVal(Val{b})
 	c.Type = idealbool
 	return c
@@ -637,13 +637,13 @@ func cplxsubtype(et EType) EType {
 	return 0
 }
 
-// Eqtype reports whether t1 and t2 are identical, following the spec rules.
+// eqtype reports whether t1 and t2 are identical, following the spec rules.
 //
 // Any cyclic type must go through a named type, and if one is
 // named, it is only identical to the other if they are the same
 // pointer (t1 == t2), so there's no chance of chasing cycles
 // ad infinitum, so no need for a depth counter.
-func Eqtype(t1, t2 *Type) bool {
+func eqtype(t1, t2 *Type) bool {
 	return eqtype1(t1, t2, nil)
 }
 
@@ -744,7 +744,7 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 	f1, i1 := IterFields(t1)
 	f2, i2 := IterFields(t2)
 	for {
-		if !Eqtype(f1.Type, f2.Type) {
+		if !eqtype(f1.Type, f2.Type) {
 			return false
 		}
 		if f1 == nil {
@@ -778,7 +778,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	}
 
 	// 1. src type is identical to dst.
-	if Eqtype(src, dst) {
+	if eqtype(src, dst) {
 		return OCONVNOP
 	}
 
@@ -787,7 +787,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// both are empty interface types.
 	// For assignable but different non-empty interface types,
 	// we want to recompute the itab.
-	if Eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || src.IsEmptyInterface()) {
+	if eqtype(src.Orig, dst.Orig) && (src.Sym == nil || dst.Sym == nil || src.IsEmptyInterface()) {
 		return OCONVNOP
 	}
 
@@ -845,7 +845,7 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	// src and dst have identical element types, and
 	// either src or dst is not a named type.
 	if src.IsChan() && src.ChanDir() == Cboth && dst.IsChan() {
-		if Eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
+		if eqtype(src.Elem(), dst.Elem()) && (src.Sym == nil || dst.Sym == nil) {
 			return OCONVNOP
 		}
 	}
@@ -907,14 +907,14 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	}
 
 	// 2. src and dst have identical underlying types.
-	if Eqtype(src.Orig, dst.Orig) {
+	if eqtype(src.Orig, dst.Orig) {
 		return OCONVNOP
 	}
 
 	// 3. src and dst are unnamed pointer types
 	// and their base types have identical underlying types.
 	if src.IsPtr() && dst.IsPtr() && src.Sym == nil && dst.Sym == nil {
-		if Eqtype(src.Elem().Orig, dst.Elem().Orig) {
+		if eqtype(src.Elem().Orig, dst.Elem().Orig) {
 			return OCONVNOP
 		}
 	}
@@ -1008,7 +1008,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 		}
 	}
 
-	if Eqtype(n.Type, t) {
+	if eqtype(n.Type, t) {
 		return n
 	}
 
@@ -1025,19 +1025,6 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	r.Implicit = true
 	r.Orig = n.Orig
 	return r
-}
-
-// Is this a 64-bit type?
-func Is64(t *Type) bool {
-	if t == nil {
-		return false
-	}
-	switch Simtype[t.Etype] {
-	case TINT64, TUINT64, TPTR64:
-		return true
-	}
-
-	return false
 }
 
 // IsMethod reports whether n is a method.
@@ -1105,34 +1092,6 @@ func (o Op) IsSlice3() bool {
 		return true
 	}
 	Fatalf("IsSlice3 op %v", o)
-	return false
-}
-
-// Is a conversion between t1 and t2 a no-op?
-func Noconv(t1 *Type, t2 *Type) bool {
-	e1 := Simtype[t1.Etype]
-	e2 := Simtype[t2.Etype]
-
-	switch e1 {
-	case TINT8, TUINT8:
-		return e2 == TINT8 || e2 == TUINT8
-
-	case TINT16, TUINT16:
-		return e2 == TINT16 || e2 == TUINT16
-
-	case TINT32, TUINT32, TPTR32:
-		return e2 == TINT32 || e2 == TUINT32 || e2 == TPTR32
-
-	case TINT64, TUINT64, TPTR64:
-		return e2 == TINT64 || e2 == TUINT64 || e2 == TPTR64
-
-	case TFLOAT32:
-		return e2 == TFLOAT32
-
-	case TFLOAT64:
-		return e2 == TFLOAT64
-	}
-
 	return false
 }
 
@@ -1996,7 +1955,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 		for _, im := range iface.Fields().Slice() {
 			for _, tm := range t.Fields().Slice() {
 				if tm.Sym == im.Sym {
-					if Eqtype(tm.Type, im.Type) {
+					if eqtype(tm.Type, im.Type) {
 						goto found
 					}
 					*m = im
@@ -2026,7 +1985,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 		}
 		var followptr bool
 		tm := ifacelookdot(im.Sym, t, &followptr, false)
-		if tm == nil || tm.Nointerface || !Eqtype(tm.Type, im.Type) {
+		if tm == nil || tm.Nointerface || !eqtype(tm.Type, im.Type) {
 			if tm == nil {
 				tm = ifacelookdot(im.Sym, t, &followptr, true)
 			}

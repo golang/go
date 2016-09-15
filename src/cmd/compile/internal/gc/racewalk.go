@@ -518,7 +518,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 			if w == BADWIDTH {
 				Fatalf("instrument: %v badwidth", t)
 			}
-			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
 		} else if flag_race && (t.IsStruct() || t.IsArray()) {
 			name := "racereadrange"
 			if wr != 0 {
@@ -530,7 +530,7 @@ func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 			if w == BADWIDTH {
 				Fatalf("instrument: %v badwidth", t)
 			}
-			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
+			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
 		} else if flag_race {
 			name := "raceread"
 			if wr != 0 {

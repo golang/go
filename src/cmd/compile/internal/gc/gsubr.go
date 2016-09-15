@@ -44,44 +44,6 @@ var (
 	dpc     *obj.Prog
 )
 
-// Is this node a memory operand?
-func Ismem(n *Node) bool {
-	switch n.Op {
-	case OITAB,
-		OIDATA,
-		OSPTR,
-		OLEN,
-		OCAP,
-		OINDREG,
-		ONAME,
-		OCLOSUREVAR:
-		return true
-
-	case OADDR:
-		// amd64 and s390x use PC relative addressing.
-		// TODO(rsc): not sure why ppc64 needs this too.
-		return Thearch.LinkArch.InFamily(sys.AMD64, sys.PPC64, sys.S390X)
-	}
-
-	return false
-}
-
-func Samereg(a *Node, b *Node) bool {
-	if a == nil || b == nil {
-		return false
-	}
-	if a.Op != OREGISTER {
-		return false
-	}
-	if b.Op != OREGISTER {
-		return false
-	}
-	if a.Reg != b.Reg {
-		return false
-	}
-	return true
-}
-
 func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
@@ -142,11 +104,6 @@ func Nodreg(n *Node, t *Type, r int) {
 	ullmancalc(n)
 	n.Reg = int16(r)
 	n.Type = t
-}
-
-func Nodindreg(n *Node, t *Type, r int) {
-	Nodreg(n, t, r)
-	n.Op = OINDREG
 }
 
 func Afunclit(a *obj.Addr, n *Node) {
@@ -262,7 +219,7 @@ func gtrack(s *Sym) {
 	p.From.Sym = Linksym(s)
 }
 
-func Isfat(t *Type) bool {
+func isfat(t *Type) bool {
 	if t != nil {
 		switch t.Etype {
 		case TSTRUCT, TARRAY, TSLICE, TSTRING,
@@ -646,13 +603,6 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 var reg [100]int       // count of references to reg
 var regstk [100][]byte // allocation sites, when -v is given
 
-func GetReg(r int) int {
-	return reg[r-Thearch.REGMIN]
-}
-func SetReg(r, v int) {
-	reg[r-Thearch.REGMIN] = v
-}
-
 func ginit() {
 	for r := range reg {
 		reg[r] = 1
@@ -701,7 +651,7 @@ Switch:
 			}
 		}
 		Flusherrors()
-		Regdump()
+		regdump()
 		Fatalf("out of fixed registers")
 
 	case TFLOAT32, TFLOAT64:
@@ -721,11 +671,11 @@ Switch:
 			}
 		}
 		Flusherrors()
-		Regdump()
+		regdump()
 		Fatalf("out of floating registers")
 
 	case TCOMPLEX64, TCOMPLEX128:
-		Tempname(n, t)
+		tempname(n, t)
 		return
 	}
 
@@ -771,7 +721,7 @@ func Regfree(n *Node) {
 	}
 }
 
-func Regdump() {
+func regdump() {
 	if Debug['v'] == 0 {
 		fmt.Printf("run compiler with -v for register allocation sites\n")
 		return

@@ -378,22 +378,3 @@ func resumecheckwidth() {
 
 	defercalc = 0
 }
-
-// compute total size of f's in/out arguments.
-func Argsize(t *Type) int {
-	var w int64
-
-	for _, p := range recvsParamsResults {
-		for _, f := range p(t).Fields().Slice() {
-			if x := f.End(); x > w {
-				w = x
-			}
-		}
-	}
-
-	w = Rnd(w, int64(Widthptr))
-	if int64(int(w)) != w {
-		Fatalf("argsize too big")
-	}
-	return int(w)
-}

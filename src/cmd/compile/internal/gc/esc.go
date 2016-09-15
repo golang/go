@@ -697,7 +697,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// it is also a dereference, because it is implicitly
 			// dereferenced (see #12588)
 			if n.Type.IsArray() &&
-				!(n.Right.Type.IsPtr() && Eqtype(n.Right.Type.Elem(), n.Type)) {
+				!(n.Right.Type.IsPtr() && eqtype(n.Right.Type.Elem(), n.Type)) {
 				escassignNilWhy(e, n.List.Second(), n.Right, "range")
 			} else {
 				escassignDereference(e, n.List.Second(), n.Right, e.stepAssign(nil, n.List.Second(), n.Right, "range-deref"))

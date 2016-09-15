@@ -189,13 +189,13 @@ func clearlabels() {
 	labellist = labellist[:0]
 }
 
-// make a new off the books
-func Tempname(nn *Node, t *Type) {
+// make a new Node off the books
+func tempname(nn *Node, t *Type) {
 	if Curfn == nil {
 		Fatalf("no curfn for tempname")
 	}
 	if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
-		Dump("Tempname", Curfn)
+		Dump("tempname", Curfn)
 		Fatalf("adding tempname to wrong closure function")
 	}
 
@@ -226,7 +226,7 @@ func Tempname(nn *Node, t *Type) {
 
 func temp(t *Type) *Node {
 	var n Node
-	Tempname(&n, t)
+	tempname(&n, t)
 	n.Sym.Def.Used = true
 	return n.Orig
 }

@@ -117,7 +117,7 @@ func fninit(n []*Node) {
 
 	// (3)
 	a := Nod(OIF, nil, nil)
-	a.Left = Nod(OGT, gatevar, Nodintconst(1))
+	a.Left = Nod(OGT, gatevar, nodintconst(1))
 	a.Likely = 1
 	r = append(r, a)
 	// (3a)
@@ -125,7 +125,7 @@ func fninit(n []*Node) {
 
 	// (4)
 	b := Nod(OIF, nil, nil)
-	b.Left = Nod(OEQ, gatevar, Nodintconst(1))
+	b.Left = Nod(OEQ, gatevar, nodintconst(1))
 	// this actually isn't likely, but code layout is better
 	// like this: no JMP needed after the call.
 	b.Likely = 1
@@ -134,7 +134,7 @@ func fninit(n []*Node) {
 	b.Nbody.Set1(Nod(OCALL, syslook("throwinit"), nil))
 
 	// (5)
-	a = Nod(OAS, gatevar, Nodintconst(1))
+	a = Nod(OAS, gatevar, nodintconst(1))
 
 	r = append(r, a)
 
@@ -162,7 +162,7 @@ func fninit(n []*Node) {
 	}
 
 	// (9)
-	a = Nod(OAS, gatevar, Nodintconst(2))
+	a = Nod(OAS, gatevar, nodintconst(2))
 
 	r = append(r, a)
 

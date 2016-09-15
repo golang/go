@@ -234,7 +234,7 @@ func (p *importer) verifyTypes() {
 	for _, pair := range p.cmpList {
 		pt := pair.pt
 		t := pair.t
-		if !Eqtype(pt.Orig, t) {
+		if !eqtype(pt.Orig, t) {
 			formatErrorf("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
 		}
 	}
@@ -334,7 +334,7 @@ func (p *importer) obj(tag int) {
 		importsym(sym, ONAME)
 		if sym.Def != nil && sym.Def.Op == ONAME {
 			// function was imported before (via another import)
-			if !Eqtype(sig, sym.Def.Type) {
+			if !eqtype(sig, sym.Def.Type) {
 				formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, sig)
 			}
 			p.funcList = append(p.funcList, nil)
@@ -404,7 +404,7 @@ func (p *importer) importtype(pt, t *Type) {
 			// If we track all types, t may not be fully set up yet.
 			// Collect the types and verify identity later.
 			p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
-		} else if !Eqtype(pt.Orig, t) {
+		} else if !eqtype(pt.Orig, t) {
 			Yyerror("inconsistent definition for type %v during import\n\t%L (in %q)\n\t%L (in %q)", pt.Sym, pt, pt.Sym.Importdef.Path, t, importpkg.Path)
 		}
 	}
@@ -1016,7 +1016,7 @@ func (p *importer) node() *Node {
 		n.Etype = EType(p.int())
 		n.Left = p.expr()
 		if !p.bool() {
-			n.Right = Nodintconst(1)
+			n.Right = nodintconst(1)
 			n.Implicit = true
 		} else {
 			n.Right = p.expr()
