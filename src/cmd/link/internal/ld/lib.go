@@ -1818,16 +1818,16 @@ const (
 	AutoSym                 = 'a'
 )
 
-func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, int64, int, *Symbol)) {
+func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *Symbol)) {
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
 	s := Linklookup(ctxt, "runtime.text", 0)
 	if s.Type == obj.STEXT {
-		put(ctxt, s, s.Name, TextSym, s.Value, s.Size, int(s.Version), nil)
+		put(ctxt, s, s.Name, TextSym, s.Value, nil)
 	}
 	s = Linklookup(ctxt, "runtime.etext", 0)
 	if s.Type == obj.STEXT {
-		put(ctxt, s, s.Name, TextSym, s.Value, s.Size, int(s.Version), nil)
+		put(ctxt, s, s.Name, TextSym, s.Value, nil)
 	}
 
 	for _, s := range ctxt.Allsym {
@@ -1866,7 +1866,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, i
 			if !s.Attr.Reachable() {
 				continue
 			}
-			put(ctxt, s, s.Name, DataSym, Symaddr(ctxt, s), s.Size, int(s.Version), s.Gotype)
+			put(ctxt, s, s.Name, DataSym, Symaddr(ctxt, s), s.Gotype)
 
 		case obj.SBSS, obj.SNOPTRBSS:
 			if !s.Attr.Reachable() {
@@ -1875,39 +1875,39 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, i
 			if len(s.P) > 0 {
 				ctxt.Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, len(s.P), s.Type, s.Attr.Special())
 			}
-			put(ctxt, s, s.Name, BSSSym, Symaddr(ctxt, s), s.Size, int(s.Version), s.Gotype)
+			put(ctxt, s, s.Name, BSSSym, Symaddr(ctxt, s), s.Gotype)
 
 		case obj.SFILE:
-			put(ctxt, nil, s.Name, FileSym, s.Value, 0, int(s.Version), nil)
+			put(ctxt, nil, s.Name, FileSym, s.Value, nil)
 
 		case obj.SHOSTOBJ:
 			if Headtype == obj.Hwindows || Headtype == obj.Hwindowsgui || Iself {
-				put(ctxt, s, s.Name, UndefinedSym, s.Value, 0, int(s.Version), nil)
+				put(ctxt, s, s.Name, UndefinedSym, s.Value, nil)
 			}
 
 		case obj.SDYNIMPORT:
 			if !s.Attr.Reachable() {
 				continue
 			}
-			put(ctxt, s, s.Extname, UndefinedSym, 0, 0, int(s.Version), nil)
+			put(ctxt, s, s.Extname, UndefinedSym, 0, nil)
 
 		case obj.STLSBSS:
 			if Linkmode == LinkExternal && Headtype != obj.Hopenbsd {
-				put(ctxt, s, s.Name, TLSSym, Symaddr(ctxt, s), s.Size, int(s.Version), s.Gotype)
+				put(ctxt, s, s.Name, TLSSym, Symaddr(ctxt, s), s.Gotype)
 			}
 		}
 	}
 
 	var off int32
 	for _, s := range ctxt.Textp {
-		put(ctxt, s, s.Name, TextSym, s.Value, s.Size, int(s.Version), s.Gotype)
+		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
 
 		locals := int32(0)
 		if s.FuncInfo != nil {
 			locals = s.FuncInfo.Locals
 		}
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(SysArch.PtrSize), 0, 0, nil)
+		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(SysArch.PtrSize), nil)
 
 		if s.FuncInfo == nil {
 			continue
@@ -1928,13 +1928,13 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, i
 
 			// FP
 			if off >= 0 {
-				put(ctxt, nil, a.Asym.Name, ParamSym, int64(off), 0, 0, a.Gotype)
+				put(ctxt, nil, a.Asym.Name, ParamSym, int64(off), a.Gotype)
 				continue
 			}
 
 			// SP
 			if off <= int32(-SysArch.PtrSize) {
-				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(SysArch.PtrSize)), 0, 0, a.Gotype)
+				put(ctxt, nil, a.Asym.Name, AutoSym, -(int64(off) + int64(SysArch.PtrSize)), a.Gotype)
 				continue
 			}
 		}

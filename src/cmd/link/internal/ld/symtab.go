@@ -76,7 +76,7 @@ var numelfsym int = 1 // 0 is reserved
 
 var elfbind int
 
-func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, size int64, ver int, go_ *Symbol) {
+func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, go_ *Symbol) {
 	var typ int
 
 	switch t {
@@ -96,6 +96,11 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, size i
 
 	case TLSSym:
 		typ = STT_TLS
+	}
+
+	size := x.Size
+	if t == UndefinedSym {
+		size = 0
 	}
 
 	xo := x
@@ -124,7 +129,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, size i
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Attr.Local() {
+	if x.Version != 0 || (x.Type&obj.SHIDDEN != 0) || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -208,11 +213,11 @@ func Asmelfsym(ctxt *Link) {
 	genasmsym(ctxt, putelfsym)
 }
 
-func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, size int64, ver int, go_ *Symbol) {
+func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, go_ *Symbol) {
 	t := int(typ)
 	switch typ {
 	case TextSym, DataSym, BSSSym:
-		if ver != 0 {
+		if x.Version != 0 {
 			t += 'a' - 'A'
 		}
 		fallthrough
