@@ -101,6 +101,9 @@ h1 {
 	font-size: 28px;
 	line-height: 1;
 }
+h1 .text-muted {
+	color:#777;
+}
 h2 {
 	font-size: 20px;
 	background: #E0EBF5;

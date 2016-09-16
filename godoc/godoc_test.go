@@ -290,3 +290,32 @@ func TestReplaceLeadingIndentation(t *testing.T) {
 		}
 	}
 }
+
+func TestSrcBreadcrumbFunc(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{"src/", `<span class="text-muted">src/</span>`},
+		{"src/fmt/", `<a href="/src">src</a>/<span class="text-muted">fmt/</span>`},
+		{"src/fmt/print.go", `<a href="/src">src</a>/<a href="/src/fmt">fmt</a>/<span class="text-muted">print.go</span>`},
+	} {
+		if got := srcBreadcrumbFunc(tc.path); got != tc.want {
+			t.Errorf("srcBreadcrumbFunc(%v) = %v; want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestSrcToPkgLinkFunc(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{"src/", `<a href="/pkg">Index</a>`},
+		{"src/fmt/", `<a href="/pkg/fmt">fmt</a>`},
+	} {
+		if got := srcToPkgLinkFunc(tc.path); got != tc.want {
+			t.Errorf("srcToPkgLinkFunc(%v) = %v; want %v", tc.path, got, tc.want)
+		}
+	}
+}

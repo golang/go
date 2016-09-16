@@ -529,11 +529,21 @@ func main() {
 <div id="page"{{if .Title}} class="wide"{{end}}>
 <div class="container">
 
-{{with .Title}}
-  <h1>{{html .}}</h1>
+{{if or .Title .SrcPath}}
+  <h1>
+    {{html .Title}}
+    {{html .SrcPath | srcBreadcrumb}}
+  </h1>
 {{end}}
+
 {{with .Subtitle}}
   <h2>{{html .}}</h2>
+{{end}}
+
+{{with .SrcPath}}
+  <h2>
+    Documentation: {{html . | srcToPkgLink}}
+  </h2>
 {{end}}
 
 {{/* The Table of Contents is automatically inserted in this <div>.
@@ -2995,6 +3005,9 @@ h4,
 h1 {
 	font-size: 28px;
 	line-height: 1;
+}
+h1 .text-muted {
+  color:#777;
 }
 h2 {
 	font-size: 20px;

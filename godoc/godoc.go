@@ -79,11 +79,13 @@ func (p *Presentation) initFuncMap() {
 		"sanitize":     sanitizeFunc,
 
 		// support for URL attributes
-		"pkgLink":     pkgLinkFunc,
-		"srcLink":     srcLinkFunc,
-		"posLink_url": newPosLink_urlFunc(srcPosLinkFunc),
-		"docLink":     docLinkFunc,
-		"queryLink":   queryLinkFunc,
+		"pkgLink":       pkgLinkFunc,
+		"srcLink":       srcLinkFunc,
+		"posLink_url":   newPosLink_urlFunc(srcPosLinkFunc),
+		"docLink":       docLinkFunc,
+		"queryLink":     queryLinkFunc,
+		"srcBreadcrumb": srcBreadcrumbFunc,
+		"srcToPkgLink":  srcToPkgLinkFunc,
 
 		// formatting of Examples
 		"example_html":   p.example_htmlFunc,
@@ -457,6 +459,51 @@ func pkgLinkFunc(path string) string {
 	path = strings.TrimPrefix(path, "src/")
 	path = strings.TrimPrefix(path, "pkg/")
 	return "pkg/" + path
+}
+
+// srcToPkgLinkFunc builds an <a> tag linking to
+// the package documentation of relpath.
+func srcToPkgLinkFunc(relpath string) string {
+	relpath = pkgLinkFunc(relpath)
+	if relpath == "pkg/" {
+		return `<a href="/pkg">Index</a>`
+	}
+	if i := strings.LastIndex(relpath, "/"); i != -1 {
+		// Remove filename after last slash.
+		relpath = relpath[:i]
+	}
+	return fmt.Sprintf(`<a href="/%s">%s</a>`, relpath, relpath[len("pkg/"):])
+}
+
+// srcBreadcrumbFun converts each segment of relpath to a HTML <a>.
+// Each segment links to its corresponding src directories.
+func srcBreadcrumbFunc(relpath string) string {
+	segments := strings.Split(relpath, "/")
+	var buf bytes.Buffer
+	var selectedSegment string
+	var selectedIndex int
+
+	if strings.HasSuffix(relpath, "/") {
+		// relpath is a directory ending with a "/".
+		// Selected segment is the segment before the last slash.
+		selectedIndex = len(segments) - 2
+		selectedSegment = segments[selectedIndex] + "/"
+	} else {
+		selectedIndex = len(segments) - 1
+		selectedSegment = segments[selectedIndex]
+	}
+
+	for i := range segments[:selectedIndex] {
+		buf.WriteString(fmt.Sprintf(`<a href="/%s">%s</a>/`,
+			strings.Join(segments[:i+1], "/"),
+			segments[i],
+		))
+	}
+
+	buf.WriteString(`<span class="text-muted">`)
+	buf.WriteString(selectedSegment)
+	buf.WriteString(`</span>`)
+	return buf.String()
 }
 
 func newPosLink_urlFunc(srcPosLinkFunc func(s string, line, low, high int) string) func(info *PageInfo, n interface{}) string {

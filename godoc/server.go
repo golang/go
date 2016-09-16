@@ -579,7 +579,8 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 	fmt.Fprintf(&buf, `<p><a href="/%s?m=text">View as plain text</a></p>`, htmlpkg.EscapeString(relpath))
 
 	p.ServePage(w, Page{
-		Title:    title + " " + relpath,
+		Title:    title,
+		SrcPath:  relpath,
 		Tabtitle: relpath,
 		Body:     buf.Bytes(),
 		Share:    allowShare(r),
@@ -649,7 +650,8 @@ func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, ab
 	}
 
 	p.ServePage(w, Page{
-		Title:    "Directory " + relpath,
+		Title:    "Directory",
+		SrcPath:  relpath,
 		Tabtitle: relpath,
 		Body:     applyTemplate(p.DirlistHTML, "dirlistHTML", list),
 		Share:    allowShare(r),

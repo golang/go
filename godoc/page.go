@@ -16,6 +16,7 @@ type Page struct {
 	Title    string
 	Tabtitle string
 	Subtitle string
+	SrcPath  string
 	Query    string
 	Body     []byte
 	Share    bool
