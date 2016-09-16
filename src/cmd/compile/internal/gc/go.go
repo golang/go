@@ -54,17 +54,7 @@ type Sym struct {
 }
 
 type Label struct {
-	Sym *Sym
 	Def *Node
-	Use []*Node
-
-	// for use during gen
-	Gotopc   *obj.Prog // pointer to unresolved gotos
-	Labelpc  *obj.Prog // pointer to code
-	Breakpc  *obj.Prog // pointer to code
-	Continpc *obj.Prog // pointer to code
-
-	Used bool // for "label defined and not used" error
 }
 
 type SymFlags uint8
