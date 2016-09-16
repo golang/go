@@ -17,7 +17,6 @@ func Init() {
 		gc.Thearch.LinkArch = &mips.Linkmips64le
 	}
 	gc.Thearch.REGSP = mips.REGSP
-	gc.Thearch.REGCTXT = mips.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Defframe = defframe

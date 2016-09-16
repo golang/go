@@ -12,7 +12,6 @@ import (
 func Init() {
 	gc.Thearch.LinkArch = &s390x.Links390x
 	gc.Thearch.REGSP = s390x.REGSP
-	gc.Thearch.REGCTXT = s390x.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Defframe = defframe

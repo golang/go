@@ -13,7 +13,6 @@ import (
 func Init() {
 	gc.Thearch.LinkArch = &arm64.Linkarm64
 	gc.Thearch.REGSP = arm64.REGSP
-	gc.Thearch.REGCTXT = arm64.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Defframe = defframe
