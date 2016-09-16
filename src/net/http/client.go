@@ -571,8 +571,8 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 // Post is a wrapper around DefaultClient.Post.
 //
 // To set custom headers, use NewRequest and DefaultClient.Do.
-func Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
-	return DefaultClient.Post(url, bodyType, body)
+func Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
+	return DefaultClient.Post(url, contentType, body)
 }
 
 // Post issues a POST to the specified URL.
@@ -583,12 +583,12 @@ func Post(url string, bodyType string, body io.Reader) (resp *Response, err erro
 // request.
 //
 // To set custom headers, use NewRequest and Client.Do.
-func (c *Client) Post(url string, bodyType string, body io.Reader) (resp *Response, err error) {
+func (c *Client) Post(url string, contentType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", bodyType)
+	req.Header.Set("Content-Type", contentType)
 	return c.doFollowingRedirects(req, shouldRedirectPost)
 }
 
