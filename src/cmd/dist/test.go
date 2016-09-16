@@ -420,8 +420,10 @@ func (t *tester) registerTests() {
 			break
 		}
 
-		// Darwin/Android ARM64 fails with internal linking.
-		if (t.goos == "darwin" || t.goos == "android") && t.goarch == "arm64" {
+		// Internally linking cgo is incomplete on some architectures.
+		// https://golang.org/issue/10373
+		// https://golang.org/issue/14449
+		if t.goarch == "arm64" || t.goarch == "mips64" {
 			break
 		}
 
