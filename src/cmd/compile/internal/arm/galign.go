@@ -10,7 +10,7 @@ import (
 	"cmd/internal/obj/arm"
 )
 
-func Main() {
+func Init() {
 	gc.Thearch.LinkArch = &arm.Linkarm
 	gc.Thearch.REGSP = arm.REGSP
 	gc.Thearch.REGCTXT = arm.REGCTXT
@@ -22,7 +22,4 @@ func Main() {
 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
-
-	gc.Main()
-	gc.Exit(0)
 }

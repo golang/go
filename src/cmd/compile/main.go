@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/amd64"
 	"cmd/compile/internal/arm"
 	"cmd/compile/internal/arm64"
+	"cmd/compile/internal/gc"
 	"cmd/compile/internal/mips64"
 	"cmd/compile/internal/ppc64"
 	"cmd/compile/internal/s390x"
@@ -28,18 +29,21 @@ func main() {
 		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.GOARCH)
 		os.Exit(2)
 	case "386":
-		x86.Main()
+		x86.Init()
 	case "amd64", "amd64p32":
-		amd64.Main()
+		amd64.Init()
 	case "arm":
-		arm.Main()
+		arm.Init()
 	case "arm64":
-		arm64.Main()
+		arm64.Init()
 	case "mips64", "mips64le":
-		mips64.Main()
+		mips64.Init()
 	case "ppc64", "ppc64le":
-		ppc64.Main()
+		ppc64.Init()
 	case "s390x":
-		s390x.Main()
+		s390x.Init()
 	}
+
+	gc.Main()
+	gc.Exit(0)
 }

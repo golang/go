@@ -12,7 +12,7 @@ import (
 
 var leaptr = x86.ALEAQ
 
-func Main() {
+func Init() {
 	gc.Thearch.LinkArch = &x86.Linkamd64
 	if obj.GOARCH == "amd64p32" {
 		gc.Thearch.LinkArch = &x86.Linkamd64p32
@@ -28,7 +28,4 @@ func Main() {
 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
-
-	gc.Main()
-	gc.Exit(0)
 }

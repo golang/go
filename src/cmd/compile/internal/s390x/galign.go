@@ -9,7 +9,7 @@ import (
 	"cmd/internal/obj/s390x"
 )
 
-func Main() {
+func Init() {
 	gc.Thearch.LinkArch = &s390x.Links390x
 	gc.Thearch.REGSP = s390x.REGSP
 	gc.Thearch.REGCTXT = s390x.REGCTXT
@@ -21,7 +21,4 @@ func Main() {
 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
-
-	gc.Main()
-	gc.Exit(0)
 }
