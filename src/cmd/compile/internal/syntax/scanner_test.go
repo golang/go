@@ -210,7 +210,8 @@ var sampleTokens = [...]struct {
 	{_IncOp, "--", Sub, precAdd},
 	{_Assign, "=", 0, 0},
 	{_Define, ":=", 0, 0},
-	{_Arrow, "<-", 0, 0},
+	{_Larrow, "<-", 0, 0},
+	{_Rarrow, "=>", 0, 0},
 
 	// delimiters
 	{_Lparen, "(", 0, 0},

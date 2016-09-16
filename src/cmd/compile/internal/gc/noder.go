@@ -60,6 +60,9 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 		case *syntax.ImportDecl:
 			p.importDecl(decl)
 
+		case *syntax.AliasDecl:
+			yyerror("alias declarations not yet implemented")
+
 		case *syntax.VarDecl:
 			l = append(l, p.varDecl(decl)...)
 
@@ -87,6 +90,10 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
 			lastConstGroup = decl.Group
 
 		case *syntax.TypeDecl:
+			if decl.Alias {
+				yyerror("alias declarations not yet implemented")
+				break
+			}
 			l = append(l, p.typeDecl(decl))
 
 		case *syntax.FuncDecl:
