@@ -76,29 +76,26 @@ var numelfsym int = 1 // 0 is reserved
 
 var elfbind int
 
-func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, ver int, go_ *Symbol) {
-	var type_ int
+func putelfsym(ctxt *Link, x *Symbol, s string, t SymbolType, addr int64, size int64, ver int, go_ *Symbol) {
+	var typ int
 
 	switch t {
 	default:
 		return
 
-	case 'T':
-		type_ = STT_FUNC
+	case TextSym:
+		typ = STT_FUNC
 
-	case 'D':
-		type_ = STT_OBJECT
+	case DataSym, BSSSym:
+		typ = STT_OBJECT
 
-	case 'B':
-		type_ = STT_OBJECT
-
-	case 'U':
+	case UndefinedSym:
 		// ElfType is only set for symbols read from Go shared libraries, but
 		// for other symbols it is left as STT_NOTYPE which is fine.
-		type_ = int(x.ElfType)
+		typ = int(x.ElfType)
 
-	case 't':
-		type_ = STT_TLS
+	case TLSSym:
+		typ = STT_TLS
 	}
 
 	xo := x
@@ -147,7 +144,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+	if (Buildmode == BuildmodeCArchive || Buildmode == BuildmodePIE || ctxt.DynlinkingGo()) && SysArch.Family == sys.PPC64 && typ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
 		// On ppc64 the top three bits of the st_other field indicate how
 		// many instructions separate the global and local entry points. In
 		// our case it is two instructions, indicated by the value 3.
@@ -171,7 +168,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 		// (*Symbol).ElfsymForReloc). This is approximately equivalent to the
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
-		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
+		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
 		x.LocalElfsym = int32(numelfsym)
 		numelfsym++
 		return
@@ -179,7 +176,7 @@ func putelfsym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, v
 		return
 	}
 
-	putelfsyment(putelfstr(s), addr, size, bind<<4|type_&0xf, elfshnum, other)
+	putelfsyment(putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
 	x.Elfsym = int32(numelfsym)
 	numelfsym++
 }
@@ -211,20 +208,16 @@ func Asmelfsym(ctxt *Link) {
 	genasmsym(ctxt, putelfsym)
 }
 
-func putplan9sym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64, ver int, go_ *Symbol) {
-	switch t {
-	case 'T', 'L', 'D', 'B':
+func putplan9sym(ctxt *Link, x *Symbol, s string, typ SymbolType, addr int64, size int64, ver int, go_ *Symbol) {
+	t := int(typ)
+	switch typ {
+	case TextSym, DataSym, BSSSym:
 		if ver != 0 {
 			t += 'a' - 'A'
 		}
 		fallthrough
 
-	case 'a',
-		'p',
-		'f',
-		'z',
-		'Z',
-		'm':
+	case AutoSym, ParamSym, FileSym, FrameSym:
 		l := 4
 		if Headtype == obj.Hplan9 && SysArch.Family == sys.AMD64 && !Flag8 {
 			Lputb(uint32(addr >> 32))
@@ -235,26 +228,15 @@ func putplan9sym(ctxt *Link, x *Symbol, s string, t int, addr int64, size int64,
 		Cput(uint8(t + 0x80)) /* 0x80 is variable length */
 
 		var i int
-		if t == 'z' || t == 'Z' {
-			Cput(s[0])
-			for i = 1; s[i] != 0 || s[i+1] != 0; i += 2 {
-				Cput(s[i])
-				Cput(s[i+1])
-			}
 
-			Cput(0)
-			Cput(0)
-			i++
-		} else {
-			/* skip the '<' in filenames */
-			if t == 'f' {
-				s = s[1:]
-			}
-			for i = 0; i < len(s); i++ {
-				Cput(s[i])
-			}
-			Cput(0)
+		/* skip the '<' in filenames */
+		if t == FileSym {
+			s = s[1:]
 		}
+		for i = 0; i < len(s); i++ {
+			Cput(s[i])
+		}
+		Cput(0)
 
 		Symsize += int32(l) + 1 + int32(i) + 1
 

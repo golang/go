@@ -612,7 +612,7 @@ func symkind(s *Symbol) int {
 	return SymKindLocal
 }
 
-func addsym(ctxt *Link, s *Symbol, name string, type_ int, addr int64, size int64, ver int, gotype *Symbol) {
+func addsym(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, size int64, ver int, gotype *Symbol) {
 	if s == nil {
 		return
 	}
@@ -621,7 +621,7 @@ func addsym(ctxt *Link, s *Symbol, name string, type_ int, addr int64, size int6
 	default:
 		return
 
-	case 'D', 'B', 'T':
+	case DataSym, BSSSym, TextSym:
 		break
 	}
 
@@ -656,12 +656,12 @@ func (x machoscmp) Less(i, j int) bool {
 	return s1.Extname < s2.Extname
 }
 
-func machogenasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, int, *Symbol)) {
-	genasmsym(ctxt, put)
+func machogenasmsym(ctxt *Link) {
+	genasmsym(ctxt, addsym)
 	for _, s := range ctxt.Allsym {
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			if s.Attr.Reachable() {
-				put(ctxt, s, "", 'D', 0, 0, 0, nil)
+				addsym(ctxt, s, "", DataSym, 0, 0, 0, nil)
 			}
 		}
 	}
@@ -674,10 +674,10 @@ func machosymorder(ctxt *Link) {
 	for i := 0; i < len(dynexp); i++ {
 		dynexp[i].Attr |= AttrReachable
 	}
-	machogenasmsym(ctxt, addsym)
+	machogenasmsym(ctxt)
 	sortsym = make([]*Symbol, nsortsym)
 	nsortsym = 0
-	machogenasmsym(ctxt, addsym)
+	machogenasmsym(ctxt)
 	sort.Sort(machoscmp(sortsym[:nsortsym]))
 	for i := 0; i < nsortsym; i++ {
 		sortsym[i].Dynid = int32(i)

@@ -930,17 +930,17 @@ func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADE
 func writePESymTableRecords(ctxt *Link) int {
 	var symcnt int
 
-	put := func(ctxt *Link, s *Symbol, name string, type_ int, addr int64, size int64, ver int, gotype *Symbol) {
+	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, size int64, ver int, gotype *Symbol) {
 		if s == nil {
 			return
 		}
-		if s.Sect == nil && type_ != 'U' {
+		if s.Sect == nil && type_ != UndefinedSym {
 			return
 		}
 		switch type_ {
 		default:
 			return
-		case 'D', 'B', 'T', 'U':
+		case DataSym, BSSSym, TextSym, UndefinedSym:
 		}
 
 		// only windows/386 requires underscore prefix on external symbols
@@ -966,7 +966,7 @@ func writePESymTableRecords(ctxt *Link) int {
 		} else if uint64(s.Value) >= Segtext.Vaddr {
 			value = int64(uint64(s.Value) - Segtext.Vaddr)
 			sect = textsect
-		} else if type_ == 'U' {
+		} else if type_ == UndefinedSym {
 			typ = IMAGE_SYM_DTYPE_FUNCTION
 		} else {
 			ctxt.Diag("addpesym %#x", addr)
@@ -1000,13 +1000,13 @@ func writePESymTableRecords(ctxt *Link) int {
 		for d := dr; d != nil; d = d.next {
 			for m := d.ms; m != nil; m = m.next {
 				s := m.s.R[0].Xsym
-				put(ctxt, s, s.Name, 'U', 0, int64(SysArch.PtrSize), 0, nil)
+				put(ctxt, s, s.Name, UndefinedSym, 0, int64(SysArch.PtrSize), 0, nil)
 			}
 		}
 
 		s := Linklookup(ctxt, ".text", 0)
 		if s.Type == obj.STEXT {
-			put(ctxt, s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
+			put(ctxt, s, s.Name, TextSym, s.Value, s.Size, int(s.Version), nil)
 		}
 	}
 
