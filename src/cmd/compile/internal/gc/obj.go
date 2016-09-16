@@ -355,7 +355,6 @@ func datagostring(sval string, a *obj.Addr) {
 	a.Name = obj.NAME_EXTERN
 	a.Sym = symhdr
 	a.Offset = 0
-	a.Etype = uint8(TSTRING)
 }
 
 func dsname(s *Sym, off int, t string) int {
