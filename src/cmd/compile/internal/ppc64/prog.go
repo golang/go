@@ -100,6 +100,8 @@ var progtable = [ppc64.ALAST & obj.AMask]gc.ProgInfo{
 	ppc64.AMOVHZ & obj.AMask: {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
 	ppc64.AMOVW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},
 
+	ppc64.AISEL & obj.AMask: {Flags: gc.SizeQ | gc.RegRead | gc.From3Read | gc.RightWrite},
+
 	// there is no AMOVWU.
 	ppc64.AMOVWZU & obj.AMask: {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv | gc.PostInc},
 	ppc64.AMOVWZ & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move | gc.Conv},

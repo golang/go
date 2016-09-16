@@ -356,6 +356,15 @@ func clobber(v *Value) bool {
 	return true
 }
 
+// noteRule is an easy way to track if a rule is matched when writing
+// new ones.  Make the rule of interest also conditional on
+//     noteRule("note to self: rule of interest matched")
+// and that message will print when the rule matches.
+func noteRule(s string) bool {
+	println(s)
+	return true
+}
+
 // logRule logs the use of the rule s. This will only be enabled if
 // rewrite rules were generated with the -log option, see gen/rulegen.go.
 func logRule(s string) {

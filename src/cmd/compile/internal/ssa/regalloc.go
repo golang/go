@@ -485,7 +485,7 @@ func (s *regAllocState) init(f *Func) {
 	if s.f.Config.ctxt.Flag_shared {
 		switch s.f.Config.arch {
 		case "ppc64le": // R2 already reserved.
-			s.allocatable &^= 1 << 11 // R12 -- R0 is skipped in PPC64Ops.go
+			s.allocatable &^= 1 << 12 // R12
 		}
 	}
 	if s.f.Config.ctxt.Flag_dynlink {
@@ -495,7 +495,7 @@ func (s *regAllocState) init(f *Func) {
 		case "arm":
 			s.allocatable &^= 1 << 9 // R9
 		case "ppc64le": // R2 already reserved.
-			s.allocatable &^= 1 << 11 // R12 -- R0 is skipped in PPC64Ops.go
+			s.allocatable &^= 1 << 12 // R12
 		case "arm64":
 			// nothing to do?
 		case "386":
@@ -813,7 +813,9 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				a := v.Args[idx]
-				m := s.values[a.ID].regs &^ phiUsed
+				// Some instructions target not-allocatable registers.
+				// They're not suitable for further (phi-function) allocation.
+				m := s.values[a.ID].regs &^ phiUsed & s.allocatable
 				if m != 0 {
 					r := pickReg(m)
 					s.freeReg(r)
@@ -1942,7 +1944,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, line int32
 	var x *Value
 	if c == nil {
 		if !e.s.values[vid].rematerializeable {
-			e.s.f.Fatalf("can't find source for %s->%s: v%d\n", e.p, e.b, vid)
+			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
 		}
 		if dstReg {
 			x = v.copyInto(e.p)

@@ -26,6 +26,28 @@ var condOps = map[ssa.Op]obj.As{
 	ssa.OpPPC64FGreaterEqual: ppc64.ABGT, // 2 branches for FCMP >=, second is BEQ
 }
 
+// iselOp encodes mapping of comparison operations onto ISEL operands
+type iselOp struct {
+	cond        int64
+	valueIfCond int // if cond is true, the value to return (0 or 1)
+}
+
+// Input registers to ISEL used for comparison. Index 0 is zero, 1 is (will be) 1
+var iselRegs = [2]int16{ppc64.REG_R0, ppc64.REGTMP}
+
+var iselOps = map[ssa.Op]iselOp{
+	ssa.OpPPC64Equal:         iselOp{cond: ppc64.C_COND_EQ, valueIfCond: 1},
+	ssa.OpPPC64NotEqual:      iselOp{cond: ppc64.C_COND_EQ, valueIfCond: 0},
+	ssa.OpPPC64LessThan:      iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1},
+	ssa.OpPPC64GreaterEqual:  iselOp{cond: ppc64.C_COND_LT, valueIfCond: 0},
+	ssa.OpPPC64GreaterThan:   iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1},
+	ssa.OpPPC64LessEqual:     iselOp{cond: ppc64.C_COND_GT, valueIfCond: 0},
+	ssa.OpPPC64FLessThan:     iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1},
+	ssa.OpPPC64FGreaterThan:  iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1},
+	ssa.OpPPC64FLessEqual:    iselOp{cond: ppc64.C_COND_LT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
+	ssa.OpPPC64FGreaterEqual: iselOp{cond: ppc64.C_COND_GT, valueIfCond: 1}, // 2 comparisons, 2nd is EQ
+}
+
 // markMoves marks any MOVXconst ops that need to avoid clobbering flags.
 func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 	//	flive := b.FlagsLiveAtEnd
@@ -34,7 +56,7 @@ func ssaMarkMoves(s *gc.SSAGenState, b *ssa.Block) {
 	//	}
 	//	for i := len(b.Values) - 1; i >= 0; i-- {
 	//		v := b.Values[i]
-	//		if flive && (v.Op == ssa.OpPPC64MOVWconst || v.Op == ssa.OpPPC64MOVDconst) {
+	//		if flive && (v.Op == v.Op == ssa.OpPPC64MOVDconst) {
 	//			// The "mark" is any non-nil Aux value.
 	//			v.Aux = v
 	//		}
@@ -118,6 +140,17 @@ func scratchFpMem(s *gc.SSAGenState, a *obj.Addr) {
 	a.Node = s.ScratchFpMem
 	a.Sym = gc.Linksym(s.ScratchFpMem.Sym)
 	a.Reg = ppc64.REGSP
+}
+
+func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
+	r := v.Reg()
+	p := gc.Prog(ppc64.AISEL)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = r
+	p.Reg = r1
+	p.From3 = &obj.Addr{Type: obj.TYPE_REG, Reg: r2}
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = cr
 }
 
 func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
@@ -382,7 +415,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("bad reg %s for symbol type %T, want %s", reg, v.Aux, wantreg)
 		}
 
-	case ssa.OpPPC64MOVDconst, ssa.OpPPC64MOVWconst:
+	case ssa.OpPPC64MOVDconst:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -418,7 +451,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.To.Type = obj.TYPE_REG
 
-	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVBload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
+	case ssa.OpPPC64MOVDload, ssa.OpPPC64MOVWload, ssa.OpPPC64MOVHload, ssa.OpPPC64MOVWZload, ssa.OpPPC64MOVBZload, ssa.OpPPC64MOVHZload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -465,65 +498,80 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpPPC64GreaterThan,
 		ssa.OpPPC64FGreaterThan,
 		ssa.OpPPC64GreaterEqual:
+
 		// On Power7 or later, can use isel instruction:
 		// for a < b, a > b, a = b:
-		//   rt := 1
-		//   isel rt,rt,r0,cond
+		//   rtmp := 1
+		//   isel rt,rtmp,r0,cond // rt is target in ppc asm
 
 		// for  a >= b, a <= b, a != b:
-		//   rt := 1
-		//   isel rt,0,rt,!cond
+		//   rtmp := 1
+		//   isel rt,0,rtmp,!cond // rt is target in ppc asm
 
-		// However, PPCbe support is for older machines than that,
-		// and isel (which looks a lot like fsel) isn't recognized
-		// yet by the Go assembler.  So for now, use the old instruction
-		// sequence, which we'll need anyway.
-		// TODO: add support for isel on PPCle and use it.
+		if v.Block.Func.Config.OldArch {
+			p := gc.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 1
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
 
-		// generate boolean values
-		// use conditional move
+			pb := gc.Prog(condOps[v.Op])
+			pb.To.Type = obj.TYPE_BRANCH
 
-		p := gc.Prog(ppc64.AMOVW)
+			p = gc.Prog(ppc64.AMOVD)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 0
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+
+			p = gc.Prog(obj.ANOP)
+			gc.Patch(pb, p)
+			break
+		}
+		// Modern PPC uses ISEL
+		p := gc.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-
-		pb := gc.Prog(condOps[v.Op])
-		pb.To.Type = obj.TYPE_BRANCH
-
-		p = gc.Prog(ppc64.AMOVW)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-
-		p = gc.Prog(obj.ANOP)
-		gc.Patch(pb, p)
+		p.To.Reg = iselRegs[1]
+		iop := iselOps[v.Op]
+		ssaGenISEL(v, iop.cond, iselRegs[iop.valueIfCond], iselRegs[1-iop.valueIfCond])
 
 	case ssa.OpPPC64FLessEqual, // These include a second branch for EQ -- dealing with NaN prevents REL= to !REL conversion
 		ssa.OpPPC64FGreaterEqual:
 
-		p := gc.Prog(ppc64.AMOVW)
+		if v.Block.Func.Config.OldArch {
+			p := gc.Prog(ppc64.AMOVW)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 1
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+
+			pb0 := gc.Prog(condOps[v.Op])
+			pb0.To.Type = obj.TYPE_BRANCH
+			pb1 := gc.Prog(ppc64.ABEQ)
+			pb1.To.Type = obj.TYPE_BRANCH
+
+			p = gc.Prog(ppc64.AMOVW)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 0
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = v.Reg()
+
+			p = gc.Prog(obj.ANOP)
+			gc.Patch(pb0, p)
+			gc.Patch(pb1, p)
+			break
+		}
+		// Modern PPC uses ISEL
+		p := gc.Prog(ppc64.AMOVD)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-
-		pb0 := gc.Prog(condOps[v.Op])
-		pb0.To.Type = obj.TYPE_BRANCH
-		pb1 := gc.Prog(ppc64.ABEQ)
-		pb1.To.Type = obj.TYPE_BRANCH
-
-		p = gc.Prog(ppc64.AMOVW)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
-
-		p = gc.Prog(obj.ANOP)
-		gc.Patch(pb0, p)
-		gc.Patch(pb1, p)
+		p.To.Reg = iselRegs[1]
+		iop := iselOps[v.Op]
+		ssaGenISEL(v, iop.cond, iselRegs[iop.valueIfCond], iselRegs[1-iop.valueIfCond])
+		ssaGenISEL(v, ppc64.C_COND_EQ, iselRegs[1], v.Reg())
 
 	case ssa.OpPPC64LoweredZero:
 		// Similar to how this is done on ARM,
