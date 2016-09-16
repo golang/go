@@ -3387,8 +3387,7 @@ func samecheap(a *Node, b *Node) bool {
 // The result of walkrotate MUST be assigned back to n, e.g.
 // 	n.Left = walkrotate(n.Left)
 func walkrotate(n *Node) *Node {
-	//TODO: enable LROT on ARM64 once the old backend is gone
-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM64, sys.PPC64) {
+	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
 		return n
 	}
 
@@ -3646,11 +3645,6 @@ ret:
 // 	n.Left = walkdiv(n.Left, init)
 func walkdiv(n *Node, init *Nodes) *Node {
 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
-
-	// TODO(minux)
-	if Thearch.LinkArch.InFamily(sys.MIPS64, sys.PPC64) {
-		return n
-	}
 
 	if n.Right.Op != OLITERAL {
 		return n
