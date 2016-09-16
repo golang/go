@@ -16,7 +16,7 @@ package plugin
 static uintptr_t pluginOpen(const char* path, char** err) {
 	void* h = dlopen(path, RTLD_NOW|RTLD_GLOBAL);
 	if (h == NULL) {
-		*err = dlerror();
+		*err = (char*)dlerror();
 	}
 	return (uintptr_t)h;
 }
@@ -24,7 +24,7 @@ static uintptr_t pluginOpen(const char* path, char** err) {
 static void* pluginLookup(uintptr_t h, const char* name, char** err) {
 	void* r = dlsym((void*)h, name);
 	if (r == NULL) {
-		*err = dlerror();
+		*err = (char*)dlerror();
 	}
 	return r;
 }
