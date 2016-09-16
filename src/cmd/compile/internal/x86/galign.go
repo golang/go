@@ -12,7 +12,7 @@ import (
 	"os"
 )
 
-func Main() {
+func Init() {
 	gc.Thearch.LinkArch = &x86.Link386
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
@@ -32,7 +32,4 @@ func Main() {
 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
-
-	gc.Main()
-	gc.Exit(0)
 }

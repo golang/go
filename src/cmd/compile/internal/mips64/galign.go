@@ -11,7 +11,7 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-func Main() {
+func Init() {
 	gc.Thearch.LinkArch = &mips.Linkmips64
 	if obj.GOARCH == "mips64le" {
 		gc.Thearch.LinkArch = &mips.Linkmips64le
@@ -26,7 +26,4 @@ func Main() {
 	gc.Thearch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
-
-	gc.Main()
-	gc.Exit(0)
 }

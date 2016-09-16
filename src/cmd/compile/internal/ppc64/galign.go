@@ -10,7 +10,7 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-func Main() {
+func Init() {
 	gc.Thearch.LinkArch = &ppc64.Linkppc64
 	if obj.GOARCH == "ppc64le" {
 		gc.Thearch.LinkArch = &ppc64.Linkppc64le
@@ -28,7 +28,4 @@ func Main() {
 
 	initvariants()
 	initproginfo()
-
-	gc.Main()
-	gc.Exit(0)
 }
