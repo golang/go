@@ -15,7 +15,6 @@ import (
 func Init() {
 	gc.Thearch.LinkArch = &x86.Link386
 	gc.Thearch.REGSP = x86.REGSP
-	gc.Thearch.REGCTXT = x86.REGCTXT
 	switch v := obj.GO386; v {
 	case "387":
 		gc.Thearch.Use387 = true

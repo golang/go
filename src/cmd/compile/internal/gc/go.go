@@ -346,7 +346,6 @@ type Arch struct {
 	LinkArch *obj.LinkArch
 
 	REGSP    int
-	REGCTXT  int
 	MAXWIDTH int64
 
 	Defframe func(*obj.Prog)

@@ -19,7 +19,6 @@ func Init() {
 		leaptr = x86.ALEAL
 	}
 	gc.Thearch.REGSP = x86.REGSP
-	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Defframe = defframe

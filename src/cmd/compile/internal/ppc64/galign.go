@@ -16,7 +16,6 @@ func Init() {
 		gc.Thearch.LinkArch = &ppc64.Linkppc64le
 	}
 	gc.Thearch.REGSP = ppc64.REGSP
-	gc.Thearch.REGCTXT = ppc64.REGCTXT
 	gc.Thearch.MAXWIDTH = 1 << 50
 
 	gc.Thearch.Defframe = defframe
