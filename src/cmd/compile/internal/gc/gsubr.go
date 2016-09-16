@@ -35,33 +35,13 @@ import (
 	"fmt"
 )
 
-var (
-	ddumped bool
-	dfirst  *obj.Prog
-	dpc     *obj.Prog
-)
-
 func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
-	if as == obj.AGLOBL {
-		if ddumped {
-			Fatalf("already dumped data")
-		}
-		if dpc == nil {
-			dpc = Ctxt.NewProg()
-			dfirst = dpc
-		}
-
-		p = dpc
-		dpc = Ctxt.NewProg()
-		p.Link = dpc
-	} else {
-		p = Pc
-		Pc = Ctxt.NewProg()
-		Clearp(Pc)
-		p.Link = Pc
-	}
+	p = Pc
+	Pc = Ctxt.NewProg()
+	Clearp(Pc)
+	p.Link = Pc
 
 	if lineno == 0 && Debug['K'] != 0 {
 		Warn("prog: line 0")
@@ -102,29 +82,6 @@ func Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16, foffset in
 	return q
 }
 
-func dumpdata() {
-	ddumped = true
-	if dfirst == nil {
-		return
-	}
-	newplist()
-	*Pc = *dfirst
-	Pc = dpc
-	Clearp(Pc)
-}
-
-func flushdata() {
-	if dfirst == nil {
-		return
-	}
-	newplist()
-	*Pc = *dfirst
-	Pc = dpc
-	Clearp(Pc)
-	dfirst = nil
-	dpc = nil
-}
-
 // Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
 func fixautoused(p *obj.Prog) {
 	for lp := &p; ; {
@@ -160,19 +117,16 @@ func fixautoused(p *obj.Prog) {
 }
 
 func ggloblnod(nam *Node) {
-	p := Gins(obj.AGLOBL, nam, nil)
-	p.Lineno = nam.Lineno
-	p.From.Sym.Gotype = Linksym(ngotype(nam))
-	p.To.Sym = nil
-	p.To.Type = obj.TYPE_CONST
-	p.To.Offset = nam.Type.Width
-	p.From3 = new(obj.Addr)
+	s := Linksym(nam.Sym)
+	s.Gotype = Linksym(ngotype(nam))
+	flags := 0
 	if nam.Name.Readonly {
-		p.From3.Offset = obj.RODATA
+		flags = obj.RODATA
 	}
 	if nam.Type != nil && !haspointers(nam.Type) {
-		p.From3.Offset |= obj.NOPTR
+		flags |= obj.NOPTR
 	}
+	Ctxt.Globl(s, nam.Type.Width, flags)
 }
 
 func ggloblsym(s *Sym, width int32, flags int16) {
@@ -180,18 +134,11 @@ func ggloblsym(s *Sym, width int32, flags int16) {
 }
 
 func ggloblLSym(s *obj.LSym, width int32, flags int16) {
-	p := Gins(obj.AGLOBL, nil, nil)
-	p.From.Type = obj.TYPE_MEM
-	p.From.Name = obj.NAME_EXTERN
-	p.From.Sym = s
 	if flags&obj.LOCAL != 0 {
-		p.From.Sym.Local = true
+		s.Local = true
 		flags &^= obj.LOCAL
 	}
-	p.To.Type = obj.TYPE_CONST
-	p.To.Offset = int64(width)
-	p.From3 = new(obj.Addr)
-	p.From3.Offset = int64(flags)
+	Ctxt.Globl(s, int64(width), int(flags))
 }
 
 func gtrack(s *Sym) {
@@ -450,7 +397,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 func Gins(as obj.As, f, t *Node) *obj.Prog {
 	switch as {
 	case obj.AVARKILL, obj.AVARLIVE, obj.AVARDEF, obj.ATYPE,
-		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD, obj.AGLOBL:
+		obj.ATEXT, obj.AFUNCDATA, obj.AUSEFIELD:
 	default:
 		Fatalf("unhandled gins op %v", as)
 	}

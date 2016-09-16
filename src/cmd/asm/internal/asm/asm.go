@@ -269,17 +269,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 	}
 
 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
-	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		As:     obj.AGLOBL,
-		Lineno: p.histLineNum,
-		From:   nameAddr,
-		From3: &obj.Addr{
-			Offset: flag,
-		},
-		To: addr,
-	}
-	p.append(prog, "", false)
+	p.ctxt.Globl(nameAddr.Sym, addr.Offset, int(flag))
 }
 
 // asmPCData assembles a PCDATA pseudo-op.
