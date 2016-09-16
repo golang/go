@@ -57,7 +57,7 @@ type SparseTreeHelper struct {
 // NewSparseTreeHelper returns a SparseTreeHelper for use
 // in the gc package, for example in phi-function placement.
 func NewSparseTreeHelper(f *Func) *SparseTreeHelper {
-	dom := dominators(f)
+	dom := f.idom()
 	ponums := make([]int32, f.NumBlocks())
 	po := postorderWithNumbering(f, ponums)
 	return makeSparseTreeHelper(newSparseTree(f, dom), dom, po, ponums)

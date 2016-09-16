@@ -131,13 +131,13 @@ func cse(f *Func) {
 		}
 	}
 
-	// Dominator tree (f.sdom) is computed by the generic domtree pass.
+	sdom := f.sdom()
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
-		sort.Sort(partitionByDom{e, f.sdom})
+		sort.Sort(partitionByDom{e, sdom})
 		for i := 0; i < len(e)-1; i++ {
 			// e is sorted by domorder, so a maximal dominant element is first in the slice
 			v := e[i]
@@ -152,7 +152,7 @@ func cse(f *Func) {
 				if w == nil {
 					continue
 				}
-				if f.sdom.isAncestorEq(v.Block, w.Block) {
+				if sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {

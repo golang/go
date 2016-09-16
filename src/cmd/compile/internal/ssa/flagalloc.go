@@ -11,14 +11,10 @@ func flagalloc(f *Func) {
 	// Compute the in-register flag value we want at the end of
 	// each block. This is basically a best-effort live variable
 	// analysis, so it can be much simpler than a full analysis.
-	// TODO: do we really need to keep flag values live across blocks?
-	// Could we force the flags register to be unused at basic block
-	// boundaries?  Then we wouldn't need this computation.
 	end := make([]*Value, f.NumBlocks())
+	po := f.postorder()
 	for n := 0; n < 2; n++ {
-		// Walk blocks backwards. Poor-man's postorder traversal.
-		for i := len(f.Blocks) - 1; i >= 0; i-- {
-			b := f.Blocks[i]
+		for _, b := range po {
 			// Walk values backwards to figure out what flag
 			// value we want in the flag register at the start
 			// of the block.

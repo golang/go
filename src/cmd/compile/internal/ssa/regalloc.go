@@ -2195,8 +2195,8 @@ func (s *regAllocState) computeLive() {
 	// Walk the dominator tree from end to beginning, just once, treating SCC
 	// components as single blocks, duplicated calculated liveness information
 	// out to all of them.
-	s.loopnest = loopnestfor(f)
-	po := s.loopnest.po
+	po := f.postorder()
+	s.loopnest = f.loopnest()
 	for {
 		changed := false
 

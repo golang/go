@@ -36,8 +36,10 @@ type Func struct {
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	idom []*Block   // precomputed immediate dominators
-	sdom SparseTree // precomputed dominator tree
+	cachedPostorder []*Block   // cached postorder traversal
+	cachedIdom      []*Block   // cached immediate dominators
+	cachedSdom      SparseTree // cached dominator tree
+	cachedLoopnest  *loopnest  // cached loop nest information
 
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
@@ -166,6 +168,7 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 	b.Succs = b.succstorage[:0]
 	b.Values = b.valstorage[:0]
 	f.Blocks = append(f.Blocks, b)
+	f.invalidateCFG()
 	return b
 }
 
@@ -409,6 +412,9 @@ func (f *Func) Log() bool                              { return f.Config.Log() }
 func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
 
 func (f *Func) Free() {
+	// Clear cached CFG info.
+	f.invalidateCFG()
+
 	// Clear values.
 	n := f.vid.num()
 	if n > len(f.Config.values) {
@@ -435,4 +441,46 @@ func (f *Func) Free() {
 	}
 	f.Config.curFunc = nil
 	*f = Func{} // just in case
+}
+
+// postorder returns the reachable blocks in f in a postorder traversal.
+func (f *Func) postorder() []*Block {
+	if f.cachedPostorder == nil {
+		f.cachedPostorder = postorder(f)
+	}
+	return f.cachedPostorder
+}
+
+// idom returns a map from block ID to the immediate dominator of that block.
+// f.Entry.ID maps to nil. Unreachable blocks map to nil as well.
+func (f *Func) idom() []*Block {
+	if f.cachedIdom == nil {
+		f.cachedIdom = dominators(f)
+	}
+	return f.cachedIdom
+}
+
+// sdom returns a sparse tree representing the dominator relationships
+// among the blocks of f.
+func (f *Func) sdom() SparseTree {
+	if f.cachedSdom == nil {
+		f.cachedSdom = newSparseTree(f, f.idom())
+	}
+	return f.cachedSdom
+}
+
+// loopnest returns the loop nest information for f.
+func (f *Func) loopnest() *loopnest {
+	if f.cachedLoopnest == nil {
+		f.cachedLoopnest = loopnestfor(f)
+	}
+	return f.cachedLoopnest
+}
+
+// invalidateCFG tells f that its CFG has changed.
+func (f *Func) invalidateCFG() {
+	f.cachedPostorder = nil
+	f.cachedIdom = nil
+	f.cachedSdom = nil
+	f.cachedLoopnest = nil
 }

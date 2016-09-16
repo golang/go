@@ -120,8 +120,8 @@ func likelyadjust(f *Func) {
 	certain := make([]int8, f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
 	local := make([]int8, f.NumBlocks())   // for our immediate predecessors.
 
-	nest := loopnestfor(f)
-	po := nest.po
+	po := f.postorder()
+	nest := f.loopnest()
 	b2l := nest.b2l
 
 	for _, b := range po {
@@ -260,9 +260,8 @@ func (l *loop) nearestOuterLoop(sdom SparseTree, b *Block) *loop {
 }
 
 func loopnestfor(f *Func) *loopnest {
-	po := postorder(f)
-	dom := dominators(f)
-	sdom := newSparseTree(f, dom)
+	po := f.postorder()
+	sdom := f.sdom()
 	b2l := make([]*loop, f.NumBlocks())
 	loops := make([]*loop, 0)
 
