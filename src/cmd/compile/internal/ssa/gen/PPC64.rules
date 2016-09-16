@@ -530,8 +530,9 @@
 
 // Optimizations
 
-(ADD (MOVDconst [c]) x) && int64(int32(c)) == c -> (ADDconst [c] x)
-(ADD x (MOVDconst [c])) && int64(int32(c)) == c -> (ADDconst [c] x)
+(ADD (MOVDconst [c]) x) && is32Bit(c) -> (ADDconst [c] x)
+(ADD x (MOVDconst [c])) && is32Bit(c) -> (ADDconst [c] x)
+(ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) -> (ADDconst [c+d] x)
 
 // Fold offsets for stores.
 (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)

@@ -340,6 +340,8 @@ func rewriteValuePPC64(v *Value, config *Config) bool {
 		return rewriteValuePPC64_OpOrB(v, config)
 	case OpPPC64ADD:
 		return rewriteValuePPC64_OpPPC64ADD(v, config)
+	case OpPPC64ADDconst:
+		return rewriteValuePPC64_OpPPC64ADDconst(v, config)
 	case OpPPC64CMPUconst:
 		return rewriteValuePPC64_OpPPC64CMPUconst(v, config)
 	case OpPPC64CMPWUconst:
@@ -3977,7 +3979,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (ADD (MOVDconst [c]) x)
-	// cond: int64(int32(c)) == c
+	// cond: is32Bit(c)
 	// result: (ADDconst [c] x)
 	for {
 		v_0 := v.Args[0]
@@ -3986,7 +3988,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
 		}
 		c := v_0.AuxInt
 		x := v.Args[1]
-		if !(int64(int32(c)) == c) {
+		if !(is32Bit(c)) {
 			break
 		}
 		v.reset(OpPPC64ADDconst)
@@ -3995,7 +3997,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (ADD x (MOVDconst [c]))
-	// cond: int64(int32(c)) == c
+	// cond: is32Bit(c)
 	// result: (ADDconst [c] x)
 	for {
 		x := v.Args[0]
@@ -4004,11 +4006,35 @@ func rewriteValuePPC64_OpPPC64ADD(v *Value, config *Config) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(int64(int32(c)) == c) {
+		if !(is32Bit(c)) {
 			break
 		}
 		v.reset(OpPPC64ADDconst)
 		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuePPC64_OpPPC64ADDconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ADDconst [c] (ADDconst [d] x))
+	// cond: is32Bit(c+d)
+	// result: (ADDconst [c+d] x)
+	for {
+		c := v.AuxInt
+		v_0 := v.Args[0]
+		if v_0.Op != OpPPC64ADDconst {
+			break
+		}
+		d := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(is32Bit(c + d)) {
+			break
+		}
+		v.reset(OpPPC64ADDconst)
+		v.AuxInt = c + d
 		v.AddArg(x)
 		return true
 	}
