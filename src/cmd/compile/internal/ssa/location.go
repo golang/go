@@ -33,9 +33,9 @@ type LocalSlot struct {
 
 func (s LocalSlot) Name() string {
 	if s.Off == 0 {
-		return fmt.Sprintf("%s[%s]", s.N, s.Type)
+		return fmt.Sprintf("%v[%v]", s.N, s.Type)
 	}
-	return fmt.Sprintf("%s+%d[%s]", s.N, s.Off, s.Type)
+	return fmt.Sprintf("%v+%d[%v]", s.N, s.Off, s.Type)
 }
 
 type LocPair [2]Location

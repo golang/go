@@ -97,7 +97,7 @@ func (v *Value) AuxValAndOff() ValAndOff {
 
 // long form print.  v# = opcode <type> [aux] args [: reg]
 func (v *Value) LongString() string {
-	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
+	s := fmt.Sprintf("v%d = %s", v.ID, v.Op)
 	s += " <" + v.Type.String() + ">"
 	s += v.auxString()
 	for _, a := range v.Args {
@@ -134,12 +134,12 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" {%q}", v.Aux)
 	case auxSym:
 		if v.Aux != nil {
-			return fmt.Sprintf(" {%s}", v.Aux)
+			return fmt.Sprintf(" {%v}", v.Aux)
 		}
 	case auxSymOff, auxSymInt32:
 		s := ""
 		if v.Aux != nil {
-			s = fmt.Sprintf(" {%s}", v.Aux)
+			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		if v.AuxInt != 0 {
 			s += fmt.Sprintf(" [%v]", v.AuxInt)
@@ -148,7 +148,7 @@ func (v *Value) auxString() string {
 	case auxSymValAndOff:
 		s := ""
 		if v.Aux != nil {
-			s = fmt.Sprintf(" {%s}", v.Aux)
+			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	}
