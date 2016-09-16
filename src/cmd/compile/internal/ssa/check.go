@@ -255,8 +255,7 @@ func checkFunc(f *Func) {
 	if f.RegAlloc == nil {
 		// Note: regalloc introduces non-dominating args.
 		// See TODO in regalloc.go.
-		idom := dominators(f)
-		sdom := newSparseTree(f, idom)
+		sdom := f.sdom()
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				for i, arg := range v.Args {

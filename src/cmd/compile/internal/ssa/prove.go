@@ -463,13 +463,15 @@ func prove(f *Func) {
 	})
 
 	ft := newFactsTable()
+	idom := f.idom()
+	sdom := f.sdom()
 
 	// DFS on the dominator tree.
 	for len(work) > 0 {
 		node := work[len(work)-1]
 		work = work[:len(work)-1]
-		parent := f.idom[node.block.ID]
-		branch := getBranch(f.sdom, parent, node.block)
+		parent := idom[node.block.ID]
+		branch := getBranch(sdom, parent, node.block)
 
 		switch node.state {
 		case descend:
@@ -488,7 +490,7 @@ func prove(f *Func) {
 				block: node.block,
 				state: simplify,
 			})
-			for s := f.sdom.Child(node.block); s != nil; s = f.sdom.Sibling(s) {
+			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
 				work = append(work, bp{
 					block: s,
 					state: descend,

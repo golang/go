@@ -144,6 +144,7 @@ func (b *Block) AddEdgeTo(c *Block) {
 	j := len(c.Preds)
 	b.Succs = append(b.Succs, Edge{c, j})
 	c.Preds = append(c.Preds, Edge{b, i})
+	b.Func.invalidateCFG()
 }
 
 // removePred removes the ith input edge from b.
@@ -159,6 +160,7 @@ func (b *Block) removePred(i int) {
 	}
 	b.Preds[n] = Edge{}
 	b.Preds = b.Preds[:n]
+	b.Func.invalidateCFG()
 }
 
 // removeSucc removes the ith output edge from b.
@@ -174,6 +176,7 @@ func (b *Block) removeSucc(i int) {
 	}
 	b.Succs[n] = Edge{}
 	b.Succs = b.Succs[:n]
+	b.Func.invalidateCFG()
 }
 
 func (b *Block) swapSuccessors() {
