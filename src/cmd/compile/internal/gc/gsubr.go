@@ -237,49 +237,12 @@ func Naddr(a *obj.Addr, n *Node) {
 		return
 	}
 
-	if n.Type != nil && n.Type.Etype != TIDEAL {
-		// TODO(rsc): This is undone by the selective clearing of width below,
-		// to match architectures that were not as aggressive in setting width
-		// during naddr. Those widths must be cleared to avoid triggering
-		// failures in gins when it detects real but heretofore latent (and one
-		// hopes innocuous) type mismatches.
-		// The type mismatches should be fixed and the clearing below removed.
-		dowidth(n.Type)
-	}
-
 	switch n.Op {
 	default:
 		a := a // copy to let escape into Ctxt.Dconv
 		Debug['h'] = 1
 		Dump("naddr", n)
 		Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
-
-	case OREGISTER:
-		a.Type = obj.TYPE_REG
-		a.Reg = n.Reg
-		a.Sym = nil
-
-	case OINDREG:
-		a.Type = obj.TYPE_MEM
-		a.Reg = n.Reg
-		a.Sym = Linksym(n.Sym)
-		a.Offset = n.Xoffset
-		if a.Offset != int64(int32(a.Offset)) {
-			yyerror("offset %d too large for OINDREG", a.Offset)
-		}
-
-	case OCLOSUREVAR:
-		if !Curfn.Func.Needctxt {
-			Fatalf("closurevar without needctxt")
-		}
-		a.Type = obj.TYPE_MEM
-		a.Reg = int16(Thearch.REGCTXT)
-		a.Sym = nil
-		a.Offset = n.Xoffset
-
-	case OCFUNC:
-		Naddr(a, n.Left)
-		a.Sym = Linksym(n.Left.Sym)
 
 	case ONAME:
 		a.Offset = n.Xoffset
@@ -317,17 +280,6 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		a.Sym = Linksym(s)
 
-	case ODOT:
-		// A special case to make write barriers more efficient.
-		// Taking the address of the first field of a named struct
-		// is the same as taking the address of the struct.
-		if !n.Left.Type.IsStruct() || n.Left.Type.Field(0).Sym != n.Sym {
-			Debug['h'] = 1
-			Dump("naddr", n)
-			Fatalf("naddr: bad %v %v", n.Op, Ctxt.Dconv(a))
-		}
-		Naddr(a, n.Left)
-
 	case OLITERAL:
 		switch u := n.Val().U.(type) {
 		default:
@@ -355,56 +307,6 @@ func Naddr(a *obj.Addr, n *Node) {
 			a.Type = obj.TYPE_CONST
 			a.Offset = 0
 		}
-
-	case OADDR:
-		Naddr(a, n.Left)
-		if a.Type != obj.TYPE_MEM {
-			a := a // copy to let escape into Ctxt.Dconv
-			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), n.Left.Op)
-		}
-		a.Type = obj.TYPE_ADDR
-
-	case OITAB:
-		// itable of interface value
-		Naddr(a, n.Left)
-		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
-			break // itab(nil)
-		}
-
-	case OIDATA:
-		// idata of interface value
-		Naddr(a, n.Left)
-		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
-			break // idata(nil)
-		}
-		a.Offset += int64(Widthptr)
-
-		// pointer in a string or slice
-	case OSPTR:
-		Naddr(a, n.Left)
-
-		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
-			break // ptr(nil)
-		}
-		a.Offset += int64(array_array)
-
-		// len of string or slice
-	case OLEN:
-		Naddr(a, n.Left)
-
-		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
-			break // len(nil)
-		}
-		a.Offset += int64(array_nel)
-
-		// cap of string or slice
-	case OCAP:
-		Naddr(a, n.Left)
-
-		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
-			break // cap(nil)
-		}
-		a.Offset += int64(array_cap)
 	}
 }
 
