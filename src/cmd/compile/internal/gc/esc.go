@@ -910,7 +910,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			}
 			a := v.Name.Defn
 			if !v.Name.Byval {
-				a = Nod(OADDR, a, nil)
+				a = nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
 				e.nodeEscState(a).Escloopdepth = e.loopdepth
 				a = typecheck(a, Erv)
@@ -1094,7 +1094,7 @@ func escassign(e *EscState, dst, src *Node, step *EscStep) {
 	case OCLOSURE:
 		// OCLOSURE is lowered to OPTRLIT,
 		// insert OADDR to account for the additional indirection.
-		a := Nod(OADDR, src, nil)
+		a := nod(OADDR, src, nil)
 		a.Lineno = src.Lineno
 		e.nodeEscState(a).Escloopdepth = e.nodeEscState(src).Escloopdepth
 		a.Type = ptrto(src.Type)
@@ -1336,7 +1336,7 @@ func escassignDereference(e *EscState, dst *Node, src *Node, step *EscStep) {
 // Because this is for purposes of escape accounting, not execution,
 // some semantically dubious node combinations are (currently) possible.
 func (e *EscState) addDereference(n *Node) *Node {
-	ind := Nod(OIND, n, nil)
+	ind := nod(OIND, n, nil)
 	e.nodeEscState(ind).Escloopdepth = e.nodeEscState(n).Escloopdepth
 	ind.Lineno = n.Lineno
 	t := n.Type
@@ -1389,7 +1389,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
 	nE := e.nodeEscState(n)
 	nE.Escretval.Set(nil) // Suspect this is not nil for indirect calls.
 	for _, t := range fntype.Results().Fields().Slice() {
-		src := Nod(ONAME, nil, nil)
+		src := nod(ONAME, nil, nil)
 		buf := fmt.Sprintf(".out%d", i)
 		i++
 		src.Sym = lookup(buf)
@@ -1500,7 +1500,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 				src = lls[0]
 				if n2.Isddd && !n.Isddd {
 					// Introduce ODDDARG node to represent ... allocation.
-					src = Nod(ODDDARG, nil, nil)
+					src = nod(ODDDARG, nil, nil)
 					arr := typArray(n2.Type.Elem(), int64(len(lls)))
 					src.Type = ptrto(arr) // make pointer so it will be tracked
 					src.Lineno = n.Lineno
@@ -1563,7 +1563,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		note = t.Note
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
-			src = Nod(ODDDARG, nil, nil)
+			src = nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
 			arr := typArray(t.Type.Elem(), int64(len(lls)-i))
 			src.Type = ptrto(arr) // make pointer so it will be tracked

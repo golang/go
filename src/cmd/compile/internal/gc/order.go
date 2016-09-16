@@ -62,7 +62,7 @@ func order(fn *Node) {
 func ordertemp(t *Type, order *Order, clear bool) *Node {
 	var_ := temp(t)
 	if clear {
-		a := Nod(OAS, var_, nil)
+		a := nod(OAS, var_, nil)
 		a = typecheck(a, Etop)
 		order.out = append(order.out, a)
 	}
@@ -85,7 +85,7 @@ func ordertemp(t *Type, order *Order, clear bool) *Node {
 // to be filled in.)
 func ordercopyexpr(n *Node, t *Type, order *Order, clear int) *Node {
 	var_ := ordertemp(t, order, clear != 0)
-	a := Nod(OAS, var_, n)
+	a := nod(OAS, var_, n)
 	a = typecheck(a, Etop)
 	order.out = append(order.out, a)
 	return var_
@@ -222,11 +222,11 @@ func cleantempnopop(mark ordermarker, order *Order, out *[]*Node) {
 		if n.Name.Keepalive {
 			n.Name.Keepalive = false
 			n.Addrtaken = true // ensure SSA keeps the n variable
-			kill = Nod(OVARLIVE, n, nil)
+			kill = nod(OVARLIVE, n, nil)
 			kill = typecheck(kill, Etop)
 			*out = append(*out, kill)
 		}
-		kill = Nod(OVARKILL, n, nil)
+		kill = nod(OVARKILL, n, nil)
 		kill = typecheck(kill, Etop)
 		*out = append(*out, kill)
 	}
@@ -336,7 +336,7 @@ func copyret(n *Node, order *Order) []*Node {
 		l2 = append(l2, tmp)
 	}
 
-	as := Nod(OAS2, nil, nil)
+	as := nod(OAS2, nil, nil)
 	as.List.Set(l1)
 	as.Rlist.Set1(n)
 	as = typecheck(as, Etop)
@@ -431,7 +431,7 @@ func ordermapassign(n *Node, order *Order) {
 		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
 			m := n.Left
 			n.Left = ordertemp(m.Type, order, false)
-			a := Nod(OAS, m, n.Left)
+			a := nod(OAS, m, n.Left)
 			a = typecheck(a, Etop)
 			order.out = append(order.out, a)
 		}
@@ -450,14 +450,14 @@ func ordermapassign(n *Node, order *Order) {
 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
 				}
 				n.List.SetIndex(i1, ordertemp(m.Type, order, false))
-				a = Nod(OAS, m, n.List.Index(i1))
+				a = nod(OAS, m, n.List.Index(i1))
 				a = typecheck(a, Etop)
 				post = append(post, a)
 			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Index(i1)) {
 				m = n.List.Index(i1)
 				t := ordertemp(m.Type, order, false)
 				n.List.SetIndex(i1, t)
-				a = Nod(OAS, m, t)
+				a = nod(OAS, m, t)
 				a = typecheck(a, Etop)
 				post = append(post, a)
 			}
@@ -530,7 +530,7 @@ func orderstmt(n *Node, order *Order) {
 		}
 		tmp1 = ordercopyexpr(tmp1, n.Left.Type, order, 0)
 		// TODO(marvin): Fix Node.EType type union.
-		n.Right = Nod(Op(n.Etype), tmp1, n.Right)
+		n.Right = nod(Op(n.Etype), tmp1, n.Right)
 		n.Right = typecheck(n.Right, Erv)
 		n.Right = orderexpr(n.Right, order, nil)
 		n.Etype = 0
@@ -586,7 +586,7 @@ func orderstmt(n *Node, order *Order) {
 		order.out = append(order.out, n)
 
 		if tmp1 != nil {
-			r := Nod(OAS, n.List.First(), tmp1)
+			r := nod(OAS, n.List.First(), tmp1)
 			r = typecheck(r, Etop)
 			ordermapassign(r, order)
 			n.List.SetIndex(0, tmp1)
@@ -611,7 +611,7 @@ func orderstmt(n *Node, order *Order) {
 		tmp1 := ordertemp(ch.Elem(), order, haspointers(ch.Elem()))
 		tmp2 := ordertemp(Types[TBOOL], order, false)
 		order.out = append(order.out, n)
-		r := Nod(OAS, n.List.First(), tmp1)
+		r := nod(OAS, n.List.First(), tmp1)
 		r = typecheck(r, Etop)
 		ordermapassign(r, order)
 		r = okas(n.List.Second(), tmp2)
@@ -757,7 +757,7 @@ func orderstmt(n *Node, order *Order) {
 			r := n.Right
 
 			if r.Type.IsString() && r.Type != Types[TSTRING] {
-				r = Nod(OCONV, r, nil)
+				r = nod(OCONV, r, nil)
 				r.Type = Types[TSTRING]
 				r = typecheck(r, Erv)
 			}
@@ -868,13 +868,13 @@ func orderstmt(n *Node, order *Order) {
 						tmp1 = r.Left
 
 						if r.Colas {
-							tmp2 = Nod(ODCL, tmp1, nil)
+							tmp2 = nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
 						}
 
 						r.Left = ordertemp(r.Right.Left.Type.Elem(), order, haspointers(r.Right.Left.Type.Elem()))
-						tmp2 = Nod(OAS, tmp1, r.Left)
+						tmp2 = nod(OAS, tmp1, r.Left)
 						tmp2 = typecheck(tmp2, Etop)
 						n2.Ninit.Append(tmp2)
 					}
@@ -885,7 +885,7 @@ func orderstmt(n *Node, order *Order) {
 					if r.List.Len() != 0 {
 						tmp1 = r.List.First()
 						if r.Colas {
-							tmp2 = Nod(ODCL, tmp1, nil)
+							tmp2 = nod(ODCL, tmp1, nil)
 							tmp2 = typecheck(tmp2, Etop)
 							n2.Ninit.Append(tmp2)
 						}
@@ -1221,5 +1221,5 @@ func okas(ok, val *Node) *Node {
 	if !isblank(ok) {
 		val = conv(val, ok.Type)
 	}
-	return Nod(OAS, ok, val)
+	return nod(OAS, ok, val)
 }

@@ -588,7 +588,7 @@ func Isconst(n *Node, ct Ctype) bool {
 func saveorig(n *Node) *Node {
 	if n == n.Orig {
 		// duplicate node for n->orig.
-		n1 := Nod(OLITERAL, nil, nil)
+		n1 := nod(OLITERAL, nil, nil)
 
 		n.Orig = n1
 		*n1 = *n
@@ -1227,7 +1227,7 @@ illegal:
 }
 
 func nodlit(v Val) *Node {
-	n := Nod(OLITERAL, nil, nil)
+	n := nod(OLITERAL, nil, nil)
 	n.SetVal(v)
 	switch v.Ctype() {
 	default:
@@ -1254,7 +1254,7 @@ func nodcplxlit(r Val, i Val) *Node {
 	i = toflt(i)
 
 	c := new(Mpcplx)
-	n := Nod(OLITERAL, nil, nil)
+	n := nod(OLITERAL, nil, nil)
 	n.Type = Types[TIDEAL]
 	n.SetVal(Val{c})
 

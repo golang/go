@@ -361,7 +361,7 @@ func (p *parser) importdcl() {
 		my = lookup(ipkg.Name)
 	}
 
-	pack := Nod(OPACK, nil, nil)
+	pack := nod(OPACK, nil, nil)
 	pack.Sym = my
 	pack.Name.Pkg = ipkg
 	pack.Lineno = line
@@ -500,7 +500,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 
 	if rangeOk && p.got(LRANGE) {
 		// LRANGE expr
-		r := Nod(ORANGE, nil, p.expr())
+		r := nod(ORANGE, nil, p.expr())
 		r.Etype = 0 // := flag
 		return r
 	}
@@ -517,7 +517,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			p.next()
 			rhs := p.expr()
 
-			stmt := Nod(OASOP, lhs, rhs)
+			stmt := nod(OASOP, lhs, rhs)
 			stmt.Etype = EType(op) // rathole to pass opcode
 			return stmt
 
@@ -525,7 +525,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			// expr LINCOP
 			p.next()
 
-			stmt := Nod(OASOP, lhs, nodintconst(1))
+			stmt := nod(OASOP, lhs, nodintconst(1))
 			stmt.Implicit = true
 			stmt.Etype = EType(p.op)
 			return stmt
@@ -547,7 +547,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 					p.syntax_error("expecting semicolon or newline or }")
 					// we already progressed, no need to advance
 				}
-				lhs := Nod(OLABEL, lhs, nil)
+				lhs := nod(OLABEL, lhs, nil)
 				lhs.Sym = dclstack // context, for goto restrictions
 				p.next()           // consume ':' after making label node for correct lineno
 				return p.labeled_stmt(lhs)
@@ -569,7 +569,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		p.next()
 		if rangeOk && p.got(LRANGE) {
 			// expr_list '=' LRANGE expr
-			r := Nod(ORANGE, nil, p.expr())
+			r := nod(ORANGE, nil, p.expr())
 			r.List.Set(lhs)
 			r.Etype = 0 // := flag
 			return r
@@ -580,10 +580,10 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 
 		if len(lhs) == 1 && len(rhs) == 1 {
 			// simple
-			return Nod(OAS, lhs[0], rhs[0])
+			return nod(OAS, lhs[0], rhs[0])
 		}
 		// multiple
-		stmt := Nod(OAS2, nil, nil)
+		stmt := nod(OAS2, nil, nil)
 		stmt.List.Set(lhs)
 		stmt.Rlist.Set(rhs)
 		return stmt
@@ -594,7 +594,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 
 		if rangeOk && p.got(LRANGE) {
 			// expr_list LCOLAS LRANGE expr
-			r := Nod(ORANGE, nil, p.expr())
+			r := nod(ORANGE, nil, p.expr())
 			r.List.Set(lhs)
 			r.Colas = true
 			colasdefn(lhs, r)
@@ -605,7 +605,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		rhs := p.expr_list()
 
 		if rhs[0].Op == OTYPESW {
-			ts := Nod(OTYPESW, nil, rhs[0].Right)
+			ts := nod(OTYPESW, nil, rhs[0].Right)
 			if len(rhs) > 1 {
 				yyerror("expr.(type) must be alone in list")
 			}
@@ -683,7 +683,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// right will point to next case
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
-			stmt := Nod(OXCASE, nil, nil)
+			stmt := nod(OXCASE, nil, nil)
 			stmt.List.Set(cases)
 			if tswitch != nil {
 				if n := tswitch.Left; n != nil {
@@ -709,12 +709,12 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// right will point to next case
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
-			stmt := Nod(OXCASE, nil, nil)
+			stmt := nod(OXCASE, nil, nil)
 			var n *Node
 			if len(cases) == 1 {
-				n = Nod(OAS, cases[0], rhs)
+				n = nod(OAS, cases[0], rhs)
 			} else {
-				n = Nod(OAS2, nil, nil)
+				n = nod(OAS2, nil, nil)
 				n.List.Set(cases)
 				n.Rlist.Set1(rhs)
 			}
@@ -733,7 +733,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// right will point to next case
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
-			stmt := Nod(OXCASE, nil, nil)
+			stmt := nod(OXCASE, nil, nil)
 			stmt.List.Set1(colas(cases, []*Node{rhs}, lno))
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
@@ -741,7 +741,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 
 		default:
 			markdcl()                     // for matching popdcl in caseblock
-			stmt := Nod(OXCASE, nil, nil) // don't return nil
+			stmt := nod(OXCASE, nil, nil) // don't return nil
 			p.syntax_error("expecting := or = or : or comma")
 			p.advance(LCASE, LDEFAULT, '}')
 			return stmt
@@ -752,7 +752,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 		p.next()
 
 		markdcl() // matching popdcl in caseblock
-		stmt := Nod(OXCASE, nil, nil)
+		stmt := nod(OXCASE, nil, nil)
 		if tswitch != nil {
 			if n := tswitch.Left; n != nil {
 				// type switch - declare variable
@@ -770,7 +770,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 
 	default:
 		markdcl()                     // matching popdcl in caseblock
-		stmt := Nod(OXCASE, nil, nil) // don't return nil
+		stmt := nod(OXCASE, nil, nil) // don't return nil
 		p.syntax_error("expecting case or default or }")
 		p.advance(LCASE, LDEFAULT, '}')
 		return stmt
@@ -791,7 +791,7 @@ func (p *parser) compound_stmt() *Node {
 	popdcl()
 
 	if len(l) == 0 {
-		return Nod(OEMPTY, nil, nil)
+		return nod(OEMPTY, nil, nil)
 	}
 	return liststmt(l)
 }
@@ -868,7 +868,7 @@ func (p *parser) for_header() *Node {
 		if post != nil && post.Colas {
 			yyerror("cannot declare in the for-increment")
 		}
-		h := Nod(OFOR, nil, nil)
+		h := nod(OFOR, nil, nil)
 		if init != nil {
 			h.Ninit.Set1(init)
 		}
@@ -883,7 +883,7 @@ func (p *parser) for_header() *Node {
 	}
 
 	// normal test
-	h := Nod(OFOR, nil, nil)
+	h := nod(OFOR, nil, nil)
 	h.Left = cond
 	return h
 }
@@ -972,7 +972,7 @@ func (p *parser) if_header() *Node {
 	}
 
 	init, cond, _ := p.header(false)
-	h := Nod(OIF, nil, nil)
+	h := nod(OIF, nil, nil)
 	if init != nil {
 		h.Ninit.Set1(init)
 	}
@@ -1052,7 +1052,7 @@ func (p *parser) select_stmt() *Node {
 	}
 
 	p.want(LSELECT)
-	hdr := Nod(OSELECT, nil, nil)
+	hdr := nod(OSELECT, nil, nil)
 	hdr.List.Set(p.caseblock_list(nil))
 	return hdr
 }
@@ -1068,7 +1068,7 @@ func (p *parser) bexpr(prec OpPrec) *Node {
 	for p.prec > prec {
 		op, prec1 := p.op, p.prec
 		p.next()
-		x = Nod(op, x, p.bexpr(prec1))
+		x = nod(op, x, p.bexpr(prec1))
 	}
 	return x
 }
@@ -1106,10 +1106,10 @@ func (p *parser) uexpr() *Node {
 		x := unparen(p.uexpr())
 		if x.Op == OCOMPLIT {
 			// Special case for &T{...}: turn into (*T){...}.
-			x.Right = Nod(OIND, x.Right, nil)
+			x.Right = nod(OIND, x.Right, nil)
 			x.Right.Implicit = true
 		} else {
-			x = Nod(OADDR, x, nil)
+			x = nod(OADDR, x, nil)
 		}
 		return x
 
@@ -1170,7 +1170,7 @@ func (p *parser) uexpr() *Node {
 		}
 
 		// x is not a channel type => we have a receive op
-		return Nod(ORECV, x, nil)
+		return nod(ORECV, x, nil)
 
 	default:
 		return p.pexpr(false)
@@ -1178,7 +1178,7 @@ func (p *parser) uexpr() *Node {
 
 	// simple uexpr
 	p.next()
-	return Nod(op, p.uexpr(), nil)
+	return nod(op, p.uexpr(), nil)
 }
 
 // pseudocall parses call-like statements that can be preceded by 'defer' and 'go'.
@@ -1248,7 +1248,7 @@ func (p *parser) operand(keep_parens bool) *Node {
 		// in a go/defer statement. In that case, operand is called
 		// with keep_parens set.
 		if keep_parens {
-			x = Nod(OPAREN, x, nil)
+			x = nod(OPAREN, x, nil)
 		}
 		return x
 
@@ -1330,13 +1330,13 @@ loop:
 					// pexpr '.' '(' expr_or_type ')'
 					t := p.expr() // expr_or_type
 					p.want(')')
-					x = Nod(ODOTTYPE, x, t)
+					x = nod(ODOTTYPE, x, t)
 
 				case LTYPE:
 					// pexpr '.' '(' LTYPE ')'
 					p.next()
 					p.want(')')
-					x = Nod(OTYPESW, nil, x)
+					x = nod(OTYPESW, nil, x)
 				}
 
 			default:
@@ -1367,9 +1367,9 @@ loop:
 				if i == nil {
 					yyerror("missing index in index expression")
 				}
-				x = Nod(OINDEX, x, i)
+				x = nod(OINDEX, x, i)
 			case 1:
-				x = Nod(OSLICE, x, nil)
+				x = nod(OSLICE, x, nil)
 				x.SetSliceBounds(index[0], index[1], nil)
 			case 2:
 				if index[1] == nil {
@@ -1378,7 +1378,7 @@ loop:
 				if index[2] == nil {
 					yyerror("final index required in 3-index slice")
 				}
-				x = Nod(OSLICE3, x, nil)
+				x = nod(OSLICE3, x, nil)
 				x.SetSliceBounds(index[0], index[1], index[2])
 
 			default:
@@ -1390,7 +1390,7 @@ loop:
 			args, ddd := p.arg_list()
 
 			// call or conversion
-			x = Nod(OCALL, x, nil)
+			x = nod(OCALL, x, nil)
 			x.List.Set(args)
 			x.Isddd = ddd
 
@@ -1444,7 +1444,7 @@ func (p *parser) keyval() *Node {
 
 	if p.got(':') {
 		// key ':' value
-		return Nod(OKEY, x, wrapname(p.bare_complitexpr()))
+		return nod(OKEY, x, wrapname(p.bare_complitexpr()))
 	}
 
 	// value
@@ -1456,7 +1456,7 @@ func wrapname(x *Node) *Node {
 	// Introduce a wrapper node to give the correct line.
 	switch x.Op {
 	case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
-		x = Nod(OPAREN, x, nil)
+		x = nod(OPAREN, x, nil)
 		x.Implicit = true
 	}
 	return x
@@ -1483,7 +1483,7 @@ func (p *parser) complitexpr() *Node {
 	}
 
 	// make node early so we get the right line number
-	n := Nod(OCOMPLIT, nil, nil)
+	n := nod(OCOMPLIT, nil, nil)
 
 	p.want('{')
 	p.xnest++
@@ -1578,11 +1578,11 @@ func (p *parser) dotdotdot() *Node {
 
 	p.want(LDDD)
 	if typ := p.try_ntype(); typ != nil {
-		return Nod(ODDD, typ, nil)
+		return nod(ODDD, typ, nil)
 	}
 
 	yyerror("final argument in variadic function missing type")
-	return Nod(ODDD, typenod(typ(TINTER)), nil)
+	return nod(ODDD, typenod(typ(TINTER)), nil)
 }
 
 func (p *parser) ntype() *Node {
@@ -1613,10 +1613,10 @@ func (p *parser) signature(recv *Node) *Node {
 	if p.tok == '(' {
 		result = p.param_list(false)
 	} else if t := p.try_ntype(); t != nil {
-		result = []*Node{Nod(ODCLFIELD, nil, t)}
+		result = []*Node{nod(ODCLFIELD, nil, t)}
 	}
 
-	typ := Nod(OTFUNC, recv, nil)
+	typ := nod(OTFUNC, recv, nil)
 	typ.List.Set(params)
 	typ.Rlist.Set(result)
 
@@ -1640,7 +1640,7 @@ func (p *parser) try_ntype() *Node {
 		// recvchantype
 		p.next()
 		p.want(LCHAN)
-		t := Nod(OTCHAN, p.chan_elem(), nil)
+		t := nod(OTCHAN, p.chan_elem(), nil)
 		t.Etype = EType(Crecv)
 		return t
 
@@ -1657,14 +1657,14 @@ func (p *parser) try_ntype() *Node {
 		var len *Node
 		if p.tok != ']' {
 			if p.got(LDDD) {
-				len = Nod(ODDD, nil, nil)
+				len = nod(ODDD, nil, nil)
 			} else {
 				len = p.expr()
 			}
 		}
 		p.xnest--
 		p.want(']')
-		return Nod(OTARRAY, len, p.ntype())
+		return nod(OTARRAY, len, p.ntype())
 
 	case LCHAN:
 		// LCHAN non_recvchantype
@@ -1674,7 +1674,7 @@ func (p *parser) try_ntype() *Node {
 		if p.got(LCOMM) {
 			dir = EType(Csend)
 		}
-		t := Nod(OTCHAN, p.chan_elem(), nil)
+		t := nod(OTCHAN, p.chan_elem(), nil)
 		t.Etype = dir
 		return t
 
@@ -1685,7 +1685,7 @@ func (p *parser) try_ntype() *Node {
 		key := p.ntype()
 		p.want(']')
 		val := p.ntype()
-		return Nod(OTMAP, key, val)
+		return nod(OTMAP, key, val)
 
 	case LSTRUCT:
 		return p.structtype()
@@ -1696,7 +1696,7 @@ func (p *parser) try_ntype() *Node {
 	case '*':
 		// ptrtype
 		p.next()
-		return Nod(OIND, p.ntype(), nil)
+		return nod(OIND, p.ntype(), nil)
 
 	case LNAME:
 		return p.dotname()
@@ -1769,7 +1769,7 @@ func (p *parser) structtype() *Node {
 	}
 	p.want('}')
 
-	t := Nod(OTSTRUCT, nil, nil)
+	t := nod(OTSTRUCT, nil, nil)
 	t.List.Set(l)
 	return t
 }
@@ -1791,7 +1791,7 @@ func (p *parser) interfacetype() *Node {
 	}
 	p.want('}')
 
-	t := Nod(OTINTER, nil, nil)
+	t := nod(OTINTER, nil, nil)
 	t.List.Set(l)
 	return t
 }
@@ -1854,7 +1854,7 @@ func (p *parser) fndcl() *Node {
 			}
 		}
 
-		f := Nod(ODCLFUNC, nil, nil)
+		f := nod(ODCLFUNC, nil, nil)
 		f.Func.Nname = newfuncname(name)
 		f.Func.Nname.Name.Defn = f
 		f.Func.Nname.Name.Param.Ntype = t // TODO: check if nname already has an ntype
@@ -1889,7 +1889,7 @@ func (p *parser) fndcl() *Node {
 			return nil
 		}
 
-		f := Nod(ODCLFUNC, nil, nil)
+		f := nod(ODCLFUNC, nil, nil)
 		f.Func.Shortname = newfuncname(name)
 		f.Func.Nname = methodname(f.Func.Shortname, recv.Right)
 		f.Func.Nname.Name.Defn = f
@@ -1918,7 +1918,7 @@ func (p *parser) fnbody() []*Node {
 		p.fnest--
 		p.want('}')
 		if body == nil {
-			body = []*Node{Nod(OEMPTY, nil, nil)}
+			body = []*Node{nod(OEMPTY, nil, nil)}
 		}
 		return body
 	}
@@ -2011,7 +2011,7 @@ func (p *parser) structdcl() []*Node {
 		}
 
 		for i, n := range fields {
-			fields[i] = Nod(ODCLFIELD, n, typ)
+			fields[i] = nod(ODCLFIELD, n, typ)
 			fields[i].SetVal(tag)
 		}
 		return fields
@@ -2024,7 +2024,7 @@ func (p *parser) structdcl() []*Node {
 			p.want(')')
 			tag := p.oliteral()
 
-			field.Right = Nod(OIND, field.Right, nil)
+			field.Right = nod(OIND, field.Right, nil)
 			field.SetVal(tag)
 			yyerror("cannot parenthesize embedded type")
 			return []*Node{field}
@@ -2048,7 +2048,7 @@ func (p *parser) structdcl() []*Node {
 			p.want(')')
 			tag := p.oliteral()
 
-			field.Right = Nod(OIND, field.Right, nil)
+			field.Right = nod(OIND, field.Right, nil)
 			field.SetVal(tag)
 			yyerror("cannot parenthesize embedded type")
 			return []*Node{field}
@@ -2058,7 +2058,7 @@ func (p *parser) structdcl() []*Node {
 			field := p.embed(nil)
 			tag := p.oliteral()
 
-			field.Right = Nod(OIND, field.Right, nil)
+			field.Right = nod(OIND, field.Right, nil)
 			field.SetVal(tag)
 			return []*Node{field}
 		}
@@ -2152,14 +2152,14 @@ func (p *parser) interfacedcl() *Node {
 		if p.tok != '(' {
 			// packname
 			pname := p.packname(sym)
-			return Nod(ODCLFIELD, nil, oldname(pname))
+			return nod(ODCLFIELD, nil, oldname(pname))
 		}
 
 		// MethodName Signature
 		mname := newname(sym)
 		sig := p.signature(fakethis())
 
-		meth := Nod(ODCLFIELD, mname, sig)
+		meth := nod(ODCLFIELD, mname, sig)
 		ifacedcl(meth)
 		return meth
 
@@ -2167,7 +2167,7 @@ func (p *parser) interfacedcl() *Node {
 		p.next()
 		pname := p.packname(nil)
 		p.want(')')
-		n := Nod(ODCLFIELD, nil, oldname(pname))
+		n := nod(ODCLFIELD, nil, oldname(pname))
 		yyerror("cannot parenthesize embedded type")
 		return n
 
@@ -2309,7 +2309,7 @@ func (p *parser) param_list(dddOk bool) []*Node {
 			// p.name must be a type name (or nil in case of syntax error)
 			typ = mkname(p.name)
 		}
-		n := Nod(ODCLFIELD, name, typ)
+		n := nod(ODCLFIELD, name, typ)
 
 		// rewrite ...T parameter
 		if typ != nil && typ.Op == ODDD {
@@ -2333,7 +2333,7 @@ func (p *parser) param_list(dddOk bool) []*Node {
 	return list
 }
 
-var missing_stmt = Nod(OXXX, nil, nil)
+var missing_stmt = nod(OXXX, nil, nil)
 
 // Statement =
 // 	Declaration | LabeledStmt | SimpleStmt |
@@ -2374,29 +2374,29 @@ func (p *parser) stmt() *Node {
 	case LFALL:
 		p.next()
 		// will be converted to OFALL
-		stmt := Nod(OXFALL, nil, nil)
+		stmt := nod(OXFALL, nil, nil)
 		stmt.Xoffset = int64(block)
 		return stmt
 
 	case LBREAK:
 		p.next()
-		return Nod(OBREAK, p.onew_name(), nil)
+		return nod(OBREAK, p.onew_name(), nil)
 
 	case LCONTINUE:
 		p.next()
-		return Nod(OCONTINUE, p.onew_name(), nil)
+		return nod(OCONTINUE, p.onew_name(), nil)
 
 	case LGO:
 		p.next()
-		return Nod(OPROC, p.pseudocall(), nil)
+		return nod(OPROC, p.pseudocall(), nil)
 
 	case LDEFER:
 		p.next()
-		return Nod(ODEFER, p.pseudocall(), nil)
+		return nod(ODEFER, p.pseudocall(), nil)
 
 	case LGOTO:
 		p.next()
-		stmt := Nod(OGOTO, p.new_name(p.sym()), nil)
+		stmt := nod(OGOTO, p.new_name(p.sym()), nil)
 		stmt.Sym = dclstack // context, for goto restrictions
 		return stmt
 
@@ -2407,7 +2407,7 @@ func (p *parser) stmt() *Node {
 			results = p.expr_list()
 		}
 
-		stmt := Nod(ORETURN, nil, nil)
+		stmt := nod(ORETURN, nil, nil)
 		stmt.List.Set(results)
 		if stmt.List.Len() == 0 && Curfn != nil {
 			for _, ln := range Curfn.Func.Dcl {

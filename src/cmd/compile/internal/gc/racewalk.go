@@ -229,9 +229,9 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	case OSPTR, OLEN, OCAP:
 		instrumentnode(&n.Left, init, 0, 0)
 		if n.Left.Type.IsMap() {
-			n1 := Nod(OCONVNOP, n.Left, nil)
+			n1 := nod(OCONVNOP, n.Left, nil)
 			n1.Type = ptrto(Types[TUINT8])
-			n1 = Nod(OIND, n1, nil)
+			n1 = nod(OIND, n1, nil)
 			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
 		}
@@ -578,7 +578,7 @@ func makeaddable(n *Node) {
 }
 
 func uintptraddr(n *Node) *Node {
-	r := Nod(OADDR, n, nil)
+	r := nod(OADDR, n, nil)
 	r.Bounded = true
 	r = conv(r, Types[TUNSAFEPTR])
 	r = conv(r, Types[TUINTPTR])
@@ -586,13 +586,13 @@ func uintptraddr(n *Node) *Node {
 }
 
 func detachexpr(n *Node, init *Nodes) *Node {
-	addr := Nod(OADDR, n, nil)
+	addr := nod(OADDR, n, nil)
 	l := temp(ptrto(n.Type))
-	as := Nod(OAS, l, addr)
+	as := nod(OAS, l, addr)
 	as = typecheck(as, Etop)
 	as = walkexpr(as, init)
 	init.Append(as)
-	ind := Nod(OIND, l, nil)
+	ind := nod(OIND, l, nil)
 	ind = typecheck(ind, Erv)
 	ind = walkexpr(ind, init)
 	return ind
@@ -638,7 +638,7 @@ func appendinit(np **Node, init Nodes) {
 	// There may be multiple refs to this node;
 	// introduce OCONVNOP to hold init list.
 	case ONAME, OLITERAL:
-		n = Nod(OCONVNOP, n, nil)
+		n = nod(OCONVNOP, n, nil)
 
 		n.Type = n.Left.Type
 		n.Typecheck = 1

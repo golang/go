@@ -130,7 +130,7 @@ func moveToHeap(n *Node) {
 		// Preserve a copy so we can still write code referring to the original,
 		// and substitute that copy into the function declaration list
 		// so that analyses of the local (on-stack) variables use it.
-		stackcopy := Nod(ONAME, nil, nil)
+		stackcopy := nod(ONAME, nil, nil)
 		stackcopy.Sym = n.Sym
 		stackcopy.Type = n.Type
 		stackcopy.Xoffset = n.Xoffset
@@ -208,7 +208,7 @@ func tempname(nn *Node, t *Type) {
 	// a chance to registerizer them
 	s := lookupN("autotmp_", statuniqgen)
 	statuniqgen++
-	n := Nod(ONAME, nil, nil)
+	n := nod(ONAME, nil, nil)
 	n.Sym = s
 	s.Def = n
 	n.Type = t

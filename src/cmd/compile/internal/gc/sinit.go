@@ -295,7 +295,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		if staticcopy(l, r, out) {
 			return true
 		}
-		*out = append(*out, Nod(OAS, l, r))
+		*out = append(*out, nod(OAS, l, r))
 		return true
 
 	case OLITERAL:
@@ -316,7 +316,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 		switch r.Left.Op {
 		case OARRAYLIT, OSLICELIT, OSTRUCTLIT, OMAPLIT:
 			// copy pointer
-			gdata(l, Nod(OADDR, inittemps[r], nil), int(l.Type.Width))
+			gdata(l, nod(OADDR, inittemps[r], nil), int(l.Type.Width))
 			return true
 		}
 
@@ -326,7 +326,7 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 
 		n := *l
 		n.Xoffset = l.Xoffset + int64(array_array)
-		gdata(&n, Nod(OADDR, a, nil), Widthptr)
+		gdata(&n, nod(OADDR, a, nil), Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_nel)
 		gdata(&n, r.Right, Widthint)
 		n.Xoffset = l.Xoffset + int64(array_cap)
@@ -344,20 +344,20 @@ func staticcopy(l *Node, r *Node, out *[]*Node) bool {
 			if e.Expr.Op == OLITERAL {
 				gdata(&n, e.Expr, int(n.Type.Width))
 			} else {
-				ll := Nod(OXXX, nil, nil)
+				ll := nod(OXXX, nil, nil)
 				*ll = n
 				ll.Orig = ll // completely separate copy
 				if !staticassign(ll, e.Expr, out) {
 					// Requires computation, but we're
 					// copying someone else's computation.
-					rr := Nod(OXXX, nil, nil)
+					rr := nod(OXXX, nil, nil)
 
 					*rr = *orig
 					rr.Orig = rr // completely separate copy
 					rr.Type = ll.Type
 					rr.Xoffset += e.Xoffset
 					setlineno(rr)
-					*out = append(*out, Nod(OAS, ll, rr))
+					*out = append(*out, nod(OAS, ll, rr))
 				}
 			}
 		}
@@ -401,11 +401,11 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			a := staticname(r.Left.Type)
 
 			inittemps[r] = a
-			gdata(l, Nod(OADDR, a, nil), int(l.Type.Width))
+			gdata(l, nod(OADDR, a, nil), int(l.Type.Width))
 
 			// Init underlying literal.
 			if !staticassign(a, r.Left, out) {
-				*out = append(*out, Nod(OAS, a, r.Left))
+				*out = append(*out, nod(OAS, a, r.Left))
 			}
 			return true
 		}
@@ -427,7 +427,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 		inittemps[r] = a
 		n := *l
 		n.Xoffset = l.Xoffset + int64(array_array)
-		gdata(&n, Nod(OADDR, a, nil), Widthptr)
+		gdata(&n, nod(OADDR, a, nil), Widthptr)
 		n.Xoffset = l.Xoffset + int64(array_nel)
 		gdata(&n, r.Right, Widthint)
 		n.Xoffset = l.Xoffset + int64(array_cap)
@@ -450,11 +450,11 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 				gdata(&n, e.Expr, int(n.Type.Width))
 			} else {
 				setlineno(e.Expr)
-				a := Nod(OXXX, nil, nil)
+				a := nod(OXXX, nil, nil)
 				*a = n
 				a.Orig = a // completely separate copy
 				if !staticassign(a, e.Expr, out) {
-					*out = append(*out, Nod(OAS, a, e.Expr))
+					*out = append(*out, nod(OAS, a, e.Expr))
 				}
 			}
 		}
@@ -519,20 +519,20 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			// Copy val directly into n.
 			n.Type = val.Type
 			setlineno(val)
-			a := Nod(OXXX, nil, nil)
+			a := nod(OXXX, nil, nil)
 			*a = n
 			a.Orig = a
 			if !staticassign(a, val, out) {
-				*out = append(*out, Nod(OAS, a, val))
+				*out = append(*out, nod(OAS, a, val))
 			}
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := staticname(val.Type)
 			inittemps[val] = a
 			if !staticassign(a, val, out) {
-				*out = append(*out, Nod(OAS, a, val))
+				*out = append(*out, nod(OAS, a, val))
 			}
-			ptr := Nod(OADDR, a, nil)
+			ptr := nod(OADDR, a, nil)
 			n.Type = ptrto(val.Type)
 			gdata(&n, ptr, Widthptr)
 		}
@@ -587,7 +587,7 @@ func (n *Node) isSimpleName() bool {
 }
 
 func litas(l *Node, r *Node, init *Nodes) {
-	a := Nod(OAS, l, r)
+	a := nod(OAS, l, r)
 	a = typecheck(a, Etop)
 	a = walkexpr(a, init)
 	init.Append(a)
@@ -692,7 +692,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 	var indexnode func(*Node) *Node
 	switch n.Op {
 	case OARRAYLIT, OSLICELIT:
-		indexnode = func(index *Node) *Node { return Nod(OINDEX, var_, index) }
+		indexnode = func(index *Node) *Node { return nod(OINDEX, var_, index) }
 	case OSTRUCTLIT:
 		indexnode = func(index *Node) *Node { return nodSym(ODOT, var_, index.Sym) }
 	default:
@@ -730,7 +730,7 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
 
 		// build list of assignments: var[index] = expr
 		setlineno(value)
-		a := Nod(OAS, indexnode(index), value)
+		a := nod(OAS, indexnode(index), value)
 		a = typecheck(a, Etop)
 		switch kind {
 		case initKindStatic:
@@ -763,9 +763,9 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		fixedlit(ctxt, initKindDynamic, n, vstat, init)
 
 		// copy static to slice
-		a := Nod(OSLICE, vstat, nil)
+		a := nod(OSLICE, vstat, nil)
 
-		a = Nod(OAS, var_, a)
+		a = nod(OAS, var_, a)
 		a = typecheck(a, Etop)
 		a.IsStatic = true
 		init.Append(a)
@@ -814,37 +814,37 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		x.Type = t
 
 		if vstat == nil {
-			a = Nod(OAS, x, nil)
+			a = nod(OAS, x, nil)
 			a = typecheck(a, Etop)
 			init.Append(a) // zero new temp
 		}
 
-		a = Nod(OADDR, x, nil)
+		a = nod(OADDR, x, nil)
 	} else if n.Esc == EscNone {
 		a = temp(t)
 		if vstat == nil {
-			a = Nod(OAS, temp(t), nil)
+			a = nod(OAS, temp(t), nil)
 			a = typecheck(a, Etop)
 			init.Append(a) // zero new temp
 			a = a.Left
 		}
 
-		a = Nod(OADDR, a, nil)
+		a = nod(OADDR, a, nil)
 	} else {
-		a = Nod(ONEW, nil, nil)
+		a = nod(ONEW, nil, nil)
 		a.List.Set1(typenod(t))
 	}
 
-	a = Nod(OAS, vauto, a)
+	a = nod(OAS, vauto, a)
 	a = typecheck(a, Etop)
 	a = walkexpr(a, init)
 	init.Append(a)
 
 	if vstat != nil {
 		// copy static to heap (4)
-		a = Nod(OIND, vauto, nil)
+		a = nod(OIND, vauto, nil)
 
-		a = Nod(OAS, a, vstat)
+		a = nod(OAS, a, vstat)
 		a = typecheck(a, Etop)
 		a = walkexpr(a, init)
 		init.Append(a)
@@ -857,7 +857,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		}
 		index := r.Left
 		value := r.Right
-		a := Nod(OINDEX, vauto, index)
+		a := nod(OINDEX, vauto, index)
 		a.Bounded = true
 
 		// TODO need to check bounds?
@@ -877,7 +877,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 
 		// build list of vauto[c] = expr
 		setlineno(value)
-		a = Nod(OAS, a, value)
+		a = nod(OAS, a, value)
 
 		a = typecheck(a, Etop)
 		a = orderstmtinplace(a)
@@ -886,7 +886,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	}
 
 	// make slice out of heap (6)
-	a = Nod(OAS, var_, Nod(OSLICE, vauto, nil))
+	a = nod(OAS, var_, nod(OSLICE, vauto, nil))
 
 	a = typecheck(a, Etop)
 	a = orderstmtinplace(a)
@@ -898,7 +898,7 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	// make the map var
 	nerr := nerrors
 
-	a := Nod(OMAKE, nil, nil)
+	a := nod(OMAKE, nil, nil)
 	a.List.Set2(typenod(n.Type), nodintconst(int64(len(n.List.Slice()))))
 	litas(m, a, init)
 
@@ -942,8 +942,8 @@ func maplit(n *Node, m *Node, init *Nodes) {
 			if isliteral(index) && isliteral(value) {
 				// build vstatk[b] = index
 				setlineno(index)
-				lhs := Nod(OINDEX, vstatk, nodintconst(b))
-				as := Nod(OAS, lhs, index)
+				lhs := nod(OINDEX, vstatk, nodintconst(b))
+				as := nod(OAS, lhs, index)
 				as = typecheck(as, Etop)
 				as = walkexpr(as, init)
 				as.IsStatic = true
@@ -951,8 +951,8 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 				// build vstatv[b] = value
 				setlineno(value)
-				lhs = Nod(OINDEX, vstatv, nodintconst(b))
-				as = Nod(OAS, lhs, value)
+				lhs = nod(OINDEX, vstatv, nodintconst(b))
+				as = nod(OAS, lhs, value)
 				as = typecheck(as, Etop)
 				as = walkexpr(as, init)
 				as.IsStatic = true
@@ -967,19 +967,19 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		//	map[vstatk[i]] = vstatv[i]
 		// }
 		i := temp(Types[TINT])
-		rhs := Nod(OINDEX, vstatv, i)
+		rhs := nod(OINDEX, vstatv, i)
 		rhs.Bounded = true
 
-		kidx := Nod(OINDEX, vstatk, i)
+		kidx := nod(OINDEX, vstatk, i)
 		kidx.Bounded = true
-		lhs := Nod(OINDEX, m, kidx)
+		lhs := nod(OINDEX, m, kidx)
 
-		zero := Nod(OAS, i, nodintconst(0))
-		cond := Nod(OLT, i, nodintconst(tk.NumElem()))
-		incr := Nod(OAS, i, Nod(OADD, i, nodintconst(1)))
-		body := Nod(OAS, lhs, rhs)
+		zero := nod(OAS, i, nodintconst(0))
+		cond := nod(OLT, i, nodintconst(tk.NumElem()))
+		incr := nod(OAS, i, nod(OADD, i, nodintconst(1)))
+		body := nod(OAS, lhs, rhs)
 
-		loop := Nod(OFOR, cond, incr)
+		loop := nod(OFOR, cond, incr)
 		loop.Nbody.Set1(body)
 		loop.Ninit.Set1(zero)
 
@@ -1009,19 +1009,19 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		}
 
 		setlineno(index)
-		a = Nod(OAS, key, index)
+		a = nod(OAS, key, index)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
 
 		setlineno(value)
-		a = Nod(OAS, val, value)
+		a = nod(OAS, val, value)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
 
 		setlineno(val)
-		a = Nod(OAS, Nod(OINDEX, m, key), val)
+		a = nod(OAS, nod(OINDEX, m, key), val)
 		a = typecheck(a, Etop)
 		a = walkstmt(a)
 		init.Append(a)
@@ -1032,10 +1032,10 @@ func maplit(n *Node, m *Node, init *Nodes) {
 	}
 
 	if key != nil {
-		a = Nod(OVARKILL, key, nil)
+		a = nod(OVARKILL, key, nil)
 		a = typecheck(a, Etop)
 		init.Append(a)
-		a = Nod(OVARKILL, val, nil)
+		a = nod(OVARKILL, val, nil)
 		a = typecheck(a, Etop)
 		init.Append(a)
 	}
@@ -1054,22 +1054,22 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 
 		var r *Node
 		if n.Right != nil {
-			r = Nod(OADDR, n.Right, nil)
+			r = nod(OADDR, n.Right, nil)
 			r = typecheck(r, Erv)
 		} else {
-			r = Nod(ONEW, nil, nil)
+			r = nod(ONEW, nil, nil)
 			r.Typecheck = 1
 			r.Type = t
 			r.Esc = n.Esc
 		}
 
 		r = walkexpr(r, init)
-		a := Nod(OAS, var_, r)
+		a := nod(OAS, var_, r)
 
 		a = typecheck(a, Etop)
 		init.Append(a)
 
-		var_ = Nod(OIND, var_, nil)
+		var_ = nod(OIND, var_, nil)
 		var_ = typecheck(var_, Erv|Easgn)
 		anylit(n.Left, var_, init)
 
@@ -1090,7 +1090,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 			fixedlit(ctxt, initKindStatic, n, vstat, init)
 
 			// copy static to var
-			a := Nod(OAS, var_, vstat)
+			a := nod(OAS, var_, vstat)
 
 			a = typecheck(a, Etop)
 			a = walkexpr(a, init)
@@ -1109,7 +1109,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 		}
 		// initialization of an array or struct with unspecified components (missing fields or arrays)
 		if var_.isSimpleName() || int64(n.List.Len()) < components {
-			a := Nod(OAS, var_, nil)
+			a := nod(OAS, var_, nil)
 			a = typecheck(a, Etop)
 			a = walkexpr(a, init)
 			init.Append(a)

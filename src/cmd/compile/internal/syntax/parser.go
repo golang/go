@@ -1854,7 +1854,7 @@ func (p *parser) commClause() *CommClause {
 }
 
 // TODO(gri) find a better solution
-var missing_stmt Stmt = new(EmptyStmt) // = Nod(OXXX, nil, nil)
+var missing_stmt Stmt = new(EmptyStmt) // = nod(OXXX, nil, nil)
 
 // Statement =
 // 	Declaration | LabeledStmt | SimpleStmt |
@@ -1921,7 +1921,7 @@ func (p *parser) stmt() Stmt {
 		s.Tok = _Fallthrough
 		return s
 		// // will be converted to OFALL
-		// stmt := Nod(OXFALL, nil, nil)
+		// stmt := nod(OXFALL, nil, nil)
 		// stmt.Xoffset = int64(block)
 		// return stmt
 
@@ -1946,7 +1946,7 @@ func (p *parser) stmt() Stmt {
 		s.Tok = _Goto
 		s.Label = p.name()
 		return s
-		// stmt := Nod(OGOTO, p.new_name(p.name()), nil)
+		// stmt := nod(OGOTO, p.new_name(p.name()), nil)
 		// stmt.Sym = dclstack // context, for goto restrictions
 		// return stmt
 

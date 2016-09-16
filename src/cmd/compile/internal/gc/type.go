@@ -143,7 +143,7 @@ type Type struct {
 	methods    Fields
 	allMethods Fields
 
-	Nod  *Node // canonical OTYPE node
+	nod  *Node // canonical OTYPE node
 	Orig *Type // original type (type literal or predefined type)
 
 	Sym    *Sym  // symbol containing name, for named types
