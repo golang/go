@@ -32,7 +32,6 @@ package gc
 
 import (
 	"cmd/internal/obj"
-	"cmd/internal/sys"
 	"fmt"
 )
 
@@ -246,8 +245,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		// hopes innocuous) type mismatches.
 		// The type mismatches should be fixed and the clearing below removed.
 		dowidth(n.Type)
-
-		a.Width = n.Type.Width
 	}
 
 	switch n.Op {
@@ -261,9 +258,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Type = obj.TYPE_REG
 		a.Reg = n.Reg
 		a.Sym = nil
-		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
-			a.Width = 0
-		}
 
 	case OINDREG:
 		a.Type = obj.TYPE_MEM
@@ -272,9 +266,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Offset = n.Xoffset
 		if a.Offset != int64(int32(a.Offset)) {
 			yyerror("offset %d too large for OINDREG", a.Offset)
-		}
-		if Thearch.LinkArch.Family == sys.I386 { // TODO(rsc): Never clear a->width.
-			a.Width = 0
 		}
 
 	case OCLOSUREVAR:
@@ -291,10 +282,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Sym = Linksym(n.Left.Sym)
 
 	case ONAME:
-		a.Etype = 0
-		if n.Type != nil {
-			a.Etype = uint8(simtype[n.Type.Etype])
-		}
 		a.Offset = n.Xoffset
 		s := n.Sym
 		a.Node = n.Orig
@@ -325,7 +312,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		case PFUNC:
 			a.Name = obj.NAME_EXTERN
 			a.Type = obj.TYPE_ADDR
-			a.Width = int64(Widthptr)
 			s = funcsym(s)
 		}
 
@@ -343,9 +329,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		Naddr(a, n.Left)
 
 	case OLITERAL:
-		if Thearch.LinkArch.Family == sys.I386 {
-			a.Width = 0
-		}
 		switch u := n.Val().U.(type) {
 		default:
 			Fatalf("naddr: const %L", n.Type)
@@ -375,10 +358,6 @@ func Naddr(a *obj.Addr, n *Node) {
 
 	case OADDR:
 		Naddr(a, n.Left)
-		a.Etype = uint8(Tptr)
-		if !Thearch.LinkArch.InFamily(sys.MIPS64, sys.ARM, sys.ARM64, sys.PPC64, sys.S390X) { // TODO(rsc): Do this even for these architectures.
-			a.Width = int64(Widthptr)
-		}
 		if a.Type != obj.TYPE_MEM {
 			a := a // copy to let escape into Ctxt.Dconv
 			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), n.Left.Op)
@@ -391,8 +370,6 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // itab(nil)
 		}
-		a.Etype = uint8(Tptr)
-		a.Width = int64(Widthptr)
 
 	case OIDATA:
 		// idata of interface value
@@ -400,13 +377,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // idata(nil)
 		}
-		if isdirectiface(n.Type) {
-			a.Etype = uint8(simtype[n.Type.Etype])
-		} else {
-			a.Etype = uint8(Tptr)
-		}
 		a.Offset += int64(Widthptr)
-		a.Width = int64(Widthptr)
 
 		// pointer in a string or slice
 	case OSPTR:
@@ -415,9 +386,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // ptr(nil)
 		}
-		a.Etype = uint8(simtype[Tptr])
 		a.Offset += int64(array_array)
-		a.Width = int64(Widthptr)
 
 		// len of string or slice
 	case OLEN:
@@ -426,11 +395,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // len(nil)
 		}
-		a.Etype = uint8(simtype[TUINT])
 		a.Offset += int64(array_nel)
-		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
-			a.Width = int64(Widthint)
-		}
 
 		// cap of string or slice
 	case OCAP:
@@ -439,11 +404,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // cap(nil)
 		}
-		a.Etype = uint8(simtype[TUINT])
 		a.Offset += int64(array_cap)
-		if Thearch.LinkArch.Family != sys.ARM { // TODO(rsc): Do this even on arm.
-			a.Width = int64(Widthint)
-		}
 	}
 }
 

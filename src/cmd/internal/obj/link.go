@@ -158,9 +158,7 @@ type Addr struct {
 	Type   AddrType
 	Name   int8
 	Class  int8
-	Etype  uint8
 	Offset int64
-	Width  int64
 	Sym    *LSym
 	Gotype *LSym
 
