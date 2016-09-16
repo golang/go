@@ -82,34 +82,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				curtext.Autom = a
 				continue
 
-			case AGLOBL:
-				s := p.From.Sym
-				if s.Seenglobl {
-					fmt.Printf("duplicate %v\n", p)
-				}
-				s.Seenglobl = true
-				if s.Onlist {
-					log.Fatalf("symbol %s listed multiple times", s.Name)
-				}
-				s.Onlist = true
-				ctxt.Data = append(ctxt.Data, s)
-				s.Size = p.To.Offset
-				if s.Type == 0 || s.Type == SXREF {
-					s.Type = SBSS
-				}
-				flag := int(p.From3.Offset)
-				if flag&DUPOK != 0 {
-					s.Dupok = true
-				}
-				if flag&RODATA != 0 {
-					s.Type = SRODATA
-				} else if flag&NOPTR != 0 {
-					s.Type = SNOPTRBSS
-				} else if flag&TLSBSS != 0 {
-					s.Type = STLSBSS
-				}
-				continue
-
 			case ATEXT:
 				s := p.From.Sym
 				if s == nil {
@@ -215,5 +187,31 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	ctxt.Curp = nil
 	if freeProgs {
 		ctxt.freeProgs()
+	}
+}
+
+func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+	if s.Seenglobl {
+		fmt.Printf("duplicate %v\n", s)
+	}
+	s.Seenglobl = true
+	if s.Onlist {
+		log.Fatalf("symbol %s listed multiple times", s.Name)
+	}
+	s.Onlist = true
+	ctxt.Data = append(ctxt.Data, s)
+	s.Size = size
+	if s.Type == 0 || s.Type == SXREF {
+		s.Type = SBSS
+	}
+	if flag&DUPOK != 0 {
+		s.Dupok = true
+	}
+	if flag&RODATA != 0 {
+		s.Type = SRODATA
+	} else if flag&NOPTR != 0 {
+		s.Type = SNOPTRBSS
+	} else if flag&TLSBSS != 0 {
+		s.Type = STLSBSS
 	}
 }

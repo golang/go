@@ -147,7 +147,6 @@ func dumpobj1(outfile string, mode int) {
 		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
 	}
 
-	dumpdata()
 	obj.Writeobjdirect(Ctxt, bout.Writer)
 
 	if writearchive {
