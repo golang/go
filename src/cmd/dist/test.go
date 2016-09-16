@@ -409,21 +409,12 @@ func (t *tester) registerTests() {
 	// release on a system that does not have a C compiler
 	// installed and still build Go programs (that don't use cgo).
 	for _, pkg := range cgoPackages {
-
-		// Internal linking is not currently supported on Dragonfly.
-		if t.goos == "dragonfly" {
+		if !t.internalLink() {
 			break
 		}
 
 		// ARM libgcc may be Thumb, which internal linking does not support.
 		if t.goarch == "arm" {
-			break
-		}
-
-		// Internally linking cgo is incomplete on some architectures.
-		// https://golang.org/issue/10373
-		// https://golang.org/issue/14449
-		if t.goarch == "arm64" || t.goarch == "mips64" {
 			break
 		}
 
@@ -702,6 +693,31 @@ func (t *tester) extLink() bool {
 	return false
 }
 
+func (t *tester) internalLink() bool {
+	if t.gohostos == "dragonfly" {
+		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
+		return false
+	}
+	if t.gohostarch == "ppc64le" {
+		// linkmode=internal fails on ppc64le because cmd/link doesn't
+		// handle the TOC correctly (issue 15409).
+		return false
+	}
+	if t.goos == "android" {
+		return false
+	}
+	if t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64") {
+		return false
+	}
+	// Internally linking cgo is incomplete on some architectures.
+	// https://golang.org/issue/10373
+	// https://golang.org/issue/14449
+	if t.goarch == "arm64" || t.goarch == "mips64" {
+		return false
+	}
+	return true
+}
+
 func (t *tester) supportedBuildmode(mode string) bool {
 	pair := t.goos + "-" + t.goarch
 	switch mode {
@@ -769,10 +785,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 	cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", t.tags(), "-ldflags", "-linkmode=auto", t.runFlag(""))
 	cmd.Env = env
 
-	if t.gohostos != "dragonfly" && t.gohostarch != "ppc64le" && t.goos != "android" && (t.goos != "darwin" || t.goarch != "arm") {
-		// linkmode=internal fails on dragonfly since errno is a TLS relocation.
-		// linkmode=internal fails on ppc64le because cmd/link doesn't
-		// handle the TOC correctly (issue 15409).
+	if t.internalLink() {
 		cmd := t.addCmd(dt, "misc/cgo/test", "go", "test", "-ldflags", "-linkmode=internal", t.runFlag(""))
 		cmd.Env = env
 	}
