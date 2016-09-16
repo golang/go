@@ -941,7 +941,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if !ok {
 					continue
 				}
-				desired.add(v.Args[pidx].ID, register(rp.Num))
+				desired.add(v.Args[pidx].ID, register(rp.num))
 			}
 		}
 		// Walk values backwards computing desired register info.
@@ -1000,7 +1000,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					if v.Op == OpSelect1 {
 						i = 1
 					}
-					s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).Num), v, v)
+					s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
 				}
 				b.Values = append(b.Values, v)
 				s.advanceUses(v)
@@ -1210,12 +1210,12 @@ func (s *regAllocState) regalloc(f *Func) {
 					if opcodeTable[v.Op].resultInArg0 && out.idx == 0 {
 						if !opcodeTable[v.Op].commutative {
 							// Output must use the same register as input 0.
-							r := register(s.f.getHome(args[0].ID).(*Register).Num)
+							r := register(s.f.getHome(args[0].ID).(*Register).num)
 							mask = regMask(1) << r
 						} else {
 							// Output must use the same register as input 0 or 1.
-							r0 := register(s.f.getHome(args[0].ID).(*Register).Num)
-							r1 := register(s.f.getHome(args[1].ID).(*Register).Num)
+							r0 := register(s.f.getHome(args[0].ID).(*Register).num)
+							r1 := register(s.f.getHome(args[1].ID).(*Register).num)
 							// Check r0 and r1 for desired output register.
 							found := false
 							for _, r := range dinfo[idx].out {
@@ -2015,16 +2015,16 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, line int32) 
 	a = append(a, c)
 	e.cache[vid] = a
 	if r, ok := loc.(*Register); ok {
-		e.usedRegs |= regMask(1) << uint(r.Num)
+		e.usedRegs |= regMask(1) << uint(r.num)
 		if final {
-			e.finalRegs |= regMask(1) << uint(r.Num)
+			e.finalRegs |= regMask(1) << uint(r.num)
 		}
 		if len(a) == 1 {
-			e.uniqueRegs |= regMask(1) << uint(r.Num)
+			e.uniqueRegs |= regMask(1) << uint(r.num)
 		}
 		if len(a) == 2 {
 			if t, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
-				e.uniqueRegs &^= regMask(1) << uint(t.Num)
+				e.uniqueRegs &^= regMask(1) << uint(t.num)
 			}
 		}
 	}
@@ -2064,14 +2064,14 @@ func (e *edgeState) erase(loc Location) {
 
 	// Update register masks.
 	if r, ok := loc.(*Register); ok {
-		e.usedRegs &^= regMask(1) << uint(r.Num)
+		e.usedRegs &^= regMask(1) << uint(r.num)
 		if cr.final {
-			e.finalRegs &^= regMask(1) << uint(r.Num)
+			e.finalRegs &^= regMask(1) << uint(r.num)
 		}
 	}
 	if len(a) == 1 {
 		if r, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
-			e.uniqueRegs |= regMask(1) << uint(r.Num)
+			e.uniqueRegs |= regMask(1) << uint(r.num)
 		}
 	}
 }
@@ -2114,7 +2114,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	for _, vid := range e.cachedVals {
 		a := e.cache[vid]
 		for _, c := range a {
-			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.Num)&1 != 0 {
+			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.num)&1 != 0 {
 				x := e.p.NewValue1(c.Line, OpStoreReg, c.Type, c)
 				e.set(t, vid, x, false, c.Line)
 				if e.s.f.pass.debug > regDebug {

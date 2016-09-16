@@ -4459,48 +4459,6 @@ func (s *state) extendIndex(v *ssa.Value, panicfn *Node) *ssa.Value {
 	return s.newValue1(op, Types[TINT], v)
 }
 
-// SSAReg returns the register to which v has been allocated.
-func SSAReg(v *ssa.Value) *ssa.Register {
-	reg := v.Block.Func.RegAlloc[v.ID]
-	if reg == nil {
-		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
-	}
-	return reg.(*ssa.Register)
-}
-
-// SSAReg0 returns the register to which the first output of v has been allocated.
-func SSAReg0(v *ssa.Value) *ssa.Register {
-	reg := v.Block.Func.RegAlloc[v.ID].(ssa.LocPair)[0]
-	if reg == nil {
-		v.Fatalf("nil first register for value: %s\n%s\n", v.LongString(), v.Block.Func)
-	}
-	return reg.(*ssa.Register)
-}
-
-// SSAReg1 returns the register to which the second output of v has been allocated.
-func SSAReg1(v *ssa.Value) *ssa.Register {
-	reg := v.Block.Func.RegAlloc[v.ID].(ssa.LocPair)[1]
-	if reg == nil {
-		v.Fatalf("nil second register for value: %s\n%s\n", v.LongString(), v.Block.Func)
-	}
-	return reg.(*ssa.Register)
-}
-
-// SSARegNum returns the register number (in cmd/internal/obj numbering) to which v has been allocated.
-func SSARegNum(v *ssa.Value) int16 {
-	return Thearch.SSARegToReg[SSAReg(v).Num]
-}
-
-// SSARegNum0 returns the register number (in cmd/internal/obj numbering) to which the first output of v has been allocated.
-func SSARegNum0(v *ssa.Value) int16 {
-	return Thearch.SSARegToReg[SSAReg0(v).Num]
-}
-
-// SSARegNum1 returns the register number (in cmd/internal/obj numbering) to which the second output of v has been allocated.
-func SSARegNum1(v *ssa.Value) int16 {
-	return Thearch.SSARegToReg[SSAReg1(v).Num]
-}
-
 // CheckLoweredPhi checks that regalloc and stackalloc correctly handled phi values.
 // Called during ssaGenValue.
 func CheckLoweredPhi(v *ssa.Value) {

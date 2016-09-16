@@ -363,9 +363,6 @@ type Arch struct {
 	Proginfo func(*obj.Prog) // fills in Prog.Info
 	Use387   bool            // should 8g use 387 FP instructions instead of sse2.
 
-	// SSARegToReg maps ssa register numbers to obj register numbers.
-	SSARegToReg []int16
-
 	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 	SSAMarkMoves func(*SSAGenState, *ssa.Block)
 

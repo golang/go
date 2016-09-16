@@ -32,7 +32,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
 		p := gc.Prog(loadPush(v.Type))
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
 		popAndSave(s, v)
@@ -41,18 +41,18 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1, ssa.Op386MOVSSloadidx4, ssa.Op386MOVSDloadidx8:
 		p := gc.Prog(loadPush(v.Type))
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		switch v.Op {
 		case ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1:
 			p.From.Scale = 1
-			p.From.Index = gc.SSARegNum(v.Args[1])
+			p.From.Index = v.Args[1].Reg()
 		case ssa.Op386MOVSSloadidx4:
 			p.From.Scale = 4
-			p.From.Index = gc.SSARegNum(v.Args[1])
+			p.From.Index = v.Args[1].Reg()
 		case ssa.Op386MOVSDloadidx8:
 			p.From.Scale = 8
-			p.From.Index = gc.SSARegNum(v.Args[1])
+			p.From.Index = v.Args[1].Reg()
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x86.REG_F0
@@ -75,7 +75,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
 		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 		return true
 
@@ -92,24 +92,24 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
 		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 		switch v.Op {
 		case ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1:
 			p.To.Scale = 1
-			p.To.Index = gc.SSARegNum(v.Args[1])
+			p.To.Index = v.Args[1].Reg()
 		case ssa.Op386MOVSSstoreidx4:
 			p.To.Scale = 4
-			p.To.Index = gc.SSARegNum(v.Args[1])
+			p.To.Index = v.Args[1].Reg()
 		case ssa.Op386MOVSDstoreidx8:
 			p.To.Scale = 8
-			p.To.Index = gc.SSARegNum(v.Args[1])
+			p.To.Index = v.Args[1].Reg()
 		}
 		return true
 
 	case ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
 		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD:
-		if gc.SSARegNum(v) != gc.SSARegNum(v.Args[0]) {
+		if v.Reg() != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 
@@ -142,7 +142,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = s.SSEto387[gc.SSARegNum(v)] + 1
+		p.To.Reg = s.SSEto387[v.Reg()] + 1
 
 		// Restore precision if needed.
 		switch v.Op {
@@ -161,7 +161,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = s.SSEto387[gc.SSARegNum(v.Args[1])] + 1
+		p.To.Reg = s.SSEto387[v.Args[1].Reg()] + 1
 
 		// Save AX.
 		p = gc.Prog(x86.AMOVL)
@@ -200,7 +200,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 	case ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD:
 		p := gc.Prog(x86.AMOVL)
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		scratch387(s, &p.To)
 		p = gc.Prog(x86.AFMOVL)
 		scratch387(s, &p.From)
@@ -231,7 +231,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 		p = gc.Prog(x86.AMOVL)
 		scratch387(s, &p.From)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 
 		// Restore control word.
 		p = gc.Prog(x86.AFLDCW)
@@ -329,7 +329,7 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) bool {
 func push(s *gc.SSAGenState, v *ssa.Value) {
 	p := gc.Prog(x86.AFMOVD)
 	p.From.Type = obj.TYPE_REG
-	p.From.Reg = s.SSEto387[gc.SSARegNum(v)]
+	p.From.Reg = s.SSEto387[v.Reg()]
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = x86.REG_F0
 }
@@ -337,14 +337,14 @@ func push(s *gc.SSAGenState, v *ssa.Value) {
 // popAndSave pops a value off of the floating-point stack and stores
 // it in the reigster assigned to v.
 func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
-	r := gc.SSARegNum(v)
+	r := v.Reg()
 	if _, ok := s.SSEto387[r]; ok {
 		// Pop value, write to correct register.
 		p := gc.Prog(x86.AFMOVDP)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = x86.REG_F0
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = s.SSEto387[gc.SSARegNum(v)] + 1
+		p.To.Reg = s.SSEto387[v.Reg()] + 1
 	} else {
 		// Don't actually pop value. This 387 register is now the
 		// new home for the not-yet-assigned-a-home SSE register.
