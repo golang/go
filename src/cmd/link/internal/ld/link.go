@@ -176,7 +176,6 @@ type Link struct {
 	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer
-	Windows   int32
 
 	Loaded bool // set after all inputs have been loaded as symbols
 

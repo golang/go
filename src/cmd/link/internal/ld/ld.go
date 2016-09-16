@@ -36,6 +36,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -58,7 +59,7 @@ func addlib(ctxt *Link, src string, obj string, pathname string) {
 
 	var pname string
 	isshlib := false
-	if (ctxt.Windows == 0 && strings.HasPrefix(name, "/")) || (ctxt.Windows != 0 && len(name) >= 2 && name[1] == ':') {
+	if filepath.IsAbs(name) {
 		pname = name
 	} else {
 		// try dot, -L "libdir", and then goroot.
