@@ -729,7 +729,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		return false
 	case "plugin":
 		switch pair {
-		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x":
+		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64":
 			return true
 		}
 		return false
