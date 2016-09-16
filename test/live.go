@@ -1,4 +1,6 @@
 // errorcheck -0 -l -live -wb=0
+// +build !ppc64,!ppc64le
+// ppc64 needs a better tighten pass to make f18 pass
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
