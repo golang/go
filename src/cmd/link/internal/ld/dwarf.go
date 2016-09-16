@@ -814,7 +814,7 @@ func synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 }
 
 // For use with pass.c::genasmsym
-func defdwsymb(ctxt *Link, sym *Symbol, s string, t SymbolType, v int64, size int64, ver int, gotype *Symbol) {
+func defdwsymb(ctxt *Link, sym *Symbol, s string, t SymbolType, v int64, gotype *Symbol) {
 	if strings.HasPrefix(s, "go.string.") {
 		return
 	}
@@ -835,9 +835,9 @@ func defdwsymb(ctxt *Link, sym *Symbol, s string, t SymbolType, v int64, size in
 		return
 
 	case DataSym, BSSSym:
-		dv = newdie(ctxt, &dwglobals, dwarf.DW_ABRV_VARIABLE, s, ver)
+		dv = newdie(ctxt, &dwglobals, dwarf.DW_ABRV_VARIABLE, s, int(sym.Version))
 		newabslocexprattr(dv, v, sym)
-		if ver == 0 {
+		if sym.Version == 0 {
 			newattr(dv, dwarf.DW_AT_external, dwarf.DW_CLS_FLAG, 1, 0)
 		}
 		fallthrough

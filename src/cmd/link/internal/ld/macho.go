@@ -612,7 +612,7 @@ func symkind(s *Symbol) int {
 	return SymKindLocal
 }
 
-func addsym(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, size int64, ver int, gotype *Symbol) {
+func addsym(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
 	if s == nil {
 		return
 	}
@@ -661,7 +661,7 @@ func machogenasmsym(ctxt *Link) {
 	for _, s := range ctxt.Allsym {
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			if s.Attr.Reachable() {
-				addsym(ctxt, s, "", DataSym, 0, 0, 0, nil)
+				addsym(ctxt, s, "", DataSym, 0, nil)
 			}
 		}
 	}

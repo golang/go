@@ -930,7 +930,7 @@ func newPEDWARFSection(ctxt *Link, name string, size int64) *IMAGE_SECTION_HEADE
 func writePESymTableRecords(ctxt *Link) int {
 	var symcnt int
 
-	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, size int64, ver int, gotype *Symbol) {
+	put := func(ctxt *Link, s *Symbol, name string, type_ SymbolType, addr int64, gotype *Symbol) {
 		if s == nil {
 			return
 		}
@@ -1000,13 +1000,13 @@ func writePESymTableRecords(ctxt *Link) int {
 		for d := dr; d != nil; d = d.next {
 			for m := d.ms; m != nil; m = m.next {
 				s := m.s.R[0].Xsym
-				put(ctxt, s, s.Name, UndefinedSym, 0, int64(SysArch.PtrSize), 0, nil)
+				put(ctxt, s, s.Name, UndefinedSym, 0, nil)
 			}
 		}
 
 		s := Linklookup(ctxt, ".text", 0)
 		if s.Type == obj.STEXT {
-			put(ctxt, s, s.Name, TextSym, s.Value, s.Size, int(s.Version), nil)
+			put(ctxt, s, s.Name, TextSym, s.Value, nil)
 		}
 	}
 
