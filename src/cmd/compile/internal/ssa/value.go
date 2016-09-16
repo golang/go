@@ -268,3 +268,38 @@ func (s *ArgSymbol) String() string {
 func (s *AutoSymbol) String() string {
 	return s.Node.String()
 }
+
+// Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) Reg() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
+// Reg0 returns the register assigned to the first output of v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) Reg0() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID].(LocPair)[0]
+	if reg == nil {
+		v.Fatalf("nil first register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
+// Reg1 returns the register assigned to the second output of v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) Reg1() int16 {
+	reg := v.Block.Func.RegAlloc[v.ID].(LocPair)[1]
+	if reg == nil {
+		v.Fatalf("nil second register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).objNum
+}
+
+func (v *Value) RegName() string {
+	reg := v.Block.Func.RegAlloc[v.ID]
+	if reg == nil {
+		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.(*Register).name
+}

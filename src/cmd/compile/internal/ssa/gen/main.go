@@ -269,7 +269,20 @@ func genOp() {
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
 		for i, r := range a.regnames {
-			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
+			pkg := a.pkg[len("cmd/internal/obj/"):]
+			var objname string // name in cmd/internal/obj/$ARCH
+			switch r {
+			case "SB":
+				// SB isn't a real register.  cmd/internal/obj expects 0 in this case.
+				objname = "0"
+			case "SP":
+				objname = pkg + ".REGSP"
+			case "g":
+				objname = pkg + ".REGG"
+			default:
+				objname = pkg + ".REG_" + r
+			}
+			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
 		}
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)

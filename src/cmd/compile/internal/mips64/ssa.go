@@ -13,83 +13,6 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-var ssaRegToReg = []int16{
-	mips.REG_R0, // constant 0
-	mips.REG_R1,
-	mips.REG_R2,
-	mips.REG_R3,
-	mips.REG_R4,
-	mips.REG_R5,
-	mips.REG_R6,
-	mips.REG_R7,
-	mips.REG_R8,
-	mips.REG_R9,
-	mips.REG_R10,
-	mips.REG_R11,
-	mips.REG_R12,
-	mips.REG_R13,
-	mips.REG_R14,
-	mips.REG_R15,
-	mips.REG_R16,
-	mips.REG_R17,
-	mips.REG_R18,
-	mips.REG_R19,
-	mips.REG_R20,
-	mips.REG_R21,
-	mips.REG_R22,
-	// R23 = REGTMP not used in regalloc
-	mips.REG_R24,
-	mips.REG_R25,
-	// R26 reserved by kernel
-	// R27 reserved by kernel
-	// R28 = REGSB not used in regalloc
-	mips.REGSP, // R29
-	mips.REGG,  // R30
-	// R31 = REGLINK not used in regalloc
-
-	mips.REG_F0,
-	mips.REG_F1,
-	mips.REG_F2,
-	mips.REG_F3,
-	mips.REG_F4,
-	mips.REG_F5,
-	mips.REG_F6,
-	mips.REG_F7,
-	mips.REG_F8,
-	mips.REG_F9,
-	mips.REG_F10,
-	mips.REG_F11,
-	mips.REG_F12,
-	mips.REG_F13,
-	mips.REG_F14,
-	mips.REG_F15,
-	mips.REG_F16,
-	mips.REG_F17,
-	mips.REG_F18,
-	mips.REG_F19,
-	mips.REG_F20,
-	mips.REG_F21,
-	mips.REG_F22,
-	mips.REG_F23,
-	mips.REG_F24,
-	mips.REG_F25,
-	mips.REG_F26,
-	mips.REG_F27,
-	mips.REG_F28,
-	mips.REG_F29,
-	mips.REG_F30,
-	mips.REG_F31,
-
-	mips.REG_HI, // high bits of multiplication
-	mips.REG_LO, // low bits of multiplication
-
-	0, // SB isn't a real register.  We fill an Addr.Reg field with 0 in this case.
-}
-
-// Smallest possible faulting page at address zero,
-// see ../../../../runtime/mheap.go:/minPhysPageSize
-const minZeroPage = 4096
-
 // isFPreg returns whether r is an FP register
 func isFPreg(r int16) bool {
 	return mips.REG_F0 <= r && r <= mips.REG_F31
@@ -171,8 +94,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Type.IsMemory() {
 			return
 		}
-		x := gc.SSARegNum(v.Args[0])
-		y := gc.SSARegNum(v)
+		x := v.Args[0].Reg()
+		y := v.Reg()
 		if x == y {
 			return
 		}
@@ -195,7 +118,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.To.Reg = y
 		}
 	case ssa.OpMIPS64MOVVnop:
-		if gc.SSARegNum(v) != gc.SSARegNum(v.Args[0]) {
+		if v.Reg() != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
 		// nothing to do
@@ -204,7 +127,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		r := gc.SSARegNum(v)
+		r := v.Reg()
 		p := gc.Prog(loadByType(v.Type, r))
 		n, off := gc.AutoVar(v.Args[0])
 		p.From.Type = obj.TYPE_MEM
@@ -235,7 +158,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		r := gc.SSARegNum(v.Args[0])
+		r := v.Args[0].Reg()
 		if isHILO(r) {
 			// cannot directly store, move to TMP and store
 			p := gc.Prog(mips.AMOVV)
@@ -278,18 +201,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64DIVD:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[1])
-		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[1].Reg()
+		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64SGT,
 		ssa.OpMIPS64SGTU:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[0])
-		p.Reg = gc.SSARegNum(v.Args[1])
+		p.From.Reg = v.Args[0].Reg()
+		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64ADDVconst,
 		ssa.OpMIPS64SUBVconst,
 		ssa.OpMIPS64ANDconst,
@@ -304,9 +227,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
-		p.Reg = gc.SSARegNum(v.Args[0])
+		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64MULV,
 		ssa.OpMIPS64MULVU,
 		ssa.OpMIPS64DIVV,
@@ -314,10 +237,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// result in hi,lo
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[1])
-		p.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[1].Reg()
+		p.Reg = v.Args[0].Reg()
 	case ssa.OpMIPS64MOVVconst:
-		r := gc.SSARegNum(v)
+		r := v.Reg()
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
@@ -338,7 +261,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_FCONST
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64CMPEQF,
 		ssa.OpMIPS64CMPEQD,
 		ssa.OpMIPS64CMPGEF,
@@ -347,8 +270,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64CMPGTD:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[0])
-		p.Reg = gc.SSARegNum(v.Args[1])
+		p.From.Reg = v.Args[0].Reg()
+		p.Reg = v.Args[1].Reg()
 	case ssa.OpMIPS64MOVVaddr:
 		p := gc.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
@@ -373,11 +296,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			p.From.Reg = mips.REGSP
 			p.From.Offset = v.AuxInt
 		}
-		if reg := gc.SSAReg(v.Args[0]); reg.Name() != wantreg {
-			v.Fatalf("bad reg %s for symbol type %T, want %s", reg.Name(), v.Aux, wantreg)
+		if reg := v.Args[0].RegName(); reg != wantreg {
+			v.Fatalf("bad reg %s for symbol type %T, want %s", reg, v.Aux, wantreg)
 		}
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64MOVBload,
 		ssa.OpMIPS64MOVBUload,
 		ssa.OpMIPS64MOVHload,
@@ -389,10 +312,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64MOVDload:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64MOVBstore,
 		ssa.OpMIPS64MOVHstore,
 		ssa.OpMIPS64MOVWstore,
@@ -401,9 +324,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64MOVDstore:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[1])
+		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 	case ssa.OpMIPS64MOVBstorezero,
 		ssa.OpMIPS64MOVHstorezero,
@@ -413,7 +336,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 	case ssa.OpMIPS64MOVBreg,
 		ssa.OpMIPS64MOVBUreg,
@@ -435,14 +358,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 				v.Op == ssa.OpMIPS64MOVWreg && t.Size() == 4 && t.IsSigned(),
 				v.Op == ssa.OpMIPS64MOVWUreg && t.Size() == 4 && !t.IsSigned():
 				// arg is a proper-typed load, already zero/sign-extended, don't extend again
-				if gc.SSARegNum(v) == gc.SSARegNum(v.Args[0]) {
+				if v.Reg() == v.Args[0].Reg() {
 					return
 				}
 				p := gc.Prog(mips.AMOVV)
 				p.From.Type = obj.TYPE_REG
-				p.From.Reg = gc.SSARegNum(v.Args[0])
+				p.From.Reg = v.Args[0].Reg()
 				p.To.Type = obj.TYPE_REG
-				p.To.Reg = gc.SSARegNum(v)
+				p.To.Reg = v.Reg()
 				return
 			default:
 			}
@@ -462,23 +385,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpMIPS64NEGD:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64NEGV:
 		// SUB from REGZERO
 		p := gc.Prog(mips.ASUBVU)
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		p.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 	case ssa.OpMIPS64DUFFZERO:
 		// runtime.duffzero expects start address - 8 in R1
 		p := gc.Prog(mips.ASUBVU)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
-		p.Reg = gc.SSARegNum(v.Args[0])
+		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REG_R1
 		p = gc.Prog(obj.ADUFFZERO)
@@ -526,7 +449,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p3.To.Reg = mips.REG_R1
 		p4 := gc.Prog(mips.ABNE)
 		p4.From.Type = obj.TYPE_REG
-		p4.From.Reg = gc.SSARegNum(v.Args[1])
+		p4.From.Reg = v.Args[1].Reg()
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p4, p2)
@@ -582,7 +505,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p5.To.Reg = mips.REG_R2
 		p6 := gc.Prog(mips.ABNE)
 		p6.From.Type = obj.TYPE_REG
-		p6.From.Reg = gc.SSARegNum(v.Args[2])
+		p6.From.Reg = v.Args[2].Reg()
 		p6.Reg = mips.REG_R1
 		p6.To.Type = obj.TYPE_BRANCH
 		gc.Patch(p6, p2)
@@ -609,7 +532,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = 0
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = v.Args[0].Reg()
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
@@ -633,7 +556,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = 0
-		p.To.Reg = gc.SSARegNum(v.Args[0])
+		p.To.Reg = v.Args[0].Reg()
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
@@ -641,7 +564,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		// Issue a load which will fault if arg is nil.
 		p := gc.Prog(mips.AMOVB)
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = gc.SSARegNum(v.Args[0])
+		p.From.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = mips.REGTMP
@@ -669,14 +592,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = gc.SSARegNum(v)
+		p.To.Reg = v.Reg()
 		p2 := gc.Prog(branch)
 		p2.To.Type = obj.TYPE_BRANCH
 		p3 := gc.Prog(mips.AMOVV)
 		p3.From.Type = obj.TYPE_CONST
 		p3.From.Offset = 1
 		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = gc.SSARegNum(v)
+		p3.To.Reg = v.Reg()
 		p4 := gc.Prog(obj.ANOP) // not a machine instruction, for branch to land
 		gc.Patch(p2, p4)
 	case ssa.OpSelect0, ssa.OpSelect1:
@@ -761,7 +684,7 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 		if !b.Control.Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = gc.SSARegNum(b.Control)
+			p.From.Reg = b.Control.Reg()
 		}
 	default:
 		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())

@@ -22,7 +22,6 @@ func Main() {
 	gc.Thearch.Defframe = defframe
 	gc.Thearch.Proginfo = proginfo
 
-	gc.Thearch.SSARegToReg = ssaRegToReg
 	gc.Thearch.SSAMarkMoves = ssaMarkMoves
 	gc.Thearch.SSAGenValue = ssaGenValue
 	gc.Thearch.SSAGenBlock = ssaGenBlock
