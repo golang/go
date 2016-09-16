@@ -315,16 +315,37 @@ func (p *parser) importDecl(group *Group) Decl {
 	return d
 }
 
-// ConstSpec = IdentifierList [ [ Type ] "=" ExpressionList ] .
+// AliasSpec = identifier "=>" [ PackageName "." ] identifier .
+func (p *parser) aliasDecl(tok token, name *Name, group *Group) Decl {
+	// no tracing since this is already called from a const/type/var/funcDecl
+
+	d := new(AliasDecl)
+	d.initFrom(&name.node)
+
+	p.want(_Rarrow)
+	d.Tok = tok
+	d.Name = name
+	d.Orig = p.dotname(p.name())
+	d.Group = group
+
+	return d
+}
+
+// ConstSpec = IdentifierList [ [ Type ] "=" ExpressionList ] | AliasSpec .
 func (p *parser) constDecl(group *Group) Decl {
 	if trace {
 		defer p.trace("constDecl")()
 	}
 
-	d := new(ConstDecl)
-	d.init(p)
+	name := p.name()
+	if p.tok == _Rarrow {
+		return p.aliasDecl(Const, name, group)
+	}
 
-	d.NameList = p.nameList(p.name())
+	d := new(ConstDecl)
+	d.initFrom(&name.node)
+
+	d.NameList = p.nameList(name)
 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
 		d.Type = p.tryType()
 		if p.got(_Assign) {
@@ -336,16 +357,24 @@ func (p *parser) constDecl(group *Group) Decl {
 	return d
 }
 
-// TypeSpec = identifier Type .
+// TypeSpec = identifier Type | AliasSpec .
 func (p *parser) typeDecl(group *Group) Decl {
 	if trace {
 		defer p.trace("typeDecl")()
 	}
 
-	d := new(TypeDecl)
-	d.init(p)
+	name := p.name()
+	if p.tok == _Rarrow {
+		return p.aliasDecl(Type, name, group)
+	}
 
-	d.Name = p.name()
+	d := new(TypeDecl)
+	d.initFrom(&name.node)
+
+	d.Name = name
+	// accept "type T = p.T" for now so we can experiment
+	// with a type-alias only approach as well
+	d.Alias = p.got(_Assign)
 	d.Type = p.tryType()
 	if d.Type == nil {
 		p.syntax_error("in type declaration")
@@ -356,16 +385,21 @@ func (p *parser) typeDecl(group *Group) Decl {
 	return d
 }
 
-// VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+// VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) | AliasSpec .
 func (p *parser) varDecl(group *Group) Decl {
 	if trace {
 		defer p.trace("varDecl")()
 	}
 
-	d := new(VarDecl)
-	d.init(p)
+	name := p.name()
+	if p.tok == _Rarrow {
+		return p.aliasDecl(Var, name, group)
+	}
 
-	d.NameList = p.nameList(p.name())
+	d := new(VarDecl)
+	d.initFrom(&name.node)
+
+	d.NameList = p.nameList(name)
 	if p.got(_Assign) {
 		d.Values = p.exprList()
 	} else {
@@ -382,31 +416,28 @@ func (p *parser) varDecl(group *Group) Decl {
 	return d
 }
 
-// FunctionDecl = "func" FunctionName ( Function | Signature ) .
+var badRecv = new(Field) // to signal invalid receiver in funcDecl
+
+// FunctionDecl = "func" FunctionName ( Function | Signature ) | "func" AliasSpec .
 // FunctionName = identifier .
 // Function     = Signature FunctionBody .
 // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
 // Receiver     = Parameters .
-func (p *parser) funcDecl() *FuncDecl {
+func (p *parser) funcDecl() Decl {
 	if trace {
 		defer p.trace("funcDecl")()
 	}
 
-	f := new(FuncDecl)
-	f.init(p)
-
-	badRecv := false
+	var recv *Field
 	if p.tok == _Lparen {
-		rcvr := p.paramList()
-		switch len(rcvr) {
+		recv = badRecv
+		switch list := p.paramList(); len(list) {
 		case 0:
 			p.error("method has no receiver")
-			badRecv = true
 		case 1:
-			f.Recv = rcvr[0]
+			recv = list[0]
 		default:
 			p.error("method has multiple receivers")
-			badRecv = true
 		}
 	}
 
@@ -414,6 +445,11 @@ func (p *parser) funcDecl() *FuncDecl {
 		p.syntax_error("expecting name or (")
 		p.advance(_Lbrace, _Semi)
 		return nil
+	}
+
+	name := p.name()
+	if recv == nil && p.tok == _Rarrow {
+		return p.aliasDecl(Func, name, nil)
 	}
 
 	// TODO(gri) check for regular functions only
@@ -430,7 +466,11 @@ func (p *parser) funcDecl() *FuncDecl {
 	// 	}
 	// }
 
-	f.Name = p.name()
+	f := new(FuncDecl)
+	f.initFrom(&name.node) // TODO(gri) is this the correct position for methods?
+
+	f.Recv = recv
+	f.Name = name
 	f.Type = p.funcType()
 	if gcCompat {
 		f.node = f.Type.node
@@ -445,7 +485,7 @@ func (p *parser) funcDecl() *FuncDecl {
 	// 	p.error("can only use //go:noescape with external func implementations")
 	// }
 
-	if badRecv {
+	if recv == badRecv {
 		return nil // TODO(gri) better solution
 	}
 	return f
@@ -514,7 +554,7 @@ func (p *parser) unaryExpr() Expr {
 			return x
 		}
 
-	case _Arrow:
+	case _Larrow:
 		// receive op (<-x) or receive-only channel (<-chan E)
 		p.next()
 
@@ -928,7 +968,7 @@ func (p *parser) tryType() Expr {
 		p.next()
 		return indirect(p.type_())
 
-	case _Arrow:
+	case _Larrow:
 		// recvchantype
 		p.next()
 		p.want(_Chan)
@@ -974,7 +1014,7 @@ func (p *parser) tryType() Expr {
 		p.next()
 		t := new(ChanType)
 		t.init(p)
-		if p.got(_Arrow) {
+		if p.got(_Larrow) {
 			t.Dir = SendOnly
 		}
 		t.Elem = p.chanElem()
@@ -1317,7 +1357,7 @@ func (p *parser) paramDecl() *Field {
 	case _Name:
 		f.Name = p.name()
 		switch p.tok {
-		case _Name, _Star, _Arrow, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
+		case _Name, _Star, _Larrow, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
 			// sym name_or_type
 			f.Type = p.type_()
 
@@ -1332,7 +1372,7 @@ func (p *parser) paramDecl() *Field {
 			f.Name = nil
 		}
 
-	case _Arrow, _Star, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
+	case _Larrow, _Star, _Func, _Lbrack, _Chan, _Map, _Struct, _Interface, _Lparen:
 		// name_or_type
 		f.Type = p.type_()
 
@@ -1466,7 +1506,7 @@ func (p *parser) simpleStmt(lhs Expr, rangeOk bool) SimpleStmt {
 			p.next()
 			return p.newAssignStmt(op, lhs, ImplicitOne)
 
-		case _Arrow:
+		case _Larrow:
 			// lhs <- rhs
 			p.next()
 			s := new(SendStmt)
@@ -1819,7 +1859,7 @@ func (p *parser) commClause() *CommClause {
 		p.next()
 		lhs := p.exprList()
 
-		if _, ok := lhs.(*ListExpr); !ok && p.tok == _Arrow {
+		if _, ok := lhs.(*ListExpr); !ok && p.tok == _Larrow {
 			// lhs <- x
 		} else {
 			// lhs
@@ -1899,7 +1939,7 @@ func (p *parser) stmt() Stmt {
 
 	case _Literal, _Func, _Lparen, // operands
 		_Lbrack, _Struct, _Map, _Chan, _Interface, // composite types
-		_Arrow: // receive operator
+		_Larrow: // receive operator
 		return p.simpleStmt(nil, false)
 
 	case _For:
