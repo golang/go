@@ -235,7 +235,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 
 	if len(el) == 1 && len(vl) > 1 {
 		e := el[0]
-		as2 := Nod(OAS2, nil, nil)
+		as2 := nod(OAS2, nil, nil)
 		as2.List.Set(vl)
 		as2.Rlist.Set1(e)
 		for _, v := range vl {
@@ -244,7 +244,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 			v.Name.Param.Ntype = t
 			v.Name.Defn = as2
 			if funcdepth > 0 {
-				init = append(init, Nod(ODCL, v, nil))
+				init = append(init, nod(ODCL, v, nil))
 			}
 		}
 
@@ -268,9 +268,9 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 
 		if e != nil || funcdepth > 0 || isblank(v) {
 			if funcdepth > 0 {
-				init = append(init, Nod(ODCL, v, nil))
+				init = append(init, nod(ODCL, v, nil))
 			}
-			e = Nod(OAS, v, e)
+			e = nod(OAS, v, e)
 			init = append(init, e)
 			if e.Right != nil {
 				v.Name.Defn = e
@@ -317,7 +317,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 		v.Name.Param.Ntype = t
 		v.Name.Defn = c
 
-		vv = append(vv, Nod(ODCLCONST, v, nil))
+		vv = append(vv, nod(ODCLCONST, v, nil))
 	}
 
 	if len(clcopy) != 0 {
@@ -333,7 +333,7 @@ func newname(s *Sym) *Node {
 		Fatalf("newname nil")
 	}
 
-	n := Nod(ONAME, nil, nil)
+	n := nod(ONAME, nil, nil)
 	n.Sym = s
 	n.Type = nil
 	n.Addable = true
@@ -363,13 +363,13 @@ func typenod(t *Type) *Node {
 	// if we copied another type with *t = *u
 	// then t->nod might be out of date, so
 	// check t->nod->type too
-	if t.Nod == nil || t.Nod.Type != t {
-		t.Nod = Nod(OTYPE, nil, nil)
-		t.Nod.Type = t
-		t.Nod.Sym = t.Sym
+	if t.nod == nil || t.nod.Type != t {
+		t.nod = nod(OTYPE, nil, nil)
+		t.nod.Type = t
+		t.nod.Sym = t.Sym
 	}
 
-	return t.Nod
+	return t.nod
 }
 
 // oldname returns the Node that declares symbol s in the current scope.
@@ -396,7 +396,7 @@ func oldname(s *Sym) *Node {
 		c := n.Name.Param.Innermost
 		if c == nil || c.Name.Funcdepth != funcdepth {
 			// Do not have a closure var for the active closure yet; make one.
-			c = Nod(ONAME, nil, nil)
+			c = nod(ONAME, nil, nil)
 			c.Sym = s
 			c.Class = PAUTOHEAP
 			c.setIsClosureVar(true)
@@ -470,7 +470,7 @@ func colasdefn(left []*Node, defn *Node) {
 		n = newname(n.Sym)
 		declare(n, dclcontext)
 		n.Name.Defn = defn
-		defn.Ninit.Append(Nod(ODCL, n, nil))
+		defn.Ninit.Append(nod(ODCL, n, nil))
 		left[i] = n
 	}
 
@@ -480,7 +480,7 @@ func colasdefn(left []*Node, defn *Node) {
 }
 
 func colas(left, right []*Node, lno int32) *Node {
-	n := Nod(OAS, nil, nil) // assume common case
+	n := nod(OAS, nil, nil) // assume common case
 	n.Colas = true
 	n.Lineno = lno     // set before calling colasdefn for correct error line
 	colasdefn(left, n) // modifies left, call before using left[0] in common case
@@ -713,7 +713,7 @@ func typedcl0(s *Sym) *Node {
 func typedcl1(n *Node, t *Node, local bool) *Node {
 	n.Name.Param.Ntype = t
 	n.Local = local
-	return Nod(ODCLTYPE, n, nil)
+	return nod(ODCLTYPE, n, nil)
 }
 
 // structs, functions, and methods.
@@ -991,13 +991,13 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 	} else {
 		n = newname(Pkglookup(name, s.Pkg))
 	}
-	n = Nod(ODCLFIELD, n, oldname(s))
+	n = nod(ODCLFIELD, n, oldname(s))
 	n.Embedded = 1
 	return n
 }
 
 func fakethis() *Node {
-	n := Nod(ODCLFIELD, nil, typenod(ptrto(typ(TSTRUCT))))
+	n := nod(ODCLFIELD, nil, typenod(ptrto(typ(TSTRUCT))))
 	return n
 }
 
@@ -1215,7 +1215,7 @@ func addmethod(msym *Sym, t *Type, local, nointerface bool) {
 		}
 	}
 
-	n := Nod(ODCLFIELD, newname(msym), nil)
+	n := nod(ODCLFIELD, newname(msym), nil)
 	n.Type = t
 
 	for _, f := range mt.Methods().Slice() {

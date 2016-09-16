@@ -345,7 +345,7 @@ func compile(fn *Node) {
 		// add clearing of the output parameters
 		for _, t := range Curfn.Type.Results().Fields().Slice() {
 			if t.Nname != nil {
-				n := Nod(OAS, t.Nname, nil)
+				n := nod(OAS, t.Nname, nil)
 				n = typecheck(n, Etop)
 				Curfn.Nbody.Prepend(n)
 			}

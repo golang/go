@@ -618,7 +618,7 @@ OpSwitch:
 
 					dowidth(l.Type)
 					if r.Type.IsInterface() == l.Type.IsInterface() || l.Type.Width >= 1<<16 {
-						l = Nod(aop, l, nil)
+						l = nod(aop, l, nil)
 						l.Type = r.Type
 						l.Typecheck = 1
 						n.Left = l
@@ -640,7 +640,7 @@ OpSwitch:
 
 					dowidth(r.Type)
 					if r.Type.IsInterface() == l.Type.IsInterface() || r.Type.Width >= 1<<16 {
-						r = Nod(aop, r, nil)
+						r = nod(aop, r, nil)
 						r.Type = l.Type
 						r.Typecheck = 1
 						n.Right = r
@@ -1128,7 +1128,7 @@ OpSwitch:
 				return n
 			}
 
-			n.Left = Nod(OADDR, n.Left, nil)
+			n.Left = nod(OADDR, n.Left, nil)
 			n.Left.Implicit = true
 			n.Left = typecheck(n.Left, Erv)
 			l = n.Left
@@ -1697,7 +1697,7 @@ OpSwitch:
 		switch n.Op {
 		case OCONVNOP:
 			if n.Left.Op == OLITERAL {
-				r := Nod(OXXX, nil, nil)
+				r := nod(OXXX, nil, nil)
 				n.Op = OCONV
 				n.Orig = r
 				*r = *n
@@ -2260,7 +2260,7 @@ func implicitstar(n *Node) *Node {
 	if !t.IsArray() {
 		return n
 	}
-	n = Nod(OIND, n, nil)
+	n = nod(OIND, n, nil)
 	n.Implicit = true
 	n = typecheck(n, Erv)
 	return n
@@ -2440,7 +2440,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		}
 		if t.IsInterface() {
 			if n.Left.Type.IsPtr() {
-				n.Left = Nod(OIND, n.Left, nil) // implicitstar
+				n.Left = nod(OIND, n.Left, nil) // implicitstar
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Erv)
 			}
@@ -2462,11 +2462,11 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		if !eqtype(rcvr, tt) {
 			if rcvr.Etype == Tptr && eqtype(rcvr.Elem(), tt) {
 				checklvalue(n.Left, "call pointer method on")
-				n.Left = Nod(OADDR, n.Left, nil)
+				n.Left = nod(OADDR, n.Left, nil)
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
 			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && eqtype(tt.Elem(), rcvr) {
-				n.Left = Nod(OIND, n.Left, nil)
+				n.Left = nod(OIND, n.Left, nil)
 				n.Left.Implicit = true
 				n.Left = typecheck(n.Left, Etype|Erv)
 			} else if tt.Etype == Tptr && tt.Elem().Etype == Tptr && eqtype(derefall(tt), derefall(rcvr)) {
@@ -2476,7 +2476,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 					if rcvr.Etype == Tptr && tt.Elem().Etype != Tptr {
 						break
 					}
-					n.Left = Nod(OIND, n.Left, nil)
+					n.Left = nod(OIND, n.Left, nil)
 					n.Left.Implicit = true
 					n.Left = typecheck(n.Left, Etype|Erv)
 					tt = tt.Elem()
@@ -2849,7 +2849,7 @@ func typecheckcomplit(n *Node) *Node {
 	}
 
 	// Save original node (including n->right)
-	norig := Nod(n.Op, nil, nil)
+	norig := nod(n.Op, nil, nil)
 
 	*norig = *n
 
@@ -2905,7 +2905,7 @@ func typecheckcomplit(n *Node) *Node {
 			l := n2
 			setlineno(l)
 			if l.Op != OKEY {
-				l = Nod(OKEY, nodintconst(int64(i)), l)
+				l = nod(OKEY, nodintconst(int64(i)), l)
 				l.Left.Type = Types[TINT]
 				l.Left.Typecheck = 1
 				n.List.SetIndex(i2, l)
@@ -3009,7 +3009,7 @@ func typecheckcomplit(n *Node) *Node {
 				}
 				// No pushtype allowed here. Must name fields for that.
 				n1 = assignconv(n1, f.Type, "field value")
-				n1 = Nod(OKEY, newname(f.Sym), n1)
+				n1 = nod(OKEY, newname(f.Sym), n1)
 				n1.Left.Type = structkey
 				n1.Left.Xoffset = f.Offset
 				n1.Left.Typecheck = 1
@@ -3089,7 +3089,7 @@ func typecheckcomplit(n *Node) *Node {
 
 	n.Orig = norig
 	if n.Type.IsPtr() {
-		n = Nod(OPTRLIT, n, nil)
+		n = nod(OPTRLIT, n, nil)
 		n.Typecheck = 1
 		n.Type = n.Left.Type
 		n.Left.Type = t
@@ -3416,18 +3416,18 @@ func stringtoarraylit(n *Node) *Node {
 	if n.Type.Elem().Etype == TUINT8 {
 		// []byte
 		for i := 0; i < len(s); i++ {
-			l = append(l, Nod(OKEY, nodintconst(int64(i)), nodintconst(int64(s[0]))))
+			l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(s[0]))))
 		}
 	} else {
 		// []rune
 		i := 0
 		for _, r := range s {
-			l = append(l, Nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
+			l = append(l, nod(OKEY, nodintconst(int64(i)), nodintconst(int64(r))))
 			i++
 		}
 	}
 
-	nn := Nod(OCOMPLIT, nil, typenod(n.Type))
+	nn := nod(OCOMPLIT, nil, typenod(n.Type))
 	nn.List.Set(l)
 	nn = typecheck(nn, Erv)
 	return nn
@@ -3444,7 +3444,7 @@ func domethod(n *Node) {
 		// type check failed; leave empty func
 		// TODO(mdempsky): Fix Type rekinding.
 		n.Type.Etype = TFUNC
-		n.Type.Nod = nil
+		n.Type.nod = nil
 		return
 	}
 
@@ -3464,7 +3464,7 @@ func domethod(n *Node) {
 
 	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *nt.Type
-	n.Type.Nod = nil
+	n.Type.nod = nil
 	checkwidth(n.Type)
 }
 
@@ -3497,7 +3497,7 @@ func copytype(n *Node, t *Type) {
 	}
 	t.methods = Fields{}
 	t.allMethods = Fields{}
-	t.Nod = nil
+	t.nod = nil
 	t.Deferwidth = false
 
 	// Update nodes waiting on this type.

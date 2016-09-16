@@ -257,14 +257,14 @@ func hiter(t *Type) *Type {
 func methodfunc(f *Type, receiver *Type) *Type {
 	var in []*Node
 	if receiver != nil {
-		d := Nod(ODCLFIELD, nil, nil)
+		d := nod(ODCLFIELD, nil, nil)
 		d.Type = receiver
 		in = append(in, d)
 	}
 
 	var d *Node
 	for _, t := range f.Params().Fields().Slice() {
-		d = Nod(ODCLFIELD, nil, nil)
+		d = nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		d.Isddd = t.Isddd
 		in = append(in, d)
@@ -272,7 +272,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
 
 	var out []*Node
 	for _, t := range f.Results().Fields().Slice() {
-		d = Nod(ODCLFIELD, nil, nil)
+		d = nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		out = append(out, d)
 	}
@@ -971,7 +971,7 @@ func typenamesym(t *Type) *Sym {
 
 func typename(t *Type) *Node {
 	s := typenamesym(t)
-	n := Nod(OADDR, s.Def, nil)
+	n := nod(OADDR, s.Def, nil)
 	n.Type = ptrto(s.Def.Type)
 	n.Addable = true
 	n.Ullman = 2
@@ -994,7 +994,7 @@ func itabname(t, itype *Type) *Node {
 		itabs = append(itabs, itabEntry{t: t, itype: itype, sym: s})
 	}
 
-	n := Nod(OADDR, s.Def, nil)
+	n := nod(OADDR, s.Def, nil)
 	n.Type = ptrto(s.Def.Type)
 	n.Addable = true
 	n.Ullman = 2
@@ -1467,7 +1467,7 @@ func dumptypestructs() {
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(ptrto(errortype))
 
-		dtypesym(functype(nil, []*Node{Nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{Nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
+		dtypesym(functype(nil, []*Node{nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)
@@ -1769,7 +1769,7 @@ func zeroaddr(size int64) *Node {
 		x.Typecheck = 1
 		s.Def = x
 	}
-	z := Nod(OADDR, s.Def, nil)
+	z := nod(OADDR, s.Def, nil)
 	z.Type = ptrto(Types[TUINT8])
 	z.Addable = true
 	z.Typecheck = 1

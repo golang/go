@@ -104,7 +104,7 @@ ret:
 	var val Val
 	val.U = new(Mpint)
 	val.U.(*Mpint).SetInt64(v)
-	n := Nod(OLITERAL, nil, nil)
+	n := nod(OLITERAL, nil, nil)
 	n.Orig = nn
 	n.SetVal(val)
 	n.Type = Types[TUINTPTR]

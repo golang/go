@@ -350,7 +350,7 @@ func importdot(opkg *Pkg, pack *Node) {
 	}
 }
 
-func Nod(op Op, nleft *Node, nright *Node) *Node {
+func nod(op Op, nleft *Node, nright *Node) *Node {
 	n := new(Node)
 	n.Op = op
 	n.Left = nleft
@@ -384,7 +384,7 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
 // nodSym makes a Node with Op op and with the Left field set to left
 // and the Sym field set to sym. This is for ODOT and friends.
 func nodSym(op Op, left *Node, sym *Sym) *Node {
-	n := Nod(op, left, nil)
+	n := nod(op, left, nil)
 	n.Sym = sym
 	return n
 }
@@ -393,7 +393,7 @@ func saveorignode(n *Node) {
 	if n.Orig != nil {
 		return
 	}
-	norig := Nod(n.Op, nil, nil)
+	norig := nod(n.Op, nil, nil)
 	*norig = *n
 	n.Orig = norig
 }
@@ -428,7 +428,7 @@ func (x methcmp) Less(i, j int) bool {
 }
 
 func nodintconst(v int64) *Node {
-	c := Nod(OLITERAL, nil, nil)
+	c := nod(OLITERAL, nil, nil)
 	c.Addable = true
 	c.SetVal(Val{new(Mpint)})
 	c.Val().U.(*Mpint).SetInt64(v)
@@ -438,7 +438,7 @@ func nodintconst(v int64) *Node {
 }
 
 func nodfltconst(v *Mpflt) *Node {
-	c := Nod(OLITERAL, nil, nil)
+	c := nod(OLITERAL, nil, nil)
 	c.Addable = true
 	c.SetVal(Val{newMpflt()})
 	c.Val().U.(*Mpflt).Set(v)
@@ -1000,7 +1000,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	// if the next step is non-bool (like interface{}).
 	if n.Type == idealbool && !t.IsBoolean() {
 		if n.Op == ONAME || n.Op == OLITERAL {
-			r := Nod(OCONVNOP, n, nil)
+			r := nod(OCONVNOP, n, nil)
 			r.Type = Types[TBOOL]
 			r.Typecheck = 1
 			r.Implicit = true
@@ -1019,7 +1019,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 		op = OCONV
 	}
 
-	r := Nod(op, n, nil)
+	r := nod(op, n, nil)
 	r.Type = t
 	r.Typecheck = 1
 	r.Implicit = true
@@ -1064,7 +1064,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 			Fatalf("SetSliceBounds %v given three bounds", n.Op)
 		}
 		if n.Right == nil {
-			n.Right = Nod(OKEY, low, high)
+			n.Right = nod(OKEY, low, high)
 			return
 		}
 		n.Right.Left = low
@@ -1072,7 +1072,7 @@ func (n *Node) SetSliceBounds(low, high, max *Node) {
 		return
 	case OSLICE3, OSLICE3ARR:
 		if n.Right == nil {
-			n.Right = Nod(OKEY, low, Nod(OKEY, high, max))
+			n.Right = nod(OKEY, low, nod(OKEY, high, max))
 		}
 		n.Right.Left = low
 		n.Right.Right.Left = high
@@ -1334,7 +1334,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left {
 			return n
 		}
-		r := Nod(OXXX, nil, nil)
+		r := nod(OXXX, nil, nil)
 		*r = *n
 		r.Left = l
 		r = typecheck(r, Erv)
@@ -1346,7 +1346,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left {
 			return n
 		}
-		a := Nod(OXXX, nil, nil)
+		a := nod(OXXX, nil, nil)
 		*a = *n
 		a.Left = l
 		a = walkexpr(a, init)
@@ -1358,7 +1358,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		if l == n.Left && r == n.Right {
 			return n
 		}
-		a := Nod(OXXX, nil, nil)
+		a := nod(OXXX, nil, nil)
 		*a = *n
 		a.Left = l
 		a.Right = r
@@ -1380,7 +1380,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 
 func copyexpr(n *Node, t *Type, init *Nodes) *Node {
 	l := temp(t)
-	a := Nod(OAS, l, n)
+	a := nod(OAS, l, n)
 	a = typecheck(a, Etop)
 	a = walkexpr(a, init)
 	init.Append(a)
@@ -1706,7 +1706,7 @@ func structargs(tl *Type, mustname bool) []*Node {
 		} else if t.Sym != nil {
 			n = newname(t.Sym)
 		}
-		a := Nod(ODCLFIELD, n, typenod(t.Type))
+		a := nod(ODCLFIELD, n, typenod(t.Type))
 		a.Isddd = t.Isddd
 		if n != nil {
 			n.Isddd = t.Isddd
@@ -1758,12 +1758,12 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	dclcontext = PEXTERN
 	markdcl()
 
-	this := Nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr))
+	this := nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr))
 	this.Left.Name.Param.Ntype = this.Right
 	in := structargs(method.Type.Params(), true)
 	out := structargs(method.Type.Results(), false)
 
-	t := Nod(OTFUNC, nil, nil)
+	t := nod(OTFUNC, nil, nil)
 	l := []*Node{this}
 	if iface != 0 && rcvr.Width < Types[Tptr].Width {
 		// Building method for interface table and receiver
@@ -1772,14 +1772,14 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		// Add a dummy padding argument after the
 		// receiver to make up the difference.
 		tpad := typArray(Types[TUINT8], Types[Tptr].Width-rcvr.Width)
-		pad := Nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad))
+		pad := nod(ODCLFIELD, newname(lookup(".pad")), typenod(tpad))
 		l = append(l, pad)
 	}
 
 	t.List.Set(append(l, in...))
 	t.Rlist.Set(out)
 
-	fn := Nod(ODCLFUNC, nil, nil)
+	fn := nod(ODCLFUNC, nil, nil)
 	fn.Func.Nname = newname(newnam)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = t
@@ -1800,9 +1800,9 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	// generate nil pointer check for better error
 	if rcvr.IsPtr() && rcvr.Elem() == methodrcvr {
 		// generating wrapper from *T to T.
-		n := Nod(OIF, nil, nil)
+		n := nod(OIF, nil, nil)
 
-		n.Left = Nod(OEQ, this.Left, nodnil())
+		n.Left = nod(OEQ, this.Left, nodnil())
 
 		// these strings are already in the reflect tables,
 		// so no space cost to use them here.
@@ -1815,7 +1815,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		l = append(l, nodlit(v))
 		v.U = method.Sym.Name
 		l = append(l, nodlit(v)) // method name
-		call := Nod(OCALL, syslook("panicwrap"), nil)
+		call := nod(OCALL, syslook("panicwrap"), nil)
 		call.List.Set(l)
 		n.Nbody.Set1(call)
 		fn.Nbody.Append(n)
@@ -1835,21 +1835,21 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		dot = dot.Left // skip final .M
 		// TODO(mdempsky): Remove dependency on dotlist.
 		if !dotlist[0].field.Type.IsPtr() {
-			dot = Nod(OADDR, dot, nil)
+			dot = nod(OADDR, dot, nil)
 		}
-		as := Nod(OAS, this.Left, Nod(OCONVNOP, dot, nil))
+		as := nod(OAS, this.Left, nod(OCONVNOP, dot, nil))
 		as.Right.Type = rcvr
 		fn.Nbody.Append(as)
-		n := Nod(ORETJMP, nil, nil)
+		n := nod(ORETJMP, nil, nil)
 		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
 		fn.Nbody.Append(n)
 	} else {
 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
-		call := Nod(OCALL, dot, nil)
+		call := nod(OCALL, dot, nil)
 		call.List.Set(args)
 		call.Isddd = isddd
 		if method.Type.Results().NumFields() > 0 {
-			n := Nod(ORETURN, nil, nil)
+			n := nod(ORETURN, nil, nil)
 			n.List.Set1(call)
 			call = n
 		}
@@ -1885,11 +1885,11 @@ func hashmem(t *Type) *Node {
 
 	n := newname(sym)
 	n.Class = PFUNC
-	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(ptrto(t))))
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn := nod(OTFUNC, nil, nil)
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn = typecheck(tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -2031,7 +2031,7 @@ func listtreecopy(l []*Node, lineno int32) []*Node {
 }
 
 func liststmt(l []*Node) *Node {
-	n := Nod(OBLOCK, nil, nil)
+	n := nod(OBLOCK, nil, nil)
 	n.List.Set(l)
 	if len(l) != 0 {
 		n.Lineno = l[0].Lineno
@@ -2137,7 +2137,7 @@ func addinit(n *Node, init []*Node) *Node {
 	// There may be multiple refs to this node;
 	// introduce OCONVNOP to hold init list.
 	case ONAME, OLITERAL:
-		n = Nod(OCONVNOP, n, nil)
+		n = nod(OCONVNOP, n, nil)
 		n.Type = n.Left.Type
 		n.Typecheck = 1
 	}
@@ -2198,11 +2198,11 @@ func isbadimport(path string) bool {
 func checknil(x *Node, init *Nodes) {
 	x = walkexpr(x, nil) // caller has not done this yet
 	if x.Type.IsInterface() {
-		x = Nod(OITAB, x, nil)
+		x = nod(OITAB, x, nil)
 		x = typecheck(x, Erv)
 	}
 
-	n := Nod(OCHECKNIL, x, nil)
+	n := nod(OCHECKNIL, x, nil)
 	n.Typecheck = 1
 	init.Append(n)
 }
@@ -2254,7 +2254,7 @@ func ifaceData(n *Node, t *Type) *Node {
 	ptr.Type = ptrto(t)
 	ptr.Bounded = true
 	ptr.Typecheck = 1
-	ind := Nod(OIND, ptr, nil)
+	ind := nod(OIND, ptr, nil)
 	ind.Type = t
 	ind.Typecheck = 1
 	return ind

@@ -33,8 +33,8 @@ func TestCaseClauseByConstVal(t *testing.T) {
 		{nodlit(Val{"abc"}), nodlit(Val{"xyz"})},
 	}
 	for i, test := range tests {
-		a := caseClause{node: Nod(OXXX, test.a, nil)}
-		b := caseClause{node: Nod(OXXX, test.b, nil)}
+		a := caseClause{node: nod(OXXX, test.a, nil)}
+		b := caseClause{node: nod(OXXX, test.b, nil)}
 		s := caseClauseByConstVal{a, b}
 		if less := s.Less(0, 1); !less {
 			t.Errorf("%d: caseClauseByConstVal(%v, %v) = false", i, test.a, test.b)

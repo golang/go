@@ -405,7 +405,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 					// Special case for &T{...}: turn into (*T){...}.
 					// TODO(mdempsky): Switch back to p.nod after we
 					// get rid of gcCompat.
-					x.Right = Nod(OIND, x.Right, nil)
+					x.Right = nod(OIND, x.Right, nil)
 					x.Right.Implicit = true
 					return x
 				}
@@ -687,7 +687,7 @@ func (p *noder) body(body []syntax.Stmt) *Node {
 	l := p.bodyList(body)
 	if len(l) == 0 {
 		// TODO(mdempsky): Line number?
-		return Nod(OEMPTY, nil, nil)
+		return nod(OEMPTY, nil, nil)
 	}
 	return liststmt(l)
 }
@@ -973,7 +973,7 @@ func (p *noder) wrapname(n syntax.Node, x *Node) *Node {
 }
 
 func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
-	return p.setlineno(orig, Nod(op, left, right))
+	return p.setlineno(orig, nod(op, left, right))
 }
 
 func (p *noder) setlineno(src syntax.Node, dst *Node) *Node {

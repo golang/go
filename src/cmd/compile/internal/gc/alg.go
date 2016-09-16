@@ -191,20 +191,20 @@ func genhash(sym *Sym, t *Type) {
 	markdcl()
 
 	// func sym(p *T, h uintptr) uintptr
-	fn := Nod(ODCLFUNC, nil, nil)
+	fn := nod(ODCLFUNC, nil, nil)
 
 	fn.Func.Nname = newname(sym)
 	fn.Func.Nname.Class = PFUNC
-	tfn := Nod(OTFUNC, nil, nil)
+	tfn := nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := Nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
+	n := nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
 	tfn.List.Append(n)
 	np := n.Left
-	n = Nod(ODCLFIELD, newname(lookup("h")), typenod(Types[TUINTPTR]))
+	n = nod(ODCLFIELD, newname(lookup("h")), typenod(Types[TUINTPTR]))
 	tfn.List.Append(n)
 	nh := n.Left
-	n = Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])) // return value
+	n = nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])) // return value
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
@@ -223,7 +223,7 @@ func genhash(sym *Sym, t *Type) {
 		// pure memory.
 		hashel := hashfor(t.Elem())
 
-		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
+		n := nod(ORANGE, nil, nod(OIND, np, nil))
 		ni := newname(lookup("i"))
 		ni.Type = Types[TINT]
 		n.List.Set1(ni)
@@ -232,15 +232,15 @@ func genhash(sym *Sym, t *Type) {
 		ni = n.List.First()
 
 		// h = hashel(&p[i], h)
-		call := Nod(OCALL, hashel, nil)
+		call := nod(OCALL, hashel, nil)
 
-		nx := Nod(OINDEX, np, ni)
+		nx := nod(OINDEX, np, ni)
 		nx.Bounded = true
-		na := Nod(OADDR, nx, nil)
+		na := nod(OADDR, nx, nil)
 		na.Etype = 1 // no escape to heap
 		call.List.Append(na)
 		call.List.Append(nh)
-		n.Nbody.Append(Nod(OAS, nh, call))
+		n.Nbody.Append(nod(OAS, nh, call))
 
 		fn.Nbody.Append(n)
 
@@ -259,13 +259,13 @@ func genhash(sym *Sym, t *Type) {
 			// Hash non-memory fields with appropriate hash function.
 			if !f.Type.IsRegularMemory() {
 				hashel := hashfor(f.Type)
-				call := Nod(OCALL, hashel, nil)
+				call := nod(OCALL, hashel, nil)
 				nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
-				na := Nod(OADDR, nx, nil)
+				na := nod(OADDR, nx, nil)
 				na.Etype = 1 // no escape to heap
 				call.List.Append(na)
 				call.List.Append(nh)
-				fn.Nbody.Append(Nod(OAS, nh, call))
+				fn.Nbody.Append(nod(OAS, nh, call))
 				i++
 				continue
 			}
@@ -275,20 +275,20 @@ func genhash(sym *Sym, t *Type) {
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
-			call := Nod(OCALL, hashel, nil)
+			call := nod(OCALL, hashel, nil)
 			nx := nodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
-			na := Nod(OADDR, nx, nil)
+			na := nod(OADDR, nx, nil)
 			na.Etype = 1 // no escape to heap
 			call.List.Append(na)
 			call.List.Append(nh)
 			call.List.Append(nodintconst(size))
-			fn.Nbody.Append(Nod(OAS, nh, call))
+			fn.Nbody.Append(nod(OAS, nh, call))
 
 			i = next
 		}
 	}
 
-	r := Nod(ORETURN, nil, nil)
+	r := nod(ORETURN, nil, nil)
 	r.List.Append(nh)
 	fn.Nbody.Append(r)
 
@@ -346,10 +346,10 @@ func hashfor(t *Type) *Node {
 
 	n := newname(sym)
 	n.Class = PFUNC
-	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(ptrto(t))))
-	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn := nod(OTFUNC, nil, nil)
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
+	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn = typecheck(tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -367,20 +367,20 @@ func geneq(sym *Sym, t *Type) {
 	markdcl()
 
 	// func sym(p, q *T) bool
-	fn := Nod(ODCLFUNC, nil, nil)
+	fn := nod(ODCLFUNC, nil, nil)
 
 	fn.Func.Nname = newname(sym)
 	fn.Func.Nname.Class = PFUNC
-	tfn := Nod(OTFUNC, nil, nil)
+	tfn := nod(OTFUNC, nil, nil)
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
-	n := Nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
+	n := nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
 	tfn.List.Append(n)
 	np := n.Left
-	n = Nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)))
+	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)))
 	tfn.List.Append(n)
 	nq := n.Left
-	n = Nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
+	n = nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
@@ -399,7 +399,7 @@ func geneq(sym *Sym, t *Type) {
 		// pure memory. Even if we unrolled the range loop,
 		// each iteration would be a function call, so don't bother
 		// unrolling.
-		nrange := Nod(ORANGE, nil, Nod(OIND, np, nil))
+		nrange := nod(ORANGE, nil, nod(OIND, np, nil))
 
 		ni := newname(lookup("i"))
 		ni.Type = Types[TINT]
@@ -409,22 +409,22 @@ func geneq(sym *Sym, t *Type) {
 		ni = nrange.List.First()
 
 		// if p[i] != q[i] { return false }
-		nx := Nod(OINDEX, np, ni)
+		nx := nod(OINDEX, np, ni)
 
 		nx.Bounded = true
-		ny := Nod(OINDEX, nq, ni)
+		ny := nod(OINDEX, nq, ni)
 		ny.Bounded = true
 
-		nif := Nod(OIF, nil, nil)
-		nif.Left = Nod(ONE, nx, ny)
-		r := Nod(ORETURN, nil, nil)
+		nif := nod(OIF, nil, nil)
+		nif.Left = nod(ONE, nx, ny)
+		r := nod(ORETURN, nil, nil)
 		r.List.Append(nodbool(false))
 		nif.Nbody.Append(r)
 		nrange.Nbody.Append(nif)
 		fn.Nbody.Append(nrange)
 
 		// return true
-		ret := Nod(ORETURN, nil, nil)
+		ret := nod(ORETURN, nil, nil)
 		ret.List.Append(nodbool(true))
 		fn.Nbody.Append(ret)
 
@@ -435,7 +435,7 @@ func geneq(sym *Sym, t *Type) {
 				cond = n
 				return
 			}
-			cond = Nod(OANDAND, cond, n)
+			cond = nod(OANDAND, cond, n)
 		}
 
 		// Walk the struct using memequal for runs of AMEM
@@ -477,7 +477,7 @@ func geneq(sym *Sym, t *Type) {
 			cond = nodbool(true)
 		}
 
-		ret := Nod(ORETURN, nil, nil)
+		ret := nod(ORETURN, nil, nil)
 		ret.List.Append(cond)
 		fn.Nbody.Append(ret)
 	}
@@ -520,22 +520,22 @@ func geneq(sym *Sym, t *Type) {
 func eqfield(p *Node, q *Node, field *Sym) *Node {
 	nx := nodSym(OXDOT, p, field)
 	ny := nodSym(OXDOT, q, field)
-	ne := Nod(OEQ, nx, ny)
+	ne := nod(OEQ, nx, ny)
 	return ne
 }
 
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
-	nx := Nod(OADDR, nodSym(OXDOT, p, field), nil)
+	nx := nod(OADDR, nodSym(OXDOT, p, field), nil)
 	nx.Etype = 1 // does not escape
-	ny := Nod(OADDR, nodSym(OXDOT, q, field), nil)
+	ny := nod(OADDR, nodSym(OXDOT, q, field), nil)
 	ny.Etype = 1 // does not escape
 	nx = typecheck(nx, Erv)
 	ny = typecheck(ny, Erv)
 
 	fn, needsize := eqmemfunc(size, nx.Type.Elem())
-	call := Nod(OCALL, fn, nil)
+	call := nod(OCALL, fn, nil)
 	call.List.Append(nx)
 	call.List.Append(ny)
 	if needsize {
