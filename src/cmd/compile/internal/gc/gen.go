@@ -8,9 +8,6 @@ package gc
 
 import "fmt"
 
-// TODO: labellist should become part of a "compilation state" for functions.
-var labellist []*Label
-
 func Sysfunc(name string) *Node {
 	n := newname(Pkglookup(name, Runtimepkg))
 	n.Class = PFUNC
@@ -180,13 +177,6 @@ func moveToHeap(n *Node) {
 	if Debug['m'] != 0 {
 		fmt.Printf("%v: moved to heap: %v\n", n.Line(), n)
 	}
-}
-
-func clearlabels() {
-	for _, l := range labellist {
-		l.Sym.Label = nil
-	}
-	labellist = labellist[:0]
 }
 
 // make a new Node off the books
