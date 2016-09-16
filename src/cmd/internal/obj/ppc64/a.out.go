@@ -219,7 +219,7 @@ const (
 	C_COND_LT = iota // 0 result is negative
 	C_COND_GT        // 1 result is positive
 	C_COND_EQ        // 2 result is zero
-	C_COND_SO        // 3 summary overflow
+	C_COND_SO        // 3 summary overflow or FP compare w/ NaN
 )
 
 const (
@@ -300,8 +300,8 @@ const (
 	ABLE // not GT = L/E/U
 	ABLT
 	ABNE // not EQ = L/G/U
-	ABVC // apparently Unordered-clear
-	ABVS // apparently Unordered-set
+	ABVC // Unordered-clear
+	ABVS // Unordered-set
 	ACMP
 	ACMPU
 	ACNTLZW

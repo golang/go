@@ -624,6 +624,20 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
 		}
 	}
 
+	if info.Flags&From3Read != 0 {
+		from := prog.From3
+		if from.Node != nil && from.Sym != nil {
+			n := from.Node.(*Node)
+			if pos := liveIndex(n, vars); pos >= 0 {
+				if n.Addrtaken {
+					bvset(avarinit, pos)
+				} else {
+					bvset(uevar, pos)
+				}
+			}
+		}
+	}
+
 	if info.Flags&(RightRead|RightWrite|RightAddr) != 0 {
 		to := &prog.To
 		if to.Node != nil && to.Sym != nil {
