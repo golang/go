@@ -243,24 +243,24 @@ func (ctxt *Link) pclntab() {
 
 	nfunc = 0
 	var last *Symbol
-	for _, ctxt.Cursym = range ctxt.Textp {
-		last = ctxt.Cursym
-		if container(ctxt.Cursym) != 0 {
+	for _, s := range ctxt.Textp {
+		last = s
+		if container(s) != 0 {
 			continue
 		}
-		pcln := ctxt.Cursym.FuncInfo
+		pcln := s.FuncInfo
 		if pcln == nil {
 			pcln = &pclntabZpcln
 		}
 
 		if pclntabFirstFunc == nil {
-			pclntabFirstFunc = ctxt.Cursym
+			pclntabFirstFunc = s
 		}
 
 		funcstart := int32(len(ftab.P))
 		funcstart += int32(-len(ftab.P)) & (int32(SysArch.PtrSize) - 1)
 
-		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), ctxt.Cursym)
+		setaddr(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize), s)
 		setuintxx(ctxt, ftab, 8+int64(SysArch.PtrSize)+int64(nfunc)*2*int64(SysArch.PtrSize)+int64(SysArch.PtrSize), uint64(funcstart), int64(SysArch.PtrSize))
 
 		// fixed size of struct, checked below
@@ -273,16 +273,16 @@ func (ctxt *Link) pclntab() {
 		Symgrow(ctxt, ftab, int64(end))
 
 		// entry uintptr
-		off = int32(setaddr(ctxt, ftab, int64(off), ctxt.Cursym))
+		off = int32(setaddr(ctxt, ftab, int64(off), s))
 
 		// name int32
-		off = int32(setuint32(ctxt, ftab, int64(off), uint32(ftabaddstring(ctxt, ftab, ctxt.Cursym.Name))))
+		off = int32(setuint32(ctxt, ftab, int64(off), uint32(ftabaddstring(ctxt, ftab, s.Name))))
 
 		// args int32
 		// TODO: Move into funcinfo.
 		args := uint32(0)
-		if ctxt.Cursym.FuncInfo != nil {
-			args = uint32(ctxt.Cursym.FuncInfo.Args)
+		if s.FuncInfo != nil {
+			args = uint32(s.FuncInfo.Args)
 		}
 		off = int32(setuint32(ctxt, ftab, int64(off), args))
 
@@ -300,7 +300,7 @@ func (ctxt *Link) pclntab() {
 				var it Pciter
 				for pciterinit(ctxt, &it, &pcln.Pcfile); it.done == 0; pciternext(&it) {
 					if it.value < 1 || it.value > int32(len(ctxt.Filesyms)) {
-						Errorf(ctxt.Cursym, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
+						Errorf(s, "bad file number in pcfile: %d not in range [1, %d]\n", it.value, len(ctxt.Filesyms))
 						errorexit()
 					}
 				}
@@ -339,7 +339,7 @@ func (ctxt *Link) pclntab() {
 		}
 
 		if off != end {
-			Errorf(ctxt.Cursym, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
+			Errorf(s, "bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, len(pcln.Pcdata), len(pcln.Funcdata), SysArch.PtrSize)
 			errorexit()
 		}
 

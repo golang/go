@@ -323,7 +323,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 	var fl int32
 	var o int64
 
-	ctxt.Cursym = s
 	for ri := int32(0); ri < int32(len(s.R)); ri++ {
 		r = &s.R[ri]
 		r.Done = 1
@@ -549,7 +548,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
-			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != ctxt.Cursym.Sect || r.Type == obj.R_GOTPCREL) {
+			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != s.Sect || r.Type == obj.R_GOTPCREL) {
 				r.Done = 0
 
 				// set up addend for eventual relocation via outer symbol.
@@ -580,7 +579,7 @@ func relocsym(ctxt *Link, s *Symbol) {
 						o -= int64(r.Off) // relative to section offset, not symbol
 					} else if SysArch.Family == sys.ARM {
 						// see ../arm/asm.go:/machoreloc1
-						o += Symaddr(rs) - int64(ctxt.Cursym.Value) - int64(r.Off)
+						o += Symaddr(rs) - int64(s.Value) - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}
@@ -622,7 +621,6 @@ func relocsym(ctxt *Link, s *Symbol) {
 		}
 		switch siz {
 		default:
-			ctxt.Cursym = s
 			Errorf(s, "bad reloc size %#x for %s", uint32(siz), r.Sym.Name)
 			fallthrough
 
@@ -842,7 +840,6 @@ func blk(ctxt *Link, syms []*Symbol, addr, size int64, pad []byte) {
 		if s.Value >= eaddr {
 			break
 		}
-		ctxt.Cursym = s
 		if s.Value < addr {
 			Errorf(s, "phase error: addr=%#x but sym=%#x type=%d", addr, s.Value, s.Type)
 			errorexit()
@@ -1904,9 +1901,6 @@ func (ctxt *Link) textaddress() {
 		for sub := sym; sub != nil; sub = sub.Sub {
 			sub.Value += int64(va)
 		}
-		if sym.Size == 0 && sym.Sub != nil {
-			ctxt.Cursym = sym
-		}
 		if sym.Size < MINFUNC {
 			va += MINFUNC // spacing required for findfunctab
 		} else {
@@ -2060,7 +2054,6 @@ func (ctxt *Link) address() {
 	)
 
 	for _, s := range datap {
-		ctxt.Cursym = s
 		if s.Sect != nil {
 			s.Value += int64(s.Sect.Vaddr)
 		}
@@ -2070,7 +2063,6 @@ func (ctxt *Link) address() {
 	}
 
 	for _, sym := range dwarfp {
-		ctxt.Cursym = sym
 		if sym.Sect != nil {
 			sym.Value += int64(sym.Sect.Vaddr)
 		}
