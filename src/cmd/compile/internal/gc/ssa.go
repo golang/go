@@ -2519,16 +2519,16 @@ func intrinsicInit() {
 		/******** runtime/internal/sys ********/
 		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
-		}, sys.AMD64, sys.ARM64, sys.ARM),
+		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
 		intrinsicKey{"runtime/internal/sys", "Ctz64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
-		}, sys.AMD64, sys.ARM64, sys.ARM),
+		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
 		intrinsicKey{"runtime/internal/sys", "Bswap32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
-		}, sys.AMD64, sys.ARM64, sys.ARM),
+		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
 		intrinsicKey{"runtime/internal/sys", "Bswap64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
 			return s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
-		}, sys.AMD64, sys.ARM64, sys.ARM),
+		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
 
 		/******** runtime/internal/atomic ********/
 		intrinsicKey{"runtime/internal/atomic", "Load"}: enableOnArch(func(s *state, n *Node) *ssa.Value {

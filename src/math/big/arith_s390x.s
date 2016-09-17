@@ -559,9 +559,9 @@ E7:	SUB  $1, R7		// i--
 
 // func bitLen(x Word) (n int)
 TEXT ·bitLen(SB),NOSPLIT,$0
-	MOVD x+0(FP), R2
-	WORD $0xb9830022 // FLOGR R2,R2
-	MOVD $64, R3
-	SUB  R2, R3
-	MOVD R3, n+8(FP)
+	MOVD  x+0(FP), R2
+	FLOGR R2, R2 // clobbers R3
+	MOVD  $64, R3
+	SUB   R2, R3
+	MOVD  R3, n+8(FP)
 	RET

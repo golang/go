@@ -1354,6 +1354,8 @@ const (
 	OpS390XMOVWZload
 	OpS390XMOVWload
 	OpS390XMOVDload
+	OpS390XMOVWBR
+	OpS390XMOVDBR
 	OpS390XMOVHBRload
 	OpS390XMOVWBRload
 	OpS390XMOVDBRload
@@ -1391,6 +1393,7 @@ const (
 	OpS390XFlagEQ
 	OpS390XFlagLT
 	OpS390XFlagGT
+	OpS390XFLOGR
 	OpS390XSTMG2
 	OpS390XSTMG3
 	OpS390XSTMG4
@@ -17111,6 +17114,32 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "MOVWBR",
+		argLen: 1,
+		asm:    s390x.AMOVWBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:   "MOVDBR",
+		argLen: 1,
+		asm:    s390x.AMOVDBR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			outputs: []outputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
 		name:           "MOVHBRload",
 		auxType:        auxSymOff,
 		argLen:         2,
@@ -17580,6 +17609,21 @@ var opcodeTable = [...]opInfo{
 		name:   "FlagGT",
 		argLen: 0,
 		reg:    regInfo{},
+	},
+	{
+		name:         "FLOGR",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          s390x.AFLOGR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+			clobbers: 2, // R1
+			outputs: []outputInfo{
+				{0, 1}, // R0
+			},
+		},
 	},
 	{
 		name:           "STMG2",

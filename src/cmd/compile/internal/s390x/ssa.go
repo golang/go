@@ -525,16 +525,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if gc.Maxarg < v.AuxInt {
 			gc.Maxarg = v.AuxInt
 		}
-	case ssa.OpS390XNEG, ssa.OpS390XNEGW:
-		r := v.Reg()
+	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
+		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
 		p := gc.Prog(v.Op.Asm())
-		r1 := v.Args[0].Reg()
-		if r != r1 {
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = r1
-		}
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = r
+		p.To.Reg = v.Reg()
 	case ssa.OpS390XNOT, ssa.OpS390XNOTW:
 		v.Fatalf("NOT/NOTW generated %s", v.LongString())
 	case ssa.OpS390XMOVDEQ, ssa.OpS390XMOVDNE,

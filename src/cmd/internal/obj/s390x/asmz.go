@@ -220,6 +220,9 @@ var optab = []Optab{
 	// move on condition
 	Optab{AMOVDEQ, C_REG, C_NONE, C_NONE, C_REG, 17, 0},
 
+	// find leftmost one
+	Optab{AFLOGR, C_REG, C_NONE, C_NONE, C_REG, 8, 0},
+
 	// compare
 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_REG, 70, 0},
 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_LCON, 71, 0},
@@ -2863,6 +2866,13 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
 			opcode = op_SRAG
 		}
 		zRSY(opcode, uint32(r1), uint32(r3), uint32(b2), uint32(d2), asm)
+
+	case 8: // find leftmost one
+		if p.To.Reg&1 != 0 {
+			ctxt.Diag("target must be an even-numbered register")
+		}
+		// FLOGR also writes a mask to p.To.Reg+1.
+		zRRE(op_FLOGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
 
 	case 10: // subtract reg [reg] reg
 		r := int(p.Reg)

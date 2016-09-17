@@ -67,6 +67,7 @@ var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
 	s390x.AMODDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	s390x.AMODW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
 	s390x.AMODWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+	s390x.AFLOGR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
 
 	// Floating point.
 	s390x.AFADD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
