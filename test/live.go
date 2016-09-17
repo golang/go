@@ -139,7 +139,9 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	return x != interface{}(99.0i) // ERROR "live at call to convT2E: x.data x.type$"
+	y := interface{}(99.0i) // ERROR "live at call to convT2E: x.data x.type$"
+	i9 = y                  // make y escape so the line above has to call convT2E
+	return x != y
 }
 
 // liveness formerly confused by UNDEF followed by RET,

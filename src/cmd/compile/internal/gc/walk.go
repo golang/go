@@ -1058,6 +1058,25 @@ opswitch:
 			n = l
 			break
 		}
+		// Optimize convT2{E,I} when T is not pointer-shaped.
+		// We make the interface by initializing a stack temporary to
+		// the value we want to put in the interface, then using the address of
+		// that stack temporary for the interface data word.
+		if !n.Left.Type.IsInterface() && n.Esc == EscNone && n.Left.Type.Width <= 1024 {
+			tmp := temp(n.Left.Type)
+			init.Append(typecheck(nod(OAS, tmp, n.Left), Etop))
+			var t *Node
+			if n.Type.IsEmptyInterface() {
+				t = typename(n.Left.Type)
+			} else {
+				t = itabname(n.Left.Type, n.Type)
+			}
+			l := nod(OEFACE, t, typecheck(nod(OADDR, tmp, nil), Erv))
+			l.Type = n.Type
+			l.Typecheck = n.Typecheck
+			n = l
+			break
+		}
 
 		var ll []*Node
 		if n.Type.IsEmptyInterface() {
@@ -1087,25 +1106,10 @@ opswitch:
 				ll = append(ll, nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
 			}
 			dowidth(n.Left.Type)
-			r := nodnil()
-			if n.Esc == EscNone && n.Left.Type.Width <= 1024 {
-				// Allocate stack buffer for value stored in interface.
-				r = temp(n.Left.Type)
-				r = nod(OAS, r, nil) // zero temp
-				r = typecheck(r, Etop)
-				init.Append(r)
-				r = nod(OADDR, r.Left, nil)
-				r = typecheck(r, Erv)
-			}
-			ll = append(ll, r)
 		}
 
 		fn := syslook(convFuncName(n.Left.Type, n.Type))
-		if !n.Left.Type.IsInterface() {
-			fn = substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
-		} else {
-			fn = substArgTypes(fn, n.Left.Type, n.Type)
-		}
+		fn = substArgTypes(fn, n.Left.Type, n.Type)
 		dowidth(fn.Type)
 		n = nod(OCALL, fn, nil)
 		n.List.Set(ll)

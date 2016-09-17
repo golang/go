@@ -152,7 +152,7 @@ func itabsinit() {
 	unlock(&ifaceLock)
 }
 
-func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
+func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 	if raceenabled {
 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
 	}
@@ -162,18 +162,16 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 	if isDirectIface(t) {
 		throw("direct convT2E")
 	}
-	if x == nil {
-		x = newobject(t)
-		// TODO: We allocate a zeroed object only to overwrite it with
-		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
-	}
+	x := newobject(t)
+	// TODO: We allocate a zeroed object only to overwrite it with
+	// actual data. Figure out how to avoid zeroing. Also below in convT2I.
 	typedmemmove(t, x, elem)
 	e._type = t
 	e.data = x
 	return
 }
 
-func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
+func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
 	t := tab._type
 	if raceenabled {
 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
@@ -184,9 +182,7 @@ func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
 	if isDirectIface(t) {
 		throw("direct convT2I")
 	}
-	if x == nil {
-		x = newobject(t)
-	}
+	x := newobject(t)
 	typedmemmove(t, x, elem)
 	i.tab = tab
 	i.data = x
